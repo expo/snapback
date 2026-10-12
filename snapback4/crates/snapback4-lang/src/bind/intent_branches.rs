@@ -21,12 +21,12 @@ type Tables = BTreeMap<String, TableInfo>;
 type Branch = (Vec<Expr>, bool);
 
 // @ref LLP 3000.036.001#2 — the rule: where-branches first, then the read rule's parties and readable grants.
-pub(super) fn expand(tables: &Tables, requests: &mut Requests, read: &ReadExpr) -> Option<MergeExpr> {
-    if let Some(merge) = membership(tables, requests, read) { return Some(merge); }
+pub(super) fn expand(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>, requests: &mut Requests, read: &ReadExpr) -> Option<MergeExpr> {
+    if let Some(merge) = membership(tables, synthesized, requests, read) { return Some(merge); }
     // An exact owner-or-membership rule belongs wholly to PAGE. If one of its
     // stricter eligibility checks declines, keep the original scan instead of
     // reinterpreting its probe as a generic grant branch.
-    if owner_membership_shape(tables, read) { return None; }
+    if owner_membership_shape(tables, synthesized, read) { return None; }
     let range = read.range.as_ref()?;
     let branches = branches(tables, requests, read, true)?;
     let mut candidate = requests.clone();
@@ -58,7 +58,7 @@ pub(super) fn expand(tables: &Tables, requests: &mut Requests, read: &ReadExpr) 
 }
 
 // @ref LLP 3000.036.001#14 — enumerate the decided membership source before merging its parent ranges.
-fn membership(tables: &Tables, requests: &mut Requests, read: &ReadExpr) -> Option<MergeExpr> {
+fn membership(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>, requests: &mut Requests, read: &ReadExpr) -> Option<MergeExpr> {
     let range = read.range.as_ref()?;
     let table = tables.get(&read.table)?;
     if read.index.is_some() || !read.keys.is_empty() || read.matching.is_some() || !read.computed.is_empty() || read.cursor_prefix.is_some() { return None; }
@@ -103,7 +103,7 @@ fn membership(tables: &Tables, requests: &mut Requests, read: &ReadExpr) -> Opti
         for predicate in &memberships {
             let mut source_read = read.clone();
             let mut predicates = branch.clone(); predicates.push(predicate.clone()); source_read.filter = intent::conjunction(predicates);
-            let mut merge = super::intent_lanes::expand(tables, &source_read)?;
+            let mut merge = super::intent_lanes::expand(tables, synthesized, &source_read)?;
             let mut lane = merge.lanes.pop()?;
             candidate.plan_lane(tables, lane.planned.as_mut()?);
             let (_, source) = lane.loop_.as_mut()?;
@@ -151,30 +151,23 @@ fn membership_target(predicate: &Expr) -> Option<String> {
     target
 }
 
-fn owner_membership_shape(tables: &Tables, read: &ReadExpr) -> bool {
+fn owner_membership_shape(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>, read: &ReadExpr) -> bool {
     let Some(table) = tables.get(&read.table) else { return false };
     let Some(rule) = read_rule(table) else { return false };
     let mut leaves = Vec::new(); disjuncts(rule, &mut leaves);
     let party = leaves.iter().any(|leaf| self::party(table, leaf).is_some());
-    let membership = leaves.iter().any(|leaf| membership_probe_capped(tables, leaf));
-    party && membership && leaves.iter().all(|leaf| self::party(table, leaf).is_some() || membership_probe_capped(tables, leaf))
+    let membership = leaves.iter().any(|leaf| membership_probe_capped(tables, synthesized, table, leaf));
+    party && membership && leaves.iter().all(|leaf| self::party(table, leaf).is_some() || membership_probe_capped(tables, synthesized, table, leaf))
 }
 
-fn membership_probe_capped(tables: &Tables, predicate: &Expr) -> bool {
+fn membership_probe_capped(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>, focal: &TableInfo, predicate: &Expr) -> bool {
     let Expr::Exists { read, .. } = predicate else { return false };
     // PAGE reserves only a probe with one target-row component. A fully fixed
     // capped probe is an ordinary static grant and remains eligible for the
     // older branch merge.
     if membership_target(predicate).is_none() { return false; }
     let Some(table) = tables.get(&read.table) else { return false };
-    let columns = if read.keys.iter().all(|key| key.column.is_some()) {
-        read.keys.iter().filter_map(|key| key.column.clone()).collect::<Vec<_>>()
-    } else {
-        let indexes: Vec<_> = table.indexes.iter().filter(|index| index.unique && index.is_plain() && index.columns.len() == read.keys.len())
-            .filter(|index| read.index.as_ref().is_none_or(|name| &index.name == name)).collect();
-        let [index] = indexes.as_slice() else { return false };
-        index.columns.clone()
-    };
+    let Some(columns) = super::intent_lanes::probe_columns(tables, synthesized, focal, read) else { return false };
     let fixed: Vec<String> = read.keys.iter().zip(columns).filter_map(|(key, column)|
         intent::column(&key.value).is_none().then_some(column)).collect();
     table.decl.caps.iter().any(|cap| cap.by.iter().all(|column| fixed.contains(column)))

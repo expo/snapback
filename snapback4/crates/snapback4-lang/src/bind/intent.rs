@@ -296,6 +296,7 @@ impl Requests {
 pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
     let contexts = super::intent_aggregates::order(catalog);
     let tables = catalog.tables.clone();
+    let synthesized = catalog.synthesized.clone();
     // Reads already inside a merge (a union view's branches) are its lanes.
     let mut merged = std::collections::BTreeSet::new();
     for doc in &mut catalog.documents {
@@ -391,7 +392,7 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
             if let Expr::Read(read) = value && let Some(note) = super::intent_windows::missing_upper(&tables, read) { catalog.planner_notes.push(note); }
             if lanes && let Expr::Read(read) = value
                 && !requests.contexts.domains.contains(&read.site.to_string())
-                && let Some(mut merge) = super::intent_windows::expand(&tables, read).or_else(|| super::intent_lanes::expand(&tables, read)) {
+                && let Some(mut merge) = super::intent_windows::expand(&tables, read).or_else(|| super::intent_lanes::expand(&tables, &synthesized, read)) {
                 let mut candidate = requests.clone();
                 candidate.lane = true;
                 for lane in &mut merge.lanes {
@@ -414,12 +415,12 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
                     candidate.lane = false;
                     requests = candidate;
                     *value = Expr::Merge(merge);
-                } else if !requests.merged.contains(&read.site.to_string()) && let Some(merge) = super::intent_branches::expand(&tables, &mut requests, read) {
+                } else if !requests.merged.contains(&read.site.to_string()) && let Some(merge) = super::intent_branches::expand(&tables, &synthesized, &mut requests, read) {
                     *value = Expr::Merge(merge);
                 } else { requests.read(&tables, read, false); }
             } else if lanes && let Expr::Read(read) = value
                 && !requests.contexts.domains.contains(&read.site.to_string()) && !requests.merged.contains(&read.site.to_string())
-                && let Some(merge) = super::intent_branches::expand(&tables, &mut requests, read) {
+                && let Some(merge) = super::intent_branches::expand(&tables, &synthesized, &mut requests, read) {
                 // @ref LLP 3000.036.001#3 — an undecided page whose branches each decide the rule reads as their merge.
                 *value = Expr::Merge(merge);
             } else if lanes && let Expr::Exists { read, site } = value

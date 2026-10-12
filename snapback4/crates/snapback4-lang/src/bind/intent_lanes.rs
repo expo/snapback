@@ -1,9 +1,10 @@
 //! Membership and bounded-list predicates enumerate ordinary metered lanes.
 use super::{catalog::TableInfo, intent};
 use crate::ast::*;
+use crate::types::Ty;
 use std::collections::BTreeMap;
 
-pub(super) fn expand(tables: &BTreeMap<String, TableInfo>, read: &ReadExpr) -> Option<MergeExpr> {
+pub(super) fn expand(tables: &BTreeMap<String, TableInfo>, synthesized: &std::collections::BTreeSet<(String, String)>, read: &ReadExpr) -> Option<MergeExpr> {
     if read.index.is_some() || !read.keys.is_empty() { return None; }
     let mut predicates = Vec::new();
     intent::split(*read.filter.clone()?, &mut predicates);
@@ -21,16 +22,8 @@ pub(super) fn expand(tables: &BTreeMap<String, TableInfo>, read: &ReadExpr) -> O
                 (column, source, Expr::Name { name: name.into(), site: predicate.site().clone() })
             }
             Expr::Exists { read: probe, .. } => {
-                let target = tables.get(&probe.table)?;
                 if probe.filter.is_some() || probe.matching.is_some() || !probe.seeks.is_empty() || probe.range.is_some() { continue; }
-                let columns = if probe.keys.iter().all(|key| key.column.is_some()) {
-                    probe.keys.iter().filter_map(|key| key.column.clone()).collect::<Vec<_>>()
-                } else {
-                    let indexes: Vec<_> = target.indexes.iter().filter(|index| index.unique && index.is_plain() && index.columns.len() == probe.keys.len())
-                        .filter(|index| probe.index.as_ref().is_none_or(|name| &index.name == name)).collect();
-                    let [index] = indexes.as_slice() else { continue; };
-                    index.columns.clone()
-                };
+                let columns = probe_columns(tables, synthesized, tables.get(&read.table)?, probe)?;
                 let mut pins = Vec::new();
                 let mut varying = None;
                 for (at, key) in probe.keys.iter().enumerate() {
@@ -72,6 +65,41 @@ pub(super) fn expand(tables: &BTreeMap<String, TableInfo>, read: &ReadExpr) -> O
                 loop_: Some((name.into(), source)), site: read.site.clone() }], site: read.site.clone() });
     }
     None
+}
+
+/// Resolve a probe exactly as positional point binding does when rule terms
+/// expose their types. Program-only expressions without a type at this phase
+/// retain the older unique-by-arity fallback.
+// @ref LLP 3000.036.001#14 — PAGE discovery uses the rule probe's canonical typed point key.
+pub(super) fn probe_columns(tables: &BTreeMap<String, TableInfo>, synthesized: &std::collections::BTreeSet<(String, String)>,
+    focal: &TableInfo, probe: &ReadExpr) -> Option<Vec<String>> {
+    if probe.keys.iter().all(|key| key.column.is_some()) {
+        return Some(probe.keys.iter().filter_map(|key| key.column.clone()).collect());
+    }
+    let target = tables.get(&probe.table)?;
+    let indexes = if let Some(types) = positional_types(focal, probe) {
+        super::positional_keys::candidates(target, probe, &types, synthesized).into_iter()
+            .filter(|index| index.is_plain()).collect::<Vec<_>>()
+    } else {
+        target.indexes.iter().filter(|index| index.unique && index.is_plain() && index.columns.len() == probe.keys.len())
+            .filter(|index| probe.index.as_ref().is_none_or(|name| &index.name == name)).collect()
+    };
+    let [index] = indexes.as_slice() else { return None };
+    Some(index.columns.clone())
+}
+
+fn positional_types(focal: &TableInfo, probe: &ReadExpr) -> Option<Vec<(Ty, bool)>> {
+    probe.keys.iter().map(|key| match &key.value {
+        Expr::Name { name, .. } if name == "viewer" => Some((Ty::Principal, false)),
+        Expr::Member { base, name, .. } if matches!(base.as_ref(), Expr::Focal { .. }) =>
+            focal.columns.get(name).map(|kind| (Ty::from_scalar(kind), false)),
+        Expr::Literal { value: Literal::Str(text), .. } => Some((Ty::Text(text.chars().count() as u32), true)),
+        Expr::Literal { value: Literal::Number(_), .. } => Some((Ty::Int, false)),
+        Expr::Unary { op, value, .. } if op == "-" && matches!(value.as_ref(), Expr::Literal { value: Literal::Number(_), .. }) => Some((Ty::Int, false)),
+        Expr::Literal { value: Literal::Bool(_), .. } => Some((Ty::Bool, false)),
+        Expr::Literal { value: Literal::Null, .. } => Some((Ty::Null, false)),
+        _ => None,
+    }).collect()
 }
 
 fn focal(name: &str, site: &crate::diag::Site) -> Expr { Expr::Member { base: Box::new(Expr::Focal { site: site.clone() }), name: name.into(), site: site.clone() } }

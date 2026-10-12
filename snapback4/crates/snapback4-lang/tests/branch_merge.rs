@@ -966,6 +966,33 @@ fn reordered_named_membership_key_walks_the_same_complete_cursor() {
 }
 
 #[test]
+fn positional_membership_key_is_selected_by_its_argument_types() {
+    let source = OWNER_MEMBERSHIP.replace("  unique parent, principal\n",
+        "  n: int\n  unique parent, principal\n  unique n, principal\n");
+    let b = clean(&source);
+    assert!(snapback4_core::ir::body_merges(&b.programs[0].program.body).into_iter().any(|merge| merge.branches()));
+    assert!(b.schema.required_capabilities().contains("branch-membership-v1"));
+    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+
+    let mut e = engine(&source, vec![
+        ("memberships", vec![("id", id("m1")), ("parent", Value::String("p1".into())),
+            ("principal", id("alice")), ("n", Value::Int(7))]),
+        document("d1", "bob", "p1", 1), document("d2", "bob", "p9", 2),
+    ]);
+    let page = e.query("documents", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
+    assert!(page.complete && ids(&page.data) == ["d1"] && page.next.is_none(), "{page:?}");
+}
+
+#[test]
+fn same_typed_positional_membership_keys_remain_ambiguous() {
+    let source = OWNER_MEMBERSHIP.replace("  unique parent, principal\n",
+        "  alias: text <=40\n  unique parent, principal\n  unique alias, principal\n");
+    let b = bound(&source);
+    assert!(b.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_POSITIONAL_SCAN"), "{:#?}", b.diagnostics);
+    assert!(!b.schema.required_capabilities().contains("branch-membership-v1"));
+}
+
+#[test]
 fn membership_page_with_its_parent_already_pinned_keeps_the_original_scan() {
     let source = "table access:
   bucket: int
