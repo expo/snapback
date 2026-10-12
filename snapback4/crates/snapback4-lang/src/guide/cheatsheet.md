@@ -37,12 +37,12 @@ table staff:                              -- a role: one row per staff member (g
   unique principal
   read <- .principal = viewer
   online only
-table requests:                           -- owner or staff: two audiences, so `online only` (guide sharing)
+table requests:                           -- owner or staff: a union, so `sync` holds both (guide sharing)
   author: principal
   title: text 1..200
   read <- .author = viewer or exists staff[viewer]
   insert <- .author = viewer
-  online only
+  sync last 500 by .id
 
 query myLists(c: cursor ?):               -- a page; pass the answer's `next` back as `c`
   return lists where .owner = viewer last 20 by .at after c   -- `last` reads newest first; `first` oldest first

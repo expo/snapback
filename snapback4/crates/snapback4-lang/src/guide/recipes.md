@@ -100,9 +100,10 @@ mutation close(ticket: tickets):
   update tickets[ticket] { done: true }
 ```
 
-Roles change who reads which rows, so the tables stay `online only`: sync
-holds one audience per table (`guide sharing` keeps staff and tenants
-offline with a table per audience). Seed the first admin; do not write a
+Roles change who reads which rows, so the tables stay `online only` here:
+the `grant` rule's `service:ops` branch proves no grant, and a synced roster
+needs every insert branch to. `guide sharing` syncs owner-or-staff tickets as
+a union when staff add staff. Seed the first admin; do not write a
 persona into a rule (`viewer = 'dev:alice'` only exists under `dev`). Under
 `dev` and `test` the seed is a fixture row, written as the system:
 
@@ -129,13 +130,12 @@ call `grant` once with it. Cases for `test.cases.jsonl` (with a ticket
 ## Two parties: a buyer and a seller
 
 An offer is read by exactly its buyer and its seller, offline on both
-devices. `.buyer = viewer or .seller = viewer` is two audiences and cannot
-sync, so each offer gets one `offerParties` row per reader, written by the
-mutation that creates it (`created offers[.offerId]`) and checked by `after
-insert`. The thread hangs off the offer through the same membership. Listing
-"my offers" pages the caller's own party rows: a parties row read under
-`.party = viewer or exists offerParties[.offer, viewer]` is its own witness,
-so that page is complete and holds both sides.
+devices. `.buyer = viewer or .seller = viewer` syncs to both (a union,
+`guide sharing`). `sales` and `purchases` each read one party's own window,
+so both pages are complete on the device. A thread under an offer copies both
+parties onto each note, checks them against the offer in its insert rule
+(`.buyer = .offer.buyer and .seller = .offer.seller`), and syncs the same
+way; page it per party (`notes where .seller = viewer last 50 by .at`).
 
 ```quarry
 use personas alice, bob, carol
@@ -158,63 +158,35 @@ table offers:
   status: enum('open', 'accepted', 'declined') default 'open'
   at: time default now
   immutable listing, buyer, seller
-  read <- exists offerParties[.id, viewer]
+  read <- .buyer = viewer or .seller = viewer
   insert <- .buyer = viewer and .seller = .listing.seller
   update <- .seller = viewer
-  after insert <- exists offerParties[offer = .id, party = .buyer]
-  after insert <- exists offerParties[offer = .id, party = .seller]
   sync
 
-table offerParties:
-  offer: offers
-  party: principal
-  unique offer, party
-  immutable offer, party
-  cap 2 by offer
-  read <- .party = viewer or exists offerParties[.offer, viewer]
-  insert <- created offers[.offer]
-  sync
+query sales(c: cursor ?):
+  return offers where .seller = viewer first 50 by .id after c
 
-table notes:
-  offer: offers
-  sender: principal
-  body: text 1..1000
-  at: time default now
-  immutable offer, sender
-  read <- exists offerParties[.offer, viewer]
-  insert <- .sender = viewer and exists offerParties[.offer, viewer]
-  sync last 200 by .at
-
-query myOffers(c: cursor ?):
-  return offerParties where .party = viewer first 50 by .id after c { offer: offers[.offer] }
-
-query thread(offer: offers, c: cursor ?):
-  return notes where .offer = offer last 50 by .at after c
+query purchases(c: cursor ?):
+  return offers where .buyer = viewer first 50 by .id after c
 
 mutation makeOffer(listing: listings, amount: money USD):
   l = listings[listing] ! else NOT_FOUND
   require l.seller != viewer else OWN_LISTING
-  o = insert offers { listing, buyer: viewer, seller: l.seller, amount }
-  insert offerParties { offer: o.id, party: viewer }
-  insert offerParties { offer: o.id, party: l.seller }
-  return o
+  return insert offers { listing, buyer: viewer, seller: l.seller, amount }
 
 mutation answer(offer: offers, accept: bool):
   o = offers[offer] ! else NOT_FOUND
   require o.seller = viewer else NOT_SELLER
   require o.status = 'open' else ALREADY_ANSWERED
   update offers[offer] { status: 'accepted' if accept else 'declined' }
-
-mutation note(offer: offers, body: text 1..1000):
-  return insert notes { offer, sender: viewer, body }
 ```
 
 Cases (with a listing `l1` by alice in the listings fixture):
 
 ```jsonl
 {"as":"bob","op":"makeOffer","args":{"listing":"l1","amount":10000},"save":"o"}
-{"as":"alice","op":"myOffers","args":{},"count":1,"expect":"complete","label":"the seller holds the offer"}
-{"as":"carol","op":"note","args":{"offer":"$o","body":"hi"},"expect":"E_RULE","label":"a third party cannot write in the thread"}
+{"as":"alice","op":"sales","args":{},"count":1,"expect":"complete","label":"the seller holds the offer"}
+{"as":"carol","op":"answer","args":{"offer":"$o","accept":true},"expect":"NOT_FOUND","label":"a third party cannot read the offer"}
 {"as":"bob","op":"answer","args":{"offer":"$o","accept":true},"expect":"NOT_SELLER"}
 ```
 

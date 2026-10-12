@@ -1,93 +1,222 @@
 // @ref LLP 3000.036.000#2.4 — the recipes every E_SYNC union rewrite points to.
 //! The sharing card. Quarry examples are compiled by tests/guide.rs.
+// @ref LLP 3000.036.000.000#2.1 — the union recipes the E_SYNC rewrites point to.
+//! The sharing card. Quarry examples are compiled by tests/guide.rs.
 pub(super) const CARD: &str = r##"# Sharing: rows more than one kind of reader holds
 
-**Start here:** A synced row reaches exactly the readers its read rule names, so a row shared by an owner, a team, two parties or staff needs one membership that names every reader.
+**Start here:** A row read by its owner or its team, a buyer or a seller, or an owner or staff syncs to the union of those readers, and each device holds every row any of them admits.
 
 ```quarry
-table staff:
-  principal: principal
+table teams:
   name: text <=80
-  unique principal
-  cap 500
-  read <- exists staff[viewer]
-  insert <- exists staff[viewer]
-  delete <- exists staff[viewer]
+  read <- exists members[.id, viewer]
+  insert <- allow
   sync
 
-table announcements:
-  author: principal
-  body: text <=500
+table members:
+  team: teams
+  principal: principal
+  unique team, principal
+  immutable team, principal
+  cap 200 by team
+  read <- exists members[.team, viewer]
+  insert <- created teams[.team] or exists members[.team, viewer]
+  delete <- .principal = viewer
+  sync
+
+table tasks:
+  owner: principal
+  team: teams
+  title: text <=200
   at: time
-  read <- exists staff[viewer]
-  insert <- .author = viewer and exists staff[viewer]
+  read <- .owner = viewer or exists members[.team, viewer]
+  insert <- .owner = viewer and exists members[.team, viewer]
+  update <- .owner = viewer
   sync last 200 by .at
 ```
 
-- `online only` is the first answer to a rule with several readers: the rule stays as written, queries answer from the server and mutations never predict (offline they queue). Never make private rows public to enable sync.
-- `E_SYNC`: a read rule joining two audiences with `or`, or a membership insert branch that proves no grant; the rewrite prints the recipe below against your tables.
+- `sync` infers the union from the read rule; `sync to .owner or members[.team]` spells it. Each `or` branch is one whole audience: `.column = viewer` or one `exists group[.columns, viewer]`.
+- `E_SYNC`: a branch with an extra condition, two group audiences, or a membership insert that proves no grant; the rewrite names the edit. Never make private rows public to enable sync.
 
 ## Reference
 
-A synced table's read rule must be exactly one audience: `public`, one
-`.column = viewer`, or one `exists members[.group..., viewer]` probe. A rule
-naming two kinds of reader (an owner or staff, a buyer or a seller, anyone who
-joins) leaves two choices:
+A synced table's read rule is one audience (`public`, `.column = viewer`,
+`exists members[.group..., viewer]`) or a **union**: an `or` of any number of
+`.column = viewer` branches (each a required `principal` column) and at most
+one `exists members[.group..., viewer]` branch, which keeps every rule of a
+group audience (a unique group and principal key, and an insert rule that
+proves the caller's grant). A device holds a row while any branch admits its
+viewer: giving a task away keeps it on a teammate's device, and leaving the
+team keeps the tasks the leaver owns. A union window (`last N by .at`) keeps
+the newest N rows of each branch's own group: the owner's newest N, and each
+held team's newest N; a page is complete on the device when it reads one
+branch's window (`tasks where .owner = viewer last 50 by .at`, or `.team =
+team` for a held team); other pages ask the server. A union window is
+written as columns, never a named index.
 
-1. **Keep the rule and write `online only` instead of `sync`.** Any rule works
-   as written. The cost is offline: the rows never reach a device, so queries
-   over the table answer from the server (offline, the last server answer or
-   `E_OFFLINE`), and mutations that read or write it never predict; offline
-   they queue, and the server accepts or refuses them on reconnect. Start
-   here for staff consoles, admin screens and apps that are online anyway.
-2. **Give each table one audience** to keep every reader's rows offline: the
-   recipes after the online one.
+Refused on a union, each with a rewrite: a `public` branch (a public table
+and a private one, moving a row when it is shared), two group audiences
+(give the second group's readers rows in the first group's membership),
+`retain delivered-history`, a `read through` child (copy the branch
+columns onto the child and check them in its insert rule), a synced view or
+row-keyed view over it (make the view `online only`), a timeline, private
+`written by` fields, and a membership table with `expire at`. Adding or
+removing a branch is a new backend version: devices drop the table's rows
+and acquire them again before they answer offline.
 
-Sync does not deliver unions: a device would have to keep a row while any one
-of its audiences still grants it, through owner changes, group moves and
-leaves. A members row read under `.principal = viewer or exists
-members[.group, viewer]` is its own witness, so that rule syncs as the probe
-alone.
+`online only` still takes any rule as written: queries answer from the
+server (offline, the last server answer or `E_OFFLINE`), and mutations
+never predict (offline they queue).
 
-### Online: any rule, as written
+### An owner or a team
 
-**A staff console, online.** When the app is online, one table can say
-`.tenant = viewer or exists staff[viewer]`. A staff member's page is decided
-once by the grant and answers `complete: true`, as long as each staff member
-can read their own `staff` row; start the console query with the same
-`require`, and a staff-only mutation can walk every row of a group the same
-way (`: server` alone does not lift a page the rule does not decide). Tenants
-pin their own column. Sync does not deliver this union: offline needs the
-tables below. `guide recipes --section roles` adds admins who grant roles.
+The example above. A task's owner reads it in any team; a teammate reads every
+task of the team. `myTasks` reads the owner's window, and a page of a held
+team (`tasks where .team = team last 50 by .at`) reads the team's window, so
+both answer offline. Online, the server answers the team page
+`complete: false` (`N_NEVER_COMPLETE`: it decides a page only from a branch
+that reads no column of the row). A child that both read carries both
+branches' columns, copied from its task and checked by the insert rule:
+
+```quarry
+table teams:
+  name: text <=80
+  read <- exists members[.id, viewer]
+  insert <- allow
+  sync
+
+table members:
+  team: teams
+  principal: principal
+  unique team, principal
+  immutable team, principal
+  cap 200 by team
+  read <- exists members[.team, viewer]
+  insert <- created teams[.team] or exists members[.team, viewer]
+  delete <- .principal = viewer
+  sync
+
+table tasks:
+  owner: principal
+  team: teams
+  title: text <=200
+  at: time
+  read <- .owner = viewer or exists members[.team, viewer]
+  insert <- .owner = viewer and exists members[.team, viewer]
+  update <- .owner = viewer
+  delete <- .owner = viewer
+  sync last 200 by .at
+
+table steps:
+  task: tasks
+  owner: principal
+  team: teams
+  label: text <=100
+  at: time
+  immutable task, owner, team
+  read <- .owner = viewer or exists members[.team, viewer]
+  insert <- .owner = .task.owner and .team = .task.team and (.owner = viewer or exists members[.team, viewer])
+  sync last 500 by .at
+
+mutation newTeam(name: text <=80):
+  t = insert teams { name }
+  insert members { team: t.id, principal: viewer }
+  return t
+
+mutation addTask(team: teams, title: text <=200):
+  return insert tasks { owner: viewer, team, title, at: now }
+
+mutation give(task: tasks, to: principal):
+  t = tasks[task] ! else NOT_FOUND
+  update tasks[t] { owner: to }
+  return null
+
+mutation addStep(task: tasks, label: text <=100):
+  t = tasks[task] ! else NOT_FOUND
+  return insert steps { task, owner: t.owner, team: t.team, label, at: now }
+
+query myTasks(c: cursor ?):
+  return tasks where .owner = viewer last 50 by .at after c
+```
+
+### Two parties
+
+**A buyer and a seller.** `.buyer = viewer or .seller = viewer` syncs to both;
+each party's device holds the order and can predict writes to it, and a
+change of buyer moves the order to the new buyer's device and keeps it on the
+seller's.
+
+```quarry
+table orders:
+  buyer: principal
+  seller: principal
+  item: text <=200
+  status: enum('open', 'paid', 'shipped') default 'open'
+  at: time
+  read <- .buyer = viewer or .seller = viewer
+  insert <- .buyer = viewer
+  update <- .seller = viewer
+  sync last 500 by .at
+
+mutation placeOrder(seller: principal, item: text <=200):
+  return insert orders { buyer: viewer, seller, item, at: now }
+
+mutation ship(order: orders):
+  o = orders[order] ! else NOT_FOUND
+  update orders[o] { status: 'shipped' }
+  return null
+
+query purchases(c: cursor ?):
+  return orders where .buyer = viewer last 50 by .at after c
+
+query sales(c: cursor ?):
+  return orders where .seller = viewer last 50 by .at after c
+```
+
+### An owner plus staff
+
+**A tenant and the staff.** `.tenant = viewer or exists staff[viewer]` is a
+tenant branch and a roster branch (a membership with no group key is one
+group, below). Every staff device holds every request, a tenant's device
+holds its own, and a staff member who leaves the roster keeps only the
+requests they filed themselves. `queue` reads the staff window and `mine`
+the tenant's, so both answer offline; the grant decides `queue` for staff on
+the server too.
 
 ```quarry
 table staff:
   principal: principal
   unique principal
-  read <- .principal = viewer
-  online only
+  cap 100
+  read <- exists staff[viewer]
+  insert <- exists staff[viewer]
+  delete <- .principal = viewer
+  sync
 
-table tickets:
+table requests:
   tenant: principal
   title: text <=200
-  done: bool
+  done: bool default false
   at: time
   read <- .tenant = viewer or exists staff[viewer]
   insert <- .tenant = viewer
   update <- exists staff[viewer]
-  online only
+  sync last 1000 by .at
+
+mutation file(title: text <=200):
+  return insert requests { tenant: viewer, title, at: now }
+
+mutation close(request: requests):
+  require exists staff[viewer] else NOT_STAFF
+  update requests[request] { done: true }
+  return null
 
 query queue(c: cursor ?):
   require exists staff[viewer] else NOT_STAFF
-  return tickets where not .done last 50 by .at after c
+  return requests last 50 by .at after c
 
 query mine(c: cursor ?):
-  return tickets where .tenant = viewer last 50 by .at after c
-
-mutation closeAllFor(tenant: principal):
-  require exists staff[viewer] else NOT_STAFF
-  for t in tickets where .tenant = tenant first 100 by .id:
-    update tickets[t] { done: true }
+  return requests where .tenant = viewer last 50 by .at after c
 ```
 
 ### An org roster
@@ -209,106 +338,6 @@ mutation comment(task: tasks, body: text <=1000):
 query teamComments(team: teams, c: cursor ?):
   return comments where .team = team last 50 by .at after c
 ```
-
-### Two parties
-
-**Two parties (buyer and seller).** `.buyer = viewer or .seller = viewer` is
-two audiences. Give the row a parties table with one row per reader and read
-through it; both parties' devices hold the order, and each can predict writes
-to it. The creating mutation is the only one that may add parties here
-(`created orders[.orderId]`); an owner sharing with others is the team recipe
-above with one group per item.
-
-```quarry
-table orders:
-  buyer: principal
-  seller: principal
-  item: text <=200
-  at: time
-  read <- exists orderParties[.id, viewer]
-  insert <- .buyer = viewer
-  after insert <- exists orderParties[orderId = .id, party = .buyer]
-  after insert <- exists orderParties[orderId = .id, party = .seller]
-  sync
-
-table orderParties:
-  orderId: orders
-  party: principal
-  unique orderId, party
-  immutable orderId, party
-  cap 2 by orderId
-  read <- exists orderParties[.orderId, viewer]
-  insert <- created orders[.orderId]
-  sync
-
-mutation placeOrder(seller: principal, item: text <=200):
-  o = insert orders { buyer: viewer, seller, item, at: now }
-  insert orderParties { orderId: o.id, party: viewer }
-  insert orderParties { orderId: o.id, party: seller }
-  return o
-```
-
-### An owner plus staff, offline
-
-**An owner plus staff.** `.tenant = viewer or exists staff[viewer]` is a
-private audience plus a role; every staff device holding every tenant's rows
-is a union this release does not sync. Keep one table per audience and let
-the mutations write across: the tenant's `requests`, the staff `desk` (the
-org roster's audience), and `updates` the staff write into the tenant's
-partition. Writes need no read of the other audience's rows, so both sides
-work offline. When one staff member handles a request, the two-party recipe
-with the assignee as a party is smaller.
-
-```quarry
-table staff:
-  principal: principal
-  unique principal
-  cap 100
-  read <- exists staff[viewer]
-  insert <- exists staff[viewer]
-  sync
-
-table requests:
-  tenant: principal
-  title: text <=200
-  at: time
-  read <- .tenant = viewer
-  insert <- .tenant = viewer
-  sync last 200 by .at
-
-table desk:
-  request: id
-  tenant: principal
-  title: text <=200
-  status: enum('open', 'doing', 'done')
-  at: time
-  unique request
-  read <- exists staff[viewer]
-  insert <- .tenant = viewer
-  update <- exists staff[viewer]
-  sync last 1000 by .at
-
-table updates:
-  request: id
-  tenant: principal
-  status: enum('open', 'doing', 'done')
-  at: time
-  read <- .tenant = viewer
-  insert <- exists staff[viewer]
-  sync last 500 by .at
-
-mutation file(title: text <=200):
-  r = insert requests { tenant: viewer, title, at: now }
-  insert desk { request: r.id, tenant: viewer, title, status: 'open', at: now }
-  return r
-
-mutation setStatus(request: id, status: enum('open', 'doing', 'done')):
-  d = desk[request] ! else NOT_FOUND
-  update desk[d] { status }
-  insert updates { request, tenant: d.tenant, status, at: now }
-  return null
-```
-
 
 ### Anyone may join (open groups)
 
