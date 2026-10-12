@@ -364,3 +364,42 @@ test("recovery compares input like admission: key order does not make a reuse", 
   assert.ok(!c.errors.some(error => error.why?.code === "E_WRITE_ID_REUSE"), "not reported as a reuse");
   srv.hold = false; srv.held.splice(0).forEach(release => release());
 });
+
+test("a failed recovery save keeps a dead peer's pending intent owed: the retry replays it", async t => {
+  const storage = browser(t), srv = server(), memory = memorySessionStore(), { authority } = sessions();
+  let failures = 0;
+  const store = { ...memory, async set(key, value) { if (key === journalKey && failures-- > 0) throw Error("IndexedDB refused"); return memory.set(key, value); } };
+  const c = await open(t, srv, store, authority(), { start: false });
+  await c.client.pendingWrites();
+  const id = mintId(), peer = await orphan(authority(), id, { body: "peer" });
+  const other = await orphan(authority(), mintId(), { body: "unrelated" });
+  await memory.set(journalKey, JSON.stringify({ owner: "dev:alice", backend: url, receipts: [],
+    pending: [{ owner: "dev:alice", id, op: "write", args: { body: "peer" }, storeId: "A", dispatched: false }], captured: [`${id}:${peer.nonce}`] }));
+  failures = 1;
+  c.start();
+  await waitFor(() => srv.executed.size === 2, "the retry sends both", { work: 3 });
+  assert.equal(srv.posts[0], id, "the peer's intent is not stranded behind the retry");
+  assert.ok(srv.posts.includes(other.id));
+  await waitFor(() => storage.records().length === 0);
+});
+
+test("a second opener that sees a surviving capture beside a committed intent keeps its marker", async t => {
+  const storage = browser(t), srv = server(), store = memorySessionStore(), { authority } = sessions();
+  const id = mintId(), record = await orphan(authority(), id, { body: "orphan" });
+  const removeItem = storage.removeItem.bind(storage);
+  let failing = true;
+  storage.removeItem = key => { if (failing && key === record.key) throw new DOMException("refused", "SecurityError"); removeItem(key); };
+  srv.hold = true;
+  const a = await open(t, srv, store, authority());
+  await waitFor(() => srv.posts.includes(id), "A admitted and sent it");
+  assert.notEqual(storage.getItem(record.key), null, "A's removal failed: the capture survives beside P");
+  const b = await open(t, srv, store, authority());
+  await waitFor(() => srv.posts.filter(post => post === id).length === 2, "B's recovery took the known-pending branch and replays it");
+  const held = await journal(store);
+  assert.equal(held.pending.filter(intent => intent.id === id).length, 1);
+  assert.ok(held.captured.includes(`${id}:${record.nonce}`), "the marker is kept");
+  srv.hold = false; srv.held.splice(0).forEach(release => release());
+  await waitFor(async () => (await a.client.pendingWrites()).length === 0 && (await b.client.pendingWrites()).length === 0);
+  assert.equal(srv.executed.size, 1, "executed once");
+  failing = false;
+});

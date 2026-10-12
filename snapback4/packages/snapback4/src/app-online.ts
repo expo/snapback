@@ -282,7 +282,8 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           }
           return { state: "failed", id, why: { code: "E_STORE", family: "store", message: `write ${id} admission outcome is unknown: ${String(error)}` } };
         }
-        if (refusal?.state === "failed" || refusal?.state === "sent") return refusal as Write<R>;
+        // A replay answered by a retained receipt ends this runtime's replay ownership too.
+        if (refusal?.state === "failed" || refusal?.state === "sent") { restoredIds.delete(id); return refusal as Write<R>; }
         if (storeRefusal) return refusedStore(id) as Promise<Write<R>>;
         if (!active || raw.viewer() !== viewer) return { state: "pending", id };
         const dispatch = async (): Promise<Write<R>> => {
@@ -436,9 +437,10 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
           const pending = journal.pending.find(intent => intent.id === record.id);
           if (pending || journal.receipts.some(write => write.id === record.id) || journal.retired?.includes(record.id) || markedId(journal, record.id)) {
             if (pending && !sameInput(pending, record)) { reused.push(record); continue; }
-            // Protect this capture until its own removal is seen, then remove it.
+            // Protect this capture; remove it only after this transaction commits, so a
+            // failed save leaves the record and with it the replay obligation below.
             capture.mark(journal, record);
-            capture.remove(record);
+            admitted.push(record);
             // A peer committed this intent and died before sending it: this runtime owns its replay.
             if (pending && !restoredIds.has(record.id) && !known.has(record.id) && !adopted.some(intent => intent.id === record.id)) { known.add(record.id); adopted.push(pending); }
             continue;

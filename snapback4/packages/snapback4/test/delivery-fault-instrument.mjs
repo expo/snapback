@@ -340,3 +340,7 @@ export function awaitBoundary() {
 // decides whether to cancel or keep its localStorage record; app.ts's await
 // counts are unchanged (the /schema reply check is synchronous). No delivery
 // site, classification or recipe changes.
+// LLP 3000.013.000 round 4: recovery's known-capture removal moved after its
+// commit and a receipt return clears replay ownership; the await set is the
+// same (the hash moves because that body sits inside an awaited lock). No delivery
+// site, classification or recipe changes.
