@@ -221,6 +221,28 @@ fn module_json_lists_supported_and_unsupported_programs() {
 }
 
 #[test]
+fn nonportable_membership_page_keys_are_unsupported_before_the_oracle() {
+    let source = |bound| format!("table memberships:
+  parent: text <={bound}
+  principal: principal
+  unique parent, principal
+  cap 16 by principal
+  read <- .principal = viewer
+  online only
+table documents:
+  owner: principal
+  parent: text <={bound}
+  at: int
+  read <- .owner = viewer or exists memberships[.parent, viewer]
+  online only
+query documents(c: cursor ?):
+  return documents last 2 by .at after c
+");
+    assert!(module(&source(40)).program("documents").is_ok());
+    assert_eq!(reason(&module(&source(435)), "documents"), "page-membership-key-bound");
+}
+
+#[test]
 fn live_reference_predicate_emits_an_authorized_point_read_before_the_field() {
     let m = module("table tags:\n  rank: int\n  read <- allow\n  online only\ntable items:\n  tag: tags\n  read <- allow\n  online only\nquery q():\n  return items where .tag.rank = 1 first 2 by .id\n");
     let b = body(&m, "q");

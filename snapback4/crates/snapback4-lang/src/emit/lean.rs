@@ -32,10 +32,12 @@
 //! **Erased, with the reason.** `sync …` and `online only` (residency
 //! decides what a device holds, never a server outcome) and non-unique
 //! `by` indexes (tuning; reads choose indexes themselves). A `text <= N`
-//! bound is not modelled (OPEN W6): [`LeanModule::store`] and
-//! [`LeanModule::tag_args`] refuse inputs that exceed it, and a literal
-//! written past it is unsupported, so the bound can never decide a supported
-//! case. A computed text written to a bounded column is not checked.
+//! bound is not modelled as a value restriction (OPEN W6):
+//! [`LeanModule::store`] and [`LeanModule::tag_args`] refuse inputs that exceed
+//! it, and a literal written past it is unsupported. The surface emitter does
+//! use the bound to keep PAGE cases with nonportable synthesized keys out of
+//! the fragment before the oracle. A computed text written to a bounded column
+//! is not checked.
 //!
 //! **Everything else** outside the model's core fragment is an
 //! [`Unsupported`] with a stable `reason` (counted by the harness, never a
@@ -166,6 +168,10 @@ impl Table {
 #[derive(Clone, Debug)]
 pub struct LeanModule {
     tables: Vec<Table>,
+    /// Surface declarations retained only for fragment eligibility. The model
+    /// omits physical indexes, so PAGE must reject cases whose synthesized
+    /// source or target key cannot fit every store before asking the oracle.
+    surface_tables: Vec<ast::TableDecl>,
     /// `{"tables":[…]}` of `Syntax.lean`'s `Schema`.
     pub schema: Json,
     /// `Helper`s.
@@ -231,6 +237,7 @@ pub fn from_documents(documents: &[Document]) -> R<LeanModule> {
     let helper_names: Vec<String> = functions.iter().map(|f| f.name.clone()).collect();
     let mut module = LeanModule {
         tables,
+        surface_tables: decls.iter().map(|table| (*table).clone()).collect(),
         schema: json!({"tables": schema_tables}),
         helpers: json!([]),
         programs: BTreeMap::new(),
@@ -807,6 +814,9 @@ impl<'a> Scope<'a> {
 
     fn read(&self, read: &ReadExpr) -> R<Json> {
         let print = || crate::print::read_expr(read);
+        if nonportable_owner_membership_page(self.module, read) {
+            return no("page-membership-key-bound", print());
+        }
         match &read.range {
             None if read.filter.is_none() && !read.keys.is_empty() => {
                 if read.index.is_some() || !read.seeks.is_empty() || read.matching.is_some() || !read.computed.is_empty() {
@@ -963,6 +973,115 @@ fn reads_row(e: &Expr) -> bool {
         // Nested reads, objects and the rest: conservatively the filter.
         _ => true,
     }
+}
+
+fn flatten_or<'e>(e: &'e Expr, out: &mut Vec<&'e Expr>) {
+    match e {
+        Expr::Binary { op, left, right, .. } if op == "or" => {
+            flatten_or(left, out);
+            flatten_or(right, out);
+        }
+        other => out.push(other),
+    }
+}
+
+// The portable key calculation used by optional branch planning. Keeping it
+// here makes the oracle gate depend only on surface declarations, never on the
+// Rust planner's chosen IR or whether that planner happened to merge the page.
+const PORTABLE_KEY_BYTES: usize = 2048;
+const PORTABLE_ID_BYTES: usize = 138;
+
+fn model_column_bytes(kind: &Kind) -> usize {
+    match kind {
+        Kind::Id(_) => PORTABLE_ID_BYTES,
+        Kind::Text(Some(max)) => (*max as usize).saturating_mul(4).saturating_add(3),
+        Kind::Text(None) => usize::MAX,
+        Kind::Int => 9,
+        Kind::Bool => 1,
+        Kind::Cursor => usize::MAX,
+    }
+}
+
+fn model_plain_index_fits(table: &Table, columns: &[String]) -> bool {
+    columns.iter().fold(PORTABLE_ID_BYTES, |bytes, column| {
+        bytes.saturating_add(table.col(column).map_or(usize::MAX, |kind| model_column_bytes(&kind)))
+    }) <= PORTABLE_KEY_BYTES
+}
+
+fn party_column<'a>(table: &Table, expression: &'a Expr) -> Option<&'a str> {
+    let Expr::Binary { op, left, right, .. } = expression else { return None };
+    if op != "=" { return None }
+    let viewer = |value: &Expr| matches!(value, Expr::Name { name, .. } if name == "viewer");
+    let column = if viewer(left) { column_of(right) } else if viewer(right) { column_of(left) } else { None }?;
+    table.col(column).is_some().then_some(column)
+}
+
+fn surface_probe_columns(decl: &ast::TableDecl, read: &ReadExpr) -> Option<Vec<String>> {
+    if read.keys.iter().all(|key| key.column.is_some()) && !read.keys.is_empty() {
+        return Some(read.keys.iter().filter_map(|key| key.column.clone()).collect());
+    }
+    if read.keys.iter().any(|key| key.column.is_some()) { return None }
+    let candidates: Vec<_> = decl.indexes.iter().filter(|index| index.unique && index.is_plain()
+        && index.columns.len() == read.keys.len()
+        && read.index.as_ref().is_none_or(|chosen| chosen == &index.name)).collect();
+    let [index] = candidates.as_slice() else { return None };
+    Some(index.columns.clone())
+}
+
+/// The source key and target parent column of one capped membership leaf.
+fn membership_physical(module: &LeanModule, expression: &Expr) -> Option<(String, Vec<String>, String)> {
+    let Expr::Exists { read, .. } = expression else { return None };
+    if read.range.is_some() || read.filter.is_some() || read.keys.is_empty() { return None }
+    let source_decl = module.surface_tables.iter().find(|table| table.name == read.table)?;
+    let source = module.tables.iter().find(|table| table.name == read.table)?;
+    let columns = surface_probe_columns(source_decl, read)?;
+    let mut fixed = Vec::new();
+    let mut target = None;
+    for (key, column) in read.keys.iter().zip(&columns) {
+        if let Some(parent) = column_of(&key.value) {
+            if target.replace((column.clone(), parent.to_owned())).is_some() { return None }
+        } else if !reads_row(&key.value) {
+            fixed.push(column.clone());
+        } else {
+            return None;
+        }
+    }
+    let (source_parent, target_parent) = target?;
+    let ceiling = snapback4_core::Ceilings::default().examined;
+    if !source.caps.iter().any(|(max, by)| u64::from(*max) <= ceiling && by.iter().all(|column| fixed.contains(column))) { return None }
+    let mut source_key = fixed;
+    if !source_key.contains(&source_parent) { source_key.push(source_parent); }
+    if !source_key.iter().any(|column| column == "id") { source_key.push("id".into()); }
+    Some((source.name.clone(), source_key, target_parent))
+}
+
+fn nonportable_owner_membership_page(module: &LeanModule, read: &ReadExpr) -> bool {
+    if read.range.is_none() || !read.keys.is_empty() { return false }
+    let Some(target) = module.tables.iter().find(|table| table.name == read.table) else { return false };
+    let Some(decl) = module.surface_tables.iter().find(|table| table.name == read.table) else { return false };
+    let Some(rule) = decl.rules.iter().find(|rule| rule.effect == Effect::Read && rule.bindings.is_empty()).map(|rule| &rule.value) else { return false };
+    let mut leaves = Vec::new();
+    flatten_or(rule, &mut leaves);
+    let mut parties = Vec::new();
+    let mut memberships = Vec::new();
+    for leaf in leaves {
+        if let Some(column) = party_column(target, leaf) { parties.push(column.to_owned()); }
+        else if let Some(membership) = membership_physical(module, leaf) { memberships.push(membership); }
+        else { return false; }
+    }
+    if parties.is_empty() || memberships.is_empty() { return false }
+    if memberships.iter().any(|(source, columns, _)| module.tables.iter().find(|table| table.name == *source)
+        .is_none_or(|table| !model_plain_index_fits(table, columns))) { return true }
+    let mut lane_prefixes = parties;
+    lane_prefixes.extend(memberships.into_iter().map(|(_, _, parent)| parent));
+    lane_prefixes.into_iter().any(|prefix| {
+        let mut columns = vec![prefix];
+        for column in &read.order_keys {
+            if !columns.contains(column) { columns.push(column.clone()); }
+        }
+        if !columns.iter().any(|column| column == "id") { columns.push("id".into()); }
+        !model_plain_index_fits(target, &columns)
+    })
 }
 
 /// A returned page whose `where` holds both a guard and an argument-presence
