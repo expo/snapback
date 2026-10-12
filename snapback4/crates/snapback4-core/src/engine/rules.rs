@@ -5,7 +5,7 @@
 //! analysis (LLP 2000.000 §5.1); the certificate that priced these is gone,
 //! the analysis is not.
 
-use crate::ir::{Expr, IndexKeyExpr, Input, Merge, Scan};
+use crate::ir::{Bound, Expr, IndexKeyExpr, Input, Merge, Scan};
 use crate::schema::{ColumnType, RuleExpr, RuleTerm, Schema, Table};
 use crate::value::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -514,14 +514,59 @@ pub fn branch_merge_lazy(schema: &Schema, merge: &Merge) -> bool {
         let total_unique = index.unique && index.components.iter().all(|component| component.key_type(table).is_some_and(|kind| !kind.is_optional()));
         let lane_suffix = merge_position(table, index, scan.prefix.len());
         let same = suffix.get_or_insert_with(|| lane_suffix.clone()) == &lane_suffix;
-        lane.project.is_none() && lane.setup.is_empty() && lane.source.is_none() && scan.table == first.scan.table
+        let authority = if lane.membership() { membership_branch(schema, lane) }
+            else if lane.system() { lane.source.is_none() }
+            else if lane.grant() { lane.source.is_none() && covering_grant(schema, scan).is_some() }
+            else { lane.source.is_none() && scan_visibility(schema, scan).uniform };
+        lane.project.is_none() && lane.setup.is_empty() && scan.table == first.scan.table
             && scan.prefix.iter().all(|key| matches!(key, IndexKeyExpr::Scalar(_)))
             && scan.order == first.scan.order && !scan.existence && same
             && scan.prefix.len() < index.components.len() && index.word_component().is_none()
             && index.components.iter().all(|component| component.column().is_some())
             && (total_unique || index.columns().last().is_some_and(|c| c == "id"))
-            && (lane.grant() || scan_visibility(schema, scan).uniform)
+            && authority
     })
+}
+
+/// The source is capped and readable under its fixed pins, and its row is the
+/// exact witness for the outer rule branch that the dynamic prefix opens.
+// @ref LLP 3000.036.001#14 — membership discovery proves each parent range.
+fn membership_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
+    let Some(source) = lane.source.as_ref().and_then(crate::ir::LaneSource::scan) else { return false };
+    let Some(Expr::Field { base, name: source_column }) = lane.distinct.as_ref() else { return false };
+    if !matches!(base.as_ref(), Expr::Variable(name) if name == &lane.binding) { return false; }
+    let Some(source_table) = schema.table(&source.table) else { return false };
+    let Some(source_index) = source_table.index(&source.index) else { return false };
+    if source.existence || source.prefix.len() >= source_index.components.len()
+        || source_index.components.get(source.prefix.len()).and_then(|part| part.column()) != Some(source_column)
+        || !scan_visibility(schema, source).decided_true { return false; }
+    let prefix_columns: Vec<String> = source_index.components.iter().take(source.prefix.len()).filter_map(|part| part.column().cloned()).collect();
+    let Bound::Literal(take) = source.take else { return false };
+    if schema.group_bound(&source.table, &prefix_columns).is_none_or(|cap| cap > take) { return false; }
+    let Some(outer_table) = schema.table(&lane.scan.table) else { return false };
+    let Some(outer_index) = outer_table.index(&lane.scan.index) else { return false };
+    let mut outer_column = None;
+    for (part, key) in outer_index.components.iter().zip(&lane.scan.prefix) {
+        let (Some(column), Some(expr)) = (part.column(), key.scalar()) else { return false };
+        if matches!(expr, Expr::Field { base, name } if matches!(base.as_ref(), Expr::Variable(binding) if binding == &lane.binding) && name == source_column)
+            && outer_column.replace(column.clone()).is_some() { return false; }
+    }
+    let Some(outer_column) = outer_column else { return false };
+    let fixed: BTreeMap<&String, &Expr> = source_index.components.iter().zip(&source.prefix).filter_map(|(part, key)| part.column().zip(key.scalar())).collect();
+    outer_table.rules.read.disjuncts().into_iter().any(|rule| {
+        let RuleExpr::Exists { table, index, key, equalities, .. } = rule else { return false };
+        let Some(probe_index) = source_table.index(index) else { return false };
+        if table != &source.table || !probe_index.unique || !probe_index.is_plain() || probe_index.components.len() != key.len() { return false; }
+        let matches = |column: &String, term: &RuleTerm| if column == source_column { matches!(term, RuleTerm::Field(field) if field == &outer_column) }
+            else { fixed.get(column).is_some_and(|expr| term_matches_expr(term, expr)) };
+        probe_index.components.iter().zip(key).all(|(part, term)| part.column().is_some_and(|column| matches(column, term)))
+            && equalities.iter().all(|(column, term)| matches(column, term))
+    })
+}
+
+fn term_matches_expr(term: &RuleTerm, expr: &Expr) -> bool {
+    match (term, expr) { (RuleTerm::Viewer, Expr::Input(Input::Viewer)) => true,
+        (RuleTerm::Literal(a), Expr::Literal(b)) => a == b, _ => false }
 }
 
 /// A lane's merge position columns: the index components after its prefix,

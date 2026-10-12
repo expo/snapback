@@ -106,9 +106,8 @@ impl Binder<'_> {
             // @ref LLP 3000.036.001#3 — the binding check: the runtime's own analysis must agree that every
             // lane is decided (a grant lane by a grant covering the rule) and that the lanes share one
             // position. Otherwise a page with a grant branch reads as written, the grant branch alone.
-            if planned.branches() && !(planned.lanes.iter().filter(|lane| lane.grant()).all(|lane| snapback4_core::engine::rules::covering_grant(self.schema, &lane.scan).is_some())
-                && snapback4_core::engine::rules::branch_merge_lazy(self.schema, &planned))
-                && let Some(read) = merge.lanes.iter().find(|lane| lane.branch.as_deref() == Some(ir::GRANT_LANE)).and_then(|lane| lane.planned.as_deref()) {
+            if planned.branches() && !snapback4_core::engine::rules::branch_merge_lazy(self.schema, &planned)
+                && let Some(read) = merge.lanes.iter().find(|lane| matches!(lane.branch.as_deref(), Some(ir::GRANT_LANE | ir::SYSTEM_LANE))).and_then(|lane| lane.planned.as_deref()) {
                 return self.read(read, out);
             }
             return Ok((Expr::Merge(planned), Ty::Page(merge.table.clone(), merge.take)));

@@ -38,7 +38,9 @@ impl Runner<'_> {
         // Every lane's evaluated pins, in lane order: the token's scope, so a
         // cursor never resumes a page whose arguments or viewer changed
         // (Muse round 3, finding 1), as a direct page's scope does.
-        let prefixes = merge.lanes.iter().map(|lane| self.prefix_values(&lane.scan)).collect::<Result<Vec<_>, _>>()?;
+        let prefixes = merge.lanes.iter().map(|lane| match lane.source.as_ref().and_then(LaneSource::scan) {
+            Some(source) if lane.membership() => self.prefix_values(source), _ => self.prefix_values(&lane.scan),
+        }).collect::<Result<Vec<_>, _>>()?;
         let scope = branch_scope(&prefixes)?;
         self.record_shape_cursor(site, None);
         let mut after = None;
@@ -83,49 +85,60 @@ impl Runner<'_> {
     fn merge_branch_lanes(&mut self, merge: &Merge, prefixes: Vec<Vec<Value>>, take: usize, after: Option<(Vec<Value>, bool)>) -> Result<(Vec<Value>, bool, Option<Vec<Value>>), RuntimeError> {
         let order = merge.lanes[0].scan.order;
         let site = merge.site.as_str();
-        // Grant lanes open first: a held grant makes its lane, the whole
-        // `where`, a superset of every other lane, so the others are not read.
+        // System/grant lanes can cover every other lane. Membership discovery
+        // finishes before any target row may be emitted.
         let mut lanes: Vec<Lane> = Vec::with_capacity(merge.lanes.len());
         let mut covered = false;
         let numbered: Vec<(&MergeLane, Vec<Value>)> = merge.lanes.iter().zip(prefixes).collect();
-        for (lane, prefix) in numbered.iter().filter(|(lane, _)| lane.grant()).chain(numbered.iter().filter(|(lane, _)| !lane.grant())) {
+        for (lane, prefix) in numbered.iter().filter(|(lane, _)| lane.system())
+            .chain(numbered.iter().filter(|(lane, _)| lane.grant()))
+            .chain(numbered.iter().filter(|(lane, _)| !lane.system() && !lane.grant())) {
             if covered { break; }
-            let mut scan = lane.scan.clone();
-            scan.after = None;
-            let prefix = prefix.clone();
-            let definition = &self.schema.tables[&scan.table];
-            let index = &definition.indexes[&scan.index];
-            let mut bounds = self.bounds(&scan, definition, index, None)?;
-            // An inclusive position (an unfinished first returned shape) re-reads its row in every lane.
-            match &after {
-                Some((values, true)) => bounds.at_or_after = Some(values.clone()),
-                Some((values, false)) => bounds.after = Some(values.clone()),
-                None => {}
+            if lane.system() {
+                if !self.context.is_system() { continue; }
+                lanes.push(self.open_branch_lane(lane, prefix.clone(), after.as_ref(), None)?); covered = true; continue;
             }
-            let position_len = Self::merge_suffix(definition, index, scan.prefix.len()).len();
+            if lane.membership() {
+                let values: Vec<Value> = self.lane_values(lane)?.collect();
+                if self.value_source_incomplete || self.read_capped() { return Ok((Vec::new(), false, None)); }
+                let prior = self.env.get(&lane.binding).cloned();
+                let prefixes = (|| -> Result<Vec<Vec<Value>>, RuntimeError> {
+                    let mut prefixes = Vec::with_capacity(values.len());
+                    for value in values {
+                        self.env.insert(lane.binding.clone(), value);
+                        let prefix = self.prefix_values(&lane.scan)?;
+                        self.meter.at(site);
+                        if !self.read_charge(MeterKind::Steps, 1)? { break; }
+                        self.meter.heap(std::mem::size_of::<Lane>() as u64 + DisclosedKeys(&prefix).heap())?;
+                        prefixes.push(prefix);
+                    }
+                    Ok(prefixes)
+                })();
+                if let Some(prior) = prior { self.env.insert(lane.binding.clone(), prior); } else { self.env.remove(&lane.binding); }
+                let prefixes = prefixes?;
+                if self.read_capped() { return Ok((Vec::new(), false, None)); }
+                for prefix in prefixes { lanes.push(self.open_branch_lane(lane, prefix, after.as_ref(), Some(Default::default()))?); }
+                continue;
+            }
+            let definition = &self.schema.tables[&lane.scan.table];
+            let index = &definition.indexes[&lane.scan.index];
             let mut grant = None;
             if lane.grant() {
                 if !self.context.is_system() {
-                    let Some(rule) = rules::covering_grant(self.schema, &scan) else {
-                        // The binder admits a grant lane only when its grant
-                        // covers the rule; otherwise walk it as an ordinary
-                        // page (rows the caller may read, never complete).
-                        lanes.push(Lane { scan, prefix, bounds, buffer: VecDeque::new(), done: false, grant, position_len, through: None });
-                        continue;
-                    };
+                    let Some(rule) = rules::covering_grant(self.schema, &lane.scan) else { continue };
                     // @ref LLP 3000.036.001#7 — a device decides a seat (`viewer = 'service:x'`), which reads no row;
                     // a probe guard (a role, a pinned parent) it does not decide (LLP 3000.036 §12.1): the read is unknown and the client asks the server.
                     if self.device && rules::rule_probes(&rule) > 0 {
-                        self.unknown_fact(&scan.table, &scan.index, &prefix, site);
+                        self.unknown_fact(&lane.scan.table, &lane.scan.index, prefix, site);
                         continue;
                     }
-                    let (allowed, pending) = self.grant_verdict(definition, index, &prefix, &rule)?;
+                    let (allowed, pending) = self.grant_verdict(definition, index, prefix, &rule)?;
                     if !allowed { continue; }
                     grant = Some(pending);
                 }
                 covered = true;
             }
-            lanes.push(Lane { scan, prefix, bounds, buffer: VecDeque::new(), done: false, grant, position_len, through: None });
+            lanes.push(self.open_branch_lane(lane, prefix.clone(), after.as_ref(), grant)?);
         }
         // A page per lane: k small reads instead of a seek per returned row.
         let batch = take + 1;
@@ -171,6 +184,15 @@ impl Runner<'_> {
         // Cut: every row up to the frontier is on the page, so the page
         // continues from there; with a lane that examined nothing, it ends.
         Ok((page, false, Self::frontier(&lanes, order)))
+    }
+
+    fn open_branch_lane(&mut self, lane: &MergeLane, prefix: Vec<Value>, after: Option<&(Vec<Value>, bool)>, grant: Option<super::super::expiry::Pending>) -> Result<Lane, RuntimeError> {
+        let mut scan = lane.scan.clone(); scan.after = None;
+        let definition = &self.schema.tables[&scan.table]; let index = &definition.indexes[&scan.index];
+        let mut bounds = self.bounds(&scan, definition, index, None)?;
+        match after { Some((values, true)) => bounds.at_or_after = Some(values.clone()), Some((values, false)) => bounds.after = Some(values.clone()), None => {} }
+        let position_len = Self::merge_suffix(definition, index, scan.prefix.len()).len();
+        Ok(Lane { scan, prefix, bounds, buffer: VecDeque::new(), done: false, grant, position_len, through: None })
     }
 
     /// Read a lane's next batch strictly after its position, recording how

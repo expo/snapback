@@ -742,12 +742,12 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             continue;
         }
         let inferred_search = snapback4_core::search_plan::ordinary::plan(schema, &bound.program);
-        // @ref LLP 3000.036.001#8 — a branch merge's grant lane is decided per caller before it opens.
-        let grant_lanes: Vec<*const snapback4_core::ir::Scan> = snapback4_core::ir::body_merges(&bound.program.body).into_iter()
-            .filter(|merge| merge.branches()).flat_map(|merge| merge.lanes.iter().filter(|lane| lane.grant()).map(|lane| &lane.scan as *const _)).collect();
+        // @ref LLP 3000.036.001#14 — grant, system and witnessed membership lanes carry their own proof.
+        let proof_lanes: Vec<*const snapback4_core::ir::Scan> = snapback4_core::ir::body_merges(&bound.program.body).into_iter()
+            .filter(|merge| merge.branches()).flat_map(|merge| merge.lanes.iter().filter(|lane| lane.grant() || lane.system() || lane.membership()).map(|lane| &lane.scan as *const _)).collect();
 
         for scan in snapback4_core::ir::scans(&bound.program) {
-            if grant_lanes.contains(&(scan as *const _)) { continue; }
+            if proof_lanes.contains(&(scan as *const _)) { continue; }
             if inferred_search.is_some() && scan.prefix.iter().any(|key| matches!(key, snapback4_core::ir::IndexKeyExpr::WordPrefix(_))) { continue; }
             let Some(table) = schema.table(&scan.table) else { continue };
             if table.rules.read.is_uniformly_readable() {

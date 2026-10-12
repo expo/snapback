@@ -814,3 +814,94 @@ fn oversized_existence_branch_indexes_keep_the_original_scan() {
     assert_eq!(snapback4_core::ir::scans(program).len(), 1);
     assert!(has_note(&b, "N_NEVER_COMPLETE"));
 }
+
+const OWNER_MEMBERSHIP: &str = "table memberships:
+  parent: text <=40
+  principal: principal
+  unique parent, principal
+  cap 16 by principal
+  read <- .principal = viewer
+  insert <- .principal = viewer
+  online only
+
+table documents:
+  owner: principal
+  parent: text <=40
+  at: int
+  read <- .owner = viewer or exists memberships[.parent, viewer]
+  insert <- .owner = viewer
+  online only
+
+query documents(c: cursor ?):
+  return documents last 2 by .at after c
+";
+
+fn membership(name: &'static str, parent: &str, principal: &str) -> (&'static str, Vec<(&'static str, Value)>) {
+    ("memberships", vec![("id", id(name)), ("parent", Value::String(parent.into())), ("principal", id(principal))])
+}
+
+fn document(name: &'static str, owner: &str, parent: &str, at: i64) -> (&'static str, Vec<(&'static str, Value)>) {
+    ("documents", vec![("id", id(name)), ("owner", id(owner)), ("parent", Value::String(parent.into())), ("at", Value::Int(at))])
+}
+
+#[test]
+fn owner_or_capped_membership_walks_one_complete_cursor() {
+    let b = clean(OWNER_MEMBERSHIP);
+    let program = &b.programs.iter().find(|p| p.program.name == "documents").unwrap().program;
+    let merge = snapback4_core::ir::body_merges(&program.body).into_iter().find(|merge| merge.branches()).expect("branch merge");
+    assert_eq!(merge.lanes.iter().filter(|lane| lane.membership()).count(), 1);
+    assert!(b.schema.required_capabilities().contains("branch-membership-v1"));
+    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+
+    let rows = vec![
+        membership("m1", "p1", "alice"), membership("m2", "p2", "alice"),
+        document("d1", "alice", "p0", 1), document("d2", "carol", "p9", 2),
+        document("d3", "alice", "p1", 3), document("d4", "bob", "p1", 4),
+        document("d5", "alice", "p3", 5), document("d6", "bob", "p2", 6),
+    ];
+    let mut e = engine(OWNER_MEMBERSHIP, rows);
+    let (got, complete) = walk(&mut e, "documents", "alice", &[]);
+    assert_eq!(got, ["d6", "d5", "d4", "d3", "d1"]);
+    assert!(complete.into_iter().all(|value| value));
+
+    let all = e.query("documents", { let mut context = Context::system(); context.args.insert("c".into(), Value::Null); context }).unwrap();
+    assert_eq!(ids(&all.data), ["d6", "d5"]);
+    assert!(all.complete && all.next.is_some());
+}
+
+#[test]
+fn membership_cap_may_exceed_the_static_branch_limit() {
+    let mut rows = Vec::new();
+    for n in 0..10 {
+        let member = Box::leak(format!("m{n}").into_boxed_str());
+        let doc = Box::leak(format!("d{n}").into_boxed_str());
+        let parent = format!("p{n}");
+        rows.push(membership(member, &parent, "alice"));
+        rows.push(document(doc, "bob", &parent, n));
+    }
+    let mut e = engine(OWNER_MEMBERSHIP, rows);
+    let (got, complete) = walk(&mut e, "documents", "alice", &[]);
+    assert_eq!(got.len(), 10);
+    assert!(complete.into_iter().all(|value| value));
+}
+
+#[test]
+fn owner_or_uncapped_membership_keeps_the_incomplete_single_scan() {
+    let source = OWNER_MEMBERSHIP.replace("  cap 16 by principal\n", "");
+    let b = clean(&source);
+    assert!(snapback4_core::ir::body_merges(&b.programs[0].program.body).into_iter().all(|merge| !merge.branches()));
+    assert!(has_note(&b, "N_NEVER_COMPLETE"));
+    assert!(!b.schema.required_capabilities().contains("branch-membership-v1"));
+}
+
+#[test]
+fn a_discovery_cut_emits_no_owner_rows_and_no_cursor() {
+    let mut e = engine(OWNER_MEMBERSHIP, vec![
+        membership("m1", "p1", "alice"), membership("m2", "p2", "alice"),
+        document("d1", "alice", "p0", 1), document("d2", "bob", "p1", 2),
+    ]);
+    e.set_ceilings(snapback4_core::Ceilings { examined: 1, ..Default::default() });
+    let page = e.query("documents", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
+    assert!(ids(&page.data).is_empty(), "a partial source cannot release even an owner row: {page:?}");
+    assert!(!page.complete && page.next.is_none());
+}

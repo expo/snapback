@@ -8,7 +8,7 @@
 use super::{catalog::TableInfo, intent::{self, Requests}};
 use crate::ast::*;
 use crate::diag::Site;
-use snapback4_core::ir::{BRANCH_LANE, GRANT_LANE};
+use snapback4_core::ir::{BRANCH_LANE, GRANT_LANE, MEMBERSHIP_LANE, SYSTEM_LANE};
 use std::collections::BTreeMap;
 
 /// At most this many branches: each is an index range read ahead by one
@@ -22,6 +22,7 @@ type Branch = (Vec<Expr>, bool);
 
 // @ref LLP 3000.036.001#2 — the rule: where-branches first, then the read rule's parties and readable grants.
 pub(super) fn expand(tables: &Tables, requests: &mut Requests, read: &ReadExpr) -> Option<MergeExpr> {
+    if let Some(merge) = membership(tables, requests, read) { return Some(merge); }
     let range = read.range.as_ref()?;
     let branches = branches(tables, requests, read, true)?;
     let mut candidate = requests.clone();
@@ -50,6 +51,78 @@ pub(super) fn expand(tables: &Tables, requests: &mut Requests, read: &ReadExpr) 
     *requests = candidate;
     Some(MergeExpr { view_order: Vec::new(), table: read.table.clone(), matching: None, filter: None, index: String::new(), order: range.order, take: range.take,
         cursor: range.cursor.clone(), lanes, site: read.site.clone() })
+}
+
+// @ref LLP 3000.036.001#14 — enumerate the decided membership source before merging its parent ranges.
+fn membership(tables: &Tables, requests: &mut Requests, read: &ReadExpr) -> Option<MergeExpr> {
+    let range = read.range.as_ref()?;
+    let table = tables.get(&read.table)?;
+    if read.index.is_some() || !read.keys.is_empty() || read.matching.is_some() || !read.computed.is_empty() || read.cursor_prefix.is_some() { return None; }
+    if table.maintained.is_some() || table.through.is_some() || table.decl.ephemeral.is_some() || !table.captures.is_empty() || table.decl.public.is_some() { return None; }
+    if read.filter.as_deref().is_some_and(|filter| !total(filter)) { return None; }
+    let mut probe = requests.clone();
+    let mut planned = read.clone();
+    probe.read(tables, &mut planned, false);
+    if decided(tables, &planned) { return None; }
+    let mut disjunct_list = Vec::new(); disjuncts(read_rule(table)?, &mut disjunct_list);
+    let (mut parties, mut memberships) = (Vec::new(), Vec::new());
+    for disjunct in disjunct_list {
+        if let Some(column) = party(table, &disjunct) { if !parties.contains(&column) { parties.push(column); } }
+        else if matches!(disjunct, Expr::Exists { .. }) { memberships.push(disjunct); }
+        else { return None; }
+    }
+    if parties.is_empty() || memberships.is_empty() { return None; }
+    let conjuncts = read.filter.as_ref().map(|filter| { let mut out = Vec::new(); intent::split(*filter.clone(), &mut out); out }).unwrap_or_default();
+    let base = where_branches(table, &conjuncts).unwrap_or_else(|| vec![conjuncts.clone()]);
+    let descriptor_count = 1usize.saturating_add(base.len().saturating_mul(parties.len().saturating_add(memberships.len())));
+    if descriptor_count > MAX_BRANCHES { return None; }
+    let mut candidate = requests.clone();
+    let errors = candidate.error_count();
+    let mut lanes = Vec::with_capacity(descriptor_count);
+    let mut order = None;
+    let mut system = read.clone(); candidate.read(tables, &mut system, false);
+    push_membership_lane(&candidate, table, &mut lanes, &mut order, system, SYSTEM_LANE, None, None, read.filter.clone())?;
+    for branch in &base {
+        for column in &parties {
+            let mut lane = read.clone();
+            let mut predicates = vec![viewer_pin(column, &read.site)]; predicates.extend(branch.iter().cloned());
+            lane.filter = intent::conjunction(predicates); candidate.plan_lane(tables, &mut lane);
+            if !decided(tables, &lane) { return None; }
+            push_membership_lane(&candidate, table, &mut lanes, &mut order, lane, BRANCH_LANE, None, None, read.filter.clone())?;
+        }
+        for predicate in &memberships {
+            let mut source_read = read.clone();
+            let mut predicates = branch.clone(); predicates.push(predicate.clone()); source_read.filter = intent::conjunction(predicates);
+            let mut merge = super::intent_lanes::expand(tables, &source_read)?;
+            let mut lane = merge.lanes.pop()?;
+            candidate.plan_lane(tables, lane.planned.as_mut()?);
+            let (_, source) = lane.loop_.as_mut()?;
+            let Expr::Read(source) = source else { return None };
+            candidate.read(tables, source, false);
+            if !membership_source_capped(tables, source) || !super::intent_lanes::prefix_decides_rule(tables, source) { return None; }
+            push_membership_lane(&candidate, table, &mut lanes, &mut order, *lane.planned.take()?, MEMBERSHIP_LANE,
+                lane.loop_.take(), lane.distinct.take(), lane.admission.take())?;
+        }
+    }
+    if candidate.error_count() != errors { return None; }
+    *requests = candidate;
+    Some(MergeExpr { view_order: Vec::new(), table: read.table.clone(), matching: None, filter: None, index: String::new(), order: range.order, take: range.take,
+        cursor: range.cursor.clone(), lanes, site: read.site.clone() })
+}
+
+fn push_membership_lane(candidate: &Requests, table: &TableInfo, lanes: &mut Vec<MergeLane>, order: &mut Option<Vec<String>>, lane: ReadExpr,
+    branch: &str, loop_: Option<(String, Expr)>, distinct: Option<Expr>, admission: Option<Box<Expr>>) -> Option<()> {
+    if order.get_or_insert_with(|| lane.order_keys.clone()) != &lane.order_keys || lane.index.is_none() { return None; }
+    if lane.keys.len() + lane.order_keys.len() > 8 || !candidate.branch_index_fits(table, &lane) { return None; }
+    lanes.push(MergeLane { admission, nulls: None, distinct, branch: Some(branch.into()), planned: Some(Box::new(lane)), project: None,
+        table: None, prefix: Vec::new(), columns: None, loop_, site: table.decl.site.clone() }); Some(())
+}
+
+fn membership_source_capped(tables: &Tables, source: &ReadExpr) -> bool {
+    let Some(table) = tables.get(&source.table) else { return false };
+    let pinned: Vec<&str> = source.keys.iter().filter_map(|key| key.column.as_deref()).collect();
+    let ceiling = snapback4_core::Ceilings::default().examined;
+    table.decl.caps.iter().any(|cap| u64::from(cap.max) <= ceiling && cap.by.iter().all(|column| pinned.contains(&column.as_str())))
 }
 
 /// `exists t where W` with `W` branch-decided: `exists (branch 1) or …`, each

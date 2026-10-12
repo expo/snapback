@@ -212,3 +212,42 @@ fn extra_equalities_are_deciding_fields_and_cannot_bless_a_self_probe() {
     assert_eq!(result.data.as_array().unwrap().len(), 2);
     assert_eq!(result.metered.rule_probes, 1);
 }
+
+// @ref LLP 3000.036.001#14 — a cursor answers the current remaining range when membership changes between pages.
+#[test]
+fn owner_or_membership_cursor_observes_revocation_and_acquisition_after_its_position() {
+    let source = "table page_members:
+  parent: text <=40
+  principal: principal
+  unique parent, principal
+  cap 16 by principal
+  read <- .principal = viewer
+  insert <- .principal = viewer
+  delete <- .principal = viewer
+  online only
+table page_docs:
+  owner: principal
+  parent: text <=40
+  at: int
+  read <- .owner = viewer or exists page_members[.parent, viewer]
+  online only
+query page_docs(c: cursor ?):
+  return page_docs last 1 by .at after c
+";
+    let compiled = bound(source);
+    let mut engine = Engine::memory(compiled.schema, compiled.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed([
+        ("page_members".into(), snapback4_core::value::object([("id", id("m1")), ("parent", text("p1")), ("principal", id("alice"))])),
+        ("page_docs".into(), snapback4_core::value::object([("id", id("owner")), ("owner", id("alice")), ("parent", text("p0")), ("at", Value::Int(5))])),
+        ("page_docs".into(), snapback4_core::value::object([("id", id("old-member")), ("owner", id("bob")), ("parent", text("p1")), ("at", Value::Int(4))])),
+        ("page_docs".into(), snapback4_core::value::object([("id", id("new-member")), ("owner", id("bob")), ("parent", text("p2")), ("at", Value::Int(3))])),
+    ]).unwrap();
+    let first = engine.query("page_docs", context("alice", &[("c", Value::Null)])).unwrap();
+    assert_eq!(first.data.as_array().unwrap()[0].field("id").unwrap(), &id("owner"));
+    let cursor = first.next.expect("remaining readable row");
+    engine.seed_delete("page_members", "m1").unwrap();
+    engine.seed([("page_members".into(), snapback4_core::value::object([("id", id("m2")), ("parent", text("p2")), ("principal", id("alice"))]))]).unwrap();
+    let second = engine.query("page_docs", context("alice", &[("c", Value::String(cursor))])).unwrap();
+    assert_eq!(second.data.as_array().unwrap()[0].field("id").unwrap(), &id("new-member"));
+    assert!(second.complete && second.next.is_none());
+}

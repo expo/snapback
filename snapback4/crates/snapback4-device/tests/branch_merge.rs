@@ -166,3 +166,57 @@ fn online<H: Host>(host: &mut H) {
 fn sqlite_online_branches_ask_the_server() { online(&mut Sqlite::new("branch-online")); }
 #[test]
 fn memory_online_branches_ask_the_server() { online(&mut Memory::new()); }
+
+const OWNER_MEMBERSHIP: &str = "table memberships:
+  parent: text <=40
+  principal: principal
+  unique parent, principal
+  cap 16 by principal
+  read <- .principal = viewer
+  insert <- .principal = viewer and exists memberships[.parent, viewer]
+  sync to .principal
+
+table documents:
+  owner: principal
+  parent: text <=40
+  at: int
+  read <- .owner = viewer or exists memberships[.parent, viewer]
+  insert <- .owner = viewer
+  sync to .owner or memberships[.parent]
+
+query documents(c: cursor ?):
+  return documents last 2 by .at after c
+";
+
+// @ref LLP 3000.036.001#14 — acquired source and union target ranges run the same dynamic merge on both device stores.
+fn owner_membership<H: Host>(host: &mut H) {
+    let (mut engine, backend) = compile(OWNER_MEMBERSHIP);
+    let bound = snapback4_lang::compile(&[("schema.q".into(), OWNER_MEMBERSHIP.into())]);
+    let program = &bound.programs.iter().find(|p| p.program.name == "documents").unwrap().program;
+    assert!(snapback4_core::ir::body_merges(&program.body).iter().any(|merge| merge.lanes.iter().any(|lane| lane.membership())));
+    engine.seed(vec![
+        row("memberships", vec![("id", id("m1")), ("parent", Value::String("p1".into())), ("principal", id("ann"))]),
+        row("memberships", vec![("id", id("m2")), ("parent", Value::String("p2".into())), ("principal", id("ann"))]),
+        row("documents", vec![("id", id("d1")), ("owner", id("ann")), ("parent", Value::String("p0".into())), ("at", Value::Int(1))]),
+        row("documents", vec![("id", id("d2")), ("owner", id("bob")), ("parent", Value::String("p9".into())), ("at", Value::Int(2))]),
+        row("documents", vec![("id", id("d3")), ("owner", id("ann")), ("parent", Value::String("p1".into())), ("at", Value::Int(3))]),
+        row("documents", vec![("id", id("d4")), ("owner", id("bob")), ("parent", Value::String("p1".into())), ("at", Value::Int(4))]),
+        row("documents", vec![("id", id("d5")), ("owner", id("bob")), ("parent", Value::String("p2".into())), ("at", Value::Int(5))]),
+    ]).unwrap();
+    let server = walk_server(&mut engine, "documents", "ann", &[]);
+    assert_eq!(server, (vec!["d5".into(), "d4".into(), "d3".into(), "d1".into()], true));
+
+    let mut missing = host.open("owner-membership-missing", Some(backend.clone())).unwrap();
+    let (out, unknown, _) = missing.query_with_coverage("documents", "ann", &json!({"c": null}), 1_000);
+    assert_eq!(out.unwrap_err().code, "E_PREDICT", "{}: {unknown}", host.label());
+
+    let mut device = host.open("owner-membership", Some(backend)).unwrap();
+    for (n, page) in snapshot_pages(&mut engine, "ann", 2).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
+    let held = walk_device(&mut device, "documents", "ann", json!({}));
+    assert_eq!((held.0, held.1, held.2), (server.0, true, false), "{}", host.label());
+}
+
+#[test]
+fn sqlite_owner_membership_pages_use_acquired_groups() { owner_membership(&mut Sqlite::new("branch-owner-membership")); }
+#[test]
+fn memory_owner_membership_pages_use_acquired_groups() { owner_membership(&mut Memory::new()); }
