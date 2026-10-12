@@ -92560,3 +92560,17 @@ revision 1; reviews under `llp/reviews/3000.040-*`).
 - **What was hard:** the guide's word and line budgets (the six familiar
   cards at their 30% reduction, the language card at 825 lines) left room for
   about twenty words; the detail went to the time, indexes and recipes cards.
+
+## 2026-10-12 — LANG2 follow-up: round 2, compact `IntRange`, the budget settles at 654,235 B
+
+Round 2 (Muse READY WITH CHANGES) found the day-29 schedule rewrite tested the
+clock instead of the period, and two promised tests missing; all fixed (a
+tightening adoption with a stale device image on both stores, a retried billing
+period). `IntRange` now stores its ends as `i64` with the i53 limits as the
+unwritten ends, so `ColumnType` keeps its size (the heap meter's cursor-column
+charge was 24 B higher with `Option` ends) and the web device is 1,584 B
+smaller: 653,735 B gzip on Linux, budget 654,235 B (+5,063 B over the base,
+reason in `metrics/wasm-budget.json`). Reruns on the final code: `run-lean`
+seeds 0–99,999 and `run-devices` 0–2,999 show only known signatures. Filed
+`issues/20261012-snapback4-seed-refusal-reports-not-found.md` (pre-existing:
+an invalid seeded row refuses NOT_FOUND, not E_INPUT).
