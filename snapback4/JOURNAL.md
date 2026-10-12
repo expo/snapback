@@ -92730,3 +92730,14 @@ these calls; the census still requires exactly one consumption, and new
 mutation controls reject renamed owners, duplicate calls and changed lines.
 All 27 codec-census checks pass. The integrated delivery-await boundary was
 also regenerated with no delta, and its classification check passes.
+
+## 2026-10-12 — MERGE quality bar: UTC-independent schedule assertion
+
+The full requested Rust run exposed an inherited clock-test assumption:
+`advance_explains_each_schedule_and_resume_clock_releases_a_restart_hold`
+expected two counter increments from its hourly schedule, although its daily
+06:00 UTC schedule calls the same mutation and can fire during either advance.
+The assertion now checks the exact sum of schedules reported as fired.
+The full clock target and the CLI `check`/`check_notes` targets pass (125
+checks in total), and the final affected language crate passes. No scheduler
+or clock implementation changed.
