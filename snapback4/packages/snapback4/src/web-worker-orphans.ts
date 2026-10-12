@@ -3,7 +3,7 @@ import type { Persistence, Change } from "./web.ts";
 import type { AdmissionAuthorityContext } from "./admission-authority.ts";
 import { AdmissionJournal, journalStores, journalStoreBinding } from "./web-journal.ts";
 import { claimStore } from "./web-ownership.ts";
-import { shareReceipts } from "./web-receipts.ts";
+import { shareReceipts, receiptHistory } from "./web-receipts.ts";
 import { WebWorkerHost, type WorkerTransaction } from "./web-worker-host.ts";
 import type { Queued } from "./local-types.ts";
 
@@ -15,6 +15,8 @@ export async function adoptWorkerOrphans(tx: WorkerTransaction, name: string, ow
   if (!persist.others || !persist.remove) return false;
   const prefix = `${name}:tab-`, stores = new Set(await persist.others(prefix));
   let retry = false;
+  // Keep the entering ownership window across every source in this recovery pass.
+  const protectedHistory=await receiptHistory(persist,name);
   for (const orphan of new Set([...stores, ...journalStores(prefix)])) {
     if (orphan === own || !orphan.startsWith(prefix)) continue;
     const claim = await claimStore(persist, orphan, false);
@@ -62,7 +64,7 @@ export async function adoptWorkerOrphans(tx: WorkerTransaction, name: string, ow
         const known = entry.sent_seq != null || entry.observed_seq != null;
         if (known && (!recovered.state.store_id || !destination.store_id)) { unresolved = true; continue; }
         if(entry.upload||existingMedia.has(entry.id)){
-          const receipt=await recoverUploadHistory(tx.invoke,persist,name,entry as unknown as Record<string,unknown>);
+          const receipt=await recoverUploadHistory(tx.invoke,persist,name,entry as unknown as Record<string,unknown>,protectedHistory);
           if(receipt?.denied){if((receipt.denied as {code?:string}).code==="E_WRITE_ID_REUSE"){unresolved=true;retry=true;break;}throw new Error(JSON.stringify(receipt.denied));}
           if(receipt){removed.add(entry.id);continue;}
         }

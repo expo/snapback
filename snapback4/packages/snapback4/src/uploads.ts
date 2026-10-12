@@ -62,6 +62,7 @@ interface Environment {
   signal?: AbortSignal | undefined;
   current(): boolean;
   unavailable(): Refusal | null | undefined;
+  storeId(): string | undefined;
   capture(): Promise<{ store_id?: string | null; backend_required?: boolean } | undefined>;
   credentials(): { headers: Record<string, string>; revision: number };
   entry(id: string, op: string, args: unknown): Queued;
@@ -96,8 +97,8 @@ export class DeviceUploads implements UploadClient {
       const owned = ArrayBuffer.isView(bytes) ? new Uint8Array(new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength))
         : bytes instanceof ArrayBuffer ? new Uint8Array(bytes.slice(0)) : new Uint8Array(await blobArrayBuffer(bytes));
       if(owned.byteLength!==size)return {state:"failed",id,why:{code:"E_UPLOAD_BYTES",family:"asset",message:"the selected byte range changed while reading"}};
-      const capture = await this.env.capture();
-      if (!capture?.store_id || capture.backend_required) return { state: "failed", id, why: { code: "E_ADMISSION_STORE", family: "store", message: "open this backend once online before capturing an offline upload" } };
+      const store=this.env.storeId();
+      if (!store) return { state: "failed", id, why: { code: "E_ADMISSION_STORE", family: "store", message: "open this backend once online before capturing an offline upload" } };
       if (this.env.unavailable()) return { state: "failed", id, why: this.env.unavailable()! };
       // A prior terminal receipt owns this id; no second upload may be admitted.
       // The device compares retained immutable identity, including ordinary-write ownership.
@@ -105,7 +106,7 @@ export class DeviceUploads implements UploadClient {
       const entry = this.env.entry(id, op.name, selectedArgs);
       entry.predictable = false;
       entry.upload = { bytes: hexBytes(owned), argument,
-        ...(file ? { file } : {}), store_id: capture.store_id, original_args: selectedArgs, state: "queued" };
+        ...(file ? { file } : {}), store_id: store, original_args: selectedArgs, state: "queued" };
       const admitted = await this.change({ op: "admit_upload", entry });
       const terminal=(admitted as Queued & {write?:Exclude<Write,{state:"pending"}>} | undefined)?.write;
       if(terminal)return terminal;
@@ -153,22 +154,23 @@ export class DeviceUploads implements UploadClient {
     try {
       const capture=await this.env.capture(); if(!capture?.store_id)return {ok:false,why:storeError("identify the backend first")};
       const credentials=this.env.credentials();
-      const result=await this.request(`${this.env.base}/assets/intent/${encodeURIComponent(id)}/cancel?store_id=${encodeURIComponent(capture.store_id)}`,{method:"POST",headers:credentials.headers});
+      const result=await this.request(`${this.env.base}/assets/intent/${encodeURIComponent(id)}/cancel?store_id=${encodeURIComponent(capture.store_id)}`,{method:"POST",headers:credentials.headers},true);
       if(result?.ok&&result.json.ok===true)return {ok:true};
       if(!result || !this.env.current() || credentials.revision!==this.env.credentials().revision)return {ok:false,why:storeError("cancellation acknowledgement is unknown; retry the same id")};
       return result.json.ok===true?{ok:true}:{ok:false,why:result.json.denied as Refusal??storeError("invalid cancellation response")};
     } catch(error){return {ok:false,why:isRefusal(error)?error:storeError(error)};}
   }
-  private async request(input: string, init: RequestInit): Promise<{ ok: boolean; json: Record<string, unknown> } | undefined> {
+  private async request(input: string, init: RequestInit, preserveAcknowledgement=false): Promise<{ ok: boolean; json: Record<string, unknown> } | undefined> {
     try {
       let acknowledged=false;
-      const work = this.env.fetch(input, { ...init, signal: this.env.signal ?? null }).then(async response => {
+      const work = this.env.fetch(input, { ...init, ...(preserveAcknowledgement?{}:{signal:this.env.signal??null}) }).then(async response => {
         const json = await response.json() as unknown;
         acknowledged=response.ok&&typeof json==="object"&&json!==null&&((json as Record<string,unknown>).ok===true||["sent","failed"].includes(String((json as Record<string,unknown>).state)));
         return typeof json === "object" && json !== null && !Array.isArray(json)
           ? {ok:response.ok,json:json as Record<string,unknown>}
           : {ok:false,json:{denied:invalidResponse(response.status,"upload intent")}};
       });
+      if(preserveAcknowledgement)return await work;
       return await waitForCaller(work, this.env.signal ?? new AbortController().signal,()=>acknowledged);
     } catch(error) {return {ok:false,json:{denied:transportRefusal(error)}};}
   }

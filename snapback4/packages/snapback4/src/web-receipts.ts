@@ -3,7 +3,7 @@ import { WRITE_HISTORY_LIMIT } from "./writes.ts";
 import type { Persistence } from "./web.ts";
 import { claimStore } from "./web-ownership.ts";
 
-type TerminalReceipt = Exclude<Write, { state: "pending" }> & { upload_identity?: { fingerprint: string; op: string; viewer: string; store_id: string } };
+export type TerminalReceipt = Exclude<Write, { state: "pending" }> & { upload_identity?: { fingerprint: string; op: string; viewer: string; store_id: string } };
 
 export function terminalReceipts(text: string | null | undefined): TerminalReceipt[] {
   if (!text) return [];

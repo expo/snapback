@@ -104,6 +104,10 @@ impl<S: DeviceStore> Device<S> {
         let tx=self.store.read_transaction()?;
         store_identity::require_owner(&tx,&self.backend_identity,&self.store_identity,self.native_digest.as_deref())?;
         store_identity::require_healthy(&tx)?;
+        if let Some(data)=tx.outbox_get(&entry.id)? {
+            let live:Queued=decoded(&data)?;
+            if !same_input(&live,entry) { return Err(refused("E_WRITE_ID_REUSE","this id's live destination belongs to different input; keep source custody")); }
+        }
         let local=terminal(&tx,entry)?;
         let shared=compare_terminal(entry,write)?;
         let result=match local {Some(old) if old["why"]["code"]!="E_STORE_REPLACED"=>old,_=>shared};

@@ -77,6 +77,10 @@ fn transfer_identity<H:Host>(host:&mut H){
     let admitted=call(&mut d,json!({"op":"admit_upload","entry":input}))["ok"].clone();
     let mut changed=admitted.clone();changed["upload"]["bytes"]=json!("ee");changed["seq"]=json!(2);
     assert_eq!(call(&mut d,json!({"op":"enqueue","entry":changed}))["denied"]["code"],"E_WRITE_ID_REUSE");
+    let u=&changed["upload"];
+    let fingerprint=snapback4_core::value::digest(&(u.get("bytes"),u.get("argument"),u.get("file"),&changed["args"]));
+    let shared=json!({"id":"same","state":"sent","seq":1,"upload_identity":{"fingerprint":fingerprint,"op":"attach","viewer":"dev:alice","store_id":"A"}});
+    assert_eq!(call(&mut d,json!({"op":"check_upload_receipt","entry":changed,"write":shared}))["denied"]["code"],"E_WRITE_ID_REUSE");
     assert!(call(&mut d,json!({"op":"enqueue","entry":admitted})).get("denied").is_none());
     let ack=call(&mut d,json!({"op":"apply","page":{"snapshot":false,"store_id":"A","generation":1,"events":[],"watermark":1,"more":false,"acknowledged":{"same":1},"sent":{"same":1}}}));
     assert!(ack.get("denied").is_none(),"{ack}");

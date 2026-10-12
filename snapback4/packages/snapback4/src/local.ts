@@ -1189,7 +1189,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let stopHost: void | (() => void);
   const followingHistory = new FollowingHistory(() => backend, () => notifyFollowing(client));
   const uploads = new DeviceUploads({ base, viewer: principal, fetch: doFetch, signal: aborter.signal, current: () => !closed && !sessionDead && !rotating && !partitionDenied,
-    unavailable: () => unavailable() ?? partitionDenied, capture: captureStore, credentials: requestCredentials,
+    unavailable: () => unavailable() ?? partitionDenied, storeId: () => storeIdentity, capture: captureStore, credentials: requestCredentials,
     entry: (id, op, args) => mutationEntry(id, ++submissions, op, args, principal, clock.issuedDeviceNow(), backend!, true),
     call: receiptCall, queued, write: id => client.write(id), notify: pending.notify, flush: () => { void flush(); }, subscribe: pending.subscribe });
   const client: LocalClient = {

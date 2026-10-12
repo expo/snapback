@@ -485,6 +485,8 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
   let retry = false;
   const orphanPrefix = `${name}:tab-`;
   const stores = new Set(await persist.others(orphanPrefix));
+  // Keep the entering ownership window across every source in this recovery pass.
+  const protectedHistory=await receiptHistory(persist,name);
   for (const orphan of new Set([...stores, ...journalStores(orphanPrefix)])) {
     if (!orphan.startsWith(orphanPrefix)) continue;
     if (orphan === own) continue;
@@ -551,7 +553,7 @@ async function adoptOrphans(device: WebDevice, name: string, own: string, persis
         const known = entry.sent_seq != null || entry.observed_seq != null;
         if (known && (!source || !destination)) { unresolved = true; continue; }
         if(("upload" in entry)||existingMedia.has(entry.id)){
-          const receipt=await recoverUploadHistory(input=>JSON.parse(device.call(JSON.stringify(input))),persist,name,entry as Record<string,unknown>);
+          const receipt=await recoverUploadHistory(input=>JSON.parse(device.call(JSON.stringify(input))),persist,name,entry as Record<string,unknown>,protectedHistory);
           if(receipt?.denied){if((receipt.denied as {code?:string}).code==="E_WRITE_ID_REUSE"){unresolved=true;retry=true;break;}throw new Error(JSON.stringify(receipt.denied));}
           if(receipt){removed.push({s:"o",k:entry.id,v:null});continue;}
         }
