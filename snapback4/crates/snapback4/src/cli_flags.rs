@@ -38,13 +38,14 @@ pub fn validate(args: &[String]) -> Result<(), String> {
         if arg == "-h" { continue; }
         let Some(flag) = arg.strip_prefix("--") else {
             if arg.starts_with('-') && !arg[1..].starts_with(|c: char| c.is_ascii_digit()) {
-                return Err(format!("E_INPUT: {verb} takes no {arg}"));
+                return Err(if verb == "witness" { "E_INPUT: witness has an invalid flag; see guide witness".into() } else { format!("E_INPUT: {verb} takes no {arg}") });
             }
             continue;
         };
         let (name, inline) = flag.split_once('=').map_or((flag, None), |(name, value)| (name, Some(value)));
         if name != "help" && !allowed(verb).split_whitespace().any(|known| known == name) {
-            return Err(format!("E_INPUT: {verb} takes no --{name}"));
+            // Witness arguments may contain bearer material even in a flag name.
+            return Err(if verb == "witness" { "E_INPUT: witness has an unknown flag; see guide witness".into() } else { format!("E_INPUT: {verb} takes no --{name}") });
         }
         if SWITCHES.contains(&name) {
             if inline.is_some() { return Err(format!("E_INPUT: {verb} --{name} takes no value")); }
