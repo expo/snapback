@@ -92574,3 +92574,16 @@ reason in `metrics/wasm-budget.json`). Reruns on the final code: `run-lean`
 seeds 0–99,999 and `run-devices` 0–2,999 show only known signatures. Filed
 `issues/20261012-snapback4-seed-refusal-reports-not-found.md` (pre-existing:
 an invalid seeded row refuses NOT_FOUND, not E_INPUT).
+
+## 2026-10-12 — LANG2 round 2 (Codex): raw ranges, exact schedule edges, calendar evidence counted
+
+Codex's round 2 (READY WITH CHANGES) found a raw catalog could install
+`IntRange { min: 5, max: 1 }`, calendar schedule boundaries substituted i53
+endpoints at the ±285,000-year edges, and `run-lean` counted calendar cases
+before support. Fixed: raw ranges are validated at every depth, boundaries are
+exact in `i128`, and `run-lean` reports calendar cases by verdict and refuses
+a qualifying campaign that compared none; the generator also bounds `run`'s
+argument. Rerun: 6,434 calendar cases in seeds 0–99,999, 5,875 agreed, 9
+disagreed only in a prelude (OPEN W4, before the calendar body), 550
+unsupported for other dimensions. LLP 3000.040 §10 records both round-2
+reviews and their dispositions.
