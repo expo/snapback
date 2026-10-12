@@ -290,21 +290,28 @@ rule hides?**
 **C8. When is a page decided, and so possibly complete?**
 - *Documents:* the bounds card and `N_NEVER_COMPLETE` (a page whose read rule
   reads a column the scan does not pin is never complete); LLP 3000.036
-  §12.1 (a readable grant decides a page for its holder).
+  §12.1 (a readable grant decides a page for its holder) and §16.3 (so does a
+  disjunct whose row columns the scan pins, such as a parent probe).
 - *Model:* a page is decided (`decided`) when every row column its table's
   read rule reads is pinned by an equality in the predicate (`uniform`), or
-  when a disjunct of the rule's top-level `or` that reads no row column and
-  has no `not` holds for the caller (`granted`). An undecided page is never
+  when a page guard holds for the caller (`granted`): a disjunct of the
+  rule's top-level `or`, with no `not`, whose every row column is pinned
+  (none, for a grant such as `exists staff[viewer]`; the parent's column,
+  for `exists boards[.board, owner = viewer]` under `.board = b`), evaluated
+  with the pinned values substituted (`Rule.pin`). An undecided page is never
   complete. `pageRead_complete` proves a complete page was decided, and
   `decided_store` that a decided scan sees every row its pins select in the
-  store or none of them, so a complete page omits no qualifying row.
-- *Where the model evaluates a grant:* over the caller's view (the rows the
+  store or none of them, so a complete page omits no qualifying row
+  (`Rule.eval_pin`: for a row the pins select, the pinned disjunct gives the
+  row's verdict).
+- *Where the model evaluates a guard:* over the caller's view (the rows the
   caller may read), never the store, so `complete` stays a function of the
   visible rows (`query_noninterference`); the disjunct is positive, so a view
   verdict of true is true over the store (`granted_readable`). The engine
   evaluates the disjunct over the store but only uses it when its every
   probed row is readable to whoever the probe's pins name
-  (`rules::grant_decision`, `self_disclosing`), where the two verdicts are
+  (`rules::page_guard_decision`: `self_disclosing` for a grant,
+  `pinned_probe_readable` for a pinned disjunct), where the two verdicts are
   equal. **A deliberate difference:** where the engine's static test is
   conservative (a probed row the caller can read only through a rule its
   probe's pins do not decide), the engine answers `complete: false` and the
@@ -313,13 +320,18 @@ rule hides?**
   (its probed table, `access`, is `allow` or `deny`).
 - *History:* the model had no per-caller arm until 2026-10-12, so the emitter
   named every read rule with a row-independent disjunct unsupported
-  (`read-grant`); it now translates them.
+  (`read-grant`). The engine took the pinned arm the same day (§16.3, the
+  closed ticket `issues/closed/20261011-snapback4-prefix-decided-grants-at-run-time.md`),
+  with the model's arm in the same change.
 - *Engine (observed):* agrees on `complete` for all 1,343 compared
   non-uniform pages (60,000-case run of 2026-10-08). A `count` or `sum` whose
   read rule its pins do not decide is refused at check (`E_QUARRY_BOUND`).
-  In the 100,000-case run of 2026-10-12, 3,057 cases with the grant `.owner =
-  viewer or exists access[0, viewer]` were compared: the holder's pages are
-  complete on both sides, the others' incomplete on both; every disagreement
+  In the 100,000-case run of 2026-10-12 (seeds 0–99,999), after both
+  changes: 3,057 cases with the grant `.owner = viewer or exists access[0,
+  viewer]`, and 835 page, bounded and `exists` reads of `.owner = viewer or
+  exists access[.bucket, viewer]` under the `.bucket` pin alone (the parent
+  probe pinned), agree on `complete`: decided for a caller with the access
+  row (when `access` is readable), undecided otherwise. Every disagreement
   among them is a classified signature (C2's `next`, W4).
 
 **C10. Is a row-independent `where` test part of the scan? (confirmed: LLP 3000.036 §15.4)**

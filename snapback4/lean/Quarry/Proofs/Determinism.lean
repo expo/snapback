@@ -125,10 +125,10 @@ theorem Rule.eval_perm {s1 s2 : Store} (hp : ∀ t, (s1 t).Perm (s2 t)) {v : Lis
   | _ => rfl
 
 theorem granted_perm {sch : Schema} {vw1 vw2 : View} (hp : ∀ t, (vw1 t).Perm (vw2 t)) {v : List Nat}
-    {t : String} : granted sch vw1 v t = granted sch vw2 v t := by
+    {t : String} {ps : List (String × Scalar)} : granted sch vw1 v t ps = granted sch vw2 v t ps := by
   unfold granted
   split
-  · congr 1; funext d; rw [Rule.eval_perm hp]
+  · simp only [Rule.eval_perm hp]
   · rfl
 
 /-- **Scan order is determined by key order**: a page over two views that

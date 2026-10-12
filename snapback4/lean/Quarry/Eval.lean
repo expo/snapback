@@ -153,26 +153,29 @@ def uniform (sch : Schema) (t : String) (pins : List (String × Scalar)) : Bool 
   | some td => td.read.selfCols.all fun c => pins.any (·.1 == c)
   | none => false
 
-/-- A readable grant (LLP 3000.036 §12.1): a disjunct of `t`'s read rule
-that reads no row column (`exists staff[viewer]`, `viewer = 'service:x'`)
-and holds for the caller makes every row of `t` readable to them, so the
-page is decided once, per caller, as a uniform page is. The disjunct is
-evaluated over the caller's **view**, never the store, so the verdict is a
-function of what the caller may read (`query_noninterference` covers it);
-it is positive, so a view verdict of true holds over the store too
-(`granted_readable`). The engine evaluates it over the store, but only for
-disjuncts whose every probed row the caller can read (`self_disclosing`),
-where the two agree (OPEN C8). -/
-def granted (sch : Schema) (vw : View) (v : List Nat) (t : String) : Bool :=
+/-- A page guard (LLP 3000.036 §12.1, §16.3): a positive disjunct of `t`'s
+read rule whose every row column the pins fix — none at all for a grant
+such as `exists staff[viewer]`, the parent's column for a parent probe such
+as `exists boards[.board, owner = viewer]` under `.board = b` — that holds
+for the caller with the pinned values. It holds for every row the pins
+select, so the page is decided once, per caller, as a uniform page is. The
+disjunct is evaluated over the caller's **view**, never the store, so the
+verdict is a function of what the caller may read (`query_noninterference`
+covers it); it is positive, so a view verdict of true holds over the store
+too (`granted_readable`). The engine evaluates it over the store, but only
+for disjuncts whose every probed row the caller can read
+(`rules::page_guard_decision`), where the two agree (OPEN C8). -/
+def granted (sch : Schema) (vw : View) (v : List Nat) (t : String) (ps : List (String × Scalar)) : Bool :=
   match sch.table? t with
-  | some td => td.read.disjuncts.any fun d => d.positive && d.selfCols.isEmpty && d.eval vw v {}
+  | some td => td.read.disjuncts.any fun d =>
+      d.positive && d.selfCols.all (fun c => ps.any (·.1 == c)) && (d.pin ps).eval vw v {}
   | none => false
 
 /-- A scan whose read rule is decided for this caller: by its pins
-(`uniform`) or by a readable grant (`granted`). Only a decided scan can
-prove absence: a page is complete, and an `exists` may answer `false`. -/
+(`uniform`) or by a page guard (`granted`). Only a decided scan can prove
+absence: a page is complete, and an `exists` may answer `false`. -/
 def decided (cx : Ctx) (vw : View) (t : String) (ps : List (String × Scalar)) : Bool :=
-  uniform cx.schema t ps || granted cx.schema vw cx.viewer t
+  uniform cx.schema t ps || granted cx.schema vw cx.viewer t ps
 
 def keyValue (k : Key) : Value := .arr (k.map .s)
 

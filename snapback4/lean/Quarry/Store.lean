@@ -137,6 +137,17 @@ def Rule.positive : Rule → Bool
   | .and a b | .or a b => a.positive && b.positive
   | .allow | .deny | .eq .. | .ne .. | .probe .. => true
 
+/-- A term with each pinned row column replaced by its pinned value. -/
+def Term.pin (ps : List (String × Scalar)) : Term → Term
+  | .col .self c => match ps.lookup c with
+    | some x => .lit x
+    | none => .col .self c
+  | t => t
+
+/-- A rule with each pinned row column replaced by its pinned value: the
+verdict the rule gives every row the pins select (`Rule.eval_pin`). -/
+def Rule.pin (ps : List (String × Scalar)) (r : Rule) : Rule := r.mapTerms (Term.pin ps)
+
 def readable (sch : Schema) (s : Store) (v : List Nat) (t : String) (r : Row) : Bool :=
   match sch.table? t with
   | some td => td.read.eval s v { self := some r }

@@ -98,15 +98,44 @@ fn simplify_prefix(rule: &RuleExpr, name: &str, table: &Table, pinned: &BTreeMap
 /// probe is never a grant.
 // @ref LLP 3000.036#12 — the role-guard completeness proof deferred in §11, server-side and per caller.
 pub fn grant_decision(schema: &Schema, scan: &Scan) -> Option<RuleExpr> {
+    guard_decision(schema, scan, false)
+}
+
+/// The disjuncts of `scan`'s read rule that decide the page for a caller they
+/// admit: the readable grants (`grant_decision`), and each disjunct whose every
+/// row column the scan's prefix pins and whose probed rows its holders can
+/// read (`pinned_probe_readable`), such as `exists boards[.board, owner =
+/// viewer]` under `.board = b`. The page walk (`read.rs`) evaluates them once,
+/// with the prefix's values for the pinned columns: when one holds, every row
+/// the scan can visit is readable, so the page is decided as a uniform page
+/// is. Each verdict reads only rows the caller may read, so `complete`
+/// discloses nothing beyond them.
+// @ref LLP 3000.036#16.3 — a parent probe the pins decide is a page guard, as a grant is.
+pub fn page_guard_decision(schema: &Schema, scan: &Scan) -> Option<RuleExpr> {
+    guard_decision(schema, scan, true)
+}
+
+fn guard_decision(schema: &Schema, scan: &Scan, pinned_guards: bool) -> Option<RuleExpr> {
     let table = schema.table(&scan.table)?;
     if table.through.is_some() { return None; }
     let rule = &table.rules.read;
     if !matches!(rule, RuleExpr::Or(_)) { return None; }
-    let grants: Vec<RuleExpr> = rule.disjuncts().into_iter()
-        .filter(|disjunct| { let mut fields = BTreeSet::new(); disjunct.fields(&mut fields); fields.is_empty() })
-        .filter(|disjunct| self_disclosing(schema, disjunct))
+    let pinned = if pinned_guards { scan_pinned(table, scan) } else { Vec::new() };
+    let guards: Vec<RuleExpr> = rule.disjuncts().into_iter()
+        .filter(|disjunct| {
+            let mut fields = BTreeSet::new();
+            disjunct.fields(&mut fields);
+            if fields.is_empty() { self_disclosing(schema, disjunct) }
+            else { fields.iter().all(|field| pinned.iter().any(|(column, _)| *column == field)) && pinned_probe_readable(schema, disjunct) }
+        })
         .cloned().collect();
-    (!grants.is_empty()).then(|| if grants.len() == 1 { grants.into_iter().next().unwrap() } else { RuleExpr::Or(grants) })
+    (!guards.is_empty()).then(|| if guards.len() == 1 { guards.into_iter().next().unwrap() } else { RuleExpr::Or(guards) })
+}
+
+/// The columns the scan's prefix pins, with their value expressions.
+fn scan_pinned<'s>(table: &'s Table, scan: &'s Scan) -> Vec<(&'s String, &'s Expr)> {
+    let Some(index) = table.index(&scan.index) else { return Vec::new() };
+    index.components.iter().zip(&scan.prefix).filter_map(|(part, key)| part.column().zip(key.scalar())).collect()
 }
 
 /// Every caller who reaches `scan` holds the scan's readable grant, in a
@@ -123,16 +152,29 @@ pub fn grant_decision(schema: &Schema, scan: &Scan) -> Option<RuleExpr> {
 /// `G` may be an `exists` probe (with the grant's named equalities, as
 /// `exists staff[principal = viewer, role = 'manager']` lowers them) or a
 /// `viewer = '…'` comparison, and may be one conjunct of a larger condition.
+/// A page guard on a pinned column (`exists boards[.board, owner = viewer]`
+/// under `.board = b`) is implied by the same probe of the pinned value
+/// (`exists boards[b, owner = viewer]`) when that value is a literal,
+/// `viewer` or an argument the program never rebinds.
 /// Scans compare structurally, so every copy of the scan must be guarded.
 // @ref LLP 3000.036#12 — require dominance: staff consoles and staff-only mutation passes.
 // @ref LLP 3000.036#13.1 — `if` guards and early exits dominate too, so `check` agrees with the runtime verdict.
+// @ref LLP 3000.036#16.3 — a guard on the pinned parent probe dominates as a grant's does.
 pub fn grant_dominated(schema: &Schema, program: &crate::ir::Program, scan: &Scan) -> bool {
-    let Some(grant) = grant_decision(schema, scan) else { return false };
+    let Some(grant) = page_guard_decision(schema, scan) else { return false };
     let written: BTreeSet<String> = crate::ir::write_tables(program).into_iter().map(|(table, _)| table).collect();
     let mut probes = grant_probe_bindings(&program.body);
     probes.retain(|_, read| !written.contains(&read.table));
     let conditions = short_circuit_bindings(&program.body);
-    let guard = Guard { grant: &grant, written: &written, probes: &probes, conditions: &conditions };
+    let mut rebound = BTreeMap::new();
+    assignment_counts(&program.body, &mut rebound);
+    let mut pins = schema.table(&scan.table).map(|table| scan_pinned(table, scan)).unwrap_or_default();
+    pins.retain(|(_, value)| match value {
+        Expr::Literal(_) | Expr::Input(Input::Viewer) => true,
+        Expr::Variable(name) => program.args.contains_key(name) && !rebound.contains_key(name),
+        _ => false,
+    });
+    let guard = Guard { grant: &grant, written: &written, probes: &probes, conditions: &conditions, pins: &pins };
     let mut walk = Dominance { scan, found: 0, guarded: 0 };
     walk.body(&guard, &program.body, false);
     walk.found > 0 && walk.found == walk.guarded
@@ -162,22 +204,27 @@ fn grant_probe_bindings(body: &[crate::ir::Stmt]) -> BTreeMap<String, crate::ir:
     out.into_iter().filter_map(|(name, read)| read.map(|read| (name, read))).collect()
 }
 
+/// How often each name is bound or assigned anywhere in `body` (an argument
+/// that appears here no longer holds the value the scan's prefix was
+/// evaluated from; a short-circuit temporary is assigned exactly twice).
+fn assignment_counts(body: &[crate::ir::Stmt], out: &mut BTreeMap<String, usize>) {
+    use crate::ir::Stmt;
+    for statement in body {
+        match statement {
+            Stmt::Let { name, .. } | Stmt::Const { name, .. } | Stmt::Assign { name, .. } => *out.entry(name.clone()).or_default() += 1,
+            Stmt::If { then_body, else_body, .. } => { assignment_counts(then_body, out); assignment_counts(else_body, out); }
+            Stmt::For { binding, body, .. } => { *out.entry(binding.clone()).or_default() += 1; assignment_counts(body, out); }
+            _ => {}
+        }
+    }
+}
+
 /// The compiler lowers a short-circuit `a and b` (`a or b`) to a temporary:
 /// `$bool1 = a`, then `if $bool1: $bool1 = b` (`if not $bool1: …`, or
 /// `if $bool1:` with the assignment in its `else`). Each such
 /// temporary, assigned only there, stands for the whole condition.
 fn short_circuit_bindings(body: &[crate::ir::Stmt]) -> BTreeMap<String, Expr> {
     use crate::ir::{BinaryOp, Stmt, UnaryOp};
-    fn assignments(body: &[Stmt], out: &mut BTreeMap<String, usize>) {
-        for statement in body {
-            match statement {
-                Stmt::Let { name, .. } | Stmt::Const { name, .. } | Stmt::Assign { name, .. } => *out.entry(name.clone()).or_default() += 1,
-                Stmt::If { then_body, else_body, .. } => { assignments(then_body, out); assignments(else_body, out); }
-                Stmt::For { binding, body, .. } => { *out.entry(binding.clone()).or_default() += 1; assignments(body, out); }
-                _ => {}
-            }
-        }
-    }
     fn collect(body: &[Stmt], counts: &BTreeMap<String, usize>, out: &mut BTreeMap<String, Expr>) {
         for pair in body.windows(2) {
             let [Stmt::Let { name, value: first }, Stmt::If { condition, then_body, else_body }] = pair else { continue };
@@ -208,7 +255,7 @@ fn short_circuit_bindings(body: &[crate::ir::Stmt]) -> BTreeMap<String, Expr> {
         }
     }
     let mut counts = BTreeMap::new();
-    assignments(body, &mut counts);
+    assignment_counts(body, &mut counts);
     let mut out = BTreeMap::new();
     collect(body, &counts, &mut out);
     out
@@ -219,6 +266,8 @@ struct Guard<'a> {
     written: &'a BTreeSet<String>,
     probes: &'a BTreeMap<String, crate::ir::Read>,
     conditions: &'a BTreeMap<String, Expr>,
+    /// The scan's pinned columns whose values cannot change before the walk.
+    pins: &'a [(&'a String, &'a Expr)],
 }
 
 /// One fact a condition establishes: `left op right` with `op` `=`/`!=`, or
@@ -266,6 +315,8 @@ impl Guard<'_> {
     }
 
     fn implies_rule(&self, rule: &RuleExpr, facts: &[Fact]) -> bool {
+        let pinned_term = |term: &RuleTerm, expression: &Expr| pinned_term(term, expression)
+            || matches!(term, RuleTerm::Field(column) if self.pins.iter().any(|(pinned, value)| *pinned == column && *value == expression));
         let same = |expression: &Expr, term: &RuleTerm| pinned_term(term, expression);
         match rule {
             RuleExpr::And(items) => !items.is_empty() && items.iter().all(|item| self.implies_rule(item, facts)),

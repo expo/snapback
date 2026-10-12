@@ -151,7 +151,7 @@ theorem decided_store {cx : Ctx} {s : Store} {t : String} {ps : List (String × 
       cases hrd : readable cx.schema s cx.viewer t r
       · rfl
       · exact absurd ⟨r, hr, hk, hrd⟩ hany
-  · exact .inl fun r _ _ => granted_readable hg r
+  · exact .inl fun r _ hk => granted_readable hg r hk
 
 /-- **A complete page covers the store**: the combination of
 `pageRead_complete` and `decided_store`. -/

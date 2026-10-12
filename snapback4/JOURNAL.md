@@ -92519,3 +92519,27 @@ indexes every package subpath, kept equal to the exports by
 card's acceptance script spawns `resolveBinary()` and stops it with a
 TERM-then-KILL `stopChild`. The authoring census counts the two new cards'
 owner-only examples. Design in LLP 3000.007 §20.1.
+
+## 2026-10-12 — The Lean model catches up, and a pinned parent probe decides a page
+
+Three engine changes of 2026-10-11 (LLP 3000.036 §12.1 readable grants,
+§15.4 where guards, §15.12 search `exists`) had landed without the Lean
+model, whose hosts had no `lake`. The model now decides a scan by its pins
+or by a page guard evaluated over the caller's view, answers a search
+`exists` `true` on a visible match, `false` only when decided and otherwise
+unavailable, and the emitter translates grants, emits `exists t[key]` as a
+point read and applies the compiler's where-guard lowering. `lean::generate`
+draws all three from a third independent stream.
+
+Then the deferred §16.3 change: a read-rule disjunct whose row columns the
+scan's prefix pins, and whose probed rows its holders can read, is a page
+guard on the server (`rules::page_guard_decision`, evaluated once with the
+prefix's values), so the board owner's cards and the leader's roster are
+`complete: true`. `check` follows `if`/`require` on the pinned probe, the
+copy-the-principal recipe is gone, devices are unchanged (a union rule
+cannot sync). The model's C8 gained the same arm with `Rule.eval_pin`,
+`granted_readable` and `decided_store`; `./check.sh` audits 46 theorems and
+runs 42 examples, and `run-lean` over 100,000 cases shows only the
+classified C2/W4 signatures. The web device grows 578 B gzip (649,250 B,
+inside the 649,324 B budget) after sharing the grant and prefix-row code.
+The ticket is closed.

@@ -115,6 +115,21 @@ def consoleStore : Store := mkStore [
 
 def allTickets : Program := query [.ret (.page "tickets" [] none [] false 10 none)]
 
+/-- LLP 3000.036 §16.3's boards: `cards: read <- .author = viewer or exists
+boards[.board, owner = viewer]`, the board readable by everyone
+(`hiddenBoards`: by nobody, `read <- deny`). -/
+def boardsSchema (hiddenBoards : Bool := false) : Schema := { tables := [
+  { name := "boards", cols := [c "owner"], read := if hiddenBoards then .deny else .allow },
+  { name := "cards", cols := [c "board", c "author"]
+    read := .or (.eq (self "author") .viewer) (.probe "boards" [("id", self "board"), ("owner", .viewer)]) }] }
+
+def boardStore : Store := mkStore [
+  ("boards", [mkRow "b1" [("owner", I "olga")], mkRow "b2" [("owner", I "olga")]]),
+  ("cards", [mkRow "k1" [("board", I "b1"), ("author", I "ann")],
+             mkRow "k2" [("board", I "b1"), ("author", I "bo")]])]
+
+def boardCards (b : String) : Program := query [.ret (.page "cards" [("board", idE b)] none [] false 10 none)]
+
 def plain : Schema := { tables := [] }
 def identityHelper : Helper := { name := "identity", params := ["x"], body := .var "x" }
 
@@ -360,6 +375,27 @@ def examples : List Example := [
     case := { schema := console true, store := consoleStore, viewer := alice, program := allTickets }
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"k1","owner":"alice"},{"id":"k2","owner":"bob"}],"complete":false,"next":null}"# },
+  { name := "page-parent-guard-holder"
+    source := "LLP 3000.036 §16.3: `exists boards[.board, owner = viewer]` under `.board = b` decides the board owner's page"
+    case := { schema := boardsSchema, store := boardStore, viewer := cps "olga", program := boardCards "b1" }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k1","board":"b1","author":"ann"},{"id":"k2","board":"b1","author":"bo"}],"complete":true,"next":null}"# },
+  { name := "page-parent-guard-other"
+    source := "LLP 3000.036 §16.3: an author who does not own the board pages her own rows, `complete: false`"
+    case := { schema := boardsSchema, store := boardStore, viewer := cps "ann", program := boardCards "b1" }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k1","board":"b1","author":"ann"}],"complete":false,"next":null}"# },
+  { name := "page-parent-guard-hidden"
+    source := "LLP 3000.036 §16.1: a pin-decided probe its holders cannot read decides nothing"
+    case := { schema := boardsSchema true, store := boardStore, viewer := cps "olga", program := boardCards "b1" }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"k1","board":"b1","author":"ann"},{"id":"k2","board":"b1","author":"bo"}],"complete":false,"next":null}"# },
+  { name := "exists-parent-guard-absence"
+    source := "LLP 3000.036 §15.12, §16.3: a scan its pins decide for the caller proves absence"
+    case := { schema := boardsSchema, store := boardStore, viewer := cps "olga",
+              program := scalar (.exists_ "cards" [("board", idE "b2")] none) }
+    tables := []
+    expected := r#"{"kind":"answer","data":false,"complete":true,"next":null}"# },
   { name := "id-not-text"
     source := "ticket 20260913 rule-equality-id-string: an id never equals a text"
     case := { schema := plain, store := Store.empty, viewer := alice,

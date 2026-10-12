@@ -191,22 +191,82 @@ theorem mem_visibleRows {sch : Schema} {s : Store} {v : List Nat} {t : String} {
     (h : r ∈ visibleRows sch s v t) : r ∈ s t :=
   (List.mem_filter.1 h).1
 
-/-- **A readable grant decides every row**: a grant that holds over the
-caller's view makes every row of the table readable to them. -/
+theorem List.mem_of_lookup {ps : List (String × Scalar)} {c : String} {x : Scalar} :
+    ps.lookup c = some x → (c, x) ∈ ps := by
+  induction ps with
+  | nil => simp [List.lookup]
+  | cons p ps ih =>
+    obtain ⟨a, b⟩ := p
+    simp only [List.lookup]
+    split
+    · rename_i h; intro hx; cases hx
+      have : c = a := by simpa using h
+      subst this; exact List.mem_cons_self
+    · intro hx; exact List.mem_cons_of_mem _ (ih hx)
+
+theorem List.lookup_none {ps : List (String × Scalar)} {c : String} :
+    ps.lookup c = none → ∀ p ∈ ps, p.1 ≠ c := by
+  induction ps with
+  | nil => simp
+  | cons p ps ih =>
+    obtain ⟨a, b⟩ := p
+    simp only [List.lookup]
+    split
+    · intro h; cases h
+    · rename_i h
+      intro hn q hq
+      rcases List.mem_cons.1 hq with rfl | hq
+      · intro hac; subst hac; simp at h
+      · exact ih hn q hq
+
+theorem Rule.positive_mapTerms {f : Term → Term} : ∀ r : Rule, (r.mapTerms f).positive = r.positive := by
+  intro r
+  induction r with
+  | and a b iha ihb => simp [Rule.mapTerms, Rule.positive, iha, ihb]
+  | or a b iha ihb => simp [Rule.mapTerms, Rule.positive, iha, ihb]
+  | not a _ => rfl
+  | _ => rfl
+
+/-- **Pinning keeps the verdict**: for a row the pins select, a rule whose row
+columns are all pinned gives the verdict of the rule with the pinned values
+substituted, whatever row it is asked about. -/
+theorem Rule.eval_pin {s : Store} {v : List Nat} {ps : List (String × Scalar)} {r : Row}
+    (hk : keyMatch ps r = true) (d : Rule) (hp : ∀ c ∈ d.selfCols, ps.any (·.1 == c) = true) :
+    d.eval s v { self := some r } = (d.pin ps).eval s v {} := by
+  refine Rule.eval_mapTerms d fun t ht => ?_
+  match t, ht with
+  | .col .self c, ht =>
+    have hc := hp c (mem_selfCols ht (by simp [Term.selfCols]))
+    cases hl : ps.lookup c with
+    | some x =>
+      have := keyMatch_get hk (List.mem_of_lookup hl)
+      simp [Term.pin, hl, Term.eval, Imgs.get, this]
+    | none =>
+      obtain ⟨p, hmem, hpc⟩ := List.any_eq_true.1 hc
+      exact absurd (by simpa using hpc) (List.lookup_none hl p hmem)
+  | .col .old _, _ => rfl
+  | .col .next _, _ => rfl
+  | .viewer, _ => rfl
+  | .lit _, _ => rfl
+
+/-- **A page guard decides every row it selects**: a guard that holds over
+the caller's view makes every row the pins select readable to them. -/
 theorem granted_readable {sch : Schema} {s : Store} {v : List Nat} {t : String}
-    (hg : granted sch (visibleRows sch s v) v t = true) (r : Row) : readable sch s v t r = true := by
+    {ps : List (String × Scalar)} (hg : granted sch (visibleRows sch s v) v t ps = true) (r : Row)
+    (hk : keyMatch ps r = true) : readable sch s v t r = true := by
   unfold granted at hg
   unfold readable
   split at hg
   · rename_i td htd
     rw [htd]
     obtain ⟨d, hd, hdg⟩ := List.any_eq_true.1 hg
-    simp only [Bool.and_eq_true, List.isEmpty_iff] at hdg
-    obtain ⟨⟨hpos, hfree⟩, hev⟩ := hdg
-    have hs : d.eval s v {} = true :=
-      Rule.eval_mono (fun _ _ hx => mem_visibleRows hx) d hpos hev
+    simp only [Bool.and_eq_true, List.all_eq_true] at hdg
+    obtain ⟨⟨hpos, hpinned⟩, hev⟩ := hdg
+    have hs : (d.pin ps).eval s v {} = true :=
+      Rule.eval_mono (fun _ _ hx => mem_visibleRows hx) (d.pin ps)
+        (by rw [Rule.pin, Rule.positive_mapTerms]; exact hpos) hev
     have hr : d.eval s v { self := some r } = true := by
-      rw [Rule.eval_self_free (y := none) d hfree]; exact hs
+      rw [Rule.eval_pin hk d hpinned]; exact hs
     exact Rule.eval_of_mem_disjuncts td.read d hd hr
   · cases hg
 

@@ -50,11 +50,11 @@ elan.
 | Values | `Quarry/Value.lean` | Scalars: null, bool, i53 int, text (as code points), nominal id, bytes. Values: scalars, arrays, rows. The one total order. A self-delimiting order-preserving key encoding. |
 | Syntax | `Quarry/Syntax.lean` | Schema: tables, typed nullable columns, unique keys with `else CODE`, read/insert/update/delete rules. Rules: allow, deny, `=`, `!=`, `exists t[..]` probes, and, or, not, over the row, old/next images and `viewer`. Expressions: arithmetic, comparison, and/or/not, `!` / `else`, `??`, conditionals, pure helper calls, arrays, records, point reads, pages, `count`, `exists`. Statements: `x = e`, `require`, `if`, `return`, and insert/upsert/update/delete. |
 | Store and rules | `Quarry/Store.lean` | Rows, the store, rule evaluation, visibility (`visibleRows`), a rule's disjuncts and terms. |
-| Evaluator | `Quarry/Eval.lean` | `evalExpr` and `execStmts`: total and structural on fuel. The page walk, `complete` and `next`, counts and search `exists`; when a scan is decided (its pins, or a readable grant). Reads see only a `View` of visible rows. |
+| Evaluator | `Quarry/Eval.lean` | `evalExpr` and `execStmts`: total and structural on fuel. The page walk, `complete` and `next`, counts and search `exists`; when a scan is decided (its pins, or a page guard: a grant or a pinned parent probe). Reads see only a `View` of visible rows. |
 | Writes | `Quarry/Write.lean` | Insert, upsert, update and delete, with rule checks and the documented refusal codes (`E_RULE`, `NOT_FOUND`, `E_CONFLICT`, `E_CONSTRAINT`, application codes). |
 | Running | `Quarry/Run.lean` | `run : Case → Outcome`. An outcome is an answer (data, `complete`, `next`), unavailable, committed (result and store), or refused (code). |
 | Case I/O | `Quarry/CaseJson.lean`, `Oracle.lean` | The harness's case JSON decoded to a `Case`, and outcomes printed with every scalar tagged. Input and output only: no semantics, used by no proof. |
-| Examples | `Quarry/Examples.lean` | 38 hand-written programs from the guide cards and LLPs, each citing the sentence its expectation comes from. |
+| Examples | `Quarry/Examples.lean` | 42 hand-written programs from the guide cards and LLPs, each citing the sentence its expectation comes from. |
 
 **Out of scope** (§5.2): the meter, apart from one abstract ceiling on
 visible candidates examined (OPEN M1), and the following:
@@ -133,15 +133,16 @@ returned. Changing a witness row is a change of authority, not a disclosure.
 **Completeness soundness** (`Proofs/Disclosure.lean`, `Proofs/Continuation.lean`)
 
 - `pageRead_complete`: a page that leaves `complete` true was decided (by its
-  pins, or by a readable grant). It returned exactly the first N qualifying
+  pins, or by a page guard: a readable grant or a pinned parent probe). It returned exactly the first N qualifying
   visible rows after its cursor, in key order.
 - `decided_store`, `pageRead_complete_store`: **a decided scan sees all of
   its rows or none**. The rows its pins select in the store are all readable
   to the caller, or none is, so a complete page omits no qualifying row. Its
   parts: `uniform_readable_eq` (pins that fix every column the rule reads
-  give one verdict) and `granted_readable` (a positive, row-independent
-  disjunct that holds over the caller's view makes every row readable;
-  `Rule.eval_mono`).
+  give one verdict) and `granted_readable` (a positive disjunct whose row
+  columns are all pinned — none, for a grant — that holds over the caller's
+  view with the pinned values makes every row the pins select readable;
+  `Rule.eval_mono`, `Rule.eval_pin`).
 - `walk_complete`: the same fact for the underlying candidate walk.
 - `cut_continuation`: a page cut by the ceiling, followed by the leading
   qualifying rows of its continuation from `next`, equals the uncut page.

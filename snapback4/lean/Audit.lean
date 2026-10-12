@@ -23,6 +23,7 @@ open Quarry
 #print axioms existsRead_eq
 #print axioms existsRead_decided
 #print axioms granted_readable
+#print axioms Rule.eval_pin
 #print axioms uniform_readable_eq
 #print axioms Rule.eval_mono
 #print axioms Rule.eval_perm
