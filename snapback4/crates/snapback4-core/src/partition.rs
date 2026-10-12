@@ -375,7 +375,7 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                         let bound = binding(schema, &content_name, &sync).expect("validated audience");
                         let mut probe = group.clone();
                         probe.push(row.field(&bound.principal)?.clone());
-                        if !runner.metered_scan(|runner, allowance| key_has_row(runner, allowance, table_name, &bound.group_index, &probe, |other| other != own))? {
+                        if !runner.metered_scan(|runner, allowance| key_has_row(runner, allowance, table_name, &bound.group_index, &probe, false, |other| other != own))? {
                             runner.born_grants.remove(&key);
                         }
                         undone_born = Some(key);
@@ -384,14 +384,11 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                 }
             }
         }
-        // A grant born in this commit stays born through renewals, and
-        // through a new lifetime that ends it at once, until it is undone. A
-        // grant beside another row of its key that existed before the commit
-        // (an expired predecessor not yet swept, which the log still holds)
-        // is not born: it replaces that predecessor, whose revocation is
-        // still owed. Rows born in this commit held no authority before it,
-        // so they are passed over. The probe is log bookkeeping, not program
-        // work, so no host is charged for it (the device builds no log).
+        // Only a live pre-commit sibling prevents a grant from being born.
+        // An expired physical predecessor cannot lend authority to a transient
+        // replacement. Any revocation owed by that predecessor remains in its
+        // earlier scope or the final synthetic-expiry path.
+        // @ref LLP 3000.036.000.000#9 — physical presence is not historical grant authority.
         #[cfg(feature = "sqlite")]
         if LOG && let Some((partition, group)) = &is {
             let key = (partition.clone(), content_name.clone(), canonical_json(group));
@@ -401,7 +398,7 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                 let mut probe = group.clone();
                 probe.push(row.field(&bound.principal)?.clone());
                 let own = row.field("id")?.as_str()?;
-                let predecessor = runner.metered_scan(|runner_now, allowance| key_has_row(runner_now, allowance, table_name, &bound.group_index, &probe, |other| other != own && !runner_now.born_rows.contains_key(&(table_name.to_owned(), other.to_owned()))))?;
+                let predecessor = runner.metered_scan(|runner_now, allowance| key_has_row(runner_now, allowance, table_name, &bound.group_index, &probe, true, |other| other != own && !runner_now.born_rows.contains_key(&(table_name.to_owned(), other.to_owned()))))?;
                 if !predecessor {
                     let earlier = runner.events.grant_count(&key);
                     runner.born_grants.insert(key.clone(), earlier);
@@ -421,12 +418,13 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
 /// satisfies `wanted`, scanning the unique group index in batches until one
 /// does. Log bookkeeping on the log-bearing host: not metered.
 #[cfg(feature = "sqlite")]
-fn key_has_row(runner: &Runner<'_>, allowance: &crate::engine::authorized_scan::Authorization, table_name: &str, index: &str, probe: &[Value], wanted: impl Fn(&str) -> bool) -> Result<bool, RuntimeError> {
+fn key_has_row(runner: &Runner<'_>, allowance: &crate::engine::authorized_scan::Authorization, table_name: &str, index: &str, probe: &[Value], live_only: bool, wanted: impl Fn(&str) -> bool) -> Result<bool, RuntimeError> {
     let mut bounds = Bounds::default();
     loop {
         let rows = runner.tx.scan(allowance, table_name, index, probe, &bounds, Dir::Asc, 32)?;
         for (other, stored) in &rows {
-            if wanted(other.field("id")?.as_str()?) {
+            if wanted(other.field("id")?.as_str()?)
+                && (!live_only || runner.context.now.is_none_or(|now| !runner.schema.tables[table_name].expired(&row_image(other, &runner.schema.tables[table_name]), now))) {
                 return Ok(true);
             }
             bounds.after = crate::key::decode(stored).map(|values| values.into_iter().skip(probe.len()).collect());
@@ -1015,13 +1013,18 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
     // expired at activation never held its new group, before or after sweeping.
     // @ref LLP 3000.036.000.000#9 — scope lifetime and epoch time bound D2 group disclosure.
     let times = epoch_times(tx, schema)?;
+    let origins: Vec<_> = held.values().flatten().filter_map(|span| span.origin.map(|(seq, _, _)| seq)).collect::<BTreeSet<_>>().into_iter().collect();
+    let origin_times = if origins.is_empty() { BTreeMap::new() } else { tx.commit_times(&origins)? };
     page.retain(|event| {
         if event.kind != "scope" { return true; }
         let current = schema.table(&event.table).and_then(|table| table.sync.as_ref())
             .is_some_and(|sync| matches!(sync.audience, Audience::Target { .. }))
             && event.seq >= epochs.get(&event.table).copied().unwrap_or(0);
         current && (!times.contains_key(&event.table) || held.get(&(event.table.clone(), event.id.clone())).is_some_and(|spans|
-            spans.iter().any(|span| span.to == Some((event.seq, event.ord)) && (span.origin.is_some() || !interval_never_live(span, times.get(&event.table).copied(), &BTreeMap::new())))))
+            spans.iter().any(|span| span.from <= event.seq && match span.origin {
+                Some((seq, _, lifetime)) => seq < event.seq && !ended_by_its_commit(&origin_times, seq, lifetime),
+                None => !interval_never_live(span, times.get(&event.table).copied(), &origin_times),
+            })))
     });
     for event in page.iter_mut().filter(|event| event.kind == "scope") {
         if let Some(group) = event.data.as_ref().and_then(|data| data.field("group").ok()).cloned() { event.data = Some(group); }

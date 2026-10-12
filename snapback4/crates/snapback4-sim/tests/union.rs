@@ -1725,7 +1725,7 @@ fn a_first_post_epoch_renewal_keeps_history_without_granting_acquisition_history
             let mut rows = vec![("notes".into(), object([("id", id("n")), ("group", Value::String("g".into())), ("body", Value::String("x".into()))]))];
             if let Some(until) = lifetime { rows.push(("members".into(), object([("id", id("m")), ("group", Value::String("g".into())), ("person", id(ALICE)), ("until", Value::Int(until))]))); }
             engine.seed_at(rows, NOW).unwrap();
-            engine.adopt(new.0.clone(), new.1.clone()).unwrap();
+            engine.adopt_at(new.0.clone(), new.1.clone(), NOW).unwrap();
             let mut trace = epoch_snapshot_trace(&mut engine);
             let from = engine.seq().unwrap();
             let mut context = Context::system().at(NOW + 2);
@@ -1733,6 +1733,11 @@ fn a_first_post_epoch_renewal_keeps_history_without_granting_acquisition_history
             let outcome = engine.mutate("renewDelete", Some("renew-delete"), context).unwrap();
             assert!(matches!(outcome.state, WriteState::Sent { .. }), "{outcome:?}");
             epoch_stream_trace(&mut engine, from, limit, &mut trace);
+            if lifetime == Some(NOW + 100) {
+                let events: Vec<_> = trace.iter().filter(|p| p["snapshot"] == false).flat_map(|p| p["events"].as_array().unwrap()).collect();
+                assert!(events.iter().any(|e| e["table"] == "notes" && e["kind"] == "del" && e["id"] == "n"), "live renewal preserves the deletion in its renewing commit");
+                assert!(events.iter().all(|e| !(e["table"] == "notes" && e["kind"] == "scope")), "live renewal never replaces the acquired group");
+            }
             if lifetime.is_none() {
                 assert!(trace.iter().flat_map(|p| p["events"].as_array().unwrap()).all(|e| !(e["table"] == "notes" && e["id"] == "n")), "a genuine acquisition learns no deleted id");
             }
@@ -2509,7 +2514,7 @@ fn renewal_epoch_and_sweep_between_pages_name_only_previously_readable_ids() {
                 ),
             ])
             .unwrap();
-        engine.adopt(schema.clone(), programs.clone()).unwrap();
+        engine.adopt_at(schema.clone(), programs.clone(), NOW).unwrap();
         let mut trace = snapshot_trace_at(&mut engine, ALICE, limit);
         let from = engine.seq().unwrap();
         mutate(
@@ -2574,7 +2579,9 @@ fn a_rebound_already_expired_grant_never_names_its_new_group() {
         .replace("unique team, person", "unique alternate, person")
         .replace(".owner = viewer or exists members[.team, viewer]", "exists members[.team, viewer]")
         .replace("insert <- exists members[.team, viewer]", "insert <- exists members[.alternate, viewer]");
-    let old=compiled(old); let new=compiled(&new);
+    let compound = "\nmutation transient(who: principal, until: time):\n  m = insert members { team: 'old-a', alternate: 'never-held', person: who, until }\n  delete members[m]\n  return null\nmutation transientRenew(who: principal, until: time):\n  m = insert members { team: 'old-a', alternate: 'never-held', person: who, until }\n  update members[m] { until: now + 2d }\n  update members[m] { until: now + 3d }\n  delete members[m]\n  return null\n";
+    let old=compiled(&format!("{old}{compound}")); let new=compiled(&format!("{new}{compound}").replace("  delete <- .person = viewer", "  update <- .person = viewer\n  delete <- .person = viewer"));
+    for op in ["none", "transient", "transientRenew"] {
     for limit in [1,1000] {
         let mut engine=Engine::memory(old.0.clone(),old.1.clone()).unwrap();
         let alice=object([("id",id("ma")),("team",Value::String("old-a".into())),("alternate",Value::String("never-held".into())),("person",id(ALICE))]);
@@ -2583,6 +2590,12 @@ fn a_rebound_already_expired_grant_never_names_its_new_group() {
         engine.store().conn().execute("UPDATE r SET data = ?1 WHERE id = 'ma'",[snapback4_core::value::canonical_json(&alice)]).unwrap();
         engine.adopt_at(new.0.clone(),new.1.clone(),NOW+100).unwrap();
         let (_,watermark)=engine.snapshot_at(ALICE,NOW+150).unwrap();
+        if op != "none" {
+            let mut context=Context::system().at(NOW+200).with_ids(["fresh".into()]);
+            context.args=BTreeMap::from([("who".into(),id(ALICE)),("until".into(),Value::Int(NOW+1000))]);
+            let out=engine.mutate(op,Some(op),context).unwrap();
+            assert!(matches!(out.state,WriteState::Sent{..}),"{out:?}");
+        }
         for swept in [false,true] {
             if swept { engine.sweep_expired(NOW+300,100).unwrap(); }
             for from in [0,watermark] {
@@ -2599,4 +2612,5 @@ fn a_rebound_already_expired_grant_never_names_its_new_group() {
         let page=engine.stream_at(BOB,from,limit,NOW+500).unwrap();
         assert!(page.events.iter().any(|e| e.table=="notes" && e.kind=="scope" && e.data==Some(Value::Array(vec![Value::String("live-b".into())]))),"a grant live after activation still revokes: {page:?}");
     }
+}
 }

@@ -92742,3 +92742,12 @@ consumer exercise that distinction.
   lifetime distinguish never-live rebound groups from live revocations, before
   and after sweeping. Wire scopes remain arrays; born event/meter reference
   mirrors the internal metadata. Muse's revision-9 Low suggestions are adopted.
+
+- 2026-10-12, UNION revision 11: final round 9 retry returned GPT NOT READY /
+  Muse READY. The new High trace reproduced a scope for a never-held rebound
+  group when a transient replacement was born beside an unswept expired row.
+  Live pre-commit siblings now determine birth accounting; repeated renewals
+  remain born and deletion withdraws their joins. Scope liveness also requires
+  an actual earlier commit boundary. Zero/two-renewal regressions pass; renewal
+  fixtures use adopt_at and assert deletion without replacement. Review budget
+  exhausted, latest fixes unreviewed, UNION promotion remains held.

@@ -172,7 +172,7 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, event
                         let bound = binding(schema, &content_name, &sync).expect("validated audience");
                         let mut probe = group.clone();
                         probe.push(row.field(&bound.principal)?.clone());
-                        if !runner.metered_scan(|runner, allowance| key_has_row(runner, allowance, table_name, &bound.group_index, &probe, |other| other != own))? {
+                        if !runner.metered_scan(|runner, allowance| key_has_row(runner, allowance, table_name, &bound.group_index, &probe, false, |other| other != own))? {
                             runner.born_grants.remove(&key);
                         }
                         undone_born = Some(key);
@@ -198,7 +198,7 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, event
                 let mut probe = group.clone();
                 probe.push(row.field(&bound.principal)?.clone());
                 let own = row.field("id")?.as_str()?;
-                let predecessor = runner.metered_scan(|runner_now, allowance| key_has_row(runner_now, allowance, table_name, &bound.group_index, &probe, |other| other != own && !runner_now.born_rows.contains_key(&(table_name.to_owned(), other.to_owned()))))?;
+                let predecessor = runner.metered_scan(|runner_now, allowance| key_has_row(runner_now, allowance, table_name, &bound.group_index, &probe, true, |other| other != own && !runner_now.born_rows.contains_key(&(table_name.to_owned(), other.to_owned()))))?;
                 if !predecessor {
                     let earlier = events.iter().filter(|event| event.kind == EventKind::Join && event.partition == key.0 && event.table == key.1 && event.id == key.2).count();
                     runner.born_grants.insert(key.clone(), earlier);
