@@ -233,7 +233,7 @@ fn allocation_model_sqlite() {
 }
 
 fn queued(viewer: &str, n: u64) -> Queued {
-    Queued {
+    Queued { upload: None,
         id: format!("{viewer}{n}"),
         seq: n,
         op: "send".into(),

@@ -47,7 +47,7 @@ fn maintains_predict_new_groups_and_omit_online_side_effects_on_both_stores() {
                 assert_eq!(snapback4_core::wire::to_json(&actual), json!({"day":at.div_euclid(86_400_000), "hour":at.div_euclid(3_600_000), "bucket":at.div_euclid(120_000)}));
             }
             let input = json!({"selected":true, "at":-1});
-            let queued = device.admit(Queued { id:"a".into(), seq:1, op:"add".into(), args:input.clone(), viewer:"bob".into(), now:1, new_ids:vec!["p".into()], predicted:vec![], predictable:true, sent_seq: None, receipt_store: None, observed_seq:None, dispatch: None }).unwrap();
+            let queued = device.admit(Queued { upload: None, id:"a".into(), seq:1, op:"add".into(), args:input.clone(), viewer:"bob".into(), now:1, new_ids:vec!["p".into()], predicted:vec![], predictable:true, sent_seq: None, receipt_store: None, observed_seq:None, dispatch: None }).unwrap();
             assert!(queued.predictable, "{queued:?}");
             assert_eq!(device.query("daily", "bob", &json!({"at":-1}), 1).unwrap().data, Value::Int(1));
             assert!(!queued.predicted.iter().any(|s| s.starts_with("serverTotals/")));
@@ -69,7 +69,7 @@ fn maintains_queue_unknown_bases_and_unheld_source_images_on_both_stores() {
         let mut device = host.open("unknown", Some(backend)).unwrap();
         for (i, page) in snapshot_pages(&mut server, "bob", 100).iter().enumerate() { device.apply(page,i==0).unwrap(); }
         for (n, op, row) in [(1,"transfer","held"),(2,"patch","missing")] {
-            let entry = device.admit(Queued { id:format!("q{n}"), seq:n, op:op.into(), args:json!({"row":row}), viewer:"bob".into(), now:2, new_ids:vec![], predicted:vec![], predictable:true, sent_seq: None, receipt_store: None, observed_seq:None, dispatch: None }).unwrap();
+            let entry = device.admit(Queued { upload: None, id:format!("q{n}"), seq:n, op:op.into(), args:json!({"row":row}), viewer:"bob".into(), now:2, new_ids:vec![], predicted:vec![], predictable:true, sent_seq: None, receipt_store: None, observed_seq:None, dispatch: None }).unwrap();
             assert!(!entry.predictable, "{entry:?}"); assert!(entry.predicted.is_empty());
             assert_eq!(device.query("daily","bob",&json!({"at":0}),2).unwrap().data,Value::Int(1));
         }
@@ -146,7 +146,7 @@ fn w6r1_rule_live_aggregate_prediction_on_both_stores() {
             let mut device = host.open(name, Some(backend)).unwrap();
             for (i, page) in crate::snapshot_pages_at(&mut server, "bob", 100, 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
             let before = server.seq().unwrap();
-            let queued = device.admit(Queued { id:"act-write".into(), seq:1, op:"act".into(), args:json!({}), viewer:"bob".into(), now:100, new_ids:vec!["action".into()], predicted:vec![], predictable:true, sent_seq: None, receipt_store: None, observed_seq:None, dispatch: None }).unwrap();
+            let queued = device.admit(Queued { upload: None, id:"act-write".into(), seq:1, op:"act".into(), args:json!({}), viewer:"bob".into(), now:100, new_ids:vec!["action".into()], predicted:vec![], predictable:true, sent_seq: None, receipt_store: None, observed_seq:None, dispatch: None }).unwrap();
             assert_eq!(queued.predictable, !horizon, "{queued:?}");
             assert_eq!(queued.predicted.is_empty(), horizon);
             let out = server.mutate("act", Some("act-write"), Context::new("bob", Default::default()).at(100).with_ids(["action".into()])).unwrap();

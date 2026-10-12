@@ -97,7 +97,7 @@ fn settlement<H:Host>(h:&mut H) {
     request(&mut d,"enumerate");assert_eq!(owed(&state(&mut d),"messages"),json!([[2,2]]));
     d.withdraw(&prediction.predicted).unwrap();assert_eq!(owed(&state(&mut d),"messages"),json!([[1,2]]));
     reset_debt(&mut d);
-    let q=snapback4_device::device::Queued {id:"q".into(),seq:0,op:"edit".into(),args:json!({"id":"m1"}),new_ids:vec![],predicted:vec![],viewer:"dev:alice".into(),now:2,predictable:true,sent_seq:None,receipt_store:None,observed_seq:None,dispatch:None};
+    let q=snapback4_device::device::Queued { upload: None,id:"q".into(),seq:0,op:"edit".into(),args:json!({"id":"m1"}),new_ids:vec![],predicted:vec![],viewer:"dev:alice".into(),now:2,predictable:true,sent_seq:None,receipt_store:None,observed_seq:None,dispatch:None};
     d.admit(q.clone()).unwrap();d.settle("q",None).unwrap();assert_eq!(owed(&state(&mut d),"messages"),json!([[1,1]]),"settlement visits only its predicted ids");
     reset_debt(&mut d);d.admit(snapback4_device::device::Queued{id:"q2".into(),..q}).unwrap();d.dequeue("q2").unwrap();assert_eq!(owed(&state(&mut d),"messages"),json!([[1,1]]));
 }
@@ -118,7 +118,7 @@ fn saturation<H:Host>(h:&mut H) {
 fn deferred_and_retarget<H:Host>(h:&mut H) {
     let mut d=h.open("deferred",Some(backend())).unwrap();
     d.apply(&page(true,vec![event(1),event(2),json!({"table":"selectors","kind":"put","id":"s","data":{"id":"s","target":"m1"}})],1),true).unwrap();
-    let q=snapback4_device::device::Queued {id:"q".into(),seq:0,op:"editSelected".into(),args:json!({}),new_ids:vec![],predicted:vec![],viewer:"dev:alice".into(),now:2,predictable:true,sent_seq:None,receipt_store:None,observed_seq:None,dispatch:None};
+    let q=snapback4_device::device::Queued { upload: None,id:"q".into(),seq:0,op:"editSelected".into(),args:json!({}),new_ids:vec![],predicted:vec![],viewer:"dev:alice".into(),now:2,predictable:true,sent_seq:None,receipt_store:None,observed_seq:None,dispatch:None};
     d.admit(q).unwrap();request(&mut d,"read");
     // Publication retargets the pending write. Only its old base becomes visible.
     d.apply(&page(false,vec![json!({"table":"selectors","kind":"put","id":"s","data":{"id":"s","target":"m2"}})],2),false).unwrap();

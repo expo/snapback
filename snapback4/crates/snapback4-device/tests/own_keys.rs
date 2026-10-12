@@ -85,14 +85,14 @@ fn exercise<H: Host>(h: &mut H) {
     d.apply(&stream_page(&mut e,"alice",from),false).unwrap();
     assert_eq!(state(&mut d,"old"),(true,true));
     // Deleting a held image predicts both the source deletion and the key deletion.
-    let q = d.admit(Queued { id:"pending".into(),seq:1,op:"remove".into(),args:json!({"post":"old"}),new_ids:vec![],predicted:vec![],viewer:"alice".into(),now:10,predictable:true,sent_seq:None,receipt_store:None,observed_seq:None,dispatch:None }).unwrap();
+    let q = d.admit(Queued { upload: None, id:"pending".into(),seq:1,op:"remove".into(),args:json!({"post":"old"}),new_ids:vec![],predicted:vec![],viewer:"alice".into(),now:10,predictable:true,sent_seq:None,receipt_store:None,observed_seq:None,dispatch:None }).unwrap();
     assert!(q.predictable, "{q:?}");
     assert!(q.predicted.iter().any(|k| k.starts_with("$ownKeys:likes/")));
     assert_eq!(state(&mut d,"old"),(false,true));
     d.dequeue("pending").unwrap(); d.withdraw(&q.predicted).unwrap();
     assert_eq!(state(&mut d,"old"),(true,true));
     // The unknown row image is still required for deletion; keys alone are not a write target.
-    let q = d.admit(Queued { id:"unpredicted".into(),seq:2,op:"remove".into(),args:json!({"post":"missing"}),new_ids:vec![],predicted:vec![],viewer:"alice".into(),now:10,predictable:true,sent_seq:None,receipt_store:None,observed_seq:None,dispatch:None }).unwrap();
+    let q = d.admit(Queued { upload: None, id:"unpredicted".into(),seq:2,op:"remove".into(),args:json!({"post":"missing"}),new_ids:vec![],predicted:vec![],viewer:"alice".into(),now:10,predictable:true,sent_seq:None,receipt_store:None,observed_seq:None,dispatch:None }).unwrap();
     assert!(!q.predictable && q.predicted.is_empty(),"{q:?}");
     assert_eq!(state(&mut d,"old"),(true,true));
     d.clear_rows().unwrap();

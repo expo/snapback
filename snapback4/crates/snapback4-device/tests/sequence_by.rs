@@ -9,7 +9,7 @@ fn one<S: DeviceStore>(d: &mut Device<S>, id: &str) -> Value {
     d.query("one", "alice", &json!({"messageId":id}), 1000).unwrap().data
 }
 fn queued(n: u64) -> Queued {
-    Queued {
+    Queued { upload: None,
         id: format!("q{n}"),
         seq: n,
         op: "send".into(),

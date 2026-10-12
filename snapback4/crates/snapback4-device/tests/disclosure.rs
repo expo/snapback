@@ -161,7 +161,7 @@ fn acquiring_an_omitted_private_value_queues_on_both_stores() {
             .predict("acquire", "alice", &json!({"id":"target"}), NOW, vec![], 1)
             .unwrap_err();
         assert_eq!(error.code(), "E_PREDICT");
-        let entry = snapback4_device::device::Queued {
+        let entry = snapback4_device::device::Queued { upload: None,
             id: "acquire".into(),
             seq: 1,
             op: "acquire".into(),

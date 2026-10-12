@@ -5,7 +5,7 @@ use snapback4_core::schema::ColumnType;
 use snapback4_core::assets::asset_id;
 use serde_json::{Value as Json, json};
 
-fn upload_key(viewer: &str, id: &str) -> String { format!("device:upload:{}", json!([viewer, id])) }
+pub(super) fn upload_key(viewer: &str, id: &str) -> String { format!("device:upload:{}", json!([viewer, id])) }
 fn row_key(table: &str, row: &str) -> String { format!("device:media-row:{}", json!([table, row])) }
 
 // @ref LLP 3000.019#3.5 — old indexes need confirmed reacquisition, never a scan of retained history.

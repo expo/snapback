@@ -44,7 +44,7 @@ fn pair_devices<H: Host>(host: &mut H, pair: &Pair) -> Transcript {
                     Ok(p) => { let value = json!(p); d.withdraw(&p.predicted).unwrap(); value },
                     Err(e) => json!({"refusal":e.refusal()}),
                 });
-                let admission = d.admit(Queued {
+                let admission = d.admit(Queued { upload: None,
                     id: format!("operation-{n}"), seq: n as u64 + 1,
                     op: op.name.clone(), args: op.args.clone(), viewer: op.principal.clone(),
                     now, new_ids: vec![format!("new-{n}")], predicted: vec![], predictable: true,

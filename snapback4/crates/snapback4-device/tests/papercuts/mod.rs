@@ -85,7 +85,7 @@ fn w9r1b_hidden_unique_collisions_queue_and_settle_on_both_stores() {
                 let mut device = host.open(&format!("hidden-{name}-{handle}"), Some(backend)).unwrap();
                 for (n, page) in snapshot_pages(&mut engine, "bob", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
                 let input = if name == "rename" { json!({"profile":"p3", "handle":handle}) } else { json!({"handle":handle}) };
-                let entry = Queued { id: "write".into(), seq: 1, op: name.into(), args: input, viewer: "bob".into(), now: 100, new_ids: vec!["p2".into()], predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None };
+                let entry = Queued { upload: None, id: "write".into(), seq: 1, op: name.into(), args: input, viewer: "bob".into(), now: 100, new_ids: vec!["p2".into()], predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None };
                 let queued = ok(device.call(json!({"op":"admit", "entry":entry})));
                 let pending = query(&mut *device, "all", "bob", json!({}), 100);
                 assert!(rows(&pending).iter().all(|row| row["owner"] == "bob"), "{label}/{name}: predictions cannot reveal the hidden row");

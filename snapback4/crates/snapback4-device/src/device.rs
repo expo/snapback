@@ -24,6 +24,7 @@ mod witness;
 mod delivery;
 mod deferred;
 mod media;
+mod upload;
 mod snapshot;
 mod history;
 mod read_scopes;
@@ -166,6 +167,9 @@ pub struct StreamPage {
 /// the ids it minted, and the rows it predicted (`table/id`).
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Queued {
+    /// Device-owned upload dependency and bytes, transferred with this outbox entry.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upload: Option<serde_json::Value>,
     pub id: String,
     pub seq: u64,
     pub op: String,
@@ -659,7 +663,17 @@ impl<S: DeviceStore> Device<S> {
     pub fn begin_send_for(&mut self, id: Option<&str>) -> Result<u64, RuntimeError> {
         let tx = self.store.transaction()?;
         store_identity::require_healthy(&tx)?;
-        if let Some(id) = id { predictions::dispatch(&tx, id, "")?; }
+        if id.is_none(){for data in tx.outbox_entries()?{upload::require_ready(&decoded::<Queued>(&data)?)?;}}
+        if let Some(id) = id {
+            if let Some(data) = tx.outbox_get(id)? {
+                let entry: Queued = decoded(&data)?;
+                upload::require_ready(&entry)?;
+                if entry.upload.as_ref().is_some_and(|u| u.get("store_id").and_then(serde_json::Value::as_str) != tx.meta(STORE_ID).ok().flatten().as_deref()) {
+                    return Err(RuntimeError::Structural {code:"E_STORE_REPLACED",message:"upload belongs to another backend store".into()});
+                }
+            }
+            predictions::dispatch(&tx, id, "")?;
+        }
         let revision = meta_u64(&tx, SEND_REVISION)?.checked_add(1).filter(|n| *n <= 9_007_199_254_740_991).ok_or_else(|| RuntimeError::Store("send revision overflow".into()))?;
         tx.set_meta(SEND_REVISION, &revision.to_string())?;
         // A send invalidates snapshot paging, but a terminal snapshot already
@@ -1094,19 +1108,30 @@ impl<S: DeviceStore> Device<S> {
         let tx = self.store.transaction()?;
         // @ref LLP 3000.007#20.4 — recheck adoption under the admission writer lock, after the SDK's final identity read.
         #[cfg(not(target_arch = "wasm32"))]
-        if _identified && tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) {
+        if (_identified || entry.upload.is_some()) && tx.meta(BACKEND_REQUIRED)?.is_some_and(|value| !value.is_empty()) {
             return Err(RuntimeError::Structural { code: "E_ADMISSION_STORE", message: "The backend needs adoption before this write can be admitted. Reload the current backend, then submit a new attempt.".into() });
         }
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         store_identity::require_healthy(&tx)?;
+        if entry.upload.is_some() && tx.meta(BACKEND_REQUIRED)?.is_some_and(|s|!s.is_empty()){return Err(RuntimeError::Structural{code:"E_ADMISSION_STORE",message:"adopt the identified backend before admitting an upload".into()});}
+        if let Some(upload) = entry.upload.as_mut() {
+            if upload.get("bytes").and_then(serde_json::Value::as_str).is_none() { return Err(RuntimeError::Input("upload admission needs the selected bytes".into())); }
+            upload["original_args"] = entry.args.clone();
+        }
         // @ref LLP 3000#6-the-simulators-invariants — at-most-once admission compares under the store's writer transaction, before any speculative row or id changes.
         if let Some(data) = tx.outbox_get(&entry.id)? {
             let original: Queued = decoded(&data)?;
-            if original.op != entry.op || original.args != entry.args || original.viewer != entry.viewer {
+            if original.op != entry.op || original.upload.as_ref().and_then(|u| u.get("original_args")).unwrap_or(&original.args) != entry.upload.as_ref().and_then(|u| u.get("original_args")).unwrap_or(&entry.args) || upload::input(&original) != upload::input(&entry) || original.viewer != entry.viewer {
                 return Err(RuntimeError::Structural { code: "E_WRITE_ID_REUSE", message: "write id already belongs to a different operation or arguments; retry the original input or use a new id".into() });
             }
             tx.rollback()?;
             return Ok(original);
+        }
+        if entry.upload.is_some() {
+            let history: serde_json::Value=tx.meta("client:write-history")?.as_deref().map(decoded).transpose()?.unwrap_or(serde_json::json!([]));
+            if history.as_array().is_some_and(|items|items.iter().any(|w|w["id"]==entry.id)) {
+                return Err(RuntimeError::Structural {code:"E_WRITE_ID_REUSE",message:"this upload id already settled; inspect its retained receipt before another admission".into()});
+            }
         }
         let program = self.programs.get(&entry.op);
         match program {
@@ -1116,6 +1141,7 @@ impl<S: DeviceStore> Device<S> {
         }
         entry.seq = entry.seq.max(tx.outbox_max_seq()?.max(meta_u64(&tx, SUBMISSION)?) + 1);
         entry.predictable &= program.is_some_and(|p| p.kind == snapback4_core::ProgramKind::Mutation);
+        if entry.upload.is_some() { upload::validate(&tx, &mut entry, &self.programs)?; entry.predictable = false; }
         if entry.predictable {
             tx.savepoint("admit")?;
             match predictions::run(&tx, &self.schema, program.unwrap(), &entry) {
@@ -1180,6 +1206,8 @@ impl<S: DeviceStore> Device<S> {
     pub fn enqueue(&mut self, entry: &Queued) -> Result<(), RuntimeError> {
         if self.programs.get(&entry.op).is_some_and(|p| p.kind == snapback4_core::ProgramKind::Action) { return Err(RuntimeError::UnknownOp("an action cannot enter the device outbox; call client.act".into())); }
         let tx = self.store.transaction()?;
+        if entry.upload.is_some() && upload::terminal(&tx,entry)?.is_some(){tx.rollback()?;return Ok(());}
+        upload::transfer(&tx,entry)?;
         tx.outbox_insert(entry.seq, &entry.id, &encoded(entry)?)?;
         keep_issued_floor(&tx, entry.now)?;
         tx.commit()

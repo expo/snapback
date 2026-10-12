@@ -7,7 +7,7 @@ fn defaults_predict_on_both_stores_with_the_explicit_write_clock() {
         let label = host.label();
         let mut device = host.open("defaults", Some(backend)).unwrap();
         for (n, page) in snapshot_pages(&mut engine, "dev:alice", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
-        ok(device.call(serde_json::json!({ "op": "admit", "entry": Queued { id: "default-write".into(), seq: 1, op: "add".into(), args: serde_json::json!({}), new_ids: vec!["note".into()], predicted: vec![], viewer: "dev:alice".into(), now: 1234, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None } })));
+        ok(device.call(serde_json::json!({ "op": "admit", "entry": Queued { upload: None, id: "default-write".into(), seq: 1, op: "add".into(), args: serde_json::json!({}), new_ids: vec!["note".into()], predicted: vec![], viewer: "dev:alice".into(), now: 1234, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None } })));
         let predicted = query(&mut *device, "get", "dev:alice", serde_json::json!({"note":"note"}), 2000);
         assert_eq!(predicted["data"]["pending"], true, "{label}");
         assert_eq!(predicted["data"]["at"], 1234, "{label}");
@@ -39,7 +39,7 @@ fn shapes_preserve_pending_through_spreads_and_projection_on_both_stores() {
         let (mut engine, backend) = compile(source);
         let mut device = host.open("shapes", Some(backend)).unwrap();
         for (n, page) in snapshot_pages(&mut engine, "dev:alice", 10).iter().enumerate() { ok(apply(&mut *device, page, n == 0)); }
-        ok(device.call(serde_json::json!({ "op": "admit", "entry": Queued { id: "shape-write".into(), seq: 1, op: "add".into(), args: serde_json::json!({}), new_ids: vec!["note".into()], predicted: vec![], viewer: "dev:alice".into(), now: 100, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None } })));
+        ok(device.call(serde_json::json!({ "op": "admit", "entry": Queued { upload: None, id: "shape-write".into(), seq: 1, op: "add".into(), args: serde_json::json!({}), new_ids: vec!["note".into()], predicted: vec![], viewer: "dev:alice".into(), now: 100, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None } })));
         let check = |device: &mut dyn AnyDevice, pending: bool| {
             let shaped = query(device, "shaped", "dev:alice", serde_json::json!({"note":"note"}), 200);
             for key in ["raw", "spread", "named", "twice", "projected", "extended"] {

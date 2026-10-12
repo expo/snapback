@@ -81,7 +81,7 @@ fn only_a_matching_outbox_acknowledgement_overwrites_a_replacement_refusal() {
                 device.keep_write(&sent.to_string()).unwrap();
                 let history = |device: &snapback4_device::device::Device<H::Store>| serde_json::from_str::<Json>(&device.meta("write-history").unwrap().unwrap()).unwrap();
                 assert_eq!(history(&device), json!([failed]), "no acknowledgement cannot replace history");
-                let entry = Queued { id: "write".into(), seq: 1, op: "edit".into(), args: json!({"key":"lookup"}), viewer: "bob".into(), now: 1000,
+                let entry = Queued { upload: None, id: "write".into(), seq: 1, op: "edit".into(), args: json!({"key":"lookup"}), viewer: "bob".into(), now: 1000,
                     new_ids: vec![], predicted: vec![], predictable: false, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None };
                 device.admit(entry).unwrap();
                 if observed {
@@ -196,7 +196,7 @@ fn a_server_page_pass_never_predicts_even_when_held_and_after_reopen() {
         let mut device = host.open("server-pass", Some(backend)).unwrap();
         for (i, page) in snapshot_pages(&mut engine, "bob", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
         assert_eq!(device.predict("sweep", "bob", &json!({}), 1000, vec![], 1).unwrap_err().code(), "E_PREDICT");
-        let entry = Queued { id: "sweep".into(), seq: 1, op: "sweep".into(), args: json!({}), viewer: "bob".into(), now: 1000, new_ids: vec![], predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None };
+        let entry = Queued { upload: None, id: "sweep".into(), seq: 1, op: "sweep".into(), args: json!({}), viewer: "bob".into(), now: 1000, new_ids: vec![], predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None };
         assert!(!device.admit(entry).unwrap().predictable);
         host.close("server-pass", device);
         let mut device = host.open("server-pass", None).unwrap();
@@ -229,7 +229,7 @@ fn named_receipt_after_revocation<H: Host>(host: &mut H, historical: bool) {
     seed(&mut engine, "alice", 0);
     let mut device = host.open("named-receipt", Some(backend)).unwrap();
     for (i, page) in snapshot_pages(&mut engine, "alice", 100).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
-    let entry = Queued { id: "lost".into(), seq: 1, op: "edit".into(), args: json!({"key":"lookup"}), viewer: "alice".into(), now: 1000,
+    let entry = Queued { upload: None, id: "lost".into(), seq: 1, op: "edit".into(), args: json!({"key":"lookup"}), viewer: "alice".into(), now: 1000,
         new_ids: vec![], predicted: vec![], predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None };
     assert!(!device.admit(entry.clone()).unwrap().predictable);
     device.begin_send().unwrap();

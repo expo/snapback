@@ -292,7 +292,7 @@ fn predicted_expiry_changes<H: Host>(host: &mut H) {
         ("remove",json!({"id":"r00000"}),620),
     ];
     for (n,(op,input,now)) in writes.into_iter().enumerate() {
-        let entry=device.admit(Queued{id:format!("q{n}"),seq:n as u64+1,op:op.into(),args:input.clone(),viewer:"alice".into(),now,new_ids:vec![],predicted:vec![],predictable:true,sent_seq:None,receipt_store:None,observed_seq:None, dispatch: None}).unwrap();
+        let entry=device.admit(Queued{ upload: None,id:format!("q{n}"),seq:n as u64+1,op:op.into(),args:input.clone(),viewer:"alice".into(),now,new_ids:vec![],predicted:vec![],predictable:true,sent_seq:None,receipt_store:None,observed_seq:None, dispatch: None}).unwrap();
         assert!(entry.predictable,"{entry:?}");
         let program=server.program(op).unwrap();
         let args=program.args.iter().map(|(name,ty)|(name.clone(),snapback4_core::wire::from_json(ty,&input[name]).unwrap())).collect();

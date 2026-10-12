@@ -18,7 +18,7 @@ fn run<H: Host>(host: &mut H) {
     let original = rank(&mut device, now);
     assert_eq!(original.as_array().unwrap()[0].field("score").unwrap(), &Value::Int(0));
     for (seq, op) in [(1, "like"), (2, "like"), (3, "unlike"), (4, "like")] {
-        let entry = device.admit(Queued { id:format!("q{seq}"), seq, op:op.into(), args:json!({"postId":"p"}), viewer:"bob".into(), now:now + seq as i64,
+        let entry = device.admit(Queued { upload: None, id:format!("q{seq}"), seq, op:op.into(), args:json!({"postId":"p"}), viewer:"bob".into(), now:now + seq as i64,
             new_ids:vec![format!("l{seq}")], predicted:vec![], predictable:true, sent_seq: None, receipt_store: None, observed_seq:None, dispatch: None }).unwrap();
         assert!(entry.predictable, "{}: {entry:?}", host.label());
         assert!(entry.predicted.iter().all(|key| key.starts_with("likes/")), "{entry:?}");
@@ -28,7 +28,7 @@ fn run<H: Host>(host: &mut H) {
         assert!(matches!(write.state, WriteState::Sent { .. }), "{write:?}");
         device.settle(&format!("q{seq}"), Some(server.seq().unwrap())).unwrap();
     }
-    let create = device.admit(Queued { id:"create".into(), seq:5, op:"create".into(), args:json!({"body":"local"}), viewer:"bob".into(), now:now+5,
+    let create = device.admit(Queued { upload: None, id:"create".into(), seq:5, op:"create".into(), args:json!({"body":"local"}), viewer:"bob".into(), now:now+5,
         new_ids:vec!["local-post".into()], predicted:vec![], predictable:true, sent_seq: None, receipt_store: None, observed_seq:None, dispatch: None }).unwrap();
     assert!(create.predictable, "{create:?}");
     assert!(create.predicted.iter().any(|key| key == "posts/local-post"));

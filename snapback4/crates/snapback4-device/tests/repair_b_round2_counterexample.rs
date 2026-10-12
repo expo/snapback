@@ -42,7 +42,7 @@ fn counterexample<H: Host>(host: &mut H, receive_write_responses: bool) {
     let mut sequences = Vec::new();
     let mut server_values = vec![2];
     for (write_id, delta) in [("decrement", -1), ("increment", 2)] {
-        device.admit(Queued {
+        device.admit(Queued { upload: None,
             id: write_id.into(), seq: 0, op: "adjust".into(),
             args: serde_json::json!({"delta": delta}), new_ids: vec![],
             predicted: vec![], viewer: "dev:alice".into(), now: 1000,

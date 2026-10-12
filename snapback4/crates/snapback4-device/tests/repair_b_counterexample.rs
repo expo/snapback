@@ -47,7 +47,7 @@ fn counterexample<H: Host>(host: &mut H) {
         device.apply(page, i == 0).unwrap();
     }
     let from = device.state().unwrap().0;
-    let admitted = device.admit(Queued {
+    let admitted = device.admit(Queued { upload: None,
         id: "alice-1".into(), seq: 1, op: "bumpSelected".into(),
         args: serde_json::json!({}), new_ids: vec![], predicted: vec![],
         viewer: "dev:alice".into(), now: 1000, predictable: true,
@@ -100,7 +100,7 @@ fn counterexample<H: Host>(host: &mut H) {
     covering.sent = covering.acknowledged.clone();
     reopened.apply(&covering, false).unwrap();
     assert_eq!((value(&mut reopened, "a"), value(&mut reopened, "b")), (0, 2));
-    reopened.admit(Queued { id: "alice-2".into(), seq: 0, op: "bumpSelected".into(),
+    reopened.admit(Queued { upload: None, id: "alice-2".into(), seq: 0, op: "bumpSelected".into(),
         args: serde_json::json!({}), new_ids: vec![], predicted: vec![], viewer: "dev:alice".into(),
         now: 1000, predictable: true, sent_seq: None, receipt_store: None, observed_seq: None, dispatch: None }).unwrap();
     assert_eq!((value(&mut reopened, "a"), value(&mut reopened, "b")), (0, 3), "the deferred selector must survive");

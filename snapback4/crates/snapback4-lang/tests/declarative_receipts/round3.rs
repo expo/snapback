@@ -350,7 +350,7 @@ fn missing_run_coverage_only<H: Host>(host: &mut H) {
     let runs_before = d.store().raw_rows("runs");
     assert_eq!(runs_before.len(), 1);
     let queued = d
-        .admit(Queued {
+        .admit(Queued { upload: None,
             id: "guard-leave".into(),
             seq: 1,
             op: "leave".into(),

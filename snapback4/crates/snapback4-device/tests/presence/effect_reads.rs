@@ -106,7 +106,7 @@ fn effect_payload_send_predicts_offline_and_agrees_at_every_presence_state() {
                     let args = serde_json::json!({"chat":"room", "body":"offline hello"});
                     let prediction = ok(device.call(serde_json::json!({"op":"predict", "name":"send", "viewer":"alice", "args":args, "now":11_000, "newIds":["message"]})));
                     ok(device.call(serde_json::json!({"op":"withdraw", "predicted":prediction["predicted"]})));
-                    ok(device.call(serde_json::json!({"op":"admit", "entry":Queued {
+                    ok(device.call(serde_json::json!({"op":"admit", "entry":Queued { upload: None,
                         id:"send-write".into(), seq:1, op:"send".into(), args, new_ids:vec!["message".into()], predicted:vec![],
                         viewer:"alice".into(), now:11_000, predictable:true, sent_seq:None, receipt_store:None, observed_seq:None, dispatch: None,
                     }})));
