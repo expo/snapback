@@ -1,7 +1,7 @@
 # Recipes: roles, two parties, booking, deleting and schedules
 
-Each recipe is one compiled schema for an app shape that otherwise takes several cards to assemble.
-Copy one whole, then rename its tables; each says how it syncs, how to test it and which refusals to expect.
+Each recipe is one compiled schema for an app shape that otherwise takes several cards to assemble. Copy one whole, then rename its tables; each says how it
+syncs, how to test it and which refusals to expect.
 
 ```quarry
 table staff:
@@ -26,26 +26,18 @@ query queue(c: cursor ?):
   require exists staff[viewer] else NOT_STAFF
   return requests last 50 by .id after c
 ```
-The pattern under every recipe: rules say who may touch a row at all, a
-`require … else CODE` in the operation says which change a caller may make and
-answers with your code, and the table's sync line (or `online only`) says
-whose device holds it. `guide refusals` gives the order the checks run in.
-On other cards: a list only a group's members read, complete (`guide household`); bids sealed until a
-deadline (`guide sealed`); roster tables and probe keys (`guide rosters`); expense claims with a PDF or photo receipt (`guide assets`, "Receipts"). Monthly billing with `money`: `guide time --section billing`.
+The pattern under every recipe: rules say who may touch a row at all, a `require … else CODE` in the operation says which change a caller may make and answers
+with your code, and the table's sync line (or `online only`) says whose device holds it. `guide refusals` gives the order the checks run in. On other cards: a
+list only a group's members read, complete (`guide household`); bids sealed until a deadline (`guide sealed`); roster tables and probe keys (`guide rosters`);
+expense claims with a PDF or photo receipt (`guide assets`, "Receipts"). Monthly billing with `money`: `guide time --section billing`.
 
 ## Roles: admin, staff and members
-Everyone signed in is a member. A `roles` row makes a principal staff or an
-admin; `exists roles[viewer]` is the staff grant and `exists roles[viewer,
-role = 'admin']` the admin grant. An admin has a `roles` row, so every staff
-grant admits admins too; test `role = 'staff'` where only staff is meant. Each operation repeats its grant as a
-`require`, so a member gets `NOT_STAFF` instead of a bare `E_RULE`, and the
-staff queue reads every open ticket and answers `complete: true`. The table's
-update rule admits the author and staff; `retitle` narrows it to the author
-and `close` to staff, one `require` each. A page that staff read whole and
-members read their own rows of is one plain query (`board`): under `.author =
-viewer or exists roles[viewer]` it reads every row for a grant holder and the
-author's own range for everyone else, so both answer `complete: true` (guide
-indexes, "Private lists").
+Everyone signed in is a member. A `roles` row makes a principal staff or an admin; `exists roles[viewer]` is the staff grant and `exists roles[viewer, role =
+'admin']` the admin grant. An admin has a `roles` row, so every staff grant admits admins too; test `role = 'staff'` where only staff is meant. Each operation
+repeats its grant as a `require`, so a member gets `NOT_STAFF` instead of a bare `E_RULE`, and the staff queue reads every open ticket and answers `complete:
+true`. The table's update rule admits the author and staff; `retitle` narrows it to the author and `close` to staff, one `require` each. A page that staff read
+whole and members read their own rows of is one plain query (`board`): under `.author = viewer or exists roles[viewer]` it reads every row for a grant holder
+and the author's own range for everyone else, so both answer `complete: true` (guide indexes, "Private lists").
 
 ```quarry
 use personas alice, bob, carol
@@ -98,20 +90,16 @@ mutation close(ticket: tickets):
   update tickets[ticket] { done: true }
 ```
 
-Roles change who reads which rows, so the tables stay `online only`: sync
-holds one audience per table (`guide sharing` keeps staff and tenants
-offline with a table per audience). Seed the first admin; do not write a
-persona into a rule (`viewer = 'dev:alice'` only exists under `dev`). Under
-`dev` and `test` the seed is a fixture row, written as the system:
+Roles change who reads which rows, so the tables stay `online only`: sync holds one audience per table (`guide sharing` keeps staff and tenants offline with a
+table per audience). Seed the first admin; do not write a persona into a rule (`viewer = 'dev:alice'` only exists under `dev`). Under `dev` and `test` the seed
+is a fixture row, written as the system:
 
 ```jsonl
 {"id":"r1","principal":"dev:alice","role":"admin"}
 ```
 
-A deployed backend's first admin comes from the `service:ops` seat that the
-insert rule names: mint its token with `snapback4 token --service ops` and
-call `grant` once with it. Cases for `test.cases.jsonl` (with a ticket
-`t1` by bob in the tickets fixture):
+A deployed backend's first admin comes from the `service:ops` seat that the insert rule names: mint its token with `snapback4 token --service ops` and call
+`grant` once with it. Cases for `test.cases.jsonl` (with a ticket `t1` by bob in the tickets fixture):
 
 ```jsonl
 {"as":"alice","op":"board","args":{},"expect":"complete","label":"staff read every ticket on one page"}
@@ -126,15 +114,11 @@ call `grant` once with it. Cases for `test.cases.jsonl` (with a ticket
 
 ## Two parties: a buyer and a seller
 
-An offer is read by exactly its buyer and its seller, offline on both
-devices. `.buyer = viewer or .seller = viewer` is two audiences and cannot
-sync (online only, it is one complete query as written: guide indexes), so
-each offer gets one `offerParties` row per reader, written by the
-mutation that creates it (`created offers[.offerId]`) and checked by `after
-insert`. The thread hangs off the offer through the same membership. Listing
-"my offers" pages the caller's own party rows: a parties row read under
-`.party = viewer or exists offerParties[.offer, viewer]` is its own witness,
-so that page is complete and holds both sides.
+An offer is read by exactly its buyer and its seller, offline on both devices. `.buyer = viewer or .seller = viewer` is two audiences and cannot sync (online
+only, it is one complete query as written: guide indexes), so each offer gets one `offerParties` row per reader, written by the mutation that creates it
+(`created offers[.offerId]`) and checked by `after insert`. The thread hangs off the offer through the same membership. Listing "my offers" pages the caller's
+own party rows: a parties row read under `.party = viewer or exists offerParties[.offer, viewer]` is its own witness, so that page is complete and holds both
+sides.
 
 ```quarry
 use personas alice, bob, carol
@@ -219,14 +203,10 @@ Cases (with a listing `l1` by alice in the listings fixture):
 
 ## Booking: seats without double booking
 
-Bookings are private to their guest; occupancy is public. `taken` counts
-every booking per slot whatever its reader, so anyone can see how full a
-slot is without seeing who booked it. `book` checks in the order a guest
-should hear: the duplicate first, then the seat count; `unique … else
-ALREADY_BOOKED` and `cap 50 by slot` stay as the server's backstop for two
-guests racing for the last seat. A seat is a server decision: `book` reads
-the online count, so it never predicts, and offline it queues and may come
-back `FULL`.
+Bookings are private to their guest; occupancy is public. `taken` counts every booking per slot whatever its reader, so anyone can see how full a slot is
+without seeing who booked it. `book` checks in the order a guest should hear: the duplicate first, then the seat count; `unique … else ALREADY_BOOKED` and `cap
+50 by slot` stay as the server's backstop for two guests racing for the last seat. A seat is a server decision: `book` reads the online count, so it never
+predicts, and offline it queues and may come back `FULL`.
 
 ```quarry
 use personas alice, bob, carol
@@ -283,12 +263,9 @@ mutation removeSlot(slot: slots):
   delete slots[slot]
 ```
 
-`slot: slots on delete restrict` refuses a slot's delete while a booking
-names it (E_REFERENCED); `on delete cascade` would cancel the guests'
-bookings instead (`guide writes`). `removeSlot` checks first, by the public
-count, to answer with its own code: `require not exists bookings[slot = slot]`
-is refused (E_STRUCTURAL_FANOUT) because the host cannot read the guests'
-bookings, and a count is the one fact about them the host may see.
+`slot: slots on delete restrict` refuses a slot's delete while a booking names it (E_REFERENCED); `on delete cascade` would cancel the guests' bookings instead
+(`guide writes`). `removeSlot` checks first, by the public count, to answer with its own code: `require not exists bookings[slot = slot]` is refused
+(E_STRUCTURAL_FANOUT) because the host cannot read the guests' bookings, and a count is the one fact about them the host may see.
 
 Cases (with a one-seat slot `s1`, hosted by alice, in the slots fixture):
 
@@ -319,16 +296,15 @@ mutation dropProject(id: projects):
   delete projects[id]                   -- its tasks too, unless a comment names one
 ```
 
-`set null` clears an optional reference no rule reads; `keep` leaves rows naming the deleted one (the 0.4 meaning, N_DELETE_RESTRICTED). The parent's delete authorizes the cascade and reserves its worst case (E_CASCADE_BOUND); its deleter must read the row (N_DELETE_NEEDS_READ). Others can hold your row under restrict, so their likes and RSVPs should cascade. Expiry fires nothing.
+`set null` clears an optional reference no rule reads; `keep` leaves rows naming the deleted one (the 0.4 meaning, N_DELETE_RESTRICTED). The parent's delete
+authorizes the cascade and reserves its worst case (E_CASCADE_BOUND); its deleter must read the row (N_DELETE_NEEDS_READ). Others can hold your row under
+restrict, so their likes and RSVPs should cascade. Expiry fires nothing.
 
 ## Schedules: close at a time, remind ahead, catch up
 
-Prefer comparing with `now` where the decision is made: `rsvp` refuses
-`STARTED` once an event has begun, with no job at all. Use a schedule for
-work nobody calls: `remindHosts` writes tomorrow's reminders at 06:00 UTC,
-and `closeStarted` flips a stored flag for screens that list it. Jobs run as
-the system and sweep one table each; the sweep's order column must be the id
-or immutable (`startsAt` here).
+Prefer comparing with `now` where the decision is made: `rsvp` refuses `STARTED` once an event has begun, with no job at all. Use a schedule for work nobody
+calls: `remindHosts` writes tomorrow's reminders at 06:00 UTC, and `closeStarted` flips a stored flag for screens that list it. Jobs run as the system and sweep
+one table each; the sweep's order column must be the id or immutable (`startsAt` here).
 
 ```quarry
 use personas alice, bob
@@ -385,29 +361,20 @@ schedule daily every 1d at 06:00: remindHosts
 schedule closer every 5m: closeStarted
 ```
 
-A schedule fires once per boundary of the server's clock, and boundaries it
-missed (the server was down, or `clock advance` jumped past them) coalesce
-into one run for the latest period only. So a sweep over exactly
-`[periodStart, periodEnd)` skips rows that fell due in the missed periods;
-`closeStarted` looks back seven days from `periodEnd` and skips rows already
-closed, so one run catches up. Test with a running `dev`: `snapback4 clock
-advance 3h` reports `fired`, the period and `skippedPeriods` for each
-schedule (`guide time`, `guide jobs`).
+A schedule fires once per boundary of the server's clock, and boundaries it missed (the server was down, or `clock advance` jumped past them) coalesce into one
+run for the latest period only. So a sweep over exactly `[periodStart, periodEnd)` skips rows that fell due in the missed periods; `closeStarted` looks back
+seven days from `periodEnd` and skips rows already closed, so one run catches up. Test with a running `dev`: `snapback4 clock advance 3h` reports `fired`, the
+period and `skippedPeriods` for each schedule (`guide time`, `guide jobs`).
 
 ## Parent-scoped history and audiences
 
-Copied immutable owners do not prove parent authority. `read through .loan`
-shares every loan reader. Distinct authors/owners need
-`read <- .author = viewer or exists loans[.loan, owner = viewer]`, `.loan = loan`,
-and `require exists loans[loan, owner = viewer] else FORBIDDEN` on the owner page.
-A readable parent binding alone cannot prove an arbitrary child owner was copied
-correctly. Proven owner-or-X pages merge automatically; other audience boards
-use guarded pages merged in the client. Private rows stay private; `guide reads` explains `T[]`.
+Copied immutable owners do not prove parent authority. `read through .loan` shares every loan reader. Distinct authors/owners need `read <- .author = viewer or
+exists loans[.loan, owner = viewer]`, `.loan = loan`, and `require exists loans[loan, owner = viewer] else FORBIDDEN` on the owner page. A readable parent
+binding alone cannot prove an arbitrary child owner was copied correctly. Proven owner-or-X pages merge automatically; other audience boards use guarded pages
+merged in the client. Private rows stay private; `guide reads` explains `T[]`.
 
-Seller sweeps need child write authority such as
-`update old, next <- exists listings[old.listing, seller = viewer]`, with listing
-immutable and a keyed seller require in the mutation. Pinning buyer would narrow
-seller scope, not authorize every competing offer.
+Seller sweeps need child write authority such as `update old, next <- exists listings[old.listing, seller = viewer]`, with listing immutable and a keyed seller
+require in the mutation. Pinning buyer would narrow seller scope, not authorize every competing offer.
 
-Cap groups use stored columns: set immutable int dayNumber to day(startsAt), then
-`cap 4 by owner, dayNumber`. Caps refuse E_CONSTRAINT; custom else belongs to unique.
+Cap groups use stored columns: set immutable int dayNumber to day(startsAt), then `cap 4 by owner, dayNumber`. Caps refuse E_CONSTRAINT; custom else belongs to
+unique.

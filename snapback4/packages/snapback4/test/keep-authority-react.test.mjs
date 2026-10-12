@@ -67,20 +67,20 @@ import { createApp } from "snapback4/app";
 import { memorySessionStore, keepSession } from "snapback4/auth";
 import { AppProvider, useQuery, usePage } from "snapback4/react";
 const url = "http://kept-react.test", memory = memorySessionStore();
-await keepSession(url, { kind: "user", token: "alice", principal: "alice", expiresAt: Date.now() + 86400000 }, memory);
+await keepSession(url, { kind: "user", token: "alice", principal: "alice", expiresAt: Date.now() + 86400000 }, memory, true);
 const options = KEEP_OPTIONS;
 let removed = false;
 let version = 0, delayed = false, delays = 0, loading = 0, stale = 0;
 const polls = [];
 const mounts = { query: 0, page: 0 };
 window.latest = {}; window.events = [];
-const app = createApp({ url, sessionStore: { ...memory, async get(key) {
+const app = createApp({ url, readOnly: true, sessionStore: { ...memory, async get(key) {
   if (delayed) { delays++; await new Promise(resolve => setTimeout(resolve, 5)); }
   return memory.get(key);
 } }, fetch: async (input, init) => {
   const path = new URL(input).pathname;
   if (path === "/schema") return Response.json({ schema: { tables: {} }, programs: [] });
-  if (path === "/probe") return Response.json({ ok: true, principal: "alice" });
+  if (path === "/probe") return Response.json({ ok: true, scope: "read", viewer: "alice", store_id: "kept-react", seq: 0 });
   if (path === "/changes") return new Promise((resolve, reject) => {
     polls.push(resolve);
     init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true });

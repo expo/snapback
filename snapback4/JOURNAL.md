@@ -93234,3 +93234,30 @@ delivery-await boundary is regenerated from the merged source and unchanged;
 its online/persona custody classification remains in the instrumentation.
 Readauth's compiled census also passes unchanged. Full integration results
 follow after the remaining Rust/client files finish. No push/publication.
+
+## 2026-10-12 — Integration 2: guide budgets and browser fixture qualification
+
+The combined recipes card crossed its existing 400-line piped-card cap.
+Rewrap its prose from 413 to 380 physical lines without deleting facts or
+compiled blocks; all 119 guide tests pass. Browser query-only React fixtures
+now select the read-only app, seed its read-session namespace and provide the
+mocked server's scope/store proof. The account-switch/write-refusal fixture
+uses the browser session authority and explicitly mocks a synced schema,
+keeping its E_ADMISSION/no-transport assertions. Both React files pass
+75 tests in total, including their existing authority and UI lifetimes.
+
+The quote-jump witness now uses browser session storage and online writes
+for its online tier. Target the seeded quote bubble when a preceding tier
+has left another reply; the unavailable-quote check compares list scroll
+position directly rather than a row rectangle shifted by late layout. Both
+tiers pass, 38 tests. The wasm rebuild overlapped two reads in the first
+once-preservation run; its stable-artifact rerun passes all 13 tests. No
+product exception is claimed for that fixture interruption.
+
+The export-background file's maintenance-result wait expired at about
+31.5 seconds under the first run's load. A single unchanged standalone
+rerun passes (70 passed, 34 declared skips). Per the commission, this is a
+load-sensitive timeout, not an outstanding failure. The complete first
+client invocation covered 366 files; every failing file now has a passing
+full-file rerun. The two full-count client models run in a separate serial
+slot. Full Rust and final evidence accounting continue below.

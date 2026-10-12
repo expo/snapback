@@ -9,7 +9,7 @@ import { createRoot } from "react-dom/client";
 import { AppProvider, useAuth, useClient, useSeen, SnapbackProvider, useQuery, usePage, useMutation, usePendingWrite, usePendingWrites, usePendingItems, usePendingState, useAcquired, useAction, useViewer, useAsset, useNow, usePersonaApp } from "snapback4/react";
 import { createApp } from "snapback4/app";
 import { createClient } from "snapback4/client";
-import { memorySessionStore, keepSession, restoreSession } from "snapback4/auth";
+import { localStorageSessionStore, memorySessionStore, keepSession, restoreSession } from "snapback4/auth";
 import { onlineCustody } from "test-online-custody";
 import { identifyDispatch } from "test-online-dispatch";
 import { guardClient } from "test-guard-client";
@@ -297,9 +297,10 @@ const cases = {
   },
   async "AppProvider switches real clients, resets account state and routes existing mutation/query hooks"() {
     const seen = [];
-    const app = createApp({ url: "https://app.invalid", sessionStore: memorySessionStore(), fetch: async (url, init) => {
+    const app = createApp({ url: "https://app.invalid", sessionStore: localStorageSessionStore(localStorage, "react-app-switch"), fetch: async (url, init) => {
       const path = new URL(url).pathname;
       if (path === "/probe") return Response.json({ ok: true, store_id: "react-app", seq: 1 });
+      if (path === "/schema") return Response.json({ schema: { tables: { notes: { sync: { kind: "public" } } } }, programs: [] });
       if (path === "/auth/signup") {
         const principal = JSON.parse(init.body).email;
         return Response.json({ session: { principal, token: principal, kind: "user", expiresAt: Date.now() + 7 * 86400000 } });
@@ -1131,13 +1132,13 @@ for (const hook of ["useQuery", "usePage"]) for (const guarded of [false, true])
 for (const hook of ["useQuery", "usePage"]) {
   cases[hook + " createApp remount first commits the lingering answer during a held re-read"] = async () => {
     const url = "http://lingering-reread-" + hook + ".test", memory = memorySessionStore();
-    await keepSession(url, { kind: "user", token: "alice", principal: "alice", expiresAt: Date.now() + 7 * 86400000 }, memory);
+    await keepSession(url, { kind: "user", token: "alice", principal: "alice", expiresAt: Date.now() + 7 * 86400000 }, memory, true);
     let latest, queries = 0, commits = [], changed = false, holding = false;
     const change = deferred(), replacement = deferred();
-    const app = createApp({ url, sessionStore: memory, fetch: async (input, init) => {
+    const app = createApp({ url, readOnly: true, sessionStore: memory, fetch: async (input, init) => {
       const path = new URL(input).pathname;
       if (path === "/schema") return Response.json({ schema: { tables: {} }, programs: [] });
-      if (path === "/probe") return Response.json({ ok: true, principal: "alice" });
+      if (path === "/probe") return Response.json({ ok: true, scope: "read", viewer: "alice", store_id: "lingering-reread", seq: 0 });
       if (path === "/changes") {
         if (!changed) { changed = true; return change.promise; }
         return new Promise((_, reject) => init.signal.addEventListener("abort", () => reject(Error("closed")), { once: true }));
