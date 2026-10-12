@@ -1013,14 +1013,14 @@ fn model_total_unique(table: &Table, index: &ast::IndexDecl) -> bool {
 }
 
 /// The physical index the native planner can reuse for a requested lane.
-/// Its components must have the planner's exact sorted-prefix order. A total
-/// declared unique already identifies the row and therefore omits the
-/// synthesized trailing `id` component.
+/// Its components must have the planner's exact sorted-prefix order. A
+/// cursorless source may reuse a matching unique without its trailing `id`;
+/// a cursored target needs that unique to be total.
 // @ref LLP 3000.036.001#14 — the pre-oracle physical gate prices the native-compatible declared PAGE lane.
-fn model_declared_indexes<'a>(module: &'a LeanModule, table: &Table, columns: &[String]) -> Vec<&'a ast::IndexDecl> {
+fn model_declared_indexes<'a>(module: &'a LeanModule, table: &Table, columns: &[String], cursor: bool) -> Vec<&'a ast::IndexDecl> {
     let Some(decl) = module.surface_tables.iter().find(|decl| decl.name == table.name) else { return Vec::new() };
     decl.indexes.iter().filter(|index| index.is_plain() && (index.columns == columns
-        || model_total_unique(table, index) && columns.last().map(String::as_str) == Some("id")
+        || index.unique && (!cursor || model_total_unique(table, index)) && columns.last().map(String::as_str) == Some("id")
             && index.columns == columns[..columns.len() - 1])).collect()
 }
 
@@ -1042,8 +1042,8 @@ fn model_index_label_fits(module: &LeanModule, table: &Table, columns: &[String]
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum ModelIndexFit { Fits, Nonportable, Ambiguous }
 
-fn model_plain_index_fit(module: &LeanModule, table: &Table, columns: &[String]) -> ModelIndexFit {
-    let declared = model_declared_indexes(module, table, columns);
+fn model_plain_index_fit(module: &LeanModule, table: &Table, columns: &[String], cursor: bool) -> ModelIndexFit {
+    let declared = model_declared_indexes(module, table, columns, cursor);
     if declared.len() > 1 { return ModelIndexFit::Ambiguous }
     let selected = declared.first().copied();
     let physical = selected.map_or(columns, |index| index.columns.as_slice());
@@ -1129,8 +1129,15 @@ fn membership_probe_kind(focal: &Table, expression: &Expr) -> Option<Kind> {
     }
 }
 
+struct ModelMembershipPhysical {
+    source: String,
+    columns: Vec<String>,
+    target_parent: String,
+    total_id_source: bool,
+}
+
 /// The source key and target parent column of one capped membership leaf.
-fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) -> Option<(String, Vec<String>, String)> {
+fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) -> Option<ModelMembershipPhysical> {
     let Expr::Exists { read, .. } = expression else { return None };
     if read.range.is_some() || read.filter.is_some() || read.keys.is_empty() { return None }
     let source = module.tables.iter().find(|table| table.name == read.table)?;
@@ -1160,10 +1167,20 @@ fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) ->
     if !bounded { return None }
     fixed.sort();
     fixed.dedup();
+    let source_parent_is_id = source_parent == "id";
     let mut source_key = fixed;
     if !source_key.contains(&source_parent) { source_key.push(source_parent); }
     if !source_key.iter().any(|column| column == "id") { source_key.push("id".into()); }
-    Some((source.name.clone(), source_key, target_parent))
+    // The ordinary path remains valid when `id` is a physical next component.
+    // Only a reused declared index that omits it needs the one-row total-unique
+    // proof; zero candidates means the planner synthesizes `source_key`, while
+    // multiple candidates are rejected separately as ambiguous.
+    let candidates = model_declared_indexes(module, source, &source_key, false);
+    let total_id_source = !source_parent_is_id || match candidates.as_slice() {
+        [index] => index.columns.iter().any(|column| column == "id") || model_total_unique(source, index),
+        [] | [_, _, ..] => true,
+    };
+    Some(ModelMembershipPhysical { source: source.name.clone(), columns: source_key, target_parent, total_id_source })
 }
 
 fn owner_membership_physical_issue(module: &LeanModule, read: &ReadExpr) -> Option<&'static str> {
@@ -1181,18 +1198,21 @@ fn owner_membership_physical_issue(module: &LeanModule, read: &ReadExpr) -> Opti
         else { return None; }
     }
     if parties.is_empty() || memberships.is_empty() { return None }
+    if memberships.iter().any(|membership| !membership.total_id_source) {
+        return Some("page-membership-source-unique");
+    }
     let mut fits = Vec::new();
-    for (source, columns, _) in &memberships {
-        let Some(table) = module.tables.iter().find(|table| table.name == *source) else { return Some("page-membership-key-bound") };
-        fits.push(model_plain_index_fit(module, table, columns));
+    for membership in &memberships {
+        let Some(table) = module.tables.iter().find(|table| table.name == membership.source) else { return Some("page-membership-key-bound") };
+        fits.push(model_plain_index_fit(module, table, &membership.columns, false));
     }
     let (system_pins, branches) = model_page_pins(target, read);
-    fits.push(model_plain_index_fit(module, target, &model_lane_columns(system_pins, &read.order_keys)));
+    fits.push(model_plain_index_fit(module, target, &model_lane_columns(system_pins, &read.order_keys), true));
     for branch in branches {
-        for prefix in parties.iter().chain(memberships.iter().map(|(_, _, parent)| parent)) {
+        for prefix in parties.iter().chain(memberships.iter().map(|membership| &membership.target_parent)) {
             let mut pins = branch.clone();
             if !pins.contains(prefix) { pins.push(prefix.clone()); pins.sort(); }
-            fits.push(model_plain_index_fit(module, target, &model_lane_columns(pins, &read.order_keys)));
+            fits.push(model_plain_index_fit(module, target, &model_lane_columns(pins, &read.order_keys), true));
         }
     }
     if fits.contains(&ModelIndexFit::Ambiguous) { Some("page-membership-index-selection") }
