@@ -700,6 +700,8 @@ view childCounts: count children by .parent
 table work:
   marker: bool
   read <- allow
+  update <- allow
+  delete <- allow
   online only
 view directCounts: count work by .marker
   read <- deny
@@ -740,6 +742,39 @@ fn system_jobs_need_a_live_read_through_parent_for_required_totals() {
         "{:#?}",
         stale_loop.diagnostics
     );
+    for (name, helper, body) in [
+        (
+            "savedRow",
+            "",
+            "for item in work:\n    snapshot = parents['live'] ! else MISSING\n    delete parents['live']\n    for item in [snapshot]:\n      value = childCounts[item.id] + 1",
+        ),
+        (
+            "bufferedRows",
+            "",
+            "for parent in parents:\n    if parent.id = 'a':\n      delete parents['b']\n      continue\n    value = childCounts[parent.id] + 1",
+        ),
+        (
+            "helperWrite",
+            "fn revoke(parent: parents):\n  delete parents[parent]\n  return null\n",
+            "for parent in parents:\n    revoke(parent.id)\n    value = childCounts[parent.id] + 1",
+        ),
+        (
+            "breakWrite",
+            "",
+            "for parent in parents:\n    if parent.id = 'a':\n      delete parents['b']\n      break\n    value = childCounts[parent.id] + 1",
+        ),
+    ] {
+        let bound = compile(&[(
+            "schema.q".into(),
+            format!("{INHERITED_MAINTAIN}{helper}job {name}():\n  {body}\n").into(),
+        )]);
+        assert!(
+            bound.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+                && diagnostic.message.contains("int ?")),
+            "{name}: {:#?}",
+            bound.diagnostics
+        );
+    }
 
     let controls = compile(&[(
         "schema.q".into(),
@@ -756,6 +791,11 @@ job namedLiveParent():
 job liveParentLoop():
   for parent in parents:
     value = childCounts[parent.id] + 1
+job guardedWriteLoop():
+  for parent in parents:
+    require exists parents[parent.id] else MISSING
+    value = childCounts[parent.id] + 1
+    update work['work'] {{ marker: true }}
 job directView():
   for item in work:
     value = directCounts[true] + 1
@@ -826,6 +866,7 @@ job guardedExpired():
         "liveParentLoop",
         "directView",
         "handledMissing",
+        "guardedWriteLoop",
     ] {
         let run = engine.run_job(name, Default::default(), 10).unwrap();
         assert_eq!(run.state, JobState::Done, "{name}: {run:?}");

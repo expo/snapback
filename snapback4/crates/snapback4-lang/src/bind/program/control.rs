@@ -249,7 +249,7 @@ impl Binder<'_> {
                     return Err(unknown(site, format!("{name} is an argument; locals cannot shadow arguments"), "give the loop item a fresh name"));
                 }
                 let before = self.visible_bindings();
-                let (binding, body_out) = self.loop_body(name, item_ty, body, site)?;
+                let (binding, body_out) = self.loop_body(name, item_ty, body, site, matches!(loop_domain, LoopDomain::Page(_)) && !self.source_may_write(body))?;
                 if self.caller_kind == ProgramKind::Job && self.loops + self.caller_loops == 0 && matches!(&loop_domain, LoopDomain::Page(scan) if scan.take == Bound::Meter) {
                     let after = self.visible_bindings();
                     if let Some((name, _)) = before.iter().find(|(name, old)| !name.starts_with('$') && after.get(*name).is_some_and(|new| old.revision != new.revision)) {
@@ -366,7 +366,7 @@ impl Binder<'_> {
 
     /// Join loop-carried writes with the zero-iteration path before accepting
     /// the body. A refinement from the first iteration cannot bless later ones.
-    fn loop_body(&mut self, name: &str, item: Ty, body: &[S], site: &Site) -> Fallible<(String, setup::Body)> {
+    fn loop_body(&mut self, name: &str, item: Ty, body: &[S], site: &Site, fresh_rows: bool) -> Fallible<(String, setup::Body)> {
         let mut header = self.visible_bindings();
         let saved = self.scopes.clone();
         let (temps, sites, returns) = (self.temps, self.sites, self.returns.len());
@@ -383,7 +383,7 @@ impl Binder<'_> {
             self.returns.truncate(returns);
             self.push_scope();
             let binding = self.declare(name, item.clone());
-            self.narrow_live_row(name, &item, site);
+            if fresh_rows { self.narrow_fresh_row(name, &item, site); }
             self.maintenance_local(&binding, site, name);
             self.loops += 1;
             self.loop_transfers.push(LoopTransfers::default());

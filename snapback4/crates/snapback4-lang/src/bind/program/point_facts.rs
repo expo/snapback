@@ -43,10 +43,11 @@ impl Binder<'_> {
             self.scopes.last_mut().unwrap().insert(root, binding);
         }
     }
-    /// A row yielded by a table loop is an exact live point at the loop
-    /// header. Store it in the ordinary point-fact domain so any write clears
-    /// the evidence before later scalar availability checks.
-    pub(super) fn narrow_live_row(&mut self, name: &str, ty: &Ty, site: &Site) {
+    // @ref LLP 3000.013#14.7 — the runner buffers page domains before bodies.
+    /// A row from a freshly read, wholly write-free table domain is an exact
+    /// live point throughout the loop. Store it in the ordinary point-fact
+    /// domain; buffered or writeful loops must establish a current witness.
+    pub(super) fn narrow_fresh_row(&mut self, name: &str, ty: &Ty, site: &Site) {
         let Ty::Row(table) = ty.required() else { return };
         let value = A::Member {
             base: Box::new(A::Name { name: name.into(), site: site.clone() }),
@@ -58,6 +59,21 @@ impl Binder<'_> {
             keys: vec![ast::KeyPart { column: None, value, site: site.clone() }], seeks: Vec::new(), filter: None,
             index: None, range: None, matching: None, site: site.clone(),
         });
+    }
+    pub(super) fn source_may_write(&self, body: &[S]) -> bool {
+        let mut body = body.to_vec();
+        let mut found = false;
+        super::super::intent_walk::statements(&mut body, &mut |expr| match expr {
+            A::Write { .. } => found = true,
+            // Helpers and named shapes expand later. Declining to certify
+            // them keeps freshness conservative without duplicating lowering's
+            // recursive effect analysis here.
+            A::Call { name, .. } if self.catalog.functions.contains_key(name) => found = true,
+            A::ShapeUse { .. } => found = true,
+            A::Shape { fields, .. } if fields.iter().any(|field| matches!(field, ast::ShapeField::NamedSpread { .. })) => found = true,
+            _ => {}
+        });
+        found
     }
     pub(super) fn point_present(&self, read: &ReadExpr) -> bool {
         self.point_key(read).is_some_and(|(key, roots)| roots.iter().all(|root|
