@@ -80,8 +80,36 @@ fn simplify_prefix(rule: &RuleExpr, name: &str, table: &Table, pinned: &BTreeMap
             let terms = rule.disjuncts();
             RuleExpr::Or(terms.iter().filter(|term| !terms.iter().any(|other| self_probe_absorbs(name, table, term, other))).map(|term| simplify_prefix(term, name, table, pinned)).collect())
         }
-        RuleExpr::Not(inner) => RuleExpr::Not(Box::new(simplify_prefix(inner, name, table, pinned))),
+        RuleExpr::Not(inner) => {
+            let inner = simplify_prefix(inner, name, table, pinned);
+            negate_required_bool(&inner, table).unwrap_or_else(|| RuleExpr::Not(Box::new(inner)))
+        }
+        RuleExpr::Ne(left, right) => required_bool_equality(left, right, table, false).unwrap_or_else(|| rule.clone()),
         _ => rule.clone(),
+    }
+}
+
+/// Required booleans have exactly two values, so their negated equality and
+/// inequality forms can share one positive equality identity. Optional bools
+/// retain their original expression because `null` is distinct from `false`.
+// @ref LLP 3000.036.001#9 — prefix simplification and guard coverage use the same required-Boolean identity.
+fn required_bool_equality(left: &RuleTerm, right: &RuleTerm, table: &Table, equal: bool) -> Option<RuleExpr> {
+    [(left, right), (right, left)].into_iter().find_map(|(field, value)| {
+        let (RuleTerm::Field(column), RuleTerm::Literal(Value::Bool(expected))) = (field, value) else { return None };
+        matches!(table.columns.get(column), Some(ColumnType::Bool)).then(|| RuleExpr::Eq(
+            RuleTerm::Field(column.clone()),
+            RuleTerm::Literal(Value::Bool(if equal { *expected } else { !*expected })),
+        ))
+    })
+}
+
+fn negate_required_bool(rule: &RuleExpr, table: &Table) -> Option<RuleExpr> {
+    match rule {
+        RuleExpr::Allow => Some(RuleExpr::Deny),
+        RuleExpr::Deny => Some(RuleExpr::Allow),
+        RuleExpr::Eq(left, right) => required_bool_equality(left, right, table, false),
+        RuleExpr::Ne(left, right) => required_bool_equality(left, right, table, true),
+        _ => None,
     }
 }
 
