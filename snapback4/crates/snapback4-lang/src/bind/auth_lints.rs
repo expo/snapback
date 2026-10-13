@@ -1066,7 +1066,13 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
     }
     fn expression_guards(catalog: &Catalog, schema: &Schema, program: &str, value: &Expr, known: &BTreeSet<String>, global: &BTreeSet<String>, system: bool, observe_prefix: bool, visiting: &mut BTreeSet<String>, notes: &mut Vec<Diagnostic>) {
         let mut copy = analysis_expr(value);
-        super::intent_walk::expression(&mut copy, &mut |expr| expression_guard_node(catalog, schema, program, expr, known, global, system, observe_prefix, visiting, notes));
+        if observe_prefix {
+            super::intent_walk::expression(&mut copy, &mut |expr| expression_guard_node(catalog, schema, program, expr, known, global, system, true, visiting, notes));
+        } else {
+            // Ordinary query values share the input-value boundary: point and
+            // prefix probes in row-dependent candidate filters are visible hits.
+            value_nodes(&copy, &mut |expr| expression_guard_node(catalog, schema, program, expr, known, global, system, false, visiting, notes));
+        }
     }
     fn invalidate(names: &[String], known: &mut BTreeSet<String>) {
         known.retain(|fact| !fact.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|word| names.iter().any(|name| name == word)));

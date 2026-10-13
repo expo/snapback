@@ -94523,3 +94523,19 @@ named-definition discovery. Shorthand/explicit same/different argument cases
 and point/prefix inline inversion extend the guard suite to 22 passing tests;
 guide 120 and emitted rewrite goldens eight pass. Round-eight reviews are
 preserved verbatim; final CLI checks and a fresh review pair follow.
+
+### 2026-10-13 — Wave 10 DIAG: ordinary query point-filter boundary
+
+The ninth Codex review found point probes still inspected in ordinary query
+candidate filters. Ordinary query values now use the immutable value traversal
+already used at guard input boundaries, treating point/prefix row-dependent
+filters alike. Lowered global conditionals and actual guard values remain
+checked. Positive/negative point-filter and global-point-gate regressions join
+the existing prefix cases. Runtime expressions/admission stay unchanged.
+Muse9 remained in flight when the correction began; a fresh frozen round10
+will bind final acceptance, and all received output will be retained.
+
+The point-filter correction passes guide120, guard23 and golden8; latest CLI
+check101/check_notes6 and ref-check pass. Muse9's fallback stalled over25
+minutes with no verdict, was interrupted after ownership verification, and is
+retained as an incomplete attempt; retry uses the next frozen revision.

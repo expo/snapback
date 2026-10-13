@@ -235,6 +235,7 @@ fn query_prefix_aliases_used_as_guards_are_checked_at_observation_time() {
         ("query upload(job: id):\n  allowed = not exists approvals[job = job] by byJob\n  return docs where allowed first 10 by .id { guarded: true if .job = job else false }\n", 1),
         ("query upload(job: id):\n  return docs where not (exists approvals[job = job] by byJob) first 10 by .id { guarded: true if .job = job else false }\n", 1),
         ("query upload(job: id):\n  return docs where not (exists approvals[job = .job] by byJob) first 10 by .id { guarded: true if .job = job else false }\n", 0),
+
         ("fn echo(allowed: bool): allowed\nquery upload(job: id):\n  allowed = not exists approvals[job = job] by byJob\n  return echo(allowed)\n", 0),
         ("shape check = { guarded: true if .allowed else false }\nquery upload(job: id):\n  observed = { allowed: not exists approvals[job = job] by byJob }\n  return observed check\n", 1),
     ] {
@@ -282,5 +283,16 @@ fn shorthand_locals_never_become_global_or_different_argument_proof() {
             assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
             assert_eq!(b.notes.iter().filter(|n| n.code == "N_UNREADABLE_PROBE").count(), count, "{expression}: {arg}: {:?}", b.notes);
         }
+    }
+}
+
+#[test]
+fn ordinary_query_point_candidate_filters_stay_quiet_and_global_gates_warn() {
+    let schema = format!("{SCHEMA}table docs:\n  job: id\n  public 'docs'\n");
+    for (predicate, count) in [("not (exists approvals[job = .job])", 0), ("exists approvals[job = .job]", 0), ("not (exists approvals[job = job])", 1)] {
+        let source = format!("{schema}query upload(job: id):\n  return docs where {predicate} first 10 by .id\n");
+        let b = compile(&[("schema.q".into(), source)]);
+        assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+        assert_eq!(b.notes.iter().filter(|n| n.code == "N_UNREADABLE_PROBE").count(), count, "{predicate}: {:?}", b.notes);
     }
 }
