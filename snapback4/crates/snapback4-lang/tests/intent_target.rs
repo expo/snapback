@@ -142,7 +142,11 @@ fn clique_acceptance_subset_compiles_without_authored_indexes() {
     let source = include_str!("fixtures/intent-clique.q");
     let bound = compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
-    assert!(bound.notes.iter().all(|n| matches!(n.code.as_str(), "N_NO_HORIZON" | "N_NO_CURSOR" | "N_MAINTAINED_COLUMN_STREAM" | "N_MAINTAIN_SYNCED")), "{:?}", bound.notes);
+    assert!(bound.notes.iter().all(|n| matches!(n.code.as_str(), "N_NO_HORIZON" | "N_NO_CURSOR" | "N_MAINTAINED_COLUMN_STREAM" | "N_MAINTAIN_SYNCED" | "N_REFERENCE_UNCHECKED")), "{:?}", bound.notes);
+    let references: Vec<_> = bound.notes.iter().filter(|note| note.code == "N_REFERENCE_UNCHECKED").collect();
+    assert_eq!(references.len(), 2, "{references:?}");
+    assert!(references.iter().any(|note| note.message.contains("mutation createPost") && note.message.contains("posts[parentId]")), "{references:?}");
+    assert!(references.iter().any(|note| note.message.contains("mutation setLike") && note.message.contains("posts[postId]")), "{references:?}");
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     let seeds = [
         ("profiles", serde_json::json!({"id":"profile", "principal":"alice", "displayName":"Hello Alice", "handle":"hello", "bio":"", "location":"", "link":null, "avatar":null, "createdAt":1})),

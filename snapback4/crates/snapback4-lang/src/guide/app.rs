@@ -62,8 +62,9 @@ query inbox(c: cursor ?):
     { conversationId, conversation: conversations[.conversationId], count: messageCounts[.conversationId] }
 
 mutation send(conversationId: conversations, body: text <=4000):
+  conversation = conversations[conversationId] ! else NOT_FOUND
   require exists memberships[conversationId, viewer] else NOT_MEMBER
-  row = insert messages { conversationId, authorId: viewer, body, at: now }
+  row = insert messages { conversationId: conversation.id, authorId: viewer, body, at: now }
   return { id: row.id }
 
 mutation edit(messageId: messages, body: text <=4000):

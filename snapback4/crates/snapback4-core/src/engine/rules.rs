@@ -5,7 +5,7 @@
 //! analysis (LLP 2000.000 §5.1); the certificate that priced these is gone,
 //! the analysis is not.
 
-use crate::ir::{Expr, IndexKeyExpr, Input, Merge, Scan};
+use crate::ir::{Bound, Expr, IndexKeyExpr, Input, Merge, Scan};
 use crate::schema::{ColumnType, RuleExpr, RuleTerm, Schema, Table};
 use crate::value::Value;
 use std::collections::{BTreeMap, BTreeSet};
@@ -66,7 +66,9 @@ fn conjuncts(rule: RuleExpr, out: &mut Vec<RuleExpr>) {
 }
 
 fn simplify_prefix(rule: &RuleExpr, name: &str, table: &Table, pinned: &BTreeMap<&String, &Expr>) -> RuleExpr {
-    if rule_true(rule, name, table, &|name| pinned.iter().find_map(|(key, value)| (key.as_str() == name).then_some(*value))) { return RuleExpr::Allow; }
+    let pin = |name: &str| pinned.iter().find_map(|(key, value)| (key.as_str() == name).then_some(*value));
+    if rule_known(rule, true, name, table, &pin) { return RuleExpr::Allow; }
+    if rule_known(rule, false, name, table, &pin) { return RuleExpr::Deny; }
     match rule {
         RuleExpr::And(terms) => {
             let mut out = Vec::new();
@@ -78,10 +80,47 @@ fn simplify_prefix(rule: &RuleExpr, name: &str, table: &Table, pinned: &BTreeMap
             // Use the same self-witness absorption as uniformity, but remove
             // the absorbed field read from the expression we actually run.
             let terms = rule.disjuncts();
-            RuleExpr::Or(terms.iter().filter(|term| !terms.iter().any(|other| self_probe_absorbs(name, table, term, other))).map(|term| simplify_prefix(term, name, table, pinned)).collect())
+            let mut out: Vec<_> = terms.iter()
+                .filter(|term| !terms.iter().any(|other| self_probe_absorbs(name, table, term, other)))
+                .map(|term| simplify_prefix(term, name, table, pinned))
+                .filter(|term| !matches!(term, RuleExpr::Deny))
+                .collect();
+            match out.len() {
+                0 => RuleExpr::Deny,
+                1 => out.pop().unwrap(),
+                _ => RuleExpr::Or(out),
+            }
         }
-        RuleExpr::Not(inner) => RuleExpr::Not(Box::new(simplify_prefix(inner, name, table, pinned))),
+        RuleExpr::Not(inner) => {
+            let inner = simplify_prefix(inner, name, table, pinned);
+            negate_required_bool(&inner, table).unwrap_or_else(|| RuleExpr::Not(Box::new(inner)))
+        }
+        RuleExpr::Ne(left, right) => required_bool_equality(left, right, table, false).unwrap_or_else(|| rule.clone()),
         _ => rule.clone(),
+    }
+}
+
+/// Required booleans have exactly two values, so their negated equality and
+/// inequality forms can share one positive equality identity. Optional bools
+/// retain their original expression because `null` is distinct from `false`.
+// @ref LLP 3000.036.001#9 — prefix simplification and guard coverage use the same required-Boolean identity.
+fn required_bool_equality(left: &RuleTerm, right: &RuleTerm, table: &Table, equal: bool) -> Option<RuleExpr> {
+    [(left, right), (right, left)].into_iter().find_map(|(field, value)| {
+        let (RuleTerm::Field(column), RuleTerm::Literal(Value::Bool(expected))) = (field, value) else { return None };
+        matches!(table.columns.get(column), Some(ColumnType::Bool)).then(|| RuleExpr::Eq(
+            RuleTerm::Field(column.clone()),
+            RuleTerm::Literal(Value::Bool(if equal { *expected } else { !*expected })),
+        ))
+    })
+}
+
+fn negate_required_bool(rule: &RuleExpr, table: &Table) -> Option<RuleExpr> {
+    match rule {
+        RuleExpr::Allow => Some(RuleExpr::Deny),
+        RuleExpr::Deny => Some(RuleExpr::Allow),
+        RuleExpr::Eq(left, right) => required_bool_equality(left, right, table, false),
+        RuleExpr::Ne(left, right) => required_bool_equality(left, right, table, true),
+        _ => None,
     }
 }
 
@@ -121,14 +160,17 @@ fn guard_decision(schema: &Schema, scan: &Scan, pinned_guards: bool) -> Option<R
     let rule = &table.rules.read;
     if !matches!(rule, RuleExpr::Or(_)) { return None; }
     let pinned = if pinned_guards { scan_pinned(table, scan) } else { Vec::new() };
+    let pinned_map: BTreeMap<_, _> = pinned.iter().map(|(column, value)| (*column, *value)).collect();
     let guards: Vec<RuleExpr> = rule.disjuncts().into_iter()
-        .filter(|disjunct| {
+        .filter_map(|disjunct| {
+            let simplified = simplify_prefix(disjunct, &scan.table, table, &pinned_map);
             let mut fields = BTreeSet::new();
-            disjunct.fields(&mut fields);
-            if fields.is_empty() { self_disclosing(schema, disjunct) }
-            else { fields.iter().all(|field| pinned.iter().any(|(column, _)| *column == field)) && pinned_probe_readable(schema, disjunct) }
+            simplified.fields(&mut fields);
+            let admitted = if fields.is_empty() { self_disclosing(schema, &simplified) }
+                else { fields.iter().all(|field| pinned.iter().any(|(column, _)| *column == field)) && pinned_probe_readable(schema, &simplified) };
+            admitted.then_some(simplified)
         })
-        .cloned().collect();
+        .collect();
     (!guards.is_empty()).then(|| if guards.len() == 1 { guards.into_iter().next().unwrap() } else { RuleExpr::Or(guards) })
 }
 
@@ -504,30 +546,166 @@ pub fn lazy_merge(schema: &Schema, merge: &Merge) -> bool {
 pub fn branch_merge_lazy(schema: &Schema, merge: &Merge) -> bool {
     let Some(first) = merge.lanes.first() else { return true };
     let Some(table) = schema.table(&first.scan.table) else { return false };
-    let mut suffix: Option<Vec<(String, ColumnType)>> = None;
+    let mut suffix: Option<(&crate::schema::Index, usize)> = None;
     merge.lanes.iter().all(|lane| {
         let scan = &lane.scan;
         let Some(index) = table.index(&scan.index) else { return false };
-        let total_unique = index.unique && index.components.iter().all(|component| component.key_type(table).is_some_and(|kind| !kind.is_optional()));
-        let lane_suffix = merge_position(table, index, scan.prefix.len());
-        let same = suffix.get_or_insert_with(|| lane_suffix.clone()) == &lane_suffix;
-        lane.project.is_none() && lane.setup.is_empty() && lane.source.is_none() && scan.table == first.scan.table
+        let plain = index.components.iter().all(|component| component.column().is_some());
+        let total_unique = index.unique && plain && index.components.iter().all(|component| component.column()
+            .and_then(|column| table.columns.get(column)).is_some_and(|kind| !kind.is_optional()));
+        let same = match suffix {
+            Some((first_index, first_prefix)) => same_merge_position(table, first_index, first_prefix, index, scan.prefix.len()),
+            None => { suffix = Some((index, scan.prefix.len())); true }
+        };
+        let authority = if lane.membership() { membership_branch(schema, lane) }
+            else if lane.system() { lane.source.is_none() }
+            else if lane.grant() { lane.source.is_none() && covering_grant(schema, scan).is_some() }
+            else { lane.source.is_none() && scan_visibility(schema, scan).uniform };
+        lane.project.is_none() && lane.setup.is_empty() && scan.table == first.scan.table
             && scan.prefix.iter().all(|key| matches!(key, IndexKeyExpr::Scalar(_)))
             && scan.order == first.scan.order && !scan.existence && same
             && scan.prefix.len() < index.components.len() && index.word_component().is_none()
-            && index.components.iter().all(|component| component.column().is_some())
-            && (total_unique || index.columns().last().is_some_and(|c| c == "id"))
-            && (lane.grant() || scan_visibility(schema, scan).uniform)
+            && plain && (total_unique || index.components.last().and_then(|component| component.column()).is_some_and(|c| c == "id"))
+            && authority
     })
 }
 
-/// A lane's merge position columns: the index components after its prefix,
-/// then `id` when they do not end in it (LLP 3000.007.000 §1).
-pub fn merge_position(table: &Table, index: &crate::schema::Index, prefix_len: usize) -> Vec<(String, ColumnType)> {
-    let mut columns: Vec<(String, ColumnType)> = index.components.iter().skip(prefix_len)
-        .filter_map(|component| Some((component.key_name()?.clone(), component.key_type(table)?))).collect();
-    if columns.last().is_none_or(|(name, _)| name != "id") { columns.push(("id".into(), table.columns["id"].clone())); }
-    columns
+/// The source is capped and readable under its fixed pins, and its row is the
+/// exact witness for the outer rule branch that the dynamic prefix opens.
+// @ref LLP 3000.036.001#14 — membership discovery proves each parent range.
+fn membership_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
+    membership_witness(schema, lane, false)
+}
+
+/// A null discovered value may open a target lane only when the matching
+/// point witness identifies its row without that nullable component. A by-id
+/// probe with `parent = null` does; a nullable natural unique does not.
+// @ref LLP 3000.036.001#14 — fixed-id witnesses preserve nullable residual equality without treating nullable natural keys as points.
+pub(crate) fn membership_null_distinct(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
+    membership_witness(schema, lane, true)
+}
+
+fn membership_witness(schema: &Schema, lane: &crate::ir::MergeLane, null_distinct: bool) -> bool {
+    let Some(source) = lane.source.as_ref().and_then(crate::ir::LaneSource::scan) else { return false };
+    let Some(Expr::Field { base, name: source_column }) = lane.distinct.as_ref() else { return false };
+    if !matches!(base.as_ref(), Expr::Variable(name) if name == &lane.binding) { return false; }
+    let Some(source_table) = schema.table(&source.table) else { return false };
+    let Some(source_index) = source_table.index(&source.index) else { return false };
+    let next_component = source.prefix.len() < source_index.components.len()
+        && source_index.components.get(source.prefix.len()).and_then(|part| part.column()) == Some(source_column);
+    // A fully pinned required unique identifies at most one source row, so
+    // any of that row's columns can be the discovered value. The source need
+    // not walk the distinct column as a following index component.
+    let one_row_source = source.prefix.len() == source_index.components.len()
+        && source_index.unique && source_index.is_plain()
+        && source_index.components.iter().all(|part| part.column().and_then(|column| source_table.columns.get(column))
+            .is_some_and(|kind| !kind.is_optional()));
+    if source.existence || (!next_component && !one_row_source)
+        || !scan_visibility(schema, source).decided_true { return false; }
+    let Bound::Literal(take) = source.take else { return false };
+    if take == 0 { return false; }
+    let prefix_has = |field: &String| source_index.components.iter().take(source.prefix.len())
+        .any(|part| part.column() == Some(field));
+    let cap = source_table.constraints.iter().filter_map(|constraint| match constraint {
+        crate::schema::Constraint::Cap { by, max } if by.iter().all(prefix_has) && !source_table.cap_exempts_null(by) => Some(*max),
+        _ => None,
+    }).min();
+    if cap.is_none_or(|cap| cap > take && !one_row_source) { return false; }
+    let Some(outer_table) = schema.table(&lane.scan.table) else { return false };
+    let Some(outer_index) = outer_table.index(&lane.scan.index) else { return false };
+    let mut outer_column: Option<&String> = None;
+    for (part, key) in outer_index.components.iter().zip(&lane.scan.prefix) {
+        let (Some(column), Some(expr)) = (part.column(), key.scalar()) else { return false };
+        if matches!(expr, Expr::Field { base, name } if matches!(base.as_ref(), Expr::Variable(binding) if binding == &lane.binding) && name == source_column)
+            && outer_column.replace(column).is_some() { return false; }
+    }
+    let Some(outer_column) = outer_column else { return false };
+    if outer_column == "id" { return false; }
+    let fixed = |column: &String| source_index.components.iter().zip(&source.prefix)
+        .find_map(|(part, key)| (part.column() == Some(column)).then(|| key.scalar()).flatten())
+        .or_else(|| source.filter.as_deref().and_then(|filter| required_source_equality(filter, column)));
+    any_disjunct(&outer_table.rules.read, &|rule| {
+        let RuleExpr::Exists { table, index, key, equalities, .. } = rule else { return false };
+        let Some(probe_index) = source_table.index(index) else { return false };
+        if table != &source.table || !probe_index.unique || !probe_index.is_plain() || probe_index.components.len() != key.len() { return false; }
+        let matches = |column: &String, term: &RuleTerm| if column == source_column { matches!(term, RuleTerm::Field(field) if field == outer_column) }
+            else { fixed(column).is_some_and(|expr| term_matches_expr(term, expr)) };
+        if !probe_index.components.iter().zip(key).all(|(part, term)| part.column().is_some_and(|column| matches(column, term)))
+            || !equalities.iter().all(|(column, term)| matches(column, term)) { return false; }
+        !null_distinct || probe_index.components.iter().all(|part| part.column().is_some_and(|column| column != source_column
+            && fixed(column).is_some_and(|expr| matches!(expr, Expr::Input(Input::Viewer)) || fixed_non_null_literal(expr))))
+    })
+}
+
+/// A generated membership discovery filter may retain an exact fixed probe
+/// component after its capped prefix (`id = 'm1'`, for example). Only a bare
+/// equality in the filter's conjunction is a necessary fact about every
+/// discovered row; alternatives and other implications remain unsupported.
+// @ref LLP 3000.036.001#14 — fixed membership witness columns may be proved by exact source residuals.
+fn required_source_equality<'a>(filter: &'a Expr, column: &str) -> Option<&'a Expr> {
+    match filter {
+        Expr::Binary { op: crate::ir::BinaryOp::And, left, right } =>
+            required_source_equality(left, column).or_else(|| required_source_equality(right, column)),
+        Expr::Binary { op: crate::ir::BinaryOp::Eq, left, right } if source_field(left, column) => Some(right),
+        Expr::Binary { op: crate::ir::BinaryOp::Eq, left, right } if source_field(right, column) => Some(left),
+        _ => None,
+    }
+}
+
+fn source_field(expr: &Expr, column: &str) -> bool {
+    matches!(expr, Expr::Field { base, name }
+        if name == column && matches!(base.as_ref(), Expr::Variable(binding) if binding == "$filter"))
+}
+
+fn term_matches_expr(term: &RuleTerm, expr: &Expr) -> bool {
+    match (term, expr) { (RuleTerm::Viewer, Expr::Input(Input::Viewer)) => true,
+        (RuleTerm::Literal(value), expr) => literal_matches_expr(value, expr), _ => false }
+}
+
+fn literal_matches_expr(value: &Value, expr: &Expr) -> bool {
+    match expr {
+        Expr::Literal(other) => value == other,
+        Expr::Unary { op: crate::ir::UnaryOp::Neg, .. } => matches!(value, Value::Int(expected)
+            if expr_int_literal(expr).is_some_and(|actual| actual == i128::from(*expected))),
+        _ => false,
+    }
+}
+
+fn expr_int_literal(expr: &Expr) -> Option<i128> {
+    match expr {
+        Expr::Literal(Value::Int(value)) => Some(i128::from(*value)),
+        Expr::Unary { op: crate::ir::UnaryOp::Neg, value } => expr_int_literal(value).map(|value| -value),
+        _ => None,
+    }
+}
+
+fn fixed_non_null_literal(expr: &Expr) -> bool {
+    matches!(expr, Expr::Literal(value) if value != &Value::Null) || expr_int_literal(expr).is_some()
+}
+
+/// Compare two merge positions without allocating their cursor descriptors.
+/// Each position is the index columns after its prefix, then `id` when absent.
+fn same_merge_position(table: &Table, left: &crate::schema::Index, left_prefix: usize,
+    right: &crate::schema::Index, right_prefix: usize) -> bool {
+    let parts = |index: &crate::schema::Index, prefix| {
+        let suffix = index.components.len().saturating_sub(prefix);
+        suffix + usize::from(index.components.last().and_then(|part| part.column()).is_none_or(|column| column != "id"))
+    };
+    let left_len = parts(left, left_prefix);
+    if left_len != parts(right, right_prefix) { return false; }
+    (0..left_len).all(|position| merge_position_part(table, left, left_prefix, position)
+        == merge_position_part(table, right, right_prefix, position))
+}
+
+fn merge_position_part<'a>(table: &'a Table, index: &'a crate::schema::Index, prefix: usize,
+    position: usize) -> Option<(&'a str, &'a ColumnType)> {
+    match index.components.get(prefix + position) {
+        Some(component) => {
+            let column = component.column()?;
+            table.columns.get(column).map(|kind| (column.as_str(), kind))
+        }
+        None => Some(("id", &table.columns["id"])),
+    }
 }
 
 /// The guard a branch merge's grant lane is decided by: the page guards of
@@ -540,13 +718,18 @@ pub fn merge_position(table: &Table, index: &crate::schema::Index, prefix_len: u
 pub fn covering_grant(schema: &Schema, scan: &Scan) -> Option<RuleExpr> {
     let table = schema.table(&scan.table)?;
     let party = |d: &RuleExpr| matches!(d, RuleExpr::Eq(RuleTerm::Field(_), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(_)));
-    let others: Vec<&RuleExpr> = table.rules.read.disjuncts().into_iter().filter(|d| !party(d)).collect();
+    let pinned = scan_pinned(table, scan);
+    let pinned_map: BTreeMap<_, _> = pinned.iter().map(|(column, value)| (*column, *value)).collect();
+    // `page_guard_decision` returns these prefix-simplified forms. Compare
+    // the read rule in the same domain, including exact boolean pins.
+    let others: Vec<RuleExpr> = table.rules.read.disjuncts().into_iter().filter(|d| !party(d))
+        .map(|disjunct| simplify_prefix(disjunct, &scan.table, table, &pinned_map)).collect();
     // A rule of parties alone: the grant lane holds for nobody but the system,
     // which reads every row (GPT round 3, finding 1).
     if others.is_empty() { return Some(RuleExpr::Deny); }
     let guard = page_guard_decision(schema, scan)?;
     let guards: Vec<&RuleExpr> = match &guard { RuleExpr::Or(guards) => guards.iter().collect(), one => vec![one] };
-    others.into_iter().all(|d| guards.contains(&d)).then_some(guard)
+    others.iter().all(|d| guards.contains(&d)).then_some(guard)
 }
 
 /// The same analysis for an arbitrary pinned prefix (`sync` audiences and
@@ -627,15 +810,36 @@ fn pinned_term(term: &RuleTerm, expression: &Expr) -> bool {
 }
 
 fn rule_true<'a>(rule: &RuleExpr, table_name: &str, table: &Table, pinned: &impl Fn(&str) -> Option<&'a Expr>) -> bool {
+    rule_known(rule, true, table_name, table, pinned)
+}
+
+/// An exact boolean prefix can decide either side of `=`/`!=`. Keep this
+/// local to an actual boolean literal pin: an optional boolean's null value
+/// is not interchangeable with false.
+fn pinned_boolean_equality<'a>(left: &RuleTerm, right: &RuleTerm, pinned: &impl Fn(&str) -> Option<&'a Expr>) -> Option<bool> {
+    [(left, right), (right, left)].iter().find_map(|(field, value)| {
+        let (RuleTerm::Field(column), RuleTerm::Literal(Value::Bool(expected))) = (field, value) else { return None };
+        let Expr::Literal(Value::Bool(actual)) = pinned(column)? else { return None };
+        Some(actual == expected)
+    })
+}
+
+fn rule_known<'a>(rule: &RuleExpr, truth: bool, table_name: &str, table: &Table, pinned: &impl Fn(&str) -> Option<&'a Expr>) -> bool {
     match rule {
-        RuleExpr::Allow | RuleExpr::Public { .. } => true,
-        RuleExpr::Eq(left, right) => [(left, right), (right, left)].iter().any(|(field, value)| {
-            let RuleTerm::Field(column) = field else { return false };
-            pinned(column).is_some_and(|expression| pinned_term(value, expression))
-        }),
-        RuleExpr::Or(rules) => rules.iter().any(|rule| rule_true(rule, table_name, table, pinned)),
-        RuleExpr::And(rules) => !rules.is_empty() && rules.iter().all(|rule| rule_true(rule, table_name, table, pinned)),
-        RuleExpr::Exists { table: target, index, key, equalities, .. } if target == table_name => {
+        RuleExpr::Allow | RuleExpr::Public { .. } => truth,
+        RuleExpr::Deny => !truth,
+        RuleExpr::Eq(left, right) => pinned_boolean_equality(left, right, pinned).is_some_and(|equal| equal == truth)
+            || truth && [(left, right), (right, left)].iter().any(|(field, value)| {
+                let RuleTerm::Field(column) = field else { return false };
+                pinned(column).is_some_and(|expression| pinned_term(value, expression))
+            }),
+        RuleExpr::Ne(left, right) => pinned_boolean_equality(left, right, pinned).is_some_and(|equal| equal != truth),
+        RuleExpr::Or(rules) if truth => rules.iter().any(|rule| rule_known(rule, true, table_name, table, pinned)),
+        RuleExpr::Or(rules) => rules.iter().all(|rule| rule_known(rule, false, table_name, table, pinned)),
+        RuleExpr::And(rules) if truth => !rules.is_empty() && rules.iter().all(|rule| rule_known(rule, true, table_name, table, pinned)),
+        RuleExpr::And(rules) => rules.iter().any(|rule| rule_known(rule, false, table_name, table, pinned)),
+        RuleExpr::Not(inner) => rule_known(inner, !truth, table_name, table, pinned),
+        RuleExpr::Exists { table: target, index, key, equalities, .. } if truth && target == table_name => {
             // A self-probe on a total unique key whose every component is
             // either the row's own column or pinned to the probing value is
             // true for every row the prefix selects.

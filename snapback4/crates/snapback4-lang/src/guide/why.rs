@@ -10,6 +10,8 @@ pub(super) fn detail(code: &str) -> Option<&'static str> {
         "E_PARENT_HAS_CHILDREN" => include_str!("why/E_PARENT_HAS_CHILDREN.md"),
         "N_DELETE_RESTRICTED" => include_str!("why/N_DELETE_RESTRICTED.md"),
         "N_DELETE_NEEDS_READ" => include_str!("why/N_DELETE_NEEDS_READ.md"),
+        "N_REFERENCE_UNCHECKED" => include_str!("why/N_REFERENCE_UNCHECKED.md"),
+        "N_MAINTAIN_AUTHORIZATION" => include_str!("why/N_MAINTAIN_AUTHORIZATION.md"),
         "E_REFERENCED" => include_str!("why/E_REFERENCED.md"),
         "E_REFERENCE_ACTION" => include_str!("why/E_REFERENCE_ACTION.md"),
         "E_CASCADE_BOUND" => include_str!("why/E_CASCADE_BOUND.md"),

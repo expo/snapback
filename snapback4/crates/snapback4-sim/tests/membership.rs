@@ -212,3 +212,208 @@ fn extra_equalities_are_deciding_fields_and_cannot_bless_a_self_probe() {
     assert_eq!(result.data.as_array().unwrap().len(), 2);
     assert_eq!(result.metered.rule_probes, 1);
 }
+
+// @ref LLP 3000.036.001#14 — a cursor answers the current remaining range when membership changes between pages.
+#[test]
+fn owner_or_membership_cursor_observes_revocation_and_acquisition_after_its_position() {
+    let source = "table page_members:
+  parent: text <=40
+  principal: principal
+  unique parent, principal
+  cap 16 by principal
+  read <- .principal = viewer
+  insert <- .principal = viewer
+  delete <- .principal = viewer
+  online only
+table page_docs:
+  owner: principal
+  parent: text <=40
+  at: int
+  read <- .owner = viewer or exists page_members[.parent, viewer]
+  online only
+query page_docs(c: cursor ?):
+  return page_docs last 1 by .at after c
+";
+    let compiled = bound(source);
+    let mut engine = Engine::memory(compiled.schema, compiled.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed([
+        ("page_members".into(), snapback4_core::value::object([("id", id("m1")), ("parent", text("p1")), ("principal", id("alice"))])),
+        ("page_docs".into(), snapback4_core::value::object([("id", id("owner")), ("owner", id("alice")), ("parent", text("p0")), ("at", Value::Int(5))])),
+        ("page_docs".into(), snapback4_core::value::object([("id", id("old-member")), ("owner", id("bob")), ("parent", text("p1")), ("at", Value::Int(4))])),
+        ("page_docs".into(), snapback4_core::value::object([("id", id("new-member")), ("owner", id("bob")), ("parent", text("p2")), ("at", Value::Int(3))])),
+    ]).unwrap();
+    let first = engine.query("page_docs", context("alice", &[("c", Value::Null)])).unwrap();
+    assert_eq!(first.data.as_array().unwrap()[0].field("id").unwrap(), &id("owner"));
+    let cursor = first.next.expect("remaining readable row");
+    engine.seed_delete("page_members", "m1").unwrap();
+    engine.seed([("page_members".into(), snapback4_core::value::object([("id", id("m2")), ("parent", text("p2")), ("principal", id("alice"))]))]).unwrap();
+    let second = engine.query("page_docs", context("alice", &[("c", Value::String(cursor))])).unwrap();
+    assert_eq!(second.data.as_array().unwrap()[0].field("id").unwrap(), &id("new-member"));
+    assert!(second.complete && second.next.is_none());
+}
+// @ref LLP 3000.036.001#14 — only live memberships may synthesize PAGE target lanes.
+#[test]
+fn owner_or_membership_page_ignores_an_expired_unswept_witness() {
+    let source = "table page_members:
+  parent: text <=40
+  principal: principal
+  until: time ?
+  unique parent, principal
+  cap 16 by principal
+  by byExpiry: until
+  expire at .until
+  read <- .principal = viewer
+  online only
+table page_docs:
+  owner: principal
+  parent: text <=40
+  at: int
+  read <- .owner = viewer or exists page_members[.parent, viewer]
+  online only
+query page_docs(c: cursor ?):
+  return page_docs last 10 by .at after c
+";
+    let compiled = bound(source);
+    let program = &compiled
+        .programs
+        .iter()
+        .find(|program| program.program.name == "page_docs")
+        .unwrap()
+        .program;
+    assert!(
+        snapback4_core::ir::body_merges(&program.body)
+            .iter()
+            .any(|merge| merge.lanes.iter().any(|lane| lane.membership()))
+    );
+    let mut engine = Engine::memory(
+        compiled.schema,
+        compiled.programs.into_iter().map(|p| p.program),
+    )
+    .unwrap();
+    engine
+        .seed([
+            (
+                "page_members".into(),
+                snapback4_core::value::object([
+                    ("id", id("expired")),
+                    ("parent", text("p1")),
+                    ("principal", id("alice")),
+                    ("until", Value::Int(5)),
+                ]),
+            ),
+            (
+                "page_members".into(),
+                snapback4_core::value::object([
+                    ("id", id("live")),
+                    ("parent", text("p2")),
+                    ("principal", id("alice")),
+                    ("until", Value::Null),
+                ]),
+            ),
+            (
+                "page_docs".into(),
+                snapback4_core::value::object([
+                    ("id", id("owner")),
+                    ("owner", id("alice")),
+                    ("parent", text("p0")),
+                    ("at", Value::Int(1)),
+                ]),
+            ),
+            (
+                "page_docs".into(),
+                snapback4_core::value::object([
+                    ("id", id("expired-target")),
+                    ("owner", id("bob")),
+                    ("parent", text("p1")),
+                    ("at", Value::Int(2)),
+                ]),
+            ),
+            (
+                "page_docs".into(),
+                snapback4_core::value::object([
+                    ("id", id("live-target")),
+                    ("owner", id("bob")),
+                    ("parent", text("p2")),
+                    ("at", Value::Int(3)),
+                ]),
+            ),
+        ])
+        .unwrap();
+    let before = engine
+        .query("page_docs", context("alice", &[("c", Value::Null)]).at(4))
+        .unwrap();
+    assert_eq!(
+        before
+            .data
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| row.field("id").unwrap().as_str().unwrap())
+            .collect::<Vec<_>>(),
+        vec!["live-target", "expired-target", "owner"]
+    );
+    let after = engine
+        .query("page_docs", context("alice", &[("c", Value::Null)]).at(6))
+        .unwrap();
+    assert_eq!(
+        after
+            .data
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|row| row.field("id").unwrap().as_str().unwrap())
+            .collect::<Vec<_>>(),
+        vec!["live-target", "owner"]
+    );
+    assert!(after.complete && after.next.is_none());
+    assert_eq!(
+        engine.store().count("page_members").unwrap(),
+        2,
+        "the witness remains physically unswept"
+    );
+}
+
+// @ref LLP 3000.036.001#14 — a total one-row source yields its implicit id, but only while that row is live.
+#[test]
+fn owner_or_total_unique_source_id_expires_as_one_complete_lane() {
+    let source = "table groups:
+  principal: principal
+  until: time ?
+  unique principal
+  cap 16 by principal
+  by byExpiry: until
+  expire at .until
+  read <- .principal = viewer
+  online only
+table documents:
+  owner: principal
+  parent: id
+  at: int
+  read <- .owner = viewer or exists groups[id = .parent, principal = viewer]
+  online only
+query documents(c: cursor ?):
+  return documents last 10 by .at after c
+";
+    let compiled = bound(source);
+    assert!(snapback4_core::ir::body_merges(&compiled.programs[0].program.body)
+        .into_iter().any(|merge| merge.lanes.iter().any(|lane| lane.membership())));
+    let mut engine = Engine::memory(compiled.schema, compiled.programs.into_iter().map(|program| program.program)).unwrap();
+    engine.seed([
+        ("groups".into(), snapback4_core::value::object([
+            ("id", id("g1")), ("principal", id("alice")), ("until", Value::Int(5)),
+        ])),
+        ("documents".into(), snapback4_core::value::object([
+            ("id", id("owned")), ("owner", id("alice")), ("parent", id("g0")), ("at", Value::Int(1)),
+        ])),
+        ("documents".into(), snapback4_core::value::object([
+            ("id", id("shared")), ("owner", id("bob")), ("parent", id("g1")), ("at", Value::Int(2)),
+        ])),
+    ]).unwrap();
+    let ids = |out: &snapback4_core::QueryOutcome| out.data.as_array().unwrap().iter()
+        .map(|row| row.field("id").unwrap().as_str().unwrap().to_owned()).collect::<Vec<_>>();
+    let before = engine.query("documents", context("alice", &[("c", Value::Null)]).at(4)).unwrap();
+    assert_eq!(ids(&before), ["shared", "owned"]); assert!(before.complete && before.next.is_none());
+    let after = engine.query("documents", context("alice", &[("c", Value::Null)]).at(6)).unwrap();
+    assert_eq!(ids(&after), ["owned"]); assert!(after.complete && after.next.is_none());
+    assert_eq!(engine.store().count("groups").unwrap(), 1, "expired source remains physically unswept");
+}

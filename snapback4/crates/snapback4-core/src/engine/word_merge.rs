@@ -107,7 +107,7 @@ impl Runner<'_> {
                         if self.read_capped() || !self.read_charge(MeterKind::Steps, 1)? { break; }
                         // Borrow the IR but retain per-lane evaluation of arbitrary
                         // bounds expressions (including their nested read costs).
-                        let bounds = self.word_bounds(scan, definition, index, None, true)?;
+                        let bounds = self.word_bounds(scan, definition, index, None, true, false)?;
                         self.meter.heap(word_heap::slots::<Value>(scope.len() + 1) + scope.iter().map(|v|DisclosedKey(v).heap()).sum::<u64>())?;
                         let mut prefix = Vec::with_capacity(scope.len() + 1);
                         prefix.extend(scope.iter().cloned());

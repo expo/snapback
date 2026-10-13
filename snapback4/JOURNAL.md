@@ -94081,3 +94081,93 @@ The full Rust pass found stale guide projections and two frontend fixtures that 
 
 
 Integration 6 final requested Rust command completed. Its five initially failed scopes are all qualified after affected repairs: CLI unit 411 passing/five existing ignored; lifecycle 28; frontend regressions 40; guide 119; simulator review corrections 32. The simulator's development asset-narrowing test now expects REL's aggregated E_ADOPT while retaining its generation and unreleased-home rollback checks. All other full-command targets passed. Client evidence maps all 379 files to successful qualification, with original failed runs retained. Mac full CLI qualification plus its repaired 26-test flag scope and xcframework/Expo compile are archived. Root inventories/guide/ref checks and final stamped wasm/Lean/differential evidence are in the Integration 6 report; no origin push/publication.
+
+## 2026-10-12 — PAGE wave 9
+
+Added owner-or-membership pages over capped viewer memberships, one shared
+cursor, complete discovery before disclosure, and portable/index/heap guards
+(LLP 3000.036.001 §14). Hidden keyed maintained hits and misses now return
+null with matching nullable types and authority-proof invalidation; authorized
+misses retain zero (LLP 3000.013 §14.7). Unique references provide bound one
+for non-null parent groups; summed-child cascades remain safely refused with
+the system/alternate-path explanation (LLP 3000.039). Rule rewrites are
+compiled and executed by golden tests; completeness notes state verdict,
+audience and action, with details under verbose.
+
+Locked Linux web build: 2,263,752 B raw / 684,867 B gzip, +18,330 raw /
++5,516 gzip against this worktree baseline 2,245,422 / 679,351. Raise the wasm
+budget to 685,367 B (measurement plus required 500 B platform headroom).
+Whole-artifact measurement; no per-feature attribution, Mac measurement or
+runtime ceiling change. Membership descriptors remain bounded and metered.
+HAND owns protocol negotiation for the new branch-membership-v1 capability;
+DX owns the broader membership-page recipes. Final verification is recorded
+in the worktree-root WORKSTREAM-REPORT.md.
+
+PAGE final allocation-ledger qualification: the locked Linux web artifact is
+2,271,627 B raw / 687,942 B gzip, versus the worktree baseline
+2,245,422 / 679,351 (+26,205 raw / +8,591 gzip). The final wasm budget is
+688,442 B (measurement plus required 500 B platform headroom), superseding
+the provisional PAGE budget above. Discovery, owner/system/dynamic target
+read-ahead, merge scratch and actual next-frontier encoding use the existing
+heap meter. No runtime resource ceiling increase or macOS measurement.
+
+PAGE escaped-key/guard qualification: locked Linux web device measures
+2,277,028 B raw / 689,145 B gzip after exact-capacity canonical discovery-key
+serialization and normalized covering guards. Budget 689,645 B is the
+measurement plus required 500 B platform headroom, superseding PAGE's
+provisional 688,442 B. Whole-artifact delta against the worktree baseline is
++31,606 B raw / +9,794 B gzip; no per-feature attribution, macOS measurement
+or runtime resource ceiling change. The regression uses valid quote text;
+NUL remains rejected by text validation. Final reviews and qualification are
+recorded in WORKSTREAM-REPORT.md.
+
+PAGE fixed-source-ID qualification: the final locked Linux web artifact is
+2,277,324 B raw / 689,326 B gzip. It passes the existing 689,645 B budget;
+no additional budget increase is needed. Against the worktree baseline
+2,245,422 / 679,351, the whole-artifact delta is +31,902 B raw / +9,975 B
+gzip. The client package rebuild passes. This supersedes the previous PAGE
+artifact measurement, with no runtime resource ceiling change or macOS claim.
+
+PAGE total-unique source qualification: the locked Linux web artifact after
+fully pinned unique membership discovery is 2,277,486 B raw / 689,461 B gzip.
+It passes the existing 689,645 B budget without another increase. Against
+the worktree baseline 2,245,422 / 679,351, the whole-artifact delta is
++32,064 B raw / +10,110 B gzip. This supersedes the previous PAGE artifact
+measurement; no per-feature attribution, macOS measurement or runtime
+resource-ceiling change.
+
+PAGE nullable-witness qualification: the locked Linux web artifact after
+witness-specific null-parent discovery is 2,277,755 B raw / 689,580 B gzip.
+It passes the existing 689,645 B budget without another increase. Against
+the worktree baseline 2,245,422 / 679,351, the whole-artifact delta is
++32,333 B raw / +10,229 B gzip. This supersedes the prior PAGE measurement;
+no per-feature attribution, macOS measurement or runtime resource-ceiling
+change. Exact point-key nulls remain no-row; a null residual equality can
+carry an actual fixed-ID membership witness.
+
+PAGE one-row source qualification (2026-10-13): the locked Linux web
+artifact measures 2,277,742 B raw / 689,652 B gzip after fully pinned
+total-unique discovery can project any required or nullable membership
+parent field with exact residual checks. It exceeds 689,645 B by 7 B.
+Raise the budget to 690,152 B = measurement plus required 500 B platform
+headroom in the same commit. Whole-artifact delta over the worktree
+baseline 2,245,422 / 679,351 is +32,320 raw / +10,301 gzip; no independent
+per-feature attribution, macOS measurement or runtime ceiling increase.
+
+PAGE required-Boolean guard qualification: the locked Linux web artifact
+now measures 2,278,353 B raw / 689,958 B gzip after required Boolean
+negation and inequality normalize under both literal and argument pins.
+Optional unknown Booleans and negated probes retain their prior refusal.
+The artifact passes the existing 690,152 B budget; no further increase.
+The whole-artifact delta over baseline 2,245,422 / 679,351 is +32,931 raw
+/ +10,607 gzip. This supersedes the one-row source measurement; no
+per-feature attribution, macOS measurement or runtime-ceiling change.
+
+PAGE final false-guard and signed-witness qualification (2026-10-13):
+the locked Linux web artifact measures 2,278,983 B raw / 690,290 B gzip
+after proven-false prefix alternatives collapse and signed integer
+membership witnesses compare canonically without heap allocation. It is
+138 B over 690,152 B; set 690,790 B = measured gzip plus required 500 B
+platform headroom. Expression and cursor IR remain stable. Whole-artifact
+delta over baseline 2,245,422 / 679,351 is +33,561 raw / +10,939 gzip;
+no per-feature attribution, macOS measurement or runtime-ceiling increase.

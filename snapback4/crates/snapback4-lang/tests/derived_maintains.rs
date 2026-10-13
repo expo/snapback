@@ -71,7 +71,8 @@ fn write(e: &mut Engine, op: &str, who: &str, args: &[(&str, Value)]) -> Value {
 #[test]
 fn clique_nine_aggregates_and_inferred_columns_run_against_contributions() {
     let b = bound(CLIQUE);
-    assert!(b.notes.is_empty(), "{:?}", b.notes);
+    assert_eq!(b.notes.iter().filter(|note| note.code == "N_REFERENCE_UNCHECKED").count(), 3, "{:?}", b.notes);
+    assert!(b.notes.iter().all(|note| note.code == "N_REFERENCE_UNCHECKED"), "{:?}", b.notes);
     assert_eq!(b.schema.maintains.iter().filter(|m| m.private.is_none()).count(), 9);
     assert!(b.schema.maintain_for("posts").is_none(), "self-reference is an ordinary source");
     for m in b.schema.maintains.iter().filter(|m| m.private.is_none()) {
@@ -216,5 +217,269 @@ fn inferred_column_reference_handles_sums_optional_refs_and_ambiguity() {
     for code in ["E_MAINTAIN_READ_RULE","E_MAINTAINED_COLUMN_REFERENCE"] {
         assert_eq!(snapback4_lang::diag::guide_for(code),"maintains");
         assert!(snapback4_lang::guide::explain_code(code).is_some());
+    }
+}
+
+#[test]
+fn keyed_maintain_hides_hits_and_misses_without_turning_them_into_zero() {
+    let source = r#"
+table meetings:
+  chair: principal
+  read <- allow
+table recusals:
+  meeting: meetings
+  read <- allow
+table officers:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+table hiddenBans:
+  principal: principal
+  unique principal
+  read <- deny
+table readableBans:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+table banParents:
+  read <- deny
+table throughBans:
+  parent: banParents
+  principal: principal
+  immutable parent
+  unique principal
+  read through .parent
+table inboxItems:
+  meeting: meetings
+  principal: principal
+  read <- .principal = viewer
+view recusalCounts: count recusals by .meeting
+  read <- exists meetings[.meeting, chair = viewer] or exists officers[viewer]
+  online only
+view chairedMeetingCounts: count meetings by .chair
+  read <- .chair = viewer
+  online only
+view inheritedCounts: count inboxItems by .meeting, .principal
+view hiddenUnbannedCounts: count meetings by .chair
+  read <- not exists hiddenBans[viewer]
+  online only
+view readableUnbannedCounts: count meetings by .chair
+  read <- not exists readableBans[viewer]
+  online only
+view throughUnbannedCounts: count meetings by .chair
+  read <- not exists throughBans[viewer]
+  online only
+query bare(meeting: meetings):
+  return recusalCounts[meeting]
+query guarded(meeting: meetings):
+  require exists meetings[meeting, chair = viewer] or exists officers[viewer] else NOT_CHAIR
+  return recusalCounts[meeting]
+query unrelated(meeting: meetings):
+  require true else IMPOSSIBLE
+  return recusalCounts[meeting]
+query selfAuthorized():
+  return chairedMeetingCounts[viewer]
+query inheritedSelfAuthorized(meeting: meetings):
+  return inheritedCounts[meeting, viewer]
+query hiddenAbsence(owner: principal):
+  require not exists hiddenBans[viewer] else BANNED
+  return hiddenUnbannedCounts[owner]
+query readableAbsence(owner: principal):
+  require not exists readableBans[viewer] else BANNED
+  return readableUnbannedCounts[owner]
+query throughAbsence(owner: principal):
+  require not exists throughBans[viewer] else BANNED
+  return throughUnbannedCounts[owner]
+query rebound(a: principal, b: principal):
+  key = a
+  require key = viewer else NOT_OWNER
+  key = b
+  return chairedMeetingCounts[key]
+query nestedReturn(a: principal, b: principal, choose: bool):
+  key = a
+  require key = viewer else NOT_OWNER
+  if choose:
+    key = b
+    return chairedMeetingCounts[key]
+  return null
+query branchRebound(a: principal, b: principal, choose: bool):
+  key = a
+  require key = viewer else NOT_OWNER
+  if choose:
+    key = b
+  return chairedMeetingCounts[key]
+query loopRebound(a: principal, b: principal):
+  key = a
+  require key = viewer else NOT_OWNER
+  for ignored in [true]:
+    key = b
+  return chairedMeetingCounts[key]
+query loopCarriedReturn(a: principal, b: principal):
+  key = a
+  require key = viewer else NOT_OWNER
+  for i in range(0, 2):
+    if i = 1:
+      return chairedMeetingCounts[key]
+    key = b
+  return null
+query stableBranch(a: principal, b: principal, choose: bool):
+  key = a
+  require key = viewer else NOT_OWNER
+  if choose:
+    other = b
+  return chairedMeetingCounts[key]
+query stableLoop(a: principal, b: principal):
+  key = a
+  require key = viewer else NOT_OWNER
+  for ignored in [true]:
+    other = b
+  return chairedMeetingCounts[key]
+"#;
+    let b = bound(source);
+    let notes: Vec<_> = b.notes.iter().filter(|note| note.code == "N_MAINTAIN_AUTHORIZATION").collect();
+    assert_eq!(notes.len(), 9, "unrelated, stale, and visibility-only requirements must not suppress the note: {:#?}", b.notes);
+    for name in ["bare", "unrelated", "hiddenAbsence", "throughAbsence", "rebound", "nestedReturn", "branchRebound", "loopRebound", "loopCarriedReturn"] {
+        assert!(notes.iter().any(|note| note.message.contains(&format!("query {name}"))), "{name}: {notes:#?}");
+    }
+    assert!(!notes.iter().any(|note| note.message.contains("query inheritedSelfAuthorized")), "{notes:#?}");
+    assert!(!notes.iter().any(|note| note.message.contains("query readableAbsence")
+        || note.message.contains("query stableBranch") || note.message.contains("query stableLoop")), "{notes:#?}");
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|program| program.program)).unwrap();
+    e.seed_at([
+        ("meetings".into(), snapback4_core::value::object([("id", id("with")), ("chair", id("alice"))])),
+        ("meetings".into(), snapback4_core::value::object([("id", id("empty")), ("chair", id("alice"))])),
+        ("recusals".into(), snapback4_core::value::object([("id", id("r")), ("meeting", id("with"))])),
+        ("officers".into(), snapback4_core::value::object([("id", id("o")), ("principal", id("carol"))])),
+    ], 500).unwrap();
+    let read = |e: &mut Engine, query: &str, who: &str, meeting: &str| {
+        e.query(query, ctx(who, &[("meeting", id(meeting))])).map(|answer| answer.data)
+    };
+    assert_eq!(read(&mut e, "bare", "alice", "with").unwrap(), Value::Int(1));
+    assert_eq!(read(&mut e, "bare", "alice", "empty").unwrap(), Value::Int(0));
+    assert_eq!(read(&mut e, "bare", "carol", "with").unwrap(), Value::Int(1));
+    assert_eq!(read(&mut e, "bare", "carol", "empty").unwrap(), Value::Int(0));
+    assert_eq!(read(&mut e, "bare", "bob", "with").unwrap(), Value::Null, "hidden stored group");
+    assert_eq!(read(&mut e, "bare", "bob", "empty").unwrap(), Value::Null, "hidden absent group");
+    assert_eq!(read(&mut e, "guarded", "bob", "with").unwrap_err().code, "NOT_CHAIR");
+}
+
+#[test]
+fn expiring_source_and_system_misses_use_the_same_maintain_authorization_as_hits() {
+    let source = r#"
+table events:
+  owner: principal
+  until: time
+  immutable owner, until
+  expire at .until
+  read <- allow
+  online only
+view liveCounts: count events by .owner
+  read <- .owner = viewer
+  online only
+view deniedCounts: count events by .owner
+  read <- deny
+  online only
+query live(owner: principal):
+  return liveCounts[owner]
+query denied(owner: principal):
+  return deniedCounts[owner]
+"#;
+    let mut e = engine(source);
+    assert_eq!(e.query("live", ctx("alice", &[("owner", id("alice"))])).unwrap().data, Value::Int(0));
+    assert_eq!(e.query("live", ctx("bob", &[("owner", id("alice"))])).unwrap().data, Value::Null);
+    let mut system = Context::system().at(86_400_010);
+    system.args.insert("owner".into(), id("alice"));
+    assert_eq!(e.query("denied", system).unwrap().data, Value::Int(0));
+}
+
+#[test]
+fn maintain_authorization_notes_distinguish_lexicals_from_rule_constants() {
+    let source = r#"
+table boolEntries:
+  flag: bool
+  read <- allow
+  online only
+view trueTotals: count boolEntries by .flag
+  read <- .flag
+  online only
+table stateEntries:
+  state: enum('visible', 'hidden')
+  read <- allow
+  online only
+view stateTotals: count stateEntries by .state
+  read <- .state = 'visible'
+  online only
+query bareAllow(allow: bool):
+  return trueTotals[allow]
+query barePublic(public: bool):
+  return trueTotals[public]
+query bareDeny(deny: bool):
+  return trueTotals[deny]
+query aliasAllow(key: bool):
+  allow = key
+  return trueTotals[allow]
+query aliasPublic(key: bool):
+  public = key
+  return trueTotals[public]
+query aliasDeny(key: bool):
+  deny = key
+  return trueTotals[deny]
+query loopAllow():
+  for allow in [false]:
+    return trueTotals[allow]
+  return 0
+query loopPublic():
+  for public in [false]:
+    return trueTotals[public]
+  return 0
+query loopDeny():
+  for deny in [false]:
+    return trueTotals[deny]
+  return 0
+query enumCollision(visible: enum('visible', 'hidden')):
+  return stateTotals[visible]
+query guardedAllow(allow: bool):
+  require allow else NOT_ALLOWED
+  return trueTotals[allow]
+query guardedPublic(public: bool):
+  require public else NOT_ALLOWED
+  return trueTotals[public]
+query guardedDeny(deny: bool):
+  require deny else NOT_ALLOWED
+  return trueTotals[deny]
+query guardedEnum(visible: enum('visible', 'hidden')):
+  require visible = 'visible' else NOT_ALLOWED
+  return stateTotals[visible]
+"#;
+    let b = bound(source);
+    let notes: Vec<_> = b
+        .notes
+        .iter()
+        .filter(|note| note.code == "N_MAINTAIN_AUTHORIZATION")
+        .collect();
+    let expected = [
+        "bareAllow",
+        "barePublic",
+        "bareDeny",
+        "aliasAllow",
+        "aliasPublic",
+        "aliasDeny",
+        "loopAllow",
+        "loopPublic",
+        "loopDeny",
+        "enumCollision",
+    ];
+    assert_eq!(notes.len(), expected.len(), "{notes:#?}");
+    for name in expected {
+        assert!(
+            notes.iter().any(|note| note.message.contains(&format!("query {name}"))),
+            "{name}: {notes:#?}"
+        );
+    }
+    for name in ["guardedAllow", "guardedPublic", "guardedDeny", "guardedEnum"] {
+        assert!(
+            !notes.iter().any(|note| note.message.contains(&format!("query {name}"))),
+            "{name}: {notes:#?}"
+        );
     }
 }

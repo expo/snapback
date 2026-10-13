@@ -32,10 +32,12 @@
 //! **Erased, with the reason.** `sync …` and `online only` (residency
 //! decides what a device holds, never a server outcome) and non-unique
 //! `by` indexes (tuning; reads choose indexes themselves). A `text <= N`
-//! bound is not modelled (OPEN W6): [`LeanModule::store`] and
-//! [`LeanModule::tag_args`] refuse inputs that exceed it, and a literal
-//! written past it is unsupported, so the bound can never decide a supported
-//! case. A computed text written to a bounded column is not checked.
+//! bound is not modelled as a value restriction (OPEN W6):
+//! [`LeanModule::store`] and [`LeanModule::tag_args`] refuse inputs that exceed
+//! it, and a literal written past it is unsupported. The surface emitter does
+//! use the bound to keep PAGE cases with nonportable synthesized keys out of
+//! the fragment before the oracle. A computed text written to a bounded column
+//! is not checked.
 //!
 //! **Everything else** outside the model's core fragment is an
 //! [`Unsupported`] with a stable `reason` (counted by the harness, never a
@@ -45,7 +47,7 @@
 
 use crate::ast::{self, Document, Effect, Expr, KeyPart, Literal, ObjectField, OnDelete, Order, ReadExpr, Stmt, TypeKind, WriteOp};
 use serde_json::{Map, Value as Json, json};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 /// A construct outside the model's core fragment.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
@@ -150,7 +152,7 @@ struct Table {
     codes: Vec<Option<String>>,
     /// Caps are carried as unenforced declarations: a program that inserts
     /// into or updates a capped table is outside the fragment (`table-cap`).
-    capped: bool,
+    caps: Vec<(u32, Vec<String>)>,
 }
 
 impl Table {
@@ -166,6 +168,10 @@ impl Table {
 #[derive(Clone, Debug)]
 pub struct LeanModule {
     tables: Vec<Table>,
+    /// Surface declarations retained only for fragment eligibility. The model
+    /// omits physical indexes, so PAGE must reject cases whose synthesized
+    /// source or target key cannot fit every store before asking the oracle.
+    surface_tables: Vec<ast::TableDecl>,
     /// `{"tables":[…]}` of `Syntax.lean`'s `Schema`.
     pub schema: Json,
     /// `Helper`s.
@@ -231,6 +237,7 @@ pub fn from_documents(documents: &[Document]) -> R<LeanModule> {
     let helper_names: Vec<String> = functions.iter().map(|f| f.name.clone()).collect();
     let mut module = LeanModule {
         tables,
+        surface_tables: decls.iter().map(|table| (*table).clone()).collect(),
         schema: json!({"tables": schema_tables}),
         helpers: json!([]),
         programs: BTreeMap::new(),
@@ -319,7 +326,8 @@ fn table_shape(t: &ast::TableDecl) -> R<Table> {
             codes.push(i.refusal.as_ref().map(|(code, _)| code.clone()));
         }
     }
-    Ok(Table { name: t.name.clone(), cols, uniques, codes, capped: !t.caps.is_empty() })
+    Ok(Table { name: t.name.clone(), cols, uniques, codes,
+        caps: t.caps.iter().map(|cap| (cap.max, cap.by.clone())).collect() })
 }
 
 fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Json> {
@@ -357,6 +365,7 @@ fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Json> {
         }).collect::<Vec<_>>(),
         "uniques": shape.uniques,
         "uniqueCodes": shape.codes,
+        "caps": shape.caps.iter().map(|(max, by)| json!({"by": by, "max": max})).collect::<Vec<_>>(),
         "read": rule("read"), "insert": rule("insert"), "update": rule("update"), "delete": rule("delete"),
     }))
 }
@@ -427,6 +436,15 @@ impl RuleCtx<'_> {
                 let (s, k) = literal_scalar(value)?;
                 Ok((json!({"lit": s}), k))
             }
+            // @ref LLP 3000.036.001#14 — fixed membership residuals compare canonical scalar values across rule and expression IR.
+            Expr::Unary { op, value, .. } if op == "-" => match value.as_ref() {
+                Expr::Literal { value: Literal::Number(n), .. } => {
+                    let magnitude = n.parse::<i64>().map_err(|_| Unsupported::new("number-literal", n.clone()))?;
+                    let value = magnitude.checked_neg().ok_or_else(|| Unsupported::new("number-literal", format!("-{n}")))?;
+                    Ok((json!({"lit": {"int": value.to_string()}}), Some(Kind::Int)))
+                }
+                _ => no("rule-term", crate::print::expression(e)),
+            },
             Expr::Member { base, name, .. } => {
                 let image = match (base.as_ref(), images) {
                     (Expr::Focal { .. }, Images::As(img)) => *img,
@@ -452,6 +470,7 @@ impl RuleCtx<'_> {
         }
         let kinds: Vec<Option<Kind>> = terms.iter().map(|t| t.1.clone()).collect();
         let columns = resolve_key(target, &read.keys, &kinds)?;
+        let point = resolve_probe_point(target, &read.keys, &columns)?;
         let mut key = Vec::new();
         for (c, (mut t, _)) in columns.iter().zip(terms) {
             if target.col(c).as_ref().is_some_and(Kind::is_id) {
@@ -459,7 +478,7 @@ impl RuleCtx<'_> {
             }
             key.push(json!([c, t]));
         }
-        Ok(json!({"probe": {"table": read.table, "key": key}}))
+        Ok(json!({"probe": {"table": read.table, "point": point, "key": key}}))
     }
 }
 
@@ -530,6 +549,72 @@ fn resolve_key(table: &Table, keys: &[KeyPart], kinds: &[Option<Kind>]) -> R<Vec
         [one] => Ok((*one).clone()),
         _ => no("key-unresolved", format!("{}[..] matches {} unique keys", table.name, fits.len())),
     }
+}
+
+/// The unique key selected by a rule probe. Named equalities may contain
+/// residual predicates beyond the point key; the binder selects the shortest
+/// covered total unique, then the first declared candidate. Positional probes
+/// keep their declared-only, type-directed resolution above.
+// @ref LLP 3000.036.001#14 — nullable residual membership equalities are distinct from the selected point key.
+fn resolve_probe_point(table: &Table, keys: &[KeyPart], columns: &[String]) -> R<Vec<String>> {
+    if keys.iter().any(|key| key.column.is_none()) {
+        return Ok(columns.to_vec());
+    }
+    if columns.iter().any(|column| column == "id") {
+        return Ok(vec!["id".into()]);
+    }
+    let total = |unique: &[String]| {
+        unique.iter().all(|column| {
+            column == "id"
+                || table
+                    .cols
+                    .iter()
+                    .find(|candidate| candidate.name == *column)
+                    .is_some_and(|candidate| !candidate.nullable)
+        })
+    };
+    let mut candidates: Vec<&Vec<String>> = table
+        .uniques
+        .iter()
+        .filter(|unique| {
+            unique.len() == columns.len() && unique.iter().all(|column| columns.contains(column))
+                || total(unique) && unique.iter().all(|column| columns.contains(column))
+        })
+        .collect();
+    if let Some(width) = candidates
+        .iter()
+        .filter(|unique| total(unique))
+        .map(|unique| unique.len())
+        .min()
+    {
+        candidates.retain(|unique| unique.len() == width && total(unique));
+        if candidates.len() > 1 {
+            let sets: BTreeSet<Vec<String>> = candidates
+                .iter()
+                .map(|unique| {
+                    let mut columns = (*unique).clone();
+                    columns.sort();
+                    columns
+                })
+                .collect();
+            if sets.len() != candidates.len() {
+                return no(
+                    "rule-probe-key",
+                    format!(
+                        "{}[..] matches repeated orderings of one unique key",
+                        table.name
+                    ),
+                );
+            }
+        }
+        return Ok(candidates[0].clone());
+    } else if let [selected] = candidates.as_slice() {
+        return Ok((*selected).clone());
+    }
+    no(
+        "rule-probe-key",
+        format!("{}[..] does not select one declared unique key", table.name),
+    )
 }
 
 /// Expression translation in one lexical scope.
@@ -805,6 +890,9 @@ impl<'a> Scope<'a> {
 
     fn read(&self, read: &ReadExpr) -> R<Json> {
         let print = || crate::print::read_expr(read);
+        if let Some(reason) = owner_membership_physical_issue(self.module, read) {
+            return no(reason, print());
+        }
         match &read.range {
             None if read.filter.is_none() && !read.keys.is_empty() => {
                 if read.index.is_some() || !read.seeks.is_empty() || read.matching.is_some() || !read.computed.is_empty() {
@@ -847,7 +935,7 @@ impl<'a> Scope<'a> {
         let Expr::Write { op, table, keys, fields, if_absent, condition, .. } = e else { unreachable!() };
         if *op != WriteOp::Insert && keys.is_empty() { return no("row-variable-write", crate::print::expression(e)); }
         let t = self.table(table)?;
-        if t.capped && *op != WriteOp::Delete {
+        if !t.caps.is_empty() && *op != WriteOp::Delete {
             return no("table-cap", format!("{} writes capped table {table}; the model does not enforce caps", crate::print::expression(e)));
         }
         Ok(match op {
@@ -961,6 +1049,313 @@ fn reads_row(e: &Expr) -> bool {
         // Nested reads, objects and the rest: conservatively the filter.
         _ => true,
     }
+}
+
+fn flatten_or<'e>(e: &'e Expr, out: &mut Vec<&'e Expr>) {
+    match e {
+        Expr::Binary { op, left, right, .. } if op == "or" => {
+            flatten_or(left, out);
+            flatten_or(right, out);
+        }
+        other => out.push(other),
+    }
+}
+
+// The portable key calculation used by optional branch planning. Keeping it
+// here makes the oracle gate depend only on surface declarations, never on the
+// Rust planner's chosen IR or whether that planner happened to merge the page.
+const PORTABLE_KEY_BYTES: usize = 2048;
+const PORTABLE_ID_BYTES: usize = 138;
+
+fn model_column_bytes(kind: &Kind) -> usize {
+    match kind {
+        Kind::Id(_) => PORTABLE_ID_BYTES,
+        Kind::Text(Some(max)) => (*max as usize).saturating_mul(4).saturating_add(3),
+        Kind::Text(None) => usize::MAX,
+        Kind::Int => 9,
+        Kind::Bool => 1,
+        Kind::Cursor => usize::MAX,
+    }
+}
+
+fn model_title(value: &str) -> String {
+    let mut chars = value.chars();
+    chars.next().map(|first| first.to_uppercase().collect::<String>() + chars.as_str()).unwrap_or_default()
+}
+
+fn model_total_unique(table: &Table, index: &ast::IndexDecl) -> bool {
+    index.unique && index.is_plain() && index.columns.iter().all(|column| column == "id"
+        || table.cols.iter().find(|candidate| candidate.name == *column).is_some_and(|candidate| !candidate.nullable))
+}
+
+/// The physical index the native planner can reuse for a requested lane.
+/// Its components must have the planner's exact sorted-prefix order. A
+/// cursorless source may reuse a matching unique without its trailing `id`;
+/// a cursored target needs that unique to be total.
+// @ref LLP 3000.036.001#14 — the pre-oracle physical gate prices the native-compatible declared PAGE lane.
+fn model_declared_indexes<'a>(module: &'a LeanModule, table: &Table, columns: &[String], cursor: bool) -> Vec<&'a ast::IndexDecl> {
+    let Some(decl) = module.surface_tables.iter().find(|decl| decl.name == table.name) else { return Vec::new() };
+    decl.indexes.iter().filter(|index| index.is_plain() && (index.columns == columns
+        || index.unique && (!cursor || model_total_unique(table, index)) && columns.last().map(String::as_str) == Some("id")
+            && index.columns == columns[..columns.len() - 1])).collect()
+}
+
+fn model_index_label_fits(module: &LeanModule, table: &Table, columns: &[String], declared: Option<&ast::IndexDecl>) -> bool {
+    let Some(decl) = module.surface_tables.iter().find(|decl| decl.name == table.name) else { return false };
+    if let Some(index) = declared.or_else(|| decl.indexes.iter().filter(|index| index.is_plain() && index.columns == columns).min_by_key(|index| &index.name)) {
+        return table.name.len().saturating_add(index.name.len()) <= snapback4_core::rows::MAX_INDEX_LABEL_BYTES;
+    }
+    let mut components = columns.to_vec();
+    if components.len() > 1 && components.last().is_some_and(|column| column == "id") { components.pop(); }
+    let base = format!("by{}", components.iter().map(|column| model_title(column)).collect::<String>());
+    // `$intent:{base}:` plus the ordinary 16-byte digest suffix. A collision
+    // can only lengthen the suffix, so a name already over budget cannot be a
+    // physical PAGE lane on every store.
+    let generated = "$intent:".len().saturating_add(base.len()).saturating_add(1 + 16);
+    table.name.len().saturating_add(generated) <= snapback4_core::rows::MAX_INDEX_LABEL_BYTES
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ModelIndexFit { Fits, Nonportable, Ambiguous }
+
+fn model_plain_index_fit(module: &LeanModule, table: &Table, columns: &[String], cursor: bool) -> ModelIndexFit {
+    let declared = model_declared_indexes(module, table, columns, cursor);
+    if declared.len() > 1 { return ModelIndexFit::Ambiguous }
+    let selected = declared.first().copied();
+    let physical = selected.map_or(columns, |index| index.columns.as_slice());
+    let fits = physical.len() <= 8 && model_index_label_fits(module, table, physical, selected) && physical.iter().fold(PORTABLE_ID_BYTES, |bytes, column| {
+        bytes.saturating_add(table.col(column).map_or(usize::MAX, |kind| model_column_bytes(&kind)))
+    }) <= PORTABLE_KEY_BYTES;
+    if fits { ModelIndexFit::Fits } else { ModelIndexFit::Nonportable }
+}
+
+fn model_selected_index_fit(module: &LeanModule, table: &Table, name: &str) -> ModelIndexFit {
+    let Some(decl) = module.surface_tables.iter().find(|decl| decl.name == table.name) else { return ModelIndexFit::Nonportable };
+    let Some(index) = decl.indexes.iter().find(|index| index.name == name && index.is_plain()) else { return ModelIndexFit::Nonportable };
+    let fits = index.columns.len() <= 8
+        && model_index_label_fits(module, table, &index.columns, Some(index))
+        && index.columns.iter().fold(PORTABLE_ID_BYTES, |bytes, column| {
+            bytes.saturating_add(table.col(column).map_or(usize::MAX, |kind| model_column_bytes(&kind)))
+        }) <= PORTABLE_KEY_BYTES;
+    if fits { ModelIndexFit::Fits } else { ModelIndexFit::Nonportable }
+}
+
+fn model_read_by_form(rule: &Expr, pins: &[(String, &Expr)]) -> bool {
+    let pinned = |column: &str| pins.iter().find_map(|(name, value)| (name == column).then_some(*value));
+    let viewer = |value: &Expr| matches!(value, Expr::Name { name, .. } if name == "viewer");
+    match rule {
+        Expr::Name { name, .. } if name == "allow" => true,
+        Expr::Binary { op, left, right, .. } if op == "or" =>
+            model_read_by_form(left, pins) || model_read_by_form(right, pins),
+        Expr::Binary { op, left, right, .. } if op == "and" =>
+            model_read_by_form(left, pins) && model_read_by_form(right, pins),
+        Expr::Binary { op, left, right, .. } if op == "=" => {
+            let (column, value) = match (column_of(left), column_of(right)) {
+                (Some(column), None) => (column, right.as_ref()),
+                (None, Some(column)) => (column, left.as_ref()),
+                _ => return false,
+            };
+            match (value, pinned(column)) {
+                (value, Some(pin)) if viewer(value) => viewer(pin),
+                (Expr::Literal { value, .. }, Some(Expr::Literal { value: pin, .. })) =>
+                    value == pin && !matches!(value, Literal::Null),
+                _ => false,
+            }
+        }
+        _ => false,
+    }
+}
+
+fn model_independent(expression: &Expr) -> bool {
+    match expression {
+        Expr::Literal { .. } | Expr::Name { .. } => true,
+        Expr::Member { base, .. } | Expr::Unary { value: base, .. } => model_independent(base),
+        Expr::Binary { left, right, .. } => model_independent(left) && model_independent(right),
+        Expr::Call { args, .. } | Expr::Array { items: args, .. } => args.iter().all(model_independent),
+        _ => false,
+    }
+}
+
+fn model_equality_column(table: &Table, expression: &Expr) -> Option<String> {
+    if let Expr::Binary { op, left, right, .. } = expression && op == "=" {
+        if let Some(column) = column_of(left) && model_independent(right) && table.col(column).is_some() { return Some(column.into()) }
+        if let Some(column) = column_of(right) && model_independent(left) && table.col(column).is_some() { return Some(column.into()) }
+    }
+    let value = if let Expr::Unary { op, value, .. } = expression && op == "not" { value.as_ref() } else { expression };
+    let column = column_of(value)?;
+    matches!(table.col(column), Some(Kind::Bool)).then(|| column.into())
+}
+
+fn model_pin_columns(table: &Table, expressions: &[&Expr], order: &[String]) -> Vec<String> {
+    expressions.iter().filter_map(|expression| model_equality_column(table, expression))
+        .filter(|column| column != "id" && !order.contains(column)).collect::<BTreeSet<_>>().into_iter().collect()
+}
+
+fn model_lane_columns(mut pins: Vec<String>, order: &[String]) -> Vec<String> {
+    for column in order {
+        if !pins.contains(column) { pins.push(column.clone()); }
+    }
+    if !pins.iter().any(|column| column == "id") { pins.push("id".into()); }
+    pins
+}
+
+/// Equality prefixes for the original system scan and for each PAGE filter
+/// alternative. Pins are sorted like the planner's `BTreeMap`, then the
+/// shared order and id suffix are appended separately by the caller.
+fn model_page_pins(table: &Table, read: &ReadExpr) -> (Vec<String>, Vec<Vec<String>>) {
+    let Some(filter) = read.filter.as_deref() else { return (Vec::new(), vec![Vec::new()]) };
+    let mut conjuncts = Vec::new();
+    flatten_and(filter, &mut conjuncts);
+    let system = model_pin_columns(table, &conjuncts, &read.order_keys);
+    let ors: Vec<_> = conjuncts.iter().enumerate().filter(|(_, expression)| matches!(expression, Expr::Binary { op, .. } if op == "or")).collect();
+    let [(position, expression)] = ors.as_slice() else { return (system.clone(), vec![system]) };
+    let mut alternatives = Vec::new();
+    flatten_or(expression, &mut alternatives);
+    let rest: Vec<_> = conjuncts.iter().enumerate().filter_map(|(at, expression)| (at != *position).then_some(*expression)).collect();
+    let branches: Option<Vec<Vec<String>>> = alternatives.into_iter().map(|alternative| {
+        let mut parts = Vec::new();
+        flatten_and(alternative, &mut parts);
+        let alternative_pins = model_pin_columns(table, &parts, &read.order_keys);
+        if alternative_pins.is_empty() { return None }
+        parts.extend(rest.iter().copied());
+        Some(model_pin_columns(table, &parts, &read.order_keys))
+    }).collect();
+    (system.clone(), branches.filter(|branches| branches.len() >= 2).unwrap_or_else(|| vec![system]))
+}
+
+fn party_column<'a>(table: &Table, expression: &'a Expr) -> Option<&'a str> {
+    let Expr::Binary { op, left, right, .. } = expression else { return None };
+    if op != "=" { return None }
+    let viewer = |value: &Expr| matches!(value, Expr::Name { name, .. } if name == "viewer");
+    let column = if viewer(left) { column_of(right) } else if viewer(right) { column_of(left) } else { None }?;
+    table.col(column).is_some().then_some(column)
+}
+
+fn membership_probe_kind(focal: &Table, expression: &Expr) -> Option<Kind> {
+    match expression {
+        Expr::Name { name, .. } if name == "viewer" => Some(Kind::Id(IdSort::Principal)),
+        Expr::Member { base, name, .. } if matches!(base.as_ref(), Expr::Focal { .. }) => focal.col(name),
+        Expr::Literal { value, .. } => literal_scalar(value).ok()?.1,
+        Expr::Unary { op, value, .. } if op == "-"
+            && matches!(value.as_ref(), Expr::Literal { value: Literal::Number(_), .. }) => Some(Kind::Int),
+        _ => None,
+    }
+}
+
+struct ModelMembershipPhysical {
+    source: String,
+    columns: Vec<String>,
+    index: Option<String>,
+    target_parent: String,
+    source_admissible: bool,
+}
+
+/// The physical source key and target parent column of one capped membership
+/// leaf. A fully pinned total unique may replace the provisional discovery key;
+/// the other fixed equalities are residuals on its at-most-one row.
+fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) -> Option<ModelMembershipPhysical> {
+    let Expr::Exists { read, .. } = expression else { return None };
+    if read.range.is_some() || read.filter.is_some() || read.keys.is_empty() { return None }
+    let source = module.tables.iter().find(|table| table.name == read.table)?;
+    let kinds = read.keys.iter().map(|key| membership_probe_kind(focal, &key.value)).collect::<Vec<_>>();
+    // Resolve from surface-declared unique keys and surface expression types,
+    // independently of whatever plan the Rust binder selected. `Table::uniques`
+    // deliberately excludes synthesized indexes.
+    let columns = resolve_key(source, &read.keys, &kinds).ok()?;
+    let mut fixed_terms = Vec::new();
+    let mut target = None;
+    for (key, column) in read.keys.iter().zip(&columns) {
+        if let Some(parent) = column_of(&key.value) {
+            if target.replace((column.clone(), parent.to_owned())).is_some() { return None }
+        } else if !reads_row(&key.value) {
+            // A fixed source id remains an exact witness constraint, but PAGE
+            // evaluates it as a residual. It is neither a discovery prefix nor
+            // a cap grouping term; physical indexes always append id last.
+            if column != "id" { fixed_terms.push((column.clone(), &key.value)); }
+        } else {
+            return None;
+        }
+    }
+    let (source_parent, target_parent) = target?;
+    let ceiling = snapback4_core::Ceilings::default().examined;
+    let bounded = source.caps.iter().any(|(max, by)| u64::from(*max) <= ceiling
+        && by.iter().all(|column| column != "id" && fixed_terms.iter().any(|term| &term.0 == column)));
+    if !bounded { return None }
+    let mut fixed = fixed_terms.iter().map(|term| term.0.clone()).collect::<Vec<_>>();
+    fixed.sort();
+    fixed.dedup();
+    let source_parent_is_id = source_parent == "id";
+    let surface = module.surface_tables.iter().find(|table| table.name == source.name);
+    let read_rule = surface.and_then(|table| {
+        let rules = table.rules.iter().filter(|rule| rule.effect == Effect::Read).collect::<Vec<_>>();
+        match rules.as_slice() { [rule] => Some(&rule.value), _ => None }
+    });
+    let one_row = surface.and_then(|table| table.indexes.iter().filter(|index| {
+        let capped = source.caps.iter().any(|(max, by)| u64::from(*max) <= ceiling
+            && by.iter().all(|column| index.columns.contains(column)));
+        let point = fixed_terms.iter().filter(|term| index.columns.contains(&term.0)).cloned().collect::<Vec<_>>();
+        model_total_unique(source, index)
+            && index.columns.iter().all(|column| fixed.contains(column))
+            && capped && read_rule.is_some_and(|rule| model_read_by_form(rule, &point))
+    }).min_by_key(|index| (index.columns.len(), &index.name)));
+    let (source_key, source_index, source_admissible) = if let Some(index) = one_row {
+        (index.columns.clone(), Some(index.name.clone()), true)
+    } else {
+        let mut source_key = fixed;
+        if !source_key.contains(&source_parent) { source_key.push(source_parent); }
+        if !source_key.iter().any(|column| column == "id") { source_key.push("id".into()); }
+        // The ordinary path remains valid when `id` is a physical next component.
+        // Only a reused declared index that omits it needs the one-row total-unique
+        // proof; zero candidates means the planner synthesizes `source_key`, while
+        // multiple candidates are rejected separately as ambiguous.
+        let candidates = model_declared_indexes(module, source, &source_key, false);
+        let total_id_source = !source_parent_is_id || match candidates.as_slice() {
+            [index] => index.columns.iter().any(|column| column == "id") || model_total_unique(source, index),
+            [] | [_, _, ..] => true,
+        };
+        (source_key, None, total_id_source)
+    };
+    Some(ModelMembershipPhysical { source: source.name.clone(), columns: source_key, index: source_index, target_parent, source_admissible })
+}
+
+fn owner_membership_physical_issue(module: &LeanModule, read: &ReadExpr) -> Option<&'static str> {
+    if read.range.is_none() || !read.keys.is_empty() { return None }
+    let target = module.tables.iter().find(|table| table.name == read.table)?;
+    let decl = module.surface_tables.iter().find(|table| table.name == read.table)?;
+    let rule = decl.rules.iter().find(|rule| rule.effect == Effect::Read && rule.bindings.is_empty()).map(|rule| &rule.value)?;
+    let mut leaves = Vec::new();
+    flatten_or(rule, &mut leaves);
+    let mut parties = Vec::new();
+    let mut memberships = Vec::new();
+    for leaf in leaves {
+        if let Some(column) = party_column(target, leaf) { parties.push(column.to_owned()); }
+        else if let Some(membership) = membership_physical(module, target, leaf) { memberships.push(membership); }
+        else { return None; }
+    }
+    if parties.is_empty() || memberships.is_empty() { return None }
+    if memberships.iter().any(|membership| !membership.source_admissible) {
+        return Some("page-membership-source-unique");
+    }
+    let mut fits = Vec::new();
+    for membership in &memberships {
+        let Some(table) = module.tables.iter().find(|table| table.name == membership.source) else { return Some("page-membership-key-bound") };
+        fits.push(match &membership.index {
+            Some(index) => model_selected_index_fit(module, table, index),
+            None => model_plain_index_fit(module, table, &membership.columns, false),
+        });
+    }
+    let (system_pins, branches) = model_page_pins(target, read);
+    fits.push(model_plain_index_fit(module, target, &model_lane_columns(system_pins, &read.order_keys), true));
+    for branch in branches {
+        for prefix in parties.iter().chain(memberships.iter().map(|membership| &membership.target_parent)) {
+            let mut pins = branch.clone();
+            if !pins.contains(prefix) { pins.push(prefix.clone()); pins.sort(); }
+            fits.push(model_plain_index_fit(module, target, &model_lane_columns(pins, &read.order_keys), true));
+        }
+    }
+    if fits.contains(&ModelIndexFit::Ambiguous) { Some("page-membership-index-selection") }
+    else if fits.contains(&ModelIndexFit::Nonportable) { Some("page-membership-key-bound") }
+    else { None }
 }
 
 /// A returned page whose `where` holds both a guard and an argument-presence

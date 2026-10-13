@@ -486,6 +486,46 @@ fn calibration_merge_of_capped_groups_still_needs_a_cursor() {
     assert!(note.rewrite.contains("if the screen pages") && !note.rewrite.contains("or declare"), "{note}");
 }
 
+#[test]
+fn branch_merge_capped_group_accounts_for_every_participating_lane() {
+    let source = |cap| format!("table facilitators:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable approvals:\n  treaty: id\n  principal: principal\n  partyA: principal\n  partyB: principal\n  cap {cap} by treaty\n  unique treaty, principal\n  read <- .partyA = viewer or .partyB = viewer or exists facilitators[viewer]\n  online only\nquery approvalsFor(treaty: id):\n  return approvals where .treaty = treaty first {cap} by .id\n");
+    for (cap, cursor_note) in [(100, false), (5_000, true)] {
+        let b = clean(&source(cap));
+        assert_eq!(b.notes.iter().any(|note| note.code == "N_NO_CURSOR"), cursor_note,
+            "two party lanes can each examine the capped group (cap {cap}): {:#?}", b.notes);
+        let program = &b.programs.iter().find(|program| program.program.name.ends_with("approvalsFor")).unwrap().program;
+        let merge = snapback4_core::ir::body_merges(&program.body).into_iter().find(|merge| merge.branches()).expect("an audience branch merge");
+        assert!(merge.lanes.iter().all(|lane| lane.scan.table == "approvals"), "{merge:#?}");
+        assert_eq!(merge.lanes.iter().filter(|lane| !lane.grant() && !lane.system()).count(), 2, "{merge:#?}");
+    }
+}
+
+#[test]
+fn branch_merge_null_exempt_cap_needs_a_non_null_group_proof() {
+    let source = |argument: &str| format!("table treaties:\n  read <- allow\n  delete <- allow\n  online only\ntable approvals:\n  treaty: treaties ? on delete set null\n  partyA: principal\n  partyB: principal\n  cap 100 by treaty\n  read <- .partyA = viewer or .partyB = viewer\n  online only\nquery approvalsFor(treaty: {argument}):\n  return approvals where .treaty = treaty first 100 by .id\n");
+
+    let required = clean(&source("treaties"));
+    assert!(!required.notes.iter().any(|note| note.code == "N_NO_CURSOR"),
+        "a required parent key selects one capped non-null group: {:#?}", required.notes);
+
+    let optional = clean(&source("treaties ?"));
+    assert!(optional.notes.iter().any(|note| note.code == "N_NO_CURSOR"),
+        "null selects the unbounded orphan group: {:#?}", optional.notes);
+    let program = &optional.programs.iter().find(|program| program.program.name.ends_with("approvalsFor")).unwrap().program;
+    let merge = snapback4_core::ir::body_merges(&program.body).into_iter().find(|merge| merge.branches()).expect("an audience branch merge");
+    assert_eq!(merge.lanes.iter().filter(|lane| !lane.grant() && !lane.system()).count(), 2, "{merge:#?}");
+
+    let mut engine = Engine::memory(optional.schema.clone(), optional.programs.into_iter().map(|program| program.program)).unwrap();
+    engine.seed((0..101).map(|n| ("approvals".into(), wire::row_from_json(&optional.schema.tables["approvals"], &json!({
+        "id": format!("a{n:03}"), "treaty": null, "partyA": "alice", "partyB": "bob"
+    })).unwrap()))).unwrap();
+    let read = engine.query("approvalsFor", Context::new("alice", [("treaty".into(), snapback4_core::Value::Null)].into())).unwrap();
+    assert_eq!(read.data.as_array().unwrap().len(), 100);
+    assert!(read.next.is_none());
+    assert!(!read.data.as_array().unwrap().iter().any(|row| row.field("id").is_ok_and(|id| id == &snapback4_core::Value::Id("a100".into()))),
+        "the 101st orphan is unreachable without a cursor");
+}
+
 
 const REACTIONS: &str = "table members:\n  conversationId: id\n  principal: principal\n  unique byConversationPrincipal: conversationId, principal\n  by byPrincipalConversation: principal, conversationId, id\n  immutable conversationId, principal\n  read <- .principal = viewer\n  sync\ntable reactions:\n  conversationId: id\n  messageId: id\n  principal: principal\n  emoji: text <=20\n  unique byMessagePrincipal: messageId, principal\n  by byConversation: conversationId, id\n  by byPrincipal: principal, id\n  cap 50 by messageId\n  read <- exists members[.conversationId, viewer]\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  sync to members[.conversationId] last 500 by byConversation\nmutation react(conversationId: id, messageId: id):\n  upsert reactions[messageId, viewer] { conversationId, emoji: 'heart' }\n";
 

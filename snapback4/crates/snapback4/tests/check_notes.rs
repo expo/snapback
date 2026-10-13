@@ -80,12 +80,12 @@ fn json_and_text_both_name_every_sequence_counter() {
 }
 
 /// Wave 5 (#3b, 19 lanes): the compiled owner-or-grant and per-party queries
-/// printed only under `--verbose`. The default check prints each form once,
-/// under its first N_NEVER_COMPLETE, and that note says "(below)". As written
-/// these pages now merge their branches (LLP 3000.036.001) and `check` is
-/// clean; arithmetic in the predicate keeps one index, and the notes.
+/// print only under `--verbose`. The default groups the notes and keeps the
+/// first one to verdict/who/what. As written these pages now merge their
+/// branches (LLP 3000.036.001) and `check` is clean; arithmetic in the
+/// predicate keeps one index, and the notes.
 #[test]
-fn never_complete_prints_its_compiled_form_by_default() {
+fn never_complete_is_compact_by_default_and_verbose_prints_each_compiled_form() {
     let dir = std::env::temp_dir().join(format!("sb4-check-compiled-form-{}", std::process::id()));
     fs::create_dir_all(dir.join("snapback")).unwrap();
     let source = "table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\n\
@@ -93,20 +93,32 @@ table tickets:\n  owner: principal\n  at: int\n  read <- .owner = viewer or exis
 table sessions:\n  tutor: principal\n  learner: principal\n  at: int\n  read <- .tutor = viewer or .learner = viewer\n  online only\n\
 query queue(c: cursor ?):\n  return tickets last 50 by .at after c\nquery queue2(c: cursor ?):\n  return tickets last 20 by .at after c\nquery mySessions(c: cursor ?):\n  return sessions last 50 by .at after c\n";
     fs::write(dir.join("snapback/schema.q"), source).unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(["check"]).output().unwrap();
-    assert!(output.status.success(), "{output:?}");
-    let merged = String::from_utf8(output.stdout).unwrap();
+    let run = |args: &[&str]| {
+        let output = Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(args).output().unwrap();
+        assert!(output.status.success(), "{output:?}");
+        String::from_utf8(output.stdout).unwrap()
+    };
+    let merged = run(&["check"]);
     assert!(!merged.contains("N_NEVER_COMPLETE"), "{merged}");
     let source = source.replace(" last 50 by .at", " where .at + 1 > 0 last 50 by .at").replace(" last 20 by .at", " where .at + 1 > 0 last 20 by .at");
     fs::write(dir.join("snapback/schema.q"), source).unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(["check"]).output().unwrap();
-    assert!(output.status.success(), "{output:?}");
-    let text = String::from_utf8(output.stdout).unwrap();
-    assert_eq!(text.matches("  rewrite: Branch on the grant").count(), 1, "one grant form, under the first note:\n{text}");
-    assert!(text.contains("    query queue(c: cursor ?):\n      if exists staff[viewer]:\n        return tickets where .at + 1 > 0 last 50 by .at after c\n      return tickets where .owner = viewer and .at + 1 > 0 last 50 by .at after c"), "{text}");
-    assert_eq!(text.matches("  rewrite: Replace this query with one per party").count(), 1, "{text}");
-    assert!(text.contains("query mySessionsAsTutor(c: cursor ?)") && text.contains("query mySessionsAsLearner(c: cursor ?)"), "{text}");
-    assert!(text.contains("pinning `.owner` otherwise (below)"), "{text}");
+    let plain = run(&["check"]);
+    assert_eq!(plain.matches(" — N_NEVER_COMPLETE — verdict:").count(), 1, "grouped default:\n{plain}");
+    assert!(plain.contains("note: N_NEVER_COMPLETE (as above) also for query queue2") && plain.contains("query mySessions"), "{plain}");
+    let lines: Vec<_> = plain.lines().collect();
+    let note = lines.iter().position(|line| line.contains(" — N_NEVER_COMPLETE — verdict:")).unwrap();
+    assert_eq!(lines[note + 1], "  who: callers admitted by `exists staff[viewer]` have a complete page", "{plain}");
+    assert_eq!(lines[note + 2], "  what: pin every read-rule scope or handle `complete: false` as more rows may exist; check --verbose shows the proof and checked repair", "{plain}");
+    assert!(!lines[note + 3].starts_with("  "), "the default completeness note is exactly verdict/who/what: {plain}");
+    assert!(!plain.contains("  rewrite:") && !plain.contains("query mySessionsAsTutor"), "{plain}");
+
+    let verbose = run(&["check", "--verbose"]);
+    assert_eq!(verbose.matches("  rewrite: Branch on the grant").count(), 2, "one full grant form per affected query:\n{verbose}");
+    assert!(verbose.contains("query queue(c: cursor ?):\n  if exists staff[viewer]:\n    return tickets where .at + 1 > 0 last 50 by .at after c\n  return tickets where .owner = viewer and .at + 1 > 0 last 50 by .at after c"), "{verbose}");
+    assert!(verbose.contains("query queue2(c: cursor ?):\n  if exists staff[viewer]:"), "{verbose}");
+    assert_eq!(verbose.matches("  rewrite: Replace this query with one per party").count(), 1, "{verbose}");
+    assert!(verbose.contains("query mySessionsAsTutor(c: cursor ?)") && verbose.contains("query mySessionsAsLearner(c: cursor ?)"), "{verbose}");
+    assert!(verbose.contains("pinning `.owner` otherwise (check --verbose)"), "{verbose}");
     fs::remove_dir_all(dir).unwrap();
 }
 
@@ -144,14 +156,19 @@ fn an_online_only_check_drops_the_never_predict_paragraph_and_each_note_leads_wi
     fs::write(dir.join("snapback/schema.q"), online).unwrap();
     let plain = run(&["check"]);
     assert!(!plain.contains("never predict"), "{plain}");
-    assert!(run(&["check", "--verbose"]).contains("1 mutation never predicts: open"));
+    let verbose = run(&["check", "--verbose"]);
+    assert!(verbose.contains("1 mutation never predicts: open"));
+    assert!(verbose.contains("N_NEVER_COMPLETE: query all:") && verbose.contains("rewrite: Branch on the grant"), "{verbose}");
     let notes: Vec<&str> = plain.lines().filter(|line| line.starts_with("note: schema.q")).collect();
     assert!(!notes.is_empty(), "{plain}");
     for line in &notes {
-        let verdict = line.split_once(": ").unwrap().1.split_once(": ").unwrap().1;
-        assert!(["fix:", "review", "no action", "no one-query fix"].iter().any(|v| verdict.starts_with(v)), "{line}");
+        assert!(line.contains(" — verdict:") || ["fix:", "review", "no action"].iter().any(|verdict| line.contains(&format!(": {verdict}"))), "{line}");
     }
-    assert!(plain.contains("N_NEVER_COMPLETE: fix: use the complete form below"), "{plain}");
+    let lines: Vec<_> = plain.lines().collect();
+    let completeness = lines.iter().position(|line| line.contains(" — N_NEVER_COMPLETE — verdict:")).expect("compact completeness note");
+    assert_eq!(lines[completeness + 1], "  who: callers admitted by `exists staff[viewer]` have a complete page", "{plain}");
+    assert!(lines[completeness + 2].starts_with("  what:") && lines[completeness + 2].contains("check --verbose"), "{plain}");
+    assert!(!lines[completeness + 3].starts_with("  "), "the default completeness note is exactly three lines: {plain}");
     assert!(plain.contains("N_NO_CURSOR: no action for a top-N list."), "{plain}");
     // A synced table keeps the paragraph.
     fs::write(dir.join("snapback/schema.q"), "table notes:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  sync\ntable log:\n  owner: principal\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nmutation add():\n  insert log { owner: viewer }\n  return insert notes { owner: viewer }\n").unwrap();

@@ -1100,22 +1100,16 @@
   "expected": {
     "localResult": {
       "Row": {
-        "count": {
-          "Int": 0
-        },
-        "decimal": {
-          "Int": 0
-        },
-        "money": {
-          "Int": 0
-        }
+        "count": "Null",
+        "decimal": "Null",
+        "money": "Null"
       }
     },
     "errorCode": null,
     "localState": "fresh",
     "partialSites": [],
-    "canonicalResult": "{\"Row\":{\"count\":{\"Int\":0},\"decimal\":{\"Int\":0},\"money\":{\"Int\":0}}}",
-    "digest": "4958c54b91249317bb7006d37b8682edc0fa89ed621691e5f8e98d59a5c56761",
+    "canonicalResult": "{\"Row\":{\"count\":\"Null\",\"decimal\":\"Null\",\"money\":\"Null\"}}",
+    "digest": "ad4391857790c429afd49a818db8ebba574636d449c5c8d93eccceeac47df60f",
     "rangeStops": {},
     "evictedRows": null,
     "next": null

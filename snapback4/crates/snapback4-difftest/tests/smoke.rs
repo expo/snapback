@@ -234,7 +234,11 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
             dims.push("bounded-arg");
         }
         // LLP 3000.036.001: branch pages, from their own stream.
-        if case.program.domain.is_some() || case.program.tables[0].rule == snapback4_difftest::ast::Rule::TwoParty {
+        let read_rule = case.program.tables[0].effects.as_ref().map_or(&case.program.tables[0].rule, |effects| &effects[0]);
+        if case.program.domain.as_deref().is_some_and(|domain| domain.contains(" or "))
+            || read_rule == &snapback4_difftest::ast::Rule::TwoParty
+            || read_rule == &snapback4_difftest::ast::Rule::OwnerOrWitness
+                && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. }) {
             dims.push("branches");
         }
         if case.program.kids.is_some() {
@@ -252,6 +256,68 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         seen.extend(dims);
     }
     assert_eq!(seen.len(), 11, "{seen:?}");
+}
+
+#[test]
+fn lean_generator_reaches_a_capped_unpinned_membership_page() {
+    let case = (0..2_000).map(snapback4_difftest::lean::generate).find(|case| {
+        let table = &case.program.tables[0];
+        let read = table.effects.as_ref().map_or(&table.rule, |effects| &effects[0]);
+        read == &Rule::OwnerOrWitness
+            && case.program.domain.as_deref() == Some("true")
+            && case.program.membership_named_reordered
+            && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. })
+    }).expect("membership-page stream must be reachable");
+    let access = case.program.tables.iter().find(|table| table.name == "access").unwrap();
+    assert_eq!(access.caps, vec![(16, vec!["principal".into()])]);
+    assert!(access.keys.iter().any(|(_, columns, unique)| !unique && columns.iter().map(String::as_str).eq(["principal", "bucket"])));
+    let features = snapback4_difftest::lean::features(&case);
+    assert!(features.iter().any(|feature| feature == "branch-rule-membership"), "{features:?}\n{}", case.program.source());
+    assert!(features.iter().any(|feature| feature == "branch-rule-membership-named-reordered"), "{features:?}\n{}", case.program.source());
+    assert!(features.iter().any(|feature| feature == "branch-merged"), "{features:?}\n{}", case.program.source());
+    let coverage = snapback4_difftest::coverage::features(&case);
+    assert!(coverage.contains("read/branch-rule-membership-named-reordered"), "{coverage:?}");
+    assert!(case.program.source().contains("exists access[principal = viewer, bucket = .bucket]"));
+}
+
+#[test]
+fn lean_generator_reaches_a_normalized_boolean_grant_page() {
+    let case = (0..2_000).map(snapback4_difftest::lean::generate)
+        .find(|case| case.program.boolean_grant_normalized)
+        .expect("Boolean grant stream must be reachable");
+    assert_eq!(case.program.domain.as_deref(), Some(".flag = false"));
+    assert!(case.program.source().contains("not .flag and exists access[0, viewer]"));
+    let features = snapback4_difftest::lean::features(&case);
+    assert!(features.iter().any(|feature| feature == "branch-rule-boolean-grant"), "{features:?}");
+    assert!(features.iter().any(|feature| feature == "branch-merged"), "{features:?}\n{}", case.program.source());
+    let coverage = snapback4_difftest::coverage::features(&case);
+    assert!(coverage.contains("read/branch-rule-boolean-grant"), "{coverage:?}");
+    assert!(coverage.contains("read/branch-merged"), "{coverage:?}\n{}", case.program.source());
+}
+
+#[test]
+fn native_generator_exercises_capped_named_membership_pages() {
+    let case = (0..10_000).map(generate).find(|case| {
+        let table = &case.program.tables[0];
+        let read = table.effects.as_ref().map_or(&table.rule, |effects| &effects[0]);
+        read == &Rule::OwnerOrWitness
+            && case.program.domain.as_deref() == Some("true")
+            && case.program.membership_named_reordered
+            && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, project: None, .. })
+    }).expect("native membership-page stream must be reachable");
+    let access = case.program.tables.iter().find(|table| table.name == "access").unwrap();
+    assert_eq!(access.caps, vec![(16, vec!["principal".into()])]);
+    assert!(access.keys.iter().any(|(_, columns, unique)| !unique && columns.iter().map(String::as_str).eq(["principal", "bucket"])));
+    let coverage = snapback4_difftest::coverage::features(&case);
+    assert!(coverage.contains("read/branch-rule-membership-named-reordered"), "{coverage:?}");
+    assert!(coverage.contains("read/branch-merged"), "{coverage:?}\n{}", case.program.source());
+    let mut report = Report::default();
+    campaign::check(&case, &mut report, |_| {});
+    assert!(!report.failed(), "{report:#?}\n{}", case.program.source());
+    assert!(report.by_oracle["repeat"].passed > 0, "{report:#?}");
+    assert!(report.by_oracle["rewrite-declarations"].passed > 0, "{report:#?}");
+    assert!(report.by_oracle["meter"].passed > 0, "{report:#?}");
+    assert!(report.rewrite_coverage["read/branch-rule-membership"] > 0, "{report:#?}");
 }
 
 /// The shrinker reduces the new shapes structurally: a planted predicate

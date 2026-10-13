@@ -101,6 +101,12 @@ fn certified_commits_preserve_rows_and_fields_across_the_corpus() {
         let schema: Schema = bound.schema;
         let tables: Vec<_> = schema.visible_tables().filter(|(_,t)| t.ephemeral.is_none()).map(|(n,_)|n.clone()).collect();
         if tables.is_empty() { empty += 1; continue; }
+        // Maintained targets are changed only by their source maintenance. A
+        // raw in-place edit of a derived key is not a commit the engine can
+        // produce and can invalidate keyed authorization without changing an
+        // authored table.
+        let mutable_tables: Vec<_> = tables.iter().filter(|name| schema.maintain_for(name).is_none()).cloned().collect();
+        if mutable_tables.is_empty() { empty += 1; continue; }
         schemas += 1;
         for seed in seeds {
             let mut state = seed;
@@ -119,7 +125,7 @@ fn certified_commits_preserve_rows_and_fields_across_the_corpus() {
                 now += [0, 25, 100, 10000][step % 4];
                 let before = answer(&mut engine,&tables,now);
                 counts.clock(&previous,&before,now);
-                let table = &tables[next(&mut state) as usize % tables.len()];
+                let table = &mutable_tables[next(&mut state) as usize % mutable_tables.len()];
                 let id = ["a","b","c","d"][next(&mut state) as usize % 4];
                 let tx = engine.store_mut().transaction().unwrap();
                 let old = tx.get(table,id).unwrap();

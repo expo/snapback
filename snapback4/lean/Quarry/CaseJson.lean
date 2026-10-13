@@ -114,10 +114,11 @@ partial def rule (j : Json) : D Rule := do
   | "eq" => do let (a, b) ← pair v; return .eq (← term a) (← term b)
   | "ne" => do let (a, b) ← pair v; return .ne (← term a) (← term b)
   | "probe" => do
+    let point ← (← arr v "point").toList.mapM Json.getStr?
     let key ← (← arr v "key").toList.mapM fun p => do
       let (c, t) ← pair p
       return (← c.getStr?, ← term t)
-    return .probe (← str v "table") key
+    return .probe (← str v "table") point key
   | "and" => do let (a, b) ← pair v; return .and (← rule a) (← rule b)
   | "or" => do let (a, b) ← pair v; return .or (← rule a) (← rule b)
   | "not" => return .not (← rule v)
@@ -229,7 +230,12 @@ def table (j : Json) : D TableDecl := do
   let codes ← (← arr j "uniqueCodes").toList.mapM fun c => match c with
     | .null => pure none
     | x => do return some (← x.getStr?)
-  return { name := ← str j "name", cols, uniques, uniqueCodes := codes,
+  let caps ← match optField j "caps" with
+    | none => pure []
+    | some cs => (← cs.getArr?).toList.mapM fun cap => do
+      let columns ← (← arr cap "by").toList.mapM (·.getStr?)
+      return ({ columns, max := ← (← field cap "max").getNat? } : CapDecl)
+  return { name := ← str j "name", cols, uniques, uniqueCodes := codes, caps,
            read := ← rule (← field j "read"), insert := ← rule (← field j "insert"),
            update := ← rule (← field j "update"), delete := ← rule (← field j "delete") }
 

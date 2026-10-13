@@ -81,7 +81,7 @@ impl Binder<'_> {
         let arguments = keys.iter().map(|(column, _, ty)|
             (column.as_deref(), !ty.is_optional() && *ty != Ty::Unknown)).collect::<Vec<_>>();
         let point_admitted = |candidate: &ast::IndexDecl|
-            super::super::point_key::check(info, candidate, read, &arguments).is_ok();
+            super::super::point_key::check(info, candidate, read, &arguments, false).is_ok();
         let accepts = |candidate: &ast::IndexDecl| {
             candidate.words.is_none() && match mode {
                 ReadMode::Point | ReadMode::FilteredPoint => candidate.unique && candidate.columns.len() == keys.len(),

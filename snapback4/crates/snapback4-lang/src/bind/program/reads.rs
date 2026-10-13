@@ -30,7 +30,7 @@ impl<'a> Binder<'a> {
         if implicit_group { point.index = Some("byGroup".into()); }
         let (mut keys, index, mut selection) = self.select_index(info, &point, mode, out)?;
         super::super::point_key::check(info, &index, read, &keys.iter().map(|(column, _, ty)|
-            (column.as_deref(), !ty.is_optional() && *ty != Ty::Unknown)).collect::<Vec<_>>())?;
+            (column.as_deref(), !ty.is_optional() && *ty != Ty::Unknown)).collect::<Vec<_>>(), false)?;
         if implicit_group { selection = "complete maintained group key".into(); }
         let extra = keys.len() > index.columns.len();
         let mut equalities = Vec::new();

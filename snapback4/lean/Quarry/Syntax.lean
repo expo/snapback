@@ -52,6 +52,12 @@ structure ColDecl where
   onDelete : Option OnDelete := none
   deriving Repr, DecidableEq
 
+/-- A finite row bound for every group whose `by` columns have one value. -/
+structure CapDecl where
+  columns : List String
+  max : Nat
+  deriving Repr, DecidableEq
+
 /-- Which image of a row a rule term reads: the row itself (read, insert,
 delete), or the old or next image of an update. -/
 inductive Img where
@@ -72,8 +78,9 @@ inductive Rule where
   | deny
   | eq (a b : Term)
   | ne (a b : Term)
-  /-- `exists t[c1 = term1, …]`: an exact-key probe of another (or the same) table. -/
-  | probe (t : String) (key : List (String × Term))
+  /-- `exists t[c1 = term1, …]`: an exact-key probe. `point` names the
+  selected unique key; the other equalities are residual predicates. -/
+  | probe (t : String) (point : List String) (key : List (String × Term))
   | and (a b : Rule)
   | or (a b : Rule)
   | not (a : Rule)
@@ -88,6 +95,8 @@ structure TableDecl where
   /-- The application refusal code for a visible clash on each unique key,
   when declared with `else CODE` (indexed like `uniques`). -/
   uniqueCodes : List (Option String) := []
+  /-- Declared finite group bounds (`cap N by ...`). -/
+  caps : List CapDecl := []
   read : Rule := .deny
   insert : Rule := .deny
   update : Rule := .deny

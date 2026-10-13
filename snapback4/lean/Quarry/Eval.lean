@@ -167,30 +167,6 @@ def uniform (sch : Schema) (t : String) (pins : List (String × Scalar)) : Bool 
   | some td => td.read.selfCols.all fun c => pins.any (·.1 == c)
   | none => false
 
-/-- A page guard (LLP 3000.036 §12.1, §16.3): a positive disjunct of `t`'s
-read rule whose every row column the pins fix — none at all for a grant
-such as `exists staff[viewer]`, the parent's column for a parent probe such
-as `exists boards[.board, owner = viewer]` under `.board = b` — that holds
-for the caller with the pinned values. It holds for every row the pins
-select, so the page is decided once, per caller, as a uniform page is. The
-disjunct is evaluated over the caller's **view**, never the store, so the
-verdict is a function of what the caller may read (`query_noninterference`
-covers it); it is positive, so a view verdict of true holds over the store
-too (`granted_readable`). The engine evaluates it over the store, but only
-for disjuncts whose every probed row the caller can read
-(`rules::page_guard_decision`), where the two agree (OPEN C8). -/
-def granted (sch : Schema) (vw : View) (v : List Nat) (t : String) (ps : List (String × Scalar)) : Bool :=
-  match sch.table? t with
-  | some td => td.read.disjuncts.any fun d =>
-      d.positive && d.selfCols.all (fun c => ps.any (·.1 == c)) && (d.pin ps).eval vw v {}
-  | none => false
-
-/-- A scan whose read rule is decided for this caller: by its pins
-(`uniform`) or by a page guard (`granted`). Only a decided scan can prove
-absence: a page is complete, and an `exists` may answer `false`. -/
-def decided (cx : Ctx) (vw : View) (t : String) (ps : List (String × Scalar)) : Bool :=
-  uniform cx.schema t ps || granted cx.schema vw cx.viewer t ps
-
 /-! ### Decided pages (OPEN C8, LLP 3000.036.001)
 
 A page is *decided* when its pins decide the read rule: every row column the
@@ -285,6 +261,105 @@ def Rule.parties (r : Rule) : Option (List String) :=
   | .or _ _ => r.partyLeaves.map List.eraseDups
   | _ => none
 
+/-- One static descriptor of an owner-or-membership plan. The membership
+descriptor keeps the exact probe; at runtime its one row-dependent key
+component becomes the dynamic target prefix. -/
+inductive AccessBranch where
+  | party (column : String)
+  | membership (table : String) (point : List String) (key : List (String × Term))
+  deriving Repr
+
+/-- The syntactic leaves accepted by PAGE: parties and exact probes, joined
+only by top-level `or`. Eligibility of a probe is checked separately. -/
+def Rule.accessLeaves : Rule → Option (List AccessBranch)
+  | .eq (.col .self c) .viewer | .eq .viewer (.col .self c) => some [.party c]
+  | .probe t point key => some [.membership t point key]
+  | .or a b => do return (← a.accessLeaves) ++ (← b.accessLeaves)
+  | _ => none
+
+def Term.fixedExpr : Term → Option Expr
+  | .viewer => some .viewer
+  | .lit v => some (.lit (.s v))
+  | _ => none
+
+/-- The single target-row column in a membership probe, including `id` for
+the fallback fence. A fully fixed probe is an ordinary static grant. -/
+def membershipTarget (key : List (String × Term)) : Option String := do
+  let dynamic := key.filterMap fun p => match p.2 with
+    | .col .self outer => some outer
+    | _ => none
+  let [target] := dynamic | none
+  if key.all (fun p => p.2.fixedExpr.isSome || p.2 == .col .self target)
+  then some target else none
+
+/-- The one row-dependent `(source column, target column)` of a membership
+probe. Every other exact-key component must be viewer/literal fixed. -/
+def membershipColumns (key : List (String × Term)) : Option (String × String) := do
+  let dynamic := key.filterMap fun p => match p.2 with
+    | .col .self outer => some (p.1, outer)
+    | _ => none
+  let [pair] := dynamic | none
+  if pair.2 != "id" && key.all (fun p => p.2.fixedExpr.isSome || dynamic.contains pair && p == (pair.1, .col .self pair.2))
+  then some pair else none
+
+/-- An exact membership probe selects a declared unique point or the intrinsic
+`id` point, has one target-row component and fixed readable source pins, and
+has a finite cap grouped wholly by those fixed columns (LLP 3000.036.001 §14).
+Equalities outside `point` are residual predicates rather than point-key
+components. -/
+def membershipEligible (sch : Schema) (t : String) (point : List String)
+    (key : List (String × Term)) : Bool :=
+  match sch.table? t, membershipColumns key with
+  | some td, some _ =>
+    let columns := key.map (·.1)
+    let fixed := key.filterMap fun p => p.2.fixedExpr.map (p.1, ·)
+    let exactUnique := point.eraseDups.length == point.length
+      && point.all columns.contains
+      && (point == ["id"] || td.uniques.any fun unique => unique == point)
+    exactUnique
+      && td.caps.any (fun cap => cap.max ≤ 8192
+        && cap.columns.all fun c => c != "id" && fixed.any (·.1 == c))
+      && td.read.byForm fixed
+  | _, _ => false
+
+/-- Classify the exact PAGE rule. At least one party and membership branch
+are required, every leaf is eligible, and the static descriptors plus the
+system lane fit the ordinary eight-descriptor limit. -/
+def Rule.ownerMembership? (sch : Schema) (r : Rule) : Option (List AccessBranch) := do
+  let leaves ← r.accessLeaves
+  let topOr := match r with | .or _ _ => true | _ => false
+  let parties := leaves.filterMap fun b => match b with | .party c => some c | _ => none
+  let memberships := leaves.filter fun b => match b with | .membership _ _ _ => true | _ => false
+  let party := !parties.isEmpty
+  let membership := !memberships.isEmpty
+  let eligible := leaves.all fun b => match b with
+    | .party _ => true
+    | .membership t point key => membershipEligible sch t point key
+  if topOr && party && membership && eligible
+      && parties.eraseDups.length + memberships.length + 1 ≤ 8
+  then some leaves else none
+
+/-- A capped owner-or-membership shape is reserved for PAGE even when one of
+its stricter eligibility checks declines. This mirrors the compiler's fallback
+fence, including row-id targets and sources whose pins do not prove admission. -/
+def Rule.ownerMembershipReserved (sch : Schema) (r : Rule) : Bool :=
+  match r.accessLeaves with
+  | none => false
+  | some leaves =>
+    let topOr := match r with | .or _ _ => true | _ => false
+    let party := leaves.any fun b => match b with | .party _ => true | _ => false
+    let membership := leaves.any fun b => match b with | .membership _ _ _ => true | _ => false
+    let capped := leaves.all fun b => match b with
+      | .party _ => true
+      | .membership t _ key => match sch.table? t with
+        | none => false
+        | some td =>
+          let fixed := key.filterMap fun p => p.2.fixedExpr.map (p.1, ·)
+          (membershipTarget key).isSome
+            && td.caps.any fun cap => cap.columns.all fun c =>
+              fixed.any (·.1 == c)
+    topOr && party && membership && capped
+
 /-- The core's `disclosing` (`rules.rs`): every fact a guard reads is one its
 holder may read. A probe's target row must be readable by its own read rule
 given the probe's key (`byForm`), where a pinned row column is an unknown
@@ -295,30 +370,70 @@ def Term.asKnown : Term → Option Expr
   | .lit v => some (.lit (.s v))
   | .col _ _ => none
 
+/-- Substitute only literal/viewer page pins into a rule. Other expressions
+remain row-dependent; they cannot justify folding a guard. -/
+def Term.guardPin (pins : List (String × Expr)) : Term → Term
+  | .col .self c => match pins.lookup c with
+    | some .viewer => .viewer
+    | some (.lit (.s v)) => .lit v
+    | _ => .col .self c
+  | t => t
+
+/-- The guard form inspected by PAGE after its known page pins are applied. -/
+def Rule.guardForm (pins : List (String × Expr)) (d : Rule) : Rule :=
+  (d.mapTerms (Term.guardPin pins)).normalize
+
 def Rule.disclosing (sch : Schema) : Rule → Bool
   | .allow => true
   | .eq a b | .ne a b => [a, b].all fun t => match t with
     | .viewer | .lit _ | .col .self _ => true
     | _ => false
   | .and a b => a.disclosing sch && b.disclosing sch
-  | .probe t key => match sch.table? t with
+  | .probe t _ key => match sch.table? t with
     | some td =>
       let known := key.filterMap fun p => match p.2 with
         | .col .self _ => none
         | term => some (p.1, term.asKnown)
       match known.mapM (fun p => p.2.map (p.1, ·)) with
       | some pins => td.read.byForm pins || td.read.disjuncts.any fun d => match d with
-          | .probe t' key' => t' == t && key'.all (fun k => key.any fun k2 => k.1 == k2.1 && k.2 == k2.2)
+          | .probe t' _ key' => t' == t && key'.all (fun k => key.any fun k2 => k.1 == k2.1 && k.2 == k2.2)
           | _ => false
       | none => false
     | none => false
   | _ => false
 
+/-- A Boolean test whose only unknown is a row field. `usableGuard` separately
+requires that field to be a page pin; a literal pin is folded before this test.
+Keeping this shape narrow avoids admitting arbitrary negated expressions. -/
+def Rule.pinnedBoolTest (td : TableDecl) : Rule → Bool
+  | .eq (.col .self c) (.lit (.bool _)) | .eq (.lit (.bool _)) (.col .self c)
+  | .ne (.col .self c) (.lit (.bool _)) | .ne (.lit (.bool _)) (.col .self c) =>
+      td.cols.any fun col => col.name == c && !col.nullable
+  | .not a => a.pinnedBoolTest td
+  | _ => false
+
+/-- Positivity for a planned page guard. A negated required-Boolean test may
+depend on the runtime value of its page pin, but never on a probe. Runtime
+`granted` still uses the stricter `Rule.positive` after substituting the actual
+scalar pins. -/
+def Rule.guardPositive (td : TableDecl) : Rule → Bool
+  | .not a => a.pinnedBoolTest td
+  | .and a b | .or a b => a.guardPositive td && b.guardPositive td
+  | .allow | .deny | .eq .. | .ne .. | .probe .. => true
+
+/-- Disclosure for a planned guard treats a negated pinned-Boolean test as a
+local condition on the page prefix. Negated probes remain inadmissible. -/
+def Rule.guardDisclosing (sch : Schema) (td : TableDecl) : Rule → Bool
+  | .not a => a.pinnedBoolTest td
+  | .and a b => a.guardDisclosing sch td && b.guardDisclosing sch td
+  | r => r.disclosing sch
+
 /-- A page guard the engine evaluates once per caller (LLP 3000.036 §12.1,
 §16.3; `rules::covering_grant`): no `not`, every row column it reads pinned by
 the page (none, for a grant), and disclosing. -/
-def Rule.usableGuard (sch : Schema) (pins : List (String × Expr)) (d : Rule) : Bool :=
-  d.selfCols.all (fun c => pins.any (·.1 == c)) && d.positive && d.disclosing sch
+def Rule.usableGuard (sch : Schema) (td : TableDecl) (pins : List (String × Expr)) (d : Rule) : Bool :=
+  let d' := d.guardForm pins
+  d'.selfCols.all (fun c => pins.any (·.1 == c)) && d'.guardPositive td && d'.guardDisclosing sch td
 
 def Rule.party? : Rule → Option String
   | .eq (.col .self c) .viewer | .eq .viewer (.col .self c) => some c
@@ -326,10 +441,33 @@ def Rule.party? : Rule → Option String
 
 /-- Case 2's parties: a read rule of at least two disjuncts, each a party
 (`.col = viewer`) or a usable page guard, with at least one party. -/
-def Rule.branchParties (sch : Schema) (pins : List (String × Expr)) (guards : Bool) (r : Rule) : Option (List String) :=
+def Rule.branchParties (sch : Schema) (td : TableDecl) (pins : List (String × Expr)) (guards : Bool) (r : Rule) : Option (List String) :=
   let ds := r.disjuncts
   let ps := (ds.filterMap Rule.party?).eraseDups
-  if 2 ≤ ds.length && !ps.isEmpty && ds.all (fun d => d.party?.isSome || (guards && d.usableGuard sch pins)) then some ps else none
+  if 2 ≤ ds.length && !ps.isEmpty && ds.all (fun d => d.party?.isSome || (guards && d.usableGuard sch td pins)) then some ps else none
+
+/-- A page guard (LLP 3000.036 §12.1, §16.3): a disjunct whose expression
+pins make it an eligible readable guard and whose evaluated scalar pins make
+it true for this caller. Keeping both forms matters: an argument's current
+Boolean value cannot authorize a compound negation the native planner could
+not prove from the argument expression. The guard is evaluated over the
+caller's view; `granted_readable` proves that a true normalized positive guard
+also holds over the store and implies the original rule. -/
+def granted (sch : Schema) (vw : View) (v : List Nat) (t : String)
+    (ps : List (String × Scalar)) (pins : List (String × Expr)) : Bool :=
+  match sch.table? t with
+  | some td => td.read.disjuncts.any fun d =>
+      let d' := (d.pin ps).normalize
+      d.usableGuard sch td pins && d'.positive && d'.selfCols.isEmpty && d'.eval vw v {}
+  | none => false
+
+/-- A scan whose read rule is decided for this caller: by its pins
+(`uniform`) or by an expression-eligible page guard (`granted`). Only a
+decided scan can prove absence: a page is complete, and an `exists` may answer
+`false`. -/
+def decided (cx : Ctx) (vw : View) (t : String) (ps : List (String × Scalar))
+    (pins : List (String × Expr)) : Bool :=
+  uniform cx.schema t ps || granted cx.schema vw cx.viewer t ps pins
 
 /-- An alternative's eligible pin: not `id`, and on a nullable column only
 `viewer` (a branch never seeks a null the filter would reject). -/
@@ -341,9 +479,12 @@ def eligiblePin (td : TableDecl) (e : Expr) : Bool :=
 /-- A branch's prefix: its own equalities first, then the page's pins, each
 column once, never `id` or an order column (a merge lane keeps those as
 seeks), within an index's 8 components. -/
-def laneDecided (td : TableDecl) (order : List String) (eqs pins : List (String × Expr)) : Bool :=
+def laneFits (order : List String) (eqs pins : List (String × Expr)) : Bool :=
   let lane := (eqs ++ pins).filter fun p => p.1 != "id" && !order.contains p.1
-  (lane.map (·.1)).eraseDups.length + order.length + 1 ≤ 8 && decidedPins td lane
+  (lane.map (·.1)).eraseDups.length + order.length + 1 ≤ 8
+
+def laneDecided (td : TableDecl) (order : List String) (eqs pins : List (String × Expr)) : Bool :=
+  laneFits order eqs pins && decidedPins td ((eqs ++ pins).filter fun p => p.1 != "id" && !order.contains p.1)
 
 /-- The pins the single-index planner keeps: the page's equalities and bare
 boolean conjuncts, except `id` and an order column other than the first,
@@ -372,13 +513,24 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
     -- The planner pins a bare boolean conjunct too (`where .flag`); the
     -- emitter leaves it in the filter.
     let pins := pins ++ (fs.filter (!·.isOr)).filterMap Expr.eqPin
-    let case1 := alts.any fun as => as.all fun a => laneDecided td order (a.filterMap Expr.eqPin) pins
+    let reservedMembership := td.read.ownerMembershipReserved sch
+    let case1Candidate := alts.any fun as => as.all fun a => laneDecided td order (a.filterMap Expr.eqPin) pins
     -- The grant lane is the read as written, planned as the single-index page
     -- is: its prefix is the page's pins off the order (an equality on the
     -- first order column would become a pin there and change its order, so
     -- such a page is not merged), and it counts toward the 8 lanes.
     let guardPins := pins.filter fun p => p.1 != "id" && !order.contains p.1
-    let case2 := if !guards then false else match td.read.branchParties sch guardPins true with
+    let membershipRule := td.read.ownerMembership? sch
+    -- When an exact membership target is already pinned the Rust planner
+    -- keeps the original scan. That PAGE fallback governs every older branch
+    -- case as well; otherwise case 1 could still classify the same read.
+    let pinnedMembership := membershipRule.any fun leaves => leaves.any fun leaf => match leaf with
+      | .membership _ _ key => (membershipColumns key).any fun pair =>
+          pins.any (·.1 == pair.2)
+            || alts.any fun bases => bases.any fun a => (a.filterMap Expr.eqPin).any (·.1 == pair.2)
+      | .party _ => false
+    let case1 := if reservedMembership || pinnedMembership then false else case1Candidate
+    let case2 := if !guards || reservedMembership || pinnedMembership then false else match td.read.branchParties sch td guardPins true with
       | some ps =>
         let bases := alts.getD [[]]
         -- The grant lane is always planned (the system reads it whole).
@@ -388,7 +540,25 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
           && (guardPins.map (·.1)).eraseDups.length + order.length + 1 ≤ 8
           && bases.all fun a => ps.all fun c => laneDecided td order ((c, .viewer) :: a.filterMap Expr.eqPin) pins
       | none => false
-    total && (case1 || case2)
+    -- PAGE: one system descriptor, party descriptors and eligible capped
+    -- membership descriptors. A dynamic cap does not count against eight;
+    -- its static membership descriptor does.
+    let case3 := if !guards then false else match membershipRule with
+      | some leaves =>
+        let bases := alts.getD [[]]
+        let parties := leaves.filterMap fun leaf => match leaf with | .party c => some c | _ => none
+        let memberships := leaves.filter fun leaf => match leaf with | .membership _ _ _ => true | _ => false
+        bases.length * (parties.eraseDups.length + memberships.length) + 1 ≤ 8
+          && !(order.head?.any fun o => o != "id" && pins.any (·.1 == o))
+          && bases.all fun a => leaves.all fun leaf => match leaf with
+            | .party c => c != "id" && !order.contains c
+                && laneFits order ((c, .viewer) :: a.filterMap Expr.eqPin) pins
+            | .membership _ _ key => (membershipColumns key).any fun pair =>
+                !order.contains pair.2 && !pins.any (·.1 == pair.2)
+                  && !(a.filterMap Expr.eqPin).any (·.1 == pair.2)
+                  && laneFits order ((pair.2, .viewer) :: a.filterMap Expr.eqPin) pins
+      | none => false
+    total && (case1 || case2 || case3)
 
 def keyValue (k : Key) : Value := .arr (k.map .s)
 
@@ -442,6 +612,7 @@ card; LLP 3000.007 §5.6). A `merged` page (the merge of its branches) carries
 `next` after a full page only when another *matching* row follows: the merge
 knows each branch's next matching row (LLP 3000.036.001 §5). -/
 def pageRead (cx : Ctx) (vw : View) (t : String) (ps : List (String × Scalar))
+    (pins : List (String × Expr))
     (filt : Row → EM Bool) (order : List String) (desc : Bool) (take : Nat) (cur : Option Key)
     (formed : Bool) (merged : Bool) :
     EM (Value × Option Value) := do
@@ -450,7 +621,7 @@ def pageRead (cx : Ctx) (vw : View) (t : String) (ps : List (String × Scalar))
   if w.stop = .cut && cx.mutation then refuse "E_BOUND"
   else do
     let more ← lookahead filt order desc merged w cs
-    markIf (w.stop = .cut || !(decided cx vw t ps || formed))
+    markIf (w.stop = .cut || !(decided cx vw t ps pins || formed))
     pure (pageAnswer order (if more then w else { w with stop := .exhausted }))
 
 /-- `count(domain)`: the number of visible rows that match, or unavailable
@@ -475,13 +646,14 @@ grant decide the read rule, otherwise no answer, never `false` (OPEN C5). A
 cut cannot establish a negative answer (reads card). `exists t[key]` is a
 point read (`t[key] != null`, `Syntax.lean`), not this. -/
 def existsRead (cx : Ctx) (vw : View) (t : String) (ps : List (String × Scalar))
+    (pins : List (String × Expr))
     (filt : Row → EM Bool) (fm : Bool := false) : EM (Value × Option Value) := do
   let w ← walk filt cx.budget 1 [] none (candidates vw t ps [] false none)
   if w.stop = .cut then cutScalar cx
   else if w.rows.isEmpty then
-    if decided cx vw t ps || fm then return (.ofBool false, none) else undecidedScalar cx
+    if decided cx vw t ps pins || fm then return (.ofBool false, none) else undecidedScalar cx
   else do
-    markIf !(decided cx vw t ps || fm)
+    markIf !(decided cx vw t ps pins || fm)
     return (.ofBool true, none)
 
 /-! ## Expressions -/
@@ -583,7 +755,7 @@ def evalExpr : Nat → Ctx → View → Env → Option Value → Expr → EM (Va
         | some td => decidedPins td (plannedPins pins f order)
         | none => false
       let merged := !formed && !cx.mutation && !cx.inHelper && branchDecided cx.schema t pins f order
-      let (v, nx) ← pageRead cx vw t ps (filt f) order desc take cur (formed || merged) merged
+      let (v, nx) ← pageRead cx vw t ps pins (filt f) order desc take cur (formed || merged) merged
       -- A cursorless page (no `after`) has no continuation: "A cursorless
       -- top-N answer has no `next`" (LLP 3000.027 §1; OPEN C9).
       pure (v, if after.isSome then nx else some .null)
@@ -598,7 +770,7 @@ def evalExpr : Nat → Ctx → View → Env → Option Value → Expr → EM (Va
         | some td => decidedPins td (plannedPins pins f [])
         | none => false
       let merged := !formed && !cx.mutation && !cx.inHelper && branchDecided cx.schema t pins f [] false
-      existsRead cx vw t ps (filt f) (formed || merged)
+      existsRead cx vw t ps pins (filt f) (formed || merged)
 
 /-! ## Statements -/
 

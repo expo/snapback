@@ -17,10 +17,21 @@ impl Binder<'_> {
         }
         let after = self.visible_bindings();
         self.pop_scope();
-        for (name, old) in before {
+        for (name, mut old) in before {
             let new = &after[&name];
             if old.runtime == new.runtime && old.revision != new.revision {
                 self.scopes.last_mut().expect("a scope").insert(name, new.clone());
+            } else if old.runtime == new.runtime {
+                // Facts added inside a lexical block remain local, while a
+                // write's invalidation must reach the enclosing loop header.
+                let surviving_fields: BTreeMap<_, _> = old.fields.iter()
+                    .filter(|(path, ty)| new.fields.get(*path) == Some(*ty))
+                    .map(|(path, ty)| (path.clone(), ty.clone()))
+                    .collect();
+                if surviving_fields.len() != old.fields.len() {
+                    old.fields = surviving_fields;
+                    self.scopes.last_mut().expect("a scope").insert(name, old);
+                }
             }
         }
         result
@@ -238,7 +249,7 @@ impl Binder<'_> {
                     return Err(unknown(site, format!("{name} is an argument; locals cannot shadow arguments"), "give the loop item a fresh name"));
                 }
                 let before = self.visible_bindings();
-                let (binding, body_out) = self.loop_body(name, item_ty, body, site)?;
+                let (binding, body_out) = self.loop_body(name, item_ty, body, site, matches!(loop_domain, LoopDomain::Page(_)) && !self.source_may_write(body))?;
                 if self.caller_kind == ProgramKind::Job && self.loops + self.caller_loops == 0 && matches!(&loop_domain, LoopDomain::Page(scan) if scan.take == Bound::Meter) {
                     let after = self.visible_bindings();
                     if let Some((name, _)) = before.iter().find(|(name, old)| !name.starts_with('$') && after.get(*name).is_some_and(|new| old.revision != new.revision)) {
@@ -254,6 +265,8 @@ impl Binder<'_> {
                     if self.viewer_depth.is_some() { return Err(job_reads::diagnostic(site, "E_JOB_VIEWER_FLOW", "break cannot leave an as block or helper", "put break in a loop inside this block or helper")); }
                     return Err(placement(site, "break ends the enclosing for or chunk, and there is none here", "delete this line; a program ends with return"));
                 }
+                let bindings = self.binding_states();
+                self.loop_transfers.last_mut().expect("an enclosing loop").breaks.push(bindings);
                 out.push(Stmt::Break);
                 Ok(())
             }
@@ -263,6 +276,8 @@ impl Binder<'_> {
                     return Err(placement(site, "continue advances the enclosing for or chunk, and there is none here", "delete this line; a program ends with return"));
                 }
                 // @ref LLP 3000.007#5.1 — continue uses the interpreter's existing loop flow.
+                let bindings = self.binding_states();
+                self.loop_transfers.last_mut().expect("an enclosing loop").continues.push(bindings);
                 out.push(Stmt::Continue);
                 Ok(())
             }
@@ -351,7 +366,7 @@ impl Binder<'_> {
 
     /// Join loop-carried writes with the zero-iteration path before accepting
     /// the body. A refinement from the first iteration cannot bless later ones.
-    fn loop_body(&mut self, name: &str, item: Ty, body: &[S], site: &Site) -> Fallible<(String, setup::Body)> {
+    fn loop_body(&mut self, name: &str, item: Ty, body: &[S], site: &Site, fresh_rows: bool) -> Fallible<(String, setup::Body)> {
         let mut header = self.visible_bindings();
         let saved = self.scopes.clone();
         let (temps, sites, returns) = (self.temps, self.sites, self.returns.len());
@@ -368,38 +383,41 @@ impl Binder<'_> {
             self.returns.truncate(returns);
             self.push_scope();
             let binding = self.declare(name, item.clone());
+            if fresh_rows { self.narrow_fresh_row(name, &item, site); }
             self.maintenance_local(&binding, site, name);
             self.loops += 1;
+            self.loop_transfers.push(LoopTransfers::default());
             let mut out = setup::Body::default();
             let result = self.block(body, &mut out, false);
+            let transfers = self.loop_transfers.pop().expect("loop transfer frame");
             self.loops -= 1;
-            let after = self.visible_bindings();
+            let after = self.binding_states();
             self.pop_scope();
             result?;
+            let flow = flow::Outcomes::block(&out);
+            let carried = transfers.continues.iter().chain(flow.falls_through().then_some(&after));
             let mut changed = false;
             for (local, old) in &mut header {
-                let new = &after[local];
-                if new.runtime != old.runtime || new.revision == old.revision {
-                    continue;
+                for bindings in carried.clone() {
+                    let new = bindings
+                        .get(&old.runtime)
+                        .expect("a loop edge retains every outer binding identity");
+                    let (candidate_changed, candidate_grows) = self.join_loop_binding(local, old, new, site)?;
+                    changed |= candidate_changed;
+                    if candidate_grows { growing_list.get_or_insert_with(|| local.clone()); }
                 }
-                let declared = self.join(&old.declared, &new.declared, &joins::local(local, site), &joins::local(local, site))?;
-                let ty = self.join(&old.ty, &declared, &joins::local(local, site), &joins::local(local, site))?;
-                let type_changed = old.ty != ty || old.declared != declared;
-                if type_changed && matches!(ty, Ty::List(..))
-                    && new.origins.iter().any(|(_, source)| has_concat(source)) {
-                    growing_list.get_or_insert_with(|| local.clone());
-                }
-                changed |= type_changed || !old.fields.is_empty();
-                old.fields.clear();
-                old.ty = ty;
-                old.declared = declared;
-                for origin in &new.origins {
-                    if !old.origins.iter().any(|(_, source)| *source == origin.1) { old.origins.push(origin.clone()); }
-                }
-                old.revision = new.revision;
             }
             if !changed {
-                self.scopes.last_mut().expect("a scope").extend(header);
+                let mut exit = header;
+                for bindings in &transfers.breaks {
+                    for (local, binding) in &mut exit {
+                        let edge = bindings
+                            .get(&binding.runtime)
+                            .expect("a break edge retains every outer binding identity");
+                        self.join_loop_binding(local, binding, edge, site)?;
+                    }
+                }
+                self.scopes.last_mut().expect("a scope").extend(exit);
                 return Ok((binding, out));
             }
         }
@@ -412,12 +430,47 @@ impl Binder<'_> {
         Err(type_error(site, "this loop keeps growing a recursive value type", "accumulate items of a fixed type rather than nesting an accumulator inside itself"))
     }
 
+    /// Meet one loop edge with the zero-iteration path. A field proof survives
+    /// only when both paths retain the same fact; assignments additionally
+    /// widen the declared type and keep their revision for job carry checks.
+    fn join_loop_binding(&self, local: &str, old: &mut Binding, new: &Binding, site: &Site) -> Fallible<(bool, bool)> {
+        debug_assert_eq!(new.runtime, old.runtime);
+        let surviving_fields: BTreeMap<_, _> = old.fields.iter()
+            .filter(|(path, ty)| new.fields.get(*path) == Some(*ty))
+            .map(|(path, ty)| (path.clone(), ty.clone()))
+            .collect();
+        let fields_changed = surviving_fields.len() != old.fields.len();
+        if new.revision == old.revision {
+            old.fields = surviving_fields;
+            return Ok((fields_changed, false));
+        }
+        let declared = self.join(&old.declared, &new.declared, &joins::local(local, site), &joins::local(local, site))?;
+        let ty = self.join(&old.ty, &declared, &joins::local(local, site), &joins::local(local, site))?;
+        let type_changed = old.ty != ty || old.declared != declared;
+        let grows = type_changed && matches!(ty, Ty::List(..))
+            && new.origins.iter().any(|(_, source)| has_concat(source));
+        let changed = type_changed || !old.fields.is_empty();
+        old.fields.clear();
+        old.ty = ty;
+        old.declared = declared;
+        for origin in &new.origins {
+            if !old.origins.iter().any(|(_, source)| *source == origin.1) { old.origins.push(origin.clone()); }
+        }
+        old.revision = old.revision.max(new.revision);
+        Ok((changed, grows))
+    }
+
     /// After `require x != null` or inside `if x != null:`, `x` is present.
     pub(super) fn narrow(&mut self, condition: &A, then_branch: bool) {
         self.narrow_inner(condition, then_branch, self.point_guard_safe(condition));
     }
 
     fn narrow_inner(&mut self, condition: &A, then_branch: bool, points: bool) {
+        // The condition is evaluated before narrowing. If any operand may
+        // write, a fact observed by an earlier operand can already be stale.
+        if points {
+            self.record_maintain_authorization(condition, then_branch);
+        }
         match condition {
             A::Exists { read, .. } if then_branch && points => self.narrow_point(read),
             A::Call { name, args, site } if name == super::super::intent_variants::PRESENT => self.narrow_inner(&A::Binary {
@@ -629,6 +682,16 @@ impl Binder<'_> {
 
     pub(super) fn visible_bindings(&self) -> BTreeMap<String, Binding> {
         self.scopes.iter().flat_map(|scope| scope.iter().map(|(name, binding)| (name.clone(), binding.clone()))).collect()
+    }
+
+    /// Preserve hidden outer locals across loop edges. Runtime identities are
+    /// unique to declarations even when their source names are shadowed.
+    fn binding_states(&self) -> BTreeMap<String, Binding> {
+        self.scopes
+            .iter()
+            .flat_map(|scope| scope.values())
+            .map(|binding| (binding.runtime.clone(), binding.clone()))
+            .collect()
     }
 
     fn branch(&mut self, condition: &A, taken: bool, statements: &[S], completes: bool) -> Fallible<(setup::Body, BTreeMap<String, Binding>)> {

@@ -53,9 +53,11 @@ mutation createConversation():
   insert members { conversationId: chat.id, principal: viewer }
   return chat
 mutation send(conversationId: conversations, expiresAt: time ?):
-  return insert messages { conversationId, sender: viewer, expiresAt }
+  conversation = conversations[conversationId] ! else NOT_FOUND
+  return insert messages { conversationId: conversation.id, sender: viewer, expiresAt }
 
 mutation delivered(conversationId: conversations, from: int, through: int): server
+  conversation = conversations[conversationId] ! else NOT_FOUND
   me = members[conversationId, viewer] ! else NOT_MEMBER
   anchor = messages[conversationId = conversationId, ordinal = through] ! else NOT_FOUND
   require 0 < from and from <= through else NOT_A_RUN
@@ -77,12 +79,12 @@ mutation delivered(conversationId: conversations, from: int, through: int): serv
     prefix = max(prefix, high)
   else:
     require count(runs where .conversationId = conversationId and .principal = viewer) < 64 else RUNS_FULL
-    insert runs { conversationId, principal: viewer, fromOrdinal: low, throughOrdinal: high }
+    insert runs { conversationId: conversation.id, principal: viewer, fromOrdinal: low, throughOrdinal: high }
   if prefix > me.deliveredOrdinal:
     update members[me] { deliveredOrdinal: prefix }
   return prefix
 query whatDidIMiss(member: members):
-  return missed[member]
+  return missed[member] ! else NOT_ALLOWED
 
 fn skipExpired_messages(scope: conversations, initialPrefix: int, low: int):
   prefix = initialPrefix

@@ -23,9 +23,25 @@ pub fn features(case: &Case) -> BTreeSet<String> {
     if case.program.residual.as_deref().is_some_and(|r| r.contains(".tag.rank")) {
         out.insert("read/reference-predicate".into());
     }
-    // LLP 3000.036.001: whether the compiled page is the merge of its branches.
-    if case.program.domain.is_some() || case.program.tables.first().is_some_and(|t| t.rule == Rule::TwoParty) {
+    // LLP 3000.036.001: whether the compiled page is the merge of its static
+    // party lanes and its bounded membership lane.
+    let read_rule = case.program.tables.first().map(|table| table.effects.as_ref().map_or(&table.rule, |effects| &effects[0]));
+    let membership_branch = read_rule == Some(&Rule::OwnerOrWitness)
+        && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. });
+    let boolean_grant = case.program.boolean_grant_normalized
+        && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. });
+    let where_branch = case.program.domain.as_deref().is_some_and(|domain| domain.contains(" or "));
+    if boolean_grant {
+        out.insert("read/branch-rule-boolean-grant".into());
+    }
+    if where_branch || read_rule == Some(&Rule::TwoParty) || membership_branch || boolean_grant {
         out.insert("read/branch-shape".into());
+        if membership_branch {
+            out.insert("read/branch-rule-membership".into());
+            if case.program.membership_named_reordered {
+                out.insert("read/branch-rule-membership-named-reordered".into());
+            }
+        }
         let bound = snapback4_lang::compile(&[("schema.q".into(), case.program.source())]);
         let merged = bound.programs.iter().filter(|p| p.program.name == "run")
             .any(|p| snapback4_core::search_plan::merges(&p.program.body).iter().any(|m| m.branches()));

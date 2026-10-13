@@ -16,7 +16,7 @@ pub(crate) enum Tier {
 
 pub(crate) fn tier(code: &str) -> Tier {
     match code {
-        "N_NO_PRODUCTION_WRITER" | "N_FIXTURE_ARGUMENT_DRIFT" | "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
+        "N_NO_PRODUCTION_WRITER" | "N_FIXTURE_ARGUMENT_DRIFT" | "N_REFERENCE_UNCHECKED" | "N_MAINTAIN_AUTHORIZATION" | "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
         | "N_CLOCK_STORE_AHEAD" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "N_MAINTAIN_DELTA"
         | "N_SEARCH_UNSCOPED" | "N_SEARCH_OPEN" | "N_TIMELINE_PROFILE_CAP" => Tier::Review,
         // @ref LLP 3000.036#13.4 — a cursorless `first N` is what the declaration says: the first N rows (wave 3 #7).
@@ -33,15 +33,17 @@ pub(crate) fn verdict(code: &str, summary: &str, form: bool) -> &'static str {
         "N_NO_PRODUCTION_WRITER" => "fix: add a production bootstrap writer",
         "N_FIXTURE_ARGUMENT_DRIFT" => "fix: update the fixture arguments",
         "N_CONDITIONAL_COMPLETE" => "review: complete for the pinned parent audience; other callers may be capped",
-        "N_NEVER_COMPLETE" if summary.contains("there is no single complete form") => "no one-query fix: expect `capped` and show what arrived",
+        "N_NEVER_COMPLETE" if summary.contains("no verified complete form for this read") => "review: no verified complete form for this read; expect `capped` and show what arrived",
         "N_NEVER_COMPLETE" if form && summary.contains("the closest form is") => "fix: use the closest form below (one arm stays `complete: false`), or accept `complete: false`",
         "N_NEVER_COMPLETE" if form => "fix: use the complete form below, or accept `complete: false`",
         "N_NEVER_COMPLETE" => "fix: pin the scope, or accept `complete: false`",
         "N_DELETE_RESTRICTED" => "fix: declare the reference's `on delete`, or guard the delete",
         "N_DELETE_NEEDS_READ" => "review: some deleters get NOT_FOUND",
+        "N_REFERENCE_UNCHECKED" => "review: this reference argument is never looked up",
+        "N_MAINTAIN_AUTHORIZATION" => "review: hidden and absent are different caller outcomes",
         "N_PATCH_CLEARS" => "review: an omitted argument clears this column",
         "N_WRITE_DENIED" | "N_REQUIRE_REFUSED" => "fix: this write refuses E_RULE for callers you admit",
-        "N_READ_DENIED" => "fix: this read always refuses",
+        "N_READ_DENIED" => "fix: this read always returns null",
         "N_REQUIRE_HIDDEN" => "fix: this require cannot see the rows it tests",
         "N_LOOKUP_HIDDEN" => "review: some writers get NOT_FOUND",
         "N_PROBE_ONLY_READ" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" => "review: who can read this",
@@ -67,10 +69,12 @@ pub(crate) struct Note {
     pub site: String,
     pub code: String,
     pub summary: String,
-    /// A compiled complete form (`N_NEVER_COMPLETE`'s branched or per-party
-    /// query): its lead line and the code. Printed under the first note of
-    /// each lead, so the default output carries the fix, not only `--verbose`.
+    /// An expanded compiled repair: its lead line and the code. Compact
+    /// completeness notes leave this empty and keep the repair in `--verbose`.
     pub form: Option<(String, String)>,
+    /// Three-line default rendering for completeness verdicts. Their full
+    /// planner proof and compiled repair remain in `check --verbose`.
+    pub compact: Option<[String; 3]>,
 }
 
 /// The compiled form leading a note's rewrite: the text before "Otherwise:",
@@ -127,6 +131,13 @@ pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
             continue;
         }
         flush(&mut lines, &mut repeats);
+        if let Some([verdict, who, what]) = &note.compact {
+            lines.push(format!("note: {} — {} — {verdict}{times}", note.site, note.code));
+            lines.push(format!("  {who}"));
+            lines.push(format!("  {what}"));
+            shown_codes.push(note.code.clone());
+            continue;
+        }
         if shown_codes.contains(&note.code) {
             // A repeat that carries a form not printed yet keeps its own line, then the form.
             lines.push(format!("note: {} — {}: (as above) {}{times}", note.site, note.code, short(&note.summary)));
@@ -169,7 +180,7 @@ fn short(summary: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    fn note(site: &str, code: &str, summary: &str) -> Note { Note { site: site.into(), code: code.into(), summary: summary.into(), form: None } }
+    fn note(site: &str, code: &str, summary: &str) -> Note { Note { site: site.into(), code: code.into(), summary: summary.into(), form: None, compact: None } }
 
     #[test]
     fn a_compiled_complete_form_prints_once_per_lead_by_default() {
@@ -190,6 +201,21 @@ mod tests {
         ], "{lines:#?}");
         assert_eq!(lines.len(), 9, "the second note of the same form is the short repeat: {lines:#?}");
         assert_eq!(lines[8], "note: N_NEVER_COMPLETE (as above) also for query q (schema.q:9:1)", "{lines:#?}");
+    }
+
+    #[test]
+    fn completeness_note_is_three_lines_and_points_to_verbose_detail() {
+        let compact = Some([
+            "verdict: capped; completeness is not proved".into(),
+            "who: no caller group is proved complete by this page".into(),
+            "what: pin the scope; check --verbose shows the checked repair".into(),
+        ]);
+        let lines = render(vec![Note { compact, ..note("schema.q:8:1", "N_NEVER_COMPLETE", "long planner proof") }]);
+        assert_eq!(&lines[2..], [
+            "note: schema.q:8:1 — N_NEVER_COMPLETE — verdict: capped; completeness is not proved",
+            "  who: no caller group is proved complete by this page",
+            "  what: pin the scope; check --verbose shows the checked repair",
+        ]);
     }
 
     #[test]

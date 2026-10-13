@@ -24,11 +24,27 @@ impl fmt::Display for Site {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceRewriteKind {
+    MixedKey,
+    NamedUpdate,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Diagnostic {
     pub site: Site,
     pub code: String,
     pub message: String,
     pub rewrite: String,
+    /// Exact Quarry source that may replace the diagnostic's authored
+    /// expression or rule. Most rewrites are design guidance and leave this
+    /// unset; golden tests compile only this compiler-emitted source.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_rewrite: Option<String>,
+    /// Exhaustive category used by the rewrite golden. Adding a new concrete
+    /// rule edit requires adding a category and a compile/semantics case.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_rewrite_kind: Option<SourceRewriteKind>,
     pub guide: String,
     /// An opt-in `check --fix` edit: spelling repairs or a verified positional-key choice.
     #[serde(default)]
@@ -49,7 +65,7 @@ impl Diagnostic {
     pub fn new(site: &Site, code: &str, message: impl Into<String>, rewrite: impl Into<String>) -> Self {
         let code = code.to_owned();
         let guide = guide_for(&code).to_owned();
-        Self { site: site.clone(), code, message: message.into(), rewrite: rewrite.into(), guide, mechanical: false, cascade_of: None, read_repair: None, verified_edit: None }
+        Self { site: site.clone(), code, message: message.into(), rewrite: rewrite.into(), source_rewrite: None, source_rewrite_kind: None, guide, mechanical: false, cascade_of: None, read_repair: None, verified_edit: None }
     }
 
     /// The CLI must match this original source before applying `rewrite`.
@@ -66,6 +82,14 @@ impl Diagnostic {
     // @ref LLP 3000.007#8 — only explicitly mechanical rewrites may change source
     pub fn mechanical(mut self) -> Self {
         self.mechanical = true;
+        self
+    }
+
+    /// Attach a source fragment whose syntax and meaning have been checked in
+    /// this diagnostic's context. This does not make the edit mechanical.
+    pub(crate) fn source_rewrite(mut self, kind: SourceRewriteKind, source: impl Into<String>) -> Self {
+        self.source_rewrite_kind = Some(kind);
+        self.source_rewrite = Some(source.into());
         self
     }
 
@@ -183,9 +207,9 @@ pub fn guide_for(code: &str) -> &'static str {
         "N_FIXTURE_ARGUMENT_DRIFT" | "E_WITNESS_BROWSER" | "E_WITNESS_AUTH" | "E_WITNESS_MUTATION" | "E_WITNESS_ARGUMENT" | "E_WITNESS_EXPORT" | "E_WITNESS_READY" | "E_WITNESS_SENT" | "E_WITNESS_WEB" => "testing",
         "N_WRITE_DENIED" | "N_READ_DENIED" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" => "rules",
         "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "E_REFERENCED" | "E_REFERENCE_ACTION" | "E_CASCADE_BOUND" | "N_PATCH_CLEARS" => "writes",
-        "E_SEQUENCE_PARENT" | "E_SEQUENCE_EXHAUSTED" => "types",
+        "N_REFERENCE_UNCHECKED" | "E_SEQUENCE_PARENT" | "E_SEQUENCE_EXHAUSTED" => "types",
         "E_SEQUENCE_SUPPLIED" => "writes",
-        "N_MAINTAINED_COLUMN_STREAM" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "E_MAINTAINED_COLUMN" | "E_MAINTAINED_COLUMN_REFERENCE" | "E_VIEW_KEY" | "E_MAINTAIN_READ_RULE" | "E_MAINTAIN_READ_EXPIRE" | "E_MAINTAINED_COLUMN_PRIVATE" | "E_MAINTAINED_COLUMN_RESULT" | "E_POSTGRES_MAINTAINED_COLUMN" | "E_RECORDED_FIELD" | "E_REDUNDANT_RULE" | "E_QUARRY_MAINTAIN" => "maintains",
+        "N_MAINTAIN_AUTHORIZATION" | "N_MAINTAINED_COLUMN_STREAM" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "E_MAINTAINED_COLUMN" | "E_MAINTAINED_COLUMN_REFERENCE" | "E_VIEW_KEY" | "E_MAINTAIN_READ_RULE" | "E_MAINTAIN_READ_EXPIRE" | "E_MAINTAINED_COLUMN_PRIVATE" | "E_MAINTAINED_COLUMN_RESULT" | "E_POSTGRES_MAINTAINED_COLUMN" | "E_RECORDED_FIELD" | "E_REDUNDANT_RULE" | "E_QUARRY_MAINTAIN" => "maintains",
         "E_SCHEMA_CAPABILITY" => "sync",
         "E_QUARRY_MAINTAIN_EXPIRE" | "E_QUARRY_LIVE_MAINTAIN_PROBE" => "expire",
         "E_ADOPT" => "types",

@@ -1,0 +1,3 @@
+# N_REFERENCE_UNCHECKED
+
+N_REFERENCE_UNCHECKED means a mutation stores a table-typed argument directly in a reference column without looking up the target row. The type proves only that the id has the right table identity and wire shape. It does not prove that the row exists, is readable, or has not been deleted. If the operation requires a live target, bind it first with `parent = parents[parent] ! else NOT_FOUND` and store `parent.id`. Keep the direct id when a dangling reference is an intentional part of the model. A destination write rule or final-exists constraint that performs the target lookup also silences the note. guide types.

@@ -371,6 +371,11 @@ fn diagnostics(source: &str) -> Vec<String> {
 #[test]
 fn check_refuses_what_a_column_cannot_carry() {
     let base = "table parents:\n  read <- allow\n  delete <- allow\n";
+    let missing_bound = snapback4_lang::compile(&[("schema.q".into(), format!("{base}table kids:\n  parent: parents on delete cascade\n  read <- allow\n"))]);
+    let bound = missing_bound.diagnostics.iter().find(|diagnostic| diagnostic.code == "E_CASCADE_BOUND")
+        .unwrap_or_else(|| panic!("{:#?}", missing_bound.diagnostics));
+    assert!(bound.message.contains("cap N by parent") && bound.message.contains("unique parent"), "{bound:#?}");
+    assert!(bound.rewrite.contains("unique parent"), "{bound:#?}");
     let cases = [
         ("table kids:\n  parent: parents on delete cascade\n  read <- allow\n", "E_CASCADE_BOUND"),
         ("table kids:\n  parent: parents on delete set null\n  cap 5 by parent\n  read <- allow\n", "E_REFERENCE_ACTION"),
@@ -387,6 +392,239 @@ fn check_refuses_what_a_column_cannot_carry() {
     // Another table's probe keyed on the column carries authority too.
     let grants = format!("{base}table docs:\n  home: parents\n  read <- exists kids[folder = .home, doc = .id]\ntable kids:\n  folder: parents ? on delete set null\n  doc: docs\n  unique folder, doc\n  cap 5 by folder\n  read <- allow\n");
     assert!(diagnostics(&grants).iter().any(|d| d.starts_with("E_REFERENCE_ACTION")), "{:#?}", diagnostics(&grants));
+}
+
+#[test]
+fn a_plain_unique_reference_is_a_cascade_cap_of_one() {
+    let source = "table parents:\n  read <- allow\n  delete <- allow\ntable kids:\n  parent: parents on delete cascade\n  unique parent\n  read <- allow\nmutation drop(parent: parents):\n  delete parents[parent]\n";
+    let b = bound(source);
+    assert_eq!(b.schema.reference_cap("kids", "parent"), Some(1));
+    assert!(b.schema.delete_reservation("parents").is_some());
+
+    let both = source.replace("  unique parent\n", "  unique parent\n  cap 9 by parent\n");
+    assert_eq!(bound(&both).schema.reference_cap("kids", "parent"), Some(1), "the tighter proven bound prices the cascade");
+
+    let composite = source.replace("  unique parent\n", "  position: int\n  unique parent, position\n");
+    let b = snapback4_lang::compile(&[("schema.q".into(), composite)]);
+    assert!(b.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_CASCADE_BOUND"), "{:#?}", b.diagnostics);
+
+    let optional = source.replace("parent: parents on delete cascade", "parent: parents ? on delete cascade");
+    let b = bound(&optional);
+    let wire = snapback4_core::json_codec::to_text(&b.schema).unwrap();
+    let schema: snapback4_core::Schema = snapback4_core::json_codec::from_text(&wire).unwrap();
+    assert_eq!(schema.reference_cap("kids", "parent"), Some(1), "the inferred bound survives schema serialization");
+    let mut e = Engine::memory(schema, b.programs.into_iter().map(|program| program.program)).unwrap();
+    e.seed_at([
+        row("parents", &[("id", id("p"))]),
+        row("kids", &[("id", id("linked")), ("parent", id("p"))]),
+        row("kids", &[("id", id("null-a")), ("parent", Value::Null)]),
+        row("kids", &[("id", id("null-b")), ("parent", Value::Null)]),
+    ], 500).unwrap();
+    let out = e.mutate("drop", None, ctx("alice", &[("parent", id("p"))])).unwrap();
+    assert_eq!(refusal(&out), None, "{out:?}");
+    let rows = e.store().rows("kids").unwrap();
+    assert_eq!(rows.len(), 2, "only the one non-null unique reference cascades");
+    assert!(rows.iter().all(|row| row.field("parent") == Ok(&Value::Null)), "{rows:?}");
+}
+
+#[test]
+fn a_denied_parent_delete_does_not_make_a_summed_child_safe_to_cascade() {
+    let source = "table parents:\n  read <- allow\n  delete <- deny\ntable entries:\n  parent: parents on delete cascade\n  amount: int\n  unique parent\n  read <- allow\nview totals: sum entries of .amount by .parent\n";
+    let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    let refusal = b.diagnostics.iter().find(|diagnostic| diagnostic.code == "E_REFERENCE_ACTION").unwrap_or_else(|| panic!("{:#?}", b.diagnostics));
+    assert!(refusal.message.contains("system work") && refusal.message.contains("another parent"), "{refusal:#?}");
+}
+
+#[test]
+fn delete_authority_that_structurally_implies_read_needs_no_note() {
+    let source = |read: &str, delete: &str| format!("table parents:\n  owner: principal\n  assistant: principal ?\n  read <- {read}\n  delete <- {delete}\ntable kids:\n  parent: parents on delete restrict\n  read <- allow\nmutation drop(parent: parents):\n  delete parents[parent]\n");
+    let has_note = |text: String| {
+        let b = snapback4_lang::compile(&[("schema.q".into(), text)]);
+        assert!(b.diagnostics.is_empty(), "{:#?}", b.diagnostics);
+        b.notes.iter().any(|note| note.code == "N_DELETE_NEEDS_READ")
+    };
+    assert!(!has_note(source(".owner = viewer or .assistant = viewer", ".owner = viewer")));
+    assert!(!has_note(source(".assistant = viewer", "deny")), "an impossible deleter implies every read rule");
+    assert!(has_note(source(".assistant = viewer", ".owner = viewer")), "an unrelated deleter can still get NOT_FOUND");
+    let admins = "table admins:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\ntable parents:\n  owner: principal\n  read <- exists admins[viewer]\n  delete <- .owner = viewer\ntable kids:\n  parent: parents on delete restrict\n  read <- allow\nmutation drop(parent: parents):\n  delete parents[parent]\n";
+    assert!(has_note(admins.into()), "a row-uniform admin rule does not admit every owner");
+    let boolean = |optional: &str, read: &str| format!("table parents:\n  flag: bool{optional}\n  read <- {read}\n  delete <- .flag != true\ntable kids:\n  parent: parents on delete restrict\n  read <- allow\nmutation drop(parent: parents):\n  delete parents[parent]\n");
+    assert!(!has_note(boolean("", "not .flag")), "required-bool `flag != true` is the same authority as `not flag`");
+    assert!(has_note(boolean(" ?", ".flag = false")), "an optional bool preserves null: null != true, while null = false is false");
+}
+
+#[test]
+fn a_reference_argument_that_is_never_looked_up_gets_a_note() {
+    let schema = "table parents:\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- allow\n";
+    let unchecked = format!("{schema}mutation create(id: id, parent: parents):\n  insert kids {{ id, parent }}\n");
+    let b = bound(&unchecked);
+    let note = b.notes.iter().find(|note| note.code == "N_REFERENCE_UNCHECKED").unwrap_or_else(|| panic!("{:#?}", b.notes));
+    assert!(note.message.contains("parents[parent]") && note.rewrite.contains("NOT_FOUND"), "{note:#?}");
+
+    let checked = format!("{schema}mutation create(id: id, parent: parents):\n  p = parents[parent] ! else NOT_FOUND\n  insert kids {{ id, parent: p.id }}\n");
+    assert!(!bound(&checked).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"));
+
+    let helpers = format!("{schema}fn identity(parent: parents): parent\nfn ignore(parent: parents): null\nfn checked(parent: parents): exists parents[parent]\nfn conditional(parent: parents, check: bool):\n  if check:\n    return exists parents[parent]\n  return false\nfn earlyReturn(parent: parents, skip: bool):\n  if skip:\n    return false\n  unused = exists parents[parent]\n  return true\nfn redirected(parent: parents, other: parents): exists parents[other]\nmutation throughIdentity(id: id, parent: parents):\n  unused = identity(parent)\n  insert kids {{ id, parent }}\nmutation throughIgnore(id: id, parent: parents):\n  unused = ignore(parent)\n  insert kids {{ id, parent }}\nmutation throughLookup(id: id, parent: parents):\n  unused = checked(parent)\n  insert kids {{ id, parent }}\nmutation throughConditional(id: id, parent: parents, check: bool):\n  unused = conditional(parent, check)\n  insert kids {{ id, parent }}\nmutation throughEarlyReturn(id: id, parent: parents, skip: bool):\n  unused = earlyReturn(parent, skip)\n  insert kids {{ id, parent }}\nmutation throughRebound(id: id, parent: parents, other: parents):\n  unused = redirected(parent, other)\n  insert kids {{ id, parent }}\n");
+    let helper_notes: Vec<_> = bound(&helpers).notes.into_iter().filter(|note| note.code == "N_REFERENCE_UNCHECKED").collect();
+    assert_eq!(helper_notes.len(), 5, "pass-through, conditional and redirected helper arguments remain unchecked: {helper_notes:#?}");
+    for name in ["throughIdentity", "throughIgnore", "throughConditional", "throughEarlyReturn", "throughRebound"] {
+        assert!(helper_notes.iter().any(|note| note.message.contains(name)), "{name}: {helper_notes:#?}");
+    }
+    assert!(!helper_notes.iter().any(|note| note.message.contains("throughLookup")), "a helper's mandatory target-id lookup counts");
+
+    let rule_checked = "table parents:\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- exists parents[.parent]\nmutation create(id: id, parent: parents):\n  insert kids { id, parent }\n";
+    assert!(!bound(rule_checked).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"));
+    let alias_probe = "table parents:\n  alias: id\n  unique alias\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- exists parents[alias = .parent]\nmutation create(id: id, parent: parents):\n  insert kids { id, parent }\n";
+    assert!(bound(alias_probe).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"), "an alias rule probe does not establish parents[parent]");
+    let alias_program_probe = alias_probe.replace("  insert <- exists parents[alias = .parent]\n", "  insert <- allow\n")
+        .replace("  insert kids { id, parent }", "  ignored = parents[alias = parent]\n  insert kids { id, parent }");
+    assert!(bound(&alias_program_probe).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"), "a program lookup by alias does not establish parents[parent]");
+    let alias_and_id = alias_probe.replace("exists parents[alias = .parent]", "exists parents[id = .parent, alias = .parent]");
+    assert!(!bound(&alias_and_id).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"), "an exact target-id equality establishes the reference");
+
+    let conditionally_checked = rule_checked.replace("insert <- exists parents[.parent]", "insert <- exists parents[.parent] or allow");
+    assert!(bound(&conditionally_checked).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"), "every admitted write path must prove existence");
+
+    let hop_checked = "table parents:\n  active: bool\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- .parent.active = true\nmutation create(id: id, parent: parents):\n  insert kids { id, parent }\n";
+    assert!(!bound(hop_checked).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"));
+    let hop_bypassed = hop_checked.replace("insert <- .parent.active = true", "insert <- .parent.active = true or allow");
+    assert!(bound(&hop_bypassed).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"));
+
+    let update_checked = "table parents:\n  active: bool\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  update (old, next) <- exists parents[next.parent]\nmutation change(id: kids, parent: parents):\n  update kids[id] { parent }\n";
+    assert!(!bound(update_checked).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"));
+    let old_exists = update_checked.replace("exists parents[next.parent]", "exists parents[old.parent]");
+    assert!(bound(&old_exists).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"), "the old parent is not the newly stored argument");
+    let old_hop = update_checked.replace("exists parents[next.parent]", "old.parent.active = true");
+    assert!(bound(&old_hop).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"), "an old-image reference hop checks only the previous parent");
+    let next_hop = update_checked.replace("exists parents[next.parent]", "next.parent.active = true");
+    assert!(!bound(&next_hop).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"));
+
+    let through_checked = "table parents:\n  read <- allow\ntable kids:\n  parent: parents on delete cascade\n  immutable parent\n  unique parent\n  read through .parent\n  insert <- allow\nmutation create(id: id, parent: parents):\n  insert kids { id, parent }\n";
+    assert!(!bound(through_checked).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"));
+
+    let after_insert = "table parents:\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- allow\n  update <- allow\n  after insert <- exists parents[.parent]\nmutation create(id: id, parent: parents):\n  insert kids { id, parent }\nmutation put(id: id, parent: parents):\n  upsert kids[id] { parent }\n";
+    let notes: Vec<_> = bound(after_insert).notes.into_iter().filter(|note| note.code == "N_REFERENCE_UNCHECKED").collect();
+    assert_eq!(notes.len(), 1, "after insert proves only the insert arm: {notes:#?}");
+    assert!(notes[0].message.contains("mutation put"), "{notes:#?}");
+    let alias_after_insert = after_insert.replace("table parents:\n  read", "table parents:\n  alias: id\n  unique alias\n  read")
+        .replace("exists parents[.parent]", "exists parents[alias = .parent]");
+    let notes: Vec<_> = bound(&alias_after_insert).notes.into_iter().filter(|note| note.code == "N_REFERENCE_UNCHECKED").collect();
+    assert_eq!(notes.len(), 2, "a final-exists alias probe checks another row key: {notes:#?}");
+}
+
+#[test]
+fn reference_argument_lookups_must_reach_each_write() {
+    let schema = "table parents:\n  cap 2\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- allow\nfn checked(parent: parents): exists parents[parent]\nfn andLeft(parent: parents): exists parents[parent] and true\nfn orLeft(parent: parents): exists parents[parent] or false\nfn andSkipped(parent: parents): false and exists parents[parent]\nfn orSkipped(parent: parents): true or exists parents[parent]\nfn andRequired(parent: parents): true and exists parents[parent]\nfn orRequired(parent: parents): false or exists parents[parent]\nfn coalesceSkipped(parent: parents): true ?? exists parents[parent]\nfn coalesceRequired(parent: parents): null ?? exists parents[parent]\nfn coalesceLeft(parent: parents): exists parents[parent] ?? false\n";
+    let notes = |body: &str, args: &str| {
+        let source = format!("{schema}mutation create(id: id, parent: parents{args}):\n{body}");
+        let bound = bound(&source);
+        assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+        bound.notes.iter().filter(|note| note.code == "N_REFERENCE_UNCHECKED").count()
+    };
+
+    assert_eq!(notes("  ignored = skip or checked(parent)\n  insert kids { id, parent }\n", ", skip: bool"), 1,
+        "a short-circuited helper is not a mandatory lookup");
+    assert_eq!(notes("  if check:\n    ignored = exists parents[parent]\n  insert kids { id, parent }\n", ", check: bool"), 1,
+        "a one-sided direct lookup does not dominate the write");
+    assert_eq!(notes("  for check in checks:\n    ignored = exists parents[parent]\n  insert kids { id, parent }\n", ", checks: [bool] <=2"), 1,
+        "a possibly empty loop does not prove a later lookup");
+    assert_eq!(notes("  insert kids { id, parent }\n  ignored = exists parents[parent]\n", ""), 1,
+        "a later lookup cannot suppress the earlier write's note");
+    assert_eq!(notes("  ignored = parents where exists parents[id = parent] first 1 by .id\n  insert kids { id, parent }\n", ""), 1,
+        "a scan filter may never run when its source is empty");
+    assert_eq!(notes("  ignored = parents first 1 by .id { checked: exists parents[id = parent] }\n  insert kids { id, parent }\n", ""), 1,
+        "a shape field may never run when its source is empty");
+    for expression in [
+        "true and exists parents[parent]",
+        "false or exists parents[parent]",
+        "exists parents[parent] and false",
+        "exists parents[parent] or true",
+    ] {
+        assert_eq!(notes(&format!("  ignored = {expression}\n  insert kids {{ id, parent }}\n"), ""), 0,
+            "the target lookup is on a mandatory lazy-expression path: {expression}");
+    }
+    for (expression, args) in [
+        ("false and exists parents[parent]", ""),
+        ("true or exists parents[parent]", ""),
+        ("skip and exists parents[parent]", ", skip: bool"),
+        ("skip or exists parents[parent]", ", skip: bool"),
+    ] {
+        assert_eq!(notes(&format!("  ignored = {expression}\n  insert kids {{ id, parent }}\n"), args), 1,
+            "the target lookup can be skipped: {expression}");
+    }
+    assert_eq!(notes("  ignored = true ?? exists parents[parent]\n  insert kids { id, parent }\n", ""), 1,
+        "a coalesce fallback after a present value is skipped");
+    assert_eq!(notes("  ignored = maybe ?? exists parents[parent]\n  insert kids { id, parent }\n", ", maybe: bool ?"), 1,
+        "an optional coalesce input does not make its fallback mandatory");
+    assert_eq!(notes("  ignored = null ?? exists parents[parent]\n  insert kids { id, parent }\n", ""), 0,
+        "a literal-null coalesce always evaluates its fallback");
+    assert_eq!(notes("  ignored = exists parents[parent] ?? false\n  insert kids { id, parent }\n", ""), 0,
+        "the left coalesce input is always evaluated");
+    for helper in ["andLeft", "orLeft", "andRequired", "orRequired"] {
+        assert_eq!(notes(&format!("  ignored = {helper}(parent)\n  insert kids {{ id, parent }}\n"), ""), 0,
+            "{helper}'s target lookup is mandatory");
+    }
+    for helper in ["andSkipped", "orSkipped"] {
+        assert_eq!(notes(&format!("  ignored = {helper}(parent)\n  insert kids {{ id, parent }}\n"), ""), 1,
+            "{helper}'s lazy right target lookup is skipped");
+    }
+    assert_eq!(notes("  ignored = coalesceSkipped(parent)\n  insert kids { id, parent }\n", ""), 1,
+        "a helper's skipped coalesce fallback is not a mandatory lookup");
+    assert_eq!(notes("  ignored = coalesceRequired(parent)\n  insert kids { id, parent }\n", ""), 0,
+        "a helper's literal-null coalesce fallback is mandatory");
+    assert_eq!(notes("  ignored = coalesceLeft(parent)\n  insert kids { id, parent }\n", ""), 0,
+        "a helper's left coalesce input is mandatory");
+    let hidden = schema.replace("  read <- allow\ntable kids", "  read <- deny\ntable kids");
+    let hidden_source = format!("{hidden}mutation create(id: id, parent: parents):\n  ignored = parents where exists parents[id = parent] first 1 by .id\n  insert kids {{ id, parent }}\n");
+    assert!(bound(&hidden_source).notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED"),
+        "a filter over a wholly hidden source may never run");
+    assert_eq!(notes("  if check:\n    ignored = checked(parent)\n  else:\n    ignored = exists parents[parent]\n  insert kids { id, parent }\n", ", check: bool"), 0,
+        "both fallthrough paths perform an exact target-id lookup");
+}
+
+#[test]
+fn helper_reference_lookup_proof_follows_every_successful_exit() {
+    let schema = "table parents:\n  read <- allow\ntable kids:\n  parent: parents on delete keep\n  read <- allow\n  insert <- allow\n";
+    let has_note = |helpers: &str, call: &str| {
+        let source = format!("{schema}{helpers}mutation create(id: id, parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  ignored = {call}\n  insert kids {{ id, parent }}\n");
+        let bound = bound(&source);
+        assert!(bound.diagnostics.is_empty(), "{:#?}\n{source}", bound.diagnostics);
+        bound.notes.iter().any(|note| note.code == "N_REFERENCE_UNCHECKED")
+    };
+
+    let loop_return = "fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  for item in [true]:\n    if skip:\n      return true\n  return exists parents[parent]\n";
+    assert!(has_note(loop_return, "checked(parent, other, skip, flags)"), "a loop-body return can bypass the later lookup");
+
+    let nested_return = "fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  for outer in [true]:\n    for inner in [true]:\n      if skip:\n        return true\n  return exists parents[parent]\n";
+    assert!(has_note(nested_return, "checked(parent, other, skip, flags)"), "nested loop returns participate in the proof");
+
+    for (transfer, word) in [("break", "break"), ("continue", "continue")] {
+        let helper = format!("fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  for item in flags:\n    if skip:\n      {transfer}\n    ignored = exists parents[parent]\n  return true\n");
+        assert!(has_note(&helper, "checked(parent, other, skip, flags)"), "{word} can bypass a loop-body lookup");
+    }
+
+    let rebound = "fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  candidate = parent\n  candidate = other\n  return exists parents[candidate]\n";
+    assert!(has_note(rebound, "checked(parent, other, skip, flags)"), "a rebound alias no longer denotes the caller's id");
+    let loop_binding = "fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  for candidate in [other]:\n    return exists parents[candidate]\n  return exists parents[parent]\n";
+    assert!(has_note(loop_binding, "checked(parent, other, skip, flags)"), "a loop binding has its domain value, not the formal's identity");
+    let rejected_shadow = format!("{schema}fn checked(parent: parents, other: parents):\n  for parent in [other]:\n    return exists parents[parent]\nmutation invalid(id: id, parent: parents, other: parents):\n  ignored = checked(parent, other)\n  insert kids {{ id, parent }}\n");
+    let rejected = snapback4_lang::compile(&[("schema.q".into(), rejected_shadow)]);
+    assert!(rejected.diagnostics.iter().any(|diagnostic| diagnostic.message.contains("cannot shadow arguments")), "formal shadowing is rejected before helper proof: {:#?}", rejected.diagnostics);
+    let carried_rebind = "fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  candidate = parent\n  for flag in flags:\n    if flag:\n      candidate = other\n      continue\n    return exists parents[candidate]\n  return exists parents[parent]\n";
+    assert!(has_note(carried_rebind, "checked(parent, other, skip, flags)"), "a later iteration sees aliases invalidated by an earlier one");
+
+    let before_loop = "fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  ignored = exists parents[parent]\n  for item in flags:\n    if skip:\n      return true\n  return true\n";
+    assert!(!has_note(before_loop, "checked(parent, other, skip, flags)"), "a lookup before the loop dominates every return");
+    let in_domain = "fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  for item in [exists parents[parent]]:\n    if skip:\n      return true\n  return true\n";
+    assert!(!has_note(in_domain, "checked(parent, other, skip, flags)"), "the loop domain is evaluated before every body or exit path");
+    let in_condition = "fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  if exists parents[parent]:\n    return true\n  return false\n";
+    assert!(!has_note(in_condition, "checked(parent, other, skip, flags)"), "a lookup condition dominates both boolean edges");
+    let empty_then_lookup = "fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  for item in []:\n    return true\n  return exists parents[parent]\n";
+    assert!(!has_note(empty_then_lookup, "checked(parent, other, skip, flags)"), "a known-empty loop has no body return edge");
+    let stable_alias = "fn checked(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  candidate = parent\n  stable = candidate\n  candidate = other\n  return exists parents[stable]\n";
+    assert!(!has_note(stable_alias, "checked(parent, other, skip, flags)"), "a stable alias retains the original formal identity");
+    let helper_chain = format!("{in_condition}fn delegated(parent: parents, other: parents, skip: bool, flags: [bool] <=2):\n  return checked(parent, other, skip, flags)\n");
+    assert!(!has_note(&helper_chain, "delegated(parent, other, skip, flags)"), "known helper chains retain a mandatory lookup");
 }
 
 #[test]

@@ -43,7 +43,10 @@ pub(super) fn diagnostic(site: &Site, table: &str, effect: &str, transition: boo
             let next = map_fields(&text, &|_, name| format!("next.{name}"));
             format!("name both images and bound the new one: `update (old, next) <- {next}`; or check it in the mutation: `row = {table}[id] ! else NOT_FOUND` then `require {} else {code}`", map_fields(&text, &stored))
         }
-        "read" if what.contains("now") => format!("a read rule is an audience, which cannot change with time: hide rows past a time column with `expire at .{field}`, or filter the query (`{table} where {} …`)", map_fields(&text, &|_, name| format!(".{name}"))),
+        "read" if what.contains("now") => match direct_focal_field(cmp) {
+            Some(expires) => format!("a read rule is an audience, which cannot change with time: hide rows past this row's stored time with `expire at .{expires}`, or filter the query (`{table} where {} …`)", map_fields(&text, &|_, name| format!(".{name}"))),
+            None => format!("a read rule is an audience, which cannot change with time: copy the deciding deadline into a required time column on {table} and use `expire at .expiresAt`, or filter the query (`{table} where {} …`); `expire at` accepts a local time column, not a reference hop", map_fields(&text, &|_, name| format!(".{name}"))),
+        },
         "read" => format!("a read rule is an audience, which cannot compare magnitudes: filter the query instead (`{table} where {} …`)", map_fields(&text, &|_, name| format!(".{name}"))),
         _ => format!("check it in the mutation before the write: `row = {table}[id] ! else NOT_FOUND` then `require {} else {code}`", map_fields(&text, &stored)),
     };
@@ -112,6 +115,17 @@ fn first_field(text: &str) -> Option<String> {
         }
     }
     None
+}
+
+/// A time field owned by the focal row. Do not descend through a member
+/// chain: `.hearing.releaseAt` must never become `expire at .hearing`.
+fn direct_focal_field(expr: &Expr) -> Option<&str> {
+    match expr {
+        Expr::Member { base, name, .. } if matches!(base.as_ref(), Expr::Focal { .. }) => Some(name),
+        Expr::Binary { left, right, .. } => direct_focal_field(left).or_else(|| direct_focal_field(right)),
+        Expr::Unary { value, .. } => direct_focal_field(value),
+        _ => None,
+    }
 }
 
 /// Rewrite each focal field `.f`, `old.f` and `next.f` through `map(image, f)`,

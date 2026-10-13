@@ -61,6 +61,12 @@ impl Requests {
     }
     pub(super) fn error_count(&self) -> usize { self.errors.len() }
 
+    pub(super) fn branch_index<'a>(&'a self, table: &'a TableInfo, read: &ReadExpr) -> Option<&'a IndexDecl> {
+        let name = read.index.as_ref()?;
+        self.indexes.get(&(table.decl.name.clone(), name.clone()))
+            .or_else(|| table.indexes.iter().find(|index| &index.name == name))
+    }
+
     pub(super) fn branch_index_fits(&self, table: &TableInfo, read: &ReadExpr) -> bool {
         let Some(name) = &read.index else { return false };
         if let Some(index) = self.indexes.get(&(table.decl.name.clone(), name.clone())) {
@@ -71,6 +77,12 @@ impl Requests {
             table.indexes.iter().find(|index| &index.name == name)
                 .is_some_and(|index| super::key_bound::plain_index_fits(table, index, &index.name))
         }
+    }
+
+    /// Physical components in the selected plain index, including a pending
+    /// structural request before its token receives the emitted index name.
+    pub(super) fn branch_index_width(&self, table: &TableInfo, read: &ReadExpr) -> Option<usize> {
+        self.branch_index(table, read).filter(|index| index.is_plain()).map(|index| index.columns.len())
     }
 
     fn index(&mut self, table: &TableInfo, columns: Vec<String>, words: Option<(usize, Vec<String>)>, site: &Site, exact: bool) -> String {
@@ -296,6 +308,7 @@ impl Requests {
 pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
     let contexts = super::intent_aggregates::order(catalog);
     let tables = catalog.tables.clone();
+    let synthesized = catalog.synthesized.clone();
     // Reads already inside a merge (a union view's branches) are its lanes.
     let mut merged = std::collections::BTreeSet::new();
     for doc in &mut catalog.documents {
@@ -391,7 +404,7 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
             if let Expr::Read(read) = value && let Some(note) = super::intent_windows::missing_upper(&tables, read) { catalog.planner_notes.push(note); }
             if lanes && let Expr::Read(read) = value
                 && !requests.contexts.domains.contains(&read.site.to_string())
-                && let Some(mut merge) = super::intent_windows::expand(&tables, read).or_else(|| super::intent_lanes::expand(&tables, read)) {
+                && let Some(mut merge) = super::intent_windows::expand(&tables, read).or_else(|| super::intent_lanes::expand(&tables, &synthesized, read)) {
                 let mut candidate = requests.clone();
                 candidate.lane = true;
                 for lane in &mut merge.lanes {
@@ -414,12 +427,12 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
                     candidate.lane = false;
                     requests = candidate;
                     *value = Expr::Merge(merge);
-                } else if !requests.merged.contains(&read.site.to_string()) && let Some(merge) = super::intent_branches::expand(&tables, &mut requests, read) {
+                } else if !requests.merged.contains(&read.site.to_string()) && let Some(merge) = super::intent_branches::expand(&tables, &synthesized, &mut requests, read) {
                     *value = Expr::Merge(merge);
                 } else { requests.read(&tables, read, false); }
             } else if lanes && let Expr::Read(read) = value
                 && !requests.contexts.domains.contains(&read.site.to_string()) && !requests.merged.contains(&read.site.to_string())
-                && let Some(merge) = super::intent_branches::expand(&tables, &mut requests, read) {
+                && let Some(merge) = super::intent_branches::expand(&tables, &synthesized, &mut requests, read) {
                 // @ref LLP 3000.036.001#3 — an undecided page whose branches each decide the rule reads as their merge.
                 *value = Expr::Merge(merge);
             } else if lanes && let Expr::Exists { read, site } = value

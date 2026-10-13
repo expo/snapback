@@ -104,6 +104,10 @@ pub struct Execution {
     /// must not run its plan or decode its cursors (`branch-merge-v1`).
     #[serde(default, rename = "branchMerge", skip_serializing_if = "std::ops::Not::not")]
     pub branch_merge: bool,
+    /// The branch merge expands a capped membership source. Engines predating
+    /// PAGE cannot execute its discovery-before-output contract.
+    #[serde(default, rename = "branchMembership", skip_serializing_if = "std::ops::Not::not")]
+    pub branch_membership: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub renews: bool,
     #[serde(default, rename = "renewMs", skip_serializing_if = "Option::is_none")]

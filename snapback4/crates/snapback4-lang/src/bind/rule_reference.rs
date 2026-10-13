@@ -132,6 +132,9 @@ pub(super) fn reference_rewrite(catalog: &Catalog, info: &TableInfo, expr: &Expr
 // @ref LLP 3000.036#12 — wave 2 R9: skip the intermediate one-hop form that is itself refused.
 // @ref LLP 3000.036#13.5 — wave 3 #17: repair each hop, and say `read through` widens the audience.
 pub(super) fn read_hop_rewrite(catalog: &Catalog, info: &TableInfo, rule: &Expr) -> Option<String> {
+    if let Some(rewrite) = stored_comparison_rewrite(catalog, info, rule) {
+        return Some(rewrite);
+    }
     let first = single_hop_rewrite(catalog, info, rule)?;
     let quoted = |text: &str| text.split('`').skip(1).step_by(2).map(str::to_owned).collect::<Vec<_>>();
     let rule_of = |text: &str| -> Option<Expr> {
@@ -188,6 +191,43 @@ pub(super) fn read_hop_rewrite(catalog: &Catalog, info: &TableInfo, rule: &Expr)
     if !checks.is_empty() { parts.push(format!("check them in the insert rule (`insert <- … and {}`)", checks.join(" and "))); }
     let caveat = if caveats.is_empty() { String::new() } else { format!(" (the copies are checked at insert, so this holds while {} cannot change)", caveats.join(" and ")) };
     Some(format!("a read rule reads no reference hop, so repair each hop: {}, then `{read}`{caveat}{through}", parts.join(", ")))
+}
+
+/// Two live parents cannot be joined inside a table rule. Name the durable
+/// representation that preserves the policy instead of recursively nesting
+/// one `exists` expression where the other expects a scalar.
+fn stored_comparison_rewrite(catalog: &Catalog, info: &TableInfo, rule: &Expr) -> Option<String> {
+    fn comparison(expr: &Expr) -> Option<(Vec<String>, Vec<String>)> {
+        match expr {
+            Expr::Binary { op, left, right, .. } if op == "=" => match (chain(left), chain(right)) {
+                (Some(left), Some(right)) => Some((left, right)),
+                _ => comparison(left).or_else(|| comparison(right)),
+            },
+            Expr::Binary { left, right, .. } => comparison(left).or_else(|| comparison(right)),
+            Expr::Unary { value, .. } => comparison(value),
+            _ => None,
+        }
+    }
+    let (left, right) = comparison(rule)?;
+    if left.len() != 2 || right.len() != 2 || left[0] == right[0] || left[1] != right[1] { return None; }
+    let target = |reference: &str| {
+        let Ty::Ref(table) = column_ty(info, reference)?.required() else { return None };
+        catalog.tables.get(&table).and_then(|parent| column_ty(parent, &left[1]))
+    };
+    let left_ty = target(&left[0])?;
+    let right_ty = target(&right[0])?;
+    if !left_ty.comparable(&right_ty) { return None; }
+    let field = &left[1];
+    let declared = column_ty(info, field).filter(|local| local.comparable(&left_ty)).is_some();
+    let local = if declared { format!("the existing local `.{field}`") } else { format!("a required local `.{field}` ({})", left_ty.required().name()) };
+    Some(format!(
+        "a read rule cannot join two referenced rows. Store {local} on {}, make it immutable, and check it against both parents when the mutation inserts the row; then make the audience probe each parent against that stored value: `exists {}[id = .{}, {field} = .{field}] and exists {}[id = .{}, {field} = .{field}]`. The stored-field invariant is part of this repair; replacing only the read rule would change the policy",
+        info.decl.name, reference_table(info, &left[0])?, left[0], reference_table(info, &right[0])?, right[0]
+    ))
+}
+
+fn reference_table(info: &TableInfo, column: &str) -> Option<String> {
+    match column_ty(info, column)?.required() { Ty::Ref(table) => Some(table), _ => None }
 }
 
 /// `.a.b … .f` rooted at the row, outermost first: `[a, b, …, f]`.

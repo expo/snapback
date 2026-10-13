@@ -31,12 +31,14 @@ mod page_shapes;
 pub(crate) mod where_guards;
 mod bracket_ranges;
 mod reference_actions;
+mod reference_arguments;
 mod delete_guards;
 mod private_scans;
 mod optional_patches;
 mod positional_keys;
 mod helper_names;
 mod aggregate_copies;
+mod maintain_authorization;
 mod time_indexes;
 mod timeline;
 mod feed_view;
@@ -286,6 +288,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     notes.extend(ephemeral::notes(&schema, &programs));
     notes.extend(completeness_notes(&catalog, &schema, &programs));
     notes.extend(denied_reads(&catalog, &schema, &programs));
+    notes.extend(maintain_authorization::notes(&catalog, &schema));
     // @ref LLP 3000.036#16.4 — wave 6 #22: authorization shapes that compile but grant or withhold more than meant.
     notes.extend(auth_lints::notes(&catalog, &schema));
     notes.extend(optional_patches::notes(&catalog));
@@ -301,6 +304,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     for program in &mut programs { index_diagnostics::authored(&catalog, &mut program.notes); }
     notes.extend(refusals::sequence_notes(&catalog, &schema));
     notes.extend(reference_actions::sites(&catalog, &schema, &mut diagnostics));
+    notes.extend(reference_arguments::notes(&catalog, &schema));
     receipts::diagnostics(&catalog.documents, &mut diagnostics);
     // @ref LLP 3000.032#4.3 — use the expanded mapping, never guess default operation names.
     let receipt_members = catalog.documents.iter().flat_map(|doc| {
@@ -496,7 +500,7 @@ fn bind_schedule(decl: &crate::ast::ScheduleDecl, programs: &[BoundProgram]) -> 
 /// completeness is a class): say so at compile time, with the index that
 /// would decide it, as Snapback 2's structural facts did.
 /// `N_READ_DENIED`: a query or mutation looks up an aggregate by key whose
-/// read rule is `deny`, so every caller reads its zero value as if real.
+/// read rule is `deny`, so every caller reads an unavailable null.
 // @ref LLP 3000.036#11 — lane 008: a deny maintain looked up in a shape read as 0.
 fn denied_reads(catalog: &Catalog, schema: &Schema, programs: &[BoundProgram]) -> Vec<Diagnostic> {
     use snapback4_core::{ir::ProgramKind, schema::RuleExpr};
@@ -507,9 +511,8 @@ fn denied_reads(catalog: &Catalog, schema: &Schema, programs: &[BoundProgram]) -
         for read in snapback4_core::ir::read_sites(&bound.program) {
             let Some(table) = schema.table(&read.table) else { continue };
             let Some(info) = catalog.tables.get(&read.table) else { continue };
-            // A keyed lookup of an aggregate reads as its zero value when absent,
-            // so a denied one is indistinguishable from a real 0. Pages and row
-            // reads of denied sources stay empty or null, visibly.
+            // A keyed aggregate lookup reserves the same rule decision for a hit
+            // and miss. A denied one is unavailable in both worlds.
             if read.kind != "point" || info.maintained.is_none() { continue; }
             // Only an authored `read <- deny`: an aggregate without a read line inherits its source's audience.
             let Some(rule) = info.maintained.as_ref().and_then(|maintain| maintain.read.as_ref()) else { continue };
@@ -518,11 +521,61 @@ fn denied_reads(catalog: &Catalog, schema: &Schema, programs: &[BoundProgram]) -
             if !authored_deny || !matches!(table.rules.read, RuleExpr::Deny) || !seen.insert(read.table.clone()) { continue; }
             let site = &rule.site;
             notes.push(Diagnostic::new(&bound.site, "N_READ_DENIED",
-                format!("{} {} looks up aggregate {} by key, whose read rule is deny ({site}): every caller reads its zero value, never an error", bound.program.kind.word(), bound.program.name, read.table),
+                format!("{} {} looks up aggregate {} by key, whose read rule is deny ({site}): every caller reads null, never an error", bound.program.kind.word(), bound.program.name, read.table),
                 format!("give {} the read rule its readers need, over its group keys (for example the source table's rule), or read it only in a job, which runs as the system", read.table)).guide("rules"));
         }
     }
     notes
+}
+
+fn scan_pin<'a>(schema: &Schema, scan: &'a snapback4_core::ir::Scan, column: &str) -> Option<&'a snapback4_core::ir::Expr> {
+    let index = schema.table(&scan.table)?.index(&scan.index)?;
+    let position = index.columns().iter().position(|candidate| candidate == column)?;
+    if position < scan.prefix.len() { return scan.prefix[position].scalar(); }
+    if position == scan.prefix.len() && let Some(range) = &scan.range
+        && range.gt.is_none() && range.lt.is_none() && range.gte == range.lte {
+        return range.gte.as_deref();
+    }
+    None
+}
+
+fn definitely_non_null_pin(bound: &BoundProgram, value: &snapback4_core::ir::Expr) -> bool {
+    use snapback4_core::{Value, ir::{Expr, Input}};
+    match value {
+        Expr::Literal(value) => value != &Value::Null,
+        Expr::Input(Input::Viewer | Input::Now | Input::NewId | Input::ReadTime) => true,
+        Expr::Variable(name) => bound.program.args.get(name).is_some_and(|ty| !ty.is_optional()),
+        _ => false,
+    }
+}
+
+/// A branch merge over one capped group cannot leave rows behind when every
+/// branch pins the same group values and the cap fits both the page and meter.
+fn merged_group_complete(schema: &Schema, bound: &BoundProgram, merge: &snapback4_core::ir::Merge) -> bool {
+    if !merge.branches() || merge.lanes.is_empty() { return false; }
+    let table = match schema.table(merge.table()) { Some(table) => table, None => return false };
+    // System and grant lanes cover the other branches when they run. Every
+    // remaining branch can scan the capped group, including the same row
+    // through two party indexes, so its examined allowance is per lane. A
+    // generated source has an additional discovery walk that this bound does
+    // not prove.
+    let participating: Vec<_> = merge.lanes.iter().filter(|lane| !lane.system() && !lane.grant()).collect();
+    if participating.iter().any(|lane| lane.source.is_some()) { return false; }
+    let scans = participating.len().max(1) as u64;
+    table.constraints.iter().any(|constraint| {
+        let snapback4_core::schema::Constraint::Cap { by, max } = constraint else { return false };
+        if u64::from(*max) > merge.take()
+            || u64::from(*max).saturating_mul(scans) > snapback4_core::Ceilings::default().examined { return false; }
+        by.iter().all(|column| {
+            let Some(first) = scan_pin(schema, &merge.lanes[0].scan, column) else { return false };
+            // `set null` rows belong to no parent group, so that reference's
+            // cap does not count them. Recover the per-parent bound only when
+            // the shared pin is statically known to be non-null.
+            if table.on_delete.get(column) == Some(&snapback4_core::schema::references::OnDelete::SetNull)
+                && !definitely_non_null_pin(bound, first) { return false; }
+            merge.lanes[1..].iter().all(|lane| scan_pin(schema, &lane.scan, column) == Some(first))
+        })
+    })
 }
 
 fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgram]) -> Vec<Diagnostic> {
@@ -627,6 +680,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         // Follow the same return/alias/shape provenance as continuations.
         // A consumed loop is not a page the caller needs to continue.
         let returned = snapback4_core::engine::uncontinued_page_sites(&bound.program);
+        let branch_merges = snapback4_core::ir::body_merges(&bound.program.body);
         let mut noted = std::collections::BTreeSet::new();
         for page in snapback4_core::ir::scans(&bound.program) {
             let site = page.merge_site.as_ref().unwrap_or(&page.site);
@@ -635,11 +689,16 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             // `.id = x` plans as the closed range `x ..= x` on the next column: an equality too.
             if let Some(range) = &page.range && range.gt.is_none() && range.lt.is_none() && range.gte.is_some() && range.gte == range.lte
                 && let Some(next) = columns.get(page.prefix.len()) { pinned.push(next.clone()); }
-            // A lane cap does not bound the union of a merge. Quarry page takes are literals.
+            // A cap bounds a merged union only when every branch pins the
+            // same cap group. Quarry page takes are literals.
             // @ref LLP 3000.007#5.6 — a meter-cut page still needs continuation; a plain scan charges one examined unit per candidate.
-            let group_complete = page.merge_site.is_none() && unique_bound::group_bound(schema, &page.table, &pinned).is_some_and(|n| {
-                u64::from(n) <= page.take.maximum() && u64::from(n) <= snapback4_core::Ceilings::default().examined
-            });
+            let group_complete = if let Some(merge_site) = &page.merge_site {
+                branch_merges.iter().find(|merge| &merge.site == merge_site).is_some_and(|merge| merged_group_complete(schema, bound, merge))
+            } else {
+                unique_bound::group_bound(schema, &page.table, &pinned).is_some_and(|n| {
+                    u64::from(n) <= page.take.maximum() && u64::from(n) <= snapback4_core::Ceilings::default().examined
+                })
+            };
             if !page.opaque_cursor && !group_complete && returned.contains(site) && noted.insert(site) {
                 let (table, take) = (&page.table, page.take.maximum());
                 // @ref LLP 3000.027#3 — continuation advice does not question a top-N answer's completeness.
@@ -707,12 +766,12 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             continue;
         }
         let inferred_search = snapback4_core::search_plan::ordinary::plan(schema, &bound.program);
-        // @ref LLP 3000.036.001#8 — a branch merge's grant lane is decided per caller before it opens.
-        let grant_lanes: Vec<*const snapback4_core::ir::Scan> = snapback4_core::ir::body_merges(&bound.program.body).into_iter()
-            .filter(|merge| merge.branches()).flat_map(|merge| merge.lanes.iter().filter(|lane| lane.grant()).map(|lane| &lane.scan as *const _)).collect();
+        // @ref LLP 3000.036.001#14 — grant, system and witnessed membership lanes carry their own proof.
+        let proof_lanes: Vec<*const snapback4_core::ir::Scan> = snapback4_core::ir::body_merges(&bound.program.body).into_iter()
+            .filter(|merge| merge.branches()).flat_map(|merge| merge.lanes.iter().filter(|lane| lane.grant() || lane.system() || lane.membership()).map(|lane| &lane.scan as *const _)).collect();
 
         for scan in snapback4_core::ir::scans(&bound.program) {
-            if grant_lanes.contains(&(scan as *const _)) { continue; }
+            if proof_lanes.contains(&(scan as *const _)) { continue; }
             if inferred_search.is_some() && scan.prefix.iter().any(|key| matches!(key, snapback4_core::ir::IndexKeyExpr::WordPrefix(_))) { continue; }
             let Some(table) = schema.table(&scan.table) else { continue };
             if table.rules.read.is_uniformly_readable() {
@@ -780,11 +839,11 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                         let admitted = (!admitted.is_empty()).then(|| admitted.join(" or "));
                         let declaration = catalog.source.declarations.get(&bound.site.to_string()).map(String::as_str);
                         // @ref LLP 3000.036#16.1 — the phrase names the form `check` verified, or says there is none.
-                        // @ref LLP 3000.036#17.1 — the phrase carries its own lead ("the complete form …", "the closest form …", "there is no single …"); the sentence around it never repeats it (wave 7 R1).
+                        // @ref LLP 3000.036#17.1 — the phrase carries its own lead ("the complete form …", "the closest form …", "no verified complete form …"); the sentence around it never repeats it (wave 7 R1).
                         let lead = if grant.is_some() { "the complete form for everyone is" } else { "the complete form is" };
                         let complete_form = match complete_form::complete_form(schema, &bound.program, scan, table, declaration) {
                             complete_form::Outcome::Form(form) => format!("the complete form for everyone is {}", form.phrase),
-                            complete_form::Outcome::None(_) => "there is no single complete form: keep the query and expect `capped`".to_owned(),
+                            complete_form::Outcome::None(_) => "no verified complete form for this read: keep the query and expect `capped`".to_owned(),
                             complete_form::Outcome::NotApplicable if parties >= 2 => format!("{lead} one query per party"),
                             complete_form::Outcome::NotApplicable => format!("{lead} the pin"),
                         };

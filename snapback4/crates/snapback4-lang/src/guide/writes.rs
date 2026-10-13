@@ -288,7 +288,8 @@ mutation addMember(conversationId: conversations, principal: principal):
   insert members { conversationId, principal } if absent
 
 mutation send(conversationId: conversations, body: text <=200):
-  return insert messages { conversationId, body }
+  conversation = conversations[conversationId] ! else NOT_FOUND
+  return insert messages { conversationId: conversation.id, body }
 
 query history(conversationId: conversations, c: cursor ?):
   return messages where .conversationId = conversationId after c last 50 by .ordinal

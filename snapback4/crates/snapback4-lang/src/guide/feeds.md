@@ -106,9 +106,13 @@ view activity:
 view following: activity where .actor = viewer or exists follows[viewer, .actor]
 
 mutation post(postId: id, parentId: posts ?):
-  return insert posts { id: postId, authorId: viewer, parentId, at: now }
+  if parentId != null:
+    parent = posts[parentId] ! else NOT_FOUND
+    return insert posts { id: postId, authorId: viewer, parentId: parent.id, at: now }
+  return insert posts { id: postId, authorId: viewer, parentId: null, at: now }
 mutation repost(postId: posts):
-  return insert reposts { actorId: viewer, postId, at: now } if absent
+  post = posts[postId] ! else NOT_FOUND
+  return insert reposts { actorId: viewer, postId: post.id, at: now } if absent
 mutation unrepost(postId: posts):
   delete reposts[viewer, postId]
 mutation follow(actor: principal):

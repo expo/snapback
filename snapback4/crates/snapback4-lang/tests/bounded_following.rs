@@ -10,13 +10,20 @@ fn compile(source: &str) -> snapback4_lang::Bound {
     snapback4_lang::compile(&[("bounded.q".into(), source.into())])
 }
 
+fn assert_reference_notes(bound: &snapback4_lang::Bound) {
+    assert_eq!(bound.notes.len(), 2, "{:?}", bound.notes);
+    assert!(bound.notes.iter().all(|note| note.code == "N_REFERENCE_UNCHECKED"), "{:?}", bound.notes);
+    assert!(bound.notes.iter().any(|note| note.message.contains("mutation post") && note.message.contains("posts[parentId]")), "{:?}", bound.notes);
+    assert!(bound.notes.iter().any(|note| note.message.contains("mutation repost") && note.message.contains("posts[postId]")), "{:?}", bound.notes);
+}
+
 #[test]
 fn acquisition_combinations_preserve_event_log_and_private_inbox_floor() {
     for posts in ["sync public", "sync public last 40 by .at", "online only"] {
         for reposts in ["sync public", "sync public last 7 by .at", "online only"] {
             let bound = compile(&source(posts, reposts));
             assert!(bound.diagnostics.is_empty(), "{posts}/{reposts}: {:?}", bound.diagnostics);
-            assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+            assert_reference_notes(&bound);
             let tables = &bound.schema.tables;
             let inbox = tables["feedFeed"].sync.as_ref().unwrap();
             assert_eq!(inbox.audience, Audience::Column("readerId".into()));
@@ -82,7 +89,7 @@ fn public_follows_admit_each_residency_and_slots_are_hidden_engine_columns() {
             .replace("sync public\n\nview activity", &format!("{residency}\n\nview activity"));
         let bound = compile(&text);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-        assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+        assert_reference_notes(&bound);
         assert_eq!(bound.schema.tables["posts"].columns["$timeline:feed:post"], ColumnType::Bool);
         assert_eq!(bound.schema.tables["reposts"].columns["$timeline:feed:repost"], ColumnType::Optional(Box::new(ColumnType::Id)));
         assert!(!bound.schema.tables["posts"].defaults.contains_key("$timeline:feed:post"));

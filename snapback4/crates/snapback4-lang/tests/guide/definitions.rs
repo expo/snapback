@@ -182,6 +182,8 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_SYSTEM_PRINCIPAL_WRITE", "into a principal column is refused at `check` with `E_SYSTEM_PRINCIPAL_WRITE`"),
     ("N_DELETE_RESTRICTED", "Since 0.5 an undeclared reference is `on delete restrict`"),
     ("N_DELETE_NEEDS_READ", "since 0.5 it also needs read authority on the row it deletes"),
+    ("N_REFERENCE_UNCHECKED", "The type proves only that the id has the right table identity and wire shape"),
+    ("N_MAINTAIN_AUTHORIZATION", "An admitted stored group returns its value"),
     ("E_REFERENCED", "a delete would leave a live row referencing the deleted one through an `on delete restrict` reference"),
     ("E_REFERENCE_ACTION", "an `on delete` declaration the column cannot carry"),
     ("E_CASCADE_BOUND", "a delete's cascade has no fixed bound that fits its program"),

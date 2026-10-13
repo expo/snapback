@@ -5,7 +5,7 @@ use crate::{ast::{IndexDecl, ReadExpr}, Diagnostic};
 
 // Arguments remain in authored order, with the binder's normalized column
 // names and presence facts (including control-flow narrowing).
-pub(super) fn check(table: &TableInfo, index: &IndexDecl, read: &ReadExpr, arguments: &[(Option<&str>, bool)]) -> Result<(), Diagnostic> {
+pub(super) fn check(table: &TableInfo, index: &IndexDecl, read: &ReadExpr, arguments: &[(Option<&str>, bool)], rule: bool) -> Result<(), Diagnostic> {
     // @ref LLP 3000.013#2.2 — the complete maintained group is unique even with nulls.
     // Extra predicates (such as value = 1) may use a secondary access index.
     // A partial group or a value-only key must still pass ordinary admission.
@@ -19,9 +19,14 @@ pub(super) fn check(table: &TableInfo, index: &IndexDecl, read: &ReadExpr, argum
     let unique = index.unique || table.indexes.iter().any(|key| table.total_unique(key)
         && key.columns.iter().all(|column| index.columns.contains(column) && !index.computed.contains_key(column)));
     if !unique {
+        let repair = if rule {
+            "declare a non-null unique key for this probe; table rules cannot scan a population, so move population work into a query or mutation before storing the fact the rule tests"
+        } else {
+            "use a bounded population read (`where … first N`) or declare a non-null unique key"
+        };
         return Err(Diagnostic::new(&read.site, "E_QUARRY_POINT_KEY",
-            format!("{}.{} is not unique: a point probe can choose different tied rows across replicas, even with non-null arguments; use a bounded population read in code or a unique key instead", read.table, index.name),
-            "").guide("indexes"));
+            format!("{}.{} is not unique: a point probe can choose different tied rows across replicas, even with non-null arguments", read.table, index.name),
+            repair).guide("indexes"));
     }
     if !index.unique || table.maintained.is_some() { return Ok(()); }
     let named = arguments.iter().all(|(column, _)| column.is_some());

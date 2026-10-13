@@ -8,7 +8,7 @@
 use super::{catalog::TableInfo, intent::{self, Requests}};
 use crate::ast::*;
 use crate::diag::Site;
-use snapback4_core::ir::{BRANCH_LANE, GRANT_LANE};
+use snapback4_core::ir::{BRANCH_LANE, GRANT_LANE, MEMBERSHIP_LANE, SYSTEM_LANE};
 use std::collections::BTreeMap;
 
 /// At most this many branches: each is an index range read ahead by one
@@ -21,7 +21,12 @@ type Tables = BTreeMap<String, TableInfo>;
 type Branch = (Vec<Expr>, bool);
 
 // @ref LLP 3000.036.001#2 — the rule: where-branches first, then the read rule's parties and readable grants.
-pub(super) fn expand(tables: &Tables, requests: &mut Requests, read: &ReadExpr) -> Option<MergeExpr> {
+pub(super) fn expand(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>, requests: &mut Requests, read: &ReadExpr) -> Option<MergeExpr> {
+    if let Some(merge) = membership(tables, synthesized, requests, read) { return Some(merge); }
+    // An exact owner-or-membership rule belongs wholly to PAGE. If one of its
+    // stricter eligibility checks declines, keep the original scan instead of
+    // reinterpreting its probe as a generic grant branch.
+    if owner_membership_shape(tables, synthesized, read) { return None; }
     let range = read.range.as_ref()?;
     let branches = branches(tables, requests, read, true)?;
     let mut candidate = requests.clone();
@@ -50,6 +55,218 @@ pub(super) fn expand(tables: &Tables, requests: &mut Requests, read: &ReadExpr) 
     *requests = candidate;
     Some(MergeExpr { view_order: Vec::new(), table: read.table.clone(), matching: None, filter: None, index: String::new(), order: range.order, take: range.take,
         cursor: range.cursor.clone(), lanes, site: read.site.clone() })
+}
+
+// @ref LLP 3000.036.001#14 — enumerate the decided membership source before merging its parent ranges.
+fn membership(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>, requests: &mut Requests, read: &ReadExpr) -> Option<MergeExpr> {
+    let range = read.range.as_ref()?;
+    let table = tables.get(&read.table)?;
+    if read.index.is_some() || !read.keys.is_empty() || read.matching.is_some() || !read.computed.is_empty() || read.cursor_prefix.is_some() { return None; }
+    if table.maintained.is_some() || table.through.is_some() || table.decl.ephemeral.is_some() || !table.captures.is_empty() || table.decl.public.is_some() { return None; }
+    if read.filter.as_deref().is_some_and(|filter| !total(filter)) { return None; }
+    let mut probe = requests.clone();
+    let mut planned = read.clone();
+    probe.read(tables, &mut planned, false);
+    if decided(tables, &planned) { return None; }
+    let mut disjunct_list = Vec::new(); disjuncts(read_rule(table)?, &mut disjunct_list);
+    let (mut parties, mut memberships) = (Vec::new(), Vec::new());
+    for disjunct in disjunct_list {
+        if let Some(column) = party(table, &disjunct) { if !parties.contains(&column) { parties.push(column); } }
+        else if matches!(disjunct, Expr::Exists { .. }) { memberships.push(disjunct); }
+        else { return None; }
+    }
+    if parties.is_empty() || memberships.is_empty() { return None; }
+    let conjuncts = read.filter.as_ref().map(|filter| { let mut out = Vec::new(); intent::split(*filter.clone(), &mut out); out }).unwrap_or_default();
+    let base = where_branches(table, &conjuncts).unwrap_or_else(|| vec![conjuncts.clone()]);
+    // These are structural PAGE exclusions, not late core fallbacks: decline
+    // before the candidate can retain party/source indexes the original scan
+    // does not use.
+    let membership_targets: Vec<String> = memberships.iter().map(membership_target).collect::<Option<_>>()?;
+    if membership_targets.iter().any(|target| target == "id" || base.iter().any(|branch|
+        branch.iter().filter_map(|predicate| intent::equality(predicate, table)).any(|(column, _)| column == *target))) { return None; }
+    let descriptor_count = 1usize.saturating_add(base.len().saturating_mul(parties.len().saturating_add(memberships.len())));
+    if descriptor_count > MAX_BRANCHES { return None; }
+    let mut candidate = requests.clone();
+    let errors = candidate.error_count();
+    let mut lanes = Vec::with_capacity(descriptor_count);
+    let mut order = None;
+    let mut system = read.clone(); candidate.read(tables, &mut system, false);
+    push_membership_lane(&candidate, table, &mut lanes, &mut order, system, SYSTEM_LANE, None, None, read.filter.clone())?;
+    for branch in &base {
+        for column in &parties {
+            let mut lane = read.clone();
+            let mut predicates = vec![viewer_pin(column, &read.site)]; predicates.extend(branch.iter().cloned());
+            lane.filter = intent::conjunction(predicates); candidate.plan_lane(tables, &mut lane);
+            if !decided(tables, &lane) { return None; }
+            push_membership_lane(&candidate, table, &mut lanes, &mut order, lane, BRANCH_LANE, None, None, read.filter.clone())?;
+        }
+        for predicate in &memberships {
+            let mut source_read = read.clone();
+            let mut predicates = branch.clone(); predicates.push(predicate.clone()); source_read.filter = intent::conjunction(predicates);
+            let mut merge = super::intent_lanes::expand(tables, synthesized, &source_read)?;
+            let mut lane = merge.lanes.pop()?;
+            candidate.plan_lane(tables, lane.planned.as_mut()?);
+            let (_, source) = lane.loop_.as_mut()?;
+            let Expr::Read(source) = source else { return None };
+            let source_table = tables.get(&source.table)?;
+            let source_column = membership_source_column(tables, synthesized, table, predicate)?;
+            let mut source_candidate = candidate.clone();
+            source_candidate.read(tables, source, false);
+            // A fully pinned total unique returns at most one source row, so
+            // its row may project any membership parent without ordering the
+            // discovery scan by that field. Extra fixed probe equalities stay
+            // as exact residuals on that one row. Discard the provisional
+            // inferred index when the authored point supplies this proof.
+            let one_row = source_table.indexes.iter().filter(|index| source_table.total_unique(index)
+                && index.columns.iter().all(|column| source.keys.iter().any(|key| key.column.as_ref() == Some(column)))
+                && one_row_source_admitted(tables, source_table, source, index))
+                .min_by_key(|index| (index.columns.len(), &index.name))
+                .map(|index| (index.name.clone(), index.columns.clone()));
+            if let Some((name, columns)) = one_row {
+                let mut keys = std::mem::take(&mut source.keys);
+                let mut point = Vec::with_capacity(columns.len());
+                for column in &columns {
+                    let at = keys.iter().position(|key| key.column.as_ref() == Some(column))?;
+                    point.push(keys.remove(at));
+                }
+                let mut residuals = keys.into_iter().map(source_key_equality).collect::<Option<Vec<_>>>()?;
+                if let Some(filter) = source.filter.take() { residuals.push(*filter); }
+                // A filtered scan needs one lookahead slot to distinguish its
+                // single accepted row from an unfinished filtered page. The
+                // total unique still proves that at most one row is examined.
+                if !residuals.is_empty() {
+                    source.range = Some(RangeSpec { order: Order::Asc, take: 2, cursor: None, site: source.site.clone() });
+                }
+                source.keys = point; source.filter = intent::conjunction(residuals);
+                source.order_keys = vec!["id".into()]; source.index = Some(name);
+            } else { candidate = source_candidate; }
+            let source_index = candidate.branch_index(source_table, source)?;
+            let next_component = source.keys.len() < source_index.columns.len()
+                && source_index.columns.get(source.keys.len()) == Some(&source_column);
+            let one_row = source.keys.len() == source_index.columns.len() && source_table.total_unique(source_index);
+            if !next_component && !one_row { return None; }
+            // Uniform denial is not an empty discovery range. PAGE may commit
+            // its speculative indexes only when the fixed source pins prove
+            // a true read-rule disjunct, matching the core validator.
+            if !membership_source_witness(tables, synthesized, table, predicate, source)
+                || !membership_source_capped(tables, source) || !read_rule(source_table).is_some_and(|rule| by_form(rule, source))
+                || candidate.branch_index_width(source_table, source).is_none_or(|width| width > 8)
+                || !candidate.branch_index_fits(source_table, source) { return None; }
+            push_membership_lane(&candidate, table, &mut lanes, &mut order, *lane.planned.take()?, MEMBERSHIP_LANE,
+                lane.loop_.take(), lane.distinct.take(), lane.admission.take())?;
+        }
+    }
+    if candidate.error_count() != errors { return None; }
+    *requests = candidate;
+    Some(MergeExpr { view_order: Vec::new(), table: read.table.clone(), matching: None, filter: None, index: String::new(), order: range.order, take: range.take,
+        cursor: range.cursor.clone(), lanes, site: read.site.clone() })
+}
+
+fn source_key_equality(key: KeyPart) -> Option<Expr> {
+    let column = key.column?;
+    let site = key.site;
+    Some(Expr::Binary { op: "=".into(), left: Box::new(Expr::Member {
+        base: Box::new(Expr::Focal { site: site.clone() }), name: column, site: site.clone(),
+    }), right: Box::new(key.value), site })
+}
+
+fn one_row_source_admitted(tables: &Tables, table: &TableInfo, source: &ReadExpr, index: &IndexDecl) -> bool {
+    let mut point = source.clone();
+    point.keys.retain(|key| key.column.as_ref().is_some_and(|column| index.columns.contains(column)));
+    membership_source_capped(tables, &point)
+        && read_rule(table).is_some_and(|rule| by_form(rule, &point))
+}
+
+/// Confirm, while requests still live in the throwaway candidate, that every
+/// fixed probe component survived source planning as either a prefix pin or
+/// an exact necessary residual equality. The core repeats this check on bound
+/// IR; keeping it here prevents a later fallback from retaining unused indexes.
+// @ref LLP 3000.036.001#14 — membership candidates commit only after their complete witness is visible in discovery.
+fn membership_source_witness(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>,
+    focal: &TableInfo, predicate: &Expr, source: &ReadExpr) -> bool {
+    let Expr::Exists { read: probe, .. } = predicate else { return false };
+    let Some(columns) = super::intent_lanes::probe_columns(tables, synthesized, focal, probe) else { return false };
+    probe.keys.iter().zip(columns).all(|(key, column)| intent::column(&key.value).is_some()
+        || source_fixed(source, &column, &key.value))
+}
+
+fn source_fixed(source: &ReadExpr, column: &str, value: &Expr) -> bool {
+    source.keys.iter().any(|key| key.column.as_deref() == Some(column) && same_fixed(&key.value, value))
+        || source.filter.as_deref().is_some_and(|filter| required_source_equality(filter, column, value))
+}
+
+fn required_source_equality(filter: &Expr, column: &str, value: &Expr) -> bool {
+    match filter {
+        Expr::Binary { op, left, right, .. } if op == "and" =>
+            required_source_equality(left, column, value) || required_source_equality(right, column, value),
+        Expr::Binary { op, left, right, .. } if op == "=" && intent::column(left) == Some(column) => same_fixed(right, value),
+        Expr::Binary { op, left, right, .. } if op == "=" && intent::column(right) == Some(column) => same_fixed(left, value),
+        _ => false,
+    }
+}
+
+fn same_fixed(left: &Expr, right: &Expr) -> bool {
+    match (left, right) {
+        (Expr::Name { name: a, .. }, Expr::Name { name: b, .. }) => a == b,
+        (Expr::Literal { value: a, .. }, Expr::Literal { value: b, .. }) => a == b,
+        (Expr::Unary { op: a, value: av, .. }, Expr::Unary { op: b, value: bv, .. }) => a == b && same_fixed(av, bv),
+        _ => false,
+    }
+}
+
+fn push_membership_lane(candidate: &Requests, table: &TableInfo, lanes: &mut Vec<MergeLane>, order: &mut Option<Vec<String>>, lane: ReadExpr,
+    branch: &str, loop_: Option<(String, Expr)>, distinct: Option<Expr>, admission: Option<Box<Expr>>) -> Option<()> {
+    if order.get_or_insert_with(|| lane.order_keys.clone()) != &lane.order_keys || lane.index.is_none() { return None; }
+    if lane.keys.len() + lane.order_keys.len() > 8 || !candidate.branch_index_fits(table, &lane) { return None; }
+    lanes.push(MergeLane { admission, nulls: None, distinct, branch: Some(branch.into()), planned: Some(Box::new(lane)), project: None,
+        table: None, prefix: Vec::new(), columns: None, loop_, site: table.decl.site.clone() }); Some(())
+}
+
+fn membership_source_capped(tables: &Tables, source: &ReadExpr) -> bool {
+    let Some(table) = tables.get(&source.table) else { return false };
+    let pinned: Vec<&str> = source.keys.iter().filter_map(|key| key.column.as_deref()).collect();
+    let ceiling = snapback4_core::Ceilings::default().examined;
+    table.decl.caps.iter().any(|cap| u64::from(cap.max) <= ceiling && cap.by.iter().all(|column| pinned.contains(&column.as_str())))
+}
+
+fn membership_target(predicate: &Expr) -> Option<String> {
+    let Expr::Exists { read, .. } = predicate else { return None };
+    let mut target = None;
+    for key in &read.keys {
+        if let Some(column) = intent::column(&key.value) {
+            if target.replace(column.to_owned()).is_some() { return None; }
+        } else if !intent::independent(&key.value) { return None; }
+    }
+    target
+}
+
+fn membership_source_column(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>,
+    focal: &TableInfo, predicate: &Expr) -> Option<String> {
+    let Expr::Exists { read: probe, .. } = predicate else { return None };
+    let columns = super::intent_lanes::probe_columns(tables, synthesized, focal, probe)?;
+    probe.keys.iter().zip(columns).find_map(|(key, column)| intent::column(&key.value).map(|_| column))
+}
+
+fn owner_membership_shape(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>, read: &ReadExpr) -> bool {
+    let Some(table) = tables.get(&read.table) else { return false };
+    let Some(rule) = read_rule(table) else { return false };
+    let mut leaves = Vec::new(); disjuncts(rule, &mut leaves);
+    let party = leaves.iter().any(|leaf| self::party(table, leaf).is_some());
+    let membership = leaves.iter().any(|leaf| membership_probe_capped(tables, synthesized, table, leaf));
+    party && membership && leaves.iter().all(|leaf| self::party(table, leaf).is_some() || membership_probe_capped(tables, synthesized, table, leaf))
+}
+
+fn membership_probe_capped(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>, focal: &TableInfo, predicate: &Expr) -> bool {
+    let Expr::Exists { read, .. } = predicate else { return false };
+    // PAGE reserves only a probe with one target-row component. A fully fixed
+    // capped probe is an ordinary static grant and remains eligible for the
+    // older branch merge.
+    if membership_target(predicate).is_none() { return false; }
+    let Some(table) = tables.get(&read.table) else { return false };
+    let Some(columns) = super::intent_lanes::probe_columns(tables, synthesized, focal, read) else { return false };
+    let fixed: Vec<String> = read.keys.iter().zip(columns).filter_map(|(key, column)|
+        intent::column(&key.value).is_none().then_some(column)).collect();
+    table.decl.caps.iter().any(|cap| cap.by.iter().all(|column| fixed.contains(column)))
 }
 
 /// `exists t where W` with `W` branch-decided: `exists (branch 1) or …`, each

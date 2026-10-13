@@ -194,7 +194,7 @@ impl Runner<'_> {
     fn scope_head(&mut self, scan: &Scan, after: Option<Vec<Value>>) -> Result<Option<Vec<Value>>, RuntimeError> {
         let table = &self.schema.tables[&scan.table];
         let index = &table.indexes[&scan.index];
-        let mut bounds = self.word_bounds(scan, table, index, None, true)?;
+        let mut bounds = self.word_bounds(scan, table, index, None, true, false)?;
         let Some((scope, first, mut word)) = self.prepare_words(scan, true)? else { return Ok(None) };
         // Field selection is a storage optimization, never an authorization
         // bypass: deciding fields, expiry and remaining-term/filter inputs stay.

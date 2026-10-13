@@ -54,14 +54,25 @@ def Term.eval (v : List Nat) (im : Imgs) : Term → Option Scalar
   | .viewer => some (.id v)
   | .lit x => some x
 
-/-- A key probe's components; a null or undefined component never matches
-(indexes card: "Null for a unique key argument returns no row"). -/
-def probeKey (v : List Nat) (im : Imgs) (key : List (String × Term)) :
+/-- Evaluate every component of a key probe. -/
+def probeTerms (v : List Nat) (im : Imgs) (key : List (String × Term)) :
     Option (List (String × Scalar)) :=
-  key.mapM fun p => match p.2.eval v im with
-    | some .null => none
-    | some x => some (p.1, x)
-    | none => none
+  key.mapM fun p => Option.map (fun x => (p.1, x)) (p.2.eval v im)
+
+/-- Null returns no row only when it occurs in the selected unique point key.
+Nullable equalities outside that key are residual predicates and may match
+null. An empty `point` keeps the older all-components convention for the
+hand-written core model. -/
+def probeKey (v : List Nat) (im : Imgs) (point : List String)
+    (key : List (String × Term)) :
+    Option (List (String × Scalar)) :=
+  match probeTerms v im key with
+  | none => none
+  | some ks =>
+    let selected := if point.isEmpty then ks else ks.filter fun p => point.contains p.1
+    if selected.length == (if point.isEmpty then ks.length else point.eraseDups.length)
+        && !(selected.any fun p => p.2 == .null)
+    then some ks else none
 
 def keyMatch (ks : List (String × Scalar)) (r : Row) : Bool :=
   ks.all fun p => decide (r.get p.1 = p.2)
@@ -76,7 +87,7 @@ def Rule.eval (s : Store) (v : List Nat) (im : Imgs) : Rule → Bool
   | .ne a b => match a.eval v im, b.eval v im with
     | some x, some y => decide (x ≠ y)
     | _, _ => false
-  | .probe t key => match probeKey v im key with
+  | .probe t point key => match probeKey v im point key with
     | some ks => (s t).any (keyMatch ks)
     | none => false
   | .and a b => a.eval s v im && b.eval s v im
@@ -85,7 +96,7 @@ def Rule.eval (s : Store) (v : List Nat) (im : Imgs) : Rule → Bool
 
 /-- The tables a rule probes. -/
 def Rule.probes : Rule → List String
-  | .probe t _ => [t]
+  | .probe t _ _ => [t]
   | .and a b | .or a b => a.probes ++ b.probes
   | .not a => a.probes
   | _ => []
@@ -98,7 +109,7 @@ def Term.selfCols : Term → List String
 /-- Every term a rule compares or probes with, left to right. -/
 def Rule.terms : Rule → List Term
   | .eq a b | .ne a b => [a, b]
-  | .probe _ key => key.map (·.2)
+  | .probe _ _ key => key.map (·.2)
   | .and a b | .or a b => a.terms ++ b.terms
   | .not a => a.terms
   | .allow | .deny => []
@@ -109,7 +120,7 @@ def Rule.selfCols (r : Rule) : List String := r.terms.flatMap Term.selfCols
 def Rule.mapTerms (f : Term → Term) : Rule → Rule
   | .eq a b => .eq (f a) (f b)
   | .ne a b => .ne (f a) (f b)
-  | .probe t key => .probe t (key.map fun p => (p.1, f p.2))
+  | .probe t point key => .probe t point (key.map fun p => (p.1, f p.2))
   | .and a b => .and (a.mapTerms f) (b.mapTerms f)
   | .or a b => .or (a.mapTerms f) (b.mapTerms f)
   | .not a => .not (a.mapTerms f)
@@ -124,7 +135,7 @@ def Rule.disjuncts : Rule → List Rule
   | .deny => [.deny]
   | .eq a b => [.eq a b]
   | .ne a b => [.ne a b]
-  | .probe t key => [.probe t key]
+  | .probe t point key => [.probe t point key]
   | .and a b => [.and a b]
   | .not a => [.not a]
 
@@ -136,6 +147,41 @@ def Rule.positive : Rule → Bool
   | .not _ => false
   | .and a b | .or a b => a.positive && b.positive
   | .allow | .deny | .eq .. | .ne .. | .probe .. => true
+
+/-- Fold only rule truth values that remain known after pin substitution.
+Boolean literal comparisons match the engine's required-boolean pin proof;
+in particular, a nullable `null` pin is not treated as boolean `false`.
+Probes are never folded, so normalization cannot turn a negated probe into a
+page grant (LLP 3000.036 §14). -/
+-- @ref LLP 3000.036.001#9 — the formal classifier and executable model share prefix-normalized guards.
+def Rule.normalize : Rule → Rule
+  | .eq (.lit (.bool a)) (.lit (.bool b)) => if a == b then .allow else .deny
+  | .eq (.lit a) (.lit b) => if a == b then .allow else .eq (.lit a) (.lit b)
+  | .eq .viewer .viewer => .allow
+  | .eq a b => .eq a b
+  | .ne (.lit (.bool a)) (.lit (.bool b)) => if a != b then .allow else .deny
+  | .ne (.lit a) (.lit b) => if a != b then .ne (.lit a) (.lit b) else .deny
+  | .ne .viewer .viewer => .deny
+  | .ne a b => .ne a b
+  | .and a b =>
+      match a.normalize, b.normalize with
+      | .allow, b' => b'
+      | a', .allow => a'
+      | .deny, _ | _, .deny => .deny
+      | a', b' => .and a' b'
+  | .or a b =>
+      match a.normalize, b.normalize with
+      | .allow, _ | _, .allow => .allow
+      | .deny, b' => b'
+      | a', .deny => a'
+      | a', b' => .or a' b'
+  | .not a => match a.normalize with
+      | .allow => .deny
+      | .deny => .allow
+      | a' => .not a'
+  | .allow => .allow
+  | .deny => .deny
+  | .probe t point key => .probe t point key
 
 /-- A term with each pinned row column replaced by its pinned value. -/
 def Term.pin (ps : List (String × Scalar)) : Term → Term

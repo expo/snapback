@@ -295,8 +295,7 @@ Attribution capture runs inside the same atomic activation, before that rebuild,
 
 This example credits the author of the immediate target. A direct reply credits
 the original author; a reply to a reply credits that reply's author. `postId`
-always names the root original for thread membership. `replyTarget` names only
-the immediate reply, never an id stored as the wrong table's reference.
+always names the root original for thread membership. `replyTarget` names only the immediate reply, never an id stored as the wrong table's reference.
 The two like tables make target identity explicit. Their maintained totals
 add at read time; no sum-type reference or recursive attribution is needed.
 
@@ -346,7 +345,8 @@ mutation reply(postId: posts, replyTarget: replies ?, body: text <=500):
   if replyTarget != null:
     target = replies[id = replyTarget] ! else REPLY_NOT_FOUND
     require target.postId = postId else WRONG_THREAD
-  return insert replies { postId, replyTarget, authorId: viewer, body }
+    return insert replies { postId, replyTarget: target.id, authorId: viewer, body }
+  return insert replies { postId, replyTarget: null, authorId: viewer, body }
 mutation likePost(postId: posts):
   require exists posts[id = postId] else POST_NOT_FOUND
   return insert postLikes { postId, principal: viewer } if absent
@@ -458,7 +458,8 @@ table likes:
   delete <- .principal = viewer
   online only
 mutation like(postId: posts):
-  insert likes { postId, principal: viewer } if absent
+  post = posts[postId] ! else NOT_FOUND
+  insert likes { postId: post.id, principal: viewer } if absent
 query trending(c: cursor ?):
   return posts after c last 20 by .likeCount, .at { * }
 ```
@@ -575,7 +576,6 @@ table likes:
 
 view likeCounts: count likes by .postId
   online only
-
 table ranked:
   postId: posts
   score: int
@@ -584,9 +584,9 @@ table ranked:
   public 'ranking'
   insert <- exists likeCounts[postId = .postId, value = .score] or (.score = 0 and not exists likeCounts[postId = .postId])
   update (old, next) <- exists likeCounts[postId = next.postId, value = next.score] or (next.score = 0 and not exists likeCounts[postId = next.postId])
-
 mutation refresh(postId: posts):
-  upsert ranked[postId = postId] { postId, score: likeCounts[postId] }
+  post = posts[postId] ! else NOT_FOUND
+  upsert ranked[postId = post.id] { postId: post.id, score: likeCounts[post.id] }
 ```
 
 The zero case matters: a count group has no row without contributions. These
@@ -686,7 +686,7 @@ mutation send(conversationId: conversations):
     expiresAt: now + conversation.timer if conversation.timer != null else null }
   return m.id
 query myUnread(member: members):
-  return unreadCounts[member]
+  return unreadCounts[member] ! else NOT_ALLOWED
 query unreadBadges(conversationId: conversations, c: cursor ?):
   return unreadCounts where .conversationId = conversationId first 50 after c { member, value, recountPending }
 ```

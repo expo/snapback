@@ -472,11 +472,11 @@ impl Merge {
     /// A branch merge: a query page planned as the k-way merge of its
     /// disjunctive branches, each lane an index range of one table whose
     /// prefix decides the read rule (or a grant lane). Its lanes carry
-    /// `BRANCH_LANE` or `GRANT_LANE` as their branch identity; no view does.
+    /// one of the branch identities below; no view does.
     // @ref LLP 3000.036.001#3 — the lane identity marks the plan, so no existing program's IR or digest changes.
     pub fn branches(&self) -> bool {
         self.view.is_none() && !self.lanes.is_empty()
-            && self.lanes.iter().all(|lane| matches!(lane.branch.as_deref(), Some(BRANCH_LANE | GRANT_LANE)))
+            && self.lanes.iter().all(|lane| matches!(lane.branch.as_deref(), Some(BRANCH_LANE | GRANT_LANE | MEMBERSHIP_LANE | SYSTEM_LANE)))
     }
     /// The cursor descriptor's index field: a bounded digest of the branch
     /// set, in lane order. Legal labels repeated across eight lanes can
@@ -490,7 +490,19 @@ impl Merge {
         for lane in &self.lanes {
             hash.update((lane.scan.index.len() as u64).to_be_bytes());
             hash.update(lane.scan.index.as_bytes());
+            // Keep the published static branch-merge-v1 bytes in their
+            // original order. New PAGE identity is appended only for its new
+            // descriptors, so an existing static cursor keeps resuming.
             hash.update([u8::from(lane.grant())]);
+            if lane.membership() {
+                hash.update(MEMBERSHIP_LANE.as_bytes());
+            } else if lane.system() {
+                hash.update(SYSTEM_LANE.as_bytes());
+            }
+            if lane.membership() { if let Some(source) = lane.source.as_ref().and_then(LaneSource::scan) {
+                hash.update((source.table.len() as u64).to_be_bytes()); hash.update(source.table.as_bytes());
+                hash.update((source.index.len() as u64).to_be_bytes()); hash.update(source.index.as_bytes());
+            } }
         }
         format!("{BRANCH_DESCRIPTOR}{:x}", hash.finalize())
     }
@@ -500,11 +512,17 @@ impl Merge {
 pub const BRANCH_LANE: &str = "$or";
 /// A branch merge's lane read only when the table's readable grant holds.
 pub const GRANT_LANE: &str = "$or:grant";
+/// A branch merge descriptor that expands a capped membership source.
+pub const MEMBERSHIP_LANE: &str = "$or:membership";
+/// The original range, opened only for the system principal.
+pub const SYSTEM_LANE: &str = "$or:system";
 /// The prefix of a branch merge's cursor descriptor (cursor version 4).
 pub const BRANCH_DESCRIPTOR: &str = "$or:";
 
 impl MergeLane {
     pub fn grant(&self) -> bool { self.branch.as_deref() == Some(GRANT_LANE) }
+    pub fn membership(&self) -> bool { self.branch.as_deref() == Some(MEMBERSHIP_LANE) }
+    pub fn system(&self) -> bool { self.branch.as_deref() == Some(SYSTEM_LANE) }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

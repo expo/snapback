@@ -47,7 +47,7 @@ pub(super) fn pin_rewrite(schema: &Schema, program: &Program, scan: &Scan, table
         out.push(format!("{first}add `and {}` to the page's where (keeping its current pins); this narrows the answer to that scope{others}", pins.join(" and ")));
     }
     if let super::complete_form::Outcome::None(why) = &form {
-        out.push(format!("there is no single complete form: {why}; keep the query as written and expect `complete: false` (`capped`; test.cases.jsonl's default passes it)"));
+        out.push(format!("no verified complete form for this read: {why}; keep the query as written and expect `complete: false` (`capped`; test.cases.jsonl's default passes it). This does not rule out an author-written branched query"));
     }
     // @ref LLP 3000.036#12 — the engine decides a page once for a caller whose readable grant holds.
     if let Some(used) = &grant {

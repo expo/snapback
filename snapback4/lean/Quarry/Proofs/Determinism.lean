@@ -111,7 +111,7 @@ theorem Rule.eval_perm {s1 s2 : Store} (hp : ∀ t, (s1 t).Perm (s2 t)) {v : Lis
     ∀ r : Rule, r.eval s1 v im = r.eval s2 v im := by
   intro r
   induction r with
-  | probe t key =>
+  | probe t point key =>
     simp only [Rule.eval]
     split
     · rename_i ks _
@@ -125,7 +125,8 @@ theorem Rule.eval_perm {s1 s2 : Store} (hp : ∀ t, (s1 t).Perm (s2 t)) {v : Lis
   | _ => rfl
 
 theorem granted_perm {sch : Schema} {vw1 vw2 : View} (hp : ∀ t, (vw1 t).Perm (vw2 t)) {v : List Nat}
-    {t : String} {ps : List (String × Scalar)} : granted sch vw1 v t ps = granted sch vw2 v t ps := by
+    {t : String} {ps : List (String × Scalar)} {pins : List (String × Expr)} :
+    granted sch vw1 v t ps pins = granted sch vw2 v t ps pins := by
   unfold granted
   split
   · simp only [Rule.eval_perm hp]
@@ -134,9 +135,9 @@ theorem granted_perm {sch : Schema} {vw1 vw2 : View} (hp : ∀ t, (vw1 t).Perm (
 /-- **Scan order is determined by key order**: a page over two views that
 hold the same rows of each table, in any order, gives the same answer
 (the readable-grant verdict probes other tables, so all of them count). -/
-theorem pageRead_perm {cx : Ctx} {vw1 vw2 : View} {t : String} {ps filt order desc take cur fm mg}
+theorem pageRead_perm {cx : Ctx} {vw1 vw2 : View} {t : String} {ps pins filt order desc take cur fm mg}
     (hp : ∀ t', (vw1 t').Perm (vw2 t')) (hn : ((vw1 t).map Row.id).Nodup) :
-    pageRead cx vw1 t ps filt order desc take cur fm mg = pageRead cx vw2 t ps filt order desc take cur fm mg := by
+    pageRead cx vw1 t ps pins filt order desc take cur fm mg = pageRead cx vw2 t ps pins filt order desc take cur fm mg := by
   unfold pageRead decided
   rw [candidates_perm (hp t) hn, granted_perm hp]
 

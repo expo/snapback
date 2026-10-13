@@ -48,7 +48,7 @@ fn column_oracle_clock_and_zeros_in_one_merge() {
 
 #[test]
 fn column_ranking_keeps_source_write_authority() {
-    let mut engine = engine("\nmutation forgePrincipal(postId: posts, principal: principal):\n  insert likes { postId, principal }\nmutation foreignUnlike(postId: posts, principal: principal):\n  delete likes[postId, principal]\n");
+    let mut engine = engine("\nmutation forgePrincipal(postId: posts, principal: principal):\n  post = posts[postId] ! else NOT_FOUND\n  insert likes { postId: post.id, principal }\nmutation foreignUnlike(postId: posts, principal: principal):\n  delete likes[postId, principal]\n");
     seed_post(&mut engine,"edge",NOW-HOUR,0);
     set_like(&mut engine,"alice","edge",true,NOW,"initial");
     for op in ["forgePrincipal","foreignUnlike"] {

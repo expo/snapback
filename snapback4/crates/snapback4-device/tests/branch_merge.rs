@@ -166,3 +166,271 @@ fn online<H: Host>(host: &mut H) {
 fn sqlite_online_branches_ask_the_server() { online(&mut Sqlite::new("branch-online")); }
 #[test]
 fn memory_online_branches_ask_the_server() { online(&mut Memory::new()); }
+
+const OWNER_MEMBERSHIP: &str = "table memberships:
+  parent: text <=40
+  principal: principal
+  unique parent, principal
+  cap 16 by principal
+  read <- .principal = viewer
+  insert <- .principal = viewer and exists memberships[.parent, viewer]
+  sync to .principal
+
+table documents:
+  owner: principal
+  parent: text <=40
+  at: int
+  read <- .owner = viewer or exists memberships[.parent, viewer]
+  insert <- .owner = viewer
+  sync to .owner or memberships[.parent]
+
+query documents(c: cursor ?):
+  return documents last 2 by .at after c
+";
+
+// @ref LLP 3000.036.001#14 — acquired source and union target ranges run the same dynamic merge on both device stores.
+fn owner_membership<H: Host>(host: &mut H) {
+    let (mut engine, backend) = compile(OWNER_MEMBERSHIP);
+    let bound = snapback4_lang::compile(&[("schema.q".into(), OWNER_MEMBERSHIP.into())]);
+    let program = &bound.programs.iter().find(|p| p.program.name == "documents").unwrap().program;
+    assert!(snapback4_core::ir::body_merges(&program.body).iter().any(|merge| merge.lanes.iter().any(|lane| lane.membership())));
+    engine.seed(vec![
+        row("memberships", vec![("id", id("m1")), ("parent", Value::String("p1".into())), ("principal", id("ann"))]),
+        row("memberships", vec![("id", id("m2")), ("parent", Value::String("p2".into())), ("principal", id("ann"))]),
+        row("documents", vec![("id", id("d1")), ("owner", id("ann")), ("parent", Value::String("p0".into())), ("at", Value::Int(1))]),
+        row("documents", vec![("id", id("d2")), ("owner", id("bob")), ("parent", Value::String("p9".into())), ("at", Value::Int(2))]),
+        row("documents", vec![("id", id("d3")), ("owner", id("ann")), ("parent", Value::String("p1".into())), ("at", Value::Int(3))]),
+        row("documents", vec![("id", id("d4")), ("owner", id("bob")), ("parent", Value::String("p1".into())), ("at", Value::Int(4))]),
+        row("documents", vec![("id", id("d5")), ("owner", id("bob")), ("parent", Value::String("p2".into())), ("at", Value::Int(5))]),
+    ]).unwrap();
+    let server = walk_server(&mut engine, "documents", "ann", &[]);
+    assert_eq!(server, (vec!["d5".into(), "d4".into(), "d3".into(), "d1".into()], true));
+
+    let mut missing = host.open("owner-membership-missing", Some(backend.clone())).unwrap();
+    let (out, unknown, _) = missing.query_with_coverage("documents", "ann", &json!({"c": null}), 1_000);
+    assert_eq!(out.unwrap_err().code, "E_PREDICT", "{}: {unknown}", host.label());
+
+    let mut device = host.open("owner-membership", Some(backend)).unwrap();
+    for (n, page) in snapshot_pages(&mut engine, "ann", 2).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
+    let held = walk_device(&mut device, "documents", "ann", json!({}));
+    assert_eq!((held.0, held.1, held.2), (server.0, true, false), "{}", host.label());
+}
+
+#[test]
+fn sqlite_owner_membership_pages_use_acquired_groups() { owner_membership(&mut Sqlite::new("branch-owner-membership")); }
+#[test]
+fn memory_owner_membership_pages_use_acquired_groups() { owner_membership(&mut Memory::new()); }
+
+const SINGLE_OWNER_MEMBERSHIP: &str = "table groups:
+  principal: principal
+  unique principal
+  cap 16 by principal
+  read <- .principal = viewer
+  online only
+
+table documents:
+  owner: principal
+  parent: groups
+  at: int
+  read <- .owner = viewer or exists groups[id = .parent, principal = viewer]
+  online only
+
+query documents(c: cursor ?):
+  return documents last 2 by .at after c
+";
+
+// @ref LLP 3000.036.001#14 — a fully pinned total-unique online source remains incomplete on both device stores.
+fn single_owner_membership<H: Host>(host: &mut H) {
+    let (mut engine, backend) = compile(SINGLE_OWNER_MEMBERSHIP);
+    let bound = snapback4_lang::compile(&[("schema.q".into(), SINGLE_OWNER_MEMBERSHIP.into())]);
+    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+        .into_iter().any(|merge| merge.lanes.iter().any(|lane| lane.membership())));
+    engine.seed(vec![
+        row("groups", vec![("id", id("g0")), ("principal", id("bob"))]),
+        row("groups", vec![("id", id("g1")), ("principal", id("ann"))]),
+        row("documents", vec![("id", id("owned")), ("owner", id("ann")), ("parent", id("g0")), ("at", Value::Int(1))]),
+        row("documents", vec![("id", id("shared")), ("owner", id("bob")), ("parent", id("g1")), ("at", Value::Int(2))]),
+        row("documents", vec![("id", id("hidden")), ("owner", id("bob")), ("parent", id("g0")), ("at", Value::Int(3))]),
+    ]).unwrap();
+    let server = walk_server(&mut engine, "documents", "ann", &[]);
+    assert_eq!(server, (vec!["shared".into(), "owned".into()], true));
+
+    let mut missing = host.open("single-owner-membership-missing", Some(backend.clone())).unwrap();
+    let (out, unknown, _) = missing.query_with_coverage("documents", "ann", &json!({"c": null}), 1_000);
+    let out = out.unwrap();
+    assert!(unknown && !out.complete && out.next.is_none() && out.data.as_array().unwrap().is_empty());
+
+    let mut device = host.open("single-owner-membership", Some(backend)).unwrap();
+    for (n, page) in snapshot_pages(&mut engine, "ann", 2).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
+    let (out, unknown, _) = device.query_with_coverage("documents", "ann", &json!({"c": null}), 1_000);
+    let out = out.unwrap();
+    assert!(unknown && !out.complete && out.data.as_array().unwrap().is_empty(), "{}: {out:?}", host.label());
+}
+
+#[test]
+fn sqlite_total_unique_membership_source_uses_implicit_id() { single_owner_membership(&mut Sqlite::new("single-owner-membership")); }
+#[test]
+fn memory_total_unique_membership_source_uses_implicit_id() { single_owner_membership(&mut Memory::new()); }
+
+fn owner_membership_rows(expired: bool) -> Vec<(String, Value)> {
+    let membership = |name: &str, parent: &str, until: Value| {
+        row(
+            "memberships",
+            vec![
+                ("id", id(name)),
+                ("parent", Value::String(parent.into())),
+                ("principal", id("ann")),
+                ("until", until),
+            ],
+        )
+    };
+    vec![
+        membership(
+            "m1",
+            "p1",
+            if expired { Value::Int(1) } else { Value::Null },
+        ),
+        membership("m2", "p2", Value::Null),
+        row(
+            "documents",
+            vec![
+                ("id", id("d1")),
+                ("owner", id("ann")),
+                ("parent", Value::String("p0".into())),
+                ("at", Value::Int(1)),
+            ],
+        ),
+        row(
+            "documents",
+            vec![
+                ("id", id("d3")),
+                ("owner", id("ann")),
+                ("parent", Value::String("p1".into())),
+                ("at", Value::Int(3)),
+            ],
+        ),
+        row(
+            "documents",
+            vec![
+                ("id", id("d4")),
+                ("owner", id("bob")),
+                ("parent", Value::String("p1".into())),
+                ("at", Value::Int(4)),
+            ],
+        ),
+        row(
+            "documents",
+            vec![
+                ("id", id("d5")),
+                ("owner", id("bob")),
+                ("parent", Value::String("p2".into())),
+                ("at", Value::Int(5)),
+            ],
+        ),
+    ]
+}
+
+fn owner_membership_rows_without_expiry() -> Vec<(String, Value)> {
+    owner_membership_rows(false)
+        .into_iter()
+        .map(|(table, mut value)| {
+            if table == "memberships"
+                && let Value::Row(fields) = &mut value
+            {
+                fields.remove("until");
+            }
+            (table, value)
+        })
+        .collect()
+}
+
+fn apply_snapshot<S: snapback4_device::store::DeviceStore>(
+    device: &mut snapback4_device::device::Device<S>,
+    pages: &[snapback4_device::device::StreamPage],
+) {
+    for (n, page) in pages.iter().enumerate() {
+        device.apply(page, n == 0).unwrap();
+    }
+}
+
+/// Expired, unswept membership rows cannot create target lanes. A partial
+/// source discovery returns no local prefix. PAGE target sync is necessarily
+/// a horizon-free union (the compiler refuses a window or retained history on
+/// a union), so its device fallback is the existing all-unacquired case.
+// @ref LLP 3000.036.001#14 — PAGE uses live memberships and a complete source discovery.
+fn owner_membership_boundaries<H: Host>(host: &mut H) {
+    let expiring = OWNER_MEMBERSHIP
+        .replace("  principal: principal\n  unique", "  principal: principal\n  until: time ?\n  by byExpiry: until\n  expire at .until\n  unique")
+        .replace("read <- .owner = viewer or exists memberships[.parent, viewer]",
+            "read <- .owner = viewer or exists memberships[id = 'm1', parent = .parent, principal = viewer]")
+        .replace("  sync to .principal", "  online only")
+        .replace("  sync to .owner or memberships[.parent]", "  online only");
+    let (mut engine, backend) = compile(&expiring);
+    engine.seed(owner_membership_rows(true)).unwrap();
+    let server = walk_server(&mut engine, "documents", "ann", &[]);
+    assert_eq!(server, (vec!["d3".into(), "d1".into()], true));
+    let pages = snapshot_pages(&mut engine, "ann", 2);
+    assert!(
+        pages
+            .iter()
+            .flat_map(|page| &page.events)
+            .all(|event| event.table != "memberships" && event.table != "documents")
+    );
+    let mut device = host.open("owner-membership-expiry", Some(backend)).unwrap();
+    apply_snapshot(&mut device, &pages);
+    let (out, unknown, _) =
+        device.query_with_coverage("documents", "ann", &json!({"c": null}), 1_000);
+    let out = out.unwrap();
+    assert!(
+        unknown && !out.complete && out.data.as_array().unwrap().is_empty(),
+        "{}: an expiring online membership source falls back: {out:?}",
+        host.label()
+    );
+
+    let source_horizon = OWNER_MEMBERSHIP
+        .replace(
+            "  unique parent, principal",
+            "  unique parent, principal\n  by byPrincipalParent: principal, parent, id",
+        )
+        .replace("read <- .owner = viewer or exists memberships[.parent, viewer]",
+            "read <- .owner = viewer or exists memberships[id = 'm1', parent = .parent, principal = viewer]")
+        .replace(
+            "  sync to .principal",
+            "  sync to .principal last 1 by byPrincipalParent",
+        )
+        .replace("  sync to .owner or memberships[.parent]", "  online only");
+    let (mut engine, backend) = compile(&source_horizon);
+    engine.seed(owner_membership_rows_without_expiry()).unwrap();
+    let pages = snapshot_pages(&mut engine, "ann", 2);
+    assert!(
+        pages
+            .iter()
+            .flat_map(|page| &page.acquisitions)
+            .any(|marker| marker.table == "memberships"
+                && marker
+                    .floor
+                    .as_deref()
+                    .is_some_and(|floor| floor != "whole"))
+    );
+    let mut device = host
+        .open("owner-membership-source-horizon", Some(backend))
+        .unwrap();
+    apply_snapshot(&mut device, &pages);
+    let (out, unknown, _) =
+        device.query_with_coverage("documents", "ann", &json!({"c": null}), 1_000);
+    let out = out.unwrap();
+    assert!(
+        unknown && !out.complete && out.next.is_none() && out.data.as_array().unwrap().is_empty(),
+        "{}: discovery must finish before PAGE emits: {out:?}",
+        host.label()
+    );
+}
+
+#[test]
+fn sqlite_owner_membership_expiry_and_source_horizon() {
+    owner_membership_boundaries(&mut Sqlite::new("branch-owner-membership-boundaries"));
+}
+#[test]
+fn memory_owner_membership_expiry_and_source_horizon() {
+    owner_membership_boundaries(&mut Memory::new());
+}

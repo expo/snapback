@@ -41,6 +41,7 @@
 //! | Cursor suffix names/types/slots | retained interpreter storage | S<CursorColumn>(remaining+id)+names+recursive column payload | suffix, before with_capacity/clone |
 //! | Evaluated cursor bound copies | retained interpreter storage | V(position.values) per lane | word_bounds, before clone |
 //! | Read-table and dependency sets | retained interpreter storage | A(name)+insertion<String,()> only on first insertion | word_note_table, before owned name/insert; dependency traversal borrows rules |
+//! | Membership source distinct keys | retained interpreter storage | A(exact canonical JSON bytes)+insertion<String,()> | lane_values counts without allocation, charges, then writes into one fixed-capacity buffer moved into the set |
 //! | Visibility and compiled Scan/Expr trees | shared images | 0; borrowed traversal, including eight 4 KiB literals | scan_visibility and merge_lazy never clone per generated lane |
 //! | Scope verdict temporary prefix row/terms | bounded store scratch | verdict(): collect slots+map nodes+names+owned terms+Arc header | discover_words, before prefix_verdict |
 //! | Device retained verdict and coverage diagnostic | retained interpreter storage | 256*(192+V(scope)+A(table)+A(index)+A(site)) | discover_words, before retained_group/unknown_fact/horizon_coverage |

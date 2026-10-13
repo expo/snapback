@@ -14,9 +14,12 @@ fn notes(bound: &Bound) -> Vec<&snapback4_lang::Diagnostic> {
 }
 
 #[test]
-fn comparative_bare_history_and_separate_decorations_compile_without_notes() {
+fn comparative_bare_history_and_separate_decorations_compile_without_held_notes() {
     let bound = bound(COMPARATIVE);
-    assert!(bound.notes.is_empty(), "{:?}", bound.notes);
+    assert!(notes(&bound).is_empty(), "{:?}", bound.notes);
+    assert_eq!(bound.notes.len(), 1, "{:?}", bound.notes);
+    assert_eq!(bound.notes[0].code, "N_REFERENCE_UNCHECKED");
+    assert!(bound.notes[0].message.contains("mutation sendText") && bound.notes[0].message.contains("messages[quote]"), "{:?}", bound.notes);
     assert!(!bound.schema.operations["history"].held);
     assert!(bound.schema.operations["searchHeld"].held);
     let history = &bound.programs.iter().find(|p| p.program.name == "history").unwrap().program;

@@ -27,6 +27,7 @@ const ROOMS: &str = "table members:
   roomId: id
   principal: principal
   unique roomId, principal else MEMBER_EXISTS
+  cap 16 by principal
   read <- exists members[.roomId, viewer]
   insert <- .principal = viewer
   update <- .principal = viewer
@@ -67,13 +68,14 @@ fn schema_expansions_follow_syntax_lean() {
     let m = module(ROOMS);
     let members = table(&m, "members");
     // A positional rule probe resolves to the one unique key accepting (id, principal).
-    assert_eq!(members["read"], json!({"probe": {"table": "members", "key": [["roomId", {"col": ["self", "roomId"]}], ["principal", "viewer"]]}}));
+    assert_eq!(members["read"], json!({"probe": {"table": "members", "point": ["roomId", "principal"], "key": [["roomId", {"col": ["self", "roomId"]}], ["principal", "viewer"]]}}));
     // An unnamed update rule judges both images (OPEN R2).
     assert_eq!(members["update"], json!({"and": [{"eq": [{"col": ["old", "principal"]}, "viewer"]}, {"eq": [{"col": ["next", "principal"]}, "viewer"]}]}));
     // Omitted rules deny; uniques carry their `else` code.
     assert_eq!(members["delete"], json!("deny"));
     assert_eq!(members["uniques"], json!([["roomId", "principal"]]));
     assert_eq!(members["uniqueCodes"], json!(["MEMBER_EXISTS"]));
+    assert_eq!(members["caps"], json!([{"by": ["principal"], "max": 16}]));
     let notes = table(&m, "notes");
     assert_eq!(notes["update"], json!({"and": [{"eq": [{"col": ["old", "ownerId"]}, "viewer"]}, {"eq": [{"col": ["next", "ownerId"]}, "viewer"]}]}));
     // A text literal beside a principal is an id (OPEN V1).
@@ -131,7 +133,7 @@ query presence(o: bool ?, c: cursor ?):
 #[test]
 fn grants_guards_and_search_exists() {
     let m = module(CONSOLE);
-    assert_eq!(table(&m, "tickets")["read"], json!({"or": [{"eq": [{"col": ["self", "owner"]}, "viewer"]}, {"probe": {"table": "staff", "key": [["principal", "viewer"]]}}]}));
+    assert_eq!(table(&m, "tickets")["read"], json!({"or": [{"eq": [{"col": ["self", "owner"]}, "viewer"]}, {"probe": {"table": "staff", "point": ["principal"], "key": [["principal", "viewer"]]}}]}));
     let staff = json!({"bin": ["ne", {"point": {"table": "staff", "key": [["principal", "viewer"]]}}, {"lit": {"null": null}}]});
     let page = |pins: Value| json!({"page": {"table": "tickets", "pins": pins, "filter": null, "order": [], "desc": false, "take": 5, "after": {"var": "c"}}});
     let open = json!([["open", {"lit": {"bool": true}}]]);
@@ -216,6 +218,105 @@ fn module_json_lists_supported_and_unsupported_programs() {
     let j = m.to_json();
     assert_eq!(j["programs"]["a"]["body"], json!([{"ret": {"lit": {"int": "1"}}}]));
     assert_eq!(j["unsupported"]["b"]["reason"], "now");
+}
+
+#[test]
+fn nonportable_membership_page_keys_are_unsupported_before_the_oracle() {
+    let source = |bound| format!("table memberships:
+  parent: text <={bound}
+  principal: principal
+  unique parent, principal
+  cap 16 by principal
+  read <- .principal = viewer
+  online only
+table documents:
+  owner: principal
+  parent: text <={bound}
+  at: int
+  read <- .owner = viewer or exists memberships[.parent, viewer]
+  online only
+query documents(c: cursor ?):
+  return documents last 2 by .at after c
+");
+    assert!(module(&source(40)).program("documents").is_ok());
+    assert_eq!(reason(&module(&source(435)), "documents"), "page-membership-key-bound");
+
+    // The authored one-row source index carries only `principal`; wide fixed
+    // equalities remain residuals and do not make that physical key oversized.
+    let one_row_residual = "table memberships:\n  parent: text <=40 ?\n  slot: text <=435 ?\n  principal: principal\n  unique principal\n  cap 16 by principal\n  read <- .principal = viewer\n  online only\ntable documents:\n  owner: principal\n  parent: text <=40 ?\n  at: int\n  read <- .owner = viewer or exists memberships[parent = .parent, slot = 'member', principal = viewer]\n  online only\nquery documents(c: cursor ?):\n  return documents last 2 by .at after c\n";
+    assert!(module(one_row_residual).program("documents").is_ok());
+
+    // A shorter one-row index that omits the cap/read pin is ineligible. The
+    // ordinary synthesized discovery key remains the physical source.
+    let inadmissible_one_row = one_row_residual
+        .replace("slot: text <=435 ?", "slot: text <=40")
+        .replace("unique principal", "unique slot");
+    assert!(module(&inadmissible_one_row).program("documents").is_ok());
+}
+
+#[test]
+fn reordered_named_membership_key_emits_the_same_page_fragment() {
+    let source = |probe| format!("table memberships:
+  parent: text <=40
+  principal: principal
+  unique parent, principal
+  cap 16 by principal
+  read <- .principal = viewer
+  online only
+table documents:
+  owner: principal
+  parent: text <=40
+  at: int
+  read <- .owner = viewer or exists memberships[{probe}]
+  online only
+query documents(c: cursor ?):
+  return documents last 2 by .at after c
+");
+    let positional = module(&source(".parent, viewer"));
+    let named = module(&source("principal = viewer, parent = .parent"));
+    assert_eq!(body(&named, "documents"), body(&positional, "documents"));
+}
+
+#[test]
+fn membership_page_gate_prices_filter_pins_and_synthesized_labels() {
+    let filtered = |folder_bound| format!("table memberships:
+  parent: text <=100
+  principal: principal
+  unique parent, principal
+  cap 16 by principal
+  read <- .principal = viewer
+  online only
+table documents:
+  owner: principal
+  parent: text <=100
+  folder: text <={folder_bound}
+  at: int
+  read <- .owner = viewer or exists memberships[.parent, viewer]
+  online only
+query documents(folder: text <={folder_bound}, c: cursor ?):
+  return documents where .folder = folder last 2 by .at after c
+");
+    assert!(module(&filtered(300)).program("documents").is_ok());
+    assert_eq!(reason(&module(&filtered(400)), "documents"), "page-membership-key-bound");
+
+    let owner = "o".repeat(480);
+    let long_label = format!("table memberships:
+  parent: text <=40
+  principal: principal
+  unique parent, principal
+  cap 16 by principal
+  read <- .principal = viewer
+  online only
+table documents:
+  {owner}: principal
+  parent: text <=40
+  at: int
+  read <- .{owner} = viewer or exists memberships[.parent, viewer]
+  online only
+query documents(c: cursor ?):
+  return documents last 2 by .at after c
+");
+    assert_eq!(reason(&module(&long_label), "documents"), "page-membership-key-bound");
 }
 
 #[test]

@@ -803,9 +803,7 @@
   "expected": {
     "localResult": {
       "Row": {
-        "absent": {
-          "Int": 0
-        },
+        "absent": "Null",
         "present": {
           "Int": 2
         }
@@ -814,8 +812,8 @@
     "errorCode": null,
     "localState": "predicted",
     "partialSites": [],
-    "canonicalResult": "{\"Row\":{\"absent\":{\"Int\":0},\"present\":{\"Int\":2}}}",
-    "digest": "7ae3de31bfadc902f5a44aff94864bdb3e8589c8dee9018fab2966d604f32cfd",
+    "canonicalResult": "{\"Row\":{\"absent\":\"Null\",\"present\":{\"Int\":2}}}",
+    "digest": "f619b095c2905ca09b98d67d5274a4cb8656fcb1bf0bf96978f73d24e62b3588",
     "rangeStops": {},
     "evictedRows": null,
     "next": null

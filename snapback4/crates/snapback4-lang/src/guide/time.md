@@ -191,9 +191,9 @@ query myInvoices(c: cursor ?):
 job bill(periodStart: time, periodEnd: time):
   due = month(periodStart)                -- the month that just ended
   for s in subscriptions:
-    p = plans[s.plan]
+    p = plans[s.plan] ! else NOT_FOUND
     upto = min(due, s.billedThrough + 12)  -- at most twelve months per subscription per run
-    if p != null and s.billedThrough < upto:
+    if s.billedThrough < upto:
       for m in range(s.billedThrough + 1, upto + 1):
         insert invoices { subscription: s.id, owner: s.owner, month: m, amount: p.price } if absent
       update subscriptions[s.id] { billedThrough: upto }

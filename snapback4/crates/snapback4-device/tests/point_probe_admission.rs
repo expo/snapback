@@ -37,8 +37,14 @@ fn refused(source: &str, code: &str) {
     let diagnostic = bound.diagnostics.iter().find(|d| d.code == code)
         .unwrap_or_else(|| panic!("{source}\n{:?}", bound.diagnostics));
     assert!(diagnostic.message.contains("replicas"), "{diagnostic:?}");
-    assert!(diagnostic.message.contains("population"), "{diagnostic:?}");
-    assert!(diagnostic.rewrite.is_empty(), "do not offer an unverified edit: {diagnostic:?}");
+    if code == "E_QUARRY_POINT_KEY" {
+        assert!(diagnostic.message.contains("not unique"), "{diagnostic:?}");
+        assert!(diagnostic.rewrite.contains("population") && diagnostic.rewrite.contains("unique key"), "{diagnostic:?}");
+        assert!(diagnostic.source_rewrite.is_none() && !diagnostic.mechanical, "guidance is not a paste-ready edit: {diagnostic:?}");
+    } else {
+        assert!(diagnostic.message.contains("population"), "{diagnostic:?}");
+        assert!(diagnostic.rewrite.is_empty(), "do not offer an unverified edit: {diagnostic:?}");
+    }
 }
 
 fn tied_populations<H: Host>(host: &mut H) {

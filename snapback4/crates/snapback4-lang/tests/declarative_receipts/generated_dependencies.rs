@@ -200,7 +200,7 @@ fn maintenance<H: Host>(host: &mut H) {
         (
             "contribution",
             "view scored: sum messages of .recipients by .conversation",
-            "  require scored[conversation] > 0 else ACCOUNTING",
+            "  require (scored[conversation] ?? 0) > 0 else ACCOUNTING",
         ),
     ] {
         eprintln!("MAINTENANCE {} {label}", host.label());

@@ -76,8 +76,8 @@ fn private_aggregates_never_reach_nonmembers_online_or_on_a_device() {
         for (who,device,_) in devices {
             let server = e.query("total",ctx(who,&[("conversationId",id("secret"))])).unwrap();
             let local = device.query("total",who,&json!({"conversationId":"secret"}),86_400_010).unwrap();
-            assert!(server.complete && local.complete,"{who}: {server:?} {local:?}");
-            let value = Value::Int(if Some(*who) == authorized {expected} else {0});
+            assert!(server.complete && (local.complete || Some(*who) != authorized), "{who}: {server:?} {local:?}");
+            let value = if Some(*who) == authorized { Value::Int(expected) } else { Value::Null };
             assert_eq!(server.data,value,"online {who}");
             assert_eq!(local.data,value,"device {who}");
             for result in [e.query("ranked",ctx(who,&[])).unwrap(),device.query("ranked",who,&json!({}),86_400_010).unwrap()] {
@@ -137,7 +137,7 @@ fn column_audience_rules_survive_calendar_grouping_and_service_grants() {
             for (who,allowed) in [("alice",true),("bob",false),("service:ranker",rule.contains("service:ranker"))] {
                 let answer = e.query("total",ctx(who,&[("owner",id("alice"))])).unwrap();
                 assert!(answer.complete && answer.cut.is_none());
-                assert_eq!(answer.data,Value::Int(i64::from(allowed)),"{rule}; {keys}; {who}");
+                assert_eq!(answer.data,if allowed { Value::Int(1) } else { Value::Null },"{rule}; {keys}; {who}");
                 let (events,_) = e.snapshot_at(who,86_400_010).unwrap();
                 assert_eq!(events.iter().filter(|event|event.table == "totals").count(),usize::from(who == "alice"),"a service grant adds no device audience");
             }

@@ -46,6 +46,8 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_SYSTEM_PRINCIPAL_WRITE", &["make the column optional and write `null` for system events, or name a service principal"]),
     ("N_DELETE_RESTRICTED", &["Declare what you mean on the referencing column", "`on delete keep` keeps them as before"]),
     ("N_DELETE_NEEDS_READ", &["Make every deleter a reader", "mark the references `on delete keep`"]),
+    ("N_REFERENCE_UNCHECKED", &["bind it first with `parent = parents[parent] ! else NOT_FOUND`", "Keep the direct id"]),
+    ("N_MAINTAIN_AUTHORIZATION", &["Add `require <the view's authority condition> else NOT_ALLOWED`", "handle the nullable result"]),
     ("E_REFERENCED", &["Choose what deleting the target should do", "Or delete the referencing rows first in the same mutation"]),
     ("E_REFERENCE_ACTION", &["Choose `cascade`, `restrict` or `keep` instead"]),
     ("E_CASCADE_BOUND", &["lower the cap if the domain has a smaller limit", "delete the referencing rows first in a job"]),

@@ -485,14 +485,14 @@ both!(
     maintained_sum_sqlite,
     scalar,
     "view totals: sum messages of .recipients by .conversation",
-    "totals[conversation]"
+    "(totals[conversation] ?? 0)"
 );
 both!(
     maintained_filter_memory,
     maintained_filter_sqlite,
     scalar,
     "view totals: count messages where .recipients > 0 by .conversation",
-    "totals[conversation]"
+    "(totals[conversation] ?? 0)"
 );
 
 fn collection<H: Host>(host: &mut H, condition: &str) {

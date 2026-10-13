@@ -38,14 +38,45 @@ theorem Rule.eval_of_mem_disjuncts {s : Store} {v : List Nat} {im : Imgs} :
     simp only [Rule.disjuncts, List.mem_singleton] at hd
     subst hd; exact he
 
+/-- Normalization folds only semantic Boolean identities, so it preserves a
+rule's verdict for every store, caller and row image. -/
+theorem Rule.eval_normalize {s : Store} {v : List Nat} {im : Imgs} :
+    ∀ r : Rule, r.normalize.eval s v im = r.eval s v im := by
+  intro r
+  induction r with
+  | eq a b =>
+    cases a <;> cases b <;> simp [Rule.normalize, Rule.eval, Term.eval]
+    case lit.lit a b =>
+      by_cases h : a = b
+      · subst b; cases a <;> simp [Rule.normalize, Rule.eval]
+      · cases a <;> cases b <;> simp_all [Rule.normalize, Rule.eval, Term.eval]
+  | ne a b =>
+    cases a <;> cases b <;> simp [Rule.normalize, Rule.eval, Term.eval]
+    case lit.lit a b =>
+      by_cases h : a = b
+      · subst b; cases a <;> simp [Rule.normalize, Rule.eval]
+      · cases a <;> cases b <;> simp_all [Rule.normalize, Rule.eval, Term.eval]
+  | and a b iha ihb =>
+    generalize ha : a.normalize = an
+    generalize hb : b.normalize = bn
+    cases an <;> cases bn <;> simp_all [Rule.normalize, Rule.eval]
+  | or a b iha ihb =>
+    generalize ha : a.normalize = an
+    generalize hb : b.normalize = bn
+    cases an <;> cases bn <;> simp_all [Rule.normalize, Rule.eval]
+  | not a ih =>
+    generalize ha : a.normalize = an
+    cases an <;> simp_all [Rule.normalize, Rule.eval]
+  | allow | deny | probe => rfl
+
 /-- A positive rule true over a sub-store is true over the store. -/
 theorem Rule.eval_mono {s1 s2 : Store} (hsub : ∀ t r, r ∈ s1 t → r ∈ s2 t) {v : List Nat} {im : Imgs} :
     ∀ r : Rule, r.positive = true → r.eval s1 v im = true → r.eval s2 v im = true := by
   intro r
   induction r with
-  | probe t key =>
+  | probe t point key =>
     intro _ h
-    cases hk : probeKey v im key with
+    cases hk : probeKey v im point key with
     | none => simp [Rule.eval, hk] at h
     | some ks =>
       simp only [Rule.eval, hk, List.any_eq_true] at h ⊢
@@ -69,15 +100,22 @@ theorem Rule.eval_mono {s1 s2 : Store} (hsub : ∀ t r, r ∈ s1 t → r ∈ s2 
   | eq a b => intro _ h; simpa [Rule.eval] using h
   | ne a b => intro _ h; simpa [Rule.eval] using h
 
-theorem probeKey_mapTerms {v : List Nat} {im1 im2 : Imgs} {f : Term → Term} :
+theorem probeTerms_mapTerms {v : List Nat} {im1 im2 : Imgs} {f : Term → Term} :
     ∀ key : List (String × Term), (∀ p ∈ key, p.2.eval v im1 = (f p.2).eval v im2) →
-      probeKey v im1 key = probeKey v im2 (key.map fun p => (p.1, f p.2))
+      probeTerms v im1 key = probeTerms v im2 (key.map fun p => (p.1, f p.2))
   | [], _ => rfl
   | p :: ps, h => by
     have h1 := h p List.mem_cons_self
-    have h2 := probeKey_mapTerms ps (fun q hq => h q (List.mem_cons_of_mem _ hq))
-    unfold probeKey at h2 ⊢
+    have h2 := probeTerms_mapTerms ps (fun q hq => h q (List.mem_cons_of_mem _ hq))
+    unfold probeTerms at h2 ⊢
     simp only [List.mapM_cons, List.map_cons, h1, h2]
+
+theorem probeKey_mapTerms {v : List Nat} {im1 im2 : Imgs} {f : Term → Term}
+    (point : List String) (key : List (String × Term))
+    (h : ∀ p ∈ key, p.2.eval v im1 = (f p.2).eval v im2) :
+    probeKey v im1 point key = probeKey v im2 point (key.map fun p => (p.1, f p.2)) := by
+  unfold probeKey
+  rw [probeTerms_mapTerms key h]
 
 /-- A rule's value depends on its terms' values only: replacing each term by
 one with the same value (under other images) keeps the verdict. -/
@@ -94,9 +132,9 @@ theorem Rule.eval_mapTerms {s : Store} {v : List Nat} {im1 im2 : Imgs} {f : Term
     intro h
     simp only [Rule.terms, List.mem_cons, List.mem_nil_iff, or_false, forall_eq_or_imp, forall_eq] at h
     simp only [Rule.eval, Rule.mapTerms, h.1, h.2]
-  | probe t key =>
+  | probe t point key =>
     intro h
-    have hk := probeKey_mapTerms (f := f) key (fun p hp => h p.2 (by simp only [Rule.terms, List.mem_map]; exact ⟨p, hp, rfl⟩))
+    have hk := probeKey_mapTerms (f := f) point key (fun p hp => h p.2 (by simp only [Rule.terms, List.mem_map]; exact ⟨p, hp, rfl⟩))
     simp only [Rule.eval, Rule.mapTerms, hk]
   | and a b iha ihb =>
     intro h
@@ -115,7 +153,7 @@ theorem Rule.eval_mapTerms {s : Store} {v : List Nat} {im1 im2 : Imgs} {f : Term
 theorem Rule.mapTerms_id : ∀ r : Rule, r.mapTerms id = r := by
   intro r
   induction r with
-  | probe t key => simp [Rule.mapTerms]
+  | probe t point key => simp [Rule.mapTerms]
   | and a b iha ihb => simp [Rule.mapTerms, iha, ihb]
   | or a b iha ihb => simp [Rule.mapTerms, iha, ihb]
   | not a ih => simp [Rule.mapTerms, ih]
@@ -204,6 +242,24 @@ theorem List.mem_of_lookup {ps : List (String × Scalar)} {c : String} {x : Scal
       subst this; exact List.mem_cons_self
     · intro hx; exact List.mem_cons_of_mem _ (ih hx)
 
+/-- Substituting the values of pins that match a row preserves the rule's
+verdict on that row; columns outside the prefix remain row reads. -/
+theorem Rule.eval_pin_row {s : Store} {v : List Nat} {ps : List (String × Scalar)} {r : Row}
+    (hk : keyMatch ps r = true) (d : Rule) :
+    d.eval s v { self := some r } = (d.pin ps).eval s v { self := some r } := by
+  refine Rule.eval_mapTerms d fun t _ => ?_
+  match t with
+  | .col .self c =>
+    cases hl : ps.lookup c with
+    | none => simp [Term.pin, hl]
+    | some x =>
+      have hx := keyMatch_get hk (List.mem_of_lookup hl)
+      simp [Term.pin, hl, Term.eval, Imgs.get, hx]
+  | .col .old _ => rfl
+  | .col .next _ => rfl
+  | .viewer => rfl
+  | .lit _ => rfl
+
 theorem List.lookup_none {ps : List (String × Scalar)} {c : String} :
     ps.lookup c = none → ∀ p ∈ ps, p.1 ≠ c := by
   induction ps with
@@ -252,7 +308,8 @@ theorem Rule.eval_pin {s : Store} {v : List Nat} {ps : List (String × Scalar)} 
 /-- **A page guard decides every row it selects**: a guard that holds over
 the caller's view makes every row the pins select readable to them. -/
 theorem granted_readable {sch : Schema} {s : Store} {v : List Nat} {t : String}
-    {ps : List (String × Scalar)} (hg : granted sch (visibleRows sch s v) v t ps = true) (r : Row)
+    {ps : List (String × Scalar)} {pins : List (String × Expr)}
+    (hg : granted sch (visibleRows sch s v) v t ps pins = true) (r : Row)
     (hk : keyMatch ps r = true) : readable sch s v t r = true := by
   unfold granted at hg
   unfold readable
@@ -260,13 +317,24 @@ theorem granted_readable {sch : Schema} {s : Store} {v : List Nat} {t : String}
   · rename_i td htd
     rw [htd]
     obtain ⟨d, hd, hdg⟩ := List.any_eq_true.1 hg
-    simp only [Bool.and_eq_true, List.all_eq_true] at hdg
-    obtain ⟨⟨hpos, hpinned⟩, hev⟩ := hdg
-    have hs : (d.pin ps).eval s v {} = true :=
-      Rule.eval_mono (fun _ _ hx => mem_visibleRows hx) (d.pin ps)
-        (by rw [Rule.pin, Rule.positive_mapTerms]; exact hpos) hev
+    simp only [Bool.and_eq_true] at hdg
+    obtain ⟨⟨⟨-, hpos⟩, hempty⟩, hev⟩ := hdg
+    let d' := (d.pin ps).normalize
+    have hfree : d'.selfCols = [] := by
+      cases hcols : d'.selfCols with
+      | nil => rfl
+      | cons c cs => simp [d', hcols] at hempty
+    have hs : d'.eval s v {} = true :=
+      Rule.eval_mono (fun _ _ hx => mem_visibleRows hx) d' hpos hev
+    have hsr : d'.eval s v { self := some r } = true := by
+      rw [Rule.eval_self_free d' hfree]
+      exact hs
+    have hp : (d.pin ps).eval s v { self := some r } = true := by
+      rw [← Rule.eval_normalize]
+      exact hsr
     have hr : d.eval s v { self := some r } = true := by
-      rw [Rule.eval_pin hk d hpinned]; exact hs
+      rw [Rule.eval_pin_row hk d]
+      exact hp
     exact Rule.eval_of_mem_disjuncts td.read d hd hr
   · cases hg
 

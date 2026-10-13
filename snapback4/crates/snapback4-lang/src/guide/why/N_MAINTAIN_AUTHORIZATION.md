@@ -1,0 +1,3 @@
+# N_MAINTAIN_AUTHORIZATION
+
+N_MAINTAIN_AUTHORIZATION means a query directly returns a fully keyed maintained value whose read rule admits fewer principals than the query can be called as. An admitted stored group returns its value and an admitted absent group returns zero. A hidden stored or absent group returns `null`, so callers otherwise need to interpret three outcomes. Add `require <the view's authority condition> else NOT_ALLOWED` before the lookup when the API should refuse unauthorized callers. An unrelated requirement does not guard this read. When unauthorized callers are intentional, return and handle the nullable result. guide maintains.

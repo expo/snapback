@@ -1,0 +1,120 @@
+{
+  "semantic_source": "f6025c0c91673039c7efe17525db3abdf81ab199",
+  "recorded_utc": "2026-10-13T02:22:13.401186+00:00",
+  "rust": {
+    "exit": 0,
+    "source": "ee0e339c80c9a32e0cdcc163e24894246e6d6073",
+    "started": "2026-10-13T01:26:32Z",
+    "finished": "2026-10-13T02:20:44Z",
+    "command": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=16 cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim --no-fail-fast",
+    "unfiltered_harnesses": 309,
+    "passed": 4672,
+    "failed": 0,
+    "ignored": 30,
+    "input_objects": {
+      "snapback4/crates/snapback4-core": "61a438e13491d25d8c3fe0fe9d0c73eb47ac8ba9",
+      "snapback4/crates/snapback4-lang": "993cb34ec3c3c681396ea2bc261b3fcd437279c5",
+      "snapback4/crates/snapback4-device": "2280ed8039c225f29c0b2763c1e2df612003d5d8",
+      "snapback4/crates/snapback4-sim": "959f02e41e7bccb2709a720db93ea4d3742557af",
+      "snapback4/Cargo.toml": "223f73ef388fd9994718ad68c92097e8b296cdaf",
+      "snapback4/Cargo.lock": "5f090cc32f31df1ae18c6ce593079b05faeab807"
+    },
+    "input_objects_unchanged": true
+  },
+  "native": {
+    "generated": 20000,
+    "compiled": 20000,
+    "executed": 1166103,
+    "disagreements": 0,
+    "exit": 0,
+    "command": "snapback4-difftest run --seed 0 --cases 20000 --workers 8 --out <new output directory>"
+  },
+  "lean": {
+    "generated": 20000,
+    "compiled": 20000,
+    "executed": 52010,
+    "passed": 15412,
+    "unsupported": 4358,
+    "disagreeing": 230,
+    "retained_signatures": {
+      "lean--code--E_RULE~NOT_FOUND": 3,
+      "lean--continuation-next--next~no-next": 68,
+      "lean--next--next~no-next": 132,
+      "lean--prelude-code--E_RULE~NOT_FOUND": 27
+    },
+    "new_signatures": [],
+    "exit": 1,
+    "command": "snapback4-difftest run-lean --seed 0 --cases 20000 --workers 4 --out <new output directory>"
+  },
+  "lean_check": {
+    "exit": 0,
+    "examples": 68,
+    "audited_theorems": 58,
+    "oracle_fixtures": 7
+  },
+  "wasm": {
+    "raw": 2278983,
+    "gzip": 690290,
+    "budget": 690790
+  },
+  "census": {
+    "passed": 1,
+    "mutations": 409,
+    "distinct_private_sites": 89
+  },
+  "client_build_exit": 0,
+  "cli_check_notes": {
+    "passed": 6,
+    "failed": 0
+  },
+  "reviews": {
+    "planner": {
+      "round": 19,
+      "source": "f6025c0c91673039c7efe17525db3abdf81ab199",
+      "muse": "READY",
+      "codex": "READY",
+      "amendment_sha256": "3b2ca7cd17e291a6aa532e704fc59e8f9540aa1ab1462458a39a95a71847b72f"
+    },
+    "maintained_references": {
+      "round": 12,
+      "source": "6599814c56",
+      "muse": "READY",
+      "codex": "READY"
+    }
+  },
+  "supplemental_tests": {
+    "difftest_lean": 29,
+    "smoke": 13,
+    "branch_merge": 59,
+    "membership_paths": 9,
+    "provenance": "agent tool-call transcript at f6025c0c91; final focused runs did not write filesystem logs; fresh Codex review independently ran190 focused tests including29 native/Lean tests"
+  },
+  "files": {
+    "README.md": "81bc6018be29df3157c94e949f17716bd6ed149055785af2da3cfa447644ce44",
+    "cli-check-notes.log.gz": "3c140957dc0cdffb008c7d10e27b923b8c5e8f28c0f29efebeea400a3e69404b",
+    "client-build.log.gz": "e75f19523cf789984b09254fe291b1a4c78b9cb0224a7436535f5d5558eeed0d",
+    "commits.tsv": "ebe5918504e3ef0ecde7717a2b4960a889678db0c0b4b023a6dbe87da4fc064c",
+    "difftest-build.log.gz": "48780532af4ded63c0cd9c427701a7496aa2b855f278f74db4c40a4f218f9d47",
+    "lean-20k.log.gz": "a8784925976fb0c858c4e92eee9efe1801e7619c6df1a686b7fb207cfa5b06fe",
+    "lean-20k.report.json": "d8f11b67dbda1c9f72a8a3a2ee5cbfc6503b0a552086ffec51934168c5669653",
+    "lean-check.log.gz": "f0afbd55ea2866be8860b7a0c8d4b0d735fa7fdbe3df3f2cf1189f94486520b4",
+    "native-20k.log.gz": "7dc5479fed604a1869d0929f49d92197c1bc92f996ebf4cba1c4dcf134164b33",
+    "native-20k.report.json": "c8a9d3bf921f2d75a96e13f454a15353d418062a443acebb36f07659640dc956",
+    "readauth-census.log.gz": "3b9a927e20943efe8759425d1083a3fd90f7ba6e63fdc1d74c4f1fa2217c2e02",
+    "ref-check.log.gz": "41b6a4cba661c381d44ccd9f108633fc406d4f290ad4faedc08a2ba8da42b390",
+    "rust-full.log.gz": "406c6d87cb4b4575ec5c3df8433ca519df9e116575e7d3fcced39b4bc675c396",
+    "superseded/difftest-lean-901e1a2.log.gz": "36b5870cdbefef1028092ad8a57c1a62126e1b6aa53dc4c1038b8789967a59fa",
+    "superseded/quality-current-final.log.gz": "bff9c0f6fdb8a7fafbd714282c8f577f2ddf3ee99c1e93a3f5ecc1c722a205ad",
+    "superseded/quality-qualified-final.log.gz": "6cf6e893c038393dc7dbc192b3c68d8ae66cb6abca830cdd40aecf8c1ffb349d",
+    "superseded/quality-superseded-arg-pin.log.gz": "e1eaf81f7320426f54b72233a1e248fcb022f391300b5643568e34916057f65d",
+    "wasm.log.gz": "1930c1e1bde6ced0a96e3d450dcb6bb39550b66cf3d3b303a53068a7523485a1"
+  },
+  "ref_check": {
+    "exit": 0,
+    "llp_docs": 541,
+    "refs": 11039,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "workstream_report_sha256": "a6e337e1adfc165c6eea4a2869d0fef21c6a7a5b3a7560f54b59b65de4ec71ee"
+}

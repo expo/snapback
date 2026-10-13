@@ -857,15 +857,13 @@ table posts:
   label: text <=50
   read <- allow
   sync public
-query nullableRows():
+query nullableRows(id: posts):
   out = []
-  for post in posts first 10 by byId:
-    out = out + [posts[post.id]]
+  out = out + [posts[id]]
   return out
-query nullableObjects():
+query nullableObjects(id: posts):
   out = []
-  for post in posts first 10 by byId:
-    out = out + [posts[post.id] { id, label }]
+  out = out + [posts[id] { id, label }]
   return out
 "#);
     let scratch = Scratch::new();

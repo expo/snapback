@@ -93,8 +93,8 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &m
             }
             if chosen.writes() && schema.reference_cap(name, &column.name).is_none() {
                 diagnostics.push(Diagnostic::new(site, "E_CASCADE_BOUND",
-                    format!("{} on {name}.{} needs `cap N by {}`: a delete of a {parent} row writes its {name} rows in the same transaction, so the number of them must have a product limit", chosen.words(), column.name, column.name),
-                    format!("cap 500 by {}   -- choose the product limit; for an unbounded relation keep `on delete restrict` and delete the {name} rows in a job first (guide writes)", column.name)).guide("writes"));
+                    format!("{} on {name}.{} needs `cap N by {}` or plain single-column `unique {}`: a delete of a {parent} row writes its {name} rows in the same transaction, so the number of them must have a product limit", chosen.words(), column.name, column.name, column.name),
+                    format!("cap 500 by {}   -- choose the product limit; use `unique {}` for at most one child; for an unbounded relation keep `on delete restrict` and delete the {name} rows in a job first (guide writes)", column.name, column.name)).guide("writes"));
                 continue;
             }
             // `keep` is the legacy meaning, so the schema spells it by absence: a
@@ -211,13 +211,38 @@ fn over_ceiling(price: &references::Price, job: bool) -> Option<String> {
 }
 
 /// Whether every principal the delete rule admits can read the row, by a
-/// structural sufficient condition: a uniformly readable or denied table, or a
-/// delete rule that is the read rule or a conjunction containing it.
+/// structural sufficient implication proof. This is deliberately not a rule
+/// satisfiability solver: an unproved application invariant keeps the note.
 fn deleters_read(schema: &core::Schema, table: &str) -> bool {
     let Some(t) = schema.table(table) else { return true };
-    let (read, delete) = (&t.rules.read, &t.rules.delete);
-    read.is_uniformly_readable() || matches!(delete, core::RuleExpr::Deny) || delete == read
-        || matches!(delete, core::RuleExpr::And(items) if items.iter().any(|item| item == read || matches!(read, core::RuleExpr::And(parts) if parts.iter().all(|p| items.contains(p)))))
+    fn required_bool_fact(table: &core::Table, rule: &core::RuleExpr) -> Option<(core::RuleTerm, bool)> {
+        let comparison = |left: &core::RuleTerm, right: &core::RuleTerm, equal: bool| {
+            let (term, core::RuleTerm::Literal(snapback4_core::Value::Bool(value))) = (match (left, right) {
+                (term, literal @ core::RuleTerm::Literal(_)) | (literal @ core::RuleTerm::Literal(_), term) => (term, literal),
+                _ => return None,
+            }) else { return None };
+            let core::RuleTerm::Field(field) = term else { return None };
+            matches!(table.columns.get(field), Some(core::ColumnType::Bool)).then(|| (term.clone(), if equal { *value } else { !*value }))
+        };
+        match rule {
+            core::RuleExpr::Eq(left, right) => comparison(left, right, true),
+            core::RuleExpr::Ne(left, right) => comparison(left, right, false),
+            core::RuleExpr::Not(inner) => required_bool_fact(table, inner).map(|(term, value)| (term, !value)),
+            _ => None,
+        }
+    }
+    fn implies(table: &core::Table, stronger: &core::RuleExpr, weaker: &core::RuleExpr) -> bool {
+        if stronger == weaker || required_bool_fact(table, stronger).is_some_and(|fact| Some(fact) == required_bool_fact(table, weaker))
+            || weaker.is_uniformly_readable() || matches!(stronger, core::RuleExpr::Deny) { return true; }
+        match (stronger, weaker) {
+            (_, core::RuleExpr::And(items)) => items.iter().all(|item| implies(table, stronger, item)),
+            (core::RuleExpr::Or(items), _) => items.iter().all(|item| implies(table, item, weaker)),
+            (core::RuleExpr::And(items), _) => items.iter().any(|item| implies(table, item, weaker)),
+            (_, core::RuleExpr::Or(items)) => items.iter().any(|item| implies(table, stronger, item)),
+            _ => false,
+        }
+    }
+    implies(t, &t.rules.delete, &t.rules.read)
 }
 
 /// Every delete in a program, in order, each with the (child, reference)

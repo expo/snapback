@@ -41,5 +41,6 @@ mutation send(conversationId: conversations):
 
 mutation countThenRefuse(member: members):
   n = unread[member]
+  require n != null else NO_UNREAD
   require n < 0 else NO_UNREAD
   return n
