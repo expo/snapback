@@ -218,7 +218,10 @@ impl Runner<'_> {
             || !table.sequences.is_empty() || !table.recorded.is_empty() || table.through.is_some() || self.schema.maintain_for(&scan.table).is_some() {
             fields.extend(table.columns.keys().cloned());
         }
-        let lifetime_sensitive = table.read_lifetime_sensitive();
+        // Expiry-only heads keep their key-only discovery and ordinary
+        // candidate expiry gate. Only opening lifetimes need a row decode
+        // here to step past unpublished future word heads.
+        let lifetime_sensitive = table.not_before.is_some();
         let decode_reservation = crate::rows::disclosed::decode_reservation(table);
         word.selected = Some(fields.into_iter().collect());
         if after.is_some() { bounds.after = after; bounds.at_or_after = None; }

@@ -94853,3 +94853,26 @@ bypasses writer maintenance and opening lookup, preserving independent reader
 lanes through held mutations/adoption. Existing concurrency tests exercise
 the regression; timed schemas retain the publication barrier. Test host floors
 now follow the same schema-dependent initialization as production.
+
+### 2026-10-14 — Integration 9 client and native qualification repairs
+
+Keep `not` as a contextual table keyword, preserving existing columns named
+`not`; restore timed-lifetime discovery in the language card within its shared
+word budget. Trusted seed constraints, private parent traces, readiness and
+unreadable-probe notes keep their commissioned precise causes in old suites.
+Restore the complete tested Composer and standalone typed DX2 client recipes;
+keep permanent-held refusals explicit without growing client-card budgets.
+
+The frozen birth oracle's raw writes must obey the declared unique membership
+key: impossible physical siblings had invalidated the optimized predecessor
+assumption. Keep strict event, meter and birth-map comparisons on valid states;
+engine-level expiry replacement tests retain backlog coverage. Native-only
+stored-schema formatting again matches the exact existing codec census
+exception; no exception is added. Bounded acquisition refusals retain the
+requested watermark, while successful snapshot recovery owns the new progress.
+
+The dense ordinary-search witnesses found unnecessary full-row word-head
+discovery on expiry-only tables exhausting private authorization before the
+ordinary drain cut. Keep their original key-only discovery; decode/step heads
+for stored opening lifetimes only. Upper-expiry filtering remains at the
+existing candidate boundary; timed-head filtering and every ceiling remain.
