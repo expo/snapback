@@ -16,6 +16,6 @@ pub fn info() -> DeviceEngine {
 pub fn headers() -> BTreeMap<String, String> {
     BTreeMap::from([(
         "x-snapback-device".into(),
-        serde_json::to_string(&info()).expect("engine identity"),
+        snapback4_core::json_codec::to_text(&info()).expect("engine identity"),
     )])
 }

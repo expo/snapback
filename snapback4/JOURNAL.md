@@ -94434,3 +94434,13 @@ and serve, offline write/reconnect, and authoritative server delivery. The
 wasm remains under the existing 698,886 B budget (698,727 B gzip); no ceiling
 was raised. Review and verification records are in WORKSTREAM-REPORT.md and
 the HS artifacts under llp/reviews. No publication or push was performed.
+
+### 2026-10-13 — Integration 8, HS codec census repair
+
+HS merges without conflicts from the published 0.4.25 baseline. The complete
+web codec census catches two new direct typed serializers in engine headers;
+route both through the existing core json_codec::to_text funnel, preserving
+the compact canonical JSON and the crate-owned handshake contract. No census
+allowlist or runtime ceiling changes. Rebuild and requalify the web artifact
+and iOS static libraries after this repair; the native build correctly omits
+the wasm-only custom section while exporting sb4_engine_info.

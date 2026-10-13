@@ -13,7 +13,7 @@ use wasm_bindgen::prelude::*;
 pub fn engine_info() -> String { snapback4_core::json_codec::to_text(&crate::engine::info()).expect("engine stamp") }
 
 #[wasm_bindgen]
-pub fn engine_headers() -> String { serde_json::to_string(&crate::engine::headers()).expect("engine headers") }
+pub fn engine_headers() -> String { snapback4_core::json_codec::to_text(&crate::engine::headers()).expect("engine headers") }
 
 #[wasm_bindgen]
 pub struct WebDevice {
