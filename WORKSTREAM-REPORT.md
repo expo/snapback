@@ -71,7 +71,7 @@ Affected suites passed at their implementation checkpoints:
 | Lean | `lean/check.sh`; emitter | 58-theorem audit, 71/71 examples, 7 generated fixtures; Lean difftests 32/32, smoke 17/17; emitter 12/12 checkpoint plus set-null regression pass |
 | Generator | native/Lean by-id membership smoke | pass |
 | Package | client TypeScript/wasm build | pass after final wasm |
-| Corpus | `./ref-check`; `git diff --check` | 544 LLPs / 11,131 refs, no errors; pass |
+| Corpus | `./ref-check`; `git diff --check` | 544 LLPs / 11,133 refs, no errors; pass |
 
 Final campaign binary was rebuilt after `24a644c511`; each command used seed 0, 400 cases, 4 workers, and a separate output directory:
 
