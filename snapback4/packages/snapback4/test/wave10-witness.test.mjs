@@ -44,7 +44,7 @@ test('visible-form arming ignores old sent state, isolates the clicked mutation 
   let settled = false; window.__snapback4Witness.formResult().then(() => settled = true);
   await Promise.resolve(); assert.equal(settled, false, 'existing sent text is not a write');
   await app.client.mutate(mutation, { title: 'new' }); await Promise.resolve(); assert.equal(settled, false, 'matching background write before click is ignored');
-  const click = { composedPath: () => [button] }; window.event = click; for (const capture of captures) capture(click);
+  const click = { isTrusted: true, composedPath: () => [button] }; window.event = click; for (const capture of captures) capture(click);
   const returned = await app.client.mutate(mutation, { title: 'new' }); assert.equal(returned.state, 'pending', 'instrumentation preserves UI custody');
   const receipt = await window.__snapback4Witness.formResult(); assert.equal(receipt.state, 'sent'); assert.equal(receipt.mutation, 'add');
   assert.equal(app.client.mutate, original); assert.equal(listeners.size, 0);
@@ -68,4 +68,21 @@ ${active ? "document.querySelector('button').onclick=()=>void app.mutate(api.add
   const result = invoke(['witness', 'web', 'dist', '--url', 'http://127.0.0.1:4400', '--as', 'alice', '--mutation', 'add', '--args', '{"title":"proof"}', '--field', 'Task', '--value', 'proof', '--button', 'Add', '--timeout', '2'], dir);
   if (active) success(result);
   else { assert.equal(result.status, 1); assert.match(result.stderr, /E_WITNESS_SENT/); assert.ok(!result.stdout.includes('"state":"sent"')); }
+});
+
+
+test('a later background requestSubmit never inherits a broken button click', { timeout: 15000 }, t => {
+  const dir = project(t); mkdirSync(join(dir, 'dist'));
+  writeFileSync(join(dir, 'dist/bridge.js'), readFileSync(join(root, 'packages/snapback4/dist/witness-web.js')));
+  writeFileSync(join(dir, 'dist/index.html'), `<form><label>Task<input></label><button>Add</button></form><p>sent</p><script type="module">
+import {registerWebWitness} from './bridge.js';
+const api={add:{kind:'mutation',name:'add'}},client={viewer:()=> 'dev:alice',onWrite:()=>()=>{},mutate:async()=>({state:'sent',id:'background',seq:1,result:null})};
+const app={client,ready:Promise.resolve({ok:true}),mutate:(...args)=>client.mutate(...args)};
+registerWebWitness(app,api);
+const form=document.querySelector('form'),button=document.querySelector('button');
+form.onsubmit=e=>{e.preventDefault();void app.mutate(api.add,{title:'proof'})};
+button.onclick=e=>{e.preventDefault();setTimeout(()=>form.requestSubmit(button),10)};
+</script>`);
+  const result = invoke(['witness','web','dist','--url','http://127.0.0.1:4400','--as','alice','--mutation','add','--args','{"title":"proof"}','--field','Task','--value','proof','--button','Add','--timeout','2'], dir);
+  assert.equal(result.status,1);assert.match(result.stderr,/E_WITNESS_SENT/);assert.ok(!result.stdout.includes('"state":"sent"'));
 });

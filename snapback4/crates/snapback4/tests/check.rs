@@ -1561,6 +1561,81 @@ fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
         let (_, default) = guide(&[keyword]);
         assert_eq!(default, full, "{keyword}: piped output prints the complete card");
     }
+    // Sections resolve by number, any case, prefix and words; a miss names what mentions the words.
+    let (_, by_name) = guide(&["types", "--section", "Engine-assigned per-parent sequences"]);
+    for words in ["7", "ENGINE-ASSIGNED", "per-parent", "engine sequences"] {
+        assert_eq!(guide(&["types", "--section", words]), (Some(0), by_name.clone()), "{words}");
+    }
+    // Wave 4: a topic word no heading names prints the section holding most of
+    // its mentions, or every mention when they spread; only an unmentioned word refuses.
+    let (code, topic) = guide(&["types", "--section", "Integer"]);
+    assert_eq!(code, Some(0), "{topic}");
+    assert!(topic.starts_with("No heading of guide types is named \"Integer\"; ") && topic.contains("an integer within") && !topic.contains("## Tables"), "{topic}");
+    let (code, audience) = guide(&["sync", "--section", "audience"]);
+    assert_eq!(code, Some(0), "{audience}");
+    assert!(audience.contains("# Sync") && audience.contains("sync to .col") && audience.lines().count() < 80, "one short section: {audience}");
+    // Wave 7: the client card has a React section now; a word whose mentions tie across sections still lists them.
+    let (code, react) = guide(&["client", "--section", "React"]);
+    assert_eq!(code, Some(0), "{react}");
+    assert!(react.contains("## React hooks") && react.contains("matchRead") && !react.contains("## Row queries"), "{react}");
+    let (code, spread) = guide(&["rules", "--section", "Named"]);
+    assert_eq!(code, Some(0), "{spread}");
+    assert!(spread.contains("its mentions span") && !spread.contains("nearest heading"), "{spread}");
+    let (code, near) = guide(&["types", "--section", "Detials"]);
+    assert_eq!(code, Some(1));
+    assert!(near.contains("nearest heading: 2. Details") && near.contains("no line mentions it"), "{near}");
+    let (code, either) = guide(&["types", "--find", "E_OVERFLOW|E_DIV_ZERO"]);
+    assert_eq!(code, Some(0));
+    assert!(either.contains("E_OVERFLOW") && either.contains("E_DIV_ZERO"), "{either}");
+    let (code, opening) = guide(&["actions", "--section", "opening"]);
+    assert_eq!(code, Some(0));
+    assert!(opening.starts_with("# Actions") && !opening.contains("\n## "), "{opening}");
+    let (code, found) = guide(&["language", "--find", "day("]);
+    assert_eq!(code, Some(0));
+    assert!(found.contains("Views and calendar keys") && found.contains(": query today():"), "{found}");
+    assert_eq!(guide(&["language", "--find", "no such words anywhere"]).0, Some(1));
+    // Wave 5: words find lines holding all of them, unquoted words continue the search,
+    // `OR` is `|`, a plural finds its singular, and the language program's parts have headings.
+    let (code, all) = guide(&["types", "--find", "integer", "range"]);
+    assert_eq!(code, Some(0), "{all}");
+    assert!(all.starts_with("guide types: 1 line mentions \"integer range\"") && all.contains(": - Values and arithmetic must fit the integer range: E_OVERFLOW."), "{all}");
+    assert_eq!(guide(&["types", "--find", "E_OVERFLOW OR E_DIV_ZERO"]), (Some(0), either.replace("E_OVERFLOW|E_DIV_ZERO", "E_OVERFLOW OR E_DIV_ZERO")));
+    let (code, any) = guide(&["types", "--find", "enum time principal"]);
+    assert_eq!(code, Some(1), "no line holds all three: {any}");
+    assert!(any.starts_with("no line of guide types mentions all of \"enum time principal\"; ") && any.contains("kind: enum(") && any.contains("owner: principal"), "{any}");
+    let (code, loops) = guide(&["language", "--section", "loops"]);
+    assert_eq!(code, Some(0), "{loops}");
+    assert!(loops.contains("### Loops") && loops.contains("continue") && loops.lines().count() < 60, "{loops}");
+    assert_eq!(guide(&["queries"]), guide(&["reads"]));
+}
+
+// Wave 4: the recipes card's cases are what `test` answers against its schemas.
+#[test]
+fn the_recipes_cards_cases_pass_against_their_schemas() {
+    let card = snapback4_lang::guide::card("recipes").unwrap();
+    let fenced = |text: &str, tag: &str| -> Vec<String> {
+        text.split(&format!("```{tag}\n")).skip(1).map(|rest| rest.split_once("\n```").unwrap().0.to_owned()).collect()
+    };
+    for (heading, fixtures) in [
+        ("## Roles", vec![("tickets", r#"{"id":"t1","author":"dev:bob","title":"Leaky tap"}"#)]),
+        ("## Two parties", vec![("listings", r#"{"id":"l1","seller":"dev:alice","title":"Bike","price":12000}"#)]),
+        ("## Booking", vec![("slots", r#"{"id":"s1","host":"dev:alice","startsAt":4102444800000,"seats":1}"#)]),
+    ] {
+        let section = card.split_once(heading).unwrap().1.split("\n## ").next().unwrap();
+        let p = Project::new();
+        p.source(&fenced(section, "quarry")[0]);
+        fs::create_dir(p.0.join("fixture")).unwrap();
+        let jsonl = fenced(section, "jsonl");
+        // The roles recipe seeds its first admin with the card's own fixture row.
+        if heading == "## Roles" { fs::write(p.0.join("fixture/roles.jsonl"), format!("{}\n", jsonl[0])).unwrap(); }
+        for (table, row) in fixtures { fs::write(p.0.join(format!("fixture/{table}.jsonl")), format!("{row}\n")).unwrap(); }
+        let cases = jsonl.last().unwrap();
+        fs::write(p.0.join("fixture/test.cases.jsonl"), format!("{cases}\n")).unwrap();
+        let output = p.run(&["test", "--fixture", "fixture"]);
+        let text = String::from_utf8_lossy(&output.stdout);
+        assert!(output.status.success(), "{heading}: {text}{}", String::from_utf8_lossy(&output.stderr));
+        assert!(text.contains(&format!("cases: {} passed, 0 failed", cases.lines().count())), "{heading}: {text}");
+    }
 }
 
 #[path = "check/sql_objects.rs"]

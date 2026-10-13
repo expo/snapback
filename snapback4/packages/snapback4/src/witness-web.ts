@@ -26,18 +26,12 @@ export function registerWebWitness(app: App, api: Operations): void {
       const terminal = new Promise(answer => { resolve = answer; });
       // Chromium's active event ties admission to this actual control's handler.
       // Timers, input autosaves and previously-started writes cannot claim it.
-      const capture = (event: Event) => {
-        if (event.composedPath().includes(button)) click = event;
-        // A submit button's default action dispatches a separate submit event.
-        else if (click && event.type === "submit" && (event as SubmitEvent).submitter === button) click = event;
-      };
+      const capture = (event: Event) => { if (event.isTrusted && event.composedPath().includes(button)) click = event; };
       document.addEventListener("click", capture, true);
-      document.addEventListener("submit", capture, true);
       const restore = () => {
         if (client.mutate === clientWrapper) client.mutate = originalClient;
         if (app.mutate === appWrapper) app.mutate = originalApp;
         document.removeEventListener("click", capture, true);
-        document.removeEventListener("submit", capture, true);
       };
       const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object"
         ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical((value as Record<string, unknown>)[key])])) : value;
