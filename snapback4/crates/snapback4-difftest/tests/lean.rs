@@ -476,22 +476,29 @@ fn nullable_membership_points_agree_with_the_engine() {
     check(fixed_id, missing, &["owned"]);
 
     // The shorter required `principal` unique selects the point ahead of the
-    // nullable natural key, leaving nullable `parent` as a residual equality.
+    // nullable natural key. Nullable `parent` and nullable `slot` are residual
+    // equalities, so slot is compared by its value rather than its declaration.
     let natural_residual = fixed_id
+        .replace("  principal: principal\n", "  slot: int ?\n  principal: principal\n")
         .replace("  unique parent, principal\n", "  unique parent, principal\n  unique byPrincipal: principal\n")
-        .replace("id = 'm1', ", "");
+        .replace("id = 'm1', parent = .parent", "parent = .parent, slot = 0");
     let natural_module = lean::module(&natural_residual).unwrap();
     assert_eq!(natural_module.schema["tables"][1]["read"]["or"][1]["probe"]["point"], json!(["principal"]));
     let mut natural_present = vec![
-        ("members".into(), json!({"id":"m1","parent":null,"principal":"alice"})),
+        ("members".into(), json!({"id":"m1","parent":null,"slot":0,"principal":"alice"})),
     ];
     natural_present.extend(documents());
     check(&natural_residual, natural_present, &["shared", "owned"]);
     let mut natural_missing = vec![
-        ("members".into(), json!({"id":"m0","parent":null,"principal":"bob"})),
+        ("members".into(), json!({"id":"m0","parent":null,"slot":0,"principal":"bob"})),
     ];
     natural_missing.extend(documents());
     check(&natural_residual, natural_missing, &["owned"]);
+    let mut natural_null_slot = vec![
+        ("members".into(), json!({"id":"m1","parent":null,"slot":null,"principal":"alice"})),
+    ];
+    natural_null_slot.extend(documents());
+    check(&natural_residual, natural_null_slot, &["owned"]);
 
     let natural = fixed_id.replace("id = 'm1', ", "");
     let fixed_null = "table members:\n  parent: text <=40\n  slot: text <=40 ?\n  principal: principal\n  unique parent, slot, principal\n  cap 16 by principal\n  read <- .principal = viewer\n  online only\ntable documents:\n  parent: text <=40\n  owner: principal\n  at: int\n  read <- .owner = viewer or exists members[parent = .parent, slot = null, principal = viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";

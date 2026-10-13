@@ -552,9 +552,9 @@ def nullableNaturalDocs : Schema := { tables := [
     read := .or (.eq (self "owner") .viewer)
       (.probe "members" ["parent", "principal"] [("parent", self "parent"), ("principal", .viewer)]) }] }
 
-/-- A required natural unique can select the source row while nullable
-equalities remain residual. The nullable `slot` is fixed to a non-null value,
-so its declaration alone cannot decide point validity. -/
+/-- A natural unique filled with non-null terms can select the source row while
+nullable equalities remain residual. The nullable `slot` is fixed to a
+non-null value, so its declaration alone cannot decide point validity. -/
 def nullableNaturalResidualDocs : Schema := { tables := [
   { name := "members", cols := [c "parent" true, c "slot" true, c "principal"]
     uniques := [["slot", "principal"]]
@@ -582,6 +582,11 @@ def nullableNaturalResidualPresent : Store := mkStore [
 
 def nullableNaturalResidualMissing : Store := mkStore [
   ("members", [mkRow "m0" [("parent", .null), ("slot", N 0), ("principal", I "bob")]]),
+  ("documents", [mkRow "owned" [("owner", I "alice"), ("parent", .null), ("at", N 1)],
+                 mkRow "shared" [("owner", I "bob"), ("parent", .null), ("at", N 2)]])]
+
+def nullableNaturalResidualNullSlot : Store := mkStore [
+  ("members", [mkRow "m1" [("parent", .null), ("slot", .null), ("principal", I "alice")]]),
   ("documents", [mkRow "owned" [("owner", I "alice"), ("parent", .null), ("at", N 1)],
                  mkRow "shared" [("owner", I "bob"), ("parent", .null), ("at", N 2)]])]
 
@@ -678,6 +683,12 @@ def merged : List Example := [
   { name := "page-owner-membership-natural-null-residual-missing"
     source := "LLP 3000.036.001 §14: residual null equality does not create a membership witness when the selected natural point is absent"
     case := { schema := nullableNaturalResidualDocs, store := nullableNaturalResidualMissing, viewer := alice,
+              program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"owned","owner":"alice","parent":null,"at":1}],"complete":true,"next":null}"# },
+  { name := "page-owner-membership-natural-null-point"
+    source := "LLP 3000.036.001 §14: a null value in the selected nullable natural point returns no witness"
+    case := { schema := nullableNaturalResidualDocs, store := nullableNaturalResidualNullSlot, viewer := alice,
               program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"owned","owner":"alice","parent":null,"at":1}],"complete":true,"next":null}"# },

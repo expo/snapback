@@ -1120,6 +1120,43 @@ fn model_plain_index_fit(module: &LeanModule, table: &Table, columns: &[String],
     if fits { ModelIndexFit::Fits } else { ModelIndexFit::Nonportable }
 }
 
+fn model_selected_index_fit(module: &LeanModule, table: &Table, name: &str) -> ModelIndexFit {
+    let Some(decl) = module.surface_tables.iter().find(|decl| decl.name == table.name) else { return ModelIndexFit::Nonportable };
+    let Some(index) = decl.indexes.iter().find(|index| index.name == name && index.is_plain()) else { return ModelIndexFit::Nonportable };
+    let fits = index.columns.len() <= 8
+        && model_index_label_fits(module, table, &index.columns, Some(index))
+        && index.columns.iter().fold(PORTABLE_ID_BYTES, |bytes, column| {
+            bytes.saturating_add(table.col(column).map_or(usize::MAX, |kind| model_column_bytes(&kind)))
+        }) <= PORTABLE_KEY_BYTES;
+    if fits { ModelIndexFit::Fits } else { ModelIndexFit::Nonportable }
+}
+
+fn model_read_by_form(rule: &Expr, pins: &[(String, &Expr)]) -> bool {
+    let pinned = |column: &str| pins.iter().find_map(|(name, value)| (name == column).then_some(*value));
+    let viewer = |value: &Expr| matches!(value, Expr::Name { name, .. } if name == "viewer");
+    match rule {
+        Expr::Name { name, .. } if name == "allow" => true,
+        Expr::Binary { op, left, right, .. } if op == "or" =>
+            model_read_by_form(left, pins) || model_read_by_form(right, pins),
+        Expr::Binary { op, left, right, .. } if op == "and" =>
+            model_read_by_form(left, pins) && model_read_by_form(right, pins),
+        Expr::Binary { op, left, right, .. } if op == "=" => {
+            let (column, value) = match (column_of(left), column_of(right)) {
+                (Some(column), None) => (column, right.as_ref()),
+                (None, Some(column)) => (column, left.as_ref()),
+                _ => return false,
+            };
+            match (value, pinned(column)) {
+                (value, Some(pin)) if viewer(value) => viewer(pin),
+                (Expr::Literal { value, .. }, Some(Expr::Literal { value: pin, .. })) =>
+                    value == pin && !matches!(value, Literal::Null),
+                _ => false,
+            }
+        }
+        _ => false,
+    }
+}
+
 fn model_independent(expression: &Expr) -> bool {
     match expression {
         Expr::Literal { .. } | Expr::Name { .. } => true,
@@ -1199,11 +1236,14 @@ fn membership_probe_kind(focal: &Table, expression: &Expr) -> Option<Kind> {
 struct ModelMembershipPhysical {
     source: String,
     columns: Vec<String>,
+    index: Option<String>,
     target_parent: String,
-    total_id_source: bool,
+    source_admissible: bool,
 }
 
-/// The source key and target parent column of one capped membership leaf.
+/// The physical source key and target parent column of one capped membership
+/// leaf. A fully pinned total unique may replace the provisional discovery key;
+/// the other fixed equalities are residuals on its at-most-one row.
 fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) -> Option<ModelMembershipPhysical> {
     let Expr::Exists { read, .. } = expression else { return None };
     if read.range.is_some() || read.filter.is_some() || read.keys.is_empty() { return None }
@@ -1213,7 +1253,7 @@ fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) ->
     // independently of whatever plan the Rust binder selected. `Table::uniques`
     // deliberately excludes synthesized indexes.
     let columns = resolve_key(source, &read.keys, &kinds).ok()?;
-    let mut fixed = Vec::new();
+    let mut fixed_terms = Vec::new();
     let mut target = None;
     for (key, column) in read.keys.iter().zip(&columns) {
         if let Some(parent) = column_of(&key.value) {
@@ -1222,7 +1262,7 @@ fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) ->
             // A fixed source id remains an exact witness constraint, but PAGE
             // evaluates it as a residual. It is neither a discovery prefix nor
             // a cap grouping term; physical indexes always append id last.
-            if column != "id" { fixed.push(column.clone()); }
+            if column != "id" { fixed_terms.push((column.clone(), &key.value)); }
         } else {
             return None;
         }
@@ -1230,24 +1270,43 @@ fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) ->
     let (source_parent, target_parent) = target?;
     let ceiling = snapback4_core::Ceilings::default().examined;
     let bounded = source.caps.iter().any(|(max, by)| u64::from(*max) <= ceiling
-        && by.iter().all(|column| column != "id" && fixed.contains(column)));
+        && by.iter().all(|column| column != "id" && fixed_terms.iter().any(|term| &term.0 == column)));
     if !bounded { return None }
+    let mut fixed = fixed_terms.iter().map(|term| term.0.clone()).collect::<Vec<_>>();
     fixed.sort();
     fixed.dedup();
     let source_parent_is_id = source_parent == "id";
-    let mut source_key = fixed;
-    if !source_key.contains(&source_parent) { source_key.push(source_parent); }
-    if !source_key.iter().any(|column| column == "id") { source_key.push("id".into()); }
-    // The ordinary path remains valid when `id` is a physical next component.
-    // Only a reused declared index that omits it needs the one-row total-unique
-    // proof; zero candidates means the planner synthesizes `source_key`, while
-    // multiple candidates are rejected separately as ambiguous.
-    let candidates = model_declared_indexes(module, source, &source_key, false);
-    let total_id_source = !source_parent_is_id || match candidates.as_slice() {
-        [index] => index.columns.iter().any(|column| column == "id") || model_total_unique(source, index),
-        [] | [_, _, ..] => true,
+    let one_row = module.surface_tables.iter().find(|table| table.name == source.name)
+        .and_then(|table| table.indexes.iter().filter(|index| model_total_unique(source, index)
+            && index.columns.iter().all(|column| fixed.contains(column)))
+            .min_by_key(|index| (index.columns.len(), &index.name)));
+    let (source_key, source_index, source_admissible) = if let Some(index) = one_row {
+        let capped = source.caps.iter().any(|(max, by)| u64::from(*max) <= ceiling
+            && by.iter().all(|column| index.columns.contains(column)));
+        let readable = module.surface_tables.iter().find(|table| table.name == source.name)
+            .and_then(|table| {
+                let rules = table.rules.iter().filter(|rule| rule.effect == Effect::Read).collect::<Vec<_>>();
+                match rules.as_slice() { [rule] => Some(&rule.value), _ => None }
+            })
+            .is_some_and(|rule| model_read_by_form(rule, &fixed_terms.iter()
+                .filter(|term| index.columns.contains(&term.0)).cloned().collect::<Vec<_>>()));
+        (index.columns.clone(), Some(index.name.clone()), capped && readable)
+    } else {
+        let mut source_key = fixed;
+        if !source_key.contains(&source_parent) { source_key.push(source_parent); }
+        if !source_key.iter().any(|column| column == "id") { source_key.push("id".into()); }
+        // The ordinary path remains valid when `id` is a physical next component.
+        // Only a reused declared index that omits it needs the one-row total-unique
+        // proof; zero candidates means the planner synthesizes `source_key`, while
+        // multiple candidates are rejected separately as ambiguous.
+        let candidates = model_declared_indexes(module, source, &source_key, false);
+        let total_id_source = !source_parent_is_id || match candidates.as_slice() {
+            [index] => index.columns.iter().any(|column| column == "id") || model_total_unique(source, index),
+            [] | [_, _, ..] => true,
+        };
+        (source_key, None, total_id_source)
     };
-    Some(ModelMembershipPhysical { source: source.name.clone(), columns: source_key, target_parent, total_id_source })
+    Some(ModelMembershipPhysical { source: source.name.clone(), columns: source_key, index: source_index, target_parent, source_admissible })
 }
 
 fn owner_membership_physical_issue(module: &LeanModule, read: &ReadExpr) -> Option<&'static str> {
@@ -1265,13 +1324,16 @@ fn owner_membership_physical_issue(module: &LeanModule, read: &ReadExpr) -> Opti
         else { return None; }
     }
     if parties.is_empty() || memberships.is_empty() { return None }
-    if memberships.iter().any(|membership| !membership.total_id_source) {
+    if memberships.iter().any(|membership| !membership.source_admissible) {
         return Some("page-membership-source-unique");
     }
     let mut fits = Vec::new();
     for membership in &memberships {
         let Some(table) = module.tables.iter().find(|table| table.name == membership.source) else { return Some("page-membership-key-bound") };
-        fits.push(model_plain_index_fit(module, table, &membership.columns, false));
+        fits.push(match &membership.index {
+            Some(index) => model_selected_index_fit(module, table, index),
+            None => model_plain_index_fit(module, table, &membership.columns, false),
+        });
     }
     let (system_pins, branches) = model_page_pins(target, read);
     fits.push(model_plain_index_fit(module, target, &model_lane_columns(system_pins, &read.order_keys), true));
