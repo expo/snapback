@@ -1,5 +1,8 @@
 //! Held change polls: JSON whitespace heartbeats, followed by one JSON result.
-use super::{trusted_dev_request, JsonBuffer, Shared, cors, lock, principal_of, query_params, refusal_json, respond_timed};
+use super::{
+    JsonBuffer, Shared, cors, lock, principal_of, query_params, refusal_json, respond_timed,
+    trusted_dev_request,
+};
 use serde_json::{Value as Json, json};
 use std::io;
 use std::time::{Duration, Instant};
@@ -16,7 +19,9 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     let paced = began + Duration::from_millis(100);
     let capability = match principal_of(&request, shared) {
         Ok(principal) => principal,
-        Err(refusal) => return respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) })),
+        Err(refusal) => {
+            return respond_timed(request, shared, 401, json!({ "denied": refusal_json(&refusal) }));
+        }
     };
     if let Err(denied) = crate::device_handshake::check(shared, crate::device_handshake::header(&request), false) {
         return respond_timed(request, shared, 409, json!({ "denied": refusal_json(&denied) }));
@@ -35,7 +40,9 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     let initial = { let wake=lock(&shared.wake); (wake.seq,wake.eph.version.clone(),wake.generation) };
     let epoch = params.get("eph").and_then(|s| s.parse().ok()).unwrap_or(initial.1.epoch);
     let incarnation = params.get("ephi").cloned().unwrap_or(initial.1.incarnation);
-    let interest: Option<std::collections::BTreeSet<String>> = params.get("ephTables").map(|s| s.split(',').filter(|s|!s.is_empty()).map(str::to_owned).collect());
+    let interest: Option<std::collections::BTreeSet<String>> = params.get("ephTables").map(|s| {
+        s.split(',').filter(|s|!s.is_empty()).map(str::to_owned).collect()
+    });
     let wants_ephemeral = ["eph", "ephi", "ephTables"].iter().any(|k|params.contains_key(*k));
     {
         let mut engine = lock(&shared.engine);
@@ -52,6 +59,15 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
         let mut sequence_wake=false;
         let mut beat=Instant::now();
         loop {
+            // The deadline is private scheduling state. Production polls wake
+            // at it even without another application request; development
+            // clock jumps run the same advancement through their control
+            // request and notify this condition variable.
+            let opening = if shared.personas {
+                None
+            } else {
+                shared.next_time_audience()?
+            };
             // Snapshot and wait share one mutex. Commit cannot pass between
             // the predicate check and the condvar's atomic unlock-and-wait.
             let wake=lock(&shared.wake);
@@ -79,9 +95,19 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
             }
             let mut until=if heartbeat {deadline.min(beat)} else {deadline};
             if eph_ready {until=until.min(paced);}
+            if let Some(opening) = opening {
+                until = until.min(Instant::now() + shared.time_audience_delay(opening));
+            }
             #[cfg(test)]
             super::test_work(&shared.poll_wait);
-            let (_wake, _timeout)=shared.polls.wait_timeout(wake,until.saturating_duration_since(Instant::now())).unwrap_or_else(|e|e.into_inner());
+            let (wake, timeout)=shared.polls.wait_timeout(wake,until.saturating_duration_since(Instant::now())).unwrap_or_else(|e|e.into_inner());
+            drop(wake);
+            if timeout.timed_out()
+                && opening.is_some_and(|at| shared.time_audience_delay(at).is_zero())
+            {
+                shared.advance_time_audiences()?;
+                current = answer(shared, since)?;
+            }
         }
     })();
     // @ref LLP 3000.033#1.2 — a reader never enters OR leaves presence.
@@ -100,10 +126,18 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
                 Ok(outcome) => { lock(&shared.readers).put(&reader_epoch, reader.into_inner()); outcome }
                 // As for answers: a reader older than a finishing adoption is
                 // not a verdict on the session. Ask again behind the engine.
-                Err(_) => principal_of(response.request.as_ref().unwrap(),shared).and_then(|current| if current == capability { Ok(()) } else { Err(snapback4_core::Refusal::new("E_AUTH", "auth", "the poll credential changed")) }),
+                Err(_) => {
+                    principal_of(response.request.as_ref().unwrap(),shared).and_then(|current| {
+                        if current == capability { Ok(()) } else { Err(snapback4_core::Refusal::new("E_AUTH", "auth", "the poll credential changed")) }
+                    })
+                }
             }
         }
-        Some((Err(_), _)) => principal_of(response.request.as_ref().unwrap(),shared).and_then(|current| if current == capability { Ok(()) } else { Err(snapback4_core::Refusal::new("E_AUTH", "auth", "the poll credential changed")) }),
+        Some((Err(_), _)) => {
+            principal_of(response.request.as_ref().unwrap(),shared).and_then(|current| {
+                if current == capability { Ok(()) } else { Err(snapback4_core::Refusal::new("E_AUTH", "auth", "the poll credential changed")) }
+            })
+        }
     };
     if let Err(refusal)=authenticated { response.finish(401,json!({"denied":refusal_json(&refusal)}));return; }
     match result {
@@ -168,7 +202,8 @@ fn read_answer(shared: &Shared, since: u64) -> Result<Checked, snapback4_core::R
 }
 
 /// The notification's head, identity and invalidations share one read snapshot.
-fn check(engine: &mut snapback4_core::engine::Engine, since: u64) -> Result<(u64, Option<String>, Vec<String>, Vec<String>, Json), snapback4_core::error::RuntimeError> {
+fn check(engine: &mut snapback4_core::engine::Engine, since: u64) -> Result<(u64, Option<String>, Vec<String>, Vec<String>, Json), snapback4_core::error::RuntimeError,
+> {
     use rusqlite::OptionalExtension;
     let all_tables: Vec<_> = engine.schema().visible_tables().map(|(n,_)|n.clone()).collect();
     let schema = engine.schema().clone();
@@ -214,7 +249,12 @@ impl PollResponse<'_> {
         if !self.started { return respond_timed(self.request.take().unwrap(), self.shared, status, body); }
         // Stamp after the hold, including any development clock advance.
         let clock = lock(&self.shared.clock);
-        body["serverNow"] = json!(clock.now());
+        body["serverNow"] = json!(clock.now().max(
+                self.shared
+                    .time_audience_clock
+                    .load(std::sync::atomic::Ordering::Acquire)
+            )
+        );
         body["clockRevision"] = json!(clock.revision());
         drop(clock);
         // Once heartbeats began the status is 200; the final JSON still
@@ -252,7 +292,8 @@ impl Drop for PollResponse<'_> {
 mod column_tests {
     #[test]
     fn settlement_intervals_project_private_counts_and_keep_public_fields() {
-        let bound = snapback4_lang::compile(&[("schema.q".into(), include_str!("../../snapback4-lang/tests/fixtures/maintained-columns.q").into())]);
+        let bound = snapback4_lang::compile(&[("schema.q".into(), include_str!("../../snapback4-lang/tests/fixtures/maintained-columns.q").into(),
+        )]);
         assert!(bound.diagnostics.is_empty());
         let mut engine = snapback4_core::Engine::memory(bound.schema, []).unwrap();
         let maintain = engine.schema().maintains.iter().find(|m| m.private.as_ref().is_some_and(|o| o.column == "likeCount")).unwrap();
@@ -273,7 +314,8 @@ mod column_tests {
     }
     #[test]
     fn saturated_changes_uses_the_public_table_enumeration() {
-        let bound=snapback4_lang::compile(&[("schema.q".into(),include_str!("../../snapback4-lang/tests/fixtures/maintained-columns.q").into())]);
+        let bound=snapback4_lang::compile(&[("schema.q".into(),include_str!("../../snapback4-lang/tests/fixtures/maintained-columns.q").into(),
+        )]);
         assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
         let mut engine=snapback4_core::Engine::memory(bound.schema,[]).unwrap();
         let private = engine.schema().maintains[0].target.clone();
@@ -300,8 +342,12 @@ mod column_tests {
 pub(super) fn ack_preserved(engine: &snapback4_core::Engine, outcome: Option<&snapback4_core::MutationOutcome>) -> Vec<String> {
     match outcome {
         Some(out) if !out.replayed => match out.state {
-            snapback4_core::WriteState::Sent { .. } if out.receipt_only => snapback4_core::revocation::Footprint::default().preserved(engine.schema()),
-            snapback4_core::WriteState::Sent { seq, .. } => snapback4_core::revocation::preserved_between(engine.store().conn(), engine.schema(), seq.saturating_sub(1), seq),
+            snapback4_core::WriteState::Sent { .. } if out.receipt_only => {
+                snapback4_core::revocation::Footprint::default().preserved(engine.schema())
+            }
+            snapback4_core::WriteState::Sent { seq, .. } => {
+                snapback4_core::revocation::preserved_between(engine.store().conn(), engine.schema(), seq.saturating_sub(1), seq)
+            }
             _ => Vec::new(),
         }, _ => Vec::new(),
     }
@@ -321,7 +367,9 @@ pub(super) fn settlement_changes(conn: &rusqlite::Connection, schema: &snapback4
             public.tables.entry(owner.table.clone()).or_default().columns.insert(owner.column.clone());
         } else { return Json::Null; }
     }
-    let writes: serde_json::Map<String, Json> = public.tables.into_iter().map(|(name, c)|
-        (name, if c.population || c.deleted { Json::Null } else { json!(c.columns) })).collect();
+    let writes: serde_json::Map<String, Json> = public.tables.into_iter().map(|(name, c)| {
+            (name, if c.population || c.deleted { Json::Null } else { json!(c.columns) },
+            )
+        }).collect();
     json!({"after":after,"through":through,"writes":writes})
 }

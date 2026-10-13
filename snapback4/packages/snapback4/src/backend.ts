@@ -42,6 +42,8 @@ export interface TableJson {
   leave?: "until-revoked" | "delivered-history";
   /** The time column that ends a row's life; a row past it is absent here too. */
   expire?: string | null;
+  /** The time column that starts a row's server-authoritative read life. */
+  notBefore?: string | null;
 }
 
 export interface SchemaJson {

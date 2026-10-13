@@ -42,7 +42,8 @@ impl Runner<'_> {
         self.read_tables.insert(k.table.clone());
         self.read_tables.insert(m.source.clone());
         self.meter.heap(crate::rows::word_heap::slots::<Option<Value>>(rows.len()))?;
-        self.meter.heap(crate::rows::word_heap::slots::<(usize, Value, i64)>(rows.len()))?;
+        self.meter.heap(crate::rows::word_heap::slots::<(usize, Value, i64)>(rows.len(),
+            ))?;
         self.meter.heap(crate::rows::MAX_INDEX_KEY_BYTES as u64 * 4)?;
         // Reserve all output images before constructing any. Member payload is
         // separately authorized and charged by row_view_member_image.
@@ -111,7 +112,8 @@ impl Runner<'_> {
         let page_bytes = decoder.saturating_mul(32)
             .saturating_add(scratch)
             .saturating_add(crate::rows::word_heap::slots::<(Value, Vec<u8>)>(32))
-            .saturating_add(crate::rows::word_heap::slots::<(Option<super::super::authorized_point::AuthorizedRow<'_>>, Vec<u8>)>(32)).max(certificate);
+            .saturating_add(crate::rows::word_heap::slots::<(Option<super::super::authorized_point::AuthorizedRow<'_>>, Vec<u8>,
+            )>(32)).max(certificate);
         let page = if page_bytes <= limit.saturating_sub(used) { 32 } else { 1 };
         self.meter.ceilings.heap_bytes = limit;
         let result = (|| {
@@ -188,7 +190,7 @@ impl Runner<'_> {
                     let row = row.into_value();
                     self.rebuilt_source_rows = self.rebuilt_source_rows.saturating_add(1);
                     bounds.after = crate::key::decode(&key).map(|v| v.into_iter().skip(1).collect());
-                    let live = !self.expired(source, &row);
+                    let live = !self.inactive(&m.source, &row)?;
                     let mut contributed = false;
                     for (_, member, total) in &mut *members {
                         self.meter.step(predicate_steps)?;

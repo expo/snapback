@@ -481,7 +481,7 @@ fn disclosing(schema: &Schema, grant: &RuleExpr, fields: bool) -> bool {
         RuleExpr::Exists { table: target, index, key, equalities, .. } => {
             let Some(target_table) = schema.table(target) else { return false };
             let Some(target_index) = target_table.index(index) else { return false };
-            if target_table.through.is_some() || target_table.is_expiring() { return false; }
+            if target_table.through.is_some() || target_table.read_lifetime_sensitive() { return false; }
             let value = |term: &RuleTerm| match term {
                 RuleTerm::Viewer => Some(Expr::Input(Input::Viewer)),
                 RuleTerm::Literal(value) => Some(Expr::Literal(value.clone())),

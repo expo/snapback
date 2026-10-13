@@ -2,13 +2,30 @@
 // @ref LLP 3000.036.002#2-one-lifetime-predicate — every reader shares this half-open lifetime.
 use super::*;
 
+/// One opening is one system commit. Structural admission keeps that commit
+/// inside the ordinary engine heap and event-count envelopes before any row
+/// can enter the pending ledger.
+pub(crate) const MAX_OPENING_EVENTS: u64 = 1_024;
+pub(crate) const MAX_OPENING_BYTES: u64 = 16 << 20;
+
 impl Table {
+    /// Reads must classify/filter stored images before public actual-size
+    /// accounting whenever either lifetime edge can hide one.
+    pub fn read_lifetime_sensitive(&self) -> bool {
+        self.not_before.is_some() || self.is_expiring()
+    }
+
     pub fn opens_at(&self, row: &Value) -> Option<i64> {
-        let image = row_image(row, self);
         self.not_before
             .as_ref()
-            .and_then(|field| image.field(field).ok())
-            .and_then(|value| value.as_int().ok())
+            .and_then(|field| match row.field(field) {
+                Ok(Value::Int(at)) => Some(*at),
+                Ok(_) => None,
+                Err(_) => match self.defaults.get(field) {
+                    Some(ColumnDefault::Literal(Value::Int(at))) => Some(*at),
+                    _ => None,
+                },
+            })
     }
     pub fn opened(&self, row: &Value, now: i64) -> bool {
         self.opens_at(row).is_none_or(|at| at <= now)
@@ -63,11 +80,41 @@ pub(super) fn validate(schema: &Schema, issues: &mut Vec<SchemaIssue>) {
                     format!("union audiences cannot use a time audience: {scope} has `not before`; use `online only`") });
             }
         }
+        if table.not_before.is_some() {
+            let own = table
+                .sync
+                .as_ref()
+                .map_or(0, |sync| sync.arms().count() as u64)
+                + table
+                    .written_by
+                    .values()
+                    .filter(|authority| !authority.audience)
+                    .count() as u64;
+            let memberships = schema.tables.values().flat_map(|content| content.sync.iter().flat_map(Sync::arms))
+                .filter(|(audience, _)| matches!(audience, Audience::Target { table: target, .. } if target == name))
+                .count() as u64;
+            let events = own.saturating_add(memberships);
+            // A join carries a subset of the audience row's bounded fields,
+            // plus less framing than the decode reservation already keeps.
+            // Charge the whole row envelope to every possible event so one
+            // accepted opening cannot exceed the empty-commit wire budget.
+            let bytes = crate::rows::disclosed::decode_reservation(table)
+                .saturating_mul(events);
+            if events > MAX_OPENING_EVENTS || bytes > MAX_OPENING_BYTES {
+                issues.push(SchemaIssue { path: format!("{path}.notBefore"), message: format!(
+                    "not before opening fanout is too large for one bounded publication commit ({events} events, {bytes} reserved bytes); split this audience into smaller tables"
+                ) });
+            }
+        }
     }
     for (position, maintain) in schema.maintains.iter().enumerate() {
-        if timed(&maintain.source) || timed(&maintain.target) {
+        let timed_row_key = maintain
+            .row_key
+            .as_ref()
+            .is_some_and(|row_key| timed(&row_key.table));
+        if timed(&maintain.source) || timed(&maintain.target) || timed_row_key {
             issues.push(SchemaIssue { path: format!("maintains[{position}]"), message:
-                format!("maintain {} cannot use `not before` on its source or target until boundary recounts are supported", maintain.target) });
+                format!("maintain {} cannot use `not before` on its source, target, or row-key member table until boundary recounts are supported", maintain.target) });
         }
     }
     for timeline in &schema.timelines {

@@ -185,6 +185,18 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     schema.operations = programs.iter().map(|bound| {
         let mut fact = residency::execution_with_presence(&schema, &bound.program, bound.presence.as_ref());
         residency::locate_sites(&catalog, bound, &mut fact);
+        if bound.program.kind == snapback4_core::ir::ProgramKind::Mutation {
+            let mut timed = false;
+            for site in &mut fact.sites {
+                if schema.table(&site.table).is_some_and(|table| table.not_before.is_some()) {
+                    timed = true;
+                    site.class = snapback4_core::schema::SiteClass::Server;
+                    site.reason = format!("{} has `not before`; only the server resolves and changes scheduled rows", site.table);
+                    site.rewrite = "queue this mutation while offline; a device clock never authorizes scheduled payloads".into();
+                }
+            }
+            if timed { fact.predicts = Some("never".into()); }
+        }
         if let Some((site, location)) = residency::receipts::located(&schema, bound, &catalog) {
             fact.predicts = Some("never".into());
             fact.sites.retain(|s| s.kind != "receipt dependency");

@@ -38,7 +38,7 @@ impl<'r> Runner<'r> {
         // then recheck the rule with a separate witness reservation. Neither
         // hidden/expired images nor private fields can select actual-size admission.
         #[cfg(feature = "server-search")]
-        if trusted && !self.device && !table.is_expiring() && table.recorded.is_empty()
+        if trusted && !self.device && !table.read_lifetime_sensitive() && table.recorded.is_empty()
             && table.through.is_none() && table.written_by.values().all(|a|a.audience) {
             if !self.read_charge(MeterKind::Examined,1)? { return Ok(None); }
             self.meter.heap(crate::rows::word_heap::text(id) + crate::rows::word_heap::slots::<Value>(1))?;
@@ -48,7 +48,8 @@ impl<'r> Runner<'r> {
             let prepay = self.meter.mark();
             self.meter.heap(materialization)?;
             let expiry = self.next_expiry.scope();
-            let row = self.authorized_scratch(self.rule_scratch(&table.rules.read), &[(MeterKind::RuleProbes,super::rules::rule_probes(&table.rules.read))], |runner,_| {
+            let row = self.authorized_scratch(self.rule_scratch(&table.rules.read), &[(MeterKind::RuleProbes,super::rules::rule_probes(&table.rules.read),
+                )], |runner,_| {
                 let row = runner.authorize_image(name,row.into_value())?;
                 if let Some(row) = &row { runner.next_expiry.inherit(row.expiry()); }
                 Ok(row)
@@ -62,7 +63,8 @@ impl<'r> Runner<'r> {
         }
         let bytes = crate::rows::disclosed::decode_reservation(table).saturating_add(self.rule_scratch(&table.rules.read));
         let expiry = self.next_expiry.scope();
-        let row = self.authorized_scratch(bytes, &[(MeterKind::Examined, 1), (MeterKind::RuleProbes, super::rules::rule_probes(&table.rules.read))], |runner, scope| {
+        let row = self.authorized_scratch(bytes, &[(MeterKind::Examined, 1), (MeterKind::RuleProbes, super::rules::rule_probes(&table.rules.read),
+                )], |runner, scope| {
             let Some(mut row) = runner.tx.get(scope, name, id)? else { return Ok(None); };
             crate::schema::materialize_optional_fields(&mut row, table);
             let until = table.deadline(&row);
@@ -78,7 +80,7 @@ impl<'r> Runner<'r> {
         let table = &self.schema.tables[name];
         // @ref LLP 3000.014#5-what-derives-from-the-capture — a denied or expired candidate's witness deadlines are discarded with its scope.
         let expiry = self.next_expiry.scope();
-        if self.expired(table, &row) || !self.check_rule(name, Effect::Read, None, &row)? {
+        if self.inactive(name, &row)? || !self.check_rule(name, Effect::Read, None, &row)? {
             return Ok(None);
         }
         // Memory deadlines are hidden by Disclosed itself; transfer the live
@@ -106,17 +108,22 @@ impl<'r> Runner<'r> {
         // Trusted selected heads may use the same actual-size adapter. It
         // decodes a full transient image; the streaming consumer retains only
         // its ordering key. Selection remains useful in the private decoder.
-        if (self.context.is_system() || trusted && !table.is_expiring()) && table.recorded.is_empty() && table.through.is_none() && table.written_by.values().all(|a| a.audience) {
-            if metered { self.meter.heap(crate::rows::word_heap::slots::<(Option<AuthorizedRow<'_>>,Vec<u8>)>(limit))?; }
+        if (self.context.is_system() || trusted && !table.read_lifetime_sensitive()) && table.recorded.is_empty() && table.through.is_none() && table.written_by.values().all(|a| a.audience) {
+            if metered { self.meter.heap(crate::rows::word_heap::slots::<(Option<AuthorizedRow<'_>>,Vec<u8>,
+                )>(limit))?; }
             #[cfg(feature = "sqlite")]
-            let live = table.is_expiring();
+            let live = table.read_lifetime_sensitive();
             // A web device never reads as the system, the only reader of an expiring table here.
             #[cfg(not(feature = "sqlite"))]
             let live = false;
             let rows = if live { self.live_store_scan(name, index, prefix, bounds, dir, limit, metered)? }
             else if metered {
-                self.metered_scan(|runner, scope| runner.tx.scan_metered(scope,name,index,prefix,bounds,dir,limit,&mut runner.meter))?
-            } else { self.metered_scan(|runner, scope| runner.tx.scan(scope,name,index,prefix,bounds,dir,limit))? };
+                self.metered_scan(|runner, scope| {
+                    runner.tx.scan_metered(scope,name,index,prefix,bounds,dir,limit,&mut runner.meter)
+                })?
+            } else { self.metered_scan(|runner, scope| {
+                    runner.tx.scan(scope,name,index,prefix,bounds,dir,limit)
+                })? };
             // @ref LLP 3000.007#20.24.5 — a device prices the server's image with the server's charge. Its
             // own prediction rows still meet a non-uniform rule, as prepaid internal work outside the caller's
             // heap; after an earlier cut such a row stays hidden (the read is incomplete either way).
@@ -124,18 +131,22 @@ impl<'r> Runner<'r> {
             let mut out = Vec::with_capacity(rows.len());
             for (row, key) in rows {
                 let row = if check && self.is_provisional(name, &row)? {
-                    self.prepaid_scan(&[], false, |runner, scope| runner.candidate_verdict(scope, name, index, prefix, row, true, rule_prepaid))?
+                    self.prepaid_scan(&[], false, |runner, scope| {
+                        runner.candidate_verdict(scope, name, index, prefix, row, true, rule_prepaid)
+                    })?
                 } else { Some(AuthorizedRow { projection:self.disclosed_row(table,row),authority:RowAuthorization(()),expiry:Default::default() }) };
                 out.push((row, key));
             }
             return Ok(out);
         }
         let bytes = crate::rows::disclosed::decode_reservation(table).saturating_add(self.rule_scratch(&table.rules.read));
-        if metered { self.meter.heap(crate::rows::word_heap::slots::<(Option<AuthorizedRow<'_>>, Vec<u8>)>(limit))?; }
+        if metered { self.meter.heap(crate::rows::word_heap::slots::<(Option<AuthorizedRow<'_>>, Vec<u8>,
+            )>(limit))?; }
         let mut cursor = bounds.clone();
         let mut out = Vec::with_capacity(limit);
         for _ in 0..limit {
-            let candidate = self.reserved_scratch(bytes, &[], !trusted, |runner, scope| loop {
+            let candidate = self.reserved_scratch(bytes, &[], !trusted, |runner, scope| {
+                loop {
                 #[cfg(not(feature = "server-search"))]
                 let selected = runner.tx.scan(scope,name,index,prefix,&cursor,dir,1)?;
                 #[cfg(feature = "server-search")]
@@ -144,8 +155,10 @@ impl<'r> Runner<'r> {
                 // Advancing over a rejected candidate is internal decoder work.
                 cursor.after = crate::key::decode(&key).map(|v|v.into_iter().skip(prefix.len()).collect());
                 // @ref LLP 3000.007#20.24.6 — an expired, unswept candidate is never returned, counted or charged.
-                if runner.step_expired(table, &row, &key)? { continue; }
-                return Ok(Some((runner.candidate_verdict(scope, name, index, prefix, row, trusted, rule_prepaid)?,key)));
+                if runner.step_inactive(name, &row, &key)? { continue; }
+                return Ok(Some((runner.candidate_verdict(scope, name, index, prefix, row, trusted, rule_prepaid)?,key,
+                    )));
+                }
             })?;
             let Some((row,key)) = candidate else { break; };
             // Only this sealed surviving projection can be priced on the caller ledger.
@@ -165,7 +178,6 @@ impl<'r> Runner<'r> {
     // @ref LLP 3000.007#20.24.6 — the public meter charges only rows live at the read's clock.
     #[cfg_attr(not(feature = "sqlite"), allow(dead_code))]
     fn live_store_scan(&mut self, name: &str, index: &str, prefix: &[Value], bounds: &crate::rows::Bounds, dir: crate::rows::Dir, limit: usize, metered: bool) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-        let table = &self.schema.tables[name];
         let mut cursor = bounds.clone();
         let mut out = Vec::new();
         // Price the authored range once. Internal cursors over expired keys
@@ -175,11 +187,13 @@ impl<'r> Runner<'r> {
             Ok::<_, RuntimeError>(crate::rows::word_heap::StoreGuard::open(meter, super::read::EXPIRED_STEP_GUARD))
         })?;
         while out.len() < limit {
-            let window = self.metered_scan(|runner, scope| runner.tx.scan(scope,name,index,prefix,&cursor,dir,limit - out.len()))?;
+            let window = self.metered_scan(|runner, scope| {
+                runner.tx.scan(scope,name,index,prefix,&cursor,dir,limit - out.len())
+            })?;
             if window.is_empty() { break; }
             for (row, key) in window {
                 cursor.after = crate::key::decode(&key).map(|v|v.into_iter().skip(prefix.len()).collect());
-                if self.step_expired(table, &row, &key)? { continue; }
+                if self.step_inactive(name, &row, &key)? { continue; }
                 if metered {
                     let additional = super::authorized_scan::InternalLedger::with_meter(&mut self.meter, |meter, _| {
                         crate::rows::word_heap::scan_value_entry(meter, &mut guard, out.len(), out.capacity(), &row, &key)
@@ -250,7 +264,9 @@ impl<'r> Runner<'r> {
         let row = if crate::rows::disclosed::actual_size(table) {
             if !prepaid_examined && !self.read_charge(MeterKind::Examined,1)? { self.point_cut(read, key); return Ok(None); }
             let scratch = self.meter.mark();
-            let row = self.metered_scan(|runner, scope| runner.tx.scan_metered(scope,&read.table,&read.index,key,&Default::default(),crate::rows::Dir::Asc,1,&mut runner.meter))?.pop();
+            let row = self.metered_scan(|runner, scope| {
+                    runner.tx.scan_metered(scope,&read.table,&read.index,key,&Default::default(),crate::rows::Dir::Asc,1,&mut runner.meter)
+                })?.pop();
             self.meter.release_heap(scratch);
             let Some((mut row,_)) = row else {
                 *absent = true;
@@ -283,7 +299,7 @@ impl<'r> Runner<'r> {
                 if !runner.point_event_held(read, key, &row) {
                     return Ok(None);
                 }
-                if runner.expired(table, &row) { return Ok(None); }
+                if runner.inactive(&read.table, &row)? { return Ok(None); }
                 let provisional = runner.is_provisional(&read.table, &row)?;
                 let allowed = if provisional && !runner.context.is_system() {
                     runner.authorize_read(&read.table, &row, prepaid)?
@@ -344,7 +360,9 @@ impl<'r> Runner<'r> {
             self.unknown_fact(&read.table, &read.index, key, &read.site);
             self.components.note(|frame| frame.speculative = true);
             self.withhold_unheld_card(&read.table);
-        } else if self.device && self.schema.maintain_for(&read.table).and_then(|m|m.row_key.as_ref()).is_some_and(|k|self.schema.tables[&k.table].sync.as_ref().is_none_or(|s|s.horizon.is_some())) {
+        } else if self.device && self.schema.maintain_for(&read.table).and_then(|m|m.row_key.as_ref()).is_some_and(|k| {
+                    self.schema.tables[&k.table].sync.as_ref().is_none_or(|s|s.horizon.is_some())
+                }) {
             self.unknown_fact(&read.table, &read.index, key, &read.site);
         }
     }
@@ -369,7 +387,9 @@ mod tests {
         for heap in [64 << 10,16 << 20] {
             let mut runner = Runner::new(&rows,&schema,Context::new("alice",Default::default()),
                 Meter::new(crate::Ceilings {heap_bytes:heap,..Default::default()},crate::meter::Cut::Cap),0);
-            let (result,allocated) = crate::rows::word_heap::tests::measured(||runner.authorized_member("records","hit",true));
+            let (result,allocated) = crate::rows::word_heap::tests::measured(|| {
+                runner.authorized_member("records","hit",true)
+            });
             eprintln!("heap={heap}: allocated={allocated}, peak={}",runner.meter.heap_peak);
             if heap == 64 << 10 {
                 assert!(matches!(result,Err(RuntimeError::Bound {kind:MeterKind::HeapBytes,..})),"{result:?}");

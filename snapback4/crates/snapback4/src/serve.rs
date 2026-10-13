@@ -17,7 +17,7 @@ use serde_json::{Value as Json, json};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, Write as _};
 use std::net::IpAddr;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 use tiny_http::{Header, Method, Request, Response, Server};
@@ -83,6 +83,9 @@ pub struct Shared {
     wake: Mutex<ephemeral::Wake>,
     polls: Condvar,
     pub clock: Arc<Mutex<crate::dev_clock::Clock>>,
+    /// Highest durable time-audience clock observed by this host. Responses
+    /// never regress below the authority clock even if wall time rolls back.
+    time_audience_clock: AtomicI64,
     maintenance: FairMutex<maintenance::State>,
     pub engine: FairMutex<Engine>,
     adoption: Mutex<adoption::Status>,
@@ -143,7 +146,22 @@ pub struct Shared {
 }
 
 impl Shared {
-    pub fn now(&self) -> i64 { lock(&self.clock).now() }
+    pub fn now(&self) -> i64 { lock(&self.clock).now().max(self.time_audience_clock.load(Ordering::Acquire)) }
+    fn advance_time_audiences(&self) -> Result<i64, snapback4_core::RuntimeError> {
+        let requested = lock(&self.clock).now();
+        let mut engine = lock(&self.engine);
+        let before = engine.seq()?;
+        let now = engine.advance_time_audiences_at(requested)?;
+        self.time_audience_clock.fetch_max(now, Ordering::AcqRel);
+        if engine.seq()? != before { self.durable_committed(&engine); }
+        Ok(now)
+    }
+    fn next_time_audience(&self) -> Result<Option<i64>, snapback4_core::RuntimeError> { lock(&self.engine).next_time_audience_at() }
+    fn time_audience_delay(&self, at: i64) -> Duration {
+        let raw = lock(&self.clock).now();
+        let floor = self.time_audience_clock.load(Ordering::Acquire);
+        Duration::from_millis(if at <= floor { 0 } else { at.saturating_sub(raw).max(0) }.try_into().unwrap_or(u64::MAX))
+    }
     pub(crate) fn worker_owner(&self) -> Option<Arc<std::fs::File>> { self.owner.as_ref().map(|owner| owner.worker_lock()) }
 }
 
@@ -645,7 +663,8 @@ use crate::sync_wire::{SnapshotReply, SyncEvents, StreamReply};
 /// Sample at response construction, after execution and any admission wait.
 pub(crate) fn clock_headers(shared: &Shared) -> [Header; 2] {
     let clock = lock(&shared.clock);
-    [Header::from_bytes("X-Snapback-Time", clock.now().to_string()).unwrap(),
+    let now = clock.now().max(shared.time_audience_clock.load(Ordering::Acquire));
+    [Header::from_bytes("X-Snapback-Time", now.to_string()).unwrap(),
      Header::from_bytes("X-Snapback-Clock", clock.revision()).unwrap()]
 }
 
@@ -987,6 +1006,11 @@ fn handle(mut request: Request, shared: &Shared) {
         Ok(body) => body,
         Err(_) => return reject(request, 400, Refusal::new("E_INPUT", "input", "a JSON request body must be valid UTF-8")),
     };
+    if (method == Method::Get && path == "/changes")
+        || (method == Method::Post && (path == "/sync" || path.starts_with("/q/") || path.starts_with("/m/")))
+    {
+        if let Err(error) = shared.advance_time_audiences() { return reject(request, 503, error.refusal()); }
+    }
     if operation && !shared.personas {crate::release_requests::Scope::admit(&shared.release_requests,||*lock(&shared.generation));}
     match (method, path.as_str()) {
         (Method::Post, "/dev/clock/advance") => maintenance::advance(request, shared, &body),

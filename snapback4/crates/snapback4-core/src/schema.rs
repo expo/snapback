@@ -16,7 +16,7 @@ use std::fmt;
 pub mod columns;
 pub mod reservations;
 pub mod through;
-mod time_audience;
+pub(crate) mod time_audience;
 pub mod references;
 mod reference;
 mod update_images;

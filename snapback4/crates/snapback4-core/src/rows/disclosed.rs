@@ -8,7 +8,7 @@ use crate::schema::ColumnType;
 /// of 144 canonical tagged bytes (value::validate_identities), on every host.
 pub fn actual_size(table: &Table) -> bool {
     // A read-through child inherits its parent's rule and lifetime; it is never public.
-    table.rules.read.is_uniformly_readable() && !table.is_expiring() && table.through.is_none()
+    table.rules.read.is_uniformly_readable() && !table.read_lifetime_sensitive() && table.through.is_none()
         && table.recorded.is_empty() && table.written_by.values().all(|a| a.audience)
 }
 
@@ -18,8 +18,9 @@ pub fn admission(table: &Table) -> u64 {
 }
 
 pub fn decode_reservation(table: &Table) -> u64 {
-    table.columns.iter().fold(4096 + MAX_INDEX_KEY_BYTES as u64 * 4, |n, (name, ty)|
-        n.saturating_add(256 + name.len() as u64 * 16).saturating_add(column(ty)))
+    table.columns.iter().fold(4096 + MAX_INDEX_KEY_BYTES as u64 * 4, |n, (name, ty)| {
+            n.saturating_add(256 + name.len() as u64 * 16).saturating_add(column(ty))
+        })
 }
 
 fn column(ty: &ColumnType) -> u64 {

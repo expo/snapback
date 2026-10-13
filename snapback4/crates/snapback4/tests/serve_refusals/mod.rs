@@ -7,9 +7,13 @@ fn exhaust_read_authority(host: &Host) {
     let bound = lock(&host.shared.bound);
     let until = host.shared.now() + 3_600_000;
     let mut rows = vec![("rows".into(), snapback4_core::wire::row_from_json(
-        &bound.schema.tables["rows"], &json!({"id":"hidden","owner":"bob"})).unwrap())];
-    rows.extend((0..8193).map(|n| ("grants".into(), snapback4_core::wire::row_from_json(
-        &bound.schema.tables["grants"], &json!({"id":format!("g{n}"),"parent":"hidden","until":until+n})).unwrap())));
+        &bound.schema.tables["rows"], &json!({"id":"hidden","owner":"bob"})).unwrap(),
+    )];
+    rows.extend((0..8193).map(|n| {
+        ("grants".into(), snapback4_core::wire::row_from_json(
+        &bound.schema.tables["grants"], &json!({"id":format!("g{n}"),"parent":"hidden","until":until+n})).unwrap(),
+        )
+    }));
     engine.load(rows).unwrap();
 }
 fn latest(project: &Path, op: &str) -> Json {
@@ -117,10 +121,13 @@ impl Host {
         )
         .unwrap();
         let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(dev, 0).unwrap()));
+        let authoritative_now = lock(&clock).now();
         let presence = Arc::new(Live::new(clock.clone()));
         engine.set_presence(Some(presence.clone()));
-        let refusals = evidence.map(|project| dev_refusals::Recent::start(project,
-            &engine.store().meta("store_id").unwrap().unwrap(), "127.0.0.1:0".parse().unwrap(), false, false).unwrap()).unwrap_or_default();
+        let refusals = evidence.map(|project| {
+                dev_refusals::Recent::start(project,
+            &engine.store().meta("store_id").unwrap().unwrap(), "127.0.0.1:0".parse().unwrap(), false, false).unwrap()
+            }).unwrap_or_default();
         let generation = engine.generation();
         let readers = Mutex::new(QueryReaders::new(&engine, &bound.refusal_sites));
         let shared = Arc::new(Shared {
@@ -141,6 +148,7 @@ impl Host {
             personas: dev,
             hold_effects: false,
             hold_schedules: false,
+            time_audience_clock: AtomicI64::new(authoritative_now),
             clock, maintenance: FairMutex::gate(maintenance::State::default()),
             entropy: Mutex::new(1),
             presence,

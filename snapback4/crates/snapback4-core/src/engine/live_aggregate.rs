@@ -71,10 +71,10 @@ impl Runner<'_> {
 
     // Shared selection only: witnesses and scalar recounts keep their distinct
     // authorization, coverage, lifetime and metering behavior around it.
-    pub(super) fn live_contribution(&self, maintain: &Maintain, source: &crate::schema::Table, candidate: &Value, group: &[Value]) -> bool {
-        !self.expired(source, candidate)
+    pub(super) fn live_contribution(&mut self, maintain: &Maintain, _source: &crate::schema::Table, candidate: &Value, group: &[Value]) -> Result<bool, RuntimeError> {
+        Ok(!self.inactive(&maintain.source, candidate)?
             && maintain.selected(candidate)
-            && maintain.source_key(candidate) == group
+            && maintain.source_key(candidate) == group)
     }
 
     pub(super) fn live_aggregate_inner(
@@ -109,21 +109,23 @@ impl Runner<'_> {
         'sources: loop {
             let limit = 32;
             // Already-authorized source candidates keep their ordinary meter; the token is the storage capability.
-            let rows = self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &maintain.source, index, &prefix, &bounds, Dir::Asc, limit))?;
+            let rows = self.metered_scan(|runner, allowance| {
+                runner.tx.scan(allowance, &maintain.source, index, &prefix, &bounds, Dir::Asc, limit)
+            })?;
             let count = rows.len();
             for (mut candidate, key) in rows {
                 materialize_optional_fields(&mut candidate, source);
                 bounds.after = crate::key::decode(&key)
                     .map(|values| values.into_iter().skip(prefix.len()).collect());
                 // @ref LLP 3000.007#20.24.6 — an expired source row is stepped over, never charged.
-                if self.step_expired(source, &candidate, &key)? { continue; }
+                if self.step_inactive(&maintain.source, &candidate, &key)? { continue; }
                 if !self.read_charge(MeterKind::Examined, 1)? {
                     break 'sources;
                 }
                 if !self.read_charge(MeterKind::Steps, maintain.evaluation_steps())? {
                     break 'sources;
                 }
-                if !self.live_contribution(maintain, source, &candidate, &group)
+                if !self.live_contribution(maintain, source, &candidate, &group)?
                 {
                     continue;
                 }

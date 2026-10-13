@@ -11,8 +11,8 @@ mod selected;
 
 use crate::error::RuntimeError;
 use crate::key;
-pub use crate::rows::{Bounds, Dir, index_key, index_keys, index_values};
 use crate::rows::stored_index_keys;
+pub use crate::rows::{Bounds, Dir, index_key, index_keys, index_values};
 use crate::schema::{Index, Schema, Table};
 use crate::value::{Value, canonical_json};
 use rusqlite::{Connection, OptionalExtension, params};
@@ -20,29 +20,30 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 mod activation;
-pub(crate) mod dormant;
-mod narrowed;
-pub(crate) mod release_history;
-mod adopt_refusals;
-#[cfg(test)]
-mod dormant_tests;
 mod activation_cache;
 mod activation_index;
-mod activation_scan;
-pub mod adoption_report;
-pub mod adoption_estimate;
-mod activation_walk;
 mod activation_plan;
+mod activation_scan;
+mod activation_walk;
+mod adopt_refusals;
+pub mod adoption_estimate;
+pub mod adoption_report;
 #[cfg(test)]
 mod adoption_tests;
-mod event_slots;
-pub mod timeline_launch;
-mod caps;
 mod authority;
-mod successor;
-mod sequences;
-mod ownership;
+mod caps;
+pub(crate) mod dormant;
+#[cfg(test)]
+mod dormant_tests;
+mod event_slots;
+mod narrowed;
 pub(crate) mod opening;
+mod ownership;
+pub(crate) mod release_history;
+mod sequences;
+mod successor;
+pub(crate) mod time_audience;
+pub mod timeline_launch;
 
 const STORE_VERSION: &str = "snapback4-store-1";
 
@@ -57,6 +58,9 @@ fn file_identity(conn: &Connection) -> Result<Option<(u64, u64)>, RuntimeError> 
 
 pub struct Store {
     conn: Connection,
+    /// Server stores own timed publication. Device stores receive only rows
+    /// the server has already published and never consult this private ledger.
+    server: bool,
     // Fields drop in declaration order: retain the sidecar ownership lock until
     // SQLite has closed. No raw descriptor to the database is held here.
     ownership: Option<std::sync::Arc<std::fs::File>>,
@@ -94,13 +98,18 @@ pub struct Tx<'a> {
     sequence_table: std::cell::Cell<Option<bool>>,
     tx: rusqlite::Transaction<'a>,
     page_size: u64,
+    server: bool,
     catalog: &'a BTreeMap<String, i64>,
 }
 
 fn scan_sql(dir: Dir) -> &'static str {
     match dir {
-        Dir::Asc => "SELECT r.data, i.k FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k ASC LIMIT ?5",
-        Dir::Desc => "SELECT r.data, i.k FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k DESC LIMIT ?5",
+        Dir::Asc => {
+            "SELECT r.data, i.k FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k ASC LIMIT ?5"
+        }
+        Dir::Desc => {
+            "SELECT r.data, i.k FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k DESC LIMIT ?5"
+        }
     }
 }
 
@@ -113,7 +122,9 @@ impl Store {
         let file_identity = file_identity(&conn)?;
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         let tx = conn.transaction()?;
-        let version: String = tx.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| row.get(0))?;
+        let version: String = tx.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| {
+                row.get(0)
+            })?;
         if version != STORE_VERSION && version != dormant::VERSION && version != "snapback4-release-store-2" { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}"))); }
         let catalog = tx.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?;
         let identity = activation::identity(&tx)?;
@@ -121,7 +132,8 @@ impl Store {
         let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         let assets_dir = real.parent().unwrap_or(Path::new(".")).join("assets");
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
-        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), conn, ownership: None, #[cfg(unix)] file_identity, page_size, catalog, identity, assets_dir, ephemeral_assets: false })
+        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), conn,
+            server: false, ownership: None, #[cfg(unix)] file_identity, page_size, catalog, identity, assets_dir, ephemeral_assets: false })
     }
 
     /// Classify against one read snapshot of the active generation and rows.
@@ -253,13 +265,19 @@ impl Store {
             Self::initialize_schema(&opened)?;
             if server { Self::initialize_change_evidence(&opened)?; }
         }
-        let version: String = opened.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| row.get(0))?;
+        let version: String = opened.query_row("SELECT value FROM _meta WHERE key = 'version'", [], |row| {
+                row.get(0)
+            })?;
         if version != STORE_VERSION && version != dormant::VERSION && version != "snapback4-release-store-2" { return Err(RuntimeError::Store(format!("store version {version} is not {STORE_VERSION}; this data directory belongs to another Snapback"))); }
-        let catalog = opened.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)))?.collect::<Result<BTreeMap<_, _>, _>>()?;
+        let catalog = opened.prepare("SELECT name, num FROM _catalog")?.query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+            })?.collect::<Result<BTreeMap<_, _>, _>>()?;
         let identity = activation::identity(&opened)?;
         opened.commit()?;
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
-        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), conn, ownership: None, #[cfg(unix)] file_identity, page_size, catalog, assets_dir, ephemeral_assets, identity })
+        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), conn,
+            server,
+            ownership: None, #[cfg(unix)] file_identity, page_size, catalog, assets_dir, ephemeral_assets, identity })
     }
 
     pub(super) fn initialize_schema(conn: &Connection) -> Result<(), RuntimeError> {
@@ -285,6 +303,8 @@ impl Store {
                  PRIMARY KEY(effect_id, name));
              CREATE TABLE IF NOT EXISTS _effect_presence (principal TEXT NOT NULL, id TEXT NOT NULL, deadline INTEGER NOT NULL, reconnected INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (principal, id)) WITHOUT ROWID;
              CREATE INDEX IF NOT EXISTS _effect_presence_id ON _effect_presence(id);
+             CREATE TABLE IF NOT EXISTS _time_openings (at INTEGER NOT NULL, t TEXT NOT NULL, id TEXT NOT NULL, PRIMARY KEY(t, id)) WITHOUT ROWID;
+             CREATE INDEX IF NOT EXISTS _time_openings_due ON _time_openings(at, t, id);
              CREATE TABLE IF NOT EXISTS _assets (id TEXT PRIMARY KEY, owner TEXT NOT NULL, kind TEXT NOT NULL, content_type TEXT NOT NULL, bytes INTEGER NOT NULL, width INTEGER, height INTEGER, duration INTEGER, created_at INTEGER NOT NULL, home_table TEXT, home_id TEXT, home_column TEXT, released_at INTEGER, name TEXT);
              CREATE TABLE IF NOT EXISTS _asset_intents (owner TEXT NOT NULL, intent TEXT NOT NULL, fingerprint TEXT, asset TEXT, facts TEXT, placement TEXT, state TEXT NOT NULL, PRIMARY KEY(owner, intent)) WITHOUT ROWID;
              CREATE TABLE IF NOT EXISTS _asset_views (asset TEXT NOT NULL, principal TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (asset, principal)) WITHOUT ROWID;
@@ -333,7 +353,9 @@ impl Store {
 
     pub(crate) fn check_selected_release(conn: &Connection, expected: Option<u64>) -> Result<(), RuntimeError> {
         if let Some(expected) = expected {
-            let release: Option<String> = conn.query_row("SELECT value FROM _meta WHERE key = 'release'", [], |r| r.get(0)).optional()?;
+            let release: Option<String> = conn.query_row("SELECT value FROM _meta WHERE key = 'release'", [], |r| {
+                    r.get(0)
+                }).optional()?;
             if release.as_deref().and_then(|s| s.parse::<u64>().ok()) != Some(expected) {
                 return Err(RuntimeError::Generation("the current release changed while starting; retry serve".into()));
             }
@@ -357,7 +379,9 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
+            server: self.server,
+            catalog: &self.catalog })
     }
 
     /// A consistent read snapshot does not reserve SQLite's writer lock.
@@ -367,7 +391,9 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
+            server: self.server,
+            catalog: &self.catalog })
     }
 
     /// One deferred snapshot for an authority walk from an API that only
@@ -378,14 +404,18 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size, catalog: &self.catalog })
+        Ok(Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
+            server: self.server,
+            catalog: &self.catalog })
     }
 
     /// An independent read connection, bound to this catalog and identity.
     pub fn reader(&self) -> Result<Self, RuntimeError> {
         self.check_ownership()?;
         let path = self.conn.path().filter(|path| !path.is_empty())
-            .ok_or_else(|| RuntimeError::Store("an in-memory store has no independent reader".into()))?;
+            .ok_or_else(|| {
+                RuntimeError::Store("an in-memory store has no independent reader".into())
+            })?;
         let conn = Connection::open_with_flags(path, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
         // @ref LLP 3000.019#3.4 — detached readers must answer from the owned database, not a replacement at its path.
         // Compare after opening, before reading. Stat only: closing another raw
@@ -401,11 +431,17 @@ impl Store {
         conn.busy_timeout(std::time::Duration::from_secs(5))?;
         // A reader never owns the directory; only the store that made it removes it.
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
-        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), conn, ownership: self.ownership.clone(), #[cfg(unix)] file_identity: self.file_identity, page_size, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), ephemeral_assets: false, identity: self.identity.clone() })
+        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), conn,
+            server: self.server,
+            ownership: self.ownership.clone(), #[cfg(unix)] file_identity: self.file_identity, page_size, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), ephemeral_assets: false, identity: self.identity.clone() })
     }
 
     pub(crate) fn exclude_ephemeral(&mut self, schema: &Schema) {
-        self.catalog.retain(|name,_| !schema.tables.iter().any(|(table,t)| t.ephemeral.is_some() && (name == table || name.starts_with(&format!("{table}.")))));
+        self.catalog.retain(|name,_| {
+            !schema.tables.iter().any(|(table,t)| {
+                t.ephemeral.is_some() && (name == table || name.starts_with(&format!("{table}.")))
+            })
+        });
     }
     pub fn meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
         self.check_ownership()?;
@@ -431,10 +467,13 @@ impl Store {
     /// Every row of a table, for fixtures, `data`, and tests.
     pub fn rows(&self, table: &str) -> Result<Vec<Value>, RuntimeError> {
         self.check_ownership()?;
-        let Some(t) = self.catalog.get(table) else { return Ok(Vec::new()) };
+        let Some(t) = self.catalog.get(table) else { return Ok(Vec::new());
+        };
         let mut statement = self.conn.prepare("SELECT data FROM r WHERE t = ?1 ORDER BY id")?;
         let rows = statement.query_map([t], |row| row.get::<_, String>(0))?;
-        rows.map(|data| serde_json::from_str(&data?).map_err(|e| RuntimeError::Store(e.to_string()))).collect()
+        rows.map(|data| {
+            serde_json::from_str(&data?).map_err(|e| RuntimeError::Store(e.to_string()))
+        }).collect()
     }
 
     /// A bounded administrative table listing, including whether another row exists.
@@ -443,7 +482,9 @@ impl Store {
         let t = self.catalog.get(table).ok_or_else(|| RuntimeError::Schema(format!("no table {table}")))?;
         let mut statement = self.conn.prepare_cached("SELECT data FROM r WHERE t = ?1 ORDER BY id LIMIT ?2")?;
         let rows = statement.query_map(params![t, limit.saturating_add(1).min(i64::MAX as usize) as i64], |row| row.get::<_, String>(0))?;
-        let mut rows = rows.map(|data| serde_json::from_str(&data?).map_err(|e| RuntimeError::Store(e.to_string()))).collect::<Result<Vec<Value>, _>>()?;
+        let mut rows = rows.map(|data| {
+                serde_json::from_str(&data?).map_err(|e| RuntimeError::Store(e.to_string()))
+            }).collect::<Result<Vec<Value>, _>>()?;
         let more = rows.len() > limit;
         rows.truncate(limit);
         Ok((rows, more))
@@ -463,7 +504,8 @@ impl Store {
 
     pub fn count(&self, table: &str) -> Result<u64, RuntimeError> {
         self.check_ownership()?;
-        let Some(t) = self.catalog.get(table) else { return Ok(0) };
+        let Some(t) = self.catalog.get(table) else { return Ok(0);
+        };
         Ok(self.conn.prepare_cached("SELECT COUNT(*) FROM r WHERE t = ?1")?.query_row([t], |row| row.get::<_, i64>(0))? as u64)
     }
 
@@ -571,7 +613,8 @@ impl<'a> Tx<'a> {
     /// Rows under `prefix` in index order, bounded, at most `limit`. Each row
     /// comes with its stored key so a cursor can be minted from the last.
     pub fn scan(&self, table: &str, index_name: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, limit: usize) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-        let Some((lo, hi)) = crate::rows::scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
+        let Some((lo, hi)) = crate::rows::scan_range(prefix, bounds, dir) else { return Ok(Vec::new());
+        };
         self.scan_keys(table, index_name, &lo, &hi, dir, limit)
     }
 
@@ -583,7 +626,8 @@ impl<'a> Tx<'a> {
         let mut out = Vec::new();
         while let Some(row) = rows.next()? {
             let data = row.get_ref(0)?.as_str().map_err(|e| RuntimeError::Store(e.to_string()))?;
-            out.push((serde_json::from_str(data).map_err(|e| RuntimeError::Store(e.to_string()))?, row.get(1)?));
+            out.push((serde_json::from_str(data).map_err(|e| RuntimeError::Store(e.to_string()))?, row.get(1)?,
+            ));
         }
         Ok(out)
     }
@@ -688,7 +732,9 @@ impl<'a> Tx<'a> {
 
     /// The outcome recorded for a client-minted operation id, if it applied.
     pub fn applied(&self, principal: &str, id: &str) -> Result<Option<(u64, String)>, RuntimeError> {
-        Ok(self.tx.prepare_cached("SELECT seq, outcome FROM _ops WHERE principal = ?1 AND id = ?2")?.query_row(params![principal, id], |row| Ok((row.get::<_, i64>(0)? as u64, row.get::<_, String>(1)?))).optional()?)
+        Ok(self.tx.prepare_cached("SELECT seq, outcome FROM _ops WHERE principal = ?1 AND id = ?2")?.query_row(params![principal, id], |row| {
+                Ok((row.get::<_, i64>(0)? as u64, row.get::<_, String>(1)?))
+            }).optional()?)
     }
 
     pub fn record_applied(&self, principal: &str, id: &str, seq: u64, outcome: &str) -> Result<(), RuntimeError> {
@@ -711,7 +757,9 @@ impl<'a> Tx<'a> {
     /// Commits since `after`, as `(seq, touched tables)`.
     pub fn commits_after(&self, after: u64, limit: usize) -> Result<Vec<(u64, Vec<String>)>, RuntimeError> {
         let mut statement = self.tx.prepare_cached("SELECT seq, touched FROM _commits WHERE seq > ?1 ORDER BY seq LIMIT ?2")?;
-        let rows = statement.query_map(params![after as i64, limit as i64], |row| Ok((row.get::<_, i64>(0)? as u64, row.get::<_, String>(1)?)))?;
+        let rows = statement.query_map(params![after as i64, limit as i64], |row| {
+            Ok((row.get::<_, i64>(0)? as u64, row.get::<_, String>(1)?))
+        })?;
         rows.map(|row| {
             let (seq, touched) = row?;
             Ok((seq, serde_json::from_str(&touched).unwrap_or_default()))
@@ -758,7 +806,9 @@ impl Tx<'_> {
     pub fn commit_times(&self, sequences: &[u64]) -> Result<BTreeMap<u64, i64>, RuntimeError> {
         let sequences = serde_json::to_string(sequences).map_err(|e| RuntimeError::Store(e.to_string()))?;
         let mut query = self.tx.prepare_cached("SELECT seq, at FROM _commits WHERE seq IN (SELECT value FROM json_each(?1))")?;
-        let rows = query.query_map([sequences], |row| Ok((row.get::<_, i64>(0)? as u64, row.get(1)?)))?;
+        let rows = query.query_map([sequences], |row| {
+            Ok((row.get::<_, i64>(0)? as u64, row.get(1)?))
+        })?;
         rows.collect::<Result<_, _>>().map_err(Into::into)
     }
 
@@ -780,7 +830,8 @@ impl Tx<'_> {
     fn log_rows(&self, sql: &str, params: &[&dyn rusqlite::ToSql]) -> Result<Vec<LogEvent>, RuntimeError> {
         let mut statement = self.tx.prepare_cached(sql)?;
         let rows = statement.query_map(params, |row| {
-            Ok((row.get::<_, i64>(0)? as u64, row.get::<_, i64>(1)? as u32, row.get::<_, String>(2)?, row.get::<_, String>(3)?, row.get::<_, String>(4)?, row.get::<_, Option<String>>(5)?))
+            Ok((row.get::<_, i64>(0)? as u64, row.get::<_, i64>(1)? as u32, row.get::<_, String>(2)?, row.get::<_, String>(3)?, row.get::<_, String>(4)?, row.get::<_, Option<String>>(5)?,
+            ))
         })?;
         rows.map(|row| {
             let (seq, ord, table, kind, id, data) = row?;
@@ -893,7 +944,9 @@ mod tests {
             // Plan reuse must still read changes in this transaction.
             tx.put("m", table, &row("m5", "a", 5), Some(&row("m5", "b", 5))).unwrap();
             tx.delete("m", table, &row("m6", "a", 6)).unwrap();
-            let read = || tx.scan("m", "byConvAt", &[Value::Id("a".into())], &bounds, Dir::Asc, 100).unwrap();
+            let read = || {
+                tx.scan("m", "byConvAt", &[Value::Id("a".into())], &bounds, Dir::Asc, 100).unwrap()
+            };
             let changed = read();
             let ids: Vec<_> = changed.iter().map(|(r, _)| r.field("id").unwrap().as_str().unwrap()).collect();
             assert_eq!(ids, ["m2", "m4", "m5", "m8"]);
@@ -980,7 +1033,9 @@ mod tests {
             assert_eq!(statement.get_status(Run), 12);
             assert_eq!(statement.get_status(RePrepare), 0, "independent readers must reuse bound scan plans");
         }
-        let read = |tx: &Tx<'_>| tx.scan("m", "byConvAt", &[Value::Id("a".into())], &bounds, Dir::Asc, 100).unwrap();
+        let read = |tx: &Tx<'_>| {
+            tx.scan("m", "byConvAt", &[Value::Id("a".into())], &bounds, Dir::Asc, 100).unwrap()
+        };
         let original = read(&tx);
         // A concurrent commit changes the next snapshot, not this one.
         let write = writer.transaction().unwrap();
@@ -1051,10 +1106,12 @@ impl crate::rows::Rows for Tx<'_> {
     }
     #[cfg(feature = "server-search")]
     fn scan_selected(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, fields: &[String]) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-        let Some((lo,hi)) = crate::rows::scan_range(prefix,bounds,dir) else { return Ok(Vec::new()) };
+        let Some((lo,hi)) = crate::rows::scan_range(prefix,bounds,dir) else { return Ok(Vec::new());
+        };
         let mut statement = self.tx.prepare_cached(scan_sql(dir))?;
         let mut rows = statement.query(params![self.num(table)?, self.num(&format!("{table}.{index}"))?, lo, hi, 1])?;
-        let Some(row) = rows.next()? else { return Ok(Vec::new()) };
+        let Some(row) = rows.next()? else { return Ok(Vec::new());
+        };
         let data = row.get_ref(0)?.as_str().map_err(|e|RuntimeError::Store(e.to_string()))?;
         Ok(vec![(selected::decode(data, fields)?, row.get(1)?)])
     }
@@ -1063,7 +1120,8 @@ impl crate::rows::Rows for Tx<'_> {
         // @ref LLP 3000.007#20.24.5 — the public charge is the shared logical one; SQLite's own scratch is guarded.
         heap::scan_open(meter, table, index_name, prefix, bounds, scope)?;
         let mut guard = heap::StoreGuard::open(meter, SCAN_MEMORY_GUARD);
-        let Some((lo, hi)) = crate::rows::scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
+        let Some((lo, hi)) = crate::rows::scan_range(prefix, bounds, dir) else { return Ok(Vec::new());
+        };
         let t = self.num(table)?;
         let ti = self.num(&format!("{table}.{index_name}"))?;
         // @ref LLP 3000.007#20.24.1 — stream preflight allowances before stepping to the next row.
@@ -1081,12 +1139,17 @@ impl crate::rows::Rows for Tx<'_> {
             preflight.entry(meter, &mut guard, data.len() as u64, key.len() as u64, 64)?;
             let additional = heap::scan_entry(meter, &mut guard, 0, 0, &data, &key)?;
             let mut out = Vec::with_capacity(additional);
-            out.push((serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?, key));
+            out.push((serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?, key,
+            ));
             return Ok(out);
         }
         let sizes = match dir {
-            Dir::Asc => "SELECT octet_length(r.data), length(i.k) FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k ASC LIMIT ?5",
-            Dir::Desc => "SELECT octet_length(r.data), length(i.k) FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k DESC LIMIT ?5",
+            Dir::Asc => {
+                "SELECT octet_length(r.data), length(i.k) FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k ASC LIMIT ?5"
+            }
+            Dir::Desc => {
+                "SELECT octet_length(r.data), length(i.k) FROM i JOIN r ON r.t = ?1 AND r.id = i.id WHERE i.ti = ?2 AND i.k >= ?3 AND i.k < ?4 ORDER BY i.k DESC LIMIT ?5"
+            }
         };
         let mut preflight = heap::Preflight::new();
         {
@@ -1113,7 +1176,8 @@ impl crate::rows::Rows for Tx<'_> {
             let key = row.get_ref(1)?.as_blob().map_err(|e| RuntimeError::Store(e.to_string()))?;
             let additional = heap::scan_entry(meter, &mut guard, out.len(), out.capacity(), data, key)?;
             if additional != 0 { out.reserve_exact(additional); }
-            out.push((serde_json::from_str(data).map_err(|e| RuntimeError::Store(e.to_string()))?, key.to_vec()));
+            out.push((serde_json::from_str(data).map_err(|e| RuntimeError::Store(e.to_string()))?, key.to_vec(),
+            ));
         }
         preflight.check()?;
         Ok(out)
@@ -1129,6 +1193,18 @@ impl crate::rows::Rows for Tx<'_> {
     }
     fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> {
         Tx::delete(self, table_name, table, old)
+    }
+    fn track_time_audience(
+        &self,
+        table_name: &str,
+        table: &Table,
+        row: Option<&Value>,
+        now: i64,
+    ) -> Result<(), RuntimeError> {
+        self.track_time_audience(table_name, table, row, now)
+    }
+    fn time_audience_pending(&self, table_name: &str, id: &str) -> Result<bool, RuntimeError> {
+        self.time_audience_pending(table_name, id)
     }
     fn holds_assets(&self) -> bool {
         true

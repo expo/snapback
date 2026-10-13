@@ -4,41 +4,43 @@
 //! with a refusal, and applies at most once per client-minted id.
 
 #[cfg(feature = "sqlite")]
-pub mod effects;
+pub mod actions;
 #[cfg(feature = "sqlite")]
 mod activation;
-#[cfg(feature = "sqlite")]
-pub mod release;
+#[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
+pub mod admission;
 #[cfg(feature = "sqlite")]
 mod asset_columns;
 #[cfg(feature = "sqlite")]
 mod asset_uploads;
-mod write_reservations;
-#[cfg(feature = "sqlite")]
-pub mod ephemeral;
+pub mod components;
 #[cfg(feature = "sqlite")]
 mod effect_steps;
 #[cfg(feature = "sqlite")]
-pub mod actions;
+pub mod effects;
 #[cfg(feature = "sqlite")]
-pub(crate) mod steps;
-#[cfg(feature = "sqlite")]
-pub mod routes;
+pub mod ephemeral;
 #[cfg(feature = "sqlite")]
 pub mod job;
+#[cfg(feature = "sqlite")]
+mod job_reads;
+pub mod local;
 #[cfg(feature = "wasm-host")]
 pub mod native;
-pub mod local;
-pub mod components;
+mod pages;
 pub mod prediction;
-#[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
-pub mod admission;
 #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
 mod read_only;
 #[cfg(feature = "sqlite")]
-mod job_reads;
-mod pages;
+pub mod release;
+#[cfg(feature = "sqlite")]
+pub mod routes;
 mod search_decoration;
+#[cfg(feature = "sqlite")]
+pub(crate) mod steps;
+#[cfg(feature = "sqlite")]
+mod time_audience;
+mod write_reservations;
 pub use pages::drain_cursor;
 pub use pages::expression_page_site;
 mod shaping;
@@ -47,66 +49,65 @@ pub(crate) struct ImportInput(());
 pub use pages::{returned_page_sites, uncontinued_page_sites};
 pub mod read;
 pub(crate) use runner::extrema;
-mod read_auth;
 mod aggregate_expiry;
 pub(crate) mod authorized_scan;
+mod read_auth;
 pub use authorized_scan::{Authorization, InternalLedger, InternalMeter};
 pub(crate) mod authorized_point;
-mod read_point;
-#[cfg(all(test, feature = "sqlite"))]
-mod read_candidate;
-mod provenance;
+#[cfg(feature = "sqlite")]
+mod column_activation;
+pub(crate) mod columns;
 #[cfg(feature = "sqlite")]
 pub mod delivery;
 mod expiry;
-pub mod rules;
-mod rule_reference;
-#[cfg(test)]
-mod qe2_allocation_tests;
-#[cfg(all(test, feature = "sqlite"))]
-mod null_point_tests;
-pub mod runner;
-pub mod validate;
-pub mod write;
 mod field_authority;
 #[cfg(test)]
 #[cfg(feature = "sqlite")]
 mod field_authority_tests;
-mod maintains;
-pub mod row_views;
 mod live_aggregate;
-pub(crate) mod timeline;
-mod timeline_authority;
+mod maintains;
+#[cfg(all(test, feature = "sqlite"))]
+mod null_point_tests;
+mod provenance;
+#[cfg(test)]
+mod qe2_allocation_tests;
+#[cfg(all(test, feature = "sqlite"))]
+mod read_candidate;
+mod read_point;
 mod recorded;
+pub mod row_views;
+mod rule_reference;
+pub mod rules;
+pub mod runner;
 mod sequences;
 pub(crate) mod through;
-mod through_read;
 #[cfg(feature = "sqlite")]
 pub mod through_activation;
-pub(crate) mod columns;
-#[cfg(feature = "sqlite")]
-mod column_activation;
+mod through_read;
+pub(crate) mod timeline;
+mod timeline_authority;
+pub mod validate;
+pub mod write;
 #[cfg(feature = "sqlite")]
 pub use recorded::RecordedNulls;
 use write::target as write_target;
 pub(crate) use write_target::row_copy_ceiling;
+#[cfg(test)]
+#[cfg(feature = "sqlite")]
+mod aggregate_metadata_tests;
+#[cfg(feature = "postgres")]
+pub mod postgres;
+pub(crate) mod presence;
 mod receipt;
 pub mod refusal_trace;
 #[cfg(test)]
 #[cfg(feature = "sqlite")]
 mod retire_tests;
-#[cfg(test)]
-#[cfg(feature = "sqlite")]
-mod aggregate_metadata_tests;
-pub(crate) mod presence;
-#[cfg(feature = "postgres")]
-pub mod postgres;
-
 #[cfg(feature = "sqlite")]
 use crate::assets::{self, Asset, AssetKind, asset_id};
-use crate::error::{MeterKind, Refusal};
 #[cfg(feature = "sqlite")]
 use crate::error::RuntimeError;
+use crate::error::{MeterKind, Refusal};
 #[cfg(feature = "sqlite")]
 use crate::ir::{Program, ProgramKind};
 use crate::meter::Metered;
@@ -143,7 +144,8 @@ pub trait Presence: std::fmt::Debug + Send + Sync {
     /// Pin an unconfirmed poll's deadline to the mutation's commit clock.
     fn effect_presence_at(&self, principal: &str, now: i64) -> (u64, Option<i64>) {
         let (live, deadline) = self.effect_presence(principal);
-        (live, if live > 0 { Some(now.saturating_add(PRESENCE_CONFIRMATION.as_millis() as i64)) } else { deadline })
+        (live, if live > 0 { Some(now.saturating_add(PRESENCE_CONFIRMATION.as_millis() as i64)) } else { deadline },
+        )
     }
 }
 
@@ -435,7 +437,11 @@ impl Engine {
             .map_err(|e| RuntimeError::Store(format!("no readable activated backend in this store: {e}")))?;
         let kept = crate::store::opening::Backend(generation, schema.clone(), programs.clone());
         let generation = u64::try_from(generation).map_err(|_| RuntimeError::Store("negative stored generation".into()))?;
-        let schema = serde_json::from_str(&schema).map_err(|e| RuntimeError::decode(e, |e| RuntimeError::Store(format!("invalid stored schema: {e}"))))?;
+        let schema = serde_json::from_str(&schema).map_err(|e| {
+            RuntimeError::decode(e, |e| {
+                RuntimeError::Store(format!("invalid stored schema: {e}"))
+            })
+        })?;
         crate::schema::timeline::check_version(&schema)?;
         timeline::check_no_rebuilds(&tx, &schema)?;
         schema.check_row_view_audiences()?;
@@ -542,7 +548,9 @@ impl Engine {
 
     /// Counts shortened by the last schema activation, committed with its generation.
     pub fn read_through_shortened(&self) -> Result<BTreeMap<String,u64>,RuntimeError> {
-        self.store.meta("read_through_shortened")?.map(|s|crate::json_codec::from_text(&s).map_err(|e|RuntimeError::Store(e.to_string()))).transpose().map(Option::unwrap_or_default)
+        self.store.meta("read_through_shortened")?.map(|s| {
+                crate::json_codec::from_text(&s).map_err(|e|RuntimeError::Store(e.to_string()))
+            }).transpose().map(Option::unwrap_or_default)
     }
 
     /// Replace the schema and programs in place (a successor generation);
@@ -583,8 +591,15 @@ impl Engine {
 
     /// Stop between row removals; a short sweep can still leave due rows.
     pub fn sweep_expired_for(&mut self, now: i64, limit: usize, budget: std::time::Duration) -> Result<u64, RuntimeError> {
+        // Expiry cleanup is recovery work. Pin the same authoritative clock,
+        // but commit physical cleanup before attempting a due opening so a
+        // refused publication can never wedge the rows whose upper lifetime
+        // has already ended.
+        let now = self.pin_time_audience(now)?;
         let started = std::time::Instant::now();
-        let expiring: Vec<(String, String)> = self.schema.through_order().into_iter().rev().filter(|name| self.schema.tables[name].ephemeral.is_none()).filter_map(|name| self.schema.tables[&name].expiry_index().map(|(index, _)| (name.clone(), index.to_owned()))).collect();
+        let expiring: Vec<(String, String)> = self.schema.through_order().into_iter().rev().filter(|name| self.schema.tables[name].ephemeral.is_none()).filter_map(|name| {
+                self.schema.tables[&name].expiry_index().map(|(index, _)| (name.clone(), index.to_owned()))
+            }).collect();
         if expiring.is_empty() {
             return Ok(0);
         }
@@ -621,6 +636,7 @@ impl Engine {
             partition::append(&tx, seq, &events)?;
         }
         tx.commit()?;
+        self.advance_time_audience(now)?;
         Ok(removed)
     }
 
@@ -646,13 +662,15 @@ impl Engine {
 
     // @ref LLP 3000.028#3.3 — point overlap and page share one transaction/ledger.
     #[cfg(feature = "server-search")]
-    pub fn query_search_at(&mut self, name: &str, context: Context, retained: Option<&[String]>) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>) {
+    pub fn query_search_at(&mut self, name: &str, context: Context, retained: Option<&[String]>) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>,
+    ) {
         self.query_search_with_delivery_at(name, context, retained, DeliveryManifest::Build)
     }
 
     // @ref LLP 3000.033#1.6 — request-local selection, never a reader-wide toggle.
     #[cfg(feature = "server-search")]
-    pub fn query_search_with_delivery_at(&mut self, name: &str, context: Context, retained: Option<&[String]>, manifest: DeliveryManifest) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>) {
+    pub fn query_search_with_delivery_at(&mut self, name: &str, context: Context, retained: Option<&[String]>, manifest: DeliveryManifest) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>,
+    ) {
         let (mut cut, mut current) = (None, None);
         let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest);
         (result, cut, current)
@@ -660,15 +678,14 @@ impl Engine {
 
     fn query_reading(&mut self, name: &str, mut context: Context, cut: &mut Option<u64>, _retained: Option<&[String]>, _current: &mut Option<Vec<String>>, manifest: DeliveryManifest) -> Result<QueryOutcome, Refusal> {
         context.generation = self.generation;
+        let requested = context.now.unwrap_or_else(crate::now_ms);
+        context.now = Some(self.advance_time_audience(requested)?);
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
         if program.kind != ProgramKind::Query {
             return Err(RuntimeError::UnknownOp(format!("{name} is a {}, not a query", program.kind.word())).into());
         }
         server_query_allowed(&self.schema, name)?;
         validate::validate_inputs(&self.schema, &program, &mut context.args)?;
-        if context.now.is_none() {
-            context.now = Some(crate::now_ms());
-        }
         if context.presence.is_none() {
             context.presence = self.presence.clone();
         }
@@ -713,7 +730,9 @@ impl Engine {
         if let Some(ids) = _retained {
             let original = &self.programs[name];
             let descriptor = crate::search_plan::ordinary::composition(&self.schema, original)
-                .ok_or_else(|| RuntimeError::Input("this query does not support retained search overlap".into()))?;
+                .ok_or_else(|| {
+                    RuntimeError::Input("this query does not support retained search overlap".into())
+                })?;
             *_current = Some(runner.search_overlap(&descriptor, ids)?);
             if let Some((order, _)) = &runner.context.search_retained_order {
                 if order.len() != ids.len() { return Err(RuntimeError::Input("retained search keys must match candidate IDs".into()).into()); }
@@ -772,7 +791,9 @@ impl Engine {
             // committed success can acknowledge execution in a device outbox.
             let seq: Option<i64> = tx.conn().query_row("SELECT seq FROM _ops WHERE principal = ?1 AND id = ?2 AND seq <= ?3 AND json_extract(outcome, '$.state') = 'sent'", rusqlite::params![principal, id, images_at.max(through).min(i64::MAX as u64) as i64], |row| row.get(0)).optional()?;
             if let Some(seq) = seq {
-                let seq = u64::try_from(seq).map_err(|_| RuntimeError::Store("negative stored operation sequence".into()))?;
+                let seq = u64::try_from(seq).map_err(|_| {
+                    RuntimeError::Store("negative stored operation sequence".into())
+                })?;
                 if seq <= through { acknowledged.insert(id.clone(), seq); }
                 else { committed_above.insert(id.clone(), seq); }
             }
@@ -807,7 +828,11 @@ impl Engine {
     /// queued it must learn `sent`, not `failed`.
     pub fn mutate(&mut self, name: &str, op: Option<&str>, mut context: Context) -> Result<MutationOutcome, RuntimeError> {
         context.generation = self.generation;
-        let wire_args = if op.is_some() { context.wire_args.take().unwrap_or_else(|| serde_json::Value::Object(crate::wire::map_to_json(&context.args))) } else { serde_json::Value::Null };
+        let requested = context.now.unwrap_or_else(crate::now_ms);
+        context.now = Some(self.advance_time_audience(requested)?);
+        let wire_args = if op.is_some() { context.wire_args.take().unwrap_or_else(|| {
+                serde_json::Value::Object(crate::wire::map_to_json(&context.args))
+            }) } else { serde_json::Value::Null };
         if let Some(op) = op
             && let Some(outcome) = self.replay_mutation(&context.viewer, op, name, &wire_args)?
         {
@@ -847,9 +872,6 @@ impl Engine {
         if let Err(error) = validate::validate_inputs(&self.schema, &program, &mut context.args) {
             return Ok(MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false });
         }
-        if context.now.is_none() {
-            context.now = Some(crate::now_ms());
-        }
         if context.presence.is_none() {
             context.presence = self.presence.clone();
         }
@@ -869,7 +891,8 @@ impl Engine {
             if !matches!(inner, crate::ir::ArgType::Image { .. } | crate::ir::ArgType::Video { .. } | crate::ir::ArgType::File { .. }) {
                 continue;
             }
-            let Some(id) = asset_id(context.args.get(name)).map(str::to_owned) else { continue };
+            let Some(id) = asset_id(context.args.get(name)).map(str::to_owned) else { continue;
+            };
             if let Some(asset) = tx.asset(&id)?
                 && (asset.owner == viewer || context.is_system())
             {
@@ -952,6 +975,7 @@ impl Engine {
 
     /// Development hosts supply their clock so seed commits share operation and stream time.
     pub fn seed_at(&mut self, rows: impl IntoIterator<Item = (String, Value)>, now: i64) -> Result<u64, RuntimeError> {
+        let now = self.advance_time_audience(now)?;
         let tx = self.store.transaction()?;
         let count = seed_rows(&self.schema, &tx, rows, now)?;
         tx.commit()?;
@@ -963,7 +987,7 @@ impl Engine {
     pub fn seed_delete(&mut self, table: &str, id: &str) -> Result<u64, RuntimeError> {
         self.schema.refuse_ephemeral_import(table)?;
         timeline::check_import(&self.schema, table)?;
-        let now = crate::now_ms();
+        let now = self.advance_time_audience(crate::now_ms())?;
         let tx = self.store.transaction()?;
         let seq = tx.next_seq()?;
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
@@ -1000,7 +1024,7 @@ impl Engine {
     pub fn load_mode(&mut self, rows: impl IntoIterator<Item = (String, Value)>, mode: LoadMode) -> Result<u64, RuntimeError> {
         if mode == LoadMode::Import && self.schema.tables.values().any(|t| t.through.is_some()) { return self.seed(rows); }
         if mode == LoadMode::Restore || self.schema.tables.values().all(|table| table.recorded.is_empty() && table.maintained.is_empty()) { return self.load_stored_rows(rows, mode); }
-        let now = crate::now_ms();
+        let now = self.advance_time_audience(crate::now_ms())?;
         let tx = self.store.transaction()?;
         let seq = tx.next_seq()?;
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
@@ -1038,6 +1062,7 @@ impl Engine {
                 row = captured;
             }
             partition::row_changed(&mut runner, &name, old.as_ref(), Some(&row), crate::engine::write::Origin::Source)?;
+            tx.track_time_audience(&name, table, Some(&row), now)?;
             runner.written_tables.insert(name);
         }
         if count > 0 { runner.rebuild_imported_columns()?; }
@@ -1055,7 +1080,7 @@ impl Engine {
     // Persistence restoration and schemas without captures retain the streaming
     // import path; attribution imports alone need staged target resolution.
     fn load_stored_rows(&mut self, rows: impl IntoIterator<Item = (String, Value)>, mode: LoadMode) -> Result<u64, RuntimeError> {
-        let now = crate::now_ms();
+        let now = self.advance_time_audience(crate::now_ms())?;
         let tx = self.store.transaction()?;
         let mut seq = tx.next_seq()?;
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
@@ -1073,6 +1098,7 @@ impl Engine {
             let old = tx.get(&table_name, &id)?;
             tx.put(&table_name, &table, &row, old.as_ref())?;
             partition::row_changed(&mut runner, &table_name, old.as_ref(), Some(&row), crate::engine::write::Origin::Source)?;
+            tx.track_time_audience(&table_name, &table, Some(&row), now)?;
             if self.schema.visible(&table_name) { runner.written_tables.insert(table_name); }
             count += 1;
         }
@@ -1101,14 +1127,20 @@ impl Engine {
         Ok((events, watermark, next))
     }
 
-    pub fn snapshot_page_with_groups_at(&mut self, principal: &str, after: Option<&str>, limit: usize, now: i64) -> Result<(Vec<Event>, u64, Option<String>, Option<crate::wire::HeldGroups>), RuntimeError> {
+    pub fn snapshot_page_with_groups_at(&mut self, principal: &str, after: Option<&str>, limit: usize, now: i64) -> Result<(Vec<Event>, u64, Option<String>, Option<crate::wire::HeldGroups>,
+        ), RuntimeError,
+    > {
         let page = self.snapshot_acquisition_page_at(principal, after, limit, now)?;
-        Ok((page.events, page.watermark, page.next.map(|next| next.encode()), page.held))
+        Ok((page.events, page.watermark, page.next.map(|next| next.encode()), page.held,
+        ))
     }
 
     pub fn snapshot_acquisition_page_at(&mut self, principal: &str, after: Option<&str>, limit: usize, now: i64) -> Result<partition::SnapshotPage, RuntimeError> {
+        let now = self.advance_time_audience(now)?;
         let cursor = match after {
-            Some(token) => Some(partition::SnapshotCursor::decode(token).ok_or_else(|| RuntimeError::Input("the snapshot cursor is not one this server minted".into()))?),
+            Some(token) => Some(partition::SnapshotCursor::decode(token).ok_or_else(|| {
+                RuntimeError::Input("the snapshot cursor is not one this server minted".into())
+            })?),
             None => None,
         };
         let tx = self.store.read_transaction()?;
@@ -1123,6 +1155,7 @@ impl Engine {
     }
 
     pub fn snapshot_at(&mut self, principal: &str, now: i64) -> Result<(Vec<Event>, u64), RuntimeError> {
+        let now = self.advance_time_audience(now)?;
         let tx = self.store.read_transaction()?;
         let watermark = tx.next_seq()? - 1;
         let events = partition::snapshot(&tx, &self.schema, principal, now)?;
@@ -1135,6 +1168,7 @@ impl Engine {
     }
 
     pub fn stream_at(&mut self, principal: &str, watermark: u64, limit: usize, now: i64) -> Result<partition::StreamPage, RuntimeError> {
+        let now = self.advance_time_audience(now)?;
         let tx = self.store.read_transaction()?;
         let page = partition::stream(&tx, &self.schema, principal, watermark, limit, now)?;
         tx.rollback()?;
@@ -1144,6 +1178,17 @@ impl Engine {
     /// Commits after `seq`, as the tables each touched: the online tier's
     /// invalidation signal.
     pub fn changes(&mut self, seq: u64, limit: usize) -> Result<Vec<(u64, Vec<String>)>, RuntimeError> {
+        self.changes_at(seq, limit, crate::now_ms())
+    }
+
+    /// Invalidations at an explicitly supplied server clock (dev/simulator).
+    pub fn changes_at(
+        &mut self,
+        seq: u64,
+        limit: usize,
+        now: i64,
+    ) -> Result<Vec<(u64, Vec<String>)>, RuntimeError> {
+        self.advance_time_audience(now)?;
         let tx = self.store.read_transaction()?;
         let out = tx.commits_after(seq, limit)?;
         tx.rollback()?;

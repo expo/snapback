@@ -19,8 +19,11 @@ mod log_events {
         }
     }
     pub(super) fn scope(events: &mut Vec<Event>, table: &str, partition: &str, group: &[Value], predecessor: Option<Value>) {
-        let data = predecessor.map_or_else(|| Value::Array(group.to_vec()), |expiry| crate::value::object([
-            ("group", Value::Array(group.to_vec())), ("previousExpiresAt", expiry)]));
+        let data = predecessor.map_or_else(|| Value::Array(group.to_vec()), |expiry| {
+                crate::value::object([
+            ("group", Value::Array(group.to_vec())), ("previousExpiresAt", expiry)])
+            },
+        );
         events.push(Event { partition: partition.to_owned(), table: table.to_owned(), kind: EventKind::Scope, id: canonical_json(&group), data: Some(data) });
     }
     pub(super) fn join(events: &mut Vec<Event>, table: &str, partition: &str, group: &[Value], expiry: Value, predecessor: Option<Value>) {
@@ -30,27 +33,37 @@ mod log_events {
     }
 }
 
-pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, events: &mut Vec<Event>, table_name: &str, old: Option<&Value>, new: Option<&Value>, origin: Origin) -> Result<(), RuntimeError> {
+pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, events: &mut Vec<Event>, table_name: &str, old: Option<&Value>, new: Option<&Value>, origin: Origin,
+) -> Result<(), RuntimeError> {
     let schema = runner.schema;
     let table = schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
     // @ref LLP 3000.007#18.3 — audience keys and lifetimes use the same interpreted image as rules and indexes.
     let old_image = old.map(|row| row_image(row, table));
     let new_image = new.map(|row| row_image(row, table));
-    let old = old_image.as_deref();
-    let new = new_image.as_deref();
+    let now = runner.context.now.unwrap_or(i64::MIN);
+    let old = old_image.as_deref().filter(|row| table.opened(row, now));
+    let new = new_image.as_deref().filter(|row| table.opened(row, now));
     // Rows born in this commit, in every table: synced ones log only their
     // final image, and a born membership is no predecessor of a grant.
     #[cfg(feature = "sqlite")]
-    let row_key = if LOG { Some((table_name.to_owned(), old.or(new).expect("a row change has an image").field("id")?.as_str()?.to_owned())) } else { None };
+    let row_key = if LOG { Some((table_name.to_owned(),
+            old_image
+                .as_deref()
+                .or(new_image.as_deref()).expect("a row change has an image").field("id")?.as_str()?.to_owned(),
+        )) } else { None };
     #[cfg(feature = "sqlite")]
     if let Some(key) = &row_key && old.is_none() {
-        let earlier = events.iter().filter(|event| matches!(event.kind, EventKind::Put | EventKind::Del) && event.table == key.0 && event.id == key.1).count();
+        let earlier = events.iter().filter(|event| {
+                matches!(event.kind, EventKind::Put | EventKind::Del) && event.table == key.0 && event.id == key.1
+            }).count();
         runner.born_rows.insert(key.clone(), earlier);
     }
     if let Some(sync) = &table.sync {
         let before: BTreeSet<String> = old.map(|old| partitions(table_name, sync, old)).unwrap_or_default().into_iter().collect();
         let after: BTreeSet<String> = new.map(|new| partitions(table_name, sync, new)).unwrap_or_default().into_iter().collect();
-        let id = old.or(new).expect("a row change has an image").field("id")?.as_str()?;
+        let id = old_image
+            .as_deref()
+            .or(new_image.as_deref()).expect("a row change has an image").field("id")?.as_str()?;
         #[cfg(feature = "sqlite")]
         let id = if LOG { id.to_owned() } else { String::new() };
         #[cfg(not(feature = "sqlite"))]
@@ -59,13 +72,15 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, event
         #[cfg(feature = "sqlite")]
         if LOG {
             let key = (table_name.to_owned(), id.clone());
-            let row_event = |event: &Event| matches!(event.kind, EventKind::Put | EventKind::Del) && event.table == key.0 && event.id == key.1;
+            let row_event = |event: &Event| {
+                matches!(event.kind, EventKind::Put | EventKind::Del) && event.table == key.0 && event.id == key.1
+            };
             if let Some(&earlier) = runner.born_rows.get(&key) {
                 withdraw(events, earlier, row_event);
                 // A born row whose lifetime has already ended is not live at
                 // this commit's end either: it logs nothing (the stream would
                 // re-read it as absent and send its id as a `del`).
-                let live = new.filter(|new| !runner.context.now.is_some_and(|now| table.expired(new, now)));
+                let live = new.filter(|new| runner.context.now.is_none_or(|now| table.live(new, now)));
                 if let Some(new) = live {
                     log_events::put(events, table_name, &id, new, &after);
                 }
@@ -102,7 +117,9 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, event
     let dependents: Vec<(String, Sync)> = schema
         .synced()
         .filter_map(|(name, _, sync)| match &sync.audience {
-            Audience::Target { table, .. } if table == table_name => Some((name.to_owned(), sync.clone())),
+            Audience::Target { table, .. } if table == table_name => {
+                Some((name.to_owned(), sync.clone()))
+            }
             _ => None,
         })
         .collect();
@@ -112,7 +129,8 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, event
     let membership = |row: Option<&Value>, content_name: &str, sync: &Sync| -> Option<(String, Vec<Value>)> {
         let row = row?;
         let bound = binding(schema, content_name, sync)?;
-        let Ok(Value::Id(p)) = row.field(&bound.principal) else { return None };
+        let Ok(Value::Id(p)) = row.field(&bound.principal) else { return None;
+            };
         let group: Vec<Value> = bound.columns.iter().map(|c| row.field(c).cloned().unwrap_or(Value::Null)).collect();
         if group.iter().any(|value| *value == Value::Null) {
             return None;
@@ -122,7 +140,9 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, event
     for (content_name, sync) in dependents {
         let was = membership(old, &content_name, &sync);
         let is = membership(new, &content_name, &sync);
-        let expiry = |row: Option<&Value>| row.and_then(|row| table.deadline(row)).map(Value::Int).unwrap_or(Value::Null);
+        let expiry = |row: Option<&Value>| {
+            row.and_then(|row| table.deadline(row)).map(Value::Int).unwrap_or(Value::Null)
+        };
         if was == is && expiry(old) == expiry(new) {
             continue;
         }
@@ -137,19 +157,23 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, event
             // Sweeping an expired predecessor must not revoke the live
             // replacement admitted under the same logical unique key.
             let mut replaced = false;
-            if old.is_some_and(|row| runner.context.now.is_some_and(|now| table.expired(row, now))) {
+            if old.is_some_and(|row| {
+                runner.context.now.is_some_and(|now| table.expired(row, now))
+            }) {
                 let bound = binding(schema, &content_name, &sync).expect("validated audience");
                 let mut key = group.clone();
                 key.push(old.unwrap().field(&bound.principal)?.clone());
                 let mut bounds = Bounds::default();
                 loop {
-                    let rows = runner.metered_scan(|runner, allowance| runner.tx.scan(allowance, table_name, &bound.group_index, &key, &bounds, Dir::Asc, 32))?;
+                    let rows = runner.metered_scan(|runner, allowance| {
+                        runner.tx.scan(allowance, table_name, &bound.group_index, &key, &bounds, Dir::Asc, 32)
+                    })?;
                     let count = rows.len();
                     for (candidate, stored) in rows {
                         let candidate = row_image(&candidate, table);
                         runner.meter.charge(MeterKind::Examined, 1)?;
                         bounds.after = crate::key::decode(&stored).map(|values| values.into_iter().skip(key.len()).collect());
-                        if !runner.context.now.is_some_and(|now| table.expired(&candidate, now)) { replaced = true; break; }
+                        if runner.context.now.is_none_or(|now| table.live(&candidate, now)) { replaced = true; break; }
                     }
                     if replaced || count < 32 { break; }
                 }
@@ -157,22 +181,27 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, event
             // A live deadline renewal is a join transition without a
             // revocation. If the old lifetime already ended, catch-up inserts
             // its scope before that join; shortening to expiry still revokes.
-            let renewed = was == is && new.is_some_and(|row| !runner.context.now.is_some_and(|now| table.expired(row, now)));
+            let renewed = was == is && new.is_some_and(|row| runner.context.now.is_none_or(|now| table.live(row, now)));
             #[cfg(not(feature = "sqlite"))]
             let _ = (partition, replaced, renewed);
             #[cfg(feature = "sqlite")]
             if LOG && !replaced && !renewed {
-                let key = (partition.clone(), content_name.clone(), canonical_json(group));
+                let key = (partition.clone(), content_name.clone(), canonical_json(group),
+                );
                 match runner.born_grants.get(&key).copied() {
                     Some(earlier) => {
-                        withdraw(events, earlier, |event| event.kind == EventKind::Join && event.partition == key.0 && event.table == key.1 && event.id == key.2);
+                        withdraw(events, earlier, |event| {
+                            event.kind == EventKind::Join && event.partition == key.0 && event.table == key.1 && event.id == key.2
+                        });
                         // Siblings born beside it still carry the birth.
                         let row = old.expect("a revoked grant had an image");
                         let own = row.field("id")?.as_str()?.to_owned();
                         let bound = binding(schema, &content_name, &sync).expect("validated audience");
                         let mut probe = group.clone();
                         probe.push(row.field(&bound.principal)?.clone());
-                        if !runner.metered_scan(|runner, allowance| key_has_row(runner, allowance, table_name, &bound.group_index, &probe, false, |other| other != own))? {
+                        if !runner.metered_scan(|runner, allowance| {
+                            key_has_row(runner, allowance, table_name, &bound.group_index, &probe, false, |other| other != own)
+                        })? {
                             runner.born_grants.remove(&key);
                         }
                         undone_born = Some(key);
@@ -191,16 +220,24 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, event
         // work, so no host is charged for it (the device builds no log).
         #[cfg(feature = "sqlite")]
         if LOG && let Some((partition, group)) = &is {
-            let key = (partition.clone(), content_name.clone(), canonical_json(group));
+            let key = (partition.clone(), content_name.clone(), canonical_json(group),
+            );
             if (was != is || undone_born.as_ref() == Some(&key)) && !runner.born_grants.contains_key(&key) {
                 let row = new.expect("a membership has an image");
                 let bound = binding(schema, &content_name, &sync).expect("validated audience");
                 let mut probe = group.clone();
                 probe.push(row.field(&bound.principal)?.clone());
                 let own = row.field("id")?.as_str()?;
-                let predecessor = runner.metered_scan(|runner_now, allowance| key_has_row(runner_now, allowance, table_name, &bound.group_index, &probe, true, |other| other != own && !runner_now.born_rows.contains_key(&(table_name.to_owned(), other.to_owned()))))?;
+                let predecessor = runner.metered_scan(|runner_now, allowance| {
+                    key_has_row(runner_now, allowance, table_name, &bound.group_index, &probe, true, |other| {
+                            other != own && !runner_now.born_rows.contains_key(&(table_name.to_owned(), other.to_owned()))
+                        },
+                    )
+                })?;
                 if !predecessor {
-                    let earlier = events.iter().filter(|event| event.kind == EventKind::Join && event.partition == key.0 && event.table == key.1 && event.id == key.2).count();
+                    let earlier = events.iter().filter(|event| {
+                            event.kind == EventKind::Join && event.partition == key.0 && event.table == key.1 && event.id == key.2
+                        }).count();
                     runner.born_grants.insert(key.clone(), earlier);
                 }
             }

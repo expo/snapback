@@ -1,10 +1,10 @@
 use super::{Store, Tx};
+use crate::identity::read_sessions;
 use crate::{
     RuntimeError,
     authority::{AdmissionRecord, AuthorityTransaction, SessionRecord, WorkRecord},
 };
 use rusqlite::{OptionalExtension, params};
-use crate::identity::read_sessions;
 
 const WORK_COLUMNS: &str = "principal, state, claimed_by, session_digest, lease_until, deadline, family, principal_generation, admitted_expires_at, service_generation";
 
@@ -47,13 +47,14 @@ impl AuthorityTransaction for Tx<'_> {
         Ok(self.tx.query_row(
             sql,
             [digest],
-            |row| Ok(SessionRecord {
+            |row| {
+                Ok(SessionRecord {
                 principal: row.get(0)?, family: row.get(1)?, kind: row.get(2)?,
                 digest: row.get(3)?, expires_at: row.get(4)?,
                 scope: if row.get::<_, i64>(5)? == 1 { crate::identity::SessionScope::Read } else { crate::identity::SessionScope::Full },
                 cap_expires_at: row.get(6)?, principal_generation: row.get(7)?,
-            }),
-        ).optional()?)
+            })
+            }).optional()?)
     }
 
     fn latest_live_family_member(
@@ -71,13 +72,14 @@ impl AuthorityTransaction for Tx<'_> {
         Ok(self.tx.query_row(
             sql,
             params![principal, family, now],
-            |row| Ok(SessionRecord {
+            |row| {
+                Ok(SessionRecord {
                 principal: row.get(0)?, family: row.get(1)?, kind: row.get(2)?,
                 digest: row.get(3)?, expires_at: row.get(4)?,
                 scope: if row.get::<_, i64>(5)? == 1 { crate::identity::SessionScope::Read } else { crate::identity::SessionScope::Full },
                 cap_expires_at: row.get(6)?, principal_generation: row.get(7)?,
-            }),
-        ).optional()?)
+            })
+            }).optional()?)
     }
 
     fn work_by_id(&self, id: &str) -> Result<Option<WorkRecord>, RuntimeError> {
@@ -140,7 +142,8 @@ impl Store {
             sql.rollback()?;
             return Ok(None);
         }
-        let tx = Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, catalog: &self.catalog };
+        let tx = Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size,
+            server: self.server, catalog: &self.catalog };
         let resolved = crate::identity::resolve_session_tx(&tx, digest, now, supervisor_revision)?;
         tx.rollback()?;
         Ok(resolved)

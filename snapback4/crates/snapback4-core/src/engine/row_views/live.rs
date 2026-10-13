@@ -1,8 +1,8 @@
 //! Indexed live basis and the timestamp that owns physical expiry subtraction.
 use super::*;
-use crate::schema::Table;
 #[cfg(feature = "sqlite")]
 use crate::maintain::RowKey;
+use crate::schema::Table;
 
 pub(super) fn expiry(table: &Table, row: &Value) -> Option<i64> {
     table.deadline(row)
@@ -49,7 +49,9 @@ impl Runner<'_> {
             let mut probe = bounds.clone();
             for n in 0..=LIMIT {
                 self.meter.charge(MeterKind::Examined, 1)?;
-                let head = self.metered_scan(|runner, scope| runner.tx.index_head(scope, &m.source, &index, prefix, &probe, Dir::Asc))?;
+                let head = self.metered_scan(|runner, scope| {
+                    runner.tx.index_head(scope, &m.source, &index, prefix, &probe, Dir::Asc)
+                })?;
                 let Some(key) = head else {
                     if n == 0 { return Ok(Some(0)); }
                     let mut cursor = bounds;
@@ -67,7 +69,7 @@ impl Runner<'_> {
                                 self.rebuilt_source_rows = self.rebuilt_source_rows.saturating_add(1);
                                 self.meter.step(k.predicate.steps() * 2 + 4)?;
                                 let source = &self.schema.tables[&m.source];
-                                if !self.expired(source, &row) && k.matches(&row, member) {
+                                if !self.inactive(&m.source, &row)? && k.matches(&row, member) {
                                     total += 1;
                                     self.note_expiry(source, &row);
                                 }
@@ -103,7 +105,10 @@ impl Runner<'_> {
             return self.view_scan(m,member,None,&k.source_index(),Bounds::default(),limit,true);
         };
         let index = k.range_index(expire);
-        let after = cursor.and_then(|v|if let Value::Array(a)=v { Some(a.clone()) } else { None });
+        let after = cursor.and_then(|v| {
+            if let Value::Array(a)=v { Some(a.clone()) } else { None
+            }
+        });
         let mut remaining = limit;
         let mut total = 0;
         let mut last = None;

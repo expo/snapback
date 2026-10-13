@@ -86,7 +86,9 @@ fn unsupported_derived_and_lifetime_compositions_are_refused() {
         format!("{ANNOUNCEMENTS}view counts: count announcements by .secret\n  read <- allow\n");
     for (source, message) in [
         (ephemeral, "not before cannot appear on an ephemeral table"),
-        (aggregate, "cannot use `not before` on its source or target"),
+        (aggregate,
+            "cannot use `not before` on its source, target, or row-key member table",
+        ),
     ] {
         let result = bound(&source);
         assert!(
@@ -98,6 +100,32 @@ fn unsupported_derived_and_lifetime_compositions_are_refused() {
             result.diagnostics
         );
     }
+}
+
+#[test]
+fn row_keyed_maintain_rejects_a_timed_member_table_only() {
+    let fixture = include_str!("fixtures/row-keyed-view.q");
+    let timed_members = fixture.replace(
+        "  principal: principal\n  readUpTo: int default 0",
+        "  principal: principal\n  opensAt: time ?\n  readUpTo: int default 0",
+    ).replace(
+        "  cap 100 by conversationId\n  read <- allow",
+        "  cap 100 by conversationId\n  by byOpening: opensAt\n  not before .opensAt\n  read <- allow",
+    );
+    let result = bound(&timed_members);
+    assert!(
+        result.diagnostics.iter().any(|diagnostic| {
+            diagnostic.message.contains("row-key member table")
+                && diagnostic.site.file == "schema.q"
+                && diagnostic.site.line > 0
+        }),
+        "{:#?}",
+        result.diagnostics
+    );
+
+    // A timed table outside the maintained source/target/member dependency is
+    // independent and must not disable an otherwise supported row-keyed view.
+    clean(&fixture.replace("view unread:", &format!("{ANNOUNCEMENTS}\nview unread:")));
 }
 
 #[test]

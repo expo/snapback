@@ -171,6 +171,18 @@ fn device_oracle_fixed_seeds_on_both_device_stores() {
     for seed in 0..40 {
         devices::check(&generate(seed), &mut report, &mut files, |_| {}).unwrap();
     }
+    // Plant one read and one write from the single-clock lower-lifetime
+    // fragment into both device stores. Backlog publication has separate
+    // lifecycle coverage; these cases seed at the request clock.
+    for mutation in [false, true] {
+        let mut timed = (0..5_000).map(generate).find(|case|
+            case.program.tables[0].not_before.is_some() && case.program.mutation() == mutation
+        ).expect("timed generator must reach reads and writes");
+        timed.program.tables[0].rule = Rule::Allow;
+        timed.program.tables[0].effects = None;
+        timed.program.tables[0].residency = Residency::Public;
+        devices::check(&timed, &mut report, &mut files, |_| {}).unwrap();
+    }
     // A predicted insert, its settlement and convergence on both stores.
     let mut insert = generate(0);
     insert.program.body = Body::Write(Write::Insert, Expr::Int(1));
@@ -179,6 +191,8 @@ fn device_oracle_fixed_seeds_on_both_device_stores() {
     insert.args["key"] = json!("fresh-id");
     devices::check(&insert, &mut report, &mut files, |_| {}).unwrap();
     assert!(report.generator_errors.is_empty(), "{report:#?}");
+    assert!(report.coverage["not-before/exact-boundary"] >= 2, "{report:#?}");
+    assert!(report.coverage["not-before/future"] >= 2, "{report:#?}");
     let signatures: std::collections::BTreeSet<_> = report.by_oracle.values().flat_map(|c| c.signatures.keys().cloned()).collect();
     assert_eq!(signatures, DEVICE_KNOWN.iter().map(|s| s.to_string()).collect(), "new or missing signatures need diagnosis");
     for store in devices::STORES {
@@ -223,6 +237,9 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         if case.program.tables[0].expire.is_some() {
             dims.push("expiry");
         }
+        if case.program.tables[0].not_before.is_some() {
+            dims.push("not-before");
+        }
         // LLP 3000.040 §5: calendar bodies and bounded `score`, from their own stream.
         if case.program.time_arg {
             dims.push("calendar");
@@ -255,7 +272,39 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         }
         seen.extend(dims);
     }
-    assert_eq!(seen.len(), 11, "{seen:?}");
+    assert_eq!(seen.len(), 12, "{seen:?}");
+}
+
+#[test]
+fn timed_disclosure_generation_covers_edges_reads_and_writes() {
+    let mut reads = false;
+    let mut writes = false;
+    let mut future_targets = std::collections::BTreeSet::new();
+    for seed in 0..100_000 {
+        let case = generate(seed);
+        if case.program.tables[0].not_before.is_none() { continue }
+        assert!(case.seeded_at.is_none() && case.steps.is_empty(), "seed {seed}");
+        let values = case.rows.iter().filter(|(table, _)| table == "items")
+            .map(|(_, row)| row["opensAt"].clone()).collect::<Vec<_>>();
+        for expected in [json!(null), json!(case.clock - 1), json!(case.clock), json!(case.clock + 1)] {
+            assert!(values.contains(&expected), "seed {seed}: {values:?}");
+        }
+        execute::compile(&case.program.source()).unwrap_or_else(|e| panic!("seed {seed}: {e}"));
+        if case.program.mutation() {
+            writes = true;
+            if let Body::Write(kind @ (Write::Update | Write::Upsert | Write::Delete), _) = &case.program.body {
+                let key = case.args["key"].as_str().unwrap();
+                let target = case.rows.iter().find(|(table, row)| table == "items" && row["id"] == key).unwrap();
+                assert_eq!(target.1["opensAt"], json!(case.clock + 1), "seed {seed}");
+                future_targets.insert(format!("{kind:?}"));
+            }
+        } else {
+            reads = true;
+        }
+        if reads && writes && future_targets.len() == 3 { break }
+    }
+    assert!(reads && writes);
+    assert_eq!(future_targets, ["Delete", "Update", "Upsert"].map(String::from).into());
 }
 
 #[test]

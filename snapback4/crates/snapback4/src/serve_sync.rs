@@ -51,8 +51,13 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
     }
     let device: snapback4_core::device_protocol::DeviceEngine = serde_json::from_str(crate::device_handshake::header(&request).expect("checked handshake")).expect("checked handshake");
     let input = match serde_json::from_str::<SyncRequest>(body) {
-        Ok(input) if input.pending.len() <= 256 && input.pending.iter().all(|id| !id.is_empty() && id.len() <= 128) => input,
-        _ => return respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "sync needs { generation?, from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes")) })),
+        Ok(input) if input.pending.len() <= 256 && input.pending.iter().all(|id| !id.is_empty() && id.len() <= 128) =>
+        {
+            input
+        }
+        _ => {
+            return respond_timed(request, shared, 400, json!({ "denied": refusal_json(&Refusal::new("E_INPUT", "input", "sync needs { generation?, from, limit, after, stream, pending }: nonnegative integers, a cursor or null, a boolean, and at most 256 ids of 1..128 UTF-8 bytes")) }));
+        }
     };
     // @ref LLP 3000.026#4-atomic-launch-adoption — sync has its own bounded
     // admission pool and authenticates before waiting on atomic launch.
@@ -70,7 +75,9 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
     let SyncRequest { generation: requested_generation, from, limit, mut after, stream, pending, store_id: requested_store } = input;
     let store_id = match shared.read_head() {
         Ok((id, _)) => id,
-        Err(error) => return respond_timed(request, shared, 503, json!({ "denied": refusal_json(&error) })),
+        Err(error) => {
+            return respond_timed(request, shared, 503, json!({ "denied": refusal_json(&error) }));
+        }
     };
     // An old snapshot cursor belongs to its database, not merely its schema.
     if requested_store.as_ref().is_some_and(|id| id != &store_id) { after = None; }
@@ -83,16 +90,33 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
             match reader {
                 Ok(mut reader) => {
                     let generation = reader.generation();
-                    (under_generation(&mut reader, requested_generation, generation, &store_id, &device, |reader| reader.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, now).and_then(|page| reader.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks)))), generation)
+                    (under_generation(&mut reader, requested_generation, generation, &store_id, &device, |reader| {
+                                reader.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, now).and_then(|page| {
+                                        reader.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))
+                                    })
+                            },
+                        ), generation,
+                    )
                 }
-                Err(error) if !shared.memory_store() => return respond_timed(request, shared, 503, json!({"denied": error.refusal()})),
+                Err(error) if !shared.memory_store() => {
+                    return respond_timed(request, shared, 503, json!({"denied": error.refusal()}));
+                }
                 Err(_) => {
                     let mut engine = lock(&shared.engine);
                     let generation = engine.generation();
-                    (under_generation(&mut engine, requested_generation, generation, &store_id, &device, |engine| engine.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, now).and_then(|page| engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks)))), generation)
+                    (under_generation(&mut engine, requested_generation, generation, &store_id, &device, |engine| {
+                                engine.snapshot_acquisition_page_at(&principal, after.as_deref(), limit, now).and_then(|page| {
+                                        engine.acknowledged(&principal, &pending, page.watermark).map(|acks| (page, acks))
+                                    })
+                            },
+                        ), generation,
+                    )
                 }
             }
         };
+        if shared.memory_store() {
+            shared.publish_engine(&lock(&shared.engine));
+        }
         match outcome {
             Ok(SyncOutcome::Page((page, acknowledged))) => {
                 let next = page.next.map(|next| next.encode());
@@ -114,16 +138,33 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
             match reader {
                 Ok(mut reader) => {
                     let generation = reader.generation();
-                    (under_generation(&mut reader, requested_generation, generation, &store_id, &device, |reader| reader.stream_at(&principal, from, limit, now).and_then(|page| reader.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| { let preserved = snapback4_core::revocation::preserved_between(reader.store().conn(), reader.schema(), from, page.images_at.unwrap_or(page.watermark)); let changes = super::changes::settlement_changes(reader.store().conn(), reader.schema(), from, page.images_at.unwrap_or(page.watermark)); (page, acks, preserved, changes) }))), generation)
+                    (under_generation(&mut reader, requested_generation, generation, &store_id, &device, |reader| {
+                                reader.stream_at(&principal, from, limit, now).and_then(|page| {
+                                        reader.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| { let preserved = snapback4_core::revocation::preserved_between(reader.store().conn(), reader.schema(), from, page.images_at.unwrap_or(page.watermark)); let changes = super::changes::settlement_changes(reader.store().conn(), reader.schema(), from, page.images_at.unwrap_or(page.watermark)); (page, acks, preserved, changes) })
+                                    })
+                            },
+                        ), generation,
+                    )
                 }
-                Err(error) if !shared.memory_store() => return respond_timed(request, shared, 503, json!({"denied": error.refusal()})),
+                Err(error) if !shared.memory_store() => {
+                    return respond_timed(request, shared, 503, json!({"denied": error.refusal()}));
+                }
                 Err(_) => {
                     let mut engine = lock(&shared.engine);
                     let generation = engine.generation();
-                    (under_generation(&mut engine, requested_generation, generation, &store_id, &device, |engine| engine.stream_at(&principal, from, limit, now).and_then(|page| engine.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| { let preserved = snapback4_core::revocation::preserved_between(engine.store().conn(), engine.schema(), from, page.images_at.unwrap_or(page.watermark)); let changes = super::changes::settlement_changes(engine.store().conn(), engine.schema(), from, page.images_at.unwrap_or(page.watermark)); (page, acks, preserved, changes) }))), generation)
+                    (under_generation(&mut engine, requested_generation, generation, &store_id, &device, |engine| {
+                                engine.stream_at(&principal, from, limit, now).and_then(|page| {
+                                        engine.acknowledged_at(&principal, &pending, page.watermark, page.images_at.unwrap_or(page.watermark)).map(|acks| { let preserved = snapback4_core::revocation::preserved_between(engine.store().conn(), engine.schema(), from, page.images_at.unwrap_or(page.watermark)); let changes = super::changes::settlement_changes(engine.store().conn(), engine.schema(), from, page.images_at.unwrap_or(page.watermark)); (page, acks, preserved, changes) })
+                                    })
+                            },
+                        ), generation,
+                    )
                 }
             }
         };
+        if shared.memory_store() {
+            shared.publish_engine(&lock(&shared.engine));
+        }
         match outcome {
             Ok(SyncOutcome::Page((page, (acknowledged, committed_above), preserved, changes))) => {
                 let mut overflow = json!({ "generation": generation, "store_id": store_id, "watermark": page.watermark });

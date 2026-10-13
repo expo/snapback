@@ -5,12 +5,12 @@
 //! host's store through callbacks on the web — so one interpreter runs on
 //! every host and the language is bound once.
 
-#[path = "engine/word_heap.rs"]
-pub mod word_heap;
-pub mod caps;
 #[cfg(any(feature = "sqlite", feature = "postgres"))]
 pub(crate) mod adoption;
+pub mod caps;
 pub mod disclosed;
+#[path = "engine/word_heap.rs"]
+pub mod word_heap;
 
 use crate::assets::Asset;
 use crate::error::RuntimeError;
@@ -33,7 +33,8 @@ pub struct IndexWrite<'a> {
     pub after: Vec<Vec<u8>>,
 }
 
-pub fn index_write<'a>(name: &str, table: &'a Table, row: &Value, old: Option<&Value>, id: &str) -> Result<Vec<IndexWrite<'a>>, RuntimeError> {
+pub fn index_write<'a>(name: &str, table: &'a Table, row: &Value, old: Option<&Value>, id: &str,
+) -> Result<Vec<IndexWrite<'a>>, RuntimeError> {
     let row = crate::schema::row_image(row, table);
     let old = old.map(|row| crate::schema::row_image(row, table));
     table.indexes.iter().map(|(index_name, index)| {
@@ -159,7 +160,8 @@ pub fn index_keys(index: &Index, row: &Value, id: &str) -> Vec<Vec<u8>> {
     if let Some(crate::schema::IndexComponent::Contribution(maintain)) = index.components.first() {
         return if maintain.selected(row) { vec![index_key(index, row, id)] } else { Vec::new() };
     }
-    let Some((position, fields)) = index.word_component() else { return vec![index_key(index, row, id)] };
+    let Some((position, fields)) = index.word_component() else { return vec![index_key(index, row, id)];
+    };
     let texts: Vec<&str> = fields.iter().filter_map(|field| row.field(field).ok().and_then(|value| value.as_str().ok())).collect();
     let tokens = crate::words::row_tokens(texts);
     let values = index_values(index, row);
@@ -271,10 +273,12 @@ pub trait Rows {
     /// possible. The caller reserves the declared decoder bound before access.
     #[cfg(feature = "server-search")]
     fn scan_selected(&self, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, dir: Dir, fields: &[String]) -> Result<Vec<(Value, Vec<u8>)>, RuntimeError> {
-        self.scan(table, index, prefix, bounds, dir, 1).map(|rows| rows.into_iter().map(|(row,key)| {
+        self.scan(table, index, prefix, bounds, dir, 1).map(|rows| {
+            rows.into_iter().map(|(row,key)| {
             let selected = fields.iter().filter_map(|name| row.field(name).ok().map(|v|(name.clone(),v.clone()))).collect();
             (Value::Row(selected), key)
-        }).collect())
+        }).collect()
+        })
     }
     /// Word expansion cannot bound nominal ID payloads from schema alone. A
     /// store must charge before decoding/cloning its fetched row/key and before
@@ -297,6 +301,21 @@ pub trait Rows {
     /// number of index entries written.
     fn put(&self, table_name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError>;
     fn delete(&self, table_name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError>;
+    /// Server SQLite overrides this to maintain its private timed-publication
+    /// index. Device and model stores have no such authority or metadata.
+    fn track_time_audience(
+        &self,
+        _table_name: &str,
+        _table: &Table,
+        _row: Option<&Value>,
+        _now: i64,
+    ) -> Result<(), RuntimeError> {
+        Ok(())
+    }
+    /// Whether the server still owes this physical row's opening transition.
+    fn time_audience_pending(&self, _table_name: &str, _id: &str) -> Result<bool, RuntimeError> {
+        Ok(false)
+    }
     /// Whether this store keeps the asset ledger. The server's does; a
     /// device holds none and keeps a row's asset value as it was sent, the
     /// server establishing the facts when the write arrives.
@@ -340,8 +359,12 @@ impl MemoryRows {
         let rows = self.rows.borrow();
         let within = entries.range((ti.clone(), lo.to_vec())..(ti, hi.to_vec()));
         let picked: Vec<(Value, Vec<u8>)> = match dir {
-            Dir::Asc => within.take(limit).filter_map(|((_, k), id)| rows.get(&(table.to_owned(), id.clone())).map(|row| (row.clone(), k.clone()))).collect(),
-            Dir::Desc => within.rev().take(limit).filter_map(|((_, k), id)| rows.get(&(table.to_owned(), id.clone())).map(|row| (row.clone(), k.clone()))).collect(),
+            Dir::Asc => within.take(limit).filter_map(|((_, k), id)| {
+                    rows.get(&(table.to_owned(), id.clone())).map(|row| (row.clone(), k.clone()))
+                }).collect(),
+            Dir::Desc => within.rev().take(limit).filter_map(|((_, k), id)| {
+                    rows.get(&(table.to_owned(), id.clone())).map(|row| (row.clone(), k.clone()))
+                }).collect(),
         };
         picked
     }
@@ -382,7 +405,8 @@ impl Rows for MemoryRows {
         // @ref LLP 3000.007#20.24.5 — the stores' logical charge, priced on each row's canonical image.
         word_heap::scan_open(meter, table, index_name, prefix, bounds, scope)?;
         let mut guard = word_heap::StoreGuard::open(meter, 64 << 20);
-        let Some((lo, hi)) = scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
+        let Some((lo, hi)) = scan_range(prefix, bounds, dir) else { return Ok(Vec::new());
+        };
         let ti = format!("{table}.{index_name}");
         let entries = self.entries.borrow();
         let rows = self.rows.borrow();
@@ -396,7 +420,8 @@ impl Rows for MemoryRows {
             }
             Ok(())
         };
-        match dir { Dir::Asc => { for entry in within.take(limit) { pick(entry)?; } }, Dir::Desc => { for entry in within.rev().take(limit) { pick(entry)?; } } }
+        match dir { Dir::Asc => { for entry in within.take(limit) { pick(entry)?; } }
+            Dir::Desc => { for entry in within.rev().take(limit) { pick(entry)?; } } }
         Ok(out)
     }
     fn count_prefix(&self, table: &str, index_name: &str, prefix: &[Value], limit: u64) -> Result<u64, RuntimeError> {
