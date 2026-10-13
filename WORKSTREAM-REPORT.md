@@ -1,109 +1,145 @@
-# PAGE2 — planner and rules language
+# PAGE3 workstream report
 
-Worktree `/home/ccheever/projects/sb4-w10-page2`, branch `sb4-w10-page2`, base `f9e40ef515` (published npm 0.4.25 plus records). All changes are local commits by Charlie Cheever <ccheever@firewoodagent.com>. No push, publication, other-worktree changes or edits to the source evidence lanes.
+Implementation is committed locally on sb4-w10-page3, based on PAGE2
+2f67142463. Both independent reviews are READY and final qualification is complete. Runtime
+semantic checkpoint b05c034aea; model gate checkpoint 65d505289f.
+No push, publication, writes to other worktrees or writes to the evidence farm.
 
-## Result and review status
+## Farm result
 
-Implemented and committed. Final planner semantic checkpoint: `24a644c511fc5a6888597af9335d894790eaeb97`, with both round-12 reviewers READY. Time-audience semantics have both round-10 reviewers READY at `d0e1c30841`; timed core tests pass again after planner integration. Reviews bind scoped content rather than documentation HEAD. Time RFC 3000.036.002 is Implemented and archived from `llp/current/`; the existing parent planner RFC keeps its legacy Review header while §15 explicitly records implementation and dual-family readiness.
+All 50 odd wave-10 final schemas compile on copies. N_NEVER_COMPLETE drops
+from **18 notes in 11 schemas to 2 in one schema**. Applying the exact checked
+source repair on further copies gives **zero notes in all 50 schemas**.
 
-All reviews and blocker/fix rounds are saved verbatim with frozen proposals, hashes and command provenance in `llp/reviews/3000.036-page2.r1.*` through `r12.*`. Each used the required Muse contributor/high and a fresh Codex gpt-6.1-sol/high session, mutually blind. Muse's wrapper recovered exhausted plan quota through its authorized API fallback; no credential file was read or printed. Final tests, campaigns, client/web builds and measurement pass within their stated scopes. No push or publication.
+| Shape | Before | After original source | After exact repair |
+|---|---:|---:|---:|
+| Party plus static role grant | 12 | 0 | 0 |
+| Compound / non-equality / multi-branch | 3 | 0 | 0 |
+| Hidden parent source | 2 | 2 | 0 |
+| Pure membership | 1 | 0 | 0 |
 
+Remaining original notes: 033 poolProposals and poolMembers. An owner may be
+unable to read the parent source that physically grants child access, so an
+inversion of readable parent rows would certify an incomplete child subset.
+The note names an immutable, checked poolOwner copy, immutable reference,
+non-expiring parent, restrict deletion, exact insert/payload edits and required
+backfill/seeds. The concrete repaired schema compiles. See
+[planner qualification](snapback4/reports/20261013-page3/planner.md),
+[farm aggregate and hashes](snapback4/reports/20261013-page3/farm-survey.json) and
+[exact rewrite](snapback4/reports/20261013-page3/hidden-parent-rewrite.q).
 
-## #11 — owner-or-membership pages
+## Changes and commits
 
-The planner now admits an exact plain unique membership probe with a total point witness, fully pinned total-unique discovery, or an applicable declared cap. `unique parent, principal` proves one witness for one target/caller, not a bound on the caller's total memberships. Uncapped discovery is metered and all-or-nothing: incomplete discovery returns an empty incomplete page without continuation; heap exhaustion remains `E_BOUND`. This avoids silently dropping a late membership or claiming a partially discovered page is complete.
-
-The merge supports intrinsic target `.id`, including `byId` continuations, and readable/public parent-owner points such as `exists offers[.offer, baker = viewer]`. Every lane uses the shared cursor order and opens its head before emitting. `branch-membership-v2` fences the new shapes while preserving the old capped v1 classifier. Where a cap can repair the shape, the note names the exact declaration, e.g. `cap 50 by principal`, and explains that this is a hard write/adoption limit. Nullable unique keys are not treated as total; incompatible `set null` cap groups remain refused before Lean classification.
-
-The indexes guide's **Private lists** section documents unique/cap inference, metered uncapped discovery, own-id and parent-owner pages, and the exact-cap repair. The amendment is LLP 3000.036.001 §15.
-
-Final corrections: `361ed2628d` adds fully pinned Lean discovery with a native/Lean negative control; `d03a75c80e` types intrinsic ids against competing uniques and retains those keys in generation; `24a644c511` fences expression-step cuts and restores bindings. Positive old-code step ceilings 2/3/6/8/11/12/14/15 return E_BOUND; restored discovery cuts are empty/incomplete without continuation. Heap, pending publication and other errors retain their behavior.
-
-Key commits: `3011e3db92`, `50ea8d6df2`, `4ea5074f12`, `a9ac5d2ea5`, `a81f7cb480`, `521d42629f`, `e72d916b0c`, `2ae1b0d5b4`, `8a2104f458`, `abbf5bdad7`, `56b43a797c`, `7e3a3b6732`, `7af7790777`.
-
-### All 50 odd-lane final schemas
-
-All 50 baseline and all 50 final updated checks succeed. The CLI was rebuilt after the intrinsic-id correction and the copied-schema survey repeated at `24a644c511`; counts and remaining note identities are unchanged. [Final survey provenance](snapback4/reports/20261013-page2/final-schema-survey.md) binds binary/source/output hashes. `N_NEVER_COMPLETE` falls from **20 notes in 13 schemas to 18 notes in 11 schemas**. Removed: lane 001 `incomingRequests` (parent owner) and lane 037 `myChildren` (own-id membership). The raw reduction is 2/20 notes; this is not a claim that the broad corpus mostly consisted of ordinary memberships.
-
-The remaining 18 notes are 12 party-plus-static-role-grant pages, 3 compound/non-equality/multi-branch rules, 2 hidden parent-source inversions, and 1 pure-membership page. Among the five odd-lane membership-shaped notes, two are fixed, two require discovery of a source the caller cannot read, and one has no owner/static party branch. Safe admission of hidden-source or pure-membership plans is outside this owner-or-X amendment; those exclusions are explicit rather than advertised as complete pages.
-
-The additional named even-lane audit clears lane 002 `myHouseholds` and lane 098 `myEstates` (both own-id membership). Of the analysis's named affected apps 001/002/033/098, three are repaired; 033 has the hidden-source and pure-membership exclusions. Lane 037 is an additional repaired new app.
-
-Exact source/binary/output hashes, commands and per-shape accounting are in [planner report](snapback4/reports/20261013-page2/planner.md); machine-readable aggregate is [farm survey](snapback4/reports/20261013-page2/farm-survey.json). Source digest: `7a4725fa4895937190b6532280d8497ca9151ccfbb2fdbad6160885485af34ab`. Final comparisons ran on copied schemas outside the repository. An initial baseline `check` ran directly against the original app directories; a post-run artifact search found no changed generated files, and no cleanup or mutation was performed there.
-
-## #17 — rules and timed disclosure
-
-`not before .opensAt` adds a lower read lifetime beside `expire at .expiresAt`: visibility is `[opensAt, expiresAt)`, and a nullable lower time means immediate visibility. The parser, schema IR, capability carrier, core, server, device and generated artifacts carry it. LLP 3000.036.002 specifies the semantics and supported compositions; the time/recipes guide contains a compiled timed-disclosure recipe.
-
-Future payloads remain server-side. A private `(at, table, id)` opening ledger advances one due entry per natural request/poll transaction, without an application job. A durable monotonic server clock floor prevents reopening/backtracking under clock rollback. Overdue unpublished rows remain unavailable until the atomic opening commit. Stale and never-live entries advance private state without a public event. Pending writes, deletes, reschedules, restarts and adoption reconcile the queue with final physical state. Independent durable publication evidence for the current image survives missed-window queue removal, suppresses never-published expiry identities, and preserves positive expired revocation. Generation snapshots reconstruct markers; ordinary restart preserves them and a state-version bootstrap upgrades older stores. Server snapshots/acquisitions require live and published.
-
-Completeness is current at the applied authoritative position, never a future guarantee. A device clock cannot disclose an unopened row or supply a future wake hint. Atomic clock/watermark/event application and backend adoption clear/fence previously held rows and groups before the successor lower boundary. Future rows reserve physical unique keys and unexpired cap slots; blind writes can address them without granting read access. Expiry cleanup remains separate. Upper expiry is checked before lower-lifetime witness refunds, preserving the legacy authorization allowance for expired/never-live witnesses. The distinct-key 4,200-witness regression was run against the old ordering, failed as intended, and passes against the fixed code. Non-uniform and compact membership search heads now classify lifetime before spending a public allowance; candidate selection retains the opening column. The 8,193-future-word paired-world regression fails old code with `E_RULE` and passes fixed code, including live same-word siblings and never-live heads before/at opening.
-
-Opening publication has a conservative static work/decode/event envelope. Join acquisition expands in 64-row batches under an 8,192-event / 16 MiB reply-wide retained-memory/wire bound; it never retains an unbounded group then measures it. Refusal is atomic `E_BOUND`, with identity, watermark and `snapshot: true` even at stream limit one; existing paged snapshots recover every row. The 5,000-row × 4,000-byte HTTP regression and 8,193-row core regression exercise both refusal and recovery.
-
-The first timed slice refuses union sync, read-through inheritance, maintained source/target/member tables, timelines and ephemeral on the same table. Unrelated ephemeral tables remain valid; their overlay forwards durable pending/publication state. Experimental PostgreSQL evaluation explicitly refuses lower lifetimes until it owns their floor/ledger/publication mechanisms. Private `written-by` fields require probe-free read rules because per-opening probe fanout cannot be statically admitted; ordinary timed tables may still have read probes. These are located compile-time refusals, not accepted programs with missing events.
-
-The existing rules recipes also cover a child writer who cannot read its parent (041), a copied-column alternative in `E_READ_THROUGH` over mutable parents, and exact full `unique principal, role` probes that preserve multiple roles (071). No new blind-write bypass or unbounded role scan was introduced.
-
-Search coverage commit `476c7e4fca` adds deterministic generated timed non-uniform search, a full-outcome future-absence oracle, explicit Lean `index-computed-or-words` exclusion, simulator and both-store device search cases. Difftest smoke 16/16, simulator timed search 2/2, device timed search 2/2 pass. Seeds 0–399 reach the new native property (first seed 8).
-
-Key commits: language/schema `cbe172b276`; ordinary recipes/diagnostic `142b2aa37d`; compiled timed recipe `276f036df3` / `b013a127f5`; runtime `aedb2ac030`; physical occupancy `5736d841d8`; witness metering `4b117ab067`, `81ab5706d8`, `bf31f1f599`; strong negative control `1ae0a39c7b`; search head and selected lifetime repair `829bc19b2a`; adoption `3ded597c06`; ordinary clock compatibility `83faaeed27`, `d1372c0063`; private-probe admission `6601a7139a`; bounded join delivery `36bcd17e01`; base decode admission `b52248bf14`; durable actual publication `47a1d4b098`; amended record `e979db7bb9`; pending-read rollback `098e0d5357`; metadata adapters `46b75b6822`; transport retries `6a516216cb`; transaction clocks and timed assets `d0e1c30841`.
+- **Static roles and bounded whole-group pages:** owner/party plus readable
+  role grants now merge on synced unions and schema-bounded implicit reads.
+  Role holders page the whole original range; everyone else their decided
+  ranges. Fully pinned total uniques keep the implicit id position. An owner
+  cap never bounds a staff's whole table. c97a35e2f3, 26d03a6fb4, aa4fe1a359.
+- **Pure memberships and hidden sources:** pure membership reuses PAGE2's
+  complete-discovery/head fence and shared cursor. Hidden sources get the
+  exact checked copy repair; no cap/index-only repair is claimed. c97a35e2f3,
+  26d03a6fb4.
+- **Compound and non-equality rules:** bounded positive distribution retains
+  every status condition and every membership/where alternative, including
+  parent-teacher/status and four-variant nullable-enum non-null archives.
+  Guarded subsets do not cover other lanes. c97a35e2f3, 26d03a6fb4, c2ed96746b.
+- **Predicate cuts and compatibility:** readable fixed point predicates may
+  be physically cut; continuation excludes an unfinished filter candidate.
+  Fallible point keys keep the original short circuit. Bound filter setup
+  blocks carry branch-pages-v2. Existing point-id membership capabilities
+  remain unchanged. c97a35e2f3, 26d03a6fb4, aa4fe1a359.
+- **Model, generation, simulator, devices and guide:** independent surface
+  admission, positiveRanges_eval theorem, pure/compound examples, six actual
+  native/Lean generated families, Memory/SQLite acquisition/cursors/reopen,
+  status and role revocation simulation; guide indexes Private lists recipes
+  updated. c97a35e2f3, c2ed96746b, aa4fe1a359, b05c034aea, 65d505289f.
+- **Paired final review and governance:** a6ab25010a records both READY
+  reviews at 65d505289f, disposition history and the LLP/JOURNAL qualification.
+- **Measured wasm:** f11a5e72cd. Linux locked device is 2,310,393 B raw,
+  704,662 B gzip, 532,356 B brotli. Budget **705,162 B = measurement + 500 B**.
+  Relative to PAGE2, +5,258 B raw / +1,407 B gzip. No per-feature byte
+  attribution or runtime ceiling increase. Clean metrology at f11a5e72cd
+  passes family/absence audits. Later changes are lang/model/tests only.
 
 ## Verification
 
-Setup passed: frozen Bun install, Cargo CLI build, locked wasm build, client package build. Every Cargo invocation carried `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0`. The full `scripts/test.sh` was never run.
+Every Cargo invocation carries CARGO_INCREMENTAL=0,
+CARGO_PROFILE_DEV_DEBUG=0 and CARGO_PROFILE_TEST_DEBUG=0. The full
+scripts/test.sh was never run. Setup frozen Bun install, CLI/web/client builds
+pass. Final web/client build and clean metrology pass.
 
-Affected suites passed at their implementation checkpoints:
+| Check | Result |
+|---|---|
+| Language PAGE3 focused cases | 14/14 |
+| Existing branch merge / PAGE2 membership | 57/57; 5/5 |
+| Lean emitter | 15/15 |
+| Compiled guide | 120/120 |
+| Core meter / discovery steps / capability suites | 9/9; 1/1; 12/12 |
+| Device branches on Memory and SQLite | 15/15 |
+| Simulator membership/status/revocation | 9/9 |
+| Lean model | 59 standard-axiom audits; 74/74 examples; 7/7 fixtures |
+| Native/Lean difftest tests / smoke | 35/35; 18/18 |
+| Reference check | 0 errors; ref-check.txt retained |
 
-| Area | Check | Result |
-|---|---|---|
-| Planner | lang `page2_membership`; lang `branch_merge` | 5/5; 57/57 |
-| Existing rules | `wave10_rules_expressiveness`; `membership_paths`; `read_through`; `wave9_rule_diagnostic_rewrites` | 5/5 final; 9/9; 10/10; 4/4 |
-| Timed syntax | lang `time_audiences` | 6/6 |
-| Guide | lang `guide` | 120/120 compiled/card checks |
-| Core final rerun | `time_audiences`; `delivery_bounds`; `expiring_adoption`; `meter`; `review_walk` | 21/21; 2/2; 5/5; 9/9; 16/16 |
-| Transaction clock audit | `job_time_audiences`; `dev_reset`; `file_assets`; `ephemeral` | 5/5 Quarry/native and untimed; 4/4; 6/6; 16/16 |
-| Discovery step fence | core `membership_discovery_steps`; simulator `membership`; device `branch_merge` | 1/1 positive-ceiling sweep; 8/8; 12/12 across both stores |
-| Delivery helpers | bounded delivery unit suite; `sync_count_batch` | 2/2; 1/1 |
-| HTTP | host clock suite; ordinary-clock restart; large timed join repair | 27/27 final integration suite; targeted pass; targeted pass |
-| Device | `time_audiences`; intrinsic-id two-page regression | 6/6 across Memory/SQLite; both stores pass |
-| Simulator | `time_audiences`; membership cursor revoke/acquisition | 4/4; targeted pass |
-| Lean | `lean/check.sh`; emitter | 58-theorem audit, 71/71 examples, 7 generated fixtures; Lean difftests 32/32, smoke 17/17; emitter 12/12 checkpoint plus set-null regression pass |
-| Generator | native/Lean by-id membership smoke | pass |
-| Package | client TypeScript/wasm build | pass after final wasm |
-| Corpus | `./ref-check`; `git diff --check` | 544 LLPs / 11,133 refs, no errors; pass |
-
-Final campaign binary was rebuilt after `24a644c511`; each command used seed 0, 400 cases, 4 workers, and a separate output directory:
+Campaigns use seed 0, 400 cases, 4 workers and separate output directories.
+The final release executable is rebuilt after semantic/model edits.
 
 ```sh
-target/release/snapback4-difftest run --seed 0 --cases 400 --workers 4 --out /tmp/sb4-page2-final-native-r12
-target/release/snapback4-difftest run-devices --seed 0 --cases 400 --workers 4 --out /tmp/sb4-page2-final-devices-r12
-target/release/snapback4-difftest run-lean --seed 0 --cases 400 --workers 4 --out /tmp/sb4-page2-final-lean-r12
+target/release/snapback4-difftest run --seed 0 --cases 400 --workers 4 --out /tmp/sb4-page3-final-r5-native
+target/release/snapback4-difftest run-lean --seed 0 --cases 400 --workers 4 --out /tmp/sb4-page3-final-r5-lean
+target/release/snapback4-difftest run-devices --seed 0 --cases 400 --workers 4 --out /tmp/sb4-page3-final-r5-devices
 ```
 
-- Native: 400 generated/compiled, 20,619 executions, zero disagreements/signatures across all nine oracles, including 7/7 timed-search absence comparisons; exit 0.
-- Device: 400 generated/compiled, 13,114 executions, zero disagreements/signatures across eight Memory/SQLite oracles and all ten meter dimensions; exit 0.
-- Lean: 400 generated/compiled, 1,072 executions, 317 passes, 80 explicit unsupported cases, 3 disagreements. Only existing `CLASSIFIED` signatures occur: `lean--continuation-next--next~no-next` twice and `lean--next--next~no-next` once. **Zero new signatures**; CLI exit 1 because it reports classified disagreements too. No claim of an entirely green Lean campaign.
+Final qualification at 65d505289f: all 400 sources compile in each campaign,
+with no generator errors. Native **22,277** and device **12,686** executions
+have zero disagreements/signatures. Lean **1,108** executions retain only three
+known C2 occurrences: `lean--continuation-next--next~no-next` twice and
+`lean--next--next~no-next` once. **No new signatures** against PAGE2's baseline.
+Lean's CLI exits 1 for these classified disagreements; this is not a green
+Lean pagination campaign. 319 Lean oracle passes and 78 named Unsupported
+cases are counted separately. Reports and executable/report hashes are under
+snapback4/reports/20261013-page3/ (qualification.json).
 
-Additional generated discovery-unique runs hit native seed 715 (394 executions, zero signatures) and Lean seed 551 (6 executions, one compared case, zero signatures). Those shapes lie outside seeds 0–399. Both device stores run the same native case and correctly stay online-only unknown/incomplete because its source is uncovered (4 executions; no offline equality claim). Reports `discovery-{native,lean,devices}.json` preserve this distinction.
+## Reviews, decisions and limits
 
-The Lean model covers the pinned lower-bound operation fragment (`opened`) and exact membership/by-id merge, including physical future writes; upper expiry, durable publication ledger and clock floors are checked by native/simulator/device tests and are not claimed as Lean proofs. Four timed scenario families (before, exact, future, nullable), own-id and uncapped membership generation are reached. Reports are committed under [PAGE2 evidence](snapback4/reports/20261013-page2/).
+LLP 3000.036.001 §16 and union §5.3 amend the governing contract; the umbrella
+3000.036 points at PAGE3. The context pack respects §§2–9,14–15's exact union,
+totality, source readability, shared positions and safe cuts, plus union
+holding/acquisition and PAGE2 lifetime filtering. No new LLP number or gate.
 
-## Wasm
+Every review round uses the required Muse contributor/high wrapper and a
+fresh Codex gpt-6.1-sol/high session, mutually blind; stdout is preserved
+verbatim with prompt/hash/checkpoint/command provenance in llp/reviews/.
+Muse's plan-quota refusals recovered through the wrapper's authorized API
+fallback. No credential file was read or printed.
 
-Baseline at `f9e40ef515`: 2,291,429 B raw / 698,386 B gzip. Final locked Linux web device: **2,305,135 B raw / 703,255 B gzip / 531,512 B brotli**, whole-artifact delta +13,706 raw / +4,869 gzip. Budget **703,755 B = measured gzip + 500 B**, with the reason in `metrics/wasm-budget.json` and the journal; final ratchet commit `10d27f62cc`.
+Round 1 fixed cap exemption, copy reference/lifetime/existence preservation,
+native/model outer conjunction and overly broad capability classification.
+Round 2 fixed fallible static keys and block-hidden probe fencing; defensive
+model cap gates were aligned, and actual enum execution/type-enum refusal
+regressions were added. Round 3 Muse READY; Codex found supported-native
+argument/signed keys outside the model's predicate classifier. They now have
+the explicit page-static-key-expression boundary, with real native execution
+and harness assertions that Unsupported has zero oracle executions. Positive
+compound admission also declines negated probes. Round 4 Muse READY; Codex
+found the model applied readable-static predicates to
+membership/compound cases whose native gates stay read-free. Cases 3/4 now
+retain Expr.total; direct pure/compound data/completeness comparisons pass.
+Round 5: **Muse and fresh Codex both READY at 65d505289f**. Final
+reviews and the exact frozen brief are retained under llp/reviews/.
 
-`measure-wasm.sh` passes serializer-family and forbidden-absence audits; final receipt is `dirty:false`, source checkpoint `10d27f62cc`, no overage. Server-only queue/join delivery is absent from the device. No runtime ceiling increase, per-feature attribution, Mac measurement or publication qualification is claimed. Brotli was extracted from a small package into `/tmp` for measurement, without a system/repository dependency change. Receipts are append-only in `snapback4/metrics/wasm.jsonl` and copied into the evidence directory.
+Decisions/deferrals: the updated compiler supports the farm's complete
+positive shapes; arbitrary negative probes, fallible predicates and unproved
+hidden sources retain their existing scan. Enum schemas, compound where-branch
+physical compositions, nullable constant compound pins, and static predicate
+argument/signed-expression keys remain named model exclusions. This is a
+model coverage limit, not a product workaround or a disguised pass. Large
+uncapped memberships still depend on the ordinary meter; caps are availability
+constraints, not invented correctness proofs. Only the requested 50 odd lanes
+were surveyed; no new whole-farm/even-lane or full-battery claim.
 
-## Decisions, ownership and deferrals
-
-- Hidden-source parent inversions and pure-membership pages remain excluded from this exact readable-source owner-or-X merge. The report's raw farm counts take precedence over a misleading large-majority claim.
-- Lean CapDecl does not carry referential actions. General formal cap/on-delete representation remains deferred; current language rejection of incompatible set-null cap groups occurs before Lean classification and is covered by the existing regression. This is a formal-fragment boundary.
-- The timed first-slice exclusions and bounded `E_BOUND`/snapshot recovery are explicit supported boundaries. They prevent unbounded expansion and early private disclosure.
-- HS owns broad handshake negotiation, DOM-free declarations and starter Vite types; REL2 owns publication/release; DX2 owns starters/upgrade/witness/general client recipes; DIAG owns general lint/diagnostic changes. One-line ownership pointers are in LLP 3000.036 §19. PAGE2 only declares its new semantic capabilities and requested rules/planner guide changes.
-- The root inventory checker belongs outside the Snapback4 fence and needs absent Snapback1–3 artifacts. Its attempted invocation failed that setup precondition; no unrelated bootstrap/regeneration was done. Snapback4 affected checks above passed.
-- A final Lean verification command accidentally ran in the repository root, and an unnecessary root Ibex bootstrap was started. Both owned bootstrap attempts were interrupted; no process remains. The vendor gitlink is initialized clean at its exact recorded commit, with no unrelated tracked source changes; all final checks run in the independent Snapback4 workspace.
-- A formatter accidentally touched unrelated workspace Rust files. Those unrelated changes were restored, active edits recovered with a lexical token audit, and compilation/affected checks passed. No remaining intentional unrelated formatting delta or history rewrite.
-- An initial timed difftest harness used wall time for seed state and a by-id generator emitted an inadmissible extra nullable filter. Both were fixed (`9eedca0f41`, `8a2104f458` and subsequent generator checkpoints); all final 400-case campaigns compile without generator errors. The first never-live regression reused a cached constant witness and passed old code; the distinct-key replacement demonstrably fails old code.
-
-The local small-step implementation/review commit list is retained in `snapback4/reports/20261013-page2/implementation-commits.txt`; final documentation/evidence commits follow that list. No push was performed.
+An initial brotli measurement lacked the CLI and recorded zero brotli bytes;
+that incomplete attempt is retained as such. Final metrology uses a temporary
+Node zlib quality-11 CLI adapter and records actual brotli bytes. Gzip/raw are
+unchanged and determine the budget. Existing oversized source files were not
+refactored; the growing Lean emitter was split to keep it below 1,500 lines.

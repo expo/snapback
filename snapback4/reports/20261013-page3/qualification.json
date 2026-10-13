@@ -1,0 +1,55 @@
+{
+  "semantic_checkpoint": "65d505289f20681efd8173ba04bb370bd0fbcf4d",
+  "difftest_binary_sha256": "1d437e26d0b739fc66f8401982de8c33ea14c202527c30cad1e584365a147bf2",
+  "campaign": {
+    "seed": 0,
+    "cases": 400,
+    "workers": 4,
+    "dirs": "/tmp/sb4-page3-final-r5-{native,lean,devices}",
+    "native_command": "target/release/snapback4-difftest run",
+    "lean_command": "target/release/snapback4-difftest run-lean",
+    "devices_command": "target/release/snapback4-difftest run-devices"
+  },
+  "campaigns": {
+    "native": {
+      "report": "native.json",
+      "sha256": "c420737838dc57cf3954eea109c0e121289f8a4a33a0c5ae8567d244e825eb7e",
+      "generated": 400,
+      "compiled": 400,
+      "executed": 22277,
+      "generator_errors": {},
+      "signatures": {}
+    },
+    "lean": {
+      "report": "lean.json",
+      "sha256": "7141bf162c39ca91df96b82fa5c2579eae4364994d28f956d368073212a70836",
+      "generated": 400,
+      "compiled": 400,
+      "executed": 1108,
+      "generator_errors": {},
+      "signatures": {
+        "lean": {
+          "lean--continuation-next--next~no-next": 2,
+          "lean--next--next~no-next": 1
+        }
+      },
+      "known_baseline_signatures": {
+        "lean--continuation-next--next~no-next": 2,
+        "lean--next--next~no-next": 1
+      }
+    },
+    "devices": {
+      "report": "devices.json",
+      "sha256": "1a1d7b9c5651b95e4c0924d0cc55024b72ce306da2bd1b7c49423eac6dda6a53",
+      "generated": 400,
+      "compiled": 400,
+      "executed": 12686,
+      "generator_errors": {},
+      "signatures": {}
+    }
+  },
+  "new_signatures": 0,
+  "lean_verdict": "Only known C2 pagination signatures; exit 1, not a green campaign. Named Unsupported cases execute no oracle and are not passes.",
+  "wasm_receipt": "wasm.json",
+  "wasm_brotli_tool": "Temporary Node zlib.brotliCompressSync adapter with BROTLI_PARAM_QUALITY=11; raw/gzip use the ordinary metrology tools."
+}

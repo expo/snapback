@@ -1,0 +1,865 @@
+{
+  "scope": "all 50 odd wave-10 final schemas on copies only",
+  "source_manifest_format": "relative path TAB file SHA256 LF, sorted by relative path",
+  "source_digest": "8a1d83af88b93b44aa41aa7aea8b5ce15fd1424bdebdd1351831b7556967f99f",
+  "baseline_binary_sha256": "783c71dbeb7f34b44fd53014eed3b27dd36a63194172e2f175b97a90ecbbbe7a",
+  "current_binary_sha256": "f6f8b1df13d9ad641658db4085e2b40b16bfd5ee6fa471c675c03c5158c59084",
+  "semantic_commit": "65d505289f20681efd8173ba04bb370bd0fbcf4d",
+  "before_notes": 18,
+  "after_notes": 2,
+  "rewritten_notes": 0,
+  "before_schemas": 11,
+  "after_schemas": 1,
+  "rewritten_schemas": 0,
+  "per_shape": {
+    "party_static_role_grant": {
+      "before": 12,
+      "after": 0,
+      "rewritten": 0
+    },
+    "compound_non_equality_multi_branch": {
+      "before": 3,
+      "after": 0,
+      "rewritten": 0
+    },
+    "hidden_parent_source": {
+      "before": 2,
+      "after": 2,
+      "rewritten": 0
+    },
+    "pure_membership": {
+      "before": 1,
+      "after": 0,
+      "rewritten": 0
+    }
+  },
+  "source_manifest": [
+    {
+      "path": "001-sourdough-starter-share/snapback/schema.q",
+      "sha256": "259f4b8f4f36f70df7e2781a6667cf50ec47b1c80e896d3262923b11114d14e2"
+    },
+    {
+      "path": "003-mushroom-forage-permits/snapback/schema.q",
+      "sha256": "5527d1a69885504e538d7a1b795e4c3e77ed671302a7236b760354a0546da32e"
+    },
+    {
+      "path": "005-tide-pool-survey/snapback/schema.q",
+      "sha256": "437d1471a271fd15947ea1cffa9f938210df114f36d1976b0520cd1593a98f1f"
+    },
+    {
+      "path": "007-meteorite-finds-registry/snapback/schema.q",
+      "sha256": "9d2cb3498b66a655c7216b3bad5a42c7cc533d7124b758429df6603b217580a2"
+    },
+    {
+      "path": "009-cryo-freezer-map/snapback/schema.q",
+      "sha256": "c0977de7dcc81b2fcca88de6f03564f1931b521cfba8e253059ee42abb54b524"
+    },
+    {
+      "path": "011-sample-shipping-manifests/snapback/schema.q",
+      "sha256": "db547f1bacbabae470693d7598fa5ef0f9187176879f65133011b20e172760eb"
+    },
+    {
+      "path": "013-birdsong-recording-review/snapback/schema.q",
+      "sha256": "cf5cfe238834ceff99468ffa8541886fb866f94b444099d6523ffbe9dced773c"
+    },
+    {
+      "path": "015-robotics-league-scouting/snapback/schema.q",
+      "sha256": "ef6aa427b0c321e88771129a317f71ecddf4ccf81ba8fe59e7dab3930155b895"
+    },
+    {
+      "path": "017-cross-country-team-splits/snapback/schema.q",
+      "sha256": "654db5fcf3725a0986f377689a6677d8752a41617d60410ea77c4c417f621e8c"
+    },
+    {
+      "path": "019-golf-tee-time-lottery/snapback/schema.q",
+      "sha256": "e1462e7698f1e67c7f86fecbacde212dd42c10834016c0a4780acfc2fbf5a9fe"
+    },
+    {
+      "path": "021-ultramarathon-aid-stations/snapback/schema.q",
+      "sha256": "395808677b1965604909888fd9baebdabdd7951b6bf1d99c4640df916d714960"
+    },
+    {
+      "path": "023-horse-stable-boarding/snapback/schema.q",
+      "sha256": "fc8e37b022d190fa453c401d85b22752c89155161437ff1b1c1c5bb41629e73c"
+    },
+    {
+      "path": "025-ski-resort-lift-shift/snapback/schema.q",
+      "sha256": "8a2f317ddfe9a0ddb55053f049ca6879d8e4dd25f6c0a2a4424dfcedb8ed9aff"
+    },
+    {
+      "path": "027-backcountry-permit-checkin/snapback/schema.q",
+      "sha256": "ae6beca2d6f1111fec307d5723edc5e6fac1cc209ead9ba6c231297ee23f2148"
+    },
+    {
+      "path": "029-ferry-vehicle-reservations/snapback/schema.q",
+      "sha256": "f2ab49b3f470112fda6b460c759a1b1cd3bdb3a6d0d25d19e28b6b97169f8d0b"
+    },
+    {
+      "path": "031-group-tour-guide-roster/snapback/schema.q",
+      "sha256": "557d6a9d7abadf464675356f3fc37c2b8cd54ed351bf1f46b64cbed1b67ca962"
+    },
+    {
+      "path": "033-airline-miles-pooling/snapback/schema.q",
+      "sha256": "7126b4b8a11215633d5d374e8cf941e432416b7445ea3d4a82982c5abe47c5eb"
+    },
+    {
+      "path": "035-exchange-student-hosts/snapback/schema.q",
+      "sha256": "aaf5c24e921eddff8f968bbb305935e02d1d0eae4d2a2406a004c9cdb122cbc6"
+    },
+    {
+      "path": "037-school-pickup-authorizations/snapback/schema.q",
+      "sha256": "54c8100392a72129eef25a353f5ff9443aebdcec64296d6d5e13e9424c607552"
+    },
+    {
+      "path": "039-science-fair-judging/snapback/schema.q",
+      "sha256": "6ec33a96106ed1ac88699105b65108586e2850a7ce7ec6b2339e802e56206b3b"
+    },
+    {
+      "path": "041-college-application-checklist/snapback/schema.q",
+      "sha256": "2b02612be6ba19a1663a70705eb02ae5429c17400ce3fffafe5bbef477dd405f"
+    },
+    {
+      "path": "043-tailor-alteration-orders/snapback/schema.q",
+      "sha256": "5c8698996da06433472ae2780780ead2a2eee51be5eb3b15319d71751314c7fb"
+    },
+    {
+      "path": "045-print-shop-proofing/snapback/schema.q",
+      "sha256": "9703d7585325e86ae6708a6c64fc7bf9b0cbfa2ba05afe4a5d5402644068a6d1"
+    },
+    {
+      "path": "047-florist-event-orders/snapback/schema.q",
+      "sha256": "61b9e2803c85df2df93352b63e6938f84a32588b944eba698ac07bb182daf285"
+    },
+    {
+      "path": "049-food-hall-vendor-settlements/snapback/schema.q",
+      "sha256": "bbe937ae85ef01fdae3818448ff1d33c69370ef6506a4698da4fddfc14c20786"
+    },
+    {
+      "path": "051-hunting-lease-calendar/snapback/schema.q",
+      "sha256": "85dcbd380536ec975355f57a83b73274cd47d077ed0b27b37fecdd8c83d40409"
+    },
+    {
+      "path": "053-campus-dining-dollars/snapback/schema.q",
+      "sha256": "7b65bb9d05a6bd3377c8efd2d3a09c7b879a9525c1685bf1907b195396f6981f"
+    },
+    {
+      "path": "055-elevator-inspection-calendar/snapback/schema.q",
+      "sha256": "8e47faa29cb7c7add916a8cfde8bab526610cc874e40fa5fe798df15473c2fff"
+    },
+    {
+      "path": "057-snow-plow-contractor-bids/snapback/schema.q",
+      "sha256": "42497555f25d86e02426091fc179f34634091c1f5fd8f43d499ab1d88d458532"
+    },
+    {
+      "path": "059-solar-panel-cleaning-routes/snapback/schema.q",
+      "sha256": "cea1ba28e92e284b0e8411ea84c0e65efbfc3d60ce8b0d259dff3a452a7185d8"
+    },
+    {
+      "path": "061-locksmith-dispatch-verification/snapback/schema.q",
+      "sha256": "13248bc90a86f99357732550ffa8d68fcf844a43b8fa6a099d42e42bd503e34b"
+    },
+    {
+      "path": "063-youth-court-diversion/snapback/schema.q",
+      "sha256": "2cdb664eed49c380bde601846a02af66f87bf4740e7589cefc6285519b1d761c"
+    },
+    {
+      "path": "065-legal-clinic-volunteer-attorneys/snapback/schema.q",
+      "sha256": "5993b22277c09881a6ce29f0e552b8163a51b3b1244a68851ab860bb316a414a"
+    },
+    {
+      "path": "067-library-micro-grant-fund/snapback/schema.q",
+      "sha256": "cb294f886566215243c8123defe1e52a66b601cbae5cded57dfddd59ca6cade4"
+    },
+    {
+      "path": "069-school-board-public-comment/snapback/schema.q",
+      "sha256": "4a7ba277f893cf5db7109ba7062b0f053e379a78510cdeabed5923cb79298fa2"
+    },
+    {
+      "path": "071-emergency-volunteer-badges/snapback/schema.q",
+      "sha256": "fbc514024c69e2a4ce23dc9d504ab4f07028f41a7106c6a133200c42946d31e1"
+    },
+    {
+      "path": "073-free-clinic-intake-lottery/snapback/schema.q",
+      "sha256": "385e0a9638a058e7b5133e21dfa0a4472113cd39bd14c724b16fed67f868f4b7"
+    },
+    {
+      "path": "075-sleep-study-diary/snapback/schema.q",
+      "sha256": "90e234bc7477b8e1f04b7df2d6c12b4f1490d1bab01bc84a910fa1511fe31fb6"
+    },
+    {
+      "path": "077-caregiver-respite-credits/snapback/schema.q",
+      "sha256": "9ddf1c54f0914a0464aa21d48f9e151929b9148c15af92ff267f70667e3d56bb"
+    },
+    {
+      "path": "079-hospice-volunteer-visits/snapback/schema.q",
+      "sha256": "0a2e3aab5bc06f78836c63445a29fc5182ae733b83afd861ba8570e78bae3919"
+    },
+    {
+      "path": "081-adaptive-sports-equipment/snapback/schema.q",
+      "sha256": "d55532ea1d6824cb18441540327ce319bacc45aab8491205bb4941b339b92dad"
+    },
+    {
+      "path": "083-sports-card-trade-escrow/snapback/schema.q",
+      "sha256": "05b9e188e2e27ba3627d8f0849ce9b7d1bf0e9fab9465d26c8e4415e1b1892ea"
+    },
+    {
+      "path": "085-pen-pal-exchange-program/snapback/schema.q",
+      "sha256": "c93bf944f64c976f61666da1b4f8737017f4ad4e4c534527158780f5ec5423ed"
+    },
+    {
+      "path": "087-tabletop-miniature-commissions/snapback/schema.q",
+      "sha256": "2943ea2d7331e63d2b51092fc6bb9fd9298f9d4c00a0101fef4dc188c5809d7e"
+    },
+    {
+      "path": "089-larp-event-casting/snapback/schema.q",
+      "sha256": "38e2e339baafd467de71dfe478a8e04f0591a43e6e0cd0dbb2bfc038bc23b222"
+    },
+    {
+      "path": "091-speedrun-verification-board/snapback/schema.q",
+      "sha256": "6186707bca81631011b05375a56f1bf5de2abff5786fe8e526fa6f5afa58d8e4"
+    },
+    {
+      "path": "093-orchard-gleaning-network/snapback/schema.q",
+      "sha256": "675cf0b791d7df6f16e97ddc167545b919f29e92a496728b9358d005ec068a65"
+    },
+    {
+      "path": "095-rental-return-inspection/snapback/schema.q",
+      "sha256": "4a899643a51bed7b8f36c2955f0934bd1281bc92f62681da92ac28dc32438db9"
+    },
+    {
+      "path": "097-tidal-mooring-waitlist/snapback/schema.q",
+      "sha256": "62e89d4ef3408edf4f5b6d8085210a04bcdcecf078fbd49eb19b10926f8ddff4"
+    },
+    {
+      "path": "099-orchestra-substitute-callout/snapback/schema.q",
+      "sha256": "88d838feabbf1bfde3fd009ce129c9e037b82d591298f030a57646345a1a0bb0"
+    }
+  ],
+  "apps": [
+    {
+      "app": "001-sourdough-starter-share",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "71707755da55ab66757a3c93e03b32b6ea1d8096220f4327d968fd7d5a62f135",
+      "after_output_sha256": "0011aee1c515b08bd73c1ce72278dda969b50c48109e4d727506bdf3e05101d4",
+      "rewritten_output_sha256": "0011aee1c515b08bd73c1ce72278dda969b50c48109e4d727506bdf3e05101d4",
+      "rewritten_source_sha256": "259f4b8f4f36f70df7e2781a6667cf50ec47b1c80e896d3262923b11114d14e2"
+    },
+    {
+      "app": "003-mushroom-forage-permits",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "6851ff712fca2299b6f3cdabe61fe4d668835bdce3ea17ad1f9e3113ac2f524b",
+      "after_output_sha256": "4875216e55760012820d1287814b5b54120655bc7454adf26f16f944b32781f4",
+      "rewritten_output_sha256": "4875216e55760012820d1287814b5b54120655bc7454adf26f16f944b32781f4",
+      "rewritten_source_sha256": "5527d1a69885504e538d7a1b795e4c3e77ed671302a7236b760354a0546da32e"
+    },
+    {
+      "app": "005-tide-pool-survey",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "a3ddb30111ed8aa974de3ebb06dd36755d20f1a2bfcd940b3ce800ecafebf850",
+      "after_output_sha256": "f335b51d9f79cc29b0e792f9f8b1f0affad6468faee25a00fd1e22e0e84bc1fe",
+      "rewritten_output_sha256": "f335b51d9f79cc29b0e792f9f8b1f0affad6468faee25a00fd1e22e0e84bc1fe",
+      "rewritten_source_sha256": "437d1471a271fd15947ea1cffa9f938210df114f36d1976b0520cd1593a98f1f"
+    },
+    {
+      "app": "007-meteorite-finds-registry",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "0fb4402458032613ede75f9678597ef0068af55db635bfa10fef2a351019671c",
+      "after_output_sha256": "9d79a9f412a27a066d8b9cfce5ae8f2112daae2651e19eaa6d346521188f1792",
+      "rewritten_output_sha256": "9d79a9f412a27a066d8b9cfce5ae8f2112daae2651e19eaa6d346521188f1792",
+      "rewritten_source_sha256": "9d2cb3498b66a655c7216b3bad5a42c7cc533d7124b758429df6603b217580a2"
+    },
+    {
+      "app": "009-cryo-freezer-map",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "f4799c15bfe325a3982326f6917b2f2f457ef61797be11947cfdf4323cc87bcf",
+      "after_output_sha256": "3d2001530d4ba05f4ea54c13f5f4f728f0959e2006e6918b8f26766b5284889a",
+      "rewritten_output_sha256": "3d2001530d4ba05f4ea54c13f5f4f728f0959e2006e6918b8f26766b5284889a",
+      "rewritten_source_sha256": "c0977de7dcc81b2fcca88de6f03564f1931b521cfba8e253059ee42abb54b524"
+    },
+    {
+      "app": "011-sample-shipping-manifests",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "feded6d65984a543b584c77e2db2e3e15c33b89f6610255445f3d79a1f99b29a",
+      "after_output_sha256": "f7c474c3b70ecf8b0454d22e6c2b98904633e11d18865f744fc8140a31536230",
+      "rewritten_output_sha256": "f7c474c3b70ecf8b0454d22e6c2b98904633e11d18865f744fc8140a31536230",
+      "rewritten_source_sha256": "db547f1bacbabae470693d7598fa5ef0f9187176879f65133011b20e172760eb"
+    },
+    {
+      "app": "013-birdsong-recording-review",
+      "before": 1,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "c1f75afa9a4a0dec4f6805fd6e9c92c26d815fb880a5cd7c89f992dd45105548",
+      "after_output_sha256": "302b6fb758af27fc7e42e5f42a44be0fdab87d0017ac35143bc118b304b1b435",
+      "rewritten_output_sha256": "302b6fb758af27fc7e42e5f42a44be0fdab87d0017ac35143bc118b304b1b435",
+      "rewritten_source_sha256": "cf5cfe238834ceff99468ffa8541886fb866f94b444099d6523ffbe9dced773c"
+    },
+    {
+      "app": "015-robotics-league-scouting",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "00865d0f3b60a659bc70be5245b191888d76ddb6fd5e1ad443e2c159d5e909f5",
+      "after_output_sha256": "8f520ebe43fef2f0b661fa6965e4a22ead74227f6a4a960a0f3a78af8064870a",
+      "rewritten_output_sha256": "ed4d1d4d29527ea2260198c7856cab4ffa88ed5683c7e894ce69daba13297d62",
+      "rewritten_source_sha256": "ef6aa427b0c321e88771129a317f71ecddf4ccf81ba8fe59e7dab3930155b895"
+    },
+    {
+      "app": "017-cross-country-team-splits",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "ce0971cff71cfa82399ddbecd821c081c2da01635fc8849234dfc55d958951e9",
+      "after_output_sha256": "1e0b25a634b4640cf96fee986afd41b16acf3163c2108c9cc6d103ea2b232d00",
+      "rewritten_output_sha256": "1e0b25a634b4640cf96fee986afd41b16acf3163c2108c9cc6d103ea2b232d00",
+      "rewritten_source_sha256": "654db5fcf3725a0986f377689a6677d8752a41617d60410ea77c4c417f621e8c"
+    },
+    {
+      "app": "019-golf-tee-time-lottery",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "ccfbc07ad8e78c4b053dda21c839c62dcb0df6f8ca769045af26fcfa796d7ebc",
+      "after_output_sha256": "ff63ff319e7147318386998973435b5dac6a6489055c66a2997a9b7f30566d6e",
+      "rewritten_output_sha256": "ff63ff319e7147318386998973435b5dac6a6489055c66a2997a9b7f30566d6e",
+      "rewritten_source_sha256": "e1462e7698f1e67c7f86fecbacde212dd42c10834016c0a4780acfc2fbf5a9fe"
+    },
+    {
+      "app": "021-ultramarathon-aid-stations",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "aefca150a6f31dd8418d99c2a49885bdd4d5c5488210dc65c761d30200711147",
+      "after_output_sha256": "4fcd38bda76ec201226c59329ac74742fdeef228e331c7c3b4e730424fb8e30f",
+      "rewritten_output_sha256": "4fcd38bda76ec201226c59329ac74742fdeef228e331c7c3b4e730424fb8e30f",
+      "rewritten_source_sha256": "395808677b1965604909888fd9baebdabdd7951b6bf1d99c4640df916d714960"
+    },
+    {
+      "app": "023-horse-stable-boarding",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "2a8135d5fb628144d2105d506c7c75e73564cb191db757d0011a6e15c616f3f4",
+      "after_output_sha256": "2b684ad8be254a01497ede0d291706822ca01b8fa508b95aaac38da2c51dbe6c",
+      "rewritten_output_sha256": "2b684ad8be254a01497ede0d291706822ca01b8fa508b95aaac38da2c51dbe6c",
+      "rewritten_source_sha256": "fc8e37b022d190fa453c401d85b22752c89155161437ff1b1c1c5bb41629e73c"
+    },
+    {
+      "app": "025-ski-resort-lift-shift",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "657da21ecb35fbe9cfb5d72bb8abfbc0f8ba5362331b8b6462a184976c37d350",
+      "after_output_sha256": "7797fa226772a91e8b8939ea4ee91443cacd901b0c660fc7bb59dfbb3f9c4ce7",
+      "rewritten_output_sha256": "7797fa226772a91e8b8939ea4ee91443cacd901b0c660fc7bb59dfbb3f9c4ce7",
+      "rewritten_source_sha256": "8a2f317ddfe9a0ddb55053f049ca6879d8e4dd25f6c0a2a4424dfcedb8ed9aff"
+    },
+    {
+      "app": "027-backcountry-permit-checkin",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "a2546a96b3241f4c8530b149395f034e0c1af120493e8d6f6743fd5a5091f32b",
+      "after_output_sha256": "dda5d4522bafc6afa2209d24693781ed622444fc8b3f239ffe5b86a40e5d1b5b",
+      "rewritten_output_sha256": "dda5d4522bafc6afa2209d24693781ed622444fc8b3f239ffe5b86a40e5d1b5b",
+      "rewritten_source_sha256": "ae6beca2d6f1111fec307d5723edc5e6fac1cc209ead9ba6c231297ee23f2148"
+    },
+    {
+      "app": "029-ferry-vehicle-reservations",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "e7e7518610b2efec493a477f050dd31c134d02dd4384ce2caa6f06a484d529ef",
+      "after_output_sha256": "5c4c9c6a85c331681b924957453dd5dfd2aedc14363ff14585ebecc2e7ca15df",
+      "rewritten_output_sha256": "5c4c9c6a85c331681b924957453dd5dfd2aedc14363ff14585ebecc2e7ca15df",
+      "rewritten_source_sha256": "f2ab49b3f470112fda6b460c759a1b1cd3bdb3a6d0d25d19e28b6b97169f8d0b"
+    },
+    {
+      "app": "031-group-tour-guide-roster",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "7e9fa9b62a738fec7eb92f07aea4d9f4b2390c6a3d342b2644c6043283e61a73",
+      "after_output_sha256": "83a0838a0a289a2730fabd04e777a83f668b04f0d40240e7f94b061b908de032",
+      "rewritten_output_sha256": "83a0838a0a289a2730fabd04e777a83f668b04f0d40240e7f94b061b908de032",
+      "rewritten_source_sha256": "557d6a9d7abadf464675356f3fc37c2b8cd54ed351bf1f46b64cbed1b67ca962"
+    },
+    {
+      "app": "033-airline-miles-pooling",
+      "before": 3,
+      "after": 2,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [
+        {
+          "code": "N_NEVER_COMPLETE",
+          "guide": "reads",
+          "mechanical": false,
+          "message": "query poolProposals: the page over proposals[..] by read or declaration on proposals (pool, at, id) at schema.q:64:12 is never `complete` \u2014 the read rule `.author = viewer or exists pools[.pool, owner = viewer]` reads .author, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"; `exists pools[.pool, owner = viewer]` is decided by the scan's pins, but its holders cannot read the row it probes, so it does not decide the page: `complete: false` for them too; it answers `complete: false` even when every row the caller may read is there \u2014 test.cases.jsonl: the default passes it (or write `\"expect\": \"capped\"`); a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; the complete form requires the checked immutable copy: on table proposals declare `pool: pools on delete restrict`, add `poolOwner: principal` and `immutable pool, poolOwner`; replace its read declaration with `read <- .author = viewer or .poolOwner = viewer`; replace its insert declaration with `insert <- (.author = viewer and exists members[.pool, viewer] and .status = 'pending') and exists pools[.pool, owner = .poolOwner]`; in every `insert proposals { \u2026 }` payload add `poolOwner: poolOwnerSource.owner` after inserting `poolOwnerSource = pools[pool] ! else NOT_FOUND` immediately before that insert (using the same reference value supplied in its payload), and backfill that field from pools.owner in existing rows and trusted seeds before adoption. The parent declares `immutable owner`, so this preserves the original readers; a mutable parent owner instead requires transactional copy propagation (check --verbose)",
+          "rewrite": "on table proposals declare `pool: pools on delete restrict`, add `poolOwner: principal` and `immutable pool, poolOwner`; replace its read declaration with `read <- .author = viewer or .poolOwner = viewer`; replace its insert declaration with `insert <- (.author = viewer and exists members[.pool, viewer] and .status = 'pending') and exists pools[.pool, owner = .poolOwner]`; in every `insert proposals { \u2026 }` payload add `poolOwner: poolOwnerSource.owner` after inserting `poolOwnerSource = pools[pool] ! else NOT_FOUND` immediately before that insert (using the same reference value supplied in its payload), and backfill that field from pools.owner in existing rows and trusted seeds before adoption. The parent declares `immutable owner`, so this preserves the original readers; a mutable parent owner instead requires transactional copy propagation\n\nOtherwise: pin .author with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); the existing index `read or declaration on proposals (author, pool, at, id) at schema.q:64:12: author, pool, at, id` supports it; or read the page on the device. As code: the parent-owner witness is not readable to every owner, so discovery cannot certify absence; on table proposals declare `pool: pools on delete restrict`, add `poolOwner: principal` and `immutable pool, poolOwner`; replace its read declaration with `read <- .author = viewer or .poolOwner = viewer`; replace its insert declaration with `insert <- (.author = viewer and exists members[.pool, viewer] and .status = 'pending') and exists pools[.pool, owner = .poolOwner]`; in every `insert proposals { \u2026 }` payload add `poolOwner: poolOwnerSource.owner` after inserting `poolOwnerSource = pools[pool] ! else NOT_FOUND` immediately before that insert (using the same reference value supplied in its payload), and backfill that field from pools.owner in existing rows and trusted seeds before adoption. The parent declares `immutable owner`, so this preserves the original readers; a mutable parent owner instead requires transactional copy propagation",
+          "site": {
+            "col": 1,
+            "file": "schema.q",
+            "line": 61
+          }
+        },
+        {
+          "code": "N_NEVER_COMPLETE",
+          "guide": "reads",
+          "mechanical": false,
+          "message": "query poolMembers: the page over members[..] by read or declaration on members (pool, id) at schema.q:73:10 is never `complete` \u2014 the read rule `.principal = viewer or exists pools[.pool, owner = viewer]` reads .principal, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"; `exists pools[.pool, owner = viewer]` is decided by the scan's pins, but its holders cannot read the row it probes, so it does not decide the page: `complete: false` for them too; it answers `complete: false` even when every row the caller may read is there \u2014 test.cases.jsonl: the default passes it (or write `\"expect\": \"capped\"`); a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; the complete form requires the checked immutable copy: on table members declare `pool: pools on delete restrict`, add `poolOwner: principal` and `immutable pool, poolOwner`; replace its read declaration with `read <- .principal = viewer or .poolOwner = viewer`; replace its insert declaration with `insert <- (deny) and exists pools[.pool, owner = .poolOwner]`; in every `insert members { \u2026 }` payload add `poolOwner: poolOwnerSource.owner` after inserting `poolOwnerSource = pools[pool] ! else NOT_FOUND` immediately before that insert (using the same reference value supplied in its payload), and backfill that field from pools.owner in existing rows and trusted seeds before adoption. The parent declares `immutable owner`, so this preserves the original readers; a mutable parent owner instead requires transactional copy propagation (check --verbose)",
+          "rewrite": "on table members declare `pool: pools on delete restrict`, add `poolOwner: principal` and `immutable pool, poolOwner`; replace its read declaration with `read <- .principal = viewer or .poolOwner = viewer`; replace its insert declaration with `insert <- (deny) and exists pools[.pool, owner = .poolOwner]`; in every `insert members { \u2026 }` payload add `poolOwner: poolOwnerSource.owner` after inserting `poolOwnerSource = pools[pool] ! else NOT_FOUND` immediately before that insert (using the same reference value supplied in its payload), and backfill that field from pools.owner in existing rows and trusted seeds before adoption. The parent declares `immutable owner`, so this preserves the original readers; a mutable parent owner instead requires transactional copy propagation\n\nOtherwise: pin .principal with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); the existing index `read or declaration on members (principal, pool, id) at schema.q:8:18: principal, pool, id` supports it; or read the page on the device. As code: the parent-owner witness is not readable to every owner, so discovery cannot certify absence; on table members declare `pool: pools on delete restrict`, add `poolOwner: principal` and `immutable pool, poolOwner`; replace its read declaration with `read <- .principal = viewer or .poolOwner = viewer`; replace its insert declaration with `insert <- (deny) and exists pools[.pool, owner = .poolOwner]`; in every `insert members { \u2026 }` payload add `poolOwner: poolOwnerSource.owner` after inserting `poolOwnerSource = pools[pool] ! else NOT_FOUND` immediately before that insert (using the same reference value supplied in its payload), and backfill that field from pools.owner in existing rows and trusted seeds before adoption. The parent declares `immutable owner`, so this preserves the original readers; a mutable parent owner instead requires transactional copy propagation",
+          "site": {
+            "col": 1,
+            "file": "schema.q",
+            "line": 70
+          }
+        }
+      ],
+      "before_output_sha256": "7a302b2a613b768c5e7d0526c8343afe43e020d5d77f67e9822ca87a5f659dbe",
+      "after_output_sha256": "daad265520730513b5559b3fd19f904372fa3313415173e30aa3f10aa3548e10",
+      "rewritten_output_sha256": "7cf0f9b0820cfbfce277cfa442b289122bc46ac82164057cfe5a09d8d1ddf752",
+      "rewritten_source_sha256": "33ab5874eb91b01beaaebb783a5e84188ade13e72bec551ce4342b5f56c1c551"
+    },
+    {
+      "app": "035-exchange-student-hosts",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "1d825ab6b35da59f93ec256e4cd40c5f68affc98fdd218484d6faa4aee05e96a",
+      "after_output_sha256": "3154ad843d8f4937aca7d4822bf759b18c16f780759392c9cab068c935095b9f",
+      "rewritten_output_sha256": "3154ad843d8f4937aca7d4822bf759b18c16f780759392c9cab068c935095b9f",
+      "rewritten_source_sha256": "aaf5c24e921eddff8f968bbb305935e02d1d0eae4d2a2406a004c9cdb122cbc6"
+    },
+    {
+      "app": "037-school-pickup-authorizations",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "54c0d5744d3753b769213c415f1889bbc0ab7133dc6a6d85139b721e133ab7f0",
+      "after_output_sha256": "b732bb6a2c663acc974e76c191ee1edba28792ab09234f43263b0fe5e1495181",
+      "rewritten_output_sha256": "b732bb6a2c663acc974e76c191ee1edba28792ab09234f43263b0fe5e1495181",
+      "rewritten_source_sha256": "54c8100392a72129eef25a353f5ff9443aebdcec64296d6d5e13e9424c607552"
+    },
+    {
+      "app": "039-science-fair-judging",
+      "before": 1,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "d48bde5178e3b9233f424fd156927e3a44241ac3870cd07bd31693ac42479615",
+      "after_output_sha256": "68556c9f530cf3cdaf9b4ac0c3aa5aef5e20174adfe5d016b1116d3dbd34f146",
+      "rewritten_output_sha256": "68556c9f530cf3cdaf9b4ac0c3aa5aef5e20174adfe5d016b1116d3dbd34f146",
+      "rewritten_source_sha256": "6ec33a96106ed1ac88699105b65108586e2850a7ce7ec6b2339e802e56206b3b"
+    },
+    {
+      "app": "041-college-application-checklist",
+      "before": 1,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "f19bf8146dfb1a92522510667875e7b33785e64ad2a1142ba82deea0db3527d2",
+      "after_output_sha256": "8b895ddc6d213ce54f796317a1e25a6d1cfae433a22fa593e055393b4863b2b0",
+      "rewritten_output_sha256": "5bc43a1b24ef81d16ad54611fdbcdde27b0a664ffd0960baa2ce2d673e501ae1",
+      "rewritten_source_sha256": "2b02612be6ba19a1663a70705eb02ae5429c17400ce3fffafe5bbef477dd405f"
+    },
+    {
+      "app": "043-tailor-alteration-orders",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "0875e36b8a3c311ff3bd325bdf26f5241b607461db98255991c96448edf37197",
+      "after_output_sha256": "30c99fba748b50960ed1ca644eefa7e0e298623dcd6a18b2312fdf4bfd077ec2",
+      "rewritten_output_sha256": "30c99fba748b50960ed1ca644eefa7e0e298623dcd6a18b2312fdf4bfd077ec2",
+      "rewritten_source_sha256": "5c8698996da06433472ae2780780ead2a2eee51be5eb3b15319d71751314c7fb"
+    },
+    {
+      "app": "045-print-shop-proofing",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "e8de490d670eb7d4b92c00d1ce14bd290d1fe150c3ea512134a6b0ebc5a38177",
+      "after_output_sha256": "717ff6c1340395998977cd532f192dda48912183e7ac38c57ee4916a9882944d",
+      "rewritten_output_sha256": "717ff6c1340395998977cd532f192dda48912183e7ac38c57ee4916a9882944d",
+      "rewritten_source_sha256": "9703d7585325e86ae6708a6c64fc7bf9b0cbfa2ba05afe4a5d5402644068a6d1"
+    },
+    {
+      "app": "047-florist-event-orders",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "18bd6050c20528871e5deb1df57db2e87ca1a4546f5ce0cdc00c3ea79a36fb91",
+      "after_output_sha256": "fa76a93995136e141eb00bdba29ab2cba2a779284b2eebb56c1db5eb8619ca4f",
+      "rewritten_output_sha256": "fa76a93995136e141eb00bdba29ab2cba2a779284b2eebb56c1db5eb8619ca4f",
+      "rewritten_source_sha256": "61b9e2803c85df2df93352b63e6938f84a32588b944eba698ac07bb182daf285"
+    },
+    {
+      "app": "049-food-hall-vendor-settlements",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "85e4a66ce1e5165e1757080f72ba253c87da5e875e98ae80c79118fdfeac1f96",
+      "after_output_sha256": "8d287f7396edaec1b50fd4cb6f24f774853cd6f05bff491d41c4aa7ef67594cf",
+      "rewritten_output_sha256": "8d287f7396edaec1b50fd4cb6f24f774853cd6f05bff491d41c4aa7ef67594cf",
+      "rewritten_source_sha256": "bbe937ae85ef01fdae3818448ff1d33c69370ef6506a4698da4fddfc14c20786"
+    },
+    {
+      "app": "051-hunting-lease-calendar",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "1d7c380ce5c6de80044fc3f6456590ab163c015a19f95187f519915a15fb9156",
+      "after_output_sha256": "094b03d1d6a9c47b87e1e6d91c0850223fc6a014063d2dabf35041ef6ecaac3c",
+      "rewritten_output_sha256": "094b03d1d6a9c47b87e1e6d91c0850223fc6a014063d2dabf35041ef6ecaac3c",
+      "rewritten_source_sha256": "85dcbd380536ec975355f57a83b73274cd47d077ed0b27b37fecdd8c83d40409"
+    },
+    {
+      "app": "053-campus-dining-dollars",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "990d757b13be721ead4b5d77102df36dbf18f22079827e0f68f9d6bc8d7409eb",
+      "after_output_sha256": "42301d665007683e62e175432fa087cd1d6feac7a9ea1f6bcdeee47fca384735",
+      "rewritten_output_sha256": "42301d665007683e62e175432fa087cd1d6feac7a9ea1f6bcdeee47fca384735",
+      "rewritten_source_sha256": "7b65bb9d05a6bd3377c8efd2d3a09c7b879a9525c1685bf1907b195396f6981f"
+    },
+    {
+      "app": "055-elevator-inspection-calendar",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "8a1f4243dc12f3a8986a675a97439c39579ab7218bea18eed4f39ef0c2b9e03c",
+      "after_output_sha256": "5cd07a70c5fa64713f8d634c8507e84bcc8e170054a38863b7d60b9fccd23636",
+      "rewritten_output_sha256": "5cd07a70c5fa64713f8d634c8507e84bcc8e170054a38863b7d60b9fccd23636",
+      "rewritten_source_sha256": "8e47faa29cb7c7add916a8cfde8bab526610cc874e40fa5fe798df15473c2fff"
+    },
+    {
+      "app": "057-snow-plow-contractor-bids",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "46fc77a1a4dae49413fa3f7b532dd4a759615eb023d906c27dc8afad0ea48c7e",
+      "after_output_sha256": "099b122a3c26af5eeb0a655399117f71c9132221ba8b328d9e58ffe42dde99f9",
+      "rewritten_output_sha256": "099b122a3c26af5eeb0a655399117f71c9132221ba8b328d9e58ffe42dde99f9",
+      "rewritten_source_sha256": "42497555f25d86e02426091fc179f34634091c1f5fd8f43d499ab1d88d458532"
+    },
+    {
+      "app": "059-solar-panel-cleaning-routes",
+      "before": 3,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "05bb76f49e19ffaaed1bba7f0d7ef1f466cbb680bd03f82cfbdef41c0c5e8405",
+      "after_output_sha256": "45a4efd30be85b19ad93e861a8337ad9a19e708f3e5b9fa2740200c6d5439c2d",
+      "rewritten_output_sha256": "45a4efd30be85b19ad93e861a8337ad9a19e708f3e5b9fa2740200c6d5439c2d",
+      "rewritten_source_sha256": "cea1ba28e92e284b0e8411ea84c0e65efbfc3d60ce8b0d259dff3a452a7185d8"
+    },
+    {
+      "app": "061-locksmith-dispatch-verification",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "fc283eb560bd27aabf2864a6732d35a022da8484826a84246db6ca514cd31aa6",
+      "after_output_sha256": "3f0ded72a7d1adcb4c1f44684d9f8ee548458ca74a5649882897ecd00644d03e",
+      "rewritten_output_sha256": "7684eaa7d2161fca72efa7414e86cb62e1bb78c5735abe493c350743f82eaccf",
+      "rewritten_source_sha256": "13248bc90a86f99357732550ffa8d68fcf844a43b8fa6a099d42e42bd503e34b"
+    },
+    {
+      "app": "063-youth-court-diversion",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "a0d6b6bc32b238678a6b51148bbe9438435548577f51f4fb96c8d52dd62490b7",
+      "after_output_sha256": "14b15a380fb432637a89b8e39035d57d8c5ea67234a06b24d4c379bc489219ee",
+      "rewritten_output_sha256": "14b15a380fb432637a89b8e39035d57d8c5ea67234a06b24d4c379bc489219ee",
+      "rewritten_source_sha256": "2cdb664eed49c380bde601846a02af66f87bf4740e7589cefc6285519b1d761c"
+    },
+    {
+      "app": "065-legal-clinic-volunteer-attorneys",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "e2c26d4458c72dfb9a1b2ffe5b4d1f7a34b2f7952cac40e7c27aeb9553bec002",
+      "after_output_sha256": "14414f6b8850f3595ca512aefe0bc38eb2e560bab109cc1b919dda5234ac4fbc",
+      "rewritten_output_sha256": "14414f6b8850f3595ca512aefe0bc38eb2e560bab109cc1b919dda5234ac4fbc",
+      "rewritten_source_sha256": "5993b22277c09881a6ce29f0e552b8163a51b3b1244a68851ab860bb316a414a"
+    },
+    {
+      "app": "067-library-micro-grant-fund",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "8ecabc75f1fb21b75ea2c9433823d7dfac693c9d3367ad3fb5497522481d9008",
+      "after_output_sha256": "ac35ea8849081aa8bd355f6aa7147e33a791c27b56461a85b442c95493834cc8",
+      "rewritten_output_sha256": "ac35ea8849081aa8bd355f6aa7147e33a791c27b56461a85b442c95493834cc8",
+      "rewritten_source_sha256": "cb294f886566215243c8123defe1e52a66b601cbae5cded57dfddd59ca6cade4"
+    },
+    {
+      "app": "069-school-board-public-comment",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "a776d247f529373a705c5ff8f62b1404bcfc6ecbb78dd390df056c4d6e87c0cb",
+      "after_output_sha256": "7829ec5cf0ba5eae65c40f067b08eca6765c5b90f029da84cb4eba0045c62cf5",
+      "rewritten_output_sha256": "7829ec5cf0ba5eae65c40f067b08eca6765c5b90f029da84cb4eba0045c62cf5",
+      "rewritten_source_sha256": "4a7ba277f893cf5db7109ba7062b0f053e379a78510cdeabed5923cb79298fa2"
+    },
+    {
+      "app": "071-emergency-volunteer-badges",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "dfc9fcae17ed702d868f9c545f57abc777cbb42eba874368bd9012e8f11c0f4c",
+      "after_output_sha256": "3dfddc1b4d465eb731da39dad6e2e6ef460876a57660ec27d8692f0d9086794e",
+      "rewritten_output_sha256": "3dfddc1b4d465eb731da39dad6e2e6ef460876a57660ec27d8692f0d9086794e",
+      "rewritten_source_sha256": "fbc514024c69e2a4ce23dc9d504ab4f07028f41a7106c6a133200c42946d31e1"
+    },
+    {
+      "app": "073-free-clinic-intake-lottery",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "99d762165f4829089ce42ca4418d9999886ee7ceb937513a1066b668d4891522",
+      "after_output_sha256": "6adc2d3154644ba5d48fe843401eb239f58e3022f5b7af657d929c2d93ceca70",
+      "rewritten_output_sha256": "6adc2d3154644ba5d48fe843401eb239f58e3022f5b7af657d929c2d93ceca70",
+      "rewritten_source_sha256": "385e0a9638a058e7b5133e21dfa0a4472113cd39bd14c724b16fed67f868f4b7"
+    },
+    {
+      "app": "075-sleep-study-diary",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "f4f78f19e04ef0a567d4de6e5f38e9ec4b91c1d9f19e771adc4d21ac69a5b8eb",
+      "after_output_sha256": "5b1ae92faf9675ce5a9c5bca8a29b17d44532e70c2af0a73703e8e193167aff2",
+      "rewritten_output_sha256": "5b1ae92faf9675ce5a9c5bca8a29b17d44532e70c2af0a73703e8e193167aff2",
+      "rewritten_source_sha256": "90e234bc7477b8e1f04b7df2d6c12b4f1490d1bab01bc84a910fa1511fe31fb6"
+    },
+    {
+      "app": "077-caregiver-respite-credits",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "e142332bd67c9f74dba6e92b5b48aaddf0b0c55a8d4399e28a2fcd4945f6e3a6",
+      "after_output_sha256": "a916069c1ff5f02a8b8df3fa15fdc6d0dfdfb6a6c64888c7fd2898a48e39c56c",
+      "rewritten_output_sha256": "c347ba22ebac558d9eb72b37018d001309670489b1a3042a5aedf74b542de5f9",
+      "rewritten_source_sha256": "9ddf1c54f0914a0464aa21d48f9e151929b9148c15af92ff267f70667e3d56bb"
+    },
+    {
+      "app": "079-hospice-volunteer-visits",
+      "before": 2,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "1cdbf669ff58d9bec9dbc2068fba92fb89a9fd501b4d12233dff0ea917922e07",
+      "after_output_sha256": "006d68b93def35680720b3083df1f2f97e1305340b91400b8412b25b9ccac08f",
+      "rewritten_output_sha256": "006d68b93def35680720b3083df1f2f97e1305340b91400b8412b25b9ccac08f",
+      "rewritten_source_sha256": "0a2e3aab5bc06f78836c63445a29fc5182ae733b83afd861ba8570e78bae3919"
+    },
+    {
+      "app": "081-adaptive-sports-equipment",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "06a52bcdf111b299578108797ab4ab7a44b8caf44d4ffb944859acf0b9fe8dbe",
+      "after_output_sha256": "fcf2808c09a3d4fbcc30d59600a6976223ee11505241ae06954c3037106e5daa",
+      "rewritten_output_sha256": "fcf2808c09a3d4fbcc30d59600a6976223ee11505241ae06954c3037106e5daa",
+      "rewritten_source_sha256": "d55532ea1d6824cb18441540327ce319bacc45aab8491205bb4941b339b92dad"
+    },
+    {
+      "app": "083-sports-card-trade-escrow",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "eca5419db3c0c66bb1b71b489ec54cfd998ea00ef6fe90169684ddfc2e002537",
+      "after_output_sha256": "49b608d4e961cc53c5a5f34c986618b7fcbd00467367286168972428b0d7c149",
+      "rewritten_output_sha256": "49b608d4e961cc53c5a5f34c986618b7fcbd00467367286168972428b0d7c149",
+      "rewritten_source_sha256": "05b9e188e2e27ba3627d8f0849ce9b7d1bf0e9fab9465d26c8e4415e1b1892ea"
+    },
+    {
+      "app": "085-pen-pal-exchange-program",
+      "before": 1,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "244069760492264ecb97bdd4ddd400422c76e7f363daef96a8f48a91b0a8865d",
+      "after_output_sha256": "bf78113d6581b5af881639c68fab54414ca3c04365bf1fe66639f8ea3cc13e5b",
+      "rewritten_output_sha256": "bf78113d6581b5af881639c68fab54414ca3c04365bf1fe66639f8ea3cc13e5b",
+      "rewritten_source_sha256": "c93bf944f64c976f61666da1b4f8737017f4ad4e4c534527158780f5ec5423ed"
+    },
+    {
+      "app": "087-tabletop-miniature-commissions",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "36615f878fa382548f46a6c9d67b75f55689bc90a95f56046e75c25494ea78f9",
+      "after_output_sha256": "3389059c0ce174109f319d5e361933ca1b14c1092cd2a366ab9dcebebddce7e5",
+      "rewritten_output_sha256": "3389059c0ce174109f319d5e361933ca1b14c1092cd2a366ab9dcebebddce7e5",
+      "rewritten_source_sha256": "2943ea2d7331e63d2b51092fc6bb9fd9298f9d4c00a0101fef4dc188c5809d7e"
+    },
+    {
+      "app": "089-larp-event-casting",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "1fc07a51c6279e5e85c110d2d1c85faa5f9ca90b07b7fe99bf5a853df8e866bd",
+      "after_output_sha256": "64b25a5c8778ef259e0c5877dfc3358d06603973c08ee70488a146faabaa941f",
+      "rewritten_output_sha256": "64b25a5c8778ef259e0c5877dfc3358d06603973c08ee70488a146faabaa941f",
+      "rewritten_source_sha256": "38e2e339baafd467de71dfe478a8e04f0591a43e6e0cd0dbb2bfc038bc23b222"
+    },
+    {
+      "app": "091-speedrun-verification-board",
+      "before": 0,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "80746f44a3eb62672d58d27d196ae9fca7050579a0930879d979a25ae0b5a355",
+      "after_output_sha256": "4234b766bfe531b13e47b3b4aa9d084fbd93f2831414aacf6b8b397680fad5bf",
+      "rewritten_output_sha256": "4234b766bfe531b13e47b3b4aa9d084fbd93f2831414aacf6b8b397680fad5bf",
+      "rewritten_source_sha256": "6186707bca81631011b05375a56f1bf5de2abff5786fe8e526fa6f5afa58d8e4"
+    },
+    {
+      "app": "093-orchard-gleaning-network",
+      "before": 1,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "d03cd648a14d34a77feab98e45b820d8932cc0f6b4c2ce62c3f3f507685d4ddc",
+      "after_output_sha256": "2331ef0d42bb75277a3bd39fb451522d567b690dcd8c17f69dcb0c1b7e26c80b",
+      "rewritten_output_sha256": "2331ef0d42bb75277a3bd39fb451522d567b690dcd8c17f69dcb0c1b7e26c80b",
+      "rewritten_source_sha256": "675cf0b791d7df6f16e97ddc167545b919f29e92a496728b9358d005ec068a65"
+    },
+    {
+      "app": "095-rental-return-inspection",
+      "before": 1,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "81579e64755ee121547acc9039d368f8256f097cdcb5634761f34194835163d2",
+      "after_output_sha256": "81c0cc6065012ed19e043ee3943d83499e3caf907f6a36e17a1a4571687fd87c",
+      "rewritten_output_sha256": "81c0cc6065012ed19e043ee3943d83499e3caf907f6a36e17a1a4571687fd87c",
+      "rewritten_source_sha256": "4a899643a51bed7b8f36c2955f0934bd1281bc92f62681da92ac28dc32438db9"
+    },
+    {
+      "app": "097-tidal-mooring-waitlist",
+      "before": 1,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "3dee5fffe38cfde56298f89dc1332385f7d96831b9337b3ea26acb2d889e80db",
+      "after_output_sha256": "e2f28ae53db6c8bfd39a0066ab2238d48878e5f913bdccb3a9f14b0d83321914",
+      "rewritten_output_sha256": "e2f28ae53db6c8bfd39a0066ab2238d48878e5f913bdccb3a9f14b0d83321914",
+      "rewritten_source_sha256": "62e89d4ef3408edf4f5b6d8085210a04bcdcecf078fbd49eb19b10926f8ddff4"
+    },
+    {
+      "app": "099-orchestra-substitute-callout",
+      "before": 3,
+      "after": 0,
+      "rewritten": 0,
+      "all_compile": true,
+      "remaining_notes": [],
+      "before_output_sha256": "ccb4486dcb84b17b1d358376801dd2795dec9348bb033b67af925465df1aa537",
+      "after_output_sha256": "226d191d5ba80a8c2a041051bde297777ca2c05e274e0de688f5de52d5ea956f",
+      "rewritten_output_sha256": "226d191d5ba80a8c2a041051bde297777ca2c05e274e0de688f5de52d5ea956f",
+      "rewritten_source_sha256": "88d838feabbf1bfde3fd009ce129c9e037b82d591298f030a57646345a1a0bb0"
+    }
+  ]
+}
