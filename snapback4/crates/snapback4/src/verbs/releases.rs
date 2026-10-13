@@ -11,6 +11,17 @@ fn directory(options: &Options) -> Result<PathBuf, String> {
         .ok_or_else(|| "a deployment directory is required".into())
 }
 
+// @ref LLP 3000.000.000#5.1 — deployment aliases share ownership, control and worker paths.
+fn canonical_directory(options: &Options) -> Result<PathBuf, String> {
+    let requested = directory(options)?;
+    if !requested.exists() {
+        snapback4_core::private_fs::directory(&requested).map_err(|e| e.to_string())?;
+    }
+    let dir = requested.canonicalize().map_err(|e| e.to_string())?;
+    snapback4_core::private_fs::directory(&dir).map_err(|e| e.to_string())?;
+    Ok(dir)
+}
+
 /// `dev` and `serve` hold the store-owner lock for their lifetime. Release
 /// commands route to the admitted server when it owns this deployment.
 pub(crate) fn deployment_lock(dir: &Path) -> Result<Owner, String> {
@@ -236,8 +247,7 @@ pub fn deploy(options: &Options) -> i32 {
     report(
         "deploy",
         (|| {
-            let dir = directory(options)?;
-            snapback4_core::private_fs::directory(&dir).map_err(|e| e.to_string())?;
+            let dir = canonical_directory(options)?;
             let _command = command_lock(&dir)?;
             let _deployment = target(&dir)?;
             let project = project_or_exit();
@@ -252,7 +262,7 @@ pub fn deploy(options: &Options) -> i32 {
             let revision = held["revision"].as_u64().unwrap_or(0);
             check_change(&dir, previous, &bound, options)?;
             let sources = project.sources().map_err(|e| e.to_string())?;
-            let releases = dir.join("releases");
+            let releases = dir.join("releases").canonicalize().map_err(|e| e.to_string())?;
             let stage = releases.join(format!(".stage-{}", std::process::id()));
             if stage.exists() {std::fs::remove_dir_all(&stage).map_err(|e|e.to_string())?;}
             std::fs::create_dir(&stage).map_err(|e| e.to_string())?;
@@ -467,13 +477,13 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
     let capacity = crate::host_limits::Capacity::from_options(&options.flags, |name| {
         std::env::var(name).ok()
     })?;
-    let dir = directory(options)?;
+    let dir = canonical_directory(options)?;
     crate::host_limits::initialize();
-    snapback4_core::private_fs::directory(&dir).map_err(|e| e.to_string())?;
     let owner = crate::store_owner::host(&dir.join("store.sqlite"))?;
     let current = current(&dir, &owner)?.ok_or("no current release; deploy first")?;
     let release = Project {
-        root: dir.join("releases").join(current.to_string()),
+        root: dir.join("releases").join(current.to_string())
+            .canonicalize().map_err(|e| e.to_string())?,
     };
     crate::release_files::link_store(&release.root)?;
     let (port, listener) = crate::port_flag::listen("serve", requested_port, bind, None)?;
@@ -522,6 +532,31 @@ pub(crate) fn release_bind(options: &Options) -> Result<std::net::IpAddr, String
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
+    #[test]
+    fn deployment_startup_resolves_new_paths_and_existing_aliases() {
+        use std::os::unix::fs::{symlink, PermissionsExt};
+        let root = std::env::temp_dir().join(format!("sb4-canonical-release-{}-{}",
+            std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
+        std::fs::create_dir(&root).unwrap();
+        struct Cleanup(std::path::PathBuf);
+        impl Drop for Cleanup { fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.0); } }
+        let _cleanup = Cleanup(root.clone());
+        let options = |path: &std::path::Path| super::parse(&["deploy".into(), path.to_str().unwrap().into()]);
+        let target = root.join("deployment");
+        let canonical = super::canonical_directory(&options(&target)).unwrap();
+        assert_eq!(canonical, target.canonicalize().unwrap());
+        assert_eq!(std::fs::metadata(&canonical).unwrap().permissions().mode() & 0o777, 0o700);
+        let alias = root.join("alias");
+        symlink(&target, &alias).unwrap();
+        assert_eq!(super::canonical_directory(&options(&alias)).unwrap(), canonical);
+        let nested = alias.join("nested");
+        assert_eq!(super::canonical_directory(&options(&nested)).unwrap(), canonical.join("nested"));
+        let file = root.join("file"); std::fs::write(&file, "preserved").unwrap();
+        assert!(super::canonical_directory(&options(&file)).is_err());
+        assert_eq!(std::fs::read_to_string(file).unwrap(), "preserved");
+    }
+
     #[test]
     fn release_diagnostic_fixture() {
         let Ok(outcome) = std::env::var("SB4_RELEASE_DIAGNOSTIC_FIXTURE") else {

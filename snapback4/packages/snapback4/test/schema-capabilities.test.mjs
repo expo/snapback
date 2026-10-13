@@ -80,10 +80,13 @@ function dump(path) {
   finally {db.close();}
 }
 // Content snapshot includes symlink targets without following them twice.
-function files(path) {
-  return readdirSync(path,{withFileTypes:true}).sort((a,b)=>a.name.localeCompare(b.name)).map(entry=>{
+function files(path,releaseRoot=true) {
+  // SQLite read-only opens can create empty WAL/SHM sidecars. Compare durable
+  // release files here, plus the full logical store and main-file bytes below.
+  // @ref LLP 3000.033#1.3 — transient journal/shared-memory residue is not committed state.
+  return readdirSync(path,{withFileTypes:true}).filter(entry=>!releaseRoot||!['store.sqlite-wal','store.sqlite-shm'].includes(entry.name)).sort((a,b)=>a.name.localeCompare(b.name)).map(entry=>{
     const child=join(path,entry.name);
-    return [entry.name,entry.isDirectory()?files(child):entry.isSymbolicLink()?{link:readlinkSync(child)}:createHash('sha256').update(readFileSync(child)).digest('hex')];
+    return [entry.name,entry.isDirectory()?files(child,false):entry.isSymbolicLink()?{link:readlinkSync(child)}:createHash('sha256').update(readFileSync(child)).digest('hex')];
   });
 }
 function noEffectKeys(path) {
@@ -94,6 +97,15 @@ function noEffectKeys(path) {
 const ok=reply=>{assert.ok(Object.hasOwn(reply,'ok'),JSON.stringify(reply));assert.equal(reply.denied,undefined);return reply.ok;};
 const unknown=/unknown variant [`'"]?Capabilities/;
 const storedUnknown=/E_STORE: (?:invalid stored schema: )?unknown variant [`'"]?Capabilities/;
+// @ref LLP 3000.022#14.3 — byte capability fences remain reachable independently of release-store versions.
+// @ref LLP 3000.000.000#2 — pre-retention servers must refuse release stores before reading their schema.
+function releaseStoreRefusal(result,path) {
+  const db=new DatabaseSync(path,{readOnly:true});
+  let version;try {version=db.prepare("SELECT value FROM _meta WHERE key='version'").get()?.value;} finally {db.close();}
+  assert.match(version,/^snapback4-release-store-[23]$/,'fixture must be a retained release store');
+  assert.notEqual(result.status,0,'published server must refuse the release-store format');
+  assert.ok((result.stdout+result.stderr).includes(`E_STORE: store version ${version} is not snapback4-store-1`),result.stdout+result.stderr);
+}
 const capabilityCode=/"code"\s*:\s*"E_SCHEMA_CAPABILITY"/;
 function markers(schema,expected) {
   const constraints=Object.values(schema.tables).flatMap(t=>t.constraints);
@@ -107,6 +119,9 @@ async function harness(t) {
   t.after(async()=>{for(const {child,exited} of children){if(child.exitCode===null&&child.signalCode===null)child.kill();await exited;}rmSync(dir,{recursive:true,force:true});});
   const legacy=await published(cache,join(dir,'published'),text=>t.diagnostic(text));
   const current=await loadWasm(join(root,'packages/snapback4/src/wasm'));
+  // @ref LLP 3000.001.000#protocol — a current engine retrieves fixture bytes through the live wire gate; legacy codecs are exercised directly below.
+  const engine=(await import(new URL('../src/wasm/snapback4_device.js',import.meta.url))).engine_info();
+  assert.equal(JSON.parse(engine).format,1);
   const run=(bin,args,input='',cwd=dir)=>spawnSync(bin,args,{cwd,input,encoding:'utf8',timeout:hangBudget()});
   assert.match(run(legacy.binary,['--version']).stdout,/snapback4 0\.2\.33/);
   function native(bin,path,backend,requests=[]) {
@@ -126,7 +141,7 @@ async function harness(t) {
     return {url,assertAlive,stop:async()=>{if(stopped)return;assertAlive();stopped=true;child.kill();await exited;}};
   }
   const request=async(server,path,body,auth={'x-snapback-persona':'alice'})=>{
-    const r=await fetch(server.url+path,{method:body?'POST':'GET',headers:{...auth,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(hangBudget())});
+    const r=await fetch(server.url+path,{method:body?'POST':'GET',headers:{...auth,'x-snapback-device':engine,'content-type':'application/json'},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(hangBudget())});
     const text=await r.text();assert.equal(r.status,200,text);return {text,json:JSON.parse(text)};
   };
   async function app(name,source,seed=[],bin=binary) {
@@ -214,10 +229,10 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
   // the separately requested adoption, which must not change any bytes.
   const currentOpen=native(binary,priorPath,null,[query]);
   assert.equal(currentOpen.status,0,currentOpen.stderr);sameAnswer(currentOpen.replies[1],priorAnswer);
-  noEffectKeys(priorPath);const beforeBytes=readFileSync(priorPath);
+  noEffectKeys(priorPath);const openedBefore=dump(priorPath),beforeBytes=readFileSync(priorPath);
   const denied=native(binary,priorPath,null,[{op:'adopt',backend:future},query]);
   assert.equal(denied.status,0,denied.stdout+denied.stderr);
-  assert.equal(dump(priorPath),before,'current adoption refusal preserves the old store');
+  assert.equal(dump(priorPath),openedBefore,'current adoption refusal preserves the successfully opened store');
   noEffectKeys(priorPath);assert.deepEqual(readFileSync(priorPath),beforeBytes,'refused native adoption preserves every SQLite byte');
   assert.deepEqual(native(legacy.binary,priorPath,null,[query]).replies[1],priorAnswer);
   assert.equal(denied.replies[1].denied.code,'E_SCHEMA_CAPABILITY');sameAnswer(denied.replies[2],priorAnswer);
@@ -248,17 +263,17 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
 
   await next.server.stop();await old.server.stop();
   const store=join(next.cwd,'.snapback4/store.sqlite'),stored=dump(store);
-  const doctor=run(legacy.binary,['doctor','--store',store],'',next.cwd);
+  const doctor=run(legacy.binary,['doctor'],'',next.cwd);
   assert.notEqual(doctor.status,0);assert.match(doctor.stdout+doctor.stderr,storedUnknown);
   assert.equal(dump(store),stored);
   t.diagnostic(`${f.name} stored-engine refusal: ${doctor.stdout.trim()} ${doctor.stderr.trim()}`);
   const release=join(dir,'release');const deployed=run(binary,['deploy',release],'',next.cwd);assert.equal(deployed.status,0,deployed.stdout+deployed.stderr);
-  // Keep source old-readable: the refusal must come from the persisted schema.
+  // Keep source old-readable: release-store version is now the first persisted gate.
   const releaseSource=join(release,'releases/1/snapback/schema.q');
   writeFileSync(releaseSource,f.legacyPlain??f.plain);assert.equal(readFileSync(releaseSource,'utf8'),f.legacyPlain??f.plain);
   const releaseStore=join(release,'store.sqlite'),releaseBefore=dump(releaseStore);
   const served=run(legacy.binary,['serve',release,'--port','0'],'',next.cwd);
-  assert.notEqual(served.status,0);assert.match(served.stdout+served.stderr,storedUnknown);
+  releaseStoreRefusal(served,releaseStore);
   assert.equal(dump(releaseStore),releaseBefore,'old serve did not write');
   writeFileSync(join(next.cwd,'snapback/schema.q'),f.legacyPlain??f.plain);
   const beforeRun=dump(store);
@@ -273,7 +288,7 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
   db.prepare('UPDATE _generations SET schema=? WHERE generation=(SELECT MAX(generation) FROM _generations)').run(JSON.stringify(storedSchema));
   db.exec('DROP TABLE IF EXISTS _effect_keys');db.close();
   noEffectKeys(store);const engineBeforeBytes=readFileSync(store);
-  const unknownStored=dump(store),newDoctor=run(binary,['doctor','--store',store],'',next.cwd);
+  const unknownStored=dump(store),newDoctor=run(binary,['doctor'],'',next.cwd);
   assert.notEqual(newDoctor.status,0);assert.match(newDoctor.stdout+newDoctor.stderr,/E_SCHEMA_CAPABILITY/);assert.equal(dump(store),unknownStored);
   const newRun=run(binary,['run',f.op,JSON.stringify(f.args),'--as','alice'],'',next.cwd);
   assert.notEqual(newRun.status,0);assert.match(newRun.stdout+newRun.stderr,/E_SCHEMA_CAPABILITY/);assert.equal(dump(store),unknownStored);
@@ -303,7 +318,7 @@ for (const [name, source] of [
   await next.server.stop();
   const store = join(next.cwd, '.snapback4/store.sqlite'), before = dump(store);
   // Doctor reads persisted schema and programs, independently of source parsing.
-  const result = run(legacy.binary, ['doctor', '--store', store], '', next.cwd);
+  const result = run(legacy.binary, ['doctor'], '', next.cwd);
   assert.notEqual(result.status, 0);
   assert.match(result.stdout + result.stderr, unknownList);
   assert.equal(dump(store), before, 'refused persisted catalog preserves every table');
@@ -314,7 +329,7 @@ test('Linux schema-byte fixture is the published capability-free control source'
     'use identity guests\n'+ordinary);
 });
 
-test('published 0.2.33 control: capability-free bytes and stores stay compatible',{
+test('published 0.2.33 control: capability-free bytes stay compatible; release stores refuse by version',{
   skip:fenceSkip,timeout:hangBudget(9),
 },async t=>{
   const {dir,legacy,current,run,native,app,start,request}=await harness(t);
@@ -343,14 +358,16 @@ test('published 0.2.33 control: capability-free bytes and stores stay compatible
   }
   t.diagnostic('capability-free 0.4 backend: published 0.2.33 native and WASM install, adopt, query and reopen passed');
   await newApp.server.stop();await oldApp.server.stop();
-  const doctor=run(legacy.binary,['doctor','--store',join(newApp.cwd,'.snapback4/store.sqlite')],'',newApp.cwd);assert.equal(doctor.status,0,doctor.stderr);
+  // Doctor also compiles project source: keep that old-readable independently
+  // of the persisted capability-free schema whose decoding this check covers.
+  writeFileSync(join(newApp.cwd,'snapback/schema.q'),'use identity guests\n'+legacyOrdinary);
+  const doctor=run(legacy.binary,['doctor'],'',newApp.cwd);assert.equal(doctor.status,0,doctor.stdout+doctor.stderr);
+  writeFileSync(join(newApp.cwd,'snapback/schema.q'),control);
   const release=join(dir,'control-release'),deployed=run(binary,['deploy',release],'',newApp.cwd);assert.equal(deployed.status,0,deployed.stderr);
-  // Supervisor's 0.4 compatibility policy: a 0.4 release requires a 0.4
-  // server. Selection facts/indexes/explanations may change the compiled
-  // backend; old devices still accept capability-free backends. An older
-  // server recompiles the source differently and must fail closed unchanged.
-  // First serve with the matching server establishes the ordinary release
-  // store link and proves the release works before testing the old server.
+  // Capability-free bytes still decode on old devices, while retained release
+  // stores require a retention-aware server. First serve with the matching
+  // server to establish the ordinary store link and prove the release works
+  // before testing the old server's version gate.
   const server=await start(binary,newApp.cwd,['serve',release,'--port','0']);
   const guest=await request(server,'/auth/guest',{},{});assert.ok(guest.json.session?.token);
   const reply=await request(server,'/q/posts',{args:{}},{authorization:`Bearer ${guest.json.session.token}`});
@@ -360,14 +377,20 @@ test('published 0.2.33 control: capability-free bytes and stores stay compatible
   // committed setup before comparing physical bytes across the refusal.
   const closedStore=new DatabaseSync(join(release,'store.sqlite'));
   try {assert.equal(closedStore.prepare('PRAGMA wal_checkpoint(TRUNCATE)').get().busy,0);} finally {closedStore.close();}
-  const releaseBefore=files(release),storeBefore=readFileSync(join(release,'store.sqlite'));
+  // Let the old compiler reach the store gate rather than stop at new source syntax.
+  writeFileSync(join(release,'releases/1/snapback/schema.q'),'use identity guests\n'+legacyOrdinary);
+  const releaseLogical=dump(join(release,'store.sqlite')),releaseBefore=files(release),storeBefore=readFileSync(join(release,'store.sqlite'));
+  const releaseDoctor=run(legacy.binary,['doctor','--release',release],'',newApp.cwd);
+  releaseStoreRefusal(releaseDoctor,join(release,'store.sqlite'));
+  assert.equal(dump(join(release,'store.sqlite')),releaseLogical,'refused release doctor preserves every table');
+  assert.deepEqual(files(release),releaseBefore,'refused release doctor preserves the release');
+  assert.deepEqual(readFileSync(join(release,'store.sqlite')),storeBefore,'refused release doctor preserves every SQLite byte');
   const served=run(legacy.binary,['serve',release,'--port','0'],'',newApp.cwd);
-  assert.notEqual(served.status,0);
-  // The release source spells `on delete keep` (LLP 3000.039), which 0.2.33 cannot parse: either refusal fails closed.
-  assert.match(served.stdout+served.stderr,/E_GENERATION: release source differs from its activated backend; deploy the source as a new release|E_QUARRY_SYNTAX/);
+  releaseStoreRefusal(served,join(release,'store.sqlite'));
+  assert.equal(dump(join(release,'store.sqlite')),releaseLogical,'refused mixed-version serve preserves every table');
   assert.deepEqual(files(release),releaseBefore,'refused mixed-version serve preserves the release');
   assert.deepEqual(readFileSync(join(release,'store.sqlite')),storeBefore,'refused mixed-version serve preserves every SQLite byte');
-  t.diagnostic('published 0.2.33 doctor passed; mixed-version serve refused E_GENERATION and preserved release/store bytes');
+  t.diagnostic('published 0.2.33 development store doctor passed; release doctor and serve refused store version and preserved release/store bytes');
   // Pin the complete canonical 0.4 backend after the behavioral checks. This
   // fixture includes the new first-10 site spelling and selection explanation.
   // SN adds settlement summaries to the program envelope (+150 bytes). Published
@@ -375,12 +398,18 @@ test('published 0.2.33 control: capability-free bytes and stores stay compatible
   // confirmed by the Apartment mini at 2baacccde1). Stored schema/IR stay unchanged.
   const pinned=readFileSync(new URL('./fixtures/capability-free-0.4.backend.json',import.meta.url));
   assert.equal(pinned.length,3100);
-  // /schema also reports the serving store's random identity (LLP 3000.007 §20.4),
-  // which is not program content: pin the backend bytes without that last key.
-  const schemaText=newApp.backendBytes.toString('utf8'),identity=/,"store_id":"[0-9a-f]{32}"}$/.exec(schemaText);
+  // @ref LLP 3000.001.000#protocol — handshake metadata is checked separately from schema/program compatibility.
+  const version=JSON.parse(readFileSync(join(root,'packages/snapback4/package.json'),'utf8')).version;
+  const compatibility={capabilities:['sync-generation-v1'],minimum_version:'0.4.24',server_version:version};
+  assert.deepEqual(newApp.backend.device_compatibility,compatibility);
+  const wireText=newApp.backendBytes.toString('utf8'),prefix='{"device_compatibility":'+JSON.stringify(compatibility)+',';
+  assert.ok(wireText.startsWith(prefix),'canonical compatibility metadata precedes the backend');
+  // Remove exactly the validated envelope and the serving store's random identity
+  // (LLP 3000.007 §20.4), retaining every byte of the schema and programs.
+  const schemaText='{'+wireText.slice(prefix.length),identity=/,"store_id":"[0-9a-f]{32}"}$/.exec(schemaText);
   assert.ok(identity,'/schema reports the serving store identity as its last key');
   assert.deepEqual(Buffer.from(schemaText.slice(0,identity.index)+'}'),pinned,'byte-for-byte canonical capability-free 0.4 backend');
-  const {store_id:_servedStore,...backendProgram}=newApp.backend;
+  const {device_compatibility:_compatibility,store_id:_servedStore,...backendProgram}=newApp.backend;
   assert.equal(JSON.stringify(backendProgram),pinned.toString());
   // Stored schema uses Rust's field order; /schema uses canonical key order.
   // Pin its exact change against the real 0.2.33 encoding, allowing only the
