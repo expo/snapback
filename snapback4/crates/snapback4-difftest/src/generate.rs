@@ -65,6 +65,35 @@ impl Rng {
         self.next() % n
     }
 }
+
+/// Give every generated access row a required item reference, add the total
+/// `(item, principal)` membership point and ensure the case viewer holds one.
+/// PAGE2 then discovers target ids through `(principal, item)` and opens a
+/// fully pinned physical byId lane for each target.
+pub(crate) fn id_membership(case: &mut Case) {
+    let items = case.rows.iter().filter(|(table, _)| table == "items")
+        .filter_map(|(_, row)| row["id"].as_str().map(str::to_owned)).collect::<Vec<_>>();
+    if items.is_empty() { return; }
+    let access = case.program.tables.iter_mut().find(|table| table.name == "access").expect("generated access table");
+    access.columns.push(column("item", Type::Reference("items".into())));
+    // Keep the positional `(item, principal)` point unambiguous at the early
+    // rule-planning phase, where intrinsic `.id` has no declared-column type.
+    access.keys.retain(|(_, _, unique)| !*unique);
+    access.keys.push(("byItem".into(), vec!["item".into(), "principal".into()], true));
+    access.keys.push(("byPrincipalItem".into(), vec!["principal".into(), "item".into()], false));
+    let mut viewer = false;
+    let mut n = 0;
+    for (table, row) in &mut case.rows {
+        if table != "access" { continue; }
+        row.as_object_mut().expect("generated access row").insert("item".into(), json!(items[n % items.len()]));
+        viewer |= row["principal"] == case.principal;
+        n += 1;
+    }
+    if !viewer {
+        case.rows.push(("access".into(), json!({"id":format!("page-id-{}", case.seed),
+            "bucket":0,"principal":case.principal,"item":items[n % items.len()]})));
+    }
+}
 fn column(name: &str, ty: Type) -> Column {
     Column {
         name: name.into(),

@@ -26,7 +26,7 @@ pub fn features(case: &Case) -> BTreeSet<String> {
     // LLP 3000.036.001: whether the compiled page is the merge of its static
     // party lanes and its bounded membership lane.
     let read_rule = case.program.tables.first().map(|table| table.effects.as_ref().map_or(&table.rule, |effects| &effects[0]));
-    let membership_branch = read_rule == Some(&Rule::OwnerOrWitness)
+    let membership_branch = matches!(read_rule, Some(Rule::OwnerOrWitness | Rule::OwnerOrIdWitness))
         && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. });
     let boolean_grant = case.program.boolean_grant_normalized
         && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. });
@@ -38,6 +38,12 @@ pub fn features(case: &Case) -> BTreeSet<String> {
         out.insert("read/branch-shape".into());
         if membership_branch {
             out.insert("read/branch-rule-membership".into());
+            if read_rule == Some(&Rule::OwnerOrIdWitness) {
+                out.insert("read/branch-rule-membership-id".into());
+            }
+            if case.program.tables.iter().find(|table| table.name == "access").is_some_and(|table| table.caps.is_empty()) {
+                out.insert("read/branch-rule-membership-uncapped".into());
+            }
             if case.program.membership_named_reordered {
                 out.insert("read/branch-rule-membership-named-reordered".into());
             }

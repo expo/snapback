@@ -41,9 +41,10 @@
 //!   `.owner = viewer or .helper = viewer`), or whose read rule is two parties
 //!   (`.owner = viewer or .helper = viewer`, with a `helper` column), so the
 //!   merged plan, its cursor and its cuts meet every oracle.
-//! - **bounded membership pages**, from their own stream: an unpinned page
-//!   whose owner-or-membership rule discovers at most 16 held groups, with
-//!   positional and reordered named membership probes.
+//! - **membership pages**, from their own stream: an unpinned page whose
+//!   owner-or-membership rule discovers held groups through either the
+//!   declared cap or its total unique witness, with positional and reordered
+//!   named membership probes.
 // @ref LLP 3000.035#5.1 — generator widening behind independent probabilities.
 use crate::{
     ast::*,
@@ -373,30 +374,34 @@ fn timed_disclosure(case: &mut Case) {
     }
 }
 
-/// Add the bounded focal owner-or-membership shape to the ordinary campaign,
-/// after other widening so its final plan reaches native rewrite and meter
-/// oracles. The access table in every base case already carries the cap and
-/// inverse principal index required for bounded discovery.
+/// Add the focal owner-or-membership shape to the ordinary campaign, after
+/// other widening so its final plan reaches native rewrite and meter oracles.
+/// Half retain the base cap; half rely on the total unique membership point
+/// and the same inverse principal index for metered discovery.
 fn membership_page(case: &mut Case) {
     let mut rng = Rng::new(case.seed ^ MEMBERSHIP_STREAM);
-    let Body::Read { kind: Read::Page | Read::Bounded, filter, owner, project, .. } = &mut case.program.body else { return };
+    let Body::Read { kind: kind @ (Read::Page | Read::Bounded), filter, owner, project, .. } = &mut case.program.body else { return };
     if rng.pick(16) != 0 { return }
+    *kind = Read::Page;
     *filter = false;
     *owner = false;
     *project = None;
     let items = &mut case.program.tables[0];
-    items.rule = Rule::OwnerOrWitness;
+    let by_id = rng.pick(2) == 0;
+    items.rule = if by_id { Rule::OwnerOrIdWitness } else { Rule::OwnerOrWitness };
     items.effects = None;
     items.residency = Residency::Online;
     let access = case.program.tables.iter_mut().find(|table| table.name == "access").expect("generated access table");
     access.rule = Rule::Allow;
     access.effects = None;
     access.residency = Residency::Public;
+    if rng.pick(2) == 0 { access.caps.clear(); }
     case.program.domain = Some("true".into());
     case.program.order = Some(vec!["id".into()]);
     case.program.residual = None;
     case.program.guard = None;
-    case.program.membership_named_reordered = rng.pick(2) == 0;
+    case.program.membership_named_reordered = !by_id && rng.pick(2) == 0;
+    if by_id { crate::generate::id_membership(case); }
 }
 /// Branch pages (LLP 3000.036.001), drawn from their own stream so every
 /// other dimension's draws are unchanged.
