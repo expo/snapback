@@ -94506,3 +94506,20 @@ The locked Linux web artifact is 2,301,701 B raw / 701,837 B gzip. Set
 331 B gzip change. Against `f9e40ef515`, the complete artifact adds 10,272 B
 raw / 3,451 B gzip. No runtime ceiling increase, per-feature attribution or
 macOS measurement. Seventh-round blind reviews are in progress.
+
+
+## 2026-10-13 — PAGE2 actual publication evidence
+
+A timed image's private publication marker survives removal of an expired or
+never-live opening entry. Expiry cleanup consults it before deleting the row:
+never-published identities produce no logged or delivered deletion, while
+successfully published rows still revoke after expiry. Ordinary image changes,
+adoption rebuilds, legacy-state bootstrap and restart preserve that distinction.
+The old-accounting negative control fails; restored tests pass: timed core
+16/16, authorization review walk 16/16, expiring adoption 5/5, meter 9/9.
+
+The locked Linux web artifact measures 2,301,917 B raw / 701,899 B gzip. Set
+702,399 B = measurement plus 500 B, superseding 702,337 B by the measured
+62 B gzip change. Against `f9e40ef515`, the whole artifact adds 10,488 B raw /
+3,513 B gzip. No runtime ceiling increase, per-feature attribution or macOS
+measurement. Eighth-round blind reviews and final campaigns are in progress.
