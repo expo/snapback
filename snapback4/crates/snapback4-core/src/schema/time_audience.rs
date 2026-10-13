@@ -99,10 +99,8 @@ pub(super) fn validate(schema: &Schema, issues: &mut Vec<SchemaIssue>) {
                 .values()
                 .filter(|authority| !authority.audience)
                 .count() as u64;
-            let rule_probes = owner_slots.saturating_mul(
-                crate::engine::rules::rule_probes(&table.rules.read),
-            );
-            let ceilings = crate::meter::Ceilings::default();
+            let mut read_probes = Vec::new();
+            crate::engine::rules::probe_sites(&table.rules.read, &mut read_probes);
             // A join carries a subset of the audience row's bounded fields,
             // plus less framing than the decode reservation already keeps.
             // Charge the whole row envelope to every possible event so one
@@ -114,9 +112,13 @@ pub(super) fn validate(schema: &Schema, issues: &mut Vec<SchemaIssue>) {
                     "not before opening fanout is too large for one bounded publication commit ({events} events, {bytes} reserved bytes); split this audience into smaller tables"
                 ) });
             }
-            if rule_probes > ceilings.rule_probes || events > ceilings.steps {
+            // Opening runs as the system principal, so its recipient-specific
+            // private-field projection cannot safely borrow the caller's
+            // bounded authorization walk or scratch. Keep that projection
+            // local to the opening row; ordinary rows may still use witnesses.
+            if owner_slots > 0 && !read_probes.is_empty() {
                 issues.push(SchemaIssue { path: format!("{path}.notBefore"), message: format!(
-                    "not before opening needs {rule_probes} rule probes and {events} steps, beyond one bounded publication commit; reduce private written fields or simplify the read rule"
+                    "not before with private `written by` fields needs a probe-free read rule so opening publication has no unbounded witness walk; use local field comparisons, declare the fields readable by audience, or remove `not before`"
                 ) });
             }
         }

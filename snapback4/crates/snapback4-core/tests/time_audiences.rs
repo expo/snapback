@@ -79,11 +79,16 @@ table notes:
 ")
 }
 
-fn private_delivery_source(fields: usize, probes: usize, timed: bool) -> String {
+fn private_delivery_source(fields: usize, probes: usize, timed: bool, expiring_witness: bool) -> String {
+    let witness_lifetime = if expiring_witness {
+        "  expiresAt: time\n  by byExpiry: expiresAt\n  expire at .expiresAt\n"
+    } else { "" };
     let mut source = "table grants:
   group: text <=20
   principal: principal
-  unique byGroupPrincipal: group, principal
+".to_owned();
+    source.push_str(witness_lifetime);
+    source.push_str("  unique byGroupPrincipal: group, principal
   read <- .principal = viewer
   sync to .principal
 table releases:
@@ -91,13 +96,17 @@ table releases:
   owner: principal
   opensAt: time
   by byOpening: opensAt
-".to_owned();
+");
     for field in 0..fields {
         source.push_str(&format!("  private{field}: bool default false written by .owner\n"));
     }
     if timed { source.push_str("  not before .opensAt\n"); }
-    let witness = "exists grants[group = .group, principal = viewer]";
-    source.push_str(&format!("  read <- {}\n  sync to grants[.group]\n", std::iter::repeat(witness).take(probes).collect::<Vec<_>>().join(" or ")));
+    let read = if probes == 0 { ".owner = viewer".to_owned() } else {
+        let witness = "exists grants[group = .group, principal = viewer]";
+        std::iter::repeat(witness).take(probes).collect::<Vec<_>>().join(" or ")
+    };
+    let sync = if probes == 0 { ".owner" } else { "grants[.group]" };
+    source.push_str(&format!("  read <- {read}\n  sync to {sync}\n"));
     source
 }
 
@@ -523,19 +532,24 @@ fn adoption_rebuilds_openings_and_group_authority_when_the_lower_lifetime_change
 }
 
 #[test]
-fn opening_admission_bounds_private_delivery_rule_work_before_adoption() {
-    let admitted = snapback4_lang::compile(&[("schema.q".into(), private_delivery_source(1, 128, true))]);
+fn opening_admission_refuses_private_delivery_witness_walks_before_adoption() {
+    let admitted = snapback4_lang::compile(&[("schema.q".into(), private_delivery_source(1, 0, true, false))]);
     assert!(admitted.diagnostics.is_empty(), "{:#?}", admitted.diagnostics);
+    let ordinary = snapback4_lang::compile(&[("schema.q".into(), private_delivery_source(0, 1, true, true))]);
+    assert!(ordinary.diagnostics.is_empty(), "ordinary timed disclosures may retain expiring witnesses: {:#?}", ordinary.diagnostics);
 
-    let refused = snapback4_lang::compile(&[("schema.q".into(), private_delivery_source(65, 128, true))]);
+    // Expired rows release logical uniqueness, so this one unique exists leaf
+    // can otherwise walk an arbitrarily large physical predecessor backlog
+    // during owner-specific opening projection.
+    let refused = snapback4_lang::compile(&[("schema.q".into(), private_delivery_source(1, 1, true, true))]);
     assert!(refused.diagnostics.iter().any(|diagnostic| {
         diagnostic.site.file == "schema.q"
             && diagnostic.site.line > 0
-            && diagnostic.message.contains("8320 rule probes")
-            && diagnostic.message.contains("bounded publication commit")
+            && diagnostic.message.contains("private `written by` fields")
+            && diagnostic.message.contains("probe-free read rule")
     }), "{:#?}", refused.diagnostics);
 
-    let plain = snapback4_lang::compile(&[("schema.q".into(), private_delivery_source(65, 128, false))]);
+    let plain = snapback4_lang::compile(&[("schema.q".into(), private_delivery_source(1, 1, false, true))]);
     assert!(plain.diagnostics.is_empty(), "{:#?}", plain.diagnostics);
     let mut engine = Engine::new_at(
         Store::memory().unwrap(),
@@ -548,6 +562,6 @@ fn opening_admission_bounds_private_delivery_rule_work_before_adoption() {
         refused.programs.into_iter().map(|program| program.program),
         0,
     ).unwrap_err();
-    assert!(error.to_string().contains("8320 rule probes"), "{error}");
+    assert!(error.to_string().contains("probe-free read rule"), "{error}");
     assert_eq!(engine.store().conn().query_row("SELECT count(*) FROM _time_openings", [], |row| row.get::<_, i64>(0)).unwrap(), 0);
 }
