@@ -579,6 +579,7 @@ pub fn types(options: &Options) -> i32 {
 }
 
 pub fn run(options: &Options) -> i32 {
+    if options.flags.contains_key("release") {return run_forward::release(options);}
     let Some(op) = options.positionals.first() else {
         eprintln!("usage: snapback4 run <operation> [json-args] --as <persona|principal-id> [--json]");
         return 2;

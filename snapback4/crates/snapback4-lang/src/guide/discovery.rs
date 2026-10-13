@@ -124,8 +124,9 @@ release rows receive the forward literal default or optional null. A required
 field without a literal default needs an optional/defaulted bridge, backfill,
 then the required definition; contextual defaults never backfill history.
 
-An enum value in use refuses E_ADOPT with counts, sample ids/values and the repair
-command. Repair using the current release before rollback. Restored uniqueness
+An incompatible enum/text/type value becomes a dormant row during release activation,
+with its original values restored on compatible forward. Dev adoption still refuses
+incompatible values with E_ADOPT. Restored uniqueness
 and parent-lifetime/audience checks can also refuse; failure keeps the old release.
 `--allow-destructive` never bypasses these checks.
 

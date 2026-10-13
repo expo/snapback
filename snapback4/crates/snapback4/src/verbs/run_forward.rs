@@ -141,12 +141,16 @@ fn print(call: &Call, reply: &Json) -> i32 {
 const REPLY_LIMIT: u64 = 64 << 20;
 
 pub(crate) fn exchange(address: SocketAddr, method: &str, route: &str, persona: Option<&str>, body: &str, wait: Duration) -> std::io::Result<(u16, Json)> {
+    exchange_authorized(address,method,route,persona,None,body,wait)
+}
+fn exchange_authorized(address:SocketAddr,method:&str,route:&str,persona:Option<&str>,bearer:Option<&str>,body:&str,wait:Duration)->std::io::Result<(u16,Json)> {
     let mut stream = TcpStream::connect_timeout(&address, Duration::from_secs(2))?;
     stream.set_read_timeout(Some(wait))?;
     stream.set_write_timeout(Some(Duration::from_secs(10)))?;
     let persona = persona.map(|p| format!("x-snapback-persona: {p}\r\n")).unwrap_or_default();
+    let authorization=bearer.map(|token|format!("Authorization: Bearer {token}\r\n")).unwrap_or_default();
     // HTTP/1.0 with Connection: close keeps the reply length-delimited by EOF.
-    write!(stream, "{method} {route} HTTP/1.0\r\nHost: {address}\r\n{persona}Content-Type: application/json\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{body}", body.len())?;
+    write!(stream, "{method} {route} HTTP/1.0\r\nHost: {address}\r\n{persona}{authorization}Content-Type: application/json\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{body}", body.len())?;
     let mut response = Vec::new();
     stream.take(REPLY_LIMIT).read_to_end(&mut response)?;
     let text = String::from_utf8(response).map_err(std::io::Error::other)?;
@@ -186,4 +190,22 @@ mod tests {
         let job = curl("http://127.0.0.1:4400", &call(ProgramKind::Job, None, &json!(null), &personas));
         assert_eq!(job, r#"curl -s -X POST http://127.0.0.1:4400/dev/jobs/add -H 'Content-Type: application/json' -d '{"args":{}}'"#);
     }
+}
+
+// @ref LLP 3000.000.000#10-wave-10-release-lifecycle-amendment — served job execution uses bearer authority and the owner's store.
+pub(super) fn release(options:&super::Options)->i32 {
+    let result=(||->Result<i32,String>{
+        if options.flags.contains_key("as") || options.flags.contains_key("now") || options.flags.contains_key("port") {return Err("run --release uses the server clock and a service token; omit --as, --now and --port".into());}
+        let op=options.positionals.first().ok_or("run <job> --release <dir> --token-env NAME")?;
+        let store=std::path::PathBuf::from(&options.flags["release"]).join("store.sqlite");
+        let address=crate::store_owner::inspector_address(&store).ok_or("deployment has no running serve; start serve <dir> first")?;
+        let env=options.flags.get("token-env").map(String::as_str).unwrap_or("SNAPBACK4_SERVICE_TOKEN");
+        let token=std::env::var(env).map_err(|_|format!("set {env} to a service token from token --service ops --release <dir>"))?;
+        if token.is_empty() || token.chars().any(char::is_control) {return Err("service token is empty or malformed".into());}
+        let args:Json=serde_json::from_str(options.positionals.get(1).map(String::as_str).unwrap_or("{}")).map_err(|_|"job arguments must be JSON")?;
+        let (_,reply)=exchange_authorized(address,"POST",&format!("/jobs/{op}"),None,Some(&token),&json!({"args":args}).to_string(),Duration::from_secs(3600)).map_err(|_|"served job exchange failed; inspect job state before retrying")?;
+        println!("{}",if options.json {reply.to_string()} else {serde_json::to_string_pretty(&reply).unwrap()});
+        Ok(if reply["state"]=="done" {0}else{1})
+    })();
+    result.unwrap_or_else(|error|{eprintln!("run: {error}");2})
 }

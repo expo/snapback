@@ -51,8 +51,8 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   types                            compile and write snapback/generated/api.ts
   dev [--port N|A-B] [--bind IP] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h|--resume-clock] [--trace-empty] [long-wait flags]
                                       --trace-empty: record unknown empty reads in why recent; --replay: suppress new effects and hold schedules; --hold-effects: pause claims, keep effects for later; serve on 127.0.0.1:4400, re-adopting on every save (--no-watch: never; restart to serve edits); --fresh/--memory: a store in memory that dies with this process
-  deploy <dir> [--restore-dormant] [--allow-feed-adoption]  a release: the compiled backend into <dir>/releases/N, current → N
-  rollback <dir> [--to N|latest] [--check]  incompatible present values become dormant per row; --check previews without activating
+  deploy <dir> [--check] [--restore-dormant] [--allow-feed-adoption]  a release: the compiled backend into <dir>/releases/N, current → N; running serve adopts
+  rollback <dir> [--to N|latest] [--check]  bare: previously active release; incompatible present values become dormant per row; --check previews without activating
   prune <dir> [--allow-destructive] preview or explicitly drop dormant storage
   releases <dir> [N|latest] [--after ID] [--items-after KEY] [--event ID]  inspect authoritative release history/storage
   serve <dir> [--port N|A-B] [--bind IP] [--worker <path>] [long-wait flags]  serve HTTP on 127.0.0.1:4400 behind a TLS proxy; tokens only
@@ -156,6 +156,7 @@ fn main() -> ExitCode {
         "witness" => verbs::witness::run(&args[1..]),
         "device" => verbs::device(&options),
         "guide" => {
+            if options.flags.contains_key("list") { println!("{}", guide::listing()); return ExitCode::SUCCESS; }
             // The longest leading words that name a card; with --find or
             // --section, unquoted words after it continue the search words.
             let named = (1..=options.positionals.len()).rev().find(|&n| guide::card(&options.positionals[..n].join(" ")).is_some()).unwrap_or(1);

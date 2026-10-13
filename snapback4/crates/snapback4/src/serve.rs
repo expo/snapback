@@ -990,6 +990,7 @@ fn handle(mut request: Request, shared: &Shared) {
     if operation && !shared.personas {crate::release_requests::Scope::admit(&shared.release_requests,||*lock(&shared.generation));}
     match (method, path.as_str()) {
         (Method::Post, "/dev/clock/advance") => maintenance::advance(request, shared, &body),
+        (Method::Post, path) if path.starts_with("/jobs/") => maintenance::run_job(request, shared, &path["/jobs/".len()..], &body),
         (Method::Post, path) if path.starts_with("/dev/jobs/") => maintenance::run_job(request, shared, &path["/dev/jobs/".len()..], &body),
         (Method::Post, path) if path.starts_with("/a/") => actions::call(request, shared, path.trim_start_matches("/a/"), &body),
         (Method::Post, "/actions/claim") => actions::claim(request, shared, &body),

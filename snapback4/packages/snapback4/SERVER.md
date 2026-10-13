@@ -8,21 +8,30 @@ cancellation), jobs, schedules naming a job and service seats need no directive.
 ## Release lifecycle
 
 `deploy <dir>` stages immutable source, validates the live data and selects a release.
-`rollback <dir>` selects the preceding immutable release; `rollback <dir> --to N`
-selects any existing release, including a deliberate roll forward (`--to latest` selects the highest complete
+`rollback <dir>` selects the previously active release from committed history; `rollback <dir> --to N`
+selects any successfully adopted release, including a deliberate roll forward (`--to latest` selects the highest successfully adopted
 source). `releases` exposes `release`, `latest` and `generation` separately. Both activate
 inside a running `serve` process without restarting it. A stopped deployment uses
 the same transaction offline. They return after the runtime switches and print
 `release N is current as generation G`. Identical packaged source is a no-op.
 Default adoption output is one measured receipt; --verbose/--json includes phases.
 
-`rollback <dir> --to N --check` and `check --store <dir>/store.sqlite --release N`
+`deploy <dir> --check`, `rollback <dir> --to N --check` and `check --store <dir>/store.sqlite --release N`
 run exact adoption on a private, disk-backed snapshot without activating. They
 report dormant populations and any E_ADOPT constraint/backfill refusal. The snapshot
 can require storage/time proportional to the database; later writes can change the
-plan. Deploy warns on widening; rollback warns when the target admits values the
+plan. Compatibility warnings include the existing row count and appear only for
+populated tables. Deploy warns on widening; rollback warns when the target admits values the
 current source refuses. See guide deploy's rollback-after-widening recipe and its
 business-compatibility checklist: old code cannot enforce logic it never contained.
+
+Refused candidates stay unselectable, including by an explicit numeric selector.
+A pending source directory becomes selectable only when database activation history
+proves its adoption committed, including after a lost reply or pointer-copy failure.
+The release receipt includes sample dormant ids; preview also flags removed schedules
+and populated tables whose holds or other safeguards the selected release lacks.
+Full service seats can trigger system jobs with `run <job> --release <dir>` and
+`SNAPBACK4_SERVICE_TOKEN` (or `--token-env NAME`); see guide deploy's recipe.
 
 ### Retained storage and roll forward
 
@@ -64,6 +73,9 @@ current rows. Rollback selects source; it does not rewind application writes.
   dormant on forward rather than rebinding a reused parent id. Existing whole-table
   or column restoration still refuses its invalid lifetime. Read-through capture
   validation continues to protect the original audience/deadline.
+- Engine captures retire into dormant columns with their source definition. Restoring
+  the same read-through definition uses the original captures, not the widened
+  release audience. Deleted parent lifetimes and changed captures still refuse.
 - A newly introduced unique index can refuse forward if older writes created
   duplicate keys. Restored references also refuse deleted/reused parents or changed
   read-through audience captures. Authoritative storage cannot become derived
