@@ -45,3 +45,28 @@ qualification, no merge defect; fresh Codex review pending. Final reviews and
 verbatim artifacts will be saved under llp/reviews. Final version bump, Mac
 ordinary-pool-plus-model suite and report are outstanding. Mac protected
 publication/MACFIX worktrees remain untouched; no simulator boot.
+
+## Post-bump milestone
+
+0.4.25 bump: 5a4779e48a. Final Linux measurement budget commit74895a66f0:
+2291429raw/698386gzip/527885brotli, budget698886=gzip+500; strict audits pass.
+Mac built artifact2291752raw/698034gzip, under the same budget. Final source
+review pair r3 is both READY on74895a66f0. The narrow witness-law clarification
+has final r5 both READY on0969a934ec; r4 NOT READY on attribution is preserved.
+The event-slot narration is now honest; assertions and work counts unchanged.
+
+Post-bump version-reading files: three disjoint green batches,16files,
+345passed/9skipped/zero failed (101/1,96/8,148/0). The initial batch also listed
+a nonexistent publication.test.mjs; this is a selection error, not a green
+stage, and is superseded by the four-file green batch plus actual
+publication-roundtrip/platform batch. Bumped full five-crate command continues
+with zero failures so far. Prior complete run had only the three stale Guide
+expectations, all fixed and passed120/120; the bumped command is the final run.
+
+Required Mac ref/worktree is now at74895a66f0; defaultTMPDIR,Node24.19.0,
+ulimit65536,fencecache0.2.33. Setup/wasm/docs/guard/typecheck/build/chat checks
+and rust warm-up pass. Full publication Rust runner is active with no red.
+Root frozen hoisted install/codegen/inventories/fullGuide22 all pass on Mac too.
+After native tests, the helper builds the xcframework/Swift and runs the
+ordinary six-slot pool then full-count serial models. No simulator boot.
+All protected Mac worktrees remain untouched. Final Mac results are pending.
