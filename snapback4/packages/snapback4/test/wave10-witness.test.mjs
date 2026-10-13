@@ -110,16 +110,20 @@ test('unapproved App calls preserve supported options from prototypes, non-enume
   Object.defineProperty(globalThis,'document',{configurable:true,value:{addEventListener(){},removeEventListener(){}}});
   t.after(()=>{if(oldWindow)Object.defineProperty(globalThis,'window',oldWindow);else delete globalThis.window;if(oldDocument)Object.defineProperty(globalThis,'document',oldDocument);else delete globalThis.document});
   class Options { #id='saved-id'; get id(){return this.#id} get waitSeconds(){return 0} }
-  const values=[Object.freeze(new Options()),Object.freeze(Object.create({id:'saved-id',waitSeconds:0})),Object.freeze(Object.defineProperties({},{id:{value:'saved-id'},waitSeconds:{value:0}}))];
+  let idReads=0,waitReads=0;
+  const enumerable=Object.freeze({get id(){idReads++;return idReads===1?'saved-id':'changed-id'},get waitSeconds(){return waitReads++}});
+  const values=[enumerable,Object.freeze(new Options()),Object.freeze(Object.create({id:'saved-id',waitSeconds:0})),Object.freeze(Object.defineProperties({},{id:{value:'saved-id'},waitSeconds:{value:0}}))];
   for(const options of values){
-    let forwarded;
-    const operation={kind:'mutation',name:'add'},client={viewer:()=> 'dev:alice',onWrite:()=>()=>{},mutate:async(op,args,opts)=>{forwarded=opts;return{state:'pending',id:opts.id}}};
+    let forwarded,forwardedOp,forwardedArgs;
+    const operation={kind:'mutation',name:'add'},client={viewer:()=> 'dev:alice',onWrite:()=>()=>{},mutate:async(op,args,opts)=>{forwarded=opts;forwardedOp=op;forwardedArgs=args;return{state:'pending',id:opts.id}}};
     const app={client,ready:Promise.resolve({ok:true}),mutate:async(...args)=>{await Promise.resolve();return client.mutate(...args)}};
     registerWebWitness(app,{add:operation});window.__snapback4Witness.beginForm('add',undefined,{});
     const before=Object.getOwnPropertyDescriptors(options);
-    const result=await app.mutate(operation,{title:'proof'},options);
+    const args={title:'proof'},result=await app.mutate(operation,args,options);
+    assert.equal(forwardedOp,operation);assert.equal(forwardedArgs,args);
     assert.deepEqual(result,{state:'pending',id:'saved-id'});assert.equal(forwarded.id,'saved-id');assert.equal(forwarded.waitSeconds,0);
     assert.deepEqual(Object.getOwnPropertyDescriptors(options),before);assert.equal(Object.getOwnPropertySymbols(options).length,0);
     assert.ok(!JSON.stringify(forwarded).includes('witness'));
   }
+  assert.equal(idReads,1);assert.equal(waitReads,1);
 });
