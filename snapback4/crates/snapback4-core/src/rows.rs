@@ -307,14 +307,21 @@ pub trait Rows {
         &self,
         _table_name: &str,
         _table: &Table,
+        _id: &str,
         _row: Option<&Value>,
         _now: i64,
+        _published: bool,
     ) -> Result<(), RuntimeError> {
         Ok(())
     }
     /// Whether the server still owes this physical row's opening transition.
     fn time_audience_pending(&self, _table_name: &str, _id: &str) -> Result<bool, RuntimeError> {
         Ok(false)
+    }
+    /// A device has only rows the server has published. Server SQLite
+    /// overrides this with durable evidence independent of the due queue.
+    fn time_audience_published(&self, _table_name: &str, _id: &str) -> Result<bool, RuntimeError> {
+        Ok(true)
     }
     /// Whether this store keeps the asset ledger. The server's does; a
     /// device holds none and keeps a row's asset value as it was sent, the

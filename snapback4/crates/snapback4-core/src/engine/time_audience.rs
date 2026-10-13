@@ -88,6 +88,7 @@ impl Engine {
         else {
             // Stale/rescheduled/deleted and never-live rows advance only the
             // private ledger and clock, with no public commit or invalidation.
+            tx.set_time_audience_published(&opening.table, &opening.id, false)?;
             tx.commit()?;
             return Ok(now);
         };
@@ -110,6 +111,9 @@ impl Engine {
             Some(row),
             write::Origin::Source,
         )?;
+        // Publication evidence commits with the put/join events. A failure
+        // anywhere below rolls it back together with the consumed opening.
+        tx.set_time_audience_published(&opening.table, &opening.id, true)?;
         runner.written_tables.insert(opening.table.clone());
         let events = runner.events.take();
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();

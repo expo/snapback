@@ -111,13 +111,17 @@ impl<'a> GuardedRows<'a> {
         &self,
         name: &str,
         table: &Table,
+        id: &str,
         row: Option<&Value>,
         now: i64,
+        published: bool,
     ) -> Result<(), RuntimeError> {
-        self.raw.track_time_audience(name, table, row, now)
+        self.raw.track_time_audience(name, table, id, row, now, published)
     }
     pub(crate) fn time_audience_pending(&self, name: &str, id: &str) -> Result<bool, RuntimeError> {
         self.raw.time_audience_pending(name, id) }
+    pub(crate) fn time_audience_published(&self, name: &str, id: &str) -> Result<bool, RuntimeError> {
+        self.raw.time_audience_published(name, id) }
     pub(crate) fn holds_assets(&self) -> bool { self.raw.holds_assets() }
     pub(crate) fn widen_change_evidence(&self) { self.raw.widen_change_evidence() }
     /// Draw a schema-fixed number of rows from the request's physical

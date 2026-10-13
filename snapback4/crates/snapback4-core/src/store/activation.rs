@@ -359,7 +359,7 @@ impl Store {
         }
         report.phase("cap counts", &mut phase);
         build(&tx, changed, &mut report)?;
-        if rebuilding || reset {
+        if rebuilding || reset || tx.meta(super::time_audience::PUBLICATION_STATE_KEY)?.as_deref() != Some("1") {
             tx.rebuild_time_audiences(schema, now)?;
         }
         report.phase("derived rebuild", &mut phase);

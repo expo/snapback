@@ -7,6 +7,7 @@
 use super::*;
 
 const CLOCK_KEY: &str = "time_audience_clock";
+pub(crate) const PUBLICATION_STATE_KEY: &str = "time_audience_publications_v1";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Opening {
@@ -40,28 +41,24 @@ impl Tx<'_> {
         &self,
         table_name: &str,
         table: &Table,
+        id: &str,
         row: Option<&Value>,
         now: i64,
+        published: bool,
     ) -> Result<(), RuntimeError> {
         if !self.server || table.not_before.is_none() {
             return Ok(());
         }
-        let id = row
-            .map(|row| row.field("id").and_then(Value::as_str))
-            .transpose()?;
-        if let Some(id) = id {
+        self.remove_time_audience(table_name, id)?;
+        if let Some(at) = row.and_then(|row| table.opens_at(row))
+            && at > now
+            && row.is_some_and(|row| table.deadline(row).is_none_or(|until| at < until))
+        {
             self.conn()
-                .prepare_cached("DELETE FROM _time_openings WHERE t = ?1 AND id = ?2")?
-                .execute(params![table_name, id])?;
-            if let Some(at) = row.and_then(|row| table.opens_at(row))
-                && at > now
-                && row.is_some_and(|row| table.deadline(row).is_none_or(|until| at < until))
-            {
-                self.conn()
-                    .prepare_cached("INSERT INTO _time_openings(at, t, id) VALUES (?1, ?2, ?3)")?
-                    .execute(params![at, table_name, id])?;
-            }
+                .prepare_cached("INSERT INTO _time_openings(at, t, id) VALUES (?1, ?2, ?3)")?
+                .execute(params![at, table_name, id])?;
         }
+        self.set_time_audience_published(table_name, id, published)?;
         Ok(())
     }
 
@@ -88,6 +85,43 @@ impl Tx<'_> {
             .query_row(params![table, id], |_| Ok(()))
             .optional()?
             .is_some())
+    }
+
+    pub(crate) fn time_audience_published(
+        &self,
+        table: &str,
+        id: &str,
+    ) -> Result<bool, RuntimeError> {
+        if !self.server {
+            return Ok(true);
+        }
+        Ok(self
+            .conn()
+            .prepare_cached("SELECT 1 FROM _time_publications WHERE t = ?1 AND id = ?2")?
+            .query_row(params![table, id], |_| Ok(()))
+            .optional()?
+            .is_some())
+    }
+
+    pub(crate) fn set_time_audience_published(
+        &self,
+        table: &str,
+        id: &str,
+        published: bool,
+    ) -> Result<(), RuntimeError> {
+        if !self.server {
+            return Ok(());
+        }
+        if published {
+            self.conn()
+                .prepare_cached("INSERT OR IGNORE INTO _time_publications(t, id) VALUES (?1, ?2)")?
+                .execute(params![table, id])?;
+        } else {
+            self.conn()
+                .prepare_cached("DELETE FROM _time_publications WHERE t = ?1 AND id = ?2")?
+                .execute(params![table, id])?;
+        }
+        Ok(())
     }
 
     pub(crate) fn due_time_audience(&self, now: i64) -> Result<Option<Opening>, RuntimeError> {
@@ -135,10 +169,13 @@ impl Tx<'_> {
             .prepare("SELECT at, t, id FROM _time_openings")?
             .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
             .collect::<Result<_, _>>()?;
-        self.conn().execute("DELETE FROM _time_openings", [])?;
+        self.conn().execute_batch("DELETE FROM _time_openings; DELETE FROM _time_publications;")?;
         let mut insert = self
             .conn()
             .prepare_cached("INSERT INTO _time_openings(at, t, id) VALUES (?1, ?2, ?3)")?;
+        let mut publish = self
+            .conn()
+            .prepare_cached("INSERT INTO _time_publications(t, id) VALUES (?1, ?2)")?;
         for (name, table) in schema
             .tables
             .iter()
@@ -154,14 +191,23 @@ impl Tx<'_> {
                 let data: String = stored.get(1)?;
                 let row: Value = serde_json::from_str(&data)
                     .map_err(|error| RuntimeError::Store(error.to_string()))?;
-                if let Some(at) = table.opens_at(&row)
-                    && (at > now || pending.contains(&(at, name.clone(), id.clone())))
-                    && table.deadline(&row).is_none_or(|until| at < until)
-                {
-                    insert.execute(params![at, name, id])?;
+                let opening = table.opens_at(&row);
+                let owed = opening.is_some_and(|at| {
+                    (at > now || pending.contains(&(at, name.clone(), id.clone())))
+                        && table.deadline(&row).is_none_or(|until| at < until)
+                });
+                if owed {
+                    insert.execute(params![opening, name, id])?;
+                } else if table.live(&row, now) {
+                    // The new generation's snapshot establishes every live
+                    // row that is not an owed opening.
+                    publish.execute(params![name, id])?;
                 }
             }
         }
+        drop(insert);
+        drop(publish);
+        self.set_meta(PUBLICATION_STATE_KEY, "1")?;
         Ok(())
     }
 }

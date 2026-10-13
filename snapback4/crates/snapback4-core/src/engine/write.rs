@@ -915,8 +915,14 @@ impl Runner<'_> {
         self.tx.track_time_audience(
             table_name,
             table,
+            id,
             new,
             self.context.now.unwrap_or(i64::MIN),
+            if self.event_free {
+                new.is_some() && self.tx.time_audience_published(table_name, id)?
+            } else {
+                new.is_some_and(|row| table.live(row, self.context.now.unwrap_or(i64::MIN)))
+            },
         )?;
         Ok(())
     }

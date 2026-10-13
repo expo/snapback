@@ -49,13 +49,22 @@ pub fn partition_of(principal: &str) -> String {
     format!("p:{principal}")
 }
 
-/// A server row is publishable only after its ordered private opening entry
-/// has been consumed. Devices have no such entries and use the same helper.
+/// Durable evidence that this timed image actually crossed a publication
+/// boundary. It is independent of the pending queue: an expired or missed
+/// opening can consume that queue without ever publishing the row.
+// @ref LLP 3000.036.002#4-advancing-time-without-an-application-job — revocation follows actual publication evidence.
+#[cfg(feature = "sqlite")]
+fn was_published<R: Rows + ?Sized>(tx: &R, table_name: &str, table: &Table, row: &Value) -> Result<bool, RuntimeError> {
+    if table.not_before.is_none() { return Ok(true); }
+    tx.time_audience_published(table_name, row.field("id")?.as_str()?)
+}
+
+/// A current server row is publishable only after the row is live and its
+/// publication evidence exists. Devices contain only published rows.
 #[cfg(feature = "sqlite")]
 fn published<R: Rows + ?Sized>(tx: &R, table_name: &str, table: &Table, row: &Value, now: i64) -> Result<bool, RuntimeError> {
     if !table.live(row, now) { return Ok(false); }
-    if table.not_before.is_none() { return Ok(true); }
-    Ok(!tx.time_audience_pending(table_name, row.field("id")?.as_str()?)?)
+    was_published(tx, table_name, table, row)
 }
 
 /// The partition of one group of a table that syncs to a target.
@@ -229,17 +238,17 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
     let old_image = old.map(|row| row_image(row, table));
     let new_image = new.map(|row| row_image(row, table));
     let now = runner.context.now.unwrap_or(i64::MIN);
-    // An overdue row can still await its bounded publication prefix. A blind
-    // update of that row must account from absence, or it could erase the
-    // pending entry without ever publishing its row/grant transition.
-    let old_pending = match old_image.as_deref() {
+    // Check the old marker before write maintenance changes it. A consumed
+    // due entry does not prove the old image was ever sent, while a published
+    // image retains this evidence through expiry until physical cleanup.
+    let old_published = match old_image.as_deref() {
         Some(row) if table.not_before.is_some() => runner
             .tx
-            .time_audience_pending(table_name, row.field("id")?.as_str()?)?,
-        _ => false,
+            .time_audience_published(table_name, row.field("id")?.as_str()?)?,
+        Some(_) => true,
+        None => false,
     };
-    let old = old_image.as_deref()
-        .filter(|row| !old_pending && table.opened(row, now));
+    let old = old_image.as_deref().filter(|_| old_published);
     let new = new_image.as_deref().filter(|row| table.opened(row, now));
     // Rows born in this commit, in every table: synced ones log only their
     // final image, and a born membership is no predecessor of a grant.
@@ -399,8 +408,9 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                                 let candidate = row_image(&candidate, table);
                                 runner.meter.charge(MeterKind::Examined, 1)?;
                                 bounds.after = crate::key::decode(&stored).map(|values| values.into_iter().skip(key.len()).collect());
-                                if runner.context.now.is_none_or(|now| table.live(&candidate, now))
-                                    && !runner.tx.time_audience_pending(table_name, candidate.field("id")?.as_str()?)?
+                                let evidence = table.not_before.is_none()
+                                    || runner.tx.time_audience_published(table_name, candidate.field("id")?.as_str()?)?;
+                                if evidence && runner.context.now.is_none_or(|now| table.live(&candidate, now))
                                 { replaced = true; break; }
                             }
                             if replaced || count < 32 { break; }
@@ -489,7 +499,8 @@ fn key_has_row(runner: &Runner<'_>, allowance: &crate::engine::authorized_scan::
                         let table = &runner.schema.tables[table_name];
                         let image = row_image(other, table);
                         table.live(&image, now)
-                            && !runner.tx.time_audience_pending(table_name, image.field("id")?.as_str()?)?
+                            && (table.not_before.is_none()
+                                || runner.tx.time_audience_published(table_name, image.field("id")?.as_str()?)?)
                     }
                 }) {
                 return Ok(true);

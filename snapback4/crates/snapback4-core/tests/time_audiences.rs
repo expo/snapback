@@ -357,6 +357,48 @@ fn never_live_rows_make_no_boundary_commit_and_future_unexpired_rows_are_not_swe
 }
 
 #[test]
+fn expiry_deletes_only_rows_whose_timed_image_was_actually_published() {
+    let del_count = |engine: &Engine, id: &str| {
+        engine.store().conn().query_row(
+            "SELECT count(*) FROM _log WHERE t = 'announcements' AND id = ?1 AND kind = 'del'",
+            [id],
+            |row| row.get::<_, i64>(0),
+        ).unwrap()
+    };
+
+    // This row's lifetime is empty. Consuming its private opening metadata
+    // and later sweeping it must reveal neither its id nor its hidden date.
+    let mut never = engine_at(0);
+    never.seed_at([announcement("never", 100, 1, "secret")], 0).unwrap();
+    let watermark = never.seq().unwrap();
+    assert_eq!(never.sweep_expired(100, 10).unwrap(), 1);
+    assert_eq!(del_count(&never, "never"), 0);
+    let delivered = never.stream_at("alice", watermark, 100, 100).unwrap();
+    assert!(!delivered.events.iter().any(|event| event.id == "never"), "{delivered:?}");
+
+    // Crossing both bounds in one delayed request also never publishes an
+    // intermediate image. Removing the due entry is not publication proof.
+    let mut missed = engine_at(0);
+    missed.seed_at([announcement("missed", 100, 150, "secret")], 0).unwrap();
+    let watermark = missed.seq().unwrap();
+    assert_eq!(missed.sweep_expired(200, 10).unwrap(), 1);
+    assert_eq!(del_count(&missed, "missed"), 0);
+    let delivered = missed.stream_at("alice", watermark, 100, 200).unwrap();
+    assert!(!delivered.events.iter().any(|event| event.id == "missed"), "{delivered:?}");
+
+    // A successful opening leaves durable evidence through upper expiry, so
+    // physical cleanup still revokes the id that devices received.
+    let mut published = engine_at(0);
+    published.seed_at([announcement("published", 100, 150, "visible")], 0).unwrap();
+    assert_eq!(one(&mut published, "published", 100).data.field("body"), Ok(&Value::String("visible".into())));
+    let watermark = published.seq().unwrap();
+    assert_eq!(published.sweep_expired(150, 10).unwrap(), 1);
+    assert_eq!(del_count(&published, "published"), 1);
+    let delivered = published.stream_at("alice", watermark, 100, 150).unwrap();
+    assert!(delivered.events.iter().any(|event| event.kind == "del" && event.id == "published"), "{delivered:?}");
+}
+
+#[test]
 fn a_hidden_future_payload_does_not_change_the_public_query_meter() {
     let mut hidden = engine_at(0);
     hidden
@@ -508,6 +550,8 @@ fn adoption_rebuilds_openings_and_group_authority_when_the_lower_lifetime_change
     engine.adopt_at(timed.schema, timed.programs.into_iter().map(|program| program.program), 0).unwrap();
     let pending = engine.store().conn().query_row("SELECT count(*) FROM _time_openings", [], |row| row.get::<_, i64>(0)).unwrap();
     assert_eq!(pending, 1, "adding a lower lifetime rebuilds the pending ledger");
+    let published = engine.store().conn().query_row("SELECT count(*) FROM _time_publications", [], |row| row.get::<_, i64>(0)).unwrap();
+    assert_eq!(published, 0, "a future image is not established by adoption");
     let (hidden, _) = engine.snapshot_at("alice", 0).unwrap();
     assert!(!hidden.iter().any(|event| event.table == "members" && event.id == "member"), "the future membership row is revoked by the new generation");
     assert!(!hidden.iter().any(|event| event.table == "notes" && event.id == "note"), "a pre-adoption grant cannot survive the audience epoch");
@@ -517,18 +561,92 @@ fn adoption_rebuilds_openings_and_group_authority_when_the_lower_lifetime_change
     assert!(opened.events.iter().any(|event| event.table == "members" && event.id == "member" && event.kind == "put"), "the opening publishes the membership row");
     assert!(opened.events.iter().any(|event| event.table == "notes" && event.id == "note" && event.kind == "put"), "the opening acquires the membership content");
     assert!(opened.events.iter().any(|event| event.table == "notes" && event.kind == "scope"), "a post-epoch acquisition first clears stale retained authority");
+    let published = engine.store().conn().query_row("SELECT count(*) FROM _time_publications", [], |row| row.get::<_, i64>(0)).unwrap();
+    assert_eq!(published, 1, "the successful opening records publication evidence");
 
     engine.adopt_at(rebound.schema, rebound.programs.into_iter().map(|program| program.program), 100).unwrap();
     let pending = engine.store().conn().query_row("SELECT count(*) FROM _time_openings", [], |row| row.get::<_, i64>(0)).unwrap();
     assert_eq!(pending, 1, "rebinding the lower lifetime rebuilds the pending ledger");
+    let published = engine.store().conn().query_row("SELECT count(*) FROM _time_publications", [], |row| row.get::<_, i64>(0)).unwrap();
+    assert_eq!(published, 0, "rebinding to a future image clears old publication evidence");
     let (hidden, _) = engine.snapshot_at("alice", 100).unwrap();
     assert!(!hidden.iter().any(|event| event.table == "notes" && event.id == "note"), "rebinding to a future column revokes the old grant");
 
     engine.adopt_at(plain.schema, plain.programs.into_iter().map(|program| program.program), 100).unwrap();
     let pending = engine.store().conn().query_row("SELECT count(*) FROM _time_openings", [], |row| row.get::<_, i64>(0)).unwrap();
     assert_eq!(pending, 0, "removing the lower lifetime clears its private ledger");
+    let published = engine.store().conn().query_row("SELECT count(*) FROM _time_publications", [], |row| row.get::<_, i64>(0)).unwrap();
+    assert_eq!(published, 0, "removing the lower lifetime clears its publication evidence");
     let (visible, _) = engine.snapshot_at("alice", 100).unwrap();
     assert!(visible.iter().any(|event| event.table == "notes" && event.id == "note"), "the new generation derives the immediate grant");
+}
+
+#[test]
+fn publication_evidence_survives_an_ordinary_restart() {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    let dir = std::env::temp_dir().join(format!(
+        "sb4-time-publication-{}-{}",
+        std::process::id(),
+        snapback4_core::ids::seed(),
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("store.sqlite");
+    let mut engine = Engine::new_at(
+        Store::open(&path).unwrap(),
+        bound.schema,
+        bound.programs.into_iter().map(|program| program.program),
+        0,
+    ).unwrap();
+    engine.seed_at([announcement("a", 100, 150, "visible")], 0).unwrap();
+    assert_eq!(one(&mut engine, "a", 100).data.field("body"), Ok(&Value::String("visible".into())));
+    let watermark = engine.seq().unwrap();
+    drop(engine);
+
+    let mut reopened = Engine::open_at(Store::open(&path).unwrap(), 100).unwrap();
+    let published = reopened.store().conn().query_row("SELECT count(*) FROM _time_publications", [], |row| row.get::<_, i64>(0)).unwrap();
+    assert_eq!(published, 1, "restart preserves the committed current-image marker");
+    assert_eq!(reopened.sweep_expired(150, 10).unwrap(), 1);
+    let delivered = reopened.stream_at("alice", watermark, 100, 150).unwrap();
+    assert!(delivered.events.iter().any(|event| event.kind == "del" && event.id == "a"), "{delivered:?}");
+    drop(reopened);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn publication_state_version_bootstraps_an_existing_live_image() {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    let dir = std::env::temp_dir().join(format!(
+        "sb4-time-publication-upgrade-{}-{}",
+        std::process::id(),
+        snapback4_core::ids::seed(),
+    ));
+    std::fs::create_dir_all(&dir).unwrap();
+    let path = dir.join("store.sqlite");
+    let mut engine = Engine::new_at(
+        Store::open(&path).unwrap(),
+        bound.schema,
+        bound.programs.into_iter().map(|program| program.program),
+        0,
+    ).unwrap();
+    engine.seed_at([announcement("a", 0, 150, "visible")], 0).unwrap();
+    drop(engine);
+
+    // Model a store from before publication evidence had its private state
+    // version. Opening its installed backend performs the one-time rebuild.
+    let legacy = Store::open(&path).unwrap();
+    legacy.conn().execute_batch(
+        "DELETE FROM _time_publications;
+         DELETE FROM _meta WHERE key = 'time_audience_publications_v1';",
+    ).unwrap();
+    drop(legacy);
+    let reopened = Engine::open_at(Store::open(&path).unwrap(), 100).unwrap();
+    let published = reopened.store().conn().query_row("SELECT count(*) FROM _time_publications", [], |row| row.get::<_, i64>(0)).unwrap();
+    assert_eq!(published, 1, "the active generation snapshot establishes the live legacy row");
+    assert_eq!(reopened.store().meta("time_audience_publications_v1").unwrap().as_deref(), Some("1"));
+    drop(reopened);
+    std::fs::remove_dir_all(dir).unwrap();
 }
 
 #[test]

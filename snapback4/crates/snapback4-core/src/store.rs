@@ -305,6 +305,7 @@ impl Store {
              CREATE INDEX IF NOT EXISTS _effect_presence_id ON _effect_presence(id);
              CREATE TABLE IF NOT EXISTS _time_openings (at INTEGER NOT NULL, t TEXT NOT NULL, id TEXT NOT NULL, PRIMARY KEY(t, id)) WITHOUT ROWID;
              CREATE INDEX IF NOT EXISTS _time_openings_due ON _time_openings(at, t, id);
+             CREATE TABLE IF NOT EXISTS _time_publications (t TEXT NOT NULL, id TEXT NOT NULL, PRIMARY KEY(t, id)) WITHOUT ROWID;
              CREATE TABLE IF NOT EXISTS _assets (id TEXT PRIMARY KEY, owner TEXT NOT NULL, kind TEXT NOT NULL, content_type TEXT NOT NULL, bytes INTEGER NOT NULL, width INTEGER, height INTEGER, duration INTEGER, created_at INTEGER NOT NULL, home_table TEXT, home_id TEXT, home_column TEXT, released_at INTEGER, name TEXT);
              CREATE TABLE IF NOT EXISTS _asset_intents (owner TEXT NOT NULL, intent TEXT NOT NULL, fingerprint TEXT, asset TEXT, facts TEXT, placement TEXT, state TEXT NOT NULL, PRIMARY KEY(owner, intent)) WITHOUT ROWID;
              CREATE TABLE IF NOT EXISTS _asset_views (asset TEXT NOT NULL, principal TEXT NOT NULL, at INTEGER NOT NULL, PRIMARY KEY (asset, principal)) WITHOUT ROWID;
@@ -1198,13 +1199,18 @@ impl crate::rows::Rows for Tx<'_> {
         &self,
         table_name: &str,
         table: &Table,
+        id: &str,
         row: Option<&Value>,
         now: i64,
+        published: bool,
     ) -> Result<(), RuntimeError> {
-        self.track_time_audience(table_name, table, row, now)
+        self.track_time_audience(table_name, table, id, row, now, published)
     }
     fn time_audience_pending(&self, table_name: &str, id: &str) -> Result<bool, RuntimeError> {
         self.time_audience_pending(table_name, id)
+    }
+    fn time_audience_published(&self, table_name: &str, id: &str) -> Result<bool, RuntimeError> {
+        self.time_audience_published(table_name, id)
     }
     fn holds_assets(&self) -> bool {
         true

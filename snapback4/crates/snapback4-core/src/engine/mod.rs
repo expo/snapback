@@ -456,7 +456,9 @@ impl Engine {
         // @ref LLP 3000.007#20.9.3 — expiry index adoption is required even without physical cap counters.
         let (generation, metadata) = if stored_schema_hash == schema_hash
             && tx.meta("live_sum_candidates")?.as_deref() == Some("1")
-            && (!crate::rows::caps::required(&schema) || tx.meta("cap_counts_schema")?.as_deref() == Some(&schema_hash)) { (generation, Store::finish_open(tx)?) }
+            && (!crate::rows::caps::required(&schema) || tx.meta("cap_counts_schema")?.as_deref() == Some(&schema_hash))
+            && (!schema.tables.values().any(|table| table.not_before.is_some())
+                || tx.meta(crate::store::time_audience::PUBLICATION_STATE_KEY)?.as_deref() == Some("1")) { (generation, Store::finish_open(tx)?) }
             else { tx.rollback()?; Self::activate(&mut store, &schema, &programs, None, now, true, expected_release, Some(&kept))? };
         let dev_effects = metadata.dev_effects;
         store.accept_open(); store.exclude_ephemeral(&schema);
@@ -1062,7 +1064,14 @@ impl Engine {
                 row = captured;
             }
             partition::row_changed(&mut runner, &name, old.as_ref(), Some(&row), crate::engine::write::Origin::Source)?;
-            tx.track_time_audience(&name, table, Some(&row), now)?;
+            tx.track_time_audience(
+                &name,
+                table,
+                &id,
+                Some(&row),
+                now,
+                table.live(&row, now),
+            )?;
             runner.written_tables.insert(name);
         }
         if count > 0 { runner.rebuild_imported_columns()?; }
@@ -1098,7 +1107,14 @@ impl Engine {
             let old = tx.get(&table_name, &id)?;
             tx.put(&table_name, &table, &row, old.as_ref())?;
             partition::row_changed(&mut runner, &table_name, old.as_ref(), Some(&row), crate::engine::write::Origin::Source)?;
-            tx.track_time_audience(&table_name, &table, Some(&row), now)?;
+            tx.track_time_audience(
+                &table_name,
+                &table,
+                &id,
+                Some(&row),
+                now,
+                table.live(&row, now),
+            )?;
             if self.schema.visible(&table_name) { runner.written_tables.insert(table_name); }
             count += 1;
         }
