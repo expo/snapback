@@ -719,6 +719,42 @@ fn intrinsic_id_membership_missing_witness_agrees_with_the_model() {
 }
 
 #[test]
+fn intrinsic_id_positional_membership_uses_its_reference_type() {
+    if !model_built() { return; }
+    let source = "table shares:\n  document: documents\n  alias: text <=20\n  principal: principal\n  unique document, principal\n  unique alias, principal\n  read <- .principal = viewer\n  online only\ntable documents:\n  owner: principal\n  at: int\n  read <- .owner = viewer or exists shares[.id, viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
+    let rows: Vec<(String, serde_json::Value)> = vec![
+        ("shares".into(), json!({"id":"s","document":"shared","alias":"elsewhere","principal":"alice"})),
+        ("documents".into(), json!({"id":"shared","owner":"bob","at":1})),
+        ("documents".into(), json!({"id":"denied","owner":"bob","at":2})),
+    ];
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+        .into_iter().any(|merge| merge.branches()), "{:#?}", bound.notes);
+    let mut engine = snapback4_core::Engine::memory(
+        bound.schema,
+        bound.programs.into_iter().map(|program| program.program),
+    ).unwrap();
+    let seeded = rows.iter().map(|(table, value)| {
+        let row = snapback4_core::wire::row_from_json(&engine.schema().tables[table], value).unwrap();
+        (table.clone(), row)
+    }).collect::<Vec<_>>();
+    engine.seed(seeded).unwrap();
+    let actual = engine.query("run", snapback4_core::Context::new("alice",
+        [("c".into(), snapback4_core::Value::Null)].into_iter().collect())).unwrap();
+    assert_eq!(actual.data.as_array().unwrap().len(), 1, "{actual:?}");
+    assert!(actual.complete && actual.next.is_none(), "{actual:?}");
+
+    let module = lean::module(source).unwrap();
+    let case = module.case("run", module.store(&rows).unwrap(), "alice",
+        module.tag_args("run", &json!({"c":null})).unwrap(), None).unwrap();
+    let modeled = lean::ask(&case).unwrap();
+    assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data), "{modeled}\n{actual:?}");
+    assert_eq!(modeled["complete"], actual.complete, "{modeled}\n{actual:?}");
+    assert_eq!(modeled["next"], json!({"null":null}), "{modeled}\n{actual:?}");
+}
+
+#[test]
 fn total_unique_varying_source_id_agrees_for_present_and_missing_witnesses() {
     if !model_built() { return; }
     let source = "table groups:\n  principal: principal\n  unique principal\n  cap 16 by principal\n  read <- .principal = viewer\n  online only\ntable documents:\n  owner: principal\n  parent: groups\n  at: int\n  read <- .owner = viewer or exists groups[id = .parent, principal = viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";

@@ -75,9 +75,8 @@ pub(crate) fn id_membership(case: &mut Case) {
         .filter_map(|(_, row)| row["id"].as_str().map(str::to_owned)).collect::<Vec<_>>();
     let access = case.program.tables.iter_mut().find(|table| table.name == "access").expect("generated access table");
     access.columns.push(column("item", Type::Reference("items".into())));
-    // Keep the positional `(item, principal)` point unambiguous at the early
-    // rule-planning phase, where intrinsic `.id` has no declared-column type.
-    access.keys.retain(|(_, _, unique)| !*unique);
+    // The competing `(bucket, principal)` unique proves that every positional
+    // planner resolves intrinsic `.id` by its focal-table reference type.
     access.keys.push(("byItem".into(), vec!["item".into(), "principal".into()], true));
     access.keys.push(("byPrincipalItem".into(), vec!["principal".into(), "item".into()], false));
     if items.is_empty() {

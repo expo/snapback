@@ -457,6 +457,9 @@ fn native_and_lean_generators_reach_by_id_membership_pages() {
         let access = case.program.tables.iter().find(|table| table.name == "access").unwrap();
         assert!(access.keys.iter().any(|(_, columns, unique)| *unique
             && columns.iter().map(String::as_str).eq(["item", "principal"])));
+        assert!(access.keys.iter().any(|(_, columns, unique)| *unique
+            && columns.iter().map(String::as_str).eq(["bucket", "principal"])),
+            "by-id generation must retain a competing positional unique\n{source}");
         let coverage = snapback4_difftest::coverage::features(&case);
         assert!(coverage.contains("read/branch-rule-membership-id"), "{coverage:?}\n{source}");
         let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
