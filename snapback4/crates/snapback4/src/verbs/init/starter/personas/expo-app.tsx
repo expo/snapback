@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Button, SafeAreaView, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { AppProvider, useAuth, usePersonaApp } from "snapback4/react";
+import { smokeSegment } from "snapback4-expo/witness";
 import { openApp, personas } from "./src/client";
 
 export function App() {
@@ -11,7 +12,7 @@ export function App() {
 // Each persona gets its own app (and device store): usePersonaApp opens it on
 // choice and closes it on switch and unmount.
 function Personas() {
-  const [persona, setPersona] = useState<string | null>(null);
+  const [persona, setPersona] = useState<string | null>(() => smokeSegment() ? personas[0] ?? null : null);
   const app = usePersonaApp(persona, openApp);
   if (!persona) return <View style={{ padding: 24, gap: 12 }}>
     <Text style={{ fontSize: 24 }}>Act as</Text>

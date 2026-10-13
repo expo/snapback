@@ -9,6 +9,7 @@ mod web;
 mod social;
 mod starter;
 mod adapt;
+mod ports;
 pub(crate) use adapt::{report as starter_leftovers, report_json as starter_leftovers_json};
 
 const USAGE: &str = "usage: snapback4 init [dir] [--online|--expo|--web]";
@@ -49,8 +50,12 @@ pub fn init(options: &Options) -> i32 {
         eprintln!("{USAGE}");
         return 2;
     }
+    let range = match ports::range(options) {
+        Ok(range) => range,
+        Err(error) => { eprintln!("E_INPUT: {error}"); return 2; }
+    };
     let port = match options.flags.get("port").map(|port| port.parse::<u16>()) {
-        None => None,
+        None => range.map(|(low, _)| low),
         Some(Ok(port)) if port > 0 => Some(port),
         Some(_) => {
             eprintln!("E_INPUT at init --port: expected a port number from 1 to 65535\n  rewrite: snapback4 init --web --port 4401");
@@ -74,12 +79,17 @@ pub fn init(options: &Options) -> i32 {
             eprintln!("E_INPUT at init --web-port: expected a port number from 1 to 65535\n  rewrite: snapback4 init --web --port 4401 --web-port 4402");
             return 2;
         }
-        None if web => port.and_then(|port| port.checked_add(1)),
+        None if web || expo => port.and_then(|port| port.checked_add(1)),
         None => None,
     };
     if web_port.is_some() && web_port == port {
         eprintln!("E_INPUT at init --web-port: the page and the backend need different ports\n  rewrite: snapback4 init --web --port {} --web-port {}", port.unwrap(), port.unwrap().wrapping_add(1).max(1));
         return 2;
+    }
+    if let Some((low, high)) = range {
+        if [port, web_port].into_iter().flatten().any(|port| port < low || port > high) {
+            eprintln!("E_INPUT: client/backend/frontend ports must fit --port-range {low}-{high}; allow at least two ports for a UI starter"); return 2;
+        }
     }
     // @ref LLP 3000.011.003.000#7.1 — any snapback/*.q is the project's schema: no starter fixtures beside it; its sign-in picks the screen.
     let own = match own_schema(dir) {
@@ -98,6 +108,16 @@ pub fn init(options: &Options) -> i32 {
         else if chat && web { web::files() } else if chat { expo_files() }
         else if web { starter::web_files(&shape) } else if expo { starter::expo_files(&shape) }
         else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
+    if web && !files.iter().any(|(name, _)| *name == "public/favicon.svg") {
+        files.push(("public/favicon.svg", include_str!("init/starter/favicon.svg").to_owned()));
+        for (name, text) in &mut files { if *name == "index.html" { *text = text.replace("<head>", "<head>\n<link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\" />"); } }
+    }
+    if expo && !files.iter().any(|(name, _)| *name == "assets/favicon.svg") {
+        files.push(("assets/favicon.svg", include_str!("init/starter/favicon.svg").to_owned()));
+        for (name, text) in &mut files {
+            if *name == "app.json" { let mut config: Value = serde_json::from_str(text).unwrap(); config["expo"]["web"]["favicon"] = json!("./assets/favicon.svg"); *text = pretty(&config); }
+        }
+    }
     // The starter's rows and cases test its own todos schema; beside a
     // project's schema they name a table it lacks and fail `snapback4 test`.
     let mut skipped = Vec::new();
@@ -117,6 +137,9 @@ pub fn init(options: &Options) -> i32 {
         // this repository; a new project gets the explanation alone.
         if *name != "package.json" { *text = without_design_references(text); }
         *text = localize(name, text, port, web_port);
+    }
+    if web || expo {
+        ports::scripts(&mut files, port.unwrap_or(4400), web_port.unwrap_or(if web { 5173 } else { 8081 }), range, web);
     }
     let mut conflicts = Vec::new();
     // A project's existing introduction is unrelated to the starter. Keep it

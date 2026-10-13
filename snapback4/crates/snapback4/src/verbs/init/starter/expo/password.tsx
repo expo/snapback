@@ -2,10 +2,12 @@ import { useState } from "react";
 import { Button, SafeAreaView, Text, TextInput, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { AppProvider, useAuth } from "snapback4/react";
+import { useNativeSmokeGuest } from "./src/native-smoke";
 import { app } from "./src/client";
 
 export function App() { return <AppProvider app={app}><SafeAreaView style={{ flex: 1 }}><StatusBar style="auto" /><Account /></SafeAreaView></AppProvider>; }
 function Account() {
+  useNativeSmokeGuest();
   const auth = useAuth();
   const [email, setEmail] = useState(""), [password, setPassword] = useState(""), [problem, setProblem] = useState(""), [busy, setBusy] = useState(false);
   if (auth.state === "restoring") return <Text>Restoring your session…</Text>;

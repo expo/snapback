@@ -29,9 +29,10 @@ function Todos() {
       <button onClick={() => void auth.logout()}>Sign out</button>
     </header>
     <form onSubmit={submit}>
-      <input value={title} onChange={event => setTitle(event.target.value)} placeholder="What needs doing?" maxLength={200} />
+      <input aria-label="Task" value={title} onChange={event => setTitle(event.target.value)} placeholder="What needs doing?" maxLength={200} />
       <button type="submit">Add</button>
     </form>
+    <p role="status">{add.last?.state ?? "Ready"}</p>
     {failed && <p role="alert">{failed.why.message}</p>}
     <TodoList todos={todos} toggle={toggle} remove={remove} />
   </main>;

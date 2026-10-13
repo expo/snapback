@@ -16,7 +16,9 @@ const sessionStore = withIntentStorage({
 export const url = smokeOrigin(process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400");
 export const tier = Platform.OS === "web" ? "web" : nativeAvailable() ? "native" : "online";
 // Browser persistence is explicit: scripts on the page can read the token.
-export const app = createApp({ url,
+const witnessPersona = Platform.OS === "web" && new URLSearchParams(window.location.search).get("witness") === "web"
+  ? new URLSearchParams(window.location.search).get("as") ?? undefined : undefined;
+export const app = createApp({ ...(witnessPersona ? { persona: witnessPersona } : {}), url,
   sessionStore: Platform.OS === "web" ? localStorageSessionStore() : sessionStore,
   device: tier === "web" ? webDevice() : tier === "native" ? nativeDevice : undefined,
 });

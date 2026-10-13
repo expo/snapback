@@ -23,7 +23,9 @@ const sessionStore = {
   delete: (key: string) => SecureStore.deleteItemAsync(key),
 };
 // Browser storage is readable by any script on the page; SecureStore is not.
-export const app = createApp({
+const witnessPersona = Platform.OS === "web" && new URLSearchParams(window.location.search).get("witness") === "web"
+  ? new URLSearchParams(window.location.search).get("as") ?? undefined : undefined;
+export const app = createApp({ ...(witnessPersona ? { persona: witnessPersona } : {}),
   url,
   sessionStore: Platform.OS === "web" ? localStorageSessionStore() : sessionStore,
   device: tier === "web" ? webDevice() : tier === "native" ? nativeDevice : undefined,

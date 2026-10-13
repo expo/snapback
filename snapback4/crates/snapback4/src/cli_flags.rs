@@ -3,7 +3,7 @@ const SWITCHES: &[&str] = &["help", "initialize", "environment-skip", "backgroun
 
 fn allowed(verb: &str) -> &'static str {
     match verb {
-        "init" | "new" => "online expo web template recipe port web-port skip-existing adapt prefix authors edges public-profiles public-posts public-follows public-reposts",
+        "init" | "new" => "online expo web template recipe port port-range web-port skip-existing adapt prefix authors edges public-profiles public-posts public-follows public-reposts",
         "check" => "cost residency fix json verbose store fixture as emit-lean url release",
         "device" => "engine-info",
         "types" => "json",
@@ -24,7 +24,7 @@ fn allowed(verb: &str) -> &'static str {
         "token" => "service days release json",
         "doctor" => "url latency reset json instance release",
         "upgrade" => "",
-        "witness" => "email password-env mutation initialize environment-skip background if-present as url token restart runs query args artifacts timeout json build export smoke udid port bundle-id segment prime relaunch wait repack app-project",
+        "witness" => "email password-env mutation initialize environment-skip background if-present as url token restart runs query args artifacts timeout json build export smoke udid port bundle-id segment prime relaunch wait repack app-project field value button port-range",
         _ => "",
     }
 }

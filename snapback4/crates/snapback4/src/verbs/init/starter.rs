@@ -225,7 +225,11 @@ const PERSONA_SIGN_IN: &str = "The first screen (on the web also `?as=<name>`) a
 // @ref LLP 3000.011.003.000#7.4 — wave 6 (042): an adapted starter kept a README about todos and guest sign-in.
 pub(super) fn readme(platform: Platform, title: &str, body: &Body, personas: bool, offline: &Offline) -> String {
     let todos = match platform { Platform::Web => include_str!("starter/web/README.md"), Platform::Expo => include_str!("starter/expo/README.md") };
-    if *body == Body::Todos { return todos.to_owned(); }
+    if *body == Body::Todos {
+        if *offline == Offline::Unknown { return todos.to_owned(); }
+        return todos.replace("native device and work offline;", "native device;")
+            .replace("wasm device.\n", &format!("wasm device.\n\n{}\n", offline.paragraph(platform)));
+    }
     let home = match platform { Platform::Web => include_str!("starter/web/README.home.md"), Platform::Expo => include_str!("starter/expo/README.home.md") };
     let text = home.replacen("# TITLE", &format!("# {title}"), 1).replace("SIGN_IN", if personas { PERSONA_SIGN_IN } else { GUEST_SIGN_IN })
         .replacen("OFFLINE\n", &format!("{}\n", offline.paragraph(platform)), 1);
@@ -265,6 +269,7 @@ pub(super) fn web_files(shape: &Shape) -> Vec<(&'static str, String)> {
         ("index.html", include_str!("starter/web/index.html").replace("TITLE", &html_text(&shape.title))),
         ("vite.config.mts", include_str!("starter/web/vite.config.mts").to_owned()),
         ("tsconfig.json", super::esm_vite_config(include_str!("../../../../../apps/chat/tsconfig.json"))),
+        ("public/favicon.svg", include_str!("starter/favicon.svg").to_owned()),
         ("src/main.tsx", include_str!("starter/web/main.tsx").to_owned()),
         ("src/styles.css", include_str!("starter/web/styles.css").to_owned()),
         ("src/App.tsx", app),
@@ -291,6 +296,7 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
     config["expo"]["scheme"] = json!(scheme);
     config["expo"]["ios"]["bundleIdentifier"] = json!(bundle);
     config["expo"]["android"]["package"] = json!(bundle);
+    config["expo"]["web"]["favicon"] = json!("./assets/favicon.svg");
     let (app, client) = identity_screens(Platform::Expo, shape.personas.as_deref(), &shape.body, shape.password);
     let client = web_client(client, &shape.offline);
     vec![
@@ -302,9 +308,10 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
         ("index.js", include_str!("../../../../../apps/chat-expo/index.js").to_owned()),
         ("tsconfig.json", include_str!("../../../../../apps/chat-expo/tsconfig.json").to_owned()),
         ("expo-env.d.ts", include_str!("starter/expo-env.d.ts").to_owned()),
+        ("assets/favicon.svg", include_str!("starter/favicon.svg").to_owned()),
         ("App.tsx", app),
         ("src/client.ts", client),
-        ("src/native-smoke.ts", include_str!("native-smoke.ts").to_owned()),
+        ("src/native-smoke.ts", native_smoke(shape.password)),
         ("snapback/schema.q", SCHEMA.to_owned()),
         ("README.md", identity_readme(Platform::Expo, &shape.title, &shape.body, shape.personas.is_some(), &shape.offline, shape.password)),
     ].into_iter().chain(FIXTURES.map(|(name, text)| (name, text.to_owned()))).collect()
@@ -329,7 +336,12 @@ pub(super) fn identity_screens(platform: Platform, personas: Option<&[String]>, 
 }
 
 pub(super) fn identity_readme(platform: Platform, title: &str, body: &Body, personas: bool, offline: &Offline, password: bool) -> String {
-    let text = readme(platform, title, body, personas, offline);
+    let mut text = readme(platform, title, body, personas, offline);
+    if platform == Platform::Expo && matches!(offline, Offline::Tables { synced, .. } if synced.is_empty()) {
+        text = text.replace("web uses the wasm\ndevice", "web uses the principal write journal (no synced tables)")
+            .replace("web uses the wasm device", "web uses the principal write journal (no synced tables)")
+            .replace("or `webDevice()` (web)", "or the principal write journal (web, no synced tables)");
+    }
     if password { text.replace(GUEST_SIGN_IN, "Sign up or sign in with email and password (`use identity password`); the SDK\nkeeps your session across restarts. See `snapback4 guide client --section password`.")
         .replace("Choose \"Continue as a guest\", then add", "Sign up or sign in with email and password, then add")
         .replace("Choose \"Continue as a\nguest\", then add", "Sign up or sign in with email and password, then add") } else { text }
@@ -345,4 +357,13 @@ pub(super) fn previous_client(platform: Platform, personas: bool) -> &'static st
         (Platform::Expo, false) => include_str!("starter/previous/expo-client.ts"),
         (Platform::Expo, true) => include_str!("starter/previous/expo-persona-client.ts"),
     }
+}
+
+// The smoke's identity choice is generated with the screen, not assumed guest.
+pub(super) fn native_smoke(password: bool) -> String {
+    let guest = include_str!("native-smoke.ts");
+    if !password { return guest.to_owned(); }
+    guest.replace("import { smokeSegment }", "import { smokeAccount, smokeSegment }")
+        .replace("void auth.guest();", "const account = smokeAccount();\n    if (account) void auth.signup(account.email, account.password);")
+        .replace("sign in as a guest", "sign up with the driver's disposable password account")
 }

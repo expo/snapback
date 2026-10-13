@@ -44,6 +44,12 @@ pub(crate) fn leftovers(dir: &Path) -> (Vec<Leftover>, Vec<String>) {
     for platform in [Platform::Web, Platform::Expo] {
         screens(dir, platform, &own, todos, &mut found, &mut advice);
     }
+    if let Some(text) = read(dir, "src/native-smoke.ts") {
+        let wanted = starter::native_smoke(own.identity.is_some_and(|(password, guests)| password && !guests));
+        if text != wanted && [false, true].into_iter().any(|password| text == starter::native_smoke(password)) {
+            found.push(Leftover { path: "src/native-smoke.ts", why: "the unmodified native smoke helper uses the previous schema's sign-in".into(), rewrite: Some(wanted) });
+        }
+    }
     readme(dir, &own, todos, &mut found);
     app_json(dir, &mut found);
     (found, advice)
