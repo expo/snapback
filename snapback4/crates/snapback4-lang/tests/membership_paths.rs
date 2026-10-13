@@ -235,3 +235,49 @@ query documents(c: cursor ?):
         }
     }
 }
+
+#[test]
+fn one_row_source_selects_an_admitted_unique_before_residuals() {
+    let source = "table members:
+  parent: text <=40
+  a: int
+  principal: principal
+  unique aa: a
+  unique zz: principal
+  cap 16 by principal
+  read <- .principal = viewer
+  online only
+table documents:
+  owner: principal
+  parent: text <=40
+  at: int
+  read <- .owner = viewer or exists members[parent = .parent, principal = viewer, a = 0]
+  online only
+query documents(c: cursor ?):
+  return documents last 10 by .at after c
+";
+    let bound = clean(source);
+    let merge = snapback4_core::ir::body_merges(&bound.programs[0].program.body).into_iter()
+        .find(|merge| merge.lanes.iter().any(|lane| lane.membership())).expect("membership merge");
+    let lane = merge.lanes.iter().find(|lane| lane.membership()).unwrap();
+    let source_scan = lane.source.as_ref().and_then(snapback4_core::ir::LaneSource::scan).unwrap();
+    assert_eq!(bound.schema.tables["members"].indexes[&source_scan.index].columns(), ["principal"]);
+    assert!(!bound.schema.tables["members"].indexes.values().any(|index|
+        index.columns() == ["a", "principal", "parent", "id"]));
+
+    for (member, expected) in [(Some(("alice", 0)), 2), (Some(("alice", 1)), 1), (Some(("bob", 0)), 1), (None, 1)] {
+        let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|program| program.program.clone())).unwrap();
+        let mut rows = vec![
+            ("documents".into(), object([("id", Value::Id("owned".into())), ("owner", Value::Id("alice".into())), ("parent", Value::String("p0".into())), ("at", Value::Int(1))])),
+            ("documents".into(), object([("id", Value::Id("shared".into())), ("owner", Value::Id("bob".into())), ("parent", Value::String("p1".into())), ("at", Value::Int(2))])),
+        ];
+        if let Some((principal, a)) = member { rows.push(("members".into(), object([
+            ("id", Value::Id("m1".into())), ("parent", Value::String("p1".into())),
+            ("a", Value::Int(a)), ("principal", Value::Id(principal.into())),
+        ]))); }
+        engine.seed(rows).unwrap();
+        let page = engine.query("documents", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
+        assert!(page.complete && page.next.is_none(), "member={member:?}: {page:?}");
+        assert_eq!(page.data.as_array().unwrap().len(), expected);
+    }
+}

@@ -118,7 +118,8 @@ fn membership(tables: &Tables, synthesized: &std::collections::BTreeSet<(String,
             // as exact residuals on that one row. Discard the provisional
             // inferred index when the authored point supplies this proof.
             let one_row = source_table.indexes.iter().filter(|index| source_table.total_unique(index)
-                && index.columns.iter().all(|column| source.keys.iter().any(|key| key.column.as_ref() == Some(column))))
+                && index.columns.iter().all(|column| source.keys.iter().any(|key| key.column.as_ref() == Some(column)))
+                && one_row_source_admitted(tables, source_table, source, index))
                 .min_by_key(|index| (index.columns.len(), &index.name))
                 .map(|index| (index.name.clone(), index.columns.clone()));
             if let Some((name, columns)) = one_row {
@@ -167,6 +168,13 @@ fn source_key_equality(key: KeyPart) -> Option<Expr> {
     Some(Expr::Binary { op: "=".into(), left: Box::new(Expr::Member {
         base: Box::new(Expr::Focal { site: site.clone() }), name: column, site: site.clone(),
     }), right: Box::new(key.value), site })
+}
+
+fn one_row_source_admitted(tables: &Tables, table: &TableInfo, source: &ReadExpr, index: &IndexDecl) -> bool {
+    let mut point = source.clone();
+    point.keys.retain(|key| key.column.as_ref().is_some_and(|column| index.columns.contains(column)));
+    membership_source_capped(tables, &point)
+        && read_rule(table).is_some_and(|rule| by_form(rule, &point))
 }
 
 /// Confirm, while requests still live in the throwaway candidate, that every
