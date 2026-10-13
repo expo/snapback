@@ -317,8 +317,10 @@ fn server_private_witness_and_expired_unique_walks_share_one_allowance() {
 fn never_live_witness_keeps_the_expired_walk_across_its_private_opening() {
     const DENIED: i64 = 4_200;
     let source = "table grants:
+  ticket: int
   opensAt: time
   expiresAt: time
+  unique byTicket: ticket
   by byOpening: opensAt
   by byExpiry: expiresAt
   not before .opensAt
@@ -326,29 +328,34 @@ fn never_live_witness_keeps_the_expired_walk_across_its_private_opening() {
   public
   online only
 table tasks:
+  ticket: int
   visible: bool
-  read <- .visible = true or exists grants['grant']
+  read <- .visible = true or exists grants[ticket = .ticket]
   online only
 query full():
   return tasks first 5000 by .id
 ";
     let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-    let rows = (0..DENIED).map(|n| ("tasks".into(), snapback4_core::value::object([
-        ("id", Value::Id(format!("a{n:04}"))),
-        ("visible", Value::Bool(false)),
-    ]))).chain([
+    let rows = (0..DENIED).flat_map(|n| [
         ("tasks".into(), snapback4_core::value::object([
-            ("id", Value::Id("z".into())),
-            ("visible", Value::Bool(true)),
+            ("id", Value::Id(format!("a{n:04}"))),
+            ("ticket", Value::Int(n)),
+            ("visible", Value::Bool(false)),
         ])),
         ("grants".into(), snapback4_core::value::object([
-            ("id", Value::Id("grant".into())),
+            ("id", Value::Id(format!("g{n:04}"))),
+            ("ticket", Value::Int(n)),
             ("opensAt", Value::Int(100)),
             ("expiresAt", Value::Int(1)),
         ])),
-    ]).collect::<Vec<_>>();
-    assert!(bound.schema.tables["grants"].expired(&rows.last().unwrap().1, 90));
+    ]).chain([("tasks".into(), snapback4_core::value::object([
+        ("id", Value::Id("z".into())),
+        ("ticket", Value::Int(DENIED)),
+        ("visible", Value::Bool(true)),
+    ]))]).collect::<Vec<_>>();
+    let never_live = rows.iter().find(|(table, _)| table == "grants").unwrap();
+    assert!(bound.schema.tables["grants"].expired(&never_live.1, 90));
     let observations = [90, 100].map(|now| {
         let mut engine = snapback4_core::Engine::new_at(
             snapback4_core::Store::memory().unwrap(),
@@ -360,9 +367,8 @@ query full():
         engine.query("full", Context::new("alice", Default::default()).at(now)).unwrap()
     });
     assert_eq!(observations[0], observations[1]);
-    let Value::Array(rows) = &observations[0].data else { panic!("expected a page") };
-    assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].field("id"), Ok(&Value::Id("z".into())));
+    assert_eq!(observations[0].data, Value::Array(Vec::new()));
+    assert!(!observations[0].complete);
 }
 
 #[test]
