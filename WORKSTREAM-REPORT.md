@@ -1,72 +1,121 @@
-# Integration 7 — in progress
+# Integration 7 — final Linux qualification; Mac client rerun pending
 
-Base 63b83fed66; branch sb4-loop. No origin push or publication.
+Base: `63b83fed66`; branch: `sb4-loop`; version: **0.4.25**.
+No origin push and no npm publication. Only the expressly requested Mac
+verification ref `sb4-integ7` has been transferred. Protected Mac publication
+and MACFIX worktrees were untouched. No simulator was booted.
 
-Merge commits: DX 094c00a205; PAGE b46e23757a; MACFIX 016591ac22.
-All are --no-ff, in the commissioned order. Both journal/LLP additions kept.
-HAND validation covers upgrade and every DX browser flag; generation and
-omitted mutation-id behavior are combined. REL deploy text and DX recipes kept.
+## Changes and commits
 
-Governing context (llp-orient): LLP 3000 §7/fence; LLP 3000.011.003.000 §8
-(password starters/browser write/upgrade); LLP 3000.036.001 §§5/9/14
-(cursor scope, independent Lean eligibility, all-or-nothing membership
-discovery and charged allocations); LLP 3000.013 §14.7 and 3000.039
-(private maintained authority and reference lifetime/bounds); LLP
-3000.000.000 §§5.1/9 and 3000.022 §14.3 (release paths/fences); LLP
-3000.002#proposed-device-representation-and-codec-redesign (narrow serializer
-families). Guide cards read directly where merged; authoring census checked.
+Ordered `--no-ff` merges:
 
-Qualification already completed: Lean 68 examples/58 standard-axiom theorems/
-7 oracle fixtures. Native difftest 20k: 1,163,097 executions, zero disagreements
-and unexpected errors. Devices seeds 0–999: 31,930 executions, zero disagreements.
-Lean 20k: 52,010 executions, 15,412 pass/4,358 unsupported/230 retained disagreements;
-same four families/counts as PAGE (3/68/132/27), no new signatures, exit 1 retained.
-Authoring census unchanged at 718 entries, 409 mutation occurrences/89 private
-write sites. Delivery boundary regenerated; DX witness awaits delegate to
-existing app custody and observe onWrite, with no new delivery implementation.
+| Workstream | Merge commit |
+| --- | --- |
+| DX | `094c00a205` |
+| PAGE | `b46e23757a` |
+| MACFIX | `016591ac22` |
 
-Strict wasm audit exposed PAGE ExactBuffer/HashWriter families. Integration
-shares those bounded/allocation-free sinks with the output counter through a
-single erased writer; narrow Value/ObjectFields allowance, no additional
-readers or typed containers. Canonical bytes and overflow/underfill/failure
-propagation tested. Linux measured 2,291,429 raw/698,492 gzip/528,207 brotli;
-budget 698,992 = measurement +500. Final bumped source will be remeasured.
+- Combined HAND's shared flag validator with DX/PAGE verbs and browser flags;
+  unknown flags still fail early with exit 2. Kept REL deploy and DX
+  password/admin/upgrade recipes, both journals and LLP additions, PAGE
+  membership paging and MACFIX release/store fences. Combined guide cards fit
+  their original budgets. Integration repairs: `e759005d33`, `71be4ed2b3`,
+  `b4e800c582`.
+- PAGE's exact-capacity serialization and allocation-free cursor hashing now
+  use the codec's shared erased writer; strict wasm families remain narrow.
+  Overflow, underfill, canonical bytes and error propagation stay guarded.
+  Regenerated authoring and delivery-boundary censuses.
+- Reconciled recipe inserts, unchecked-reference notes, persona/browser
+  adapters, current discovery envelopes and first-account `init --adapt`.
+- Real Chromium proved that a closed tab can still hold its Web Lock after
+  `page.close()` resolves. The fixture waits for the exact closed owner's lock
+  to disappear before recovery, retaining live-owner exclusion/exactly-once
+  adoption: `aa61228a4b`; closed browser-lock ticket records the observation.
+- Bump: **`5a4779e48a`**, `snapback4 0.4.25: password starters and browser proofs,
+  capped membership paging, macOS store and release-path fences`. Same eight
+  version files as the 0.4.24 bump; actual-engine version tests derive the live
+  package version. Mock/legacy/protocol-floor versions remain intentional.
+- Final wasm budget: `74895a66f0`; docs reconcile ordinary intent reverse-join
+  discovery against LLP 3000.013 §2.1 / 3000.027 §2, distinct from capped PAGE
+  read rules. Existing source-present fixtures prove withholding and prediction
+  fencing, not rejected-target traversal; assertions/work counts unchanged:
+  `0969a934ec`, `b14a026fe7`.
+- Required full Mac client pool found a separate bootstrap inspector timeout
+  before two test files could run, at shared-host load above 900 and about
+  5100 processes. `1bc9993aec` retries only ETIMEDOUT once within the unchanged
+  sixty-second cleanup deadline. Discards partial bytes; requires two fresh
+  complete empty snapshots; no signal-custody weakening. `b7f161eef8`
+  preserves both independent READY reviews. Full Mac rerun is pending.
 
-Initial Rust command is still running; two stale CLI expectations repaired
-(new DX production-writer and PAGE unchecked-reference notes). Initial DX
-browser file passed 10/11; unknown upgrade flag now correctly exits 2 through
-HAND's shared validator; expectation repaired. Full client stages still running.
-These initial reds are not qualification. Root install/codegen completed;
-root checks found missing implicit sibling workspace links, resolved via the
-hoisted frozen install before repeating. Fixture-wrapper tests 9/9 pass.
+## Verification
 
-First integration source reviews: Muse NOT READY pending integrated full-suite
-qualification, no merge defect; fresh Codex review pending. Final reviews and
-verbatim artifacts will be saved under llp/reviews. Final version bump, Mac
-ordinary-pool-plus-model suite and report are outstanding. Mac protected
-publication/MACFIX worktrees remain untouched; no simulator boot.
+Linux final bumped source:
 
-## Post-bump milestone
+- Exact requested five-crate `cargo test ... --no-fail-fast`: **exit 0**.
+  Captured summaries total 5852 passed / 0 failed / 41 ignored, including nested
+  fixture output; use the archived raw log as the authoritative evidence.
+- Complete ordinary client pool **373/373**, 7326 passed / 56 skipped / 0 failed;
+  then full default serial model stage **81/81**. DX real-browser proofs included.
+- Sixteen post-bump version-reading files: **345 passed / 9 skipped / 0 failed**.
+  Inspector cleanup/control tests after the repair: **78/78** across three files.
+- Lean: **68 examples / 58 audited standard-axiom theorems / 7 oracle fixtures**.
+- Native difftest 20k: **1,163,097 executions**, zero disagreements or unexpected
+  errors. Devices seeds 0–999: **31,930 executions**, zero disagreements/errors.
+- Lean difftest 20k: **52,010 executions**, 15,412 pass / 4358 unsupported /
+  **230 retained disagreements**, same four signatures/counts as PAGE (3, 68,
+  132, 27), **no new signatures**. Exit 1 is retained, not claimed as zero.
+- Authoring census unchanged: **718 entries / 409 mutation occurrences /
+  89 private write sites**. Delivery boundary includes DX witness delegation
+  to existing mutation custody/onWrite, no new delivery implementation.
+- Fixture wrapper 9/9; full executable Guide 120/120; docs-budget passes
+  (README 320/320, client 114 lines/1199 words, deploy 150 lines).
+- Root frozen hoisted install plus generated-artifact bootstrap makes both
+  inventory and Guide checks runnable on both hosts. Inventories pass:
+  365 package tests / 35 script tests / 31 demos / 487 publication leaves /
+  162 Guide pages / 1937 snippets. Full root Guide **22/22**, 121 inherited
+  warnings. Ref-check **543 LLPs / 11726 refs / 0 errors**.
 
-0.4.25 bump: 5a4779e48a. Final Linux measurement budget commit74895a66f0:
-2291429raw/698386gzip/527885brotli, budget698886=gzip+500; strict audits pass.
-Mac built artifact2291752raw/698034gzip, under the same budget. Final source
-review pair r3 is both READY on74895a66f0. The narrow witness-law clarification
-has final r5 both READY on0969a934ec; r4 NOT READY on attribution is preserved.
-The event-slot narration is now honest; assertions and work counts unchanged.
+Mac required publication stages:
 
-Post-bump version-reading files: three disjoint green batches,16files,
-345passed/9skipped/zero failed (101/1,96/8,148/0). The initial batch also listed
-a nonexistent publication.test.mjs; this is a selection error, not a green
-stage, and is superseded by the four-file green batch plus actual
-publication-roundtrip/platform batch. Bumped full five-crate command continues
-with zero failures so far. Prior complete run had only the three stale Guide
-expectations, all fixed and passed120/120; the bumped command is the final run.
+- Source `74895a66f0`: full workspace Rust inventory and doctests, exactly the
+  publication runner: **exit 0**. Setup, docs, release guard, typechecks,
+  package builds, fixture wrapper and **xcframework build pass**.
+- Root install/codegen/inventories/Guide: **all exit 0**; no missing prerequisites.
+- First full client run was stopped after two bootstrap inspector timeouts;
+  logs retain both real refusals and explicitly aborted/unscheduled remainder.
+  It is not a qualified stage. A complete fixed-source pool and full serial
+  models must pass in one run before this integration is complete.
+- Extra Swift invocation initially refused `-arch` together with a destination
+  (exit 70). Corrected invocation uses `ARCHS=arm64`; final compile pending.
+  Generic simulator destination compiles only; no simulator boot.
+- MACFIX's original five reds: two missing event traces supplied by the full
+  native producer stage; one-shot/read-existence adapters repaired in MACFIX;
+  prior quote-jump layout failure remains honestly tracked in its open ticket.
+  Integration 7 Mac pool verdict for the quote-jump file is pending.
 
-Required Mac ref/worktree is now at74895a66f0; defaultTMPDIR,Node24.19.0,
-ulimit65536,fencecache0.2.33. Setup/wasm/docs/guard/typecheck/build/chat checks
-and rust warm-up pass. Full publication Rust runner is active with no red.
-Root frozen hoisted install/codegen/inventories/fullGuide22 all pass on Mac too.
-After native tests, the helper builds the xcframework/Swift and runs the
-ordinary six-slot pool then full-count serial models. No simulator boot.
-All protected Mac worktrees remain untouched. Final Mac results are pending.
+## Wasm and reviews
+
+Final Linux 0.4.25: **2,291,429 raw / 698,386 gzip / 527,885 brotli bytes**.
+Budget **698,886 = measured gzip + 500 B**, reason recorded in the budget.
+Strict serializer-family/absence audits pass. Mac clean build:
+**2,291,752 raw / 698,034 gzip**, within the same budget. Measurements price
+whole host-built artifacts; they are not per-feature marginal estimates.
+
+Muse and fresh Codex 6.1 high review records are verbatim with provenance under
+`llp/reviews/`, invocation transcripts/prompts archived under the report folder.
+Round 1 NOT READY findings repaired; round 2 both READY; final integrated source
+round 3 both READY (`74895a66f0`); round 4's inaccurate PAGE attribution NOT READY
+preserved and corrected, round 5 both READY (`0969a934ec`). Bounded inspector
+repair round 6 **both READY** (`1bc9993aec`), no material findings. Reviews establish
+source readiness; they do not replace execution qualification or author acceptance.
+
+## Evidence and outstanding work
+
+Evidence: `snapback4/reports/20261013-integration7/`. Superseded red runs and
+selection mistakes remain separately recorded; targeted passes do not relabel
+an earlier full-suite red. Root-only executable mode changes caused by Bun
+were restored. No full `scripts/test.sh` invocation; cargo uses disabled
+incremental/debug settings throughout. No user permission or credential exposure.
+
+Outstanding: corrected Swift compile, one complete green Mac client/model run,
+final cross-host archive and report commit; final verification-ref transfer only.
