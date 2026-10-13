@@ -94876,3 +94876,11 @@ discovery on expiry-only tables exhausting private authorization before the
 ordinary drain cut. Keep their original key-only discovery; decode/step heads
 for stored opening lifetimes only. Upper-expiry filtering remains at the
 existing candidate boundary; timed-head filtering and every ceiling remain.
+
+### 2026-10-14 — Integration 9 upgrade release pins
+
+The new DX2 upgrade witness runs the current compiler, so its upgrade delta,
+mock newly installed package and persisted check-surface version must follow
+the package release. Read that release once rather than pinning the live
+compiler to 0.4.25; retain the deliberately old 0.4.24 baseline. All four
+upgrade cases pass before the bump and will be rerun against 0.4.26.

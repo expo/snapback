@@ -11,6 +11,7 @@ import vm from 'node:vm';
 import { settleMutation } from '../dist/write-settlement.js';
 import { sentResult, matchRead, otherwiseAll } from '../dist/contract.js';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
+const releaseVersion = JSON.parse(readFileSync(new URL('../package.json', import.meta.url))).version;
 const bin = process.env.SNAPBACK4_BIN ?? join(root, 'target/debug/snapback4');
 const invoke = (args, cwd, env = {}) => spawnSync(bin, args, { cwd, encoding: 'utf8', env: { ...process.env, SNAPBACK4_BIN: bin, PORT_LO: undefined, PORT_HI: undefined, ...env }, timeout: 120000 });
 const success = result => assert.equal(result.status, 0, result.stdout + result.stderr);
@@ -43,7 +44,7 @@ test('first check after version change reports new notes, API nullability and re
   const old = { ...saved, version: '0.4.24', notes: {}, api: saved.api.replaceAll('number | null', 'number') };
   writeFileSync(path, JSON.stringify(old));
   const changed = invoke(['check'], dir); success(changed);
-  assert.match(changed.stdout, /upgrade delta: 0\.4\.24 → 0\.4\.25/);
+  assert.ok(changed.stdout.includes(`upgrade delta: 0.4.24 → ${releaseVersion}`), changed.stdout);
   assert.match(changed.stdout, /N_MAINTAIN_AUTHORIZATION \+1/);
   assert.match(changed.stdout, /Ops\.roomCount\.result: number → number \| null/);
   const again = invoke(['check'], dir); success(again); assert.ok(!again.stdout.includes('upgrade delta'));
@@ -74,11 +75,11 @@ test('upgrade captures the old installed compiler, checks the new one and points
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ packageManager: 'npm@10', dependencies: { snapback4: '0.4.24' } }));
   writeFileSync(join(dir, 'exact.mjs'), '// Exact application marker; HS owns the rebuild implementation.');
   mkdirSync(join(dir, 'tools'));
-  writeFileSync(join(dir, 'tools/npm'), `#!${process.execPath}\nconst fs=require('fs');if(process.argv[2]==='view'){console.log('"0.4.25"');}else{for(const file of ['package.json','node_modules/snapback4/package.json']){const p=JSON.parse(fs.readFileSync(file));if(p.dependencies)p.dependencies.snapback4='0.4.25';else p.version='0.4.25';fs.writeFileSync(file,JSON.stringify(p));}}`, { mode: 0o755 });
+  writeFileSync(join(dir, 'tools/npm'), `#!${process.execPath}\nconst fs=require('fs');if(process.argv[2]==='view'){console.log('${JSON.stringify(releaseVersion)}');}else{for(const file of ['package.json','node_modules/snapback4/package.json']){const p=JSON.parse(fs.readFileSync(file));if(p.dependencies)p.dependencies.snapback4='${releaseVersion}';else p.version='${releaseVersion}';fs.writeFileSync(file,JSON.stringify(p));}}`, { mode: 0o755 });
   const result = invoke(['upgrade'], dir, { PATH: `${join(dir, 'tools')}:${process.env.PATH}` }); success(result);
   assert.match(result.stdout + result.stderr, /Ops\.roomCount\.result: number → number \| null/);
   assert.match(result.stdout, /Exact device rebuild: bun exact\.mjs snapback --rebuild/);
-  assert.equal(JSON.parse(readFileSync(join(dir, '.snapback4/check-surface.json'))).version, '0.4.25');
+  assert.equal(JSON.parse(readFileSync(join(dir, '.snapback4/check-surface.json'))).version, releaseVersion);
 });
 
 
@@ -88,7 +89,7 @@ test('module-only backends compile and participate in upgrade qualification', t 
   assert.match(readFileSync(join(dir, 'snapback/generated/api.ts'), 'utf8'), /roomCount/);
   // A failing installation helper must not erase the old compiler baseline.
   const old = readFileSync(join(dir, '.snapback4/check-surface.json'), 'utf8');
-  writeFileSync(join(dir, 'package.json'), JSON.stringify({ packageManager: 'npm@10', dependencies: { snapback4: '0.4.25' } }));
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ packageManager: 'npm@10', dependencies: { snapback4: releaseVersion } }));
   mkdirSync(join(dir, 'node_modules')); symlinkSync(join(root, 'packages/snapback4'), join(dir, 'node_modules/snapback4'));
   mkdirSync(join(dir, 'tools')); writeFileSync(join(dir, 'tools/npm'), `#!${process.execPath}\nprocess.exit(1);`, { mode: 0o755 });
   const result = invoke(['upgrade'], dir, { PATH: `${join(dir, 'tools')}:${process.env.PATH}` }); assert.equal(result.status, 1);
@@ -99,15 +100,15 @@ test('upgrade resolves the new compiler after a pnpm-style package symlink repla
   const dir=project(t);mkdirSync(join(dir,'snapback'));writeFileSync(join(dir,'snapback/schema.q'),aggregates);success(invoke(['check'],dir));
   const oldApi=readFileSync(join(dir,'snapback/generated/api.ts'),'utf8').replaceAll('number | null','number');
   mkdirSync(join(dir,'node_modules'));mkdirSync(join(dir,'tools'));
-  for(const [folder,version] of [['old','0.4.24'],['new','0.4.25']]){
+  for(const [folder,version] of [['old','0.4.24'],['new',releaseVersion]]){
     const pack=join(dir,folder);mkdirSync(join(pack,'dist'),{recursive:true});mkdirSync(join(pack,'bin'));
     writeFileSync(join(pack,'package.json'),JSON.stringify({name:'snapback4',version,exports:{'./bin-path':'./dist/bin-path.js'}}));writeFileSync(join(pack,'dist/bin-path.js'),'');
     writeFileSync(join(pack,'bin/snapback4.js'),folder==='old'?`require('fs').writeFileSync('snapback/generated/api.ts',${JSON.stringify(oldApi)});console.log(JSON.stringify({ok:true,notes:[]}));`:`const r=require('child_process').spawnSync(${JSON.stringify(bin)},process.argv.slice(2),{encoding:'utf8'});process.stdout.write(r.stdout);process.stderr.write(r.stderr);process.exit(r.status);`);
   }
   symlinkSync(join(dir,'old'),join(dir,'node_modules/snapback4'));
   writeFileSync(join(dir,'package.json'),JSON.stringify({packageManager:'pnpm@10',dependencies:{snapback4:'0.4.24'}}));
-  writeFileSync(join(dir,'tools/pnpm'),`#!${process.execPath}\nconst fs=require('fs');if(process.argv[2]==='view'){console.log('"0.4.25"')}else{const p=JSON.parse(fs.readFileSync('package.json'));p.dependencies.snapback4='0.4.25';fs.writeFileSync('package.json',JSON.stringify(p));fs.unlinkSync('node_modules/snapback4');fs.symlinkSync(${JSON.stringify(join(dir,'new'))},'node_modules/snapback4');}`,{mode:0o755});
+  writeFileSync(join(dir,'tools/pnpm'),`#!${process.execPath}\nconst fs=require('fs');if(process.argv[2]==='view'){console.log('${JSON.stringify(releaseVersion)}')}else{const p=JSON.parse(fs.readFileSync('package.json'));p.dependencies.snapback4='${releaseVersion}';fs.writeFileSync('package.json',JSON.stringify(p));fs.unlinkSync('node_modules/snapback4');fs.symlinkSync(${JSON.stringify(join(dir,'new'))},'node_modules/snapback4');}`,{mode:0o755});
   const result=invoke(['upgrade'],dir,{PATH:`${join(dir,'tools')}:${process.env.PATH}`});success(result);
   assert.match(result.stdout+result.stderr,/Ops\.roomCount\.result: number → number \| null/);
-  assert.equal(JSON.parse(readFileSync(join(dir,'.snapback4/check-surface.json'))).version,'0.4.25');
+  assert.equal(JSON.parse(readFileSync(join(dir,'.snapback4/check-surface.json'))).version,releaseVersion);
 });
