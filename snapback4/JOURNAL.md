@@ -94543,3 +94543,23 @@ The locked Linux web artifact measures 2,302,339 B raw / 701,955 B gzip. Set
 56 B gzip change. Against `f9e40ef515`, the complete artifact adds 10,910 B raw /
 3,569 B gzip. No runtime ceiling increase, per-feature attribution or macOS
 measurement. Ninth-round blind reviews and final campaigns are in progress.
+
+## 2026-10-13 — PAGE2 typed ids and expression-step discovery fences
+
+Intrinsic focal `.id` has its table reference type during early positional
+planning, so competing equal-arity text/foreign uniques do not hide the exact
+membership plan. Native/Lean parity and generated competing-unique cases pass.
+Only step bounds inside membership discovery become the empty incomplete
+no-continuation fence: filters, distinct values, initial and dynamic prefixes,
+lazy merge and eager fallback. Bindings restore before the cut; heap and pending
+publication errors retain their behavior. The old positive-ceiling controls
+return E_BOUND; restored step sweeps pass. Core meter 9/9, simulator membership
+8/8 and both-store device branch merges 12/12 pass. Twelfth planner reviews and
+final campaigns are in progress; unchanged time audiences have two READY
+round-ten reviews and are recorded Implemented.
+
+The clean locked Linux web device measures 2,305,135 B raw / 703,255 B gzip /
+531,512 B brotli. Set 703,755 B = measurement plus exactly 500 B, replacing
+702,455 B after a whole-artifact change of +2,796 raw / +1,300 gzip. Against
+`f9e40ef515`, the total change is +13,706 raw / +4,869 gzip. No runtime ceiling
+increase, independent feature attribution, Mac or publication qualification.
