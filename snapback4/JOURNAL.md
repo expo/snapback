@@ -94333,8 +94333,8 @@ input tree, with only this nonfunctional test narration and evidence/docs after 
 
 The first required full Mac client pool exposes a bootstrap refusal before
 in-chat-search executes: compiler-group cleanup's system ps exceeds its ten
-second leaf guard. Shared-host load is942.68 with approximately5100 processes;
-owned file inspection separately sees15445 unrelated rows over three snapshots.
+second leaf guard. Shared-host load is 942.68 with approximately 5100 processes;
+owned file inspection separately sees 15445 unrelated rows over three snapshots.
 No product assertion or process identity mismatch fails. Retry only ETIMEDOUT
 once within the existing sixty-second total drain deadline, discard partial
 bytes, and still require two fresh empty snapshots. Nine Linux group tests pass,
