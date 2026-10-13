@@ -41,7 +41,7 @@ export function registerWebWitness(app: App, api: Operations): void {
         const eligible = !claimed && !!click && window.event === click && !options?.[outsideClick] && durable && (!name || name === op.name);
         // An App call entered from a submit/other context must not borrow the
         // restored outer click when its readiness await reaches the Client.
-        const forwarded = !eligible && receiver === app && durable ? { ...options, [outsideClick]: true } : options;
+        const forwarded = !eligible && receiver === app && durable ? { ...options, id: options?.id, waitSeconds: options?.waitSeconds, [outsideClick]: true } : options;
         const invoke = () => original.call(receiver, op, args, forwarded) as Promise<Write>;
         if (!eligible) return invoke();
         claimed = true; restore();
