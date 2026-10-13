@@ -5,7 +5,7 @@ mod common;
 use common::*;
 use serde_json::json;
 use snapback4_core::{Context, Engine, Store, Value, WriteState, value::object, wire};
-use snapback4_device::device::{Backend, StreamPage};
+use snapback4_device::device::{Backend, Queued, StreamPage};
 use std::collections::BTreeMap;
 
 const OPEN: i64 = 100;
@@ -36,6 +36,29 @@ mutation reschedule(key: releases, opensAt: time):
 mutation remove(key: releases):
   delete releases[key]
   return null
+"#;
+
+const PENDING_SOURCE: &str = r#"table gates:
+  opensAt: time
+  closesAt: time
+  by byOpening: opensAt
+  by byExpiry: closesAt
+  not before .opensAt
+  expire at .closesAt
+  public 'scheduled gates'
+  sync public
+table awards:
+  label: text <=20
+  public 'awards'
+  insert <- allow
+  sync public
+query asserted(id: gates):
+  gate = gates[id] ! else NOT_FOUND
+  return gate
+mutation grant(id: gates, award: id):
+  insert awards { id: award, label: 'granted' }
+  require exists gates[id] else NOT_FOUND
+  return true
 "#;
 
 fn membership_source(timed: bool) -> String {
@@ -78,6 +101,20 @@ fn compile_at(now: i64) -> (Engine, Backend) {
         schema: bound.schema,
         programs,
     };
+    (engine, backend)
+}
+
+fn compile_pending() -> (Engine, Backend) {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), PENDING_SOURCE.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    let programs: Vec<_> = bound.programs.into_iter().map(|program| program.program).collect();
+    let engine = Engine::new_at(
+        Store::memory().unwrap(),
+        bound.schema.clone(),
+        programs.clone(),
+        0,
+    ).unwrap();
+    let backend = Backend { generation: engine.generation(), schema: bound.schema, programs };
     (engine, backend)
 }
 
@@ -344,4 +381,107 @@ fn time_audience_adoption_memory_device() {
 #[test]
 fn time_audience_adoption_sqlite_device() {
     adoption_withholds_previously_held_group(&mut Sqlite::new("time-audience-adoption"));
+}
+
+fn pending_write_retries_from_the_durable_outbox<H: Host>(host: &mut H) {
+    let (mut server, backend) = compile_pending();
+    server.seed_at(["a", "b"].map(|key| (
+        "gates".into(),
+        object([
+            ("id", id(key)),
+            ("opensAt", Value::Int(OPEN)),
+            ("closesAt", Value::Int(500)),
+        ]),
+    )), 0).unwrap();
+    let mut device = host.open("pending-write", Some(backend)).unwrap();
+    device.apply(&snapshot(&mut server, "alice", 0), true).unwrap();
+    let queued = device.admit(Queued {
+        upload: None,
+        id: "same-write".into(),
+        seq: 1,
+        op: "grant".into(),
+        args: json!({"id":"b", "award":"award"}),
+        new_ids: vec![],
+        predicted: vec![],
+        viewer: "alice".into(),
+        now: OPEN,
+        predictable: false,
+        sent_seq: None,
+        receipt_store: None,
+        observed_seq: None,
+        dispatch: None,
+    }).unwrap();
+    assert!(device.store().raw_rows("awards").is_empty(), "admission invented award authority");
+    device.begin_send_for(Some(&queued.id)).unwrap();
+    let args = BTreeMap::from([
+        ("id".into(), id("b")),
+        ("award".into(), id("award")),
+    ]);
+    let error = server.mutate(
+        "grant",
+        Some(&queued.id),
+        Context::new("alice", args.clone()).at(OPEN),
+    ).unwrap_err();
+    assert_eq!(error.code(), "E_TIME_AUDIENCE_PENDING");
+    assert!(error.refusal().retryable);
+    device.hold_write(&queued.id, error.code().as_ref()).unwrap();
+    let held = device.queued().unwrap();
+    assert_eq!(held.len(), 1);
+    assert_eq!(held[0].id, queued.id);
+    assert_eq!(held[0].dispatch.as_deref(), Some("E_TIME_AUDIENCE_PENDING"));
+    assert_eq!(held[0].receipt_store, None);
+    assert_eq!(held[0].sent_seq, None);
+    assert_eq!(server.store().count("awards").unwrap(), 0);
+    assert!(device.store().raw_rows("awards").is_empty());
+
+    host.close("pending-write", device);
+    let mut device = host.open("pending-write", None).unwrap();
+    let restored = device.queued().unwrap();
+    assert_eq!(restored.len(), 1);
+    assert_eq!(restored[0].id, "same-write");
+    assert_eq!(restored[0].dispatch.as_deref(), Some("E_TIME_AUDIENCE_PENDING"));
+    assert_eq!(restored[0].receipt_store, None);
+
+    let opened = server.query(
+        "asserted",
+        Context::new("alice", BTreeMap::from([("id".into(), id("b"))])).at(OPEN),
+    ).unwrap();
+    assert_eq!(opened.data.as_object().unwrap().get("id"), Some(&id("b")));
+    device.begin_send_for(Some("same-write")).unwrap();
+    assert_eq!(device.queued().unwrap()[0].dispatch.as_deref(), Some(""));
+    let sent = server.mutate(
+        "grant",
+        Some("same-write"),
+        Context::new("alice", args.clone()).at(OPEN),
+    ).unwrap();
+    let WriteState::Sent { seq, .. } = sent.state else { panic!("retry failed: {sent:?}") };
+    let replay = server.mutate(
+        "grant",
+        Some("same-write"),
+        Context::new("alice", args).at(OPEN),
+    ).unwrap();
+    assert!(replay.replayed, "the original id was not recognized after success");
+    assert_eq!(server.store().count("awards").unwrap(), 1);
+
+    device.settle("same-write", Some(seq)).unwrap();
+    let from = device.state().unwrap().0;
+    device.apply(&stream(&mut server, "alice", from, OPEN), false).unwrap();
+    assert!(device.queued().unwrap().is_empty());
+    let awards = device.store().raw_rows("awards");
+    assert_eq!(awards.len(), 1);
+    assert_eq!(awards[0].as_object().unwrap().get("id"), Some(&id("award")));
+    host.close("pending-write", device);
+    let mut device = host.open("pending-write", None).unwrap();
+    assert!(device.queued().unwrap().is_empty());
+    assert_eq!(device.store().raw_rows("awards").len(), 1);
+}
+
+#[test]
+fn pending_write_retries_from_memory_device_outbox() {
+    pending_write_retries_from_the_durable_outbox(&mut Memory::new());
+}
+
+#[test]
+fn pending_write_retries_from_sqlite_device_outbox() {
+    pending_write_retries_from_the_durable_outbox(&mut Sqlite::new("pending-write"));
 }

@@ -50,6 +50,32 @@ mutation remove(key: releases):
   return null
 "#;
 
+const PENDING: &str = r#"table gates:
+  opensAt: time
+  closesAt: time
+  by byOpening: opensAt
+  by byExpiry: closesAt
+  not before .opensAt
+  expire at .closesAt
+  public 'scheduled gates'
+  sync public
+table awards:
+  label: text <=20
+  public 'awards'
+  insert <- allow
+  sync public
+query asserted(id: gates):
+  gate = gates[id] ! else NOT_FOUND
+  return gate
+query negative(id: gates):
+  require not exists gates[id] else PRESENT
+  return true
+mutation grant(id: gates, award: id):
+  insert awards { id: award, label: 'granted' }
+  require exists gates[id] else NOT_FOUND
+  return true
+"#;
+
 fn release(id_value: &str, opens_at: i64, expires_at: Value) -> (String, Value) {
     (
         "releases".into(),
@@ -65,6 +91,61 @@ fn release(id_value: &str, opens_at: i64, expires_at: Value) -> (String, Value) 
 struct SyncProbe {
     server: HostId,
     replies: Rc<RefCell<Vec<(u64, Json)>>>,
+}
+
+struct PendingProbe {
+    server: HostId,
+    replies: Rc<RefCell<Vec<Json>>>,
+}
+
+impl PendingProbe {
+    fn grant(rid: &str) -> String {
+        json!({
+            "t":"m", "rid":rid, "viewer":"alice", "op":"grant",
+            "id":"same-write", "args":{"id":"c", "award":"award"}
+        }).to_string()
+    }
+}
+
+impl Host for PendingProbe {
+    fn start(&mut self, ctx: &mut Ctx<'_>) {
+        ctx.timer(100, 1);
+    }
+
+    fn on(&mut self, ctx: &mut Ctx<'_>, event: Event) {
+        match event {
+            Event::Timer { .. } => ctx.send(
+                self.server,
+                json!({
+                    "t":"q", "rid":"absence", "viewer":"alice",
+                    "op":"negative", "args":{"id":"c"}
+                }).to_string(),
+            ),
+            Event::Deliver { payload, .. } => {
+                let reply: Json = serde_json::from_slice(&payload).unwrap();
+                let rid = reply["rid"].as_str().unwrap().to_owned();
+                self.replies.borrow_mut().push(reply);
+                match rid.as_str() {
+                    "absence" => ctx.send(self.server, Self::grant("first")),
+                    "first" => ctx.send(
+                        self.server,
+                        json!({
+                            "t":"q", "rid":"publish", "viewer":"alice",
+                            "op":"asserted", "args":{"id":"c"}
+                        }).to_string(),
+                    ),
+                    "publish" => ctx.send(self.server, Self::grant("retry")),
+                    "retry" => ctx.send(self.server, Self::grant("replay")),
+                    "replay" => {}
+                    other => panic!("unexpected reply {other}: {:?}", self.replies.borrow()),
+                }
+            }
+        }
+    }
+
+    fn state(&self) -> String {
+        json!({"role":"pending-probe", "replies":self.replies.borrow().len()}).to_string()
+    }
 }
 
 impl Host for SyncProbe {
@@ -125,6 +206,49 @@ fn simulated_server_publishes_at_the_exact_virtual_clock_boundary() {
         2,
         "the boundary is an ordinary commit"
     );
+}
+
+#[test]
+fn simulated_transport_retries_pending_absence_with_the_original_write_id() {
+    let mut server = engine(PENDING, 0);
+    server.seed_at(["a", "b", "c"].map(|key| (
+        "gates".into(),
+        object([
+            ("id", id(key)),
+            ("opensAt", Value::Int(100)),
+            ("closesAt", Value::Int(500)),
+        ]),
+    )), 0).unwrap();
+    let server = Rc::new(RefCell::new(server));
+    let replies = Rc::new(RefCell::new(Vec::new()));
+    let mut sim = Sim::new(13);
+    sim.faults.delay = (0, 0);
+    let server_id = sim.add(ServerHost::factory(server.clone()));
+    let saved = replies.clone();
+    sim.add(Box::new(move || Box::new(PendingProbe {
+        server: server_id,
+        replies: saved.clone(),
+    })));
+    sim.run_until(100);
+
+    let replies = replies.borrow();
+    assert_eq!(replies.len(), 5, "{}", sim.trace.tail(30));
+    assert_eq!(replies[0]["rid"], "absence");
+    assert_eq!(replies[0]["data"], Json::Null);
+    assert_eq!(replies[0]["complete"], false);
+    assert!(replies[0].get("denied").is_none(), "pending absence became a refusal: {}", replies[0]);
+    assert_eq!(replies[1]["rid"], "first");
+    assert_eq!(replies[1]["state"], "failed");
+    assert_eq!(replies[1]["why"]["code"], "E_TIME_AUDIENCE_PENDING");
+    assert_eq!(replies[1]["why"]["retryable"], true);
+    assert!(replies[1].get("seq").is_none(), "pending failure minted a receipt: {}", replies[1]);
+    assert_eq!(replies[2]["data"]["id"], "c");
+    assert_eq!(replies[3]["state"], "sent");
+    assert_eq!(replies[3]["replayed"], false);
+    assert_eq!(replies[4]["state"], "sent");
+    assert_eq!(replies[4]["replayed"], true);
+    assert_eq!(replies[3]["seq"], replies[4]["seq"]);
+    assert_eq!(server.borrow().store().count("awards").unwrap(), 1);
 }
 
 #[test]
