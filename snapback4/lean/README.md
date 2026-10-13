@@ -247,7 +247,7 @@ A case (one line):
     "name": "items",
     "cols": [ { "name": "owner", "nullable": false }, { "name": "maybe", "nullable": true } ],
     "uniques": [ ["tag"] ], "uniqueCodes": [ null ],
-    "read":   { "probe": { "table": "access", "key": [ ["bucket", { "col": ["self", "bucket"] }], ["principal", "viewer"] ] } },
+    "read":   { "probe": { "table": "access", "point": ["bucket", "principal"], "key": [ ["bucket", { "col": ["self", "bucket"] }], ["principal", "viewer"] ] } },
     "insert": "allow",
     "update": { "and": [ { "eq": [ { "col": ["old", "owner"] }, "viewer" ] }, { "eq": [ { "col": ["next", "owner"] }, "viewer" ] } ] },
     "delete": "deny" } ] },

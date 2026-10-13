@@ -68,7 +68,7 @@ fn schema_expansions_follow_syntax_lean() {
     let m = module(ROOMS);
     let members = table(&m, "members");
     // A positional rule probe resolves to the one unique key accepting (id, principal).
-    assert_eq!(members["read"], json!({"probe": {"table": "members", "key": [["roomId", {"col": ["self", "roomId"]}], ["principal", "viewer"]]}}));
+    assert_eq!(members["read"], json!({"probe": {"table": "members", "point": ["roomId", "principal"], "key": [["roomId", {"col": ["self", "roomId"]}], ["principal", "viewer"]]}}));
     // An unnamed update rule judges both images (OPEN R2).
     assert_eq!(members["update"], json!({"and": [{"eq": [{"col": ["old", "principal"]}, "viewer"]}, {"eq": [{"col": ["next", "principal"]}, "viewer"]}]}));
     // Omitted rules deny; uniques carry their `else` code.
@@ -133,7 +133,7 @@ query presence(o: bool ?, c: cursor ?):
 #[test]
 fn grants_guards_and_search_exists() {
     let m = module(CONSOLE);
-    assert_eq!(table(&m, "tickets")["read"], json!({"or": [{"eq": [{"col": ["self", "owner"]}, "viewer"]}, {"probe": {"table": "staff", "key": [["principal", "viewer"]]}}]}));
+    assert_eq!(table(&m, "tickets")["read"], json!({"or": [{"eq": [{"col": ["self", "owner"]}, "viewer"]}, {"probe": {"table": "staff", "point": ["principal"], "key": [["principal", "viewer"]]}}]}));
     let staff = json!({"bin": ["ne", {"point": {"table": "staff", "key": [["principal", "viewer"]]}}, {"lit": {"null": null}}]});
     let page = |pins: Value| json!({"page": {"table": "tickets", "pins": pins, "filter": null, "order": [], "desc": false, "take": 5, "after": {"var": "c"}}});
     let open = json!([["open", {"lit": {"bool": true}}]]);

@@ -284,7 +284,7 @@ theorem Rule.eval_set {s : Store} {t : String} {x : List Row} {v : List Nat} {im
     ∀ (r : Rule), t ∉ r.probes → r.eval (s.set t x) v im = r.eval s v im := by
   intro r
   induction r with
-  | probe t' key =>
+  | probe t' point key =>
     intro hn
     simp only [Rule.probes, List.mem_singleton] at hn
     simp only [Rule.eval, Store.set, Ne.symm hn, ite_false]

@@ -111,7 +111,7 @@ theorem Rule.eval_perm {s1 s2 : Store} (hp : ∀ t, (s1 t).Perm (s2 t)) {v : Lis
     ∀ r : Rule, r.eval s1 v im = r.eval s2 v im := by
   intro r
   induction r with
-  | probe t key =>
+  | probe t point key =>
     simp only [Rule.eval]
     split
     · rename_i ks _

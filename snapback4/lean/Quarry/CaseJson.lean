@@ -114,10 +114,11 @@ partial def rule (j : Json) : D Rule := do
   | "eq" => do let (a, b) ← pair v; return .eq (← term a) (← term b)
   | "ne" => do let (a, b) ← pair v; return .ne (← term a) (← term b)
   | "probe" => do
+    let point ← (← arr v "point").toList.mapM Json.getStr?
     let key ← (← arr v "key").toList.mapM fun p => do
       let (c, t) ← pair p
       return (← c.getStr?, ← term t)
-    return .probe (← str v "table") key
+    return .probe (← str v "table") point key
   | "and" => do let (a, b) ← pair v; return .and (← rule a) (← rule b)
   | "or" => do let (a, b) ← pair v; return .or (← rule a) (← rule b)
   | "not" => return .not (← rule v)

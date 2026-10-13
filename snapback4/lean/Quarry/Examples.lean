@@ -65,13 +65,13 @@ def minePage : Program := query (params := [p "c" true])
 /-- The rules card's documents and editors. -/
 def docs : Schema := { tables := [
   { name := "docs", cols := [c "ownerId", c "title", c "state"]
-    read := .or (.eq (self "ownerId") .viewer) (.probe "editors" [("docId", self "id"), ("principal", .viewer)])
+    read := .or (.eq (self "ownerId") .viewer) (.probe "editors" ["docId", "principal"] [("docId", self "id"), ("principal", .viewer)])
     insert := .and (.eq (self "ownerId") .viewer) (.eq (self "state") (.lit (T "draft")))
     update := .and (.and (.eq (old "ownerId") .viewer) (.eq (next "ownerId") .viewer))
       (.ne (old "state") (.lit (T "final")))
     delete := .eq (self "ownerId") .viewer },
   { name := "editors", cols := [c "docId", c "principal"], uniques := [["docId", "principal"]]
-    read := .probe "editors" [("docId", self "docId"), ("principal", .viewer)]
+    read := .probe "editors" ["docId", "principal"] [("docId", self "docId"), ("principal", .viewer)]
     delete := .eq (self "principal") .viewer }] }
 
 def docStore : Store := mkStore [
@@ -89,9 +89,9 @@ def profileStore : Store := mkStore [("profiles", [mkRow "p1" [("principal", I "
 /-- The reads card's room membership. -/
 def rooms : Schema := { tables := [
   { name := "members", cols := [c "roomId", c "principal"], uniques := [["roomId", "principal"]]
-    read := .probe "members" [("roomId", self "roomId"), ("principal", .viewer)] },
+    read := .probe "members" ["roomId", "principal"] [("roomId", self "roomId"), ("principal", .viewer)] },
   { name := "messages", cols := [c "roomId", c "body"]
-    read := .probe "members" [("roomId", self "roomId"), ("principal", .viewer)] }] }
+    read := .probe "members" ["roomId", "principal"] [("roomId", self "roomId"), ("principal", .viewer)] }] }
 
 def roomStore : Store := mkStore [
   ("members", [mkRow "m1" [("roomId", I "r1"), ("principal", I "alice")],
@@ -109,7 +109,7 @@ def console (hiddenRoster : Bool := false) : Schema := { tables := [
     caps := [{ columns := ["principal"], max := 16 }]
     read := if hiddenRoster then .deny else .eq (self "principal") .viewer },
   { name := "tickets", cols := [c "owner"]
-    read := .or (.eq (self "owner") .viewer) (.probe "staff" [("principal", .viewer)]) }] }
+    read := .or (.eq (self "owner") .viewer) (.probe "staff" ["principal"] [("principal", .viewer)]) }] }
 
 def consoleStore : Store := mkStore [
   ("staff", [mkRow "s1" [("principal", I "alice")]]),
@@ -123,7 +123,7 @@ boards[.board, owner = viewer]`, the board readable by everyone
 def boardsSchema (hiddenBoards : Bool := false) : Schema := { tables := [
   { name := "boards", cols := [c "owner"], read := if hiddenBoards then .deny else .allow },
   { name := "cards", cols := [c "board", c "author"]
-    read := .or (.eq (self "author") .viewer) (.probe "boards" [("id", self "board"), ("owner", .viewer)]) }] }
+    read := .or (.eq (self "author") .viewer) (.probe "boards" ["id"] [("id", self "board"), ("owner", .viewer)]) }] }
 
 def boardStore : Store := mkStore [
   ("boards", [mkRow "b1" [("owner", I "olga")], mkRow "b2" [("owner", I "olga")]]),
@@ -462,7 +462,7 @@ def membershipDocs : Schema := { tables := [
     read := .eq (self "principal") .viewer },
   { name := "documents", cols := [c "owner", c "parent", c "at"]
     read := .or (.eq (self "owner") .viewer)
-      (.probe "members" [("parent", self "parent"), ("principal", .viewer)]) }] }
+      (.probe "members" ["parent", "principal"] [("parent", self "parent"), ("principal", .viewer)]) }] }
 
 /-- Named exact keys resolve by column name; their authored order need not
 match the unique declaration's order. -/
@@ -473,7 +473,7 @@ def membershipDocsReordered : Schema := { tables := [
     read := .eq (self "principal") .viewer },
   { name := "documents", cols := [c "owner", c "parent", c "at"]
     read := .or (.eq (self "owner") .viewer)
-      (.probe "members" [("principal", .viewer), ("parent", self "parent")]) }] }
+      (.probe "members" ["parent", "principal"] [("principal", .viewer), ("parent", self "parent")]) }] }
 
 /-- Fixed named equalities beyond the unique key remain part of the witness;
 the unique columns need only be present once. -/
@@ -484,7 +484,7 @@ def membershipDocsExtraEquality : Schema := { tables := [
     read := .eq (self "principal") .viewer },
   { name := "documents", cols := [c "owner", c "parent", c "at"]
     read := .or (.eq (self "owner") .viewer)
-      (.probe "members" [("parent", self "parent"), ("principal", .viewer), ("role", .lit (T "member"))]) }] }
+      (.probe "members" ["parent", "principal"] [("parent", self "parent"), ("principal", .viewer), ("role", .lit (T "member"))]) }] }
 
 /-- A fixed source id remains witness evidence, but it is a residual rather
 than a discovery prefix and cannot make `cap by id` PAGE-eligible. -/
@@ -495,7 +495,7 @@ def membershipDocsFixedIdCap : Schema := { tables := [
     read := .allow },
   { name := "documents", cols := [c "owner", c "parent", c "bucket", c "at"]
     read := .or (.eq (self "owner") .viewer)
-      (.probe "members" [("id", .lit (I "m1")), ("parent", self "parent"), ("principal", .viewer)]) }] }
+      (.probe "members" ["id"] [("id", .lit (I "m1")), ("parent", self "parent"), ("principal", .viewer)]) }] }
 
 /-- Repeated copies of one party use one static descriptor, as the compiler
 deduplicates party columns before enforcing the eight-descriptor limit. -/
@@ -506,7 +506,7 @@ def membershipDocsRepeatedParty : Schema := { tables := [
     read := .eq (self "principal") .viewer },
   { name := "documents", cols := [c "owner", c "parent", c "at"]
     read := List.foldr Rule.or
-      (.probe "members" [("parent", self "parent"), ("principal", .viewer)])
+      (.probe "members" ["parent", "principal"] [("parent", self "parent"), ("principal", .viewer)])
       (List.replicate 7 (.eq (self "owner") .viewer)) }] }
 
 def membershipDocStore : Store := mkStore [
@@ -539,7 +539,7 @@ def nullableFixedIdDocs : Schema := { tables := [
     read := .eq (self "principal") .viewer },
   { name := "documents", cols := [c "owner", c "parent" true, c "at"]
     read := .or (.eq (self "owner") .viewer)
-      (.probe "members" [("id", .lit (I "m1")), ("parent", self "parent"), ("principal", .viewer)]) }] }
+      (.probe "members" ["id"] [("id", .lit (I "m1")), ("parent", self "parent"), ("principal", .viewer)]) }] }
 
 /-- Without an intrinsic id, the nullable parent belongs to the natural point
 key and null returns no row. -/
@@ -550,7 +550,19 @@ def nullableNaturalDocs : Schema := { tables := [
     read := .eq (self "principal") .viewer },
   { name := "documents", cols := [c "owner", c "parent" true, c "at"]
     read := .or (.eq (self "owner") .viewer)
-      (.probe "members" [("parent", self "parent"), ("principal", .viewer)]) }] }
+      (.probe "members" ["parent", "principal"] [("parent", self "parent"), ("principal", .viewer)]) }] }
+
+/-- A required natural unique can select the source row while nullable
+equalities remain residual. The nullable `slot` is fixed to a non-null value,
+so its declaration alone cannot decide point validity. -/
+def nullableNaturalResidualDocs : Schema := { tables := [
+  { name := "members", cols := [c "parent" true, c "slot" true, c "principal"]
+    uniques := [["slot", "principal"]]
+    caps := [{ columns := ["principal"], max := 16 }]
+    read := .eq (self "principal") .viewer },
+  { name := "documents", cols := [c "owner", c "parent" true, c "at"]
+    read := .or (.eq (self "owner") .viewer)
+      (.probe "members" ["slot", "principal"] [("parent", self "parent"), ("slot", .lit (N 0)), ("principal", .viewer)]) }] }
 
 def nullableMembershipPresent : Store := mkStore [
   ("members", [mkRow "m0" [("parent", .null), ("principal", I "alice")],
@@ -563,6 +575,16 @@ def nullableMembershipMissing : Store := mkStore [
   ("documents", [mkRow "owned" [("owner", I "alice"), ("parent", .null), ("at", N 1)],
                  mkRow "shared" [("owner", I "bob"), ("parent", .null), ("at", N 2)]])]
 
+def nullableNaturalResidualPresent : Store := mkStore [
+  ("members", [mkRow "m1" [("parent", .null), ("slot", N 0), ("principal", I "alice")]]),
+  ("documents", [mkRow "owned" [("owner", I "alice"), ("parent", .null), ("at", N 1)],
+                 mkRow "shared" [("owner", I "bob"), ("parent", .null), ("at", N 2)]])]
+
+def nullableNaturalResidualMissing : Store := mkStore [
+  ("members", [mkRow "m0" [("parent", .null), ("slot", N 0), ("principal", I "bob")]]),
+  ("documents", [mkRow "owned" [("owner", I "alice"), ("parent", .null), ("at", N 1)],
+                 mkRow "shared" [("owner", I "bob"), ("parent", .null), ("at", N 2)]])]
+
 /-- A membership keyed by the target row id is outside PAGE's ordinary-column
 classifier and keeps the incomplete scan. -/
 def membershipIdDocs : Schema := { tables := [
@@ -572,7 +594,7 @@ def membershipIdDocs : Schema := { tables := [
     read := .eq (self "principal") .viewer },
   { name := "documents", cols := [c "owner", c "at"]
     read := .or (.eq (self "owner") .viewer)
-      (.probe "shares" [("document", self "id"), ("principal", .viewer)]) }] }
+      (.probe "shares" ["document", "principal"] [("document", self "id"), ("principal", .viewer)]) }] }
 
 def membershipIdStore : Store := mkStore [
   ("shares", [mkRow "s1" [("document", I "d2"), ("principal", I "alice")]]),
@@ -644,6 +666,18 @@ def merged : List Example := [
   { name := "page-owner-membership-natural-null-key"
     source := "LLP 3000.036.001 §14: null in a nullable natural point key returns no witness"
     case := { schema := nullableNaturalDocs, store := nullableMembershipPresent, viewer := alice,
+              program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"owned","owner":"alice","parent":null,"at":1}],"complete":true,"next":null}"# },
+  { name := "page-owner-membership-natural-null-residual"
+    source := "LLP 3000.036.001 §14: a required natural point admits nullable residuals, including a nullable column fixed non-null"
+    case := { schema := nullableNaturalResidualDocs, store := nullableNaturalResidualPresent, viewer := alice,
+              program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"shared","owner":"bob","parent":null,"at":2},{"id":"owned","owner":"alice","parent":null,"at":1}],"complete":true,"next":null}"# },
+  { name := "page-owner-membership-natural-null-residual-missing"
+    source := "LLP 3000.036.001 §14: residual null equality does not create a membership witness when the selected natural point is absent"
+    case := { schema := nullableNaturalResidualDocs, store := nullableNaturalResidualMissing, viewer := alice,
               program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"owned","owner":"alice","parent":null,"at":1}],"complete":true,"next":null}"# },

@@ -43,9 +43,9 @@ theorem Rule.eval_mono {s1 s2 : Store} (hsub : ∀ t r, r ∈ s1 t → r ∈ s2 
     ∀ r : Rule, r.positive = true → r.eval s1 v im = true → r.eval s2 v im = true := by
   intro r
   induction r with
-  | probe t key =>
+  | probe t point key =>
     intro _ h
-    cases hk : probeKey v im key with
+    cases hk : probeKey v im point key with
     | none => simp [Rule.eval, hk] at h
     | some ks =>
       simp only [Rule.eval, hk, List.any_eq_true] at h ⊢
@@ -80,9 +80,9 @@ theorem probeTerms_mapTerms {v : List Nat} {im1 im2 : Imgs} {f : Term → Term} 
     simp only [List.mapM_cons, List.map_cons, h1, h2]
 
 theorem probeKey_mapTerms {v : List Nat} {im1 im2 : Imgs} {f : Term → Term}
-    (key : List (String × Term))
+    (point : List String) (key : List (String × Term))
     (h : ∀ p ∈ key, p.2.eval v im1 = (f p.2).eval v im2) :
-    probeKey v im1 key = probeKey v im2 (key.map fun p => (p.1, f p.2)) := by
+    probeKey v im1 point key = probeKey v im2 point (key.map fun p => (p.1, f p.2)) := by
   unfold probeKey
   rw [probeTerms_mapTerms key h]
 
@@ -101,9 +101,9 @@ theorem Rule.eval_mapTerms {s : Store} {v : List Nat} {im1 im2 : Imgs} {f : Term
     intro h
     simp only [Rule.terms, List.mem_cons, List.mem_nil_iff, or_false, forall_eq_or_imp, forall_eq] at h
     simp only [Rule.eval, Rule.mapTerms, h.1, h.2]
-  | probe t key =>
+  | probe t point key =>
     intro h
-    have hk := probeKey_mapTerms (f := f) key (fun p hp => h p.2 (by simp only [Rule.terms, List.mem_map]; exact ⟨p, hp, rfl⟩))
+    have hk := probeKey_mapTerms (f := f) point key (fun p hp => h p.2 (by simp only [Rule.terms, List.mem_map]; exact ⟨p, hp, rfl⟩))
     simp only [Rule.eval, Rule.mapTerms, hk]
   | and a b iha ihb =>
     intro h
@@ -122,7 +122,7 @@ theorem Rule.eval_mapTerms {s : Store} {v : List Nat} {im1 im2 : Imgs} {f : Term
 theorem Rule.mapTerms_id : ∀ r : Rule, r.mapTerms id = r := by
   intro r
   induction r with
-  | probe t key => simp [Rule.mapTerms]
+  | probe t point key => simp [Rule.mapTerms]
   | and a b iha ihb => simp [Rule.mapTerms, iha, ihb]
   | or a b iha ihb => simp [Rule.mapTerms, iha, ihb]
   | not a ih => simp [Rule.mapTerms, ih]

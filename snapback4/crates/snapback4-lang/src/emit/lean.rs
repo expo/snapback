@@ -461,6 +461,7 @@ impl RuleCtx<'_> {
         }
         let kinds: Vec<Option<Kind>> = terms.iter().map(|t| t.1.clone()).collect();
         let columns = resolve_key(target, &read.keys, &kinds)?;
+        let point = resolve_probe_point(target, &read.keys, &columns)?;
         let mut key = Vec::new();
         for (c, (mut t, _)) in columns.iter().zip(terms) {
             if target.col(c).as_ref().is_some_and(Kind::is_id) {
@@ -468,7 +469,7 @@ impl RuleCtx<'_> {
             }
             key.push(json!([c, t]));
         }
-        Ok(json!({"probe": {"table": read.table, "key": key}}))
+        Ok(json!({"probe": {"table": read.table, "point": point, "key": key}}))
     }
 }
 
@@ -539,6 +540,72 @@ fn resolve_key(table: &Table, keys: &[KeyPart], kinds: &[Option<Kind>]) -> R<Vec
         [one] => Ok((*one).clone()),
         _ => no("key-unresolved", format!("{}[..] matches {} unique keys", table.name, fits.len())),
     }
+}
+
+/// The unique key selected by a rule probe. Named equalities may contain
+/// residual predicates beyond the point key; the binder selects the shortest
+/// covered total unique, then the first declared candidate. Positional probes
+/// keep their declared-only, type-directed resolution above.
+// @ref LLP 3000.036.001#14 — nullable residual membership equalities are distinct from the selected point key.
+fn resolve_probe_point(table: &Table, keys: &[KeyPart], columns: &[String]) -> R<Vec<String>> {
+    if keys.iter().any(|key| key.column.is_none()) {
+        return Ok(columns.to_vec());
+    }
+    if columns.iter().any(|column| column == "id") {
+        return Ok(vec!["id".into()]);
+    }
+    let total = |unique: &[String]| {
+        unique.iter().all(|column| {
+            column == "id"
+                || table
+                    .cols
+                    .iter()
+                    .find(|candidate| candidate.name == *column)
+                    .is_some_and(|candidate| !candidate.nullable)
+        })
+    };
+    let mut candidates: Vec<&Vec<String>> = table
+        .uniques
+        .iter()
+        .filter(|unique| {
+            unique.len() == columns.len() && unique.iter().all(|column| columns.contains(column))
+                || total(unique) && unique.iter().all(|column| columns.contains(column))
+        })
+        .collect();
+    if let Some(width) = candidates
+        .iter()
+        .filter(|unique| total(unique))
+        .map(|unique| unique.len())
+        .min()
+    {
+        candidates.retain(|unique| unique.len() == width && total(unique));
+        if candidates.len() > 1 {
+            let sets: BTreeSet<Vec<String>> = candidates
+                .iter()
+                .map(|unique| {
+                    let mut columns = (*unique).clone();
+                    columns.sort();
+                    columns
+                })
+                .collect();
+            if sets.len() != candidates.len() {
+                return no(
+                    "rule-probe-key",
+                    format!(
+                        "{}[..] matches repeated orderings of one unique key",
+                        table.name
+                    ),
+                );
+            }
+        }
+        return Ok(candidates[0].clone());
+    } else if let [selected] = candidates.as_slice() {
+        return Ok((*selected).clone());
+    }
+    no(
+        "rule-probe-key",
+        format!("{}[..] does not select one declared unique key", table.name),
+    )
 }
 
 /// Expression translation in one lexical scope.

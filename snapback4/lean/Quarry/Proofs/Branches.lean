@@ -59,7 +59,7 @@ theorem partyLeaves_cover (r : Rule) : ∀ {ps : List String}, r.partyLeaves = s
   | allow => intro ps hp; simp [Rule.partyLeaves] at hp
   | deny => intro ps hp; simp [Rule.partyLeaves] at hp
   | ne _ _ => intro ps hp; simp [Rule.partyLeaves] at hp
-  | probe _ _ => intro ps hp; simp [Rule.partyLeaves] at hp
+  | probe _ _ _ => intro ps hp; simp [Rule.partyLeaves] at hp
   | and _ _ _ _ => intro ps hp; simp [Rule.partyLeaves] at hp
   | not _ _ => intro ps hp; simp [Rule.partyLeaves] at hp
 
@@ -85,7 +85,7 @@ theorem parties_cover_view {sch : Schema} {s : Store} {v : List Nat} {t : String
 /-- The evidence carried by one opened branch for one target row. -/
 def AccessBranch.holds (s : Store) (v : List Nat) (r : Row) : AccessBranch → Bool
   | .party c => decide (r.get c = .id v)
-  | .membership t key => (Rule.probe t key).eval s v { self := some r }
+  | .membership t point key => (Rule.probe t point key).eval s v { self := some r }
 
 /-- **Branch soundness.** A row emitted by a classified party or membership
 lane is admitted by the original rule. Membership eligibility strengthens
@@ -111,7 +111,7 @@ theorem accessLeaves_sound (rule : Rule) : ∀ {leaves branch s v r},
         simpa [Rule.eval, Term.eval, Imgs.get] using hrow.symm
       | _ => simp [Rule.accessLeaves] at hl
     | lit _ => simp [Rule.accessLeaves] at hl
-  | probe t key =>
+  | probe t point key =>
     intro leaves branch s v r hl hb hh
     simp [Rule.accessLeaves] at hl
     subst hl; simp at hb; subst branch
@@ -161,11 +161,11 @@ theorem accessLeaves_cover (rule : Rule) : ∀ {leaves s v r},
         exact ⟨.party c, List.mem_singleton_self _, by simpa [AccessBranch.holds] using hrow.symm⟩
       | _ => simp [Rule.accessLeaves] at hl
     | lit _ => simp [Rule.accessLeaves] at hl
-  | probe t key =>
+  | probe t point key =>
     intro leaves s v r hl he
     simp [Rule.accessLeaves] at hl
     subst hl
-    exact ⟨.membership t key, List.mem_singleton_self _, by simpa [AccessBranch.holds] using he⟩
+    exact ⟨.membership t point key, List.mem_singleton_self _, by simpa [AccessBranch.holds] using he⟩
   | or a b iha ihb =>
     intro leaves s v r hl he
     simp only [Rule.accessLeaves] at hl

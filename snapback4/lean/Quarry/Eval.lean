@@ -290,14 +290,14 @@ descriptor keeps the exact probe; at runtime its one row-dependent key
 component becomes the dynamic target prefix. -/
 inductive AccessBranch where
   | party (column : String)
-  | membership (table : String) (key : List (String × Term))
+  | membership (table : String) (point : List String) (key : List (String × Term))
   deriving Repr
 
 /-- The syntactic leaves accepted by PAGE: parties and exact probes, joined
 only by top-level `or`. Eligibility of a probe is checked separately. -/
 def Rule.accessLeaves : Rule → Option (List AccessBranch)
   | .eq (.col .self c) .viewer | .eq .viewer (.col .self c) => some [.party c]
-  | .probe t key => some [.membership t key]
+  | .probe t point key => some [.membership t point key]
   | .or a b => do return (← a.accessLeaves) ++ (← b.accessLeaves)
   | _ => none
 
@@ -326,17 +326,20 @@ def membershipColumns (key : List (String × Term)) : Option (String × String) 
   if pair.2 != "id" && key.all (fun p => p.2.fixedExpr.isSome || dynamic.contains pair && p == (pair.1, .col .self pair.2))
   then some pair else none
 
-/-- An exact membership probe has a declared unique key or the intrinsic `id`
-key, one target-row component, fixed readable source pins, and a finite cap
-grouped wholly by those fixed columns (LLP 3000.036.001 §14). -/
-def membershipEligible (sch : Schema) (t : String) (key : List (String × Term)) : Bool :=
+/-- An exact membership probe selects a declared unique point or the intrinsic
+`id` point, has one target-row component and fixed readable source pins, and
+has a finite cap grouped wholly by those fixed columns (LLP 3000.036.001 §14).
+Equalities outside `point` are residual predicates rather than point-key
+components. -/
+def membershipEligible (sch : Schema) (t : String) (point : List String)
+    (key : List (String × Term)) : Bool :=
   match sch.table? t, membershipColumns key with
   | some td, some _ =>
     let columns := key.map (·.1)
     let fixed := key.filterMap fun p => p.2.fixedExpr.map (p.1, ·)
-    let exactUnique := columns.eraseDups.length == columns.length &&
-      (columns.contains "id" || td.uniques.any fun unique =>
-        unique.eraseDups.length == unique.length && unique.all columns.contains)
+    let exactUnique := point.eraseDups.length == point.length
+      && point.all columns.contains
+      && (point == ["id"] || td.uniques.any fun unique => unique == point)
     exactUnique
       && td.caps.any (fun cap => cap.max ≤ 8192
         && cap.columns.all fun c => c != "id" && fixed.any (·.1 == c))
@@ -350,12 +353,12 @@ def Rule.ownerMembership? (sch : Schema) (r : Rule) : Option (List AccessBranch)
   let leaves ← r.accessLeaves
   let topOr := match r with | .or _ _ => true | _ => false
   let parties := leaves.filterMap fun b => match b with | .party c => some c | _ => none
-  let memberships := leaves.filter fun b => match b with | .membership _ _ => true | _ => false
+  let memberships := leaves.filter fun b => match b with | .membership _ _ _ => true | _ => false
   let party := !parties.isEmpty
   let membership := !memberships.isEmpty
   let eligible := leaves.all fun b => match b with
     | .party _ => true
-    | .membership t key => membershipEligible sch t key
+    | .membership t point key => membershipEligible sch t point key
   if topOr && party && membership && eligible
       && parties.eraseDups.length + memberships.length + 1 ≤ 8
   then some leaves else none
@@ -369,10 +372,10 @@ def Rule.ownerMembershipReserved (sch : Schema) (r : Rule) : Bool :=
   | some leaves =>
     let topOr := match r with | .or _ _ => true | _ => false
     let party := leaves.any fun b => match b with | .party _ => true | _ => false
-    let membership := leaves.any fun b => match b with | .membership _ _ => true | _ => false
+    let membership := leaves.any fun b => match b with | .membership _ _ _ => true | _ => false
     let capped := leaves.all fun b => match b with
       | .party _ => true
-      | .membership t key => match sch.table? t with
+      | .membership t _ key => match sch.table? t with
         | none => false
         | some td =>
           let fixed := key.filterMap fun p => p.2.fixedExpr.map (p.1, ·)
@@ -397,14 +400,14 @@ def Rule.disclosing (sch : Schema) : Rule → Bool
     | .viewer | .lit _ | .col .self _ => true
     | _ => false
   | .and a b => a.disclosing sch && b.disclosing sch
-  | .probe t key => match sch.table? t with
+  | .probe t _ key => match sch.table? t with
     | some td =>
       let known := key.filterMap fun p => match p.2 with
         | .col .self _ => none
         | term => some (p.1, term.asKnown)
       match known.mapM (fun p => p.2.map (p.1, ·)) with
       | some pins => td.read.byForm pins || td.read.disjuncts.any fun d => match d with
-          | .probe t' key' => t' == t && key'.all (fun k => key.any fun k2 => k.1 == k2.1 && k.2 == k2.2)
+          | .probe t' _ key' => t' == t && key'.all (fun k => key.any fun k2 => k.1 == k2.1 && k.2 == k2.2)
           | _ => false
       | none => false
     | none => false
@@ -483,7 +486,7 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
     -- keeps the original scan. That PAGE fallback governs every older branch
     -- case as well; otherwise case 1 could still classify the same read.
     let pinnedMembership := membershipRule.any fun leaves => leaves.any fun leaf => match leaf with
-      | .membership _ key => (membershipColumns key).any fun pair =>
+      | .membership _ _ key => (membershipColumns key).any fun pair =>
           pins.any (·.1 == pair.2)
             || alts.any fun bases => bases.any fun a => (a.filterMap Expr.eqPin).any (·.1 == pair.2)
       | .party _ => false
@@ -505,13 +508,13 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
       | some leaves =>
         let bases := alts.getD [[]]
         let parties := leaves.filterMap fun leaf => match leaf with | .party c => some c | _ => none
-        let memberships := leaves.filter fun leaf => match leaf with | .membership _ _ => true | _ => false
+        let memberships := leaves.filter fun leaf => match leaf with | .membership _ _ _ => true | _ => false
         bases.length * (parties.eraseDups.length + memberships.length) + 1 ≤ 8
           && !(order.head?.any fun o => o != "id" && pins.any (·.1 == o))
           && bases.all fun a => leaves.all fun leaf => match leaf with
             | .party c => c != "id" && !order.contains c
                 && laneFits order ((c, .viewer) :: a.filterMap Expr.eqPin) pins
-            | .membership _ key => (membershipColumns key).any fun pair =>
+            | .membership _ _ key => (membershipColumns key).any fun pair =>
                 !order.contains pair.2 && !pins.any (·.1 == pair.2)
                   && !(a.filterMap Expr.eqPin).any (·.1 == pair.2)
                   && laneFits order ((pair.2, .viewer) :: a.filterMap Expr.eqPin) pins

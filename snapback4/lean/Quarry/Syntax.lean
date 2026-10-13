@@ -78,8 +78,9 @@ inductive Rule where
   | deny
   | eq (a b : Term)
   | ne (a b : Term)
-  /-- `exists t[c1 = term1, …]`: an exact-key probe of another (or the same) table. -/
-  | probe (t : String) (key : List (String × Term))
+  /-- `exists t[c1 = term1, …]`: an exact-key probe. `point` names the
+  selected unique key; the other equalities are residual predicates. -/
+  | probe (t : String) (point : List String) (key : List (String × Term))
   | and (a b : Rule)
   | or (a b : Rule)
   | not (a : Rule)
