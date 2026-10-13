@@ -569,11 +569,12 @@ pub fn branch_merge_lazy(schema: &Schema, merge: &Merge) -> bool {
         let authority = if lane.membership() { membership_branch(schema, lane) }
             else if lane.system() { lane.source.is_none() }
             else if lane.grant() { lane.source.is_none() && covering_grant(schema, scan).is_some() }
+            else if lane.guarded() { lane.source.is_none() && page_guard_decision(schema, scan).is_some() }
             else { lane.source.is_none() && scan_visibility(schema, scan).uniform };
         lane.project.is_none() && lane.setup.is_empty() && scan.table == first.scan.table
             && scan.prefix.iter().all(|key| matches!(key, IndexKeyExpr::Scalar(_)))
             && scan.order == first.scan.order && !scan.existence && same
-            && (scan.prefix.len() < index.components.len() || membership_point_id(schema, lane))
+            && (scan.prefix.len() < index.components.len() || prefix_total_unique || membership_point_id(schema, lane))
             && index.word_component().is_none()
             // A dynamic target-id lane uses `[id, order…]`: its scalar id
             // prefix is already a total point even though the physical index
@@ -696,7 +697,9 @@ fn membership_witness(schema: &Schema, lane: &crate::ir::MergeLane, null_distinc
     let fixed = |column: &String| source_index.components.iter().zip(&source.prefix)
         .find_map(|(part, key)| (part.column() == Some(column)).then(|| key.scalar()).flatten())
         .or_else(|| source.filter.as_deref().and_then(|filter| required_source_equality(filter, column)));
-    any_disjunct(&outer_table.rules.read, &|rule| {
+    let pins = scan_pinned(outer_table, &lane.scan);
+    let pinned = |column: &str| pins.iter().find_map(|(name, value)| (name.as_str() == column).then_some(*value));
+    membership_rule(&outer_table.rules.read, &|rule| {
         let RuleExpr::Exists { table, index, key, equalities, .. } = rule else { return false };
         let Some(probe_index) = source_table.index(index) else { return false };
         if table != &source.table || !probe_index.unique || !probe_index.is_plain() || probe_index.components.len() != key.len() { return false; }
@@ -709,7 +712,18 @@ fn membership_witness(schema: &Schema, lane: &crate::ir::MergeLane, null_distinc
             || !equalities.iter().all(|(column, term)| matches(column, term)) { return false; }
         !null_distinct || probe_index.components.iter().all(|part| part.column().is_some_and(|column| column != source_column
             && fixed(column).is_some_and(|expr| matches!(expr, Expr::Input(Input::Viewer)) || fixed_non_null_literal(expr))))
-    })
+    }, &|rule| rule_true(rule, &lane.scan.table, outer_table, &pinned))
+}
+
+/// A witness supplies one conjunct; every other conjunct must already hold
+/// by the lane's pins. Distribution does not drop a status/role condition.
+fn membership_rule(rule: &RuleExpr, witness: &impl Fn(&RuleExpr) -> bool, pinned: &impl Fn(&RuleExpr) -> bool) -> bool {
+    match rule {
+        RuleExpr::Or(parts) => parts.iter().any(|part| membership_rule(part, witness, pinned)),
+        RuleExpr::And(parts) => parts.iter().enumerate().any(|(at, part)|
+            membership_rule(part, witness, pinned) && parts.iter().enumerate().all(|(other, rule)| at == other || pinned(rule))),
+        _ => witness(rule),
+    }
 }
 
 /// A generated membership discovery filter may retain an exact fixed probe

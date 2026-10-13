@@ -339,15 +339,13 @@ are required, every leaf is eligible, and the static descriptors plus the
 system lane fit the ordinary eight-descriptor limit. -/
 def Rule.ownerMembership? (sch : Schema) (r : Rule) : Option (List AccessBranch) := do
   let leaves ← r.accessLeaves
-  let topOr := match r with | .or _ _ => true | _ => false
   let parties := leaves.filterMap fun b => match b with | .party c => some c | _ => none
   let memberships := leaves.filter fun b => match b with | .membership _ _ _ => true | _ => false
-  let party := !parties.isEmpty
   let membership := !memberships.isEmpty
   let eligible := leaves.all fun b => match b with
     | .party _ => true
     | .membership t point key => membershipEligible sch t point key
-  if topOr && party && membership && eligible
+  if membership && eligible
       && parties.eraseDups.length + memberships.length + 1 ≤ 8
   then some leaves else none
 
@@ -460,6 +458,30 @@ def Rule.branchParties (sch : Schema) (td : TableDecl) (pins : List (String × E
   let ps := (ds.filterMap Rule.party?).eraseDups
   if 2 ≤ ds.length && !ps.isEmpty && ds.all (fun d => d.party?.isSome || (guards && d.usableGuard sch td pins)) then some ps else none
 
+/-- PAGE3's positive alternatives, bounded before distributing conjunctions.
+Enums remain outside the surface emitter's independently named fragment. -/
+def Rule.positiveRanges : Rule → Option (List (List Rule))
+  | .or a b => do
+      let out := (← a.positiveRanges) ++ (← b.positiveRanges)
+      if out.length < 8 then some out else none
+  | .and a b => do
+      let as ← a.positiveRanges
+      let bs ← b.positiveRanges
+      if as.length * bs.length < 8 then
+        some (as.flatMap fun a => bs.map fun b => a ++ b)
+      else none
+  | r@(.eq ..) | r@(.probe ..) => some [[r]]
+  | _ => none
+
+def Rule.rangePin : Rule → Option (String × Expr)
+  | .eq (.col .self c) t | .eq t (.col .self c) => t.fixedExpr.map (c, ·)
+  | _ => none
+
+def Rule.hasCompound : Rule → Bool
+  | .and .. => true
+  | .or a b => a.hasCompound || b.hasCompound
+  | _ => false
+
 /-- A page guard (LLP 3000.036 §12.1, §16.3): a disjunct whose expression
 pins make it an eligible readable guard and whose evaluated scalar pins make
 it true for this caller. Keeping both forms matters: an argument's current
@@ -499,6 +521,27 @@ def laneFits (order : List String) (eqs pins : List (String × Expr)) : Bool :=
 
 def laneDecided (td : TableDecl) (order : List String) (eqs pins : List (String × Expr)) : Bool :=
   laneFits order eqs pins && decidedPins td ((eqs ++ pins).filter fun p => p.1 != "id" && !order.contains p.1)
+
+/-- Each positive alternative either has a prefix-decided rule, its own
+readable guard, or one exact membership witness with every remaining
+conjunct true by its pins. -/
+def compoundDecided (sch : Schema) (td : TableDecl) (pins : List (String × Expr)) (order : List String) : Bool :=
+  td.read.hasCompound && td.read.positiveRanges.any fun ranges =>
+    ranges.length + 1 ≤ 8 && ranges.all fun atoms =>
+      let extra := atoms.filterMap Rule.rangePin
+      let ps := extra ++ pins
+      let own := atoms.filter fun r => !(r.rangePin.isSome)
+      extra.all (fun p => p.1 != "id" && !order.contains p.1
+        && (td.cols.any fun c => c.name == p.1 && (!c.nullable || p.2.isViewer)))
+        && laneFits order extra pins
+        && (own.isEmpty || own.all (fun r => r.usableGuard sch td ps)
+          || match own with
+            | [.probe t point key] => membershipEligible sch t point key
+                && (membershipColumns key).any fun pair =>
+                  !ps.any (·.1 == pair.2) && (!order.contains pair.2 || pair.2 == "id" && order == ["id"])
+                  && laneFits order ((pair.2, .viewer) :: extra) pins
+            | _ => false)
+
 
 /-- The pins the single-index planner keeps: the page's equalities and bare
 boolean conjuncts, except `id` and an order column other than the first,
@@ -574,7 +617,8 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
                   && !(a.filterMap Expr.eqPin).any (·.1 == pair.2)
                   && laneFits order ((pair.2, .viewer) :: a.filterMap Expr.eqPin) pins
       | none => false
-    total && (case1 || case2 || case3)
+    let case4 := guards && alts.isNone && compoundDecided sch td pins order
+    total && (case1 || case2 || case3 || case4)
 
 def keyValue (k : Key) : Value := .arr (k.map .s)
 

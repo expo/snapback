@@ -20,15 +20,39 @@ type Tables = BTreeMap<String, TableInfo>;
 /// One branch's conjuncts, and whether it is the grant branch.
 type Branch = (Vec<Expr>, bool);
 
+/// Only turn an implicit whole-group read into a page when the original
+/// prefix has a stored bound. A party cap does not bound a staff's all-row
+/// branch. The original bound applies to the union, rather than each party.
+fn bounded_page(tables: &Tables, requests: &Requests, read: &ReadExpr) -> Option<ReadExpr> {
+    if read.range.is_some() { return Some(read.clone()); }
+    let table = tables.get(&read.table)?;
+    let mut planned = read.clone();
+    let mut probe = requests.clone();
+    probe.read(tables, &mut planned, false);
+    let pinned: Vec<String> = planned.keys.iter().filter_map(|key| key.column.clone()).collect();
+    let cap = table.decl.caps.iter().filter(|cap| cap.by.iter().all(|column| pinned.contains(column)))
+        .map(|cap| cap.max).chain(table.indexes.iter().filter(|index| table.total_unique(index))
+            .filter(|index| index.columns.iter().all(|column| pinned.contains(column))).map(|_| 1)).min()?;
+    if u64::from(cap) > snapback4_core::Ceilings::default().examined { return None; }
+    let mut page = read.clone();
+    page.range = Some(RangeSpec { order: Order::Asc, take: cap, cursor: None, site: read.site.clone() });
+    Some(page)
+}
+
 // @ref LLP 3000.036.001#2 — the rule: where-branches first, then the read rule's parties and readable grants.
 pub(super) fn expand(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>, requests: &mut Requests, read: &ReadExpr) -> Option<MergeExpr> {
+    // @ref LLP 3000.036.001#16 — implicit whole-group reads retain their proven schema bound.
+    let normalized = bounded_page(tables, requests, read)?;
+    let read = &normalized;
     if let Some(merge) = membership(tables, synthesized, requests, read) { return Some(merge); }
     // An exact owner-or-membership rule belongs wholly to PAGE. If one of its
     // stricter eligibility checks declines, keep the original scan instead of
     // reinterpreting its probe as a generic grant branch.
     if owner_membership_shape(tables, synthesized, read) { return None; }
     let range = read.range.as_ref()?;
-    let branches = branches(tables, requests, read, true)?;
+    let Some(branches) = branches(tables, synthesized, requests, read, true) else {
+        return super::intent_compound::expand(tables, synthesized, requests, read);
+    };
     let mut candidate = requests.clone();
     let errors = candidate.error_count();
     let mut lanes = Vec::with_capacity(branches.len());
@@ -58,7 +82,7 @@ pub(super) fn expand(tables: &Tables, synthesized: &std::collections::BTreeSet<(
 }
 
 // @ref LLP 3000.036.001#14 — enumerate the decided membership source before merging its parent ranges.
-fn membership(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>, requests: &mut Requests, read: &ReadExpr) -> Option<MergeExpr> {
+pub(super) fn membership(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>, requests: &mut Requests, read: &ReadExpr) -> Option<MergeExpr> {
     let range = read.range.as_ref()?;
     let table = tables.get(&read.table)?;
     if read.index.is_some() || !read.keys.is_empty() || read.matching.is_some() || !read.computed.is_empty() || read.cursor_prefix.is_some() { return None; }
@@ -75,7 +99,7 @@ fn membership(tables: &Tables, synthesized: &std::collections::BTreeSet<(String,
         else if matches!(disjunct, Expr::Exists { .. }) { memberships.push(disjunct); }
         else { return None; }
     }
-    if parties.is_empty() || memberships.is_empty() { return None; }
+    if memberships.is_empty() { return None; }
     let conjuncts = read.filter.as_ref().map(|filter| { let mut out = Vec::new(); intent::split(*filter.clone(), &mut out); out }).unwrap_or_default();
     let base = where_branches(table, &conjuncts).unwrap_or_else(|| vec![conjuncts.clone()]);
     // These are structural PAGE exclusions, not late core fallbacks: decline
@@ -229,7 +253,7 @@ fn same_fixed(left: &Expr, right: &Expr) -> bool {
     }
 }
 
-fn push_membership_lane(candidate: &Requests, table: &TableInfo, lanes: &mut Vec<MergeLane>, order: &mut Option<Vec<String>>, lane: ReadExpr,
+pub(super) fn push_membership_lane(candidate: &Requests, table: &TableInfo, lanes: &mut Vec<MergeLane>, order: &mut Option<Vec<String>>, lane: ReadExpr,
     branch: &str, loop_: Option<(String, Expr)>, distinct: Option<Expr>, admission: Option<Box<Expr>>) -> Option<()> {
     if order.get_or_insert_with(|| lane.order_keys.clone()) != &lane.order_keys || lane.index.is_none() { return None; }
     if lane.keys.len() + lane.order_keys.len() > 8 || !candidate.branch_index_fits(table, &lane) { return None; }
@@ -324,7 +348,7 @@ fn membership_probe_point(tables: &Tables, synthesized: &std::collections::BTree
 // @ref LLP 3000.036.001#8 — exists over the same shapes, without grants.
 pub(super) fn exists(tables: &Tables, requests: &mut Requests, read: &ReadExpr, site: &Site) -> Option<Expr> {
     if read.range.is_some() { return None; }
-    let branches = branches(tables, requests, read, false)?;
+    let branches = branches(tables, &Default::default(), requests, read, false)?;
     let mut candidate = requests.clone();
     let errors = candidate.error_count();
     let mut reads = Vec::with_capacity(branches.len());
@@ -341,18 +365,11 @@ pub(super) fn exists(tables: &Tables, requests: &mut Requests, read: &ReadExpr, 
 }
 
 /// The branches of an undecided read, or `None` when the rule does not apply.
-fn branches(tables: &Tables, requests: &Requests, read: &ReadExpr, grants: bool) -> Option<Vec<Branch>> {
+fn branches(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>, requests: &Requests, read: &ReadExpr, grants: bool) -> Option<Vec<Branch>> {
     let table = tables.get(&read.table)?;
     if read.index.is_some() || !read.keys.is_empty() || read.matching.is_some() || !read.computed.is_empty() || read.cursor_prefix.is_some() { return None; }
     if table.maintained.is_some() || table.through.is_some() || table.decl.ephemeral.is_some() || !table.captures.is_empty() || table.decl.public.is_some() { return None; }
     let rule = read_rule(table)?;
-    // A synced union already holds every readable row. An online grant lane
-    // would defer its membership probe on the device, discarding completeness.
-    // @ref LLP 3000.036.000.000#5.3 — keep union reads on their certified per-arm scans.
-    if table.decl.sync.is_some() {
-        let catalog = super::catalog::Catalog { tables: tables.clone(), ..Default::default() };
-        if super::intent_sync::needs(table, &catalog).len() > 1 { return None; }
-    }
     // A page its own pins decide keeps its plan.
     let mut probe = requests.clone();
     let mut planned = read.clone();
@@ -361,7 +378,7 @@ fn branches(tables: &Tables, requests: &Requests, read: &ReadExpr, grants: bool)
     // Each lane evaluates the predicate's parts on its own rows: they must be
     // total, so moving an alternative into its own lane cannot raise a refusal
     // that the original's short circuit skipped (`or (… and 1 / n = 1)`).
-    if read.filter.as_deref().is_some_and(|filter| !total(filter)) { return None; }
+    if read.filter.as_deref().is_some_and(|filter| !super::intent_compound::total_readable(tables, synthesized, table, filter)) { return None; }
     let conjuncts = read.filter.as_ref().map(|filter| { let mut out = Vec::new(); intent::split(*filter.clone(), &mut out); out }).unwrap_or_default();
     let alternatives = where_branches(table, &conjuncts);
     // Case 1: every alternative of the one `or` in `where` decides the rule.
@@ -443,7 +460,7 @@ pub(super) fn decided(tables: &Tables, planned: &ReadExpr) -> bool {
 
 /// `allow`, `.col = viewer` pinned to `viewer`, `.col = 'x'` pinned to `'x'`,
 /// and `or`/`and` of those.
-fn by_form(rule: &Expr, planned: &ReadExpr) -> bool {
+pub(super) fn by_form(rule: &Expr, planned: &ReadExpr) -> bool {
     let pinned = |column: &str| planned.keys.iter().find(|key| key.column.as_deref() == Some(column)).map(|key| &key.value);
     match rule {
         Expr::Name { name, .. } if name == "allow" => true,
@@ -465,7 +482,7 @@ fn by_form(rule: &Expr, planned: &ReadExpr) -> bool {
     }
 }
 
-fn read_rule(table: &TableInfo) -> Option<&Expr> {
+pub(super) fn read_rule(table: &TableInfo) -> Option<&Expr> {
     match table.decl.rules.iter().filter(|rule| rule.effect == Effect::Read).collect::<Vec<_>>().as_slice() {
         [rule] => Some(&rule.value),
         _ => None,
@@ -491,7 +508,7 @@ fn party(table: &TableInfo, value: &Expr) -> Option<String> {
 
 /// A rule disjunct every row column of which the page pins: none for a role
 /// or a seat, the parent's column for a parent probe under its pin.
-fn columns_within(value: &Expr, pinned: &[String]) -> bool {
+pub(super) fn columns_within(value: &Expr, pinned: &[String]) -> bool {
     let mut copy = value.clone();
     let mut within = true;
     super::intent_walk::expression(&mut copy, &mut |value| {
@@ -521,7 +538,7 @@ fn has_focal_without_member(value: &Expr) -> bool {
 /// so is a member of anything but the row (`.meta.ok`, `m.ok`), which binds to
 /// a read of the referenced row that a meter can cut (GPT round 4, finding 1).
 // @ref LLP 3000.036.001#2 — totality: no read, so a lane is cut only between candidates
-fn total(value: &Expr) -> bool {
+pub(super) fn total(value: &Expr) -> bool {
     match value {
         Expr::Literal { .. } | Expr::Name { .. } | Expr::Focal { .. } => true,
         Expr::Member { base, .. } => matches!(base.as_ref(), Expr::Focal { .. }),

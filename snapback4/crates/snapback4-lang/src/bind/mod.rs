@@ -50,6 +50,7 @@ mod intent_views;
 mod view_predicate;
 mod intent_lanes;
 mod intent_branches;
+mod intent_compound;
 mod intent_windows;
 mod intent_sync;
 mod intent_search;
@@ -780,7 +781,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         let inferred_search = snapback4_core::search_plan::ordinary::plan(schema, &bound.program);
         // @ref LLP 3000.036.001#14 — grant, system and witnessed membership lanes carry their own proof.
         let proof_lanes: Vec<*const snapback4_core::ir::Scan> = snapback4_core::ir::body_merges(&bound.program.body).into_iter()
-            .filter(|merge| merge.branches()).flat_map(|merge| merge.lanes.iter().filter(|lane| lane.grant() || lane.system() || lane.membership()).map(|lane| &lane.scan as *const _)).collect();
+            .filter(|merge| merge.branches()).flat_map(|merge| merge.lanes.iter().filter(|lane| lane.grant() || lane.system() || lane.membership() || lane.guarded()).map(|lane| &lane.scan as *const _)).collect();
 
         for scan in snapback4_core::ir::scans(&bound.program) {
             if proof_lanes.contains(&(scan as *const _)) { continue; }
@@ -858,7 +859,8 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                         // @ref LLP 3000.036#16.1 — the phrase names the form `check` verified, or says there is none.
                         // @ref LLP 3000.036#17.1 — the phrase carries its own lead ("the complete form …", "the closest form …", "no verified complete form …"); the sentence around it never repeats it (wave 7 R1).
                         let lead = if grant.is_some() { "the complete form for everyone is" } else { "the complete form is" };
-                        let complete_form = cap_repair.as_ref().map(|repair| format!("the complete form is to {repair}"))
+                        let hidden_repair = pin_rewrite::hidden_parent_repair(schema, &scan.table, table);
+                        let complete_form = hidden_repair.map(|repair| format!("the complete form requires the checked immutable copy: {repair}")).or_else(|| cap_repair.as_ref().map(|repair| format!("the complete form is to {repair}")))
                             .unwrap_or_else(|| match complete_form::complete_form(schema, &bound.program, scan, table, declaration) {
                                 complete_form::Outcome::Form(form) => format!("the complete form for everyone is {}", form.phrase),
                                 complete_form::Outcome::None(_) => "no verified complete form for this read: keep the query and expect `capped`".to_owned(),

@@ -1334,7 +1334,7 @@ fn owner_membership_physical_issue(module: &LeanModule, read: &ReadExpr) -> Opti
         else if let Some(membership) = membership_physical(module, target, leaf) { memberships.push(membership); }
         else { return None; }
     }
-    if parties.is_empty() || memberships.is_empty() { return None }
+    if memberships.is_empty() { return None }
     if memberships.iter().any(|membership| !membership.source_admissible) {
         return Some("page-membership-source-unique");
     }

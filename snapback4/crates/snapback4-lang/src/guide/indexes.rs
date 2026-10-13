@@ -82,15 +82,15 @@ A table that can grow pages with `first N` and a cursor instead.
 
 ## Private lists: pin the audience
 
-A private page is `complete` only when its scan pins every column its read
-rule reads (N_NEVER_COMPLETE prints the missing equality as code). Three shapes
-recur. A two-party row (buyer/seller, follower/followed, requester/owner) is
+A private page is complete when its planned ranges decide the read rule.
+`N_NEVER_COMPLETE` prints the missing source edit for unsupported shapes.
+The planner supplies party, membership and positive compound ranges. A two-party row (buyer/seller, follower/followed, requester/owner) is
 one query: under `.requester = viewer or .owner = viewer`, `swaps first 20 by
 .id after c` (or `where .requester = viewer or .owner = viewer`) reads the
 merge of the two pinned ranges, a row in both once, with one cursor, and is
 complete. Each `or` branch must pin an index prefix that decides the rule, and
 the predicate must be comparisons (no arithmetic or calls); up to 8 branches.
-Owner-or-membership also works when the membership rule is an exact point:
+Pure membership and owner-or-membership work when the membership rule is an exact point:
 `.owner = viewer or exists members[.parent, viewer]`. The usual `unique parent,
 principal` needs no cap: it bounds witnesses per target row, not a viewer's
 memberships. Discovery is metered and publishes no rows or cursor if cut. Add
@@ -169,6 +169,27 @@ mutation signUp(shift: shifts):
   require signupCount[shift] < s.slots else SHIFT_FULL 'This shift is full'
   return insert signups { shift, volunteer: viewer }
 ```
+
+A page may combine a party with a static role (`exists roles[principal =
+viewer, role = 'admin']`), including a synced union. The server pages all rows
+for a readable grant holder and only party rows for everyone else. The device
+walks its acquired union rows without probing a remote role. Explicit pages
+need no whole-table cap; an omitted page bound must still have a cap or total
+unique over its original prefix. An owner cap never bounds a staff's whole table.
+
+Positive compound rules such as `.owner = viewer or (exists staff[viewer]
+and .status = 'open')` keep the status pin in the staff range. Parent membership
+and status alternatives work the same way when the parent source is readable.
+A nullable enum's `.species != null` enumerates its non-null variants. At most
+seven alternatives plus the system range; arithmetic and negated probes keep
+an exact diagnostic repair. Discovery still must complete before returning rows.
+
+An unreadable parent-owner source cannot prove absence through an index or
+cap. For an immutable parent owner, copy it onto the child as an immutable
+principal, check that copy in the insert rule, and fill every insert and seed.
+`check` prints the actual table/column declarations and payload edit. Existing
+rows need a backfill before adoption; mutable parent owners need transactional
+copy propagation. Keep the parent private.
 
 A grant that reads no row field, such as `exists staff[viewer]` or
 `viewer = 'service:ops'`, admits every row to its holder. When it holds for
