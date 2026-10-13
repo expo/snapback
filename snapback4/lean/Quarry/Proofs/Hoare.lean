@@ -175,7 +175,7 @@ produce. -/
 theorem triple_write_authorized {cx : Ctx} {R : Store → Env → RS → Prop} {Q} {bind : Option String}
     {op : WriteOp} {ss} (ht : Triple storeHooks cx R ss Q) :
     Triple storeHooks cx (fun s env _ => ∀ val s' rs1,
-        (s' = s ∨ Step cx.schema cx.viewer s s') → R s' (bindEnv bind val env) rs1)
+        (s' = s ∨ Step cx.schema cx.viewer cx.now s s') → R s' (bindEnv bind val env) rs1)
       (.write bind op :: ss) Q :=
   triple_conseq storeHooks cx
     (fun _ _ _ hP _ rs1 val s' _ happ => hP val s' rs1 (applyWrite_authorized happ))

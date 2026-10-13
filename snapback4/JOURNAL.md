@@ -94635,3 +94635,179 @@ Other affected core/language/simulator suites passed earlier on unchanged
 semantic inputs. WORKSTREAM-REPORT.md records per-item commits, tests,
 decisions, review rounds and other-lane pointers. No DIAG deferrals, push or
 publication; final delivery is local for coordinator integration.
+
+## 2026-10-13 — PAGE2 wave-10 planner and lower read lifetime
+
+PAGE2 broadens the owner-or-membership page classifier under LLP 3000.036.001
+§15: an exact total point witness admits metered all-or-nothing discovery,
+ordinary caps remain optional availability constraints, row-id target lanes
+share the existing order/frontier, and public parent-owner sources are admitted.
+`branch-membership-v2` distinguishes the newly admitted shapes without
+reclassifying old capped v1 plans. The initial 50-odd-schema survey is
+20 `N_NEVER_COMPLETE` notes in 13 schemas to 18 notes in 11; the parent-owner
+and own-id membership pages clear. Hidden parent-source inversions remain
+outside this first exact-readable-source slice. The final workstream report
+records the complete shape audit and all affected checks.
+
+LLP 3000.036.003 adds `not before .timeColumn`, combined with upper expiry as
+`[opens, expires)`. Future payloads stay server-side; natural host requests and
+held polls advance a private, bounded opening ledger and publish ordinary
+commits. The server clock floor is durable and monotonic, pending overdue rows
+remain unavailable until publication, and future rows reserve physical unique
+keys and unexpired cap slots. Blind-writer and composite-role recipes preserve
+existing rule semantics; mutable-parent diagnostics explain copied columns.
+
+The locked Linux web build measures 2,297,734 B raw / 700,033 B gzip, versus
+2,291,429 / 698,386 at this worktree's base `f9e40ef515`: +6,305 raw / +1,647
+gzip. The budget is 700,533 B, this measurement plus the requested 500 B.
+This is a whole-artifact delta, with no per-feature attribution or runtime
+ceiling increase. Blind reviews and final qualification are in progress and
+will be recorded in a subsequent entry; this entry makes no READY claim.
+
+
+## 2026-10-13 — PAGE2 reviewed write occupancy and final device bytes
+
+The third blind pass marked the planner READY and found lower-lifetime write
+occupancy and inactive-witness allowance gaps. The implementation now reserves
+future natural unique keys, addresses future rows through ordinary Quarry
+WriteTarget updates/upserts, keeps their collisions generic, and refunds
+inactive witness work before public authorization-walk exhaustion. A near-limit
+paired-world regression matches 4,200 future witnesses against absence. The
+own-id membership page also handles `byId` continuations, with native, Lean,
+and both device stores exercising the shared cursor.
+
+Compact boundary joins are bounded independently of expanded acquisitions. A
+5,000-row × 4,000-byte group regression confirms a bounded `E_BOUND` response
+with the existing `snapshot: true` recovery at stream limit one; paged snapshots
+then recover every current row without publishing a partial acquisition.
+
+After these semantic corrections, the locked Linux web device measures
+2,300,658 B raw / 701,352 B gzip. The final budget is 701,852 B, measurement
+plus 500 B, superseding provisional PAGE2 700,533 B. Against `f9e40ef515`,
+this is +9,229 raw / +2,966 gzip. No per-feature attribution or runtime ceiling
+increase. Fourth-round blind reviews and final campaigns are in progress.
+
+
+## 2026-10-13 — PAGE2 finished artifact measurement
+
+The final admission and adoption checks produce a locked Linux web artifact
+of 2,301,451 B raw / 701,490 B gzip. The budget is 701,990 B, exactly the
+measurement plus 500 B, superseding intermediate 701,852 B. Against
+`f9e40ef515`, this is +10,022 raw / +3,104 gzip. Bounded join delivery remains
+server-only. No per-feature attribution or runtime resource ceiling increase.
+The finished core timed suite is 13/13; delivery bounds 2/2, expiring adoption
+5/5, meter 9/9, and authorization review walk 14/14 pass. Final blind reviews
+are still in progress; their verdicts will be recorded separately.
+
+
+## 2026-10-13 — PAGE2 expiry-first final measurement
+
+The never-live witness fix checks upper expiry before applying lower-lifetime
+authorization refunds. A 4,200-distinct-witness regression fails with the old
+ordering and passes with the fixed ordering. The locked Linux web artifact is
+2,301,467 B raw / 701,506 B gzip; set 702,006 B = measurement plus 500 B.
+This supersedes 701,990 B by the measured 16 B gzip change. Against
+`f9e40ef515`, the whole artifact adds 10,038 B raw / 3,120 B gzip. No runtime
+ceiling increase, per-feature attribution or macOS measurement.
+
+
+## 2026-10-13 — PAGE2 lifetime-aware search heads
+
+Non-uniform word discovery now classifies its separately fetched physical head
+before charging hidden future entries to the public authorization allowance.
+It still explores live siblings sharing that word. The equivalent compact
+membership search head uses a bounded lifetime-aware decoder; selected
+candidates retain the lower-time column. A paired-world regression with 8,193
+future words fails old code with `E_RULE` and passes the fixed code, including
+same-word and never-live boundary cases. Authorization review walk is 16/16,
+timed core is 13/13 and the language branch-merge suite is 57/57.
+
+The locked Linux web artifact is 2,301,701 B raw / 701,837 B gzip. Set
+702,337 B = measurement plus 500 B, superseding 702,006 B by the measured
+331 B gzip change. Against `f9e40ef515`, the complete artifact adds 10,272 B
+raw / 3,451 B gzip. No runtime ceiling increase, per-feature attribution or
+macOS measurement. Seventh-round blind reviews are in progress.
+
+
+## 2026-10-13 — PAGE2 actual publication evidence
+
+A timed image's private publication marker survives removal of an expired or
+never-live opening entry. Expiry cleanup consults it before deleting the row:
+never-published identities produce no logged or delivered deletion, while
+successfully published rows still revoke after expiry. Ordinary image changes,
+adoption rebuilds, legacy-state bootstrap and restart preserve that distinction.
+The old-accounting negative control fails; restored tests pass: timed core
+16/16, authorization review walk 16/16, expiring adoption 5/5, meter 9/9.
+
+The locked Linux web artifact measures 2,301,917 B raw / 701,899 B gzip. Set
+702,399 B = measurement plus 500 B, superseding 702,337 B by the measured
+62 B gzip change. Against `f9e40ef515`, the whole artifact adds 10,488 B raw /
+3,513 B gzip. No runtime ceiling increase, per-feature attribution or macOS
+measurement. Eighth-round blind reviews and final campaigns are in progress.
+
+
+## 2026-10-13 — PAGE2 pending logical reads and durable retry
+
+Overdue unexpired pending rows raise a transient signal before any logical
+absence, authored unwrap or witness can consume them. Normal server queries
+use the existing loading outcome; mutations roll back without caching an
+applied-id receipt. Blind physical cancellation/rescheduling remains valid.
+Mixed ephemeral query overlays forward durable timed metadata; the experimental
+PostgreSQL evaluation adapter refuses not-before schemas. Exact old-code
+negative controls reproduce both false absence and early overlay disclosure.
+Timed core is 20/20; full guide 120/120, simulator transport 4/4, device timed
+suite 6/6 (Memory and SQLite), and host clocks 27/27 pass. Device queued retries
+survive restart and settle the original id exactly once after publication.
+
+The locked Linux web artifact measures 2,302,339 B raw / 701,955 B gzip. Set
+702,455 B = measurement plus 500 B, superseding 702,399 B by the measured
+56 B gzip change. Against `f9e40ef515`, the complete artifact adds 10,910 B raw /
+3,569 B gzip. No runtime ceiling increase, per-feature attribution or macOS
+measurement. Ninth-round blind reviews and final campaigns are in progress.
+
+## 2026-10-13 — PAGE2 typed ids and expression-step discovery fences
+
+Intrinsic focal `.id` has its table reference type during early positional
+planning, so competing equal-arity text/foreign uniques do not hide the exact
+membership plan. Native/Lean parity and generated competing-unique cases pass.
+Only step bounds inside membership discovery become the empty incomplete
+no-continuation fence: filters, distinct values, initial and dynamic prefixes,
+lazy merge and eager fallback. Bindings restore before the cut; heap and pending
+publication errors retain their behavior. The old positive-ceiling controls
+return E_BOUND; restored step sweeps pass. Core meter 9/9, simulator membership
+8/8 and both-store device branch merges 12/12 pass. Twelfth planner reviews and
+final campaigns are in progress; unchanged time audiences have two READY
+round-ten reviews and are recorded Implemented.
+
+The clean locked Linux web device measures 2,305,135 B raw / 703,255 B gzip /
+531,512 B brotli. Set 703,755 B = measurement plus exactly 500 B, replacing
+702,455 B after a whole-artifact change of +2,796 raw / +1,300 gzip. Against
+`f9e40ef515`, the total change is +13,706 raw / +4,869 gzip. No runtime ceiling
+increase, independent feature attribution, Mac or publication qualification.
+
+## 2026-10-13 — PAGE2 completed local qualification
+
+Planner §15 has Muse and fresh Codex READY in round 12 at `24a644c511`; time
+audiences have both READY in round 10 at `d0e1c30841`, with unchanged semantics
+and timed core 21/21 rechecked after planner integration. The time child is
+Implemented and archived from current; the parent planner RFC retains its
+legacy Review status with §15's implementation/readiness recorded explicitly.
+All reviews and prior blocker/fix rounds are saved verbatim with provenance.
+
+Final 400-case campaigns: native 20,619 executions and devices 13,114 have zero
+disagreements/signatures; Lean 1,072 retains only three occurrences of the two
+existing classified pagination signatures. No new signatures. Additional
+generated discovery-unique native seed 715 and Lean 551 pass; uncovered device
+sources correctly remain unknown/incomplete. Model 71/71 examples, seven
+fixtures and standard-axiom audit pass; Lean difftests 32/32, smoke 17/17,
+branch language 57/57, device branches 12/12, simulator membership 8/8 and
+compiled guide 120/120 pass. Final web/client builds and metrology audits pass.
+
+All 50 copied odd final schemas compile at the final semantic checkpoint:
+N_NEVER_COMPLETE 20 notes in 13 schemas becomes 18 in 11. Named copied evens
+002/098 each clear their sole note. Hidden-source, pure-membership and other
+excluded forms remain explicit; the broad majority target is not claimed.
+`WORKSTREAM-REPORT.md` and `reports/20261013-page2/` retain exact hashes,
+commands, results, semantic checkpoints and scope limits. Final Linux gzip
+703,255 B and budget 703,755 B preserve exactly 500 B headroom. All changes
+are local Charlie commits; no push or publication.

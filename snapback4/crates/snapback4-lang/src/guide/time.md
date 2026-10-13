@@ -99,6 +99,18 @@ mutation checkIn():
   fires in January, April, July and October, `every 1 year` in January. Days 1–28 only.
   `month(periodStart)` is the month that just ended.
 - `expire at .expiresAt` ends a row's life at a time; a null time never expires (`guide expire`).
+- `not before .opensAt` starts a server-enforced read lifetime when the server's
+  durable clock reaches the value; null is immediately readable. Device wall
+  clocks and server-time estimates never authorize early disclosure. The
+  compiled `[opensAt, expiresAt)` recipe is `guide timed disclosure`.
+
+## E_TIME_AUDIENCE_PENDING
+
+E_TIME_AUDIENCE_PENDING means an opened row is still waiting for its bounded server publication. A read
+remains loading instead of deciding that the row is absent. A mutation rolls
+back without retaining its operation id, so the client can retry the same
+write. The refusal is retryable and reveals no row id or opening time.
+
 - Catch-up: a schedule fires once per boundary, never twice. Boundaries it missed (the server was
   down, or `clock advance` jumped past them) coalesce into one run for the latest period once
   the server is back; `periodStart`/`periodEnd` describe that last period only. A schedule

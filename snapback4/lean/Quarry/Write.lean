@@ -103,20 +103,24 @@ else null (`why E_CONFLICT`: results are read-rule gets; OPEN W4 for insert). -/
 def resultOf (sch : Schema) (s : Store) (v : List Nat) (t : String) (r : Row) : Value :=
   if readable sch s v t r then r.toValue else .null
 
+def resultOfAt (sch : Schema) (s : Store) (v : List Nat) (now : Int)
+    (t : String) (r : Row) : Value :=
+  if readableAt sch s v now t r then r.toValue else .null
+
 /-- `guardE b e` continues when `b` holds and refuses `e` otherwise. -/
 def guardE (b : Bool) (e : Stop) : Except Stop Unit := if b then .ok () else .error e
 
-def doInsertImage (sch : Schema) (s : Store) (v : List Nat) (t : String) (td : TableDecl)
+def doInsertImage (sch : Schema) (s : Store) (v : List Nat) (now : Int) (t : String) (td : TableDecl)
     (img : Row) (ifAbsent : Bool) (deny clashHidden : Stop) :
     Except Stop (Value × Store) := do
-  guardE (td.insert.eval s v { self := some img }) deny
+  guardE (td.insert.eval (openedStore sch s now) v { self := some img }) deny
   match findClash (s t) (["id"] :: td.uniques) img none with
   | some (i, r) => do
-    guardE (readable sch s v t r) clashHidden
+    guardE (readableAt sch s v now t r) clashHidden
     if ifAbsent then pure (.null, s) else throw (clashCode td true i)
   | none =>
     let s' := s.insertRow t img
-    pure (resultOf sch s' v t img, s')
+    pure (resultOfAt sch s' v now t img, s')
 
 /-- An update's `if` condition: `NOT_FOUND` on an unreadable target,
 `E_CONFLICT` when false. -/
@@ -129,22 +133,22 @@ def condCheck (rd : Bool) (cond : Option (Row → Except Stop Bool)) (old : Row)
   | none => pure ()
 
 /-- A secondary unique clash of an update's next image with another row. -/
-def clashCheck (sch : Schema) (s : Store) (v : List Nat) (t : String) (td : TableDecl)
+def clashCheck (sch : Schema) (s : Store) (v : List Nat) (now : Int) (t : String) (td : TableDecl)
     (rd : Bool) (old nw : Row) : Except Stop Unit :=
   match findClash (s t) td.uniques nw (some old.id) with
   | some (i, r) =>
-    throw (if !rd then notFound else if !(readable sch s v t r) then eRule else clashCode td false i)
+    throw (if !rd then notFound else if !(readableAt sch s v now t r) then eRule else clashCode td false i)
   | none => pure ()
 
-def doUpdateRow (sch : Schema) (s : Store) (v : List Nat) (t : String) (td : TableDecl)
+def doUpdateRow (sch : Schema) (s : Store) (v : List Nat) (now : Int) (t : String) (td : TableDecl)
     (old : Row) (patch : List (String × Scalar)) (cond : Option (Row → Except Stop Bool)) :
     Except Stop (Value × Store) := do
   let nw ← patchImage td old patch
-  guardE (td.update.eval s v { old := some old, next := some nw })
-    (if readable sch s v t old then eRule else notFound)
-  condCheck (readable sch s v t old) cond old
-  clashCheck sch s v t td (readable sch s v t old) old nw
-  pure (resultOf sch (s.replaceRow t old nw) v t nw, s.replaceRow t old nw)
+  guardE (td.update.eval (openedStore sch s now) v { old := some old, next := some nw })
+    (if readableAt sch s v now t old then eRule else notFound)
+  condCheck (readableAt sch s v now t old) cond old
+  clashCheck sch s v now t td (readableAt sch s v now t old) old nw
+  pure (resultOfAt sch (s.replaceRow t old nw) v now t nw, s.replaceRow t old nw)
 
 /-- The id of an absent upsert's new row: from the key, else the patch. -/
 def upsertId (ks ps : List (String × Scalar)) : Except Stop (List Nat) :=
@@ -224,7 +228,7 @@ def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
       let fs ← scalarsE fields
       let rid ← insertId fs
       let img ← buildImage td rid fs eInput
-      doInsertImage cx.schema s cx.viewer t td img ifAbsent eRule eRule
+      doInsertImage cx.schema s cx.viewer cx.now t td img ifAbsent eRule eRule
   | .update t key patch cond =>
     match cx.schema.table? t with
     | none => throw eInput
@@ -233,7 +237,7 @@ def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
       let ps ← scalarsE patch
       match findRow (s t) ks with
       | none => throw notFound
-      | some old => doUpdateRow cx.schema s cx.viewer t td old ps cond
+      | some old => doUpdateRow cx.schema s cx.viewer cx.now t td old ps cond
   | .upsert t key patch =>
     match cx.schema.table? t with
     | none => throw eInput
@@ -241,11 +245,11 @@ def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
       let ks ← scalarsE key
       let ps ← scalarsE patch
       match findRow (s t) ks with
-      | some old => doUpdateRow cx.schema s cx.viewer t td old ps none
+      | some old => doUpdateRow cx.schema s cx.viewer cx.now t td old ps none
       | none => do
         let rid ← upsertId ks ps
         let img ← buildImage td rid (ks ++ ps) notFound
-        doInsertImage cx.schema s cx.viewer t td img false notFound notFound
+        doInsertImage cx.schema s cx.viewer cx.now t td img false notFound notFound
   | .delete t key =>
     match cx.schema.table? t with
     | none => throw eInput
@@ -254,9 +258,9 @@ def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
       match findRow (s t) ks with
       | none => throw notFound
       | some old => do
-        guardE (td.delete.eval s cx.viewer { self := some old })
-          (if readable cx.schema s cx.viewer t old then eRule else notFound)
-        guardE ((referencing cx.schema t).isEmpty || readable cx.schema s cx.viewer t old) notFound
+        guardE (td.delete.eval (openedStore cx.schema s cx.now) cx.viewer { self := some old })
+          (if readableAt cx.schema s cx.viewer cx.now t old then eRule else notFound)
+        guardE ((referencing cx.schema t).isEmpty || readableAt cx.schema s cx.viewer cx.now t old) notFound
         pure (.null, ← refDelete cx.schema s t old)
 
 end Quarry

@@ -26,7 +26,7 @@ pub fn features(case: &Case) -> BTreeSet<String> {
     // LLP 3000.036.001: whether the compiled page is the merge of its static
     // party lanes and its bounded membership lane.
     let read_rule = case.program.tables.first().map(|table| table.effects.as_ref().map_or(&table.rule, |effects| &effects[0]));
-    let membership_branch = read_rule == Some(&Rule::OwnerOrWitness)
+    let membership_branch = matches!(read_rule, Some(Rule::OwnerOrWitness | Rule::OwnerOrIdWitness))
         && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. });
     let boolean_grant = case.program.boolean_grant_normalized
         && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. });
@@ -38,8 +38,19 @@ pub fn features(case: &Case) -> BTreeSet<String> {
         out.insert("read/branch-shape".into());
         if membership_branch {
             out.insert("read/branch-rule-membership".into());
+            if read_rule == Some(&Rule::OwnerOrIdWitness) {
+                out.insert("read/branch-rule-membership-id".into());
+            }
+            if case.program.tables.iter().find(|table| table.name == "access").is_some_and(|table| table.caps.is_empty()) {
+                out.insert("read/branch-rule-membership-uncapped".into());
+            }
             if case.program.membership_named_reordered {
                 out.insert("read/branch-rule-membership-named-reordered".into());
+            }
+            if case.program.tables.iter().find(|table| table.name == "access").is_some_and(|table|
+                table.keys.iter().any(|(_, columns, unique)| *unique && columns.iter().map(String::as_str).eq(["principal"]))
+                    && table.columns.iter().any(|column| column.name == "bucket" && matches!(column.ty, Type::Nullable(_)))) {
+                out.insert("read/branch-rule-membership-discovery-unique".into());
             }
         }
         let bound = snapback4_lang::compile(&[("schema.q".into(), case.program.source())]);
@@ -94,9 +105,26 @@ pub fn features(case: &Case) -> BTreeSet<String> {
             }
         }
     }
+    if case.program.upsert_unique_tag.is_some() {
+        out.insert("not-before/future-unique-upsert".into());
+    }
+    if case.program.search_term.is_some() {
+        out.insert("not-before/nonuniform-search".into());
+        out.insert("search/future-word-head".into());
+        out.insert("search/shared-live-word".into());
+    }
+    if matches!(case.program.body, Body::Write(Write::Insert, _))
+        && case.rows.iter().any(|(table, row)| table == "items"
+            && row["tag"] == "tag" && row["opensAt"].as_i64().is_some_and(|at| at > case.clock))
+    {
+        out.insert("not-before/future-unique-insert-collision".into());
+    }
     for table in &case.program.tables {
         if table.expire.is_some() {
             out.insert(format!("expire/{}", table.name));
+        }
+        if table.not_before.is_some() {
+            out.insert(format!("not-before/{}", table.name));
         }
         if table.name == "tags" {
             out.insert(format!("tags-rule/{:?}", table.rule));
@@ -135,6 +163,18 @@ pub fn features(case: &Case) -> BTreeSet<String> {
             }
             if until < seeded {
                 out.insert("expire/row-expired-when-seeded".into());
+            }
+        }
+        if let Some(opens) = row.get("opensAt") {
+            out.insert("not-before/row".into());
+            if opens.is_null() {
+                out.insert("not-before/null-open".into());
+            } else if opens.as_i64() == Some(case.clock) {
+                out.insert("not-before/exact-boundary".into());
+            } else if opens.as_i64().is_some_and(|time| time < case.clock) {
+                out.insert("not-before/before-boundary".into());
+            } else if opens.as_i64().is_some_and(|time| time > case.clock) {
+                out.insert("not-before/future".into());
             }
         }
     }

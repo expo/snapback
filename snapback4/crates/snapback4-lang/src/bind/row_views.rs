@@ -258,6 +258,10 @@ pub(super) fn target(
     decl.final_exists.clear();
     decl.search.clear();
     decl.expire = None;
+    // The synthetic aggregate row has its own lifetime. A lower lifetime on
+    // the keyed member is a dependency that schema validation rejects until
+    // boundary recounts exist; it must not be copied onto the target table.
+    decl.not_before = None;
     decl.sync = None;
     decl.online_only = m.online_only;
     decl.retain = None;

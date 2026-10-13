@@ -173,14 +173,14 @@ impl Runner<'_> {
             runner.reserve_write_rules(table, &[Effect::Read, Effect::Delete])?;
             runner.reserve_maintains(&target.table, table)?;
             runner.read_tables.insert(target.table.clone());
-            let old = runner.lookup_stored(&target.table, &target.index, index, &key, false)?;
+            let old = runner.lookup_write_occupant(&target.table, &target.index, index, &key)?;
             if runner.device && (table.sync.is_none() || (old.is_none() && !runner.upsert_absence_proven(&target.table, &target.index, &key)?)) {
                 return Err(runner.write_miss(&target.table, &target.index, &key));
             }
             let Some(old) = old else { return Err(runner.no_write_target()); };
             // Preserve alternate delete's existing read gate, without exposing
             // the private target or charging a hidden population through Get.
-            if !runner.check_rule(&target.table, Effect::Read, None, &old)? { runner.refusing_clause(&target.table, "read rule"); return Err(runner.no_write_target()); }
+            if runner.inactive_write_target(&target.table, &old)? || !runner.check_rule(&target.table, Effect::Read, None, &old)? { runner.refusing_clause(&target.table, "read rule"); return Err(runner.no_write_target()); }
             if !runner.check_rule(&target.table, Effect::Delete, None, &old)? {
                 return Err(RuntimeError::Rule { table: target.table.clone(), effect: Effect::Delete });
             }
@@ -206,13 +206,14 @@ impl Runner<'_> {
         self.read_tables.insert(target.table.clone());
         self.reserve_target_resolution(&target.table, definition, &patch, upsert)?;
         self.observe_sequence_selection(&target.table, &target.index, &key)?;
-        let old = self.lookup_stored(&target.table, &target.index, index, &key, false)?;
+        let old = self.lookup_write_occupant(&target.table, &target.index, index, &key)?;
         if self.device && (definition.sync.is_none() || (old.is_none() && (!upsert || !self.upsert_absence_proven(&target.table, &target.index, &key)?))) {
             return Err(self.write_miss(&target.table, &target.index, &key));
         }
         let id = if let Some(mut old) = old {
             materialize_optional_fields(&mut old, definition);
-            let readable = self.check_rule(&target.table, Effect::Read, None, &old)?;
+            let readable = !self.inactive_write_target(&target.table, &old)?
+                && self.check_rule(&target.table, Effect::Read, None, &old)?;
             let patch = self.ignore_hidden_immutable_patch(&target.table, patch, readable)?;
             let id = old.field("id")?.clone();
             let (new, copy) = self.merge_patch(&target.table, &old, &patch, readable)?;

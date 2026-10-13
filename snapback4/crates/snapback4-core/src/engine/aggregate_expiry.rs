@@ -15,12 +15,14 @@ impl Runner<'_> {
         // No clock means expiry is disabled, as for ordinary row reads.
         if self.context.now.is_some() {
             loop {
-                let rows = self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &maintain.source, &index, &group, &bounds, Dir::Asc, 32))?;
+                let rows = self.metered_scan(|runner, allowance| {
+                    runner.tx.scan(allowance, &maintain.source, &index, &group, &bounds, Dir::Asc, 32)
+                })?;
                 let count = rows.len();
                 for (mut candidate, key) in rows {
                     // @ref LLP 3000.007#20.24.6 — the backlog is expired rows: store work on the expiry guard, never the public meter.
                     materialize_optional_fields(&mut candidate, source);
-                    self.step_expired(source, &candidate, &key)?;
+                    self.step_inactive(&maintain.source, &candidate, &key)?;
                     bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
                     total -= super::maintains::delta(maintain, &candidate, 1)?;
                 }
@@ -31,8 +33,11 @@ impl Runner<'_> {
         // This seek also supplies the next clock invalidation without walking live rows.
         if !self.read_charge(MeterKind::Examined, 1)? { self.meter.require_uncapped()?; }
         let bounds = Bounds { gt: self.context.now.map(|_| Value::Int(now)), ..Bounds::default() };
-        let next = self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &maintain.source, &index, &group, &bounds, Dir::Asc, 1))?;
-        let Some((mut candidate, _)) = next.into_iter().next() else { return Ok(None) };
+        let next = self.metered_scan(|runner, allowance| {
+            runner.tx.scan(allowance, &maintain.source, &index, &group, &bounds, Dir::Asc, 1)
+        })?;
+        let Some((mut candidate, _)) = next.into_iter().next() else { return Ok(None);
+        };
         materialize_optional_fields(&mut candidate, source);
         self.note_expiry(source, &candidate);
         if !(crate::value::I53_MIN as i128..=crate::value::I53_MAX as i128).contains(&total) {

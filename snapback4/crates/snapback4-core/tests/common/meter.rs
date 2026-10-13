@@ -24,7 +24,7 @@ pub fn schema() -> Schema {
         columns: BTreeMap::from([("id".into(), ColumnType::Id), ("bucket".into(), ColumnType::Int), ("body".into(), ColumnType::Text { max: 4000 })]),
         indexes: BTreeMap::from([("byId".into(), Index::of(&["id"], true)), ("byBucket".into(), Index::of(&["bucket", "id"], false))]),
         rules: Rules { read: RuleExpr::Allow, insert: RuleExpr::Allow, update: RuleExpr::Allow, delete: RuleExpr::Allow },
-        constraints: Vec::new(), leave: LeavePolicy::UntilRevoked, sync: Some(Sync { audience: Audience::Public, horizon: None, also: Vec::new() }), expire: None,
+        constraints: Vec::new(), leave: LeavePolicy::UntilRevoked, sync: Some(Sync { audience: Audience::Public, horizon: None, also: Vec::new() }), not_before: None, expire: None,
     };
     let writes = table.clone();
     table.constraints.push(Constraint::Cap { by: vec!["bucket".into()], max: 128 });

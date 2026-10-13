@@ -203,6 +203,37 @@ def readable (sch : Schema) (s : Store) (v : List Nat) (t : String) (r : Row) : 
 def visibleRows (sch : Schema) (s : Store) (v : List Nat) (t : String) : List Row :=
   (s t).filter (readable sch s v t)
 
+/-- Whether a row has reached its table's lower read lifetime. Null is open;
+the checked schema guarantees that a non-null lifetime value is a time. -/
+-- @ref LLP 3000.036.003#3-semantics — lower read lifetimes filter every logical read at the server clock.
+def opened (td : TableDecl) (now : Int) (r : Row) : Bool :=
+  match td.notBefore with
+  | none => true
+  | some c => match r.get c with
+    | .null => true
+    | .int opens => opens <= now
+    | _ => false
+
+/-- The physical store with future rows removed. Rule probes use this store too,
+so an unopened row cannot act as an authorization witness. -/
+def openedStore (sch : Schema) (s : Store) (now : Int) : Store := fun t =>
+  match sch.table? t with
+  | some td => (s t).filter (opened td now)
+  | none => []
+
+/-- Read-rule visibility for one image at a request clock. The image may be a
+physical write target, while every probe it performs sees only opened rows. -/
+def readableAt (sch : Schema) (s : Store) (v : List Nat) (now : Int)
+    (t : String) (r : Row) : Bool :=
+  match sch.table? t with
+  | some td => opened td now r && td.read.eval (openedStore sch s now) v { self := some r }
+  | none => false
+
+/-- Request-time visibility, including the server-enforced lower read lifetime. -/
+def visibleRowsAt (sch : Schema) (s : Store) (v : List Nat) (now : Int)
+    (t : String) : List Row :=
+  (s t).filter (readableAt sch s v now t)
+
 /-- What a read can observe: the visible rows of each table. -/
 abbrev View := String → List Row
 

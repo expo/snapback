@@ -9,7 +9,7 @@ use serde_json::{Value as Json, json};
 use snapback4_core::{Context, Engine, Value, wire};
 
 const SOURCE: &str = include_str!("../../snapback4-lang/tests/fixtures/intent-issues.q");
-const CONTROLS: &str = "\nquery oldCard(id: issues):\n  return issues[id] { * }\nquery scopedCard(id: issues):\n  i = issues[id] ! else NOT_FOUND\n  return { ...i, labels: issueLabels where .issue = id and .org = i.org first 20 by .label }\n";
+const CONTROLS: &str = "\nquery oldCard(id: issues):\n  return issues[id] { * }\nquery scopedCard(id: issues):\n  i = issues[id] ! else NOT_FOUND\n  return { ...i, labels: issueLabels where .issue = id and .org = i.org first 20 by .label }\nquery orgDirectory(c: cursor ?):\n  return orgs first 1 by .id after c\n";
 fn compiled(source: &str) -> snapback4_lang::Bound {
     let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
@@ -60,8 +60,10 @@ fn all_issue_tracker_certificates_keep_the_source_and_authority() {
 fn seed(server: &mut Engine, hidden_labels: usize) {
     let mut rows = vec![
         ("orgs", json!({"id":"org","name":"Ours","owner":"alice"})),
+        ("orgs", json!({"id":"org2","name":"Ours Too","owner":"bob"})),
         ("orgs", json!({"id":"hidden","name":"Hidden","owner":"bob"})),
         ("members", json!({"id":"ma","org":"org","principal":"alice","role":"admin"})),
+        ("members", json!({"id":"ma2","org":"org2","principal":"alice","role":"admin"})),
         ("members", json!({"id":"mb","org":"hidden","principal":"bob","role":"admin"})),
     ];
     for (id, org, status, assignee, due, at) in [
@@ -92,12 +94,16 @@ fn ids(value: &Value) -> Vec<&str> {
 fn on_device<H: Host>(host: &mut H) {
     let (mut original, _) = common::compile(&format!("{SOURCE}{CONTROLS}"));
     seed(&mut original, 2);
-    // The supplied program has no sync declarations. Add only its existing
-    // membership audiences for this acquired-device companion, without caps.
+    // The supplied program has no sync declarations. The inferred org union
+    // exercises PAGE2's own-id target lane; the remaining tables use their
+    // existing uncapped membership audiences.
     let source = format!("{SOURCE}{CONTROLS}")
-        .replace("  insert <- .owner = viewer", "  insert <- .owner = viewer\n  sync to members[.id]")
+        .replacen("  read <- exists members[.id, viewer]", "  read <- .owner = viewer or exists members[.id, viewer]", 1)
+        .replace("  insert <- .owner = viewer", "  insert <- .owner = viewer\n  sync")
+        .replacen("  read <- exists members[.org, viewer]", "  read <- .principal = viewer\n  sync", 1)
         .replace("  read <- exists members[.org, viewer]", "  read <- exists members[.org, viewer]\n  sync to members[.org]");
     let (mut server, backend) = common::compile(&source);
+    assert!(server.schema().required_capabilities().contains("branch-membership-v2"));
     seed(&mut server, 2);
     let mut device = host.open("issues", Some(backend)).unwrap();
     for (i, page) in common::snapshot_pages(&mut server, "alice", 2).iter().enumerate() { device.apply(page, i == 0).unwrap(); }
@@ -123,6 +129,24 @@ fn on_device<H: Host>(host: &mut H) {
         assert_eq!(local.data, remote.data, "{} {name}", host.label());
         assert!(remote.complete && local.complete, "{name}: {remote:?}, {local:?}");
     }
+    // The first page is owned and the second is opened by an intrinsic-id
+    // membership lane. Each executor resumes from its own opaque cursor.
+    let remote_first = query(&mut original, "orgDirectory", &json!({"c":null}));
+    let server_first = query(&mut server, "orgDirectory", &json!({"c":null}));
+    let local_first = device.query("orgDirectory", "alice", &json!({"c":null}), 100).unwrap();
+    assert_eq!(ids(&remote_first.data), ["org"]);
+    assert_eq!(server_first.data, remote_first.data);
+    assert_eq!(local_first.data, remote_first.data);
+    assert!(!remote_first.complete && server_first.complete && local_first.complete,
+        "first directory page: {remote_first:?} {server_first:?} {local_first:?}");
+    assert!(remote_first.next.is_some() && server_first.next.is_some() && local_first.next.is_some());
+    let remote_second = query(&mut original, "orgDirectory", &json!({"c":remote_first.next}));
+    let server_second = query(&mut server, "orgDirectory", &json!({"c":server_first.next}));
+    let local_second = device.query("orgDirectory", "alice", &json!({"c":local_first.next}), 100).unwrap();
+    assert_eq!(ids(&remote_second.data), ["org2"]);
+    assert_eq!(server_second.data, remote_second.data);
+    assert_eq!(local_second.data, remote_second.data, "{} orgDirectory cursor", host.label());
+    assert!(!remote_second.complete && server_second.complete && local_second.complete);
     let counts = query(&mut original, "counts", &json!({"org":"org"}));
     assert_eq!(wire::to_json(&counts.data), json!({"todo":3,"doing":1,"done":1}));
     assert_eq!(device.query("counts", "alice", &json!({"org":"org"}), 100).unwrap().data, counts.data);

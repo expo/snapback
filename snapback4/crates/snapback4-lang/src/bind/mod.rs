@@ -185,6 +185,18 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     schema.operations = programs.iter().map(|bound| {
         let mut fact = residency::execution_with_presence(&schema, &bound.program, bound.presence.as_ref());
         residency::locate_sites(&catalog, bound, &mut fact);
+        if bound.program.kind == snapback4_core::ir::ProgramKind::Mutation {
+            let mut timed = false;
+            for site in &mut fact.sites {
+                if schema.table(&site.table).is_some_and(|table| table.not_before.is_some()) {
+                    timed = true;
+                    site.class = snapback4_core::schema::SiteClass::Server;
+                    site.reason = format!("{} has `not before`; only the server resolves and changes scheduled rows", site.table);
+                    site.rewrite = "queue this mutation while offline; a device clock never authorizes scheduled payloads".into();
+                }
+            }
+            if timed { fact.predicts = Some("never".into()); }
+        }
         if let Some((site, location)) = residency::receipts::located(&schema, bound, &catalog) {
             fact.predicts = Some("never".into());
             fact.sites.retain(|s| s.kind != "receipt dependency");
@@ -814,6 +826,11 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                 && schema.operations.get(&bound.program.name).is_some_and(|fact| fact.runs.as_deref() == Some("device")))
                 .then(|| first_paste::held_query(catalog, &bound.site)).flatten();
             let scope_rewrite = existing.map(|(name, _)| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); the existing index `{name}: {columns}` supports it; or read the page on the device", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));
+            let cap_repair = bound
+                .sources
+                .get(&scan.site)
+                .and_then(|(site, _)| catalog.membership_cap_repairs.get(&site.to_string()))
+                .cloned();
             // @ref LLP 3000.036#18 — a runtime parent guard can certify the page for its holders.
             let conditional = snapback4_core::engine::rules::page_guard_decision(schema, scan).is_some_and(|guard| {
                 let mut fields = std::collections::BTreeSet::new(); guard.fields(&mut fields); !fields.is_empty()
@@ -841,12 +858,13 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                         // @ref LLP 3000.036#16.1 — the phrase names the form `check` verified, or says there is none.
                         // @ref LLP 3000.036#17.1 — the phrase carries its own lead ("the complete form …", "the closest form …", "no verified complete form …"); the sentence around it never repeats it (wave 7 R1).
                         let lead = if grant.is_some() { "the complete form for everyone is" } else { "the complete form is" };
-                        let complete_form = match complete_form::complete_form(schema, &bound.program, scan, table, declaration) {
-                            complete_form::Outcome::Form(form) => format!("the complete form for everyone is {}", form.phrase),
-                            complete_form::Outcome::None(_) => "no verified complete form for this read: keep the query and expect `capped`".to_owned(),
-                            complete_form::Outcome::NotApplicable if parties >= 2 => format!("{lead} one query per party"),
-                            complete_form::Outcome::NotApplicable => format!("{lead} the pin"),
-                        };
+                        let complete_form = cap_repair.as_ref().map(|repair| format!("the complete form is to {repair}"))
+                            .unwrap_or_else(|| match complete_form::complete_form(schema, &bound.program, scan, table, declaration) {
+                                complete_form::Outcome::Form(form) => format!("the complete form for everyone is {}", form.phrase),
+                                complete_form::Outcome::None(_) => "no verified complete form for this read: keep the query and expect `capped`".to_owned(),
+                                complete_form::Outcome::NotApplicable if parties >= 2 => format!("{lead} one query per party"),
+                                complete_form::Outcome::NotApplicable => format!("{lead} the pin"),
+                            });
                         // @ref LLP 3000.036#15.12 — an `exists` answers a visible match as `true` and nothing else: say what it returns.
                         let treatment = if search_rewrite.is_some() { String::new() } else if scan.existence {
                             format!("; {}it answers `true` (`complete: false`) when a row the caller may read matches, otherwise null with no value (a client shows `loading`), never `false` from the server: rows the caller may not read leave absence unproven — test.cases.jsonl: the default passes it (`\"data\": true` pins a match); {complete_form} (check --verbose)",
@@ -859,7 +877,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                         format!("{} {}: {}the {} over {}[..] by {} {verdict}{} — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"{decided_clause}{treatment}", bound.program.kind.word(), bound.program.name, if inferred_search.is_some() { "when the search text folds to no words, " } else { "" }, if scan.existence { "`exists`" } else { "page" }, scan.table, scan.index,
                         admitted.as_ref().map_or_else(String::new, |grant| if conditional { format!(" for callers `{grant}` admits, and otherwise remains capped") } else { format!(" except for callers `{grant}` admits") }),
                         table.rules.read.quarry(), unpinned.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")) },
-                    held_rewrite.or(search_rewrite.clone()).unwrap_or_else(|| {
+                    cap_repair.or(held_rewrite).or(search_rewrite.clone()).unwrap_or_else(|| {
                         let base = scope_rewrite.unwrap_or_else(|| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));
                         let declaration = catalog.source.declarations.get(&bound.site.to_string()).map(String::as_str);
                         match pin_rewrite::pin_rewrite(schema, &bound.program, scan, table, &unpinned, declaration) {

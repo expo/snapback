@@ -24,26 +24,24 @@ after the source rule. Parenthesize a nested read with its own modifiers:
 `exists (messages[roomId = .roomId] matching q)`. The named inner key binds
 the outer row's room; inside a predicate, `.` denotes that predicate's row.
 
-A lookup by title does not prove that title unique. Do not add a uniqueness
-constraint unless the product requires it, or pin an id you do not have.
-For a synced table whose read rule depends on its id, the note can print the
-same complete query declaration with `held` added. Paste it over that query
-only if device-only lookup fits the screen: its predicate, order and duplicate
-matches stay the same, but it requires acquired coverage and has no server
-fallback. Otherwise keep the server query and its incomplete absence verdict.
+A title lookup does not prove uniqueness; add `unique` only when the product
+requires it. For a synced id-dependent rule, the note may add `held` to the
+same query. Use that only for a device-only lookup: it preserves predicate,
+order and duplicates, but needs acquired coverage and has no server fallback.
 
-Its rewrite renders the pin as code: the equality to add, the parent read that
-supplies it, or one query per party when pins cannot merge (guide indexes,
-"Private lists"). A
-row-independent grant (`exists staff[viewer]`) whose row its holder may read
-decides the page once for that holder, as does a disjunct the pins decide
-(`exists boards[.board, owner = viewer]` under `.board = b`) whose row its
-holder may read; `check` is silent after `require` or inside `if` of either.
+Rewrites name the missing equality, its parent read, or one query per party
+(guide indexes, "Private lists"). A readable row-independent grant
+(`exists staff[viewer]`) or pinned disjunct decides the page once; `check` is
+silent after its `require` or inside its `if`. Several readers get one proven
+complete `if` arm per grant or decided disjunct, then the remaining party.
 
-For several readers the printed form has one `if` arm per grant, one per
-disjunct the pins decide (`if exists cats[cat, owner = viewer]:` under `.cat
-= cat`), then the remaining party pinned, or one query per party; it prints
-only if proven to return the rule's rows; every arm is complete.
+Owner-or-membership with one row-dependent component and a total unique point
+merges, including target `.id` or a readable-parent point
+(`exists offers[.offer, baker = viewer]`). `unique parent, principal` bounds
+witnesses per target, not a viewer's memberships: discovery is metered and
+publishes neither rows nor cursor if cut. A note suggests `cap N by ...` only
+as an exact repair; it is a hard write/adoption limit. Hidden, ambiguous,
+multi-hop or physically unsupported probes receive no cap suggestion.
 
 An incomplete page: the default `test.cases.jsonl` expectation passes
 either answer (`"expect": "capped"` pins it; run it as a grant holder to expect

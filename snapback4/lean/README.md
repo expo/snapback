@@ -254,6 +254,7 @@ A case (one line):
   "helpers": [ { "name": "identity", "params": ["x"], "body": { "var": "x" } } ],
   "store": { "items": [ { "id": "r0", "cols": { "owner": { "id": "bob" }, "maybe": { "null": null } } } ] },
   "viewer": "bob",
+  "now": 0,
   "program": { "name": "run", "kind": "query",
                "params": [ { "name": "bucket", "optional": false }, { "name": "c", "optional": true } ],
                "body": [ { "ret": { "page": { "table": "items", "pins": [ ["bucket", { "var": "bucket" }] ],
@@ -277,6 +278,12 @@ The format's rules:
   bare strings.
 - **Store rows** are `{"id":…,"cols":{name: scalar}}`; columns are put in the
   table's declared order and an absent column is null.
+- **Lower read lifetimes** use a table's optional `notBefore` column and the
+  case's integer `now`. Null and values at or before `now` are open. The model
+  filters the whole logical view, including rule probes and write-result
+  visibility, while write target resolution and constraints remain physical.
+  Generated model cases seed at this one request clock; bounded publication
+  of an existing due-row backlog is a runtime/device lifecycle concern.
 - **The output** is one of:
   - `{"kind":"answer","data":…,"complete":b,"next":…}`;
   - `{"kind":"unavailable"}`;

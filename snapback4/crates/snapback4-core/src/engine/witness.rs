@@ -50,7 +50,8 @@ impl Runner<'_> {
                 else if answer.0 != previous {
                     // 64 bytes per transition covers Vec's minimum and geometric reallocations.
                     self.meter.heap(64)?;
-                    changes.push((self.context.now.unwrap_or(0), if answer.0 { super::rules::Verdict::Readable } else { super::rules::Verdict::Denied }));
+                    changes.push((self.context.now.unwrap_or(0), if answer.0 { super::rules::Verdict::Readable } else { super::rules::Verdict::Denied },
+                    ));
                 }
                 previous = answer.0;
                 let Some(deadline) = deadline.filter(|t| *t > self.context.now.unwrap_or(0)) else { return Ok(first.unwrap()); };
@@ -78,7 +79,8 @@ impl Runner<'_> {
             return Ok((false, known));
         };
         let (present, expiry) = self.row_view_member_exists(maintain, &row)?;
-        if !present { return Ok((false, !self.device || definition.sync.as_ref().is_some_and(|s|s.horizon.is_none()))); }
+        if !present { return Ok((false, !self.device || definition.sync.as_ref().is_some_and(|s|s.horizon.is_none()),
+            )); }
         let mut known = !self.device || if current { self.witness_covered(table, index, key, &row)? }
             else { definition.sync.is_some() };
         // @ref LLP 3000.015#3 — only value certifies; maintenance predicates refuse at admission.
@@ -104,8 +106,9 @@ impl Runner<'_> {
             let bytes = crate::rows::disclosed::decode_reservation(&self.schema.tables[table])
                 .saturating_add(crate::rows::MAX_INDEX_KEY_BYTES as u64 * 4);
             let expiry = self.next_expiry.scope();
-            let result = self.authorized_scratch(bytes, &[(MeterKind::Examined,1)], |runner, scope|
-                runner.probe_row_view(scope, table, index, key, equalities, current));
+            let result = self.authorized_scratch(bytes, &[(MeterKind::Examined,1)], |runner, scope| {
+                    runner.probe_row_view(scope, table, index, key, equalities, current)
+                });
             if matches!(result, Ok((true, true))) || equalities.iter().any(|(field, _)| field == "value") { expiry.emit(); }
             return result;
         }
@@ -120,16 +123,20 @@ impl Runner<'_> {
         let mut until: Option<i64> = None;
         let mut uncertain = false;
         loop {
-            let (rows, limit) = if !definition.is_expiring() {
+            let (rows, limit) = if !definition.read_lifetime_sensitive() {
                 // Non-expiring indexed predicates need only one candidate;
                 // extra equalities bind a complete unique key.
-                (self.live_lookup(allowance, table, index, index_def, key, #[cfg(feature = "sqlite")] None)?.map(|row| (row, Vec::new())).into_iter().collect::<Vec<_>>(), usize::MAX)
+                (self.live_lookup(allowance, table, index, index_def, key, #[cfg(feature = "sqlite")] None)?.map(|row| (row, Vec::new())).into_iter().collect::<Vec<_>>(), usize::MAX,
+                )
             } else { self.witness_scan(allowance, table, index, key, &bounds, 32)? };
             let count = rows.len();
             for (mut row, stored) in rows {
-                self.witness_materialize(&mut row, definition)?;
                 bounds.after = self.witness_position(&stored, index_def.components.len() + 1, key.len())?;
-                if self.expired(definition, &row) || !equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value) { continue; }
+                // @ref LLP 3000.036.003#2 — unopened witnesses are absent and
+                // consume neither the public meter nor the authorization walk.
+                if self.step_unopened(table, &row, &stored)? { continue; }
+                self.witness_materialize(&mut row, definition)?;
+                if self.inactive(table, &row)? || !equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value) { continue; }
                 // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — a held source whose event kind is not fully synced is no witness.
                 if self.device && !crate::schema::timeline::holds_event(self.schema, table, &row) {
                     self.event_read_unknown(table, index, key, "rule probe");
@@ -186,7 +193,8 @@ impl Runner<'_> {
                 &Bounds { gt: Some(Value::Int(self.context.now.unwrap_or(i64::MIN))), ..Default::default() }, Dir::Desc)?;
             let until = latest.as_ref().and_then(|key| key.get(prefix.len())).and_then(|v|v.as_int().ok());
             return Ok((timeless.is_some() || latest.is_some(), true,
-                rules::earliest(expiry, if timeless.is_some() { None } else { until })));
+                rules::earliest(expiry, if timeless.is_some() { None } else { until }),
+            ));
         }
         let mut bounds = Bounds { gt: self.context.now.filter(|_| expiry_ordered).map(Value::Int), ..Bounds::default() };
         let mut live = false;
@@ -202,7 +210,7 @@ impl Runner<'_> {
                     self.meter.heap(word_heap::slots::<Value>(maintain.by.len()))?;
                     for field in &maintain.by { if let Ok(value) = candidate.field(field) { crate::engine::authorized_scan::InternalLedger::with_meter(&mut self.meter, |meter, scope| value.scalar_heap(scope).charge(meter, scope))?; } }
                 }
-                if !self.live_contribution(maintain, source, &candidate, &group) { continue; }
+                if !self.live_contribution(maintain, source, &candidate, &group)? { continue; }
                 if current && !self.witness_covered(&maintain.source, name, &prefix, &candidate)? { known = false; continue; }
                 if current { known = true; }
                 let candidate_expiry = source.deadline(&candidate);
@@ -212,7 +220,8 @@ impl Runner<'_> {
             }
             if count < limit { break; }
         }
-        Ok((live, known || (current && live), rules::earliest(expiry, until)))
+        Ok((live, known || (current && live), rules::earliest(expiry, until),
+        ))
     }
 
     /// Point lookups must pass expired siblings, even on an index whose
@@ -220,9 +229,35 @@ impl Runner<'_> {
     pub(in crate::engine) fn lookup_stored(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value], _charge: bool) -> Result<Option<Value>, RuntimeError> {
         let table = &self.schema.tables[table_name];
         if crate::rows::disclosed::actual_size(table) {
-            return self.metered_scan(|runner, scope| runner.live_lookup(scope, table_name, name, index, key, #[cfg(feature = "sqlite")] None));
+            return self.metered_scan(|runner, scope| {
+                runner.live_lookup(scope, table_name, name, index, key, #[cfg(feature = "sqlite")] None)
+            });
         }
-        self.authorized_scratch(crate::rows::disclosed::decode_reservation(table), &[], |runner, scope| runner.live_lookup(scope, table_name, name, index, key, #[cfg(feature = "sqlite")] None))
+        self.authorized_scratch(crate::rows::disclosed::decode_reservation(table), &[], |runner, scope| {
+                runner.live_lookup(scope, table_name, name, index, key, #[cfg(feature = "sqlite")] None)
+            },
+        )
+    }
+
+    /// @ref LLP 3000.036.003#6 — write constraints keep lower-lifetime occupants physical.
+    /// Write constraints and server write targets see an unopened row as a
+    /// physical occupant. They still pass expired siblings because expiry,
+    /// unlike a lower read lifetime, releases logical uniqueness.
+    pub(in crate::engine) fn lookup_write_occupant(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
+        let table = &self.schema.tables[table_name];
+        if table.not_before.is_none() { return self.lookup_stored(table_name, name, index, key, false); }
+        let reservation = crate::rows::disclosed::decode_reservation(table);
+        let mut bounds = Bounds::default();
+        loop {
+            let found = self.authorized_scratch(reservation, &[], |runner, scope| {
+                runner.tx.scan(scope, table_name, name, key, &bounds, Dir::Asc, 1)
+                    .map(|mut rows| rows.pop())
+            })?;
+            let Some((mut row, stored)) = found else { return Ok(None); };
+            materialize_optional_fields(&mut row, &self.schema.tables[table_name]);
+            if !self.expired(&self.schema.tables[table_name], &row) { return Ok(Some(row)); }
+            bounds.after = crate::key::decode(&stored).map(|values| values.into_iter().skip(key.len()).collect());
+        }
     }
 
     pub(in crate::engine) fn live_lookup(&mut self, allowance: &Authorization, table_name: &str, name: &str, index: &Index, key: &[Value], #[cfg(feature = "sqlite")] mut encountered: Option<&mut bool>) -> Result<Option<Value>, RuntimeError> {
@@ -257,22 +292,26 @@ impl Runner<'_> {
             charged?;
             return Ok(Some(image.into_value()));
         }
-        if !table.is_expiring() && !self.device_work_active {
-            return self.tx.lookup(allowance, table_name, name, index, key).map(|found| found.map(|mut row| {
+        if !table.read_lifetime_sensitive() && !self.device_work_active {
+            return self.tx.lookup(allowance, table_name, name, index, key).map(|found| {
+                    found.map(|mut row| {
                 #[cfg(feature = "sqlite")]
                 if let Some(seen) = encountered.as_deref_mut() { *seen = true; }
-                materialize_optional_fields(&mut row, table); row }));
+                materialize_optional_fields(&mut row, table); row })
+                });
         }
         let mut bounds = Bounds::default();
         loop {
-            let (rows, limit) = self.witness_scan(allowance, table_name, name, key, &bounds, if !table.is_expiring() { 1 } else { 32 })?;
+            let (rows, limit) = self.witness_scan(allowance, table_name, name, key, &bounds, if !table.read_lifetime_sensitive() { 1 } else { 32 })?;
             let count = rows.len();
             #[cfg(feature = "sqlite")]
             if count > 0 { if let Some(seen) = encountered.as_deref_mut() { *seen = true; } }
             for (mut row, stored) in rows {
-                self.witness_materialize(&mut row, table)?;
-                if !self.expired(table, &row) { return Ok(Some(row)); }
                 bounds.after = self.witness_position(&stored, index.components.len() + 1, key.len())?;
+                if self.step_unopened(table_name, &row, &stored)? { continue; }
+                self.witness_materialize(&mut row, table)?;
+                if self.inactive(table_name, &row)? { continue; }
+                return Ok(Some(row));
             }
             if count < limit { return Ok(None); }
         }
@@ -281,7 +320,12 @@ impl Runner<'_> {
     // Physical witness work is additional device authorization work. Queries
     // and server rules keep their existing one-probe accounting.
     fn witness_scan(&mut self, allowance: &Authorization, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, batch: usize) -> Result<(Vec<(Value, Vec<u8>)>, usize), RuntimeError> {
-        if !self.device_work_active { return Ok((self.tx.scan(allowance, table, index, prefix, bounds, Dir::Asc, batch)?, batch)); }
+        // A lifetime-hidden row refunds the shared authorization walk only
+        // after inspection. Fetch one at a time so a nearly exhausted batch
+        // cannot refuse before that refund is applied.
+        let batch = if self.schema.tables[table].not_before.is_some() { 1 } else { batch };
+        if !self.device_work_active { return Ok((self.tx.scan(allowance, table, index, prefix, bounds, Dir::Asc, batch)?, batch,
+            )); }
         let limit = self.meter.ceilings.examined.saturating_sub(self.meter.used.examined).min(batch as u64) as usize;
         if limit == 0 { self.meter.charge(MeterKind::Examined, 1)?; }
         let rows = self.tx.scan_metered(allowance, table, index, prefix, bounds, Dir::Asc, limit, &mut self.meter)?;
@@ -326,7 +370,8 @@ mod tests {
             for private_work in [0,10_000_000] {
                 let mut runner=Runner::new(&rows,&schema,crate::Context::new("alice",Default::default()),
                     Meter::new(crate::Ceilings {heap_bytes:heap,..Default::default()},crate::meter::Cut::Cap),0);
-                let (result,allocated)=crate::rows::word_heap::tests::measured(||runner.authorized_scratch(64,&[],|runner,_| {
+                let (result,allocated)=crate::rows::word_heap::tests::measured(|| {
+                    runner.authorized_scratch(64,&[],|runner,_| {
                     runner.meter.heap(private_work)?;
                     runner.authorized_scan(&[],|runner,scope| {
                         let row=runner.live_lookup(scope,"rooms","byId",&schema.tables["rooms"].indexes["byId"],&[Value::Id("r".into())], #[cfg(feature = "sqlite")] None)?.unwrap();
@@ -334,7 +379,8 @@ mod tests {
                         assert!(runner.meter.used.heap_bytes >= private_work+1_000_000);
                         Ok(())
                     })
-                }));
+                })
+                });
                 assert_eq!(runner.meter.ceilings.heap_bytes,heap);
                 assert!(runner.caller_heap_ceiling.is_none(),"nested scope restores caller state");
                 if heap<1_000_000 {
@@ -357,8 +403,11 @@ mod tests {
         for heap in [64 << 10,3_600_000] {
             let mut runner=Runner::new(&rows,&schema,crate::Context::new("alice",Default::default()),
                 Meter::new(crate::Ceilings {heap_bytes:heap,..Default::default()},crate::meter::Cut::Cap),0);
-            let (result,allocated)=crate::rows::word_heap::tests::measured(|| runner.metered_scan(|runner,scope|
-                runner.live_lookup(scope,"rooms","byId",&schema.tables["rooms"].indexes["byId"],&[Value::Id("r".into())], #[cfg(feature = "sqlite")] None)));
+            let (result,allocated)=crate::rows::word_heap::tests::measured(|| {
+                runner.metered_scan(|runner,scope| {
+                    runner.live_lookup(scope,"rooms","byId",&schema.tables["rooms"].indexes["byId"],&[Value::Id("r".into())], #[cfg(feature = "sqlite")] None)
+                })
+            });
             eprintln!("public default heap={heap}: allocated={allocated}, retained={}, peak={}",runner.meter.used.heap_bytes,runner.meter.heap_peak);
             if heap==64 << 10 {
                 assert!(matches!(result,Err(RuntimeError::Bound {kind:MeterKind::HeapBytes,..})),"must refuse before copying the default");

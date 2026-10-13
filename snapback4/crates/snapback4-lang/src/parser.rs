@@ -177,7 +177,7 @@ impl Parser {
         self.take(":")?;
         self.newline()?;
         self.take_kind(Kind::Indent)?;
-        let mut table = TableDecl { receipts: None, ephemeral: None, search: Vec::new(), name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, public: None, sync: None, online_only: false, site };
+        let mut table = TableDecl { receipts: None, ephemeral: None, search: Vec::new(), name: name.clone(), columns: Vec::new(), indexes: Vec::new(), rules: Vec::new(), immutable: Vec::new(), caps: Vec::new(), final_exists: Vec::new(), retain: None, expire: None, not_before: None, public: None, sync: None, online_only: false, site };
         while !self.at_kind(Kind::Dedent) && !self.at_kind(Kind::Eof) {
             self.skip_newlines();
             if self.at_kind(Kind::Dedent) {
@@ -317,6 +317,21 @@ impl Parser {
                 let column = self.word()?.value;
                 self.end_line(&site)?;
                 table.expire = Some((column, site));
+                Ok(())
+            }
+            "not" if self.peek_at(1).value == "before" => {
+                if table.not_before.is_some() {
+                    return Err(syntax_with(&token.site, format!("table {} has more than one not before line", table.name), "one not before line per table"));
+                }
+                let site = self.take("not")?.site;
+                self.take("before")?;
+                if !self.at(".") || self.peek_at(1).kind != Kind::Word {
+                    return Err(syntax_with(&site, "not before names the local time column that starts a row's read life: not before .column", "not before .opensAt"));
+                }
+                self.take(".")?;
+                let column = self.word()?.value;
+                self.end_line(&site)?;
+                table.not_before = Some((column, site));
                 Ok(())
             }
             "online" => {

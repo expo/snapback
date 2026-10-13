@@ -176,7 +176,7 @@ fn one(
                     .map(|rule| format!("; or, when {field} must change (an online-only table reads it live), replace `read through .{reference}` with `read <- {rule}`"))
                     .unwrap_or_default();
                 errors.push(fail(
-                    format!("{parent}.{field} is captured by {name} and must be immutable"),
+                    format!("{parent}.{field} is captured by {name} and must be immutable. `read through` freezes this audience input when the child is inserted. If it must remain mutable, choose the intended history: copy it into a required immutable audience column on {name}, check `.copy = .{reference}.{field}` in {name}'s insert rule, and use an ordinary read rule over the copy to retain creation-time authority; or keep {name} online only and probe the live parent so existing children follow later changes"),
                     format!("immutable {field}  -- on table {parent}{probes}"),
                 ));
             }

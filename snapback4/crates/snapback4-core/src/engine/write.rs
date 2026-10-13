@@ -6,10 +6,10 @@ use super::runner::Runner;
 use super::validate::validate_row;
 use crate::error::{MeterKind, RuntimeError};
 use crate::partition;
-use crate::schema::{Constraint, Effect, Table, materialize_optional_fields};
-use crate::rows::{Bounds, Dir};
 use crate::rows::index_values;
-use crate::value::{Value, Supplied, canonical_json};
+use crate::rows::{Bounds, Dir};
+use crate::schema::{Constraint, Effect, Table, materialize_optional_fields};
+use crate::value::{Supplied, Value, canonical_json};
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Origin {
@@ -17,10 +17,10 @@ pub(crate) enum Origin {
     Maintained,
 }
 
-#[path = "write_target.rs"]
-pub(crate) mod target;
 #[path = "write_references.rs"]
 mod references;
+#[path = "write_target.rs"]
+pub(crate) mod target;
 
 impl Runner<'_> {
     pub(super) fn insert(&mut self, table: &str, row: Supplied) -> Result<(), RuntimeError> {
@@ -32,6 +32,11 @@ impl Runner<'_> {
     }
 
     fn insert_mode(&mut self, table_name: &str, row: Supplied, if_absent: bool) -> Result<bool, RuntimeError> {
+        if self.device && self.schema.tables[table_name].not_before.is_some() {
+            return Err(RuntimeError::Prediction(
+                "a mutation touching a `not before` table runs on the server".into(),
+            ));
+        }
         if self.device && if_absent && self.schema.tables[table_name].through.is_some() {
             return Err(RuntimeError::Prediction("insert if absent on a read-through child queues without a row".into()));
         }
@@ -119,7 +124,9 @@ impl Runner<'_> {
         // at the ceiling. Never use the clamped authority candidate as a key.
         if sequence_full && if_absent {
             let table = &self.schema.tables[table_name];
-            for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique && index.columns().iter().all(|column| !table.sequences.contains_key(column))) {
+            for (name, index) in table.indexes.iter().filter(|(_, index)| {
+                index.unique && index.columns().iter().all(|column| !table.sequences.contains_key(column))
+            }) {
                 let key = index_values(index, &row);
                 if key.contains(&Value::Null) { continue; }
                 if self.collision_lookup(table_name, name, index, &key, None, Effect::Insert)?.is_some() {
@@ -151,8 +158,12 @@ impl Runner<'_> {
         // Only a freshly minted id can skip the primary-key absence proof.
         let minted = self.context.minted_ids.contains(&id);
         let proof = if !self.device { None } else if minted {
-            table.indexes.iter().find(|(name, index)| name.as_str() != "byId" && index.unique && !index_values(index, &row).contains(&Value::Null))
-                .map(|(name, _)| name.as_str()).or_else(|| table.constraints.iter().any(|c| matches!(c, Constraint::Cap { .. })).then_some("byId"))
+            table.indexes.iter().find(|(name, index)| {
+                    name.as_str() != "byId" && index.unique && !index_values(index, &row).contains(&Value::Null)
+                })
+                .map(|(name, _)| name.as_str()).or_else(|| {
+                    table.constraints.iter().any(|c| matches!(c, Constraint::Cap { .. })).then_some("byId")
+                })
         } else { Some("byId") };
         if if_absent && let Some(index) = proof.or(self.device.then_some("byId")) {
             self.prove_upsert_insert(table_name, index, &row)?;
@@ -196,7 +207,9 @@ impl Runner<'_> {
         }
         // @ref LLP 3000.007#20.5 — an authored plain insert predicts unproved; a later refusal is then the server's
         // to report. The engine's own timeline writes are not the author's prediction.
-        if let Some(index) = proof.filter(|_| !if_absent && upsert_index.is_none() && !self.unproved_write && self.timeline_authority.is_none()) {
+        if let Some(index) = proof.filter(|_| {
+            !if_absent && upsert_index.is_none() && !self.unproved_write && self.timeline_authority.is_none()
+        }) {
             // An earlier unknown fact already makes this prediction unproved.
             // Otherwise the proof's own unknown fact is not the prediction's.
             self.unproved_write = self.missing_fact.is_some();
@@ -214,14 +227,23 @@ impl Runner<'_> {
         self.commit_receipt_counter(table_name, &row)?;
         let row = self.prepare_event_slots(table_name, None, row, image_bytes)?;
         validate_row(self.schema, table_name, &row)?;
-        let entries = self.maintain_scratch(self.contribution_heap(table), |runner| runner.tx.put(table_name, table, &row, None))?;
+        let entries = self.maintain_scratch(self.contribution_heap(table), |runner| {
+            runner.tx.put(table_name, table, &row, None)
+        })?;
         self.charge_source_indexes(table, None, Some(&row), entries)?;
         self.row_changed(table_name, None, Some(&row), Origin::Source)?;
         Ok(true)
     }
 
     pub(super) fn update(&mut self, table_name: &str, key: &Value, patch: Supplied) -> Result<(), RuntimeError> {
-        self.target_attempt(table_name, |runner| runner.update_attempt(table_name, key, patch))
+        if self.device && self.schema.tables[table_name].not_before.is_some() {
+            return Err(RuntimeError::Prediction(
+                "a mutation touching a `not before` table runs on the server".into(),
+            ));
+        }
+        self.target_attempt(table_name, |runner| {
+            runner.update_attempt(table_name, key, patch)
+        })
     }
 
     fn update_attempt(&mut self, table_name: &str, key: &Value, patch: Supplied) -> Result<(), RuntimeError> {
@@ -234,18 +256,28 @@ impl Runner<'_> {
         }
         let id = key.as_str()?;
         self.reserve_target_resolution(table_name, self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?, &patch, false)?;
-        let Some(old) = self.metered_scan(|runner, allowance| runner.fetch(allowance, table_name, id))? else {
+        let Some(old) = self.metered_scan(|runner, allowance| {
+            runner.fetch_write_target(allowance, table_name, id)
+        })? else {
             return Err(self.write_miss(table_name, "byId", &[key.clone()]));
         };
         if self.device && self.schema.tables[table_name].sync.is_none() { return Err(self.write_miss(table_name, "byId", &[key.clone()])); }
-        let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
+        let readable = !self.inactive_write_target(table_name, &old)?
+            && self.check_rule(table_name, Effect::Read, None, &old)?;
         let patch = self.ignore_hidden_immutable_patch(table_name, patch, readable)?;
         let (new, copy) = self.merge_patch(table_name, &old, &patch, readable)?;
         self.replace(table_name, old, new, readable, &patch, copy)
     }
 
     pub(super) fn upsert(&mut self, table_name: &str, key: &Value, row: Supplied) -> Result<(), RuntimeError> {
-        self.target_attempt(table_name, |runner| runner.upsert_attempt(table_name, key, row))
+        if self.device && self.schema.tables[table_name].not_before.is_some() {
+            return Err(RuntimeError::Prediction(
+                "a mutation touching a `not before` table runs on the server".into(),
+            ));
+        }
+        self.target_attempt(table_name, |runner| {
+            runner.upsert_attempt(table_name, key, row)
+        })
     }
 
     fn upsert_attempt(&mut self, table_name: &str, key: &Value, row: Supplied) -> Result<(), RuntimeError> {
@@ -258,15 +290,21 @@ impl Runner<'_> {
             return Err(RuntimeError::Input(format!("{table_name} upsert row id must equal its key")));
         }
         self.reserve_target_resolution(table_name, self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?, &row, true)?;
-        match self.metered_scan(|runner, allowance| runner.fetch(allowance, table_name, id))? {
+        match self.metered_scan(|runner, allowance| {
+            runner.fetch_write_target(allowance, table_name, id)
+        })? {
             Some(old) => {
-                let readable = self.check_rule(table_name, Effect::Read, None, &old)?;
+                let readable = !self.inactive_write_target(table_name, &old)?
+                    && self.check_rule(table_name, Effect::Read, None, &old)?;
                 let row = self.ignore_hidden_immutable_patch(table_name, row, readable)?;
                 // @ref LLP 3000.007#5.4 — an existing row receives a patch; omitted columns keep their values.
                 let (new, copy) = self.merge_patch(table_name, &old, &row, readable)?;
                 self.replace(table_name, old, new, readable, &row, copy)
             }
-            None if self.device && !self.upsert_absence_proven(table_name, "byId", &[key.clone()])? => Err(self.write_miss(table_name, "byId", &[key.clone()])),
+            None if self.device && !self.upsert_absence_proven(table_name, "byId", &[key.clone()])? =>
+            {
+                Err(self.write_miss(table_name, "byId", &[key.clone()]))
+            }
             None => self.insert_upsert(table_name, "byId", row),
         }
     }
@@ -305,7 +343,9 @@ impl Runner<'_> {
         super::sequences::refuse_fields(&self.schema.tables[table_name], table_name, patch)?;
         self.authorize_fields(table_name, &old, patch)?;
         let definition = &self.schema.tables[table_name];
-        for path in definition.columns.keys().filter(|field| definition.engine_field(field) && field.as_str() != crate::schema::through::DEADLINE) {
+        for path in definition.columns.keys().filter(|field| {
+            definition.engine_field(field) && field.as_str() != crate::schema::through::DEADLINE
+        }) {
             if old.field(path).ok() != new.field(path).ok() {
                 return Err(if readable { RuntimeError::Structural { code: "E_RECORDED_FIELD", message: format!("engine replacement changed stored attribution at {table_name}.{path} (guide maintains)") } } else { self.no_write_target() });
             }
@@ -324,12 +364,19 @@ impl Runner<'_> {
         // A predicting device keeps another owner's omitted private field as an omission.
         super::validate::validate_projection(self.schema, table_name, &new, self.device.then_some(self.context.viewer.as_str()))?;
         let table = self.schema.table(table_name).expect("validated");
-        let entries = self.maintain_scratch(self.contribution_heap(table), |runner| runner.tx.put(table_name, table, &new, Some(&old)))?;
+        let entries = self.maintain_scratch(self.contribution_heap(table), |runner| {
+            runner.tx.put(table_name, table, &new, Some(&old))
+        })?;
         self.charge_source_indexes(table, Some(&old), Some(&new), entries)?;
         self.row_changed(table_name, Some(&old), Some(&new), Origin::Source)
     }
 
     pub(super) fn delete(&mut self, table_name: &str, id: &str) -> Result<(), RuntimeError> {
+        if self.device && self.schema.tables[table_name].not_before.is_some() {
+            return Err(RuntimeError::Prediction(
+                "a mutation touching a `not before` table runs on the server".into(),
+            ));
+        }
         self.target_attempt(table_name, |runner| runner.delete_attempt(table_name, id))
     }
 
@@ -340,16 +387,21 @@ impl Runner<'_> {
         self.reserve_write_rules(table, &[Effect::Read, Effect::Delete])?;
         // @ref LLP 3000.007#20.9 — delete prepays hidden contribution work before fetching its old image, with the same attempt lifetime as update.
         self.reserve_maintains(table_name, table)?;
-        let Some(old) = self.metered_scan(|runner, allowance| runner.fetch(allowance, table_name, id))? else {
+        let Some(old) = self.metered_scan(|runner, allowance| {
+            runner.fetch_write_target(allowance, table_name, id)
+        })? else {
             return Err(RuntimeError::Require { site: Some(self.statement_site.clone()), code: "NOT_FOUND".to_owned(), message: None });
         };
         // @ref LLP 3000.039#3 — a delete that consults referencing rows needs read authority on its row first.
-        if (self.schema.children(table_name).next().is_some() || self.schema.is_referenced(table_name)) && !self.check_rule(table_name,Effect::Read,None,&old)? {
+        let readable =
+            !self.inactive_write_target(table_name, &old)? && self.check_rule(table_name, Effect::Read, None, &old)?;
+        if (self.schema.children(table_name).next().is_some() || self.schema.is_referenced(table_name)) && !readable
+        {
             self.refusing_clause(table_name, "read rule");
             return Err(self.no_write_target());
         }
         if !self.check_rule(table_name, Effect::Delete, None, &old)? {
-            return Err(if self.check_rule(table_name, Effect::Read, None, &old)? {
+            return Err(if readable {
                 RuntimeError::Rule { table: table_name.to_owned(), effect: Effect::Delete }
             } else { self.no_write_target() });
         }
@@ -374,7 +426,9 @@ impl Runner<'_> {
         self.receipt_member_removed(table_name, &old)?;
         self.refuse_live_children(table_name,old.field("id")?)?;
         self.check_constraints(table_name, Some(&old), &old, Effect::Delete)?;
-        let entries = self.maintain_scratch(self.contribution_heap(table), |runner| runner.tx.delete(table_name, table, &old))?;
+        let entries = self.maintain_scratch(self.contribution_heap(table), |runner| {
+            runner.tx.delete(table_name, table, &old)
+        })?;
         self.charge_source_indexes(table, Some(&old), None, entries)?;
         self.row_changed(table_name, Some(&old), None, Origin::Source)
     }
@@ -385,7 +439,9 @@ impl Runner<'_> {
     pub(super) fn remove(&mut self, table_name: &str, old: &Value) -> Result<(), RuntimeError> {
         self.refuse_engine_owned(table_name, Effect::Delete)?;
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-        let entries = self.maintain_scratch(self.contribution_heap(table), |runner| runner.tx.delete(table_name, table, old))?;
+        let entries = self.maintain_scratch(self.contribution_heap(table), |runner| {
+            runner.tx.delete(table_name, table, old)
+        })?;
         self.charge_source_indexes(table, Some(old), None, entries)?;
         self.row_changed(table_name, Some(old), None, Origin::Source)
     }
@@ -403,7 +459,8 @@ impl Runner<'_> {
     // @ref LLP 3000#7-decisions-during-execution — a row whose lifetime ended by its own commit's end never exists at a commit boundary.
     #[cfg(feature = "sqlite")]
     pub(crate) fn retire_expired_births(&mut self) -> Result<crate::meter::Metered, RuntimeError> {
-        let Some(now) = self.context.now else { return Ok(Default::default()) };
+        let Some(now) = self.context.now else { return Ok(Default::default());
+        };
         // @ref LLP 3000.036.000.000#3 — an expired final image never grants a new recipient the row's id.
         // A row that existed before the commit and ends it already expired is
         // retired too: accounted from the partitions it was in at the commit's
@@ -418,11 +475,15 @@ impl Runner<'_> {
         }
         // The log's order must not depend on a map's iteration order.
         let order = self.schema.through_order();
-        changed.sort_by_key(|(name,id)| (std::cmp::Reverse(order.iter().position(|n| n == name)),id.clone()));
+        changed.sort_by_key(|(name,id)| {
+            (std::cmp::Reverse(order.iter().position(|n| n == name)),id.clone(),
+            )
+        });
         let meter = std::mem::replace(&mut self.meter, crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort));
         self.retiring = Some(Default::default());
         let retired = changed.iter().try_for_each(|(table_name, id)| {
-            let Some(row) = self.metered_scan(|runner, allowance| runner.tx.get(allowance, table_name, id))? else { return Ok(()) };
+            let Some(row) = self.metered_scan(|runner, allowance| runner.tx.get(allowance, table_name, id))? else { return Ok(());
+            };
             let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
             if table.expired(&row, now) && !self.physical_children(table_name,row.field("id")?)? { self.remove(table_name, &row) } else { Ok(()) }
         });
@@ -438,7 +499,9 @@ impl Runner<'_> {
     // @ref LLP 3000.007#5.4 — omitted defaults use the clock and viewer of the host running the insert.
     pub(super) fn with_defaults(&mut self, table_name: &str, row: Supplied) -> Result<Supplied, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-        if !table.defaults.keys().any(|name| row.as_object().is_ok_and(|fields| !fields.contains_key(name))) {
+        if !table.defaults.keys().any(|name| {
+            row.as_object().is_ok_and(|fields| !fields.contains_key(name))
+        }) {
             return Ok(row);
         }
         let row = row.defaults(table,self.context.now.ok_or_else(||RuntimeError::Input("write clock is not pinned".into()))?,&self.context.viewer)?;
@@ -483,7 +546,11 @@ impl Runner<'_> {
         let table = self.schema.table(table_name).expect("validated");
         let id = new.field("id")?.as_str()?.to_owned();
         // @ref LLP 3000.039#4.1 — an action's own write consults no rule: probing the child's read rule would draw the shared allowance only where a child exists.
-        let readable = match old { Some(old) if effect == Effect::Update && !self.engine_action => self.check_rule(table_name, Effect::Read, None, old)?, _ => true };
+        let readable = match old { Some(old) if effect == Effect::Update && !self.engine_action => {
+                !self.inactive_write_target(table_name, old)?
+                    && self.check_rule(table_name, Effect::Read, None, old)?
+            }
+            _ => true };
         if effect != Effect::Delete {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
                 // byId can only return this id (already checked on insert).
@@ -495,11 +562,16 @@ impl Runner<'_> {
                     continue;
                 }
                 // @ref LLP 3000.007#20.5 — holding the target does not cover a different unique population.
-                if self.device && effect == Effect::Update && !self.device_work(|runner| runner.upsert_absence_proven(table_name, name, &key))? {
+                if self.device && effect == Effect::Update && !self.device_work(|runner| {
+                        runner.upsert_absence_proven(table_name, name, &key)
+                    })? {
                     return Err(self.write_miss(table_name, name, &key));
                 }
                 if let Some(existing) = self.collision_lookup(table_name, name, index, &key, Some(&id), effect)
-                    .map_err(|error| if !readable && matches!(error, RuntimeError::Rule { .. }) { self.no_write_target() } else { error })?
+                    .map_err(|error| {
+                        if !readable && matches!(error, RuntimeError::Rule { .. }) { self.no_write_target() } else { error
+                        }
+                    })?
                     && existing.field("id")?.as_str()? != id
                 {
                     self.observe_sequence_columns(table_name, new, &index.columns(), effect == Effect::Insert)?;
@@ -554,7 +626,9 @@ impl Runner<'_> {
                     if self.schema.cap_skips_null(table, by, &group) { continue; }
                     // @ref LLP 3000.013#11.1 — an expired local predecessor may have been swept and its capacity refilled before sync arrives.
                     let predecessor = old.filter(|row| !self.device || !self.expired(table, row));
-                    let moved = predecessor.is_none_or(|old| by.iter().map(|field| old.field(field).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>() != group);
+                    let moved = predecessor.is_none_or(|old| {
+                        by.iter().map(|field| old.field(field).cloned().unwrap_or(Value::Null)).collect::<Vec<_>>() != group
+                    });
                     if !moved {
                         continue;
                     }
@@ -565,16 +639,22 @@ impl Runner<'_> {
                     if self.device && table.is_expiring() {
                         return Err(RuntimeError::Prediction(format!("{table_name}'s expiring cap needs the server's physical occupancy; queue this write until the server settles it")));
                     }
-                    let index_name = table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(by)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("cap by {} has no leading index", by.join(", "))))?;
+                    let index_name = table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(by)).map(|(name, _)| name.clone()).ok_or_else(|| {
+                            RuntimeError::Schema(format!("cap by {} has no leading index", by.join(", ")))
+                        })?;
                     // @ref LLP 3000.007#20.5 — moving a held row needs complete coverage of the destination cap group.
-                    if self.device && effect == Effect::Update && !self.device_work(|runner| runner.upsert_absence_proven(table_name, &index_name, &group))? {
+                    if self.device && effect == Effect::Update && !self.device_work(|runner| {
+                            runner.upsert_absence_proven(table_name, &index_name, &group)
+                        })? {
                         return Err(self.write_miss(table_name, &index_name, &group));
                     }
                     let private_cap = !table.sequences.is_empty() && !self.context.is_system() && !table.rules.read.is_uniformly_readable();
                     let count = self.authorized_scan(&[
                         (MeterKind::IndexEntries, 1),
-                        (MeterKind::Examined, if private_cap { *max as u64 } else { 0 }),
-                        (MeterKind::RuleProbes, if private_cap { super::rules::rule_probes(&table.rules.read).saturating_mul(*max as u64) } else { 0 }),
+                        (MeterKind::Examined, if private_cap { *max as u64 } else { 0 },
+                            ),
+                        (MeterKind::RuleProbes, if private_cap { super::rules::rule_probes(&table.rules.read).saturating_mul(*max as u64) } else { 0 },
+                            ),
                     ], |runner, allowance| {
                         if !private_cap && !table.is_expiring() {
                             return runner.tx.count_prefix(allowance, table_name, &index_name, &group, *max as u64 + 1);
@@ -598,7 +678,9 @@ impl Runner<'_> {
                             let rows = runner.tx.scan(allowance, table_name, &index_name, &group, &bounds, Dir::Asc, batch)?;
                             let fetched = rows.len();
                             for (row, key) in rows {
-                                bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
+                                bounds.after = crate::key::decode(&key).map(|values| {
+                                        values.into_iter().skip(group.len()).collect()
+                                    });
                                 if !runner.expired(table, &row) {
                                     if private_cap { runner.visible_collision(table_name, &row, effect, &format!("cap {}", by.join(", ")))?; }
                                     count += 1;
@@ -614,9 +696,11 @@ impl Runner<'_> {
                         // @ref LLP 3000.007#17 — cap diagnostics describe the schema, never retained group values.
                         // @ref LLP 3000.040#32-changes — a whole-table cap has no group to name.
                         let (clause, message) = if by.is_empty() {
-                            (format!("cap {max}"), format!("{table_name} holds at most {max} rows"))
+                            (format!("cap {max}"), format!("{table_name} holds at most {max} rows"),
+                            )
                         } else {
-                            (format!("cap {}", by.join(", ")), format!("{table_name} holds at most {max} rows per group by {}", by.join(", ")))
+                            (format!("cap {}", by.join(", ")), format!("{table_name} holds at most {max} rows per group by {}", by.join(", ")),
+                            )
                         };
                         self.refusing_clause(table_name, &clause);
                         return Err(if table.is_expiring() {
@@ -632,7 +716,11 @@ impl Runner<'_> {
     fn collision_lookup(&mut self, table: &str, name: &str, index: &crate::schema::Index, key: &[Value], except: Option<&str>, effect: Effect) -> Result<Option<Value>, RuntimeError> {
         let probes = super::rules::rule_probes(&self.schema.tables[table].rules.read);
         self.authorized_scan(&[(MeterKind::RuleProbes, probes)], |runner, allowance| {
-            let found = runner.live_lookup(allowance, table, name, index, key, #[cfg(feature = "sqlite")] None)?;
+            let found = if runner.schema.tables[table].not_before.is_some() {
+                runner.lookup_write_occupant(table, name, index, key)?
+            } else {
+                runner.live_lookup(allowance, table, name, index, key, #[cfg(feature = "sqlite")] None)?
+            };
             if let Some(row) = &found && Some(row.field("id")?.as_str()?) != except {
                 runner.observe_sequence_columns(table, row, &index.columns(), effect == Effect::Insert)?;
                 runner.visible_collision(table, row, effect, &format!("unique {}", index.columns().join(", ")))?;
@@ -652,8 +740,7 @@ impl Runner<'_> {
         let mut image = row.clone();
         let definition = self.schema.table(table).expect("validated");
         materialize_optional_fields(&mut image, definition);
-        let expired = definition.expired(&image, self.context.now.unwrap_or(0));
-        if expired || !self.check_rule(table, Effect::Read, None, &image)? {
+        if self.inactive_write_target(table, &image)? || !self.check_rule(table, Effect::Read, None, &image)? {
             return Err(self.rule_refusal(table, effect, clause));
         }
         Ok(())
@@ -666,8 +753,11 @@ impl Runner<'_> {
         for (table_name, row) in &inserted {
             let table = self.schema.table(table_name).expect("validated");
             for constraint in &table.constraints {
-                let Constraint::FinalExistsOnInsert { table: target, index, key } = constraint else { continue };
-                let refusal = || RuntimeError::Constraint(format!("inserting into {table_name} requires a matching row in {target} by the end of the mutation"));
+                let Constraint::FinalExistsOnInsert { table: target, index, key } = constraint else { continue;
+                };
+                let refusal = || {
+                    RuntimeError::Constraint(format!("inserting into {table_name} requires a matching row in {target} by the end of the mutation"))
+                };
                 let has_references = key.iter().any(|term| term.reference_source().is_some());
                 let key: Vec<Value> = if has_references {
                     // Preserve the structural target probe, but authorize each
@@ -682,9 +772,11 @@ impl Runner<'_> {
                             // This inserted image owns a provisional ordinal even if no expression read it.
                             self.provisional_sequence_read |= self.device && table.sequences.contains_key(field);
                             row.field(field).cloned().unwrap_or(Value::Null)
-                        },
-                        crate::schema::RuleTerm::Viewer => Value::Id(self.context.viewer.clone()),
-                        crate::schema::RuleTerm::Literal(value) => value.clone(),
+                        }
+                            crate::schema::RuleTerm::Viewer => {
+                                Value::Id(self.context.viewer.clone())
+                            }
+                            crate::schema::RuleTerm::Literal(value) => value.clone(),
                         crate::schema::RuleTerm::OldField(_) | crate::schema::RuleTerm::Reference { .. } | crate::schema::RuleTerm::ReferenceChain { .. } => Value::Null,
                     })
                     .collect() };
@@ -793,8 +885,10 @@ impl Runner<'_> {
         }
         if was_created {
             if let Some(row) = new {
-                let keys: Vec<_> = table.indexes.iter().map(|(name, index)|
-                    (table_name.to_owned(), name.clone(), canonical_json(&index_values(index, row)))).collect();
+                let keys: Vec<_> = table.indexes.iter().map(|(name, index)| {
+                        (table_name.to_owned(), name.clone(), canonical_json(&index_values(index, row)),
+                        )
+                    }).collect();
                 for key in &keys { *self.created.entry(key.clone()).or_default() += 1; }
                 self.created_rows.insert(owner, keys);
             }
@@ -825,6 +919,18 @@ impl Runner<'_> {
                 if self.schema.timelines.iter().any(|t| t.maps(table_name)) { self.timeline_transition(table_name, old, new)?; }
             }
         }
+        self.tx.track_time_audience(
+            table_name,
+            table,
+            id,
+            new,
+            self.context.now.unwrap_or(i64::MIN),
+            if self.event_free {
+                new.is_some() && self.tx.time_audience_published(table_name, id)?
+            } else {
+                new.is_some_and(|row| table.live(row, self.context.now.unwrap_or(i64::MIN)))
+            },
+        )?;
         Ok(())
     }
 

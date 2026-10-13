@@ -362,7 +362,7 @@ pub fn compare(case: &Case, source: &str) -> Result<Checked, String> {
         let e_raw = steps.next().ok_or("prelude outcome missing")?.clone();
         let args = module.tag_args(&name, &step.args).map_err(|u| u.to_string())?;
         let viewer = step.viewer.as_deref().unwrap_or(&case.principal);
-        let m_raw = ask(&module.case(&name, store.clone(), viewer, args, None).map_err(|u| u.to_string())?)?;
+        let m_raw = ask(&module.case_at(&name, store.clone(), viewer, args, None, step.at).map_err(|u| u.to_string())?)?;
         executed += 2;
         let (e, m) = (engine_canon(&e_raw), model_canon(&m_raw));
         trail.push(trail_entry(&e, &m));
@@ -375,7 +375,7 @@ pub fn compare(case: &Case, source: &str) -> Result<Checked, String> {
     }
     if mutation {
         let e_raw = execute::execute(&mut engine, case, "run", &case.args);
-        let m_raw = ask(&module.case("run", store.clone(), &case.principal, m_args, None).map_err(|u| u.to_string())?)?;
+        let m_raw = ask(&module.case_at("run", store.clone(), &case.principal, m_args, None, case.clock).map_err(|u| u.to_string())?)?;
         executed += 2;
         let (e, m) = (engine_canon(&e_raw), model_canon(&m_raw));
         let first_class = e.class("kind");
@@ -387,7 +387,7 @@ pub fn compare(case: &Case, source: &str) -> Result<Checked, String> {
         let after = if m.kind == "committed" { m_raw["store"].clone() } else { store };
         let o_args = module.tag_args("observe", &case.args).map_err(|u| u.to_string())?;
         let eo_raw = execute::execute(&mut engine, case, "observe", &case.args);
-        let mo_raw = ask(&module.case("observe", after, &case.principal, o_args, None).map_err(|u| u.to_string())?)?;
+        let mo_raw = ask(&module.case_at("observe", after, &case.principal, o_args, None, case.clock).map_err(|u| u.to_string())?)?;
         executed += 2;
         let (eo, mo) = (engine_canon(&eo_raw), model_canon(&mo_raw));
         trail.push(trail_entry(&eo, &mo));
@@ -402,7 +402,7 @@ pub fn compare(case: &Case, source: &str) -> Result<Checked, String> {
     let mut first_class = String::new();
     loop {
         let e_raw = execute::execute(&mut engine, case, "run", &e_args);
-        let m_raw = ask(&module.case("run", store.clone(), &case.principal, m_args.clone(), None).map_err(|u| u.to_string())?)?;
+        let m_raw = ask(&module.case_at("run", store.clone(), &case.principal, m_args.clone(), None, case.clock).map_err(|u| u.to_string())?)?;
         executed += 2;
         pages += 1;
         let (e, m) = (engine_canon(&e_raw), model_canon(&m_raw));
@@ -451,12 +451,23 @@ pub fn features(case: &Case) -> Vec<String> {
     if rules[0] == Rule::TwoParty {
         out.push("branch-rule-two-party".into());
     }
-    let membership_branch = rules[0] == Rule::OwnerOrWitness
+    let membership_branch = matches!(rules[0], Rule::OwnerOrWitness | Rule::OwnerOrIdWitness)
         && matches!(body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. });
     if membership_branch {
         out.push("branch-rule-membership".into());
+        if rules[0] == Rule::OwnerOrIdWitness {
+            out.push("branch-rule-membership-id".into());
+        }
+        if case.program.tables.iter().find(|table| table.name == "access").is_some_and(|table| table.caps.is_empty()) {
+            out.push("branch-rule-membership-uncapped".into());
+        }
         if case.program.membership_named_reordered {
             out.push("branch-rule-membership-named-reordered".into());
+        }
+        if case.program.tables.iter().find(|table| table.name == "access").is_some_and(|table|
+            table.keys.iter().any(|(_, columns, unique)| *unique && columns.iter().map(String::as_str).eq(["principal"]))
+                && table.columns.iter().any(|column| column.name == "bucket" && matches!(column.ty, crate::ast::Type::Nullable(_)))) {
+            out.push("branch-rule-membership-discovery-unique".into());
         }
     }
     let boolean_grant = case.program.boolean_grant_normalized
@@ -521,7 +532,7 @@ pub fn features(case: &Case) -> Vec<String> {
             _ => "arguments",
         }));
     }
-    let probing = |r: &Rule| matches!(r, Rule::Witness | Rule::OwnerOrWitness);
+    let probing = |r: &Rule| matches!(r, Rule::Witness | Rule::OwnerOrWitness | Rule::OwnerOrIdWitness);
     if access_hidden && rules.iter().any(probing) {
         out.push("probe-of-hidden-access".into());
     }
@@ -529,10 +540,10 @@ pub fn features(case: &Case) -> Vec<String> {
         let uniform = match rules[0] {
             Rule::Owner | Rule::OwnerOrGrant => *owner,
             // The witness disjunct is pinned by `.bucket`: decided per caller (§16.3).
-            Rule::OwnerOrWitness => *owner,
+            Rule::OwnerOrWitness | Rule::OwnerOrIdWitness => *owner,
             _ => true,
         };
-        if matches!(rules[0], Rule::OwnerOrWitness) && !*owner && matches!(kind, Read::Page | Read::Bounded | Read::Exists) {
+        if matches!(rules[0], Rule::OwnerOrWitness | Rule::OwnerOrIdWitness) && !*owner && matches!(kind, Read::Page | Read::Bounded | Read::Exists) {
             out.push(format!("parent-pinned-grant-{kind:?}").to_lowercase());
         }
         if matches!(kind, Read::Exists) {
@@ -681,27 +692,49 @@ pub fn generate(seed: u64) -> Case {
     case
 }
 
-/// An unpinned owner-or-membership page. The membership roster has cap 16 by
-/// its fixed principal and the inverse `(principal, bucket)` index, so the
-/// compiler may discover every distinct bucket before merging target lanes.
+/// An unpinned owner-or-membership page. Half the rosters retain cap 16 by the
+/// fixed principal; half rely on the total unique membership point. Both use
+/// the inverse `(principal, bucket)` index for metered discovery before merge.
 fn membership_page(case: &mut Case, seed: u64) {
     use crate::ast::{Read, Residency, Rule};
     let mut rng = crate::generate::Rng::new(seed ^ 0x4d45_4d42_4552_5047);
-    let Body::Read { kind: Read::Page | Read::Bounded, owner, .. } = &mut case.program.body else { return };
+    let inherited_id = case.program.tables.iter().find(|table| table.name == "access")
+        .is_some_and(|table| table.columns.iter().any(|column| column.name == "item"));
+    let inherited_discovery = case.program.tables.iter().find(|table| table.name == "access")
+        .is_some_and(|table| table.keys.iter().any(|(name, _, _)| name == "byPrincipalOnly"));
+    if inherited_id || inherited_discovery {
+        let read = if inherited_id { Rule::OwnerOrIdWitness } else { Rule::OwnerOrWitness };
+        case.program.tables[0].rule = read.clone();
+        case.program.tables[0].effects = Some(vec![read, Rule::Allow, Rule::Allow, Rule::Allow]);
+        if inherited_id && case.program.guard.as_deref().is_some_and(|guard| guard.contains("access[")) {
+            case.program.guard = Some("a < b".into());
+        }
+        return
+    }
+    let Body::Read { kind: kind @ (Read::Page | Read::Bounded), filter, owner, project, .. } = &mut case.program.body else { return };
     if rng.pick(8) != 0 { return }
+    *kind = Read::Page;
+    *filter = false;
     *owner = false;
+    *project = None;
     let items = &mut case.program.tables[0];
-    items.rule = Rule::OwnerOrWitness;
+    let by_id = rng.pick(2) == 0;
+    items.rule = if by_id { Rule::OwnerOrIdWitness } else { Rule::OwnerOrWitness };
     items.effects = None;
     items.residency = Residency::Online;
     let access = case.program.tables.iter_mut().find(|table| table.name == "access").expect("generated access table");
     access.rule = Rule::Allow;
     access.effects = None;
     access.residency = Residency::Public;
+    if rng.pick(2) == 0 { access.caps.clear(); }
+    let discovery_unique = !by_id && access.caps.is_empty() && rng.pick(2) == 0;
     case.program.domain = Some("true".into());
     case.program.order = Some(vec!["id".into()]);
+    case.program.residual = None;
     case.program.guard = None;
-    case.program.membership_named_reordered = rng.pick(2) == 0;
+    case.program.membership_named_reordered = !by_id && rng.pick(2) == 0;
+    if by_id { crate::generate::id_membership(case); }
+    else if discovery_unique { crate::generate::discovery_unique_membership(case); }
 }
 
 /// A readable grant guarded by a required Boolean that the page pins false.

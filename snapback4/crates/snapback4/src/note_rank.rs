@@ -33,6 +33,7 @@ pub(crate) fn verdict(code: &str, summary: &str, form: bool) -> &'static str {
         "N_NO_PRODUCTION_WRITER" => "fix: add a production bootstrap writer",
         "N_FIXTURE_ARGUMENT_DRIFT" => "fix: update the fixture arguments",
         "N_CONDITIONAL_COMPLETE" => "review: complete for the pinned parent audience; other callers may be capped",
+        "N_NEVER_COMPLETE" if summary.contains("the complete form is to add `cap ") => "fix: add the exact source cap below, or accept `complete: false`",
         "N_NEVER_COMPLETE" if summary.contains("no verified complete form for this read") => "review: no verified complete form for this read; expect `capped` and show what arrived",
         "N_NEVER_COMPLETE" if form && summary.contains("the closest form is") => "fix: use the closest form below (one arm stays `complete: false`), or accept `complete: false`",
         "N_NEVER_COMPLETE" if form => "fix: use the complete form below, or accept `complete: false`",

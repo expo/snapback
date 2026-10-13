@@ -6,6 +6,7 @@ use std::net::{Shutdown, TcpStream};
 fn a_request_after_engine_poison_still_serves() {
     let engine = Engine::memory(Default::default(), Vec::<snapback4_core::ir::Program>::new()).unwrap();
     let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(true, 0).unwrap()));
+    let authoritative_now = lock(&clock).now();
     let shared = Arc::new(Shared {
         release_requests: Arc::new(crate::release_requests::Gate::default()),
         following: Mutex::new(snapback4_core::engine::following_history::Reader::new().unwrap()),
@@ -25,6 +26,7 @@ fn a_request_after_engine_poison_still_serves() {
         personas: true,
         hold_effects: false,
         hold_schedules: false,
+        time_audience_clock: AtomicI64::new(authoritative_now),
         clock: clock.clone(), maintenance: FairMutex::gate(maintenance::State::default()),
         entropy: Mutex::new(1),
         presence: Arc::new(Live::new(clock)),

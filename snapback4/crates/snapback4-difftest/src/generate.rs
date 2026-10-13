@@ -65,6 +65,60 @@ impl Rng {
         self.next() % n
     }
 }
+
+/// Give every generated access row a required item reference, add the total
+/// `(item, principal)` membership point and ensure the case viewer holds one.
+/// PAGE2 then discovers target ids through `(principal, item)` and opens a
+/// fully pinned physical byId lane for each target.
+pub(crate) fn id_membership(case: &mut Case) {
+    let items = case.rows.iter().filter(|(table, _)| table == "items")
+        .filter_map(|(_, row)| row["id"].as_str().map(str::to_owned)).collect::<Vec<_>>();
+    let access = case.program.tables.iter_mut().find(|table| table.name == "access").expect("generated access table");
+    access.columns.push(column("item", Type::Reference("items".into())));
+    // The competing `(bucket, principal)` unique proves that every positional
+    // planner resolves intrinsic `.id` by its focal-table reference type.
+    access.keys.push(("byItem".into(), vec!["item".into(), "principal".into()], true));
+    access.keys.push(("byPrincipalItem".into(), vec!["principal".into(), "item".into()], false));
+    if items.is_empty() {
+        case.rows.retain(|(table, _)| table != "access");
+        return;
+    }
+    let mut viewer = false;
+    let mut n = 0;
+    for (table, row) in &mut case.rows {
+        if table != "access" { continue; }
+        row.as_object_mut().expect("generated access row").insert("item".into(), json!(items[n % items.len()]));
+        viewer |= row["principal"] == case.principal;
+        n += 1;
+    }
+    if !viewer {
+        case.rows.push(("access".into(), json!({"id":format!("page-id-{}", case.seed),
+            "bucket":0,"principal":case.principal,"item":items[n % items.len()]})));
+    }
+}
+
+/// Make an uncapped positional membership point nullable while a separate
+/// fully fixed total unique bounds its inverted discovery to one source row.
+pub(crate) fn discovery_unique_membership(case: &mut Case) {
+    let items = &mut case.program.tables[0];
+    items.effects = Some(vec![Rule::OwnerOrWitness, Rule::Allow, Rule::Allow, Rule::Allow]);
+    let access = case.program.tables.iter_mut().find(|table| table.name == "access")
+        .expect("generated access table");
+    access.columns.iter_mut().find(|column| column.name == "bucket")
+        .expect("generated membership parent").ty = Type::Nullable(Box::new(Type::Int));
+    access.keys.push(("byPrincipalOnly".into(), vec!["principal".into()], true));
+    access.rule = Rule::Member;
+    access.effects = Some(vec![Rule::Member, Rule::Allow, Rule::Allow, Rule::Allow]);
+    access.residency = Residency::Online;
+    let bucket = case.args["bucket"].as_u64().expect("generated bucket");
+    let viewer = case.principal.clone();
+    let other = if viewer == "alice" { "bob" } else { "alice" };
+    case.rows.retain(|(table, _)| table != "access");
+    case.rows.push(("access".into(), json!({"id":"discovery-viewer", "bucket":bucket, "principal":viewer})));
+    case.rows.push(("access".into(), json!({"id":"discovery-other", "bucket":1 - bucket, "principal":other})));
+    case.program.membership_named_reordered = false;
+}
+
 fn column(name: &str, ty: Type) -> Column {
     Column {
         name: name.into(),
@@ -116,6 +170,7 @@ pub fn base(seed: u64) -> Case {
         residency,
         effects: None,
         expire: None,
+        not_before: None,
     };
     let access = Table {
         name: "access".into(),
@@ -132,6 +187,7 @@ pub fn base(seed: u64) -> Case {
         residency: Residency::Public,
         effects: None,
         expire: None,
+        not_before: None,
     };
     let values = VALUES;
     let a = values[rng.pick(values.len() as u64) as usize];
@@ -238,6 +294,8 @@ pub fn base(seed: u64) -> Case {
             guard: None,
             membership_named_reordered: false,
             boolean_grant_normalized: false,
+            upsert_unique_tag: None,
+            search_term: None,
             prelude: vec![],
             time_arg: false,
             arg_bound: None,

@@ -2,20 +2,22 @@
 //! and derived rows, then publish the semantic generation in one commit.
 // @ref LLP 3000.000#implementation-follow-up — one atomic activation boundary
 
+pub(super) use super::activation_walk::walk;
+use super::activation_walk::walk_metered;
 use super::*;
-use std::collections::BTreeSet;
 use crate::ir::Program;
 use crate::schema::{Constraint, materialize_optional_fields};
 use crate::value::digest;
-pub(super) use super::activation_walk::walk;
-use super::activation_walk::walk_metered;
+use std::collections::BTreeSet;
 
-pub(super) type Identity = (Option<String>, Option<String>, Option<String>, Option<String>);
+pub(super) type Identity = (Option<String>, Option<String>, Option<String>, Option<String>,
+);
 
 pub(super) fn identity(conn: &Connection) -> Result<Identity, RuntimeError> {
     let mut statement = conn.prepare_cached("SELECT value FROM _meta WHERE key = ?1")?;
     let mut get = |key| statement.query_row([key], |row| row.get(0)).optional();
-    Ok((get("schema_hash")?, get("activation_hash")?, get("generation")?, get("device:generation")?))
+    Ok((get("schema_hash")?, get("activation_hash")?, get("generation")?, get("device:generation")?,
+    ))
 }
 
 impl Store {
@@ -38,15 +40,20 @@ impl Store {
 
     /// Device-owned sidecar changes share the schema installation transaction.
     pub fn install_device_checked_with(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>, prepare: impl FnOnce(&Tx<'_>) -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
-        self.install_device_checked_with_finish(schema, metadata, reset, expected, prepare, |_| Ok(()))
+        self.install_device_checked_with_finish(schema, metadata, reset, expected, prepare, |_| {
+            Ok(())
+        })
     }
 
     /// Opening recovery and its final reads must finish before installation commits.
-    pub fn install_device_checked_with_finish<R>(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>, prepare: impl FnOnce(&Tx<'_>) -> Result<(), RuntimeError>, finish: impl FnOnce(&Tx<'_>) -> Result<R, RuntimeError>) -> Result<R, RuntimeError> {
+    pub fn install_device_checked_with_finish<R>(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>, prepare: impl FnOnce(&Tx<'_>) -> Result<(), RuntimeError>, finish: impl FnOnce(&Tx<'_>) -> Result<R, RuntimeError>,
+    ) -> Result<R, RuntimeError> {
         let mut result = None;
         self.activate(schema, None, reset, |tx, _| {
             for (key, value) in expected {
-                let held: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = ?1", [key], |row| row.get(0)).optional()?;
+                let held: Option<String> = tx.conn().query_row("SELECT value FROM _meta WHERE key = ?1", [key], |row| {
+                        row.get(0)
+                    }).optional()?;
                 if &held != value { return Err(RuntimeError::Generation("the backend adoption capture is obsolete; retry sync".into())); }
             }
             prepare(tx)?;
@@ -72,7 +79,8 @@ impl Store {
         self.activate_transaction(schema, programs, reset, now, true, build)
     }
 
-    pub(crate) fn activate_at_with_launch<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, check: impl Fn(&Connection) -> Result<(), RuntimeError>, mut build: impl FnMut(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>, finish: impl Fn(&Tx<'_>) -> Result<R, RuntimeError>) -> Result<(u64, R), RuntimeError> {
+    pub(crate) fn activate_at_with_launch<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, check: impl Fn(&Connection) -> Result<(), RuntimeError>, mut build: impl FnMut(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>, finish: impl Fn(&Tx<'_>) -> Result<R, RuntimeError>,
+    ) -> Result<(u64, R), RuntimeError> {
         let budget = if programs.is_some() { super::activation_cache::configured_mib()? } else { 0 };
         // The server builder owns only transaction-local work. Recreate all of
         // it on retry, with the same schema/programs/activation time.
@@ -85,7 +93,8 @@ impl Store {
         self.activate_transaction_with(schema, programs, reset, now, allow_launch, |_| Ok(()), build, |_| Ok(())).map(|(generation, ())| generation)
     }
 
-    fn activate_transaction_with<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, check: impl FnOnce(&Connection) -> Result<(), RuntimeError>, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>, finish: impl FnOnce(&Tx<'_>) -> Result<R, RuntimeError>) -> Result<(u64, R), RuntimeError> {
+    fn activate_transaction_with<R>(&mut self, schema: &Schema, programs: Option<&BTreeMap<String, Program>>, reset: bool, now: i64, allow_launch: bool, check: impl FnOnce(&Connection) -> Result<(), RuntimeError>, build: impl FnOnce(&Tx<'_>, bool, &mut super::adoption_report::AdoptionReport) -> Result<(), RuntimeError>, finish: impl FnOnce(&Tx<'_>) -> Result<R, RuntimeError>,
+    ) -> Result<(u64, R), RuntimeError> {
         let mut report = super::adoption_report::AdoptionReport::default();
         let mut phase = std::time::Instant::now();
         if programs.is_some() {
@@ -144,7 +153,9 @@ impl Store {
         // Repeat source-count admission under the writer lock, before any candidate writes.
         let preflight_catalog = catalog.clone();
         let (launches, sql) = {
-            let preflight = Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, catalog: &preflight_catalog };
+            let preflight = Tx { activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size,
+                server: self.server,
+                catalog: &preflight_catalog };
             let launches = if programs.is_some() { super::timeline_launch::preflight(&preflight, schema, now, allow_launch)? } else { Vec::new() };
             let Tx { tx: sql, .. } = preflight;
             (launches, sql)
@@ -161,7 +172,14 @@ impl Store {
         let activation_scan = programs.map(|_| Default::default());
         #[cfg(test)]
         let activation_scan = if self.full_adoption { None } else { activation_scan };
-        let tx = Tx { activation_scan, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, catalog: &catalog };
+        let tx = Tx { activation_scan, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size,
+            server: self.server,
+            catalog: &catalog };
+        let now = if schema.tables.values().any(|table| table.not_before.is_some()) {
+            tx.pin_time_audience_clock(now)?
+        } else {
+            now
+        };
         // @ref LLP 3000.013#12.1 — occupancy belongs to successful activation,
         // never opening a legacy store that may subsequently refuse adoption.
         let cap_counts = crate::rows::caps::required(schema) || tx.meta("cap_counts_schema")?.is_some();
@@ -190,7 +208,9 @@ impl Store {
         if rebuilding && programs.is_some() && !reset {
             let started = std::time::Instant::now();
             let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
-            let previous: Option<Schema> = previous.map(|s| serde_json::from_str(&s).map_err(|e| RuntimeError::decode(e,RuntimeError::Store))).transpose()?;
+            let previous: Option<Schema> = previous.map(|s| {
+                    serde_json::from_str(&s).map_err(|e| RuntimeError::decode(e,RuntimeError::Store))
+                }).transpose()?;
             let shortened = crate::engine::through_activation::activate_retained(&tx,schema,previous.as_ref(),now,&retained_through)?;
             tx.set_meta("read_through_shortened",&canonical_json(&shortened))?;
             report.detail("read-through retirement", started);
@@ -206,7 +226,9 @@ impl Store {
             let started = std::time::Instant::now();
             if super::dormant::enabled(&tx)? {
                 let old:Option<String>=tx.conn().query_row("SELECT schema FROM _generations WHERE generation=(SELECT CAST(value AS INTEGER) FROM _meta WHERE key='generation')",[],|r|r.get(0)).optional()?;
-                let old:Option<Schema>=old.map(|s|serde_json::from_str(&s).map_err(|e|RuntimeError::Store(e.to_string()))).transpose()?;
+                let old:Option<Schema>=old.map(|s| {
+                        serde_json::from_str(&s).map_err(|e|RuntimeError::Store(e.to_string()))
+                    }).transpose()?;
                 super::adopt_refusals::candidate(&tx,schema,if tx.meta("activation_population")?.as_deref()==Some("true"){None}else{old.as_ref()},false)?;
             }
             if let Some(step) = super::successor::assess(&tx, schema)?.iter().find(|s| s.change == crate::successor::Change::Narrowing) {
@@ -263,16 +285,21 @@ impl Store {
                 // Launch put() already built these fresh indexes under the
                 // complete candidate schema. Keep the final invariant pass,
                 // but do not delete and reconstruct the same entries again.
-                if launches.iter().any(|launch| schema.timelines.iter().any(|timeline|
-                    timeline.name == launch.name && ["Posts", "Work", "Edges", "Feed"].iter()
-                        .any(|suffix| timeline.table(suffix) == *name))) { continue; }
+                if launches.iter().any(|launch| {
+                    schema.timelines.iter().any(|timeline| {
+                        timeline.name == launch.name && ["Posts", "Work", "Edges", "Feed"].iter()
+                        .any(|suffix| timeline.table(suffix) == *name)
+                    })
+                }) { continue; }
                 if !plan.project && plan.indexes.is_empty() { continue; }
                 let started = std::time::Instant::now();
                 for index in &plan.indexes { tx.conn().execute("DELETE FROM i WHERE ti = ?1", [catalog[&format!("{name}.{index}")]])?; }
                 let work = crate::rows::adoption::Work::table(table);
                 let scratch = |row: &Value| crate::rows::adoption::contribution_bytes(row, table);
                 walk_metered(&tx, t, work, if work.index_entries != 0 { Some(&scratch) } else { None }, |id, mut row, contribution_meter| {
-                    let keep = |column: &str| table.columns.contains_key(column) || (programs.is_none() && column == "pending");
+                    let keep = |column: &str| {
+                            table.columns.contains_key(column) || (programs.is_none() && column == "pending")
+                        };
                     let project = plan.project && row.as_object().is_ok_and(|fields| fields.keys().any(|column| !keep(column)));
                     // Persist only a destructive projection. Defaults and
                     // optionals are an interpretation of the stored image.
@@ -323,13 +350,18 @@ impl Store {
             tx.conn().execute_batch("DELETE FROM _cap_counts;")?;
             for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
                 if table.is_expiring() && table.constraints.iter().any(|c| matches!(c, Constraint::Cap { .. })) {
-                    walk(&tx, catalog[name], |_, row| tx.update_cap_counts(name, table, None, Some(&row)).map(|_| ()))?;
+                    walk(&tx, catalog[name], |_, row| {
+                        tx.update_cap_counts(name, table, None, Some(&row)).map(|_| ())
+                    })?;
                 }
             }
             tx.set_meta("cap_counts_schema", &schema_hash)?;
         }
         report.phase("cap counts", &mut phase);
         build(&tx, changed, &mut report)?;
+        if rebuilding || reset || tx.meta(super::time_audience::PUBLICATION_STATE_KEY)?.as_deref() != Some("1") {
+            tx.rebuild_time_audiences(schema, now)?;
+        }
         report.phase("derived rebuild", &mut phase);
         if rebuilding && programs.is_some() && super::dormant::enabled(&tx)? {
             super::adopt_refusals::candidate(&tx,schema,if population_changed{None}else{previous.as_ref()},true)?;
@@ -338,7 +370,9 @@ impl Store {
             for (name, table) in schema.tables.iter().filter(|(_,t)| t.ephemeral.is_none()) {
                 let plan = &plans[name];
                 // @ref LLP 3000.019#3.6 — physical reuse cannot exempt rebuilt rows from unchanged invariants.
-                let rebuilt = schema.maintain_for(name).is_some_and(|m| previous.as_ref().is_none_or(|old| crate::successor::maintain_rebuild_needed(old, schema, m)));
+                let rebuilt = schema.maintain_for(name).is_some_and(|m| {
+                    previous.as_ref().is_none_or(|old| crate::successor::maintain_rebuild_needed(old, schema, m))
+                });
                 if plan.project || rebuilt {
                 walk(&tx, catalog[name], |_, mut row| {
                     materialize_optional_fields(&mut row, table);
@@ -348,7 +382,9 @@ impl Store {
                     Ok(())
                 })?;
                 }
-                for (index_name, index) in table.indexes.iter().filter(|(name, i)| i.unique && (plan.project || rebuilt || plan.indexes.contains(*name))) {
+                for (index_name, index) in table.indexes.iter().filter(|(name, i)| {
+                    i.unique && (plan.project || rebuilt || plan.indexes.contains(*name))
+                }) {
                     validate_groups(&tx, name, index_name, index.components.len(), 1, true)?;
                 }
                 // @ref LLP 3000.039#2.2 — a `set null` cap skips its null group; adding or removing that exemption re-validates the cap.
@@ -356,7 +392,9 @@ impl Store {
                     matches!(c, Constraint::Cap { by, .. } if old.cap_exempts_null(by) != table.cap_exempts_null(by)))));
                 for constraint in table.constraints.iter().filter(|_| plan.project || rebuilt || exemption_changed) {
                     if let Constraint::Cap { by, max } = constraint {
-                        let (index_name, _) = table.indexes.iter().find(|(_, i)| i.is_plain() && i.columns().starts_with(by)).ok_or_else(|| RuntimeError::Schema(format!("{name} cap has no matching index")))?;
+                        let (index_name, _) = table.indexes.iter().find(|(_, i)| i.is_plain() && i.columns().starts_with(by)).ok_or_else(|| {
+                                RuntimeError::Schema(format!("{name} cap has no matching index"))
+                            })?;
                         validate_groups(&tx, name, index_name, by.len(), u64::from(*max), table.cap_exempts_null(by))?;
                     }
                 }
@@ -404,7 +442,11 @@ impl Store {
         // Reopening an unchanged backend must not announce a new adoption.
         self.adoption_report = if changed || reset { report } else { Default::default() };
         // Historical ordinals stay in _catalog, but no runtime transaction can address memory tables.
-        catalog.retain(|name,_| !schema.tables.iter().any(|(table,t)| t.ephemeral.is_some() && (name == table || name.starts_with(&format!("{table}.")))));
+        catalog.retain(|name,_| {
+            !schema.tables.iter().any(|(table,t)| {
+                t.ephemeral.is_some() && (name == table || name.starts_with(&format!("{table}.")))
+            })
+        });
         self.catalog = catalog;
         self.identity = after;
         self.accept_open();
@@ -479,14 +521,17 @@ fn validate_groups(tx: &Tx<'_>, table: &str, index: &str, prefix_len: usize, max
 
 fn contains_asset_type(kind: &crate::schema::ColumnType) -> bool {
     use crate::schema::ColumnType::*;
-    match kind { Optional(inner) | List { of: inner, .. } | ListRange { of: inner, .. } => contains_asset_type(inner), Image { .. } | Video { .. } | File { .. } => true, _ => false }
+    match kind { Optional(inner) | List { of: inner, .. } | ListRange { of: inner, .. } => {
+            contains_asset_type(inner)
+        }
+        Image { .. } | Video { .. } | File { .. } => true, _ => false }
 }
 pub(super) fn validate_assets(tx: &Tx<'_>, kind: &crate::schema::ColumnType, value: Option<&Value>) -> Result<(), RuntimeError> {
-    use crate::schema::ColumnType::*;
     use crate::assets::AssetKind;
+    use crate::schema::ColumnType::*;
     match (kind, value) {
         (Optional(inner), Some(value)) => validate_assets(tx, inner, Some(value)),
-        (List { of, .. } | ListRange { of, .. }, Some(Value::Array(values))) => { for value in values { validate_assets(tx, of, Some(value))?; } Ok(()) },
+        (List { of, .. } | ListRange { of, .. }, Some(Value::Array(values))) => { for value in values { validate_assets(tx, of, Some(value))?; } Ok(()) }
         (Image { .. } | Video { .. } | File { .. }, Some(value)) => {
             let (wanted, max, types) = kind.asset_leaf().expect("an asset leaf");
             if let Some(id) = crate::assets::asset_id(Some(value)) {
@@ -497,7 +542,7 @@ pub(super) fn validate_assets(tx: &Tx<'_>, kind: &crate::schema::ColumnType, val
                 }
             }
             Ok(())
-        },
+        }
         _ => Ok(())
     }
 }

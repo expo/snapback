@@ -184,6 +184,13 @@ impl Rows for Layered<'_> {
     fn set_sequence(&self, _: &str, _: &str, _: i64) -> Result<(), RuntimeError> {
         self.durable_write()
     }
+    // @ref LLP 3000.036.003#4-advancing-time-without-an-application-job — wrappers preserve the durable publication barrier.
+    fn time_audience_pending(&self, table: &str, id: &str) -> Result<bool, RuntimeError> {
+        self.durable.time_audience_pending(table, id)
+    }
+    fn time_audience_published(&self, table: &str, id: &str) -> Result<bool, RuntimeError> {
+        self.durable.time_audience_published(table, id)
+    }
     fn effect_once(&self, _: &str, _: &str) -> Result<bool, RuntimeError> {
         self.durable_write()?;
         unreachable!()

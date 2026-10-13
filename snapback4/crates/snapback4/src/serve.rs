@@ -17,7 +17,7 @@ use serde_json::{Value as Json, json};
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::{self, Write as _};
 use std::net::IpAddr;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::{Duration, Instant};
 use tiny_http::{Header, Method, Request, Response, Server};
@@ -83,6 +83,9 @@ pub struct Shared {
     wake: Mutex<ephemeral::Wake>,
     polls: Condvar,
     pub clock: Arc<Mutex<crate::dev_clock::Clock>>,
+    /// Highest durable time-audience clock observed by this host. Responses
+    /// never regress below the authority clock even if wall time rolls back.
+    time_audience_clock: AtomicI64,
     maintenance: FairMutex<maintenance::State>,
     pub engine: FairMutex<Engine>,
     adoption: Mutex<adoption::Status>,
@@ -143,7 +146,31 @@ pub struct Shared {
 }
 
 impl Shared {
-    pub fn now(&self) -> i64 { lock(&self.clock).now() }
+    pub fn now(&self) -> i64 { lock(&self.clock).now().max(self.time_audience_clock.load(Ordering::Acquire)) }
+    pub(crate) fn refresh_time_audience_clock(&self, engine: &Engine, now: i64) {
+        if engine.schema().tables.values().any(|table| table.not_before.is_some()) {
+            let durable = engine.store().meta("time_audience_clock").ok().flatten()
+                .and_then(|value| value.parse::<i64>().ok()).unwrap_or(i64::MIN);
+            self.time_audience_clock.fetch_max(now.max(durable), Ordering::AcqRel);
+        } else {
+            self.time_audience_clock.store(i64::MIN, Ordering::Release);
+        }
+    }
+    fn advance_time_audiences(&self) -> Result<i64, snapback4_core::RuntimeError> {
+        let requested = lock(&self.clock).now();
+        let mut engine = lock(&self.engine);
+        let before = engine.seq()?;
+        let now = engine.advance_time_audiences_at(requested)?;
+        self.refresh_time_audience_clock(&engine, now);
+        if engine.seq()? != before { self.durable_committed(&engine); }
+        Ok(now)
+    }
+    fn next_time_audience(&self) -> Result<Option<i64>, snapback4_core::RuntimeError> { lock(&self.engine).next_time_audience_at() }
+    fn time_audience_delay(&self, at: i64) -> Duration {
+        let raw = lock(&self.clock).now();
+        let floor = self.time_audience_clock.load(Ordering::Acquire);
+        Duration::from_millis(if at <= floor { 0 } else { at.saturating_sub(raw).max(0) }.try_into().unwrap_or(u64::MAX))
+    }
     pub(crate) fn worker_owner(&self) -> Option<Arc<std::fs::File>> { self.owner.as_ref().map(|owner| owner.worker_lock()) }
 }
 
@@ -645,7 +672,8 @@ use crate::sync_wire::{SnapshotReply, SyncEvents, StreamReply};
 /// Sample at response construction, after execution and any admission wait.
 pub(crate) fn clock_headers(shared: &Shared) -> [Header; 2] {
     let clock = lock(&shared.clock);
-    [Header::from_bytes("X-Snapback-Time", clock.now().to_string()).unwrap(),
+    let now = clock.now().max(shared.time_audience_clock.load(Ordering::Acquire));
+    [Header::from_bytes("X-Snapback-Time", now.to_string()).unwrap(),
      Header::from_bytes("X-Snapback-Clock", clock.revision()).unwrap()]
 }
 
@@ -987,6 +1015,14 @@ fn handle(mut request: Request, shared: &Shared) {
         Ok(body) => body,
         Err(_) => return reject(request, 400, Refusal::new("E_INPUT", "input", "a JSON request body must be valid UTF-8")),
     };
+    let request_now = if (method == Method::Get && path == "/changes")
+        || (method == Method::Post && (path == "/sync" || path.starts_with("/q/") || path.starts_with("/m/")))
+    {
+        match shared.advance_time_audiences() {
+            Ok(now) => Some(now),
+            Err(error) => return reject(request, 503, error.refusal()),
+        }
+    } else { None };
     if operation && !shared.personas {crate::release_requests::Scope::admit(&shared.release_requests,||*lock(&shared.generation));}
     match (method, path.as_str()) {
         (Method::Post, "/dev/clock/advance") => maintenance::advance(request, shared, &body),
@@ -1182,7 +1218,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
             }
             let viewer = principal.clone();
-            let mut context = Context::new(&principal, args).at(shared.now());
+            let mut context = Context::new(&principal, args).at(request_now.unwrap_or_else(|| shared.now()));
             if path.starts_with("/q/") {
                 let provenance = payload.get("provenance").and_then(Json::as_bool) == Some(true);
                 if provenance { context = context.with_row_provenance(); }
@@ -1366,7 +1402,7 @@ fn handle(mut request: Request, shared: &Shared) {
             }
         }
         (Method::Get, "/changes") => changes::serve(request, shared, &url),
-        (Method::Post, "/sync") => sync::serve(request, shared, &body),
+        (Method::Post, "/sync") => sync::serve(request, shared, &body, request_now.expect("sync pins request time")),
         (Method::Post, "/auth/session") => {
             // An application that authenticates its own accounts (a phone
             // it verified, a directory it owns) mints their sessions through

@@ -13,14 +13,14 @@ use crate::value::object;
 
 // @ref LLP 3000.015#3 — devices predict from covered rows; durable recount
 // work and basis timestamps belong only to the server storage build.
-mod live;
+#[cfg(feature = "sqlite")]
+mod batch;
 #[cfg(feature = "sqlite")]
 mod certification;
 #[cfg(all(test, feature = "sqlite"))]
 mod certification_tests;
 mod device;
-#[cfg(feature = "sqlite")]
-mod batch;
+mod live;
 #[cfg(all(test, feature = "sqlite"))]
 mod range_tests;
 
@@ -124,7 +124,9 @@ impl Runner<'_> {
             } else { vec![Bounds::default()] };
             for mut bounds in ranges {
                 loop {
-                    let Some(key) = self.metered_scan(|r, scope| r.tx.index_head(scope, &k.table, &index, std::slice::from_ref(parent), &bounds, Dir::Asc))? else { break; };
+                    let Some(key) = self.metered_scan(|r, scope| {
+                        r.tx.index_head(scope, &k.table, &index, std::slice::from_ref(parent), &bounds, Dir::Asc)
+                    })? else { break; };
                     bounds.after = Some(key.into_iter().skip(1).collect());
                     live += 1;
                     if live > k.fanout { return Err(RuntimeError::Structural { code: "E_VIEW_KEY", message: "recipient cap exceeded; repair the member group (guide maintains)".into() }); }
@@ -348,13 +350,15 @@ impl Runner<'_> {
                             #[cfg(feature = "sqlite")]
                             { self.rebuilt_source_rows = self.rebuilt_source_rows.saturating_add(1); }
                             stored.into_value()
-                        },
+                        }
                         // A rejected device candidate is expired or unreadable, never a contribution.
                         None if device_live => Value::Null,
-                        None => return Err(RuntimeError::Prediction("row-view source authority is not covered".into())),
+                        None => {
+                            return Err(RuntimeError::Prediction("row-view source authority is not covered".into()));
+                        }
                     };
                     let selected = !matches!(source, Value::Null) && (!live
-                        || !self.expired(&self.schema.tables[&m.source], &source))
+                        || !self.inactive(&m.source, &source)?)
                         // @ref LLP 3000.020#3.3 — retained copies never contribute to a current-row bound.
                         && (!device_live || (self.tx.current_row(&m.source, &source)? || self.is_provisional(&m.source, &source)?))
                         && k.matches(&source, u);
@@ -532,8 +536,11 @@ impl Runner<'_> {
         } else {
             #[cfg(feature = "sqlite")]
             {
-                let cached = existing.as_ref().filter(|_| old.as_ref().is_some_and(|old|
-                    old.field(&k.member_key).ok() == u.field(&k.member_key).ok()));
+                let cached = existing.as_ref().filter(|_| {
+                    old.as_ref().is_some_and(|old| {
+                        old.field(&k.member_key).ok() == u.field(&k.member_key).ok()
+                    })
+                });
                 self.view_cache_image(m, &u, cached)?
             }
             #[cfg(not(feature = "sqlite"))]
@@ -772,8 +779,10 @@ impl Runner<'_> {
             }
             let row = object([(k.source_key.as_str(), value)]);
             let rule = rule.into_owned();
-            return self.authorized_scratch(self.rule_scratch(&rule), &[(MeterKind::RuleProbes, super::rules::rule_probes(&rule))], |runner, scope|
-                runner.evaluate_sequence_rule(scope, &m.source, &rule, crate::schema::Effect::Read, None, &row));
+            return self.authorized_scratch(self.rule_scratch(&rule), &[(MeterKind::RuleProbes, super::rules::rule_probes(&rule))], |runner, scope| {
+                    runner.evaluate_sequence_rule(scope, &m.source, &rule, crate::schema::Effect::Read, None, &row)
+                },
+            );
         }
         self.covered_view_source(m, member, &k.source_index(), &Bounds::default())
     }
@@ -866,8 +875,11 @@ impl Runner<'_> {
         if !self.device {
             // Only the private work key is needed; reserve it before storage access.
             let work = self.authorized_scratch(crate::rows::MAX_INDEX_KEY_BYTES as u64 * 4,
-                &[(MeterKind::Examined, 1)], |r, scope| r.tx.index_head(scope, &m.work_table(), "byId",
-                    std::slice::from_ref(member.field("id")?), &Bounds::default(), Dir::Asc))?.is_some();
+                &[(MeterKind::Examined, 1)], |r, scope| {
+                        r.tx.index_head(scope, &m.work_table(), "byId",
+                    std::slice::from_ref(member.field("id")?), &Bounds::default(), Dir::Asc)
+                    },
+                )?.is_some();
             if pending(&row) || work {
                 self.pending_view_read()?;
                 return Ok(Some(self.view_image(m, &member, number(&row, "value"), true)?));
@@ -883,7 +895,9 @@ impl Runner<'_> {
     pub(super) fn rebuild_row_view(&mut self, m: &Maintain) -> Result<(), RuntimeError> {
         for table in [&m.target, &m.work_table(), &format!("$basis:{}",m.target)] {
             loop {
-                let rows = self.metered_scan(|runner, scope| runner.tx.scan(scope, table, "byId", &[], &Bounds::default(), Dir::Asc, 256))?;
+                let rows = self.metered_scan(|runner, scope| {
+                    runner.tx.scan(scope, table, "byId", &[], &Bounds::default(), Dir::Asc, 256)
+                })?;
                 if rows.is_empty() {
                     break;
                 }
@@ -895,7 +909,9 @@ impl Runner<'_> {
         let k = m.row_key.as_ref().unwrap();
         let mut bounds = Bounds::default();
         loop {
-            let rows = self.metered_scan(|runner, scope| runner.tx.scan(scope, &k.table, "byId", &[], &bounds, Dir::Asc, 256))?;
+            let rows = self.metered_scan(|runner, scope| {
+                runner.tx.scan(scope, &k.table, "byId", &[], &bounds, Dir::Asc, 256)
+            })?;
             if rows.is_empty() {
                 break;
             }
@@ -993,6 +1009,7 @@ impl super::Engine {
         {
             loop {
                 let tx = self.store.transaction()?;
+                let now = super::time_audience::pin_writer_time(&self.schema, &tx, now)?;
                 let Some((work, _)) = tx
                     .scan(
                         &m.work_table(),

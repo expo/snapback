@@ -259,6 +259,13 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
         },
         None => None,
     };
+    let not_before = match &decl.not_before {
+        Some((column, site)) => match bind_lifetime_column(info, column, site, "not before", "starts", "opensAt") {
+            Ok(column) => Some(column),
+            Err(diagnostic) => { diagnostics.push(diagnostic); None }
+        },
+        None => None,
+    };
     if decl.ephemeral.is_some() {
         columns.insert(core::through::DEADLINE.into(), core::ColumnType::Time);
         indexes.insert("$expiry".into(), core::Index::of(&[core::through::DEADLINE, "id"], false));
@@ -281,23 +288,27 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
     let written_by = decl.columns.iter().filter_map(|column| column.written_by.as_ref().map(|owner|
         (column.name.clone(), core::FieldAuthority { owner: owner.clone(), audience: column.readable_by_audience }))).collect();
     let update_transition = decl.rules.iter().any(|rule| rule.effect == Effect::Update && !rule.bindings.is_empty());
-    Table { ephemeral: decl.ephemeral.as_ref().map(|e| core::ephemeral::Ephemeral { life_ms: e.life_ms }), sequences, written_by, update_transition, through: info.through.clone(), on_delete: BTreeMap::new(), maintained: BTreeMap::new(), recorded, columns, defaults, indexes, rules, constraints, leave, sync, expire, residency }
+    Table { ephemeral: decl.ephemeral.as_ref().map(|e| core::ephemeral::Ephemeral { life_ms: e.life_ms }), sequences, written_by, update_transition, through: info.through.clone(), on_delete: BTreeMap::new(), maintained: BTreeMap::new(), recorded, columns, defaults, indexes, rules, constraints, leave, sync, not_before, expire, residency }
 }
 
 /// `expire at .column`: a `time` column (optional means "never" when null)
 /// with an index leading with it, so the sweep finds what is due without a
 /// walk. The rewrite is the index line to add.
 fn bind_expire(info: &TableInfo, column: &str, site: &Site) -> Fallible<String> {
+    bind_lifetime_column(info, column, site, "expire at", "ends", "expiresAt")
+}
+
+fn bind_lifetime_column(info: &TableInfo, column: &str, site: &Site, clause: &str, verb: &str, example: &str) -> Fallible<String> {
     let table = &info.decl.name;
     let Some(kind) = info.columns.get(column) else {
-        return Err(type_error(site, format!("expire at .{column}: table {table} has no column {column}"), name_rewrite(column, info.columns.keys().map(String::as_str), Some("declare `expiresAt: time ?` and expire at .expiresAt"))));
+        return Err(type_error(site, format!("{clause} .{column}: table {table} has no column {column}"), name_rewrite(column, info.columns.keys().map(String::as_str), Some(&format!("declare `{example}: time ?` and {clause} .{example}")))));
     };
     if kind.kind != TypeKind::Time {
-        return Err(type_error(site, format!("expire at .{column}: {table}.{column} is {}, and a row's life ends at a time", crate::print::scalar_type(kind)), format!("{column}: time ?")));
+        return Err(type_error(site, format!("{clause} .{column}: {table}.{column} is {}, and a row's read life {verb} at a time", crate::print::scalar_type(kind)), format!("{column}: time ?")));
     }
     let title = title(column);
     if !info.indexes.iter().any(|index| index.is_plain() && index.columns.first().map(String::as_str) == Some(column)) {
-        return Err(Diagnostic::new(site, "E_SCHEMA_CONSTRAINT", format!("expire at .{column} needs an index leading with {column}, so the sweep finds due rows without a walk"), format!("by by{title}: {column}")).guide("expire"));
+        return Err(Diagnostic::new(site, "E_SCHEMA_CONSTRAINT", format!("{clause} .{column} needs an index leading with {column}, so the server finds the time boundary without a walk"), format!("by by{title}: {column}")).guide("expire"));
     }
     Ok(column.to_owned())
 }
@@ -1096,6 +1107,7 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
         public: None,
         sync: None,
         online_only: maintain.online_only,
+        not_before: None,
         expire: None,
         site,
     })

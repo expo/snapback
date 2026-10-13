@@ -101,6 +101,16 @@ pub fn check(case: &Case, report: &mut Report, mut found: impl FnMut(Finding)) {
             *report.generator_errors.entry(e).or_default() += 1;
         }
     }
+    if case.program.search_term.is_some() {
+        match oracle::timed_search_future_absence(case, &source) {
+            Ok((verdict, n)) => {
+                report.executed += n;
+                report.record("timed-search-future-absence", &verdict);
+                if let Verdict::Disagree(finding) = verdict { found(finding); }
+            }
+            Err(error) => { *report.generator_errors.entry(error).or_default() += 1; }
+        }
+    }
     for r in [
         Rewrite::Commute,
         Rewrite::Identity,
@@ -159,6 +169,13 @@ pub fn check(case: &Case, report: &mut Report, mut found: impl FnMut(Finding)) {
     );
     if pageable {
         report.pageable_reads += 1;
+    }
+    if case.program.search_term.is_some() {
+        // Non-uniform online search intentionally withholds a cursor. Its
+        // exact default-ceiling meter is compared by the paired future-row
+        // oracle above; generic low-ceiling cursor resumption does not apply.
+        report.record("meter", &Verdict::Unsupported("timed-search-no-continuation".into()));
+        return;
     }
     let mut resumed = false;
     for dimension in oracle::DIMENSIONS {

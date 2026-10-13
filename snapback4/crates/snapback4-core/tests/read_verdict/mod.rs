@@ -19,7 +19,7 @@ fn table() -> Table {
         columns: BTreeMap::from([("id".into(), ColumnType::Id), ("roomId".into(), ColumnType::Id), ("principal".into(), ColumnType::Principal), ("body".into(), ColumnType::Text { max: 100 })]),
         indexes: BTreeMap::from([("byId".into(), Index::of(&["id"], true)), ("byRoom".into(), Index::of(&["roomId", "id"], false)), ("byRoomPrincipal".into(), Index::of(&["roomId", "principal"], true))]),
         rules: Rules { read: RuleExpr::Deny, insert: RuleExpr::Allow, update: RuleExpr::Allow, delete: RuleExpr::Allow },
-        constraints: vec![], leave: Default::default(), sync: None, expire: None }
+        constraints: vec![], leave: Default::default(), sync: None, not_before: None, expire: None }
 }
 fn probe(name: &str) -> RuleExpr {
     RuleExpr::Exists { table: name.into(), index: "byRoomPrincipal".into(), key: vec![RuleTerm::Field("roomId".into()), RuleTerm::Viewer], equalities: vec![], provenance: KeyProvenance::Const }

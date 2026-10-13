@@ -314,6 +314,131 @@ fn server_private_witness_and_expired_unique_walks_share_one_allowance() {
 }
 
 #[test]
+fn never_live_witness_keeps_the_expired_walk_across_its_private_opening() {
+    const DENIED: i64 = 4_200;
+    let source = "table grants:
+  ticket: int
+  opensAt: time
+  expiresAt: time
+  unique byTicket: ticket
+  by byOpening: opensAt
+  by byExpiry: expiresAt
+  not before .opensAt
+  expire at .expiresAt
+  public
+  online only
+table tasks:
+  ticket: int
+  visible: bool
+  read <- .visible = true or exists grants[ticket = .ticket]
+  online only
+query full():
+  return tasks first 5000 by .id
+";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let rows = (0..DENIED).flat_map(|n| [
+        ("tasks".into(), snapback4_core::value::object([
+            ("id", Value::Id(format!("a{n:04}"))),
+            ("ticket", Value::Int(n)),
+            ("visible", Value::Bool(false)),
+        ])),
+        ("grants".into(), snapback4_core::value::object([
+            ("id", Value::Id(format!("g{n:04}"))),
+            ("ticket", Value::Int(n)),
+            ("opensAt", Value::Int(100)),
+            ("expiresAt", Value::Int(1)),
+        ])),
+    ]).chain([("tasks".into(), snapback4_core::value::object([
+        ("id", Value::Id("z".into())),
+        ("ticket", Value::Int(DENIED)),
+        ("visible", Value::Bool(true)),
+    ]))]).collect::<Vec<_>>();
+    let never_live = rows.iter().find(|(table, _)| table == "grants").unwrap();
+    assert!(bound.schema.tables["grants"].expired(&never_live.1, 90));
+    let observations = [90, 100].map(|now| {
+        let mut engine = snapback4_core::Engine::new_at(
+            snapback4_core::Store::memory().unwrap(),
+            bound.schema.clone(),
+            bound.programs.iter().map(|program| program.program.clone()),
+            2,
+        ).unwrap();
+        engine.seed_at(rows.clone(), 2).unwrap();
+        engine.query("full", Context::new("alice", Default::default()).at(now)).unwrap()
+    });
+    assert_eq!(observations[0], observations[1]);
+    assert_eq!(observations[0].data, Value::Array(Vec::new()));
+    assert!(!observations[0].complete);
+}
+
+#[test]
+fn future_word_heads_do_not_spend_the_nonuniform_search_walk() {
+    const FUTURE: i64 = 8_193;
+    let source = "table documents:
+  opensAt: time
+  expiresAt: time ?
+  visible: bool
+  body: text <=100
+  by byOpening: opensAt
+  by byExpiry: expiresAt
+  by byWords: words(body), id
+  not before .opensAt
+  expire at .expiresAt
+  read <- .visible = true
+  online only
+query search():
+  return documents matching 'a' first 1 by byWords
+";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let run = |with_hidden: bool, expires_at: Value, now: i64| {
+        let mut engine = snapback4_core::Engine::new_at(
+            snapback4_core::Store::memory().unwrap(),
+            bound.schema.clone(),
+            bound.programs.iter().map(|program| program.program.clone()),
+            0,
+        ).unwrap();
+        let visible = ("documents".into(), snapback4_core::value::object([
+            ("id", Value::Id("z".into())),
+            ("opensAt", Value::Int(0)),
+            ("expiresAt", Value::Null),
+            ("visible", Value::Bool(true)),
+            ("body", Value::String("azzzz".into())),
+        ]));
+        let expiry = expires_at.clone();
+        let future = (0..FUTURE).map(|n| ("documents".into(), snapback4_core::value::object([
+            ("id", Value::Id(format!("f{n:05}"))),
+            ("opensAt", Value::Int(100)),
+            ("expiresAt", expiry.clone()),
+            ("visible", Value::Bool(false)),
+            ("body", Value::String(format!("a{n:05}"))),
+        ]))).chain(std::iter::once(("documents".into(), snapback4_core::value::object([
+            ("id", Value::Id("a-same-word".into())),
+            ("opensAt", Value::Int(100)),
+            ("expiresAt", expires_at),
+            ("visible", Value::Bool(false)),
+            ("body", Value::String("azzzz".into())),
+        ]))));
+        engine.seed_at(std::iter::once(visible).chain(future.take(if with_hidden { FUTURE as usize + 1 } else { 0 })), 0).unwrap();
+        engine.query("search", Context::new("alice", Default::default()).at(now))
+    };
+    let worlds = [false, true].map(|with_hidden| run(with_hidden, Value::Null, 50));
+    assert_eq!(worlds[0], worlds[1], "future-only words changed data, refusal, meter, or continuation");
+    let outcome = worlds[0].as_ref().unwrap();
+    let Value::Array(rows) = &outcome.data else { panic!("expected a page") };
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].field("id"), Ok(&Value::Id("z".into())));
+    assert!(outcome.next.is_none());
+
+    let never_live = [90, 100].map(|now| {
+        let worlds = [false, true].map(|with_hidden| run(with_hidden, Value::Int(1), now));
+        assert_eq!(worlds[0], worlds[1], "never-live words changed the search at {now}");
+        worlds[1].clone()
+    });
+    assert_eq!(never_live[0], never_live[1], "the private opening changed an expired word head's allowance");
+}
+
+#[test]
 fn an_odd_point_prefix_cannot_turn_a_short_physical_batch_into_exhaustion_of_data() {
     let source="table held:\n  owner: principal\n  read <- .owner = viewer\n  online only\ntable grants:\n  tag: int\n  until: time ?\n  expire at .until\n  unique byTag: tag\n  read <- deny\n  online only\ntable gates:\n  owner: principal\n  read <- exists grants[tag = 0] or .owner = viewer\n  online only\nquery a():\n  return held['a']\nquery b():\n  return held['b']\nquery one():\n  return gates['g']\n";
     let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);

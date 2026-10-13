@@ -193,6 +193,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_QUARRY_PLACEMENT" | "E_INTERNAL" => "programs",
         "E_UNBOUND_LOOP" | "E_UNBOUND_SCAN" | "E_QUARRY_BOUND" | "E_STORE_MEMORY" => "bounds",
         "E_SYNC" | "E_SYNC_GENERATION" => "sync",
+        "E_TIME_AUDIENCE_PENDING" => "time",
         "E_SCHEMA_CONSTRAINT" | "E_INDEX_KEY_BYTES" => "indexes",
         "E_EMIT_IN_QUERY" => "programs",
         "E_QUARRY_MODIFIER_SCOPE" | "N_NO_CURSOR" | "N_SEEK" | "N_SPARSE_FILTER" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "E_SHAPE_EXCEEDS_METER" | "N_OPTIONAL_FILTER_LIMIT" | "N_SHAPE_METER" => "reads",

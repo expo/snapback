@@ -481,7 +481,7 @@ fn disclosing(schema: &Schema, grant: &RuleExpr, fields: bool) -> bool {
         RuleExpr::Exists { table: target, index, key, equalities, .. } => {
             let Some(target_table) = schema.table(target) else { return false };
             let Some(target_index) = target_table.index(index) else { return false };
-            if target_table.through.is_some() || target_table.is_expiring() { return false; }
+            if target_table.through.is_some() || target_table.read_lifetime_sensitive() { return false; }
             let value = |term: &RuleTerm| match term {
                 RuleTerm::Viewer => Some(Expr::Input(Input::Viewer)),
                 RuleTerm::Literal(value) => Some(Expr::Literal(value.clone())),
@@ -553,9 +553,18 @@ pub fn branch_merge_lazy(schema: &Schema, merge: &Merge) -> bool {
         let plain = index.components.iter().all(|component| component.column().is_some());
         let total_unique = index.unique && plain && index.components.iter().all(|component| component.column()
             .and_then(|column| table.columns.get(column)).is_some_and(|kind| !kind.is_optional()));
+        let prefix_total_unique = table.indexes.values().filter(|candidate| candidate.unique && candidate.is_plain())
+            .filter(|candidate| candidate.components.iter().all(|component| component.column()
+                .and_then(|column| table.columns.get(column)).is_some_and(|kind| !kind.is_optional())))
+            .any(|candidate| candidate.components.iter().all(|part| part.column().is_some_and(|column|
+                index.components.iter().take(scan.prefix.len()).any(|prefix| prefix.column() == Some(column)))));
+        // A membership target selected by its intrinsic id is physically a
+        // fully pinned byId point, but its logical merge position is that id.
+        // Compare it as the unpinned id suffix used by every other lane.
+        let position_prefix = scan.prefix.len() - usize::from(membership_point_id(schema, lane));
         let same = match suffix {
-            Some((first_index, first_prefix)) => same_merge_position(table, first_index, first_prefix, index, scan.prefix.len()),
-            None => { suffix = Some((index, scan.prefix.len())); true }
+            Some((first_index, first_prefix)) => same_merge_position(table, first_index, first_prefix, index, position_prefix),
+            None => { suffix = Some((index, position_prefix)); true }
         };
         let authority = if lane.membership() { membership_branch(schema, lane) }
             else if lane.system() { lane.source.is_none() }
@@ -564,15 +573,36 @@ pub fn branch_merge_lazy(schema: &Schema, merge: &Merge) -> bool {
         lane.project.is_none() && lane.setup.is_empty() && scan.table == first.scan.table
             && scan.prefix.iter().all(|key| matches!(key, IndexKeyExpr::Scalar(_)))
             && scan.order == first.scan.order && !scan.existence && same
-            && scan.prefix.len() < index.components.len() && index.word_component().is_none()
-            && plain && (total_unique || index.components.last().and_then(|component| component.column()).is_some_and(|c| c == "id"))
+            && (scan.prefix.len() < index.components.len() || membership_point_id(schema, lane))
+            && index.word_component().is_none()
+            // A dynamic target-id lane uses `[id, order…]`: its scalar id
+            // prefix is already a total point even though the physical index
+            // is non-unique and need not repeat id as a suffix.
+            && plain && (total_unique || prefix_total_unique
+                || index.components.last().and_then(|component| component.column()).is_some_and(|c| c == "id"))
             && authority
     })
 }
 
-/// The source is capped and readable under its fixed pins, and its row is the
-/// exact witness for the outer rule branch that the dynamic prefix opens.
-// @ref LLP 3000.036.001#14 — membership discovery proves each parent range.
+/// An intrinsic-id membership lane retains id as its logical merge position
+/// even though the physical byId scan pins that sole component.
+pub(crate) fn membership_point_id(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
+    if !lane.membership() || lane.scan.range.is_some() { return false; }
+    let Some(table) = schema.table(&lane.scan.table) else { return false };
+    let Some(index) = table.index(&lane.scan.index) else { return false };
+    let Some(Expr::Field { base, name: source_column }) = lane.distinct.as_ref() else { return false };
+    if !matches!(base.as_ref(), Expr::Variable(binding) if binding == &lane.binding) { return false; }
+    lane.scan.prefix.len() == index.components.len()
+        && index.components.last().and_then(|part| part.column()).is_some_and(|column| column == "id")
+        && membership_outer_column(schema, lane, source_column) == Some("id")
+}
+
+/// The source is readable under its fixed pins, and its row is the exact
+/// witness for the outer rule branch that the dynamic prefix opens. A cap on
+/// the fixed source group is one admission proof; a total point witness is
+/// another. The latter bounds each witness, while the shared read meter safely
+/// cuts the otherwise-unbounded inverted discovery before any row is emitted.
+// @ref LLP 3000.036.001#15 — membership discovery proves each parent range without treating point uniqueness as a global membership cap.
 fn membership_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
     membership_witness(schema, lane, false)
 }
@@ -583,6 +613,48 @@ fn membership_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
 // @ref LLP 3000.036.001#14 — fixed-id witnesses preserve nullable residual equality without treating nullable natural keys as points.
 pub(crate) fn membership_null_distinct(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
     membership_witness(schema, lane, true)
+}
+
+/// Whether PAGE v1's validator would admit this already-valid membership
+/// lane. Capability derivation uses the historical predicate exactly, so
+/// capped §14 plans remain v1-compatible while every newly admitted shape is
+/// fenced by `branch-membership-v2`.
+// @ref LLP 3000.036.001#15 — PAGE2 capability negotiation preserves the v1 admission boundary.
+pub fn membership_v1(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
+    if !lane.membership() { return false; }
+    let Some(source) = lane.source.as_ref().and_then(crate::ir::LaneSource::scan) else { return false };
+    let Some(Expr::Field { base, name: source_column }) = lane.distinct.as_ref() else { return false };
+    if !matches!(base.as_ref(), Expr::Variable(name) if name == &lane.binding) { return false; }
+    let Some(source_table) = schema.table(&source.table) else { return false };
+    let Some(source_index) = source_table.index(&source.index) else { return false };
+    let next_component = source.prefix.len() < source_index.components.len()
+        && source_index.components.get(source.prefix.len()).and_then(|part| part.column()) == Some(source_column);
+    let one_row_source = source.prefix.len() == source_index.components.len()
+        && source_index.unique && source_index.is_plain()
+        && source_index.components.iter().all(|part| part.column().and_then(|column| source_table.columns.get(column))
+            .is_some_and(|kind| !kind.is_optional()));
+    if source.existence || (!next_component && !one_row_source) || !scan_visibility(schema, source).decided_true { return false; }
+    let Bound::Literal(take @ 1..) = source.take else { return false };
+    let prefix_has = |field: &String| source_index.components.iter().take(source.prefix.len())
+        .any(|part| part.column() == Some(field));
+    let cap = source_table.constraints.iter().filter_map(|constraint| match constraint {
+        crate::schema::Constraint::Cap { by, max } if by.iter().all(prefix_has) && !source_table.cap_exempts_null(by) => Some(*max),
+        _ => None,
+    }).min();
+    if cap.is_none_or(|cap| cap > take && !one_row_source) { return false; }
+    membership_outer_column(schema, lane, source_column).is_some_and(|column| column != "id")
+}
+
+fn membership_outer_column<'a>(schema: &'a Schema, lane: &'a crate::ir::MergeLane, source_column: &str) -> Option<&'a str> {
+    let table = schema.table(&lane.scan.table)?;
+    let index = table.index(&lane.scan.index)?;
+    let mut outer = None;
+    for (part, key) in index.components.iter().zip(&lane.scan.prefix) {
+        let (Some(column), Some(expr)) = (part.column(), key.scalar()) else { return None };
+        if matches!(expr, Expr::Field { base, name } if matches!(base.as_ref(), Expr::Variable(binding) if binding == &lane.binding) && name == source_column)
+            && outer.replace(column).is_some() { return None; }
+    }
+    outer.map(String::as_str)
 }
 
 fn membership_witness(schema: &Schema, lane: &crate::ir::MergeLane, null_distinct: bool) -> bool {
@@ -602,15 +674,16 @@ fn membership_witness(schema: &Schema, lane: &crate::ir::MergeLane, null_distinc
             .is_some_and(|kind| !kind.is_optional()));
     if source.existence || (!next_component && !one_row_source)
         || !scan_visibility(schema, source).decided_true { return false; }
-    let Bound::Literal(take) = source.take else { return false };
-    if take == 0 { return false; }
+    // An applicable declaration can compile to a literal source bound. An
+    // exact total point may instead use the ordinary read meter: discovery
+    // remains fenced until that metered scan completes.
+    if !matches!(source.take, Bound::Meter | Bound::Literal(1..)) { return false; }
     let prefix_has = |field: &String| source_index.components.iter().take(source.prefix.len())
         .any(|part| part.column() == Some(field));
-    let cap = source_table.constraints.iter().filter_map(|constraint| match constraint {
+    let capped_source_group = source_table.constraints.iter().any(|constraint| match constraint {
         crate::schema::Constraint::Cap { by, max } if by.iter().all(prefix_has) && !source_table.cap_exempts_null(by) => Some(*max),
         _ => None,
-    }).min();
-    if cap.is_none_or(|cap| cap > take && !one_row_source) { return false; }
+    }.is_some());
     let Some(outer_table) = schema.table(&lane.scan.table) else { return false };
     let Some(outer_index) = outer_table.index(&lane.scan.index) else { return false };
     let mut outer_column: Option<&String> = None;
@@ -620,7 +693,6 @@ fn membership_witness(schema: &Schema, lane: &crate::ir::MergeLane, null_distinc
             && outer_column.replace(column).is_some() { return false; }
     }
     let Some(outer_column) = outer_column else { return false };
-    if outer_column == "id" { return false; }
     let fixed = |column: &String| source_index.components.iter().zip(&source.prefix)
         .find_map(|(part, key)| (part.column() == Some(column)).then(|| key.scalar()).flatten())
         .or_else(|| source.filter.as_deref().and_then(|filter| required_source_equality(filter, column)));
@@ -628,6 +700,9 @@ fn membership_witness(schema: &Schema, lane: &crate::ir::MergeLane, null_distinc
         let RuleExpr::Exists { table, index, key, equalities, .. } = rule else { return false };
         let Some(probe_index) = source_table.index(index) else { return false };
         if table != &source.table || !probe_index.unique || !probe_index.is_plain() || probe_index.components.len() != key.len() { return false; }
+        let total_point = probe_index.components.iter().all(|part| part.column()
+            .and_then(|column| source_table.columns.get(column)).is_some_and(|kind| !kind.is_optional()));
+        if !one_row_source && !capped_source_group && !total_point { return false; }
         let matches = |column: &String, term: &RuleTerm| if column == source_column { matches!(term, RuleTerm::Field(field) if field == outer_column) }
             else { fixed(column).is_some_and(|expr| term_matches_expr(term, expr)) };
         if !probe_index.components.iter().zip(key).all(|(part, term)| part.column().is_some_and(|column| matches(column, term)))

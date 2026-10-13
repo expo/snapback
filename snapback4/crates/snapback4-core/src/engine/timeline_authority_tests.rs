@@ -12,7 +12,7 @@ pub(in crate::engine) fn schema() -> Schema {
     let table = Table { ephemeral: None, sequences: Default::default(), written_by: Default::default(), update_transition: false, through: None, on_delete: Default::default(), recorded: Default::default(), maintained: Default::default(), residency: Default::default(), defaults: Default::default(),
         columns: [("id".into(), ColumnType::Id), ("value".into(), ColumnType::Int)].into(),
         indexes: [("byId".into(), Index::of(&["id"], true))].into(),
-        rules: Rules { read: RuleExpr::Allow, ..Rules::deny() }, constraints: vec![], leave: Default::default(), sync: None, expire: None };
+        rules: Rules { read: RuleExpr::Allow, ..Rules::deny() }, constraints: vec![], leave: Default::default(), sync: None, not_before: None, expire: None };
     Schema { tables: t.owned.iter().chain(&t.mapped).map(|name| (name.clone(), table.clone())).collect(), timelines: vec![t], ..Schema::default() }
 }
 fn row(id: &str) -> Value { object([("id", Value::Id(id.into())), ("value", Value::Int(1))]) }

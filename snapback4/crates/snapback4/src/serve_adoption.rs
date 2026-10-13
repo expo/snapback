@@ -192,6 +192,7 @@ pub(super) fn watch_sources(project: Project, shared: Arc<Shared>, mut stamp: cr
                 });
                 match adopted {
                     Ok((next, reopened)) => {
+                        shared.refresh_time_audience_clock(&engine, shared.now());
                         seen_generation = next;
                         crate::lifecycle::generation(next);
 

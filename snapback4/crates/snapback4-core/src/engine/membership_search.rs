@@ -211,12 +211,15 @@ impl Runner<'_> {
             }
         }
         if let Some(expiry) = table.expiry_column() { fields.insert(expiry.into()); }
+        if let Some(opening) = &table.not_before { fields.insert(opening.clone()); }
         if !word.terms.is_empty() { fields.extend(word.fields.iter().cloned()); }
         for authority in table.written_by.values() { fields.insert(authority.owner.clone()); }
         if scan.filter.as_ref().is_some_and(|filter| !selected_fields(filter, &mut fields))
             || !table.sequences.is_empty() || !table.recorded.is_empty() || table.through.is_some() || self.schema.maintain_for(&scan.table).is_some() {
             fields.extend(table.columns.keys().cloned());
         }
+        let lifetime_sensitive = table.read_lifetime_sensitive();
+        let decode_reservation = crate::rows::disclosed::decode_reservation(table);
         word.selected = Some(fields.into_iter().collect());
         if after.is_some() { bounds.after = after; bounds.at_or_after = None; }
         let mut words = Bounds { word: Some(first), ..Bounds::default() };
@@ -229,7 +232,20 @@ impl Runner<'_> {
             let scratch_bytes = self.meter.used.heap_bytes;
             let scratch = self.meter.mark();
             self.meter.heap(8 * crate::rows::MAX_INDEX_KEY_BYTES as u64 + word_heap::slots::<Value>(index.components.len() + 1))?;
-            let key = self.metered_scan(|runner, authority| runner.tx.index_head(authority, &scan.table, &scan.index, &scope, &words, Dir::Asc))?;
+            let key = if lifetime_sensitive {
+                self.authorized_scratch(decode_reservation, &[], |runner, authority| {
+                    let mut cursor = words.clone();
+                    loop {
+                        let found = runner.tx.scan(authority, &scan.table, &scan.index, &scope, &cursor, Dir::Asc, 1)?;
+                        let Some((row, stored)) = found.into_iter().next() else { return Ok(None); };
+                        cursor.after = crate::key::decode(&stored).map(|values| values.into_iter().skip(scope.len()).collect());
+                        if runner.step_inactive(&scan.table, &row, &stored)? { continue; }
+                        return crate::key::decode(&stored).map(Some).ok_or_else(|| RuntimeError::Store("word index holds an invalid key".into()));
+                    }
+                })?
+            } else {
+                self.metered_scan(|runner, authority| runner.tx.index_head(authority, &scan.table, &scan.index, &scope, &words, Dir::Asc))?
+            };
             let token = key.and_then(|mut key| if key.len() > scope.len() { Some(key.remove(scope.len())) } else { None });
             let Some(token) = token else { self.meter.release_heap(scratch); break };
             // Preserve only the token; all other decoded components are dropped.

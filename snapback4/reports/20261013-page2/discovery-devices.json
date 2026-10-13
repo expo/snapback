@@ -1,0 +1,74 @@
+{
+  "generated": 1,
+  "compiled": 1,
+  "binder_refused_expected": 0,
+  "binder_refused_unexpected": 0,
+  "executed": 4,
+  "generator_errors": {},
+  "by_oracle": {
+    "device-memory-read": {
+      "attempted": 1,
+      "passed": 0,
+      "unsupported": {
+        "online-only-unknown-incomplete": 1
+      },
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    },
+    "device-sqlite-read": {
+      "attempted": 1,
+      "passed": 0,
+      "unsupported": {
+        "online-only-unknown-incomplete": 1
+      },
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    }
+  },
+  "coverage": {
+    "body/Page": 1,
+    "column/Bool": 1,
+    "column/Id": 1,
+    "column/Int": 1,
+    "column/Nullable(Int)": 1,
+    "column/Principal": 1,
+    "column/Text": 1,
+    "input/near-i53": 1,
+    "input/non-bmp": 1,
+    "items-residency/Online": 1,
+    "items-rule/OwnerOrWitness": 1,
+    "order/ascending": 1,
+    "read/branch-merged": 1,
+    "read/branch-rule-membership": 1,
+    "read/branch-rule-membership-discovery-unique": 1,
+    "read/branch-rule-membership-uncapped": 1,
+    "read/branch-shape": 1,
+    "residency/Online": 1,
+    "rule/Member": 1,
+    "rule/OwnerOrWitness": 1,
+    "schema/index": 1,
+    "schema/unique-key": 1
+  },
+  "rewrite_coverage": {},
+  "meter_dimensions": {},
+  "pageable_reads": 0,
+  "pages_with_resumable_cut": 0,
+  "runtime_refusals": {},
+  "runtime_refused_unexpected": {},
+  "store_stats": {
+    "device-memory-read-online-only-unknown-incomplete": 1,
+    "device-memory-snapshot-events": 0,
+    "device-memory-snapshot-pages": 2,
+    "device-sqlite-read-online-only-unknown-incomplete": 1,
+    "device-sqlite-snapshot-events": 0,
+    "device-sqlite-snapshot-pages": 2
+  },
+  "slowest_case_seconds": 0.028650403,
+  "slowest_case_seed": 715,
+  "time_limited_workers": 0,
+  "seconds": 0.028698065,
+  "seed": 715,
+  "cases": 1
+}

@@ -66,7 +66,7 @@ mod indexes;
 mod types;
 pub use discovery::{FULL_LINES, piped, alias_landing, aliases, find, listing, nearest, overview, overview_and_first_section, section, section_index, sections};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "deploy", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet", "changes"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "rule-recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "deploy", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet", "changes"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
@@ -95,6 +95,8 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("schedule", "jobs"), ("schedules", "jobs"), ("cron", "jobs"),
     // @ref LLP 3000.007#20.1 — wave 4: the shapes builders assembled from several cards open one compiled recipe.
     ("recipe", "recipes"), ("roles", "recipes"), ("role", "recipes"), ("admin", "deploy"), ("rbac", "recipes"),
+    ("composite role", "rule-recipes"), ("composite roles", "rule-recipes"), ("blind writer", "rule-recipes"), ("hidden parent", "rule-recipes"),
+    ("not before", "rule-recipes"), ("timed disclosure", "rule-recipes"),
     ("permissions", "recipes"), ("two-party", "recipes"), ("two party", "recipes"), ("buyer seller", "recipes"),
     ("marketplace", "recipes"), ("booking", "recipes"), ("bookings", "recipes"), ("reservation", "recipes"),
     ("reservations", "recipes"), ("capacity", "recipes"), ("seats", "recipes"), ("double booking", "recipes"),
@@ -162,6 +164,7 @@ pub const ALIAS_SECTIONS: &[(&str, &str)] = &[
     ("household", "A group's private list"), ("households", "A group's private list"), ("multi-tenant", "A group's private list"),
     ("tenant", "A group's private list"), ("membership", "A group's private list"),
     ("sealed", "Sealed"), ("sealed bid", "Sealed"), ("sealed bids", "Sealed"), ("blind", "Sealed"), ("reveal", "Sealed"),
+    ("not before", "Timed disclosure and timed writes"), ("timed disclosure", "Timed disclosure and timed writes"),
     ("roster", "Roles and rosters"), ("rosters", "Roles and rosters"), ("probe", "Roles and rosters"), ("positional", "Roles and rosters"),
 ];
 
@@ -239,6 +242,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
         "from-sql" => include_str!("guide/from_sql.md"),
         "app" => app::CARD,
         "recipes" => include_str!("guide/recipes.md"),
+        "rule-recipes" => include_str!("guide/rule_recipes.md"),
         "witness" => include_str!("guide/witness.md"),
         "prediction" => prediction::CARD,
         "evolution" => discovery::EVOLUTION,
@@ -404,6 +408,9 @@ mutation postStory(body: text <=500, ttl: int ?):
 query expiringStories(c: cursor ?):
   return stories where .authorId = viewer after c last 20 by .id { id, body, expiresAt }
 ```
+
+`not before .opensAt` and `expire at .expiresAt` define `[opensAt, expiresAt)`;
+`guide timed disclosure` has the compiled recipe.
 
 `guide reads` carries a compilable typing table and its 4,500 ms deadline.
 This is an application table, separate from the server's `connected[p]`.

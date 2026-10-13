@@ -2,7 +2,7 @@
 use crate::generate::Case;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value as Json, json};
-use snapback4_core::{Context, Engine, Refusal, ir::ProgramKind, wire};
+use snapback4_core::{Context, Engine, Refusal, Store, ir::ProgramKind, wire};
 use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -57,7 +57,12 @@ pub fn seeded(case: &Case, source: &str) -> Result<Engine, String> {
                 .map_err(|e| e.to_string())
         })
         .collect::<Result<Vec<_>, _>>()?;
-    let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program))
+    let mut engine = Engine::new_at(
+        Store::memory().map_err(|e| e.to_string())?,
+        b.schema,
+        b.programs.into_iter().map(|p| p.program),
+        seed_clock(case),
+    )
         .map_err(|e| e.to_string())?;
     engine
         .seed_at(rows, seed_clock(case))

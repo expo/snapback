@@ -441,6 +441,10 @@ fn supported(schema: &Schema, programs: &BTreeMap<String, Program>) -> Result<()
     if schema.tables.values().any(|t| t.ephemeral.is_some()) {
         return Err(RuntimeError::Structural { code: "E_QUARRY_EPHEMERAL", message: "Postgres evaluation does not support ephemeral tables; use the SQLite server".into() });
     }
+    // @ref LLP 3000.036.003#4-advancing-time-without-an-application-job — an adapter without the private ledger cannot serve timed rows.
+    if schema.tables.values().any(|t| t.not_before.is_some()) {
+        return Err(RuntimeError::Schema("Postgres evaluation does not implement timed-publication state; use the SQLite server for `not before` tables".into()));
+    }
     // @ref LLP 3000.036.000.000#9 — the evaluation adapter records no audience epoch; unions stay on SQLite.
     if schema.tables.values().any(|t| t.sync.as_ref().is_some_and(crate::schema::Sync::is_union)) {
         return Err(RuntimeError::Structural { code: "E_SYNC", message: "Postgres evaluation does not support union sync audiences; use the SQLite server".into() });

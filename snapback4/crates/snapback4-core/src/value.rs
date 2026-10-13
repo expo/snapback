@@ -244,6 +244,9 @@ impl Value {
         }
     }
 
+    #[cfg(feature = "sqlite")]
+    pub(crate) fn retained_heap_bytes(&self) -> u64 { self.retained_heap() }
+
     pub fn field(&self, name: &str) -> Result<&Value, ValueError> {
         self.as_object()?
             .get(name)

@@ -126,12 +126,12 @@ fn the_emitter_covers_the_generated_corpus_with_named_exceptions() {
     for seed in 0..3000 {
         let case = lean::generate(seed);
         let source = case.program.source();
-        execute::compile(&source).unwrap_or_else(|e| panic!("seed {seed} does not compile: {e}"));
+        execute::compile(&source).unwrap_or_else(|e| panic!("seed {seed} does not compile: {e}\n{source}"));
         let module = match lean::module(&source) {
             Ok(m) => m,
-            // Only expiry is outside the model at the schema level (the campaign drops int ranges).
+            // Expiry and words indexes are outside the model at the schema level.
             Err(r) => {
-                assert_eq!(r, "table-expiry", "seed {seed}");
+                assert!(matches!(r.as_str(), "table-expiry" | "index-computed-or-words"), "seed {seed}: {r}");
                 reasons.insert(r);
                 continue;
             }
@@ -150,7 +150,7 @@ fn the_emitter_covers_the_generated_corpus_with_named_exceptions() {
     }
     // Outside it: the unpaged aggregates, page projections (`shape`), the
     // loop of a prefetch-reachable fold, and expiry, which the model leaves out.
-    assert_eq!(reasons, ["call-max", "call-min", "call-sum", "loop", "shape", "table-expiry"].map(String::from).into());
+    assert_eq!(reasons, ["call-max", "call-min", "call-sum", "index-computed-or-words", "loop", "shape", "table-expiry"].map(String::from).into());
     assert!(supported > 2000, "{supported}");
 }
 
@@ -352,13 +352,34 @@ fn reordered_named_membership_key_agrees_with_the_model() {
     if !model_built() { return; }
     let case = (0..2_000)
         .map(lean::generate)
-        .find(|case| case.program.membership_named_reordered)
+        .find(|case| case.program.membership_named_reordered && case.program.search_term.is_none())
         .expect("named membership-page stream must be reachable");
     let source = case.program.source();
     assert!(source.contains("exists access[principal = viewer, bucket = .bucket]"), "{source}");
     execute::compile(&source).unwrap();
     let checked = lean::compare(&case, &source).unwrap();
     assert!(matches!(checked.verdict, Verdict::Pass), "{:?}\n{source}", checked.verdict);
+}
+
+#[test]
+fn future_unique_insert_and_upsert_agree_with_the_physical_model() {
+    if !model_built() { return; }
+    let cases = [
+        ("insert collision", (0..20_000).map(snapback4_difftest::generate::generate).find(|case|
+            matches!(case.program.body, snapback4_difftest::ast::Body::Write(snapback4_difftest::ast::Write::Insert, _))
+                && case.rows.iter().any(|(table, row)| table == "items" && row["tag"] == "tag"
+                    && row["opensAt"].as_i64().is_some_and(|at| at > case.clock))
+        ).expect("timed generator reaches a future unique insert collision")),
+        ("natural upsert", (0..20_000).map(snapback4_difftest::generate::generate).find(|case|
+            case.program.upsert_unique_tag.is_some()
+        ).expect("timed generator reaches a future natural-key upsert")),
+    ];
+    for (name, case) in cases {
+        let source = case.program.source();
+        execute::compile(&source).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let checked = lean::compare(&case, &source).unwrap();
+        assert!(matches!(checked.verdict, Verdict::Pass), "{name}: {:?}\n{source}", checked.verdict);
+    }
 }
 
 #[test]
@@ -525,16 +546,15 @@ fn nullable_membership_points_agree_with_the_engine() {
 }
 
 #[test]
-fn id_caps_and_uncapped_memberships_agree_with_the_model() {
+fn fixed_id_points_need_no_discovery_cap_and_agree_with_the_model() {
     if !model_built() { return; }
     let check = |cap: &str, filter: &str, complete: bool| {
         let source = format!("table memberships:\n  parent: text <=40\n  principal: principal\n  unique parent, principal\n{cap}  read <- allow\n  online only\ntable documents:\n  owner: principal\n  parent: text <=40\n  at: int\n  read <- .owner = viewer or exists memberships[id = 'm1', parent = .parent, principal = viewer]\n  online only\nquery run(c: cursor ?):\n  return documents{filter} last 10 by .at after c\n");
         let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
         assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
-        if cap.contains("by id") {
-            assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
-                .into_iter().all(|merge| !merge.branches()));
-        }
+        let merged = snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+            .into_iter().any(|merge| merge.branches());
+        assert_eq!(merged, filter.is_empty(), "{:#?}\n{source}", bound.notes);
         let mut engine = snapback4_core::Engine::memory(
             bound.schema,
             bound.programs.into_iter().map(|program| program.program),
@@ -568,13 +588,13 @@ fn id_caps_and_uncapped_memberships_agree_with_the_model() {
         assert_eq!(modeled["complete"], actual.complete, "{modeled}\n{actual:?}");
         assert_eq!(actual.complete, complete, "{actual:?}");
     };
-    check("  cap 1 by id\n", "", false);
-    check("", "", false);
+    check("  cap 1 by id\n", "", true);
+    check("", "", true);
     check("", " where .parent = 'p1'", true);
 }
 
 #[test]
-fn fixed_id_caps_reserve_all_older_page_classifiers() {
+fn fixed_id_points_preempt_all_older_page_classifiers() {
     if !model_built() { return; }
     let filters = [
         "",
@@ -586,7 +606,7 @@ fn fixed_id_caps_reserve_all_older_page_classifiers() {
         let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
         assert!(bound.diagnostics.is_empty(), "{:#?}\n{source}", bound.diagnostics);
         assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
-            .into_iter().all(|merge| !merge.branches()), "{source}");
+            .into_iter().any(|merge| merge.branches()), "{source}");
         let mut engine = snapback4_core::Engine::memory(
             bound.schema,
             bound.programs.into_iter().map(|program| program.program),
@@ -617,7 +637,7 @@ fn fixed_id_caps_reserve_all_older_page_classifiers() {
         assert_eq!(modeled["kind"], "answer", "{modeled}\n{source}");
         assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data), "{modeled}\n{actual:?}\n{source}");
         assert_eq!(modeled["complete"], actual.complete, "{modeled}\n{actual:?}\n{source}");
-        assert!(!actual.complete, "{actual:?}\n{source}");
+        assert!(actual.complete, "{actual:?}\n{source}");
     }
 }
 
@@ -699,6 +719,42 @@ fn intrinsic_id_membership_missing_witness_agrees_with_the_model() {
 }
 
 #[test]
+fn intrinsic_id_positional_membership_uses_its_reference_type() {
+    if !model_built() { return; }
+    let source = "table shares:\n  document: documents\n  alias: text <=20\n  principal: principal\n  unique document, principal\n  unique alias, principal\n  read <- .principal = viewer\n  online only\ntable documents:\n  owner: principal\n  at: int\n  read <- .owner = viewer or exists shares[.id, viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
+    let rows: Vec<(String, serde_json::Value)> = vec![
+        ("shares".into(), json!({"id":"s","document":"shared","alias":"elsewhere","principal":"alice"})),
+        ("documents".into(), json!({"id":"shared","owner":"bob","at":1})),
+        ("documents".into(), json!({"id":"denied","owner":"bob","at":2})),
+    ];
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+        .into_iter().any(|merge| merge.branches()), "{:#?}", bound.notes);
+    let mut engine = snapback4_core::Engine::memory(
+        bound.schema,
+        bound.programs.into_iter().map(|program| program.program),
+    ).unwrap();
+    let seeded = rows.iter().map(|(table, value)| {
+        let row = snapback4_core::wire::row_from_json(&engine.schema().tables[table], value).unwrap();
+        (table.clone(), row)
+    }).collect::<Vec<_>>();
+    engine.seed(seeded).unwrap();
+    let actual = engine.query("run", snapback4_core::Context::new("alice",
+        [("c".into(), snapback4_core::Value::Null)].into_iter().collect())).unwrap();
+    assert_eq!(actual.data.as_array().unwrap().len(), 1, "{actual:?}");
+    assert!(actual.complete && actual.next.is_none(), "{actual:?}");
+
+    let module = lean::module(source).unwrap();
+    let case = module.case("run", module.store(&rows).unwrap(), "alice",
+        module.tag_args("run", &json!({"c":null})).unwrap(), None).unwrap();
+    let modeled = lean::ask(&case).unwrap();
+    assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data), "{modeled}\n{actual:?}");
+    assert_eq!(modeled["complete"], actual.complete, "{modeled}\n{actual:?}");
+    assert_eq!(modeled["next"], json!({"null":null}), "{modeled}\n{actual:?}");
+}
+
+#[test]
 fn total_unique_varying_source_id_agrees_for_present_and_missing_witnesses() {
     if !model_built() { return; }
     let source = "table groups:\n  principal: principal\n  unique principal\n  cap 16 by principal\n  read <- .principal = viewer\n  online only\ntable documents:\n  owner: principal\n  parent: groups\n  at: int\n  read <- .owner = viewer or exists groups[id = .parent, principal = viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
@@ -759,6 +815,41 @@ fn nullable_unique_varying_source_id_stops_before_the_oracle() {
     assert!(!bound.schema.required_capabilities().contains("branch-membership-v1"));
     assert_eq!(lean::module(source).unwrap().program("run").unwrap_err().reason,
         "page-membership-source-unique");
+}
+
+#[test]
+fn uncapped_positional_membership_uses_a_fully_pinned_discovery_unique() {
+    let source = "table members:\n  parent: text <=20 ?\n  principal: principal\n  unique parent, principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable documents:\n  owner: principal\n  parent: text <=20\n  at: int\n  read <- .owner = viewer or exists members[.parent, viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
+    let rows: Vec<(String, serde_json::Value)> = vec![
+        ("members".into(), json!({"id":"m","parent":"p","principal":"alice"})),
+        ("documents".into(), json!({"id":"shared","owner":"bob","parent":"p","at":1})),
+    ];
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+        .into_iter().any(|merge| merge.branches()), "{:#?}", bound.notes);
+    let mut engine = snapback4_core::Engine::memory(
+        bound.schema,
+        bound.programs.into_iter().map(|program| program.program),
+    ).unwrap();
+    let seeded = rows.iter().map(|(table, value)| {
+        let row = snapback4_core::wire::row_from_json(&engine.schema().tables[table], value).unwrap();
+        (table.clone(), row)
+    }).collect::<Vec<_>>();
+    engine.seed(seeded).unwrap();
+    let actual = engine.query("run", snapback4_core::Context::new("alice",
+        [("c".into(), snapback4_core::Value::Null)].into_iter().collect())).unwrap();
+    assert_eq!(actual.data.as_array().unwrap().len(), 1, "{actual:?}");
+    assert!(actual.complete && actual.next.is_none(), "{actual:?}");
+
+    let module = lean::module(source).unwrap();
+    if !model_built() { return; }
+    let case = module.case("run", module.store(&rows).unwrap(), "alice",
+        module.tag_args("run", &json!({"c":null})).unwrap(), None).unwrap();
+    let modeled = lean::ask(&case).unwrap();
+    assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data), "{modeled}\n{actual:?}");
+    assert_eq!(modeled["complete"], actual.complete, "{modeled}\n{actual:?}");
+    assert_eq!(modeled["next"], json!({"null":null}), "{modeled}\n{actual:?}");
 }
 
 #[test]
@@ -1107,6 +1198,8 @@ fn fixed_seed_campaign_against_the_model() {
     }
     // Pages continued on both sides' own cursors were compared.
     assert!(report.store_stats["lean-continued-reads"] > 10);
+    assert!(report.coverage["not-before/exact-boundary"] > 0, "{:#?}", report.coverage);
+    assert!(report.coverage["not-before/future"] > 0, "{:#?}", report.coverage);
 }
 
 #[test]

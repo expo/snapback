@@ -21,6 +21,13 @@
 //!   expiring at, just before and just after each operation's clock, a clock
 //!   that advances between operations, sweeps, and writes setting
 //!   `until: now + ttl`;
+//! - **lower read lifetimes**, from their own stream: `not before .opensAt`
+//!   rows null-open and just before, exactly at and just after the request
+//!   clock, shared by the native, device and Lean campaigns;
+//! - **timed non-uniform search**, on every lower-lifetime page selected by
+//!   that stream: future word heads precede two live rows sharing a word. The
+//!   native paired-world oracle removes the future rows; Lean names search as
+//!   outside its fragment instead of pretending to model word discovery;
 //! - **secondary unique clashes** (OPEN W4): block writes put `tag0`/`tag1`,
 //!   which seeded rows hold, into the unique `byTag`;
 //! - **calendar builtins** (LLP 3000.040 §2): a scalar `run` over a `t: time`
@@ -38,9 +45,10 @@
 //!   `.owner = viewer or .helper = viewer`), or whose read rule is two parties
 //!   (`.owner = viewer or .helper = viewer`, with a `helper` column), so the
 //!   merged plan, its cursor and its cuts meet every oracle.
-//! - **bounded membership pages**, from their own stream: an unpinned page
-//!   whose owner-or-membership rule discovers at most 16 held groups, with
-//!   positional and reordered named membership probes.
+//! - **membership pages**, from their own stream: an unpinned page whose
+//!   owner-or-membership rule discovers held groups through either the
+//!   declared cap or its total unique witness, with positional and reordered
+//!   named membership probes.
 // @ref LLP 3000.035#5.1 — generator widening behind independent probabilities.
 use crate::{
     ast::*,
@@ -51,6 +59,7 @@ use serde_json::{Value as Json, json};
 const STREAM: u64 = 0x5749_4445_4e5f_4757;
 const BRANCH_STREAM: u64 = 0x4252_414e_4348_4553;
 const MEMBERSHIP_STREAM: u64 = 0x4d45_4d42_4552_4e41;
+const NOT_BEFORE_STREAM: u64 = 0x4e4f_545f_4245_464f;
 /// Clock gaps between operations (ms); 0 makes two operations simultaneous.
 const GAPS: [i64; 6] = [0, 1, 37, 500, 1000, 60_000];
 /// Offsets from an operation's clock at which a row expires.
@@ -175,6 +184,7 @@ fn tags_table(rng: &mut Rng) -> Table {
         residency,
         effects: None,
         expire: None,
+        not_before: None,
     }
 }
 fn tags_rows(rng: &mut Rng) -> Vec<(String, Json)> {
@@ -302,34 +312,139 @@ pub fn widen(mut case: Case) -> Case {
         }
     }
     references(&mut case);
+    timed_disclosure(&mut case);
     membership_page(&mut case);
+    timed_search(&mut case);
     case
 }
 
-/// Add the bounded focal owner-or-membership shape to the ordinary campaign,
-/// after other widening so its final plan reaches native rewrite and meter
-/// oracles. The access table in every base case already carries the cap and
-/// inverse principal index required for bounded discovery.
+/// Add lower-bound rows from an independent stream. Every selected case has
+/// null-open, before-boundary, exact-boundary and future rows.
+fn timed_disclosure(case: &mut Case) {
+    let mut rng = Rng::new(case.seed ^ NOT_BEFORE_STREAM);
+    if rng.pick(8) != 0 { return }
+    // The executable model describes live(now), while the host publishes a
+    // bounded pending backlog across requests. Seed at this request's clock
+    // and avoid sequential clocks here; lifecycle tests cover publication.
+    if case.seeded_at.is_some() || !case.steps.is_empty() { return }
+    if case.rows.iter().filter(|(name, _)| name == "items").count() < 4 { return }
+    let write = match &case.program.body {
+        Body::Write(kind, _) => Some(kind.clone()),
+        _ => None,
+    };
+    let table = &mut case.program.tables[0];
+    if table.columns.iter().any(|c| c.name == "opensAt") { return }
+    table.columns.push(Column { name: "opensAt".into(), ty: Type::Nullable(Box::new(Type::Time)) });
+    table.keys.push(("byOpensAt".into(), vec!["opensAt".into(), "id".into()], false));
+    table.not_before = Some("opensAt".into());
+    let values = [Json::Null, json!(case.clock - 1), json!(case.clock), json!(case.clock + 1)];
+    let mut i = 0;
+    let mut future_key = None;
+    let mut future_tag = None;
+    for (name, row) in &mut case.rows {
+        if name == &table.name {
+            row["opensAt"] = values[i % values.len()].clone();
+            if i % values.len() == 3 {
+                future_key = row["id"].as_str().map(str::to_owned);
+                if matches!(write, Some(Write::Insert)) {
+                    row["tag"] = json!("tag");
+                }
+                future_tag = row["tag"].as_str().map(str::to_owned);
+            }
+            i += 1;
+        }
+    }
+    match write {
+        Some(Write::Insert) => {
+            // The id is absent while `byTag` is occupied by a future row.
+            // A physical unique lookup must refuse without disclosing it.
+            table.rule = Rule::Allow;
+            case.args["key"] = json!("future-unique-duplicate");
+        }
+        Some(Write::Upsert) => {
+            // Natural-key target resolution is physical: patch this future
+            // row, but keep its result/read image hidden until the boundary.
+            table.rule = Rule::Allow;
+            case.program.upsert_unique_tag = future_tag;
+            if let Some(key) = future_key {
+                case.args["key"] = json!(key);
+            }
+        }
+        Some(Write::Update | Write::Delete) => {
+            if let Some(key) = future_key {
+                case.args["key"] = json!(key);
+            }
+        }
+        None => {}
+    }
+}
+
+/// Compose lower read lifetimes with non-uniform word discovery. Generated
+/// cases stay small: the native paired-world oracle, not a large population,
+/// observes whether physically future heads perturb data, meter or cursors.
+fn timed_search(case: &mut Case) {
+    let Body::Read { kind: Read::Page, take, descending, filter, owner, project } = &mut case.program.body else { return };
+    let table = &mut case.program.tables[0];
+    if table.not_before.is_none() { return }
+    let rows = case.rows.iter_mut().filter(|(name, _)| name == &table.name).collect::<Vec<_>>();
+    let Some(future) = rows.iter().position(|(_, row)| row["opensAt"].as_i64().is_some_and(|at| at > case.clock)) else { return };
+    if future + 2 >= rows.len() { return }
+    table.rule = Rule::Owner;
+    table.residency = Residency::Online;
+    table.keys.retain(|(name, _, _)| name != "byLabel");
+    table.keys.push(("byWords".into(), vec!["words(label)".into(), "id".into()], false));
+    for column in &mut table.columns {
+        if matches!(column.ty, Type::IntRange(..)) { column.ty = Type::Int; }
+    }
+    for (i, (_, row)) in rows.into_iter().enumerate() {
+        row["owner"] = json!(if i == future + 1 || i == future + 2 { case.principal.clone() } else { "other".into() });
+        row["label"] = json!(if i == future || i == future + 1 || i == future + 2 { "ashared".to_owned() } else { format!("z{i:02}") });
+    }
+    *take = 2;
+    *descending = false;
+    *filter = false;
+    *owner = false;
+    *project = None;
+    case.program.domain = None;
+    case.program.residual = None;
+    case.program.guard = None;
+    case.program.arg_bound = None;
+    case.program.kids = None;
+    case.rows.retain(|(name, _)| name != "kids" && name != "notes");
+    case.program.search_term = Some("a".into());
+    case.args["c"] = Json::Null;
+}
+
+/// Add the focal owner-or-membership shape to the ordinary campaign, after
+/// other widening so its final plan reaches native rewrite and meter oracles.
+/// Half retain the base cap; half rely on the total unique membership point
+/// and the same inverse principal index for metered discovery.
 fn membership_page(case: &mut Case) {
     let mut rng = Rng::new(case.seed ^ MEMBERSHIP_STREAM);
-    let Body::Read { kind: Read::Page | Read::Bounded, filter, owner, project, .. } = &mut case.program.body else { return };
+    let Body::Read { kind: kind @ (Read::Page | Read::Bounded), filter, owner, project, .. } = &mut case.program.body else { return };
     if rng.pick(16) != 0 { return }
+    *kind = Read::Page;
     *filter = false;
     *owner = false;
     *project = None;
     let items = &mut case.program.tables[0];
-    items.rule = Rule::OwnerOrWitness;
+    let by_id = rng.pick(2) == 0;
+    items.rule = if by_id { Rule::OwnerOrIdWitness } else { Rule::OwnerOrWitness };
     items.effects = None;
     items.residency = Residency::Online;
     let access = case.program.tables.iter_mut().find(|table| table.name == "access").expect("generated access table");
     access.rule = Rule::Allow;
     access.effects = None;
     access.residency = Residency::Public;
+    if rng.pick(2) == 0 { access.caps.clear(); }
+    let discovery_unique = !by_id && access.caps.is_empty() && rng.pick(2) == 0;
     case.program.domain = Some("true".into());
     case.program.order = Some(vec!["id".into()]);
     case.program.residual = None;
     case.program.guard = None;
-    case.program.membership_named_reordered = rng.pick(2) == 0;
+    case.program.membership_named_reordered = !by_id && rng.pick(2) == 0;
+    if by_id { crate::generate::id_membership(case); }
+    else if discovery_unique { crate::generate::discovery_unique_membership(case); }
 }
 /// Branch pages (LLP 3000.036.001), drawn from their own stream so every
 /// other dimension's draws are unchanged.

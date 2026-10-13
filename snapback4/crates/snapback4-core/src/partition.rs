@@ -16,23 +16,27 @@
 
 use crate::engine::{runner::Runner, write::Origin};
 use crate::error::{MeterKind, RuntimeError};
+use crate::rows::{Bounds, Dir};
+#[cfg(feature = "sqlite")]
+use crate::rows::Rows;
 #[cfg(feature = "sqlite")]
 use crate::schema::Table;
 use crate::schema::{Audience, AudienceBinding, Schema, Sync, audience_binding, row_image};
-use crate::rows::{Bounds, Dir};
 #[cfg(feature = "sqlite")]
 use crate::store::LogEvent;
 #[cfg(feature = "sqlite")]
-mod storage;
-#[cfg(feature = "sqlite")]
 mod counts;
 #[cfg(feature = "sqlite")]
-use counts::delivery_counts;
+mod delivery;
 #[cfg(feature = "sqlite")]
-pub use storage::{LogSpan, PartitionRows, audience_epoch_key, audience_epoch_time_key};
+mod storage;
 use crate::value::{Value, canonical_json};
+#[cfg(feature = "sqlite")]
+use counts::delivery_counts;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, BTreeSet};
+#[cfg(feature = "sqlite")]
+pub use storage::{LogSpan, PartitionRows, audience_epoch_key, audience_epoch_time_key};
 
 /// The partition every principal also holds. Principal partitions carry a
 /// tag (`p:<principal>`), so no principal's name can collide with it: a
@@ -43,6 +47,24 @@ pub const PUBLIC: &str = "public";
 /// The partition name of one principal.
 pub fn partition_of(principal: &str) -> String {
     format!("p:{principal}")
+}
+
+/// Durable evidence that this timed image actually crossed a publication
+/// boundary. It is independent of the pending queue: an expired or missed
+/// opening can consume that queue without ever publishing the row.
+// @ref LLP 3000.036.003#4-advancing-time-without-an-application-job — revocation follows actual publication evidence.
+#[cfg(feature = "sqlite")]
+fn was_published<R: Rows + ?Sized>(tx: &R, table_name: &str, table: &Table, row: &Value) -> Result<bool, RuntimeError> {
+    if table.not_before.is_none() { return Ok(true); }
+    tx.time_audience_published(table_name, row.field("id")?.as_str()?)
+}
+
+/// A current server row is publishable only after the row is live and its
+/// publication evidence exists. Devices contain only published rows.
+#[cfg(feature = "sqlite")]
+fn published<R: Rows + ?Sized>(tx: &R, table_name: &str, table: &Table, row: &Value, now: i64) -> Result<bool, RuntimeError> {
+    if !table.live(row, now) { return Ok(false); }
+    was_published(tx, table_name, table, row)
 }
 
 /// The partition of one group of a table that syncs to a target.
@@ -186,8 +208,11 @@ mod log_events {
         }
     }
     pub(super) fn scope(events: &mut PendingEvents, table: &str, partition: &str, group: &[Value], predecessor: Option<Value>) {
-        let data = predecessor.map_or_else(|| Value::Array(group.to_vec()), |expiry| crate::value::object([
-            ("group", Value::Array(group.to_vec())), ("previousExpiresAt", expiry)]));
+        let data = predecessor.map_or_else(|| Value::Array(group.to_vec()), |expiry| {
+                crate::value::object([
+            ("group", Value::Array(group.to_vec())), ("previousExpiresAt", expiry)])
+            },
+        );
         events.push(Event { partition: partition.to_owned(), table: table.to_owned(), kind: EventKind::Scope, id: canonical_json(&group), data: Some(data) });
     }
     pub(super) fn join(events: &mut PendingEvents, table: &str, partition: &str, group: &[Value], expiry: Value, predecessor: Option<Value>) {
@@ -205,18 +230,34 @@ pub(crate) fn row_changed(runner: &mut Runner<'_>, table_name: &str, old: Option
 
 /// Every host pays the same partition work, including expired membership
 /// scans. Only a log-bearing host constructs the corresponding events.
-pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value>, new: Option<&Value>, origin: Origin) -> Result<(), RuntimeError> {
+pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table_name: &str, old: Option<&Value>, new: Option<&Value>, origin: Origin,
+) -> Result<(), RuntimeError> {
     let schema = runner.schema;
     let table = schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
     // @ref LLP 3000.007#18.3 — audience keys and lifetimes use the same interpreted image as rules and indexes.
     let old_image = old.map(|row| row_image(row, table));
     let new_image = new.map(|row| row_image(row, table));
-    let old = old_image.as_deref();
-    let new = new_image.as_deref();
+    let now = runner.context.now.unwrap_or(i64::MIN);
+    // Check the old marker before write maintenance changes it. A consumed
+    // due entry does not prove the old image was ever sent, while a published
+    // image retains this evidence through expiry until physical cleanup.
+    let old_published = match old_image.as_deref() {
+        Some(row) if table.not_before.is_some() => runner
+            .tx
+            .time_audience_published(table_name, row.field("id")?.as_str()?)?,
+        Some(_) => true,
+        None => false,
+    };
+    let old = old_image.as_deref().filter(|_| old_published);
+    let new = new_image.as_deref().filter(|row| table.opened(row, now));
     // Rows born in this commit, in every table: synced ones log only their
     // final image, and a born membership is no predecessor of a grant.
     #[cfg(feature = "sqlite")]
-    let row_key = if LOG { Some((table_name.to_owned(), old.or(new).expect("a row change has an image").field("id")?.as_str()?.to_owned())) } else { None };
+    let row_key = if LOG { Some((table_name.to_owned(),
+            old_image
+                .as_deref()
+                .or(new_image.as_deref()).expect("a row change has an image").field("id")?.as_str()?.to_owned(),
+        )) } else { None };
     #[cfg(feature = "sqlite")]
     if let Some(key) = &row_key && old.is_none() {
         let earlier = runner.events.row_count(key);
@@ -247,7 +288,9 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                 }
             }
         }
-        let id = old.or(new).expect("a row change has an image").field("id")?.as_str()?;
+        let id = old_image
+            .as_deref()
+            .or(new_image.as_deref()).expect("a row change has an image").field("id")?.as_str()?;
         #[cfg(feature = "sqlite")]
         let id = if LOG { id.to_owned() } else { String::new() };
         #[cfg(not(feature = "sqlite"))]
@@ -261,7 +304,7 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                 // A born row whose lifetime has already ended is not live at
                 // this commit's end either: it logs nothing (the stream would
                 // re-read it as absent and send its id as a `del`).
-                let live = new.filter(|new| !runner.context.now.is_some_and(|now| table.expired(new, now)));
+                let live = new.filter(|new| runner.context.now.is_none_or(|now| table.live(new, now)));
                 if let Some(new) = live {
                     log_events::put(&mut runner.events, table_name, table, &id, new, &after);
                 }
@@ -293,7 +336,9 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
     let dependents: Vec<(String, Sync)> = schema
         .synced()
         .filter_map(|(name, _, sync)| match &sync.audience {
-            Audience::Target { table, .. } if table == table_name => Some((name.to_owned(), sync.clone())),
+            Audience::Target { table, .. } if table == table_name => {
+                Some((name.to_owned(), sync.clone()))
+            }
             _ => None,
         })
         .collect();
@@ -303,7 +348,8 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
     let membership = |row: Option<&Value>, content_name: &str, sync: &Sync| -> Option<(String, Vec<Value>)> {
         let row = row?;
         let bound = binding(schema, content_name, sync)?;
-        let Ok(Value::Id(p)) = row.field(&bound.principal) else { return None };
+        let Ok(Value::Id(p)) = row.field(&bound.principal) else { return None;
+            };
         let group: Vec<Value> = bound.columns.iter().map(|c| row.field(c).cloned().unwrap_or(Value::Null)).collect();
         if group.iter().any(|value| *value == Value::Null) {
             return None;
@@ -313,7 +359,9 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
     for (content_name, sync) in dependents {
         let was = membership(old, &content_name, &sync);
         let is = membership(new, &content_name, &sync);
-        let expiry = |row: Option<&Value>| row.and_then(|row| table.deadline(row)).map(Value::Int).unwrap_or(Value::Null);
+        let expiry = |row: Option<&Value>| {
+            row.and_then(|row| table.deadline(row)).map(Value::Int).unwrap_or(Value::Null)
+        };
         if was == is && expiry(old) == expiry(new) {
             continue;
         }
@@ -328,16 +376,23 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
             // Sweeping an expired predecessor must not revoke the live
             // replacement admitted under the same logical unique key.
             let mut replaced = false;
-            if old.is_some_and(|row| runner.context.now.is_some_and(|now| table.expired(row, now))) {
+            if old.is_some_and(|row| {
+                runner.context.now.is_some_and(|now| table.expired(row, now))
+            }) {
                 let bound = binding(schema, &content_name, &sync).expect("validated audience");
                 let mut key = group.clone();
                 key.push(old.unwrap().field(&bound.principal)?.clone());
                 // A commit retiring its expired births removes only expired
                 // rows, which cannot change whether a live one remains.
                 #[cfg(feature = "sqlite")]
-                let memo = runner.retiring.as_ref().map(|_| (table_name.to_owned(), bound.group_index.clone(), canonical_json(&key)));
+                let memo = runner.retiring.as_ref().map(|_| {
+                    (table_name.to_owned(), bound.group_index.clone(), canonical_json(&key),
+                    )
+                });
                 #[cfg(feature = "sqlite")]
-                let known = memo.as_ref().and_then(|memo| runner.retiring.as_ref().and_then(|retiring| retiring.live_keys.get(memo).copied()));
+                let known = memo.as_ref().and_then(|memo| {
+                    runner.retiring.as_ref().and_then(|retiring| retiring.live_keys.get(memo).copied())
+                });
                 #[cfg(not(feature = "sqlite"))]
                 let known: Option<bool> = None;
                 match known {
@@ -345,13 +400,18 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                     None => {
                         let mut bounds = Bounds::default();
                         loop {
-                            let rows = runner.metered_scan(|runner, allowance| runner.tx.scan(allowance, table_name, &bound.group_index, &key, &bounds, Dir::Asc, 32))?;
+                            let rows = runner.metered_scan(|runner, allowance| {
+                                runner.tx.scan(allowance, table_name, &bound.group_index, &key, &bounds, Dir::Asc, 32)
+                            })?;
                             let count = rows.len();
                             for (candidate, stored) in rows {
                                 let candidate = row_image(&candidate, table);
                                 runner.meter.charge(MeterKind::Examined, 1)?;
                                 bounds.after = crate::key::decode(&stored).map(|values| values.into_iter().skip(key.len()).collect());
-                                if !runner.context.now.is_some_and(|now| table.expired(&candidate, now)) { replaced = true; break; }
+                                let evidence = table.not_before.is_none()
+                                    || runner.tx.time_audience_published(table_name, candidate.field("id")?.as_str()?)?;
+                                if evidence && runner.context.now.is_none_or(|now| table.live(&candidate, now))
+                                { replaced = true; break; }
                             }
                             if replaced || count < 32 { break; }
                         }
@@ -363,12 +423,13 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
             // A live deadline renewal is a join transition without a
             // revocation. If the old lifetime already ended, catch-up inserts
             // its scope before that join; shortening to expiry still revokes.
-            let renewed = was == is && new.is_some_and(|row| !runner.context.now.is_some_and(|now| table.expired(row, now)));
+            let renewed = was == is && new.is_some_and(|row| runner.context.now.is_none_or(|now| table.live(row, now)));
             #[cfg(not(feature = "sqlite"))]
             let _ = (partition, replaced, renewed);
             #[cfg(feature = "sqlite")]
             if LOG && !replaced && !renewed {
-                let key = (partition.clone(), content_name.clone(), canonical_json(group));
+                let key = (partition.clone(), content_name.clone(), canonical_json(group),
+                );
                 match runner.born_grants.get(&key).copied() {
                     Some(earlier) => {
                         runner.events.withdraw_grant(&key, earlier);
@@ -378,7 +439,9 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
                         let bound = binding(schema, &content_name, &sync).expect("validated audience");
                         let mut probe = group.clone();
                         probe.push(row.field(&bound.principal)?.clone());
-                        if !runner.metered_scan(|runner, allowance| key_has_row(runner, allowance, table_name, &bound.group_index, &probe, false, |other| other != own))? {
+                        if !runner.metered_scan(|runner, allowance| {
+                            key_has_row(runner, allowance, table_name, &bound.group_index, &probe, false, |other| other != own)
+                        })? {
                             runner.born_grants.remove(&key);
                         }
                         undone_born = Some(key);
@@ -394,14 +457,17 @@ pub(crate) fn account_row_change<const LOG: bool>(runner: &mut Runner<'_>, table
         // @ref LLP 3000.036.000.000#9 — physical presence is not historical grant authority.
         #[cfg(feature = "sqlite")]
         if LOG && let Some((partition, group)) = &is {
-            let key = (partition.clone(), content_name.clone(), canonical_json(group));
+            let key = (partition.clone(), content_name.clone(), canonical_json(group),
+            );
             if (was != is || undone_born.as_ref() == Some(&key)) && !runner.born_grants.contains_key(&key) {
                 let row = new.expect("a membership has an image");
                 let bound = binding(schema, &content_name, &sync).expect("validated audience");
-                let mut probe = group.clone();
-                probe.push(row.field(&bound.principal)?.clone());
-                let own = row.field("id")?.as_str()?;
-                let predecessor = runner.metered_scan(|runner_now, allowance| key_has_row(runner_now, allowance, table_name, &bound.group_index, &probe, true, |other| other != own && !runner_now.born_rows.contains_key(&(table_name.to_owned(), other.to_owned()))))?;
+                // Audience admission requires a unique index over the complete
+                // non-null group+principal key. This opening row owns that key,
+                // so no distinct physical predecessor can exist; nullable-key
+                // multiplicity is irrelevant because null audiences never join.
+                let _ = (row, bound);
+                let predecessor = false;
                 if !predecessor {
                     let earlier = runner.events.grant_count(&key);
                     runner.born_grants.insert(key.clone(), earlier);
@@ -427,7 +493,16 @@ fn key_has_row(runner: &Runner<'_>, allowance: &crate::engine::authorized_scan::
         let rows = runner.tx.scan(allowance, table_name, index, probe, &bounds, Dir::Asc, 32)?;
         for (other, stored) in &rows {
             if wanted(other.field("id")?.as_str()?)
-                && (!live_only || runner.context.now.is_none_or(|now| !runner.schema.tables[table_name].expired(&row_image(other, &runner.schema.tables[table_name]), now))) {
+                && (!live_only || match runner.context.now {
+                    None => true,
+                    Some(now) => {
+                        let table = &runner.schema.tables[table_name];
+                        let image = row_image(other, table);
+                        table.live(&image, now)
+                            && (table.not_before.is_none()
+                                || runner.tx.time_audience_published(table_name, image.field("id")?.as_str()?)?)
+                    }
+                }) {
                 return Ok(true);
             }
             bounds.after = crate::key::decode(stored).map(|values| values.into_iter().skip(probe.len()).collect());
@@ -453,7 +528,7 @@ fn groups_now(tx: &dyn PartitionRows, schema: &Schema, bound: &AudienceBinding, 
     for (member, _) in tx.scan(target, &bound.principal_index, &[Value::Id(principal.to_owned())], &Bounds::default(), Dir::Asc, u32::MAX as usize)? {
         let table = schema.table(target).expect("validated audience target");
         let member = row_image(&member, table);
-        if table.expired(&member, now) { continue; }
+        if !published(tx, target, table, &member, now)? { continue; }
         let group: Vec<Value> = bound.columns.iter().map(|c| member.field(c).cloned().unwrap_or(Value::Null)).collect();
         if !group.iter().any(|value| *value == Value::Null) {
             groups.insert(canonical_json(&group));
@@ -518,7 +593,9 @@ fn arm_groups(tx: &dyn PartitionRows, schema: &Schema, table_name: &str, sync: &
         Audience::Public => vec![Vec::new()],
         Audience::Column(_) => vec![vec![Value::Id(principal.to_owned())]],
         Audience::Target { table: target, .. } => {
-            let bound = binding(schema, table_name, sync).ok_or_else(|| RuntimeError::Schema(format!("sync to {target} has no audience index")))?;
+            let bound = binding(schema, table_name, sync).ok_or_else(|| {
+                RuntimeError::Schema(format!("sync to {target} has no audience index"))
+            })?;
             groups_now(tx, schema, &bound, target, principal, now)?
         }
     })
@@ -540,7 +617,9 @@ pub fn snapshot_page(tx: &dyn PartitionRows, schema: &Schema, principal: &str, c
     // @ref LLP 3000.007#18.2 — the first page names only this viewer's audience prefixes; held groups replace, left groups retain.
     let held = if cursor.is_none() {
         let mut held = crate::wire::HeldGroups::new();
-        for (name, _, sync) in schema.synced().filter(|(name, table, _)| table.leave == crate::schema::LeavePolicy::DeliveredHistory || schema.maintain_for(name).is_some_and(|m| m.own_keys.is_some())) {
+        for (name, _, sync) in schema.synced().filter(|(name, table, _)| {
+            table.leave == crate::schema::LeavePolicy::DeliveredHistory || schema.maintain_for(name).is_some_and(|m| m.own_keys.is_some())
+        }) {
             held.insert(name.to_owned(), snapshot_groups(tx, schema, name, sync, principal, now)?.iter().map(|group| group.iter().map(crate::wire::to_json).collect()).collect());
         }
         Some(held)
@@ -555,8 +634,10 @@ pub fn snapshot_page(tx: &dyn PartitionRows, schema: &Schema, principal: &str, c
         let (table_name, table, full) = tables[at.table];
         // A partial kind lives only in source slots. Do not even open its
         // owned table when neither kind can contribute a snapshot row.
-        if schema.timelines.iter().any(|t| table_name == t.table("Posts")
-            && !t.fully_synced(schema, false) && !t.fully_synced(schema, true)) {
+        if schema.timelines.iter().any(|t| {
+            table_name == t.table("Posts")
+            && !t.fully_synced(schema, false) && !t.fully_synced(schema, true)
+        }) {
             at.table += 1; at.arm = 0; at.group = None; at.after = None; at.taken = 0;
             continue;
         }
@@ -666,8 +747,10 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
         }
     }
     let (index_name, remaining, dir) = match &sync.horizon {
-        Some(horizon) => (horizon.by.clone(), (horizon.last as usize).saturating_sub(taken), Dir::Desc),
-        None => (audience_index(table_name, table, sync)?, usize::MAX, Dir::Desc),
+        Some(horizon) => (horizon.by.clone(), (horizon.last as usize).saturating_sub(taken), Dir::Desc,
+        ),
+        None => (audience_index(table_name, table, sync)?, usize::MAX, Dir::Desc,
+        ),
     };
     let ask = remaining.min(room);
     if ask == 0 {
@@ -676,14 +759,21 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
     let mut bounds = Bounds { after: after.map(<[Value]>::to_vec), ..Bounds::default() };
     let mut live = Vec::new();
     let mut exhausted = false;
-    let mut reader = viewer.map(|(schema, principal)| Runner::new(tx, schema, crate::Context::new(principal, BTreeMap::new()).at(now), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort), 0));
-    let mut aggregate = viewer.map(|(schema, principal)| Runner::new(tx, schema, if schema.maintain_for(table_name).is_some_and(|m|m.row_key.is_some()) { crate::Context::new(principal, BTreeMap::new()).at(now) } else { crate::Context::system().at(now) }, crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Cap), 0));
+    let mut reader = viewer.map(|(schema, principal)| {
+        Runner::new(tx, schema, crate::Context::new(principal, BTreeMap::new()).at(now), crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort), 0)
+    });
+    let mut aggregate = viewer.map(|(schema, principal)| {
+        Runner::new(tx, schema, if schema.maintain_for(table_name).is_some_and(|m|m.row_key.is_some()) { crate::Context::new(principal, BTreeMap::new()).at(now) } else { crate::Context::system().at(now) }, crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Cap), 0)
+    });
     // One extra readable row decides pagination, never selection past N.
     // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — filtered kinds spend page room even when
     // they produce no rows; the continuation records the last examined key.
     // No lookahead here: every examined row belongs to this page's progress.
-    let filtered = viewer.is_some_and(|(schema, _)| schema.timelines.iter().any(|t|
-        table_name == t.table("Posts") && (!t.fully_synced(schema, false) || !t.fully_synced(schema, true))));
+    let filtered = viewer.is_some_and(|(schema, _)| {
+        schema.timelines.iter().any(|t| {
+            table_name == t.table("Posts") && (!t.fully_synced(schema, false) || !t.fully_synced(schema, true))
+        })
+    });
     let target = remaining.min(if filtered { room } else { room.saturating_add(1) });
     let mut examined = 0;
     loop {
@@ -694,8 +784,10 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
         let rows = tx.scan(table_name,&index_name,group,&bounds,dir,batch)?
             .into_iter().map(|(r,k)|(table.project_fields(r,Some(principal)).into_value(),k)).collect::<Vec<_>>();
         let count = rows.len();
-        let mut certified = if viewer.is_some_and(|(schema, _)| schema.maintain_for(table_name)
-            .is_some_and(|m| m.row_count_needs_live_basis(schema))) {
+        let mut certified = if viewer.is_some_and(|(schema, _)| {
+            schema.maintain_for(table_name)
+            .is_some_and(|m| m.row_count_needs_live_basis(schema))
+        }) {
             let runner = aggregate.as_mut().unwrap();
             runner.meter.heap(crate::rows::word_heap::slots::<Value>(count)
                 .saturating_add(crate::engine::row_copy_ceiling(table).saturating_mul(count as u64)))?;
@@ -706,9 +798,11 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
         for (mut row, key) in rows {
             let certified = certified.as_mut().map(|batch| batch.next().unwrap());
             bounds.after = crate::key::decode(&key).map(|values| values.into_iter().skip(group.len()).collect());
-            if table.expired(&row, now) { continue; }
+            if !published(tx, table_name, table, &row, now)? { continue; }
             // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — the horizonless owned walk keeps fully synced kinds only.
-            if viewer.is_some_and(|(schema, _)| !crate::schema::timeline::holds_event(schema, table_name, &row)) { continue; }
+            if viewer.is_some_and(|(schema, _)| {
+                !crate::schema::timeline::holds_event(schema, table_name, &row)
+            }) { continue; }
             if let Some(runner) = &mut aggregate {
                 let Some(live_row) = (match certified { Some(row) => row, None => runner.live_aggregate(table_name, row)? }) else { continue; };
                 row = live_row;
@@ -729,7 +823,8 @@ fn group_rows_from(tx: &dyn PartitionRows, table_name: &str, table: &Table, sync
     live.truncate(ask);
     exhausted |= sync.horizon.as_ref().is_some_and(|horizon| taken + live.len() >= horizon.last as usize);
     let work = if filtered { examined } else { live.len() };
-    Ok((live, exhausted, if filtered { bounds.after } else { None }, work))
+    Ok((live, exhausted, if filtered { bounds.after } else { None }, work,
+    ))
 }
 
 /// The index a horizonless audience walks: the first leading with the
@@ -741,7 +836,9 @@ fn audience_index(table_name: &str, table: &Table, sync: &Sync) -> Result<String
         Audience::Column(column) => vec![column.clone()],
         Audience::Target { prefix, .. } => prefix.clone(),
     };
-    table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(&group_columns)).map(|(name, _)| name.clone()).ok_or_else(|| RuntimeError::Schema(format!("{table_name} has no index leading with {}", group_columns.join(", "))))
+    table.indexes.iter().find(|(_, index)| index.is_plain() && index.columns().starts_with(&group_columns)).map(|(name, _)| name.clone()).ok_or_else(|| {
+            RuntimeError::Schema(format!("{table_name} has no index leading with {}", group_columns.join(", ")))
+        })
 }
 
 /// Append a commit's events to the log. A row's events within one commit
@@ -757,7 +854,10 @@ pub fn append(tx: &dyn PartitionRows, seq: u64, events: &[Event]) -> Result<(), 
             last.insert((&event.partition, &event.table, &event.id), position);
         }
     }
-    let kept = events.iter().enumerate().filter(|(position, event)| !matches!(event.kind, EventKind::Put | EventKind::Del) || last.get(&(event.partition.as_str(), event.table.as_str(), event.id.as_str())) == Some(position));
+    let kept = events.iter().enumerate().filter(|(position, event)| {
+        !matches!(event.kind, EventKind::Put | EventKind::Del) || last.get(&(event.partition.as_str(), event.table.as_str(), event.id.as_str(),
+            )) == Some(position)
+    });
     for (ord, (_, event)) in kept.enumerate() {
         let data = event.data.as_ref().map(canonical_json);
         tx.append_log(&event.partition, seq, ord as u32, &event.table, event.kind.word(), &event.id, data.as_deref())?;
@@ -826,19 +926,25 @@ fn audience_epochs(tx: &dyn PartitionRows, schema: &Schema) -> Result<BTreeMap<S
 /// transition under the new audience.
 // @ref LLP 3000.036.000.000#9 — an audience epoch, so a scope logged under an earlier audience never closes a group the current one grants.
 pub fn changed_group_audiences(previous: Option<&Schema>, schema: &Schema) -> Vec<String> {
-    let Some(previous) = previous else { return Vec::new() };
+    let Some(previous) = previous else { return Vec::new();
+    };
     // The identity includes how stored images are interpreted: a column's
     // type and default decide which group an old row names (round 4, GPT
     // finding 1), so a changed default is a new audience too.
     let key = |schema: &Schema, name: &str| -> Option<String> {
         let table = schema.table(name)?;
         let sync = table.sync.as_ref()?;
-        let Audience::Target { table: target, prefix, .. } = &sync.audience else { return None };
+        let Audience::Target { table: target, prefix, .. } = &sync.audience else { return None;
+        };
         let binding = audience_binding(schema, name, table, sync).ok()?;
         let target_table = schema.table(target)?;
-        let reading = |owner: &crate::schema::Table, column: &String| (column.clone(), owner.columns.get(column).cloned(), owner.defaults.get(column).cloned());
+        let reading = |owner: &crate::schema::Table, column: &String| {
+            (column.clone(), owner.columns.get(column).cloned(), owner.defaults.get(column).cloned(),
+            )
+        };
         let content: Vec<_> = prefix.iter().map(|column| reading(table, column)).collect();
         let members: Vec<_> = binding.columns.iter().chain([&binding.principal]).map(|column| reading(target_table, column)).collect();
+        let opening = target_table.not_before.as_ref().map(|column| reading(target_table, column));
         let lifetime = target_table.expire.as_ref().map(|column| reading(target_table, column));
         let effective = target_table.expiry_column().map(|column| reading(target_table, &column.to_owned()));
         // Inherited lifetime inputs can change without changing capture types.
@@ -849,10 +955,11 @@ pub fn changed_group_audiences(previous: Option<&Schema>, schema: &Schema) -> Ve
         while let Some(parent) = next {
             if !seen.insert(parent) { break; }
             let Some(owner) = schema.table(parent) else { break; };
-            ancestors.push((parent, &owner.columns, &owner.defaults, &owner.expire, &owner.through));
+            ancestors.push((parent, &owner.columns, &owner.defaults, &owner.not_before, &owner.expire, &owner.through,
+            ));
             next = owner.through.as_ref().map(|t| t.parent.as_str());
         }
-        Some(canonical_json(&serde_json::json!([target, content, members, binding.group_index, lifetime, effective,
+        Some(canonical_json(&serde_json::json!([target, content, members, binding.group_index, opening, lifetime, effective,
             target_table.through, table.through.as_ref().map(|t| &t.identity), ancestors])))
     };
     schema.synced().filter(|(_, _, sync)| matches!(sync.audience, Audience::Target { .. }))
@@ -863,15 +970,20 @@ pub fn changed_group_audiences(previous: Option<&Schema>, schema: &Schema) -> Ve
 /// The groups a principal held during `(watermark, now]`, per content
 /// table, from its memberships now and the joins and scopes logged since.
 #[cfg(feature = "sqlite")]
-fn intervals(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark: u64) -> Result<BTreeMap<(String, String), Vec<Interval>>, RuntimeError> {
+fn intervals(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark: u64, now: i64) -> Result<BTreeMap<(String, String), Vec<Interval>>, RuntimeError> {
     // Physical memberships provide the initial state for databases whose old
     // ledger predates expiry metadata. Logical expiry still bounds every span.
     let mut current = BTreeMap::new();
     for (table_name, _, sync) in schema.synced() {
-        let Audience::Target { table: target, .. } = &sync.audience else { continue };
-        let bound = binding(schema, table_name, sync).ok_or_else(|| RuntimeError::Schema(format!("sync to {target} has no audience index")))?;
+        let Audience::Target { table: target, .. } = &sync.audience else { continue;
+        };
+        let bound = binding(schema, table_name, sync).ok_or_else(|| {
+            RuntimeError::Schema(format!("sync to {target} has no audience index"))
+        })?;
         for (member, _) in tx.scan(target, &bound.principal_index, &[Value::Id(principal.to_owned())], &Bounds::default(), Dir::Asc, usize::MAX)? {
-            let member = row_image(&member, schema.table(target).expect("validated audience target"));
+            let table = schema.table(target).expect("validated audience target");
+            let member = row_image(&member, table);
+            if !published(tx, target, table, &member, now)? { continue; }
             let group: Vec<Value> = bound.columns.iter().map(|c| member.field(c).cloned().unwrap_or(Value::Null)).collect();
             if group.contains(&Value::Null) { continue; }
             let expiry = schema.table(target).and_then(|table| table.deadline(&member));
@@ -883,9 +995,11 @@ fn intervals(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark
     // @ref LLP 3000.036.000.000#9 — joins and scopes logged under an audience the table no longer syncs to are not this audience's history.
     let epochs = audience_epochs(tx, schema)?;
     let times = epoch_times(tx, schema)?;
-    let current_epoch = |event: &LogEvent| schema.table(&event.table).and_then(|table| table.sync.as_ref())
+    let current_epoch = |event: &LogEvent| {
+        schema.table(&event.table).and_then(|table| table.sync.as_ref())
         .is_some_and(|sync| matches!(sync.audience, Audience::Target { .. }))
-        && event.seq >= epochs.get(&event.table).copied().unwrap_or(0);
+        && event.seq >= epochs.get(&event.table).copied().unwrap_or(0)
+    };
     // @ref LLP 3000#7 — a content page cannot establish authority from a truncated ledger.
     let previous: BTreeMap<_, _> = tx.memberships_before(&partition_of(principal), watermark)?.into_iter().filter(current_epoch).map(|event| ((event.table.clone(), event.id.clone()), event)).collect();
     let mut transitions: BTreeMap<(String, String), Vec<LogEvent>> = BTreeMap::new();
@@ -903,15 +1017,23 @@ fn intervals(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark
         // A legacy grant without its lifetime or surviving membership cannot
         // authorize historical reads of an expiring audience. Fail closed.
         let fallback_expiry = || expiring.then_some(i64::MIN);
-        let expiry = |event: &LogEvent| event.data.as_ref().and_then(|data| data.field("expiresAt").ok()).map(|value| value.as_int().ok()).unwrap_or_else(fallback_expiry);
+        let expiry = |event: &LogEvent| {
+            event.data.as_ref().and_then(|data| data.field("expiresAt").ok()).map(|value| value.as_int().ok()).unwrap_or_else(fallback_expiry)
+        };
         let steps = transitions.get(&key).map(Vec::as_slice).unwrap_or_default();
         let predecessor = steps.first().filter(|event| matches!(event.kind.as_str(), "join" | "scope"))
             .and_then(|event| event.data.as_ref()).and_then(|data| data.field("previousExpiresAt").ok());
         let held_at_watermark = previous.get(&key).map_or_else(
-            || steps.first().map_or_else(|| current.contains_key(&key), |event| event.kind == "scope" || predecessor.is_some()),
+            || {
+                steps.first().map_or_else(|| current.contains_key(&key), |event| event.kind == "scope" || predecessor.is_some())
+            },
             |event| event.kind == "join");
-        let initial_expiry = if steps.is_empty() { current.get(&key).copied().unwrap_or_else(|| previous.get(&key).map(&expiry).unwrap_or_else(fallback_expiry)) }
-            else { previous.get(&key).map(&expiry).unwrap_or_else(|| predecessor.map(|value| value.as_int().ok()).unwrap_or_else(fallback_expiry)) };
+        let initial_expiry = if steps.is_empty() { current.get(&key).copied().unwrap_or_else(|| {
+                previous.get(&key).map(&expiry).unwrap_or_else(fallback_expiry)
+            }) }
+            else { previous.get(&key).map(&expiry).unwrap_or_else(|| {
+                predecessor.map(|value| value.as_int().ok()).unwrap_or_else(fallback_expiry)
+            }) };
         let origin = previous.get(&key).filter(|event| event.kind == "join").map(|event| (event.seq, event.ord, join_lifetime(event)));
         let expired_baseline = previous.get(&key).is_none() && times.get(&key.0)
             .is_some_and(|time| initial_expiry.is_some_and(|expiry| expiry <= *time));
@@ -974,8 +1096,9 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
     });
     // A cursor from a replaced database is not evidence that this store reached it.
     if watermark > head || (watermark == head && !expiring_audience) { return Ok(StreamPage { images_at: Some(head), acquisitions: Vec::new(), events: Vec::new(), watermark: head, more: false, joined: BTreeMap::new() }); }
-    let held = intervals(tx, schema, principal, watermark)?;
-    let mut spans = vec![(partition_of(principal), watermark.saturating_add(1), None, None), (PUBLIC.to_owned(), watermark.saturating_add(1), None, None)];
+    let held = intervals(tx, schema, principal, watermark, now)?;
+    let mut spans = vec![(partition_of(principal), watermark.saturating_add(1), None, None,
+        ), (PUBLIC.to_owned(), watermark.saturating_add(1), None, None)];
     // A group acquired by a join reads its log after the join's commit: the
     // join's expansion delivers the group's rows as they are now, and an
     // event of that same commit (a row deleted or moved out beside the join)
@@ -983,7 +1106,9 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
     // continuous renewal keeps reading from its own commit, as its
     // predecessor span ends there and no expansion follows it.
     // @ref LLP 3000.036.000.000#3 — round 2 (GPT finding 1): no id from the acquiring commit.
-    let renewals: Vec<u64> = held.values().flat_map(|spans| spans.iter().filter(|span| span.from_ord.is_some() && span.from > watermark).map(|span| span.from)).collect();
+    let renewals: Vec<u64> = held.values().flat_map(|spans| {
+            spans.iter().filter(|span| span.from_ord.is_some() && span.from > watermark).map(|span| span.from)
+        }).collect();
     let renewal_times = if renewals.is_empty() { BTreeMap::new() } else { tx.commit_times(&renewals)? };
     let epochs = audience_epochs(tx, schema)?;
     for ((table, group), intervals) in &held {
@@ -992,15 +1117,20 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
         // acquisition (round 3, GPT finding 3): authority starts after it.
         let mut acquired_at: Option<u64> = None;
         for (n, interval) in intervals.iter().enumerate() {
-            let continuous = interval.from_ord.is_some_and(|ord| n.checked_sub(1).map(|i| &intervals[i])
-                .is_some_and(|prior| continuous_renewal(prior, interval.from, ord, &renewal_times)));
+            let continuous = interval.from_ord.is_some_and(|ord| {
+                n.checked_sub(1).map(|i| &intervals[i])
+                .is_some_and(|prior| {
+                        continuous_renewal(prior, interval.from, ord, &renewal_times)
+                    })
+            });
             let acquired = interval.from_ord.is_some() && (!continuous || acquired_at == Some(interval.from));
             acquired_at = acquired.then_some(interval.from);
             let from = if acquired { interval.from.saturating_add(1) } else { interval.from };
             // @ref LLP 3000.036.000.000#9 — round 3 (GPT finding 1): a group's log before the audience epoch belongs to an earlier audience.
             let from = from.max(epochs.get(table).copied().unwrap_or(0));
             if interval.to.is_none_or(|(seq, _)| seq > from) {
-                spans.push((group_partition(table, &group), from, interval.to.map(|(seq, _)| seq), interval.expires_at));
+                spans.push((group_partition(table, &group), from, interval.to.map(|(seq, _)| seq), interval.expires_at,
+                ));
             }
         }
     }
@@ -1027,11 +1157,16 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
         let current = schema.table(&event.table).and_then(|table| table.sync.as_ref())
             .is_some_and(|sync| matches!(sync.audience, Audience::Target { .. }))
             && event.seq >= epochs.get(&event.table).copied().unwrap_or(0);
-        current && (!times.contains_key(&event.table) || held.get(&(event.table.clone(), event.id.clone())).is_some_and(|spans|
-            spans.iter().any(|span| span.from <= event.seq && match span.origin {
-                Some((seq, _, lifetime)) => seq < event.seq && !ended_by_its_commit(&origin_times, seq, lifetime),
-                None => !interval_never_live(span, times.get(&event.table).copied(), &origin_times),
-            })))
+        current && (!times.contains_key(&event.table) || held.get(&(event.table.clone(), event.id.clone())).is_some_and(|spans| {
+                        spans.iter().any(|span| {
+                            span.from <= event.seq && match span.origin {
+                Some((seq, _, lifetime)) => {
+                                        seq < event.seq && !ended_by_its_commit(&origin_times, seq, lifetime)
+                                    }
+                                    None => !interval_never_live(span, times.get(&event.table).copied(), &origin_times),
+            }
+                        })
+                    }))
     });
     for event in page.iter_mut().filter(|event| event.kind == "scope") {
         if let Some(group) = event.data.as_ref().and_then(|data| data.field("group").ok()).cloned() { event.data = Some(group); }
@@ -1045,17 +1180,27 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
         // whose every span is a join whose lifetime had ended by its own
         // commit was never held live: there is nothing to revoke, and a scope
         // would name a group the principal never held.
-        let expired: Vec<_> = held.iter().filter(|(_, spans)| spans.last().is_some_and(|span| span.to.is_none() && span.expires_at.is_some_and(|at| at <= now))).collect();
-        let joins: Vec<u64> = expired.iter().flat_map(|(_, spans)| spans.iter().filter_map(|span| span.origin.map(|(seq, _, _)| seq))).collect();
+        let expired: Vec<_> = held.iter().filter(|(_, spans)| {
+                spans.last().is_some_and(|span| {
+                    span.to.is_none() && span.expires_at.is_some_and(|at| at <= now)
+                })
+            }).collect();
+        let joins: Vec<u64> = expired.iter().flat_map(|(_, spans)| {
+                spans.iter().filter_map(|span| span.origin.map(|(seq, _, _)| seq))
+            }).collect();
         let commit_times = if joins.is_empty() { BTreeMap::new() } else { tx.commit_times(&joins)? };
-        let never_live = |table: &str, span: &Interval| interval_never_live(span, times.get(table).copied(), &commit_times);
+        let never_live = |table: &str, span: &Interval| {
+            interval_never_live(span, times.get(table).copied(), &commit_times)
+        };
         // @ref LLP 3000#7-decisions-during-execution — logical expiry revokes only a grant once held live.
         let silent: Vec<_> = expired.iter().map(|((table, _), spans)| spans.iter().all(|span| never_live(table, span))).collect();
         // A span held at the watermark continues the chain of joins that led
         // to it: it is silent only if no join of that chain, back to its last
         // scope, was live either (the device may hold its rows). The history
         // is read once, grouped once, and its commit times fetched once.
-        let walks: Vec<usize> = (0..expired.len()).filter(|&n| silent[n] && expired[n].1.first().is_some_and(|span| span.from_ord.is_none() && span.origin.is_some())).collect();
+        let walks: Vec<usize> = (0..expired.len()).filter(|&n| {
+                silent[n] && expired[n].1.first().is_some_and(|span| span.from_ord.is_none() && span.origin.is_some())
+            }).collect();
         let mut chains: BTreeMap<usize, Vec<LogEvent>> = BTreeMap::new();
         if !walks.is_empty() {
             let mut by_group: BTreeMap<(String, String), Vec<LogEvent>> = BTreeMap::new();
@@ -1073,7 +1218,11 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
         let chain_seqs: Vec<u64> = chains.values().flatten().map(|event| event.seq).collect();
         let chain_times = if chain_seqs.is_empty() { BTreeMap::new() } else { tx.commit_times(&chain_seqs)? };
         for (n, ((table, group), _)) in expired.into_iter().enumerate() {
-            let quiet = silent[n] && chains.get(&n).is_none_or(|chain| chain.iter().all(|event| ended_by_its_commit(&chain_times, event.seq, join_lifetime(event))));
+            let quiet = silent[n] && chains.get(&n).is_none_or(|chain| {
+                    chain.iter().all(|event| {
+                        ended_by_its_commit(&chain_times, event.seq, join_lifetime(event))
+                    })
+                });
             if !quiet {
                 let group_values: Vec<Value> = serde_json::from_str(group).map_err(|e| RuntimeError::Store(e.to_string()))?;
                 let event = LogEvent { seq: next, ord: u32::MAX, table: table.clone(), kind: "scope".into(), id: group.clone(), data: Some(Value::Array(group_values)) };
@@ -1114,7 +1263,9 @@ fn union_scopes(schema: &Schema, principal: &str, events: &mut [LogEvent]) {
 /// time, counts as live.
 #[cfg(feature = "sqlite")]
 fn ended_by_its_commit(commit_times: &BTreeMap<u64, i64>, seq: u64, lifetime: Option<i64>) -> bool {
-    lifetime.is_some_and(|at| commit_times.get(&seq).is_some_and(|committed| *committed >= at))
+    lifetime.is_some_and(|at| {
+        commit_times.get(&seq).is_some_and(|committed| *committed >= at)
+    })
 }
 
 /// One group's joins before `origin`, walking back to its last scope: the
@@ -1146,7 +1297,9 @@ fn live_join_chain(spans: &[Interval], start: usize, commit_times: &BTreeMap<u64
 /// acquires nothing, including for publicly readable retained-history tables.
 /// Membership intervals remain join-time; joins never reach a device.
 #[cfg(feature = "sqlite")]
-fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: Vec<LogEvent>, held: &BTreeMap<(String, String), Vec<Interval>>, now: i64) -> Result<(Vec<LogEvent>, Vec<crate::wire::Acquisition>, crate::wire::HeldGroups), RuntimeError> {
+fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: Vec<LogEvent>, held: &BTreeMap<(String, String), Vec<Interval>>, now: i64) -> Result<(Vec<LogEvent>, Vec<crate::wire::Acquisition>, crate::wire::HeldGroups,
+    ), RuntimeError,
+> {
     let mut acquisitions = Vec::new();
     let mut joined = crate::wire::HeldGroups::new();
     // The next renewal may be on a later raw-log page. Read every edge time
@@ -1157,6 +1310,7 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
     }).collect();
     let commit_times = tx.commit_times(&sequences.into_iter().collect::<Vec<_>>())?;
     let mut out = Vec::with_capacity(page.len());
+    let mut delivery = delivery::Budget::new();
     // @ref LLP 3000#7-decisions-during-execution — retained history is device-held; the server serves current readable images.
     // Normalize ordinary puts before delivery. Join selection already checks
     // its images: never re-fetch them or probe their read rule a second time.
@@ -1167,27 +1321,39 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
     let certified = delivery_counts(&mut aggregate, schema, &page)?;
     for mut event in page {
         if event.kind != "join" {
-            if event.kind == "del" && schema.table(&event.table).is_some_and(|table| table.written_by.values().any(|authority| !authority.audience)) {
-                if let Some(row) = reader.authorized_scan(&[], |reader, scope| reader.fetch(scope, &event.table, &event.id))? {
+            if event.kind == "del" && schema.table(&event.table).is_some_and(|table| {
+                    table.written_by.values().any(|authority| !authority.audience)
+                }) {
+                if let Some(row) = reader.authorized_scan(&[], |reader, scope| {
+                    reader.fetch(scope, &event.table, &event.id)
+                })? {
                     if reader.check_rule(&event.table, crate::schema::Effect::Read, None, &row)? {
                         event.kind = "put".into();
                         event.data = Some(schema.tables[&event.table].project_fields(row, Some(principal)).into_value());
                     }
                 }
-                out.push(event);
+                delivery.push(&mut out, event, 0)?;
                 continue;
             }
             // @ref LLP 3000.036.000.000#4.2 — R1: a del of a row in two of the viewer's partitions is decided at serve time; a readable row becomes a put served exactly as every put is (re-fetched, a row-keyed view recomputed, re-checked, projected).
-            if event.kind == "del" && schema.table(&event.table).is_some_and(|table| table.sync.as_ref().is_some_and(|sync| sync.is_union() || movable_group(table, sync))) {
-                let readable = match reader.authorized_scan(&[], |reader, scope| reader.fetch(scope, &event.table, &event.id))? {
-                    Some(row) => reader.check_rule(&event.table, crate::schema::Effect::Read, None, &row)?,
+            if event.kind == "del" && schema.table(&event.table).is_some_and(|table| {
+                    table.sync.as_ref().is_some_and(|sync| sync.is_union() || movable_group(table, sync))
+                }) {
+                let readable = match reader.authorized_scan(&[], |reader, scope| {
+                    reader.fetch(scope, &event.table, &event.id)
+                })? {
+                    Some(row) => {
+                        reader.check_rule(&event.table, crate::schema::Effect::Read, None, &row)?
+                    }
                     None => false,
                 };
-                if !readable { out.push(event); continue; }
+                if !readable { delivery.push(&mut out, event, 0)?; continue; }
                 event.kind = "put".into();
             }
             if event.kind == "put" {
-                event.data = if schema.table(&event.table).is_some() { reader.metered_scan(|reader, allowance| reader.fetch(allowance, &event.table, &event.id))? } else { None };
+                event.data = if schema.table(&event.table).is_some() { reader.metered_scan(|reader, allowance| {
+                        reader.fetch(allowance, &event.table, &event.id)
+                    })? } else { None };
                 if let Some(row) = &event.data
                     && let Some(m) = schema.maintain_for(&event.table).filter(|m| m.row_key.is_some()) {
                     let member = reader.row_view_member_image(m, row)?;
@@ -1201,8 +1367,7 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
                             Audience::Column(c) => vec![member.field(c)?.clone()],
                             Audience::Target { prefix, .. } => prefix.iter().map(|c| member.field(c).cloned()).collect::<Result<Vec<_>, _>>()?,
                         };
-                        let (selected, _, _, _) = group_rows_from(tx, &k.table, table, sync, &group, None, 0, usize::MAX, now, Some((schema, principal)))?;
-                        live = selected.iter().any(|(u, _)| u.field("id") == row.field("member"));
+                        live = delivery::group_contains(tx, schema, principal, &k.table, table, sync, &group, row.field("member")?, now, &delivery)?;
                     }
                     event.data = if live {
                         match certified.get(&(event.table.clone(), event.id.clone())) {
@@ -1213,16 +1378,21 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
                 }
                 if let Some(row) = &event.data {
                     if !reader.check_rule(&event.table, crate::schema::Effect::Read, None, row)? { continue; }
-                    event.data = event.data.take().map(|row| schema.tables[&event.table].project_fields(row, Some(principal)).into_value());
+                    event.data = event.data.take().map(|row| {
+                        schema.tables[&event.table].project_fields(row, Some(principal)).into_value()
+                    });
                 } else { event.kind = "del".into(); }
             }
-            out.push(event);
+            delivery.push(&mut out, event, 0)?;
             continue;
         }
-        let Some(spans) = held.get(&(event.table.clone(), event.id.clone())) else { continue };
-        let Some(start) = spans.iter().position(|span| span.from == event.seq && span.from_ord == Some(event.ord)) else { continue };
+        let Some(spans) = held.get(&(event.table.clone(), event.id.clone())) else { continue;
+        };
+        let Some(start) = spans.iter().position(|span| span.from == event.seq && span.from_ord == Some(event.ord)) else { continue;
+        };
         if !live_join_chain(spans, start, &commit_times, now) { continue; }
-        let Some(table) = schema.table(&event.table) else { continue };
+        let Some(table) = schema.table(&event.table) else { continue;
+        };
         let Some(sync) = &table.sync else { continue };
         if !matches!(sync.audience, Audience::Target { .. }) { continue; }
         let group: Vec<Value> = serde_json::from_str(&event.id).map_err(|e| RuntimeError::Store(e.to_string()))?;
@@ -1230,8 +1400,12 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
         // retire the old until-revoked image before acquiring the new one.
         // A continuous live renewal keeps its already acquired horizon.
         let predecessor = start.checked_sub(1).map(|i| &spans[i]).filter(|span| span.to == Some((event.seq, event.ord)));
-        let expired_predecessor = predecessor.is_some_and(|span| span.ends_in_join
-            && span.expires_at.is_some_and(|expiry| commit_times.get(&event.seq).is_some_and(|at| *at >= expiry)));
+        let expired_predecessor = predecessor.is_some_and(|span| {
+            span.ends_in_join
+            && span.expires_at.is_some_and(|expiry| {
+                    commit_times.get(&event.seq).is_some_and(|at| *at >= expiry)
+                })
+        });
         let continuous = predecessor.is_some_and(|span| continuous_renewal(span, event.seq, event.ord, &commit_times));
         if continuous { continue; }
         // @ref LLP 3000.036.000.000#4.4 — a first post-epoch acquisition with no predecessor replaces stale until-revoked copies.
@@ -1240,7 +1414,7 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
         let epoch_acquisition = predecessor.is_none() && tx.audience_epoch(&event.table)? > 0;
         if expired_predecessor || epoch_acquisition && table.leave == crate::schema::LeavePolicy::UntilRevoked {
             let scope = LogEvent { seq: event.seq, ord: event.ord, table: event.table.clone(), kind: "scope".into(), id: event.id.clone(), data: Some(Value::Array(group.clone())) };
-            out.push(scope);
+            delivery.push(&mut out, scope, 0)?;
         }
         // `joined` certifies this acquisition, including an empty one. A live
         // renewal preserves its predecessor's coverage on every page boundary.
@@ -1251,16 +1425,11 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
         if let Some(horizon) = &sync.horizon {
             acquisitions.push(acquisition(&event.table, &horizon.by, &group, out.len(), None));
         }
-        let (rows, _, _, _) = group_rows_from(tx, &event.table, table, sync, &group, None, 0, usize::MAX, now, Some((schema, principal)))?;
+        let (rows, last_key) = delivery::expand_group(tx, schema, principal, &event, table, sync, &group, now, &mut delivery, &mut out)?;
         let floor = sync.horizon.as_ref().map(|horizon| {
-            if rows.len() < horizon.last as usize { "whole".into() }
-            else { crate::value::encode_bytes_hex(&rows.last().expect("selected horizon has a last key").1) }
+            if rows < horizon.last as usize { "whole".into() }
+            else { crate::value::encode_bytes_hex(last_key.as_ref().expect("selected horizon has a last key")) }
         });
-        for (row, _) in rows {
-            let id = row.field("id")?.as_str()?.to_owned();
-            let image = LogEvent { seq: event.seq, ord: event.ord, table: event.table.clone(), kind: "put".into(), id, data: Some(row) };
-            out.push(image);
-        }
         if let Some(horizon) = &sync.horizon {
             acquisitions.push(acquisition(&event.table, &horizon.by, &group, out.len(), floor));
         }

@@ -15,6 +15,7 @@ pub(super) struct Requests {
     /// the merge's shared order, so an equality on it stays a seek.
     merged: std::collections::BTreeSet<String>,
     lane: bool,
+    pub(super) cap_repairs: BTreeMap<String, String>,
 }
 
 // @ref LLP 3000.013#2.1 — intrinsic id resolves every table-local tie.
@@ -163,7 +164,13 @@ impl Requests {
                     }
                     // Keep the full ordered suffix in every projected branch,
                     // even when the predicate fixes one of its order fields.
-                    if read.order_keys.contains(&column) || column == "id" {
+                    // A membership lane may pin the target row's intrinsic id
+                    // while retaining the page's logical `.order, id`
+                    // position. Planning `[id, order]` leaves one exact row;
+                    // the binder/runtime still compare its projected logical
+                    // position with every other lane.
+                    // @ref LLP 3000.036.001#15 — row-id target lanes pin id without dropping the shared merge position.
+                    if (read.order_keys.contains(&column) || column == "id") && !(self.lane && column == "id") {
                         if read.order_keys.first().map(String::as_str).unwrap_or("id") == column
                             && !table.columns.get(&column).is_some_and(|ty| ty.optional)
                             && self.contexts.safe(read, &value) {
@@ -230,8 +237,9 @@ impl Requests {
         read.keys = columns.iter().filter_map(|column| pins.remove(column)).collect();
         read.filter = conjunction(kept);
         read.order_keys = order.clone();
-        columns.extend(order);
-        columns.dedup();
+        for column in order {
+            if !columns.contains(&column) { columns.push(column); }
+        }
         // The physical id suffix can be omitted from a scan cursor only when
         // the declared components already totally order its rows. Reads with
         // no cursor retain their existing physical-prefix index reuse.
@@ -473,6 +481,7 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
         *read = planned;
     }
     diagnostics.append(&mut requests.errors);
+    catalog.membership_cap_repairs.append(&mut requests.cap_repairs);
     let mut names = BTreeMap::new();
     for ((table_name, token), mut index) in requests.indexes {
         let table = catalog.tables.get_mut(&table_name).expect("requested table");

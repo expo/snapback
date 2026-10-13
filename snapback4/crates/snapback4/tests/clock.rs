@@ -79,6 +79,15 @@ impl Host {
     }
     fn post(&self, path: &str, body: Value) -> Value { self.request("POST", path, body) }
     fn query(&self, name: &str) -> Value { self.post(&format!("/q/{name}"), json!({"args":{}}))["data"].clone() }
+    fn raw(&self, method: &str, path: &str, body: &str) -> String {
+        let device = if path == "/sync" { format!("x-snapback-device: {}\r\n", serde_json::to_string(&snapback4_core::device_protocol::DeviceEngine::current()).unwrap()) } else { String::new() };
+        let mut stream = TcpStream::connect(&self.address).unwrap();
+        stream.set_read_timeout(Some(Duration::from_secs(30))).unwrap();
+        write!(stream, "{method} {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\n{device}Content-Length: {}\r\n\r\n{body}", body.len()).unwrap();
+        let mut answer = String::new();
+        stream.read_to_string(&mut answer).unwrap();
+        answer
+    }
 }
 
 fn device_sync<S: DeviceStore>(mut device: Device<S>, snapshot: &Value, stream: &Value, local_now: i64) {
@@ -181,6 +190,59 @@ fn offset_cli_advance_and_rejected_inputs_keep_time_monotone() {
     let out = f.command(&["dev", "--clock-offset", "999999999999999999999d"]);
     assert!(!out.status.success());
     assert!(String::from_utf8_lossy(&out.stderr).contains("E_CLOCK_INPUT"));
+}
+
+#[test]
+fn timed_responses_keep_the_durable_server_floor_after_host_clock_rollback() {
+    let f = Fixture::new("time-audience-response-floor");
+    fs::write(f.0.join("snapback/schema.q"), "use personas alice\ntable announcements:\n  opensAt: time ?\n  body: text <=100\n  by byOpening: opensAt\n  not before .opensAt\n  public\n  insert <- allow\n  sync public\nquery clock():\n  return now\n").unwrap();
+    let high = {
+        let host = f.start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "25h"]);
+        host.query("clock").as_i64().unwrap()
+    };
+    assert!(high > snapback4_core::now_ms() + 20 * 60 * 60 * 1000);
+
+    // Restart without the offset: wall time moved backward by about 25h, but
+    // every timed surface must retain the durable authority floor.
+    let host = f.start(&["dev", "--no-watch", "--hold-schedules"]);
+    let requests = [
+        ("POST", "/q/clock", r#"{"args":{}}"#),
+        ("POST", "/sync", r#"{"from":0}"#),
+        ("GET", "/changes?wait=0", ""),
+    ];
+    for (method, path, input) in requests {
+        let response = host.raw(method, path, input);
+        let (headers, body) = response.split_once("\r\n\r\n").unwrap();
+        let stamped = headers.lines().find_map(|line| {
+            let (name, value) = line.split_once(':')?;
+            name.eq_ignore_ascii_case("x-snapback-time").then(|| value.trim().parse::<i64>().unwrap())
+        }).expect("timed response header");
+        assert!(stamped >= high, "{path}: {response}");
+        let body: Value = serde_json::from_str(body).unwrap();
+        if path == "/q/clock" { assert!(body["data"].as_i64().unwrap() >= high, "{body}"); }
+        if path == "/sync" { assert!(body["now"].as_i64().unwrap() >= high, "{body}"); }
+    }
+}
+
+#[test]
+fn ordinary_response_clocks_follow_the_host_after_restart() {
+    let f = Fixture::new("ordinary-response-clock");
+    let high = {
+        let host = f.start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "25h"]);
+        host.query("time").as_i64().unwrap()
+    };
+    assert!(high > snapback4_core::now_ms() + 20 * 60 * 60 * 1000);
+
+    let host = f.start(&["dev", "--no-watch", "--hold-schedules"]);
+    let response = host.raw("POST", "/q/time", r#"{"args":{}}"#);
+    let (headers, body) = response.split_once("\r\n\r\n").unwrap();
+    let stamped = headers.lines().find_map(|line| {
+        let (name, value) = line.split_once(':')?;
+        name.eq_ignore_ascii_case("x-snapback-time").then(|| value.trim().parse::<i64>().unwrap())
+    }).expect("response clock header");
+    let queried = serde_json::from_str::<Value>(body).unwrap()["data"].as_i64().unwrap();
+    assert!(stamped < high - 20 * 60 * 60 * 1000, "{response}");
+    assert!(queried < high - 20 * 60 * 60 * 1000, "{response}");
 }
 
 #[test]

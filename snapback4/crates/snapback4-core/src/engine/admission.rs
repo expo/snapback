@@ -4,11 +4,11 @@
 //! Provenance follows bindings and row shaping, never just the final loop
 //! syntax. Runtime metering remains independent and aborts over-budget writes.
 // @ref LLP 3000.003#implementation-follow-up — retained structural admission
+use crate::engine::rules::scan_visibility;
+use crate::error::RuntimeError;
 use crate::ir::*;
 use crate::schema::{Constraint, Schema};
 use crate::value::Value;
-use crate::error::RuntimeError;
-use crate::engine::rules::scan_visibility;
 use std::collections::{BTreeMap, BTreeSet};
 mod maintenance_types;
 
@@ -123,19 +123,26 @@ pub fn check_detail_with_statements(schema: &Schema, program: &Program, statemen
             if let Some(reason) = plain_prefix_problem(schema, scan) {
                 return Err(fanout(Some(scan), &scan.site, &reason, "read this page in a query, then pass the selected ids to the mutation"));
             }
-            if schema.table(&scan.table).is_some_and(|table| table.is_expiring()) && !(never && in_prefix) {
+            if schema.table(&scan.table).is_some_and(|table| table.read_lifetime_sensitive()) && !(never && in_prefix) {
                 return Err(expiry_problem(program, scan, prefix_len..effect_end, never, in_prefix));
             }
         }
-        let nonuniform = scans.iter().find(|s| schema.table(&s.table).and_then(|t| t.index(&s.index)).is_some() && !decided(schema, program, s)).map(|s| (*s).clone());
+        let nonuniform = scans.iter().find(|s| {
+                schema.table(&s.table).and_then(|t| t.index(&s.index)).is_some() && !decided(schema, program, s)
+            }).map(|s| (*s).clone());
         let mut bindings = BTreeMap::new();
         collect(&program.body, true, &mut bindings);
-        let env = program.args.keys().map(|name| (name.clone(), if bindings.contains_key(name) { Origin::Unknown(vec![]) } else { Origin::Other })).collect();
+        let env = program.args.keys().map(|name| {
+                (name.clone(), if bindings.contains_key(name) { Origin::Unknown(vec![]) } else { Origin::Other },
+                )
+            }).collect();
         let mut flow = Flow { schema, program, nonuniform, env, error: None, bindings };
         flow.statements(&program.body, &Origin::Other, true);
         if let Some(error) = flow.error { return Err(error); }
         if flow.nonuniform.is_some() && crate::ir::write_tables(program).iter().any(|(name, effect)| {
-            *effect != "delete" && schema.table(name).is_some_and(|t| t.constraints.iter().any(|c| matches!(c, Constraint::Cap { .. })))
+            *effect != "delete" && schema.table(name).is_some_and(|t| {
+                            t.constraints.iter().any(|c| matches!(c, Constraint::Cap { .. }))
+                        })
         }) {
             return Err(fanout(flow.nonuniform.as_ref(), &program.name, "a non-uniform scan cannot share a mutation with a complete population or group cap check", "read this page in a query, then pass the selected ids to the mutation"));
         }
@@ -330,8 +337,14 @@ impl Flow<'_> {
                 let scans = origin.scans();
                 let scan = scans.first();
                 let rewrite = if let Some(scan) = scan && let Some(table) = self.schema.table(&scan.table) {
-                    let pinned: Vec<_> = table.index(&scan.index).map(|index| index.columns().into_iter().take(scan.prefix.len()).collect()).unwrap_or_default();
-                    let cap = table.constraints.iter().filter_map(|c| match c { Constraint::Cap { by, max } if by.iter().all(|key| pinned.contains(key)) => Some(*max), _ => None }).min();
+                    let pinned: Vec<_> = table.index(&scan.index).map(|index| {
+                            index.columns().into_iter().take(scan.prefix.len()).collect()
+                        }).unwrap_or_default();
+                    let cap = table.constraints.iter().filter_map(|c| match c { Constraint::Cap { by, max } if by.iter().all(|key| pinned.contains(key)) =>
+                            {
+                                Some(*max)
+                            }
+                            _ => None }).min();
                     match cap {
                         Some(_) => format!("iterate the original group: `for row in {}{}:`; put the condition and work inside that loop", scan.table, if pinned.is_empty() { String::new() } else { format!(" where {}", pinned.iter().map(|column| format!(".{column} = <value>")).collect::<Vec<_>>().join(" and ")) }),
                         None if !pinned.is_empty() => format!("declare `cap {} by {}` on {} only if it is a product limit, then iterate the whole group: `for row in {} where {}:`", scan.take.maximum(), pinned.join(", "), scan.table, scan.table, pinned.iter().map(|column| format!(".{column} = <value>")).collect::<Vec<_>>().join(" and ")),
@@ -454,13 +467,18 @@ fn expiry_problem(program: &Program, scan: &Scan, boundary: std::ops::Range<usiz
             Stmt::If { .. } => "if".into(),
             Stmt::For { .. } => "for".into(),
             Stmt::Emit { effect, .. } => format!("emit {effect}"),
-            Stmt::Const { name, .. } | Stmt::Let { name, .. } | Stmt::Assign { name, .. } if !name.starts_with('$') => format!("binding {name}"),
+            Stmt::Const { name, .. } | Stmt::Let { name, .. } | Stmt::Assign { name, .. } if !name.starts_with('$') =>
+            {
+                format!("binding {name}")
+            }
             Stmt::Update { table, .. } => format!("update {table}"),
             Stmt::Upsert { table, .. } => format!("upsert {table}"),
             Stmt::WriteTarget { target, upsert, .. } => format!("{} {}", if *upsert { "upsert" } else { "update" }, target.table),
             Stmt::Delete { table, .. } => format!("delete {table}"),
             Stmt::DeleteTarget { target } => format!("delete {}", target.table),
-            Stmt::Insert { table, .. } | Stmt::InsertIfAbsent { table, .. } => format!("insert {table}"),
+            Stmt::Insert { table, .. } | Stmt::InsertIfAbsent { table, .. } => {
+                format!("insert {table}")
+            }
             _ => format!("statement {}", boundary.start + 1),
         };
         let effect = if super::read_only::statements::<true>(group) { "an emit" } else { "a write" };

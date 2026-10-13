@@ -210,10 +210,15 @@ fn completeness_note(note: &snapback4_lang::Diagnostic) -> Option<[String; 3]> {
         None if note.code == "N_CONDITIONAL_COMPLETE" => "who: callers admitted by the pinned parent guard have a complete page".into(),
         None => "who: no caller group is proved complete by this page".into(),
     };
+    let what = if note.rewrite.starts_with("add `cap ") {
+        format!("what: {}", note.rewrite)
+    } else {
+        "what: pin every read-rule scope or handle `complete: false` as more rows may exist; check --verbose shows the proof and checked repair".into()
+    };
     Some([
         verdict.into(),
         who,
-        "what: pin every read-rule scope or handle `complete: false` as more rows may exist; check --verbose shows the proof and checked repair".into(),
+        what,
     ])
 }
 

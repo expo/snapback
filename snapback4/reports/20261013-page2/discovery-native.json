@@ -1,0 +1,190 @@
+{
+  "generated": 1,
+  "compiled": 1,
+  "binder_refused_expected": 0,
+  "binder_refused_unexpected": 0,
+  "executed": 394,
+  "generator_errors": {},
+  "by_oracle": {
+    "meter": {
+      "attempted": 186,
+      "passed": 13,
+      "unsupported": {
+        "examined-opening-no-position": 5,
+        "heap_bytes-unwind-no-continuation": 127,
+        "output_bytes-refusal-no-continuation": 1,
+        "steps-refusal-no-continuation": 19,
+        "steps-unwind-no-continuation": 21
+      },
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    },
+    "repeat": {
+      "attempted": 1,
+      "passed": 1,
+      "unsupported": {},
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    },
+    "rewrite-commute": {
+      "attempted": 1,
+      "passed": 0,
+      "unsupported": {
+        "rewrite-not-applicable": 1
+      },
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    },
+    "rewrite-declarations": {
+      "attempted": 1,
+      "passed": 1,
+      "unsupported": {},
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    },
+    "rewrite-identity": {
+      "attempted": 1,
+      "passed": 0,
+      "unsupported": {
+        "rewrite-not-applicable": 1
+      },
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    },
+    "rewrite-lazy-and": {
+      "attempted": 1,
+      "passed": 0,
+      "unsupported": {
+        "rewrite-not-applicable": 1
+      },
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    },
+    "rewrite-lazy-or": {
+      "attempted": 1,
+      "passed": 0,
+      "unsupported": {
+        "rewrite-not-applicable": 1
+      },
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    },
+    "rewrite-let": {
+      "attempted": 1,
+      "passed": 1,
+      "unsupported": {},
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 1
+    }
+  },
+  "coverage": {
+    "body/Page": 1,
+    "column/Bool": 1,
+    "column/Id": 1,
+    "column/Int": 1,
+    "column/Nullable(Int)": 1,
+    "column/Principal": 1,
+    "column/Text": 1,
+    "input/near-i53": 1,
+    "input/non-bmp": 1,
+    "items-residency/Online": 1,
+    "items-rule/OwnerOrWitness": 1,
+    "order/ascending": 1,
+    "read/branch-merged": 1,
+    "read/branch-rule-membership": 1,
+    "read/branch-rule-membership-discovery-unique": 1,
+    "read/branch-rule-membership-uncapped": 1,
+    "read/branch-shape": 1,
+    "residency/Online": 1,
+    "rule/Member": 1,
+    "rule/OwnerOrWitness": 1,
+    "schema/index": 1,
+    "schema/unique-key": 1
+  },
+  "rewrite_coverage": {
+    "body/Page": 2,
+    "column/Bool": 2,
+    "column/Id": 2,
+    "column/Int": 2,
+    "column/Nullable(Int)": 2,
+    "column/Principal": 2,
+    "column/Text": 2,
+    "input/near-i53": 2,
+    "input/non-bmp": 2,
+    "items-residency/Online": 2,
+    "items-rule/OwnerOrWitness": 2,
+    "order/ascending": 2,
+    "read/branch-merged": 2,
+    "read/branch-rule-membership": 2,
+    "read/branch-rule-membership-discovery-unique": 2,
+    "read/branch-rule-membership-uncapped": 2,
+    "read/branch-shape": 2,
+    "residency/Online": 2,
+    "rule/Member": 2,
+    "rule/OwnerOrWitness": 2,
+    "schema/index": 2,
+    "schema/unique-key": 2
+  },
+  "meter_dimensions": {
+    "examined": {
+      "attempted": 15,
+      "passed": 10,
+      "unsupported": {
+        "examined-opening-no-position": 5
+      },
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    },
+    "heap_bytes": {
+      "attempted": 128,
+      "passed": 1,
+      "unsupported": {
+        "heap_bytes-unwind-no-continuation": 127
+      },
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    },
+    "output_bytes": {
+      "attempted": 2,
+      "passed": 1,
+      "unsupported": {
+        "output_bytes-refusal-no-continuation": 1
+      },
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    },
+    "steps": {
+      "attempted": 41,
+      "passed": 1,
+      "unsupported": {
+        "steps-refusal-no-continuation": 19,
+        "steps-unwind-no-continuation": 21
+      },
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    }
+  },
+  "pageable_reads": 1,
+  "pages_with_resumable_cut": 1,
+  "runtime_refusals": {},
+  "runtime_refused_unexpected": {},
+  "store_stats": {},
+  "slowest_case_seconds": 0.0,
+  "slowest_case_seed": null,
+  "time_limited_workers": 0,
+  "seconds": 0.061019604,
+  "seed": 715,
+  "cases": 1
+}

@@ -52,6 +52,9 @@ pub enum Rule {
     Witness,
     /// `.owner = viewer or exists access[.bucket, viewer]` (Lean variants).
     OwnerOrWitness,
+    /// `.owner = viewer or exists access[.id, viewer]`: the membership maps
+    /// its required `item` reference to the target row's intrinsic id.
+    OwnerOrIdWitness,
     /// `.owner = viewer or exists access[0, viewer]`: a readable grant that
     /// reads no row column (LLP 3000.036 §12.1; Lean variants).
     OwnerOrGrant,
@@ -74,6 +77,7 @@ impl Rule {
             Self::Owner => ".owner = viewer",
             Self::Witness => "exists access[.bucket, viewer]",
             Self::OwnerOrWitness => ".owner = viewer or exists access[.bucket, viewer]",
+            Self::OwnerOrIdWitness => ".owner = viewer or exists access[.id, viewer]",
             Self::OwnerOrGrant => ".owner = viewer or exists access[0, viewer]",
             Self::Member => ".principal = viewer",
             Self::NamedBoth => "old.owner = viewer and next.owner = viewer",
@@ -114,6 +118,9 @@ pub struct Table {
     /// `expire at .<column>` (guide expire); the column is a `time ?`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expire: Option<String>,
+    /// `not before .<column>`; null is open and non-null times are server-clock lower bounds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub not_before: Option<String>,
 }
 impl Table {
     fn source(&self) -> String {
@@ -138,6 +145,9 @@ impl Table {
         }
         if let Some(column) = &self.expire {
             out += &format!("  expire at .{column}\n");
+        }
+        if let Some(column) = &self.not_before {
+            out += &format!("  not before .{column}\n");
         }
         out += match self.residency {
             Residency::Public => "  sync public\n",
@@ -462,6 +472,15 @@ pub struct Program {
     /// pins `.flag = false`, exercising Boolean page-guard normalization.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub boolean_grant_normalized: bool,
+    /// A generated `upsert` targets this physical `byTag` value instead of id.
+    /// Timed cases use it to prove future rows remain write-addressable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upsert_unique_tag: Option<String>,
+    /// A native-only ordinary words search. The Lean model deliberately does
+    /// not model search discovery, so generated cases carrying this field are
+    /// reported as unsupported by that oracle.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub search_term: Option<String>,
     /// Mutations `prep0`, `prep1`, .. the harness runs in order on the same
     /// store before `run`, each at its step's clock (`Case::steps`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -582,20 +601,35 @@ impl Program {
                 owner,
                 project,
             } => {
-                let mut domain = format!("items where {}", self.domain.as_deref().unwrap_or(".bucket = bucket"));
+                let mut predicates = if self.search_term.is_some() {
+                    Vec::new()
+                } else {
+                    vec![self.domain.as_deref().unwrap_or(".bucket = bucket").to_owned()]
+                };
                 if *owner {
-                    domain += " and .owner = viewer";
+                    predicates.push(".owner = viewer".into());
                 }
                 if *filter {
-                    domain += " and .flag = true";
+                    predicates.push(".flag = true".into());
                 }
                 if let Some(residual) = &self.residual {
-                    domain += &format!(" and {residual}");
+                    predicates.push(residual.clone());
                 }
                 if let Some(guard) = &self.guard {
-                    domain += &format!(" and {guard}");
+                    predicates.push(guard.clone());
                 }
-                let order = self.order.as_ref().map_or(".label, .score".to_string(), |o| o.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", "));
+                let mut domain = "items".to_owned();
+                if let Some(term) = &self.search_term {
+                    domain += &format!(" matching {}", serde_json::to_string(term).unwrap());
+                }
+                if !predicates.is_empty() {
+                    domain += &format!(" where {}", predicates.join(" and "));
+                }
+                let order = if self.search_term.is_some() {
+                    "byWords".to_owned()
+                } else {
+                    self.order.as_ref().map_or(".label, .score".to_string(), |o| o.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", "))
+                };
                 let shape = project.as_ref().map_or(String::new(), |fields| {
                     let mut f = vec!["id"];
                     f.extend(fields.iter().map(Proj::source));
@@ -628,13 +662,18 @@ impl Program {
                     "owner: viewer, bucket, score: {}, label: '𐀀', flag: true, maybe: n, tag: 'tag'",
                     e.source()
                 );
-                out += &match kind {
-                    Write::Insert => format!("  insert items {{ id: key, {fields} }}\n"),
-                    Write::Upsert => format!("  upsert items[key] {{ {fields} }}\n"),
-                    Write::Update => format!("  update items[key] {{ score: {} }}\n", e.source()),
-                    Write::Delete => "  delete items[key]\n".into(),
-                };
-                "true".into()
+                if matches!(kind, Write::Upsert) && let Some(tag) = &self.upsert_unique_tag {
+                    let target = format!("tag = {}", serde_json::to_string(tag).unwrap());
+                    format!("upsert items[{target}] {{ {fields} }}")
+                } else {
+                    out += &match kind {
+                        Write::Insert => format!("  insert items {{ id: key, {fields} }}\n"),
+                        Write::Upsert => format!("  upsert items[key] {{ {fields} }}\n"),
+                        Write::Update => format!("  update items[key] {{ score: {} }}\n", e.source()),
+                        Write::Delete => "  delete items[key]\n".into(),
+                    };
+                    "true".into()
+                }
             }
             Body::Block(block) => Self::block_source(block, &mut out),
         };

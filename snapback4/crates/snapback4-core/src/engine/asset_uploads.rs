@@ -245,9 +245,11 @@ impl Engine {
         now: i64,
         range: bool,
     ) -> Result<AssetGrant, RuntimeError> {
+        let now = self.advance_time_audience(now)?;
         let unknown = || RuntimeError::Asset { code: "E_ASSET_UNKNOWN", message: "no asset is served under that id to this viewer".into() };
         let path = self.store.asset_path(id);
         let tx = self.store.transaction()?;
+        let now = super::time_audience::pin_writer_time(&self.schema, &tx, now)?;
         let Some(asset) = tx.asset(id)? else { return Err(unknown()) };
         if asset.released_at.is_some() {
             return Err(unknown());
@@ -264,8 +266,16 @@ impl Engine {
         };
         let table = self.schema.table(table_name).ok_or_else(unknown)?;
         let Some(row) = tx.get(table_name, row_id)? else { return Err(unknown()) };
-        if !table.columns.get(column).is_some_and(|kind| asset_columns::contains(kind, row.field(column).ok(), id)) || table.expired(&row, now) {
+        // @ref LLP 3000.036.003#2-one-lifetime-predicate — a row's lower
+        // lifetime gates the separately-fetched asset bytes it authorizes too.
+        if !table.columns.get(column).is_some_and(|kind| asset_columns::contains(kind, row.field(column).ok(), id)) || !table.live(&row, now) {
             return Err(unknown());
+        }
+        if table.not_before.is_some()
+            && (tx.time_audience_pending(table_name, row_id)?
+                || !tx.time_audience_published(table_name, row_id)?)
+        {
+            return Err(RuntimeError::TimeAudiencePending);
         }
         let mut image = row.clone();
         materialize_optional_fields(&mut image, table);

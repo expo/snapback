@@ -393,10 +393,11 @@ query any():
 
 #[test]
 fn shapes_the_merge_does_not_cover_keep_the_note() {
-    // A single party is the pin the author writes; a membership branch is not a pin.
-    for (rule, query) in [
-        (".owner = viewer", "tasks last 3 by .at after c"),
-        (".owner = viewer or exists shares[.id, viewer]", "tasks last 3 by .at after c"),
+    // A single party is the pin the author writes. An exact membership point
+    // over the target id is a PAGE2 discovery witness.
+    for (rule, query, complete) in [
+        (".owner = viewer", "tasks last 3 by .at after c", false),
+        (".owner = viewer or exists shares[.id, viewer]", "tasks last 3 by .at after c", true),
     ] {
         let source = format!("table shares:
   task: id
@@ -417,7 +418,7 @@ query q(c: cursor ?):
   return {query}
 ");
         let b = clean(&source);
-        assert!(has_note(&b, "N_NEVER_COMPLETE"), "{rule}: {:#?}", b.notes);
+        assert_eq!(!has_note(&b, "N_NEVER_COMPLETE"), complete, "{rule}: {:#?}", b.notes);
     }
 }
 
@@ -1014,6 +1015,7 @@ fn owner_or_capped_membership_walks_one_complete_cursor() {
     let merge = snapback4_core::ir::body_merges(&program.body).into_iter().find(|merge| merge.branches()).expect("branch merge");
     assert_eq!(merge.lanes.iter().filter(|lane| lane.membership()).count(), 1);
     assert!(b.schema.required_capabilities().contains("branch-membership-v1"));
+    assert!(!b.schema.required_capabilities().contains("branch-membership-v2"));
     assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
 
     let rows = vec![
@@ -1153,7 +1155,7 @@ fn fixed_source_id_expiry_removes_only_its_membership_lane() {
 }
 
 #[test]
-fn fixed_source_id_cap_reserves_the_rule_from_where_branching() {
+fn fixed_source_id_point_can_join_where_branches() {
     let source = "table memberships:
   parent: text <=40
   principal: principal
@@ -1174,11 +1176,9 @@ query documents(c: cursor ?):
   return documents where (.owner = viewer and .bucket = 0) or (.owner = viewer and .bucket = 1) last 10 by .at after c
 ";
     let b = clean(source);
-    assert!(branch_merges(&b, "documents").is_empty());
-    assert!(b.schema.tables["documents"].indexes.values().all(|index| index.columns().first().is_none_or(|column| column != "owner")));
-    assert!(!b.schema.tables["memberships"].indexes.values().any(|index| index.columns() == ["principal", "parent", "id"]));
-    assert!(has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
-    assert!(!b.schema.required_capabilities().contains("branch-membership-v1"));
+    assert_eq!(branch_merges(&b, "documents"), vec![(5, true)]);
+    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+    assert!(b.schema.required_capabilities().contains("branch-membership-v2"));
 
     let mut e = engine(source, vec![
         membership("m1", "p1", "alice"),
@@ -1187,7 +1187,7 @@ query documents(c: cursor ?):
     ]);
     let page = e.query("documents", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
     assert_eq!(ids(&page.data), ["d1"]);
-    assert!(!page.complete && page.next.is_some(), "{page:?}");
+    assert!(page.complete && page.next.is_none(), "{page:?}");
 }
 
 #[test]
@@ -1292,15 +1292,6 @@ fn membership_cap_may_exceed_the_static_branch_limit() {
 }
 
 #[test]
-fn owner_or_uncapped_membership_keeps_the_incomplete_single_scan() {
-    let source = OWNER_MEMBERSHIP.replace("  cap 16 by principal\n", "");
-    let b = clean(&source);
-    assert!(snapback4_core::ir::body_merges(&b.programs[0].program.body).into_iter().all(|merge| !merge.branches()));
-    assert!(has_note(&b, "N_NEVER_COMPLETE"));
-    assert!(!b.schema.required_capabilities().contains("branch-membership-v1"));
-}
-
-#[test]
 fn oversized_membership_discovery_index_keeps_the_incomplete_single_scan() {
     let source = OWNER_MEMBERSHIP.replace("text <=40", "text <=435");
     let b = clean(&source);
@@ -1353,35 +1344,6 @@ query documents(c: cursor ?):
         assert_eq!(ids(&page.data), ["shared", "owned"]);
         assert!(!page.complete && page.next.is_some(), "{page:?}");
     }
-}
-
-#[test]
-fn row_id_membership_keeps_the_incomplete_single_scan() {
-    let source = "table documents:
-  owner: principal
-  at: int
-  read <- .owner = viewer or exists shares[.id, viewer]
-  insert <- .owner = viewer
-  online only
-
-table shares:
-  document: documents
-  principal: principal
-  unique document, principal
-  cap 16 by principal
-  read <- .principal = viewer
-  insert <- .principal = viewer
-  online only
-
-query documents(c: cursor ?):
-  return documents last 2 by .at after c
-";
-    let b = clean(source);
-    assert!(snapback4_core::ir::body_merges(&b.programs[0].program.body).into_iter().all(|merge| !merge.branches()));
-    assert!(!b.schema.tables["documents"].indexes.values().any(|index| index.columns() == ["owner", "at", "id"]));
-    assert!(!b.schema.tables["shares"].indexes.values().any(|index| index.columns() == ["principal", "document", "id"]));
-    assert!(has_note(&b, "N_NEVER_COMPLETE"));
-    assert!(!b.schema.required_capabilities().contains("branch-membership-v1"));
 }
 
 #[test]

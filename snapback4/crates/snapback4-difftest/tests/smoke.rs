@@ -171,6 +171,42 @@ fn device_oracle_fixed_seeds_on_both_device_stores() {
     for seed in 0..40 {
         devices::check(&generate(seed), &mut report, &mut files, |_| {}).unwrap();
     }
+    // Plant one read and one write from the single-clock lower-lifetime
+    // fragment into both device stores. Backlog publication has separate
+    // lifecycle coverage; these cases seed at the request clock.
+    for mutation in [false, true] {
+        let mut timed = (0..5_000).map(generate).find(|case|
+            case.program.tables[0].not_before.is_some() && case.program.mutation() == mutation
+        ).expect("timed generator must reach reads and writes");
+        timed.program.tables[0].rule = Rule::Allow;
+        timed.program.tables[0].effects = None;
+        timed.program.tables[0].residency = Residency::Public;
+        devices::check(&timed, &mut report, &mut files, |_| {}).unwrap();
+    }
+    for unique in ["insert", "upsert"] {
+        let mut timed = (0..20_000).map(generate).find(|case| match unique {
+            "insert" => matches!(case.program.body, Body::Write(Write::Insert, _))
+                && case.rows.iter().any(|(table, row)| table == "items" && row["tag"] == "tag"
+                    && row["opensAt"].as_i64().is_some_and(|at| at > case.clock)),
+            "upsert" => case.program.upsert_unique_tag.is_some(),
+            _ => unreachable!(),
+        }).unwrap_or_else(|| panic!("timed generator must reach future unique {unique}"));
+        timed.program.tables[0].residency = Residency::Public;
+        devices::check(&timed, &mut report, &mut files, |_| {}).unwrap();
+    }
+    let membership = (0..10_000).map(generate).find(|case| {
+        let read = case.program.tables[0].effects.as_ref().map_or(&case.program.tables[0].rule, |effects| &effects[0]);
+        read == &Rule::OwnerOrWitness
+            && case.program.tables.iter().find(|table| table.name == "access").is_some_and(|table| table.caps.is_empty())
+            && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. })
+    }).expect("uncapped membership generator must be reachable");
+    devices::check(&membership, &mut report, &mut files, |_| {}).unwrap();
+    let id_membership = (0..10_000).map(generate).find(|case| {
+        let read = case.program.tables[0].effects.as_ref().map_or(&case.program.tables[0].rule, |effects| &effects[0]);
+        read == &Rule::OwnerOrIdWitness
+            && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. })
+    }).expect("by-id membership generator must be reachable");
+    devices::check(&id_membership, &mut report, &mut files, |_| {}).unwrap();
     // A predicted insert, its settlement and convergence on both stores.
     let mut insert = generate(0);
     insert.program.body = Body::Write(Write::Insert, Expr::Int(1));
@@ -179,6 +215,10 @@ fn device_oracle_fixed_seeds_on_both_device_stores() {
     insert.args["key"] = json!("fresh-id");
     devices::check(&insert, &mut report, &mut files, |_| {}).unwrap();
     assert!(report.generator_errors.is_empty(), "{report:#?}");
+    assert!(report.coverage["not-before/exact-boundary"] >= 2, "{report:#?}");
+    assert!(report.coverage["not-before/future"] >= 2, "{report:#?}");
+    assert!(report.coverage["read/branch-rule-membership-uncapped"] >= 1, "{report:#?}");
+    assert!(report.coverage["read/branch-rule-membership-id"] >= 1, "{report:#?}");
     let signatures: std::collections::BTreeSet<_> = report.by_oracle.values().flat_map(|c| c.signatures.keys().cloned()).collect();
     assert_eq!(signatures, DEVICE_KNOWN.iter().map(|s| s.to_string()).collect(), "new or missing signatures need diagnosis");
     for store in devices::STORES {
@@ -223,6 +263,12 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         if case.program.tables[0].expire.is_some() {
             dims.push("expiry");
         }
+        if case.program.tables[0].not_before.is_some() {
+            dims.push("not-before");
+        }
+        if case.program.search_term.is_some() {
+            dims.push("timed-search");
+        }
         // LLP 3000.040 §5: calendar bodies and bounded `score`, from their own stream.
         if case.program.time_arg {
             dims.push("calendar");
@@ -237,7 +283,7 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         let read_rule = case.program.tables[0].effects.as_ref().map_or(&case.program.tables[0].rule, |effects| &effects[0]);
         if case.program.domain.as_deref().is_some_and(|domain| domain.contains(" or "))
             || read_rule == &snapback4_difftest::ast::Rule::TwoParty
-            || read_rule == &snapback4_difftest::ast::Rule::OwnerOrWitness
+            || matches!(read_rule, snapback4_difftest::ast::Rule::OwnerOrWitness | snapback4_difftest::ast::Rule::OwnerOrIdWitness)
                 && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. }) {
             dims.push("branches");
         }
@@ -255,29 +301,177 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         }
         seen.extend(dims);
     }
-    assert_eq!(seen.len(), 11, "{seen:?}");
+    assert_eq!(seen.len(), 13, "{seen:?}");
 }
 
 #[test]
-fn lean_generator_reaches_a_capped_unpinned_membership_page() {
+fn timed_disclosure_generation_covers_edges_reads_and_writes() {
+    let mut reads = false;
+    let mut writes = false;
+    let mut future_targets = std::collections::BTreeSet::new();
+    let mut future_unique_insert = false;
+    let mut future_unique_upsert = false;
+    for seed in 0..100_000 {
+        let case = generate(seed);
+        if case.program.tables[0].not_before.is_none() { continue }
+        assert!(case.seeded_at.is_none() && case.steps.is_empty(), "seed {seed}");
+        let values = case.rows.iter().filter(|(table, _)| table == "items")
+            .map(|(_, row)| row["opensAt"].clone()).collect::<Vec<_>>();
+        for expected in [json!(null), json!(case.clock - 1), json!(case.clock), json!(case.clock + 1)] {
+            assert!(values.contains(&expected), "seed {seed}: {values:?}");
+        }
+        execute::compile(&case.program.source()).unwrap_or_else(|e| panic!("seed {seed}: {e}"));
+        if matches!(case.program.body, Body::Write(Write::Insert, _))
+            && case.rows.iter().any(|(table, row)| table == "items" && row["tag"] == "tag"
+                && row["opensAt"].as_i64().is_some_and(|at| at > case.clock))
+        {
+            future_unique_insert = true;
+            assert!(case.rows.iter().all(|(_, row)| row["id"] != case.args["key"]), "seed {seed}");
+            let source = case.program.source();
+            let mut engine = execute::seeded(&case, &source).unwrap();
+            let outcome = execute::execute(&mut engine, &case, "run", &case.args);
+            assert_eq!(outcome.refusal().unwrap()["code"], "E_RULE", "seed {seed}: {outcome:?}");
+        }
+        if let Some(tag) = &case.program.upsert_unique_tag {
+            future_unique_upsert = true;
+            let target = case.rows.iter().find(|(table, row)| table == "items" && row["tag"] == tag.as_str()).unwrap();
+            assert_eq!(target.1["opensAt"], json!(case.clock + 1), "seed {seed}");
+            assert!(case.program.source().contains(&format!("upsert items[tag = {tag:?}]")), "seed {seed}");
+            let source = case.program.source();
+            let mut engine = execute::seeded(&case, &source).unwrap();
+            let outcome = execute::execute(&mut engine, &case, "run", &case.args);
+            assert!(outcome.refusal().is_none(), "seed {seed}: {outcome:?}");
+            assert_eq!(outcome.data().cloned(), Some(json!("Null")), "future patch must stay hidden: seed {seed}: {outcome:?}");
+        }
+        if case.program.mutation() {
+            writes = true;
+            if let Body::Write(kind @ (Write::Update | Write::Upsert | Write::Delete), _) = &case.program.body {
+                let key = case.args["key"].as_str().unwrap();
+                let target = case.rows.iter().find(|(table, row)| table == "items" && row["id"] == key).unwrap();
+                assert_eq!(target.1["opensAt"], json!(case.clock + 1), "seed {seed}");
+                future_targets.insert(format!("{kind:?}"));
+            }
+        } else {
+            reads = true;
+        }
+        if reads && writes && future_targets.len() == 3 && future_unique_insert && future_unique_upsert { break }
+    }
+    assert!(reads && writes);
+    assert_eq!(future_targets, ["Delete", "Update", "Upsert"].map(String::from).into());
+    assert!(future_unique_insert && future_unique_upsert);
+}
+
+#[test]
+fn timed_search_generation_compares_future_word_heads_natively() {
+    let cases = (0..400).map(generate).filter(|case| case.program.search_term.is_some()).collect::<Vec<_>>();
+    assert!(!cases.is_empty(), "the standard 400-case campaign must reach timed search");
+    for case in cases {
+        let source = case.program.source();
+        execute::compile(&source).unwrap_or_else(|e| panic!("seed {}: {e}", case.seed));
+        assert!(source.contains("matching \"a\" first 2 by byWords after c"), "seed {}: {source}", case.seed);
+        let mut engine = execute::seeded(&case, &source).unwrap();
+        let first = execute::execute(&mut engine, &case, "run", &case.args);
+        assert_eq!(first.data().and_then(|data| data.get("Array")).and_then(|rows| rows.as_array()).map(Vec::len), Some(2),
+            "both shared-word live siblings must be returned: seed {}: {first:?}\n{:?}", case.seed, case.rows);
+        assert!(first.next().is_none(), "the online-only nonuniform search must withhold a continuation: seed {}", case.seed);
+        let (verdict, pages) = oracle::timed_search_future_absence(&case, &source).unwrap();
+        assert!(matches!(verdict, Verdict::Pass), "seed {}: {verdict:?}", case.seed);
+        assert_eq!(pages, 2, "the paired first pages must settle without a continuation: seed {}", case.seed);
+        let reason = snapback4_difftest::lean::module(&source).unwrap_err();
+        assert_eq!(reason, "index-computed-or-words", "Lean must explicitly exclude the words index, seed {}", case.seed);
+    }
+}
+
+#[test]
+fn lean_generator_reaches_an_uncapped_unpinned_membership_page() {
     let case = (0..2_000).map(snapback4_difftest::lean::generate).find(|case| {
         let table = &case.program.tables[0];
         let read = table.effects.as_ref().map_or(&table.rule, |effects| &effects[0]);
         read == &Rule::OwnerOrWitness
             && case.program.domain.as_deref() == Some("true")
             && case.program.membership_named_reordered
+            && case.program.tables.iter().find(|table| table.name == "access").is_some_and(|table| table.caps.is_empty())
             && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. })
     }).expect("membership-page stream must be reachable");
     let access = case.program.tables.iter().find(|table| table.name == "access").unwrap();
-    assert_eq!(access.caps, vec![(16, vec!["principal".into()])]);
+    assert!(access.caps.is_empty());
     assert!(access.keys.iter().any(|(_, columns, unique)| !unique && columns.iter().map(String::as_str).eq(["principal", "bucket"])));
     let features = snapback4_difftest::lean::features(&case);
     assert!(features.iter().any(|feature| feature == "branch-rule-membership"), "{features:?}\n{}", case.program.source());
+    assert!(features.iter().any(|feature| feature == "branch-rule-membership-uncapped"), "{features:?}\n{}", case.program.source());
     assert!(features.iter().any(|feature| feature == "branch-rule-membership-named-reordered"), "{features:?}\n{}", case.program.source());
     assert!(features.iter().any(|feature| feature == "branch-merged"), "{features:?}\n{}", case.program.source());
     let coverage = snapback4_difftest::coverage::features(&case);
     assert!(coverage.contains("read/branch-rule-membership-named-reordered"), "{coverage:?}");
+    assert!(coverage.contains("read/branch-rule-membership-uncapped"), "{coverage:?}");
     assert!(case.program.source().contains("exists access[principal = viewer, bucket = .bucket]"));
+}
+
+#[test]
+fn native_and_lean_generators_reach_fully_pinned_membership_discovery() {
+    let generated = |lean: bool| (0..10_000).map(|seed| if lean {
+        snapback4_difftest::lean::generate(seed)
+    } else { generate(seed) }).find(|case| {
+        let source = case.program.source();
+        source.contains("bucket: int ?")
+            && source.contains("unique byPrincipalOnly: principal")
+            && source.contains("exists access[.bucket, viewer]")
+            && !source.contains("cap 16 by principal")
+    }).expect("fully pinned membership discovery stream must be reachable");
+    let native = generated(false);
+    let lean = generated(true);
+    for case in [&native, &lean] {
+        let source = case.program.source();
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+        assert!(bound.diagnostics.is_empty(), "{:#?}\n{source}", bound.diagnostics);
+        assert!(snapback4_core::ir::body_merges(&bound.programs.iter().find(|program| program.program.name == "run").unwrap().program.body)
+            .into_iter().any(|merge| merge.branches()), "{:#?}\n{source}", bound.notes);
+        let coverage = snapback4_difftest::coverage::features(case);
+        assert!(coverage.contains("read/branch-rule-membership-discovery-unique"), "{coverage:?}\n{source}");
+    }
+    let mut report = Report::default();
+    campaign::check(&native, &mut report, |_| {});
+    assert!(!report.failed(), "{report:#?}\n{}", native.program.source());
+    let mut lean_report = Report::default();
+    snapback4_difftest::lean::check(&lean, &mut lean_report, |_| {}).unwrap();
+    assert!(!lean_report.failed(), "{lean_report:#?}\n{}", lean.program.source());
+    assert!(snapback4_difftest::lean::features(&lean).iter()
+        .any(|feature| feature == "branch-rule-membership-discovery-unique"));
+}
+
+#[test]
+fn native_and_lean_generators_reach_by_id_membership_pages() {
+    let generated = |lean: bool| (0..10_000).map(|seed| if lean {
+        snapback4_difftest::lean::generate(seed)
+    } else { generate(seed) }).find(|case| {
+        let table = &case.program.tables[0];
+        let read = table.effects.as_ref().map_or(&table.rule, |effects| &effects[0]);
+        read == &Rule::OwnerOrIdWitness
+            && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. })
+    }).expect("by-id membership stream must be reachable");
+    let native = generated(false);
+    let lean = generated(true);
+    for case in [&native, &lean] {
+        let source = case.program.source();
+        assert!(source.contains(".owner = viewer or exists access[.id, viewer]"), "{source}");
+        let access = case.program.tables.iter().find(|table| table.name == "access").unwrap();
+        assert!(access.keys.iter().any(|(_, columns, unique)| *unique
+            && columns.iter().map(String::as_str).eq(["item", "principal"])));
+        assert!(access.keys.iter().any(|(_, columns, unique)| *unique
+            && columns.iter().map(String::as_str).eq(["bucket", "principal"])),
+            "by-id generation must retain a competing positional unique\n{source}");
+        let coverage = snapback4_difftest::coverage::features(&case);
+        assert!(coverage.contains("read/branch-rule-membership-id"), "{coverage:?}\n{source}");
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+        assert!(snapback4_core::ir::body_merges(&bound.programs.iter().find(|program| program.program.name == "run").unwrap().program.body)
+            .into_iter().any(|merge| merge.branches()), "{:#?}\n{source}", bound.notes);
+    }
+    let mut report = Report::default();
+    campaign::check(&native, &mut report, |_| {});
+    assert!(!report.failed(), "{report:#?}");
+    let mut lean_report = Report::default();
+    snapback4_difftest::lean::check(&lean, &mut lean_report, |_| {}).unwrap();
+    assert!(!lean_report.failed(), "{lean_report:#?}\n{}", lean.program.source());
 }
 
 #[test]
@@ -296,20 +490,22 @@ fn lean_generator_reaches_a_normalized_boolean_grant_page() {
 }
 
 #[test]
-fn native_generator_exercises_capped_named_membership_pages() {
+fn native_generator_exercises_uncapped_named_membership_pages() {
     let case = (0..10_000).map(generate).find(|case| {
         let table = &case.program.tables[0];
         let read = table.effects.as_ref().map_or(&table.rule, |effects| &effects[0]);
         read == &Rule::OwnerOrWitness
             && case.program.domain.as_deref() == Some("true")
             && case.program.membership_named_reordered
+            && case.program.tables.iter().find(|table| table.name == "access").is_some_and(|table| table.caps.is_empty())
             && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, project: None, .. })
     }).expect("native membership-page stream must be reachable");
     let access = case.program.tables.iter().find(|table| table.name == "access").unwrap();
-    assert_eq!(access.caps, vec![(16, vec!["principal".into()])]);
+    assert!(access.caps.is_empty());
     assert!(access.keys.iter().any(|(_, columns, unique)| !unique && columns.iter().map(String::as_str).eq(["principal", "bucket"])));
     let coverage = snapback4_difftest::coverage::features(&case);
     assert!(coverage.contains("read/branch-rule-membership-named-reordered"), "{coverage:?}");
+    assert!(coverage.contains("read/branch-rule-membership-uncapped"), "{coverage:?}");
     assert!(coverage.contains("read/branch-merged"), "{coverage:?}\n{}", case.program.source());
     let mut report = Report::default();
     campaign::check(&case, &mut report, |_| {});

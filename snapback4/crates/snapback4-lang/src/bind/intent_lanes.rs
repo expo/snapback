@@ -91,8 +91,10 @@ pub(super) fn probe_columns(tables: &BTreeMap<String, TableInfo>, synthesized: &
 fn positional_types(focal: &TableInfo, probe: &ReadExpr) -> Option<Vec<(Ty, bool)>> {
     probe.keys.iter().map(|key| match &key.value {
         Expr::Name { name, .. } if name == "viewer" => Some((Ty::Principal, false)),
-        Expr::Member { base, name, .. } if matches!(base.as_ref(), Expr::Focal { .. }) =>
-            focal.columns.get(name).map(|kind| (Ty::from_scalar(kind), false)),
+        Expr::Member { base, name, .. } if matches!(base.as_ref(), Expr::Focal { .. }) => {
+            if name == "id" { Some((Ty::Ref(focal.decl.name.clone()), false)) }
+            else { focal.columns.get(name).map(|kind| (Ty::from_scalar(kind), false)) }
+        }
         Expr::Literal { value: Literal::Str(text), .. } => Some((Ty::Text(text.chars().count() as u32), true)),
         Expr::Literal { value: Literal::Number(_), .. } => Some((Ty::Int, false)),
         Expr::Unary { op, value, .. } if op == "-" && matches!(value.as_ref(), Expr::Literal { value: Literal::Number(_), .. }) => Some((Ty::Int, false)),

@@ -213,14 +213,13 @@ fn extra_equalities_are_deciding_fields_and_cannot_bless_a_self_probe() {
     assert_eq!(result.metered.rule_probes, 1);
 }
 
-// @ref LLP 3000.036.001#14 — a cursor answers the current remaining range when membership changes between pages.
+// @ref LLP 3000.036.001#15 — total membership points admit metered discovery; a cursor answers the current remaining range after membership changes.
 #[test]
 fn owner_or_membership_cursor_observes_revocation_and_acquisition_after_its_position() {
     let source = "table page_members:
   parent: text <=40
   principal: principal
   unique parent, principal
-  cap 16 by principal
   read <- .principal = viewer
   insert <- .principal = viewer
   delete <- .principal = viewer
@@ -235,6 +234,7 @@ query page_docs(c: cursor ?):
   return page_docs last 1 by .at after c
 ";
     let compiled = bound(source);
+    assert!(compiled.schema.required_capabilities().contains("branch-membership-v2"));
     let mut engine = Engine::memory(compiled.schema, compiled.programs.into_iter().map(|p| p.program)).unwrap();
     engine.seed([
         ("page_members".into(), snapback4_core::value::object([("id", id("m1")), ("parent", text("p1")), ("principal", id("alice"))])),
