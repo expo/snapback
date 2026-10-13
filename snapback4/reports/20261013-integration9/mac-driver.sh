@@ -1,5 +1,6 @@
 #!/bin/bash
 set -u
+unset SNAPBACK4_BIN
 export PATH=/opt/homebrew/bin:$HOME/.volta/bin:$HOME/.cargo/bin:$HOME/.bun/bin:$PATH
 export PATH=$HOME/.volta/tools/image/node/24.19.0/bin:$PATH
 export SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33
