@@ -182,7 +182,7 @@ for (const template of [[], ["--template", "chat"]]) test(`Expo ${template.lengt
   assert.ok(transform({ src: shipped, options: { platform: "web" } }).src.includes('options.wasm ?? require("./wasm/snapback4_device_bg.wasm")'));
   assert.match(read(join(dir, "src/client.ts")), /createApp/);
   assert.match(read(join(dir, "App.tsx")), /AppProvider|useAuth/);
-  assert.equal(actual.scripts["build:web"], "expo export -p web && snapback4 web-shell dist");
+  assert.equal(actual.scripts["build:web"], chat ? "expo export -p web && snapback4 web-shell dist" : "expo export --platform web --clear && snapback4 web-shell dist");
   const schema = read(join(dir, "snapback/schema.q"));
   assert.doesNotMatch(schema, /^\s*(?:use\s+server\b|action\s|route\s)/m);
   assert.doesNotMatch(schema, /^\s*schedule\b.*:\s*invite\b/m);
@@ -658,7 +658,7 @@ test("Expo starter selects web, native and online app devices with explicit sess
   for (const [platform, native, tier] of [["web", false, "web"], ["ios", true, "native"], ["ios", false, "online"]]) {
     const nativeDevice = {}, webDevice = {}, webStore = {};
     let options;
-    const context = { exports: {}, process: { env: {} }, require: name => {
+    const context = { exports: {}, process: { env: {} }, URLSearchParams, window: { location: { search: "" } }, require: name => {
       if (name === "./intents") {
         const child = { exports: {} };
         const helper = ts.transpileModule(read(join(dir, "src/intents.ts")), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
@@ -666,6 +666,7 @@ test("Expo starter selects web, native and online app devices with explicit sess
       }
       if (name === "./intent-store") return { intentStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} } };
       if (name === "react-native") return { Platform: { OS: platform } };
+      if (name === "snapback4/witness-web") return { registerWebWitness: () => {} };
       if (name === "snapback4/app") return { createApp: value => { options = value; return value; } };
       if (name === "snapback4/auth") return { localStorageSessionStore: () => webStore };
       if (name === "snapback4/web") return { webDevice: () => webDevice };

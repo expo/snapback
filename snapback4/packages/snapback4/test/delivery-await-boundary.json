@@ -535,6 +535,10 @@
     "count": 56,
     "sha256": "9bb04329d983701a1907eeb3c0d2852716cfe7f5cdca39bfc347e63776b16af0"
   },
+  "witness-web.ts": {
+    "count": 2,
+    "sha256": "020163a24ffe12d6a54f1ecc2663da1cd9f1f30cc2aaf3e77f88ccdc7eabf206"
+  },
   "worker-ledger.ts": {
     "count": 6,
     "sha256": "c7e2ab494bcb18a4d0f44dbd499bd18681baa53506d14b3c097818fe8c99769f"

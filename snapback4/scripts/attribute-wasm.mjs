@@ -90,9 +90,10 @@ export const contentFamily = 'serde content buffer (untagged, internally tagged 
 export const replayFamily = 'serde map replay (LaneSource first key)';
 const textFamily = 'serde_json::de::Deserializer<serde_json::read::StrRead>';
 const writerFamily = 'serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>>';
-// The allocation-free output meter intentionally adds exactly this writer to
-// Value and ObjectFields. It does not excuse a third family or any deserializer.
-const counterFamily = 'serde_json::ser::Serializer<&mut snapback4_core::json_codec::value_bytes::Counter>';
+// Output metering, prepaid discovery keys and cursor hashing erase their sink
+// through json_codec::to_sink. Only Value/ObjectFields may use this one extra
+// writer family; typed plan containers and every extra reader still refuse.
+const counterFamily = 'serde_json::ser::Serializer<&mut dyn std::io::Write>';
 // Dynamic request/reply trees necessarily keep serde_json's own envelope
 // serializers. These exact scalar/Value entries do not excuse typed containers.
 const envelopeFamilies = new Map([

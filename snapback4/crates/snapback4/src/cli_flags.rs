@@ -72,3 +72,18 @@ pub fn validate(args: &[String]) -> Result<(), String> {
 }
 
 pub fn switch(name: &str) -> bool { SWITCHES.contains(&name) }
+
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+    #[test]
+    fn wave9_web_flags_and_upgrade_keep_shared_validation() {
+        let args = ["witness", "web", "dist", "--url", "http://127.0.0.1", "--as", "alice", "--email", "alice@example.test", "--password-env", "PRIVATE_PASSWORD", "--mutation", "add", "--args", "{}", "--timeout", "30", "--export", "dist"].map(String::from);
+        assert!(validate(&args).is_ok());
+        for verb in ["upgrade", "witness"] {
+            assert!(validate(&[verb.into(), "--unknown-wave9".into()]).is_err());
+        }
+        assert!(validate(&["upgrade".into(), "0.4.25".into()]).is_ok());
+        assert!(validate(&["witness".into(), "web".into(), "--password-env".into()]).is_err());
+    }
+}

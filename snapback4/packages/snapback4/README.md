@@ -37,7 +37,7 @@ npx snapback4 init --web                                   # or --expo: sign-in 
 
 Follow this `README.md` through password signup, profile, avatar and reopen. Run step 1 above with `npx snapback4 init --expo`, then
 `npm install`; the example uses the Expo starter's React Native and SecureStore. Replace `snapback/schema.q`, `src/client.ts`
-and `App.tsx` with the blocks below. Run `npx snapback4 check` to generate the API; keep `npx snapback4 dev` running in one
+and `App.tsx` with the blocks below. Run `npx snapback4 init --adapt` to remove untouched todo fixtures, then `npx snapback4 check`; keep dev running in one
 terminal and `npm start` in another (Expo Go), or `npm run ios:dev` for a native development build. Do not set a persona
 for this password example. The iOS simulator reaches `http://127.0.0.1:4400`; set `EXPO_PUBLIC_SNAPBACK_URL` to your TLS
 deployment for a physical phone. Keep the starter's `expo-env.d.ts`: it types `process.env`.

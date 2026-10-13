@@ -402,6 +402,6 @@ pub(super) fn branch_scope(prefixes: &[Vec<Value>]) -> Result<Vec<Value>, Runtim
         fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
     }
     let mut hash = Sha256::new();
-    serde_json::to_writer(HashWriter(&mut hash), prefixes).map_err(|error| RuntimeError::Schema(format!("branch scope: {error}")))?;
+    crate::json_codec::to_sink(&mut HashWriter(&mut hash), prefixes).map_err(|error| RuntimeError::Schema(format!("branch scope: {error}")))?;
     Ok(vec![Value::String(format!("{:x}", hash.finalize()))])
 }

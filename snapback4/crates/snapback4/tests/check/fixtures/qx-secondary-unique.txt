@@ -1,5 +1,7 @@
-6 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+8 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
 review — can cost correctness or completeness:
+note: schema.q:52:5 — N_REFERENCE_UNCHECKED: review: this reference argument is never looked up. mutation membership stores argument group directly in members.group, but never looks up groups[group]: a reference accepts any well-formed id even when the row is absent
+note: N_REFERENCE_UNCHECKED (as above) also for mutation move (schema.q:57:3)
 note: schema.q:1:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. groups: no production insert path can bootstrap this table; fixtures and /seed exist only in dev (an existing role/reference may be required)
 note: N_NO_PRODUCTION_WRITER (as above) also for members: no production insert path can bootstrap this table (schema.q:7:1); messages: no production insert path can bootstrap this table (schema.q:18:1); reactions: no production insert path can bootstrap this table (schema.q:28:1)
 by design — what a declaration implies; no action needed for online use:

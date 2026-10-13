@@ -400,3 +400,10 @@ export function awaitBoundary() {
 // also proves peer epoch replacement while admission is held. Quota deferral
 // stops the entire source suffix, retaining source FIFO. No blob bytes enter
 // the journal or shared terminal receipt window.
+
+// Integration 7 DX: witness-web.ts awaits the existing app.mutate facade and
+// observes the same write's terminal onWrite event. It adds no custody/storage
+// or dispatch implementation; delivery stays under the existing app/local
+// classified sites. DX's real-browser proof covers sent/refused/replay/timeout,
+// ephemeral exclusion and cleanup. Its two awaits join the complete boundary
+// seal, with no new device delivery site or fault recipe.

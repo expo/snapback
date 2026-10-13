@@ -67,6 +67,7 @@ for (const tier of ["online", "local"]) test(`README first account: ${tier}, gen
   writeFileSync(join(dir, "snapback/schema.q"), schema);
   // Compile the README entry against its freshly generated API and actual package types.
   for (const { file, text } of examples) writeFileSync(join(dir, file), text);
+  run(["init", "--adapt"]); // README retires untouched todo fixtures after replacing the schema.
   const checked = JSON.parse(run(["check", "--json"]));
   assert.deepEqual(checked.diagnostics ?? [], []);
   assert.deepEqual(checked.notes, []);

@@ -97,7 +97,7 @@ pub fn to_text_preallocated<T: Serialize + ?Sized>(value: &T, bytes: usize) -> R
     }
 
     let mut out = ExactBuffer { bytes: Vec::with_capacity(bytes), limit: bytes };
-    serde_json::to_writer(&mut out, value)?;
+    to_sink(&mut out, value)?;
     if out.bytes.len() != bytes {
         return Err(<Error as serde::ser::Error>::custom("JSON did not fill its prepaid length"));
     }
@@ -127,6 +127,13 @@ pub fn to_writer<W: std::io::Write, T: Serialize + ?Sized>(writer: W, value: &T)
     serde_json::to_writer(writer, value)
 }
 
+/// Erase only the allocation-free/bounded sink, so counting, exact-capacity
+/// discovery keys and cursor hashing share one serializer instantiation.
+// @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — one bounded sink family, no additional decoded representations.
+pub fn to_sink<T: Serialize + ?Sized>(writer: &mut dyn std::io::Write, value: &T) -> Result<(), Error> {
+    serde_json::to_writer(writer, value)
+}
+
 /// The meter's exact tagged byte count, without a second result-sized value.
 pub fn value_bytes(value: &crate::value::Value) -> Result<u64, Error> {
     struct Counter(u64);
@@ -135,6 +142,27 @@ pub fn value_bytes(value: &crate::value::Value) -> Result<u64, Error> {
         fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
     }
     let mut count = Counter(0);
-    serde_json::to_writer(&mut count, value)?;
+    to_sink(&mut count, value)?;
     Ok(count.0)
+}
+
+#[cfg(test)]
+mod sink_tests {
+    use super::*;
+    #[test]
+    fn shared_sink_preserves_escaped_bytes_and_prepaid_refusals() {
+        let value = crate::value::Value::String("line\n\"\\é".into());
+        let expected = to_text(&value).unwrap();
+        let bytes = value_bytes(&value).unwrap() as usize;
+        assert_eq!(bytes, expected.len());
+        assert_eq!(to_text_preallocated(&value, bytes).unwrap(), expected);
+        assert!(to_text_preallocated(&value, bytes - 1).unwrap_err().to_string().contains("exceeded"));
+        assert!(to_text_preallocated(&value, bytes + 1).unwrap_err().to_string().contains("did not fill"));
+        struct Failed;
+        impl std::io::Write for Failed {
+            fn write(&mut self, _: &[u8]) -> std::io::Result<usize> { Err(std::io::Error::other("sink refused")) }
+            fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+        }
+        assert!(to_sink(&mut Failed, &value).unwrap_err().to_string().contains("sink refused"));
+    }
 }

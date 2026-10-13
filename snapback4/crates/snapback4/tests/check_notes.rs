@@ -52,7 +52,9 @@ fn no_horizon_notes_are_compact_in_check_and_explained_by_verbose_or_why() {
     let plain_json: serde_json::Value = serde_json::from_str(&run(&["check", "--json"])).unwrap();
     let verbose_json: serde_json::Value = serde_json::from_str(&run(&["check", "--verbose", "--json"])).unwrap();
     assert_eq!(plain_json["notes"], verbose_json["notes"]);
-    assert_eq!(plain_json["notes"].as_array().unwrap().len(), 2);
+    let notes = plain_json["notes"].as_array().unwrap();
+    assert_eq!(notes.iter().filter(|note| note["code"] == "N_NO_HORIZON").count(), 2);
+    assert_eq!(notes.iter().filter(|note| note["code"] == "N_NO_PRODUCTION_WRITER").count(), 2);
     fs::remove_dir_all(dir).unwrap();
 }
 

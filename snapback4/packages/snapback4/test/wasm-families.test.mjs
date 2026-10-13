@@ -5,7 +5,7 @@ import { collectFamilies, checkFamilies } from '../../../scripts/attribute-wasm.
 const text = 'serde_json::de::Deserializer<serde_json::read::StrRead>';
 const slice = 'serde_json::de::Deserializer<serde_json::read::SliceRead>';
 const writer = 'serde_json::ser::Serializer<&mut alloc::vec::Vec<u8>>';
-const counter = 'serde_json::ser::Serializer<&mut snapback4_core::json_codec::value_bytes::Counter>';
+const counter = 'serde_json::ser::Serializer<&mut dyn std::io::Write>';
 function row(type, family, serialize = false) {
   return { name: `<${type} as serde_core::${serialize ? 'ser::Serialize' : 'de::Deserialize'}>::${serialize ? 'serialize' : 'deserialize'}::<${family}>`, shallow_size: 1 };
 }
@@ -23,11 +23,12 @@ test('family check sees nested generic names and refuses a restored owned-tree o
   assert.throws(() => checkFamilies(new Map()), /no derived Snapback/);
 });
 
-test('only Value and ObjectFields may add exactly the counting writer', () => {
+test('only Value and ObjectFields may add exactly the shared bounded sink', () => {
   for (const type of ['snapback4_core::value::Value', 'snapback4_core::value::ObjectFields']) {
     const allowed = [row(type, writer, true), row(type, counter, true)];
     checkFamilies(collectFamilies(allowed));
     assert.throws(() => checkFamilies(collectFamilies([...allowed, row(type, 'serde_json::value::ser::Serializer', true)])), /serde_json::value::ser::Serializer/);
+    assert.throws(() => checkFamilies(collectFamilies([...allowed, row(type, 'serde_json::ser::Serializer<&mut unreviewed::Writer>', true)])), /unreviewed::Writer/);
     assert.throws(() => checkFamilies(collectFamilies([row(type, text), row(type, slice)])), /deserialize/);
   }
   const type = 'snapback4_device::device::Backend';

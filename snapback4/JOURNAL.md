@@ -94210,3 +94210,25 @@ in issues/20261013-snapback4-quote-jump-visible-position-flake.md. Root ref-chec
 passes. The requested root inventory audit is blocked by fresh-tree Snapback 1
 root dependencies/generated demo leaves, outside this Snapback 4 repair.
 No full scripts/test.sh, simulator boot, origin push or publication occurred.
+
+## 2026-10-13 — Integration 7 merges DX, PAGE and MACFIX
+
+No-ff merges in order: DX 094c00a205, PAGE b46e23757a, MACFIX 016591ac22.
+Keep HAND validation before any project/store work and add all DX web witness
+flags plus upgrade; a focused parser regression retains unknown-flag refusal.
+Mutation omitted-id handling retains the admitted generation. The deployment
+card keeps REL's hot activation/rollback/identity facts and DX's password/admin
+recipes and exact upgrade, trimming duplicate layout prose within the budget.
+Keep both append-only journals and LLP amendments; CUT references remain
+20.24.7 beside EX's 20.24.6. PAGE dependency pricing and all EX device regressions
+remain; note ranking includes DX and PAGE notes.
+
+Regenerate the delivery boundary: DX's two witness awaits use app.mutate and
+observe onWrite; existing custody/dispatch sites and recipes are unchanged.
+Strict wasm metrology finds PAGE's independent ExactBuffer and HashWriter
+serde families. Share their sink with output metering through json_codec::to_sink
+while preserving fixed allocation/overflow refusal and streaming hash behavior;
+the exact allowed Value/ObjectFields sink replaces Counter's previous entry
+(LLP 3000.002). The final measurement and review verdicts follow qualification.
+Root inventories require the frozen dependency install and generated artifacts;
+bootstrap those instead of treating their missing prerequisite as a waiver.

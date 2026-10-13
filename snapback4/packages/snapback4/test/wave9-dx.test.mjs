@@ -112,7 +112,7 @@ test('witness and upgrade input refusals are early and actionable', t => {
   success(run(bin, ['witness', 'web', '--help'], dir));
   const missing = run(bin, ['witness', 'web'], dir, { SNAPBACK4_CHROMIUM: '/no-such-chromium' });
   assert.equal(missing.status, 1); assert.match(missing.stderr, /E_WITNESS_BROWSER.*SNAPBACK4_CHROMIUM/);
-  const invalid = run(bin, ['upgrade', '--bogus'], dir); assert.equal(invalid.status, 1); assert.match(invalid.stderr, /E_INPUT/);
+  const invalid = run(bin, ['upgrade', '--bogus'], dir); assert.equal(invalid.status, 2); assert.match(invalid.stderr, /E_INPUT: upgrade takes no --bogus/);
 });
 
 for (const identity of ['use identity password', 'use personas alice']) test(`Expo ${identity} emits a compiling device-less browser client`, t => {
