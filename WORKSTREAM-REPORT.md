@@ -86,7 +86,8 @@ Mac required publication stages:
   It is not a qualified stage. A complete fixed-source pool and full serial
   models must pass in one run before this integration is complete.
 - Extra Swift invocation initially refused `-arch` together with a destination
-  (exit 70). Corrected invocation uses `ARCHS=arm64`; final compile pending.
+  (exit 70). Corrected invocation uses `ARCHS=arm64`; interrupted by host reboot
+  before completion. Fresh post-reboot compile **exit 0 / BUILD SUCCEEDED**.
   Generic simulator destination compiles only; no simulator boot.
 - MACFIX's original five reds: two missing event traces supplied by the full
   native producer stage; one-shot/read-existence adapters repaired in MACFIX;
@@ -117,5 +118,5 @@ an earlier full-suite red. Root-only executable mode changes caused by Bun
 were restored. No full `scripts/test.sh` invocation; cargo uses disabled
 incremental/debug settings throughout. No user permission or credential exposure.
 
-Outstanding: corrected Swift compile, one complete green Mac client/model run,
+Outstanding: one complete green Mac client/model run,
 final cross-host archive and report commit; final verification-ref transfer only.

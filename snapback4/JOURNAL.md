@@ -94354,3 +94354,12 @@ Mac client or Swift exit is claimed while access is unavailable. Linux exact
 bumped five-crate command has exited 0, and independent repair reviews both
 mark 1bc9993aec READY. Qualification remains pending until complete Mac results
 can be inspected; no origin push/publication or simulator boot.
+
+Mac recovery at 05:40 UTC reports uptime five minutes: a reboot ended the prior
+nohup Swift driver, not merely its SSH connection. Preserve the incomplete
+rerun1 log. Fresh rerun2 builds the generic simulator target successfully with
+ARCHS=arm64 (exit 0 / BUILD SUCCEEDED), then starts the complete six-slot client
+pool and serial full-count models at reviewed source b7f161eef8. Re-establish
+only this driver's caffeinate assertion and capture its PID from the private
+log descriptor; old pre-reboot PID records confer no authority. No simulator
+boot. Full pool results remain pending.
