@@ -281,6 +281,21 @@ fn lean_generator_reaches_a_capped_unpinned_membership_page() {
 }
 
 #[test]
+fn lean_generator_reaches_a_normalized_boolean_grant_page() {
+    let case = (0..2_000).map(snapback4_difftest::lean::generate)
+        .find(|case| case.program.boolean_grant_normalized)
+        .expect("Boolean grant stream must be reachable");
+    assert_eq!(case.program.domain.as_deref(), Some(".flag = false"));
+    assert!(case.program.source().contains("not .flag and exists access[0, viewer]"));
+    let features = snapback4_difftest::lean::features(&case);
+    assert!(features.iter().any(|feature| feature == "branch-rule-boolean-grant"), "{features:?}");
+    assert!(features.iter().any(|feature| feature == "branch-merged"), "{features:?}\n{}", case.program.source());
+    let coverage = snapback4_difftest::coverage::features(&case);
+    assert!(coverage.contains("read/branch-rule-boolean-grant"), "{coverage:?}");
+    assert!(coverage.contains("read/branch-merged"), "{coverage:?}\n{}", case.program.source());
+}
+
+#[test]
 fn native_generator_exercises_capped_named_membership_pages() {
     let case = (0..10_000).map(generate).find(|case| {
         let table = &case.program.tables[0];

@@ -812,6 +812,128 @@ fn membership_extra_equalities_and_repeated_parties_agree_with_the_model() {
 }
 
 #[test]
+fn boolean_covering_grants_agree_with_the_model() {
+    if !model_built() { return; }
+    for (name, column, guard, predicate, selected, other, merged) in [
+        ("not", "bool", "not .enabled", ".enabled = false", json!(false), json!(true), true),
+        ("not-deny", "bool", "not deny", ".enabled = false", json!(false), json!(true), true),
+        ("double-not", "bool", "not not .enabled", ".enabled = true", json!(true), json!(false), true),
+        ("nullable-ne", "bool ?", ".enabled != true", ".enabled = null", serde_json::Value::Null, json!(false), true),
+    ] {
+        let source = format!("table staff:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  online only
+table tickets:
+  owner: principal
+  enabled: {column}
+  at: int
+  read <- .owner = viewer or ({guard} and exists staff[viewer])
+  online only
+query run(c: cursor ?):
+  return tickets where {predicate} last 1 by .at after c
+");
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+        assert!(bound.diagnostics.is_empty(), "{name}: {:#?}\n{source}", bound.diagnostics);
+        assert_eq!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+            .into_iter().any(|merge| merge.branches()), merged, "{name}: {:#?}", bound.notes);
+        let mut engine = snapback4_core::Engine::memory(
+            bound.schema,
+            bound.programs.into_iter().map(|program| program.program),
+        ).unwrap();
+        let rows: Vec<(String, serde_json::Value)> = vec![
+            ("staff".into(), json!({"id":"s1","principal":"sam"})),
+            ("tickets".into(), json!({"id":"k1","owner":"alice","enabled":selected,"at":1})),
+            ("tickets".into(), json!({"id":"k2","owner":"bob","enabled":selected,"at":2})),
+            ("tickets".into(), json!({"id":"k3","owner":"alice","enabled":other,"at":3})),
+        ];
+        let seeded = rows.iter().map(|(table, value)| {
+            let row = snapback4_core::wire::row_from_json(&engine.schema().tables[table], value).unwrap();
+            (table.clone(), row)
+        }).collect::<Vec<_>>();
+        engine.seed(seeded).unwrap();
+        let module = lean::module(&source).unwrap();
+        for viewer in ["sam", "alice"] {
+            let actual = engine.query("run", snapback4_core::Context::new(
+                viewer,
+                [("c".into(), snapback4_core::Value::Null)].into_iter().collect(),
+            )).unwrap();
+            let case = module.case("run", module.store(&rows).unwrap(), viewer,
+                module.tag_args("run", &json!({"c":null})).unwrap(), None).unwrap();
+            let modeled = lean::ask(&case).unwrap();
+            assert_eq!(modeled["kind"], "answer", "{name}/{viewer}: {modeled}");
+            assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data),
+                "{name}/{viewer}: {modeled}\n{actual:?}\n{source}");
+            assert_eq!(modeled["complete"], actual.complete,
+                "{name}/{viewer}: {modeled}\n{actual:?}\n{source}");
+            assert_eq!(actual.complete, merged, "{name}/{viewer}: {actual:?}");
+        }
+    }
+
+    let check_argument = |name: &str, column: &str, argument: &str, guard: &str,
+        rows: Vec<(String, serde_json::Value)>, values: Vec<(serde_json::Value, snapback4_core::Value)>, merged: bool| {
+        let source = format!("table staff:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  online only
+table tickets:
+  owner: principal
+  enabled: {column}
+  at: int
+  read <- .owner = viewer or ({guard} and exists staff[viewer])
+  online only
+query run(enabled: {argument}, c: cursor ?):
+  return tickets where .enabled = enabled last 1 by .at after c
+");
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+        assert!(bound.diagnostics.is_empty(), "{name}: {:#?}\n{source}", bound.diagnostics);
+        assert_eq!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+            .into_iter().any(|merge| merge.branches()), merged, "{name}: {:#?}", bound.notes);
+        let mut engine = snapback4_core::Engine::memory(
+            bound.schema,
+            bound.programs.into_iter().map(|program| program.program),
+        ).unwrap();
+        let seeded = rows.iter().map(|(table, value)| {
+            let row = snapback4_core::wire::row_from_json(&engine.schema().tables[table], value).unwrap();
+            (table.clone(), row)
+        }).collect::<Vec<_>>();
+        engine.seed(seeded).unwrap();
+        let module = lean::module(&source).unwrap();
+        for (json_value, engine_value) in values {
+            for viewer in ["sam", "alice"] {
+                let actual = engine.query("run", snapback4_core::Context::new(viewer,
+                    [("enabled".into(), engine_value.clone()), ("c".into(), snapback4_core::Value::Null)].into_iter().collect())).unwrap();
+                let args = json!({"enabled":json_value,"c":null});
+                let case = module.case("run", module.store(&rows).unwrap(), viewer,
+                    module.tag_args("run", &args).unwrap(), None).unwrap();
+                let modeled = lean::ask(&case).unwrap();
+                assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data),
+                    "{name}/{viewer}/{args}: {modeled}\n{actual:?}\n{source}");
+                assert_eq!(modeled["complete"], actual.complete,
+                    "{name}/{viewer}/{args}: {modeled}\n{actual:?}\n{source}");
+                assert_eq!(actual.complete, merged, "{name}/{viewer}/{args}: {actual:?}");
+            }
+        }
+    };
+    let required_rows = vec![
+        ("staff".into(), json!({"id":"s1","principal":"sam"})),
+        ("tickets".into(), json!({"id":"k1","owner":"alice","enabled":false,"at":1})),
+        ("tickets".into(), json!({"id":"k2","owner":"alice","enabled":true,"at":2})),
+    ];
+    check_argument("required-argument", "bool", "bool", "not .enabled", required_rows,
+        vec![(json!(false), snapback4_core::Value::Bool(false)), (json!(true), snapback4_core::Value::Bool(true))], true);
+    let optional_rows = vec![
+        ("staff".into(), json!({"id":"s1","principal":"sam"})),
+        ("tickets".into(), json!({"id":"k0","owner":"alice","enabled":null,"at":1})),
+        ("tickets".into(), json!({"id":"k1","owner":"bob","enabled":null,"at":2})),
+    ];
+    check_argument("nullable-argument", "bool ?", "bool ?", "not (.enabled = true)", optional_rows,
+        vec![(serde_json::Value::Null, snapback4_core::Value::Null)], false);
+}
+
+#[test]
 fn canonical_values_and_signatures() {
     use snapback4_core::Value;
     let row: Value = Value::Row([("id".to_string(), Value::Id("r0".into())), ("n".to_string(), Value::Int(-3)), ("t".to_string(), Value::String("é".into()))].into_iter().collect());

@@ -28,8 +28,13 @@ pub fn features(case: &Case) -> BTreeSet<String> {
     let read_rule = case.program.tables.first().map(|table| table.effects.as_ref().map_or(&table.rule, |effects| &effects[0]));
     let membership_branch = read_rule == Some(&Rule::OwnerOrWitness)
         && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. });
+    let boolean_grant = case.program.boolean_grant_normalized
+        && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. });
     let where_branch = case.program.domain.as_deref().is_some_and(|domain| domain.contains(" or "));
-    if where_branch || read_rule == Some(&Rule::TwoParty) || membership_branch {
+    if boolean_grant {
+        out.insert("read/branch-rule-boolean-grant".into());
+    }
+    if where_branch || read_rule == Some(&Rule::TwoParty) || membership_branch || boolean_grant {
         out.insert("read/branch-shape".into());
         if membership_branch {
             out.insert("read/branch-rule-membership".into());

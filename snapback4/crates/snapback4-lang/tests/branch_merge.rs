@@ -218,6 +218,57 @@ fn covering_grants_share_boolean_prefix_normalization() {
         assert_eq!(owner, ["k1"], "{name}");
         assert!(complete.iter().all(|value| *value), "{name}: {complete:?}");
     }
+
+    let argument = "table staff:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  online only
+table tickets:
+  owner: principal
+  enabled: bool
+  at: int
+  read <- .owner = viewer or (not .enabled and exists staff[viewer])
+  online only
+query tickets(enabled: bool, c: cursor ?):
+  return tickets where .enabled = enabled last 1 by .at after c
+";
+    let b = clean(argument);
+    assert_eq!(branch_merges(&b, "tickets"), vec![(2, true)]);
+    let rows = vec![
+        ("staff", vec![("id", id("s1")), ("principal", id("sam"))]),
+        ("tickets", vec![("id", id("k1")), ("owner", id("alice")), ("enabled", Value::Bool(false)), ("at", Value::Int(1))]),
+        ("tickets", vec![("id", id("k2")), ("owner", id("bob")), ("enabled", Value::Bool(false)), ("at", Value::Int(2))]),
+        ("tickets", vec![("id", id("k3")), ("owner", id("alice")), ("enabled", Value::Bool(true)), ("at", Value::Int(3))]),
+    ];
+    let mut e = engine(argument, rows);
+    for (enabled, staff, owner) in [(false, vec!["k2", "k1"], vec!["k1"]), (true, vec![], vec!["k3"])] {
+        let (actual, complete) = walk(&mut e, "tickets", "sam", &[("enabled", Value::Bool(enabled))]);
+        assert_eq!(actual, staff, "enabled={enabled}");
+        assert!(complete.iter().all(|value| *value), "enabled={enabled}: {complete:?}");
+        let (actual, complete) = walk(&mut e, "tickets", "alice", &[("enabled", Value::Bool(enabled))]);
+        assert_eq!(actual, owner, "enabled={enabled}");
+        assert!(complete.iter().all(|value| *value), "enabled={enabled}: {complete:?}");
+    }
+
+    let nullable = argument.replace("enabled: bool\n", "enabled: bool ?\n")
+        .replace("not .enabled", "not (.enabled = true)")
+        .replace("enabled: bool, c:", "enabled: bool ?, c:");
+    let b = clean(&nullable);
+    assert!(branch_merges(&b, "tickets").is_empty());
+    assert!(has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+    let rows = vec![
+        ("staff", vec![("id", id("s1")), ("principal", id("sam"))]),
+        ("tickets", vec![("id", id("k0")), ("owner", id("alice")), ("enabled", Value::Null), ("at", Value::Int(1))]),
+        ("tickets", vec![("id", id("k1")), ("owner", id("bob")), ("enabled", Value::Null), ("at", Value::Int(2))]),
+    ];
+    let mut e = engine(&nullable, rows);
+    let (staff, complete) = walk(&mut e, "tickets", "sam", &[("enabled", Value::Null)]);
+    assert_eq!(staff, ["k1", "k0"]);
+    assert!(complete.iter().all(|value| !*value), "{complete:?}");
+    let (owner, complete) = walk(&mut e, "tickets", "alice", &[("enabled", Value::Null)]);
+    assert_eq!(owner, ["k0"]);
+    assert!(complete.iter().all(|value| !*value), "{complete:?}");
 }
 
 #[test]

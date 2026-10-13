@@ -458,6 +458,10 @@ pub struct Program {
     /// (`principal = viewer, bucket = .bucket`) instead of positional arguments.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub membership_named_reordered: bool,
+    /// Spell the readable fixed grant behind `not .flag`; the generated page
+    /// pins `.flag = false`, exercising Boolean page-guard normalization.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub boolean_grant_normalized: bool,
     /// Mutations `prep0`, `prep1`, .. the harness runs in order on the same
     /// store before `run`, each at its step's clock (`Case::steps`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -527,6 +531,14 @@ impl Program {
                 *declaration = declaration.replace(
                     ".owner = viewer or exists access[.bucket, viewer]",
                     ".owner = viewer or exists access[principal = viewer, bucket = .bucket]",
+                );
+            }
+        }
+        if self.boolean_grant_normalized {
+            for declaration in &mut declarations {
+                *declaration = declaration.replace(
+                    ".owner = viewer or exists access[0, viewer]",
+                    ".owner = viewer or (not .flag and exists access[0, viewer])",
                 );
             }
         }

@@ -459,7 +459,12 @@ pub fn features(case: &Case) -> Vec<String> {
             out.push("branch-rule-membership-named-reordered".into());
         }
     }
-    if where_branch || rules[0] == Rule::TwoParty || membership_branch {
+    let boolean_grant = case.program.boolean_grant_normalized
+        && matches!(body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. });
+    if boolean_grant {
+        out.push("branch-rule-boolean-grant".into());
+    }
+    if where_branch || rules[0] == Rule::TwoParty || membership_branch || boolean_grant {
         let bound = snapback4_lang::compile(&[("schema.q".into(), case.program.source())]);
         let merged = bound.programs.iter().filter(|p| p.program.name == "run")
             .any(|p| snapback4_core::search_plan::merges(&p.program.body).iter().any(|m| m.branches()));
@@ -672,6 +677,7 @@ pub fn generate(seed: u64) -> Case {
         case.program.guard = Some(guards[extra.pick(3) as usize].to_owned());
     }
     membership_page(&mut case, seed);
+    boolean_grant_page(&mut case, seed);
     case
 }
 
@@ -696,6 +702,32 @@ fn membership_page(case: &mut Case, seed: u64) {
     case.program.order = Some(vec!["id".into()]);
     case.program.guard = None;
     case.program.membership_named_reordered = rng.pick(2) == 0;
+}
+
+/// A readable grant guarded by a required Boolean that the page pins false.
+/// This independently exercises guard normalization in native and Lean.
+fn boolean_grant_page(case: &mut Case, seed: u64) {
+    use crate::ast::{Read, Residency, Rule};
+    let mut rng = crate::generate::Rng::new(seed ^ 0x424f_4f4c_4752_4e54);
+    let Body::Read { kind: Read::Page | Read::Bounded, filter, owner, project, .. } = &mut case.program.body else { return };
+    if rng.pick(16) != 0 { return }
+    *filter = false;
+    *owner = false;
+    *project = None;
+    let items = &mut case.program.tables[0];
+    items.rule = Rule::OwnerOrGrant;
+    items.effects = None;
+    items.residency = Residency::Online;
+    let access = case.program.tables.iter_mut().find(|table| table.name == "access").expect("generated access table");
+    access.rule = Rule::Allow;
+    access.effects = None;
+    access.residency = Residency::Public;
+    case.program.domain = Some(".flag = false".into());
+    case.program.order = Some(vec!["id".into()]);
+    case.program.residual = None;
+    case.program.guard = None;
+    case.program.membership_named_reordered = false;
+    case.program.boolean_grant_normalized = true;
 }
 
 /// The variants of the first two streams (`generate`).
