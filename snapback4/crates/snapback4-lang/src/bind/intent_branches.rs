@@ -114,15 +114,30 @@ fn membership(tables: &Tables, synthesized: &std::collections::BTreeSet<(String,
             source_candidate.read(tables, source, false);
             // A fully pinned total unique returns at most one source row, so
             // its row may project any membership parent without ordering the
-            // discovery scan by that field. Discard the provisional inferred
-            // index when the authored point index supplies this stronger proof.
+            // discovery scan by that field. Extra fixed probe equalities stay
+            // as exact residuals on that one row. Discard the provisional
+            // inferred index when the authored point supplies this proof.
             let one_row = source_table.indexes.iter().filter(|index| source_table.total_unique(index)
-                && index.columns.len() == source.keys.len()
                 && index.columns.iter().all(|column| source.keys.iter().any(|key| key.column.as_ref() == Some(column))))
-                .min_by_key(|index| &index.name);
-            if let Some(index) = one_row {
-                source.keys.sort_by_key(|key| index.columns.iter().position(|column| key.column.as_ref() == Some(column)).unwrap_or(usize::MAX));
-                source.order_keys = vec!["id".into()]; source.index = Some(index.name.clone());
+                .min_by_key(|index| (index.columns.len(), &index.name))
+                .map(|index| (index.name.clone(), index.columns.clone()));
+            if let Some((name, columns)) = one_row {
+                let mut keys = std::mem::take(&mut source.keys);
+                let mut point = Vec::with_capacity(columns.len());
+                for column in &columns {
+                    let at = keys.iter().position(|key| key.column.as_ref() == Some(column))?;
+                    point.push(keys.remove(at));
+                }
+                let mut residuals = keys.into_iter().map(source_key_equality).collect::<Option<Vec<_>>>()?;
+                if let Some(filter) = source.filter.take() { residuals.push(*filter); }
+                // A filtered scan needs one lookahead slot to distinguish its
+                // single accepted row from an unfinished filtered page. The
+                // total unique still proves that at most one row is examined.
+                if !residuals.is_empty() {
+                    source.range = Some(RangeSpec { order: Order::Asc, take: 2, cursor: None, site: source.site.clone() });
+                }
+                source.keys = point; source.filter = intent::conjunction(residuals);
+                source.order_keys = vec!["id".into()]; source.index = Some(name);
             } else { candidate = source_candidate; }
             let source_index = candidate.branch_index(source_table, source)?;
             let next_component = source.keys.len() < source_index.columns.len()
@@ -144,6 +159,14 @@ fn membership(tables: &Tables, synthesized: &std::collections::BTreeSet<(String,
     *requests = candidate;
     Some(MergeExpr { view_order: Vec::new(), table: read.table.clone(), matching: None, filter: None, index: String::new(), order: range.order, take: range.take,
         cursor: range.cursor.clone(), lanes, site: read.site.clone() })
+}
+
+fn source_key_equality(key: KeyPart) -> Option<Expr> {
+    let column = key.column?;
+    let site = key.site;
+    Some(Expr::Binary { op: "=".into(), left: Box::new(Expr::Member {
+        base: Box::new(Expr::Focal { site: site.clone() }), name: column, site: site.clone(),
+    }), right: Box::new(key.value), site })
 }
 
 /// Confirm, while requests still live in the throwaway candidate, that every

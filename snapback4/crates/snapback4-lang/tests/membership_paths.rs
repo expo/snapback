@@ -192,6 +192,7 @@ fn one_row_source_unique_projects_an_ordinary_parent_field() {
         let optional = if nullable { " ?" } else { "" };
         let source = format!("table members:
   parent: text <=40{optional}
+  slot: int ?
   principal: principal
   unique principal
   cap 16 by principal
@@ -201,7 +202,7 @@ table documents:
   owner: principal
   parent: text <=40{optional}
   at: int
-  read <- .owner = viewer or exists members[parent = .parent, principal = viewer]
+  read <- .owner = viewer or exists members[parent = .parent, slot = 0, principal = viewer]
   online only
 query documents(c: cursor ?):
   return documents last 10 by .at after c
@@ -215,20 +216,21 @@ query documents(c: cursor ?):
         assert!(source_index.unique);
         assert_eq!(source_index.columns(), ["principal"]);
         assert_eq!(source_scan.prefix.len(), source_index.components.len());
-        assert!(!bound.schema.tables["members"].indexes.values().any(|index| index.columns() == ["principal", "parent", "id"]));
+        assert!(!bound.schema.tables["members"].indexes.values().any(|index|
+            index.columns() == ["principal", "slot", "parent", "id"]));
 
         let parent = if nullable { Value::Null } else { Value::String("p1".into()) };
-        for (present, expected) in [(false, 1), (true, 2)] {
+        for (slot, expected) in [(None, 1), (Some(Value::Int(0)), 2), (Some(Value::Null), 1), (Some(Value::Int(1)), 1)] {
             let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|program| program.program.clone())).unwrap();
             let mut rows = vec![
-                ("members".into(), object([("id", Value::Id("m0".into())), ("parent", Value::String("p0".into())), ("principal", Value::Id("bob".into()))])),
+                ("members".into(), object([("id", Value::Id("m0".into())), ("parent", Value::String("p0".into())), ("slot", Value::Int(0)), ("principal", Value::Id("bob".into()))])),
                 ("documents".into(), object([("id", Value::Id("owned".into())), ("owner", Value::Id("alice".into())), ("parent", Value::String("p0".into())), ("at", Value::Int(1))])),
                 ("documents".into(), object([("id", Value::Id("shared".into())), ("owner", Value::Id("bob".into())), ("parent", parent.clone()), ("at", Value::Int(2))])),
             ];
-            if present { rows.push(("members".into(), object([("id", Value::Id("m1".into())), ("parent", parent.clone()), ("principal", Value::Id("alice".into()))]))); }
+            if let Some(value) = slot.clone() { rows.push(("members".into(), object([("id", Value::Id("m1".into())), ("parent", parent.clone()), ("slot", value), ("principal", Value::Id("alice".into()))]))); }
             engine.seed(rows).unwrap();
             let page = engine.query("documents", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
-            assert!(page.complete && page.next.is_none(), "nullable={nullable} present={present}: {page:?}");
+            assert!(page.complete && page.next.is_none(), "nullable={nullable} slot={slot:?}: {page:?}");
             assert_eq!(page.data.as_array().unwrap().len(), expected);
         }
     }
