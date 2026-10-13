@@ -880,7 +880,7 @@ fn horizon_check_and_why_keep_the_same_advice_across_checks() {
     let first = p.run(&["check", "--json"]);
     assert!(first.status.success(), "{first:?}");
     let first = parsed(&first);
-    assert_eq!(first["notes"].as_array().unwrap().iter().filter(|n| n["code"] != "N_NO_PRODUCTION_WRITER").count(), 5);
+    assert_eq!(first["notes"].as_array().unwrap().iter().filter(|n| n["code"] != "N_NO_PRODUCTION_WRITER" && n["code"] != "N_UNREADABLE_PROBE").count(), 5);
     let summary = first["predictionSummary"].as_str().unwrap();
     assert!(summary.contains("chat.send (messages[messageId] (chat.q:83:22))"), "{summary}");
     for _ in 0..3 {
@@ -1714,9 +1714,12 @@ fn production_readiness_follows_positive_cycles_and_read_through_parents() {
         parsed(&out)["notes"].as_array().unwrap().iter().filter(|n| n["code"] == "N_NO_PRODUCTION_WRITER").map(|n| n["message"].as_str().unwrap().split(':').next().unwrap().to_owned()).collect::<Vec<_>>()
     };
     let cycle = "use identity password\ntable a:\n  principal: principal\n  unique principal\n  read <- allow\n  insert <- exists b[viewer]\n  online only\ntable b:\n  principal: principal\n  unique principal\n  read <- allow\n  insert <- exists a[viewer]\n  online only\nmutation addA(principal: principal):\n  return insert a { principal }\nmutation addB(principal: principal):\n  return insert b { principal }\n";
-    assert_eq!(notes(cycle), ["a", "b"]);
+    assert_eq!(notes(cycle), ["a"]);
     assert!(notes(&cycle.replace("insert <- exists a[viewer]", "insert <- exists a[viewer] or viewer = 'service:bootstrap'")).is_empty());
     let through = "use identity password\ntable parents:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\ntable children:\n  parent: parents\n  immutable parent\n  read through .parent\n  insert <- .parent.owner = viewer\n  online only\nmutation addChild(parent: parents):\n  return insert children { parent }\n";
-    assert_eq!(notes(through), ["children", "parents"]);
+    assert_eq!(notes(through), ["parents"]);
     assert!(notes(&format!("{through}\nmutation addParent():\n  return insert parents {{ owner: viewer }}\n")).is_empty());
 }
+
+#[path = "check/wave10_diagnostics.rs"]
+mod wave10_diagnostics;

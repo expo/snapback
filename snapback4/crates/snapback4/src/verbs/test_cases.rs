@@ -102,18 +102,24 @@ pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String
         let expect = explicit.unwrap_or(match program.kind { ProgramKind::Query if never_complete.is_some() => "ok", ProgramKind::Query => "complete", _ => "sent" });
         let label = case.get("label").and_then(Json::as_str).map(|l| format!(" — {l}")).unwrap_or_default();
         let raw_args = substitute(case.get("args").cloned().unwrap_or_else(|| json!({})), &saved).map_err(|why| format!("{at}: {why}"))?;
-        let mut args = BTreeMap::new();
-        if let Json::Object(fields) = &raw_args {
+        let input = (|| -> Result<_, Refusal> {
+            let mut args = BTreeMap::new();
+            let fields = raw_args.as_object().ok_or_else(|| Refusal::new("E_INPUT", "input", "args must be an object"))?;
             for (name, value) in fields {
-                let Some(kind) = program.args.get(name) else { return Err(format!("{at}: {op} takes no argument {name}")) };
-                args.insert(name.clone(), wire::from_json(kind, value).map_err(|why| format!("{at}: argument {name}: {why}"))?);
+                let kind = program.args.get(name).ok_or_else(|| Refusal::new("E_INPUT", "input", format!("{op} takes no argument {name}")))?;
+                args.insert(name.clone(), wire::from_json(kind, value).map_err(|why| Refusal::new("E_INPUT", "input", format!("argument {name}: {why}")))?);
             }
-        } else { return Err(format!("{at}: \"args\" is an object")); }
+            Ok(args)
+        })();
+        let input_refusal = input.as_ref().err().cloned();
+        let args = input.unwrap_or_default();
         let trace = RefusalTrace::default();
+        let context_viewer = principal.clone();
         let context = Context::new(principal, args).with_refusal_trace(trace.clone());
         // (outcome word, answer) or a refusal
         let mut unavailable = false;
-        let got: Result<(&str, Json), Refusal> = if let Some(why) = undeclared_persona(persona, &bound.personas) {
+        let got: Result<(&str, Json), Refusal> = if let Some(refusal) = input_refusal { Err(refusal) }
+        else if let Some(why) = undeclared_persona(persona, &bound.personas) {
             Err(Refusal::new("E_AUTH", "auth", why))
         } else { match program.kind {
             ProgramKind::Query => match engine.query(op, context) {
@@ -157,7 +163,7 @@ pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String
                 let code = &refusal.code;
                 if code != expect && !(expect == "denied" || expect == "refused" || expect == "failed") {
                     problems.push(format!("expected {expect}, got {code}: {}", refusal.message));
-                    notes.extend(refusal_evidence(&trace, refusal, bound, sources, explicit));
+                    notes.extend(refusal_evidence(&trace, refusal, bound, sources, explicit, &context_viewer));
                 }
                 code.clone()
             }
@@ -165,6 +171,7 @@ pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String
         if problems.is_empty() {
             passed += 1;
             println!("      ok   {at} {op} ({persona}) → {shown}{label}");
+            if let Err(refusal) = &got && refusal.code == "E_INPUT" { println!("           {}", refusal.message); }
         } else {
             failed += 1;
             println!("      FAIL {at} {op} ({persona}) → {shown}{label}: {}", problems.join("; "));
@@ -216,7 +223,7 @@ fn never_complete(bound: &Bound, program: &snapback4_lang::BoundProgram) -> Opti
 
 /// Development evidence under a failing refusal: which layer refused, at which
 /// line (LLP 3000.036 §3 B; the refusal itself never names the clause).
-fn refusal_evidence(trace: &RefusalTrace, refusal: &Refusal, bound: &Bound, sources: &[(String, String)], explicit: Option<&str>) -> Vec<String> {
+fn refusal_evidence(trace: &RefusalTrace, refusal: &Refusal, bound: &Bound, sources: &[(String, String)], explicit: Option<&str>, viewer: &str) -> Vec<String> {
     let lookup = |file: &str| sources.iter().find(|(name, _)| name == file).map(|(_, text)| text.clone());
     let cause = trace.take();
     let mut out = Vec::new();
@@ -255,7 +262,7 @@ fn refusal_evidence(trace: &RefusalTrace, refusal: &Refusal, bound: &Bound, sour
                     let rule = bound.refusal_sites.get(&(cause.table.clone(), "read rule".into()));
                     let quoted = rule.map(|rule| match super::run_refusal::quote(rule, &lookup) { Some(text) => format!("`{text}` ({rule})"), None => rule.clone() }).unwrap_or_else(|| "its read rule".into());
                     let later = explicit.filter(|code| *code != refusal.code && sources.iter().any(|(_, text)| text.contains(&format!("else {code}")))).map(|code| format!("; a later `require … else {code}` never ran")).unwrap_or_default();
-                    out.push(format!("{} is the program's own refusal at {shown}: the {} read rule {quoted} hid a row from this viewer, and a hidden row reads as absent to a lookup{later}", refusal.code, cause.table));
+                    out.push(format!("{} is the program's own refusal at {shown}: the {} read rule {quoted} hid a row: hidden from {viewer} by {}'s read rule; a hidden row reads as absent to a lookup{later}", refusal.code, cause.table, cause.table));
                     out.push("hint: no code after the lookup can tell \"not yours\" from \"missing\": expect NOT_FOUND here, admit the viewer in the read rule, or write by id with no lookup so the table's update/delete rule decides (snapback4 guide testing, guide refusals)".into());
                 }
                 None => out.push(format!("{} is the program's own refusal at {shown}", refusal.code)),

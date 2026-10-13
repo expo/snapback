@@ -94413,3 +94413,17 @@ stops (difftest retained findings; macOS SUN_LEN control socket; 0.2.33 fence
 and `/private/var` worker dir), each fixed on main. Hashes, timings and every
 attempt: `reports/20261013-publication-0.4.25/REPORT.md`; the 0.4.24 Linux
 evidence: `reports/20261012-publication-0.4.24/`.
+
+### 2026-10-13 — Wave 10 DIAG: fixture intent and root bootstrap notes
+
+In the dedicated sb4-w10-diag worktree, check now scopes shared fixture cases
+to declared operations and treats an actually expected E_INPUT as intentional.
+The case runner still executes negative cases and prints their exact input
+cause; unknown operations and malformed metadata remain errors in test.
+Trusted fixture imports retain column/constraint refusals instead of masking
+invalid values as NOT_FOUND. Production notes group blocked dependency roots
+(and cycles), name their dependents, and collapse persona-only identity to one
+note. Mintable service names count as bootstrap paths; impossible seats do not.
+Design and blind review record: LLP 3000.036.002. Affected check/check_notes:
+101/101 and 6/6; fixture constraint atomicity and authored uniqueness tests
+also pass. No push or publication; HS/REL2/DX2/PAGE2 retain their named scopes.
