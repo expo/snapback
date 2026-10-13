@@ -1,0 +1,15 @@
+{
+  "run": 4,
+  "result_lines": 379,
+  "passed": 5907,
+  "failed": 0,
+  "ignored": 41,
+  "doctest_crates": [
+    "snapback4_core",
+    "snapback4_device",
+    "snapback4_difftest",
+    "snapback4_lang",
+    "snapback4_native",
+    "snapback4_sim"
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "base": "d814b279d0",
+  "branch": "sb4-w10-flake",
+  "rust_runs": [
+    2,
+    4
+  ],
+  "client_runs": [
+    3,
+    4,
+    5
+  ],
+  "rust_counts": {
+    "passed": 5907,
+    "failed": 0,
+    "ignored": 41
+  },
+  "client_counts": {
+    "tests": 7475,
+    "pass": 7419,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 56,
+    "todo": 0
+  },
+  "client_files": 377,
+  "concurrency": 24,
+  "timer_files": 16,
+  "models": {
+    "session_sequences": 5000,
+    "online_sequences": 3000
+  },
+  "cpu_workers": 24,
+  "affinity": 96,
+  "source_snapshot_matches": true
+}

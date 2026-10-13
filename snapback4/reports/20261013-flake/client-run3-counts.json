@@ -1,0 +1,30 @@
+{
+  "run": 3,
+  "files": 377,
+  "groups": [
+    {
+      "tests": 7394,
+      "pass": 7338,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 56,
+      "todo": 0
+    },
+    {
+      "tests": 81,
+      "pass": 81,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    }
+  ],
+  "totals": {
+    "tests": 7475,
+    "pass": 7419,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 56,
+    "todo": 0
+  }
+}
