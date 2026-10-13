@@ -340,3 +340,20 @@ fn a_helper_reference_with_unknown_return_type_is_named_unsupported() {
     let m = module("table tags:\n  rank: int\n  read <- allow\n  online only\nfn same(x: tags): x\nquery q(t: tags):\n  return same(t).rank\n");
     assert_eq!(reason(&m, "q"), "member-type");
 }
+
+#[test]
+fn page3_four_variant_non_null_enum_is_named_unsupported_at_schema_translation() {
+    let source = "table docs:\n  owner: principal\n  species: enum('a', 'b', 'c', 'd') ?\n  at: int\n  read <- .owner = viewer or .species != null\n  online only\nquery docs(c: cursor ?):\n  return docs where .species != null first 1 by .at after c\n";
+    let Err(LeanError::Unsupported(unsupported)) = lean(&[("schema.q".into(), source.into())]) else { panic!("enum must not be certified Supported") };
+    assert_eq!(unsupported.reason, "type-enum");
+}
+#[test]
+fn page3_null_exempt_cap_cannot_supply_an_implicit_model_page() {
+    let source = "table groups:\n  public\n  online only\ntable docs:\n  group: groups ? on delete set null\n  owner: principal\n  helper: principal\n  cap 5 by group\n  read <- .owner = viewer or .helper = viewer\n  online only\nquery docs(g: groups ?):\n  return docs where .group = g\n";
+    let Err(LeanError::Diagnostics(diagnostics)) = lean(&[("schema.q".into(), source.into())]) else { panic!("checked path must reject the set-null cap") };
+    assert!(diagnostics.iter().any(|diagnostic| diagnostic.starts_with("E_REFERENCE_ACTION:") || diagnostic.starts_with("E_QUARRY_BOUND:")), "{diagnostics:?}");
+    let (document, errors) = snapback4_lang::parse_document("schema.q", source);
+    assert!(errors.is_empty());
+    let unchecked = snapback4_lang::emit::lean::from_documents(&[document]).unwrap();
+    assert_eq!(unchecked.program("docs").unwrap_err().reason, "read-unbounded");
+}

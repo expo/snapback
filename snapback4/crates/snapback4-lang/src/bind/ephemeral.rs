@@ -212,6 +212,22 @@ fn predicate_probe(expr: &snapback4_core::ir::Expr) -> bool {
         Expr::Exists(_) | Expr::Get(_) => true,
         Expr::Binary { left, right, .. } => predicate_probe(left) || predicate_probe(right),
         Expr::Unary { value, .. } => predicate_probe(value),
+        Expr::Field { base, .. } => predicate_probe(base),
+        Expr::Array(values) => values.iter().any(predicate_probe),
+        Expr::Object(fields) => fields.values().any(predicate_probe),
+        Expr::Builtin { args, .. } => args.iter().any(predicate_probe),
+        Expr::Block { body, value } => body.iter().any(predicate_statement) || predicate_probe(value),
+        _ => false,
+    }
+}
+
+fn predicate_statement(stmt: &snapback4_core::ir::Stmt) -> bool {
+    use snapback4_core::ir::Stmt;
+    match stmt {
+        Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. }
+        | Stmt::Push { value, .. } | Stmt::Return(value) | Stmt::Require { condition: value, .. } => predicate_probe(value),
+        Stmt::If { condition, then_body, else_body } => predicate_probe(condition)
+            || then_body.iter().any(predicate_statement) || else_body.iter().any(predicate_statement),
         _ => false,
     }
 }

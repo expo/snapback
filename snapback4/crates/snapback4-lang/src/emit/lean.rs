@@ -1090,7 +1090,7 @@ fn model_title(value: &str) -> String {
 
 fn model_total_unique(table: &Table, index: &ast::IndexDecl) -> bool {
     index.unique && index.is_plain() && index.columns.iter().all(|column| column == "id"
-        || table.cols.iter().find(|candidate| candidate.name == *column).is_some_and(|candidate| !candidate.nullable))
+        || table.cols.iter().find(|candidate| candidate.name == *column).is_some_and(|candidate| !candidate.nullable && candidate.on_delete != Some("setNull")))
 }
 
 /// The physical index the native planner can reuse for a requested lane.
@@ -1284,7 +1284,8 @@ fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) ->
     }
     let (source_parent, target_parent) = target?;
     let bounded = source.caps.iter().any(|(_, by)|
-        by.iter().all(|column| column != "id" && fixed_terms.iter().any(|term| &term.0 == column)));
+        by.iter().all(|column| column != "id" && fixed_terms.iter().any(|term| &term.0 == column)
+            && !source.cols.iter().any(|col| &col.name == column && col.on_delete == Some("setNull"))));
     let mut fixed = fixed_terms.iter().map(|term| term.0.clone()).collect::<Vec<_>>();
     fixed.sort();
     fixed.dedup();

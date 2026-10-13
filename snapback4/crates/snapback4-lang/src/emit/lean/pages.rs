@@ -9,7 +9,8 @@ pub(super) fn implicit_page(module: &LeanModule, read: &ReadExpr) -> Option<Read
     let mut predicates = Vec::new();
     if let Some(filter) = &read.filter { flatten_and(filter, &mut predicates); }
     let pinned: Vec<String> = predicates.iter().filter_map(|predicate| model_equality_column(target, predicate)).collect();
-    let cap = target.caps.iter().filter(|(_, by)| by.iter().all(|column| pinned.contains(column)))
+    let cap = target.caps.iter().filter(|(_, by)| by.iter().all(|column| pinned.contains(column)
+        && !target.cols.iter().any(|col| &col.name == column && col.on_delete == Some("setNull"))))
         .map(|(max, _)| *max).chain(target.uniques.iter().filter(|key| key.iter().all(|column|
             pinned.contains(column) && (column == "id" || target.cols.iter().any(|col| &col.name == column && !col.nullable))))
             .map(|_| 1)).min()?;

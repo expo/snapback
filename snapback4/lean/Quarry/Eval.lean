@@ -323,13 +323,14 @@ def membershipEligible (sch : Schema) (t : String) (point : List String)
       && point.all columns.contains
       && (point == ["id"] || td.uniques.any fun unique => unique == point)
     let totalUnique := fun unique => unique.all fun c =>
-      td.cols.any fun col => col.name == c && !col.nullable
+      td.cols.any fun col => col.name == c && !col.nullable && col.onDelete != some .setNull
     let totalPoint := point == ["id"] || td.uniques.any fun unique =>
       unique == point && totalUnique unique
     let totalDiscovery := td.uniques.any fun unique =>
       totalUnique unique && unique.all fun c => fixed.any (·.1 == c)
     let capped := td.caps.any fun cap =>
       cap.columns.all fun c => c != "id" && fixed.any (·.1 == c)
+        && !(td.cols.any fun col => col.name == c && col.onDelete == some .setNull)
     exactUnique && (totalPoint || totalDiscovery || capped)
       && td.read.byForm fixed
   | _, _ => false

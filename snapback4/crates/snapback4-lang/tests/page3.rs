@@ -167,7 +167,7 @@ fn compound_parent_membership_preserves_both_status_alternatives() {
 fn nullable_enum_non_equality_includes_only_non_null_variants() {
     let source = "table docs:
   owner: principal
-  species: enum('a', 'b') ?
+  species: enum('a', 'b', 'c', 'd') ?
   at: int
   read <- .owner = viewer or .species != null
   online only
@@ -241,4 +241,55 @@ fn page2_id_membership_does_not_gain_the_page3_capability() {
     let b = clean(&source);
     assert!(b.schema.required_capabilities().contains("branch-membership-v2"));
     assert!(!b.schema.required_capabilities().contains("branch-pages-v2"));
+}
+
+fn predicate_roles(expression: &str) -> String {
+    format!("table roles:\n  principal: principal\n  slot: int\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  owner: principal\n  assignee: principal\n  at: int\n  read <- .owner = viewer or .assignee = viewer\n  online only\nquery list(n: int, c: cursor ?):\n  return docs where (.owner = viewer or (.assignee = viewer and exists roles[principal = viewer, slot = {expression}])) first 2 by .at after c\n")
+}
+#[test]
+fn a_fallible_static_key_keeps_the_original_overlap_short_circuit() {
+    let source = predicate_roles("1 / n");
+    let b = clean(&source);
+    assert!(snapback4_core::ir::body_merges(&b.programs[0].program.body).is_empty(), "a fallible key cannot be redistributed");
+    let mut e = engine(&source, vec![("docs", vec![("id", id("both")), ("owner", id("alice")), ("assignee", id("alice")), ("at", Value::Int(1))])]);
+    let out = e.query("list", Context::new("alice", BTreeMap::from([("n".into(), Value::Int(0)), ("c".into(), Value::Null)]))).unwrap();
+    assert_eq!(ids(&out.data), ["both"]); assert!(!out.complete);
+}
+#[test]
+fn a_block_lowered_static_probe_serializes_the_new_capability() {
+    let source = predicate_roles("0");
+    let b = clean(&source);
+    assert!(!snapback4_core::ir::body_merges(&b.programs[0].program.body).is_empty());
+    let required = b.schema.required_capabilities();
+    assert!(required.contains("branch-pages-v2"));
+    let v1_supported: std::collections::BTreeSet<String> = snapback4_core::schema::Schema::supported_capabilities().into_iter()
+        .filter(|cap| cap != "branch-pages-v2").collect();
+    assert_eq!(required.difference(&v1_supported).map(String::as_str).collect::<Vec<_>>(), ["branch-pages-v2"]);
+    let text = serde_json::to_string(&b.schema).unwrap();
+    let roundtrip: snapback4_core::schema::Schema = serde_json::from_str(&text).unwrap();
+    assert!(roundtrip.required_capabilities().contains("branch-pages-v2"));
+    // An attempted v1-only carrier cannot silently remove the fence.
+    let mut encoded: serde_json::Value = serde_json::from_str(&text).unwrap();
+    for table in encoded["tables"].as_object_mut().unwrap().values_mut() {
+        for constraint in table["constraints"].as_array_mut().unwrap() {
+            if let Some(names) = constraint.get_mut("Capabilities").and_then(|names| names.as_array_mut()) {
+                names.retain(|name| name != "branch-pages-v2");
+            }
+        }
+    }
+    assert!(serde_json::from_value::<snapback4_core::schema::Schema>(encoded).is_err());
+}
+
+#[test]
+fn four_variant_archive_with_reviewer_is_a_seven_lane_complete_cursor() {
+    let source = "table reviewers:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  owner: principal\n  species: enum('a', 'b', 'c', 'd') ?\n  at: int\n  read <- .owner = viewer or exists reviewers[viewer] or .species != null\n  online only\nquery list(c: cursor ?):\n  return docs where .species != null first 1 by .at after c\n";
+    let b = clean(source); assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:?}", b.notes);
+    assert_eq!(snapback4_core::ir::body_merges(&b.programs[0].program.body)[0].lanes.len(), 7);
+    let rows = [Some("a"), None, Some("b"), Some("c"), Some("d")].into_iter().enumerate().map(|(at, species)|
+        ("docs", vec![("id", id(&format!("r{at}"))), ("owner", id("alice")), ("species", species.map_or(Value::Null, |s| Value::String(s.into()))), ("at", Value::Int(at as i64))])).collect();
+    let mut e = engine(source, rows);
+    for who in ["alice", "erin"] {
+        let (ids, complete) = walk(&mut e, "list", who, &[]);
+        assert_eq!(ids, ["r0", "r2", "r3", "r4"]); assert!(complete.iter().all(|c| *c));
+    }
 }

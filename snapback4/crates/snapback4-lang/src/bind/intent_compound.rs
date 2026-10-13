@@ -18,6 +18,7 @@ pub(super) fn total_readable(tables: &Tables, synthesized: &BTreeSet<(String, St
             total_readable(tables, synthesized, focal, left) && total_readable(tables, synthesized, focal, right),
         Expr::Exists { read: probe, .. } if branches::columns_within(value, &[]) => {
             if probe.range.is_some() || probe.filter.is_some() || probe.matching.is_some() || !probe.seeks.is_empty() { return false; }
+            if !probe.keys.iter().all(|key| fixed_key_total(&key.value)) { return false; }
             let Some(target) = tables.get(&probe.table) else { return false };
             if target.through.is_some() || target.decl.not_before.is_some() || target.decl.expire.is_some() { return false; }
             let Some(columns) = super::intent_lanes::probe_columns(tables, synthesized, focal, probe) else { return false };
@@ -29,6 +30,14 @@ pub(super) fn total_readable(tables: &Tables, synthesized: &BTreeSet<(String, St
         }
         _ => false,
     }
+}
+
+/// Distribution must not evaluate a fallible key on an overlapping party's
+/// row where the original short circuit skipped it. Signed numeric literals
+/// are bound constants; arithmetic, assertions, calls and reads stay put.
+fn fixed_key_total(value: &Expr) -> bool {
+    matches!(value, Expr::Name { .. } | Expr::Literal { .. })
+        || matches!(value, Expr::Unary { op, value, .. } if op == "-" && matches!(value.as_ref(), Expr::Literal { value: Literal::Number(_), .. }))
 }
 
 pub(super) fn expand(tables: &Tables, synthesized: &BTreeSet<(String, String)>, requests: &mut Requests, read: &ReadExpr) -> Option<MergeExpr> {
