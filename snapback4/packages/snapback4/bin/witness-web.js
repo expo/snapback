@@ -11,7 +11,7 @@ import { idFrom } from '../dist/client.js';
 
 function options(args) {
   const out = { export: 'dist', timeout: 30 };
-  const flags = new Set(['url', 'as', 'email', 'password-env', 'mutation', 'args', 'timeout', 'export']);
+  const flags = new Set(['url', 'as', 'email', 'password-env', 'mutation', 'args', 'timeout', 'export', 'field', 'value', 'button', 'port-range']);
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
     if (flag === '--help') return null;
@@ -26,12 +26,19 @@ function options(args) {
   if (out.args !== undefined && (!out.args || Array.isArray(out.args) || typeof out.args !== 'object')) throw Error('E_INPUT: --args must be a JSON object');
   if (out.as && out.email) throw Error('E_INPUT: choose --as or --email');
   if (out.email && (!out['password-env'] || !process.env[out['password-env']])) throw Error('E_INPUT: --email requires --password-env naming a nonempty environment variable');
+  if ([out.field, out.value, out.button].some(value => value !== undefined) && ![out.field, out.value, out.button].every(value => value !== undefined)) throw Error('E_INPUT: visible form proof requires --field LABEL --value TEXT --button LABEL');
+  const range = out['port-range'] ?? (process.env.PORT_LO !== undefined || process.env.PORT_HI !== undefined ? `${process.env.PORT_LO}-${process.env.PORT_HI}` : undefined);
+  if (range !== undefined) {
+    const ports = /^(\d+)-(\d+)$/.exec(range);
+    if (!ports || Number(ports[1]) < 1 || Number(ports[2]) > 65535 || Number(ports[1]) >= Number(ports[2])) throw Error('E_INPUT: browser proof port range needs 1 <= A < B <= 65535');
+    out.range = [Number(ports[1]), Number(ports[2])];
+  }
   return out;
 }
 function executable() {
-  if (process.env.SNAPBACK4_CHROMIUM) {
-    if (!existsSync(process.env.SNAPBACK4_CHROMIUM)) throw Error('E_WITNESS_BROWSER: SNAPBACK4_CHROMIUM is not a file');
-    return process.env.SNAPBACK4_CHROMIUM;
+  if ((process.env.SNAPBACK4_CHROMIUM ?? process.env.CHROME)) {
+    if (!existsSync((process.env.SNAPBACK4_CHROMIUM ?? process.env.CHROME))) throw Error('E_WITNESS_BROWSER: SNAPBACK4_CHROMIUM is not a file');
+    return process.env.SNAPBACK4_CHROMIUM ?? process.env.CHROME;
   }
   const home = process.env.HOME;
   const paths = [
@@ -45,7 +52,7 @@ function executable() {
   return path;
 }
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.wasm': 'application/wasm', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
-async function webServer(directory) {
+async function webServer(directory, range) {
   const root = await realpath(resolve(directory));
   if (!existsSync(join(root, 'index.html'))) throw Error('E_WITNESS_EXPORT: export has no index.html; run build:web first');
   const server = createServer(async (request, response) => {
@@ -59,11 +66,25 @@ async function webServer(directory) {
       response.end(await readFile(path));
     } catch { response.writeHead(404).end('Not found'); }
   });
-  await new Promise((yes, no) => { server.once('error', no); server.listen(0, '127.0.0.1', yes); });
+  const listen = port => new Promise((yes, no) => {
+    const failed = error => { server.off('listening', ready); no(error); };
+    const ready = () => { server.off('error', failed); yes(); };
+    server.once('error', failed); server.once('listening', ready); server.listen(port, '127.0.0.1');
+  });
+  if (!range) await listen(0);
+  else {
+    let opened = false;
+    for (let port = range[0]; port <= range[1]; port++) {
+      try { await listen(port); opened = true; break; }
+      catch (error) { if (error.code !== 'EADDRINUSE') throw error; }
+    }
+    if (!opened) throw Error('E_WITNESS_PORT: every frontend port in the range is occupied');
+  }
   return { url: `http://127.0.0.1:${server.address().port}`, close: () => new Promise(yes => { server.closeAllConnections(); server.close(yes); }) };
 }
-async function backend(timeout, own) {
-  const child = spawn(process.env.SNAPBACK4_BIN, ['dev', '--memory', '--port', '0', '--no-watch'], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, SNAPBACK4_SUPERVISOR_PID: String(process.pid) } });
+async function backend(timeout, own, range) {
+  const port = range ? range.join('-') : '0';
+  const child = spawn(process.env.SNAPBACK4_BIN, ['dev', '--memory', '--port', port, '--no-watch'], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, SNAPBACK4_SUPERVISOR_PID: String(process.pid) } });
   let output = '', errors = '';
   child.stderr.on('data', bytes => { errors = (errors + bytes).slice(-4096); });
   const close = async () => {
@@ -91,8 +112,8 @@ async function run(o) {
   const interrupted = () => { void cleanup().finally(() => process.exit(130)); };
   process.once('SIGINT', interrupted); process.once('SIGTERM', interrupted);
   try {
-    web = await webServer(o.export);
-    dev = o.url ? null : await backend(o.timeout * 1000, owned => { dev = owned; });
+    web = await webServer(o.export, o.range);
+    dev = o.url ? null : await backend(o.timeout * 1000, owned => { dev = owned; }, o.range);
     const api = o.url ?? dev.url;
     browser = await chromium.launch({ executablePath: browserPath, headless: true, timeout: o.timeout * 1000, args: process.getuid?.() === 0 ? ['--no-sandbox'] : [] });
     const page = await browser.newPage(); // Fresh storage; the external backend is never reset.
@@ -127,6 +148,22 @@ async function run(o) {
     }, { name: o.mutation, args: o.args });
     if (result.state === 'failed') throw Error(`E_WITNESS_READY: ${result.why.code}`);
     if (o.as && result.viewer !== 'dev:' + o.as) throw Error('E_WITNESS_AUTH: the selected persona did not become the app viewer');
+    if (o.field) {
+      // Arm before the click: a previous sent message or row is never evidence.
+      const input = page.getByLabel(o.field, { exact: true });
+      await input.fill('');
+      await input.pressSequentially(o.value);
+      await page.evaluate(({ name, args }) => window.__snapback4Witness.beginForm(name, args), { name: o.mutation, args: o.args });
+      await page.getByRole('button', { name: o.button, exact: true }).click();
+      const write = await Promise.race([
+        page.evaluate(() => window.__snapback4Witness.formResult()),
+        new Promise((_, no) => { const timer = setTimeout(() => no(Error('E_WITNESS_SENT: visible form did not reach sent')), o.timeout * 1000); timer.unref(); }),
+      ]);
+      if (write?.state !== 'sent') throw Error(`E_WITNESS_SENT: visible form got ${write?.state ?? 'no write'}${write?.why ? ': ' + write.why.code : ''}`);
+      if (pageError) throw Error('E_WITNESS_WEB: page threw an uncaught error; inspect the application');
+      console.log(JSON.stringify({ witness: 'web', proof: 'visible-form', state: 'sent', id: write.id, mutation: write.mutation, field: o.field, button: o.button }));
+      return;
+    }
     const plan = JSON.parse(process.env.SNAPBACK4_WEB_PLAN ?? '[]');
     const operation = plan.find(p => !o.mutation || p.name === o.mutation);
     o.mutation ??= operation?.name;
@@ -147,7 +184,7 @@ async function run(o) {
 }
 try {
   const o = options(process.argv.slice(2));
-  if (!o) console.log('usage: snapback4 witness web [dist] [--url URL] [--as PERSONA | --email EMAIL --password-env NAME] [--mutation NAME --args JSON] [--timeout 30]\nSet SNAPBACK4_CHROMIUM to a Chromium executable. Run build:web first. Register the app with registerWebWitness(app, api) from snapback4/witness-web (starters do). An omitted --url starts an owned, fresh dev --memory.');
+  if (!o) console.log('usage: snapback4 witness web [dist] [--url URL] [--as PERSONA | --email EMAIL --password-env NAME] [--mutation NAME --args JSON] [--field LABEL --value TEXT --button LABEL] [--timeout 30]\nSet SNAPBACK4_CHROMIUM to a Chromium executable. Run build:web first. Register the app with registerWebWitness(app, api) from snapback4/witness-web (starters do). An omitted --url starts an owned, fresh dev --memory.');
   else await run(o);
 } catch (error) {
   // Playwright call logs can contain fill(password). Never print foreign exception text.
