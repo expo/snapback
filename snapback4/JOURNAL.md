@@ -93846,3 +93846,12 @@ the worktree baseline 2,245,422 / 679,351, the whole-artifact delta is
 no per-feature attribution, macOS measurement or runtime resource-ceiling
 change. Exact point-key nulls remain no-row; a null residual equality can
 carry an actual fixed-ID membership witness.
+
+PAGE one-row source qualification (2026-10-13): the locked Linux web
+artifact measures 2,277,742 B raw / 689,652 B gzip after fully pinned
+total-unique discovery can project any required or nullable membership
+parent field with exact residual checks. It exceeds 689,645 B by 7 B.
+Raise the budget to 690,152 B = measurement plus required 500 B platform
+headroom in the same commit. Whole-artifact delta over the worktree
+baseline 2,245,422 / 679,351 is +32,320 raw / +10,301 gzip; no independent
+per-feature attribution, macOS measurement or runtime ceiling increase.
