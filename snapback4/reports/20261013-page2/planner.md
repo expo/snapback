@@ -28,7 +28,7 @@ Set-null cap disposition: Quarry rejects a cap grouped by a `set null` reference
 Every Cargo command used `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0`.
 
 - `cargo test -p snapback4-lang --test page2_membership`: 5/5.
-- `cargo test -p snapback4-core --test branch_merge`: 57/57 at the planner/runtime checkpoint.
+- `cargo test -p snapback4-lang --test branch_merge`: 57/57 at the planner/runtime checkpoint.
 - `lean/check.sh`: theorem audit 58, examples 70/70, generated fixtures 7.
 - Device issue-tracker intrinsic-id cursor regression: two pages pass on Memory and SQLite.
 - `cargo test -p snapback4-lang --test lean_emit`: 12/12 at emitter checkpoint; the later isolated set-null admission test also passes.
