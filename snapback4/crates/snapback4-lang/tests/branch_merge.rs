@@ -269,6 +269,35 @@ query tickets(enabled: bool, c: cursor ?):
     let (owner, complete) = walk(&mut e, "tickets", "alice", &[("enabled", Value::Null)]);
     assert_eq!(owner, ["k0"]);
     assert!(complete.iter().all(|value| !*value), "{complete:?}");
+
+    let false_or = "table staff:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  online only
+table tickets:
+  owner: principal
+  enabled: bool
+  at: int
+  read <- .owner = viewer or ((.enabled or exists staff[viewer]) and exists staff[viewer])
+  online only
+query tickets(c: cursor ?):
+  return tickets where .enabled = false last 1 by .at after c
+";
+    let b = clean(false_or);
+    assert_eq!(branch_merges(&b, "tickets"), vec![(2, true)]);
+    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+    let mut e = engine(false_or, vec![
+        ("staff", vec![("id", id("s1")), ("principal", id("sam"))]),
+        ("tickets", vec![("id", id("k1")), ("owner", id("alice")), ("enabled", Value::Bool(false)), ("at", Value::Int(1))]),
+        ("tickets", vec![("id", id("k2")), ("owner", id("bob")), ("enabled", Value::Bool(false)), ("at", Value::Int(2))]),
+    ]);
+    let (staff, complete) = walk(&mut e, "tickets", "sam", &[]);
+    assert_eq!(staff, ["k2", "k1"]);
+    assert!(complete.iter().all(|value| *value), "{complete:?}");
+    let (owner, complete) = walk(&mut e, "tickets", "alice", &[]);
+    assert_eq!(owner, ["k1"]);
+    assert!(complete.iter().all(|value| *value), "{complete:?}");
 }
 
 #[test]
@@ -1041,6 +1070,62 @@ fn fixed_source_id_residual_scopes_a_complete_owner_membership_page() {
 
     let mut missing = engine(&source, rows().into_iter().filter(|(_, fields)|
         !fields.iter().any(|(column, value)| *column == "id" && value == &id("m1"))).collect());
+    let (got, complete) = walk(&mut missing, "documents", "alice", &[]);
+    assert_eq!(got, ["owned"]);
+    assert!(complete.into_iter().all(|value| value));
+}
+
+#[test]
+fn negative_fixed_source_literal_scopes_a_complete_owner_membership_page() {
+    let source = "table memberships:
+  parent: text <=40
+  principal: principal
+  slot: int ?
+  unique principal
+  cap 16 by principal
+  read <- .principal = viewer
+  online only
+
+table documents:
+  owner: principal
+  parent: text <=40
+  at: int
+  read <- .owner = viewer or exists memberships[parent = .parent, slot = -1, principal = viewer]
+  online only
+
+query documents(c: cursor ?):
+  return documents last 2 by .at after c
+";
+    let b = clean(source);
+    assert_eq!(branch_merges(&b, "documents"), vec![(3, true)]);
+    assert!(b.schema.required_capabilities().contains("branch-membership-v1"));
+    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+    let program = &b.programs.iter().find(|program| program.program.name == "documents").unwrap().program;
+    let merge = snapback4_core::ir::body_merges(&program.body).into_iter()
+        .find(|merge_| merge_.branches()).unwrap();
+    let source_index = merge.lanes.iter().find(|lane| lane.membership())
+        .and_then(|lane| lane.source.as_ref()).and_then(snapback4_core::ir::LaneSource::scan)
+        .map(|scan| scan.index.as_str()).unwrap();
+    let inferred = b.schema.tables["memberships"].indexes.keys()
+        .filter(|name| name.starts_with("$intent")).map(String::as_str).collect::<Vec<_>>();
+    assert_eq!(inferred, [source_index]);
+
+    let rows = |slot| vec![
+        ("memberships", vec![("id", id("m1")), ("parent", Value::String("p1".into())),
+            ("principal", id("alice")), ("slot", slot)]),
+        document("owned", "alice", "p0", 1), document("shared", "bob", "p1", 2),
+    ];
+    let mut present = engine(source, rows(Value::Int(-1)));
+    let (got, complete) = walk(&mut present, "documents", "alice", &[]);
+    assert_eq!(got, ["shared", "owned"]);
+    assert!(complete.into_iter().all(|value| value));
+
+    let mut mismatch = engine(source, rows(Value::Int(0)));
+    let (got, complete) = walk(&mut mismatch, "documents", "alice", &[]);
+    assert_eq!(got, ["owned"]);
+    assert!(complete.into_iter().all(|value| value));
+
+    let mut missing = engine(source, vec![document("owned", "alice", "p0", 1), document("shared", "bob", "p1", 2)]);
     let (got, complete) = walk(&mut missing, "documents", "alice", &[]);
     assert_eq!(got, ["owned"]);
     assert!(complete.into_iter().all(|value| value));

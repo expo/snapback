@@ -812,12 +812,83 @@ fn membership_extra_equalities_and_repeated_parties_agree_with_the_model() {
 }
 
 #[test]
+fn negative_membership_literal_agrees_with_the_engine() {
+    if !model_built() { return; }
+    let source = "table memberships:
+  parent: text <=40
+  principal: principal
+  slot: int ?
+  unique principal
+  cap 16 by principal
+  read <- .principal = viewer
+  online only
+table documents:
+  owner: principal
+  parent: text <=40
+  at: int
+  read <- .owner = viewer or exists memberships[parent = .parent, slot = -1, principal = viewer]
+  online only
+query run(c: cursor ?):
+  return documents last 10 by .at after c
+";
+    for (name, slot, expected) in [
+        ("present", Some(-1), vec!["shared", "owned"]),
+        ("missing", None, vec!["owned"]),
+        ("mismatch", Some(0), vec!["owned"]),
+    ] {
+        let mut rows: Vec<(String, serde_json::Value)> = vec![
+            ("documents".into(), json!({"id":"owned","owner":"alice","parent":"p0","at":1})),
+            ("documents".into(), json!({"id":"shared","owner":"bob","parent":"p1","at":2})),
+        ];
+        if let Some(slot) = slot {
+            rows.push(("memberships".into(), json!({"id":"m1","parent":"p1","principal":"alice","slot":slot})));
+        }
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+        assert!(bound.diagnostics.is_empty(), "{name}: {:#?}", bound.diagnostics);
+        let merge = snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+            .into_iter().find(|merge| merge.branches()).unwrap_or_else(|| panic!("{name}: {:#?}", bound.notes));
+        let source_index = merge.lanes.iter().find(|lane| lane.membership())
+            .and_then(|lane| lane.source.as_ref()).and_then(snapback4_core::ir::LaneSource::scan)
+            .map(|scan| scan.index.as_str()).unwrap();
+        let inferred = bound.schema.tables["memberships"].indexes.keys()
+            .filter(|index_name| index_name.starts_with("$intent")).map(String::as_str).collect::<Vec<_>>();
+        assert_eq!(inferred, [source_index], "{name}");
+        let mut engine = snapback4_core::Engine::memory(
+            bound.schema,
+            bound.programs.into_iter().map(|program| program.program),
+        ).unwrap();
+        let seeded = rows.iter().map(|(table, value)| {
+            let row = snapback4_core::wire::row_from_json(&engine.schema().tables[table], value).unwrap();
+            (table.clone(), row)
+        }).collect::<Vec<_>>();
+        engine.seed(seeded).unwrap();
+        let actual = engine.query("run", snapback4_core::Context::new("alice",
+            [("c".into(), snapback4_core::Value::Null)].into_iter().collect())).unwrap();
+        let actual_ids = actual.data.as_array().unwrap().iter().map(|row| match row.field("id").unwrap() {
+            snapback4_core::Value::Id(id) => id.as_str(),
+            value => panic!("{name}: expected id, got {value:?}"),
+        }).collect::<Vec<_>>();
+        assert_eq!(actual_ids, expected, "{name}: {actual:?}");
+        assert!(actual.complete && actual.next.is_none(), "{name}: {actual:?}");
+
+        let module = lean::module(source).unwrap();
+        let case = module.case("run", module.store(&rows).unwrap(), "alice",
+            module.tag_args("run", &json!({"c":null})).unwrap(), None).unwrap();
+        let modeled = lean::ask(&case).unwrap();
+        assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data),
+            "{name}: {modeled}\n{actual:?}");
+        assert_eq!(modeled["complete"], actual.complete, "{name}: {modeled}\n{actual:?}");
+    }
+}
+
+#[test]
 fn boolean_covering_grants_agree_with_the_model() {
     if !model_built() { return; }
     for (name, column, guard, predicate, selected, other, merged) in [
         ("not", "bool", "not .enabled", ".enabled = false", json!(false), json!(true), true),
         ("not-deny", "bool", "not deny", ".enabled = false", json!(false), json!(true), true),
         ("double-not", "bool", "not not .enabled", ".enabled = true", json!(true), json!(false), true),
+        ("false-or", "bool", "(.enabled or exists staff[viewer])", ".enabled = false", json!(false), json!(true), true),
         ("nullable-ne", "bool ?", ".enabled != true", ".enabled = null", serde_json::Value::Null, json!(false), true),
     ] {
         let source = format!("table staff:
