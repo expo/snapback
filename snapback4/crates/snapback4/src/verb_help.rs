@@ -220,7 +220,7 @@ Packages immutable source and activates it on the durable store. A running serve
         "rollback" => "snapback4 rollback <dir> [--to N|latest] [--check] [--allow-feed-adoption] [--verbose|--json] [--allow-destructive]
 
 Without --to, selects the previously active release from committed activation history. --to selects a successful immutable release, including roll-forward with latest. --check previews exact adoption without activating. Removed storage and incompatible rows become dormant per row and restore on compatible forward. --allow-destructive never prunes. Exit 1 on refusal.",
-        "serve" => "snapback4 serve <dir> [--port N|A-B] [--bind IP] [--worker] [--i-understand-cleartext] [--clock-offset MS] [--resume-clock] [--now TIME] [--replay] [--long-waits N] [--long-waits-per-principal N] [--claim-waits N]
+        "serve" => "snapback4 serve <dir> [--port N|A-B] [--bind IP] [--worker PATH] [--i-understand-cleartext] [--clock-offset MS] [--resume-clock] [--now TIME] [--replay] [--long-waits N] [--long-waits-per-principal N] [--claim-waits N]
 
 Attaches the active release; a running serve adopts deploy and rollback atomically without restart. Bearer sessions only. The first stdout line is its URL. Non-loopback cleartext requires --i-understand-cleartext. Exit 1 on refusal.",
         "" => return None,

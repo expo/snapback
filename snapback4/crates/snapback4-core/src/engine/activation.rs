@@ -171,7 +171,7 @@ impl Engine {
             }
         }
         if outcome.is_ok() {
-            if let Ok(items)=store.dormant_inventory(None,16) {
+            if let Ok(items)=store.dormant_inventory(None,usize::MAX) {
                 let ids=items.into_iter().flat_map(|i|i.sample_ids).take(5).collect::<Vec<_>>();
                 if !ids.is_empty() {store.adoption_report.changes.insert(0,format!("sample dormant ids [{}]",ids.join(", ")));}
             }

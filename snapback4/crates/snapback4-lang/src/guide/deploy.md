@@ -95,7 +95,7 @@ return 200 `{state:"failed",why:{code:"E_INPUT",…},generation:G}`.
 | Counts, rules, maintained views and sync | Only the active population |
 | Compatible forward to the newer release | Original dormant values restored |
 
-This proof assumes v1 declares `readItem(item)` returning `items[item]` and `editItem(item)` with `let row = items[item]! else NOT_FOUND`; v2 adds `newOnly` and writes an enum value v1 cannot hold. Keep the bearer session in `headers`:
+This proof assumes v1 declares `readItem(item)` returning `items[item]` and `editItem(item)` with `row = items[item]! else NOT_FOUND`; v2 adds `newOnly` and writes an enum value v1 cannot hold. Keep the bearer session in `headers`:
 ```js
 await cli('rollback', deployment, '--to', '1');
 const absent = await fetch(url + '/q/newOnly', {method:'POST', headers, body:'{"args":{}}'});

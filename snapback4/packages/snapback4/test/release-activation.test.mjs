@@ -1212,3 +1212,20 @@ test('REL2 deploy check validates declared worker secret selection without launc
     assert.deepEqual(state(join(deployment,'store.sqlite')),saved);
   }
 });
+
+test('REL2 receipts find dormant sample ids beyond empty inventory definitions', {timeout:hangBudget(3)},async t=>{
+  const {deployment,schema,run}=fixture(t);run('deploy',deployment);
+  const emptyColumns=Array.from({length:20},(_,n)=>`  empty${n}: int ?`).join('\n');
+  const added=source.replace('  body: text',emptyColumns+'\n  body: text')+`table zebraHolds:
+  n: int
+  public
+  insert <- allow
+mutation createHold():
+  return insert zebraHolds {n: 7}
+`;
+  writeFileSync(schema,added);run('deploy',deployment);
+  await serve(deployment,async(url,headers)=>{
+    const hold=(await releasePost(url,headers,'/m/createHold',{},'rel2-late-sample')).result.id;
+    const receipt=run('rollback',deployment,'--to','1');assert.ok(receipt.includes(hold),receipt);
+  });
+});
