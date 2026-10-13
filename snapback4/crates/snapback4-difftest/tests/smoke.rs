@@ -408,6 +408,38 @@ fn lean_generator_reaches_an_uncapped_unpinned_membership_page() {
 }
 
 #[test]
+fn native_and_lean_generators_reach_fully_pinned_membership_discovery() {
+    let generated = |lean: bool| (0..10_000).map(|seed| if lean {
+        snapback4_difftest::lean::generate(seed)
+    } else { generate(seed) }).find(|case| {
+        let source = case.program.source();
+        source.contains("bucket: int ?")
+            && source.contains("unique byPrincipalOnly: principal")
+            && source.contains("exists access[.bucket, viewer]")
+            && !source.contains("cap 16 by principal")
+    }).expect("fully pinned membership discovery stream must be reachable");
+    let native = generated(false);
+    let lean = generated(true);
+    for case in [&native, &lean] {
+        let source = case.program.source();
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+        assert!(bound.diagnostics.is_empty(), "{:#?}\n{source}", bound.diagnostics);
+        assert!(snapback4_core::ir::body_merges(&bound.programs.iter().find(|program| program.program.name == "run").unwrap().program.body)
+            .into_iter().any(|merge| merge.branches()), "{:#?}\n{source}", bound.notes);
+        let coverage = snapback4_difftest::coverage::features(case);
+        assert!(coverage.contains("read/branch-rule-membership-discovery-unique"), "{coverage:?}\n{source}");
+    }
+    let mut report = Report::default();
+    campaign::check(&native, &mut report, |_| {});
+    assert!(!report.failed(), "{report:#?}\n{}", native.program.source());
+    let mut lean_report = Report::default();
+    snapback4_difftest::lean::check(&lean, &mut lean_report, |_| {}).unwrap();
+    assert!(!lean_report.failed(), "{lean_report:#?}\n{}", lean.program.source());
+    assert!(snapback4_difftest::lean::features(&lean).iter()
+        .any(|feature| feature == "branch-rule-membership-discovery-unique"));
+}
+
+#[test]
 fn native_and_lean_generators_reach_by_id_membership_pages() {
     let generated = |lean: bool| (0..10_000).map(|seed| if lean {
         snapback4_difftest::lean::generate(seed)

@@ -463,6 +463,20 @@ def membershipDocs : Schema := { tables := [
     read := .or (.eq (self "owner") .viewer)
       (.probe "members" ["parent", "principal"] [("parent", self "parent"), ("principal", .viewer)]) }] }
 
+/-- A nullable positional point remains exact while a different fully pinned
+total unique proves that discovery examines at most one source row. -/
+def membershipDiscoveryUniqueDocs : Schema := { tables := [
+  { name := "members", cols := [c "parent" true, c "principal"]
+    uniques := [["parent", "principal"], ["principal"]]
+    read := .eq (self "principal") .viewer },
+  { name := "documents", cols := [c "owner", c "parent", c "at"]
+    read := .or (.eq (self "owner") .viewer)
+      (.probe "members" ["parent", "principal"] [("parent", self "parent"), ("principal", .viewer)]) }] }
+
+def membershipDiscoveryUniqueStore : Store := mkStore [
+  ("members", [mkRow "m" [("parent", T "p"), ("principal", I "alice")]]),
+  ("documents", [mkRow "shared" [("owner", I "bob"), ("parent", T "p"), ("at", N 1)]])]
+
 /-- Named exact keys resolve by column name; their authored order need not
 match the unique declaration's order. -/
 def membershipDocsReordered : Schema := { tables := [
@@ -655,6 +669,12 @@ def merged : List Example := [
               program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"d5","owner":"bob","parent":"p2","at":5},{"id":"d4","owner":"bob","parent":"p1","at":4},{"id":"d3","owner":"alice","parent":"p1","at":3},{"id":"d1","owner":"alice","parent":"p0","at":1}],"complete":true,"next":null}"# },
+  { name := "page-owner-membership-fully-pinned-discovery-unique"
+    source := "LLP 3000.036.001 §15: a fully pinned total unique bounds discovery independently of the nullable positional point"
+    case := { schema := membershipDiscoveryUniqueDocs, store := membershipDiscoveryUniqueStore, viewer := alice,
+              program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"shared","owner":"bob","parent":"p","at":1}],"complete":true,"next":null}"# },
   { name := "page-owner-membership-reordered-named-key"
     source := "LLP 3000.036.001 §14: a named membership key resolves against its unique columns independent of authored order"
     case := { schema := membershipDocsReordered, store := membershipDocStore, viewer := alice,

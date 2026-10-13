@@ -464,6 +464,11 @@ pub fn features(case: &Case) -> Vec<String> {
         if case.program.membership_named_reordered {
             out.push("branch-rule-membership-named-reordered".into());
         }
+        if case.program.tables.iter().find(|table| table.name == "access").is_some_and(|table|
+            table.keys.iter().any(|(_, columns, unique)| *unique && columns.iter().map(String::as_str).eq(["principal"]))
+                && table.columns.iter().any(|column| column.name == "bucket" && matches!(column.ty, crate::ast::Type::Nullable(_)))) {
+            out.push("branch-rule-membership-discovery-unique".into());
+        }
     }
     let boolean_grant = case.program.boolean_grant_normalized
         && matches!(body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. });
@@ -693,6 +698,19 @@ pub fn generate(seed: u64) -> Case {
 fn membership_page(case: &mut Case, seed: u64) {
     use crate::ast::{Read, Residency, Rule};
     let mut rng = crate::generate::Rng::new(seed ^ 0x4d45_4d42_4552_5047);
+    let inherited_id = case.program.tables.iter().find(|table| table.name == "access")
+        .is_some_and(|table| table.columns.iter().any(|column| column.name == "item"));
+    let inherited_discovery = case.program.tables.iter().find(|table| table.name == "access")
+        .is_some_and(|table| table.keys.iter().any(|(name, _, _)| name == "byPrincipalOnly"));
+    if inherited_id || inherited_discovery {
+        let read = if inherited_id { Rule::OwnerOrIdWitness } else { Rule::OwnerOrWitness };
+        case.program.tables[0].rule = read.clone();
+        case.program.tables[0].effects = Some(vec![read, Rule::Allow, Rule::Allow, Rule::Allow]);
+        if inherited_id && case.program.guard.as_deref().is_some_and(|guard| guard.contains("access[")) {
+            case.program.guard = Some("a < b".into());
+        }
+        return
+    }
     let Body::Read { kind: kind @ (Read::Page | Read::Bounded), filter, owner, project, .. } = &mut case.program.body else { return };
     if rng.pick(8) != 0 { return }
     *kind = Read::Page;
@@ -709,12 +727,14 @@ fn membership_page(case: &mut Case, seed: u64) {
     access.effects = None;
     access.residency = Residency::Public;
     if rng.pick(2) == 0 { access.caps.clear(); }
+    let discovery_unique = !by_id && access.caps.is_empty() && rng.pick(2) == 0;
     case.program.domain = Some("true".into());
     case.program.order = Some(vec!["id".into()]);
     case.program.residual = None;
     case.program.guard = None;
     case.program.membership_named_reordered = !by_id && rng.pick(2) == 0;
     if by_id { crate::generate::id_membership(case); }
+    else if discovery_unique { crate::generate::discovery_unique_membership(case); }
 }
 
 /// A readable grant guarded by a required Boolean that the page pins false.

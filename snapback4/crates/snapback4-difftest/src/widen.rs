@@ -437,12 +437,14 @@ fn membership_page(case: &mut Case) {
     access.effects = None;
     access.residency = Residency::Public;
     if rng.pick(2) == 0 { access.caps.clear(); }
+    let discovery_unique = !by_id && access.caps.is_empty() && rng.pick(2) == 0;
     case.program.domain = Some("true".into());
     case.program.order = Some(vec!["id".into()]);
     case.program.residual = None;
     case.program.guard = None;
     case.program.membership_named_reordered = !by_id && rng.pick(2) == 0;
     if by_id { crate::generate::id_membership(case); }
+    else if discovery_unique { crate::generate::discovery_unique_membership(case); }
 }
 /// Branch pages (LLP 3000.036.001), drawn from their own stream so every
 /// other dimension's draws are unchanged.

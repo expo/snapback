@@ -306,9 +306,10 @@ def membershipColumns (key : List (String × Term)) : Option (String × String) 
 
 /-- An exact membership probe selects a declared unique point or the intrinsic
 `id` point, has one target-row component and fixed readable source pins, and
-has either a total point or a cap grouped wholly by the fixed discovery
-columns (LLP 3000.036.001 §15). A total point bounds one witness, while the
-runtime read meter bounds the inverted population.
+has a total point, a fully fixed total discovery unique, or a cap grouped
+wholly by the fixed discovery columns (LLP 3000.036.001 §15). Either total
+unique bounds one witness, while the runtime read meter bounds any inverted
+population.
 Equalities outside `point` are residual predicates rather than point-key
 components. -/
 def membershipEligible (sch : Schema) (t : String) (point : List String)
@@ -320,11 +321,15 @@ def membershipEligible (sch : Schema) (t : String) (point : List String)
     let exactUnique := point.eraseDups.length == point.length
       && point.all columns.contains
       && (point == ["id"] || td.uniques.any fun unique => unique == point)
+    let totalUnique := fun unique => unique.all fun c =>
+      td.cols.any fun col => col.name == c && !col.nullable
     let totalPoint := point == ["id"] || td.uniques.any fun unique =>
-      unique == point && point.all fun c => td.cols.any fun col => col.name == c && !col.nullable
+      unique == point && totalUnique unique
+    let totalDiscovery := td.uniques.any fun unique =>
+      totalUnique unique && unique.all fun c => fixed.any (·.1 == c)
     let capped := td.caps.any fun cap =>
       cap.columns.all fun c => c != "id" && fixed.any (·.1 == c)
-    exactUnique && (totalPoint || capped)
+    exactUnique && (totalPoint || totalDiscovery || capped)
       && td.read.byForm fixed
   | _, _ => false
 
