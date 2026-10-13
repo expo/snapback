@@ -20,5 +20,13 @@ rusqlite = { version = "0.40.2", features = ["bundled", "hooks"] }
 tiny_http = "0.12"
 sqlparser = { version = "0.59.0", default-features = false, features = ["std"] }
 
+# Only CLI preflight links this parser. Update the exact pin with the device-gate
+# syntax regressions; 0.154.0 matches this workspace's Rust 1.97 toolchain.
+oxc_allocator = "=0.154.0"
+oxc_ast = "=0.154.0"
+oxc_ast_visit = "=0.154.0"
+oxc_parser = { version = "=0.154.0", default-features = false }
+oxc_span = "=0.154.0"
+
 [dev-dependencies]
 rusqlite = { version = "0.40.2", features = ["trace"] }

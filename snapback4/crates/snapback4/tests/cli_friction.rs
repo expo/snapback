@@ -808,7 +808,9 @@ fn stamped_wasm(stamp: &serde_json::Value) -> Vec<u8> {
 #[test]
 fn check_and_doctor_refuse_a_mounted_exact_device_before_generated_output() {
     let project = Project::new("use personas alice\nquery who():\n  return viewer\n");
-    project.write("app/app.json", r#"{"typescript":{"sources":{"backend":"../snapback/generated"}}}"#);
+    project.write("app/app.json", r#"{"typescript":{"sources":{"snapback4":"../../exact2/snapback4/ts","backend":"../snapback/generated"}}}"#);
+    let missing = project.run(&["check"]);
+    assert!(!missing.status.success() && text(&missing).contains("E_DEVICE_VERSION"), "{}", text(&missing));
     project.write("app/assets/snapback4.wasm", "old unstamped bytes");
     let output = project.run(&["check"]);
     assert!(!output.status.success(), "{}", text(&output));
@@ -824,6 +826,149 @@ fn check_and_doctor_refuse_a_mounted_exact_device_before_generated_output() {
     let output = project.run(&["check", "--json"]);
     assert!(!output.status.success());
     assert!(text(&output).contains("E_DEVICE_VERSION") && text(&output).contains("0.4.23"));
+}
+
+#[test]
+fn generated_mounts_do_not_imply_a_device_and_custom_artifacts_are_identified_by_content() {
+    let project = Project::new("use personas alice\nquery who():\n  return viewer\n");
+    let initialized = project.run(&["test", "--residency"]);
+    assert!(initialized.status.success(), "{}", text(&initialized));
+    for adapter in [None, Some("../../exact2/snapback4/online")] {
+        let mut sources = serde_json::json!({"backend":"../snapback/generated"});
+        if let Some(adapter) = adapter { sources["snapback4"] = adapter.into(); }
+        project.write("app/app.json", &serde_json::json!({"typescript":{"sources":sources}}).to_string());
+        project.write("app/assets/snapback4.wasm", "leftover unstamped bytes");
+        for command in ["check", "doctor"] {
+            let output = project.run(&[command]);
+            assert!(output.status.success(), "{command}: {}", text(&output));
+        }
+    }
+    // An explicit device declaration survives a readable entry with a broken import.
+    project.write("app/app.json", r#"{"typescript":{"sources":{"backend":"../snapback/generated","snapback4":"../snapback4/ts"}}}"#);
+    project.write("snapback4/ts/snapback.ts", "export { Snapback } from './driver.ts';");
+    let output = project.run(&["check"]);
+    assert!(!output.status.success() && text(&output).contains("E_DEVICE_VERSION"), "{}", text(&output));
+    // A renamed adapter is still a device consumer, independent of its path.
+    project.write("app/app.json", r#"{"typescript":{"sources":{"backend":"../snapback/generated","replica":"../renamed"}}}"#);
+    project.write("renamed/snapback.ts", "const documentation = './web.ts';");
+    project.write("renamed/web.ts", "const documentation = './generated/device.ts';");
+    assert!(project.run(&["check"]).status.success());
+    for entry in ["import type { webDevice } from './web.ts';", "import { type webDevice } from './web.ts';", "export type { webDevice } from './web.ts';", "import { type DeviceType as webDevice } from './web.ts';"] {
+        project.write("renamed/snapback.ts", entry);
+        project.write("renamed/web.ts", "import { type CoreType as WebSnapback } from './generated/device.ts';");
+        for command in ["check", "doctor"] {
+            let output = project.run(&[command]);
+            assert!(output.status.success(), "{command}: {}", text(&output));
+        }
+    }
+    project.write("renamed/snapback.d.ts", "import { webDevice } from './web.ts';");
+    project.write("renamed/web.ts", "import { WebSnapback } from './generated/device.ts';");
+    project.write("app/app.json", r#"{"typescript":{"sources":{"backend":"../snapback/generated","types":"../renamed/snapback.d.ts"}}}"#);
+    for command in ["check", "doctor"] {
+        let output = project.run(&[command]);
+        assert!(output.status.success(), "{command}: {}", text(&output));
+    }
+    project.write("app/app.json", r#"{"typescript":{"sources":{"backend":"../snapback/generated","replica":"../renamed"}}}"#);
+    project.write("renamed/snapback.ts", "import { webDevice } from './web.ts';");
+    project.write("renamed/web.ts", "import { initSync, WebSnapback } from './generated/device.ts';");
+    let output = project.run(&["check"]);
+    assert!(!output.status.success() && text(&output).contains("E_DEVICE_VERSION"), "{}", text(&output));
+    for (entry, web) in [
+        ("import * as web from './web.ts'; export const use = web.webDevice;", "import * as gen from './generated/device.ts'; export const use = gen.WebSnapback;"),
+        ("import web from './web.ts'; export const use = web;", "import gen from './generated/device.ts'; export default gen;"),
+        ("export { webDevice } from './web.ts';", "export { WebSnapback } from './generated/device.ts';"),
+        ("export * from './web.ts';", "export * from './generated/device.ts';"),
+        ("import './web.ts';", "import './generated/device.ts';"),
+        ("import {} from './web.ts';", "import { WebSnapback } from './generated/device.ts';"),
+        ("import { webDevice } from './web.ts';", "import {} from './generated/device.ts';"),
+        ("import {} from './web.ts';", "import {} from './generated/device.ts';"),
+        ("export const web = import('./web.ts');", "export const gen = import(`./generated/device.ts`);"),
+        ("import web = require('./web.ts'); export const use = web;", "import gen = require('./generated/device.ts'); export const use = gen;"),
+    ] {
+        project.write("renamed/snapback.ts", entry); project.write("renamed/web.ts", web);
+        for command in ["check", "doctor"] {
+            let output = project.run(&[command]);
+            assert!(!output.status.success() && text(&output).contains("E_DEVICE_VERSION"), "{command} {entry}: {}", text(&output));
+        }
+    }
+    // An unrelated backend isn't this project's consumer.
+    project.write("app/app.json", r#"{"typescript":{"sources":{"backend":"../other/generated","replica":"../renamed"}}}"#);
+    project.write("other/generated/.keep", "");
+    assert!(project.run(&["check"]).status.success());
+    project.write("app/app.json", r#"{"typescript":{"sources":{"backend":"../snapback/generated"}}}"#);
+    project.write("app/app.ts", "const wasm = '/assets/custom.bin';");
+    let current: serde_json::Value = serde_json::from_slice(&project.run(&["device", "--engine-info"]).stdout).unwrap();
+    project.write("app/assets/custom.bin", "unrelated artifact");
+    assert!(project.run(&["check"]).status.success());
+    let mut old = current.clone(); old["version"] = "0.4.23".into();
+    fs::write(project.0.join("app/assets/custom.bin"), stamped_wasm(&old)).unwrap();
+    let output = project.run(&["check"]);
+    assert!(!output.status.success() && text(&output).contains("custom.bin"), "{}", text(&output));
+    for source in [
+        "const quote = /'/; const device = openDevice('/assets/custom.bin');",
+        "let n = 4; const ratio = n++ / 2; const device = openDevice('/assets/custom.bin');",
+        "if (enabled) /'/.test(text); const device = openDevice('/assets/custom.bin');",
+        "const ratio = ({}) / 2; const device = openDevice('/assets/custom.bin');",
+        "const ratio = {} / 2; const device = openDevice('/assets/custom.bin');",
+        "const n: number | null = 4; const ratio = n! / 2; const device = openDevice('/assets/custom.bin');",
+        "import type { T } from './types.ts'\nvar device = openDevice('/assets/custom.bin');",
+        "import type { T } from './types.ts'\nopenDevice('/assets/custom.bin');",
+        r"const device = openDevice('/assets\/custom.bin');",
+        "const device = openDevice('/assets/custom.bin?v=1#stamp');",
+        "const device = openDevice('./assets/custom.bin?v=1#stamp');",
+        "const device = openDevice('/assets/%63ustom.bin');",
+        r"const device = openDevice('/assets/\u0063ustom.bin');",
+    ] {
+        project.write("app/app.ts", source);
+        for command in ["check", "doctor"] {
+            let output = project.run(&[command]);
+            assert!(!output.status.success() && text(&output).contains("custom.bin") && text(&output).contains("E_DEVICE_VERSION"), "{command} {source}: {}", text(&output));
+        }
+    }
+    // URL escapes resolve once: %2563 requests a literal %63, not a c.
+    project.write("app/app.ts", "const device = openDevice('/assets/%2563ustom.bin');");
+    for command in ["check", "doctor"] {
+        let output = project.run(&[command]);
+        assert!(output.status.success(), "{command}: {}", text(&output));
+    }
+    fs::write(project.0.join("app/assets/%63ustom.bin"), stamped_wasm(&old)).unwrap();
+    for command in ["check", "doctor"] {
+        let output = project.run(&[command]);
+        assert!(!output.status.success() && text(&output).contains("E_DEVICE_VERSION") && text(&output).contains("%63ustom.bin"), "{command}: {}", text(&output));
+    }
+    // Erased type literal paths don't load a custom device either.
+    project.write("app/app.ts", "type Artifact = '/assets/custom.bin';");
+    assert!(project.run(&["check"]).status.success());
+    for erased in [
+        "interface AssetTypes { '/assets/custom.bin': ArrayBuffer }",
+        "declare const wasm = '/assets/custom.bin';",
+        "export default interface AssetTypes { '/assets/custom.bin': ArrayBuffer }",
+        "declare namespace Assets { const wasm = '/assets/custom.bin'; }",
+        "abstract class Assets { declare ['/assets/custom.bin']: ArrayBuffer; }",
+        "abstract class Assets { abstract ['/assets/custom.bin'](): ArrayBuffer; }",
+        "abstract class Assets { abstract accessor ['/assets/custom.bin']: ArrayBuffer; }",
+    ] {
+        project.write("app/app.ts", erased);
+        for command in ["check", "doctor"] {
+            let output = project.run(&[command]);
+            assert!(output.status.success(), "{command} {erased}: {}", text(&output));
+        }
+    }
+    // Comments and unreferenced files cannot declare a custom consumer.
+    project.write("app/app.ts", "// const wasm = '/assets/custom.bin';\n/* '/assets/custom.bin' */");
+    assert!(project.run(&["check"]).status.success());
+    project.write("app/app.ts", "const wasm = '/assets/custom.bin';");
+    let mut missing = current.clone(); missing["capabilities"] = serde_json::json!([]);
+    fs::write(project.0.join("app/assets/custom.bin"), stamped_wasm(&missing)).unwrap();
+    let output = project.run(&["check"]);
+    assert!(!output.status.success() && text(&output).contains("E_DEVICE_VERSION"), "{}", text(&output));
+    fs::write(project.0.join("app/assets/custom.bin"), stamped_wasm(&current)).unwrap();
+    assert!(project.run(&["check"]).status.success());
+    // A recognized section with corrupt JSON must still be gated.
+    let mut corrupt = stamped_wasm(&current); *corrupt.last_mut().unwrap() = b'!';
+    fs::write(project.0.join("app/assets/custom.bin"), corrupt).unwrap();
+    let output = project.run(&["check"]);
+    assert!(!output.status.success() && text(&output).contains("E_DEVICE_VERSION"), "{}", text(&output));
 }
 
 #[test]

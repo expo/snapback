@@ -27,6 +27,8 @@ const APP_FILES: &[&str] = &[
     "seed.mjs", "scripts/seed.mjs",
     // Engine outputs and the Exact app consumer described by the wire card.
     "device-compatibility.json", "exact.mjs", "assets/snapback4.wasm",
+    // Exact application source and mounted adapter entry for static device discovery.
+    "app.ts", "snapback.ts",
     // The testing card's fixture cases file and acceptance script.
     "test.cases.jsonl", "scripts/acceptance.mjs",
     // The builder's own Expo inputs and generated native-proof outputs.

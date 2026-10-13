@@ -276,7 +276,14 @@ When adding Following, `view following` owns that name. Name its reader `query h
 Edit `snapback/*.q`. `check` and `dev` generate `snapback/generated/api.ts`; never commit it. A table holds data. Rules
 authorize each row. Sync chooses what devices hold. A query states a predicate and order. A view derives data. A
 mutation commits atomically. A job sweeps; an effect records external work. An asset follows its row's read rule.
-`check` gives summaries; `check --verbose` adds rewrites and explanations. `check --cost` gives certificates: **constant**
+`check` gives summaries; `check --verbose` adds rewrites and explanations.
+For Exact apps mounted to this backend, `check` and `doctor` gate declared device
+consumers: the device adapter requires its default wasm asset, and statically
+declared custom device artifacts are identified by their embedded engine section.
+An online adapter or a generated-operations-only mount requires no wasm. Real
+devices still need a canonical embedded identity compatible with the public
+schema's floor and capabilities; rebuild Exact with `bun exact.mjs snapback --rebuild`.
+See `guide wire` for discovery scope and runtime admission. `check --cost` gives certificates: **constant**
 (bounded work at any data size), **constant once background cleanup catches up**, or **grows with** a named
 site. A constant verdict proves a degradation rule; timing one measures noise. Cite the verdicts in scale reports.
 
