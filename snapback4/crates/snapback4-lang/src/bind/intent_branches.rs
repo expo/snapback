@@ -152,7 +152,7 @@ fn membership(tables: &Tables, synthesized: &std::collections::BTreeSet<(String,
             let admitted = one_row || membership_probe_total_unique(tables, synthesized, table, predicate)
                 || membership_source_capped(tables, source);
             if !membership_source_witness(tables, synthesized, table, predicate, source)
-                || !read_rule(source_table).is_some_and(|rule| by_form(rule, source))
+                || !source_read_admitted(source_table, source)
                 || candidate.branch_index_width(source_table, source).is_none_or(|width| width > 8)
                 || !candidate.branch_index_fits(source_table, source) { return None; }
             if !admitted {
@@ -185,7 +185,11 @@ fn source_key_equality(key: KeyPart) -> Option<Expr> {
 fn one_row_source_admitted(table: &TableInfo, source: &ReadExpr, index: &IndexDecl) -> bool {
     let mut point = source.clone();
     point.keys.retain(|key| key.column.as_ref().is_some_and(|column| index.columns.contains(column)));
-    read_rule(table).is_some_and(|rule| by_form(rule, &point))
+    source_read_admitted(table, &point)
+}
+
+fn source_read_admitted(table: &TableInfo, source: &ReadExpr) -> bool {
+    table.decl.public.is_some() || read_rule(table).is_some_and(|rule| by_form(rule, source))
 }
 
 /// Confirm, while requests still live in the throwaway candidate, that every

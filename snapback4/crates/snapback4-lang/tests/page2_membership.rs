@@ -118,16 +118,17 @@ query documents(c: cursor ?):
 fn parent_owner_by_id_witness_discovers_targets_without_a_cap() {
     let source = "table offers:
   baker: principal
-  read <- .baker = viewer
+  public 'offers'
   online only
 table requests:
   requester: principal
+  baker: principal
   offer: offers
   at: int
   read <- .requester = viewer or exists offers[.offer, baker = viewer]
   online only
 query requests(c: cursor ?):
-  return requests last 10 by .at after c
+  return requests where .baker = viewer last 10 by .at after c
 ";
     let bound = bound(source);
     assert!(bound.schema.tables["offers"].indexes.values().any(|index| index.columns() == ["baker", "id"]));
@@ -135,9 +136,9 @@ query requests(c: cursor ?):
     let mut engine = engine(source, vec![
         ("offers", vec![("id", id("o1")), ("baker", id("alice"))]),
         ("offers", vec![("id", id("o2")), ("baker", id("bob"))]),
-        ("requests", vec![("id", id("r1")), ("requester", id("bob")), ("offer", id("o1")), ("at", Value::Int(1))]),
-        ("requests", vec![("id", id("r2")), ("requester", id("alice")), ("offer", id("o2")), ("at", Value::Int(2))]),
-        ("requests", vec![("id", id("r3")), ("requester", id("bob")), ("offer", id("o2")), ("at", Value::Int(3))]),
+        ("requests", vec![("id", id("r1")), ("requester", id("bob")), ("baker", id("alice")), ("offer", id("o1")), ("at", Value::Int(1))]),
+        ("requests", vec![("id", id("r2")), ("requester", id("alice")), ("baker", id("alice")), ("offer", id("o2")), ("at", Value::Int(2))]),
+        ("requests", vec![("id", id("r3")), ("requester", id("bob")), ("baker", id("bob")), ("offer", id("o2")), ("at", Value::Int(3))]),
     ]);
     let page = engine.query("requests", Context::new("alice", args())).unwrap();
     assert!(page.complete && page.next.is_none());
