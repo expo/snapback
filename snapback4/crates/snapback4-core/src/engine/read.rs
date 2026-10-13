@@ -415,10 +415,12 @@ impl<'r> Runner<'r> {
         let Some(now) = self.context.now else { return Ok(false); };
         let table = &self.schema.tables[table_name];
         if table.not_before.is_none() { return Ok(false); }
+        // Upper expiry wins when the two lifetime edges do not overlap. A row
+        // which can never be live retains the ordinary expired-witness walk;
+        // its private opening instant must not change authorization capacity.
+        if table.expired(row, now) { return Ok(false); }
         let hidden = if !table.opened(row, now) {
             true
-        } else if table.expired(row, now) {
-            false
         } else {
             let id = row.field("id")?.as_str()?;
             let pending = self.tx.time_audience_pending(table_name, id)?;

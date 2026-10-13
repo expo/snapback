@@ -314,6 +314,58 @@ fn server_private_witness_and_expired_unique_walks_share_one_allowance() {
 }
 
 #[test]
+fn never_live_witness_keeps_the_expired_walk_across_its_private_opening() {
+    const DENIED: i64 = 4_200;
+    let source = "table grants:
+  opensAt: time
+  expiresAt: time
+  by byOpening: opensAt
+  by byExpiry: expiresAt
+  not before .opensAt
+  expire at .expiresAt
+  public
+  online only
+table tasks:
+  visible: bool
+  read <- .visible = true or exists grants['grant']
+  online only
+query full():
+  return tasks first 5000 by .id
+";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let rows = (0..DENIED).map(|n| ("tasks".into(), snapback4_core::value::object([
+        ("id", Value::Id(format!("a{n:04}"))),
+        ("visible", Value::Bool(false)),
+    ]))).chain([
+        ("tasks".into(), snapback4_core::value::object([
+            ("id", Value::Id("z".into())),
+            ("visible", Value::Bool(true)),
+        ])),
+        ("grants".into(), snapback4_core::value::object([
+            ("id", Value::Id("grant".into())),
+            ("opensAt", Value::Int(100)),
+            ("expiresAt", Value::Int(1)),
+        ])),
+    ]).collect::<Vec<_>>();
+    assert!(bound.schema.tables["grants"].expired(&rows.last().unwrap().1, 90));
+    let observations = [90, 100].map(|now| {
+        let mut engine = snapback4_core::Engine::new_at(
+            snapback4_core::Store::memory().unwrap(),
+            bound.schema.clone(),
+            bound.programs.iter().map(|program| program.program.clone()),
+            2,
+        ).unwrap();
+        engine.seed_at(rows.clone(), 2).unwrap();
+        engine.query("full", Context::new("alice", Default::default()).at(now)).unwrap()
+    });
+    assert_eq!(observations[0], observations[1]);
+    let Value::Array(rows) = &observations[0].data else { panic!("expected a page") };
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].field("id"), Ok(&Value::Id("z".into())));
+}
+
+#[test]
 fn an_odd_point_prefix_cannot_turn_a_short_physical_batch_into_exhaustion_of_data() {
     let source="table held:\n  owner: principal\n  read <- .owner = viewer\n  online only\ntable grants:\n  tag: int\n  until: time ?\n  expire at .until\n  unique byTag: tag\n  read <- deny\n  online only\ntable gates:\n  owner: principal\n  read <- exists grants[tag = 0] or .owner = viewer\n  online only\nquery a():\n  return held['a']\nquery b():\n  return held['b']\nquery one():\n  return gates['g']\n";
     let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
