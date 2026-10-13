@@ -925,6 +925,17 @@ fn generated_mounts_do_not_imply_a_device_and_custom_artifacts_are_identified_by
             assert!(!output.status.success() && text(&output).contains("custom.bin") && text(&output).contains("E_DEVICE_VERSION"), "{command} {source}: {}", text(&output));
         }
     }
+    // URL escapes resolve once: %2563 requests a literal %63, not a c.
+    project.write("app/app.ts", "const device = openDevice('/assets/%2563ustom.bin');");
+    for command in ["check", "doctor"] {
+        let output = project.run(&[command]);
+        assert!(output.status.success(), "{command}: {}", text(&output));
+    }
+    fs::write(project.0.join("app/assets/%63ustom.bin"), stamped_wasm(&old)).unwrap();
+    for command in ["check", "doctor"] {
+        let output = project.run(&[command]);
+        assert!(!output.status.success() && text(&output).contains("E_DEVICE_VERSION") && text(&output).contains("%63ustom.bin"), "{command}: {}", text(&output));
+    }
     // Erased type literal paths don't load a custom device either.
     project.write("app/app.ts", "type Artifact = '/assets/custom.bin';");
     assert!(project.run(&["check"]).status.success());

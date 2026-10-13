@@ -271,6 +271,10 @@ fn device_artifacts(app: &Path, config: &serde_json::Value) -> Vec<PathBuf> {
     let mut artifacts = Vec::new();
     let mut declared = Vec::new();
     config_literals(config, &mut declared);
+    let mut candidates: Vec<PathBuf> = declared
+        .into_iter()
+        .map(|path| declared_path(app, app, &path))
+        .collect();
     let mut sources = vec![app.join("app.ts")];
     if let Some(mounts) = config
         .pointer("/typescript/sources")
@@ -311,12 +315,11 @@ fn device_artifacts(app: &Path, config: &serde_json::Value) -> Vec<PathBuf> {
             // relative declarations resolve beside their declaring source file.
             for literal in literals(&text, &source) {
                 let path = declared_path(source.parent().unwrap_or(app), app, &literal);
-                declared.push(path.to_string_lossy().into_owned());
+                candidates.push(path);
             }
         }
     }
-    for declaration in declared {
-        let path = declared_path(app, app, &declaration);
+    for path in candidates {
         if fs::read(&path).is_ok_and(|bytes| has_engine_section(&bytes)) {
             artifacts.push(path);
         }
