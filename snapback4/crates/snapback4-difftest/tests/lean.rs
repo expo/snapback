@@ -931,6 +931,63 @@ query run(enabled: {argument}, c: cursor ?):
     ];
     check_argument("nullable-argument", "bool ?", "bool ?", "not (.enabled = true)", optional_rows,
         vec![(serde_json::Value::Null, snapback4_core::Value::Null)], false);
+
+    let compound_rows: Vec<(String, serde_json::Value)> = vec![
+        ("staff".into(), json!({"id":"s1","principal":"sam"})),
+        ("tickets".into(), json!({"id":"f1","owner":"alice","enabled":false,"at":1})),
+        ("tickets".into(), json!({"id":"f2","owner":"bob","enabled":false,"at":2})),
+        ("tickets".into(), json!({"id":"t1","owner":"alice","enabled":true,"at":3})),
+        ("tickets".into(), json!({"id":"t2","owner":"bob","enabled":true,"at":4})),
+    ];
+    let check_compound = |name: &str, query: &str, json_args: serde_json::Value,
+        engine_args: Vec<(String, snapback4_core::Value)>, complete: bool| {
+        let source = format!("table staff:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  online only
+table tickets:
+  owner: principal
+  enabled: bool
+  at: int
+  read <- .owner = viewer or not (.enabled = false and exists staff[viewer])
+  online only
+{query}
+");
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+        assert!(bound.diagnostics.is_empty(), "{name}: {:#?}\n{source}", bound.diagnostics);
+        let mut engine = snapback4_core::Engine::memory(
+            bound.schema,
+            bound.programs.into_iter().map(|program| program.program),
+        ).unwrap();
+        let seeded = compound_rows.iter().map(|(table, value)| {
+            let row = snapback4_core::wire::row_from_json(&engine.schema().tables[table], value).unwrap();
+            (table.clone(), row)
+        }).collect::<Vec<_>>();
+        engine.seed(seeded).unwrap();
+        let module = lean::module(&source).unwrap();
+        for viewer in ["sam", "alice"] {
+            let actual = engine.query("run", snapback4_core::Context::new(viewer,
+                engine_args.clone().into_iter().collect())).unwrap();
+            let case = module.case("run", module.store(&compound_rows).unwrap(), viewer,
+                module.tag_args("run", &json_args).unwrap(), None).unwrap();
+            let modeled = lean::ask(&case).unwrap();
+            assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data),
+                "{name}/{viewer}: {modeled}\n{actual:?}\n{source}");
+            assert_eq!(modeled["complete"], actual.complete,
+                "{name}/{viewer}: {modeled}\n{actual:?}\n{source}");
+            assert_eq!(actual.complete, complete, "{name}/{viewer}: {actual:?}");
+        }
+    };
+    for enabled in [false, true] {
+        check_compound(&format!("compound-argument-{enabled}"),
+            "query run(enabled: bool, c: cursor ?):\n  return tickets where .enabled = enabled last 1 by .at after c",
+            json!({"enabled":enabled,"c":null}),
+            vec![("enabled".into(), snapback4_core::Value::Bool(enabled)), ("c".into(), snapback4_core::Value::Null)], false);
+    }
+    check_compound("compound-literal-true",
+        "query run(c: cursor ?):\n  return tickets where .enabled = true last 1 by .at after c",
+        json!({"c":null}), vec![("c".into(), snapback4_core::Value::Null)], true);
 }
 
 #[test]
