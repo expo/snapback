@@ -26,7 +26,7 @@ def queryHooks : Hooks View where
 
 /-- The world of a mutation: the store; reads see its visible rows. -/
 def storeHooks : Hooks Store where
-  view cx s := visibleRows cx.schema s cx.viewer
+  view cx s := visibleRowsAt cx.schema s cx.viewer cx.now
   apply := applyWrite
 
 def bindArgs (params : List Param) (args : List (String × Value)) : Except Stop Env :=
@@ -41,12 +41,13 @@ structure Case where
   helpers : List Helper := []
   store : Store
   viewer : List Nat
+  now : Int := 0
   program : Program
   args : List (String × Value) := []
   budget : Option Nat := none
 
 def Case.ctx (c : Case) : Ctx :=
-  { schema := c.schema, viewer := c.viewer, helpers := c.helpers, budget := c.budget,
+  { schema := c.schema, viewer := c.viewer, now := c.now, helpers := c.helpers, budget := c.budget,
     mutation := c.program.kind == .mutation }
 
 def flowValue : Flow → Value × Value
@@ -58,7 +59,7 @@ def runQuery (c : Case) : Outcome :=
   | .error (.refuse code) => .refused code
   | .error .unavailable => .unavailable
   | .ok env =>
-    let vw := visibleRows c.schema c.store c.viewer
+    let vw := visibleRowsAt c.schema c.store c.viewer c.now
     match (execStmts queryHooks defaultFuel c.ctx vw env c.program.body).run {} with
     | .ok ((fl, _, _), rs) => let (v, nx) := flowValue fl; .answer v rs.complete nx
     | .error (.refuse code) => .refused code

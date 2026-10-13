@@ -97,6 +97,8 @@ structure TableDecl where
   uniqueCodes : List (Option String) := []
   /-- Declared finite group bounds (`cap N by ...`). -/
   caps : List CapDecl := []
+  /-- A lower read lifetime: null or values at most the request clock are open. -/
+  notBefore : Option String := none
   read : Rule := .deny
   insert : Rule := .deny
   update : Rule := .deny

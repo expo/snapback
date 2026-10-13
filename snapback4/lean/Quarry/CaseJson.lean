@@ -235,7 +235,10 @@ def table (j : Json) : D TableDecl := do
     | some cs => (← cs.getArr?).toList.mapM fun cap => do
       let columns ← (← arr cap "by").toList.mapM (·.getStr?)
       return ({ columns, max := ← (← field cap "max").getNat? } : CapDecl)
-  return { name := ← str j "name", cols, uniques, uniqueCodes := codes, caps,
+  let notBefore := match optField j "notBefore" with
+    | some (.str column) => some column
+    | _ => none
+  return { name := ← str j "name", cols, uniques, uniqueCodes := codes, caps, notBefore,
            read := ← rule (← field j "read"), insert := ← rule (← field j "insert"),
            update := ← rule (← field j "update"), delete := ← rule (← field j "delete") }
 
@@ -282,7 +285,10 @@ def case (j : Json) : D (Case × List String) := do
   let budget : Option Nat ← match optField j "budget" with
     | some b => do let n ← b.getNat?; pure (some n)
     | none => pure none
-  return ({ schema := sch, helpers, store, viewer := cps (← str j "viewer"),
+  let now ← match optField j "now" with
+    | some n => n.getInt?
+    | none => pure 0
+  return ({ schema := sch, helpers, store, viewer := cps (← str j "viewer"), now,
             program := ← program (← field j "program"), args, budget },
           sch.tables.map (·.name))
 

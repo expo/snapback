@@ -8,7 +8,8 @@ either leaves the store unchanged (`insert … if absent` on a visible clash)
 or is one authorized `Step`: an insert whose insert rule admits the new
 image, an update whose update rule admits (old, next) for a row that exists,
 or a delete whose delete rule admits the row. Rules are evaluated in the
-store as it stood immediately before that write (`applyWrite_authorized`).
+opened projection of the store as it stood immediately before that write
+(`applyWrite_authorized`).
 
 A whole mutation's store transition is a chain of such steps
 (`mutation_authorized`).
@@ -16,33 +17,34 @@ A whole mutation's store transition is a chain of such steps
 
 namespace Quarry
 
-inductive Step (sch : Schema) (v : List Nat) : Store → Store → Prop
+inductive Step (sch : Schema) (v : List Nat) (now : Int) : Store → Store → Prop
   | insert {s : Store} {t : String} {td : TableDecl} {r : Row} :
-      sch.table? t = some td → td.insert.eval s v { self := some r } = true →
-      Step sch v s (s.insertRow t r)
+      sch.table? t = some td → td.insert.eval (openedStore sch s now) v { self := some r } = true →
+      Step sch v now s (s.insertRow t r)
   | update {s : Store} {t : String} {td : TableDecl} {old nw : Row} :
       sch.table? t = some td → old ∈ s t →
-      td.update.eval s v { old := some old, next := some nw } = true →
-      Step sch v s (s.replaceRow t old nw)
+      td.update.eval (openedStore sch s now) v { old := some old, next := some nw } = true →
+      Step sch v now s (s.replaceRow t old nw)
   /-- A delete whose delete rule admits the row, with the referential
   actions the schema declares on the rows naming it (LLP 3000.039 §4.1: the
   parent's delete authorizes a declared cascade or set null). -/
   | delete {s s' : Store} {t : String} {td : TableDecl} {old : Row} :
-      sch.table? t = some td → old ∈ s t → td.delete.eval s v { self := some old } = true →
+      sch.table? t = some td → old ∈ s t →
+      td.delete.eval (openedStore sch s now) v { self := some old } = true →
       refDelete sch s t old = .ok s' →
-      Step sch v s s'
+      Step sch v now s s'
 
-inductive Steps (sch : Schema) (v : List Nat) : Store → Store → Prop
-  | refl (s : Store) : Steps sch v s s
-  | step {s s' s'' : Store} : Step sch v s s' → Steps sch v s' s'' → Steps sch v s s''
+inductive Steps (sch : Schema) (v : List Nat) (now : Int) : Store → Store → Prop
+  | refl (s : Store) : Steps sch v now s s
+  | step {s s' s'' : Store} : Step sch v now s s' → Steps sch v now s' s'' → Steps sch v now s s''
 
-theorem Steps.trans {sch v} {a b d : Store} (h1 : Steps sch v a b) (h2 : Steps sch v b d) :
-    Steps sch v a d := by
+theorem Steps.trans {sch v now} {a b d : Store} (h1 : Steps sch v now a b) (h2 : Steps sch v now b d) :
+    Steps sch v now a d := by
   induction h1 with
   | refl => exact h2
   | step h _ ih => exact .step h (ih h2)
 
-theorem Steps.of_step_or_eq {sch v} {a b : Store} (h : b = a ∨ Step sch v a b) : Steps sch v a b := by
+theorem Steps.of_step_or_eq {sch v now} {a b : Store} (h : b = a ∨ Step sch v now a b) : Steps sch v now a b := by
   rcases h with h | h
   · subst h; exact .refl _
   · exact .step h (.refl _)
@@ -62,9 +64,9 @@ theorem findRow_mem {rows : List Row} {ks} {r : Row} (h : findRow rows ks = some
   · cases h
   · exact List.mem_of_find?_eq_some h
 
-theorem doInsertImage_ok {sch s v t td img ifAbsent d c val s'}
-    (h : doInsertImage sch s v t td img ifAbsent d c = .ok (val, s')) :
-    s' = s ∨ (td.insert.eval s v { self := some img } = true ∧ s' = s.insertRow t img) := by
+theorem doInsertImage_ok {sch s v now t td img ifAbsent d c val s'}
+    (h : doInsertImage sch s v now t td img ifAbsent d c = .ok (val, s')) :
+    s' = s ∨ (td.insert.eval (openedStore sch s now) v { self := some img } = true ∧ s' = s.insertRow t img) := by
   unfold doInsertImage at h
   obtain ⟨_, hg, h⟩ := bind_ok h
   split at h
@@ -74,9 +76,9 @@ theorem doInsertImage_ok {sch s v t td img ifAbsent d c val s'}
     · cases h
   · cases h; exact .inr ⟨guardE_ok hg, rfl⟩
 
-theorem doUpdateRow_ok {sch s v t td old patch cond val s'}
-    (h : doUpdateRow sch s v t td old patch cond = .ok (val, s')) :
-    ∃ nw, td.update.eval s v { old := some old, next := some nw } = true ∧
+theorem doUpdateRow_ok {sch s v now t td old patch cond val s'}
+    (h : doUpdateRow sch s v now t td old patch cond = .ok (val, s')) :
+    ∃ nw, td.update.eval (openedStore sch s now) v { old := some old, next := some nw } = true ∧
       s' = s.replaceRow t old nw := by
   unfold doUpdateRow at h
   obtain ⟨nw, -, h⟩ := bind_ok h
@@ -99,7 +101,7 @@ theorem refDelete_without_actions {sch : Schema} {s : Store} {t : String} {old :
 
 /-- **Write authority, one write.** -/
 theorem applyWrite_authorized {cx : Ctx} {s s' : Store} {rw : RWrite} {val : Value}
-    (h : applyWrite cx s rw = .ok (val, s')) : s' = s ∨ Step cx.schema cx.viewer s s' := by
+    (h : applyWrite cx s rw = .ok (val, s')) : s' = s ∨ Step cx.schema cx.viewer cx.now s s' := by
   cases rw with
   | insert t fields ifAbsent =>
     simp only [applyWrite] at h
@@ -231,7 +233,7 @@ theorem execStmts_inv {W : Type} (H : Hooks W) (cx : Ctx) (R : W → W → Prop)
 reached from the original by a chain of authorized steps. -/
 theorem mutation_authorized {c : Case} {res : Value} {s' : Store}
     (hk : c.program.kind = .mutation) (h : run c = .committed res s') :
-    Steps c.schema c.viewer c.store s' := by
+    Steps c.schema c.viewer c.now c.store s' := by
   simp only [run, hk, runMutation] at h
   split at h
   · cases h
@@ -239,7 +241,7 @@ theorem mutation_authorized {c : Case} {res : Value} {s' : Store}
   · split at h
     · rename_i fl s1 env1 rs1 hx
       cases h
-      exact execStmts_inv storeHooks c.ctx (Steps c.schema c.viewer) Steps.refl
+      exact execStmts_inv storeHooks c.ctx (Steps c.schema c.viewer c.now) Steps.refl
         (fun _ _ _ => Steps.trans)
         (fun w rw val w' happ => Steps.of_step_or_eq (applyWrite_authorized (cx := c.ctx) happ))
         _ _ _ _ _ _ _ _ _ hx

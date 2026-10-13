@@ -30,7 +30,7 @@ namespace Quarry
 
 /-- **Noninterference.** -/
 theorem query_noninterference {c : Case} (hk : c.program.kind = .query) {s1 s2 : Store}
-    (h : visibleRows c.schema s1 c.viewer = visibleRows c.schema s2 c.viewer) :
+    (h : visibleRowsAt c.schema s1 c.viewer c.now = visibleRowsAt c.schema s2 c.viewer c.now) :
     run { c with store := s1 } = run { c with store := s2 } := by
   simp only [run, hk, runQuery, Case.ctx, h]
 
@@ -330,9 +330,9 @@ theorem visibleRows_insert_hidden {sch : Schema} {s : Store} {v : List Nat} {t :
 
 /-- **A hidden row changes no query outcome.** -/
 theorem query_ignores_hidden_insert {c : Case} (hk : c.program.kind = .query) {t : String} {r : Row}
-    (hnp : ∀ td ∈ c.schema.tables, t ∉ td.read.probes)
-    (hr : readable c.schema (c.store.insertRow t r) c.viewer t r = false) :
+    (h : visibleRowsAt c.schema (c.store.insertRow t r) c.viewer c.now =
+      visibleRowsAt c.schema c.store c.viewer c.now) :
     run { c with store := c.store.insertRow t r } = run c :=
-  query_noninterference (s2 := c.store) hk (visibleRows_insert_hidden hnp hr)
+  query_noninterference (s2 := c.store) hk h
 
 end Quarry
