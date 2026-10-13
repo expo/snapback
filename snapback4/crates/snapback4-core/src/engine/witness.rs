@@ -131,9 +131,12 @@ impl Runner<'_> {
             } else { self.witness_scan(allowance, table, index, key, &bounds, 32)? };
             let count = rows.len();
             for (mut row, stored) in rows {
-                self.witness_materialize(&mut row, definition)?;
                 bounds.after = self.witness_position(&stored, index_def.components.len() + 1, key.len())?;
-                if self.inactive(table, &row)? || !equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value) { continue; }
+                // @ref LLP 3000.036.002#2 — unopened witnesses are absent and
+                // consume neither the public meter nor the authorization walk.
+                if self.step_inactive(table, &row, &stored)? { continue; }
+                self.witness_materialize(&mut row, definition)?;
+                if !equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value) { continue; }
                 // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — a held source whose event kind is not fully synced is no witness.
                 if self.device && !crate::schema::timeline::holds_event(self.schema, table, &row) {
                     self.event_read_unknown(table, index, key, "rule probe");
@@ -304,9 +307,10 @@ impl Runner<'_> {
             #[cfg(feature = "sqlite")]
             if count > 0 { if let Some(seen) = encountered.as_deref_mut() { *seen = true; } }
             for (mut row, stored) in rows {
-                self.witness_materialize(&mut row, table)?;
-                if !self.inactive(table_name, &row)? { return Ok(Some(row)); }
                 bounds.after = self.witness_position(&stored, index.components.len() + 1, key.len())?;
+                if self.step_inactive(table_name, &row, &stored)? { continue; }
+                self.witness_materialize(&mut row, table)?;
+                return Ok(Some(row));
             }
             if count < limit { return Ok(None); }
         }
@@ -315,6 +319,10 @@ impl Runner<'_> {
     // Physical witness work is additional device authorization work. Queries
     // and server rules keep their existing one-probe accounting.
     fn witness_scan(&mut self, allowance: &Authorization, table: &str, index: &str, prefix: &[Value], bounds: &Bounds, batch: usize) -> Result<(Vec<(Value, Vec<u8>)>, usize), RuntimeError> {
+        // A lifetime-hidden row refunds the shared authorization walk only
+        // after inspection. Fetch one at a time so a nearly exhausted batch
+        // cannot refuse before that refund is applied.
+        let batch = if self.schema.tables[table].read_lifetime_sensitive() { 1 } else { batch };
         if !self.device_work_active { return Ok((self.tx.scan(allowance, table, index, prefix, bounds, Dir::Asc, batch)?, batch,
             )); }
         let limit = self.meter.ceilings.examined.saturating_sub(self.meter.used.examined).min(batch as u64) as usize;

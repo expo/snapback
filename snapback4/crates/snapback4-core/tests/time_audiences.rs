@@ -42,6 +42,23 @@ mutation revise(team: text <=20, principal: principal, body: text <=100):
   return true
 ";
 
+const WITNESS_SOURCE: &str = "table grants:
+  ticket: int
+  opensAt: time
+  unique byTicket: ticket
+  by byOpening: opensAt
+  not before .opensAt
+  public 'scheduled grants'
+  sync public
+table tasks:
+  ticket: int
+  visible: bool
+  read <- .visible = true or exists grants[ticket = .ticket]
+  online only
+query firstVisible():
+  return tasks first 1 by .id
+";
+
 fn engine_at(now: i64) -> Engine {
     let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
     assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
@@ -56,6 +73,18 @@ fn engine_at(now: i64) -> Engine {
 
 fn unique_engine_at(now: i64) -> Engine {
     let bound = snapback4_lang::compile(&[("schema.q".into(), UNIQUE_SOURCE.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    Engine::new_at(
+        Store::memory().unwrap(),
+        bound.schema,
+        bound.programs.into_iter().map(|program| program.program),
+        now,
+    )
+    .unwrap()
+}
+
+fn witness_engine_at(now: i64) -> Engine {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), WITNESS_SOURCE.into())]);
     assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
     Engine::new_at(
         Store::memory().unwrap(),
@@ -332,4 +361,37 @@ fn a_natural_unique_upsert_patches_the_future_row_without_inserting() {
         ("id".into(), Value::Id("one".into())),
     ].into()).at(100)).unwrap();
     assert_eq!(opened.data.field("body"), Ok(&Value::String("revised".into())));
+}
+
+#[test]
+fn future_rule_witnesses_do_not_spend_the_authorization_walk() {
+    const HIDDEN: i64 = 4_200;
+    let tasks = (0..HIDDEN).map(|ticket| ("tasks".into(), object([
+        ("id", Value::Id(format!("a{ticket:04}"))),
+        ("ticket", Value::Int(ticket)),
+        ("visible", Value::Bool(false)),
+    ]))).chain(std::iter::once(("tasks".into(), object([
+        ("id", Value::Id("z".into())),
+        ("ticket", Value::Int(HIDDEN)),
+        ("visible", Value::Bool(true)),
+    ])))).collect::<Vec<_>>();
+
+    let mut absent = witness_engine_at(0);
+    absent.seed_at(tasks.clone(), 0).unwrap();
+    let absent = absent.query("firstVisible", Context::new("alice", Default::default()).at(0)).unwrap();
+
+    let grants = (0..HIDDEN).map(|ticket| ("grants".into(), object([
+        ("id", Value::Id(format!("g{ticket:04}"))),
+        ("ticket", Value::Int(ticket)),
+        ("opensAt", Value::Int(100)),
+    ])));
+    let mut future = witness_engine_at(0);
+    future.seed_at(tasks.into_iter().chain(grants), 0).unwrap();
+    let future = future.query("firstVisible", Context::new("alice", Default::default()).at(0)).unwrap();
+
+    assert_eq!(future.data, absent.data);
+    assert_eq!(future.metered, absent.metered);
+    assert_eq!(future.complete, absent.complete);
+    assert_eq!(future.next, absent.next);
+    assert_eq!(future.unavailable, absent.unavailable);
 }
