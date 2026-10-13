@@ -124,3 +124,13 @@ impl Binder<'_> {
             .guide("indexes").repair_read(&read.site, changes)
     }
 }
+
+// @ref LLP 3000.011.003.000#9 — hidden aggregate keys are nullable; choosing zero is explicit, never an automatic schema rewrite.
+pub(super) fn write_rewrite(field: &ObjectField, expected: &Ty, got: &Ty) -> String {
+    if let Ty::Optional(inner) = got {
+        if matches!(inner.as_ref(), Ty::Int | Ty::Money(..) | Ty::Decimal(..)) && inner.writable_to(expected) {
+            if let Some(value) = &field.value { return format!("{}: {} ?? 0 (only if your application treats a hidden/missing value as zero)", field.name, print::expression(value)); }
+        }
+    }
+    format!("write {} into {}", expected.name(), field.name)
+}

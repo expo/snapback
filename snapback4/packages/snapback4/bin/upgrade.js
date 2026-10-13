@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // @ref LLP 3000.011.003.000#8 — resolve once, pin core and adapters to that same release.
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 
 function run() {
@@ -11,6 +12,28 @@ function run() {
   let root = process.cwd();
   while (!existsSync(join(root, 'package.json'))) { const parent = dirname(root); if (parent === root) throw Error('E_UPGRADE: no project package.json'); root = parent; }
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+  const schema = existsSync(join(root, 'snapback/schema.q'));
+  const cli = () => {
+    const require = createRequire(join(root, 'package.json'));
+    return join(dirname(dirname(require.resolve('snapback4/bin-path'))), 'bin/snapback4.js');
+  };
+  const check = () => spawnSync(process.execPath, [cli(), 'check', '--json'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  if (schema) {
+    // A previous package may predate snapshots. Capture its own compiler output
+    // before install; never infer old facts using the newly installed engine.
+    const old = check();
+    let facts;
+    try { facts = JSON.parse(old.stdout); } catch { /* Unavailable baseline remains explicit. */ }
+    const api = join(root, 'snapback/generated/api.ts');
+    if (facts && existsSync(api) && old.status === 0) {
+      const counts = values => (values ?? []).reduce((out, value) => { out[value.code] = (out[value.code] ?? 0) + 1; return out; }, {});
+      const require = createRequire(join(root, 'package.json'));
+      const version = JSON.parse(readFileSync(join(dirname(dirname(require.resolve('snapback4/bin-path'))), 'package.json'), 'utf8')).version;
+      const sources = readdirSync(join(root, 'snapback')).filter(file => file.endsWith('.q')).sort((a, b) => a === 'schema.q' ? -1 : b === 'schema.q' ? 1 : a.localeCompare(b)).map(file => [file, readFileSync(join(root, 'snapback', file), 'utf8')]);
+      mkdirSync(join(root, '.snapback4'), { recursive: true });
+      writeFileSync(join(root, '.snapback4/check-surface.json'), JSON.stringify({ version, sources, api: readFileSync(api, 'utf8'), notes: counts(facts.notes), refusals: counts(facts.problems) }));
+    } else console.log('upgrade: schema comparison baseline unavailable; old check did not complete');
+  }
   const declared = pkg.packageManager?.split('@')[0];
   const locks = [['bun', ['bun.lock', 'bun.lockb']], ['pnpm', ['pnpm-lock.yaml']], ['npm', ['package-lock.json', 'npm-shrinkwrap.json']]].filter(([, files]) => files.some(file => existsSync(join(root, file)))).map(([pm]) => pm);
   if (declared && !['npm', 'bun', 'pnpm'].includes(declared)) throw Error('E_UPGRADE: supported package managers are npm, bun and pnpm');
@@ -47,6 +70,14 @@ function run() {
   }
   const after = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
   for (const name of targets) if (!dependencies.some(key => after[key]?.[name] === version)) throw Error(`E_UPGRADE: ${name} was not pinned to ${version}`);
+  const exact = existsSync(join(root, 'exact.mjs')) || existsSync(join(root, 'exact.json')) || dependencies.some(key => Object.keys(pkg[key] ?? {}).some(name => /^exact2?(?:$|[-/])/.test(name)));
+  if (exact) console.log('Exact device rebuild: bun exact.mjs snapback --rebuild'); // HS owns this command and the pairing gate.
+  if (schema) {
+    const checked = check();
+    if (checked.stderr) process.stderr.write(checked.stderr);
+    if (checked.stdout) process.stdout.write(checked.stdout);
+    if (checked.error || checked.status !== 0) throw Error(`E_UPGRADE: packages pinned to ${version}; post-upgrade check refused. Repair the reported schema/device issues and run check again.`);
+  }
   console.log(`upgrade: ${targets.join(', ')} pinned to ${version} with ${pm}; commit the lockfile, run check and acceptance tests${targets.includes('snapback4-expo') ? ', and rebuild the native app' : ''}`);
 }
 try { run(); } catch (error) { console.error(error.message); process.exitCode = 1; }
