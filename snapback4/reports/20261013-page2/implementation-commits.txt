@@ -80,3 +80,16 @@ fa75d82735 Measure actual-publication device with 500 B wasm headroom
 5735d2a87e Specify snapshot clocks and timed asset authorization
 d0e1c30841 Pin timed jobs inside writer transactions
 0f97de33c5 Use the numbered job lifetime reference anchor
+728e2db191 Retain final PAGE2 campaigns and clean wasm receipt
+da0a2d6bd7 Record final PAGE2 Muse READY review
+a91ff2f46f Retain tenth review and fully pinned Lean discovery blocker
+b13793557c Clarify fully pinned discovery beside nullable rule probes
+b44134bfe4 Record both READY time reviews and completed qualification
+361ed2628d Align Lean membership discovery eligibility
+9e948ec82c Link shared Lean admission to PAGE2 alternatives
+d03a75c80e Type intrinsic ids in membership planning
+35ab999c0e Retain planner review and typed-id discovery-cut findings
+68bd596e1a Preserve eleventh Muse planner READY review
+24a644c511 Fence membership discovery step cuts
+10d27f62cc Measure discovery-cut device with exact 500 B headroom
+f4701db497 Record both final planner READY reviews

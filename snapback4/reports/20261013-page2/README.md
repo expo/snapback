@@ -1,23 +1,56 @@
 # PAGE2 qualification evidence — 2026-10-13
 
-Semantic code checkpoint: `d0e1c30841e55adf7193b7cf7e0385348fadff99`. The subsequent `0f97de33c5` changes only the job reference anchor. The campaigns bind the same semantic content, including pending reads, overlay/backend boundaries, transaction clocks, jobs and timed asset homes. The release difftest binary was rebuilt from this implementation; every Cargo command used `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0`.
+Final semantic checkpoint: `24a644c511fc5a6888597af9335d894790eaeb97`.
+It includes original planner/lifetime work, pending-publication safety, durable
+transaction/snapshot clocks, fully pinned Lean discovery parity, intrinsic-id
+typing across competing uniques, and expression-step discovery fences. Later
+commits only record budgets, reviews and qualification. Every Cargo invocation
+used `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0`.
 
-Each campaign generated and compiled seeds 0 through 399, with four workers:
+Planner §15 has two READY [round-12 reviews](../../../llp/reviews/3000.036-page2.r12.brief.md)
+at this checkpoint. Time audiences have two READY [round-10 reviews](../../../llp/reviews/3000.036-page2.r10.brief.md)
+at `d0e1c30841`, bound to the unchanged lifetime semantics; timed core21/21
+passes again after the planner discovery restoration. Full review provenance
+and per-item tests are in [WORKSTREAM-REPORT.md](../../../WORKSTREAM-REPORT.md).
+
+Each final campaign generates/compiles seeds0–399 with four workers:
 
 ```sh
-target/release/snapback4-difftest run --seed 0 --cases 400 --workers 4 --out /tmp/sb4-page2-final-native-r10
-target/release/snapback4-difftest run-devices --seed 0 --cases 400 --workers 4 --out /tmp/sb4-page2-final-devices-r10
-target/release/snapback4-difftest run-lean --seed 0 --cases 400 --workers 4 --out /tmp/sb4-page2-final-lean-r10
+target/release/snapback4-difftest run --seed 0 --cases 400 --workers 4 --out /tmp/sb4-page2-final-native-r12
+target/release/snapback4-difftest run-devices --seed 0 --cases 400 --workers 4 --out /tmp/sb4-page2-final-devices-r12
+target/release/snapback4-difftest run-lean --seed 0 --cases 400 --workers 4 --out /tmp/sb4-page2-final-lean-r12
 ```
 
-- [Native](native.json): 20,605 executions across nine oracles (including 7/7 timed-search future-absence comparisons), zero disagreements/signatures, exit 0.
-- [Devices](devices.json): 13,114 executions on Memory and SQLite, zero disagreements/signatures, exit 0.
-- [Lean](lean.json): 1,072 executions; 317 passes, 80 explicit unsupported cases, three disagreements under two pre-existing `CLASSIFIED` pagination signatures; zero new signatures. Exit 1 reports the classified disagreements. Classification and diagnoses predate this work under `crates/snapback4-difftest/tests/lean.rs` and `crates/snapback4-difftest/cases/found/lean--{continuation-next,next}--next~no-next/`. Do not interpret this as a zero-disagreement Lean campaign.
+- [Native](native.json):20,619 executions across nine oracles, including7/7 timed-search future-absence comparisons; zero disagreements/signatures, exit0.
+- [Devices](devices.json):13,114 executions on Memory/SQLite; zero disagreements/signatures, exit0.
+- [Lean](lean.json):1,072 executions;317 passes,80 explicit unsupported,3 disagreements under two pre-existing CLASSIFIED pagination signatures; zero new signatures. Exit1 reports classified disagreements. These diagnoses predate this work in `crates/snapback4-difftest/cases/found/lean--{continuation-next,next}--next~no-next/`. This is not a zero-disagreement Lean campaign.
 
-[Wasm receipt](wasm.json) is the clean source measurement at `0f97de33c5`: 2,302,339 B raw / 701,955 B gzip, budget 702,455 B = measurement + 500 B. The measurement also passed serializer-family/forbidden-absence audits. This is Linux whole-artifact evidence, not Mac or publication qualification.
+The separately pinned discovery-unique shape first appears at native seed715
+and Lean551, outside the common400-case window. Additional one-case campaigns:
 
-[Planner report](planner.md) preserves the lane's checkpoint provenance, exact copied-schema commands, source and output hashes, and complete exclusion accounting. Its campaign checkpoint pointers precede the final repeated campaigns above; the final JSON files here bind the lifetime-aware search and actual-publication, pending-read and transaction-clock fixes too. [Farm survey](farm-survey.json) records all 50 odd-lane outcomes: 20 notes in 13 schemas become 18 notes in 11. Even-lane audits of named own-id shapes 002 and 098 both clear their single note.
+```sh
+target/release/snapback4-difftest run --seed 715 --cases 1 --workers 1 --out /tmp/sb4-page2-discovery-native-r12
+target/release/snapback4-difftest run-lean --seed 551 --cases 1 --workers 1 --out /tmp/sb4-page2-discovery-lean-r12
+target/release/snapback4-difftest run-devices --seed 715 --cases 1 --workers 1 --out /tmp/sb4-page2-discovery-devices-r12
+```
 
-[Implementation commits](implementation-commits.txt) records the small-step code/design/review history through final transaction-clock implementation and reference repair; documentation/evidence commits follow. Full per-item changes, focused suites, review verdicts and scope boundaries are in the root [workstream report](../../../WORKSTREAM-REPORT.md). Blind semantic review provenance is in `llp/reviews/3000.036-page2.r10.* (review pending at this evidence commit)`.
+[Targeted native](discovery-native.json):394 executions, explicit discovery-unique
+coverage and zero signatures. [Targeted Lean](discovery-lean.json):6 executions,
+one actual compared discovery-unique case, zero signatures. [Targeted devices](discovery-devices.json):4 executions; both stores correctly remain online-only
+unknown/incomplete because this source is uncovered. No offline data-equality
+claim is made for that case. Both-store branch merge suite12/12 separately passes.
 
-[Timed-search coverage addendum](timed-search.md) records `476c7e4fca`: deterministic native generation, full-outcome absence property, explicit Lean search exclusion, simulator and both-store device cases. The planner report corrects the initial crate attribution of the 57-test branch-merge suite to `snapback4-lang`; a fresh root run passes 57/57.
+[Wasm receipt](wasm.json) is clean at `10d27f62cc`:2,305,135 B raw /
+703,255 B gzip /531,512 B brotli; budget703,755 B = measurement+500 B.
+Serializer-family/forbidden-absence audits and locked web build pass; client
+package builds against these bytes. This is Linux whole-artifact evidence,
+without a Mac or publication claim.
+
+[Final schema survey](final-schema-survey.md) rebuilds the CLI at the final
+semantic checkpoint, preserves binary/source/output hashes, and verifies all50
+odd copied schemas:20 notes/13 schemas become18 notes/11 schemas. Named copied
+evens002/098 both remain zero. [Original planner report](planner.md) and
+[farm aggregate](farm-survey.json) retain complete shape-exclusion accounting.
+[Timed-search addendum](timed-search.md) records generation and simulator/device
+coverage. [Commit list](implementation-commits.txt) includes implementation and
+review history; final documentation/evidence commits follow. No push.

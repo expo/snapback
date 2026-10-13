@@ -3,11 +3,11 @@
   "compiled": 400,
   "binder_refused_expected": 0,
   "binder_refused_unexpected": 0,
-  "executed": 20605,
+  "executed": 20619,
   "generator_errors": {},
   "by_oracle": {
     "meter": {
-      "attempted": 8936,
+      "attempted": 8943,
       "passed": 1417,
       "unsupported": {
         "examined-opening-no-position": 182,
@@ -16,8 +16,8 @@
         "output_bytes-refusal-no-continuation": 274,
         "return-not-pageable": 669,
         "rule_probes-opening-no-position": 38,
-        "steps-refusal-no-continuation": 4795,
-        "steps-unwind-no-continuation": 61,
+        "steps-refusal-no-continuation": 4757,
+        "steps-unwind-no-continuation": 106,
         "timed-search-no-continuation": 7,
         "uncut-refusal": 44
       },
@@ -459,12 +459,12 @@
       "meter_fields_omitted": 0
     },
     "steps": {
-      "attempted": 5252,
+      "attempted": 5259,
       "passed": 274,
       "unsupported": {
         "return-not-pageable": 122,
-        "steps-refusal-no-continuation": 4795,
-        "steps-unwind-no-continuation": 61
+        "steps-refusal-no-continuation": 4757,
+        "steps-unwind-no-continuation": 106
       },
       "disagreeing": 0,
       "signatures": {},
@@ -488,7 +488,7 @@
   "slowest_case_seconds": 0.0,
   "slowest_case_seed": null,
   "time_limited_workers": 0,
-  "seconds": 4.446109321,
+  "seconds": 4.014340294,
   "seed": 0,
   "cases": 400
 }
