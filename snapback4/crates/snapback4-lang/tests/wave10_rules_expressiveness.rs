@@ -225,6 +225,22 @@ fn timed_disclosure_recipe_separates_read_lifetime_from_write_deadline() {
 }
 
 #[test]
+fn timed_disclosure_is_discoverable_from_language_time_and_expiry() {
+    let recipes = guide::card("rule-recipes").unwrap();
+    assert!(recipes.lines().count() <= 400);
+    for alias in ["not before", "timed disclosure"] {
+        assert_eq!(guide::resolve(alias), Some("rule-recipes"));
+        let landing = guide::alias_landing(alias, "rule-recipes", recipes).unwrap();
+        assert!(landing.contains("## Timed disclosure and timed writes"), "{alias}: {landing}");
+    }
+    assert!(guide::card("language").unwrap().contains("not before .opensAt"));
+    let time = guide::card("time").unwrap();
+    assert!(time.contains("server-enforced read lifetime") && time.contains("guide timed disclosure"));
+    let expire = guide::card("expire").unwrap();
+    assert!(expire.contains("[opensAt, expiresAt)") && expire.contains("guide timed disclosure"));
+}
+
+#[test]
 fn mutable_read_through_diagnostic_explains_both_audience_histories() {
     let source = "table dispatchers:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable franchisees:\n  principal: principal\n  territory: text 1..40\n  unique principal\n  read <- .principal = viewer\n  online only\ntable leads:\n  customer: principal\n  territory: text 1..40\n  immutable customer\n  read <- .customer = viewer or exists franchisees[principal = viewer, territory = .territory] or exists dispatchers[viewer]\n  online only\ntable followUps:\n  lead: leads\n  immutable lead\n  read through .lead\n  online only\n";
     let bound = compile(&[("schema.q".into(), source.into())]);

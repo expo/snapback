@@ -29,6 +29,13 @@ query myNotes(c: cursor ?):
   return notes where .owner = viewer last 20 by .at after c
 mutation addNote(body: text):
   return insert notes { owner: viewer, body }
+table announcements:
+  body: text <=4000
+  opensAt: time ?
+  by byOpening: opensAt, id
+  not before .opensAt                  -- absent to reads until the server reaches this lower read-lifetime boundary; null opens immediately
+  public 'announcements become public on the server clock'
+  online only
 ```
 
 Tables have an implicit `id`. `query` pages newest first; pass `next` as `c`. `addNote` inserts atomically with default time.

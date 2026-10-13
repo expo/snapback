@@ -96,6 +96,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     // @ref LLP 3000.007#20.1 — wave 4: the shapes builders assembled from several cards open one compiled recipe.
     ("recipe", "recipes"), ("roles", "recipes"), ("role", "recipes"), ("admin", "deploy"), ("rbac", "recipes"),
     ("composite role", "rule-recipes"), ("composite roles", "rule-recipes"), ("blind writer", "rule-recipes"), ("hidden parent", "rule-recipes"),
+    ("not before", "rule-recipes"), ("timed disclosure", "rule-recipes"),
     ("permissions", "recipes"), ("two-party", "recipes"), ("two party", "recipes"), ("buyer seller", "recipes"),
     ("marketplace", "recipes"), ("booking", "recipes"), ("bookings", "recipes"), ("reservation", "recipes"),
     ("reservations", "recipes"), ("capacity", "recipes"), ("seats", "recipes"), ("double booking", "recipes"),
@@ -163,6 +164,7 @@ pub const ALIAS_SECTIONS: &[(&str, &str)] = &[
     ("household", "A group's private list"), ("households", "A group's private list"), ("multi-tenant", "A group's private list"),
     ("tenant", "A group's private list"), ("membership", "A group's private list"),
     ("sealed", "Sealed"), ("sealed bid", "Sealed"), ("sealed bids", "Sealed"), ("blind", "Sealed"), ("reveal", "Sealed"),
+    ("not before", "Timed disclosure and timed writes"), ("timed disclosure", "Timed disclosure and timed writes"),
     ("roster", "Roles and rosters"), ("rosters", "Roles and rosters"), ("probe", "Roles and rosters"), ("positional", "Roles and rosters"),
 ];
 
@@ -386,6 +388,9 @@ The HTTP /seed development door already runs through the host. `check`, `data`,
 
 Expiry makes a row invisible when its declared deadline passes.
 The server then deletes it and syncs the deletion to devices holding it.
+Together, `not before .opensAt` and `expire at .expiresAt` define the half-open
+read lifetime `[opensAt, expiresAt)`: the first is the lower boundary and the
+second is the upper boundary. `guide timed disclosure` has the compiled recipe.
 
 ```quarry
 table stories:
