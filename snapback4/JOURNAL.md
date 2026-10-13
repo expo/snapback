@@ -94249,3 +94249,10 @@ Fresh Sol's initial review independently finds the one-line client card overrun;
 remove a blank line to retain the 114-line/1200-word budget. It also finds the
 already-repaired CLI notes, delivery boundary and PAGE serializer families.
 Root inventories and all 22 Guide checks pass after dependency/codegen bootstrap.
+
+Integration 7 round-two source reviews are both READY at e759005d33:
+Muse Spark 1.3 Contributor/high and fresh Codex GPT-6.1 Sol/high, mutually blind,
+verbatim under llp/reviews/3000-integration7.r2.*. They explicitly separate
+source correctness from execution qualification. Apply Sol's minor codec
+comment correction. Muse's historical budget-label observation will be
+reconciled with the final bumped measurement, retaining earlier records.

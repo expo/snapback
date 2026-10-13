@@ -3,8 +3,8 @@
 //! positions, without an intermediate tree on durable row loads. Already-parsed
 //! dispatch values are consumed and rendered once, then freed before decode;
 //! page commands deserialize directly from their original text.
-//! The output meter alone keeps its counting writer: it must not allocate a
-//! second result. The derive remains the only definition of every type.
+//! Counting, bounded discovery keys and cursor hashing share one erased sink;
+//! none adds a result-sized scratch buffer. Derives still define every type.
 // @ref LLP 3000.002#proposed-device-representation-and-codec-redesign — consolidate serde instantiations without changing canonical bytes.
 use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use serde_json::{Error, Value};
