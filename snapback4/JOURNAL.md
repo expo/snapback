@@ -94829,3 +94829,20 @@ pinned Oxc TypeScript AST parser in the CLI only. Runtime literal/value imports
 establish static declarations; erased types do not. This removes the token
 heuristic and leaves device runtime and wasm unchanged. Preserve every supplied
 counterexample as a check/doctor regression and rerun both review families.
+
+### 2026-10-13 — Integration 9 merge reconciliation
+
+Merge REL2, DX2, DIAG, PAGE2, GATE and FLAKE in order with --no-ff.
+Keep both nullable numeric write advice and nullable upsert narrowing; REL2
+owns lifecycle prose, with DIAG account bootstrap folded into its checklist.
+Timed opening polls preserve the deterministic wait/resume notification probes.
+Concurrent DIAG and PAGE2 new documents both chose 3000.036.002: allocate
+PAGE2 timed disclosure 3000.036.003 at integration, retaining original review
+transcripts verbatim and updating live references. This resolves a new-number
+collision, not re-parenting a settled document.
+
+Pre-bump locked Linux web device: 2308188 raw /704317 gzip bytes; set
+704817 = measurement +500 B. The whole artifact adds 5586 B gzip against
+Integration 8; no per-feature attribution or runtime ceiling increase. Final
+version is remeasured after the separate bump. Lean: 71 examples, 58 theorem
+axiom audits and seven oracle fixtures pass.

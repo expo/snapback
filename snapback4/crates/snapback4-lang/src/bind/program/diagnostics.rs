@@ -132,7 +132,8 @@ pub(super) fn write_rewrite(field: &ObjectField, expected: &Ty, got: &Ty) -> Str
             if let Some(value) = &field.value { return format!("{}: {} ?? 0 (only if your application treats a hidden/missing value as zero)", field.name, print::expression(value)); }
         }
     }
-    format!("write {} into {}", expected.name(), field.name)}
+    format!("write {} into {}", expected.name(), field.name)
+}
 
 // @ref LLP 3000.036.002#5 — a successful upsert may return no readable row.
 pub(super) fn write_field_type(info: &TableInfo, field: &ObjectField, expected: &Ty, actual: &Ty) -> Diagnostic {
