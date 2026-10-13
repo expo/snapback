@@ -1,0 +1,13 @@
+{
+  "step": "expo-pack-verification",
+  "command": [
+    "python3",
+    "/Users/ccheever/sb4-pub-0425/helpers-0.4.25/expo-verify.py",
+    "attempt-2"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0425/snapback4",
+  "start": 1791890950.230885,
+  "end": 1791890950.357334,
+  "seconds": 0.126,
+  "exit": 0
+}

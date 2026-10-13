@@ -1,0 +1,30 @@
+{
+  "step": "linux-qualify",
+  "command": [
+    "env",
+    "-u",
+    "SNAPBACK4_BIN",
+    "-u",
+    "NPM_TOKEN",
+    "-u",
+    "NODE_AUTH_TOKEN",
+    "-u",
+    "SNAPBACK4_TEST_SERIAL_CLIENT_FILES",
+    "-u",
+    "SNAPBACK4_RUST_TEST_PROCESSES",
+    "CARGO_INCREMENTAL=0",
+    "CARGO_PROFILE_DEV_DEBUG=0",
+    "CARGO_PROFILE_TEST_DEBUG=0",
+    "node",
+    "scripts/qualify-linux.mjs",
+    "--client",
+    "target/publication/client-0.4.24/snapback4-0.4.24.tgz",
+    "--out",
+    "/home/ccheever/sb4-pub-0424-records/linux-qualification-0.4.24-a2"
+  ],
+  "cwd": "/home/ccheever/projects/sb4-pub-0424/snapback4",
+  "start": 1791829411.0142462,
+  "end": 1791831379.0120234,
+  "seconds": 1967.998,
+  "exit": 0
+}

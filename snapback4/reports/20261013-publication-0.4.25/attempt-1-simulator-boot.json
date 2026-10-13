@@ -1,0 +1,14 @@
+{
+  "step": "simulator-boot",
+  "command": [
+    "xcrun",
+    "simctl",
+    "boot",
+    "D2C67F7F-196C-439E-AEB9-3FDA4479761E"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0425/snapback4",
+  "start": 1791872867.1456928,
+  "end": 1791872871.151045,
+  "seconds": 4.005,
+  "exit": 0
+}

@@ -1,0 +1,237 @@
+info: component rust-std for target x86_64-unknown-linux-musl is up to date
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling snapback4-core v0.4.24 (/home/ccheever/projects/sb4-pub-0424/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.24 (/home/ccheever/projects/sb4-pub-0424/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.24 (/home/ccheever/projects/sb4-pub-0424/snapback4/crates/snapback4-device)
+warning: dropping unsupported crate type `cdylib` for target `x86_64-unknown-linux-musl`
+
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:454:51
+    |
+454 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 2 warnings (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4 v0.4.24 (/home/ccheever/projects/sb4-pub-0424/snapback4/crates/snapback4)
+warning: use of deprecated type alias `libc::time_t`: This type is changed to 64-bit in musl 1.2.0, we'll follow that change in the future release. See #1848 for more info.
+   --> crates/snapback4/src/verbs/witness/background.rs:388:65
+    |
+388 |     let seconds = (value.as_u64().unwrap_or(0) / 1000) as libc::time_t;
+    |                                                                 ^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: function `human_period` is never used
+   --> crates/snapback4/src/verbs.rs:766:4
+    |
+766 | fn human_period(ms: u64) -> String {
+    |    ^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4` (bin "snapback4") generated 2 warnings
+    Finished `production` profile [optimized] target(s) in 5m 35s
+{"status":"passed","machine":"x86_64","interpreter":null,"needed":[]}
+
+added 6 packages in 4s
+npm notice
+npm notice New major version of npm available! 10.9.4 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+consumer round trip passed: --version, init, check, dev, write/read and denied cross-persona read
+( 1/18) Installing libgcc (15.2.0-r2)
+( 2/18) Installing libstdc++ (15.2.0-r2)
+( 3/18) Installing ada-libs (3.3.0-r0)
+( 4/18) Upgrading libcrypto3 (3.5.5-r0 -> 3.5.8-r0)
+( 5/18) Upgrading libssl3 (3.5.5-r0 -> 3.5.8-r0)
+( 6/18) Upgrading zlib (1.3.1-r2 -> 1.3.2-r0)
+( 7/18) Installing brotli-libs (1.2.0-r0)
+( 8/18) Installing c-ares (1.34.8-r0)
+( 9/18) Installing ca-certificates (20260909-r0)
+(10/18) Installing icu-data-en (76.1-r1)
+  Executing icu-data-en-76.1-r1.post-install
+  * 
+  * If you need ICU with non-English locales and legacy charset support, install
+  * package icu-data-full.
+  * 
+(11/18) Installing icu-libs (76.1-r1)
+(12/18) Installing nghttp2-libs (1.69.0-r0)
+(13/18) Installing simdjson (3.12.0-r0)
+(14/18) Installing simdutf (7.5.0-r1)
+(15/18) Installing sqlite-libs (3.53.4-r0)
+(16/18) Installing zstd-libs (1.5.7-r2)
+(17/18) Installing nodejs (24.18.1-r0)
+(18/18) Installing npm (11.11.0-r0)
+Executing busybox-1.37.0-r30.trigger
+Executing ca-certificates-20260909-r0.trigger
+OK: 83.6 MiB in 31 packages
+
+added 6 packages in 6s
+consumer round trip passed: --version, init, check, dev, write/read and denied cross-persona read
+{
+  "format": 1,
+  "route": "proot",
+  "source": "b16a053804b3e1686e93bf381ba3c8c92cedf336",
+  "target": "x86_64-unknown-linux-musl",
+  "toolchain": {
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)\nbinary: rustc\ncommit-hash: 2d8144b7880597b6e6d3dfd63a9a9efae3f533d3\ncommit-date: 2026-07-07\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.0\nLLVM version: 22.1.6",
+    "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+    "cc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "linker": "/home/ccheever/.local/share/snapback4-musl-1.2.5/bin/musl-gcc"
+  },
+  "flags": {
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "RUSTFLAGS": "-C target-feature=+crt-static -C relocation-model=static"
+  },
+  "suite": {
+    "status": "passed",
+    "exitCode": 0,
+    "summary": "== 0 failure(s) in 1601 s"
+  },
+  "proofs": [
+    {
+      "base": "ubuntu:24.04",
+      "node": "22.22.0",
+      "rootfs": {
+        "url": "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.3-base-amd64.tar.gz",
+        "sha256": "6bc2cde3930ad088b3bb46fa45279e96d25bc3810f209850ecbe4722711874f9"
+      },
+      "tools": [
+        {
+          "url": "https://github.com/proot-me/proot/releases/download/v5.4.1/proot",
+          "sha256": "19f44283f5c0e73091c60195f5fcd4f4c1165505e44410d434e2ab1b677c1a09"
+        },
+        {
+          "url": "https://nodejs.org/dist/v22.22.0/node-v22.22.0-linux-x64.tar.xz",
+          "sha256": "9aa8e9d2298ab68c600bd6fb86a6c13bce11a4eca1ba9b39d79fa021755d7c37"
+        }
+      ],
+      "route": "proot",
+      "runtime": "proot",
+      "status": "passed",
+      "elapsedMs": 12313,
+      "clientIntegrity": "sha512-ySBP6yUw+Cy+8TxnVCu21Vhj07C0tHKHA9Fsn0XkAVxiVlsyv7xx+ox6JrLMzMnAGXbAetcaMS+vIeg7UVW4FA==",
+      "platformIntegrity": "sha512-v5LKQmLYsChy6D/ds34DwfN7wMnsdUqjiqjbPnTdtlS90a0RVdPIli/2Gi89sC72p9BWHT9lzLV08HGj49f6DQ=="
+    },
+    {
+      "base": "alpine",
+      "node": "24.18.1",
+      "rootfs": {
+        "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/x86_64/alpine-minirootfs-3.23.3-x86_64.tar.gz",
+        "sha256": "42d0e6d8de5521e7bf92e075e032b5690c1d948fa9775efa32a51a38b25460fb"
+      },
+      "tools": [
+        {
+          "url": "https://github.com/proot-me/proot/releases/download/v5.4.1/proot",
+          "sha256": "19f44283f5c0e73091c60195f5fcd4f4c1165505e44410d434e2ab1b677c1a09"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/nodejs-24.18.1-r0.apk",
+          "sha256": "3c78c9bc8a1d52cc18e79f94120d69ae7705dab1d77054dfa040a064bf344b87"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/ada-libs-3.3.0-r0.apk",
+          "sha256": "5afb61331b184c47e91d0637ecb706aaf30e9270e845a6c0417235bdec2009c1"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/brotli-libs-1.2.0-r0.apk",
+          "sha256": "09fbf1ddf0c71c6c4ab7bc12aef3452d8ace5adeab10c4c30214fc70f5e0e087"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/c-ares-1.34.8-r0.apk",
+          "sha256": "7a570d080d05e60b1256ea73586924bf9a25f468c57aae10d1cdfe7fcc3f93a2"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/ca-certificates-20260909-r0.apk",
+          "sha256": "68ee230255f291fcc7539bacd1cc38cb15debda9cff66e57e9ff022a2c38816c"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/icu-data-en-76.1-r1.apk",
+          "sha256": "82d55e064ca2ff15e6ef6c3b7009eb2e869469f56f36c0d84411b265825a3251"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/icu-libs-76.1-r1.apk",
+          "sha256": "c6b53c168bb1af380fcbc305ff9e25c30e3cab756165fd7b8f77d4dac132aa4d"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/libcrypto3-3.5.8-r0.apk",
+          "sha256": "a5592b5cf276bc7a30ac7b161d46446085490b640faa1f839ea98eb15aacad31"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/libgcc-15.2.0-r2.apk",
+          "sha256": "4279d14cbf43311312d3a7d43619f4c15ede2e46d5608ba421ed157ded57c700"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/libssl3-3.5.8-r0.apk",
+          "sha256": "f80b76cb5e5a52cfc1ced08f8dc3022adc0ce0a3d6e7741976731b22c71fe310"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/libstdc++-15.2.0-r2.apk",
+          "sha256": "d4be2967a06d78b499f5e136323f4ebe51ad367b381933b3369539499c4f5752"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/nghttp2-libs-1.69.0-r0.apk",
+          "sha256": "e52a5325b8720449ed4f123a33202794361b6b164c127abdb4b3c057467e7a41"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/simdjson-3.12.0-r0.apk",
+          "sha256": "1dfe639550b5457018b7993a9ac9417a6b3d0e4ecbbdacf0ef0e3b42582173e4"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/simdutf-7.5.0-r1.apk",
+          "sha256": "6ca498fdaf3eae672e656f3746c2b4a4740a1924d1210af43ec6233b4a5a1476"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/sqlite-libs-3.53.4-r0.apk",
+          "sha256": "414be12c879052f4614a42a10fc12af67a88ba49e8e1e33f78cd9ddbbdb13fee"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/zlib-1.3.2-r0.apk",
+          "sha256": "f56dea63692059bd65854bb179b7551971a441000b0d98c5b031291ca0450b56"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/zstd-libs-1.5.7-r2.apk",
+          "sha256": "d5fcc58f7f071a5658d97b09838668e4443203217631992915b8e60656904104"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/community/x86_64/npm-11.11.0-r0.apk",
+          "sha256": "9ceb98c5ee7b2a5f63b4d7b9a95f48682d5f169031bfe7dd60b68c922cea46e4"
+        }
+      ],
+      "route": "proot",
+      "runtime": "proot",
+      "status": "passed",
+      "elapsedMs": 15157,
+      "clientIntegrity": "sha512-ySBP6yUw+Cy+8TxnVCu21Vhj07C0tHKHA9Fsn0XkAVxiVlsyv7xx+ox6JrLMzMnAGXbAetcaMS+vIeg7UVW4FA==",
+      "platformIntegrity": "sha512-v5LKQmLYsChy6D/ds34DwfN7wMnsdUqjiqjbPnTdtlS90a0RVdPIli/2Gi89sC72p9BWHT9lzLV08HGj49f6DQ=="
+    }
+  ],
+  "elf": {
+    "status": "passed",
+    "machine": "x86_64",
+    "interpreter": null,
+    "needed": []
+  },
+  "platform": {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.24",
+    "filename": "snapback4-linux-x64-0.4.24.tgz",
+    "integrity": "sha512-v5LKQmLYsChy6D/ds34DwfN7wMnsdUqjiqjbPnTdtlS90a0RVdPIli/2Gi89sC72p9BWHT9lzLV08HGj49f6DQ==",
+    "bytes": 10775902
+  },
+  "binarySha256": "fb6f48de7f4880e3f36f5e9bec859a2d1972d1fe505751810c3280b179492523",
+  "clientIntegrity": "sha512-ySBP6yUw+Cy+8TxnVCu21Vhj07C0tHKHA9Fsn0XkAVxiVlsyv7xx+ox6JrLMzMnAGXbAetcaMS+vIeg7UVW4FA=="
+}

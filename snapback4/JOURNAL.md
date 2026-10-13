@@ -94380,3 +94380,36 @@ disagreements, no new signatures. Final Linux wasm 2291429 raw/698386 gzip/52788
 brotli; Mac 2291752 raw/698034 gzip; budget 698886=gzip measurement+500. Archive
 source/environment/log evidence and scoped Git input equality. No origin push,
 publication or simulator boot; only the requested final Mac verification ref.
+
+
+## 2026-10-13 — 0.4.25 published (snapback4, both platforms, snapback4-expo)
+
+`snapback4`, `snapback4-darwin-arm64`, `snapback4-linux-x64` and
+`snapback4-expo` 0.4.25 are published from `a0bb11bde6` (Integration 7 on
+origin/main), through the cross-host path: Linux prepared the one client and
+qualified the Linux platform; the black M5 qualified, signed (launchd codesign
+relay, Developer ID UD2ZVW5WU5, not notarized) and published platforms before
+the client, then the Expo adapter. Registry integrity:
+
+| Package | Registry integrity |
+|---|---|
+| `snapback4` | `sha512-ezjMZyM1kUMPVVirbgZItGPgpPwS/AqbWbPo3eOZybwf7fnzomz8CRyQ8UgkYc+WWHtzWdvaUWMP/HLZ7aJbVw==` |
+| `snapback4-darwin-arm64` | `sha512-+9b2nC7VkN64xWCgVFKqgE36q24+sEsow2RBYI6gktJ+u5SciS2W+rU9VqisUo6OuAF4RcnH7sKiLT6FOFY8Dg==` |
+| `snapback4-linux-x64` | `sha512-ArebbE/SiTquZUlgMI3s5TCNRpUANzMZjeBg4jpoymG2Bmv7JXcbssjuC2yF8Hf4RwLMm8g73PRjRNcttSOYJA==` |
+| `snapback4-expo` | `sha512-qLewr4x8wXn7ZoT1fo19w+b69NIQlwxTzWjDzr1g3w65uDnVngYnDL6shQJQkX33rvIJHazYzpeYgyZmQ+z2lA==` |
+
+Linux: the first full qualification was red only in
+social-quote-jump-browser (a list position read during layout, 296 vs 264);
+the file passed alone and the second full pool on the same client bytes was
+`== 0 failure(s) in 1589 s` with both proot consumer proofs, which is the
+receipt. Mac, default `/var/folders` TMPDIR and `ulimit -n 65536`: the native
+witness passed (offline 38.1 s, restart 22.2 s) on the owned simulator, now
+shut down; the dry run passed `== 0 failure(s) in 11878 s`. The first
+`--resume` stopped when npm took ~13 minutes to make the Darwin platform
+readable; the second found it matching and published Linux, then the client.
+Clean installs on Linux and the Mac print `snapback4 0.4.25` and pass
+`init` + `check`. 0.4.24 was abandoned unpublished after three qualification
+stops (difftest retained findings; macOS SUN_LEN control socket; 0.2.33 fence
+and `/private/var` worker dir), each fixed on main. Hashes, timings and every
+attempt: `reports/20261013-publication-0.4.25/REPORT.md`; the 0.4.24 Linux
+evidence: `reports/20261012-publication-0.4.24/`.

@@ -1,0 +1,26 @@
+snapback4 host: uploads=2; file descriptors (this process): soft=65536 hard=65536; descriptor_exhaustions=0; startup soft=65536 target=65536
+snapback4 host: long waits: 1024 viewer (≤16 change polls per principal), 32 worker claim; HTTP connections=1184; descriptors needed ≈5248
+SNAPBACK4_READY verb=dev generation=1 url=http://127.0.0.1:44442 pid=51057
+snapback4 dev: http://127.0.0.1:44442  pid 51057  (schema: snapback/, types: /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-expo-witness-5tQVPE/snapback/generated/api.ts)
+store: /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-expo-witness-5tQVPE/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: --no-watch — schema edits are not re-adopted; restart dev (or drop --no-watch) to serve a changed snapback/
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+
+SNAPBACK4_SIGNAL verb=dev generation=1 reason=SIGTERM signal=15
+SNAPBACK4_THREAD_EXIT verb=dev generation=1 thread="worker" reason="shutdown"
+SNAPBACK4_THREAD_EXIT verb=dev generation=1 thread="maintenance" reason="shutdown"
+SNAPBACK4_THREAD_EXIT verb=dev generation=1 thread="bulk-maintenance" reason="shutdown"
+snapback4 host: uploads=2; file descriptors (this process): soft=65536 hard=65536; descriptor_exhaustions=0; startup soft=65536 target=65536
+snapback4 host: long waits: 1024 viewer (≤16 change polls per principal), 32 worker claim; HTTP connections=1184; descriptors needed ≈5248
+SNAPBACK4_READY verb=dev generation=1 url=http://127.0.0.1:44442 pid=51801
+snapback4 dev: http://127.0.0.1:44442  pid 51801  (schema: snapback/, types: /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-expo-witness-5tQVPE/snapback/generated/api.ts)
+store: /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-expo-witness-5tQVPE/.snapback4/store.sqlite
+snapback4 dev: development only — admits loopback personas and an unauthenticated /seed; deploy with snapback4 deploy + snapback4 serve, which refuse both.
+snapback4 dev: --no-watch — schema edits are not re-adopted; restart dev (or drop --no-watch) to serve a changed snapback/
+snapback4 dev: loopback identity attempts have no per-peer or per-email minute limits; Argon2 slots: 16 on this host; connection/worker caps still apply
+
+SNAPBACK4_SIGNAL verb=dev generation=1 reason=SIGTERM signal=15
+SNAPBACK4_THREAD_EXIT verb=dev generation=1 thread="maintenance" reason="shutdown"
+SNAPBACK4_THREAD_EXIT verb=dev generation=1 thread="bulk-maintenance" reason="shutdown"
+SNAPBACK4_THREAD_EXIT verb=dev generation=1 thread="worker" reason="shutdown"

@@ -1,0 +1,17 @@
+{
+  "step": "linux-isolated-social-quote-jump",
+  "command": [
+    "env",
+    "-u",
+    "SNAPBACK4_BIN",
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "packages/snapback4/test/social-quote-jump-browser.test.mjs"
+  ],
+  "cwd": "/home/ccheever/projects/sb4-pub-0425/snapback4",
+  "start": 1791874397.5302901,
+  "end": 1791874440.6536684,
+  "seconds": 43.123,
+  "exit": 0
+}

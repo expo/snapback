@@ -1,0 +1,14 @@
+2026-10-12T18:39:55Z direct FAIL /tmp/signpre.NF7d/t: errSecInternalComponent
+2026-10-12T18:44:56Z direct FAIL /tmp/signpre.nxcS/t: errSecInternalComponent
+2026-10-12T18:49:58Z direct FAIL /tmp/signpre.XotK/t: errSecInternalComponent
+2026-10-12T18:55:01Z direct FAIL /tmp/signpre.BF1K/t: errSecInternalComponent
+2026-10-12T19:00:04Z direct FAIL /tmp/signpre.4RAY/t: errSecInternalComponent
+2026-10-12T19:05:06Z direct FAIL /tmp/signpre.QKY9/t: errSecInternalComponent
+2026-10-12T19:10:08Z direct FAIL /tmp/signpre.GszI/t: errSecInternalComponent
+2026-10-12T19:15:23Z direct ssh: connect to host charlies-macbook-pro-m5max-black port 22: Connection timed out
+2026-10-12T19:20:25Z direct FAIL /tmp/signpre.fNNW/t: errSecInternalComponent
+2026-10-12T19:25:27Z direct FAIL /tmp/signpre.fCjb/t: errSecInternalComponent
+2026-10-12T19:30:30Z direct FAIL /tmp/signpre.EYEK/t: errSecInternalComponent
+2026-10-12T19:35:31Z direct FAIL /tmp/signpre.cDaK/t: errSecInternalComponent
+2026-10-12T19:40:32Z direct FAIL /tmp/signpre.OpK7/t: errSecInternalComponent
+2026-10-12T19:45:37Z direct FAIL /tmp/signpre.TPwl/t: errSecInternalComponent

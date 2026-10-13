@@ -1,0 +1,229 @@
+- Creating native directory (./ios)
+✔ Created native directory
+- Updating package.json
+✔ Updated package.json | no changes
+- Running prebuild
+✔ Finished prebuild
+- Installing CocoaPods...
+✔ Installed CocoaPods
+Expo Autolinking module resolution enabled
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+iOS Bundled 8771ms apps/chat-expo/index.js (728 modules)
+Writing bundle output to: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/688em5ussro/main.jsbundle
+Done writing bundle output
+› Planning build
+› Executing react-native Pods/hermes-engine » [CP-User] [Hermes] Replace Hermes for the right configuration, if needed
+› Executing react-native Pods/ReactNativeDependencies » [CP-User] [RNDeps] Replace React Native Dependencies for the right configuration, if needed
+› Preparing Pods/React-timing-React-timing_privacy » ResourceBundle-React-timing_privacy-React-timing-Info.plist
+› Copying   React-timing/React-timing_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../node_modules/react-native/ReactCommon/react/timing/PrivacyInfo.xcprivacy
+› Preparing Pods/React-cxxreact-React-cxxreact_privacy » ResourceBundle-React-cxxreact_privacy-React-cxxreact-Info.plist
+› Copying   React-cxxreact/React-cxxreact_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../node_modules/react-native/ReactCommon/cxxreact/PrivacyInfo.xcprivacy
+› Preparing Pods/React-Core-React-Core_privacy » ResourceBundle-React-Core_privacy-React-Core-Info.plist
+› Copying   React-Core/React-Core_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../node_modules/react-native/React/Resources/PrivacyInfo.xcprivacy
+› Preparing Pods/ExpoFileSystem-ExpoFileSystem_privacy » ResourceBundle-ExpoFileSystem_privacy-ExpoFileSystem-Info.plist
+› Preparing Pods/EXConstants-ExpoConstants_privacy » ResourceBundle-ExpoConstants_privacy-EXConstants-Info.plist
+› Copying   EXConstants/ExpoConstants_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../node_modules/expo/node_modules/expo-constants/ios/PrivacyInfo.xcprivacy
+› Preparing expo-constants Pods/EXConstants-EXConstants » ResourceBundle-EXConstants-EXConstants-Info.plist
+› Creating  Pods/React-cxxreact-React-cxxreact_privacy » React-cxxreact_privacy.bundle
+› Creating  Pods/React-timing-React-timing_privacy » React-timing_privacy.bundle
+› Creating  Pods/ExpoFileSystem-ExpoFileSystem_privacy » ExpoFileSystem_privacy.bundle
+› Creating  Pods/React-Core-React-Core_privacy » React-Core_privacy.bundle
+› Creating  Pods/EXConstants-ExpoConstants_privacy » ExpoConstants_privacy.bundle
+› Creating  expo-constants Pods/EXConstants-EXConstants » EXConstants.bundle
+› Executing react-native Pods/hermes-engine » [CP] Copy XCFrameworks
+› Executing react-native Pods/ReactNativeDependencies » [CP] Copy XCFrameworks
+› Preparing Pods/expo-dev-menu-EXDevMenu » ResourceBundle-EXDevMenu-expo-dev-menu-Info.plist
+› Creating  Pods/expo-dev-menu-EXDevMenu » EXDevMenu.bundle
+› Preparing Pods/expo-dev-launcher-EXDevLauncher » ResourceBundle-EXDevLauncher-expo-dev-launcher-Info.plist
+› Creating  Pods/expo-dev-launcher-EXDevLauncher » EXDevLauncher.bundle
+› Executing react-native Pods/React-Core-prebuilt » [CP-User] [RNCore] Replace React Native Core for the right configuration, if needed
+› Compiling expo-dev-menu-interface Pods/expo-dev-menu-interface » expo-dev-menu-interface-dummy.m
+› Compiling expo-json-utils Pods/EXJSONUtils » NSDictionary+EXJSONUtils.m
+› Compiling expo-json-utils Pods/EXJSONUtils » EXJSONUtils-dummy.m
+› Compiling expo-json-utils Pods/EXJSONUtils » NSDictionary+EXJSONUtils.m
+› Compiling expo-dev-menu-interface Pods/expo-dev-menu-interface » expo-dev-menu-interface-dummy.m
+› Compiling expo-json-utils Pods/EXJSONUtils » EXJSONUtils-dummy.m
+› Packaging expo-dev-menu-interface Pods/expo-dev-menu-interface » libexpo-dev-menu-interface.a
+› Packaging expo-json-utils Pods/EXJSONUtils » libEXJSONUtils.a
+› Packaging expo-json-utils Pods/EXJSONUtils » libEXJSONUtils.a
+› Packaging expo-dev-menu-interface Pods/expo-dev-menu-interface » libexpo-dev-menu-interface.a
+› Executing expo-dev-menu-interface Pods/expo-dev-menu-interface » Copy generated compatibility header
+› Executing react-native Pods/React-Core-prebuilt » [CP] Copy XCFrameworks
+› Executing expo-modules-jsi Pods/ExpoModulesJSI » [CP-User] Build ExpoModulesJSI xcframework
+› Executing react-native Pods/React-RCTFBReactNativeSpec » [CP-User] [RN]Check FBReactNativeSpec
+› Executing @snapback4/chat-expo Pods/ReactCodegen » [CP-User] Generate Specs
+› Compiling @expo/log-box Pods/ExpoLogBox » ExpoRedBoxSwap.mm
+› Compiling @expo/log-box Pods/ExpoLogBox » ExpoRedBoxSwap.mm
+› Executing @snapback4/chat-expo Pods/ReactCodegen » [Expo] Remove duplicate codegen output
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTUnstableModulesRequiringMainQueueSetupProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTThirdPartyComponentsProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTModulesConformingToProtocolsProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTModuleProviders.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTUnstableModulesRequiringMainQueueSetupProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTThirdPartyComponentsProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTModulesConformingToProtocolsProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTModuleProviders.mm
+› Compiling @snapback4/chat-expo Pods/ReactAppDependencyProvider » RCTAppDependencyProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactAppDependencyProvider » RCTAppDependencyProvider.mm
+› Compiling @expo/log-box Pods/ExpoLogBox » ExpoLogBox-dummy.m
+› Compiling @expo/log-box Pods/ExpoLogBox » ExpoLogBox-dummy.m
+› Packaging @expo/log-box Pods/ExpoLogBox » libExpoLogBox.a
+› Packaging @expo/log-box Pods/ExpoLogBox » libExpoLogBox.a
+› Executing @expo/log-box Pods/ExpoLogBox » Copy generated compatibility header
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » ReactCodegen-dummy.m
+› Compiling @snapback4/chat-expo Pods/ReactAppDependencyProvider » ReactAppDependencyProvider-dummy.m
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » ReactCodegen-dummy.m
+› Compiling @snapback4/chat-expo Pods/ReactAppDependencyProvider » ReactAppDependencyProvider-dummy.m
+› Packaging @snapback4/chat-expo Pods/ReactCodegen » libReactCodegen.a
+› Packaging @snapback4/chat-expo Pods/ReactCodegen » libReactCodegen.a
+› Packaging @snapback4/chat-expo Pods/ReactAppDependencyProvider » libReactAppDependencyProvider.a
+› Packaging @snapback4/chat-expo Pods/ReactAppDependencyProvider » libReactAppDependencyProvider.a
+› Executing expo-modules-jsi Pods/ExpoModulesJSI » [CP] Copy XCFrameworks
+› Executing expo-modules-core Pods/ExpoModulesCore » [CP-User] [Expo] Resolve ExpoModulesCore dSYM source maps
+› Executing expo-modules-core Pods/ExpoModulesCore » [CP-User] [Expo] Switch ExpoModulesCore XCFramework for build configuration
+› Executing expo-modules-core Pods/ExpoModulesCore » [CP] Copy XCFrameworks
+› Executing expo-modules-core Pods/ExpoModulesWorklets » [CP-User] [Expo] Resolve ExpoModulesWorklets dSYM source maps
+› Executing expo-font Pods/ExpoFont » [CP-User] [Expo] Resolve ExpoFont dSYM source maps
+› Executing expo-file-system Pods/ExpoFileSystem » [CP-User] [Expo] Resolve ExpoFileSystem dSYM source maps
+› Executing snapback4-expo Pods/Snapback4Expo » [CP] Copy XCFrameworks
+› Executing expo-font Pods/ExpoFont » [CP-User] [Expo] Switch ExpoFont XCFramework for build configuration
+› Executing expo-modules-core Pods/ExpoModulesWorklets » [CP-User] [Expo] Switch ExpoModulesWorklets XCFramework for build configuration
+› Executing expo-font Pods/ExpoFont » [CP] Copy XCFrameworks
+› Executing expo-modules-core Pods/ExpoModulesWorklets » [CP] Copy XCFrameworks
+› Executing expo-file-system Pods/ExpoFileSystem » [CP-User] [Expo] Switch ExpoFileSystem XCFramework for build configuration
+› Executing expo-file-system Pods/ExpoFileSystem » [CP] Copy XCFrameworks
+› Compiling expo-manifests Pods/EXManifests » EXManifests-dummy.m
+› Packaging expo-manifests Pods/EXManifests » libEXManifests.a
+› Executing expo-constants Pods/EXConstants » [CP-User] Generate app.config for prebuilt Constants.manifest
+› Compiling expo-manifests Pods/EXManifests » EXManifests-dummy.m
+› Packaging expo-manifests Pods/EXManifests » libEXManifests.a
+› Executing expo-manifests Pods/EXManifests » Copy generated compatibility header
+› Compiling expo-updates-interface Pods/EXUpdatesInterface » noop-file.m
+› Compiling expo-updates-interface Pods/EXUpdatesInterface » EXUpdatesInterface-dummy.m
+⚠️  class 'Snapback4OpenException' must restate inherited '@unchecked Sendable' conformance
+   └─/Users/ccheever/projects/snapback-pub-0425/snapback4/packages/snapback4-expo/ios/Snapback4Module.swift:119:22
+› Packaging expo-updates-interface Pods/EXUpdatesInterface » libEXUpdatesInterface.a
+› Compiling expo-updates-interface Pods/EXUpdatesInterface » noop-file.m
+› Compiling expo-updates-interface Pods/EXUpdatesInterface » EXUpdatesInterface-dummy.m
+› Compiling expo-keep-awake Pods/ExpoKeepAwake » ExpoKeepAwake-dummy.m
+› Compiling expo-keep-awake Pods/ExpoKeepAwake » ExpoKeepAwake-dummy.m
+› Packaging expo-keep-awake Pods/ExpoKeepAwake » libExpoKeepAwake.a
+› Packaging expo-keep-awake Pods/ExpoKeepAwake » libExpoKeepAwake.a
+› Packaging expo-updates-interface Pods/EXUpdatesInterface » libEXUpdatesInterface.a
+› Executing expo-keep-awake Pods/ExpoKeepAwake » Copy generated compatibility header
+› Executing expo-updates-interface Pods/EXUpdatesInterface » Copy generated compatibility header
+› Compiling expo-asset Pods/ExpoAsset » ExpoAsset-dummy.m
+› Compiling expo-asset Pods/ExpoAsset » ExpoAsset-dummy.m
+› Packaging expo-asset Pods/ExpoAsset » libExpoAsset.a
+› Packaging expo-asset Pods/ExpoAsset » libExpoAsset.a
+› Executing expo-asset Pods/ExpoAsset » Copy generated compatibility header
+› Compiling expo-secure-store Pods/ExpoSecureStore » ExpoSecureStore-dummy.m
+› Compiling expo Pods/EXConstants » EXConstantsInstallationIdProvider.m
+› Compiling expo-constants Pods/EXConstants » EXConstants-dummy.m
+› Packaging expo-secure-store Pods/ExpoSecureStore » libExpoSecureStore.a
+› Compiling expo-secure-store Pods/ExpoSecureStore » ExpoSecureStore-dummy.m
+› Packaging expo-secure-store Pods/ExpoSecureStore » libExpoSecureStore.a
+› Executing expo-secure-store Pods/ExpoSecureStore » Copy generated compatibility header
+› Compiling expo-constants Pods/EXConstants » EXConstants-dummy.m
+› Compiling expo Pods/EXConstants » EXConstantsInstallationIdProvider.m
+› Compiling @expo/dom-webview Pods/ExpoDomWebView » ExpoDomWebView-dummy.m
+› Packaging @expo/dom-webview Pods/ExpoDomWebView » libExpoDomWebView.a
+› Compiling @expo/dom-webview Pods/ExpoDomWebView » ExpoDomWebView-dummy.m
+› Packaging @expo/dom-webview Pods/ExpoDomWebView » libExpoDomWebView.a
+› Executing @expo/dom-webview Pods/ExpoDomWebView » Copy generated compatibility header
+› Compiling expo Pods/Expo » ExpoReactNativeFactory.mm
+› Compiling expo Pods/Expo » EXReactRootViewFactory.mm
+› Compiling expo Pods/Expo » EXBundleConfiguration.mm
+› Compiling expo Pods/Expo » ExpoReactNativeFactory.mm
+› Compiling expo Pods/Expo » EXReactRootViewFactory.mm
+› Compiling expo Pods/Expo » EXBundleConfiguration.mm
+› Compiling expo Pods/Expo » Expo-dummy.m
+› Compiling expo Pods/Expo » Expo-dummy.m
+› Compiling expo Pods/EXConstants » EXConstantsService.m
+› Compiling expo Pods/EXConstants » EXConstantsService.m
+› Packaging expo-constants Pods/EXConstants » libEXConstants.a
+› Packaging expo-constants Pods/EXConstants » libEXConstants.a
+› Executing expo-constants Pods/EXConstants » Copy generated compatibility header
+› Compiling snapback4-expo Pods/Snapback4Expo » Snapback4Expo-dummy.m
+› Packaging snapback4-expo Pods/Snapback4Expo » libSnapback4Expo.a
+› Executing snapback4-expo Pods/Snapback4Expo » Copy generated compatibility header
+› Compiling expo-sqlite Pods/ExpoSQLite » sqlite3.c
+› Compiling expo-sqlite Pods/ExpoSQLite » sqlite3.c
+› Compiling expo-sqlite Pods/ExpoSQLite » ExpoSQLite-dummy.m
+› Compiling expo Pods/Expo » EXLegacyAppDelegateWrapper.m
+› Compiling expo Pods/Expo » EXAppDefinesLoader.m
+› Compiling expo Pods/Expo » EXAppDelegatesLoader.m
+› Compiling expo Pods/Expo » EXLegacyAppDelegateWrapper.m
+› Compiling expo Pods/Expo » EXAppDefinesLoader.m
+› Compiling expo Pods/Expo » EXAppDelegatesLoader.m
+› Compiling expo-sqlite Pods/ExpoSQLite » ExpoSQLite-dummy.m
+› Packaging expo Pods/Expo » libExpo.a
+› Packaging expo Pods/Expo » libExpo.a
+› Executing expo Pods/Expo » Copy generated compatibility header
+› Compiling expo-dev-menu Pods/expo-dev-menu » expo-dev-menu-dummy.m
+› Compiling expo-dev-menu Pods/expo-dev-menu » RCTKeyCommands.m
+› Compiling expo-dev-menu Pods/expo-dev-menu » EXDevMenuAppInfo.m
+› Compiling expo-dev-menu Pods/expo-dev-menu » RCTKeyCommands.m
+› Packaging expo-dev-menu Pods/expo-dev-menu » libexpo-dev-menu.a
+› Compiling expo-dev-menu Pods/expo-dev-menu » EXDevMenuAppInfo.m
+› Compiling expo-dev-menu Pods/expo-dev-menu » expo-dev-menu-dummy.m
+› Packaging expo-dev-menu Pods/expo-dev-menu » libexpo-dev-menu.a
+› Executing expo-dev-menu Pods/expo-dev-menu » Copy generated compatibility header
+› Packaging expo-sqlite Pods/ExpoSQLite » libExpoSQLite.a
+› Packaging expo-sqlite Pods/ExpoSQLite » libExpoSQLite.a
+› Executing expo-sqlite Pods/ExpoSQLite » Copy generated compatibility header
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » RCTPackagerConnection+EXDevLauncherPackagerConnectionInterceptor.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » RCTPackagerConnection+EXDevLauncherPackagerConnectionInterceptor.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherUpdatesHelper.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherRCTDevSettings.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherEarlySetup.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » expo-dev-launcher-dummy.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherUpdatesHelper.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherRCTDevSettings.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherEarlySetup.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » expo-dev-launcher-dummy.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherManifestParser.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherRedBox.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherController.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncher.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherRedBox.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherManifestParser.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncherController.m
+› Compiling expo-dev-launcher Pods/expo-dev-launcher » EXDevLauncher.m
+› Packaging expo-dev-launcher Pods/expo-dev-launcher » libexpo-dev-launcher.a
+› Packaging expo-dev-launcher Pods/expo-dev-launcher » libexpo-dev-launcher.a
+› Executing expo-dev-launcher Pods/expo-dev-launcher » Copy generated compatibility header
+› Compiling Pods/Pods-Snapback4chat » Pods-Snapback4chat-dummy.m
+› Packaging Pods/Pods-Snapback4chat » libPods-Snapback4chat.a
+› Executing Snapback4chat » [CP] Check Pods Manifest.lock
+› Executing Snapback4chat » [Expo] Configure project
+› Copying   ./PrivacyInfo.xcprivacy ➜ ios/Snapback4chat/PrivacyInfo.xcprivacy
+› Copying   ios/Snapback4chat/Supporting/Expo.plist ➜ ./Expo.plist
+› Compiling Snapback4chat » SplashScreen.storyboard
+› Preparing Snapback4chat » Info.plist
+› Compiling Snapback4chat » Snapback4chat_vers.c
+› Linking   Snapback4chat » Snapback4chat
+› Generating debug Snapback4chat » Snapback4chat.app.dSYM
+› Executing Snapback4chat » Bundle React Native code and images
+    Eager bundle does not match new options, bundling again.
+⚠️  search path '/var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.1.266.1.t77mPW/Metal.xctoolchain/usr/lib/swift/iphonesimulator' not found
+   └─/Users/ccheever/projects/snapback-pub-0425/snapback4/apps/chat-expo/ios/Snapback4chat.xcodeproj: Snapback4chat: ld
+› Executing Snapback4chat » [CP] Copy Pods Resources
+› Executing Snapback4chat » [Expo Dev Launcher] Strip Local Network Keys for Release
+› Executing Snapback4chat » [CP] Embed Pods Frameworks
+› Signing   Snapback4chat » Snapback4chat.app
+› Creating  Snapback4chat » Snapback4chat.app
+⚠️  Script has ambiguous dependencies causing it to run on every build.
+   To fix, go to: Xcode » Snapback4chat/Snapback4chat » Build Phases » '[Expo Dev Launcher] Strip Local Network Keys for Release'
+   Either: Uncheck "Based on dependency analysis", or select output files to trigger the script
+
+› Build Succeeded
+
+› 0 error(s), and 4 warning(s)
+
+Copied to /Users/ccheever/projects/snapback-pub-0425/snapback4/target/expo-release/Snapback4chat.app
+
+✓ Build complete
+Binary: /Users/ccheever/projects/snapback-pub-0425/snapback4/target/expo-release/Snapback4chat.app
