@@ -1,0 +1,9 @@
+install 0
+cli-build 0
+wasm-build 0
+package-build 0
+xcframework 0
+stamp-inspection 0
+swift-compile 0
+cargo-cli 0
+client-tests 0

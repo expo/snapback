@@ -94461,3 +94461,38 @@ by HS's ES2022 build. Emit representative declarations in the fixture and
 assert free() remains while optional Symbol.dispose is removed. Preserve all
 budget, optimizer-failure and stamp verification assertions. Production wasm
 and package builds had already passed on both hosts.
+
+### 2026-10-13 — Integration 8 complete, HS
+
+Merge HS with --no-ff at 3e0f0c3bfc. Fix the codec census bypass, unshipped
+sidecar prose references and the budget fixture's missing bindgen declarations;
+all production Rust/SDK changes remain the reviewed codec repair. Root frozen
+hoisted install plus legacy codegen makes inventories and all 22 Guide checks
+green without an inherited-red exception or Ibex build. Full five-crate Rust
+passes with four libtest threads: 5852 captured passes, 41 existing ignored,
+zero failed. Preserve the separate default-thread timing red in its open ticket.
+The executable Guide passes 120/120; both full-count models pass 81/81.
+
+All 375 ordinary Linux client files run twice. The corrected pool passes
+374/375; its sole red is the existing online quote-jump geometry assertion,
+296 versus 264. Four concurrent copies in a clean f9e40ef515 checkout reproduce
+the same failure using qualified published 0.4.25 artifacts whose runtime/build
+inputs match that baseline. Both baseline and integrated files pass alone,
+38/38. Preserve both pool reds and the earlier anchored-read timeout in the
+existing ticket; no pixel, timing or arrival assertion is loosened.
+
+Clean repaired Linux wasm: 2294137 raw / 698731 gzip / 528123 brotli bytes.
+Gzip grows 345 bytes against Integration 7; set 699231 = measurement + 500
+bytes headroom, with the reason in the budget. Both strict artifact audits pass.
+Authoring census remains 718 entries /409 mutations /89 private sites; delivery
+boundary is unchanged at 213 sites. Native difftest 20k passes 1163097
+executions with zero disagreements or unexpected errors.
+
+Mac repaired-source xcframework, both native stamp inspections, generic Swift
+compile, CLI Rust and all requested six client files (113 tests) pass, default
+TMPDIR and descriptor limit 65536 with the required 0.2.33 fence. Both iOS
+slices export native identity and correctly omit the wasm-only section. Mac
+wasm is 2294460 raw /698592 gzip. Scoped runtime/build Git inputs equal the
+final integration. No simulator boot, origin push or publication. Verbatim
+independent codec READY reviews and execution evidence are archived under
+llp/reviews and reports/20261013-integration8.

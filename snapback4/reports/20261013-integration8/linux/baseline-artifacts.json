@@ -1,0 +1,20 @@
+{
+  "cleanCheckout": "/tmp/sb4-integ8-f9",
+  "beforeStatus": "baseline-status-before.txt (empty)",
+  "sourceEquality": [
+    {
+      "commit": "a0bb11bde6",
+      "sha256": "2a05bea8c588d816b0d88c69bcc932d06dce7d67aad5b4ea4ae0fa3f149199c1",
+      "files": 2550
+    },
+    {
+      "commit": "f9e40ef515",
+      "sha256": "2a05bea8c588d816b0d88c69bcc932d06dce7d67aad5b4ea4ae0fa3f149199c1",
+      "files": 2550
+    }
+  ],
+  "artifactOrigin": "Registry smoke installation for published 0.4.25, qualified from a0bb11bde6; runtime/build inputs equal f9e40ef515. SDK dist and wasm copied into ignored generation paths in the clean tree; no Rust rebuild required.",
+  "binary": "/home/ccheever/sb4-loop/smoke-0.4.25/node_modules/snapback4-linux-x64/snapback4",
+  "binarySha256": "83979ef650091886753ddd2b3df73c31cfd583e4c934845b88e3f06387e037f2",
+  "environment": "Node 24.13.1; frozen baseline Bun dependencies; one ordinary runner file slot; no weakened assertions"
+}

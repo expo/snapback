@@ -1,0 +1,27 @@
+{
+  "roots": [
+    "snapback4/crates",
+    "snapback4/scripts",
+    "snapback4/packages/snapback4/src",
+    "snapback4/packages/snapback4-expo",
+    "snapback4/Cargo.toml",
+    "snapback4/Cargo.lock",
+    "snapback4/rust-toolchain.toml",
+    "snapback4/package.json",
+    "snapback4/bun.lock",
+    "snapback4/packages/snapback4/package.json"
+  ],
+  "equality": true,
+  "snapshots": [
+    {
+      "commit": "d140a0b0d2",
+      "sha256": "336a6c2a2836feb3aaae9add27c9b2e4d0588fed0607554700fd4aa5c80a2b4b",
+      "files": 2028
+    },
+    {
+      "commit": "9c04f722c686c16eecdfad3eee6b8a1e48af8266",
+      "sha256": "336a6c2a2836feb3aaae9add27c9b2e4d0588fed0607554700fd4aa5c80a2b4b",
+      "files": 2028
+    }
+  ]
+}

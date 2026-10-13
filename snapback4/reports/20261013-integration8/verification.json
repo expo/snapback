@@ -1,0 +1,115 @@
+{
+  "base": "f9e40ef515",
+  "merge": "3e0f0c3bfc5ca80e8e55827cfabfe958640790d0",
+  "runtimeSource": "2a82fb7cd8",
+  "macSource": "d140a0b0d2",
+  "repairs": {
+    "codec": "2a82fb7cd8",
+    "publishedReferences": "b00a0452e2",
+    "budgetFixture": "17d1e6fa95"
+  },
+  "root": {
+    "inventoriesExit": 0,
+    "guideExit": 0,
+    "guidePassed": 22,
+    "guideWarnings": 121,
+    "codegenExit": 0
+  },
+  "rust": {
+    "command": "cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast",
+    "qualifiedExit": 0,
+    "threads": 4,
+    "capturedPassed": 5852,
+    "failed": 0,
+    "ignored": 41,
+    "capturedSummaries": 369,
+    "initialExit": 101,
+    "initialFailure": "unshipped sidecar references, repaired",
+    "defaultRepairedExit": 101,
+    "defaultFailure": "loaded changes-latency timing assertion, open ticket"
+  },
+  "client": {
+    "finalScheduledFiles": 375,
+    "finalPassedFiles": 374,
+    "finalFailedFiles": 1,
+    "finalPassedTests": 7334,
+    "finalFailedTestRecords": 3,
+    "finalSkippedTests": 56,
+    "knownBaselineFailure": "social-quote-jump-browser.test.mjs:247, 296 != 264",
+    "modelsPassed": 81,
+    "modelsFailed": 0,
+    "modelsSkipped": 0,
+    "scopedQuoteJumpPassed": 38,
+    "initialFailedFiles": 2,
+    "initialBudgetFailureRepaired": true,
+    "baselineCheckout": "/tmp/sb4-integ8-f9",
+    "baselineSource": "f9e40ef515",
+    "baselineSoloPassed": 38,
+    "baselineConcurrentCopies": 4,
+    "baselineFailedCopies": 1,
+    "baselineConcurrentPassedRecords": 149,
+    "baselineConcurrentFailedRecords": 3,
+    "baselineStatusBefore": "clean",
+    "baselineStatusAfter": "clean"
+  },
+  "mac": {
+    "xcframeworkExit": 0,
+    "nativeIdentityExported": true,
+    "wasmStampCorrectlyAbsent": true,
+    "swiftExit": 0,
+    "cargoCliExit": 0,
+    "clientFiles": 6,
+    "clientPassed": 113,
+    "clientFailed": 0,
+    "clientSkipped": 0,
+    "node": "24.19.0",
+    "fdLimit": 65536,
+    "tmpdir": "/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/",
+    "fence": "/Users/ccheever/sb4-03-lanes/published-0.2.33",
+    "runtimeInputsEqual": true
+  },
+  "wasm": {
+    "linuxRaw": 2294137,
+    "linuxGzip": 698731,
+    "linuxBrotli": 528123,
+    "budget": 699231,
+    "growthGzip": 345,
+    "headroom": 500,
+    "macRaw": 2294460,
+    "macGzip": 698592,
+    "strictFamiliesExit": 0,
+    "strictAbsentExit": 0
+  },
+  "censuses": {
+    "authoringEntries": 718,
+    "mutationOccurrences": 409,
+    "privateWriteSites": 89,
+    "deliverySites": 213,
+    "deliveryBoundaryUnchanged": true,
+    "codecPassed": 27
+  },
+  "difftest": {
+    "cases": 20000,
+    "seed": 0,
+    "workers": 8,
+    "executions": 1163097,
+    "disagreements": 0,
+    "unexpectedErrors": 0
+  },
+  "references": {
+    "llps": 543,
+    "refs": 11731,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "guideRustPassed": 120,
+  "docsBudgetExit": 0,
+  "fixturePassed": 9,
+  "reviews": {
+    "muse": "READY",
+    "freshCodex": "READY"
+  },
+  "originPush": false,
+  "publication": false,
+  "simulatorBoot": false
+}

@@ -1,0 +1,2 @@
+TMPDIR=/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/
+FD_LIMIT=65536

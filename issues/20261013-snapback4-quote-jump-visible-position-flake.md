@@ -56,6 +56,26 @@ Replica-tier assertions pass; the complete file reports 34 passed / 4 failed
 (including failed parent subtests). The template, list/jump implementation
 and browser assertions are unchanged by HS and the integration repairs.
 
-Evidence: `snapback4/reports/20261013-integration8/linux/client-tests.log`
+Evidence: `snapback4/reports/20261013-integration8/linux/client-tests.log.gz`
 (archived with qualification). Preserve this red even if a later full pool
 passes. No pixel, arrival or timing assertion is relaxed.
+
+### Integration 8 clean-baseline reproduction and final disposition
+
+The corrected complete Linux pool again reports only this file red (374/375
+files pass): the same online 296-versus-264 geometry assertion, with three
+failed test records including parents. The prior anchored-read timeout does
+not recur. The integrated file then passes alone, 38/38, without changing
+assertions.
+
+A new clean detached `f9e40ef515` checkout also passes the file alone, 38/38.
+Four concurrent complete copies on that clean baseline reproduce precisely
+296 versus 264: one failed copy, 149 passed / 3 failed records across all four.
+Before/after tracked status is empty. Baseline execution reuses the published
+0.4.25 SDK/wasm and Linux binary; `a0bb11bde6` publication runtime/build inputs
+are proven identical to `f9e40ef515`. Frozen baseline dependencies are installed.
+No current-branch runtime artifact is used in the baseline. Artifact hashes,
+commands, source equality and raw logs are archived in Integration 8's report.
+
+This is a corroborated pre-existing failure; leave the issue open. The final
+full pool remains red in this file and is not relabelled green by scoped passes.

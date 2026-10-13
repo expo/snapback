@@ -19,5 +19,5 @@ The integration also runs the complete battery with four libtest threads,
 retaining all assertions, cases and work counts. Investigate a controlled
 refresh/poll barrier; do not resolve by loosening the 600 ms assertion.
 
-Evidence: `snapback4/reports/20261013-integration8/linux/cargo-final.log`,
-`latency-focused.log`, and `cargo-bounded.log` (archived with qualification).
+Evidence: `snapback4/reports/20261013-integration8/linux/cargo-final.log.gz`,
+`latency-focused.log.gz`, and `cargo-bounded.log.gz` (archived with qualification).
