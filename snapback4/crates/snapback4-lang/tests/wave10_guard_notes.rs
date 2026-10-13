@@ -264,6 +264,23 @@ fn requirement_called_helpers_observe_direct_inputs_before_returned_inversion() 
             let b = compile(&[("schema.q".into(), source)]);
             assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
             assert_eq!(b.notes.iter().filter(|n| n.code == "N_UNREADABLE_PROBE").count(), usize::from(role.is_empty()), "{:?}", b.notes);
+            let source = format!("{schema}query upload(job: id):\n{role}  require ({{ hit: {probe} }} {{ absent: not .hit }}).absent else JOB_APPROVED\n  return null\n");
+            let b = compile(&[("schema.q".into(), source)]);
+            assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+            assert_eq!(b.notes.iter().filter(|n| n.code == "N_UNREADABLE_PROBE").count(), usize::from(role.is_empty()), "{:?}", b.notes);
+        }
+    }
+}
+
+#[test]
+fn shorthand_locals_never_become_global_or_different_argument_proof() {
+    let schema = "table teams:\n  public 'teams'\ntable staff:\n  team: teams\n  principal: principal\n  unique team, principal\n  read <- .principal = viewer\n  online only\ntable approvals:\n  team: teams\n  job: id\n  unique team, job\n  read <- exists staff[.team, viewer]\n  online only\n";
+    for expression in ["{ t }.t", "{ t: t }.t"] {
+        for (arg, count) in [("t", 0), ("b", 1)] {
+            let source = format!("{schema}fn check(t: teams, job: id):\n  require not exists approvals[team = {expression}, job = job] else JOB_APPROVED\n  return null\nmutation upload(a: teams, b: teams, job: id):\n  t = a\n  require exists staff[team = {expression}, principal = viewer] else FORBIDDEN\n  check({arg}, job)\n  return null\n");
+            let b = compile(&[("schema.q".into(), source)]);
+            assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+            assert_eq!(b.notes.iter().filter(|n| n.code == "N_UNREADABLE_PROBE").count(), count, "{expression}: {arg}: {:?}", b.notes);
         }
     }
 }

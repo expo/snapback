@@ -606,8 +606,21 @@ fn empty_read(table: &str, site: &Site) -> ReadExpr {
 
 // @ref LLP 3000.036.002#4 — program guards observe the caller's reads, never global absence.
 fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDecl], notes: &mut Vec<Diagnostic>) {
+    fn expand_shorthand(expr: &mut Expr) {
+        if let Expr::Object { fields, .. } | Expr::Write { fields, .. } = expr {
+            for field in fields {
+                if field.value.is_none() && !field.spread { field.value = Some(Expr::Name { name: field.name.clone(), site: field.site.clone() }); }
+            }
+        }
+    }
+    fn analysis_expr(value: &Expr) -> Expr {
+        let mut copy = value.clone(); super::intent_walk::expression(&mut copy, &mut expand_shorthand); copy
+    }
+    fn analysis_body(body: &[Stmt]) -> Vec<Stmt> {
+        let mut copy = body.to_vec(); super::intent_walk::statements(&mut copy, &mut expand_shorthand); copy
+    }
     fn fact_text(value: &Expr) -> String {
-        let mut value = value.clone();
+        let mut value = analysis_expr(value);
         super::intent_walk::expression(&mut value, &mut |expr| {
             if is_viewer(expr) { *expr = Expr::Name { name: "viewer".into(), site: expr.site().clone() }; }
         });
@@ -699,7 +712,7 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
     fn guard(catalog: &Catalog, schema: &Schema, program: &str, condition: &Expr, known: &BTreeSet<String>, system: bool, notes: &mut Vec<Diagnostic>) {
         if system { return; }
         let mut reads = Vec::new();
-        let mut copy = condition.clone();
+        let mut copy = analysis_expr(condition);
         super::intent_walk::expression(&mut copy, &mut |expr| { if let Expr::Exists { read, .. } = expr { reads.push(read.clone()); } });
         for read in reads {
             let Some(table) = schema.table(&read.table) else { continue };
@@ -765,7 +778,7 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
     // is checked at its original statement, with that statement's authority.
     fn has_guard(catalog: &Catalog, statements: &[Stmt], visiting: &mut BTreeSet<String>) -> bool {
         if statements.iter().any(|stmt| matches!(stmt, Stmt::Require { .. } | Stmt::If { .. })) { return true; }
-        let mut copy = statements.to_vec(); let mut found = false;
+        let mut copy = analysis_body(statements); let mut found = false;
         super::intent_walk::statements(&mut copy, &mut |expr| {
             if matches!(expr, Expr::If { .. }) { found = true; }
             for (name, shape) in definitions(catalog, expr) {
@@ -799,14 +812,14 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
             }
         }
         fn names(value: &Expr) -> BTreeSet<String> {
-            let mut out = BTreeSet::new(); let mut copy = value.clone();
+            let mut out = BTreeSet::new(); let mut copy = analysis_expr(value);
             super::intent_walk::expression(&mut copy, &mut |expr| add_names(expr, &mut out)); out
         }
         fn input_names(value: &Expr) -> BTreeSet<String> {
             let mut out = BTreeSet::new(); value_nodes(value, &mut |expr| add_names(expr, &mut out)); out
         }
         fn gather(catalog: &Catalog, statements: &[Stmt], guards: &mut BTreeSet<String>, edges: &mut BTreeMap<String, BTreeSet<String>>) {
-            let mut copy = statements.to_vec();
+            let mut copy = analysis_body(statements);
             super::intent_walk::statements(&mut copy, &mut |expr| {
                 if let Expr::If { condition, .. } = expr { guards.extend(names(condition)); }
                 // A definition can consume its input as a guard even when the
@@ -858,7 +871,7 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
         }
     }
     fn effects(catalog: &Catalog, statements: &[Stmt], visiting: &mut BTreeSet<String>) -> (bool, bool) {
-        let mut copy = statements.to_vec();
+        let mut copy = analysis_body(statements);
         let mut writes = false;
         let mut binds = false;
         fn bindings(body: &[Stmt]) -> bool {
@@ -905,7 +918,7 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
             super::intent_walk::expression(&mut condition, &mut |expr| { if let Expr::Name { name, .. } = expr { used.insert(name.clone()); } });
             used.extend(helper.args.iter().map(|param| param.name.clone()));
             for arg in args {
-                let mut copy = arg.clone();
+                let mut copy = analysis_expr(arg);
                 super::intent_walk::expression(&mut copy, &mut |expr| { if let Expr::Name { name, .. } = expr { used.insert(name.clone()); } });
             }
             let mut substitutions = Vec::new();
@@ -951,7 +964,7 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
     }
     fn lookup_fact(catalog: &Catalog, schema: &Schema, names: &[String], value: &Expr, known: &mut BTreeSet<String>) {
         let mut shadowed = false;
-        let mut copy = value.clone();
+        let mut copy = analysis_expr(value);
         super::intent_walk::expression(&mut copy, &mut |expr| { if matches!(expr, Expr::Name { name, .. } if names.contains(name)) { shadowed = true; } });
         if shadowed { return; }
         let Expr::Assert { value, .. } = value else { return };
@@ -1052,7 +1065,7 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
         value_nodes(value, &mut |expr| expression_guard_node(catalog, schema, program, expr, known, global, system, true, visiting, notes));
     }
     fn expression_guards(catalog: &Catalog, schema: &Schema, program: &str, value: &Expr, known: &BTreeSet<String>, global: &BTreeSet<String>, system: bool, observe_prefix: bool, visiting: &mut BTreeSet<String>, notes: &mut Vec<Diagnostic>) {
-        let mut copy = value.clone();
+        let mut copy = analysis_expr(value);
         super::intent_walk::expression(&mut copy, &mut |expr| expression_guard_node(catalog, schema, program, expr, known, global, system, observe_prefix, visiting, notes));
     }
     fn invalidate(names: &[String], known: &mut BTreeSet<String>) {
@@ -1068,8 +1081,11 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                         guard(catalog, schema, program, &Expr::Exists { site: read.site.clone(), read }, &known, system, notes);
                     }
                     // Calls can return an existence value even when no probe is spelled here.
-                    let mut copy = condition.clone();
+                    let mut copy = analysis_expr(condition);
                     super::intent_walk::expression(&mut copy, &mut |expr| {
+                        if let Expr::Shape { base, .. } = expr {
+                            input_guards(catalog, schema, program, base, &known, global, system, visiting, notes);
+                        }
                         for (name, shape) in definitions(catalog, expr) {
                             // In a requirement, a helper can invert an input
                             // solely in its returned expression. Inspect all
@@ -1153,7 +1169,8 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
     for helper in catalog.functions.values() { if let FunctionBody::Block(body) = &helper.body { conditions(body, &mut tested); } }
     for condition in tested {
         let mut parts = Vec::new(); super::intent::split(condition, &mut parts);
-        for mut part in parts {
+        for part in parts {
+            let mut part = analysis_expr(&part);
             let text = fact_text(&part);
             let mut stable = true;
             super::intent_walk::expression(&mut part, &mut |expr| {

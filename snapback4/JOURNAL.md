@@ -94511,3 +94511,15 @@ existence authorization and visible candidate filters remain unchanged.
 Point/prefix/helper/shape and proven-role variants extend the 21-test guard
 suite; guide 120 and emitted rewrite goldens eight pass. Round-seven reviews
 are preserved verbatim; the next frozen revision receives fresh reviews.
+
+### 2026-10-13 — Wave 10 DIAG: shorthand scope and inline requirement shapes
+
+The eighth Codex review found shorthand names hidden from global-fact and
+argument proof checks. Object/write shorthand now expands only in analysis
+clones before proof classification, effect discovery, shadowing, snapshot
+exclusions/substitution/validation and printing. Runtime expressions remain
+unchanged. Requirement inline shape bases are inspected independently of
+named-definition discovery. Shorthand/explicit same/different argument cases
+and point/prefix inline inversion extend the guard suite to 22 passing tests;
+guide 120 and emitted rewrite goldens eight pass. Round-eight reviews are
+preserved verbatim; final CLI checks and a fresh review pair follow.
