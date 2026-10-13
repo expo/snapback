@@ -73,7 +73,7 @@ table events:
   immutable host, submitUntil, revealAt, archiveAt
   public 'event times are public'
   insert <- .host = viewer
-  sync public
+  sync public last 500 by .id
 
 table submissions:
   event: events
@@ -88,7 +88,7 @@ table submissions:
   expire at .expiresAt
   public 'submissions are public only during their read lifetime'
   insert <- .author = viewer and .opensAt = .event.revealAt and .expiresAt = .event.archiveAt
-  sync public
+  sync public last 500 by .id
 
 mutation submit(event: events, secret: text 1..2000):
   e = events[event] ! else NOT_FOUND
