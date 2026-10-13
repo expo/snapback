@@ -37,7 +37,7 @@ function options(args) {
 }
 function executable() {
   if ((process.env.SNAPBACK4_CHROMIUM ?? process.env.CHROME)) {
-    if (!existsSync((process.env.SNAPBACK4_CHROMIUM ?? process.env.CHROME))) throw Error('E_WITNESS_BROWSER: SNAPBACK4_CHROMIUM is not a file');
+    if (!existsSync((process.env.SNAPBACK4_CHROMIUM ?? process.env.CHROME))) throw Error('E_WITNESS_BROWSER: SNAPBACK4_CHROMIUM/CHROME is not a file');
     return process.env.SNAPBACK4_CHROMIUM ?? process.env.CHROME;
   }
   const home = process.env.HOME;
@@ -153,8 +153,9 @@ async function run(o) {
       const input = page.getByLabel(o.field, { exact: true });
       await input.fill('');
       await input.pressSequentially(o.value);
-      await page.evaluate(({ name, args }) => window.__snapback4Witness.beginForm(name, args), { name: o.mutation, args: o.args });
-      await page.getByRole('button', { name: o.button, exact: true }).click();
+      const button = page.getByRole('button', { name: o.button, exact: true });
+      await button.evaluate((element, { name, args }) => window.__snapback4Witness.beginForm(name, args, element), { name: o.mutation, args: o.args });
+      await button.click();
       const write = await Promise.race([
         page.evaluate(() => window.__snapback4Witness.formResult()),
         new Promise((_, no) => { const timer = setTimeout(() => no(Error('E_WITNESS_SENT: visible form did not reach sent')), o.timeout * 1000); timer.unref(); }),
@@ -184,7 +185,7 @@ async function run(o) {
 }
 try {
   const o = options(process.argv.slice(2));
-  if (!o) console.log('usage: snapback4 witness web [dist] [--url URL] [--as PERSONA | --email EMAIL --password-env NAME] [--mutation NAME --args JSON] [--field LABEL --value TEXT --button LABEL] [--timeout 30]\nSet SNAPBACK4_CHROMIUM to a Chromium executable. Run build:web first. Register the app with registerWebWitness(app, api) from snapback4/witness-web (starters do). An omitted --url starts an owned, fresh dev --memory.');
+  if (!o) console.log('usage: snapback4 witness web [dist] [--url URL] [--as PERSONA | --email EMAIL --password-env NAME] [--mutation NAME --args JSON] [--field LABEL --value TEXT --button LABEL] [--port-range A-B] [--timeout 30]\nSet SNAPBACK4_CHROMIUM to a Chromium executable. Run build:web first. Register the app with registerWebWitness(app, api) from snapback4/witness-web (starters do). An omitted --url starts an owned, fresh dev --memory.');
   else await run(o);
 } catch (error) {
   // Playwright call logs can contain fill(password). Never print foreign exception text.

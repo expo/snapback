@@ -197,7 +197,7 @@ async function stopChild(child, graceMs = 5000) {
 const startServe = (directory, args = ["--port", "0"]) => startHost("serve", [directory, ...args]);
 // `dev` on a free port with an empty store: its URL and stop(). Reuse it for every scenario and proof script.
 const proofPort = process.env.PORT_LO && process.env.PORT_HI ? `${process.env.PORT_LO}-${process.env.PORT_HI}` : "0";
-const startDev = (args = ["--port", proofPort, "--memory"]) => startHost("dev", args);
+async function startDev(args = ["--port", proofPort, "--memory"]) { return startHost("dev", args); }
 async function startHost(verb, args) {
   const child = spawn(resolveBinary(), [verb, ...args], { stdio: ["ignore", "pipe", "inherit"] });
   const died = once(child, "exit").then(([code]) => { throw new Error(`${verb} exited ${code} before its URL`); });
@@ -301,7 +301,9 @@ not found. Starters register their SDK client; custom apps call
 For the default starter's visible form, add these three flags:
 `--field Task --value "Browser proof" --button Add` (optionally also `--args '{"title":"Browser proof"}'`).
 The witness arms a new write observer before pressing Add and waits for that write's
-`sent`; it never injects an extra SDK write. `--as alice` selects a declared
+`sent`; it never injects an extra SDK write. Submit the durable write directly
+from the button handler; finish async validation before enabling it. Mutations
+from timers/input autosaves cannot satisfy the clicked-button proof. `--as alice` selects a declared
 persona, including on the default identity starter, only under dev.
 Fresh browser/storage and a fresh default backend
 make runs repeatable; SDK-only `--url` repeats use a stable write id, never reset. Visible form clicks are new UI intents.

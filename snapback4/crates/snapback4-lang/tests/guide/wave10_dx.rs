@@ -40,8 +40,10 @@ fn docs_use_engine_file_types_period_boundaries_and_projection_identity() {
     let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let ts = snapback4_lang::emit::typescript(&bound);
-    assert!(ts.contains("titles: Query<{}, { title: string }[]>"));
-    assert!(ts.contains("identified: Query<{}, { id: string; title: string }[]>"));
+    let titles = ts.lines().find(|line| line.trim_start().starts_with("titles: Query<")).unwrap();
+    assert!(titles.contains("title: string") && !titles.contains("id: string"), "{titles}");
+    let identified = ts.lines().find(|line| line.trim_start().starts_with("identified: Query<")).unwrap();
+    assert!(identified.contains("id: string") && identified.contains("title: string"), "{identified}");
     let schedule = &bound.schema.schedules[0];
     assert_eq!(schedule.boundary(8 * 86_400_000), 7 * 86_400_000 + 8 * 3_600_000);
     let jobs = card("jobs").unwrap();

@@ -17,23 +17,37 @@ export function registerWebWitness(app: App, api: Operations): void {
   Object.defineProperty(window, "__snapback4Witness", { configurable: true, value: {
     ready: () => app.ready,
     viewer: () => app.client?.viewer(),
-    beginForm: (name: string | undefined, expected?: Record<string, unknown>) => {
+    beginForm: (name: string | undefined, expected: Record<string, unknown> | undefined, button: Element) => {
       if (!app.client) throw Error("E_WITNESS_AUTH: no signed-in client");
       form?.cancel();
-      const client = app.client, original = client.mutate;
-      let cancelObserver = () => {};
-      let claimed = false;
+      const client = app.client, originalClient = client.mutate, originalApp = app.mutate;
+      let click: Event | undefined, claimed = false, cancelObserver = () => {};
       let resolve!: (write: unknown) => void;
       const terminal = new Promise(answer => { resolve = answer; });
-      const restore = () => { if (client.mutate === instrumented) client.mutate = original; };
+      // Chromium's active event ties admission to this actual control's handler.
+      // Timers, input autosaves and previously-started writes cannot claim it.
+      const capture = (event: Event) => {
+        if (event.composedPath().includes(button)) click = event;
+        // A submit button's default action dispatches a separate submit event.
+        else if (click && event.type === "submit" && (event as SubmitEvent).submitter === button) click = event;
+      };
+      document.addEventListener("click", capture, true);
+      document.addEventListener("submit", capture, true);
+      const restore = () => {
+        if (client.mutate === clientWrapper) client.mutate = originalClient;
+        if (app.mutate === appWrapper) app.mutate = originalApp;
+        document.removeEventListener("click", capture, true);
+        document.removeEventListener("submit", capture, true);
+      };
       const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object"
         ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical((value as Record<string, unknown>)[key])])) : value;
-      const instrumented = async (op: Mutation<any, any>, args: Record<string, unknown>, options?: any) => {
-        if (claimed || !operations.some(value => (value as Mutation<any, any>).name === op.name) || (name && name !== op.name)) return original.call(client, op, args, options);
+      const execute = async (original: Function, receiver: unknown, op: Mutation<any, any>, args: Record<string, unknown>, options?: any): Promise<Write> => {
+        const invoke = () => original.call(receiver, op, args, options) as Promise<Write>;
+        if (claimed || !click || window.event !== click || !operations.some(value => (value as Mutation<any, any>).name === op.name) || (name && name !== op.name)) return invoke();
         claimed = true; restore();
         if (expected && JSON.stringify(canonical(expected)) !== JSON.stringify(canonical(args))) {
           resolve({ state: "failed", why: { code: "E_WITNESS_ARGUMENT" } });
-          return original.call(client, op, args, options);
+          return invoke();
         }
         let id: string | undefined, early: Write[] = [];
         const stop = client.onWrite(write => {
@@ -42,7 +56,7 @@ export function registerWebWitness(app: App, api: Operations): void {
         });
         cancelObserver = stop;
         try {
-          const write = await original.call(client, op, args, options);
+          const write = await invoke();
           id = write.id;
           const receipt = write.state === "pending" ? early.find(value => value.id === id) : write;
           early = [];
@@ -50,7 +64,10 @@ export function registerWebWitness(app: App, api: Operations): void {
           return write;
         } catch (error) { stop(); resolve({ state: "failed", why: { code: "E_WITNESS_WEB" } }); throw error; }
       };
-      client.mutate = instrumented as typeof client.mutate;
+      // Hooks submit through client; forms using app.mutate enter before its readiness await.
+      const clientWrapper = ((op: Mutation<any, any>, args: Record<string, unknown>, options?: any) => execute(originalClient, client, op, args, options)) as typeof client.mutate;
+      const appWrapper = ((op: Mutation<any, any>, args: Record<string, unknown>, options?: any) => execute(originalApp, app, op, args, options)) as typeof app.mutate;
+      client.mutate = clientWrapper; app.mutate = appWrapper;
       form = { terminal, cancel: () => { restore(); cancelObserver(); } };
     },
     formResult: () => form?.terminal,
