@@ -94590,3 +94590,16 @@ excluded forms remain explicit; the broad majority target is not claimed.
 commands, results, semantic checkpoints and scope limits. Final Linux gzip
 703,255 B and budget 703,755 B preserve exactly 500 B headroom. All changes
 are local Charlie commits; no push or publication.
+
+### 2026-10-13 — PAGE3 private-page end game (qualification in progress)
+
+Party/static roles now page both on the server and full union devices;
+pure memberships reuse metered fenced discovery. Positive compound ranges
+retain every status predicate, including parent/status conjunctions and
+nullable-enum non-null alternatives. Hidden parent sources get checked,
+immutable owner/reference-copy edits with backfill and live-parent restrictions.
+First independent Muse/Codex reviews found capability scope, cap exemption,
+copy lifetime/reference and native/model guard-admission issues; fixes are in
+26d03a6fb4 and follow-up qualification. Linux locked web measurement is
+2,310,393 B raw / 704,662 B gzip, +5,258 / +1,407 versus PAGE2. Budget is
+705,162 B, precisely measurement + 500 B. Core runtime ceilings stay fixed.
