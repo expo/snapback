@@ -59,6 +59,43 @@ query firstVisible():
   return tasks first 1 by .id
 ";
 
+const PENDING_SOURCE: &str = "table gates:
+  opensAt: time
+  closesAt: time
+  by byOpening: opensAt
+  by byExpiry: closesAt
+  not before .opensAt
+  expire at .closesAt
+  public 'scheduled gates'
+  update <- allow
+  sync public
+table awards:
+  label: text <=20
+  public 'awards'
+  insert <- allow
+  sync public
+query asserted(id: gates):
+  gate = gates[id] ! else NOT_FOUND
+  return gate
+query positive(id: gates):
+  require exists gates[id] else NOT_FOUND
+  return true
+query negative(id: gates):
+  require not exists gates[id] else PRESENT
+  return true
+mutation grant(id: gates, award: id):
+  insert awards { id: award, label: 'granted' }
+  require exists gates[id] else NOT_FOUND
+  return true
+mutation grantAbsent(id: gates, award: id):
+  insert awards { id: award, label: 'granted' }
+  require not exists gates[id] else PRESENT
+  return true
+mutation delay(id: gates, opensAt: time):
+  update gates[id] { opensAt }
+  return true
+";
+
 fn membership_source(not_before: Option<&str>) -> String {
     let opening = not_before.map_or(String::new(), |field| format!("  not before .{field}\n"));
     format!("table members:
@@ -144,6 +181,35 @@ fn witness_engine_at(now: i64) -> Engine {
         now,
     )
     .unwrap()
+}
+
+fn pending_engine() -> Engine {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), PENDING_SOURCE.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    let mut engine = Engine::new_at(
+        Store::memory().unwrap(),
+        bound.schema,
+        bound.programs.into_iter().map(|program| program.program),
+        0,
+    )
+    .unwrap();
+    engine.seed_at([
+        ("gates".into(), object([
+            ("id", Value::Id("a".into())),
+            ("opensAt", Value::Int(100)),
+            ("closesAt", Value::Int(500)),
+        ])),
+        ("gates".into(), object([
+            ("id", Value::Id("b".into())),
+            ("opensAt", Value::Int(100)),
+            ("closesAt", Value::Int(500)),
+        ])),
+    ], 0).unwrap();
+    engine
+}
+
+fn pending_args() -> std::collections::BTreeMap<String, Value> {
+    [("id".into(), Value::Id("b".into()))].into()
 }
 
 fn announcement(id: &str, opens: i64, closes: i64, body: &str) -> (String, Value) {
@@ -288,6 +354,79 @@ fn an_overdue_row_stays_unavailable_until_its_own_opening_is_published() {
         opened.data.field("body"),
         Ok(&Value::String("second".into()))
     );
+}
+
+#[test]
+fn pending_publication_cannot_become_an_authored_absence() {
+    for query in ["asserted", "positive", "negative"] {
+        let mut engine = pending_engine();
+        let outcome = engine.query(
+            query,
+            Context::new("alice", pending_args()).at(100),
+        ).unwrap();
+        assert!(outcome.unavailable, "{query}: {outcome:?}");
+        assert!(!outcome.complete, "{query}: {outcome:?}");
+        assert_eq!(outcome.data, Value::Null, "{query}: {outcome:?}");
+        assert_eq!(outcome.next, None, "{query}: {outcome:?}");
+    }
+}
+
+#[test]
+fn pending_publication_rolls_back_a_write_without_caching_its_id() {
+    let mut engine = pending_engine();
+    let args = [
+        ("id".into(), Value::Id("b".into())),
+        ("award".into(), Value::Id("award".into())),
+    ].into();
+    let error = engine.mutate(
+        "grant",
+        Some("same-write"),
+        Context::new("alice", args).at(100),
+    ).unwrap_err();
+    assert_eq!(error.code(), "E_TIME_AUDIENCE_PENDING");
+    assert!(error.refusal().retryable);
+    assert_eq!(engine.store().count("awards").unwrap(), 0);
+    assert_eq!(engine.replay("alice", "same-write").unwrap(), None);
+
+    let args = [
+        ("id".into(), Value::Id("b".into())),
+        ("award".into(), Value::Id("award".into())),
+    ].into();
+    let retried = engine.mutate(
+        "grant",
+        Some("same-write"),
+        Context::new("alice", args).at(100),
+    ).unwrap();
+    assert!(matches!(retried.state, WriteState::Sent { .. }), "{retried:?}");
+    assert_eq!(engine.store().count("awards").unwrap(), 1);
+
+    let mut engine = pending_engine();
+    let error = engine.mutate(
+        "grantAbsent",
+        None,
+        Context::new("alice", [
+            ("id".into(), Value::Id("b".into())),
+            ("award".into(), Value::Id("absence-award".into())),
+        ].into()).at(100),
+    ).unwrap_err();
+    assert_eq!(error.code(), "E_TIME_AUDIENCE_PENDING");
+    assert_eq!(engine.store().count("awards").unwrap(), 0);
+}
+
+#[test]
+fn a_blind_write_can_reschedule_an_overdue_pending_target() {
+    let mut engine = pending_engine();
+    let outcome = engine.mutate(
+        "delay",
+        None,
+        Context::new("alice", [
+            ("id".into(), Value::Id("b".into())),
+            ("opensAt".into(), Value::Int(300)),
+        ].into()).at(100),
+    ).unwrap();
+    assert!(matches!(outcome.state, WriteState::Sent { .. }), "{outcome:?}");
+    let hidden = engine.query("asserted", Context::new("alice", pending_args()).at(100)).unwrap_err();
+    assert_eq!(hidden.code, "NOT_FOUND", "{hidden:?}");
 }
 
 #[test]

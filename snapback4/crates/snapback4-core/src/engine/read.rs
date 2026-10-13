@@ -378,15 +378,28 @@ impl<'r> Runner<'r> {
     /// remains absent while its private opening entry is still pending: the
     /// bounded publisher has not emitted this row's partition transition yet.
     // @ref LLP 3000.036.002#4-advancing-time-without-an-application-job — a due ledger entry is the publication barrier.
-    pub(super) fn inactive(&mut self, table_name: &str, row: &Value) -> Result<bool, RuntimeError> {
+    fn inactive_with_pending(&mut self, table_name: &str, row: &Value, refuse_pending: bool) -> Result<bool, RuntimeError> {
         let Some(now) = self.context.now else { return Ok(false); };
         let table = &self.schema.tables[table_name];
         if !table.live(row, now) { return Ok(true); }
         if table.not_before.is_none() { return Ok(false); }
         let id = row.field("id")?.as_str()?;
         if !self.tx.time_audience_pending(table_name, id)? { return Ok(false); }
-        self.query_unavailable = true;
+        if refuse_pending {
+            self.query_unavailable = true;
+            return Err(RuntimeError::TimeAudiencePending);
+        }
         Ok(true)
+    }
+
+    pub(super) fn inactive(&mut self, table_name: &str, row: &Value) -> Result<bool, RuntimeError> {
+        self.inactive_with_pending(table_name, row, true)
+    }
+
+    /// A physical write target may be cancelled or rescheduled while its
+    /// publication is pending. It remains unreadable to the author's program.
+    pub(super) fn inactive_write_target(&mut self, table_name: &str, row: &Value) -> Result<bool, RuntimeError> {
+        self.inactive_with_pending(table_name, row, false)
     }
 
     /// Step over a fetched row that is expired at this run's clock but not yet
@@ -419,13 +432,14 @@ impl<'r> Runner<'r> {
         // which can never be live retains the ordinary expired-witness walk;
         // its private opening instant must not change authorization capacity.
         if table.expired(row, now) { return Ok(false); }
-        let hidden = if !table.opened(row, now) {
-            true
-        } else {
+        let hidden = if !table.opened(row, now) { true } else {
             let id = row.field("id")?.as_str()?;
             let pending = self.tx.time_audience_pending(table_name, id)?;
-            self.query_unavailable |= pending;
-            pending
+            if pending {
+                self.query_unavailable = true;
+                return Err(RuntimeError::TimeAudiencePending);
+            }
+            false
         };
         if !hidden { return Ok(false); }
         let bytes = EXPIRED_STEP + key.len() as u64;

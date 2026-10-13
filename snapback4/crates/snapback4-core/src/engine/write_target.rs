@@ -180,7 +180,7 @@ impl Runner<'_> {
             let Some(old) = old else { return Err(runner.no_write_target()); };
             // Preserve alternate delete's existing read gate, without exposing
             // the private target or charging a hidden population through Get.
-            if runner.inactive(&target.table, &old)? || !runner.check_rule(&target.table, Effect::Read, None, &old)? { runner.refusing_clause(&target.table, "read rule"); return Err(runner.no_write_target()); }
+            if runner.inactive_write_target(&target.table, &old)? || !runner.check_rule(&target.table, Effect::Read, None, &old)? { runner.refusing_clause(&target.table, "read rule"); return Err(runner.no_write_target()); }
             if !runner.check_rule(&target.table, Effect::Delete, None, &old)? {
                 return Err(RuntimeError::Rule { table: target.table.clone(), effect: Effect::Delete });
             }
@@ -212,7 +212,7 @@ impl Runner<'_> {
         }
         let id = if let Some(mut old) = old {
             materialize_optional_fields(&mut old, definition);
-            let readable = !self.inactive(&target.table, &old)?
+            let readable = !self.inactive_write_target(&target.table, &old)?
                 && self.check_rule(&target.table, Effect::Read, None, &old)?;
             let patch = self.ignore_hidden_immutable_patch(&target.table, patch, readable)?;
             let id = old.field("id")?.clone();

@@ -713,10 +713,17 @@ impl Engine {
                 let now = context.now.unwrap_or(0);
                 let runner = Runner::new(rows, &self.schema, context, Meter::new(self.ceilings, Cut::Cap), seq);
                 let (value, mut runner) = native::run_read(module, runner, name, &args, now);
-                let data = value?;
+                let data = match value {
+                    Ok(value) => value,
+                    Err(RuntimeError::TimeAudiencePending) => {
+                        runner.query_unavailable = true;
+                        Value::Null
+                    }
+                    Err(error) => return Err(error.into()),
+                };
                 runner.charge_output(&data)?;
                 let (delivery, delivery_meter) = match manifest { DeliveryManifest::Build => runner.delivery_manifest(&data), DeliveryManifest::Skip => (None, None) };
-                let outcome = QueryOutcome { decoration_expiry: None, search_rows: None, search_scopes: None, delivery, delivery_meter, ephemeral: version, unavailable: runner.query_unavailable, complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
+                let outcome = QueryOutcome { decoration_expiry: None, search_rows: None, search_scopes: None, delivery, delivery_meter, ephemeral: version, unavailable: runner.query_unavailable, complete: !runner.query_unavailable && runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
                 drop(runner);
                 drop(layered); drop(hub);
                 tx.rollback()?;
@@ -744,9 +751,16 @@ impl Engine {
                 runner.context.search_retained_candidates = ids.iter().zip(order).map(|(id, at)| (id.clone(), *at, current.contains(id))).collect();
             }
         }
-        let data = runner.run_server_query(&program)?;
+        let data = match runner.run_server_query(&program) {
+            Ok(value) => value,
+            Err(RuntimeError::TimeAudiencePending) => {
+                runner.query_unavailable = true;
+                Value::Null
+            }
+            Err(error) => return Err(error.into()),
+        };
         runner.charge_output(&data)?;
-        let next = runner.outcome_next_cursor()?;
+        let next = if runner.query_unavailable { None } else { runner.outcome_next_cursor()? };
         // `complete` is a class, not a count: a query with a scan the prefix
         // does not decide is capped whatever the meter found (LLP 1001 §3).
         let (delivery, delivery_meter) = match manifest { DeliveryManifest::Build => runner.delivery_manifest(&data), DeliveryManifest::Skip => (None, None) };
@@ -756,7 +770,7 @@ impl Engine {
             #[cfg(not(feature = "server-search"))] search_scopes: None,
             delivery, delivery_meter, ephemeral: version,
             unavailable: runner.query_unavailable,
-            complete: runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.value_source_incomplete && !runner.page_position_lost() && !runner.timeline_pending,
+            complete: !runner.query_unavailable && runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.value_source_incomplete && !runner.page_position_lost() && !runner.timeline_pending,
             cut: runner.read_cut(),
             capped_at: runner.meter.capped_at.clone(),
             word_cut_at: runner.word_cut_at.clone(),

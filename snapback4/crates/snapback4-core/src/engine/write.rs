@@ -262,7 +262,7 @@ impl Runner<'_> {
             return Err(self.write_miss(table_name, "byId", &[key.clone()]));
         };
         if self.device && self.schema.tables[table_name].sync.is_none() { return Err(self.write_miss(table_name, "byId", &[key.clone()])); }
-        let readable = !self.inactive(table_name, &old)?
+        let readable = !self.inactive_write_target(table_name, &old)?
             && self.check_rule(table_name, Effect::Read, None, &old)?;
         let patch = self.ignore_hidden_immutable_patch(table_name, patch, readable)?;
         let (new, copy) = self.merge_patch(table_name, &old, &patch, readable)?;
@@ -294,7 +294,7 @@ impl Runner<'_> {
             runner.fetch_write_target(allowance, table_name, id)
         })? {
             Some(old) => {
-                let readable = !self.inactive(table_name, &old)?
+                let readable = !self.inactive_write_target(table_name, &old)?
                     && self.check_rule(table_name, Effect::Read, None, &old)?;
                 let row = self.ignore_hidden_immutable_patch(table_name, row, readable)?;
                 // @ref LLP 3000.007#5.4 — an existing row receives a patch; omitted columns keep their values.
@@ -387,7 +387,7 @@ impl Runner<'_> {
         };
         // @ref LLP 3000.039#3 — a delete that consults referencing rows needs read authority on its row first.
         let readable =
-            !self.inactive(table_name, &old)? && self.check_rule(table_name, Effect::Read, None, &old)?;
+            !self.inactive_write_target(table_name, &old)? && self.check_rule(table_name, Effect::Read, None, &old)?;
         if (self.schema.children(table_name).next().is_some() || self.schema.is_referenced(table_name)) && !readable
         {
             self.refusing_clause(table_name, "read rule");
@@ -540,7 +540,7 @@ impl Runner<'_> {
         let id = new.field("id")?.as_str()?.to_owned();
         // @ref LLP 3000.039#4.1 — an action's own write consults no rule: probing the child's read rule would draw the shared allowance only where a child exists.
         let readable = match old { Some(old) if effect == Effect::Update && !self.engine_action => {
-                !self.inactive(table_name, old)?
+                !self.inactive_write_target(table_name, old)?
                     && self.check_rule(table_name, Effect::Read, None, old)?
             }
             _ => true };
@@ -733,7 +733,7 @@ impl Runner<'_> {
         let mut image = row.clone();
         let definition = self.schema.table(table).expect("validated");
         materialize_optional_fields(&mut image, definition);
-        if self.inactive(table, &image)? || !self.check_rule(table, Effect::Read, None, &image)? {
+        if self.inactive_write_target(table, &image)? || !self.check_rule(table, Effect::Read, None, &image)? {
             return Err(self.rule_refusal(table, effect, clause));
         }
         Ok(())

@@ -144,6 +144,8 @@ pub enum RuntimeError {
     #[cfg(feature = "postgres")]
     #[error("E_STORE: {0}")]
     Postgres(#[from] postgres::Error),
+    #[error("E_TIME_AUDIENCE_PENDING: timed publication is still advancing; retry this operation")]
+    TimeAudiencePending,
     #[error("E_STORE: {0}")]
     Store(String),
 }
@@ -195,6 +197,7 @@ impl RuntimeError {
             Self::StoreBusy { .. } => "E_STORE_BUSY".into(),
             #[cfg(feature = "postgres")]
             Self::Postgres(_) => "E_STORE".into(),
+            Self::TimeAudiencePending => "E_TIME_AUDIENCE_PENDING".into(),
             Self::Store(_) => "E_STORE".into(),
         }
     }
@@ -229,6 +232,7 @@ impl RuntimeError {
             Self::StoreBusy { .. } => "store",
             #[cfg(feature = "postgres")]
             Self::Postgres(_) => "store",
+            Self::TimeAudiencePending => "store",
             Self::Store(_) => "store",
         }
     }
@@ -244,7 +248,7 @@ impl RuntimeError {
         if matches!(self, Self::Sql(_) | Self::StoreBusy { .. }) {
             return true;
         }
-        matches!(self, Self::Store(_))
+        matches!(self, Self::Store(_) | Self::TimeAudiencePending)
     }
 
     pub fn is_refusal(&self) -> bool {
@@ -379,6 +383,11 @@ impl RuntimeError {
             }
             #[cfg(feature = "postgres")]
             Self::Postgres(_) => refusal.retryable = true,
+            Self::TimeAudiencePending => {
+                refusal.retryable = true;
+                refusal.guide = Some("time".into());
+                refusal.rewrite = Some("retry after the server publishes the next bounded opening".into());
+            }
             Self::Store(_) => refusal.retryable = true,
             Self::Asset { message, .. } => {
                 refusal.message = message.clone();
