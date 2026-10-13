@@ -61,6 +61,12 @@ impl Requests {
     }
     pub(super) fn error_count(&self) -> usize { self.errors.len() }
 
+    pub(super) fn branch_index<'a>(&'a self, table: &'a TableInfo, read: &ReadExpr) -> Option<&'a IndexDecl> {
+        let name = read.index.as_ref()?;
+        self.indexes.get(&(table.decl.name.clone(), name.clone()))
+            .or_else(|| table.indexes.iter().find(|index| &index.name == name))
+    }
+
     pub(super) fn branch_index_fits(&self, table: &TableInfo, read: &ReadExpr) -> bool {
         let Some(name) = &read.index else { return false };
         if let Some(index) = self.indexes.get(&(table.decl.name.clone(), name.clone())) {
@@ -76,10 +82,7 @@ impl Requests {
     /// Physical components in the selected plain index, including a pending
     /// structural request before its token receives the emitted index name.
     pub(super) fn branch_index_width(&self, table: &TableInfo, read: &ReadExpr) -> Option<usize> {
-        let name = read.index.as_ref()?;
-        self.indexes.get(&(table.decl.name.clone(), name.clone()))
-            .or_else(|| table.indexes.iter().find(|index| &index.name == name))
-            .filter(|index| index.is_plain()).map(|index| index.columns.len())
+        self.branch_index(table, read).filter(|index| index.is_plain()).map(|index| index.columns.len())
     }
 
     fn index(&mut self, table: &TableInfo, columns: Vec<String>, words: Option<(usize, Vec<String>)>, site: &Site, exact: bool) -> String {

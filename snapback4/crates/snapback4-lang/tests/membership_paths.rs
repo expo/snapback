@@ -185,3 +185,51 @@ query documents(c: cursor ?):
         assert_eq!(page.data.as_array().unwrap().len(), expected);
     }
 }
+
+#[test]
+fn one_row_source_unique_projects_an_ordinary_parent_field() {
+    for nullable in [false, true] {
+        let optional = if nullable { " ?" } else { "" };
+        let source = format!("table members:
+  parent: text <=40{optional}
+  principal: principal
+  unique principal
+  cap 16 by principal
+  read <- .principal = viewer
+  online only
+table documents:
+  owner: principal
+  parent: text <=40{optional}
+  at: int
+  read <- .owner = viewer or exists members[parent = .parent, principal = viewer]
+  online only
+query documents(c: cursor ?):
+  return documents last 10 by .at after c
+");
+        let bound = clean(&source);
+        let merge = snapback4_core::ir::body_merges(&bound.programs[0].program.body).into_iter()
+            .find(|merge| merge.lanes.iter().any(|lane| lane.membership())).expect("membership merge");
+        let lane = merge.lanes.iter().find(|lane| lane.membership()).unwrap();
+        let source_scan = lane.source.as_ref().and_then(snapback4_core::ir::LaneSource::scan).unwrap();
+        let source_index = &bound.schema.tables["members"].indexes[&source_scan.index];
+        assert!(source_index.unique);
+        assert_eq!(source_index.columns(), ["principal"]);
+        assert_eq!(source_scan.prefix.len(), source_index.components.len());
+        assert!(!bound.schema.tables["members"].indexes.values().any(|index| index.columns() == ["principal", "parent", "id"]));
+
+        let parent = if nullable { Value::Null } else { Value::String("p1".into()) };
+        for (present, expected) in [(false, 1), (true, 2)] {
+            let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|program| program.program.clone())).unwrap();
+            let mut rows = vec![
+                ("members".into(), object([("id", Value::Id("m0".into())), ("parent", Value::String("p0".into())), ("principal", Value::Id("bob".into()))])),
+                ("documents".into(), object([("id", Value::Id("owned".into())), ("owner", Value::Id("alice".into())), ("parent", Value::String("p0".into())), ("at", Value::Int(1))])),
+                ("documents".into(), object([("id", Value::Id("shared".into())), ("owner", Value::Id("bob".into())), ("parent", parent.clone()), ("at", Value::Int(2))])),
+            ];
+            if present { rows.push(("members".into(), object([("id", Value::Id("m1".into())), ("parent", parent.clone()), ("principal", Value::Id("alice".into()))]))); }
+            engine.seed(rows).unwrap();
+            let page = engine.query("documents", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
+            assert!(page.complete && page.next.is_none(), "nullable={nullable} present={present}: {page:?}");
+            assert_eq!(page.data.as_array().unwrap().len(), expected);
+        }
+    }
+}

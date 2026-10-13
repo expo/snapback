@@ -108,11 +108,27 @@ fn membership(tables: &Tables, synthesized: &std::collections::BTreeSet<(String,
             candidate.plan_lane(tables, lane.planned.as_mut()?);
             let (_, source) = lane.loop_.as_mut()?;
             let Expr::Read(source) = source else { return None };
-            candidate.read(tables, source, false);
             let source_table = tables.get(&source.table)?;
-            if membership_source_column(tables, synthesized, table, predicate).as_deref() == Some("id")
-                && let Some(source_index) = source.index.as_ref().and_then(|name| source_table.indexes.iter().find(|index| &index.name == name))
-                && source.keys.len() == source_index.columns.len() && !source_table.total_unique(source_index) { return None; }
+            let source_column = membership_source_column(tables, synthesized, table, predicate)?;
+            let mut source_candidate = candidate.clone();
+            source_candidate.read(tables, source, false);
+            // A fully pinned total unique returns at most one source row, so
+            // its row may project any membership parent without ordering the
+            // discovery scan by that field. Discard the provisional inferred
+            // index when the authored point index supplies this stronger proof.
+            let one_row = source_table.indexes.iter().filter(|index| source_table.total_unique(index)
+                && index.columns.len() == source.keys.len()
+                && index.columns.iter().all(|column| source.keys.iter().any(|key| key.column.as_ref() == Some(column))))
+                .min_by_key(|index| &index.name);
+            if let Some(index) = one_row {
+                source.keys.sort_by_key(|key| index.columns.iter().position(|column| key.column.as_ref() == Some(column)).unwrap_or(usize::MAX));
+                source.order_keys = vec!["id".into()]; source.index = Some(index.name.clone());
+            } else { candidate = source_candidate; }
+            let source_index = candidate.branch_index(source_table, source)?;
+            let next_component = source.keys.len() < source_index.columns.len()
+                && source_index.columns.get(source.keys.len()) == Some(&source_column);
+            let one_row = source.keys.len() == source_index.columns.len() && source_table.total_unique(source_index);
+            if !next_component && !one_row { return None; }
             // Uniform denial is not an empty discovery range. PAGE may commit
             // its speculative indexes only when the fixed source pins prove
             // a true read-rule disjunct, matching the core validator.
