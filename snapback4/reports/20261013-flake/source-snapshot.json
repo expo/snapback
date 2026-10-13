@@ -1,0 +1,23 @@
+{
+  "snapback4/AGENTS.md": "9d221d106b18ee828cc01ceaf06c6546f9acd333284b0c806608c3358265b97f",
+  "snapback4/crates/snapback4-core/tests/ephemeral/generation.rs": "3e9a3caee15fb7c34607d596be7cced99f8adc06b9bc55488b31c29fd4cb0438",
+  "snapback4/crates/snapback4-difftest/src/lean.rs": "a86ba4da6589ef7ef36cd8838cb7e4c0ec2fbf333e68914934f2851cb32ab9ab",
+  "snapback4/crates/snapback4/src/dev_refusal_console.rs": "470880bf00607d0f7f0be48f0a639ff93f5185bd5ef957f9baaea4f970196190",
+  "snapback4/crates/snapback4/src/dev_refusals.rs": "0fe9f64bb7aa0d5bf7215a5c367d09ef725fd0fdf31cd78b55ceef894b767714",
+  "snapback4/crates/snapback4/src/dev_worker.rs": "21084b36b497e96b86c1c27f4b18be8ba1fe9db80f6e4e7598acb4fd000d5669",
+  "snapback4/crates/snapback4/src/serve.rs": "cc47f041a46fc3e3b0c3b2dd108c382dd464a1540ad9fa1ec85ab6b9a88bf9fc",
+  "snapback4/crates/snapback4/src/serve_changes.rs": "4792d40690711aae0416663e9d39939ec1e00566581cd11e11322ec3ff943f2b",
+  "snapback4/crates/snapback4/src/serve_start.rs": "086b8824dffb6a5665a7aee27d147f48fad143ea5a69d32caa9d7dde4907f861",
+  "snapback4/crates/snapback4/src/serve_tests.rs": "07d66e225d804b8bea689f237060f6144de777abc05afbb92c932aa0dd5cdd69",
+  "snapback4/crates/snapback4/tests/dev_refusals/shutdown.rs": "1f659e608c39e4001fbfd1a32c195c08ddb143910edd716bb68b894310136a9d",
+  "snapback4/crates/snapback4/tests/latency/headers.rs": "67a3d87b10b14e6ed247184a877b9db97e6ecd512fdcbd4bf53858e440804547",
+  "snapback4/crates/snapback4/tests/latency/histogram.rs": "d2a6f9cf13e9138927df244af67e0084c03cf7d522d8a108e177628ece3e1026",
+  "snapback4/crates/snapback4/tests/serve_ephemeral/mod.rs": "b44b7614990e811a3f922db4d8f993708b1a53df4ef6687861b271ddb3cbe23c",
+  "snapback4/crates/snapback4/tests/serve_long_waits/mod.rs": "da128fffa815d994d36a25dc50a027954743b48f3acff6230a16182e48c030ec",
+  "snapback4/crates/snapback4/tests/serve_poison/mod.rs": "4a0815936b3bbf71512030a17c17530c8ffefec2dd494c5862f37029ec8ceffa",
+  "snapback4/crates/snapback4/tests/serve_refusals/mod.rs": "8cd65e3182a686e90562fc9288c4e8c6a0a2bc116761c01c507d03bbf324f5bf",
+  "snapback4/packages/snapback4/test/read-only-round5.test.mjs": "44e0e585aa4c29ade44ed60405f185b129704776c58280d71a60114906cf6460",
+  "snapback4/packages/snapback4/test/social-quote-jump-browser.test.mjs": "9a9cbe662d367c2c59425e8e778b90c4300db6011d2b5f00e0d09ea7f63e220f",
+  "snapback4/packages/snapback4/test/test-file-runner.test.mjs": "aa69306aa84e385fcf1ff4012e319eee91e051aa5385e4990422f7dbd1ea12fa",
+  "snapback4/scripts/run-client-tests.mjs": "bd84b86d2bd27dae4aa37153807d8052d90d599313a2c8db334f16cb9164d6de"
+}

@@ -136,6 +136,10 @@ pub struct Shared {
     #[cfg(test)]
     pub poll_wait: WorkHook,
     #[cfg(test)]
+    pub poll_resumed: WorkHook,
+    #[cfg(test)]
+    pub poll_notified: WorkHook,
+    #[cfg(test)]
     pub query_wait: WorkHook,
     #[cfg(test)]
     pub reader_open: WorkHook,

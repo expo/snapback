@@ -1,0 +1,1 @@
+{"run": 4, "exit": 0, "finished": 1791921952.7002888, "command": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 RUST_MIN_STACK=33554432 cargo test --workspace --no-fail-fast", "default_threads": true}

@@ -107,10 +107,16 @@ fn detached_query_uses_its_checkout_map_when_the_advertised_source_changes() {
 
 impl Host {
     pub(super) fn with_evidence(dev: bool, store: snapback4_core::Store, source: &str, bind: &str, evidence: Option<&std::path::Path>) -> Self {
-        Self::with_capacity(dev, store, source, bind, evidence, crate::host_limits::Capacity::default())
+        Self::with_recent(dev, store, source, bind, evidence, None)
+    }
+    fn with_recent(dev: bool, store: snapback4_core::Store, source: &str, bind: &str, evidence: Option<&std::path::Path>, recent: Option<dev_refusals::Recent>) -> Self {
+        Self::with_capacity_recent(dev, store, source, bind, evidence, crate::host_limits::Capacity::default(), recent)
     }
 
     pub(super) fn with_capacity(dev: bool, store: snapback4_core::Store, source: &str, bind: &str, evidence: Option<&std::path::Path>, capacity: crate::host_limits::Capacity) -> Self {
+        Self::with_capacity_recent(dev, store, source, bind, evidence, capacity, None)
+    }
+    fn with_capacity_recent(dev: bool, store: snapback4_core::Store, source: &str, bind: &str, evidence: Option<&std::path::Path>, capacity: crate::host_limits::Capacity, recent: Option<dev_refusals::Recent>) -> Self {
         crate::host_limits::prepare_tests();
         let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
@@ -124,10 +130,8 @@ impl Host {
         let authoritative_now = lock(&clock).now();
         let presence = Arc::new(Live::new(clock.clone()));
         engine.set_presence(Some(presence.clone()));
-        let refusals = evidence.map(|project| {
-                dev_refusals::Recent::start(project,
-            &engine.store().meta("store_id").unwrap().unwrap(), "127.0.0.1:0".parse().unwrap(), false, false).unwrap()
-            }).unwrap_or_default();
+        let refusals = recent.unwrap_or_else(|| evidence.map(|project| dev_refusals::Recent::start(project,
+            &engine.store().meta("store_id").unwrap().unwrap(), "127.0.0.1:0".parse().unwrap(), false, false).unwrap()).unwrap_or_default());
         let generation = engine.generation();
         let readers = Mutex::new(QueryReaders::new(&engine, &bound.refusal_sites));
         let shared = Arc::new(Shared {
@@ -165,7 +169,7 @@ impl Host {
         worker_minted: Mutex::new(None), auth_work: Mutex::new(None),
             request_work: Mutex::new(None), upload_work: Mutex::new(None),
             effect_wait: Mutex::new(None),
-            poll_wait: Mutex::new(None),
+            poll_wait: Mutex::new(None), poll_resumed: Mutex::new(None), poll_notified: Mutex::new(None),
             query_wait: Mutex::new(None), reader_open: Mutex::new(None), changes_refresh: Mutex::new(None),
             mutation_wait: Mutex::new(None),
         });
@@ -212,4 +216,47 @@ fn generation_footer_overflow_returns_a_complete_bounded_refusal() {
     assert_eq!(json["denied"]["code"], "E_BOUND");
     assert_eq!(json["generation"], 1);
     assert!(reply.len() < 4096, "overflow must replace the entire partial payload");
+}
+
+
+#[test]
+fn stopping_admission_flushes_console_entries_that_cannot_expire() {
+    struct Output(Arc<Mutex<Vec<u8>>>, mpsc::Sender<()>);
+    impl Drop for Output { fn drop(&mut self) { let _ = self.1.send(()); } }
+    impl std::io::Write for Output {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> { lock(&self.0).extend_from_slice(bytes); Ok(bytes.len()) }
+        fn flush(&mut self) -> std::io::Result<()> { Ok(()) }
+    }
+    let dir = ReaderTestDirectory::new();
+    let bytes = Arc::new(Mutex::new(Vec::new()));
+    let (ended, complete) = mpsc::channel();
+    let now = Instant::now();
+    let recent = dev_refusals::Recent::start_with_console(&dir.0, "store", "127.0.0.1:0".parse().unwrap(), false, true,
+        move || now, Output(bytes.clone(), ended)).unwrap();
+    let host = Host::with_recent(true, snapback4_core::Store::memory().unwrap(),
+        "use personas alice\ntable rows:\n  owner: principal\n  insert <- deny\nmutation add():\n  return insert rows {owner: viewer}\n", "127.0.0.1", None, Some(recent));
+    for n in 0..8 {
+        assert_eq!(body(&host.request("POST", "/m/add", "x-snapback-persona: alice\r\n", &format!(r#"{{"id":"refused-{n}","args":{{}}}}"#)))["why"]["code"], "E_RULE");
+    }
+    let deadline = Instant::now() + Duration::from_secs(60);
+    loop {
+        if let Ok(records) = dev_refusals::recent(&dir.0.join(".snapback4"), None, None)
+            && records["records"].as_array().unwrap().len() == 8 { break; }
+        assert!(Instant::now() < deadline, "evidence never reached the writer");
+        thread::yield_now();
+    }
+    // Frozen time prevents any due-window flush. The shutdown acknowledgement
+    // joins the final save/console handoff, even if the last save is observed early.
+    assert!(lock(&bytes).is_empty(), "fixture must keep console output pending");
+    let sender = host.shared.refusals.clone(); // Held polls retain sender clones too.
+    serve_requests(host.server.clone(), host.shared.clone(), crate::dev_worker::Supervisor::idle_for_test(),
+        vec![], || true, crate::host_limits::Capacity::default()).unwrap();
+    // The foreground has a bounded shutdown wait. Under CPU contention it can
+    // return before the writer releases its lock; sink drop joins actual cleanup.
+    complete.recv_timeout(Duration::from_secs(60)).expect("refusal writer finished");
+    let text = String::from_utf8(lock(&bytes).clone()).unwrap();
+    assert_eq!(text.lines().count(), 1, "{text}");
+    assert!(text.contains("count 8; window 1s;"), "{text}");
+    assert!(dev_refusals::recent(&dir.0.join(".snapback4"), None, None).is_err());
+    drop(sender);
 }

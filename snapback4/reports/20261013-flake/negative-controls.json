@@ -1,0 +1,65 @@
+[
+  {
+    "name": "poll-as-engine",
+    "test": "changes_refresh_is_engine_work_but_poll_sleep_is_not",
+    "exit": 101,
+    "expected_failure": true,
+    "command": [
+      "env",
+      "CARGO_INCREMENTAL=0",
+      "CARGO_PROFILE_DEV_DEBUG=0",
+      "CARGO_PROFILE_TEST_DEBUG=0",
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "changes_refresh_is_engine_work_but_poll_sleep_is_not",
+      "--",
+      "--nocapture"
+    ]
+  },
+  {
+    "name": "drop-ephemeral-notification",
+    "test": "blocked_poll_wakes_without_lost_notification_and_is_paced",
+    "exit": 101,
+    "expected_failure": true,
+    "command": [
+      "env",
+      "CARGO_INCREMENTAL=0",
+      "CARGO_PROFILE_DEV_DEBUG=0",
+      "CARGO_PROFILE_TEST_DEBUG=0",
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "blocked_poll_wakes_without_lost_notification_and_is_paced",
+      "--",
+      "--nocapture"
+    ]
+  },
+  {
+    "name": "skip-buffered-console-flush",
+    "test": "stopping_admission_flushes_console_entries_that_cannot_expire",
+    "exit": 101,
+    "expected_failure": true,
+    "command": [
+      "env",
+      "CARGO_INCREMENTAL=0",
+      "CARGO_PROFILE_DEV_DEBUG=0",
+      "CARGO_PROFILE_TEST_DEBUG=0",
+      "cargo",
+      "test",
+      "-p",
+      "snapback4",
+      "--bin",
+      "snapback4",
+      "stopping_admission_flushes_console_entries_that_cannot_expire",
+      "--",
+      "--nocapture"
+    ]
+  }
+]

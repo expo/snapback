@@ -101,6 +101,10 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
             #[cfg(test)]
             super::test_work(&shared.poll_wait);
             let (wake, timeout)=shared.polls.wait_timeout(wake,until.saturating_duration_since(Instant::now())).unwrap_or_else(|e|e.into_inner());
+            #[cfg(test)]
+            super::test_work(&shared.poll_resumed);
+            #[cfg(test)]
+            if !timeout.timed_out() { super::test_work(&shared.poll_notified); }
             drop(wake);
             if timeout.timed_out()
                 && opening.is_some_and(|at| shared.time_audience_delay(at).is_zero())

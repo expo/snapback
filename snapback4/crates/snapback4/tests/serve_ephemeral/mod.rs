@@ -97,6 +97,12 @@ fn blocked_as(h: &Host, url: String, headers: String) -> (JoinHandle<String>, mp
     drop(lock(&h.shared.wake));
     (poll, wait)
 }
+fn notifications(h: &Host) -> Arc<AtomicUsize> {
+    let count = Arc::new(AtomicUsize::new(0));
+    let seen = count.clone();
+    *lock(&h.shared.poll_notified) = Some(Arc::new(move || { seen.fetch_add(1, Ordering::SeqCst); }));
+    count
+}
 #[test]
 fn mutation_wire_query_version_and_no_sqlite_writer_lock() {
     for disk in [false, true] {
@@ -111,10 +117,10 @@ fn mutation_wire_query_version_and_no_sqlite_writer_lock() {
         if let Some(w) = &writer {
             w.execute_batch("BEGIN IMMEDIATE").unwrap();
         }
-        let start = Instant::now();
         let sent = set(&h);
         assert_eq!(sent["state"], "sent", "{sent}");
-        assert!(start.elapsed() < Duration::from_millis(250));
+        // The SQLite writer remains held throughout: a successful reply
+        // proves no writer acquisition, independent of thread scheduling.
         assert!(sent.get("seq").is_none());
         assert_eq!(sent["head"], seq);
         assert_eq!(sent["ephemeral"]["tables"], json!(["typing"]));
@@ -148,14 +154,12 @@ fn blocked_poll_wakes_without_lost_notification_and_is_paced() {
     let url = poll_url(&h, "typing");
     let began = Instant::now();
     let (poll, _) = blocked(&h, url);
-    let sent_at = Instant::now();
+    let notified = notifications(&h);
     assert_eq!(set(&h)["state"], "sent");
     let reply = body(&poll.join().unwrap());
-    assert!(
-        sent_at.elapsed() < Duration::from_millis(250),
-        "wake took {:?}",
-        sent_at.elapsed()
-    );
+    // A deadline reply carries the same table/epoch; require a condvar wake
+    // that did not time out, independently of when this test thread resumes.
+    assert!(notified.load(Ordering::SeqCst) > 0, "deadline expiry is not notification");
     assert!(began.elapsed() >= Duration::from_millis(95));
     assert_eq!(reply["ephemeral"]["tables"], json!(["typing"]));
     assert_eq!(reply["ephemeral"]["epoch"], 1);
@@ -166,11 +170,25 @@ fn blocked_poll_wakes_without_lost_notification_and_is_paced() {
 fn unrelated_interest_keeps_waiting_and_absent_interest_means_all() {
     let (h, dir) = host(true);
     let began = Instant::now();
-    let (poll, wait) = blocked(&h, poll_url(&h, "viewing"));
-    set(&h);
-    wait.recv_timeout(Duration::from_millis(250))
-        .expect("unrelated wake returns to wait");
-    assert!(!poll.is_finished());
+    let (poll, _) = blocked(&h, poll_url(&h, "viewing"));
+    let (sent, wait) = mpsc::channel();
+    let (release, held) = mpsc::channel();
+    let held = Mutex::new(held);
+    *lock(&h.shared.poll_wait) = Some(Arc::new(move || {
+        sent.send(()).unwrap(); lock(&held).recv().unwrap();
+    }));
+    thread::scope(|scope| {
+        let write = scope.spawn(|| set(&h));
+        let entered = wait.recv_timeout(Duration::from_secs(60));
+        let still_held = !poll.is_finished();
+        // Release before assertions so a failing witness cannot strand either thread.
+        let _ = release.send(());
+        let answer = write.join().unwrap();
+        entered.expect("unrelated wake returns to wait");
+        assert!(still_held, "the second-wait barrier owns this poll");
+        assert_eq!(answer["state"], "sent");
+    });
+    *lock(&h.shared.poll_wait) = None;
     let reply = body(&poll.join().unwrap());
     assert!(began.elapsed() >= Duration::from_millis(950));
     assert_eq!(reply["ephemeral"]["tables"], json!([]));
@@ -312,6 +330,7 @@ fn ephemeral_wake_finishes_with_the_serving_engine_locked() {
     let (h, dir) = host(true);
     let mut reader = lock(&h.shared.engine).reader().unwrap();
     let (poll, _) = blocked(&h, poll_url(&h, "typing"));
+    let notified = notifications(&h);
     let engine = lock(&h.shared.engine);
     reader
         .mutate_ephemeral(
@@ -329,8 +348,9 @@ fn ephemeral_wake_finishes_with_the_serving_engine_locked() {
         .unwrap();
     let (done, result) = mpsc::channel();
     thread::spawn(move || done.send(poll.join().unwrap()).unwrap());
-    let reply = result.recv_timeout(Duration::from_millis(250));
+    let reply = result.recv_timeout(Duration::from_secs(60));
     drop(engine);
+    assert!(notified.load(Ordering::SeqCst) > 0, "deadline expiry is not notification");
     assert_eq!(
         body(&reply.expect("ephemeral-only wake must not take the engine"))["ephemeral"]["tables"],
         json!(["typing"])
@@ -354,7 +374,7 @@ fn revoked_bearer_poll_finishes_on_a_read_only_connection_without_engine_lock() 
     ].into()).at(h.shared.now())).unwrap();
     let (done, result) = mpsc::channel();
     thread::spawn(move || done.send(poll.join().unwrap()).unwrap());
-    let reply = result.recv_timeout(Duration::from_millis(250));
+    let reply = result.recv_timeout(Duration::from_secs(60));
     drop(engine);
     let reply = reply.expect("bearer recheck must not take the engine on an ephemeral-only wake");
     assert_eq!(status(&reply), 401, "{reply}");
@@ -392,7 +412,7 @@ fn bearer_poll_crosses_schema_adoption_without_using_a_stale_catalog_or_engine_l
         // rebind must already have published the new generation atomically.
         let (done, result) = mpsc::channel();
         thread::spawn(move || done.send(poll.join().unwrap()).unwrap());
-        let reply = result.recv_timeout(Duration::from_millis(250));
+        let reply = result.recv_timeout(Duration::from_secs(60));
         drop(engine);
         let reply = reply.expect("schema-only adoption must finish without the engine");
         assert_eq!(status(&reply), 200, "{reply}");
@@ -464,7 +484,7 @@ fn durable_publication_does_not_acquire_the_ephemeral_hub() {
         shared.publish_engine(&lock(&shared.engine));
         done.send(()).unwrap();
     });
-    let outcome = result.recv_timeout(Duration::from_millis(250));
+    let outcome = result.recv_timeout(Duration::from_secs(60));
     drop(hub);
     worker.join().unwrap();
     outcome.expect("publishing durable state cannot wait for an ephemeral program");
@@ -482,7 +502,7 @@ fn action_admission_notifies_held_polls_without_maintenance() {
     assert_eq!(answer["state"], "pending", "{answer}");
     // Action custody commits do not advance the row log. They must still
     // notify the held poll directly, which checks its predicate and waits again.
-    wakes.recv_timeout(Duration::from_millis(250)).expect("action commit wakes the poll directly");
+    wakes.recv_timeout(Duration::from_secs(60)).expect("action commit wakes the poll directly");
     let seq = lock(&h.shared.engine).seq().unwrap();
     assert_eq!(lock(&h.shared.wake).seq, seq);
     assert_eq!(body(&poll.join().unwrap())["seq"], before);

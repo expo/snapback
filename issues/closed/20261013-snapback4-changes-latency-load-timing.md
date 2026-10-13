@@ -1,6 +1,6 @@
 # Snapback 4: changes latency attribution test fails under loaded default threading
 
-Status: Open
+Status: Resolved
 Date: 2026-10-13
 Scope: `serve::tests::latency_tests::headers::changes_refresh_is_engine_work_but_poll_sleep_is_not`
 
@@ -21,3 +21,12 @@ refresh/poll barrier; do not resolve by loosening the 600 ms assertion.
 
 Evidence: `snapback4/reports/20261013-integration8/linux/cargo-final.log.gz`,
 `latency-focused.log.gz`, and `cargo-bounded.log.gz` (archived with qualification).
+
+Resolution (2026-10-13, Workstream FLAKE): replaced the assumed remainder of
+a one-second deadline with the actual serving-thread condvar interval. Test-only
+poll entry/resumption hooks bracket the wait; after entry, the fixture holds
+it at least 600 ms and wakes it with a committed mutation. Headers and exact
+registry maxima must exclude that entire observed interval from engine/wait.
+The 150 ms injected refresh remains engine work. No latency bound is raised.
+Focused check passed (1/1); full default-thread load runs are recorded in
+`snapback4/reports/20261013-flake/REPORT.md` and `WORKSTREAM-REPORT.md`.

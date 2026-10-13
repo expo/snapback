@@ -1,0 +1,22 @@
+[
+  {
+    "pid": 3840075,
+    "exit": 0,
+    "command": [
+      "/home/ccheever/projects/sb4-w10-flake/snapback4/target/debug/deps/lean-93c9d377fe213634",
+      "nullable_membership_points_agree_with_the_engine",
+      "--exact",
+      "--nocapture"
+    ]
+  },
+  {
+    "pid": 3840076,
+    "exit": 0,
+    "command": [
+      "/home/ccheever/projects/sb4-w10-flake/snapback4/target/debug/deps/lean-93c9d377fe213634",
+      "varying_membership_source_id_remains_page_eligible",
+      "--exact",
+      "--nocapture"
+    ]
+  }
+]

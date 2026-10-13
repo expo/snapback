@@ -62,7 +62,17 @@ test('social quote jumps with real FlatList layout and history reads', { timeout
   // still reject a wrong deadline. No shipped hook or timing behavior changes.
   replace('setCompleted(request.id); setJumping(false);',
     '(window as any).jumpHighlightDeadline = { id: request.id, at: request.highlightUntil }; setCompleted(request.id); setJumping(false);');
+  replace('layout.current++;', 'layout.current++; (window as any).fixtureLayoutRevision = layout.current;');
   writeFileSync(hook, source);
+  const screen = join(dir, 'src/Conversation.tsx');
+  let screenSource = readFileSync(screen, 'utf8');
+  assert.ok(screenSource.includes('return <View style={{ flex: 1, minHeight: 0, padding: 16 }}'));
+  assert.ok(screenSource.includes('return <View style={{ flex: 1, minHeight: 0 }}>\n    <Text>{matchRead(jump.page.read'));
+  screenSource = screenSource.replace('return <View style={{ flex: 1, minHeight: 0, padding: 16 }}',
+    '(window as any).fixtureReads = { room, member, typing: typing.read }; return <View style={{ flex: 1, minHeight: 0, padding: 16 }}');
+  screenSource = screenSource.replace('return <View style={{ flex: 1, minHeight: 0 }}>\n    <Text>{matchRead(jump.page.read',
+    '(window as any).fixtureHistory = { read: jump.page.read, receipts: receipts.read }; return <View style={{ flex: 1, minHeight: 0 }}>\n    <Text>{matchRead(jump.page.read');
+  writeFileSync(screen, screenSource);
   const { url } = await server(t, undefined, readFileSync(join(dir, 'snapback/schema.q'), 'utf8'));
   const signed = await guest(url); assert.equal(signed.ok, true);
   const session = signed.session, owner = session.principal, rows = [];
@@ -111,7 +121,7 @@ FlatList.prototype.scrollToOffset=function(args){window.scrollCommands++;if(!win
 function Screen(){const [conversation,setConversation]=useState('far');window.route=setConversation;return <AppProvider app={app}><ConversationScreen conversation={conversation} url={url}/></AppProvider>;}
 const root=createRoot(document.getElementById('root'));root.render(<Screen/>);
 window.readHistory=args=>client.query(api.history,args);
-window.finish=async()=>{window.jumpObserver?.disconnect();cancelAnimationFrame(window.jumpFrame);root.unmount();await app.close();};
+window.finish=async()=>{window.jumpObserver?.disconnect();cancelAnimationFrame(window.jumpFrame);if(window.jumpClickRecorder)document.removeEventListener('click',window.jumpClickRecorder,true);root.unmount();await app.close();};
 window.fixtureReady=true;
 `);
   const viteModule = await import(pathToFileURL(createRequire(join(root, 'apps/chat/package.json')).resolve('vite')).href);
@@ -144,16 +154,54 @@ window.fixtureReady=true;
       const b=bubble.getBoundingClientRect(),v=list.getBoundingClientRect(),body=bubble.querySelector('[data-testid^="jump-body-"]')?.getBoundingClientRect();
       return {ownTop:body?.top,ownBottom:body?.bottom,top:b.top,bottom:b.bottom,viewportTop:v.top,viewportBottom:v.bottom,highlighted:bubble.getAttribute('aria-label')==='Highlighted message',color:getComputedStyle(bubble).backgroundColor};
     }, id);
+    const settledLayout = async (id, completed = false) => {
+      // Query readiness alone precedes RN-web's ResizeObserver/onLayout work.
+      // Sample after a rendered frame, then cross another frame with the same
+      // app layout revision and geometry. A completed jump must also release
+      // its own correction owner; a driver delay is never a layout signal.
+      await page.waitForFunction(async ({id, completed}) => {
+        const ready=()=>{
+          const reads=[...Object.values(window.fixtureReads??{}),...Object.values(window.fixtureHistory??{})];
+          return reads.length===5&&reads.every(read=>!read.loading&&!read.revalidating);
+        };
+        const snapshot=()=>{
+          const row=document.querySelector('[data-testid="message-'+id+'"]'),list=document.querySelector('[data-testid="history"]');
+          if(!row||!list||!ready()||completed&&!document.getElementById('jump-settled-'+id))return null;
+          const r=row.getBoundingClientRect(),v=list.getBoundingClientRect();
+          return JSON.stringify([window.fixtureLayoutRevision,r.top,r.height,v.top,v.height,list.scrollTop]);
+        };
+        await new Promise(requestAnimationFrame);
+        const before=snapshot();
+        await new Promise(requestAnimationFrame);
+        return before!==null&&before===snapshot();
+      },{id,completed},{timeout:hangBudget()});
+    };
     const armJump = async (name, id) => {
+      const ordinal = name === 'visible' ? 2 : name === 'beyond-horizon' ? 532 : 32;
+      // FlatList's initial visibility acknowledgement invalidates the quote's
+      // authority read. Wait for that actual receipt, not an arbitrary pause.
+      await page.waitForFunction(({name,ordinal})=>{
+        const member=window.fixtureReads?.member;
+        return member?.data?.conversation===name&&!member.revalidating&&member.data.seenOrdinal>=ordinal;
+      },{name,ordinal},{timeout:hangBudget()});
+      await settledLayout(name+'-'+ordinal);
       await quote(name).waitFor();
       // Arm before the action; browser timestamps and immutable observations
       // survive a descheduled driver and the deliberately brief highlight.
       await quote(name).evaluate((button, id) => {
         window.jumpObserver?.disconnect();cancelAnimationFrame(window.jumpFrame);
+        if(window.jumpClickRecorder)document.removeEventListener('click',window.jumpClickRecorder,true);
         const evidence=window.jumpEvidence={id,highlightTransitions:[]};
         window.jumpHighlightDeadline=undefined;
         let wasHighlighted=false;
-        button.addEventListener('click',()=>{evidence.started=performance.now();},{once:true,capture:true});
+        const label=button.getAttribute('aria-label');
+        const clicked=event=>{
+          const current=event.target.closest?.('[role="button"]');
+          if(current?.getAttribute('aria-label')!==label)return;
+          evidence.started=performance.now();
+          document.removeEventListener('click',clicked,true);window.jumpClickRecorder=null;
+        };
+        window.jumpClickRecorder=clicked;document.addEventListener('click',clicked,true);
         const record=()=>{
           if(evidence.started==null)return;
           const now=performance.now();
@@ -202,7 +250,8 @@ window.fixtureReady=true;
       await quote(name).click();
       // Astra's reproduction: only Node/Playwright pauses; the browser runs.
       await driverPause(driverDelay);
-      await page.waitForFunction(()=>window.jumpEvidence.arrived||window.jumpEvidence.failed,null,{timeout:hangBudget()});
+      try { await page.waitForFunction(()=>window.jumpEvidence.arrived||window.jumpEvidence.failed,null,{timeout:hangBudget()}); }
+      catch(error) { t.diagnostic(JSON.stringify({name,id,state:await page.evaluate(()=>({evidence:window.jumpEvidence,reads:window.fixtureReads,history:window.fixtureHistory,text:document.getElementById('root').innerText}))})); throw error; }
       const observed=await page.evaluate(()=>window.jumpEvidence),evidence=observed.arrived;
       assert.ok(evidence,JSON.stringify(observed));
       assert.equal(evidence.color,'rgb(255, 232, 154)');
@@ -242,15 +291,25 @@ window.fixtureReady=true;
     await t.test('already visible original highlights without moving the list; highlight clears', async () => {
       await page.evaluate(()=>window.route('visible'));
       await quote('visible').waitFor();
-      const before = await viewport('visible-1');assert.ok(before.top>=before.viewportTop&&before.bottom<=before.viewportBottom);
+      await settledLayout('visible-1');
+      const before = await viewport('visible-1');
+      const scroll = await page.getByTestId('history').evaluate(node=>node.scrollTop);
+      const commands = await page.evaluate(()=>window.scrollCommands);assert.ok(before.top>=before.viewportTop&&before.bottom<=before.viewportBottom);
       await assertJump('visible','visible-1');
-      assert.equal((await viewport('visible-1')).top,before.top);
       await assertHighlight();
+      await settledLayout('visible-1',true);
+      const after = await viewport('visible-1');
+      // Membership/receipt status above the list may change its screen y;
+      // the jump must preserve the transcript's own offset and row position.
+      assert.equal(after.top-after.viewportTop,before.top-before.viewportTop);
+      assert.equal(await page.getByTestId('history').evaluate(node=>node.scrollTop),scroll);
+      assert.equal(await page.evaluate(()=>window.scrollCommands),commands);
     });
     await t.test('absent original says unavailable and cannot move the list', async () => {
       await page.evaluate(()=>window.route('absent'));
       const unavailable=page.getByText('Quoted message unavailable',{exact:true});await unavailable.waitFor();
       assert.equal(await page.getByRole('button',{name:/Jump to quoted/}).count(),0);
+      await settledLayout('absent-32');
       const before=await page.evaluate(()=>document.querySelector('[data-testid="history"]').scrollTop),attempts=await page.evaluate(()=>window.scrollAttempts);
       await unavailable.click();
       assert.equal(await page.evaluate(()=>document.querySelector('[data-testid="history"]').scrollTop),before);

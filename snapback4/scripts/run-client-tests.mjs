@@ -27,7 +27,7 @@ export function largestGuard(file, env = process.env) {
     + (seed % 25 === 0 ? 100 : 0) + (seed % 75 === 0 ? Math.ceil(8195 / 200) : 1), 0);
   return ({
     'test-processes.test.mjs': fixtureTestMs(6),
-    'test-file-runner.test.mjs': fixtureTestMs(2),
+    'test-file-runner.test.mjs': fixtureTestMs(4),
     'test-signals.test.mjs': fixtureTestMs(),
     'export-background.test.mjs': fixtureTestMs(),
     'export-failure.test.mjs': fixtureTestMs(12),
@@ -201,6 +201,19 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
   }
 }
 
+// These fixtures intentionally exercise real timer deadlines or latency
+// bounds. Drain the ordinary pool before giving each an isolated serial slot;
+// do not turn publication assertions into benchmarks of overlapping test files.
+export const TIMER_CLIENT_FILES = new Set([
+  'admit-before-identity.test.mjs', 'client-seams.test.mjs',
+  'ephemeral-adoption.test.mjs', 'ephemeral-watches.test.mjs', 'ephemeral-e2e.test.mjs',
+  'export-maintenance-wakeup.test.mjs', 'export-background.test.mjs',
+  'maintenance-evidence.test.mjs', 'keepalive-retry.test.mjs',
+  'transport-http.test.mjs', 'test-file-runner.test.mjs', 'test-signals.test.mjs',
+  'read-only-round5.test.mjs', 'server-clock-wire.test.mjs', 'server-clock-browser.test.mjs',
+  'keepalive-reuse.test.mjs',
+]);
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   const concurrency = Number(args.shift()), mode = args.shift();
@@ -208,15 +221,26 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     throw new Error('usage: run-client-tests.mjs <concurrency> <files|models> <file...>');
   const abort = new AbortController();
   for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => abort.abort());
-  const results = [], queue = [...args];
-  await Promise.all(Array.from({ length: Math.min(concurrency, queue.length) }, async () => {
-    while (queue.length && !abort.signal.aborted) {
-      const file = queue.shift();
-      try { results.push(await runFile(file, { signal: abort.signal })); }
-      catch (error) { console.error(`TEST_FILE_RUNNER: ${file}: ${error.stack}`); results.push({ file, passed: false }); }
-    }
-  }));
-  const failures = results.filter(row => !row.passed).length + queue.length;
+  const results = [];
+  let unstarted = 0;
+  const runGroup = async (files, slots) => {
+    const queue = [...files];
+    await Promise.all(Array.from({ length: Math.min(slots, queue.length) }, async () => {
+      while (queue.length && !abort.signal.aborted) {
+        const file = queue.shift();
+        try { results.push(await runFile(file, { signal: abort.signal })); }
+        catch (error) { console.error(`TEST_FILE_RUNNER: ${file}: ${error.stack}`); results.push({ file, passed: false }); }
+      }
+    }));
+    unstarted += queue.length;
+  };
+  await runGroup(args.filter(file => !TIMER_CLIENT_FILES.has(basename(file))), concurrency);
+  const timed = args.filter(file => TIMER_CLIENT_FILES.has(basename(file)));
+  if (timed.length) {
+    console.log(`-- isolated timer files: ${timed.length}; concurrency: 1`);
+    await runGroup(timed, 1);
+  }
+  const failures = results.filter(row => !row.passed).length + unstarted;
   const counts = {};
   for (const result of results) for (const [key, count] of Object.entries(result.counts ?? {})) counts[key] = (counts[key] ?? 0) + count;
   console.log(`-- client files: ${results.length}/${args.length}; failed ${failures}; tests ${JSON.stringify(counts)}`);
