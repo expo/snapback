@@ -94473,3 +94473,17 @@ point values are inspected when observed so later aliases cannot hide defects.
 goldens pass; guide 120/120 and CLI check/check_notes 101/101 + 6/6 pass.
 The published prediction guard pins its intended owner. LLP 3000.036.002
 records the policy and fresh dual-family review is pending this frozen delta.
+
+### 2026-10-13 — Wave 10 DIAG: guard wrappers and prefix alias dependencies
+
+The fifth fresh Codex review found two missing guard forms: wrapped require
+expressions and query-prefix values later used through aliases. Requirements
+now traverse expression children, preserving the positive-existence exemption.
+Reverse binding dependencies identify guard-consumed query values, including
+objects, possible rebindings and inputs to guard-consuming helpers/shapes;
+visibility is checked when the defining observation happened. Later grants do
+not supply retrospective proof. Returned prefix answers stay quiet. The guide
+120, CLI check/check_notes 101+6, guard regressions 19 and rewrite goldens eight
+pass. The horizon CLI fixture pins its one expected guard note. Review-round
+five outputs and resolutions are preserved; round six will review the new
+frozen delta. No push or publication.

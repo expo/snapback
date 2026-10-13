@@ -710,7 +710,10 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
     }
     fn absence(condition: &Expr, inverted: bool) -> Vec<ReadExpr> {
         match condition {
-            Expr::Exists { read, .. } if inverted => vec![read.clone()],
+            Expr::Exists { read, .. } => {
+                let mut out = if inverted { vec![read.clone()] } else { vec![] };
+                out.extend(absence(&Expr::Read(read.clone()), false)); out
+            },
             Expr::Unary { op, value, .. } if op == "not" => absence(value, !inverted),
             Expr::Binary { op, left, right, .. } if op == "=" || op == "!=" => {
                 let pair = match (left.as_ref(), right.as_ref()) {
@@ -725,7 +728,94 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                 super::intent_walk::expression(&mut copy, &mut |expr| { if let Expr::Exists { read, .. } = expr { all.push(read.clone()); } });
                 all.extend(absence(then, inverted)); all.extend(absence(otherwise, inverted)); all
             }
-            _ => vec![],
+            Expr::Unary { value, .. } | Expr::Member { base: value, .. } | Expr::Assert { value, .. }
+                | Expr::ShapeUse { base: value, .. } | Expr::Walk { seed: value, .. } => absence(value, inverted),
+            Expr::Array { items, .. } | Expr::Call { args: items, .. } => items.iter().flat_map(|value| absence(value, inverted)).collect(),
+            Expr::Object { fields, .. } => fields.iter().filter_map(|field| field.value.as_ref()).flat_map(|value| absence(value, inverted)).collect(),
+            Expr::Shape { base, fields, .. } => absence(base, inverted).into_iter().chain(fields.iter().filter_map(|field| match field {
+                ShapeField::Field { value, .. } => Some(value), _ => None,
+            }).flat_map(|value| absence(value, inverted))).collect(),
+            Expr::Read(read) | Expr::Created { read, .. } => {
+                let mut values: Vec<_> = read.keys.iter().map(|key| &key.value).chain(read.seeks.iter().map(|key| &key.value)).collect();
+                values.extend(read.filter.as_deref()); values.extend(read.matching.as_deref());
+                values.extend(read.range.as_ref().and_then(|range| range.cursor.as_deref()));
+                values.into_iter().flat_map(|value| absence(value, false)).collect()
+            },
+            Expr::Write { keys, fields, condition, .. } => keys.iter().map(|key| &key.value)
+                .chain(fields.iter().filter_map(|field| field.value.as_ref())).chain(condition.as_deref())
+                .flat_map(|value| absence(value, inverted)).collect(),
+            Expr::Merge(merge) => {
+                let mut values: Vec<Expr> = [&merge.matching, &merge.filter, &merge.cursor].into_iter().filter_map(|value| value.as_deref().cloned()).collect();
+                for lane in &merge.lanes {
+                    values.extend(lane.admission.as_deref().cloned()); values.extend(lane.distinct.clone());
+                    values.extend(lane.prefix.iter().cloned()); values.extend(lane.loop_.as_ref().map(|(_, value)| value.clone()));
+                    for read in lane.planned.iter().chain(lane.nulls.as_ref().map(|(_, read)| read)) { values.push(Expr::Read(*read.clone())); }
+                    if let Some(fields) = &lane.project { values.extend(fields.iter().filter_map(|field| if let ShapeField::Field { value, .. } = field { Some(value.clone()) } else { None })); }
+                }
+                values.iter().flat_map(|value| absence(value, inverted)).collect()
+            },
+            Expr::Name { .. } | Expr::Focal { .. } | Expr::Literal { .. } => vec![],
+        }
+    }
+    // Reverse dependency closure identifies query values consumed by guards,
+    // across aliases/objects and all possible rebinding paths. The observation
+    // is checked at its original statement, with that statement's authority.
+    fn guard_bindings(catalog: &Catalog, statements: &[Stmt]) -> BTreeSet<String> {
+        fn names(value: &Expr) -> BTreeSet<String> {
+            let mut out = BTreeSet::new(); let mut copy = value.clone();
+            super::intent_walk::expression(&mut copy, &mut |expr| {
+                if let Expr::Name { name, .. } = expr { out.insert(name.clone()); }
+                if let Expr::Object { fields, .. } | Expr::Write { fields, .. } = expr {
+                    out.extend(fields.iter().filter(|field| field.value.is_none() && !field.spread).map(|field| field.name.clone()));
+                }
+            }); out
+        }
+        fn has_guard(catalog: &Catalog, statements: &[Stmt], visiting: &mut BTreeSet<String>) -> bool {
+            if statements.iter().any(|stmt| matches!(stmt, Stmt::Require { .. } | Stmt::If { .. })) { return true; }
+            let mut copy = statements.to_vec(); let mut found = false;
+            super::intent_walk::statements(&mut copy, &mut |expr| {
+                if matches!(expr, Expr::If { .. }) { found = true; }
+                for (name, shape) in definitions(catalog, expr) {
+                    let key = format!("{shape}:{name}");
+                    if !visiting.insert(key.clone()) { found = true; continue; }
+                    found |= helper_body(catalog, &name, shape).is_some_and(|body| has_guard(catalog, &body, visiting));
+                    visiting.remove(&key);
+                }
+            });
+            // Explicit guards can also be nested in loops/viewer scopes.
+            found || statements.iter().any(|stmt| match stmt { Stmt::For { body, .. } | Stmt::As { body, .. } => has_guard(catalog, body, visiting), _ => false })
+        }
+        fn gather(catalog: &Catalog, statements: &[Stmt], guards: &mut BTreeSet<String>, edges: &mut BTreeMap<String, BTreeSet<String>>) {
+            let mut copy = statements.to_vec();
+            super::intent_walk::statements(&mut copy, &mut |expr| {
+                if let Expr::If { condition, .. } = expr { guards.extend(names(condition)); }
+                // A definition can consume its input as a guard even when the
+                // call itself is not a conditional. Conservatively track all
+                // argument/base dependencies of such definitions.
+                if definitions(catalog, expr).iter().any(|(name, shape)| helper_body(catalog, name, *shape).is_some_and(|body| has_guard(catalog, &body, &mut BTreeSet::from([format!("{shape}:{name}")])))) {
+                    guards.extend(names(expr));
+                }
+                if let Expr::Shape { base, fields, .. } = expr {
+                    let values: Vec<_> = fields.iter().filter_map(|field| if let ShapeField::Field { value, site, .. } = field { Some(Stmt::Expr { value: value.clone(), site: site.clone() }) } else { None }).collect();
+                    if has_guard(catalog, &values, &mut BTreeSet::new()) { guards.extend(names(base)); }
+                }
+            });
+            for statement in statements {
+                match statement {
+                    Stmt::Bind { names: bindings, value, .. } => for name in bindings { edges.entry(name.clone()).or_default().extend(names(value)); },
+                    Stmt::Require { condition, .. } => guards.extend(names(condition)),
+                    Stmt::If { condition, then_body, else_body, .. } => { guards.extend(names(condition)); gather(catalog, then_body, guards, edges); gather(catalog, else_body, guards, edges); }
+                    Stmt::For { name, domain, body, .. } => { edges.entry(name.clone()).or_default().extend(names(domain)); gather(catalog, body, guards, edges); }
+                    Stmt::As { body, .. } => gather(catalog, body, guards, edges),
+                    _ => {}
+                }
+            }
+        }
+        let mut guards = BTreeSet::new(); let mut edges = BTreeMap::new(); gather(catalog, statements, &mut guards, &mut edges);
+        loop {
+            let count = guards.len();
+            let next: Vec<_> = guards.iter().filter_map(|name| edges.get(name)).flat_map(|values| values.iter().cloned()).collect();
+            guards.extend(next); if count == guards.len() { return guards; }
         }
     }
     fn helper_body(catalog: &Catalog, name: &str, shape: bool) -> Option<Vec<Stmt>> {
@@ -890,7 +980,7 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                     // Parameters and focal rows belong to the definition's scope. Only
                     // viewer/literal facts about the same world cross that boundary.
                     let entry = if let Expr::Call { args, .. } = expr && !shape { call_facts(catalog, &name, args, known, global) } else { known.intersection(global).cloned().collect() };
-                    body(catalog, schema, program, &inner, entry, global, system, observe_prefix, visiting, notes);
+                    body(catalog, schema, program, &inner, entry, global, &guard_bindings(catalog, &inner), system, observe_prefix, visiting, notes);
                 }
                 visiting.remove(&key);
             }
@@ -899,7 +989,7 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
     fn invalidate(names: &[String], known: &mut BTreeSet<String>) {
         known.retain(|fact| !fact.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|word| names.iter().any(|name| name == word)));
     }
-    fn body(catalog: &Catalog, schema: &Schema, program: &str, statements: &[Stmt], mut known: BTreeSet<String>, global: &BTreeSet<String>, system: bool, observe_prefix: bool, visiting: &mut BTreeSet<String>, notes: &mut Vec<Diagnostic>) -> BTreeSet<String> {
+    fn body(catalog: &Catalog, schema: &Schema, program: &str, statements: &[Stmt], mut known: BTreeSet<String>, global: &BTreeSet<String>, guard_names: &BTreeSet<String>, system: bool, observe_prefix: bool, visiting: &mut BTreeSet<String>, notes: &mut Vec<Diagnostic>) -> BTreeSet<String> {
         for statement in statements {
             match statement {
                 Stmt::Require { condition, .. } => {
@@ -916,7 +1006,7 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                             if !visiting.insert(key.clone()) { continue; }
                             if let Some(inner) = helper_body(catalog, &name, shape) {
                                 let entry = if let Expr::Call { args, .. } = expr && !shape { call_facts(catalog, &name, args, &known, global) } else { known.intersection(global).cloned().collect() };
-                                body(catalog, schema, program, &inner, entry, global, system, true, visiting, notes);
+                                body(catalog, schema, program, &inner, entry, global, &guard_bindings(catalog, &inner), system, true, visiting, notes);
                             }
                             visiting.remove(&key);
                         }
@@ -929,8 +1019,8 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                     guard(catalog, schema, program, condition, &known, system, notes);
                     expression_guards(catalog, schema, program, condition, &known, global, system, true, visiting, notes);
                     let mut yes = known.clone(); if !writes { facts(condition, &mut yes); }
-                    let yes = body(catalog, schema, program, then_body, yes, global, system, observe_prefix, visiting, notes);
-                    let no = body(catalog, schema, program, else_body, known.clone(), global, system, observe_prefix, visiting, notes);
+                    let yes = body(catalog, schema, program, then_body, yes, global, guard_names, system, observe_prefix, visiting, notes);
+                    let no = body(catalog, schema, program, else_body, known.clone(), global, guard_names, system, observe_prefix, visiting, notes);
                     known = yes.intersection(&no).cloned().collect();
                 }
                 Stmt::For { body: inner, domain, name, .. } => {
@@ -943,14 +1033,14 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                     let mut entry = if writes { BTreeSet::new() } else { known.clone() };
                     invalidate(&changed, &mut entry);
                     invalidate(std::slice::from_ref(name), &mut entry);
-                    let after = body(catalog, schema, program, inner, entry, global, system, observe_prefix, visiting, notes);
+                    let after = body(catalog, schema, program, inner, entry, global, guard_names, system, observe_prefix, visiting, notes);
                     // Break/continue paths may bypass evidence near the body's end.
                     if writes { known.clear(); } else if binds { invalidate(&changed, &mut known); } else { known = known.intersection(&after).cloned().collect(); }
                 }
                 // Viewer scopes differ from the surrounding principal; never carry its facts in.
                 Stmt::As { body: inner, principal, .. } => {
                     expression_guards(catalog, schema, program, principal, &known, global, system, observe_prefix, visiting, notes);
-                    body(catalog, schema, program, inner, BTreeSet::new(), global, false, true, visiting, notes); known.clear();
+                    body(catalog, schema, program, inner, BTreeSet::new(), global, guard_names, false, true, visiting, notes); known.clear();
                 }
                 Stmt::Break { .. } | Stmt::Continue { .. } => break,
                 _ => {
@@ -960,7 +1050,8 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                     // Operand order can hide the grant before a later condition in this expression.
                     if wrote && !matches!(statement, Stmt::Bind { value, .. } | Stmt::Expr { value, .. } | Stmt::Return { value, .. } if ordered_call(catalog, value)) { known.clear(); }
                     match statement {
-                        Stmt::Bind { value, .. } | Stmt::Expr { value, .. } | Stmt::Return { value, .. } => expression_guards(catalog, schema, program, value, &known, global, system, observe_prefix, visiting, notes),
+                        Stmt::Bind { value, names, .. } => expression_guards(catalog, schema, program, value, &known, global, system, observe_prefix || names.iter().any(|name| guard_names.contains(name)), visiting, notes),
+                        Stmt::Expr { value, .. } | Stmt::Return { value, .. } => expression_guards(catalog, schema, program, value, &known, global, system, observe_prefix, visiting, notes),
                         Stmt::Emit { payload, once, .. } => {
                             expression_guards(catalog, schema, program, payload, &known, global, system, observe_prefix, visiting, notes);
                             if let Some(value) = once { expression_guards(catalog, schema, program, value, &known, global, system, observe_prefix, visiting, notes); }
@@ -997,7 +1088,8 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
     for program in programs {
         let system = program.kind == ProgramKind::Job;
         let mut visiting = BTreeSet::new();
-        let known = body(catalog, schema, &program.name, &program.prelude, BTreeSet::new(), &global, system, program.kind != ProgramKind::Query, &mut visiting, notes);
-        body(catalog, schema, &program.name, &program.body, known, &global, system, program.kind != ProgramKind::Query, &mut visiting, notes);
+        let mut statements = program.prelude.clone(); statements.extend(program.body.iter().cloned());
+        let guarded = guard_bindings(catalog, &statements);
+        body(catalog, schema, &program.name, &statements, BTreeSet::new(), &global, &guarded, system, program.kind != ProgramKind::Query, &mut visiting, notes);
     }
 }

@@ -15,7 +15,9 @@ readable role guard do not need this note.
 The check follows helper calls and named shapes. It also checks point-existence
 values at observation time, so assigning the value before a later grant does
 not hide a guard defect. Positive `require exists` authorizes the caller;
-ordinary query prefix/search values answer caller-visible existence. A job's
+ordinary query prefix/search values answer caller-visible existence. If a
+prefix value later feeds a guard through an alias or helper/shape input, its
+original observation is checked with the authority held at that time. A job's
 `as` block uses that viewer's read rules and is checked too. Facts expire after
 writes, relevant rebinding and viewer changes; fresh readable evidence can
 prove the next probe safe.

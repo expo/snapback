@@ -881,6 +881,10 @@ fn horizon_check_and_why_keep_the_same_advice_across_checks() {
     assert!(first.status.success(), "{first:?}");
     let first = parsed(&first);
     assert_eq!(first["notes"].as_array().unwrap().iter().filter(|n| n["code"] != "N_NO_PRODUCTION_WRITER" && n["code"] != "N_UNREADABLE_PROBE").count(), 5);
+    let guards: Vec<_> = first["notes"].as_array().unwrap().iter().filter(|n| n["code"] == "N_UNREADABLE_PROBE").collect();
+    assert_eq!(guards.len(), 1, "{guards:?}");
+    assert_eq!(guards[0]["site"], json!({"file": "chat.q", "line": 83, "col": 22}));
+    assert!(guards[0]["message"].as_str().unwrap().contains("send: this probe reads messages under its read rule `exists members[.conversationId, viewer]`"));
     let summary = first["predictionSummary"].as_str().unwrap();
     assert!(summary.contains("chat.send (messages[messageId] (chat.q:83:22))"), "{summary}");
     for _ in 0..3 {
@@ -896,7 +900,7 @@ fn horizon_check_and_why_keep_the_same_advice_across_checks() {
         assert!(why.status.success(), "{why:?}");
         assert!(String::from_utf8_lossy(&why.stdout).lines().any(|line| line == "  chat.send: predicts: eligible except past the horizon at messages[messageId] (chat.q:83:22)"));
     }
-    println!("persistent CLI: 4 JSON checks, 3 text checks, 3 why calls; 4 notes each");
+    println!("persistent CLI: 4 JSON checks, 3 text checks, 3 why calls; stable note sets");
 }
 
 #[test]

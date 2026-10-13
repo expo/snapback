@@ -189,3 +189,41 @@ fn standalone_writing_helpers_preserve_order_then_invalidate_caller_evidence() {
     assert_eq!(found.len(), 1, "{found:?}");
     assert_eq!(found[0].site.line, 18); // Caller observation after the helper deleted the grant.
 }
+
+#[test]
+fn requirement_wrappers_preserve_nested_negative_and_conditional_guards() {
+    for condition in [
+        "{ allowed: not exists approvals[job] }.allowed",
+        "count([1] if not exists approvals[job] else []) = 1",
+        "[not exists approvals[job]] = [true]",
+    ] {
+        assert_eq!(notes(&format!("mutation upload(job: id):\n  require {condition} else JOB_APPROVED\n  return null\n")).len(), 1, "{condition}");
+        assert!(notes(&format!("mutation upload(job: id):\n  require exists staff[viewer] else FORBIDDEN\n  require {condition} else JOB_APPROVED\n  return null\n")).is_empty(), "{condition}");
+    }
+    assert!(notes("mutation upload(job: id):\n  require { allowed: exists approvals[job] }.allowed else JOB_APPROVED\n  return null\n").is_empty());
+}
+
+#[test]
+fn query_prefix_aliases_used_as_guards_are_checked_at_observation_time() {
+    let schema = SCHEMA.replace("  unique job\n", "  unique job\n  by byJob: job, id\n");
+    for (tail, count) in [
+        ("query upload(job: id):\n  allowed = not exists approvals[job = job] by byJob\n  require allowed else JOB_APPROVED\n  return null\n", 1),
+        ("query upload(job: id):\n  allowed = not exists approvals[job = job] by byJob\n  observed = { allowed }\n  require observed.allowed else JOB_APPROVED\n  return null\n", 1),
+        ("query upload(job: id):\n  observed = [not exists approvals[job = job] by byJob]\n  for allowed in observed:\n    require allowed else JOB_APPROVED\n  return null\n", 1),
+        ("query upload(job: id):\n  observed = { allowed: not exists approvals[job = job] by byJob }\n  allowed = observed\n  require allowed.allowed else JOB_APPROVED\n  return null\n", 1),
+        ("query upload(job: id):\n  allowed = not exists approvals[job = job] by byJob\n  require exists staff[viewer] else FORBIDDEN\n  require allowed else JOB_APPROVED\n  return null\n", 1),
+        ("query upload(job: id):\n  require exists staff[viewer] else FORBIDDEN\n  allowed = not exists approvals[job = job] by byJob\n  require allowed else JOB_APPROVED\n  return null\n", 0),
+        ("query upload(job: id):\n  allowed = false\n  if true:\n    allowed = not exists approvals[job = job] by byJob\n  require allowed else JOB_APPROVED\n  return null\n", 1),
+        ("query upload(job: id):\n  allowed = not exists approvals[job = job] by byJob\n  return true if allowed else false\n", 1),
+        ("query upload(job: id):\n  allowed = not exists approvals[job = job] by byJob\n  return allowed\n", 0),
+        ("fn observed(job: id): not exists approvals[job = job] by byJob\nquery upload(job: id):\n  allowed = observed(job)\n  require allowed else JOB_APPROVED\n  return null\n", 1),
+        ("fn observed(job: id): not exists approvals[job = job] by byJob\nquery upload(job: id):\n  return observed(job)\n", 0),
+        ("fn check(allowed: bool):\n  require allowed else JOB_APPROVED\n  return null\nquery upload(job: id):\n  allowed = not exists approvals[job = job] by byJob\n  check(allowed)\n  return null\n", 1),
+        ("fn echo(allowed: bool): allowed\nquery upload(job: id):\n  allowed = not exists approvals[job = job] by byJob\n  return echo(allowed)\n", 0),
+        ("shape check = { guarded: true if .allowed else false }\nquery upload(job: id):\n  observed = { allowed: not exists approvals[job = job] by byJob }\n  return observed check\n", 1),
+    ] {
+        let b = compile(&[("schema.q".into(), format!("{schema}{tail}"))]);
+        assert!(b.diagnostics.is_empty(), "{tail}: {:?}", b.diagnostics);
+        assert_eq!(b.notes.iter().filter(|n| n.code == "N_UNREADABLE_PROBE").count(), count, "{tail}: {:?}", b.notes);
+    }
+}
