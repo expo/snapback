@@ -3178,7 +3178,7 @@ try {
   cost, or a table's rules, sync line, expire column and indexes; **`data <table> [--limit N]`** prints rows
   as one JSON object per stdout line (50 by default), with any truncation hint on stderr; **`doctor
   [--json]`** says what is in place: the store, its size, schedules and their last boundary, the last job
-  runs, the effects by state and the failed ones; **`guide [keyword]`** prints cards: cheatsheet, language, app, recipes, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, deploy, expire, assets, client, wire, social, reads, shapes, writes, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services, presence, receipts, read-only, manual-receipts, ephemeral, bounds, refusals, personas, testing, witness
+  runs, the effects by state and the failed ones; **`guide [keyword]`** prints cards: cheatsheet, language, app, recipes, rule-recipes, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, deploy, expire, assets, client, wire, social, reads, shapes, writes, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services, presence, receipts, read-only, manual-receipts, ephemeral, bounds, refusals, personas, testing, witness
   (`guide <E_CODE>` explains a code; `guide aliases` lists the words that open a card or one of its sections). A card over 130 lines prints its opening and a numbered section index (piped, also its first section);
   `--section <number or words>` prints one section (any case, a unique prefix or the heading's words; a
   word no heading names prints the section holding most of its mentions, or all of them when they spread),

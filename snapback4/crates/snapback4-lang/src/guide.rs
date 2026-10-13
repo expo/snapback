@@ -66,7 +66,7 @@ mod indexes;
 mod types;
 pub use discovery::{FULL_LINES, PIPED_FULL_LINES, piped, alias_landing, aliases, find, listing, nearest, overview, overview_and_first_section, section, section_index, sections};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "deploy", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "rule-recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "deploy", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
@@ -95,6 +95,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("schedule", "jobs"), ("schedules", "jobs"), ("cron", "jobs"),
     // @ref LLP 3000.007#20.1 — wave 4: the shapes builders assembled from several cards open one compiled recipe.
     ("recipe", "recipes"), ("roles", "recipes"), ("role", "recipes"), ("admin", "deploy"), ("rbac", "recipes"),
+    ("composite role", "rule-recipes"), ("composite roles", "rule-recipes"), ("blind writer", "rule-recipes"), ("hidden parent", "rule-recipes"),
     ("permissions", "recipes"), ("two-party", "recipes"), ("two party", "recipes"), ("buyer seller", "recipes"),
     ("marketplace", "recipes"), ("booking", "recipes"), ("bookings", "recipes"), ("reservation", "recipes"),
     ("reservations", "recipes"), ("capacity", "recipes"), ("seats", "recipes"), ("double booking", "recipes"),
@@ -239,6 +240,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
         "from-sql" => include_str!("guide/from_sql.md"),
         "app" => app::CARD,
         "recipes" => include_str!("guide/recipes.md"),
+        "rule-recipes" => include_str!("guide/rule_recipes.md"),
         "witness" => include_str!("guide/witness.md"),
         "prediction" => prediction::CARD,
         "evolution" => discovery::EVOLUTION,

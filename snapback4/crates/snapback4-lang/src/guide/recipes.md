@@ -115,6 +115,8 @@ A deployed backend's first admin comes from the `service:ops` seat that the inse
 {"as":"bob","op":"grant","args":{"who":"dev:bob","role":"admin"},"expect":"NOT_ADMIN"}
 ```
 
+Composite roles and blind child writers: `guide rule-recipes`.
+
 ## Two parties: a buyer and a seller
 
 An offer is read by exactly its buyer and its seller, offline on both
