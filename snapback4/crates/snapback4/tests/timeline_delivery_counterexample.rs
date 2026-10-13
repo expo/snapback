@@ -1,6 +1,6 @@
 //! Preserved historical-image counterexample. The positive SDK recovery
 //! regression lives in packages/snapback4/test/timeline-delivery.test.mjs.
-use snapback4_core::{Context, Engine, Value, WriteState, MutationOutcome};
+use snapback4_core::{Context, Engine, Value, WriteState, MutationOutcome, RuntimeError, error::MeterKind};
 #[path = "../src/sync_wire.rs"]
 #[allow(dead_code)]
 mod sync_wire;
@@ -42,10 +42,12 @@ fn historical_commit_uses_later_images() {
         assert!(matches!(out.state,WriteState::Sent{..}),"{out:?}");
         largest_update=largest_update.max(encoded(&mut e,"reader",from));
     }
+    // PAGE2 catches the preserved historical-image counterexample before
+    // serializing a reply; clients recover by snapshot under the same ceiling.
     for (who,first) in ["reader","author"].into_iter().zip(first) {
-        let later=encoded(&mut e,who,before);
-        println!("HISTORICAL partition={who} original_commit_bytes={first} largest_later_commit_bytes={largest_update} original_commit_after_updates_bytes={later} ceiling={CEILING} excess={}",later.saturating_sub(CEILING));
-        assert!(later>CEILING,"the old commit was not bounded by its insertion images");
+        let error=e.stream(who,before,1).unwrap_err();
+        assert!(matches!(error, RuntimeError::Bound {kind: MeterKind::OutputBytes, ceiling, ..} if ceiling == CEILING as u64), "{error}");
+        println!("HISTORICAL partition={who} original_commit_bytes={first} largest_later_commit_bytes={largest_update} historical_acquisition_refusal={error}");
     }
     assert!(largest_update<CEILING);
 }

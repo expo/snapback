@@ -594,3 +594,12 @@ fn generated_reference_predicate_is_reached_by_the_meter_oracle() {
     assert!(report.pages_with_resumable_cut > 0);
     assert_eq!(report.coverage["read/reference-predicate"], 1);
 }
+
+#[test]
+fn wave10_generator_preserves_id_membership_uniqueness_and_timed_sync_rules() {
+    for seed in [4923, 13618, 19533] {
+        let case = generate(seed);
+        let source = case.program.source();
+        execute::engine(&case, &source).unwrap_or_else(|error| panic!("seed {seed}: {error}\n{source}"));
+    }
+}

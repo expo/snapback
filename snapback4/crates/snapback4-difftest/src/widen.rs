@@ -359,12 +359,14 @@ fn timed_disclosure(case: &mut Case) {
             // The id is absent while `byTag` is occupied by a future row.
             // A physical unique lookup must refuse without disclosing it.
             table.rule = Rule::Allow;
+            if table.effects.is_none() && !matches!(table.residency, Residency::Online) { table.residency = Residency::Public; }
             case.args["key"] = json!("future-unique-duplicate");
         }
         Some(Write::Upsert) => {
             // Natural-key target resolution is physical: patch this future
             // row, but keep its result/read image hidden until the boundary.
             table.rule = Rule::Allow;
+            if table.effects.is_none() && !matches!(table.residency, Residency::Online) { table.residency = Residency::Public; }
             case.program.upsert_unique_tag = future_tag;
             if let Some(key) = future_key {
                 case.args["key"] = json!(key);

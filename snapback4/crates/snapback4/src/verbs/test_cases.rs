@@ -231,6 +231,18 @@ fn refusal_evidence(trace: &RefusalTrace, refusal: &Refusal, bound: &Bound, sour
         Some(cause) if cause.terminal => {
             let record = super::run_refusal::record(&cause, &bound.refusal_sites);
             if let Some(text) = super::run_refusal::explain(&record, &lookup) { out.push(text.trim_start_matches("dev: ").to_owned()); }
+            // Keep the operation source explanation alongside private table-rule evidence.
+            if refusal.code == "NOT_FOUND" {
+                if let Some(site) = refusal.site.as_deref() {
+                    let resolved = operation_site(bound, site);
+                    if let Some(line) = super::run_refusal::quote(resolved.as_deref().unwrap_or(site), &lookup) {
+                        if !line.contains("else NOT_FOUND") {
+                            let at = resolved.as_deref().unwrap_or(site).trim_end_matches(":1");
+                            out.push(format!("NOT_FOUND is the write target's answer at `{line}` ({at}): the row is missing, or this viewer cannot read it and the table's write rule refused (a hidden row answers NOT_FOUND, never E_RULE; guide refusals)"));
+                        }
+                    }
+                }
+            }
             if refusal.code == "E_RULE" && (cause.clause.starts_with("unique ") || cause.clause.starts_with("cap ")) {
                 let held = if cause.clause.starts_with("unique ") { format!("a row with this `{}` key exists that this viewer cannot read", cause.clause) } else { format!("the `{}` group holds rows this viewer cannot read", cause.clause) };
                 out.push(format!("hint: {held}; your own code would disclose it, so the engine refuses E_RULE: expect E_RULE here, or make those rows readable to the viewer (guide rules)"));

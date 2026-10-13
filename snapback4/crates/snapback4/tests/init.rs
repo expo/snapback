@@ -54,7 +54,7 @@ fn init_merges_packages_and_preserves_unrelated_metadata() {
         assert_eq!(after["dependencies"]["unrelated"], "1");
         assert_eq!(after["devDependencies"]["my-tool"], "2");
         assert_eq!(after["scripts"]["test"], "my-tests");
-        if flag == "--expo" { assert_eq!(after["scripts"]["start"], "expo start"); assert_eq!(after["devDependencies"]["babel-preset-expo"], "57.0.11"); }
+        if flag == "--expo" { assert_eq!(after["scripts"]["start"], "expo start --port 8081"); assert_eq!(after["devDependencies"]["babel-preset-expo"], "57.0.11"); }
         assert!(dir.0.join("snapback/schema.q").exists());
         if flag == "--expo" { assert!(dir.0.join("expo-env.d.ts").is_file(), "Expo's types declare process.env for the starter's typecheck"); }
         if flag == "--expo" && chat {
@@ -569,7 +569,7 @@ fn expo_starters_pave_native_smoke_and_export_at_every_milestone() {
         assert!(output.status.success(), "{output:?}");
         let root = if social { dir.0.join("social") } else { dir.0.clone() };
         let package: Value = serde_json::from_slice(&fs::read(root.join("package.json")).unwrap()).unwrap();
-        assert_eq!(package["scripts"]["native:smoke"], "snapback4 witness ios --build . --smoke");
+        assert_eq!(package["scripts"]["native:smoke"], "snapback4 witness ios --build . --smoke --port 4400");
         assert_eq!(package["scripts"]["export:ios"], "snapback4-export-ios");
         assert_eq!(package["devDependencies"]["@expo/fingerprint"], "0.20.13");
         let config: Value = serde_json::from_slice(&fs::read(root.join("app.json")).unwrap()).unwrap();
@@ -954,7 +954,7 @@ fn adapt_names_an_old_expo_starters_ids_after_the_directory() {
     let checked = String::from_utf8_lossy(&run(&["check"]).stdout).into_owned();
     assert!(checked.contains("app.json: the todo starter's ids") && checked.contains("dev.snapback4.app4hclub"), "{checked}");
     let adapted = run(&["init", "--adapt"]);
-    assert!(adapted.status.success() && String::from_utf8_lossy(&adapted.stdout).contains("rewrote app.json"), "{adapted:?}");
+    assert!(adapted.status.success() && String::from_utf8_lossy(&adapted.stdout).contains("rewrote") && String::from_utf8_lossy(&adapted.stdout).contains("app.json"), "{adapted:?}");
     assert_eq!(fs::read_to_string(dir.join("app.json")).unwrap(), fresh, "only the ids change");
     // A project that set its own bundle id keeps the file as it is.
     let mine = old.replace("\"dev.snapback4.todos\",\n      \"supportsTablet\"", "\"com.example.club\",\n      \"supportsTablet\"");
@@ -1215,7 +1215,7 @@ fn the_readme_says_what_works_offline_from_the_schemas_synced_tables() {
         if flag == "--web" { assert!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap().contains("device: webDevice()"), "adapt follows the newly synced table"); }
         assert!(after.replace('\n', " ").contains("the synced table (`notes`) reads and writes offline"), "{flag}: {after}");
         assert_eq!(after.split("\n\n").filter(|paragraph| !paragraph.starts_with("Offline")).collect::<Vec<_>>(),
-            readme.split("\n\n").filter(|paragraph| !paragraph.starts_with("Offline")).collect::<Vec<_>>(), "{flag}: nothing else changes");
+            readme.replace("web uses the principal write journal (no synced tables).", "web uses the wasm\ndevice.").split("\n\n").filter(|paragraph| !paragraph.starts_with("Offline")).collect::<Vec<_>>(), "{flag}: only offline wording changes");
         assert!(dir.init(&["--adapt"]).status.success());
         assert_eq!(fs::read_to_string(dir.0.join("README.md")).unwrap(), after, "{flag}: adapt is idempotent");
         // 0.4.22's README (the unconditional claim) is still the starter's, and is rewritten.

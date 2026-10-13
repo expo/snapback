@@ -91,6 +91,8 @@ pub(crate) fn id_membership(case: &mut Case) {
         viewer |= row["principal"] == case.principal;
         n += 1;
     }
+    let mut pairs = std::collections::BTreeSet::new();
+    case.rows.retain(|(table, row)| table != "access" || pairs.insert((row["item"].to_string(), row["principal"].to_string())));
     if !viewer {
         case.rows.push(("access".into(), json!({"id":format!("page-id-{}", case.seed),
             "bucket":0,"principal":case.principal,"item":items[n % items.len()]})));
