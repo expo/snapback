@@ -167,31 +167,6 @@ def uniform (sch : Schema) (t : String) (pins : List (String × Scalar)) : Bool 
   | some td => td.read.selfCols.all fun c => pins.any (·.1 == c)
   | none => false
 
-/-- A page guard (LLP 3000.036 §12.1, §16.3): a positive disjunct of `t`'s
-read rule whose every row column the pins fix — none at all for a grant
-such as `exists staff[viewer]`, the parent's column for a parent probe such
-as `exists boards[.board, owner = viewer]` under `.board = b` — that holds
-for the caller with the pinned values. It holds for every row the pins
-select, so the page is decided once, per caller, as a uniform page is. The
-disjunct is evaluated over the caller's **view**, never the store, so the
-verdict is a function of what the caller may read (`query_noninterference`
-covers it); it is positive, so a view verdict of true holds over the store
-too (`granted_readable`). The engine evaluates it over the store, but only
-for disjuncts whose every probed row the caller can read
-(`rules::page_guard_decision`), where the two agree (OPEN C8). -/
-def granted (sch : Schema) (vw : View) (v : List Nat) (t : String) (ps : List (String × Scalar)) : Bool :=
-  match sch.table? t with
-  | some td => td.read.disjuncts.any fun d =>
-      let d' := (d.pin ps).normalize
-      d'.positive && d'.selfCols.isEmpty && d'.eval vw v {}
-  | none => false
-
-/-- A scan whose read rule is decided for this caller: by its pins
-(`uniform`) or by a page guard (`granted`). Only a decided scan can prove
-absence: a page is complete, and an `exists` may answer `false`. -/
-def decided (cx : Ctx) (vw : View) (t : String) (ps : List (String × Scalar)) : Bool :=
-  uniform cx.schema t ps || granted cx.schema vw cx.viewer t ps
-
 /-! ### Decided pages (OPEN C8, LLP 3000.036.001)
 
 A page is *decided* when its pins decide the read rule: every row column the
@@ -471,6 +446,29 @@ def Rule.branchParties (sch : Schema) (td : TableDecl) (pins : List (String × E
   let ps := (ds.filterMap Rule.party?).eraseDups
   if 2 ≤ ds.length && !ps.isEmpty && ds.all (fun d => d.party?.isSome || (guards && d.usableGuard sch td pins)) then some ps else none
 
+/-- A page guard (LLP 3000.036 §12.1, §16.3): a disjunct whose expression
+pins make it an eligible readable guard and whose evaluated scalar pins make
+it true for this caller. Keeping both forms matters: an argument's current
+Boolean value cannot authorize a compound negation the native planner could
+not prove from the argument expression. The guard is evaluated over the
+caller's view; `granted_readable` proves that a true normalized positive guard
+also holds over the store and implies the original rule. -/
+def granted (sch : Schema) (vw : View) (v : List Nat) (t : String)
+    (ps : List (String × Scalar)) (pins : List (String × Expr)) : Bool :=
+  match sch.table? t with
+  | some td => td.read.disjuncts.any fun d =>
+      let d' := (d.pin ps).normalize
+      d.usableGuard sch td pins && d'.positive && d'.selfCols.isEmpty && d'.eval vw v {}
+  | none => false
+
+/-- A scan whose read rule is decided for this caller: by its pins
+(`uniform`) or by an expression-eligible page guard (`granted`). Only a
+decided scan can prove absence: a page is complete, and an `exists` may answer
+`false`. -/
+def decided (cx : Ctx) (vw : View) (t : String) (ps : List (String × Scalar))
+    (pins : List (String × Expr)) : Bool :=
+  uniform cx.schema t ps || granted cx.schema vw cx.viewer t ps pins
+
 /-- An alternative's eligible pin: not `id`, and on a nullable column only
 `viewer` (a branch never seeks a null the filter would reject). -/
 def eligiblePin (td : TableDecl) (e : Expr) : Bool :=
@@ -614,6 +612,7 @@ card; LLP 3000.007 §5.6). A `merged` page (the merge of its branches) carries
 `next` after a full page only when another *matching* row follows: the merge
 knows each branch's next matching row (LLP 3000.036.001 §5). -/
 def pageRead (cx : Ctx) (vw : View) (t : String) (ps : List (String × Scalar))
+    (pins : List (String × Expr))
     (filt : Row → EM Bool) (order : List String) (desc : Bool) (take : Nat) (cur : Option Key)
     (formed : Bool) (merged : Bool) :
     EM (Value × Option Value) := do
@@ -622,7 +621,7 @@ def pageRead (cx : Ctx) (vw : View) (t : String) (ps : List (String × Scalar))
   if w.stop = .cut && cx.mutation then refuse "E_BOUND"
   else do
     let more ← lookahead filt order desc merged w cs
-    markIf (w.stop = .cut || !(decided cx vw t ps || formed))
+    markIf (w.stop = .cut || !(decided cx vw t ps pins || formed))
     pure (pageAnswer order (if more then w else { w with stop := .exhausted }))
 
 /-- `count(domain)`: the number of visible rows that match, or unavailable
@@ -647,13 +646,14 @@ grant decide the read rule, otherwise no answer, never `false` (OPEN C5). A
 cut cannot establish a negative answer (reads card). `exists t[key]` is a
 point read (`t[key] != null`, `Syntax.lean`), not this. -/
 def existsRead (cx : Ctx) (vw : View) (t : String) (ps : List (String × Scalar))
+    (pins : List (String × Expr))
     (filt : Row → EM Bool) (fm : Bool := false) : EM (Value × Option Value) := do
   let w ← walk filt cx.budget 1 [] none (candidates vw t ps [] false none)
   if w.stop = .cut then cutScalar cx
   else if w.rows.isEmpty then
-    if decided cx vw t ps || fm then return (.ofBool false, none) else undecidedScalar cx
+    if decided cx vw t ps pins || fm then return (.ofBool false, none) else undecidedScalar cx
   else do
-    markIf !(decided cx vw t ps || fm)
+    markIf !(decided cx vw t ps pins || fm)
     return (.ofBool true, none)
 
 /-! ## Expressions -/
@@ -755,7 +755,7 @@ def evalExpr : Nat → Ctx → View → Env → Option Value → Expr → EM (Va
         | some td => decidedPins td (plannedPins pins f order)
         | none => false
       let merged := !formed && !cx.mutation && !cx.inHelper && branchDecided cx.schema t pins f order
-      let (v, nx) ← pageRead cx vw t ps (filt f) order desc take cur (formed || merged) merged
+      let (v, nx) ← pageRead cx vw t ps pins (filt f) order desc take cur (formed || merged) merged
       -- A cursorless page (no `after`) has no continuation: "A cursorless
       -- top-N answer has no `next`" (LLP 3000.027 §1; OPEN C9).
       pure (v, if after.isSome then nx else some .null)
@@ -770,7 +770,7 @@ def evalExpr : Nat → Ctx → View → Env → Option Value → Expr → EM (Va
         | some td => decidedPins td (plannedPins pins f [])
         | none => false
       let merged := !formed && !cx.mutation && !cx.inHelper && branchDecided cx.schema t pins f [] false
-      existsRead cx vw t ps (filt f) (formed || merged)
+      existsRead cx vw t ps pins (filt f) (formed || merged)
 
 /-! ## Statements -/
 

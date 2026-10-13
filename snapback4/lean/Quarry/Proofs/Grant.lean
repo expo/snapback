@@ -308,7 +308,8 @@ theorem Rule.eval_pin {s : Store} {v : List Nat} {ps : List (String × Scalar)} 
 /-- **A page guard decides every row it selects**: a guard that holds over
 the caller's view makes every row the pins select readable to them. -/
 theorem granted_readable {sch : Schema} {s : Store} {v : List Nat} {t : String}
-    {ps : List (String × Scalar)} (hg : granted sch (visibleRows sch s v) v t ps = true) (r : Row)
+    {ps : List (String × Scalar)} {pins : List (String × Expr)}
+    (hg : granted sch (visibleRows sch s v) v t ps pins = true) (r : Row)
     (hk : keyMatch ps r = true) : readable sch s v t r = true := by
   unfold granted at hg
   unfold readable
@@ -317,7 +318,7 @@ theorem granted_readable {sch : Schema} {s : Store} {v : List Nat} {t : String}
     rw [htd]
     obtain ⟨d, hd, hdg⟩ := List.any_eq_true.1 hg
     simp only [Bool.and_eq_true] at hdg
-    obtain ⟨⟨hpos, hempty⟩, hev⟩ := hdg
+    obtain ⟨⟨⟨-, hpos⟩, hempty⟩, hev⟩ := hdg
     let d' := (d.pin ps).normalize
     have hfree : d'.selfCols = [] := by
       cases hcols : d'.selfCols with
