@@ -42,6 +42,8 @@ pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
     let programs: Vec<&ProgramDecl> = catalog.documents.iter().flat_map(|doc| &doc.programs)
         .filter(|program| matches!(program.kind, ProgramKind::Mutation | ProgramKind::Query) && !program.native).collect();
     hidden_requires(catalog, schema, &programs, &mut notes);
+    let guard_programs = catalog.documents.iter().flat_map(|doc| &doc.programs).filter(|p| !p.native).collect::<Vec<_>>();
+    unreadable_guards(catalog, schema, &guard_programs, &mut notes);
     refused_requires(catalog, schema, &mutations, &mut notes);
     notes
 }
@@ -142,7 +144,7 @@ fn written(fields: &[ObjectField]) -> Option<BTreeMap<String, Expr>> {
     }).collect()
 }
 
-fn is_viewer(expr: &Expr) -> bool { matches!(expr, Expr::Name { name, .. } if name == "viewer") }
+fn is_viewer(expr: &Expr) -> bool { matches!(expr, Expr::Name { name, .. } if name == "viewer" || name == "$input:viewer") }
 
 /// Every write (op, table, keys, fields, site) a program makes, in source order.
 fn writes(program: &ProgramDecl) -> Vec<(WriteOp, String, Vec<KeyPart>, Vec<ObjectField>, Site)> {
@@ -600,4 +602,402 @@ fn same_test(schema: &Schema, have: &RuleExpr, need: &RuleExpr) -> bool {
 
 fn empty_read(table: &str, site: &Site) -> ReadExpr {
     ReadExpr { cursor_prefix: None, computed: BTreeMap::new(), order_keys: Vec::new(), table: table.to_owned(), keys: Vec::new(), seeks: Vec::new(), filter: None, index: None, range: None, matching: None, site: site.clone() }
+}
+
+// @ref LLP 3000.036.002#4 — program guards observe the caller's reads, never global absence.
+fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDecl], notes: &mut Vec<Diagnostic>) {
+    fn fact_text(value: &Expr) -> String {
+        let mut value = value.clone();
+        super::intent_walk::expression(&mut value, &mut |expr| {
+            if is_viewer(expr) { *expr = Expr::Name { name: "viewer".into(), site: expr.site().clone() }; }
+        });
+        crate::print::expression(&value)
+    }
+    fn facts(condition: &Expr, out: &mut BTreeSet<String>) {
+        if let Expr::Binary { op, left, right, .. } = condition && op == "and" { facts(left, out); facts(right, out); }
+        else { out.insert(fact_text(condition)); }
+    }
+    fn readable(catalog: &Catalog, schema: &Schema, read: &ReadExpr, known: &BTreeSet<String>) -> bool {
+        let Some(table) = schema.table(&read.table) else { return true };
+        let Some(info) = catalog.tables.get(&read.table) else { return table.rules.read.is_uniformly_readable(); };
+        let mut pinned = BTreeMap::new();
+        // Unlike older advisory lints, proof cannot guess a non-id key: typed ids
+        // may select byId even beside one same-width principal/composite key.
+        let selected = read.index.as_ref().and_then(|name| info.indexes.iter().find(|index| &index.name == name));
+        let inferred: Vec<_> = info.indexes.iter().filter(|index| index.unique && index.is_plain() && index.columns.len() == read.keys.len()).collect();
+        let positional_index = selected.or_else(|| match inferred.as_slice() { [index] => Some(*index), _ => None });
+        if let Some(index) = positional_index {
+            for (column, key) in index.columns.iter().zip(&read.keys) {
+                pinned.insert(key.column.clone().unwrap_or_else(|| column.clone()), key.value.clone());
+            }
+        }
+        // Extra named tests pin fields even when the positional prefix is unresolved.
+        for part in &read.keys { if let Some(column) = &part.column { pinned.insert(column.clone(), part.value.clone()); } }
+        if read.index.is_none() && read.keys.iter().filter(|key| key.column.is_none()).count() == 1 && read.keys.first().is_some_and(|part| part.column.is_none() && is_viewer(&part.value)) {
+            let principal_keys: Vec<_> = table.indexes.values().filter(|index| index.unique && index.columns().len() == 1
+                && table.columns.get(&index.columns()[0]) == Some(&snapback4_core::schema::ColumnType::Principal)).collect();
+            if let [index] = principal_keys.as_slice() { pinned.insert(index.columns()[0].clone(), read.keys[0].value.clone()); }
+        }
+        let mut filters = Vec::new();
+        if let Some(filter) = &read.filter { super::intent::split((**filter).clone(), &mut filters); }
+        for filter in filters {
+            if let Expr::Binary { op, left, right, .. } = &filter && op == "="
+                && let Some(column) = super::intent::column(left) { pinned.entry(column.to_owned()).or_insert_with(|| (**right).clone()); }
+        }
+        // A total self-membership key is witnessed by the probed row itself.
+        if table.rules.read.disjuncts().iter().any(|rule| {
+            let RuleExpr::Exists { table: target, index, key, equalities, .. } = rule else { return false };
+            target == &read.table && equalities.is_empty() && table.index(index).is_some_and(|index|
+                index.unique && index.columns().len() == key.len() && index.columns().iter().zip(key).all(|(column, value)| {
+                    let required = column == "id" || table.columns.get(column).is_some_and(|kind| !matches!(kind, snapback4_core::schema::ColumnType::Optional(_)));
+                    required && (matches!(value, RuleTerm::Field(field) if field == column)
+                        || matches!(value, RuleTerm::Viewer) && pinned.get(column).is_some_and(is_viewer))
+                }))
+        }) { return true; }
+        let term = |term: &RuleTerm| -> Option<String> {
+            match term {
+                RuleTerm::Viewer => Some("viewer".into()),
+                RuleTerm::Literal(value) => Some(RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Literal(value.clone())).quarry().trim_start_matches("viewer = ").to_owned()),
+                RuleTerm::Field(column) => pinned.get(column).map(fact_text),
+                _ => None,
+            }
+        };
+        fn holds(rule: &RuleExpr, term: &impl Fn(&RuleTerm) -> Option<String>, schema: &Schema, known: &BTreeSet<String>) -> bool {
+            match rule {
+                RuleExpr::Allow | RuleExpr::Public { .. } => true,
+                RuleExpr::Eq(a, b) => match (term(a), term(b)) {
+                    (Some(a), Some(b)) => a == b || known.contains(&format!("({a} = {b})")) || known.contains(&format!("({b} = {a})")),
+                    _ => false,
+                },
+                RuleExpr::And(items) => items.iter().all(|rule| holds(rule, term, schema, known)),
+                RuleExpr::Or(items) => items.iter().any(|rule| holds(rule, term, schema, known)),
+                RuleExpr::Exists { table, index, key, equalities, .. } => {
+                    let Some(target) = schema.table(table).and_then(|t| t.index(index)) else { return false };
+                    let Some(key) = key.iter().map(term).collect::<Option<Vec<_>>>() else { return false };
+                    let plain = format!("exists {table}[{}]", key.join(", "));
+                    let Some(extra) = equalities.iter().map(|(c, t)| term(t).map(|v| format!("{c} = {v}"))).collect::<Option<Vec<_>>>() else { return false };
+                    let named = target.columns().iter().zip(&key).map(|(c, v)| format!("{c} = {v}"))
+                        .chain(extra).collect::<Vec<_>>().join(", ");
+                    // Positional spellings with multiple compatible index widths
+                    // are not evidence for this particular raw-rule key.
+                    let source = schema.table(table).unwrap();
+                    let unambiguous = source.indexes.values().filter(|candidate| candidate.unique && candidate.columns().len() == key.len()).count() == 1
+                        || key.len() == 1 && key[0] == "viewer" && target.columns().len() == 1
+                            && source.columns.get(&target.columns()[0]) == Some(&snapback4_core::schema::ColumnType::Principal)
+                            && source.indexes.values().filter(|candidate| candidate.unique && candidate.columns().len() == 1
+                                && source.columns.get(&candidate.columns()[0]) == Some(&snapback4_core::schema::ColumnType::Principal)).count() == 1;
+                    (equalities.is_empty() && unambiguous && known.contains(&plain)) || known.contains(&format!("exists {table}[{named}]"))
+                },
+                _ => false,
+            }
+        }
+        holds(&table.rules.read, &term, schema, known)
+    }
+    fn guard(catalog: &Catalog, schema: &Schema, program: &str, condition: &Expr, known: &BTreeSet<String>, system: bool, notes: &mut Vec<Diagnostic>) {
+        if system { return; }
+        let mut reads = Vec::new();
+        let mut copy = condition.clone();
+        super::intent_walk::expression(&mut copy, &mut |expr| { if let Expr::Exists { read, .. } = expr { reads.push(read.clone()); } });
+        for read in reads {
+            let Some(table) = schema.table(&read.table) else { continue };
+            if readable(catalog, schema, &read, known) { continue; }
+            if notes.iter().any(|note| note.site == read.site && note.code == "N_REQUIRE_HIDDEN" || note.site.file == read.site.file && note.site.line == read.site.line && note.code == "N_UNREADABLE_PROBE" && note.message.starts_with(&format!("{program}: this probe reads {} under", read.table))) { continue; }
+            let rule_site = rule_site(catalog, &read.table, Effect::Read).map(|site| format!(" ({site})")).unwrap_or_default();
+            notes.push(Diagnostic::new(&read.site, "N_UNREADABLE_PROBE",
+                format!("{program}: this probe reads {} under its read rule `{}`{rule_site}; rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows)", read.table, table.rules.read.quarry()),
+                "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended").guide("rules"));
+        }
+    }
+    fn absence(condition: &Expr, inverted: bool) -> Vec<ReadExpr> {
+        match condition {
+            Expr::Exists { read, .. } if inverted => vec![read.clone()],
+            Expr::Unary { op, value, .. } if op == "not" => absence(value, !inverted),
+            Expr::Binary { op, left, right, .. } if op == "=" || op == "!=" => {
+                let pair = match (left.as_ref(), right.as_ref()) {
+                    (value, Expr::Literal { value: Literal::Bool(b), .. }) | (Expr::Literal { value: Literal::Bool(b), .. }, value) => Some((value, *b)),
+                    _ => None,
+                };
+                pair.map(|(value, b)| absence(value, inverted ^ (op == "=" && !b || op == "!=" && b))).unwrap_or_else(|| absence(left, inverted).into_iter().chain(absence(right, inverted)).collect())
+            }
+            Expr::Binary { left, right, .. } => absence(left, inverted).into_iter().chain(absence(right, inverted)).collect(),
+            Expr::If { then, condition, otherwise, .. } => {
+                let mut all = Vec::new(); let mut copy = (**condition).clone();
+                super::intent_walk::expression(&mut copy, &mut |expr| { if let Expr::Exists { read, .. } = expr { all.push(read.clone()); } });
+                all.extend(absence(then, inverted)); all.extend(absence(otherwise, inverted)); all
+            }
+            _ => vec![],
+        }
+    }
+    fn helper_body(catalog: &Catalog, name: &str, shape: bool) -> Option<Vec<Stmt>> {
+        if shape {
+            let decl = catalog.shapes.get(name)?;
+            Some(decl.fields.iter().filter_map(|field| match field {
+                ShapeField::Field { value, site, .. } => Some(Stmt::Expr { value: value.clone(), site: site.clone() }),
+                ShapeField::NamedSpread { name, site } => Some(Stmt::Expr { value: Expr::ShapeUse { base: Box::new(Expr::Focal { site: site.clone() }), name: name.clone(), site: site.clone() }, site: site.clone() }),
+                _ => None,
+            }).collect())
+        } else {
+            let helper = catalog.functions.get(name)?;
+            Some(match &helper.body {
+                FunctionBody::Block(body) => body.clone(),
+                FunctionBody::Expression(value) => vec![Stmt::Return { value: value.clone(), site: value.site().clone() }],
+            })
+        }
+    }
+    fn definitions(catalog: &Catalog, expr: &Expr) -> Vec<(String, bool)> {
+        match expr {
+            Expr::Call { name, .. } if catalog.functions.contains_key(name) => vec![(name.clone(), false)],
+            Expr::ShapeUse { name, .. } => vec![(name.clone(), true)],
+            Expr::Name { name, .. } if catalog.shapes.contains_key(name) => vec![(name.clone(), true)],
+            Expr::Shape { fields, .. } => fields.iter().filter_map(|field| if let ShapeField::NamedSpread { name, .. } = field { Some((name.clone(), true)) } else { None }).collect(),
+            _ => vec![],
+        }
+    }
+    fn effects(catalog: &Catalog, statements: &[Stmt], visiting: &mut BTreeSet<String>) -> (bool, bool) {
+        let mut copy = statements.to_vec();
+        let mut writes = false;
+        let mut binds = false;
+        fn bindings(body: &[Stmt]) -> bool {
+            body.iter().any(|stmt| match stmt {
+                Stmt::Bind { .. } => true,
+                Stmt::If { then_body, else_body, .. } => bindings(then_body) || bindings(else_body),
+                Stmt::For { body, .. } | Stmt::As { body, .. } => bindings(body),
+                _ => false,
+            })
+        }
+        binds |= bindings(statements);
+        super::intent_walk::statements(&mut copy, &mut |expr| {
+            if matches!(expr, Expr::Write { .. }) { writes = true; }
+            for (name, shape) in definitions(catalog, expr) {
+                let key = format!("{shape}:{name}");
+                if !visiting.insert(key.clone()) { writes = true; binds = true; continue; }
+                if let Some(body) = helper_body(catalog, &name, shape) {
+                    let (w, b) = effects(catalog, &body, visiting); writes |= w; binds |= b;
+                } else { writes = true; binds = true; }
+                visiting.remove(&key);
+            }
+        });
+        (writes, binds)
+    }
+    fn effectful(catalog: &Catalog, value: &Expr) -> bool {
+        effects(catalog, &[Stmt::Expr { value: value.clone(), site: value.site().clone() }], &mut BTreeSet::new()).0
+    }
+    fn ordered_call(catalog: &Catalog, value: &Expr) -> bool {
+        matches!(value, Expr::Call { name, args, .. } if catalog.functions.contains_key(name) && args.iter().all(|arg| !effectful(catalog, arg)))
+    }
+    fn call_facts(catalog: &Catalog, name: &str, args: &[Expr], known: &BTreeSet<String>, global: &BTreeSet<String>) -> BTreeSet<String> {
+        let mut out: BTreeSet<_> = known.intersection(global).cloned().collect();
+        let Some(helper) = catalog.functions.get(name) else { return out };
+        let readonly = helper_body(catalog, name, false).is_some_and(|body| !effects(catalog, &body, &mut BTreeSet::new()).0);
+        // Use fresh intermediate names so caller variables that happen to share
+        // a formal's spelling cannot be mistaken for transferred evidence.
+        for fact in known {
+            let source = format!("query guardFact():\n  require {fact} else GUARD\n  return null\n");
+            let (doc, errors) = crate::parser::parse_document("guard.q", &source);
+            if !errors.is_empty() { continue; }
+            let Some(Stmt::Require { condition, .. }) = doc.programs.first().and_then(|p| p.body.first()) else { continue };
+            let mut condition = condition.clone();
+            let mut used = BTreeSet::new();
+            super::intent_walk::expression(&mut condition, &mut |expr| { if let Expr::Name { name, .. } = expr { used.insert(name.clone()); } });
+            used.extend(helper.args.iter().map(|param| param.name.clone()));
+            let mut substitutions = Vec::new();
+            for (param, arg) in helper.args.iter().zip(args) {
+                if is_viewer(arg) || (!readonly && !matches!(arg, Expr::Name { .. })) { continue; }
+                let mut marker = "diagSnapshot".to_owned();
+                while used.contains(&marker) { marker.push('_'); }
+                used.insert(marker.clone());
+                substitutions.push((fact_text(arg), marker, param.name.clone()));
+            }
+            super::intent_walk::expression(&mut condition, &mut |expr| {
+                let text = fact_text(expr);
+                if let Some((_, marker, _)) = substitutions.iter().find(|(arg, _, _)| *arg == text) {
+                    *expr = Expr::Name { name: marker.clone(), site: expr.site().clone() };
+                }
+            });
+            let mut valid = true;
+            super::intent_walk::expression(&mut condition, &mut |expr| {
+                if let Expr::Name { name, .. } = expr && name != "viewer" && !substitutions.iter().any(|(_, marker, _)| marker == name) { valid = false; }
+                if matches!(expr, Expr::Focal { .. }) { valid = false; }
+            });
+            if valid {
+                super::intent_walk::expression(&mut condition, &mut |expr| {
+                    if let Expr::Name { name, .. } = expr && let Some((_, _, param)) = substitutions.iter().find(|(_, marker, _)| marker == name) { *name = param.clone(); }
+                });
+                out.insert(fact_text(&condition));
+            }
+        }
+        for (param, arg) in helper.args.iter().zip(args) {
+            if is_viewer(arg) { out.insert(format!("({} = viewer)", param.name)); }
+        }
+        out
+    }
+    fn rebound_names(statements: &[Stmt], out: &mut BTreeSet<String>) {
+        for statement in statements {
+            match statement {
+                Stmt::Bind { names, .. } => out.extend(names.iter().cloned()),
+                Stmt::If { then_body, else_body, .. } => { rebound_names(then_body, out); rebound_names(else_body, out); }
+                Stmt::For { body, .. } | Stmt::As { body, .. } => rebound_names(body, out),
+                _ => {}
+            }
+        }
+    }
+    fn lookup_fact(catalog: &Catalog, schema: &Schema, names: &[String], value: &Expr, known: &mut BTreeSet<String>) {
+        let mut shadowed = false;
+        let mut copy = value.clone();
+        super::intent_walk::expression(&mut copy, &mut |expr| { if matches!(expr, Expr::Name { name, .. } if names.contains(name)) { shadowed = true; } });
+        if shadowed { return; }
+        let Expr::Assert { value, .. } = value else { return };
+        let Expr::Read(read) = value.as_ref() else { return };
+        if schema.maintain_for(&read.table).is_some() || !point_probe(catalog, read) { return; }
+        let Some(info) = catalog.tables.get(&read.table) else { return };
+        let named = read.keys.iter().all(|key| key.column.is_some());
+        let mut indexes: Vec<_> = info.indexes.iter().filter(|index| index.unique && index.is_plain() && read.index.as_ref().is_none_or(|name| name == &index.name)
+            && if named { index.columns.iter().all(|column| read.keys.iter().any(|key| key.column.as_ref() == Some(column))) } else { index.columns.len() == read.keys.len() }).collect();
+        if !named && read.index.is_none() && read.keys.len() == 1 && is_viewer(&read.keys[0].value) {
+            indexes.retain(|index| info.columns.get(&index.columns[0]).is_some_and(|kind| kind.kind == TypeKind::Principal));
+        }
+        let [index] = indexes.as_slice() else { return };
+        let keys = index.columns.iter().enumerate().filter_map(|(at, column)| {
+            let key = if named { read.keys.iter().find(|key| key.column.as_ref() == Some(column)) } else { read.keys.get(at) }?;
+            Some(format!("{column} = {}", fact_text(&key.value)))
+        }).collect::<Vec<_>>().join(", ");
+        // A successful ruled row lookup proves the indexed row exists. Extra
+        // projected-field tests are not raw rule evidence and are deliberately omitted.
+        known.insert(format!("exists {}[{keys}]", read.table));
+    }
+    fn point_probe(catalog: &Catalog, read: &ReadExpr) -> bool {
+        if read.matching.is_some() || !read.seeks.is_empty() { return false; }
+        let Some(info) = catalog.tables.get(&read.table) else { return false };
+        let named = read.keys.iter().all(|key| key.column.is_some());
+        info.indexes.iter().any(|index| index.unique && index.is_plain() && read.index.as_ref().is_none_or(|name| name == &index.name)
+            && if named { index.columns.iter().all(|column| read.keys.iter().any(|key| key.column.as_ref() == Some(column))) }
+                else { index.columns.len() == read.keys.len() })
+    }
+    fn expression_guards(catalog: &Catalog, schema: &Schema, program: &str, value: &Expr, known: &BTreeSet<String>, global: &BTreeSet<String>, system: bool, observe_prefix: bool, visiting: &mut BTreeSet<String>, notes: &mut Vec<Diagnostic>) {
+        let mut copy = value.clone();
+        super::intent_walk::expression(&mut copy, &mut |expr| {
+            if let Expr::Exists { read, site } = expr && (observe_prefix || point_probe(catalog, read)) {
+                guard(catalog, schema, program, &Expr::Exists { read: read.clone(), site: site.clone() }, known, system, notes);
+            }
+            if let Expr::If { condition, .. } = expr {
+                guard(catalog, schema, program, condition, known, system, notes);
+                expression_guards(catalog, schema, program, condition, known, global, system, true, visiting, notes);
+            }
+            for (name, shape) in definitions(catalog, expr) {
+                let key = format!("{shape}:{name}");
+                if !visiting.insert(key.clone()) { continue; }
+                if let Some(inner) = helper_body(catalog, &name, shape) {
+                    // Parameters and focal rows belong to the definition's scope. Only
+                    // viewer/literal facts about the same world cross that boundary.
+                    let entry = if let Expr::Call { args, .. } = expr && !shape { call_facts(catalog, &name, args, known, global) } else { known.intersection(global).cloned().collect() };
+                    body(catalog, schema, program, &inner, entry, global, system, observe_prefix, visiting, notes);
+                }
+                visiting.remove(&key);
+            }
+        });
+    }
+    fn invalidate(names: &[String], known: &mut BTreeSet<String>) {
+        known.retain(|fact| !fact.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|word| names.iter().any(|name| name == word)));
+    }
+    fn body(catalog: &Catalog, schema: &Schema, program: &str, statements: &[Stmt], mut known: BTreeSet<String>, global: &BTreeSet<String>, system: bool, observe_prefix: bool, visiting: &mut BTreeSet<String>, notes: &mut Vec<Diagnostic>) -> BTreeSet<String> {
+        for statement in statements {
+            match statement {
+                Stmt::Require { condition, .. } => {
+                    let writes = effectful(catalog, condition);
+                    if writes { known.clear(); }
+                    for read in absence(condition, false) {
+                        guard(catalog, schema, program, &Expr::Exists { site: read.site.clone(), read }, &known, system, notes);
+                    }
+                    // Calls can return an existence value even when no probe is spelled here.
+                    let mut copy = condition.clone();
+                    super::intent_walk::expression(&mut copy, &mut |expr| {
+                        for (name, shape) in definitions(catalog, expr) {
+                            let key = format!("{shape}:{name}");
+                            if !visiting.insert(key.clone()) { continue; }
+                            if let Some(inner) = helper_body(catalog, &name, shape) {
+                                let entry = if let Expr::Call { args, .. } = expr && !shape { call_facts(catalog, &name, args, &known, global) } else { known.intersection(global).cloned().collect() };
+                                body(catalog, schema, program, &inner, entry, global, system, true, visiting, notes);
+                            }
+                            visiting.remove(&key);
+                        }
+                    });
+                    if !writes { facts(condition, &mut known); }
+                }
+                Stmt::If { condition, then_body, else_body, .. } => {
+                    let writes = effectful(catalog, condition);
+                    if writes { known.clear(); }
+                    guard(catalog, schema, program, condition, &known, system, notes);
+                    expression_guards(catalog, schema, program, condition, &known, global, system, true, visiting, notes);
+                    let mut yes = known.clone(); if !writes { facts(condition, &mut yes); }
+                    let yes = body(catalog, schema, program, then_body, yes, global, system, observe_prefix, visiting, notes);
+                    let no = body(catalog, schema, program, else_body, known.clone(), global, system, observe_prefix, visiting, notes);
+                    known = yes.intersection(&no).cloned().collect();
+                }
+                Stmt::For { body: inner, domain, name, .. } => {
+                    if effectful(catalog, domain) { known.clear(); }
+                    expression_guards(catalog, schema, program, domain, &known, global, system, observe_prefix, visiting, notes);
+                    // Any later iteration can begin after an earlier iteration's helper/write.
+                    let (writes, binds) = effects(catalog, inner, &mut BTreeSet::new());
+                    let mut changed = BTreeSet::new(); if binds { rebound_names(inner, &mut changed); }
+                    let changed = changed.into_iter().collect::<Vec<_>>();
+                    let mut entry = if writes { BTreeSet::new() } else { known.clone() };
+                    invalidate(&changed, &mut entry);
+                    invalidate(std::slice::from_ref(name), &mut entry);
+                    let after = body(catalog, schema, program, inner, entry, global, system, observe_prefix, visiting, notes);
+                    // Break/continue paths may bypass evidence near the body's end.
+                    if writes { known.clear(); } else if binds { invalidate(&changed, &mut known); } else { known = known.intersection(&after).cloned().collect(); }
+                }
+                // Viewer scopes differ from the surrounding principal; never carry its facts in.
+                Stmt::As { body: inner, principal, .. } => {
+                    expression_guards(catalog, schema, program, principal, &known, global, system, observe_prefix, visiting, notes);
+                    body(catalog, schema, program, inner, BTreeSet::new(), global, false, true, visiting, notes); known.clear();
+                }
+                Stmt::Break { .. } | Stmt::Continue { .. } => break,
+                _ => {
+                    // Values can contain conditional guards too; writes invalidate earlier role facts.
+                    let one = vec![statement.clone()];
+                    let wrote = effects(catalog, &one, &mut BTreeSet::new()).0;
+                    // Operand order can hide the grant before a later condition in this expression.
+                    if wrote && !matches!(statement, Stmt::Bind { value, .. } | Stmt::Expr { value, .. } | Stmt::Return { value, .. } if ordered_call(catalog, value)) { known.clear(); }
+                    match statement {
+                        Stmt::Bind { value, .. } | Stmt::Expr { value, .. } | Stmt::Return { value, .. } => expression_guards(catalog, schema, program, value, &known, global, system, observe_prefix, visiting, notes),
+                        Stmt::Emit { payload, once, .. } => {
+                            expression_guards(catalog, schema, program, payload, &known, global, system, observe_prefix, visiting, notes);
+                            if let Some(value) = once { expression_guards(catalog, schema, program, value, &known, global, system, observe_prefix, visiting, notes); }
+                        }
+                        _ => {}
+                    }
+                    if wrote { known.clear(); }
+                    else if let Stmt::Bind { names, .. } = statement {
+                        invalidate(names, &mut known);
+                        if let Stmt::Bind { value, .. } = statement { lookup_fact(catalog, schema, names, value, &mut known); }
+                    }
+                    if matches!(statement, Stmt::Return { .. }) { break; }
+                }
+            }
+        }
+        known
+    }
+    let mut global = BTreeSet::new();
+    let mut tested = Vec::new();
+    for program in programs { conditions(&program.prelude, &mut tested); conditions(&program.body, &mut tested); }
+    for helper in catalog.functions.values() { if let FunctionBody::Block(body) = &helper.body { conditions(body, &mut tested); } }
+    for condition in tested {
+        let mut parts = Vec::new(); super::intent::split(condition, &mut parts);
+        for mut part in parts {
+            let text = fact_text(&part);
+            let mut stable = true;
+            super::intent_walk::expression(&mut part, &mut |expr| {
+                if matches!(expr, Expr::Name { name, .. } if name != "viewer")
+                    || matches!(expr, Expr::Focal { .. } | Expr::Call { .. } | Expr::Write { .. } | Expr::Shape { .. } | Expr::ShapeUse { .. }) { stable = false; }
+            });
+            if stable { global.insert(text); }
+        }
+    }
+    for program in programs {
+        let system = program.kind == ProgramKind::Job;
+        let mut visiting = BTreeSet::new();
+        let known = body(catalog, schema, &program.name, &program.prelude, BTreeSet::new(), &global, system, program.kind != ProgramKind::Query, &mut visiting, notes);
+        body(catalog, schema, &program.name, &program.body, known, &global, system, program.kind != ProgramKind::Query, &mut visiting, notes);
+    }
 }

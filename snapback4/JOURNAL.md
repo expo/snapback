@@ -94457,3 +94457,19 @@ expiry/revocation and waiting for scope delivery. The eight wave-9 emitted-text
 goldens compile each concrete repair against its source; all 120 guide tests,
 101 CLI check tests and six check_notes pass. Non-object argument cases can
 assert their actual E_INPUT. Design and review resolutions: LLP 3000.036.002.
+
+### 2026-10-13 — Wave 10 DIAG: unreadable guard observations
+
+N_UNREADABLE_PROBE explains private program probes used to enforce absence;
+execution still sees caller-readable rows and table rules still see all rows.
+The note names the hiding rule, recommends an invariant constraint, and
+recognizes proven membership/ownership without making private rows public.
+Analysis follows helpers, shapes/spreads and job viewer scopes. Argument
+snapshots use fresh names; ambiguous positional keys prove nothing. Effects,
+loop backedges/rebinding, viewer changes and control-flow exits cannot retain
+stale role evidence. Positive existence requires remain authorization checks;
+point values are inspected when observed so later aliases cannot hide defects.
+17 focused guard regressions, five runtime regressions and eight emitted-text
+goldens pass; guide 120/120 and CLI check/check_notes 101/101 + 6/6 pass.
+The published prediction guard pins its intended owner. LLP 3000.036.002
+records the policy and fresh dual-family review is pending this frozen delta.

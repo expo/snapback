@@ -19,6 +19,7 @@ pub(super) fn detail(code: &str) -> Option<&'static str> {
         "N_PROBE_ONLY_READ" => include_str!("why/N_PROBE_ONLY_READ.md"),
         "N_VACUOUS_RULE" => include_str!("why/N_VACUOUS_RULE.md"),
         "N_LOOKUP_HIDDEN" => include_str!("why/N_LOOKUP_HIDDEN.md"),
+        "N_UNREADABLE_PROBE" => include_str!("why/N_UNREADABLE_PROBE.md"),
         "N_REQUIRE_HIDDEN" => include_str!("why/N_REQUIRE_HIDDEN.md"),
         "N_REQUIRE_REFUSED" => include_str!("why/N_REQUIRE_REFUSED.md"),
         "E_READ_THROUGH" => include_str!("why/E_READ_THROUGH.md"),
