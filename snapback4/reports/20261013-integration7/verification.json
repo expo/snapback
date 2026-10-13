@@ -110,7 +110,7 @@
       "source": "1bc9993aec"
     }
   },
-  "finalDeltaAfterMacClientSource": "documentation, evidence, and one governing @ref comment only; executable helper byte comparison passes after removing that comment",
+  "finalDeltaAfterMacClientSource": "documentation, evidence, and one governing LLP-reference comment only; executable helper byte comparison passes after removing that comment",
   "publication": false,
   "originPush": false,
   "authorizedMacVerificationRef": "refs/heads/sb4-integ7",
