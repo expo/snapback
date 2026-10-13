@@ -148,6 +148,41 @@ def Rule.positive : Rule → Bool
   | .and a b | .or a b => a.positive && b.positive
   | .allow | .deny | .eq .. | .ne .. | .probe .. => true
 
+/-- Fold only rule truth values that remain known after pin substitution.
+Boolean literal comparisons match the engine's required-boolean pin proof;
+in particular, a nullable `null` pin is not treated as boolean `false`.
+Probes are never folded, so normalization cannot turn a negated probe into a
+page grant (LLP 3000.036 §14). -/
+-- @ref LLP 3000.036.001#9 — the formal classifier and executable model share prefix-normalized guards.
+def Rule.normalize : Rule → Rule
+  | .eq (.lit (.bool a)) (.lit (.bool b)) => if a == b then .allow else .deny
+  | .eq (.lit a) (.lit b) => if a == b then .allow else .eq (.lit a) (.lit b)
+  | .eq .viewer .viewer => .allow
+  | .eq a b => .eq a b
+  | .ne (.lit (.bool a)) (.lit (.bool b)) => if a != b then .allow else .deny
+  | .ne (.lit a) (.lit b) => if a != b then .ne (.lit a) (.lit b) else .deny
+  | .ne .viewer .viewer => .deny
+  | .ne a b => .ne a b
+  | .and a b =>
+      match a.normalize, b.normalize with
+      | .allow, b' => b'
+      | a', .allow => a'
+      | .deny, _ | _, .deny => .deny
+      | a', b' => .and a' b'
+  | .or a b =>
+      match a.normalize, b.normalize with
+      | .allow, _ | _, .allow => .allow
+      | .deny, b' => b'
+      | a', .deny => a'
+      | a', b' => .or a' b'
+  | .not a => match a.normalize with
+      | .allow => .deny
+      | .deny => .allow
+      | a' => .not a'
+  | .allow => .allow
+  | .deny => .deny
+  | .probe t point key => .probe t point key
+
 /-- A term with each pinned row column replaced by its pinned value. -/
 def Term.pin (ps : List (String × Scalar)) : Term → Term
   | .col .self c => match ps.lookup c with

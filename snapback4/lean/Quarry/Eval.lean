@@ -182,7 +182,8 @@ for disjuncts whose every probed row the caller can read
 def granted (sch : Schema) (vw : View) (v : List Nat) (t : String) (ps : List (String × Scalar)) : Bool :=
   match sch.table? t with
   | some td => td.read.disjuncts.any fun d =>
-      d.positive && d.selfCols.all (fun c => ps.any (·.1 == c)) && (d.pin ps).eval vw v {}
+      let d' := (d.pin ps).normalize
+      d'.positive && d'.selfCols.isEmpty && d'.eval vw v {}
   | none => false
 
 /-- A scan whose read rule is decided for this caller: by its pins
@@ -394,6 +395,19 @@ def Term.asKnown : Term → Option Expr
   | .lit v => some (.lit (.s v))
   | .col _ _ => none
 
+/-- Substitute only literal/viewer page pins into a rule. Other expressions
+remain row-dependent; they cannot justify folding a guard. -/
+def Term.guardPin (pins : List (String × Expr)) : Term → Term
+  | .col .self c => match pins.lookup c with
+    | some .viewer => .viewer
+    | some (.lit (.s v)) => .lit v
+    | _ => .col .self c
+  | t => t
+
+/-- The guard form inspected by PAGE after its known page pins are applied. -/
+def Rule.guardForm (pins : List (String × Expr)) (d : Rule) : Rule :=
+  (d.mapTerms (Term.guardPin pins)).normalize
+
 def Rule.disclosing (sch : Schema) : Rule → Bool
   | .allow => true
   | .eq a b | .ne a b => [a, b].all fun t => match t with
@@ -413,11 +427,37 @@ def Rule.disclosing (sch : Schema) : Rule → Bool
     | none => false
   | _ => false
 
+/-- A Boolean test whose only unknown is a row field. `usableGuard` separately
+requires that field to be a page pin; a literal pin is folded before this test.
+Keeping this shape narrow avoids admitting arbitrary negated expressions. -/
+def Rule.pinnedBoolTest : Rule → Bool
+  | .eq (.col .self _) (.lit (.bool _)) | .eq (.lit (.bool _)) (.col .self _) => true
+  | .ne (.col .self _) (.lit (.bool _)) | .ne (.lit (.bool _)) (.col .self _) => true
+  | .not a => a.pinnedBoolTest
+  | _ => false
+
+/-- Positivity for a planned page guard. A negated required-Boolean test may
+depend on the runtime value of its page pin, but never on a probe. Runtime
+`granted` still uses the stricter `Rule.positive` after substituting the actual
+scalar pins. -/
+def Rule.guardPositive : Rule → Bool
+  | .not a => a.pinnedBoolTest
+  | .and a b | .or a b => a.guardPositive && b.guardPositive
+  | .allow | .deny | .eq .. | .ne .. | .probe .. => true
+
+/-- Disclosure for a planned guard treats a negated pinned-Boolean test as a
+local condition on the page prefix. Negated probes remain inadmissible. -/
+def Rule.guardDisclosing (sch : Schema) : Rule → Bool
+  | .not a => a.pinnedBoolTest
+  | .and a b => a.guardDisclosing sch && b.guardDisclosing sch
+  | r => r.disclosing sch
+
 /-- A page guard the engine evaluates once per caller (LLP 3000.036 §12.1,
 §16.3; `rules::covering_grant`): no `not`, every row column it reads pinned by
 the page (none, for a grant), and disclosing. -/
 def Rule.usableGuard (sch : Schema) (pins : List (String × Expr)) (d : Rule) : Bool :=
-  d.selfCols.all (fun c => pins.any (·.1 == c)) && d.positive && d.disclosing sch
+  let d' := d.guardForm pins
+  d'.selfCols.all (fun c => pins.any (·.1 == c)) && d'.guardPositive && d'.guardDisclosing sch
 
 def Rule.party? : Rule → Option String
   | .eq (.col .self c) .viewer | .eq .viewer (.col .self c) => some c

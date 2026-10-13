@@ -38,6 +38,37 @@ theorem Rule.eval_of_mem_disjuncts {s : Store} {v : List Nat} {im : Imgs} :
     simp only [Rule.disjuncts, List.mem_singleton] at hd
     subst hd; exact he
 
+/-- Normalization folds only semantic Boolean identities, so it preserves a
+rule's verdict for every store, caller and row image. -/
+theorem Rule.eval_normalize {s : Store} {v : List Nat} {im : Imgs} :
+    ∀ r : Rule, r.normalize.eval s v im = r.eval s v im := by
+  intro r
+  induction r with
+  | eq a b =>
+    cases a <;> cases b <;> simp [Rule.normalize, Rule.eval, Term.eval]
+    case lit.lit a b =>
+      by_cases h : a = b
+      · subst b; cases a <;> simp [Rule.normalize, Rule.eval]
+      · cases a <;> cases b <;> simp_all [Rule.normalize, Rule.eval, Term.eval]
+  | ne a b =>
+    cases a <;> cases b <;> simp [Rule.normalize, Rule.eval, Term.eval]
+    case lit.lit a b =>
+      by_cases h : a = b
+      · subst b; cases a <;> simp [Rule.normalize, Rule.eval]
+      · cases a <;> cases b <;> simp_all [Rule.normalize, Rule.eval, Term.eval]
+  | and a b iha ihb =>
+    generalize ha : a.normalize = an
+    generalize hb : b.normalize = bn
+    cases an <;> cases bn <;> simp_all [Rule.normalize, Rule.eval]
+  | or a b iha ihb =>
+    generalize ha : a.normalize = an
+    generalize hb : b.normalize = bn
+    cases an <;> cases bn <;> simp_all [Rule.normalize, Rule.eval]
+  | not a ih =>
+    generalize ha : a.normalize = an
+    cases an <;> simp_all [Rule.normalize, Rule.eval]
+  | allow | deny | probe => rfl
+
 /-- A positive rule true over a sub-store is true over the store. -/
 theorem Rule.eval_mono {s1 s2 : Store} (hsub : ∀ t r, r ∈ s1 t → r ∈ s2 t) {v : List Nat} {im : Imgs} :
     ∀ r : Rule, r.positive = true → r.eval s1 v im = true → r.eval s2 v im = true := by
@@ -211,6 +242,24 @@ theorem List.mem_of_lookup {ps : List (String × Scalar)} {c : String} {x : Scal
       subst this; exact List.mem_cons_self
     · intro hx; exact List.mem_cons_of_mem _ (ih hx)
 
+/-- Substituting the values of pins that match a row preserves the rule's
+verdict on that row; columns outside the prefix remain row reads. -/
+theorem Rule.eval_pin_row {s : Store} {v : List Nat} {ps : List (String × Scalar)} {r : Row}
+    (hk : keyMatch ps r = true) (d : Rule) :
+    d.eval s v { self := some r } = (d.pin ps).eval s v { self := some r } := by
+  refine Rule.eval_mapTerms d fun t _ => ?_
+  match t with
+  | .col .self c =>
+    cases hl : ps.lookup c with
+    | none => simp [Term.pin, hl]
+    | some x =>
+      have hx := keyMatch_get hk (List.mem_of_lookup hl)
+      simp [Term.pin, hl, Term.eval, Imgs.get, hx]
+  | .col .old _ => rfl
+  | .col .next _ => rfl
+  | .viewer => rfl
+  | .lit _ => rfl
+
 theorem List.lookup_none {ps : List (String × Scalar)} {c : String} :
     ps.lookup c = none → ∀ p ∈ ps, p.1 ≠ c := by
   induction ps with
@@ -267,13 +316,24 @@ theorem granted_readable {sch : Schema} {s : Store} {v : List Nat} {t : String}
   · rename_i td htd
     rw [htd]
     obtain ⟨d, hd, hdg⟩ := List.any_eq_true.1 hg
-    simp only [Bool.and_eq_true, List.all_eq_true] at hdg
-    obtain ⟨⟨hpos, hpinned⟩, hev⟩ := hdg
-    have hs : (d.pin ps).eval s v {} = true :=
-      Rule.eval_mono (fun _ _ hx => mem_visibleRows hx) (d.pin ps)
-        (by rw [Rule.pin, Rule.positive_mapTerms]; exact hpos) hev
+    simp only [Bool.and_eq_true] at hdg
+    obtain ⟨⟨hpos, hempty⟩, hev⟩ := hdg
+    let d' := (d.pin ps).normalize
+    have hfree : d'.selfCols = [] := by
+      cases hcols : d'.selfCols with
+      | nil => rfl
+      | cons c cs => simp [d', hcols] at hempty
+    have hs : d'.eval s v {} = true :=
+      Rule.eval_mono (fun _ _ hx => mem_visibleRows hx) d' hpos hev
+    have hsr : d'.eval s v { self := some r } = true := by
+      rw [Rule.eval_self_free d' hfree]
+      exact hs
+    have hp : (d.pin ps).eval s v { self := some r } = true := by
+      rw [← Rule.eval_normalize]
+      exact hsr
     have hr : d.eval s v { self := some r } = true := by
-      rw [Rule.eval_pin hk d hpinned]; exact hs
+      rw [Rule.eval_pin_row hk d]
+      exact hp
     exact Rule.eval_of_mem_disjuncts td.read d hd hr
   · cases hg
 
