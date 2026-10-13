@@ -252,8 +252,8 @@ for (const tier of ['wasm', 'process', 'app-wasm', 'app-process']) {
 }
 test('guide: the client contract names only proven permanent held refusals', () => {
   const card = readFileSync(new URL('../../../crates/snapback4-lang/src/guide/client.md', import.meta.url), 'utf8');
-  const contract = card.split('\n').find(line => line.startsWith('`query(op, args)`'));
-  assert.match(contract, /E_QUERY_RETRY.*proven permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`/);
+  const contract = card.split('\n').find(line => /^`query\(op,\s*args\)`/.test(line));
+  assert.match(contract, /E_QUERY_RETRY.*permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`/);
 });
 
 for (const tier of ['app-wasm', 'app-process']) for (const source of ['changes', 'partition', 'restore']) {
