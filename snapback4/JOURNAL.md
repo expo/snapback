@@ -94488,3 +94488,21 @@ ordering and passes with the fixed ordering. The locked Linux web artifact is
 This supersedes 701,990 B by the measured 16 B gzip change. Against
 `f9e40ef515`, the whole artifact adds 10,038 B raw / 3,120 B gzip. No runtime
 ceiling increase, per-feature attribution or macOS measurement.
+
+
+## 2026-10-13 — PAGE2 lifetime-aware search heads
+
+Non-uniform word discovery now classifies its separately fetched physical head
+before charging hidden future entries to the public authorization allowance.
+It still explores live siblings sharing that word. The equivalent compact
+membership search head uses a bounded lifetime-aware decoder; selected
+candidates retain the lower-time column. A paired-world regression with 8,193
+future words fails old code with `E_RULE` and passes the fixed code, including
+same-word and never-live boundary cases. Authorization review walk is 16/16,
+timed core is 13/13 and the language branch-merge suite is 57/57.
+
+The locked Linux web artifact is 2,301,701 B raw / 701,837 B gzip. Set
+702,337 B = measurement plus 500 B, superseding 702,006 B by the measured
+331 B gzip change. Against `f9e40ef515`, the complete artifact adds 10,272 B
+raw / 3,451 B gzip. No runtime ceiling increase, per-feature attribution or
+macOS measurement. Seventh-round blind reviews are in progress.
