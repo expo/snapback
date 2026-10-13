@@ -88,6 +88,7 @@ pub fn init(options: &Options) -> i32 {
     };
     let shape = starter::Shape {
         title: title(dir),
+        password: own.as_ref().is_some_and(|own| own.identity.is_some_and(|(password, guests)| password && !guests)),
         personas: own.as_ref().filter(|own| own.identity.is_none() && !own.personas.is_empty()).map(|own| own.personas.clone()),
         body: match own.as_ref() { Some(own) if !adapt::fits_todos(own) => starter::Body::Home(own.reads.first().cloned()), _ => starter::Body::Todos },
         offline: own.as_ref().map(|own| own.offline.clone()).unwrap_or(starter::Offline::Unknown),
@@ -281,7 +282,7 @@ pub fn init(options: &Options) -> i32 {
         match own.identity {
             None if shape.personas.is_some() => println!("init: your schema declares `use personas` and no `use identity`, so the screen picks a persona instead of signing in (development only; `snapback4 guide personas`)"),
             None => println!("init: your schema declares no `use identity`: add `use identity` for the starter's guest sign-in (`snapback4 guide personas`)"),
-            Some((_, false)) => println!("init: your schema declares `use identity password`, which has no guests: replace the starter's `auth.guest()` with `auth.signup`/`auth.login` (`snapback4 guide personas`)"),
+            Some((_, false)) => println!("init: your schema declares `use identity password`, which has no guests: the starter uses `auth.signup`/`auth.login` (`snapback4 guide personas`)"),
             Some(_) => {},
         }
     }

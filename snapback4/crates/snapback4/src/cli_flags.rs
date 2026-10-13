@@ -23,7 +23,8 @@ fn allowed(verb: &str) -> &'static str {
         "sql" => "release limit json json-objects",
         "token" => "service days release json",
         "doctor" => "url latency reset json instance release",
-        "witness" => "initialize environment-skip background if-present as url token restart runs query args artifacts timeout json build export smoke udid port bundle-id segment prime relaunch wait repack app-project",
+        "upgrade" => "",
+        "witness" => "email password-env mutation initialize environment-skip background if-present as url token restart runs query args artifacts timeout json build export smoke udid port bundle-id segment prime relaunch wait repack app-project",
         _ => "",
     }
 }

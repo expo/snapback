@@ -738,7 +738,7 @@ fn check_warns_about_installed_expo_core_version_mismatch() {
         let output = project.run(flags);
         assert!(output.status.success(), "{}", text(&output));
         let warning = String::from_utf8_lossy(&output.stderr);
-        assert!(warning.contains("snapback4 0.4.23") && warning.contains("snapback4-expo 0.4.22") && warning.contains("bun add snapback4@latest snapback4-expo@latest"), "{warning}");
+        assert!(warning.contains("snapback4 0.4.23") && warning.contains("snapback4-expo 0.4.22") && warning.contains("snapback4 upgrade"), "{warning}");
         if flags.contains(&"--json") { serde_json::from_slice::<serde_json::Value>(&output.stdout).unwrap(); }
     }
     project.write("node_modules/snapback4-expo/package.json", r#"{"version":"0.4.23"}"#);
@@ -748,7 +748,7 @@ fn check_warns_about_installed_expo_core_version_mismatch() {
 #[test]
 fn unknown_flags_refuse_every_public_verb_before_project_or_store_work() {
     let project = Project::new("use personas alice, bob\nquery who():\n  return viewer\n");
-    for verb in ["init", "new", "check", "types", "dev", "deploy", "rollback", "prune", "releases", "serve", "run", "clock", "reset", "test", "why", "guide", "data", "sql", "token", "doctor", "witness", "device", "version", "web-shell"] {
+    for verb in ["init", "new", "check", "types", "dev", "deploy", "rollback", "prune", "releases", "serve", "run", "clock", "reset", "test", "why", "guide", "data", "sql", "token", "doctor", "witness", "device", "upgrade", "version", "web-shell"] {
         let output = project.run(&[verb, "--hand-unknown"]);
         assert_eq!(output.status.code(), Some(2), "{verb}: {}", text(&output));
         if verb == "witness" {
@@ -846,4 +846,20 @@ fn help_as_a_guide_search_term_does_not_select_the_cli_help_page() {
     assert_ne!(output.status.code(),Some(2));
     assert!(!text(&output).starts_with("snapback4 guide ["),"{}",text(&output));
     assert!(text(&output).contains("--help"));
+}
+
+#[test]
+fn mutation_reply_omits_unrequested_id_and_keeps_result_id() {
+    let project = Project::new("use personas alice\ntable notes:\n  title: text 1..80\n  public\n  insert <- allow\nmutation add(title: text 1..80):\n  return insert notes { title }\nmutation refuse():\n  require false else NO_PROOF\n  return null\n");
+    let (_dev, url) = project.dev(0);
+    for path in ["/m/add", "/m/refuse"] {
+        let args = if path.ends_with("add") { r#"{"args":{"title":"first"}}"# } else { r#"{"args":{}}"# };
+        let (_, reply) = http(&url, "POST", path, Some("alice"), args);
+        assert!(!reply.as_object().unwrap().contains_key("id"), "{reply}");
+        if path.ends_with("add") { assert!(reply["result"]["id"].is_string(), "{reply}"); }
+    }
+    let (_, sent) = http(&url, "POST", "/m/add", Some("alice"), r#"{"id":"proof-write","args":{"title":"second"}}"#);
+    assert_eq!(sent["id"], "proof-write");
+    let (_, replay) = http(&url, "POST", "/m/add", Some("alice"), r#"{"id":"proof-write","args":{"title":"second"}}"#);
+    assert_eq!(replay["replayed"], true); assert!(replay.get("result").is_none());
 }

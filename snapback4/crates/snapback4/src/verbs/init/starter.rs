@@ -16,6 +16,7 @@ pub(super) const FIXTURES: [(&str, &str); 2] = [
 pub(super) struct Shape {
     /// The page and app name, from the directory.
     pub title: String,
+    pub password: bool,
     /// Personas of a kept schema that declares `use personas` and no
     /// `use identity`: nobody can sign in, so the screen picks a persona.
     pub personas: Option<Vec<String>>,
@@ -152,8 +153,10 @@ pub(super) fn screens(platform: Platform, personas: Option<&[String]>, body: &Bo
 pub(super) fn web_client(client: String, offline: &Offline) -> String {
     if matches!(offline, Offline::Tables { synced, .. } if synced.is_empty()) {
         client.replace("import { webDevice } from \"snapback4/web\";\n", "")
+            .replace("tier === \"web\" ? webDevice() : ", "")
             .replace("device: webDevice(), ", "").replace(", device: webDevice()", "")
             .replace("each with its own device and store", "each with its own principal write journal")
+            .replace("web uses the wasm device", "web uses the principal write journal (no synced tables)")
     } else { client }
 }
 
@@ -254,7 +257,8 @@ pub(super) fn web_files(shape: &Shape) -> Vec<(&'static str, String)> {
     package["version"] = json!("0.1.0");
     package["dependencies"]["snapback4"] = json!(env!("CARGO_PKG_VERSION"));
     package["scripts"]["build"] = json!("vite build && snapback4 web-shell dist");
-    let (app, client) = screens(Platform::Web, shape.personas.as_deref(), &shape.body);
+    package["scripts"]["build:web"] = package["scripts"]["build"].clone();
+    let (app, client) = identity_screens(Platform::Web, shape.personas.as_deref(), &shape.body, shape.password);
     let client = web_client(client, &shape.offline);
     vec![
         ("package.json", super::pretty(&package)),
@@ -267,7 +271,7 @@ pub(super) fn web_files(shape: &Shape) -> Vec<(&'static str, String)> {
         ("src/client.ts", client),
         ("src/vite-env.d.ts", include_str!("../../../../../apps/chat/src/vite-env.d.ts").to_owned()),
         ("snapback/schema.q", SCHEMA.to_owned()),
-        ("README.md", readme(Platform::Web, &shape.title, &shape.body, shape.personas.is_some(), &shape.offline)),
+        ("README.md", identity_readme(Platform::Web, &shape.title, &shape.body, shape.personas.is_some(), &shape.offline, shape.password)),
     ].into_iter().chain(FIXTURES.map(|(name, text)| (name, text.to_owned()))).collect()
 }
 
@@ -278,6 +282,7 @@ fn html_text(text: &str) -> String {
 pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
     let mut package: Value = serde_json::from_str(&super::expo_package()).unwrap();
     package["name"] = json!("snapback4-expo-starter");
+    package["scripts"]["build:web"] = json!("expo export --platform web --clear && snapback4 web-shell dist");
     let mut config: Value = serde_json::from_str(include_str!("../../../../../apps/chat-expo/app.json")).unwrap();
     config["expo"]["name"] = json!(shape.title);
     // @ref LLP 3000.011.003.000#7.4 — wave 6 (067): ids named after the directory, never the todo starter's.
@@ -286,7 +291,8 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
     config["expo"]["scheme"] = json!(scheme);
     config["expo"]["ios"]["bundleIdentifier"] = json!(bundle);
     config["expo"]["android"]["package"] = json!(bundle);
-    let (app, client) = screens(Platform::Expo, shape.personas.as_deref(), &shape.body);
+    let (app, client) = identity_screens(Platform::Expo, shape.personas.as_deref(), &shape.body, shape.password);
+    let client = web_client(client, &shape.offline);
     vec![
         ("package.json", super::pretty(&package)),
         ("app.json", super::pretty(&config)),
@@ -300,8 +306,43 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
         ("src/client.ts", client),
         ("src/native-smoke.ts", include_str!("native-smoke.ts").to_owned()),
         ("snapback/schema.q", SCHEMA.to_owned()),
-        ("README.md", readme(Platform::Expo, &shape.title, &shape.body, shape.personas.is_some(), &shape.offline)),
+        ("README.md", identity_readme(Platform::Expo, &shape.title, &shape.body, shape.personas.is_some(), &shape.offline, shape.password)),
     ].into_iter().chain(FIXTURES.map(|(name, text)| (name, text.to_owned()))).collect()
 }
 
 pub(super) const EXPO_ENV: &str = include_str!("starter/expo-env.d.ts");
+
+// @ref LLP 3000.011.003.000#8 — password identity gets an executable sign-in screen.
+pub(super) fn identity_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) {
+    if !password { return screens(platform, personas, body); }
+    let head = match platform { Platform::Web => include_str!("starter/web/password.tsx"), Platform::Expo => include_str!("starter/expo/password.tsx") };
+    let (_, client) = screens(platform, None, body);
+    let body_source = match (platform, body) {
+        (Platform::Web, Body::Todos) => include_str!("starter/web/todos.tsx").to_owned(),
+        (Platform::Expo, Body::Todos) => include_str!("starter/expo/todos.tsx").to_owned(),
+        (platform, Body::Home(op)) => {
+            let (home, first) = match platform { Platform::Web => (include_str!("starter/web/home.tsx"), include_str!("starter/web/first-read.tsx")), Platform::Expo => (include_str!("starter/expo/home.tsx"), include_str!("starter/expo/first-read.tsx")) };
+            match op { Some(op) => compose(home, &first.replace("api.OP", &format!("api.{op}"))), None => home.replace("    <FirstRead />\n", "") }
+        }
+    };
+    (compose(&head.replace("<Todos />", if matches!(body, Body::Todos) { "<Todos />" } else { "<Home />" }), &body_source), client)
+}
+
+pub(super) fn identity_readme(platform: Platform, title: &str, body: &Body, personas: bool, offline: &Offline, password: bool) -> String {
+    let text = readme(platform, title, body, personas, offline);
+    if password { text.replace(GUEST_SIGN_IN, "Sign up or sign in with email and password (`use identity password`); the SDK\nkeeps your session across restarts. See `snapback4 guide client --section password`.")
+        .replace("Choose \"Continue as a guest\", then add", "Sign up or sign in with email and password, then add")
+        .replace("Choose \"Continue as a\nguest\", then add", "Sign up or sign in with email and password, then add") } else { text }
+}
+
+/// Exact client templates emitted by 0.4.24, before runtime URL/witness additions.
+/// Matching complete known bytes preserves the rule that edited files stay owned.
+// @ref LLP 3000.011.003.000#8 — upgrading an untouched starter still adapts its identity.
+pub(super) fn previous_client(platform: Platform, personas: bool) -> &'static str {
+    match (platform, personas) {
+        (Platform::Web, false) => include_str!("starter/previous/web-client.ts"),
+        (Platform::Web, true) => include_str!("starter/previous/web-persona-client.ts"),
+        (Platform::Expo, false) => include_str!("starter/previous/expo-client.ts"),
+        (Platform::Expo, true) => include_str!("starter/previous/expo-persona-client.ts"),
+    }
+}

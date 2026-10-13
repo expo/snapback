@@ -29,6 +29,8 @@ mod adoption;
 mod package_versions;
 #[cfg(test)]
 mod hand_tests;
+mod readiness;
+pub mod upgrade;
 mod latency;
 mod run_admission;
 pub(crate) mod run_forward;
@@ -244,6 +246,7 @@ pub fn check(options: &Options) -> i32 {
         if !options.json { print_prediction(&bound, options.flags.contains_key("verbose")); }
         return 1;
     }
+    bound.notes.extend(readiness::notes(&project, &bound, options.flags.get("fixture")));
     bound.notes.extend(snapback4_lang::bind::residency::change_notes(&bound, &residency::previous(&project)));
     if let Err(error) = project.write_generated(&bound) {
         eprintln!("cannot write generated types: {error}");

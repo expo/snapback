@@ -1,3 +1,5 @@
+import { registerWebWitness } from "snapback4/witness-web";
+import { api } from "../snapback/generated/api";
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { createApp } from "snapback4/app";
@@ -8,7 +10,7 @@ import { webDevice } from "snapback4/web";
 
 // The backend `snapback4 dev` serves; the iOS simulator reaches this machine's
 // loopback. Set EXPO_PUBLIC_SNAPBACK_URL to your TLS deployment for a phone.
-export const url = smokeOrigin(process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400");
+export const url = smokeOrigin((Platform.OS === "web" ? new URLSearchParams(window.location.search).get("api") : null) ?? process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400");
 
 // Development and production builds carry the native device (offline data and
 // a durable outbox); Expo Go has no native module and uses the online client;
@@ -26,3 +28,5 @@ export const app = createApp({
   sessionStore: Platform.OS === "web" ? localStorageSessionStore() : sessionStore,
   device: tier === "web" ? webDevice() : tier === "native" ? nativeDevice : undefined,
 });
+
+registerWebWitness(app, api);

@@ -58,6 +58,7 @@
       },
       "dependencies": {
         "openid-client": "6.8.8",
+        "playwright-core": "1.55.1",
         "undici": "8.11.2",
       },
       "devDependencies": {

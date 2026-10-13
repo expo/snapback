@@ -362,6 +362,35 @@ refuse `--replay` with E_REPLAY_DEV_ONLY; production always emits normally.
 With `--fresh`, the count dies with the in-memory store; `doctor` and local
 `run` inspect the separate on-disk store.
 
+## Catch-up sweep after downtime
+
+Missed boundaries coalesce into one run on return, not one per missed period.
+A period-bounded job can miss older due rows. Sweep durable unfinished work
+through the latest boundary, with immutable cursor columns and a completion
+marker inside the loop:
+
+```quarry
+table embargoes:
+  dueAt: time
+  released: bool default false
+  immutable dueAt
+  public
+  online only
+job releaseDue(periodStart: time, periodEnd: time):
+  for row in embargoes where .dueAt < periodEnd by .dueAt:
+    if not row.released:
+      update embargoes[row.id] { released: true }
+schedule catchUp every 1h: releaseDue
+```
+
+No lower period bound: the first run after days offline catches every overdue
+row. Marker and chunk cursor commit together; repeated sweeps are no-ops for
+completed rows. For external work, emit in the same guarded update and use the
+effect idempotency key. The marker means queued, not external success.
+`snapback4 run releaseDue '{"periodStart":0,"periodEnd":1791763200000}'`
+queues a repair sweep. Test across several skipped periods, checking rows
+before periodStart as well as inside the latest period.
+
 ## Refusals
 
 N_CLOCK_STORE_AHEAD means recent commit stamps are more than five seconds ahead

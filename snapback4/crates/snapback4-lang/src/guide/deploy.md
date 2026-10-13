@@ -11,17 +11,21 @@ bunx snapback4 serve ./deployment --port 4400
 
 ## Upgrade
 
-`bun add snapback4@latest` upgrades core and its platform CLI. Expo needs one command: `bun add snapback4@latest snapback4-expo@latest`, with matching exact versions including patch. Check warns on installed version skew. Rebuild native
-apps after adapter upgrades; Expo Go uses the online tier. Commit the lockfile,
-check, typecheck and run acceptance tests. Test defaults to ./fixtures when present.
+`snapback4 upgrade [version]` resolves once and exactly pins core and installed
+Expo adapters with npm/bun/pnpm. Rebuild native apps after adapter changes;
+commit the lockfile, run check/typecheck/acceptance. `test` uses ./fixtures;
+`--fixture dir` overrides it. Use the password and first-admin recipes below.
 
 ## Deploy and password identity
 
-Add `use identity password`. Serve admits bearer sessions; personas are 401 and
-/seed and dev doors are 403, including through local proxies. Signup creates an
-account, not a privileged role. See guide client for SDK session-store examples;
-guide auth/headless has executable account setup. HTTP auth returns session or
-denied; the SDK signup/login from `snapback4/auth` returns ok/why.
+Add `use identity password` to your schema (the recipe below includes it).
+Deploy from the app directory; keep the deployment directory on durable storage:
+
+Serve admits bearer sessions; personas are 401 and /seed and dev doors are 403,
+including through local proxies. Signup creates an account, not a privileged role.
+See guide client for SDK session-store examples; guide auth/headless has executable
+account setup. HTTP auth returns session or denied; SDK signup/login from
+`snapback4/auth` returns ok/why. Check warns on installed version skew.
 
 ```sh
 U=http://127.0.0.1:4400
@@ -148,3 +152,9 @@ bodies; allow long polls without buffering or early timeouts. Non-loopback
 HTTP requires `--i-understand-cleartext` and a trusted private hop behind TLS.
 Identity rate keys use the socket peer, not forwarded headers. Serve refuses
 personas and dev doors even through a local proxy; see SERVER.md for capacity. For the `--json-objects` envelope fields, see `snapback4 sql --help`.
+
+## Authoring and proof refusals
+
+N_NO_PRODUCTION_WRITER means no production insert path can bootstrap this table. Add a service-seat insert mutation.
+
+E_UPGRADE means the package-manager upgrade did not complete. Repair the package-manager or registry error and rerun upgrade.
