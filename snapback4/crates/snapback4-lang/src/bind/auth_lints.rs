@@ -625,14 +625,17 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
         // may select byId even beside one same-width principal/composite key.
         let selected = read.index.as_ref().and_then(|name| info.indexes.iter().find(|index| &index.name == name));
         let inferred: Vec<_> = info.indexes.iter().filter(|index| index.unique && index.is_plain() && index.columns.len() == read.keys.len()).collect();
-        let positional_index = selected.or_else(|| match inferred.as_slice() { [index] => Some(*index), _ => None });
+        let positional_index = if read.index.is_some() { selected.filter(|index| index.is_plain()) }
+            else { match inferred.as_slice() { [index] => Some(*index), _ => None } };
         if let Some(index) = positional_index {
             for (column, key) in index.columns.iter().zip(&read.keys) {
                 pinned.insert(key.column.clone().unwrap_or_else(|| column.clone()), key.value.clone());
             }
         }
         // Extra named tests pin fields even when the positional prefix is unresolved.
-        for part in &read.keys { if let Some(column) = &part.column { pinned.insert(column.clone(), part.value.clone()); } }
+        if selected.is_none_or(|index| index.computed.is_empty()) {
+            for part in &read.keys { if let Some(column) = &part.column { pinned.insert(column.clone(), part.value.clone()); } }
+        }
         if read.index.is_none() && read.keys.iter().filter(|key| key.column.is_none()).count() == 1 && read.keys.first().is_some_and(|part| part.column.is_none() && is_viewer(&part.value)) {
             let principal_keys: Vec<_> = table.indexes.values().filter(|index| index.unique && index.columns().len() == 1
                 && table.columns.get(&index.columns()[0]) == Some(&snapback4_core::schema::ColumnType::Principal)).collect();
@@ -760,30 +763,47 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
     // Reverse dependency closure identifies query values consumed by guards,
     // across aliases/objects and all possible rebinding paths. The observation
     // is checked at its original statement, with that statement's authority.
+    fn has_guard(catalog: &Catalog, statements: &[Stmt], visiting: &mut BTreeSet<String>) -> bool {
+        if statements.iter().any(|stmt| matches!(stmt, Stmt::Require { .. } | Stmt::If { .. })) { return true; }
+        let mut copy = statements.to_vec(); let mut found = false;
+        super::intent_walk::statements(&mut copy, &mut |expr| {
+            if matches!(expr, Expr::If { .. }) { found = true; }
+            for (name, shape) in definitions(catalog, expr) {
+                let key = format!("{shape}:{name}");
+                if !visiting.insert(key.clone()) { found = true; continue; }
+                found |= helper_body(catalog, &name, shape).is_some_and(|body| has_guard(catalog, &body, visiting));
+                visiting.remove(&key);
+            }
+        });
+        // Explicit guards can also be nested in loops/viewer scopes.
+        found || statements.iter().any(|stmt| match stmt { Stmt::For { body, .. } | Stmt::As { body, .. } => has_guard(catalog, body, visiting), _ => false })
+    }
+    fn guarded_inputs(catalog: &Catalog, expr: &Expr) -> Vec<Expr> {
+        let consumed = definitions(catalog, expr).iter().any(|(name, shape)| helper_body(catalog, name, *shape)
+            .is_some_and(|body| has_guard(catalog, &body, &mut BTreeSet::from([format!("{shape}:{name}")]))));
+        match expr {
+            Expr::Call { args, .. } if consumed => args.clone(),
+            Expr::ShapeUse { base, .. } if consumed => vec![(**base).clone()],
+            Expr::Shape { base, fields, .. } => {
+                let values: Vec<_> = fields.iter().filter_map(|field| if let ShapeField::Field { value, site, .. } = field { Some(Stmt::Expr { value: value.clone(), site: site.clone() }) } else { None }).collect();
+                if consumed || has_guard(catalog, &values, &mut BTreeSet::new()) { vec![(**base).clone()] } else { vec![] }
+            },
+            _ => vec![],
+        }
+    }
     fn guard_bindings(catalog: &Catalog, statements: &[Stmt]) -> BTreeSet<String> {
+        fn add_names(expr: &Expr, out: &mut BTreeSet<String>) {
+            if let Expr::Name { name, .. } = expr { out.insert(name.clone()); }
+            if let Expr::Object { fields, .. } | Expr::Write { fields, .. } = expr {
+                out.extend(fields.iter().filter(|field| field.value.is_none() && !field.spread).map(|field| field.name.clone()));
+            }
+        }
         fn names(value: &Expr) -> BTreeSet<String> {
             let mut out = BTreeSet::new(); let mut copy = value.clone();
-            super::intent_walk::expression(&mut copy, &mut |expr| {
-                if let Expr::Name { name, .. } = expr { out.insert(name.clone()); }
-                if let Expr::Object { fields, .. } | Expr::Write { fields, .. } = expr {
-                    out.extend(fields.iter().filter(|field| field.value.is_none() && !field.spread).map(|field| field.name.clone()));
-                }
-            }); out
+            super::intent_walk::expression(&mut copy, &mut |expr| add_names(expr, &mut out)); out
         }
-        fn has_guard(catalog: &Catalog, statements: &[Stmt], visiting: &mut BTreeSet<String>) -> bool {
-            if statements.iter().any(|stmt| matches!(stmt, Stmt::Require { .. } | Stmt::If { .. })) { return true; }
-            let mut copy = statements.to_vec(); let mut found = false;
-            super::intent_walk::statements(&mut copy, &mut |expr| {
-                if matches!(expr, Expr::If { .. }) { found = true; }
-                for (name, shape) in definitions(catalog, expr) {
-                    let key = format!("{shape}:{name}");
-                    if !visiting.insert(key.clone()) { found = true; continue; }
-                    found |= helper_body(catalog, &name, shape).is_some_and(|body| has_guard(catalog, &body, visiting));
-                    visiting.remove(&key);
-                }
-            });
-            // Explicit guards can also be nested in loops/viewer scopes.
-            found || statements.iter().any(|stmt| match stmt { Stmt::For { body, .. } | Stmt::As { body, .. } => has_guard(catalog, body, visiting), _ => false })
+        fn input_names(value: &Expr) -> BTreeSet<String> {
+            let mut out = BTreeSet::new(); value_nodes(value, &mut |expr| add_names(expr, &mut out)); out
         }
         fn gather(catalog: &Catalog, statements: &[Stmt], guards: &mut BTreeSet<String>, edges: &mut BTreeMap<String, BTreeSet<String>>) {
             let mut copy = statements.to_vec();
@@ -792,13 +812,7 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                 // A definition can consume its input as a guard even when the
                 // call itself is not a conditional. Conservatively track all
                 // argument/base dependencies of such definitions.
-                if definitions(catalog, expr).iter().any(|(name, shape)| helper_body(catalog, name, *shape).is_some_and(|body| has_guard(catalog, &body, &mut BTreeSet::from([format!("{shape}:{name}")])))) {
-                    guards.extend(names(expr));
-                }
-                if let Expr::Shape { base, fields, .. } = expr {
-                    let values: Vec<_> = fields.iter().filter_map(|field| if let ShapeField::Field { value, site, .. } = field { Some(Stmt::Expr { value: value.clone(), site: site.clone() }) } else { None }).collect();
-                    if has_guard(catalog, &values, &mut BTreeSet::new()) { guards.extend(names(base)); }
-                }
+                for input in guarded_inputs(catalog, expr) { guards.extend(input_names(&input)); }
             });
             for statement in statements {
                 match statement {
@@ -890,6 +904,10 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
             let mut used = BTreeSet::new();
             super::intent_walk::expression(&mut condition, &mut |expr| { if let Expr::Name { name, .. } = expr { used.insert(name.clone()); } });
             used.extend(helper.args.iter().map(|param| param.name.clone()));
+            for arg in args {
+                let mut copy = arg.clone();
+                super::intent_walk::expression(&mut copy, &mut |expr| { if let Expr::Name { name, .. } = expr { used.insert(name.clone()); } });
+            }
             let mut substitutions = Vec::new();
             for (param, arg) in helper.args.iter().zip(args) {
                 if is_viewer(arg) || (!readonly && !matches!(arg, Expr::Name { .. })) { continue; }
@@ -963,28 +981,79 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
             && if named { index.columns.iter().all(|column| read.keys.iter().any(|key| key.column.as_ref() == Some(column))) }
                 else { index.columns.len() == read.keys.len() })
     }
+    fn expression_guard_node(catalog: &Catalog, schema: &Schema, program: &str, expr: &Expr, known: &BTreeSet<String>, global: &BTreeSet<String>, system: bool, observe_prefix: bool, visiting: &mut BTreeSet<String>, notes: &mut Vec<Diagnostic>) {
+        if !observe_prefix {
+            for input in guarded_inputs(catalog, expr) {
+                input_guards(catalog, schema, program, &input, known, global, system, visiting, notes);
+            }
+        }
+        if let Expr::Exists { read, site } = expr && (observe_prefix || point_probe(catalog, read)) {
+            guard(catalog, schema, program, &Expr::Exists { read: read.clone(), site: site.clone() }, known, system, notes);
+        }
+        if let Expr::If { condition, .. } = expr {
+            guard(catalog, schema, program, condition, known, system, notes);
+            expression_guards(catalog, schema, program, condition, known, global, system, true, visiting, notes);
+        }
+        for (name, shape) in definitions(catalog, expr) {
+            let key = format!("{shape}:{name}");
+            if !visiting.insert(key.clone()) { continue; }
+            if let Some(inner) = helper_body(catalog, &name, shape) {
+                // Parameters and focal rows belong to the definition's scope. Only
+                // viewer/literal facts about the same world cross that boundary.
+                let entry = if let Expr::Call { args, .. } = expr && !shape { call_facts(catalog, &name, args, known, global) } else { known.intersection(global).cloned().collect() };
+                body(catalog, schema, program, &inner, entry, global, &guard_bindings(catalog, &inner), system, observe_prefix, visiting, notes);
+            }
+            visiting.remove(&key);
+        }
+    }
+    // Immutable input-value traversal: candidate predicates determine a
+    // returned row/page, not a boolean field received by a guard. Never erase
+    // predicates from an AST used as readability/argument proof.
+    fn value_nodes(value: &Expr, visit: &mut impl FnMut(&Expr)) {
+        fn read(read: &ReadExpr, predicates: bool, visit: &mut impl FnMut(&Expr)) {
+            for key in &read.keys { value_nodes(&key.value, visit); }
+            for key in &read.seeks { value_nodes(&key.value, visit); }
+            if predicates { for value in [&read.filter, &read.matching].into_iter().filter_map(|value| value.as_deref()) { value_nodes(value, visit); } }
+            if let Some(value) = read.range.as_ref().and_then(|range| range.cursor.as_deref()) { value_nodes(value, visit); }
+        }
+        fn fields(fields: &[ShapeField], visit: &mut impl FnMut(&Expr)) {
+            for field in fields { if let ShapeField::Field { value, .. } = field { value_nodes(value, visit); } }
+        }
+        match value {
+            Expr::Read(source) => read(source, false, visit),
+            Expr::Exists { read: source, .. } | Expr::Created { read: source, .. } => read(source, true, visit),
+            Expr::Unary { value, .. } | Expr::Member { base: value, .. } | Expr::Assert { value, .. }
+                | Expr::ShapeUse { base: value, .. } | Expr::Walk { seed: value, .. } => value_nodes(value, visit),
+            Expr::Binary { left, right, .. } => { value_nodes(left, visit); value_nodes(right, visit); },
+            Expr::Array { items, .. } | Expr::Call { args: items, .. } => { for item in items { value_nodes(item, visit); } },
+            Expr::Object { fields, .. } => { for field in fields { if let Some(value) = &field.value { value_nodes(value, visit); } } },
+            Expr::Shape { base, fields: shape, .. } => { value_nodes(base, visit); fields(shape, visit); },
+            Expr::If { then, condition, otherwise, .. } => { value_nodes(then, visit); value_nodes(condition, visit); value_nodes(otherwise, visit); },
+            Expr::Write { keys, fields, condition, .. } => {
+                for key in keys { value_nodes(&key.value, visit); }
+                for field in fields { if let Some(value) = &field.value { value_nodes(value, visit); } }
+                if let Some(value) = condition { value_nodes(value, visit); }
+            },
+            Expr::Merge(merge) => {
+                if let Some(cursor) = &merge.cursor { value_nodes(cursor, visit); }
+                for lane in &merge.lanes {
+                    for value in &lane.prefix { value_nodes(value, visit); }
+                    if let Some((_, value)) = &lane.loop_ { value_nodes(value, visit); }
+                    if let Some(value) = &lane.distinct { value_nodes(value, visit); }
+                    if let Some(shape) = &lane.project { fields(shape, visit); }
+                    for source in lane.planned.iter().chain(lane.nulls.as_ref().map(|(_, source)| source)) { read(source, false, visit); }
+                }
+            },
+            Expr::Name { .. } | Expr::Focal { .. } | Expr::Literal { .. } => {}
+        }
+        visit(value);
+    }
+    fn input_guards(catalog: &Catalog, schema: &Schema, program: &str, value: &Expr, known: &BTreeSet<String>, global: &BTreeSet<String>, system: bool, visiting: &mut BTreeSet<String>, notes: &mut Vec<Diagnostic>) {
+        value_nodes(value, &mut |expr| expression_guard_node(catalog, schema, program, expr, known, global, system, true, visiting, notes));
+    }
     fn expression_guards(catalog: &Catalog, schema: &Schema, program: &str, value: &Expr, known: &BTreeSet<String>, global: &BTreeSet<String>, system: bool, observe_prefix: bool, visiting: &mut BTreeSet<String>, notes: &mut Vec<Diagnostic>) {
         let mut copy = value.clone();
-        super::intent_walk::expression(&mut copy, &mut |expr| {
-            if let Expr::Exists { read, site } = expr && (observe_prefix || point_probe(catalog, read)) {
-                guard(catalog, schema, program, &Expr::Exists { read: read.clone(), site: site.clone() }, known, system, notes);
-            }
-            if let Expr::If { condition, .. } = expr {
-                guard(catalog, schema, program, condition, known, system, notes);
-                expression_guards(catalog, schema, program, condition, known, global, system, true, visiting, notes);
-            }
-            for (name, shape) in definitions(catalog, expr) {
-                let key = format!("{shape}:{name}");
-                if !visiting.insert(key.clone()) { continue; }
-                if let Some(inner) = helper_body(catalog, &name, shape) {
-                    // Parameters and focal rows belong to the definition's scope. Only
-                    // viewer/literal facts about the same world cross that boundary.
-                    let entry = if let Expr::Call { args, .. } = expr && !shape { call_facts(catalog, &name, args, known, global) } else { known.intersection(global).cloned().collect() };
-                    body(catalog, schema, program, &inner, entry, global, &guard_bindings(catalog, &inner), system, observe_prefix, visiting, notes);
-                }
-                visiting.remove(&key);
-            }
-        });
+        super::intent_walk::expression(&mut copy, &mut |expr| expression_guard_node(catalog, schema, program, expr, known, global, system, observe_prefix, visiting, notes));
     }
     fn invalidate(names: &[String], known: &mut BTreeSet<String>) {
         known.retain(|fact| !fact.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|word| names.iter().any(|name| name == word)));
@@ -1025,7 +1094,7 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                 }
                 Stmt::For { body: inner, domain, name, .. } => {
                     if effectful(catalog, domain) { known.clear(); }
-                    expression_guards(catalog, schema, program, domain, &known, global, system, observe_prefix, visiting, notes);
+                    expression_guards(catalog, schema, program, domain, &known, global, system, observe_prefix || guard_names.contains(name), visiting, notes);
                     // Any later iteration can begin after an earlier iteration's helper/write.
                     let (writes, binds) = effects(catalog, inner, &mut BTreeSet::new());
                     let mut changed = BTreeSet::new(); if binds { rebound_names(inner, &mut changed); }

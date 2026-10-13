@@ -182,6 +182,14 @@ fn helper_argument_proofs_cross_only_the_actual_argument_scope() {
 }
 
 #[test]
+fn argument_snapshots_cannot_match_another_actual_arguments_identifier() {
+    let schema = "table teams:\n  public 'teams'\ntable docs:\n  team: teams\n  public 'docs'\ntable staff:\n  team: teams\n  principal: principal\n  unique team, principal\n  read <- .principal = viewer\n  online only\ntable approvals:\n  team: teams\n  job: id\n  unique team, job\n  read <- exists staff[.team, viewer]\n  online only\nfn check(doc: docs, scope: teams, job: id):\n  require not exists approvals[team = scope, job = job] else JOB_APPROVED\n  return null\nmutation upload(aId: docs, bId: docs, job: id):\n  a = docs[aId] ! else NOT_FOUND\n  diagSnapshot = docs[bId] ! else NOT_FOUND\n  require exists staff[team = a.team, principal = viewer] else FORBIDDEN\n  check(a, diagSnapshot.team, job)\n  return null\n";
+    let b = compile(&[("schema.q".into(), schema.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert_eq!(b.notes.iter().filter(|n| n.code == "N_UNREADABLE_PROBE").count(), 1, "{:?}", b.notes);
+}
+
+#[test]
 fn standalone_writing_helpers_preserve_order_then_invalidate_caller_evidence() {
     let helper = "fn checkThenDrop(job: id):\n  require not exists approvals[job] else JOB_APPROVED\n  delete staff[viewer]\n  return null\n";
     let source = format!("{helper}mutation upload(job: id):\n  require exists staff[viewer] else FORBIDDEN\n  checkThenDrop(job)\n  require not exists approvals[job] else JOB_APPROVED\n  return null\n");
@@ -205,7 +213,7 @@ fn requirement_wrappers_preserve_nested_negative_and_conditional_guards() {
 
 #[test]
 fn query_prefix_aliases_used_as_guards_are_checked_at_observation_time() {
-    let schema = SCHEMA.replace("  unique job\n", "  unique job\n  by byJob: job, id\n");
+    let schema = format!("{}table docs:\n  job: id\n  public 'docs'\n", SCHEMA.replace("  unique job\n", "  unique job\n  by byJob: job, id\n"));
     for (tail, count) in [
         ("query upload(job: id):\n  allowed = not exists approvals[job = job] by byJob\n  require allowed else JOB_APPROVED\n  return null\n", 1),
         ("query upload(job: id):\n  allowed = not exists approvals[job = job] by byJob\n  observed = { allowed }\n  require observed.allowed else JOB_APPROVED\n  return null\n", 1),
@@ -219,6 +227,14 @@ fn query_prefix_aliases_used_as_guards_are_checked_at_observation_time() {
         ("fn observed(job: id): not exists approvals[job = job] by byJob\nquery upload(job: id):\n  allowed = observed(job)\n  require allowed else JOB_APPROVED\n  return null\n", 1),
         ("fn observed(job: id): not exists approvals[job = job] by byJob\nquery upload(job: id):\n  return observed(job)\n", 0),
         ("fn check(allowed: bool):\n  require allowed else JOB_APPROVED\n  return null\nquery upload(job: id):\n  allowed = not exists approvals[job = job] by byJob\n  check(allowed)\n  return null\n", 1),
+        ("fn check(allowed: bool):\n  require allowed else JOB_APPROVED\n  return null\nquery upload(job: id):\n  check(not exists approvals[job = job] by byJob)\n  return null\n", 1),
+        ("query upload(job: id):\n  for allowed in [not exists approvals[job = job] by byJob]:\n    require allowed else JOB_APPROVED\n  return null\n", 1),
+        ("shape check = { guarded: true if .allowed else false }\nquery upload(job: id):\n  return { allowed: not exists approvals[job = job] by byJob } check\n", 1),
+        ("fn echo(allowed: bool): allowed\nquery upload(job: id):\n  return echo(not exists approvals[job = job] by byJob)\n", 0),
+        ("shape echo = { allowed }\nquery upload(job: id):\n  return { allowed: not exists approvals[job = job] by byJob } echo\n", 0),
+        ("query upload(job: id):\n  allowed = not exists approvals[job = job] by byJob\n  return docs where allowed first 10 by .id { guarded: true if .job = job else false }\n", 1),
+        ("query upload(job: id):\n  return docs where not (exists approvals[job = job] by byJob) first 10 by .id { guarded: true if .job = job else false }\n", 1),
+        ("query upload(job: id):\n  return docs where not (exists approvals[job = .job] by byJob) first 10 by .id { guarded: true if .job = job else false }\n", 0),
         ("fn echo(allowed: bool): allowed\nquery upload(job: id):\n  allowed = not exists approvals[job = job] by byJob\n  return echo(allowed)\n", 0),
         ("shape check = { guarded: true if .allowed else false }\nquery upload(job: id):\n  observed = { allowed: not exists approvals[job = job] by byJob }\n  return observed check\n", 1),
     ] {

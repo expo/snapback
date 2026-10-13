@@ -94487,3 +94487,16 @@ not supply retrospective proof. Returned prefix answers stay quiet. The guide
 pass. The horizon CLI fixture pins its one expected guard note. Review-round
 five outputs and resolutions are preserved; round six will review the new
 frozen delta. No push or publication.
+
+### 2026-10-13 — Wave 10 DIAG: direct guard inputs and immutable proof
+
+The sixth Codex review identified direct helper arguments, shape bases and
+loop domains that evade binding-only tracking. Direct boolean inputs now use
+the same original-time visibility evidence. An immutable value traversal keeps
+row-dependent visible-hit filters separate without editing the AST used as
+proof; global gates lower to conditionals and are checked. Snapshot marker
+names exclude every actual argument identifier, and explicit computed indices
+cannot borrow raw-column pins from another index. The guard suite now has 20
+passing tests with direct, alias, echo, row-filter and collision variants;
+guide 120 and emitted rewrite goldens eight pass. CLI checks and final blind
+review follow this frozen delta. Round-six reviews are preserved verbatim.
