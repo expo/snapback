@@ -39,7 +39,7 @@ if (process.argv[2] !== '--check-families' || process.env.TEST_FAMILY_FAIL === '
 `);
     writeFileSync(path.join(root, 'scripts/stamp-device.mjs'), `import {appendFileSync} from 'node:fs'; appendFileSync(process.env.TOOLS_LOG, 'stamp\\n');`);
     stub('cargo', 'echo cargo >> "$TOOLS_LOG"');
-    stub('wasm-bindgen', 'while [ "$1" != --out-dir ]; do shift; done\nshift\nmkdir -p "$1"\nprintf wasm > "$1/snapback4_device_bg.wasm"\nprintf glue > "$1/snapback4_device.js"');
+    stub('wasm-bindgen', 'while [ "$1" != --out-dir ]; do shift; done\nshift\nmkdir -p "$1"\nprintf wasm > "$1/snapback4_device_bg.wasm"\nprintf glue > "$1/snapback4_device.js"\nprintf "export class WebDevice {\n  free(): void;\n  [Symbol.dispose](): void;\n}\n" > "$1/snapback4_device.d.ts"');
     stub('wasm-opt', 'echo PATH-optimizer-called >> "$TOOLS_LOG"; exit 91');
     const optimizerDir = path.join(root, 'node_modules/binaryen');
     mkdirSync(path.join(optimizerDir, 'bin'), { recursive: true });
@@ -89,6 +89,9 @@ const at = process.argv.indexOf('-o'); copyFileSync(process.argv[at + 2], proces
         assert.match(readFileSync(log, 'utf8'), /locked-optimizer -Os/);
         assert.match(readFileSync(log, 'utf8'), /locked-optimizer --code-folding/);
         assert.doesNotMatch(readFileSync(log, 'utf8'), /PATH-optimizer-called/);
+        const declarations = readFileSync(path.join(root, 'packages/snapback4/src/wasm/snapback4_device.d.ts'), 'utf8');
+        assert.match(declarations, /free\(\): void/);
+        assert.doesNotMatch(declarations, /Symbol\.dispose/);
         rmSync(optimizer); writeFileSync(log, '');
         const absent = run(); assert.notEqual(absent.status, 0); assert.match(absent.stderr, /bun install --frozen-lockfile/);
         assert.equal(readFileSync(log, 'utf8'), '', 'missing optimizer must refuse before cargo or PATH fallback');

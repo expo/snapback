@@ -94452,3 +94452,12 @@ client documentation as unshipped file references. Describe their diagnostic
 role in prose; the embedded identity remains authoritative. Preserve the
 installed-package reference checker and its exact application-file allowlist.
 Re-run the complete executable Guide suite on the corrected documentation.
+
+### 2026-10-13 — Integration 8, budget fixture bindgen declarations
+
+The complete client pool catches a stale wasm-bindgen double in the wasm
+budget tests: it creates wasm/glue but omits the declarations now processed
+by HS's ES2022 build. Emit representative declarations in the fixture and
+assert free() remains while optional Symbol.dispose is removed. Preserve all
+budget, optimizer-failure and stamp verification assertions. Production wasm
+and package builds had already passed on both hosts.
