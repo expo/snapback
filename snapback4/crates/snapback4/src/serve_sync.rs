@@ -179,6 +179,13 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
             }
             Ok(SyncOutcome::Version(reply)) => respond_timed(request, shared, 409, reply),
             Ok(SyncOutcome::Generation(reply)) => respond_timed(request, shared, 200, reply),
+            Err(RuntimeError::Bound { .. }) => {
+                let refusal = Refusal::new("E_BOUND", "bound", "the HTTP JSON response exceeds 16 MiB; request a smaller page or return fewer values").guide("reads");
+                let mut reply = json!({ "denied": refusal_json(&refusal), "generation": generation,
+                    "store_id": store_id, "watermark": from });
+                if limit == 1 { reply["snapshot"] = json!(true); }
+                respond_timed(request, shared, 200, reply)
+            }
             Err(error) => { let refusal = error.refusal(); respond_timed(request, shared, if refusal.retryable { 503 } else { 500 }, json!({ "denied": refusal_json(&refusal) })) }
         }
     }

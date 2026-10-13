@@ -27,6 +27,8 @@ use crate::store::LogEvent;
 #[cfg(feature = "sqlite")]
 mod counts;
 #[cfg(feature = "sqlite")]
+mod delivery;
+#[cfg(feature = "sqlite")]
 mod storage;
 use crate::value::{Value, canonical_json};
 #[cfg(feature = "sqlite")]
@@ -1297,6 +1299,7 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
     }).collect();
     let commit_times = tx.commit_times(&sequences.into_iter().collect::<Vec<_>>())?;
     let mut out = Vec::with_capacity(page.len());
+    let mut delivery = delivery::Budget::new();
     // @ref LLP 3000#7-decisions-during-execution — retained history is device-held; the server serves current readable images.
     // Normalize ordinary puts before delivery. Join selection already checks
     // its images: never re-fetch them or probe their read rule a second time.
@@ -1318,7 +1321,7 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
                         event.data = Some(schema.tables[&event.table].project_fields(row, Some(principal)).into_value());
                     }
                 }
-                out.push(event);
+                delivery.push(&mut out, event, 0)?;
                 continue;
             }
             // @ref LLP 3000.036.000.000#4.2 — R1: a del of a row in two of the viewer's partitions is decided at serve time; a readable row becomes a put served exactly as every put is (re-fetched, a row-keyed view recomputed, re-checked, projected).
@@ -1333,7 +1336,7 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
                     }
                     None => false,
                 };
-                if !readable { out.push(event); continue; }
+                if !readable { delivery.push(&mut out, event, 0)?; continue; }
                 event.kind = "put".into();
             }
             if event.kind == "put" {
@@ -1353,8 +1356,7 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
                             Audience::Column(c) => vec![member.field(c)?.clone()],
                             Audience::Target { prefix, .. } => prefix.iter().map(|c| member.field(c).cloned()).collect::<Result<Vec<_>, _>>()?,
                         };
-                        let (selected, _, _, _) = group_rows_from(tx, &k.table, table, sync, &group, None, 0, usize::MAX, now, Some((schema, principal)))?;
-                        live = selected.iter().any(|(u, _)| u.field("id") == row.field("member"));
+                        live = delivery::group_contains(tx, schema, principal, &k.table, table, sync, &group, row.field("member")?, now, &delivery)?;
                     }
                     event.data = if live {
                         match certified.get(&(event.table.clone(), event.id.clone())) {
@@ -1370,7 +1372,7 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
                     });
                 } else { event.kind = "del".into(); }
             }
-            out.push(event);
+            delivery.push(&mut out, event, 0)?;
             continue;
         }
         let Some(spans) = held.get(&(event.table.clone(), event.id.clone())) else { continue;
@@ -1401,7 +1403,7 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
         let epoch_acquisition = predecessor.is_none() && tx.audience_epoch(&event.table)? > 0;
         if expired_predecessor || epoch_acquisition && table.leave == crate::schema::LeavePolicy::UntilRevoked {
             let scope = LogEvent { seq: event.seq, ord: event.ord, table: event.table.clone(), kind: "scope".into(), id: event.id.clone(), data: Some(Value::Array(group.clone())) };
-            out.push(scope);
+            delivery.push(&mut out, scope, 0)?;
         }
         // `joined` certifies this acquisition, including an empty one. A live
         // renewal preserves its predecessor's coverage on every page boundary.
@@ -1412,16 +1414,11 @@ fn expand_joins(tx: &dyn PartitionRows, schema: &Schema, principal: &str, page: 
         if let Some(horizon) = &sync.horizon {
             acquisitions.push(acquisition(&event.table, &horizon.by, &group, out.len(), None));
         }
-        let (rows, _, _, _) = group_rows_from(tx, &event.table, table, sync, &group, None, 0, usize::MAX, now, Some((schema, principal)))?;
+        let (rows, last_key) = delivery::expand_group(tx, schema, principal, &event, table, sync, &group, now, &mut delivery, &mut out)?;
         let floor = sync.horizon.as_ref().map(|horizon| {
-            if rows.len() < horizon.last as usize { "whole".into() }
-            else { crate::value::encode_bytes_hex(&rows.last().expect("selected horizon has a last key").1) }
+            if rows < horizon.last as usize { "whole".into() }
+            else { crate::value::encode_bytes_hex(last_key.as_ref().expect("selected horizon has a last key")) }
         });
-        for (row, _) in rows {
-            let id = row.field("id")?.as_str()?.to_owned();
-            let image = LogEvent { seq: event.seq, ord: event.ord, table: event.table.clone(), kind: "put".into(), id, data: Some(row) };
-            out.push(image);
-        }
         if let Some(horizon) = &sync.horizon {
             acquisitions.push(acquisition(&event.table, &horizon.by, &group, out.len(), floor));
         }

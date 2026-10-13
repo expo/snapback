@@ -3,7 +3,7 @@ use super::*;
 // @ref LLP 3000.036.002#5 — a compact opening join may need paged snapshot recovery.
 #[test]
 fn a_timed_join_over_the_wire_limit_recovers_with_paged_snapshots() {
-    let source = "use personas alice\ntable members:\n  group: text <=8\n  principal: principal\n  opensAt: time\n  unique group, principal\n  by byOpening: opensAt\n  read <- .principal = viewer\n  not before .opensAt\n  sync\ntable documents:\n  group: text <=8\n  body: text <=4000\n  read <- exists members[.group, viewer]\n  sync\n";
+    let source = "use personas alice\ntable members:\n  group: text <=8\n  principal: principal\n  opensAt: time\n  unique group, principal\n  cap 1 by group\n  by byOpening: opensAt\n  read <- .principal = viewer\n  not before .opensAt\n  sync\ntable documents:\n  group: text <=8\n  body: text <=4000\n  read <- exists members[.group, viewer]\n  sync\n";
     let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), source);
     let opening = host.shared.now() + 10_000;
     let count = 5_000;
@@ -27,6 +27,8 @@ fn a_timed_join_over_the_wire_limit_recovers_with_paged_snapshots() {
         &json!({"stream":true,"from":watermark,"limit":1}).to_string()));
     assert_eq!(overflow["denied"]["code"], "E_BOUND", "{overflow}");
     assert_eq!(overflow["snapshot"], true, "an indivisible acquisition names snapshot recovery");
+    assert_eq!(overflow["watermark"], watermark, "a refused acquisition cannot advance the device");
+    assert!(overflow["generation"].is_number() && overflow["store_id"].is_string(), "repair keeps sync identity: {overflow}");
     assert!(overflow.get("events").is_none(), "no partial acquisition may publish");
     assert!(overflow.to_string().len() < 4_096);
 
