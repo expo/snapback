@@ -147,4 +147,4 @@ personas and dev doors even through a local proxy; see SERVER.md for capacity. F
 
 N_NO_PRODUCTION_WRITER means no production insert path can bootstrap this table. Add a service-seat insert mutation.
 
-E_UPGRADE means the package-manager upgrade did not complete. Repair the package-manager or registry error and rerun upgrade.
+E_UPGRADE means installation or post-upgrade check failed. Packages may already be pinned: repair the reported schema/device refusal and rerun check, or repair the package-manager/registry error and rerun upgrade.

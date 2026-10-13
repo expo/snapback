@@ -94,3 +94,20 @@ test('module-only backends compile and participate in upgrade qualification', t 
   const result = invoke(['upgrade'], dir, { PATH: `${join(dir, 'tools')}:${process.env.PATH}` }); assert.equal(result.status, 1);
   assert.match(result.stderr, /E_UPGRADE/); assert.equal(JSON.parse(readFileSync(join(dir, '.snapback4/check-surface.json'))).sources[0][0], 'notes.q');
 });
+
+test('upgrade resolves the new compiler after a pnpm-style package symlink replacement', t => {
+  const dir=project(t);mkdirSync(join(dir,'snapback'));writeFileSync(join(dir,'snapback/schema.q'),aggregates);success(invoke(['check'],dir));
+  const oldApi=readFileSync(join(dir,'snapback/generated/api.ts'),'utf8').replaceAll('number | null','number');
+  mkdirSync(join(dir,'node_modules'));mkdirSync(join(dir,'tools'));
+  for(const [folder,version] of [['old','0.4.24'],['new','0.4.25']]){
+    const pack=join(dir,folder);mkdirSync(join(pack,'dist'),{recursive:true});mkdirSync(join(pack,'bin'));
+    writeFileSync(join(pack,'package.json'),JSON.stringify({name:'snapback4',version,exports:{'./bin-path':'./dist/bin-path.js'}}));writeFileSync(join(pack,'dist/bin-path.js'),'');
+    writeFileSync(join(pack,'bin/snapback4.js'),folder==='old'?`require('fs').writeFileSync('snapback/generated/api.ts',${JSON.stringify(oldApi)});console.log(JSON.stringify({ok:true,notes:[]}));`:`const r=require('child_process').spawnSync(${JSON.stringify(bin)},process.argv.slice(2),{encoding:'utf8'});process.stdout.write(r.stdout);process.stderr.write(r.stderr);process.exit(r.status);`);
+  }
+  symlinkSync(join(dir,'old'),join(dir,'node_modules/snapback4'));
+  writeFileSync(join(dir,'package.json'),JSON.stringify({packageManager:'pnpm@10',dependencies:{snapback4:'0.4.24'}}));
+  writeFileSync(join(dir,'tools/pnpm'),`#!${process.execPath}\nconst fs=require('fs');if(process.argv[2]==='view'){console.log('"0.4.25"')}else{const p=JSON.parse(fs.readFileSync('package.json'));p.dependencies.snapback4='0.4.25';fs.writeFileSync('package.json',JSON.stringify(p));fs.unlinkSync('node_modules/snapback4');fs.symlinkSync(${JSON.stringify(join(dir,'new'))},'node_modules/snapback4');}`,{mode:0o755});
+  const result=invoke(['upgrade'],dir,{PATH:`${join(dir,'tools')}:${process.env.PATH}`});success(result);
+  assert.match(result.stdout+result.stderr,/Ops\.roomCount\.result: number → number \| null/);
+  assert.equal(JSON.parse(readFileSync(join(dir,'.snapback4/check-surface.json'))).version,'0.4.25');
+});

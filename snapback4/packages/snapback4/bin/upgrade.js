@@ -13,11 +13,20 @@ function run() {
   while (!existsSync(join(root, 'package.json'))) { const parent = dirname(root); if (parent === root) throw Error('E_UPGRADE: no project package.json'); root = parent; }
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
   const schema = existsSync(join(root, 'snapback')) && readdirSync(join(root, 'snapback')).some(file => file.endsWith('.q'));
-  const cli = () => {
-    const require = createRequire(join(root, 'package.json'));
-    return join(dirname(dirname(require.resolve('snapback4/bin-path'))), 'bin/snapback4.js');
-  };
-  const check = () => spawnSync(process.execPath, [cli(), 'check', '--json'], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  // Resolve in a fresh Node process: pnpm can replace the package symlink,
+  // while this helper's module/realpath cache still points at the old release.
+  const checkScript = `
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+try {
+  const root = process.argv[1], require = createRequire(join(root, 'package.json'));
+  const cli = join(dirname(dirname(require.resolve('snapback4/bin-path'))), 'bin/snapback4.js');
+  const result = spawnSync(process.execPath, [cli, 'check', '--json'], { cwd: root, stdio: 'inherit' });
+  process.exit(result.status ?? 1);
+} catch { console.error('E_UPGRADE: cannot load installed snapback4 for check'); process.exit(1); }
+`;
+  const check = () => spawnSync(process.execPath, ['--input-type=module', '-e', checkScript, root], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
   if (schema) {
     // A previous package may predate snapshots. Capture its own compiler output
     // before install; never infer old facts using the newly installed engine.
