@@ -94312,3 +94312,12 @@ witness description as stale; update the living text to distinguish membership
 discovery from the row-independent hoist, retaining the prior scan observation
 as history. This is documentation reconciliation of the already-tested
 empty/incomplete/no-cursor speculative envelope, not a new read policy.
+
+The narrow reconciliation review finds its PAGE attribution inaccurate: the
+fixture is ordinary intent_lanes reverse-join discovery, not §14's capped
+owner-or-membership read-rule expansion. Both fresh families mark that prose
+NOT READY. Correct the governing pointers to LLP 3000.013 §2.1 and 3000.027 §2,
+and remove the claim that full target sync proves rejected-row traversal:
+the eligible source-present event-slot case also discovers before traversal.
+The observed envelope and pending-write/speculative fence remain unchanged.
+Verbatim round-four records remain under llp/reviews; no code changes follow.
