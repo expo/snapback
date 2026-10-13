@@ -72,6 +72,30 @@ test('group verification requires two complete empty snapshots after living memb
   await waitForEmptyGroup(12, async () => ({ status: 0, stdout: snapshots[calls++] }));
   assert.equal(calls, 3);
 });
+test('timed-out group inspection discards bytes and requires two fresh empty snapshots', async () => {
+  const timeout = Object.assign(Error('descheduled ps'), { code: 'ETIMEDOUT' });
+  const snapshots = [
+    { error: timeout, stdout: '1 1 S\n' },
+    { status: 0, stdout: '1 1 S\n' },
+    { status: 0, stdout: '1 1 S\n' },
+  ];
+  const budgets = [];
+  await waitForEmptyGroup(12, async (_command, _args, options) => {
+    budgets.push(options.timeout);
+    return snapshots.shift();
+  });
+  assert.equal(budgets.length, 3, 'partial timeout output never counts as empty');
+  assert.equal(budgets[0], 10000);
+  assert.ok(budgets[1] > 10000 && budgets[1] <= 60000, 'retry shares the original drain deadline');
+});
+test('a second timed-out group inspection still refuses custody', async () => {
+  let calls = 0;
+  await assert.rejects(waitForEmptyGroup(12, async () => {
+    calls++;
+    return { error: Object.assign(Error('ps timed out'), { code: 'ETIMEDOUT' }), stdout: '1 1 S\n' };
+  }), /TEST_COMMAND_INSPECTION/);
+  assert.equal(calls, 2);
+});
 for (const result of [
   { status: 0, stdout: '' }, { status: 2, stdout: '1 1 S\n' },
   { error: Error('ps timed out'), stdout: '1 1 S\n' }, { status: 0, stdout: '12 damaged S\n' },

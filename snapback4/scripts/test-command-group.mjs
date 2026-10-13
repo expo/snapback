@@ -9,9 +9,19 @@ export async function waitForEmptyGroup(group, run) {
   for (;;) {
     // Use the system ps directly: no PATH shim or compiler dependency. Its
     // timeout discards partial output and kills only its owned leaf handle.
-    const result = await run('/bin/ps', ['-axo', 'pid=,pgid=,stat='], {
-      timeout: 10000, maxBuffer: 16 * 1024 * 1024, env: { ...process.env, LC_ALL: 'C' },
-    });
+    let result;
+    // A shared Darwin host can deschedule the leaf inspector for ten seconds.
+    // Retry only ETIMEDOUT, within the original total drain deadline. Timed-out
+    // bytes are never a snapshot, and cannot count toward the two empty reads.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const remaining = Math.max(1, deadline - performance.now());
+      result = await run('/bin/ps', ['-axo', 'pid=,pgid=,stat='], {
+        timeout: attempt === 0 ? Math.min(10000, remaining) : remaining,
+        maxBuffer: 16 * 1024 * 1024, env: { ...process.env, LC_ALL: 'C' },
+      });
+      if (result.error?.code !== 'ETIMEDOUT' || performance.now() >= deadline) break;
+      empty = 0;
+    }
     if (result.error || result.status !== 0 || !result.stdout?.toString().trim())
       throw Error(`TEST_COMMAND_INSPECTION: ps failed: ${result.error?.message ?? result.status}`);
     const rows = result.stdout.toString().trim().split('\n').map(line => {
