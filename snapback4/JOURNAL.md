@@ -94275,3 +94275,14 @@ the client card's title/lead paragraph separation while retaining 114 lines and
 1200 words; keep the first-account README's executable npx snapback4 dev spelling
 beside the new init --adapt step. These change prose/layout only; Quarry examples
 and engine semantics are unchanged. The complete Guide suite is rerun.
+
+Integration 7 verification milestone: complete Guide suite 120/120 passes;
+client card 114 lines/1199 words, deploy card 150 lines, README 320 lines.
+Third complete Linux ordinary pool passes 373/373 files, 7326 passed/56 skipped/
+zero failed across 7382 reported tests. Its full-count serial models follow;
+prior two complete model stages each pass all 81 tests. Earlier ordinary-pool
+reds remain superseded evidence (three stale-contract files, then the observed
+closed-tab lock release race); they are never called clean qualification.
+Final rebuilt native/device/Lean difftests retain the previous exact counts:
+20k native, devices 0–999 zero disagreements; Lean 20k has only four retained
+signature families, with counts 3/68/132/27. No new signature is introduced.
