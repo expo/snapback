@@ -1,5 +1,6 @@
 import { hasUploads } from "./uploads.ts";
 import { mintId } from "./client.ts";
+import { settleMutation } from "./write-settlement.ts";
 import { Following } from "./following.ts";
 import type { FollowingQuery } from "./contract.ts";
 export type { FollowingPhase, FollowingSnapshot } from "./following.ts";
@@ -224,8 +225,9 @@ export interface MutationHook<A, Outcome> {
   last: Outcome | undefined;
   inFlight: boolean;
 }
-/** A durable write's hook: `run` takes `client.mutate`'s options, so `{ waitSeconds: 0 }`
- * returns at custody and `{ id }` submits under an id the app saved first. */
+/** A durable write's hook: `run` waits for sent/failed independently of read
+ * subscriptions and component lifetime. Offline it waits for reconnect.
+ * Explicit `{ waitSeconds: 0 }` returns at custody; `{ id }` reuses saved intent. */
 export interface WriteHook<A, R> {
   run(args: A, options?: MutateOptions): Promise<Write<R>>;
   /** Undefined before the first run. `isFailed(last)` narrows to the refusal
@@ -292,7 +294,7 @@ function useTrackedMutation<A, R>(op: Mutation<A, R> | Ephemeral<A, R>, id?: str
     owner.pending++;
     if (owner.active) setInFlight(true);
     let outcome: Write<R> | Signal<R>;
-    try { outcome = op.ephemeral ? await client.mutate(op, args) : await client.mutate(op, args, options); }
+    try { outcome = op.ephemeral ? await client.mutate(op, args) : await settleMutation(client, op, args, options); }
     catch (error) {
       // A foreign Client can throw without exposing its minted id. Do not
       // invent an operation identity or claim that this is safe to retry.
