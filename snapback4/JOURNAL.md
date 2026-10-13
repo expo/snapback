@@ -94321,3 +94321,10 @@ and remove the claim that full target sync proves rejected-row traversal:
 the eligible source-present event-slot case also discovers before traversal.
 The observed envelope and pending-write/speculative fence remain unchanged.
 Verbatim round-four records remain under llp/reviews; no code changes follow.
+
+Both narrow round-five documentation reviews are READY at 0969a934ec, with no
+material findings. Preserve their verbatim responses. Correct the outside-scope
+event-slot test title/comment to claim only discovery withholding/prediction
+fencing, as its assertions actually establish; assertions and work counts are
+unchanged. The source-ready code remains the independently reviewed 74895a66f0
+input tree, with only this nonfunctional test narration and evidence/docs after it.

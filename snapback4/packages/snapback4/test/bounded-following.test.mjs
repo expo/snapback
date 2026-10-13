@@ -174,12 +174,12 @@ query conditionalEventsHeld():
     assert.equal((await bob.client.query(query("ownedEvent"), input)).denied?.code, bob.client.link() === "offline" ? "E_OFFLINE" : "E_QUERY_RETRY");
   });
 
-  test(`event slots ${tier}: rejected owned events cannot make a speculative scan publishable`, { timeout: hangBudget(11) }, async t => {
-    // Both source kinds are full: the scan must visit held owned rows, then
-    // reject them on the unknown filter, rather than withhold a partial table.
-    // The filter reads the row (.actorId): a row-independent test such as
-    // `exists eventSwitch['gate']` is decided once, before the scan, as an
-    // `if` (LLP 3000.036 §15.4), and would never visit a row.
+  test(`event slots ${tier}: unknown membership discovery stays fenced beside a predicted owned event`, { timeout: hangBudget(11) }, async t => {
+    // Target source kinds are full, but this row-correlated filter is eligible
+    // for ordinary reverse-join discovery. Its online-only source is unknown
+    // before target traversal; this case proves withholding and the prediction
+    // fence, not rejected-row visits. Row-independent guards use a separate
+    // if lowering (LLP 3000.036 §15.4).
     const f = await fixture(t, tier, "sync public", source => source + `
 table eventSwitch:
   actor: principal
@@ -198,7 +198,7 @@ query filteredEvents():
     bob.holdWrites = true;
     await bob.client.mutate(mutation("post"), { postId: "own-filtered", parentId: null, at: 30 });
     const queued = (await bob.core.call({ op: "queued" })).ok;
-    assert.ok(queued.some(q => q.predictable && q.predicted.some(row => row.startsWith("feedPosts/"))), "the scan intersects a pending owned-event prediction");
+    assert.ok(queued.some(q => q.predictable && q.predicted.some(row => row.startsWith("feedPosts/"))), "the read intersects a pending owned-event prediction");
     const before = bob.queries.length;
     const held = bob.read(query("filteredEvents"), {});
     await held.withheld();
