@@ -240,7 +240,7 @@ impl Runner<'_> {
     /// Write constraints and server write targets see an unopened row as a
     /// physical occupant. They still pass expired siblings because expiry,
     /// unlike a lower read lifetime, releases logical uniqueness.
-    pub(in crate::engine) fn lookup_write_occupant(&mut self, table_name: &str, name: &str, _index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
+    pub(in crate::engine) fn lookup_write_occupant(&mut self, table_name: &str, name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
         let table = &self.schema.tables[table_name];
         if table.not_before.is_none() { return self.lookup_stored(table_name, name, index, key, false); }
         let reservation = crate::rows::disclosed::decode_reservation(table);
