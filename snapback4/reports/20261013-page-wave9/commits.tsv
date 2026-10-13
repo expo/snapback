@@ -1,0 +1,146 @@
+e09f46626e3f34e7a97e6d8cba1f411f8c1156e5	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	review(PAGE): record blind first-round planner and reference amendments
+5d1450f29282867f742509499678cb24f80bdd59	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	review(PAGE): record cursor and effective-bound amendment findings
+eeaaff30acf9d19a83b29c30231b4e4995d8f511	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	review(PAGE): record both READY verdicts for membership-page design
+9d4f1e43167525bef10d1aaa669d3302528ca3ff	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	snapback4: make hidden maintains and reference checks explicit
+86a234b8a695770048ada39fd83966d7dbd20373	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	fix rule diagnostic rewrites
+172efee75940260a972a288d87d1ece8be9a8921	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	tighten page completeness diagnostics
+9a17185a2871a837e8e8b05f9c81cd28dd50fca7	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	review(PAGE): record view implementation review and remaining edge cases
+0369d09b8dbefaf6b02c773425b726b6b1b2cb6f	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	snapback4: merge capped membership pages
+49019f12345f2de5a24986698829654129456f4f	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	type private maintained points as nullable
+68c0b68f7d6197bac2cdd1bde8d2d51b634a2f69	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	snapback4: preserve authorization on keyed misses
+c2f741bd12460590041d364354eaf974c2156d31	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	fix branch cursor descriptor compatibility
+6f35736159bebbb1f7095dc8cc5efd74ec8e1e3f	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	preserve maintained types under stronger guards
+ec4dc58397a10e682d5f6363902451f0e3b6143e	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	prove capped membership branch coverage
+c35642b128db7d2da8f77c7e062b08ae5c34c4ad	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	snapback4: model capped membership page branches
+32f330e801fffec48fd4a5b362d39ce7b895cade	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	snapback4: recognize inherited maintain read guards
+6253424433e14e5e448cee7405318123f2164731	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	snapback4: retain resolved expiry meter regressions
+2579626838186bf62b28cad629876d96ff414e93	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	keep proof invalidation out of job revisions
+9d022f9ecb1bb43cdc48f7b43c4211f00d02f7ba	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	repair guide reference and nullable examples
+5cdbf885eedbe5f9290a17a01b50a6211c8ad615	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	bound modeled membership discovery caps
+4cf280a08b13205a6180a3862b9a0b94451f8ec8	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	harden membership branch admission and metering
+7bd6c9e705f29f815f84eb36079623566877f79f	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	align membership model with planner fallbacks
+6b541e26ebb1d169e194d482026bad1f9107e4c5	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	keep membership rules in the PAGE classifier
+81b8c2515dc64a85971b5f2dac3f9862868000f3	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	fix maintained authorization scope proofs
+46d594e423fb916f19ff743ee610836ac6e02f24	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	snapback4: keep authorization checks on current values
+396cf0761b6a650bb2f959ac11539835bf04bbd7	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	record PAGE planner and reference implementation reviews
+caeda400e9006207269de820d9d3080ded8c2ec3	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	match membership model to pinned alternatives
+50013b9b9e617103b2ad661fef5997b37c21b8a7	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	document current authority proofs and PAGE measured wasm budget
+1ceeb6a398e9b1fea62ac9a18cba76933c334239	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	record membership metering and formal review findings
+e12105d3a22abac39c1d27bd851403466adf112a	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	carry proof invalidation through loops
+d4d6204228440a1588470d2c0944df4ae2e95899	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	record PAGE authority transfer-edge review findings
+bfab009ce0cfe10e6b732c624dd0400c88915398	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	complete page diagnostics and membership accounting
+f5bfe9d4f2dd12844750935daa24d68d13dca422	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	bound membership merge working sets
+18bc90fd22e909f38902e3b52de436fdb6b83c41	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	carry proof facts across loop transfer edges
+4dcb657a8095dea0b495e991d88c0695f5fdf9d7	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	tighten reference and maintained authorization proofs
+1782c5844cfaa58ab2801c5f4311a3c62d7fd221	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	cover PAGE membership expiry and source horizons
+7de0f1aea5ff853441c00d40987a65d378fb8258	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	record PAGE remaining classifier and scratch review findings
+1e6fd652fb3321ee21c5e1f380f8d3209bec034c	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	meter PAGE scan dependencies before allocation
+767a04b173681fc82acdbe7483cfaf2f82aee1e5	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	close PAGE fallback and cursor accounting gaps
+eebea9f1b5182293194b2f0546eb9f37ca04bb82	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	record authorized-read versus raw-witness review findings
+018613cee09256b7a4f9d95bc34b9d48d0de69f3	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	gate nonportable PAGE keys before Lean oracle
+19e175f9721e1133d9ab7e6322f11ec83cb0ac43	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	charge PAGE dependency names before cloning
+1e7f22edca3e2206091b52e684a6ac5b4c841032	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	separate readable and raw witness facts
+e5ad2f132b9060fb3cdcb962eb4a6d2984c39a09	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	share raw-absence proof with maintain lint
+3c97068b1f5a9acd10c23d53683f20c07bdf1e34	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	cover maintained-view witness domains
+91f78b790a4d9e8c0cc7d98b5220bcacae70a532	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	prove reference lookups on every write path
+d7d108583bb4ce838e6b26b188b48168a72c9e7b	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	exclude read-through misses from raw facts
+419fdb6253b5624380f25d38988462e65270e6a9	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	cover read-through maintained absence notes
+204e7111483ae353b089de010bca03ef15eef77c	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	cover inherited membership source fallback
+769d10805ea1f400482c24aa4363075a57abf7e7	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	record PAGE surface-key and runtime eligibility review findings
+81a4d3a024410d3b76d5e3f3f7550ff4468afa9d	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Narrow private maintained count fixture
+0852d4575ff854cce757d5e828052c10f8e4116d	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	gate complete PAGE lane key shapes
+32ed6e01045f7e12b17eb2be93faaeec5aa6b73e	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	close PAGE eligibility review gaps
+059414dc214b49e138b3fa9fb692dde2a8f6ee3c	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Preserve maintained authorization polarity
+27c6f5b27a2f04fb17bdd319d50280327d5d3c31	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	record PAGE polarity and lazy-predicate review findings
+0b64f8f004e54cd230021f1eac73a9dd548dcfdb	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	fix reference lookup proof through row mappers
+39c79ff0a44de360a7d2e4db3267750b889368f3	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	keep capped static grants in branch merges
+07ff35f36292f47954c2ca092168f859c13a1058	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	update hidden maintain corpus results
+9105b338301949cfdeb961447c839a6949f2910a	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	expect reference note in constraint refusal test
+8474c673be19b9b60db39ed9fd84ab92b3e9aa11	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Handle nullable maintained allocation fixtures
+eb182e88b8d01d74bad8b2f14f16304bf05b369c	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	expect reference advisories in intent fixtures
+9cc6020270ffd2604284d8450d9f51276cbd7718	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Qualify PAGE ledger wasm at 687942 B gzip and budget 688442 B
+cc0d730257b92de3b0c5f762ce3d9747329bcd1c	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Record PAGE shadowed authority and coalesce review findings
+39ace70d38be7afd1334fa2c5bb1ed7377e399ba	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	align hidden maintain fixtures with authorization
+41a67f06ca1be5709f403a5e055529e932002e4d	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Record PAGE named-key model review finding
+d1980ea4395cc614e034da23f3f1b5f8d994fbe4	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	align compact completeness note regression
+0230ecc7875bf4e41b40befa0fc6c9d58a7406fe	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	model coalesce lookup flow precisely
+776a3f9ee6a88b278b0088deaf703d74cf1d1979	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Invalidate shadowed authorization facts
+df1fce77e6dac8320bf2719b2edd8f479fb9ada8	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	expect hidden maintained reads to return null
+098865303f969fa2c99b227f72432b5089f4a2b4	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	resolve named membership keys by column
+44a79b13772118f13cb0073307b9176d5f95cb2f	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Align fixtures with nullable maintained reads
+7b8bb60dfcb419f1d929cd35842f2df89f7c00ca	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Cover reordered named PAGE membership keys
+83ae2a4f9c18018c45a650a24c173fc8e21ec83b	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Record PAGE lexical constant and helper-loop review findings
+6ba27fc65bc2bd8c82f56ac0424cee30bc70fb22	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Prove reference lookups across helper control flow
+af45de22bab0a89106b922636a2d0d81980ed00e	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Preserve lexical maintained authorization keys
+4d0d79ec202497fb91ffbc49dc60b95bb781ceb5	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Record PAGE guard model and serialization review findings
+712d289c886c247efc687a741491d3b6547b3943	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Match PAGE membership descriptor eligibility in Lean
+a50d2972cf3408e27b0e9223b5d213bdaf89fc08	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Exercise membership pages in native campaigns
+154861bd2648806a559f580287fe8f83a4d80f22	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Canonicalize covering page guards
+550a34740417d9c06b1173d5d2ae4425f425cf3e	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Preallocate PAGE discovery keys exactly
+bc4c3f4e1e75c474ff0567c5f531c2c4cf7f3941	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Record PAGE aggregate identity and availability review findings
+451946bd2544e46781d0d91c33c92594338b1180	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Count mandatory lazy helper lookups
+de4284aa5428fb8830a08d9a47bde2aff28bd05a	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Qualify escaped PAGE keys at 689145 B gzip with budget 689645 B
+b880ce24e559240bc459ffb0684e6cc510f735ec	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Record PAGE typed positional discovery review finding
+416036dbf96a47f8a275f187cbb62912d263217d	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Scope maintained point availability proofs
+8e89ee67fcfb2bf167461247751c067cf9162518	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Resolve positional PAGE membership keys by type
+c0c3f07bb175438f576b5b1b9cb33b432ab91240	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Equate named parent point witnesses
+2d64e31bbfaa8f3c1199fe6b24ef71be94c39fcf	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Check typed membership keys against Lean
+8d025d3908bf2ca68a283122b969df6de758c4e1	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Track forced lazy reference lookups
+2737f5123d9da1ed3af03bdb06a62448c6cb867e	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Record PAGE stale-loop freshness review findings and scope limits
+ea9972e5ceb89b5e62bd1ab1ae40cfacf93ae68c	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Restrict loop row liveness proofs
+0972012a6d62f9a289cde0ab3eac76fcafff1a42	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Record PAGE typed gate and source residual review findings
+6599814c56ffefef726685f7b5f4c54dfd278485	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Resolve typed membership keys in Lean gate
+f62bf844930a072b1ba0b1ddbe63db932648ba7a	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Admit fixed membership source residuals
+c395d7a6bd99e746a68d509d7d0dab9f64641603	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Compare fixed membership IDs with Lean
+28f156bdf486772eba96804ddf9909332f1cf1e2	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Record full-scope READY view and reference reviews
+337571b2ec9e3161d2a0b55aaf5330fc4a50503e	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Record final PAGE web artifact within budget
+fadb58b04cc4befd55af8c16c6ff9507e701e826	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Mention unique cascade bounds
+8b7e8e4a6a3e28b665fcbb23b914cca207dfe1c9	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Keep cursor advice for null-exempt cap groups
+18382e36711c21aa3b03149fc2302bc16151cdaa	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Record PAGE discovery width and fixed-ID label review findings
+c7d89ab30e9366ed8ffb0de407d937650255da18	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Decline overwide membership discovery indexes
+e7e502abefd3528b67ba325ff79214098827e738	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Model PAGE membership physical limits
+501a6a6dfec90f0681f31195d00ffa15b6b9bea4	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Keep fixed membership IDs residual
+212ee90afbfa3858d2719507cb7e2b3ec6bdc6c0	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Record PAGE reservation fence and declared index review findings
+34b687c2c9819502126f9635fc7ceec1c0bb5981	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Reserve fixed-ID membership fallbacks
+0e670d95226dcab703c6ab631bc9e20d580dcc31	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Price declared PAGE membership indexes
+aac1df32ea259361bbc3545bcc1a9146f368a310	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Match PAGE physical index selection
+b349cf82169b64480713d6f630275326af05c771	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Support one-row membership sources
+4ac328b8392c5ae06846f370ad55337129187904	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Record PAGE total-unique source wasm qualification
+3923dfd1ef1e6f301c9a925f9cca65e94a47ad21	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Align total-unique membership model
+6aed15be0b0ac679511c75189e8e840d7056a1df	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Record PAGE positional implicit-source review finding
+e6f45cf5cb2a513e891f1c9dc0812cbd2cfda644	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Canonicalize positional membership sources
+39f415d57aa26fe580b89106f814babbf1677875	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Record PAGE intrinsic-ID Lean review finding
+902ce0aa91a95b19a2fe01b0b013fe127fb8f7e0	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Model intrinsic ID membership probes
+44180581c09d8b4fb7b04eff86bdbaad6957bb39	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Update reverse join coverage regression
+9c6f0599ae18775d947b49b5385c8ae6eaf3b27f	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Record PAGE resolved physical-width review finding
+6785f0059b98d593ac3eb882b8cefef0edb7327f	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Cover eight-column membership discovery
+eccfc762360691e75ce2a4ba00ae185a0217a079	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Measure membership source physical width
+263adb52090a25230f4cab7cd47f257cc8ba0114	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Specify nullable membership witnesses
+97bf94e9741a2ae18e99d7e8aff290a528493f2e	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Preserve nullable fixed-ID membership witnesses
+f80d1dde81e9574b71de2dfb8ddcc61193198221	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Keep nullable array fixture genuinely optional
+239b4dfde16e1951c42b3b3f4616fbb6048c19fe	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Model nullable fixed-ID membership witnesses
+7ff1e4afed03be3aa1b03e072cb02afa43310d15	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Record PAGE nullable-witness wasm qualification
+c75977105b463b3b286f950ee53cb3a819c915ee	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Cover nullable authored membership indexes
+4cd1051c7eda9de15a13a7f97962878c8b6bfe68	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Record PAGE natural-unique nullable-residual review finding
+7cf806389b2f8b42f9ce6d8e48ef00decf7f198e	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Admit one-row membership discovery sources
+377a92f1cf155bd6efaa405209f6f81833d8547d	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Project one-row membership source fields
+c30763121c301b2de3ef8d845c818eed9e8a1eca	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Model selected membership point keys
+c99ac8c0095b14b2cd3f948ee1d494277495b15d	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Preserve one-row membership residuals
+2984cf9c0d91467c3f9f5d12e80cb0282512700a	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Model one-row membership residuals
+0902f6aa2467642994a0b3772468bc4366547eb2	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	PAGE: qualify one-row discovery wasm and raise budget by 507 bytes
+78016af4e2803ae1ed516bbcdfdc48f8f1f35db7	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Choose admitted membership source points
+901e1a2ea486847c82c4703aea42a12bbd81820d	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Choose admitted modeled membership sources
+447df458ce6e35ddd70f5c3c20e77b9c420f6f3b	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	PAGE: preserve blind round 17 boolean-model finding
+96cbbb6c8ae809c1c85ddd60322cac66131d6480	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Normalize pinned boolean page guards
+0fd1487727e6603b3c9942633741410cf8256ca2	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Require nonnullable boolean guard pins
+65b4473dd7d085f471e7752e92fe8850a6de9c03	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Normalize required Boolean page guards
+1768356e26bc3c0c5e1fc71b6adbbc8aabc6126d	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Cross-check Boolean page guards
+d46360c022cab69b36abf61419f2db8471e02244	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	PAGE: record final required-Boolean wasm qualification
+a2b52d2b1b7a0f92577c5dbfffa38e5bd39a5690	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Gate modeled grants by static eligibility
+df8d989037be62902680fabd99e2e6fbf5a275b6	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Cross-check compound Boolean page guards
+ab05750fcfe4ca03b29d47fff52fd174c949efb9	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	PAGE: preserve round 18 guard and negative-literal findings
+89b0a2c1754cbaaba692050db9bf06c5d689cbeb	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Align PAGE rule simplification domains
+7afd4b8cbab2930d59663531396c52c2a2f17a90	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Canonicalize PAGE fixed literals for Lean
+f6025c0c91673039c7efe17525db3abdf81ab199	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	Cross-check normalized PAGE witnesses
+b57fbf7ff493c2f2e95cdc920c28c368f940c829	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	PAGE: qualify signed witnesses and raise wasm budget by 638 bytes
+ee0e339c80c9a32e0cdcc163e24894246e6d6073	Charlie Cheever <ccheever@firewoodagent.com>	Charlie Cheever <ccheever@firewoodagent.com>	PAGE: preserve full-delta planner reviews both READY
