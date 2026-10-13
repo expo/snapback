@@ -94305,3 +94305,10 @@ Mac sb4-integ7 ref succeeded. Reuse only snapback-integ6; protected publication
 and MACFIX worktrees stay untouched. An owned idle/system caffeinate assertion
 keeps this qualification alive while the required native/client stages run.
 No origin push or publication. Final verdicts and cross-host logs follow.
+
+Final delta reviews (Muse and fresh Sol, high) both return READY on 74895a66f0,
+with no material findings. Sol identifies §15.4's pre-PAGE filteredEvents
+witness description as stale; update the living text to distinguish membership
+discovery from the row-independent hoist, retaining the prior scan observation
+as history. This is documentation reconciliation of the already-tested
+empty/incomplete/no-cursor speculative envelope, not a new read policy.
