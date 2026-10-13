@@ -46,6 +46,7 @@ use snapback4_lang::emit::lean::LeanModule;
 use std::{
     cell::RefCell,
     collections::BTreeSet,
+    fs::{self, OpenOptions},
     io::{BufRead, BufReader, Write},
     path::PathBuf,
     process::{Child, ChildStdin, ChildStdout, Command, Stdio},
@@ -74,6 +75,22 @@ pub fn refresh() -> Result<(), String> {
         return Ok(());
     }
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../lean");
+    // Keep the optional-tool path read-only, including a checkout whose model
+    // directory is not writable. A version probe writes no Lake build artifacts.
+    match Command::new("lake").arg("--version").current_dir(&dir).stdin(Stdio::null()).output() {
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            eprintln!("lake not found: using the Lean oracle as built at {}", oracle_path().display());
+            return Ok(());
+        }
+        Err(e) => return Err(format!("lake: {e}")),
+        Ok(_) => {} // The build below reports actual toolchain/configuration errors.
+    }
+    // @ref LLP 3000.035#52-stage-2-a-small-lean-core — concurrent refreshes must not write the same Lake artifacts.
+    let cache = dir.join(".lake");
+    fs::create_dir_all(&cache).map_err(|e| format!("Lean refresh cache: {e}"))?;
+    let refresh_lock = OpenOptions::new().create(true).truncate(false).read(true).write(true)
+        .open(cache.join("snapback4-refresh.lock")).map_err(|e| format!("Lean refresh lock: {e}"))?;
+    refresh_lock.lock().map_err(|e| format!("Lean refresh lock: {e}"))?;
     match Command::new("lake").args(["build", "quarry-oracle"]).current_dir(&dir).stdin(Stdio::null()).output() {
         Ok(output) if output.status.success() => Ok(()),
         Ok(output) => Err(format!(
