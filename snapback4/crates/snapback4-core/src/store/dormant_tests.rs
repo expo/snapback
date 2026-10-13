@@ -1238,3 +1238,20 @@ fn restoring_null_exempt_caps_matches_runtime_and_successor_assessment() {
         }
     }
 }
+
+#[test]
+fn historical_through_captures_restore_after_public_rule_widening() {
+    let full="table parents:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  insert <- allow\ntable children:\n  parent: parents\n  body: text <=100\n  immutable parent\n  read through .parent\n";
+    let broad=full.replace("  read through .parent","  read <- allow");
+    let mut e=engine(full);
+    seed(&mut e,"parents",serde_json::json!({"id":"p","owner":"alice"}));
+    seed(&mut e,"children",serde_json::json!({"id":"c","parent":"p","body":"kept"}));
+    let original=e.store().rows("children").unwrap();
+    activate(&mut e,&broad,2).unwrap();
+    activate(&mut e,full,1).unwrap();
+    assert_eq!(e.store().rows("children").unwrap(),original);
+    activate(&mut e,&broad,2).unwrap();
+    seed(&mut e,"children",serde_json::json!({"id":"new","parent":"p","body":"new"}));
+    let error=activate(&mut e,full,1).unwrap_err().to_string();
+    assert!(error.contains("E_READ_THROUGH_ADOPT") && error.contains("new"),"{error}");
+}
