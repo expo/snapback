@@ -368,7 +368,7 @@ pub(super) fn title(dir: &Path) -> String {
 }
 
 /// Vite's config is `vite.config.mts`, so the reference tsconfig names that.
-fn esm_vite_config(tsconfig: &str) -> String { tsconfig.replace("\"vite.config.ts\"", "\"vite.config.mts\"") }
+fn esm_vite_config(tsconfig: &str) -> String { tsconfig.replace("\"vite.config.ts\"", "\"vite.config.mts\"").replace("\"types\": []", "\"types\": [\"node\"]") }
 
 /// npm scripts compare as commands: the same program and subcommand, then the
 /// same options in any order ("tsc --noEmit -p x" is "tsc -p x --noEmit").

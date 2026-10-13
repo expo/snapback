@@ -4,6 +4,7 @@ use serde_json::{Value, json};
 // @ref LLP 3000.011.003.000#1 — reuse one supported output; plain `init` stays schema-only.
 pub(super) fn files() -> Vec<(&'static str, String)> {
     let mut package: Value = serde_json::from_str(include_str!("../../../../../apps/chat/package.json")).unwrap();
+    package["devDependencies"]["@types/node"] = json!("^24");
     package["name"] = json!("snapback4-web-chat");
     package["dependencies"]["snapback4"] = json!(env!("CARGO_PKG_VERSION"));
     package["scripts"]["build"] = json!("vite build && snapback4 web-shell dist");
