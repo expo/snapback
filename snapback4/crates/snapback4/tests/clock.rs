@@ -225,6 +225,27 @@ fn timed_responses_keep_the_durable_server_floor_after_host_clock_rollback() {
 }
 
 #[test]
+fn ordinary_response_clocks_follow_the_host_after_restart() {
+    let f = Fixture::new("ordinary-response-clock");
+    let high = {
+        let host = f.start(&["dev", "--no-watch", "--hold-schedules", "--clock-offset", "25h"]);
+        host.query("time").as_i64().unwrap()
+    };
+    assert!(high > snapback4_core::now_ms() + 20 * 60 * 60 * 1000);
+
+    let host = f.start(&["dev", "--no-watch", "--hold-schedules"]);
+    let response = host.raw("POST", "/q/time", r#"{"args":{}}"#);
+    let (headers, body) = response.split_once("\r\n\r\n").unwrap();
+    let stamped = headers.lines().find_map(|line| {
+        let (name, value) = line.split_once(':')?;
+        name.eq_ignore_ascii_case("x-snapback-time").then(|| value.trim().parse::<i64>().unwrap())
+    }).expect("response clock header");
+    let queried = serde_json::from_str::<Value>(body).unwrap()["data"].as_i64().unwrap();
+    assert!(stamped < high - 20 * 60 * 60 * 1000, "{response}");
+    assert!(queried < high - 20 * 60 * 60 * 1000, "{response}");
+}
+
+#[test]
 fn run_now_refuses_live_dev_and_pins_offline_query_mutation_and_job() {
     let f = Fixture::new("run");
     let host = f.start(&["dev", "--no-watch", "--hold-schedules"]);

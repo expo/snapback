@@ -148,6 +148,11 @@ pub fn serve(
     let authoritative_now = engine
         .advance_time_audiences_at(clock.now())
         .map_err(|e| e.to_string())?;
+    let time_audience_clock = if engine.schema().tables.values().any(|table| table.not_before.is_some()) {
+        authoritative_now
+    } else {
+        i64::MIN
+    };
     let clock = Arc::new(Mutex::new(clock));
     let presence = Arc::new(Live::new(clock.clone()));
     engine.set_presence(Some(presence.clone()));
@@ -203,7 +208,7 @@ pub fn serve(
         polls: Condvar::new(),
         adoption,
         clock,
-        time_audience_clock: AtomicI64::new(authoritative_now),
+        time_audience_clock: AtomicI64::new(time_audience_clock),
         maintenance: FairMutex::gate(maintenance::State::default()),
         engine: FairMutex::new(engine),
         readers,

@@ -147,12 +147,21 @@ pub struct Shared {
 
 impl Shared {
     pub fn now(&self) -> i64 { lock(&self.clock).now().max(self.time_audience_clock.load(Ordering::Acquire)) }
+    pub(crate) fn refresh_time_audience_clock(&self, engine: &Engine, now: i64) {
+        if engine.schema().tables.values().any(|table| table.not_before.is_some()) {
+            let durable = engine.store().meta("time_audience_clock").ok().flatten()
+                .and_then(|value| value.parse::<i64>().ok()).unwrap_or(i64::MIN);
+            self.time_audience_clock.fetch_max(now.max(durable), Ordering::AcqRel);
+        } else {
+            self.time_audience_clock.store(i64::MIN, Ordering::Release);
+        }
+    }
     fn advance_time_audiences(&self) -> Result<i64, snapback4_core::RuntimeError> {
         let requested = lock(&self.clock).now();
         let mut engine = lock(&self.engine);
         let before = engine.seq()?;
         let now = engine.advance_time_audiences_at(requested)?;
-        self.time_audience_clock.fetch_max(now, Ordering::AcqRel);
+        self.refresh_time_audience_clock(&engine, now);
         if engine.seq()? != before { self.durable_committed(&engine); }
         Ok(now)
     }
