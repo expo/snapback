@@ -20,8 +20,42 @@ mutation move(id: announcements, opensAt: time ?):
   return true
 ";
 
+const UNIQUE_SOURCE: &str = "table releases:
+  team: text <=20
+  principal: principal
+  opensAt: time
+  body: text <=100
+  unique byAudience: team, principal
+  by byOpening: opensAt
+  not before .opensAt
+  public 'scheduled releases'
+  insert <- allow
+  update <- allow
+  sync public
+query release(id: releases):
+  return releases[id]
+mutation create(id: id, team: text <=20, principal: principal, opensAt: time, body: text <=100):
+  insert releases { id, team, principal, opensAt, body }
+  return true
+mutation revise(team: text <=20, principal: principal, body: text <=100):
+  upsert releases[team = team, principal = principal] { body }
+  return true
+";
+
 fn engine_at(now: i64) -> Engine {
     let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    Engine::new_at(
+        Store::memory().unwrap(),
+        bound.schema,
+        bound.programs.into_iter().map(|program| program.program),
+        now,
+    )
+    .unwrap()
+}
+
+fn unique_engine_at(now: i64) -> Engine {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), UNIQUE_SOURCE.into())]);
     assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
     Engine::new_at(
         Store::memory().unwrap(),
@@ -257,4 +291,45 @@ fn a_hidden_future_payload_does_not_change_the_public_query_meter() {
     assert_eq!(hidden.complete, absent.complete);
     assert_eq!(hidden.next, absent.next);
     assert_eq!(hidden.next_expiry, absent.next_expiry);
+}
+
+#[test]
+fn a_future_row_reserves_each_non_null_unique_key() {
+    let mut engine = unique_engine_at(0);
+    let create = |id: &str| Context::new("alice", [
+        ("id".into(), Value::Id(id.into())),
+        ("team".into(), Value::String("red".into())),
+        ("principal".into(), Value::Id("alice".into())),
+        ("opensAt".into(), Value::Int(100)),
+        ("body".into(), Value::String("hidden".into())),
+    ].into()).at(0);
+
+    assert!(matches!(engine.mutate("create", None, create("one")).unwrap().state, WriteState::Sent { .. }));
+    let outcome = engine.mutate("create", None, create("two")).unwrap();
+    assert!(matches!(&outcome.state, WriteState::Failed { why, .. } if why.code == "E_RULE"), "{outcome:?}");
+    assert_eq!(engine.store().count("releases").unwrap(), 1);
+}
+
+#[test]
+fn a_natural_unique_upsert_patches_the_future_row_without_inserting() {
+    let mut engine = unique_engine_at(0);
+    engine.mutate("create", None, Context::new("alice", [
+        ("id".into(), Value::Id("one".into())),
+        ("team".into(), Value::String("red".into())),
+        ("principal".into(), Value::Id("alice".into())),
+        ("opensAt".into(), Value::Int(100)),
+        ("body".into(), Value::String("first".into())),
+    ].into()).at(0)).unwrap();
+
+    engine.mutate("revise", None, Context::new("alice", [
+        ("team".into(), Value::String("red".into())),
+        ("principal".into(), Value::Id("alice".into())),
+        ("body".into(), Value::String("revised".into())),
+    ].into()).at(0)).unwrap();
+    assert_eq!(engine.store().count("releases").unwrap(), 1);
+
+    let opened = engine.query("release", Context::new("alice", [
+        ("id".into(), Value::Id("one".into())),
+    ].into()).at(100)).unwrap();
+    assert_eq!(opened.data.field("body"), Ok(&Value::String("revised".into())));
 }

@@ -236,6 +236,27 @@ impl Runner<'_> {
         )
     }
 
+    /// @ref LLP 3000.036.002#6 — write constraints keep lower-lifetime occupants physical.
+    /// Write constraints and server write targets see an unopened row as a
+    /// physical occupant. They still pass expired siblings because expiry,
+    /// unlike a lower read lifetime, releases logical uniqueness.
+    pub(in crate::engine) fn lookup_write_occupant(&mut self, table_name: &str, name: &str, _index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError> {
+        let table = &self.schema.tables[table_name];
+        if table.not_before.is_none() { return self.lookup_stored(table_name, name, index, key, false); }
+        let reservation = crate::rows::disclosed::decode_reservation(table);
+        let mut bounds = Bounds::default();
+        loop {
+            let found = self.authorized_scratch(reservation, &[], |runner, scope| {
+                runner.tx.scan(scope, table_name, name, key, &bounds, Dir::Asc, 1)
+                    .map(|mut rows| rows.pop())
+            })?;
+            let Some((mut row, stored)) = found else { return Ok(None); };
+            materialize_optional_fields(&mut row, &self.schema.tables[table_name]);
+            if !self.expired(&self.schema.tables[table_name], &row) { return Ok(Some(row)); }
+            bounds.after = crate::key::decode(&stored).map(|values| values.into_iter().skip(key.len()).collect());
+        }
+    }
+
     pub(in crate::engine) fn live_lookup(&mut self, allowance: &Authorization, table_name: &str, name: &str, index: &Index, key: &[Value], #[cfg(feature = "sqlite")] mut encountered: Option<&mut bool>) -> Result<Option<Value>, RuntimeError> {
         let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
         if crate::rows::disclosed::actual_size(table) && !self.device_work_active {

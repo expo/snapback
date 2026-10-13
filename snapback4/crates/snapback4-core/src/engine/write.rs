@@ -709,7 +709,11 @@ impl Runner<'_> {
     fn collision_lookup(&mut self, table: &str, name: &str, index: &crate::schema::Index, key: &[Value], except: Option<&str>, effect: Effect) -> Result<Option<Value>, RuntimeError> {
         let probes = super::rules::rule_probes(&self.schema.tables[table].rules.read);
         self.authorized_scan(&[(MeterKind::RuleProbes, probes)], |runner, allowance| {
-            let found = runner.live_lookup(allowance, table, name, index, key, #[cfg(feature = "sqlite")] None)?;
+            let found = if runner.schema.tables[table].not_before.is_some() {
+                runner.lookup_write_occupant(table, name, index, key)?
+            } else {
+                runner.live_lookup(allowance, table, name, index, key, #[cfg(feature = "sqlite")] None)?
+            };
             if let Some(row) = &found && Some(row.field("id")?.as_str()?) != except {
                 runner.observe_sequence_columns(table, row, &index.columns(), effect == Effect::Insert)?;
                 runner.visible_collision(table, row, effect, &format!("unique {}", index.columns().join(", ")))?;
@@ -729,8 +733,7 @@ impl Runner<'_> {
         let mut image = row.clone();
         let definition = self.schema.table(table).expect("validated");
         materialize_optional_fields(&mut image, definition);
-        let expired = definition.expired(&image, self.context.now.unwrap_or(0));
-        if expired || !self.check_rule(table, Effect::Read, None, &image)? {
+        if self.inactive(table, &image)? || !self.check_rule(table, Effect::Read, None, &image)? {
             return Err(self.rule_refusal(table, effect, clause));
         }
         Ok(())
