@@ -54,6 +54,57 @@ of the same role. Test both grants separately:
 {"as":"bob","op":"canCommand","args":{},"data":false}
 ```
 
+## Timed disclosure and timed writes
+
+`not before .opensAt` is a server-enforced lower read lifetime. It withholds
+the row from reads, rule probes and sync until the server reaches the boundary;
+it does not authorize a write. Keep a write deadline as an explicit mutation
+`require`. Here submissions close independently, then their secrets become
+public for the half-open interval `[opensAt, expiresAt)`.
+
+```quarry
+use personas alice, bob
+
+table events:
+  host: principal
+  submitUntil: time
+  revealAt: time
+  archiveAt: time
+  immutable host, submitUntil, revealAt, archiveAt
+  public 'event times are public'
+  insert <- .host = viewer
+  sync public
+
+table submissions:
+  event: events
+  author: principal
+  opensAt: time
+  expiresAt: time
+  secret: text 1..2000
+  by byOpening: opensAt
+  by byExpiry: expiresAt
+  immutable event, author, opensAt, expiresAt
+  not before .opensAt
+  expire at .expiresAt
+  public 'submissions are public only during their read lifetime'
+  insert <- .author = viewer and .opensAt = .event.revealAt and .expiresAt = .event.archiveAt
+  sync public
+
+mutation submit(event: events, secret: text 1..2000):
+  e = events[event] ! else NOT_FOUND
+  require now < e.submitUntil else SUBMISSIONS_CLOSED
+  return insert submissions { event, author: viewer, opensAt: e.revealAt, expiresAt: e.archiveAt, secret }
+
+query revealed(c: cursor ?):
+  return submissions last 50 by .id after c
+```
+
+A null opening on an optional `time ?` column means immediately readable;
+`expire at` remains the independent upper boundary. Natural server requests
+and sync publish due rows without an application job. A device timer may ask
+for a refresh, but device wall clocks and server-time estimates never unlock
+the secret, and no hidden opening is exposed as `nextExpiry`.
+
 ## A writer who cannot read the parent
 
 A reference value does not itself read or validate its target. When a writer

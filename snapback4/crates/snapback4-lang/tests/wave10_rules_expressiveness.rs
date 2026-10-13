@@ -203,6 +203,28 @@ fn blind_writer_recipe_checks_the_parent_without_reading_it() {
 }
 
 #[test]
+fn timed_disclosure_recipe_separates_read_lifetime_from_write_deadline() {
+    let source = recipe("mutation submit(event:");
+    let bound = clean(&source);
+    let submissions = &bound.schema.tables["submissions"];
+    assert_eq!(submissions.not_before.as_deref(), Some("opensAt"));
+    assert_eq!(submissions.expire.as_deref(), Some("expiresAt"));
+    assert_eq!(
+        submissions.opening_index().map(|(name, _)| name),
+        Some("byOpening")
+    );
+    assert!(
+        bound
+            .schema
+            .required_capabilities()
+            .contains("time-audiences-v1")
+    );
+    assert!(source.contains("require now < e.submitUntil else SUBMISSIONS_CLOSED"));
+    assert!(source.contains("not before .opensAt"));
+    assert!(source.contains("expire at .expiresAt"));
+}
+
+#[test]
 fn mutable_read_through_diagnostic_explains_both_audience_histories() {
     let source = "table dispatchers:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable franchisees:\n  principal: principal\n  territory: text 1..40\n  unique principal\n  read <- .principal = viewer\n  online only\ntable leads:\n  customer: principal\n  territory: text 1..40\n  immutable customer\n  read <- .customer = viewer or exists franchisees[principal = viewer, territory = .territory] or exists dispatchers[viewer]\n  online only\ntable followUps:\n  lead: leads\n  immutable lead\n  read through .lead\n  online only\n";
     let bound = compile(&[("schema.q".into(), source.into())]);
