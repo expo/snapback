@@ -816,7 +816,12 @@ fn variants(case: &mut Case, seed: u64) {
     }
     if matches!(case.program.body, Body::Read { .. }) && pick(3) == 0 {
         let residuals = [".score >= 0", ".label != ''", ".maybe = null", ".maybe = n", "(.score > 0 or .flag = false)"];
-        case.program.residual = Some(residuals[pick(5) as usize].to_owned());
+        let residual = residuals[pick(5) as usize];
+        // An intrinsic-id lane already pins identity: equality on nullable
+        // `maybe` can exhaust its range prefix. Keep this generated variant a
+        // row filter so the exact by-id page remains in the admitted fragment.
+        let residual = if residual == ".maybe = null" && matches!(case.program.tables[0].rule, Rule::OwnerOrIdWitness) { ".maybe != null" } else { residual };
+        case.program.residual = Some(residual.to_owned());
     }
 }
 

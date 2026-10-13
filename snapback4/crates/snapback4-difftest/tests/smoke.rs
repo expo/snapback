@@ -603,3 +603,12 @@ fn wave10_generator_preserves_id_membership_uniqueness_and_timed_sync_rules() {
         execute::engine(&case, &source).unwrap_or_else(|error| panic!("seed {seed}: {error}\n{source}"));
     }
 }
+
+#[test]
+fn lean_id_membership_residuals_stay_in_the_admitted_fragment() {
+    for seed in [9414, 17329] {
+        let case = snapback4_difftest::lean::generate(seed);
+        let source = case.program.source();
+        execute::engine(&case, &source).unwrap_or_else(|error| panic!("seed {seed}: {error}\n{source}"));
+    }
+}
