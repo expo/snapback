@@ -4,7 +4,10 @@ Worktree `/home/ccheever/projects/sb4-w10-page2`, branch `sb4-w10-page2`, base `
 
 ## Result and review status
 
-Search discovery (`829bc19b2a`), actual-publication evidence (`47a1d4b098`), pending logical-read rollback (`098e0d5357`) and durable metadata forwarding/backend refusal (`46b75b6822`) are implemented with passing old-code negative controls. Simulator and both-store device original-id retry/restart coverage is committed in `6a516216cb`. Pending job reads roll back the whole chunk and retain queue state for the next scheduler turn. Round-nine Muse marks both proposals READY; fresh Codex marks the planner READY and time audiences NOT READY because Quarry/native job writer transactions do not pin the durable lifetime floor. That finding is fixed in `d0e1c30841`: all row writers pin inside their transaction; all read snapshots re-observe their own durable floor, and timed asset homes withhold bytes until publication. Quarry/native job tests pass 5/5; the four timed cases all fail when the job pin is removed. Tenth-round Muse is READY for both. Fresh Codex marks time audiences READY but PAGE2 NOT READY: the Lean classifier lacks the fully pinned total-unique discovery alternative admitted by Rust/emitter when the original positional point probe is nullable. The formal admission mismatch is fixed in `361ed2628d`; round-eleven fresh Codex finds two further planner gaps, intrinsic-id typing across competing uniques and step-abort handling inside discovery expressions. Both are being fixed; round-eleven Muse is pending. Its exact native/Lean negative control reproduces the same granted row but Lean `complete:false` versus native `complete:true`. Final campaigns, host clocks and metrology pass. Review records, including every NOT READY finding and subsequent fix, are preserved verbatim in `llp/reviews/3000.036-page2.r1.*` through `r11.*`. Every round uses the required Muse contributor/high and a fresh `codex exec -m gpt-6.1-sol`/high session, mutually blind. The Muse wrapper successfully retried exhausted plan quota using its authorized API fallback; no credential file was inspected or printed. Time audiences are recorded Implemented at `d0e1c30841`, with both round-ten reviewers READY and its current link archived. PAGE2 remains pending fresh reviews of its committed formal fix. Reviews bind semantic content rather than subsequent documentation HEAD changes.
+Implemented and committed. Final planner semantic checkpoint: `24a644c511fc5a6888597af9335d894790eaeb97`, with both round-12 reviewers READY. Time-audience semantics have both round-10 reviewers READY at `d0e1c30841`; timed core tests pass again after planner integration. Reviews bind scoped content rather than documentation HEAD. Time RFC 3000.036.002 is Implemented and archived from `llp/current/`; the existing parent planner RFC keeps its legacy Review header while §15 explicitly records implementation and dual-family readiness.
+
+All reviews and blocker/fix rounds are saved verbatim with frozen proposals, hashes and command provenance in `llp/reviews/3000.036-page2.r1.*` through `r12.*`. Each used the required Muse contributor/high and a fresh Codex gpt-6.1-sol/high session, mutually blind. Muse's wrapper recovered exhausted plan quota through its authorized API fallback; no credential file was read or printed. Final tests, campaigns, client/web builds and measurement pass within their stated scopes. No push or publication.
+
 
 ## #11 — owner-or-membership pages
 
@@ -14,11 +17,13 @@ The merge supports intrinsic target `.id`, including `byId` continuations, and r
 
 The indexes guide's **Private lists** section documents unique/cap inference, metered uncapped discovery, own-id and parent-owner pages, and the exact-cap repair. The amendment is LLP 3000.036.001 §15.
 
+Final corrections: `361ed2628d` adds fully pinned Lean discovery with a native/Lean negative control; `d03a75c80e` types intrinsic ids against competing uniques and retains those keys in generation; `24a644c511` fences expression-step cuts and restores bindings. Positive old-code step ceilings 2/3/6/8/11/12/14/15 return E_BOUND; restored discovery cuts are empty/incomplete without continuation. Heap, pending publication and other errors retain their behavior.
+
 Key commits: `3011e3db92`, `50ea8d6df2`, `4ea5074f12`, `a9ac5d2ea5`, `a81f7cb480`, `521d42629f`, `e72d916b0c`, `2ae1b0d5b4`, `8a2104f458`, `abbf5bdad7`, `56b43a797c`, `7e3a3b6732`, `7af7790777`.
 
 ### All 50 odd-lane final schemas
 
-All 50 baseline and all 50 updated checks succeed. `N_NEVER_COMPLETE` falls from **20 notes in 13 schemas to 18 notes in 11 schemas**. Removed: lane 001 `incomingRequests` (parent owner) and lane 037 `myChildren` (own-id membership). The raw reduction is 2/20 notes; this is not a claim that the broad corpus mostly consisted of ordinary memberships.
+All 50 baseline and all 50 final updated checks succeed. The CLI was rebuilt after the intrinsic-id correction and the copied-schema survey repeated at `24a644c511`; counts and remaining note identities are unchanged. [Final survey provenance](snapback4/reports/20261013-page2/final-schema-survey.md) binds binary/source/output hashes. `N_NEVER_COMPLETE` falls from **20 notes in 13 schemas to 18 notes in 11 schemas**. Removed: lane 001 `incomingRequests` (parent owner) and lane 037 `myChildren` (own-id membership). The raw reduction is 2/20 notes; this is not a claim that the broad corpus mostly consisted of ordinary memberships.
 
 The remaining 18 notes are 12 party-plus-static-role-grant pages, 3 compound/non-equality/multi-branch rules, 2 hidden parent-source inversions, and 1 pure-membership page. Among the five odd-lane membership-shaped notes, two are fixed, two require discovery of a source the caller cannot read, and one has no owner/static party branch. Safe admission of hidden-source or pure-membership plans is outside this owner-or-X amendment; those exclusions are explicit rather than advertised as complete pages.
 
@@ -58,38 +63,42 @@ Affected suites passed at their implementation checkpoints:
 | Guide | lang `guide` | 120/120 compiled/card checks |
 | Core final rerun | `time_audiences`; `delivery_bounds`; `expiring_adoption`; `meter`; `review_walk` | 21/21; 2/2; 5/5; 9/9; 16/16 |
 | Transaction clock audit | `job_time_audiences`; `dev_reset`; `file_assets`; `ephemeral` | 5/5 Quarry/native and untimed; 4/4; 6/6; 16/16 |
+| Discovery step fence | core `membership_discovery_steps`; simulator `membership`; device `branch_merge` | 1/1 positive-ceiling sweep; 8/8; 12/12 across both stores |
 | Delivery helpers | bounded delivery unit suite; `sync_count_batch` | 2/2; 1/1 |
 | HTTP | host clock suite; ordinary-clock restart; large timed join repair | 27/27 final integration suite; targeted pass; targeted pass |
 | Device | `time_audiences`; intrinsic-id two-page regression | 6/6 across Memory/SQLite; both stores pass |
 | Simulator | `time_audiences`; membership cursor revoke/acquisition | 4/4; targeted pass |
-| Lean | `lean/check.sh`; emitter | 58-theorem audit, 71/71 examples, 7 generated fixtures; Lean difftests 31/31, smoke 17/17; emitter 12/12 checkpoint plus set-null regression pass |
+| Lean | `lean/check.sh`; emitter | 58-theorem audit, 71/71 examples, 7 generated fixtures; Lean difftests 32/32, smoke 17/17; emitter 12/12 checkpoint plus set-null regression pass |
 | Generator | native/Lean by-id membership smoke | pass |
 | Package | client TypeScript/wasm build | pass after final wasm |
 | Corpus | `./ref-check`; `git diff --check` | 544 LLPs / 11,131 refs, no errors; pass |
 
-Final campaign binary was rebuilt after `d0e1c30841`; each command used seed 0, 400 cases, 4 workers, and a separate output directory:
+Final campaign binary was rebuilt after `24a644c511`; each command used seed 0, 400 cases, 4 workers, and a separate output directory:
 
 ```sh
-target/release/snapback4-difftest run --seed 0 --cases 400 --workers 4 --out /tmp/sb4-page2-final-native-r10
-target/release/snapback4-difftest run-devices --seed 0 --cases 400 --workers 4 --out /tmp/sb4-page2-final-devices-r10
-target/release/snapback4-difftest run-lean --seed 0 --cases 400 --workers 4 --out /tmp/sb4-page2-final-lean-r10
+target/release/snapback4-difftest run --seed 0 --cases 400 --workers 4 --out /tmp/sb4-page2-final-native-r12
+target/release/snapback4-difftest run-devices --seed 0 --cases 400 --workers 4 --out /tmp/sb4-page2-final-devices-r12
+target/release/snapback4-difftest run-lean --seed 0 --cases 400 --workers 4 --out /tmp/sb4-page2-final-lean-r12
 ```
 
-- Native: 400 generated/compiled, 20,605 executions, zero disagreements/signatures across all nine oracles, including 7/7 timed-search absence comparisons; exit 0.
+- Native: 400 generated/compiled, 20,619 executions, zero disagreements/signatures across all nine oracles, including 7/7 timed-search absence comparisons; exit 0.
 - Device: 400 generated/compiled, 13,114 executions, zero disagreements/signatures across eight Memory/SQLite oracles and all ten meter dimensions; exit 0.
 - Lean: 400 generated/compiled, 1,072 executions, 317 passes, 80 explicit unsupported cases, 3 disagreements. Only existing `CLASSIFIED` signatures occur: `lean--continuation-next--next~no-next` twice and `lean--next--next~no-next` once. **Zero new signatures**; CLI exit 1 because it reports classified disagreements too. No claim of an entirely green Lean campaign.
+
+Additional generated discovery-unique runs hit native seed 715 (394 executions, zero signatures) and Lean seed 551 (6 executions, one compared case, zero signatures). Those shapes lie outside seeds 0–399. Both device stores run the same native case and correctly stay online-only unknown/incomplete because its source is uncovered (4 executions; no offline equality claim). Reports `discovery-{native,lean,devices}.json` preserve this distinction.
 
 The Lean model covers the pinned lower-bound operation fragment (`opened`) and exact membership/by-id merge, including physical future writes; upper expiry, durable publication ledger and clock floors are checked by native/simulator/device tests and are not claimed as Lean proofs. Four timed scenario families (before, exact, future, nullable), own-id and uncapped membership generation are reached. Reports are committed under [PAGE2 evidence](snapback4/reports/20261013-page2/).
 
 ## Wasm
 
-Baseline at `f9e40ef515`: 2,291,429 B raw / 698,386 B gzip. Final locked Linux web device: **2,302,339 B raw / 701,955 B gzip / 530,689 B brotli**, whole-artifact delta +10,910 raw / +3,569 gzip. Budget **702,455 B = measured gzip + 500 B**, with the reason in `metrics/wasm-budget.json` and the journal; latest ratchet commit `96cf6eee5b`.
+Baseline at `f9e40ef515`: 2,291,429 B raw / 698,386 B gzip. Final locked Linux web device: **2,305,135 B raw / 703,255 B gzip / 531,512 B brotli**, whole-artifact delta +13,706 raw / +4,869 gzip. Budget **703,755 B = measured gzip + 500 B**, with the reason in `metrics/wasm-budget.json` and the journal; final ratchet commit `10d27f62cc`.
 
-`measure-wasm.sh` passes serializer-family and forbidden-absence audits; final receipt is `dirty:false`, source checkpoint `0f97de33c5`, no overage. Server-only queue/join delivery is absent from the device. No runtime ceiling increase, per-feature attribution, Mac measurement or publication qualification is claimed. Brotli was extracted from a small package into `/tmp` for measurement, without a system/repository dependency change. Receipts are append-only in `snapback4/metrics/wasm.jsonl` and copied into the evidence directory.
+`measure-wasm.sh` passes serializer-family and forbidden-absence audits; final receipt is `dirty:false`, source checkpoint `10d27f62cc`, no overage. Server-only queue/join delivery is absent from the device. No runtime ceiling increase, per-feature attribution, Mac measurement or publication qualification is claimed. Brotli was extracted from a small package into `/tmp` for measurement, without a system/repository dependency change. Receipts are append-only in `snapback4/metrics/wasm.jsonl` and copied into the evidence directory.
 
 ## Decisions, ownership and deferrals
 
 - Hidden-source parent inversions and pure-membership pages remain excluded from this exact readable-source owner-or-X merge. The report's raw farm counts take precedence over a misleading large-majority claim.
+- Lean CapDecl does not carry referential actions. General formal cap/on-delete representation remains deferred; current language rejection of incompatible set-null cap groups occurs before Lean classification and is covered by the existing regression. This is a formal-fragment boundary.
 - The timed first-slice exclusions and bounded `E_BOUND`/snapshot recovery are explicit supported boundaries. They prevent unbounded expansion and early private disclosure.
 - HS owns broad handshake negotiation, DOM-free declarations and starter Vite types; REL2 owns publication/release; DX2 owns starters/upgrade/witness/general client recipes; DIAG owns general lint/diagnostic changes. One-line ownership pointers are in LLP 3000.036 §19. PAGE2 only declares its new semantic capabilities and requested rules/planner guide changes.
 - The root inventory checker belongs outside the Snapback4 fence and needs absent Snapback1–3 artifacts. Its attempted invocation failed that setup precondition; no unrelated bootstrap/regeneration was done. Snapback4 affected checks above passed.
