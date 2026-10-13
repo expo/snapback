@@ -94444,3 +94444,11 @@ the compact canonical JSON and the crate-owned handshake contract. No census
 allowlist or runtime ceiling changes. Rebuild and requalify the web artifact
 and iOS static libraries after this repair; the native build correctly omits
 the wasm-only custom section while exporting sb4_engine_info.
+
+### 2026-10-13 — Integration 8, shipped Guide references
+
+The full Guide suite catches two bare diagnostic sidecar suffixes in HS's
+client documentation as unshipped file references. Describe their diagnostic
+role in prose; the embedded identity remains authoritative. Preserve the
+installed-package reference checker and its exact application-file allowlist.
+Re-run the complete executable Guide suite on the corrected documentation.
