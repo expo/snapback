@@ -830,7 +830,7 @@ test('owned serve death before hot commit and after commit recovers database aut
   await serve(deployment,async(url,headers,_session,_logs,child)=>{
     const written=await(await fetch(url+'/m/add',{method:'POST',headers,body:JSON.stringify({id:'before-crash',args:{}})})).json();assert.equal(written.state,'sent');
     writeFileSync(schema,source.replace('return 1','return 2'));
-    const db=new DatabaseSync(join(deployment,'store.sqlite'));db.exec('BEGIN IMMEDIATE');
+    const db=new DatabaseSync(join(deployment,'store.sqlite'));db.exec('PRAGMA busy_timeout=5000; BEGIN IMMEDIATE');
     const pending=invokeAsync(app,'deploy',deployment);
     try {
       await waitFor(()=>existsSync(join(deployment,`.current-${child.pid}-2`)),'hot command prepared before blocked transaction');
