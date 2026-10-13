@@ -737,6 +737,12 @@ def merged : List Example := [
               program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"d2","owner":"bob","at":2},{"id":"d1","owner":"alice","at":1}],"complete":true,"next":null}"# },
+  { name := "page-row-id-membership-by-id-merged"
+    source := "LLP 3000.036.001 §15: a fully pinned physical byId target retains id as the shared logical position"
+    case := { schema := membershipIdDocs, store := membershipIdStore, viewer := alice,
+              program := query [.ret (.page "documents" [] none ["id"] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"d1","owner":"alice","at":1},{"id":"d2","owner":"bob","at":2}],"complete":true,"next":null}"# },
   { name := "page-row-id-membership-with-owner-alternatives"
     source := "LLP 3000.036.001 §15: row-id membership discovery composes with eligible where alternatives"
     case := { schema := membershipIdDocs, store := membershipIdStore, viewer := alice,

@@ -563,7 +563,8 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
             | .party c => c != "id" && !order.contains c
                 && laneFits order ((c, .viewer) :: a.filterMap Expr.eqPin) pins
             | .membership _ _ key => (membershipColumns key).any fun pair =>
-                !order.contains pair.2 && !pins.any (·.1 == pair.2)
+                (!order.contains pair.2 || pair.2 == "id" && order == ["id"])
+                  && !pins.any (·.1 == pair.2)
                   && !(a.filterMap Expr.eqPin).any (·.1 == pair.2)
                   && laneFits order ((pair.2, .viewer) :: a.filterMap Expr.eqPin) pins
       | none => false
