@@ -94256,3 +94256,14 @@ verbatim under llp/reviews/3000-integration7.r2.*. They explicitly separate
 source correctness from execution qualification. Apply Sol's minor codec
 comment correction. Muse's historical budget-label observation will be
 reconciled with the final bumped measurement, retaining earlier records.
+
+Integration 7 pooled browser follow-through: the second Linux pool times out
+online-journal-browser's final dead-tab adoption, while the first pool and a
+complete diagnostic rerun pass. The rerun observes the closed owner's actual
+Web Lock still held after page.close resolves. This API completion is not a
+lock-release barrier; the capture law correctly refuses a still-held owner.
+Poll navigator.locks.query for that exact owner's absence before reopening the
+peer, preserving live-peer protection and exact-once recovery. No arbitrary
+settle sleep, timeout increase or product change. The observed snapshot and
+failed/passing logs are retained; closed ticket 20261013-snapback4-browser-tab-
+lock-release-barrier records the direct observation and causal inference.

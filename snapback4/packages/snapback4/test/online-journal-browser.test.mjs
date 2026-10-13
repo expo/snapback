@@ -391,7 +391,18 @@ window.refuseJournalCommits = () => {
       await peer.evaluate(() => app.client.pendingWrites());
       await new Promise(resolve => setTimeout(resolve, 300));
       assert.equal(await total(), before, 'the peer never adopts a live tab\'s click');
+      const ownerRuntime = await page.evaluate(() => JSON.parse(localStorage.getItem(records()[0])).runtime);
       await page.close();
+      const locksAfterClose = await peer.evaluate(() => navigator.locks.query());
+      t.diagnostic(JSON.stringify({ ownerRuntime, locksAfterClose }));
+      // page.close() can resolve before Chromium releases the renderer's
+      // Web Locks. Recovery correctly refuses that still-live lock; establish
+      // the dead-owner precondition before asking a new open to adopt it.
+      await until(() => peer.evaluate(async runtime => {
+        const snapshot = await navigator.locks.query();
+        return ![...(snapshot.held ?? []), ...(snapshot.pending ?? [])]
+          .some(lock => lock.name === 'snapback4-online-runtime:' + runtime);
+      }, ownerRuntime), 'closed tab liveness lock released');
       await peer.evaluate(() => app.close());
       await peer.evaluate(options => boot(options), { url });
       await until(async () => await total() === before + 1, 'adopted after the tab closed');
