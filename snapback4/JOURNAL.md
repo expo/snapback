@@ -94477,3 +94477,14 @@ server-only. No per-feature attribution or runtime resource ceiling increase.
 The finished core timed suite is 13/13; delivery bounds 2/2, expiring adoption
 5/5, meter 9/9, and authorization review walk 14/14 pass. Final blind reviews
 are still in progress; their verdicts will be recorded separately.
+
+
+## 2026-10-13 — PAGE2 expiry-first final measurement
+
+The never-live witness fix checks upper expiry before applying lower-lifetime
+authorization refunds. A 4,200-distinct-witness regression fails with the old
+ordering and passes with the fixed ordering. The locked Linux web artifact is
+2,301,467 B raw / 701,506 B gzip; set 702,006 B = measurement plus 500 B.
+This supersedes 701,990 B by the measured 16 B gzip change. Against
+`f9e40ef515`, the whole artifact adds 10,038 B raw / 3,120 B gzip. No runtime
+ceiling increase, per-feature attribution or macOS measurement.
