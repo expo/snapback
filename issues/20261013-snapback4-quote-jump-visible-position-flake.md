@@ -44,3 +44,18 @@ original 273-to-307 failure and its solo-pass evidence: this clean pool does not
 identify or repair that earlier layout-sensitive race. The ticket remains open
 for geometry/scroll instrumentation; no pixel/timing bar was weakened. Final
 pool logs are archived under snapback4/reports/20261013-integration7/mac/.
+
+## Integration 8 pooled evidence — 2026-10-13
+
+The first complete Linux 375-file pool (24 slots, Node 24.13.1) at repaired
+HS source repeats the online visible-position assertion at line 247:
+296 after the jump versus 264 before it. The same online tier then times out
+after 122 seconds in the beyond-horizon anchored read at line 264. Record
+both observations without assuming the geometry failure caused the timeout.
+Replica-tier assertions pass; the complete file reports 34 passed / 4 failed
+(including failed parent subtests). The template, list/jump implementation
+and browser assertions are unchanged by HS and the integration repairs.
+
+Evidence: `snapback4/reports/20261013-integration8/linux/client-tests.log`
+(archived with qualification). Preserve this red even if a later full pool
+passes. No pixel, arrival or timing assertion is relaxed.
