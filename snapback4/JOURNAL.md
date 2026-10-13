@@ -94286,3 +94286,22 @@ closed-tab lock release race); they are never called clean qualification.
 Final rebuilt native/device/Lean difftests retain the previous exact counts:
 20k native, devices 0–999 zero disagreements; Lean 20k has only four retained
 signature families, with counts 3/68/132/27. No new signature is introduced.
+
+## 2026-10-13 — Integration 7 bumps to 0.4.25
+
+Version commit 5a4779e48a updates the same eight Cargo/Bun/package files as
+383858cfe5; actual-engine version tests derive their expected live stamp from
+the package. Historical mocked versions and the 0.4.24 protocol minimum remain
+intentional. Clean locked Linux 0.4.25 artifact: 2291429 B raw / 698386 B gzip /
+527885 B brotli. Strict family/absence audits pass. Ratchet budget to 698886 B,
+exactly final measurement plus 500 B platform headroom; version stamp saves
+106 B gzip versus the pre-bump sink measurement. No runtime ceiling change.
+The full five-crate command is rerun on the bumped version, with the final
+Guide fixes; post-bump client/version and Mac qualification follow separately.
+
+The M5 went offline at 03:10 UTC and several SSH/Tailscale/LAN retries failed.
+It returned before 04:05 UTC; transfer of 5a4779e48a to the expressly authorized
+Mac sb4-integ7 ref succeeded. Reuse only snapback-integ6; protected publication
+and MACFIX worktrees stay untouched. An owned idle/system caffeinate assertion
+keeps this qualification alive while the required native/client stages run.
+No origin push or publication. Final verdicts and cross-host logs follow.
