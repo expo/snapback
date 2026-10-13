@@ -500,6 +500,20 @@ fn nullable_membership_points_agree_with_the_engine() {
     natural_null_slot.extend(documents());
     check(&natural_residual, natural_null_slot, &["owned"]);
 
+    let competing = "table members:\n  parent: text <=40\n  a: int\n  principal: principal\n  unique aa: a\n  unique zz: principal\n  cap 16 by principal\n  read <- .principal = viewer\n  online only\ntable documents:\n  parent: text <=40\n  owner: principal\n  at: int\n  read <- .owner = viewer or exists members[parent = .parent, principal = viewer, a = 0]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
+    let competing_module = lean::module(competing).unwrap();
+    assert_eq!(competing_module.schema["tables"][1]["read"]["or"][1]["probe"]["point"], json!(["a"]));
+    let competing_documents = || vec![
+        ("documents".into(), json!({"id":"owned","parent":"p0","owner":"alice","at":1})),
+        ("documents".into(), json!({"id":"shared","parent":"p1","owner":"bob","at":2})),
+    ];
+    let mut competing_present = vec![("members".into(), json!({"id":"m1","parent":"p1","a":0,"principal":"alice"}))];
+    competing_present.extend(competing_documents());
+    check(competing, competing_present, &["shared", "owned"]);
+    let mut competing_mismatch = vec![("members".into(), json!({"id":"m1","parent":"p1","a":1,"principal":"alice"}))];
+    competing_mismatch.extend(competing_documents());
+    check(competing, competing_mismatch, &["owned"]);
+
     let natural = fixed_id.replace("id = 'm1', ", "");
     let fixed_null = "table members:\n  parent: text <=40\n  slot: text <=40 ?\n  principal: principal\n  unique parent, slot, principal\n  cap 16 by principal\n  read <- .principal = viewer\n  online only\ntable documents:\n  parent: text <=40\n  owner: principal\n  at: int\n  read <- .owner = viewer or exists members[parent = .parent, slot = null, principal = viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";
     for rejected in [&natural, fixed_null] {

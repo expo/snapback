@@ -1276,21 +1276,21 @@ fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) ->
     fixed.sort();
     fixed.dedup();
     let source_parent_is_id = source_parent == "id";
-    let one_row = module.surface_tables.iter().find(|table| table.name == source.name)
-        .and_then(|table| table.indexes.iter().filter(|index| model_total_unique(source, index)
-            && index.columns.iter().all(|column| fixed.contains(column)))
-            .min_by_key(|index| (index.columns.len(), &index.name)));
-    let (source_key, source_index, source_admissible) = if let Some(index) = one_row {
+    let surface = module.surface_tables.iter().find(|table| table.name == source.name);
+    let read_rule = surface.and_then(|table| {
+        let rules = table.rules.iter().filter(|rule| rule.effect == Effect::Read).collect::<Vec<_>>();
+        match rules.as_slice() { [rule] => Some(&rule.value), _ => None }
+    });
+    let one_row = surface.and_then(|table| table.indexes.iter().filter(|index| {
         let capped = source.caps.iter().any(|(max, by)| u64::from(*max) <= ceiling
             && by.iter().all(|column| index.columns.contains(column)));
-        let readable = module.surface_tables.iter().find(|table| table.name == source.name)
-            .and_then(|table| {
-                let rules = table.rules.iter().filter(|rule| rule.effect == Effect::Read).collect::<Vec<_>>();
-                match rules.as_slice() { [rule] => Some(&rule.value), _ => None }
-            })
-            .is_some_and(|rule| model_read_by_form(rule, &fixed_terms.iter()
-                .filter(|term| index.columns.contains(&term.0)).cloned().collect::<Vec<_>>()));
-        (index.columns.clone(), Some(index.name.clone()), capped && readable)
+        let point = fixed_terms.iter().filter(|term| index.columns.contains(&term.0)).cloned().collect::<Vec<_>>();
+        model_total_unique(source, index)
+            && index.columns.iter().all(|column| fixed.contains(column))
+            && capped && read_rule.is_some_and(|rule| model_read_by_form(rule, &point))
+    }).min_by_key(|index| (index.columns.len(), &index.name)));
+    let (source_key, source_index, source_admissible) = if let Some(index) = one_row {
+        (index.columns.clone(), Some(index.name.clone()), true)
     } else {
         let mut source_key = fixed;
         if !source_key.contains(&source_parent) { source_key.push(source_parent); }

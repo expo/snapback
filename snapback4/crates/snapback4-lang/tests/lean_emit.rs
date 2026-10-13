@@ -246,12 +246,12 @@ query documents(c: cursor ?):
     let one_row_residual = "table memberships:\n  parent: text <=40 ?\n  slot: text <=435 ?\n  principal: principal\n  unique principal\n  cap 16 by principal\n  read <- .principal = viewer\n  online only\ntable documents:\n  owner: principal\n  parent: text <=40 ?\n  at: int\n  read <- .owner = viewer or exists memberships[parent = .parent, slot = 'member', principal = viewer]\n  online only\nquery documents(c: cursor ?):\n  return documents last 2 by .at after c\n";
     assert!(module(one_row_residual).program("documents").is_ok());
 
-    // A shorter one-row index that omits the cap/read pin is the planner's
-    // selected source, but cannot prove bounded readable discovery.
+    // A shorter one-row index that omits the cap/read pin is ineligible. The
+    // ordinary synthesized discovery key remains the physical source.
     let inadmissible_one_row = one_row_residual
         .replace("slot: text <=435 ?", "slot: text <=40")
         .replace("unique principal", "unique slot");
-    assert_eq!(reason(&module(&inadmissible_one_row), "documents"), "page-membership-source-unique");
+    assert!(module(&inadmissible_one_row).program("documents").is_ok());
 }
 
 #[test]
