@@ -523,13 +523,13 @@ const cases = {
     await act(async () => { client.writes[3].resolve(sent("b")); await b; });
     check(!latest.inFlight, "last concurrent write clears inFlight");
     let pending;
-    await act(async () => { pending = latest.run({ n: 4.5 }); client.writes[4].resolve({ state: "pending", id: "queued" }); await pending; });
+    await act(async () => { pending = latest.run({ n: 4.5 }, { waitSeconds: 0 }); client.writes[4].resolve({ state: "pending", id: "queued" }); await pending; });
     check(latest.last.state === "pending", "durably admitted write is initially pending");
     await act(async () => client.emitWrite(failed("queued")));
     check(latest.last.state === "failed" && latest.last.id === "queued", "terminal settlement replaces pending state");
     let raced;
     await act(async () => {
-      raced = latest.run({ n: 4.75 });
+      raced = latest.run({ n: 4.75 }, { waitSeconds: 0 });
       client.emitWrite({ state: "sent", id: "raced", seq: 1, replayed: true });
       client.writes[5].resolve({ state: "pending", id: "raced" });
       await raced;
@@ -548,28 +548,43 @@ const cases = {
     await unmount();
     replacement.writes[0].resolve(sent("after-unmount")); await abandoned;
   },
+  async "useMutation terminal run survives unmount without query subscribers"() {
+    const client = controlled(); let latest;
+    function Probe() { latest = useMutation(mutation); return null; }
+    await mount(h(Probe), client);
+    let promise, settled = false;
+    await act(async () => { promise = latest.run({}); promise.then(() => settled = true); });
+    const id = client.writes[0].options.id;
+    await act(async () => client.writes[0].resolve({ state: "pending", id }));
+    check(!settled && latest.inFlight, "custody alone does not resolve default run");
+    check(client.records.length === 0, "no query subscribers");
+    await unmount();
+    client.emitWrite(sent(id));
+    equal(await promise, sent(id), "the promise owns its observer after unmount");
+    check(client.listenerCount() === 0, "terminal receipt releases the final observer");
+  },
   async "useMutation preserves fresh null and direct, queued and early replay receipts"() {
     const client = controlled(); let latest;
     function Probe() { latest = useMutation(mutation); return null; }
     await mount(h(Probe), client);
     const nil = { state: "sent", id: "nil", seq: 1, result: null };
     let first;
-    await act(async () => { first = latest.run({}); client.writes[0].resolve(nil); await first; });
+    await act(async () => { first = latest.run({}, { waitSeconds: 0 }); client.writes[0].resolve(nil); await first; });
     equal(await first, nil, "run keeps fresh null");
     equal(latest.last, nil, "last keeps fresh null");
     const replay = { state: "sent", id: "replayed", seq: 2, replayed: true };
     let direct;
-    await act(async () => { direct = latest.run({}); client.writes[1].resolve(replay); await direct; });
+    await act(async () => { direct = latest.run({}, { waitSeconds: 0 }); client.writes[1].resolve(replay); await direct; });
     equal(await direct, replay, "run keeps direct replay");
     equal(latest.last, replay, "last keeps direct replay");
     check(!("result" in latest.last), "a replay never acquires a result property");
     const queued = { ...replay, id: "queued" };
-    await act(async () => { const pending = latest.run({}); client.writes[2].resolve({ state: "pending", id: queued.id }); await pending; });
+    await act(async () => { const pending = latest.run({}, { waitSeconds: 0 }); client.writes[2].resolve({ state: "pending", id: queued.id }); await pending; });
     await act(async () => client.emitWrite(queued));
     equal(latest.last, queued, "onWrite preserves the queued replay");
     const early = { ...replay, id: "early" };
     await act(async () => {
-      const pending = latest.run({});
+      const pending = latest.run({}, { waitSeconds: 0 });
       client.emitWrite(early);
       client.writes[3].resolve({ state: "pending", id: early.id });
       await pending;
@@ -586,13 +601,13 @@ const cases = {
     await act(async () => client.setAcquired(true));
     check(acquired === true, "acquisition notifies React");
     let submit;
-    await act(async () => { submit = latest.run({}); });
+    await act(async () => { submit = latest.run({}, { waitSeconds: 0 }); });
     check(latest.pending && latest.inFlight, "the chip starts at submit before an id returns");
     await act(async () => { client.writes[0].resolve({ state: "pending", id: "held", reason: "queued without a row: not acquired yet" }); await submit; });
     check(latest.pending && !latest.inFlight && latest.last.id === "held", "admitted pending keeps the chip");
     await act(async () => client.emitWrite(sent("held")));
     check(!latest.pending && latest.last.state === "sent", "sent removes pending");
-    await act(async () => { const p = latest.run({}); client.writes[1].resolve({ state: "pending", id: "refused" }); await p; });
+    await act(async () => { const p = latest.run({}, { waitSeconds: 0 }); client.writes[1].resolve({ state: "pending", id: "refused" }); await p; });
     await act(async () => client.emitWrite(failed("refused")));
     check(!latest.pending && latest.last.state === "failed", "failed removes pending and preserves refusal");
     await unmount();
