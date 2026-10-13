@@ -45,6 +45,12 @@ pub fn declarations(documents: &[Document], diagnostics: &mut Vec<Diagnostic>) {
                         "delete it; ephemeral <life> sets every row's deadline",
                     );
                 }
+                if table.not_before.is_some() {
+                    refuse(
+                        "not before cannot appear on an ephemeral table",
+                        "keep the scheduled payload in a durable table",
+                    );
+                }
                 if table.columns.iter().any(|c| c.sequence.is_some()) {
                     refuse(
                         "sequence by cannot appear on an ephemeral table",

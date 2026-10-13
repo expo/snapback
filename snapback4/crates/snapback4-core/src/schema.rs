@@ -16,6 +16,7 @@ use std::fmt;
 pub mod columns;
 pub mod reservations;
 pub mod through;
+mod time_audience;
 pub mod references;
 mod reference;
 mod update_images;
@@ -317,6 +318,9 @@ pub struct Table {
     /// The partition declaration. Absent means online-only.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sync: Option<Sync>,
+    /// Server-time lower bound on read life. Null means immediately open.
+    #[serde(default, rename = "notBefore", skip_serializing_if = "Option::is_none")]
+    pub not_before: Option<String>,
     /// `expire at .column`: the time column that ends a row's life. A row
     /// past it is absent to every reader on every host from that moment,
     /// and the server's sweep deletes it so the log carries the deletion
@@ -1022,6 +1026,7 @@ pub fn public_table(columns: BTreeMap<String, ColumnType>, indexes: BTreeMap<Str
         constraints: Vec::new(),
         leave: LeavePolicy::default(),
         sync: None,
+        not_before: None,
         expire: None,
     }
 }
@@ -1043,6 +1048,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     issues.extend(through::validate(schema));
     issues.extend(references::validate(schema));
     timeline::validate(schema, &mut issues);
+    time_audience::validate(schema, &mut issues);
     let issue = |issues: &mut Vec<SchemaIssue>, path: String, message: String| issues.push(SchemaIssue { path, message });
     let mut route_paths = BTreeSet::new();
     for (name, route) in &schema.routes {
@@ -1208,6 +1214,15 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
             if table.expiry_index().is_none() {
                 issue(&mut issues, epath, format!("expire at .{column} needs an index leading with {column}"));
             }
+        }
+        if let Some(column) = &table.not_before {
+            let opath = format!("{path}.notBefore");
+            match table.columns.get(column).map(ColumnType::required) {
+                Some(ColumnType::Time) => {}
+                Some(kind) => issue(&mut issues, opath.clone(), format!("not before .{column} needs a time column; {column} is {kind}")),
+                None => issue(&mut issues, opath.clone(), format!("not before names undeclared column {column}")),
+            }
+            if table.opening_index().is_none() { issue(&mut issues, opath, format!("not before .{column} needs an index leading with {column}")); }
         }
     }
     for (position, maintain) in schema.maintains.iter().enumerate() {

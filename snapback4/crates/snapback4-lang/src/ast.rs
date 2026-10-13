@@ -419,6 +419,8 @@ pub struct TableDecl {
     pub retain: Option<(String, Site)>,
     /// `expire at .column`: the time column that ends a row's life.
     pub expire: Option<(String, Site)>,
+    /// `not before .column`: the server-time lower bound on read life.
+    pub not_before: Option<(String, Site)>,
     pub public: Option<(String, Site)>,
     pub sync: Option<SyncDecl>,
     pub online_only: bool,

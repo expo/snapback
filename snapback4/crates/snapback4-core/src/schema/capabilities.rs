@@ -92,6 +92,7 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     ("timeline-event-slots", |s| s.tables.values().any(|t| t.columns.keys().any(|field| timeline::is_slot(field)))),
     // @ref LLP 3000.036.000.000#2.3 — a decoder that ignored `also` would hold only the first arm and lose rows.
     ("union-audience", |s| s.tables.values().any(|t| t.sync.as_ref().is_some_and(Sync::is_union))),
+    ("time-audiences-v1", |s| s.tables.values().any(|t| t.not_before.is_some())),
 ];
 
 fn int_range(kind: &ColumnType) -> bool {

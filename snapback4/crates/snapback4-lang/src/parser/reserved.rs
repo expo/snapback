@@ -6,7 +6,7 @@ use crate::diag::{Diagnostic, Site};
 /// Words that begin a table line (`by`, `read <-`, `after insert`, …).
 pub(crate) const TABLE_WORDS: &[&str] = &[
     "after", "by", "cap", "delete", "deliver", "ephemeral", "expire", "immutable", "insert", "online",
-    "public", "read", "retain", "search", "sync", "unique", "update",
+    "not", "public", "read", "retain", "search", "sync", "unique", "update",
 ];
 
 /// Words a statement or expression reads as syntax, so a parameter, local or
@@ -30,6 +30,7 @@ fn rename(word: &str) -> String {
         "sync" => "synced".into(),
         "cap" => "capacity".into(),
         "expire" => "expiresAt".into(),
+        "not" => "startsAt".into(),
         "online" => "isOnline".into(),
         "search" => "searchText".into(),
         "retain" => "retained".into(),
@@ -65,6 +66,7 @@ fn usage(word: &str) -> &'static str {
         "sync" | "online" => "sync … / online only",
         "cap" => "cap N by column",
         "expire" => "expire at .column",
+        "not" => "not before .column",
         "immutable" => "immutable columns",
         "retain" => "retain until-revoked",
         "ephemeral" => "ephemeral 5s",
