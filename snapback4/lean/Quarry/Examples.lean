@@ -453,12 +453,11 @@ def taskStore : Store := mkStore [("tasks", [
   mkRow "k3" [("owner", I "bob"), ("helper", .null), ("n", N 5)],
   mkRow "k4" [("owner", I "carol"), ("helper", I "bob"), ("n", N 3)]])]
 
-/-- PAGE's capped owner-or-membership rule. The membership cap is grouped by
-the fixed viewer component; `parent` is the one dynamic target prefix. -/
+/-- PAGE2's ordinary owner-or-membership rule. The exact total unique proves
+one witness per document and viewer; discovery remains metered. -/
 def membershipDocs : Schema := { tables := [
   { name := "members", cols := [c "parent", c "principal"]
     uniques := [["parent", "principal"]]
-    caps := [{ columns := ["principal"], max := 16 }]
     read := .eq (self "principal") .viewer },
   { name := "documents", cols := [c "owner", c "parent", c "at"]
     read := .or (.eq (self "owner") .viewer)
@@ -590,12 +589,10 @@ def nullableNaturalResidualNullSlot : Store := mkStore [
   ("documents", [mkRow "owned" [("owner", I "alice"), ("parent", .null), ("at", N 1)],
                  mkRow "shared" [("owner", I "bob"), ("parent", .null), ("at", N 2)]])]
 
-/-- A membership keyed by the target row id is outside PAGE's ordinary-column
-classifier and keeps the incomplete scan. -/
+/-- PAGE2 may key a membership by the target row's intrinsic id. -/
 def membershipIdDocs : Schema := { tables := [
   { name := "shares", cols := [c "document", c "principal"]
     uniques := [["document", "principal"]]
-    caps := [{ columns := ["principal"], max := 16 }]
     read := .eq (self "principal") .viewer },
   { name := "documents", cols := [c "owner", c "at"]
     read := .or (.eq (self "owner") .viewer)
@@ -605,6 +602,20 @@ def membershipIdStore : Store := mkStore [
   ("shares", [mkRow "s1" [("document", I "d2"), ("principal", I "alice")]]),
   ("documents", [mkRow "d1" [("owner", I "alice"), ("at", N 1)],
                  mkRow "d2" [("owner", I "bob"), ("at", N 2)]])]
+
+/-- A parent-owner probe uses the parent's intrinsic-id point while discovery
+walks the fixed baker prefix. -/
+def parentOwnerDocs : Schema := { tables := [
+  { name := "offers", cols := [c "baker"], read := .eq (self "baker") .viewer },
+  { name := "requests", cols := [c "requester", c "offer", c "at"]
+    read := .or (.eq (self "requester") .viewer)
+      (.probe "offers" ["id"] [("id", self "offer"), ("baker", .viewer)]) }] }
+
+def parentOwnerStore : Store := mkStore [
+  ("offers", [mkRow "o1" [("baker", I "alice")], mkRow "o2" [("baker", I "bob")]]),
+  ("requests", [mkRow "r1" [("requester", I "bob"), ("offer", I "o1"), ("at", N 1)],
+                mkRow "r2" [("requester", I "alice"), ("offer", I "o2"), ("at", N 2)],
+                mkRow "r3" [("requester", I "bob"), ("offer", I "o2"), ("at", N 3)]])]
 
 def merged : List Example := [
   { name := "page-parties-merged"
@@ -639,7 +650,7 @@ def merged : List Example := [
     tables := []
     expected := r#"{"kind":"answer","data":false,"complete":true,"next":null}"# },
   { name := "page-owner-membership-merged"
-    source := "LLP 3000.036.001 §14: an owner range and capped per-parent membership ranges form one complete page"
+    source := "LLP 3000.036.001 §15: a total membership point admits metered discovery without a global cap"
     case := { schema := membershipDocs, store := membershipDocStore, viewer := alice,
               program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
     tables := []
@@ -692,20 +703,20 @@ def merged : List Example := [
               program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"owned","owner":"alice","parent":null,"at":1}],"complete":true,"next":null}"# },
-  { name := "page-owner-membership-fixed-id-cap-not-merged"
-    source := "LLP 3000.036.001 §14: a fixed source id is residual witness evidence, not a discovery cap"
+  { name := "page-owner-membership-fixed-id-point-merged"
+    source := "LLP 3000.036.001 §15: a fully pinned source id is a total one-row discovery point"
     case := { schema := membershipDocsFixedIdCap, store := membershipDocStore, viewer := alice,
               program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
     tables := []
-    expected := r#"{"kind":"answer","data":[{"id":"d4","owner":"bob","parent":"p1","at":4},{"id":"d3","owner":"alice","parent":"p1","at":3},{"id":"d1","owner":"alice","parent":"p0","at":1}],"complete":false,"next":null}"# },
-  { name := "page-owner-membership-fixed-id-cap-reserves-where-alternatives"
-    source := "LLP 3000.036.001 §14: a cap by fixed source id declines PAGE without entering the older where-alternative merge"
+    expected := r#"{"kind":"answer","data":[{"id":"d4","owner":"bob","parent":"p1","at":4},{"id":"d3","owner":"alice","parent":"p1","at":3},{"id":"d1","owner":"alice","parent":"p0","at":1}],"complete":true,"next":null}"# },
+  { name := "page-owner-membership-fixed-id-point-with-where-alternatives"
+    source := "LLP 3000.036.001 §15: a total source-id point joins the page's where alternatives"
     case := { schema := membershipDocsFixedIdCap, store := membershipFixedIdStore, viewer := alice,
               program := query [.ret (.page "documents" [] (some (.or
                 (.and (.bin .eq (.dot "owner") .viewer) (.bin .eq (.dot "bucket") (int 0)))
                 (.and (.bin .eq (.dot "owner") .viewer) (.bin .eq (.dot "bucket") (int 1))))) ["at"] true 10 none)] }
     tables := []
-    expected := r#"{"kind":"answer","data":[{"id":"d1","owner":"alice","parent":"p0","bucket":0,"at":1}],"complete":false,"next":null}"# },
+    expected := r#"{"kind":"answer","data":[{"id":"d1","owner":"alice","parent":"p0","bucket":0,"at":1}],"complete":true,"next":null}"# },
   { name := "page-owner-membership-repeated-party"
     source := "LLP 3000.036.001 §14: repeated copies of one owner party consume one static descriptor"
     case := { schema := membershipDocsRepeatedParty, store := membershipDocStore, viewer := alice,
@@ -720,20 +731,26 @@ def merged : List Example := [
                 (.and (.bin .eq (.dot "owner") .viewer) (.bin .eq (.dot "parent") (txt "p2"))))) ["at"] true 10 none)] }
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"d3","owner":"alice","parent":"p1","at":3}],"complete":false,"next":null}"# },
-  { name := "page-row-id-membership-not-merged"
-    source := "LLP 3000.036.001 §14: a membership keyed by the target id keeps the incomplete scan"
+  { name := "page-row-id-membership-merged"
+    source := "LLP 3000.036.001 §15: a membership keyed by the target id retains the shared at,id position"
     case := { schema := membershipIdDocs, store := membershipIdStore, viewer := alice,
               program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
     tables := []
-    expected := r#"{"kind":"answer","data":[{"id":"d2","owner":"bob","at":2},{"id":"d1","owner":"alice","at":1}],"complete":false,"next":null}"# },
-  { name := "page-row-id-membership-owner-alternatives-not-merged"
-    source := "LLP 3000.036.001 §14: a reserved row-id membership shape cannot enter the older decided-alternative case"
+    expected := r#"{"kind":"answer","data":[{"id":"d2","owner":"bob","at":2},{"id":"d1","owner":"alice","at":1}],"complete":true,"next":null}"# },
+  { name := "page-row-id-membership-with-owner-alternatives"
+    source := "LLP 3000.036.001 §15: row-id membership discovery composes with eligible where alternatives"
     case := { schema := membershipIdDocs, store := membershipIdStore, viewer := alice,
               program := query [.ret (.page "documents" [] (some (.or
                 (.and (.bin .eq (.dot "owner") .viewer) (.bin .eq (.dot "at") (int 1)))
                 (.and (.bin .eq (.dot "owner") .viewer) (.bin .eq (.dot "at") (int 2))))) ["at"] true 10 none)] }
     tables := []
-    expected := r#"{"kind":"answer","data":[{"id":"d1","owner":"alice","at":1}],"complete":false,"next":null}"# } ]
+    expected := r#"{"kind":"answer","data":[{"id":"d1","owner":"alice","at":1}],"complete":true,"next":null}"# },
+  { name := "page-parent-owner-membership-merged"
+    source := "LLP 3000.036.001 §15: a by-id parent-owner witness admits metered baker-prefix discovery"
+    case := { schema := parentOwnerDocs, store := parentOwnerStore, viewer := alice,
+              program := query [.ret (.page "requests" [] none ["at"] true 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"r2","requester":"alice","offer":"o2","at":2},{"id":"r1","requester":"bob","offer":"o1","at":1}],"complete":true,"next":null}"# } ]
 
 
 /-! ## Referential actions (LLP 3000.039) -/

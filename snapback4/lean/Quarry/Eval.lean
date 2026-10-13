@@ -29,6 +29,8 @@ ceiling: the number of *visible* candidates a request may examine
 structure Ctx where
   schema : Schema
   viewer : List Nat
+  /-- The server request clock used by lower read lifetimes. -/
+  now : Int := 0
   helpers : List Helper := []
   budget : Option Nat := none
   mutation : Bool := false
@@ -282,8 +284,8 @@ def Term.fixedExpr : Term → Option Expr
   | .lit v => some (.lit (.s v))
   | _ => none
 
-/-- The single target-row column in a membership probe, including `id` for
-the fallback fence. A fully fixed probe is an ordinary static grant. -/
+/-- The single target-row column in a membership probe, including the target
+row's intrinsic `id`. A fully fixed probe is an ordinary static grant. -/
 def membershipTarget (key : List (String × Term)) : Option String := do
   let dynamic := key.filterMap fun p => match p.2 with
     | .col .self outer => some outer
@@ -299,12 +301,14 @@ def membershipColumns (key : List (String × Term)) : Option (String × String) 
     | .col .self outer => some (p.1, outer)
     | _ => none
   let [pair] := dynamic | none
-  if pair.2 != "id" && key.all (fun p => p.2.fixedExpr.isSome || dynamic.contains pair && p == (pair.1, .col .self pair.2))
+  if key.all (fun p => p.2.fixedExpr.isSome || dynamic.contains pair && p == (pair.1, .col .self pair.2))
   then some pair else none
 
 /-- An exact membership probe selects a declared unique point or the intrinsic
 `id` point, has one target-row component and fixed readable source pins, and
-has a finite cap grouped wholly by those fixed columns (LLP 3000.036.001 §14).
+has either a total point or a cap grouped wholly by the fixed discovery
+columns (LLP 3000.036.001 §15). A total point bounds one witness, while the
+runtime read meter bounds the inverted population.
 Equalities outside `point` are residual predicates rather than point-key
 components. -/
 def membershipEligible (sch : Schema) (t : String) (point : List String)
@@ -316,9 +320,11 @@ def membershipEligible (sch : Schema) (t : String) (point : List String)
     let exactUnique := point.eraseDups.length == point.length
       && point.all columns.contains
       && (point == ["id"] || td.uniques.any fun unique => unique == point)
-    exactUnique
-      && td.caps.any (fun cap => cap.max ≤ 8192
-        && cap.columns.all fun c => c != "id" && fixed.any (·.1 == c))
+    let totalPoint := point == ["id"] || td.uniques.any fun unique =>
+      unique == point && point.all fun c => td.cols.any fun col => col.name == c && !col.nullable
+    let capped := td.caps.any fun cap =>
+      cap.columns.all fun c => c != "id" && fixed.any (·.1 == c)
+    exactUnique && (totalPoint || capped)
       && td.read.byForm fixed
   | _, _ => false
 
@@ -339,9 +345,9 @@ def Rule.ownerMembership? (sch : Schema) (r : Rule) : Option (List AccessBranch)
       && parties.eraseDups.length + memberships.length + 1 ≤ 8
   then some leaves else none
 
-/-- A capped owner-or-membership shape is reserved for PAGE even when one of
-its stricter eligibility checks declines. This mirrors the compiler's fallback
-fence, including row-id targets and sources whose pins do not prove admission. -/
+/-- An exact owner-or-membership point shape is reserved for PAGE even when
+one of its stricter eligibility checks declines. This mirrors the compiler's
+fallback fence, including hidden sources and physical plans that do not fit. -/
 def Rule.ownerMembershipReserved (sch : Schema) (r : Rule) : Bool :=
   match r.accessLeaves with
   | none => false
@@ -349,16 +355,18 @@ def Rule.ownerMembershipReserved (sch : Schema) (r : Rule) : Bool :=
     let topOr := match r with | .or _ _ => true | _ => false
     let party := leaves.any fun b => match b with | .party _ => true | _ => false
     let membership := leaves.any fun b => match b with | .membership _ _ _ => true | _ => false
-    let capped := leaves.all fun b => match b with
+    let exact := leaves.all fun b => match b with
       | .party _ => true
-      | .membership t _ key => match sch.table? t with
+      | .membership t point key => match sch.table? t with
         | none => false
         | some td =>
-          let fixed := key.filterMap fun p => p.2.fixedExpr.map (p.1, ·)
+          let columns := key.map (·.1)
           (membershipTarget key).isSome
-            && td.caps.any fun cap => cap.columns.all fun c =>
-              fixed.any (·.1 == c)
-    topOr && party && membership && capped
+            && point != ["id"]
+            && point.eraseDups.length == point.length
+            && point.all columns.contains
+            && (point == ["id"] || td.uniques.any fun unique => unique == point)
+    topOr && party && membership && exact
 
 /-- The core's `disclosing` (`rules.rs`): every fact a guard reads is one its
 holder may read. A probe's target row must be readable by its own read rule
@@ -525,9 +533,10 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
     -- keeps the original scan. That PAGE fallback governs every older branch
     -- case as well; otherwise case 1 could still classify the same read.
     let pinnedMembership := membershipRule.any fun leaves => leaves.any fun leaf => match leaf with
-      | .membership _ _ key => (membershipColumns key).any fun pair =>
-          pins.any (·.1 == pair.2)
-            || alts.any fun bases => bases.any fun a => (a.filterMap Expr.eqPin).any (·.1 == pair.2)
+      | .membership _ point key => if point == ["id"] then false else
+          (membershipColumns key).any fun pair =>
+            pins.any (·.1 == pair.2)
+              || alts.any fun bases => bases.any fun a => (a.filterMap Expr.eqPin).any (·.1 == pair.2)
       | .party _ => false
     let case1 := if reservedMembership || pinnedMembership then false else case1Candidate
     let case2 := if !guards || reservedMembership || pinnedMembership then false else match td.read.branchParties sch td guardPins true with
@@ -540,9 +549,9 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
           && (guardPins.map (·.1)).eraseDups.length + order.length + 1 ≤ 8
           && bases.all fun a => ps.all fun c => laneDecided td order ((c, .viewer) :: a.filterMap Expr.eqPin) pins
       | none => false
-    -- PAGE: one system descriptor, party descriptors and eligible capped
-    -- membership descriptors. A dynamic cap does not count against eight;
-    -- its static membership descriptor does.
+    -- PAGE: one system descriptor, party descriptors and eligible exact
+    -- membership descriptors. Dynamic discovery does not count against
+    -- eight; its static membership descriptor does.
     let case3 := if !guards then false else match membershipRule with
       | some leaves =>
         let bases := alts.getD [[]]
