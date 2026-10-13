@@ -27,10 +27,11 @@ function Todos() {
     <Text style={{ fontSize: 24 }}>Todos</Text>
     <Text>{viewer} · {tier} · {link === "online" ? "online" : "offline"}</Text>
     <View style={{ flexDirection: "row", gap: 8 }}>
-      <TextInput style={{ flex: 1, borderWidth: 1, borderColor: "#ccc", padding: 8 }} value={title} onChangeText={setTitle}
+      <TextInput accessibilityLabel="Task" style={{ flex: 1, borderWidth: 1, borderColor: "#ccc", padding: 8 }} value={title} onChangeText={setTitle}
         placeholder="What needs doing?" maxLength={200} onSubmitEditing={submit} />
       <Button title="Add" onPress={submit} />
     </View>
+    <Text accessibilityLiveRegion="polite">{add.last?.state ?? "Ready"}</Text>
     {failed && <Text style={{ color: "crimson" }}>{failed.why.message}</Text>}
     <TodoList todos={todos} toggle={toggle} remove={remove} />
     <Button title="Sign out" onPress={() => void auth.logout()} />

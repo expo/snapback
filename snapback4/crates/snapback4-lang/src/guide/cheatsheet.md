@@ -164,3 +164,5 @@ and `await client.mutate(api.addList, { title })`. Every export by subpath: `gui
 - Over HTTP: `dev --port 0 --memory` (stdout's first line is the URL); `POST /seed`, `/q/<query>`, `/m/<mutation>` with `x-snapback-persona: alice` (`guide testing --section acceptance`).
 
 Maintained totals: `view total: sum expenses of .amount by .owner` beside `view n: count expenses by .owner`. `cap` groups by stored columns; store `day(startsAt)` in an immutable int dayNumber before grouping by it.
+
+Keyed counts: a hidden key reads null, an authorized missing count group reads 0; generated private keyed count results are number | null.

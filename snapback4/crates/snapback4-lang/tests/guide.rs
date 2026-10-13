@@ -1563,22 +1563,10 @@ mod client;
 #[path = "guide/start.rs"]
 mod start;
 
-// Wave 7 (LLP 3000.007 §20.1): 11 lanes asked for the whole card when piped
-// (four fix-first) and five overflowed their tool output on several `--full`
-// cards, so a piped card prints whole up to a cap and the longest keep the
-// opening, first section and index.
+// @ref LLP 3000.011.003.000#9 — every piped card is complete.
 #[test]
-fn a_piped_card_prints_whole_up_to_the_cap() {
-    let mut whole = 0;
-    for name in KEYWORDS {
-        let text = card(name).unwrap();
-        let piped = guide::piped(name, text);
-        if text.lines().count() <= guide::PIPED_FULL_LINES { assert_eq!(piped, text, "{name}"); whole += 1; }
-        else { assert_eq!(Some(piped), guide::overview_and_first_section(name, text), "{name}"); }
-    }
-    for name in ["testing", "rules", "recipes", "reads", "client", "wire"] { assert_eq!(guide::piped(name, card(name).unwrap()), card(name).unwrap(), "{name} prints whole"); }
-    assert!(guide::piped("language", card("language").unwrap()).lines().count() < 150, "the language card stays an overview");
-    assert!(whole * 4 >= KEYWORDS.len() * 3, "most cards print whole: {whole}/{}", KEYWORDS.len());
+fn a_piped_card_prints_whole() {
+    for name in KEYWORDS { assert_eq!(guide::piped(name, card(name).unwrap()), card(name).unwrap(), "{name}"); }
 }
 
 // Wave 7: `--section` words builders guessed (008 009 023 065 070 092).
@@ -1604,3 +1592,4 @@ fn guessed_section_words_land_on_one_section_even_in_another_card() {
 mod deploy;
 
 #[path = "guide/wave9_dx.rs"] mod wave9_dx;
+#[path = "guide/wave10_dx.rs"] mod wave10_dx;

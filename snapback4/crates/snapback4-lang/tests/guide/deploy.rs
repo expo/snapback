@@ -4,7 +4,7 @@ use super::*;
 fn deploy_recipe_bootstraps_an_admin_without_a_public_privilege_race() {
     let text = card("deploy").unwrap();
     assert!(text.lines().count() <= 150, "keep the day-two card compact");
-    for alias in ["release", "serve", "production", "migration", "migrate", "rollback", "upgrade", "identity", "signup", "sign-up", "signin", "login", "register", "tokens", "admin"] {
+    for alias in ["release", "serve", "production", "migration", "migrate", "rollback", "identity", "signup", "sign-up", "signin", "login", "register", "tokens", "admin"] {
         assert_eq!(card(alias), Some(text), "{alias}");
     }
     let admin = guide::alias_landing("admin", "deploy", text).unwrap();

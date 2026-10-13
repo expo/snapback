@@ -29,3 +29,11 @@ export function smokeOrigin(fallback: string): string {
   const config = JSON.parse(container.witnessLaunch);
   return config.smoke === true && /^http:\/\/127\.0\.0\.1:[0-9]+$/.test(config.origin) ? config.origin : fallback;
 }
+
+/** Disposable account supplied only by the owned prime smoke launch. */
+export function smokeAccount(): { email: string; password: string } | null {
+  const container = requireOptionalNativeModule<WitnessContainer>("Snapback4");
+  if (!container?.witnessLaunch) return null;
+  const config = JSON.parse(container.witnessLaunch);
+  return config.smoke === true && config.segment === "prime" && typeof config.smokeAccount?.email === "string" && typeof config.smokeAccount?.password === "string" ? config.smokeAccount : null;
+}

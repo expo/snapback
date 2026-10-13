@@ -21,11 +21,12 @@ fn stamp(value: impl std::fmt::Debug) -> u128 {
 }
 
 impl Project {
-    /// Walk up from `start` to the directory holding `snapback/schema.q`.
+    /// Walk up from `start` to the directory holding any `snapback/*.q`.
+    // @ref LLP 3000.011.003.000#7.1 — any Quarry module is the project; no invented root schema is needed.
     pub fn locate(start: &Path) -> Option<Self> {
         let mut dir = Some(start.to_path_buf());
         while let Some(current) = dir {
-            if current.join("snapback").join("schema.q").is_file() {
+            if std::fs::read_dir(current.join("snapback")).ok().is_some_and(|entries| entries.flatten().any(|entry| entry.file_name().to_string_lossy().ends_with(".q") && entry.path().is_file())) {
                 return Some(Self { root: current });
             }
             dir = current.parent().map(Path::to_path_buf);

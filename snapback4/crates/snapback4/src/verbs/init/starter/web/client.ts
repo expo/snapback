@@ -11,6 +11,8 @@ export const url = (new URLSearchParams(window.location.search).get("api") ?? im
 // With no synced table, init omits the device and uses the browser write journal.
 // localStorageSessionStore() keeps the session across reloads; any script on
 // this origin can read it. Device-less browser writes require this store.
-export const app = createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() });
+const witnessPersona = new URLSearchParams(window.location.search).get("witness") === "web"
+  ? new URLSearchParams(window.location.search).get("as") ?? undefined : undefined;
+export const app = createApp({ ...(witnessPersona ? { persona: witnessPersona } : {}), url, device: webDevice(), sessionStore: localStorageSessionStore() });
 
 registerWebWitness(app, api);

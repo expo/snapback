@@ -210,7 +210,8 @@ impl Run {
     fn launch(&mut self, segment: &str) -> Result<()> {
         self.require_stopped()?;
         if let Some(proof) = &self.proof { preparation::verify(&self.options, self.manifest["appPath"].as_str().unwrap(), &proof["installedApp"]["sha256"], &format!("verify-{segment}"))?; }
-        let config = json!({ "run": self.run, "segment": segment, "timeoutMs": self.options.timeout.as_millis(),
+        let config = json!({ "run": self.run, "segment": segment,
+            "smokeAccount": if self.options.smoke && segment == "prime" { Some(json!({ "email": format!("smoke-{}@example.test", self.run), "password": snapback4_core::ids::mint(now() as i64, &mut 0).map_err(|e| error("E_WITNESS_AUTH", e))? })) } else { None }, "timeoutMs": self.options.timeout.as_millis(),
             "proof": self.proof.as_ref().map(|p| json!({ "sha256": p["sha256"], "proofKind": p["proofKind"], "nativeBase": p["nativeBase"], "executedApp": { "inventory": { "sha256": p["executedApp"]["inventory"]["sha256"] } } })), "origin": format!("http://127.0.0.1:{}", self.options.port), "smoke": self.options.smoke, "queryFacts": self.manifest["queryFacts"], "queryGeneration": self.manifest["queryGeneration"], "barrierSeq": self.manifest["syncBarrier"]["seq"], "baseline": self.manifest["segments"]["prime"]["receipt"] });
         let mut command = Command::new("xcrun");
         command.args(["simctl", "launch", &self.udid, &self.options.bundle])

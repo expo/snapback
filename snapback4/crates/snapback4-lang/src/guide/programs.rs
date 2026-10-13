@@ -31,6 +31,9 @@ Helpers inherit loop placement (guide jobs); repeated pure calls narrow (guide t
 Queries read data; mutations change it in one transaction.
 Jobs run background work, and helpers share logic between programs.
 
+### Loop writes
+
+Read an authorized page, then write each row:
 Mutation scans of expiring tables require `predicts: "never"` —
 inferred from server-only work, or declared with `: server` — and must sit in
 the initial read-only phase. A write or emit anywhere in an enclosing statement

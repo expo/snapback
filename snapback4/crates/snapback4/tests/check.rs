@@ -1559,22 +1559,7 @@ fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
         let card = snapback4_lang::guide::card(keyword).unwrap();
         assert_eq!(full.trim_end().lines().count(), card.trim_end().lines().count(), "{keyword} --full prints the whole card");
         let (_, default) = guide(&[keyword]);
-        // Wave 7: piped (as here and in agents' tools), a card up to the piped cap prints whole too.
-        if card.lines().count() <= snapback4_lang::guide::PIPED_FULL_LINES || snapback4_lang::guide::sections(card).is_empty() {
-            assert_eq!(default, full, "{keyword}: a card up to {} lines prints whole when piped", snapback4_lang::guide::PIPED_FULL_LINES);
-        } else {
-            // Piped, as here and in agents' tools, the overview also prints section 1 (wave 6);
-            // the terminal form is the index-only overview (`guide::overview`, under 70 lines).
-            assert!(default.lines().count() <= 150, "{keyword}: the overview fits a tool window ({} lines)", default.lines().count());
-            let first = &snapback4_lang::guide::sections(card)[0];
-            assert!(default.contains(card.lines().nth(first.2).unwrap()) && default.contains(&format!("\n\nSections of guide {keyword}:\n")), "{keyword}: piped, the first section prints before the index: {default}");
-            // Wave 4: the title, then how to read more (a short opening once read as the whole card), then the lead.
-            let (title, rest) = full.split_once('\n').unwrap();
-            let (hint, rest_of_default) = default.strip_prefix(&format!("{title}\n")).and_then(|d| d.split_once('\n')).unwrap_or_else(|| panic!("{keyword}: the overview opens with the title: {default}"));
-            assert!(hint.contains(&format!("snapback4 guide {keyword} --section <number or words> prints one section")) && hint.contains("--find") && hint.contains("--full"), "{keyword}: the second line says how to read more: {hint}");
-            assert!(rest_of_default.starts_with(rest.split("\n\n").next().unwrap()), "{keyword}: the overview continues with the lead");
-            assert!(default.contains(&format!("snapback4 guide {keyword} --section <number or words>")) && default.contains("--full prints all"), "{keyword}: {default}");
-        }
+        assert_eq!(default, full, "{keyword}: piped output prints the complete card");
     }
     // Sections resolve by number, any case, prefix and words; a miss names what mentions the words.
     let (_, by_name) = guide(&["types", "--section", "Engine-assigned per-parent sequences"]);

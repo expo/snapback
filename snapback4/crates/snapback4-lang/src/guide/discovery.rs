@@ -3,7 +3,7 @@ use super::{ALIASES, KEYWORDS, SERVER_KEYWORDS};
 
 // @ref LLP 3000.007#20.1 — wave 6: the ~200 aliases moved behind `guide aliases`; the bare listing stays one screen.
 pub fn listing() -> String {
-    format!("cards: {}\nwith use server: {}\nStart here: snapback4 guide start (eight short patterns; guide <card> for reference).\nOne screen of the common forms: snapback4 guide cheatsheet; package exports: guide api.\nCards over {FULL_LINES} lines print their opening and a numbered section index (piped, as agents read them, also their first section): guide <card> --section <heading or number> prints one (a topic word prints the section that mentions it most), --find <words> prints the lines holding every word (a|b or a OR b for either), --full prints the whole card.\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\nBackground notifications: snapback/workers/<service>.mjs runs with dev and serve; guide effects shows ledger: true and provider idempotency.\nAliases: {} words open a card, or one section of it (pagination, roles, capacity, aggregates, …); snapback4 guide aliases lists them.", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.len())
+    format!("cards: {}\nwith use server: {}\nStart here: snapback4 guide start (eight short patterns; guide <card> for reference).\nOne screen of the common forms: snapback4 guide cheatsheet; package exports: guide api.\nIn a terminal, cards over {FULL_LINES} lines print their opening and section index; non-TTY output prints the full card: guide <card> --section <heading or number> prints one (a topic word prints the section that mentions it most), --find <words> prints the lines holding every word (a|b or a OR b for either), --full prints the whole card.\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\nBackground notifications: snapback/workers/<service>.mjs runs with dev and serve; guide effects shows ledger: true and provider idempotency.\nAliases: {} words open a card, or one section of it (pagination, roles, capacity, aggregates, …); snapback4 guide aliases lists them.", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.len())
 }
 
 /// `guide aliases`: every alias, one per line, with the card (and section) it opens.
@@ -211,19 +211,9 @@ pub fn overview_and_first_section(name: &str, card: &str) -> Option<String> { ov
 /// The most lines of a card's first section the piped overview prints.
 const FIRST_SECTION_LINES: usize = 80;
 
-/// Cards up to this many lines print whole when stdout is not a terminal.
-/// Larger cards (language, social, maintains, sync, bounds, writes, effects,
-/// jobs, sharing, search) still print their opening, first section and index:
-/// an agent reading several cards in one command overflows its tool's output.
-pub const PIPED_FULL_LINES: usize = 400;
-
-/// `guide <card>` when stdout is not a terminal (an agent's tool): the whole
-/// card up to [`PIPED_FULL_LINES`], else [`overview_and_first_section`].
-// @ref LLP 3000.007#20.1 — wave 7: 11 lanes asked for the whole card piped (four fix-first); five overflowed on several --full cards, hence the cap.
-pub fn piped(name: &str, card: &str) -> String {
-    if card.lines().count() <= PIPED_FULL_LINES { return card.to_owned(); }
-    overview_and_first_section(name, card).unwrap_or_else(|| card.to_owned())
-}
+/// Non-TTY reads print the full card; callers can select --section or --find.
+// @ref LLP 3000.011.003.000#9 — an agent reads the complete card without a hidden truncation boundary.
+pub fn piped(_name: &str, card: &str) -> String { card.to_owned() }
 
 /// The last paragraph boundary (a blank line outside a fence) in
 /// `lines[from..to]` at or before `limit`, as an absolute line number.

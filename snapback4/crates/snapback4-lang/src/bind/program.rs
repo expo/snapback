@@ -1196,7 +1196,7 @@ impl<'a> Binder<'a> {
                     literal_in_range(info, &field.name, scalar, &e, &field.site)?;
                     self.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
                     if !t.writable_to(&expected) {
-                        return Err(type_error(&field.site, format!("{}.{} is {}; got {}", info.decl.name, field.name, expected.name(), t.name()), format!("write {} into {}", expected.name(), field.name)));
+                        return Err(type_error(&field.site, format!("{}.{} is {}; got {}", info.decl.name, field.name, expected.name(), t.name()), diagnostics::write_rewrite(field, &expected, &t)));
                     }
                     let e = if expr::allocates(&e) { self.snapshot(e, out) } else { e };
                     exprs.push((field.name.clone(), e));
@@ -1223,7 +1223,7 @@ impl<'a> Binder<'a> {
             literal_in_range(info, &field.name, scalar, &e, &field.site)?;
             self.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
             if !t.writable_to(&expected) {
-                return Err(type_error(&field.site, format!("{}.{} is {}; got {}", info.decl.name, field.name, expected.name(), t.name()), format!("write {} into {}", expected.name(), field.name)));
+                return Err(type_error(&field.site, format!("{}.{} is {}; got {}", info.decl.name, field.name, expected.name(), t.name()), diagnostics::write_rewrite(field, &expected, &t)));
             }
             let e = if expr::allocates(&e) { self.snapshot(e, out) } else { e };
             if !given.insert(field.name.clone()) {

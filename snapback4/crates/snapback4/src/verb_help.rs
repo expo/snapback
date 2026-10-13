@@ -2,7 +2,7 @@
 //! verbs agents script against have a page; any other verb prints its lines
 //! from the full help.
 
-const INIT: &str = "snapback4 init [dir] [--online|--expo|--web] [--template chat] [--port N] [--web-port N] [--skip-existing]
+const INIT: &str = "snapback4 init [dir] [--online|--expo|--web] [--template chat] [--port N] [--port-range A-B] [--web-port N] [--skip-existing]
 snapback4 init [dir] --adapt
 
 Starts a project in dir (default: here) without overwriting anything: an
@@ -20,6 +20,7 @@ conflicting value refuses before any file is written.
                    `snapback4 dev --port N`, and with --web the page on N+1
                    (dev and preview), so one flag moves all of them
                    (default 4400; the page 5173)
+  --port-range A-B  scaffold all ports inside this range (or PORT_LO/PORT_HI)
   --web-port N     the Vite page's port instead of N+1 (--web only)
   --skip-existing  keep every existing file and write only the missing ones
 

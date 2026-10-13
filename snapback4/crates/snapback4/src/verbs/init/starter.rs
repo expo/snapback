@@ -96,7 +96,16 @@ pub(super) fn without_offline(text: &str) -> String {
     ];
     let mut text = text.to_owned();
     for (old, new) in legacy { text = text.replacen(old, new, 1); }
-    text.split("\n\n").map(|paragraph| if paragraph.starts_with("Offline") { "OFFLINE" } else { paragraph }).collect::<Vec<_>>().join("\n\n")
+    text = text.replace("web uses the principal write journal (no synced tables)", "web uses the wasm\ndevice")
+        .replace("or the principal write journal (web, no synced tables)", "or `webDevice()` (web)")
+        .replace("native device and work offline;", "native device;")
+        .replace("web uses the wasm\ndevice", "web uses the wasm device")
+        .replace("web uses the\nwasm device", "web uses the wasm device");
+    let mut masked = text.split("\n\n").map(|paragraph| if paragraph.starts_with("Offline") { "OFFLINE" } else { paragraph }).collect::<Vec<_>>().join("\n\n");
+    if masked.starts_with("# Todos") && !masked.contains("\n\nOFFLINE\n\n") {
+        masked = masked.replacen("wasm device.\n\n", "wasm device.\n\nOFFLINE\n\n", 1);
+    }
+    masked
 }
 
 /// Which starter screen pair: the guest sign-in, or the persona picker.
@@ -123,10 +132,11 @@ pub(super) enum Body { Todos, Home(Option<String>) }
 /// The starter's screen and client for a schema: the guest sign-in, or, with
 /// `personas`, the persona picker, around `body`. The texts are as the
 /// starter ships them, before init's port rewrite.
-pub(super) fn screens(platform: Platform, personas: Option<&[String]>, body: &Body) -> (String, String) {
+fn screens_version(platform: Platform, personas: Option<&[String]>, body: &Body, previous: bool) -> (String, String) {
+    let version = |current, old| if previous { old } else { current };
     let (guest, guest_client, persona, persona_client, todos, home) = match platform {
-        Platform::Web => (include_str!("starter/web/guest.tsx"), include_str!("starter/web/client.ts"), include_str!("starter/personas/web-app.tsx"), include_str!("starter/personas/web-client.ts"), include_str!("starter/web/todos.tsx"), include_str!("starter/web/home.tsx")),
-        Platform::Expo => (include_str!("starter/expo/guest.tsx"), include_str!("starter/expo/client.ts"), include_str!("starter/personas/expo-app.tsx"), include_str!("starter/personas/expo-client.ts"), include_str!("starter/expo/todos.tsx"), include_str!("starter/expo/home.tsx")),
+        Platform::Web => (include_str!("starter/web/guest.tsx"), version(include_str!("starter/web/client.ts"), include_str!("starter/previous/wave9/web-client.ts")), include_str!("starter/personas/web-app.tsx"), include_str!("starter/personas/web-client.ts"), version(include_str!("starter/web/todos.tsx"), include_str!("starter/previous/wave9/web-todos.tsx")), include_str!("starter/web/home.tsx")),
+        Platform::Expo => (include_str!("starter/expo/guest.tsx"), version(include_str!("starter/expo/client.ts"), include_str!("starter/previous/wave9/expo-client.ts")), version(include_str!("starter/personas/expo-app.tsx"), include_str!("starter/previous/wave9/expo-personas.tsx")), include_str!("starter/personas/expo-client.ts"), version(include_str!("starter/expo/todos.tsx"), include_str!("starter/previous/wave9/expo-todos.tsx")), include_str!("starter/expo/home.tsx")),
     };
     let first_read = match platform { Platform::Web => include_str!("starter/web/first-read.tsx"), Platform::Expo => include_str!("starter/expo/first-read.tsx") };
     let (head, client) = match personas {
@@ -157,6 +167,7 @@ pub(super) fn web_client(client: String, offline: &Offline) -> String {
             .replace("device: webDevice(), ", "").replace(", device: webDevice()", "")
             .replace("each with its own device and store", "each with its own principal write journal")
             .replace("web uses the wasm device", "web uses the principal write journal (no synced tables)")
+            .replace("web uses the\nwasm device", "web uses the principal write journal (no synced tables)")
     } else { client }
 }
 
@@ -225,7 +236,10 @@ const PERSONA_SIGN_IN: &str = "The first screen (on the web also `?as=<name>`) a
 // @ref LLP 3000.011.003.000#7.4 — wave 6 (042): an adapted starter kept a README about todos and guest sign-in.
 pub(super) fn readme(platform: Platform, title: &str, body: &Body, personas: bool, offline: &Offline) -> String {
     let todos = match platform { Platform::Web => include_str!("starter/web/README.md"), Platform::Expo => include_str!("starter/expo/README.md") };
-    if *body == Body::Todos { return todos.to_owned(); }
+    if *body == Body::Todos {
+        return todos.replace("native device and work offline;", "native device;")
+            .replace("wasm device.\n", &format!("wasm device.\n\n{}\n", offline.paragraph(platform)));
+    }
     let home = match platform { Platform::Web => include_str!("starter/web/README.home.md"), Platform::Expo => include_str!("starter/expo/README.home.md") };
     let text = home.replacen("# TITLE", &format!("# {title}"), 1).replace("SIGN_IN", if personas { PERSONA_SIGN_IN } else { GUEST_SIGN_IN })
         .replacen("OFFLINE\n", &format!("{}\n", offline.paragraph(platform)), 1);
@@ -266,6 +280,7 @@ pub(super) fn web_files(shape: &Shape) -> Vec<(&'static str, String)> {
         ("index.html", include_str!("starter/web/index.html").replace("TITLE", &html_text(&shape.title))),
         ("vite.config.mts", include_str!("starter/web/vite.config.mts").to_owned()),
         ("tsconfig.json", super::esm_vite_config(include_str!("../../../../../apps/chat/tsconfig.json"))),
+        ("public/favicon.svg", include_str!("starter/favicon.svg").to_owned()),
         ("src/main.tsx", include_str!("starter/web/main.tsx").to_owned()),
         ("src/styles.css", include_str!("starter/web/styles.css").to_owned()),
         ("src/App.tsx", app),
@@ -292,6 +307,7 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
     config["expo"]["scheme"] = json!(scheme);
     config["expo"]["ios"]["bundleIdentifier"] = json!(bundle);
     config["expo"]["android"]["package"] = json!(bundle);
+    config["expo"]["web"]["favicon"] = json!("./assets/favicon.svg");
     let (app, client) = identity_screens(Platform::Expo, shape.personas.as_deref(), &shape.body, shape.password);
     let client = web_client(client, &shape.offline);
     vec![
@@ -303,9 +319,10 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
         ("index.js", include_str!("../../../../../apps/chat-expo/index.js").to_owned()),
         ("tsconfig.json", include_str!("../../../../../apps/chat-expo/tsconfig.json").to_owned()),
         ("expo-env.d.ts", include_str!("starter/expo-env.d.ts").to_owned()),
+        ("assets/favicon.svg", include_str!("starter/favicon.svg").to_owned()),
         ("App.tsx", app),
         ("src/client.ts", client),
-        ("src/native-smoke.ts", include_str!("native-smoke.ts").to_owned()),
+        ("src/native-smoke.ts", native_smoke(shape.password)),
         ("snapback/schema.q", SCHEMA.to_owned()),
         ("README.md", identity_readme(Platform::Expo, &shape.title, &shape.body, shape.personas.is_some(), &shape.offline, shape.password)),
     ].into_iter().chain(FIXTURES.map(|(name, text)| (name, text.to_owned()))).collect()
@@ -314,13 +331,17 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
 pub(super) const EXPO_ENV: &str = include_str!("starter/expo-env.d.ts");
 
 // @ref LLP 3000.011.003.000#8 — password identity gets an executable sign-in screen.
-pub(super) fn identity_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) {
-    if !password { return screens(platform, personas, body); }
-    let head = match platform { Platform::Web => include_str!("starter/web/password.tsx"), Platform::Expo => include_str!("starter/expo/password.tsx") };
-    let (_, client) = screens(platform, None, body);
+pub(super) fn identity_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) { identity_screens_version(platform, personas, body, password, false) }
+// Recognize only complete known templates; edited application source never matches.
+pub(super) fn previous_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) { identity_screens_version(platform, personas, body, password, true) }
+fn identity_screens_version(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool, previous: bool) -> (String, String) {
+    let version = |current, old| if previous { old } else { current };
+    if !password { return screens_version(platform, personas, body, previous); }
+    let head = match platform { Platform::Web => include_str!("starter/web/password.tsx"), Platform::Expo => version(include_str!("starter/expo/password.tsx"), include_str!("starter/previous/wave9/expo-password.tsx")) };
+    let (_, client) = screens_version(platform, None, body, previous);
     let body_source = match (platform, body) {
-        (Platform::Web, Body::Todos) => include_str!("starter/web/todos.tsx").to_owned(),
-        (Platform::Expo, Body::Todos) => include_str!("starter/expo/todos.tsx").to_owned(),
+        (Platform::Web, Body::Todos) => version(include_str!("starter/web/todos.tsx"), include_str!("starter/previous/wave9/web-todos.tsx")).to_owned(),
+        (Platform::Expo, Body::Todos) => version(include_str!("starter/expo/todos.tsx"), include_str!("starter/previous/wave9/expo-todos.tsx")).to_owned(),
         (platform, Body::Home(op)) => {
             let (home, first) = match platform { Platform::Web => (include_str!("starter/web/home.tsx"), include_str!("starter/web/first-read.tsx")), Platform::Expo => (include_str!("starter/expo/home.tsx"), include_str!("starter/expo/first-read.tsx")) };
             match op { Some(op) => compose(home, &first.replace("api.OP", &format!("api.{op}"))), None => home.replace("    <FirstRead />\n", "") }
@@ -330,7 +351,13 @@ pub(super) fn identity_screens(platform: Platform, personas: Option<&[String]>, 
 }
 
 pub(super) fn identity_readme(platform: Platform, title: &str, body: &Body, personas: bool, offline: &Offline, password: bool) -> String {
-    let text = readme(platform, title, body, personas, offline);
+    let mut text = readme(platform, title, body, personas, offline);
+    if platform == Platform::Expo && matches!(offline, Offline::Tables { synced, .. } if synced.is_empty()) {
+        text = text.replace("web uses the wasm\ndevice", "web uses the principal write journal (no synced tables)")
+            .replace("web uses the wasm device", "web uses the principal write journal (no synced tables)")
+            .replace("web uses the\nwasm device", "web uses the principal write journal (no synced tables)")
+            .replace("or `webDevice()` (web)", "or the principal write journal (web, no synced tables)");
+    }
     if password { text.replace(GUEST_SIGN_IN, "Sign up or sign in with email and password (`use identity password`); the SDK\nkeeps your session across restarts. See `snapback4 guide client --section password`.")
         .replace("Choose \"Continue as a guest\", then add", "Sign up or sign in with email and password, then add")
         .replace("Choose \"Continue as a\nguest\", then add", "Sign up or sign in with email and password, then add") } else { text }
@@ -346,4 +373,13 @@ pub(super) fn previous_client(platform: Platform, personas: bool) -> &'static st
         (Platform::Expo, false) => include_str!("starter/previous/expo-client.ts"),
         (Platform::Expo, true) => include_str!("starter/previous/expo-persona-client.ts"),
     }
+}
+
+// The smoke's identity choice is generated with the screen, not assumed guest.
+pub(super) fn native_smoke(password: bool) -> String {
+    let guest = include_str!("native-smoke.ts");
+    if !password { return guest.to_owned(); }
+    guest.replace("import { smokeSegment }", "import { smokeAccount, smokeSegment }")
+        .replace("void auth.guest();", "const account = smokeAccount();\n    if (account) void auth.signup(account.email, account.password);")
+        .replace("sign in as a guest", "sign up with the driver's disposable password account")
 }

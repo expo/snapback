@@ -44,6 +44,12 @@ pub(crate) fn leftovers(dir: &Path) -> (Vec<Leftover>, Vec<String>) {
     for platform in [Platform::Web, Platform::Expo] {
         screens(dir, platform, &own, todos, &mut found, &mut advice);
     }
+    if let Some(text) = read(dir, "src/native-smoke.ts") {
+        let wanted = starter::native_smoke(own.identity.is_some_and(|(password, guests)| password && !guests));
+        if text != wanted && [false, true].into_iter().any(|password| text == starter::native_smoke(password)) {
+            found.push(Leftover { path: "src/native-smoke.ts", why: "the unmodified native smoke helper uses the previous schema's sign-in".into(), rewrite: Some(wanted) });
+        }
+    }
     readme(dir, &own, todos, &mut found);
     app_json(dir, &mut found);
     (found, advice)
@@ -137,15 +143,16 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
     let client_shape = normalized(&client);
     let matches_client = |reference: &str, personas: bool| [reference, starter::previous_client(platform, personas)].iter().any(|reference|
         client_shape == normalized(reference) || client_shape == normalized(&starter::web_client((*reference).to_owned(), &journal_shape)));
-    let current = [Body::Todos, Body::Home(first_read(&app))].into_iter().find_map(|body| {
-        let (guest_app, guest_client) = starter::screens(platform, None, &body);
-        let (persona_app, persona_client) = starter::screens(platform, Some(&[]), &body);
-        let (password_app, password_client) = starter::identity_screens(platform, None, &body, true);
-        if app == guest_app && matches_client(&guest_client, false) { Some((SignIn::Guest, body)) }
-        else if app == password_app && matches_client(&password_client, false) { Some((SignIn::Password, body)) }
-        else if app == persona_app && matches_client(&persona_client, true) { Some((SignIn::Personas(personas_of(&client)), body)) }
+    let current = [Body::Todos, Body::Home(first_read(&app))].into_iter().find_map(|body| [false, true].into_iter().find_map(|previous| {
+        let screens = |personas: Option<&[String]>, password| if previous { starter::previous_screens(platform, personas, &body, password) } else { starter::identity_screens(platform, personas, &body, password) };
+        let (guest_app, guest_client) = screens(None, false);
+        let (persona_app, persona_client) = screens(Some(&[]), false);
+        let (password_app, password_client) = screens(None, true);
+        if app == guest_app && matches_client(&guest_client, false) { Some((SignIn::Guest, body.clone())) }
+        else if app == password_app && matches_client(&password_client, false) { Some((SignIn::Password, body.clone())) }
+        else if app == persona_app && matches_client(&persona_client, true) { Some((SignIn::Personas(personas_of(&client)), body.clone())) }
         else { None }
-    });
+    }));
     let Some((sign_in, body)) = current else { return };
     // A Home keeps its read while the schema still declares that query
     // argument-free; a Home without one stays as written (it fits any schema).
@@ -290,4 +297,25 @@ pub(super) fn adapt(dir: &Path) -> i32 {
     }
     for line in advice { println!("init --adapt: {line}"); }
     0
+}
+
+#[test]
+fn untouched_wave9_screens_still_adapt_and_edited_clients_stay_owned() {
+    for platform in [Platform::Web, Platform::Expo] {
+        for password in [false, true] {
+            let dir = std::env::temp_dir().join(format!("sb4-w10-adapt-{}-{platform:?}-{password}", std::process::id()));
+            std::fs::create_dir_all(dir.join("snapback")).unwrap(); std::fs::create_dir_all(dir.join("src")).unwrap();
+            let schema = include_str!("starter/schema.q").replace("use identity ", "use identity password ");
+            std::fs::write(dir.join("snapback/schema.q"), schema).unwrap();
+            let (app, client) = starter::previous_screens(platform, None, &Body::Todos, password);
+            let (app_path, client_path) = platform.paths();
+            std::fs::write(dir.join(app_path), &app).unwrap(); std::fs::write(dir.join(client_path), &client).unwrap();
+            let (changes, _) = leftovers(&dir);
+            assert!(changes.iter().any(|change| change.path == app_path), "{platform:?}, password={password}: previous screens recognized");
+            std::fs::write(dir.join(client_path), format!("{client}\n// application-owned edit\n")).unwrap();
+            let (changes, _) = leftovers(&dir);
+            assert!(!changes.iter().any(|change| change.path == app_path || change.path == client_path), "edited pair stays owned");
+            std::fs::remove_dir_all(dir).unwrap();
+        }
+    }
 }

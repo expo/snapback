@@ -182,6 +182,10 @@ import { resolveBinary } from "snapback4/bin-path";
 
 // Stop a child for certain: SIGTERM, up to graceMs to exit, then SIGKILL. Safe after it exited.
 async function stopChild(child, graceMs = 5000) {
+  if (child && typeof child.url === "string" && typeof child.stop === "function") { await child.stop(); return; }
+  if (!child || typeof child.kill !== "function" || typeof child.once !== "function" ||
+      !(child.exitCode === null || Number.isInteger(child.exitCode)) ||
+      !(child.signalCode === null || typeof child.signalCode === "string")) throw new TypeError("stopChild needs a ChildProcess or { url, stop }");
   if (child.exitCode !== null || child.signalCode !== null) return;
   const exited = once(child, "exit");
   child.kill("SIGTERM");
@@ -189,10 +193,14 @@ async function stopChild(child, graceMs = 5000) {
   await exited;
   clearTimeout(timer);
 }
+// `serve` returns the same handle; deploy the directory first.
+const startServe = (directory, args = ["--port", "0"]) => startHost("serve", [directory, ...args]);
 // `dev` on a free port with an empty store: its URL and stop(). Reuse it for every scenario and proof script.
-async function startDev(args = ["--port", "0", "--memory"]) {
-  const child = spawn(resolveBinary(), ["dev", ...args], { stdio: ["ignore", "pipe", "inherit"] });
-  const died = once(child, "exit").then(([code]) => { throw new Error(`dev exited ${code} before its URL`); });
+const proofPort = process.env.PORT_LO && process.env.PORT_HI ? `${process.env.PORT_LO}-${process.env.PORT_HI}` : "0";
+async function startDev(args = ["--port", proofPort, "--memory"]) { return startHost("dev", args); }
+async function startHost(verb, args) {
+  const child = spawn(resolveBinary(), [verb, ...args], { stdio: ["ignore", "pipe", "inherit"] });
+  const died = once(child, "exit").then(([code]) => { throw new Error(`${verb} exited ${code} before its URL`); });
   died.catch(() => {}); // only the race below reports it
   try {
     const [line] = await Promise.race([once(createInterface({ input: child.stdout }), "line"), died]);
@@ -248,10 +256,31 @@ for (const [name, scenario] of [["alice adds a card", async () => {
 - A reset empties the whole store, so tests sharing one dev run one at a time; give each parallel
   worker its own `dev --port 0 --memory`.
 
+Use `await dev.stop()` or `await stopChild(dev)` on the `{ url, stop }` handle;
+`stopChild` also accepts a real ChildProcess and throws on unknown shapes.
+Always put cleanup in finally; a silently ignored handle leaves Node waiting on pipes.
+
 The same `stopChild` stops a frontend server: spawn `node_modules/.bin/vite` (not `npx vite`) and
 strip ANSI colors before matching its `Local:` line.
 
-Every route answers JSON; `guide wire --section envelopes` has the wire/client envelope table.
+The raw HTTP body wraps the mutation return under `result`; `result.id` is a row id.
+These complete example bodies use an omitted request id. `generation`, `head`/`seq`,
+store identity, row ids and read meter values vary by run. `/m/refuse` has a located
+application refusal; early decode/auth failures can instead have `denied`.
+
+```json
+{
+  "/m/add": {"state":"sent","result":{"id":"row1","title":"Proof"},"seq":1,"generation":1,"head":1,"store_id":"store1","preserved":["notes"]},
+  "/m/nothing": {"state":"sent","result":null,"seq":2,"generation":1,"head":2,"store_id":"store1","preserved":["notes"]},
+  "/m/refuse": {"state":"failed","why":{"code":"PROOF_REFUSED","family":"rule","message":"the program refused with PROOF_REFUSED","rule":"PROOF_REFUSED","guide":"programs","site":"schema.q:13:3"},"generation":1,"head":2,"store_id":"store1","preserved":[]},
+  "/q/list": {"data":[{"id":"row1","title":"Proof"}],"complete":true,"cut":null,"next":null,"nextExpiry":null,"seq":2,"generation":1,"store_id":"store1","tables":["notes"],"viewer":"dev:alice","scopes":{},"meter":{"cut":null,"examined":1,"heapBytes":937,"indexEntries":0,"outputBytes":89,"probes":0,"rowsWritten":0,"steps":12}}
+}
+```
+
+No top-level `id:null` is emitted. A supplied request id is echoed as the write id;
+it does not replace `result.id`. A replay has `replayed:true` and no historical
+result, even when the original result was null. The dev-only `meter` is omitted
+in production. `guide wire --section envelopes` covers other optional fields.
 
 A `unique ... else CODE` refuses with your code; without one, a clash is `E_CONSTRAINT` naming the index.
 `/seed` takes a JSON array, writes as the system and
@@ -262,15 +291,24 @@ and a persona must be declared in `use personas` (an outsider is 401 `E_AUTH`).
 
 ## Browser proof: the exported app writes
 
-Run `npm run build:web`, then `snapback4 witness web dist --as alice --mutation add --args '{"title":"Browser proof"}'`.
+Run `npm run build:web`, then `snapback4 witness web dist --mutation add --args '{"title":"Browser proof"}'`.
 Password accounts: `--email proof@example.test --password-env PROOF_PASSWORD`
 (sign up first on an existing backend); `--url URL` selects that backend. Without it the
 witness owns a fresh `dev --memory` and uses the signup form for password accounts. Set `SNAPBACK4_CHROMIUM` if Chromium is
 not found. Starters register their SDK client; custom apps call
 `registerWebWitness(app, api)` from `snapback4/witness-web`, active only under
-`?witness=web`. This proves exported app/authenticated SDK integration; test
-its composer UI separately. Fresh browser/storage and a fresh default backend
-make runs repeatable; `--url` repeats use a stable write id, never reset.
+`?witness=web`. Without form flags this proves exported app/authenticated SDK integration.
+For the default starter's visible form, add these three flags:
+`--field Task --value "Browser proof" --button Add` (optionally also `--args '{"title":"Browser proof"}'`).
+The witness arms a new write observer before pressing Add and waits for that write's
+`sent`; it never injects an extra SDK write. Submit the durable write directly
+from the trusted button click handler (the starter does this); a standalone
+form onSubmit is not click evidence. Short microtasks within the active click
+can submit; later timers/network work cannot. Finish longer validation before enabling it. Mutations
+from timers/input autosaves cannot satisfy the clicked-button proof. `--as alice` selects a declared
+persona, including on the default identity starter, only under dev.
+Fresh browser/storage and a fresh default backend
+make runs repeatable; SDK-only `--url` repeats use a stable write id, never reset. Visible form clicks are new UI intents.
 
 Never wait for `networkidle`: live pages hold a long poll. Navigate with
 `domcontentloaded`, wait for the control, and assert `sent` before cross-device
@@ -299,3 +337,13 @@ E_WITNESS_READY means the app could not open its write custody. Repair the repor
 E_WITNESS_SENT means the write failed, stayed pending or timed out. Inspect the refusal; pending is not success.
 
 E_WITNESS_WEB means the browser proof could not complete. Check the export, browser and application.
+
+
+After every write, wait on a **fresh signal for that write**: its terminal receipt,
+a changed write id/status, or the new unique value it inserted. Text already on
+screen cannot prove the next write (H6). Assert sent before checking rendered rows.
+RN-web TextInput: clear then `pressSequentially(value)` so React receives keyboard
+state updates; `fill` can race state. RN-web Button does not forward testID: use
+`getByRole("button", { name: "Add", exact: true })` and accessibility labels.
+`PORT_LO`/`PORT_HI` or witness `--port-range A-B` confines both owned servers;
+`CHROME` or `SNAPBACK4_CHROMIUM` selects the browser executable.

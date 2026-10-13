@@ -135,4 +135,4 @@ unset SNAPBACK4_SERVICE_TOKEN
 
 N_NO_PRODUCTION_WRITER means no production insert path can bootstrap this table. Add a service-seat insert mutation.
 
-E_UPGRADE means the package-manager upgrade did not complete. Repair the package-manager or registry error and rerun upgrade.
+E_UPGRADE means installation or post-upgrade check failed. Repair the package-manager or registry error and rerun upgrade. Packages may already be pinned: if check failed, repair the reported schema/device refusal and rerun check.

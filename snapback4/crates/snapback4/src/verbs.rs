@@ -27,6 +27,7 @@ mod test_cases;
 pub(crate) const CASES_FILE: &str = test_cases::FILE;
 mod adoption;
 mod package_versions;
+mod check_surface;
 #[cfg(test)]
 mod hand_tests;
 mod readiness;
@@ -255,6 +256,7 @@ pub fn check(options: &Options) -> i32 {
     };
     if !crate::exact_device::check(&project.root, &bound.schema, options.json) { return 1; }
     if !bound.diagnostics.is_empty() {
+        check_surface::report(&project, &bound, options.json);
         report_diagnostics(&bound, options.json, true, options.flags.contains_key("verbose"));
         if !options.json { print_prediction(&bound, options.flags.contains_key("verbose")); }
         return 1;
@@ -265,12 +267,14 @@ pub fn check(options: &Options) -> i32 {
         Err(error) => { eprintln!("cannot check store adoption: {error}"); return 2; }
     }
     if !bound.diagnostics.is_empty() {
+        check_surface::report(&project, &bound, options.json);
         report_diagnostics(&bound, options.json, true, options.flags.contains_key("verbose"));
         if !options.json { print_prediction(&bound, options.flags.contains_key("verbose")); }
         return 1;
     }
     bound.notes.extend(readiness::notes(&project, &bound, options.flags.get("fixture")));
     bound.notes.extend(snapback4_lang::bind::residency::change_notes(&bound, &residency::previous(&project)));
+    check_surface::report(&project, &bound, options.json);
     if let Err(error) = project.write_generated(&bound) {
         eprintln!("cannot write generated types: {error}");
         return 2;
@@ -294,6 +298,7 @@ pub fn check(options: &Options) -> i32 {
             return 1;
         }
     };
+    check_surface::remember(&project, &bound);
     if let Err(error) = residency::remember(&project, &bound) { eprintln!("cannot write residency facts: {error}"); return 2; }
     let acquisition = if options.flags.contains_key("residency") {
         match residency::at_check(&project, &bound, options) {
