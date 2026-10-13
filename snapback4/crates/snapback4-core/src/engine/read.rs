@@ -408,6 +408,32 @@ impl<'r> Runner<'r> {
         Err(word_heap::store_memory())
     }
 
+    /// An unopened rule witness is absent without spending the shared
+    /// authorization walk. Expired witnesses retain their established
+    /// privacy bound; callers check the remaining upper lifetime separately.
+    pub(super) fn step_unopened(&mut self, table_name: &str, row: &Value, key: &[u8]) -> Result<bool, RuntimeError> {
+        let Some(now) = self.context.now else { return Ok(false); };
+        let table = &self.schema.tables[table_name];
+        if table.not_before.is_none() { return Ok(false); }
+        let hidden = if !table.opened(row, now) {
+            true
+        } else if table.expired(row, now) {
+            false
+        } else {
+            let id = row.field("id")?.as_str()?;
+            let pending = self.tx.time_audience_pending(table_name, id)?;
+            self.query_unavailable |= pending;
+            pending
+        };
+        if !hidden { return Ok(false); }
+        let bytes = EXPIRED_STEP + key.len() as u64;
+        self.tx.refund(1);
+        self.expired_steps = self.expired_steps.saturating_add(bytes);
+        self.meter.scratch = self.meter.scratch.saturating_add(bytes);
+        if self.expired_steps <= EXPIRED_STEP_GUARD { return Ok(true); }
+        Err(word_heap::store_memory())
+    }
+
     pub(super) fn note_expiry(&mut self, table: &Table, row: &Value) {
         if let Some(column) = table.expiry_column()
             && let Ok(Value::Int(at)) = row.field(column)

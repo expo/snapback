@@ -134,9 +134,9 @@ impl Runner<'_> {
                 bounds.after = self.witness_position(&stored, index_def.components.len() + 1, key.len())?;
                 // @ref LLP 3000.036.002#2 — unopened witnesses are absent and
                 // consume neither the public meter nor the authorization walk.
-                if self.step_inactive(table, &row, &stored)? { continue; }
+                if self.step_unopened(table, &row, &stored)? { continue; }
                 self.witness_materialize(&mut row, definition)?;
-                if !equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value) { continue; }
+                if self.inactive(table, &row)? || !equalities.iter().all(|(column, value)| row.field(column).unwrap_or(&Value::Null) == value) { continue; }
                 // @ref LLP 3000.016#21a-owned-events-follow-their-source-rows — a held source whose event kind is not fully synced is no witness.
                 if self.device && !crate::schema::timeline::holds_event(self.schema, table, &row) {
                     self.event_read_unknown(table, index, key, "rule probe");
@@ -308,8 +308,9 @@ impl Runner<'_> {
             if count > 0 { if let Some(seen) = encountered.as_deref_mut() { *seen = true; } }
             for (mut row, stored) in rows {
                 bounds.after = self.witness_position(&stored, index.components.len() + 1, key.len())?;
-                if self.step_inactive(table_name, &row, &stored)? { continue; }
+                if self.step_unopened(table_name, &row, &stored)? { continue; }
                 self.witness_materialize(&mut row, table)?;
+                if self.inactive(table_name, &row)? { continue; }
                 return Ok(Some(row));
             }
             if count < limit { return Ok(None); }
@@ -322,7 +323,7 @@ impl Runner<'_> {
         // A lifetime-hidden row refunds the shared authorization walk only
         // after inspection. Fetch one at a time so a nearly exhausted batch
         // cannot refuse before that refund is applied.
-        let batch = if self.schema.tables[table].read_lifetime_sensitive() { 1 } else { batch };
+        let batch = if self.schema.tables[table].not_before.is_some() { 1 } else { batch };
         if !self.device_work_active { return Ok((self.tx.scan(allowance, table, index, prefix, bounds, Dir::Asc, batch)?, batch,
             )); }
         let limit = self.meter.ceilings.examined.saturating_sub(self.meter.used.examined).min(batch as u64) as usize;
