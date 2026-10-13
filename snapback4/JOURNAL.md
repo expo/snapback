@@ -94267,3 +94267,11 @@ peer, preserving live-peer protection and exact-once recovery. No arbitrary
 settle sleep, timeout increase or product change. The observed snapshot and
 failed/passing logs are retained; closed ticket 20261013-snapback4-browser-tab-
 lock-release-barrier records the direct observation and causal inference.
+
+Integration 7 full Guide follow-through: the combined deploy card was 160 lines
+against its unchanged 150-line ceiling. Compact wrapping and duplicate account/
+layout prose to preserve every release/onboarding fact within the budget. Restore
+the client card's title/lead paragraph separation while retaining 114 lines and
+1200 words; keep the first-account README's executable npx snapback4 dev spelling
+beside the new init --adapt step. These change prose/layout only; Quarry examples
+and engine semantics are unchanged. The complete Guide suite is rerun.

@@ -1,4 +1,5 @@
 # Client: answers stay on screen
+
 **Start here:** `useQuery`/`usePage`, `matchRead`/`readPresentation`; composers/receipts above rows. `useFollowing` (`guide feeds`).
 
 ```tsx
@@ -63,8 +64,7 @@ function Password() {
     <button onClick={() => void submit(false)}>Sign in</button><button onClick={() => void submit(true)}>Sign up</button>{why}</>;
 }
 ```
-SDK: `{ok:true, session}` / `{ok:false, why}`; wire: `{session}` / `{denied}`. Expo imports `Platform` and `* as SecureStore`:
-`sessionStore: Platform.OS === "web" ? localStorageSessionStore() : { get: SecureStore.getItemAsync, set: SecureStore.setItemAsync, delete: SecureStore.deleteItemAsync }`.
+SDK: `{ok:true, session}` / `{ok:false, why}`; wire: `{session}` / `{denied}`. Expo imports `Platform` and `* as SecureStore`: `sessionStore: Platform.OS === "web" ? localStorageSessionStore() : { get: SecureStore.getItemAsync, set: SecureStore.setItemAsync, delete: SecureStore.deleteItemAsync }`.
 Synced web: `webDevice()`; native: `nativeDevice`; no-sync web: journal. `init --web`/`--expo` writes the form. `guide deploy` covers production.
 
 ## React hooks

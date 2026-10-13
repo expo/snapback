@@ -18,14 +18,10 @@ commit the lockfile, run check/typecheck/acceptance. `test` uses ./fixtures;
 
 ## Deploy and password identity
 
-Add `use identity password` to your schema (the recipe below includes it).
-Deploy from the app directory; keep the deployment directory on durable storage:
+Add `use identity password` (included below). Deploy from the app directory onto durable storage:
 
-Serve admits bearer sessions; personas are 401 and /seed and dev doors are 403,
-including through local proxies. Signup creates an account, not a privileged role.
-See guide client for SDK session-store examples; guide auth/headless has executable
-account setup. HTTP auth returns session or denied; SDK signup/login from
-`snapback4/auth` returns ok/why. Check warns on installed version skew.
+Serve admits bearer sessions; personas are 401 and /seed/dev doors 403, even through proxies. Signup creates an account, not a privileged role.
+See guide client for SDK session stores; auth/headless for account setup. HTTP auth returns session/denied; SDK signup/login from `snapback4/auth` returns ok/why. Check warns on installed version skew.
 
 ```sh
 U=http://127.0.0.1:4400
@@ -42,11 +38,8 @@ and restarts until expiry/revocation; a replaced/reset store requires sign-in ag
 Never delete a store to make adoption pass. `serve --port N` accepts 0 or A-B;
 stdout's first line is its URL, stderr includes SNAPBACK4_READY. Wait for readiness.
 
-Layout: releases/N/ holds source; store.sqlite holds data, sessions and queues;
-assets/ holds uploads. The database owns current release/history; current is a
-text convenience copy and releases.jsonl a convenience ledger. Back up the whole
-directory, including sidecars/assets/releases, with serve and external workers
-stopped (CLIENT-AND-OPERATIONS.md §6). A restore does not rewind external effects.
+Layout: releases/N/ holds source; store.sqlite data/sessions/queues; assets/ uploads. The database owns current release/history; current is a text convenience copy, releases.jsonl a convenience ledger.
+Back up the whole directory, including sidecars/assets/releases, with serve and external workers stopped (CLIENT-AND-OPERATIONS.md §6). A restore does not rewind external effects.
 
 ## First admin: a service seat
 
@@ -76,8 +69,7 @@ curl -s "$U/m/grantAdmin" -H "Authorization: Bearer $TOKEN" \
 unset TOKEN
 ```
 
-Mint locally against the same store. Token stdout is only the credential; prose
-is stderr. Protect it. A repeat grant hits uniqueness; add revocation deliberately.
+Mint locally against the same store. Token stdout is only the credential; prose is stderr. Protect it. A repeat grant hits uniqueness; add revocation deliberately.
 
 ## Migrations and adoption
 
@@ -126,9 +118,7 @@ Deploy/rollback --allow-destructive bypasses neither validation nor retention.
 --allow-feed-adoption permits the explicit feed launch. Inspect releases after an
 ambiguous reply. Details: [SERVER.md — Release lifecycle](SERVER.md#release-lifecycle).
 
-Check business compatibility separately: old payment code may accept payment while
-a new review row is dormant. Pause that workflow or deploy a bridge preserving its
-checks. Old source cannot supply absent product logic. An absent operation returns
+Check business compatibility separately: old payment code may accept payment while a new review row is dormant. Pause that workflow or deploy a bridge preserving its checks. Old source cannot supply absent product logic. An absent operation returns
 404 `{denied:{code:"E_OP",…},generation:G}`; a mutation's incompatible arguments
 return 200 `{state:"failed",why:{code:"E_INPUT",…},generation:G}`.
 
@@ -137,7 +127,7 @@ return 200 `{state:"failed",why:{code:"E_INPUT",…},generation:G}`.
 2. Map each persona role to real account principals through the trusted seat recipe.
 3. Give profiles a production write path and authorized directory; expose no credentials.
 4. Provide invitations or explicit principal sharing; test expiry, revocation and outsiders.
-5. Bootstrap every required table without fixtures/seed. DX owns first-writer notes and password starters (guide start/client).
+5. Bootstrap every required table without fixtures/seed; guide start/client covers first writers and password starters.
 6. Prove real-account writes, role checks, sign-out and rollback on durable storage behind TLS.
 
 ## Inspection, proxies and TLS
