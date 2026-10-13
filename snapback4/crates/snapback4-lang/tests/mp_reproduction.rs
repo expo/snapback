@@ -226,7 +226,7 @@ fn read_through_missing_parent_has_cause() { through_cause("missing", "read thro
 #[test]
 fn read_through_expired_parent_has_cause() { through_cause("expired", "read through parent missing or expired"); }
 #[test]
-fn read_through_hidden_parent_has_cause() { through_cause("hidden", "read through parent read rule"); }
+fn read_through_hidden_parent_has_cause() { through_cause("hidden", "insert into children needs unread parent parents through .parent"); }
 fn through_cause(parent: &str, clause: &str) {
     use snapback4_core::engine::refusal_trace::RefusalTrace;
     {
@@ -246,9 +246,15 @@ fn through_cause(parent: &str, clause: &str) {
             if traced {
                 let cause = trace.take().expect("capture denial needs a developer cause");
                 assert_eq!(cause.clause, clause);
-                assert_eq!(cause.table, "children");
                 let b = snapback4_lang::compile(&[("schema.q".into(), THROUGH_CAUSE.into())]);
-                assert_eq!(b.refusal_sites[&(cause.table, cause.clause)], "schema.q:11:3");
+                if parent == "hidden" {
+                    assert_eq!(cause.table, "parents");
+                    assert_eq!(cause.phase, "read rule");
+                    assert_eq!(b.refusal_sites[&(cause.table, cause.phase)], "schema.q:6:3");
+                } else {
+                    assert_eq!(cause.table, "children");
+                    assert_eq!(b.refusal_sites[&(cause.table, cause.clause)], "schema.q:11:3");
+                }
             } else { assert!(trace.take().is_none()); }
         }
         assert_eq!(pair[0], pair[1]);

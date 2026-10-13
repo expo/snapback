@@ -32,6 +32,8 @@ mutation addNote(body: text):
 ```
 
 Tables have an implicit `id`. `query` pages newest first; pass `next` as `c`. `addNote` inserts atomically with default time.
+Stored opening times use `not before .opensAt`: a required or nullable time gives a server-enforced lower read lifetime; null has no lower bound. Combine it with `expire at` for `[opensAt, expiresAt)`. See `guide timed disclosure` for supported sync and write forms.
+
 
 `receipts chat by .conversation, .ordinal from .sender to members:` with field mappings generates reporting (`guide receipts`; expert recipe: `guide manual-receipts`).
 

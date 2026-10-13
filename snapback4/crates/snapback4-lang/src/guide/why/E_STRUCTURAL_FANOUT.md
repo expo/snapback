@@ -5,7 +5,8 @@ read a maintained aggregate with a rule authorizing the caller; public totals
 need a public read rule. Neither scans private rows inside the mutation.
 
 For receipt gaps, `guide sequences` has the server blocker read and scoped
-receipt proof; counts do not prove individual receipt coverage.
+receipt proof; counts do not prove individual receipt coverage. Declare
+`ordinal: sequence by conversationId` for that recipe.
 
 Example: declare `cap 50 by room` on members, then iterate
 `for m in members where .room = room:`; put the condition and row write inside

@@ -151,7 +151,11 @@ fn deny_and_read_through_scopes_require_authority_before_using_the_prefix() {
         assert!(d.rewrite.contains("skipExpired"), "{read}: {d}");
         assert!(d.message.contains("prefix justifies advancing a receipt only after the caller's own authority check"), "{read}: {d}");
         let schema = source.split("mutation gap").next().unwrap();
-        let b = checked(&format!("{schema}\n{}\nmutation gap(conversation: conversations):\n  anchor = messages[conversation = conversation, ordinal = 3] ! else NOT_FOUND\n  return skipExpired_messages(conversation, 0, 3)\n", d.rewrite));
+        let b = compile(&[("schema.q".into(), format!("{schema}\n{}\nmutation gap(conversation: conversations):\n  anchor = messages[conversation = conversation, ordinal = 3] ! else NOT_FOUND\n  return skipExpired_messages(conversation, 0, 3)\n", d.rewrite))]);
+        assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+        assert_eq!(b.notes.len(), 1, "{:?}", b.notes);
+        assert_eq!(b.notes[0].code, "N_UNREADABLE_PROBE");
+        assert!(b.notes[0].message.contains("negative guard"));
         let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
         use snapback4_core::value::object;
         e.seed_at([("conversations".into(), object([("id", id("chat"))]))], 1).unwrap();

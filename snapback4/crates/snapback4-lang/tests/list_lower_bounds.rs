@@ -149,9 +149,14 @@ fn seeded_optional_nested_columns_enforce_each_bound_without_partial_writes() {
         if !valid { assert_eq!(validation.unwrap_err().code(), "E_INPUT"); }
         let result = e.seed([("groups".into(), row)]);
         assert_eq!(result.is_ok(), valid, "{result:?}");
-        // Seed is an addressed upsert: both old maximum and new minimum
-        // violations on its absent target retain the existing miss masking.
-        if !valid { assert_eq!(result.unwrap_err().code(), "NOT_FOUND"); }
+        // Trusted seed imports preserve the real constraint cause instead of
+        // masking invalid source data as a missing addressed-upsert target.
+        if !valid {
+            let error = result.unwrap_err();
+            assert_eq!(error.code(), "E_CONSTRAINT");
+            assert!(error.to_string().contains("peers"), "{error}");
+            assert!(e.store().rows("groups").unwrap().is_empty());
+        }
         assert_eq!(e.store().rows("groups").unwrap().len(), usize::from(valid));
     }
 }

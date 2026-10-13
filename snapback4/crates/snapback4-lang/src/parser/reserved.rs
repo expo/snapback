@@ -6,7 +6,7 @@ use crate::diag::{Diagnostic, Site};
 /// Words that begin a table line (`by`, `read <-`, `after insert`, …).
 pub(crate) const TABLE_WORDS: &[&str] = &[
     "after", "by", "cap", "delete", "deliver", "ephemeral", "expire", "immutable", "insert", "online",
-    "not", "public", "read", "retain", "search", "sync", "unique", "update",
+    "public", "read", "retain", "search", "sync", "unique", "update",
 ];
 
 /// Words a statement or expression reads as syntax, so a parameter, local or

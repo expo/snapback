@@ -649,7 +649,10 @@ fn horizon_calibration_advice_preserves_prediction_and_groups_sites() {
     // Search now also has a browse plan; both retain their lane warning.
     assert_eq!(b.notes.iter().filter(|n| n.code == "N_WIDE_MERGE").count(), 2);
     assert!(b.notes.iter().any(|n| n.code == "N_WIDE_MERGE" && n.guide == "reads"));
-    assert_eq!(b.notes.len(), 5);
+    assert_eq!(b.notes.len(), 6);
+    let unreadable = b.notes.iter().find(|note| note.code == "N_UNREADABLE_PROBE").unwrap();
+    assert_eq!(unreadable.site.to_string(), "chat.q:83:22");
+    assert!(unreadable.message.contains("exists members[.conversationId, viewer]"));
     for name in ["chat.react", "chat.acceptIntent", "chat.recordSent"] { assert_eq!(b.schema.operations[name].predicts.as_deref(), Some("eligible")); }
     // If prediction is deliberately disabled, the growing tables get ordinary advice again.
     let server = horizon_fixture(&HORIZONS.replace("mutation react(conversationId: id, messageId: id):", "mutation react(conversationId: id, messageId: id): server")

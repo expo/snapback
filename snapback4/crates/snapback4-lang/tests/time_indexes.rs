@@ -60,7 +60,7 @@ fn job_cursor_checks_the_column_beneath_the_time_function() {
     let error=bound.diagnostics.iter().find(|d| d.code=="E_JOB_CURSOR_INDEX").unwrap_or_else(||panic!("{:?}",bound.diagnostics));
     assert!(error.message.contains("sweeps by at,"));
     assert!(!error.message.contains("at, at"));
-    assert!(error.rewrite.starts_with("immutable at"));
+    assert!(error.rewrite.starts_with("use `for row in visits:`") && error.rewrite.contains("declare `immutable at`"));
     let bound=compile(&[("schema.q".into(),format!("{}{job}",base.replace("  at: time", "  at: time\n  immutable at")))]);
     assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
 }
