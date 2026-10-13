@@ -188,7 +188,7 @@ mod tests {
 /// Engine build stamp without opening or mutating a store. Free with sb4_free.
 #[unsafe(no_mangle)]
 pub extern "C" fn sb4_engine_info() -> *mut c_char {
-    c_string(serde_json::to_value(snapback4_core::device_protocol::DeviceEngine::current()).expect("engine stamp"))
+    c_string(serde_json::to_value(crate::engine::info()).expect("engine stamp"))
 }
 
 #[cfg(test)]

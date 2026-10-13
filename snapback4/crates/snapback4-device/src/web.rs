@@ -10,7 +10,10 @@ use serde_json::json;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-pub fn engine_info() -> String { snapback4_core::json_codec::to_text(&snapback4_core::device_protocol::DeviceEngine::current()).expect("engine stamp") }
+pub fn engine_info() -> String { snapback4_core::json_codec::to_text(&crate::engine::info()).expect("engine stamp") }
+
+#[wasm_bindgen]
+pub fn engine_headers() -> String { serde_json::to_string(&crate::engine::headers()).expect("engine headers") }
 
 #[wasm_bindgen]
 pub struct WebDevice {

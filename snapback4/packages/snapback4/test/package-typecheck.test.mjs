@@ -18,6 +18,7 @@ test("package sources typecheck before generated dist declarations exist", () =>
   // The suite builds dist before running JS tests. Model a fresh package
   // without deleting artifacts used by concurrently running client tests.
   const host = ts.createCompilerHost(parsed.options);
+  host.getCurrentDirectory = () => root;
   for (const name of ["fileExists", "readFile", "directoryExists"]) {
     const original = host[name].bind(host);
     host[name] = path => generated(path) ? (name === "readFile" ? undefined : false) : original(path);
@@ -28,5 +29,18 @@ test("package sources typecheck before generated dist declarations exist", () =>
     getCanonicalFileName: file => file,
     getCurrentDirectory: () => root,
     getNewLine: () => "\n",
+  }));
+});
+
+test("every published declaration typechecks without DOM or Node globals", () => {
+  const root = fileURLToPath(new URL("../", import.meta.url));
+  const files = ts.sys.readDirectory(join(root, "dist"), [".d.ts"], undefined, ["**/*.d.ts"]);
+  assert.ok(files.length > 0, "build the package before testing declarations");
+  const options = { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.NodeNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeNext, lib: ["lib.es2022.d.ts", "lib.webworker.d.ts"],
+    types: [], strict: true, skipLibCheck: false, noEmit: true };
+  const diagnostics = ts.getPreEmitDiagnostics(ts.createProgram(files, options));
+  assert.equal(diagnostics.length, 0, ts.formatDiagnosticsWithColorAndContext(diagnostics, {
+    getCanonicalFileName: file => file, getCurrentDirectory: () => root, getNewLine: () => "\n",
   }));
 });

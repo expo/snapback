@@ -31,7 +31,8 @@ pub fn compatibility(schema: &Schema) -> Compatibility {
 }
 fn version(text: &str) -> Option<(u32, u32, u32)> {
     let mut parts = text.split('.');
-    let result = (parts.next()?.parse().ok()?, parts.next()?.parse().ok()?, parts.next()?.parse().ok()?);
+    let number = |text: &str| text.bytes().all(|b| b.is_ascii_digit()).then(|| text.parse::<u32>().ok()).flatten();
+    let result = (number(parts.next()?)?, number(parts.next()?)?, number(parts.next()?)?);
     parts.next().is_none().then_some(result)
 }
 pub fn check(device: Option<&DeviceEngine>, required: &Compatibility) -> Result<(), Refusal> {
@@ -43,7 +44,7 @@ pub fn check(device: Option<&DeviceEngine>, required: &Compatibility) -> Result<
     };
     if missing.is_empty() { return Ok(()); }
     let device_version = device.map(|d| d.version.as_str()).unwrap_or("unknown (unstamped)");
-    let rebuild = format!("Exact: bun exact.mjs snapback; Expo: npx expo run:ios; web: install snapback4@{} and rebuild the web app", required.server_version);
+    let rebuild = format!("Exact: bun exact.mjs snapback --rebuild; Expo: npx expo run:ios; web: install snapback4@{} and rebuild the web app", required.server_version);
     Err(Refusal::new("E_DEVICE_VERSION", "device-version", format!("device engine {device_version} lacks {missing} (server {}, device floor {}); rebuild the device: {rebuild}", required.server_version, required.minimum_version)).guide("wire"))
 }
 
@@ -55,6 +56,8 @@ mod tests {
         let required = compatibility(&Schema::default());
         let mut d = DeviceEngine::current(); check(Some(&d), &required).unwrap();
         d.version = "0.4.23".into(); assert_eq!(check(Some(&d), &required).unwrap_err().code, "E_DEVICE_VERSION");
+        d.version = "4294967296.0.0".into(); assert_eq!(check(Some(&d), &required).unwrap_err().code, "E_DEVICE_VERSION");
+        d.version = "+1.2.3".into(); assert_eq!(check(Some(&d), &required).unwrap_err().code, "E_DEVICE_VERSION");
         d.version = "9.0.0".into(); d.capabilities.clear();
         let why = check(Some(&d), &required).unwrap_err(); assert!(why.message.contains(GENERATION));
         assert!(why.message.contains("9.0.0") && why.message.contains(required.server_version));

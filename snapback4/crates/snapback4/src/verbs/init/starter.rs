@@ -253,6 +253,7 @@ pub(super) const TODO_IDS: [(&str, &str); 3] = [("slug", "snapback4-todos"), ("s
 
 pub(super) fn web_files(shape: &Shape) -> Vec<(&'static str, String)> {
     let mut package: Value = serde_json::from_str(include_str!("../../../../../apps/chat/package.json")).unwrap();
+    package["devDependencies"]["@types/node"] = json!("^24");
     package["name"] = json!("snapback4-web-starter");
     package["version"] = json!("0.1.0");
     package["dependencies"]["snapback4"] = json!(env!("CARGO_PKG_VERSION"));

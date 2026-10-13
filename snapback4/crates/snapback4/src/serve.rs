@@ -1029,7 +1029,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 let bound = lock(&shared.bound);
                 let ops: Vec<Json> = bound.programs.iter().map(|p| json!({ "name": p.program.name, "kind": p.program.kind.word() })).collect();
                 let tables: Vec<Json> = bound.schema.visible_tables().map(|(name, table)| json!({ "name": name, "sync": table.sync.as_ref().map(|s| s.line_in(table)) })).collect();
-                json!({ "snapback4": env!("CARGO_PKG_VERSION"), "generation": *lock(&shared.generation), "seq": seq, "ops": ops, "tables": tables })
+                json!({ "snapback4": env!("CARGO_PKG_VERSION"), "device_compatibility": snapback4_core::device_protocol::compatibility(&bound.schema.public_projection()), "generation": *lock(&shared.generation), "seq": seq, "ops": ops, "tables": tables })
             };
             respond_timed(request, shared, 200, body);
         }

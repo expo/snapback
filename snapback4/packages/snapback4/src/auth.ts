@@ -96,10 +96,17 @@ export function memorySessionStore(): SessionStore {
 
 export const defaultSessionStore: SessionStore = memorySessionStore();
 
+/** Structural session mirror, usable without DOM types. */
+export interface StorageLike {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+}
+
 /** Explicit browser persistence: coherent IndexedDB authority and a synchronous
  * localStorage mirror. Custom mirror adapters need a stable unique namespace.
  * Any script on this origin can read the token; opt in only when acceptable. */
-export function localStorageSessionStore(storage?: Pick<Storage, "getItem" | "setItem" | "removeItem">, authorityNamespace?: string): SessionStore {
+export function localStorageSessionStore(storage?: StorageLike, authorityNamespace?: string): SessionStore {
   const target = () => {
     const found = storage ?? globalThis.localStorage;
     if (!found) throw new Error("localStorage is unavailable in this runtime");

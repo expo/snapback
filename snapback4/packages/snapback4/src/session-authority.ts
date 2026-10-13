@@ -1,7 +1,7 @@
-import type { SessionStore } from "./auth.ts";
+import type { SessionStore, StorageLike } from "./auth.ts";
 import { sessionEpoch, StorageWarning } from "./app-storage.ts";
 
-type Mirror = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+type Mirror = StorageLike;
 type Authority = {
   source: string;
   read(key: string): Promise<string | null>;
