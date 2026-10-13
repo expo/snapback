@@ -1,0 +1,360 @@
+{
+  "scope": "50 odd wave-10 final schemas, isolated copies; original evidence unchanged",
+  "source_digest": "7a4725fa4895937190b6532280d8497ca9151ccfbb2fdbad6160885485af34ab",
+  "baseline_notes": 20,
+  "current_notes": 18,
+  "baseline_schemas": 13,
+  "current_schemas": 11,
+  "apps": [
+    {
+      "app": "001-sourdough-starter-share",
+      "baseline": 1,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "003-mushroom-forage-permits",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "005-tide-pool-survey",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "007-meteorite-finds-registry",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "009-cryo-freezer-map",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "011-sample-shipping-manifests",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "013-birdsong-recording-review",
+      "baseline": 1,
+      "current": 1,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "015-robotics-league-scouting",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "017-cross-country-team-splits",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "019-golf-tee-time-lottery",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "021-ultramarathon-aid-stations",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "023-horse-stable-boarding",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "025-ski-resort-lift-shift",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "027-backcountry-permit-checkin",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "029-ferry-vehicle-reservations",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "031-group-tour-guide-roster",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "033-airline-miles-pooling",
+      "baseline": 3,
+      "current": 3,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "035-exchange-student-hosts",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "037-school-pickup-authorizations",
+      "baseline": 1,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "039-science-fair-judging",
+      "baseline": 1,
+      "current": 1,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "041-college-application-checklist",
+      "baseline": 1,
+      "current": 1,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "043-tailor-alteration-orders",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "045-print-shop-proofing",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "047-florist-event-orders",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "049-food-hall-vendor-settlements",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "051-hunting-lease-calendar",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "053-campus-dining-dollars",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "055-elevator-inspection-calendar",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "057-snow-plow-contractor-bids",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "059-solar-panel-cleaning-routes",
+      "baseline": 3,
+      "current": 3,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "061-locksmith-dispatch-verification",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "063-youth-court-diversion",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "065-legal-clinic-volunteer-attorneys",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "067-library-micro-grant-fund",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "069-school-board-public-comment",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "071-emergency-volunteer-badges",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "073-free-clinic-intake-lottery",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "075-sleep-study-diary",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "077-caregiver-respite-credits",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "079-hospice-volunteer-visits",
+      "baseline": 2,
+      "current": 2,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "081-adaptive-sports-equipment",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "083-sports-card-trade-escrow",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "085-pen-pal-exchange-program",
+      "baseline": 1,
+      "current": 1,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "087-tabletop-miniature-commissions",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "089-larp-event-casting",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "091-speedrun-verification-board",
+      "baseline": 0,
+      "current": 0,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "093-orchard-gleaning-network",
+      "baseline": 1,
+      "current": 1,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "095-rental-return-inspection",
+      "baseline": 1,
+      "current": 1,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "097-tidal-mooring-waitlist",
+      "baseline": 1,
+      "current": 1,
+      "baseline_ok": true,
+      "current_ok": true
+    },
+    {
+      "app": "099-orchestra-substitute-callout",
+      "baseline": 3,
+      "current": 3,
+      "baseline_ok": true,
+      "current_ok": true
+    }
+  ]
+}
