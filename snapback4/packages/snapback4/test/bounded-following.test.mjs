@@ -287,9 +287,11 @@ query speculativePage():
           assert.ok(raw.data.some(row => row.post === "own-gated"), "even a prediction cannot validate speculative presence");
           assert.ok(raw.data.every(row => row.online === true));
         } else if (name === "filteredEvents") {
-          // Z's partial owned-table read withholds before the scan. The fully
-          // synced event-slot case above separately exercises rejected rows.
-          assert.equal(raw.loading, true); assert.equal("data" in raw, false);
+          // The optimized membership filter discovers its online-only witness
+          // before opening the owned range. Unknown discovery emits no rows or
+          // continuation; its speculative answer must still be withheld.
+          assert.deepEqual(raw.data, []); assert.equal(raw.complete, false);
+          assert.equal(raw.next, null); assert.deepEqual(raw.tables, ["eventActors"]);
         } else if (name === "guardedEvents") {
           // A row-independent test in a returned page's where is decided
           // once, as an if (LLP 3000.036 §15.4): the device stops at the

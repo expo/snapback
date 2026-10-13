@@ -206,7 +206,7 @@ fn retirement_cancels_pending_delivery_and_rolls_back_with_a_failed_adoption() {
     let saved: BTreeMap<_, _> = e.schema().tables.keys().map(|t| (t.clone(), e.store().rows(t).unwrap())).collect();
     let generation = e.generation();
     let broken = without_view(&s).replace("  parentId: posts ?", "  extra: int\n  parentId: posts ?")
-        .replace("authorId: viewer, parentId, at: now", "authorId: viewer, extra: 0, parentId, at: now");
+        .replace("authorId: viewer, parentId:", "authorId: viewer, extra: 0, parentId:");
     let b = compile(&broken); let error = e.adopt(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap_err();
     assert_eq!(error.code(), "E_ADOPT"); assert_eq!(e.generation(), generation);
     for (table, rows) in saved { assert_eq!(e.store().rows(&table).unwrap(), rows, "{table}"); }
@@ -574,7 +574,7 @@ fn check_and_adoption_agree_across_expiry_through_changes_and_following_presence
         .replace(" with own keys .actorId", "")
         .replace("  sync public last 1000 by .at", "  online only")
         .replace("  public 'public posts and replies'", "  group: groups\n  immutable group\n  read through .group");
-    let base = format!("table groups:\n  deadline: time ?\n  immutable deadline\n  public\n  expire at .deadline\n  online only\n{base}\nmutation addPost(group: groups, expiresAt: time ?):\n  return insert posts {{ group, expiresAt, authorId: viewer, parentId: null, at: now }}\n");
+    let base = format!("table groups:\n  deadline: time ?\n  immutable deadline\n  public\n  expire at .deadline\n  online only\n{base}\nmutation addPost(group: groups, expiresAt: time ?):\n  parent = groups[group] ! else NOT_FOUND\n  return insert posts {{ group: parent.id, expiresAt, authorId: viewer, parentId: null, at: now }}\n");
     for expired in [false, true] {
         for changed in [false, true] {
             for existing in [false, true] {

@@ -94232,3 +94232,20 @@ the exact allowed Value/ObjectFields sink replaces Counter's previous entry
 (LLP 3000.002). The final measurement and review verdicts follow qualification.
 Root inventories require the frozen dependency install and generated artifacts;
 bootstrap those instead of treating their missing prerequisite as a waiver.
+
+Integration 7 full-run follow-through: the first full Linux client run finds
+README first-account fixtures left from init's todo schema, stale Expo export
+and VM-global assertions, and the optimized Following membership filter's
+unknown-discovery envelope. The README now runs init --adapt before check;
+untouched todo fixtures retire while custom account/client files stay owned.
+Expect the cleared Expo export and provide URLSearchParams/window/witness
+registration in the VM fixture. The filter discovers the unavailable eventActors
+witness before the owned range: require empty/incomplete/no cursor and that
+witness dependency while preserving speculative/FIFO withholding assertions.
+Two Following adoption fixtures follow DX's guarded two-arm post recipe:
+insert the new required field into both arms and look up the group before
+writing its reference. Preserve actual adoption refusal/rollback/expiry tests.
+Fresh Sol's initial review independently finds the one-line client card overrun;
+remove a blank line to retain the 114-line/1200-word budget. It also finds the
+already-repaired CLI notes, delivery boundary and PAGE serializer families.
+Root inventories and all 22 Guide checks pass after dependency/codegen bootstrap.

@@ -1,5 +1,4 @@
 # Client: answers stay on screen
-
 **Start here:** `useQuery`/`usePage`, `matchRead`/`readPresentation`; composers/receipts above rows. `useFollowing` (`guide feeds`).
 
 ```tsx
