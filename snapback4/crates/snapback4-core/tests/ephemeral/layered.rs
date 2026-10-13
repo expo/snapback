@@ -36,6 +36,8 @@ fn routes_reads_and_drop_guard_undoes_durable_write_and_store_error() {
         assert!(layer.get("typing", "t").unwrap().is_some());
         if fault {
             assert!(layer.get("rooms", "r").is_err());
+            assert!(layer.time_audience_pending("rooms", "r").is_err());
+            assert!(layer.time_audience_published("rooms", "r").is_err());
         } else {
             assert_eq!(layer.get("rooms", "r").unwrap(), Some(room.clone()));
             assert!(
@@ -75,6 +77,12 @@ fn drop_guard_restores_updates_deletes_and_panics() {
 }
 struct Broken;
 impl Rows for Broken {
+    fn time_audience_pending(&self, _: &str, _: &str) -> Result<bool, RuntimeError> {
+        Err(RuntimeError::Store("injected pending-state failure".into()))
+    }
+    fn time_audience_published(&self, _: &str, _: &str) -> Result<bool, RuntimeError> {
+        Err(RuntimeError::Store("injected publication-state failure".into()))
+    }
     fn get(&self, _: &str, _: &str) -> Result<Option<Value>, RuntimeError> {
         Err(RuntimeError::Store("injected read failure".into()))
     }

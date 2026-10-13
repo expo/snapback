@@ -23,6 +23,22 @@ fn maintained_columns_are_outside_postgres_evaluation() {
 }
 
 #[test]
+fn timed_publication_is_outside_postgres_evaluation() {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), "table releases:
+  opensAt: time
+  by byOpening: opensAt
+  not before .opensAt
+  public
+  online only
+".into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let schema: Schema = serde_json::from_str(&serde_json::to_string(&bound.schema).unwrap()).unwrap();
+    let error = supported(&schema, &BTreeMap::new()).unwrap_err();
+    assert_eq!(error.code(), "E_SCHEMA");
+    assert!(error.to_string().contains("timed-publication state"), "{error}");
+}
+
+#[test]
 fn postgres_evaluation_currently_admits_recorded_fields() {
     let recorded = include_str!("../../../../snapback4-lang/tests/fixtures/recorded-attribution.q");
     for source in [recorded] {

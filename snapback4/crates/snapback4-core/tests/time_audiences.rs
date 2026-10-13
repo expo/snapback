@@ -74,6 +74,10 @@ table awards:
   public 'awards'
   insert <- allow
   sync public
+table signals:
+  principal: principal
+  read <- allow
+  ephemeral 4s
 query asserted(id: gates):
   gate = gates[id] ! else NOT_FOUND
   return gate
@@ -83,6 +87,14 @@ query positive(id: gates):
 query negative(id: gates):
   require not exists gates[id] else PRESENT
   return true
+query layeredAsserted(id: gates):
+  signal = signals first 1 by .id
+  gate = gates[id] ! else NOT_FOUND
+  return { signal, gate }
+query layeredPositive(id: gates):
+  signal = signals first 1 by .id
+  require exists gates[id] else NOT_FOUND
+  return { signal, found: true }
 mutation grant(id: gates, award: id):
   insert awards { id: award, label: 'granted' }
   require exists gates[id] else NOT_FOUND
@@ -368,6 +380,28 @@ fn pending_publication_cannot_become_an_authored_absence() {
         assert!(!outcome.complete, "{query}: {outcome:?}");
         assert_eq!(outcome.data, Value::Null, "{query}: {outcome:?}");
         assert_eq!(outcome.next, None, "{query}: {outcome:?}");
+    }
+}
+
+#[test]
+fn an_ephemeral_query_layer_preserves_pending_publication_state() {
+    for query in ["layeredAsserted", "layeredPositive"] {
+        let mut engine = pending_engine();
+        let pending = engine.query(
+            query,
+            Context::new("alice", pending_args()).at(100),
+        ).unwrap();
+        assert!(pending.unavailable, "{query}: {pending:?}");
+        assert!(!pending.complete, "{query}: {pending:?}");
+        assert_eq!(pending.data, Value::Null, "{query}: {pending:?}");
+
+        let published = engine.query(
+            query,
+            Context::new("alice", pending_args()).at(100),
+        ).unwrap();
+        assert!(!published.unavailable, "{query}: {published:?}");
+        assert!(published.complete, "{query}: {published:?}");
+        assert_ne!(published.data, Value::Null, "{query}: {published:?}");
     }
 }
 
