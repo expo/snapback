@@ -722,8 +722,13 @@ impl<'r> Runner<'r> {
                 let mut bounds = Bounds { word: Some(first.clone()), ..Bounds::default() };
                 while walk_remaining > 0 {
                     let found = runner.tx.scan(allowance, &scan.table, &scan.index, &scope, &bounds, Dir::Asc, 1)?;
-                    let Some((_, key)) = found.first() else { break };
-                    let Some(Value::String(token)) = crate::key::decode(key).and_then(|values| values.into_iter().nth(position)) else {
+                    let Some((row, key)) = found.into_iter().next() else { break };
+                    // Word discovery's physical head is a separate guarded
+                    // fetch from the candidate scan below. Refund a hidden
+                    // head under the same bounded stepping guard, but still
+                    // explore its word for a live sibling.
+                    runner.step_inactive(&scan.table, &row, &key)?;
+                    let Some(Value::String(token)) = crate::key::decode(&key).and_then(|values| values.into_iter().nth(position)) else {
                         return Err(RuntimeError::Store("word index holds a non-text word".into()));
                     };
                     bounds.after = Some(vec![Value::String(token.clone())]);
