@@ -1,5 +1,5 @@
 //! Validate the complete command before any project, store or host work.
-const SWITCHES: &[&str] = &["help", "initialize", "environment-skip", "background", "if-present", "check", "engine-info", "json", "json-objects", "trace-empty", "latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "resume-clock", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "restore-dormant", "allow-feed-adoption", "i-understand-cleartext", "skip-existing", "sections", "adapt", "full", "smoke", "prime", "relaunch", "restart", "wait"];
+const SWITCHES: &[&str] = &["list", "help", "initialize", "environment-skip", "background", "if-present", "check", "engine-info", "json", "json-objects", "trace-empty", "latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "resume-clock", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "restore-dormant", "allow-feed-adoption", "i-understand-cleartext", "skip-existing", "sections", "adapt", "full", "smoke", "prime", "relaunch", "restart", "wait"];
 
 fn allowed(verb: &str) -> &'static str {
     match verb {
@@ -8,17 +8,17 @@ fn allowed(verb: &str) -> &'static str {
         "device" => "engine-info",
         "types" => "json",
         "dev" => "port bind no-watch fresh memory replay hold-effects hold-schedules clock-offset resume-clock trace-empty verbose i-understand-cleartext long-waits long-waits-per-principal claim-waits",
-        "deploy" => "verbose json restore-dormant allow-feed-adoption allow-destructive",
+        "deploy" => "check verbose json restore-dormant allow-feed-adoption allow-destructive",
         "rollback" => "verbose json check to allow-feed-adoption allow-destructive",
         "prune" => "allow-destructive json",
         "releases" => "after items-after event json",
         "serve" => "clock-offset resume-clock now replay port bind worker i-understand-cleartext long-waits long-waits-per-principal claim-waits",
-        "run" => "as port now json",
+        "run" => "as port now json release token-env",
         "clock" => "port release",
         "reset" => "port seed clock release",
         "test" => "fixture as residency verbose json",
         "why" => "verbose release values json instance store",
-        "guide" => "full sections section find",
+        "guide" => "list full sections section find",
         "data" => "limit json",
         "sql" => "release limit json json-objects",
         "token" => "service days release json",
@@ -45,6 +45,7 @@ pub fn validate(args: &[String]) -> Result<(), String> {
         };
         let (name, inline) = flag.split_once('=').map_or((flag, None), |(name, value)| (name, Some(value)));
         if name != "help" && !allowed(verb).split_whitespace().any(|known| known == name) {
+            if verb == "rollback" && name == "dry-run" { return Err("E_INPUT: rollback preview is --check; use rollback <dir> [--to N|latest] --check".into()); }
             // Witness arguments may contain bearer material even in a flag name.
             return Err(if verb == "witness" { "E_INPUT: witness has an unknown flag; see guide witness".into() } else { format!("E_INPUT: {verb} takes no --{name}") });
         }

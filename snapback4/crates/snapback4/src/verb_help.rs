@@ -130,6 +130,9 @@ Stop with Ctrl-C or SIGTERM. Refusals print as one short `dev refusal: <op> <COD
 line per cause; snapback4 why recent lists the full records.";
 
 const RUN: &str = "snapback4 run <operation> [json-args] [--as <persona|principal-id>] [--port N] [--now <ms|+duration>] [--json]
+snapback4 run <job> [json-args] --release <dir> [--token-env NAME] [--json]
+
+--release uses served source, the server clock and the existing FIFO. Set SNAPBACK4_SERVICE_TOKEN (or --token-env NAME) to a full service token; every full service seat may trigger system jobs. It needs a running serve and no local app directory.
 
 Runs one query, mutation or job and prints its answer and meters.
 
@@ -211,6 +214,15 @@ pub fn page(verb: &str, full: &str) -> Option<String> {
         "dev" => DEV,
         "run" => RUN,
         "test" => TEST,
+        "deploy" => "snapback4 deploy <dir> [--check] [--restore-dormant] [--allow-feed-adoption] [--verbose|--json] [--allow-destructive]
+
+Packages immutable source and activates it on the durable store. A running serve adopts the release before this command completes. --check previews exact deploy adoption without activating; --restore-dormant explicitly restores retired names. --allow-destructive never prunes; use prune <dir> --allow-destructive. Exit 1 on refusal.",
+        "rollback" => "snapback4 rollback <dir> [--to N|latest] [--check] [--allow-feed-adoption] [--verbose|--json] [--allow-destructive]
+
+Without --to, selects the previously active release from committed activation history. --to selects a successful immutable release, including roll-forward with latest. --check previews exact adoption without activating. Removed storage and incompatible rows become dormant per row and restore on compatible forward. --allow-destructive never prunes. Exit 1 on refusal.",
+        "serve" => "snapback4 serve <dir> [--port N|A-B] [--bind IP] [--worker PATH] [--i-understand-cleartext] [--clock-offset MS] [--resume-clock] [--now TIME] [--replay] [--long-waits N] [--long-waits-per-principal N] [--claim-waits N]
+
+Attaches the active release; a running serve adopts deploy and rollback atomically without restart. Bearer sessions only. The first stdout line is its URL. Non-loopback cleartext requires --i-understand-cleartext. Exit 1 on refusal.",
         "" => return None,
         verb => {
             // Its own lines from the full help, and the indented lines under them.

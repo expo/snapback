@@ -12,6 +12,8 @@ struct Column {
     kind: ColumnType,
     default: Option<ColumnDefault>,
     authoritative: bool,
+    #[serde(default)]
+    capture_source: Option<Table>,
 }
 
 pub(crate) fn enable(conn: &Connection) -> Result<(), RuntimeError> {
@@ -42,6 +44,7 @@ pub(super) fn definition(tx: &Tx<'_>, name: &str, table: &Table, column: &str) -
         kind: table.columns[column].clone(),
         default: table.defaults.get(column).cloned(),
         authoritative: authoritative(table, column),
+        capture_source: table.engine_field(column).then(||table.clone()),
     };
     tx.conn().execute("INSERT INTO _dormant_columns VALUES(?1,?2,?3) ON CONFLICT(table_name,column_name) DO UPDATE SET definition=excluded.definition", params![name,column,canonical_json(&value)])?;
     Ok(())
@@ -247,6 +250,10 @@ pub(super) fn transition(
             }
             let old: Column =
                 serde_json::from_str(text).map_err(|e| RuntimeError::Store(e.to_string()))?;
+            if let Some(source)=&old.capture_source {
+                if source.through.is_some() && source.through == table.through {retained_through.insert(name.clone());}
+                else if source.through.is_some() && table.through.is_some() {return Err(refuse(format!("{name}: retained engine captures belong to another read-through definition; restore the original definition before changing the audience")));}
+            }
             if old.authoritative && !authoritative(table, column) {
                 let mut samples = super::adopt_refusals::Samples::default();
                 let t = tx.num(name)?;
@@ -287,7 +294,7 @@ pub(super) fn transition(
         return Err(refuse(format!(
             "dormant names [{}] require restoration intent; retained storage: {}; proceed with `snapback4 deploy <dir> --restore-dormant`, or `snapback4 prune <dir> --allow-destructive` before fresh creation",
             reuse.join(", "),
-            canonical_json(&inventory)
+            inventory.iter().map(|i|format!("{}: {} rows; sample ids [{}]",i.key,i.rows,i.sample_ids.join(", "))).collect::<Vec<_>>().join("; ")
         )));
     }
     if let Some(previous) = previous {
@@ -432,6 +439,7 @@ pub(super) fn transition(
         if let Some(candidate)=next.table(name).filter(|t|t.columns.contains_key(column)) {
             let old:Column=serde_json::from_str(text).map_err(|e|RuntimeError::Store(e.to_string()))?;
             let source=source_definitions.entry(name.clone()).or_insert_with(||candidate.clone());
+            if let Some(capture)=&old.capture_source {source.through=capture.through.clone();source.expire=capture.expire.clone();}
             source.columns.insert(column.clone(),old.kind);
             if let Some(default)=old.default {source.defaults.insert(column.clone(),default);}
             if !old.authoritative {

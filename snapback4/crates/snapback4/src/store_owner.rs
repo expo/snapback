@@ -92,6 +92,11 @@ fn acquire(store: &Path, shared: bool, wait: Duration) -> Result<Owner, String> 
         if before.as_ref().is_some_and(|old| !same_file(old, &database)) { continue; }
         let record = if shared { None } else {
             let record_path = path.with_file_name("serve.lock");
+            if let Some(pid)=owner_pid(&path) {
+                if unsafe {libc::kill(pid as libc::pid_t,0)} == -1 && std::io::Error::last_os_error().raw_os_error()==Some(libc::ESRCH) {
+                    eprintln!("reclaimed stale serve.lock: dead PID {pid}; URL {}; directory {}",address(&path).unwrap_or_else(||"unknown".into()),path.parent().unwrap().display());
+                }
+            }
             let file = regular(&record_path, true, &path)?;
             file.set_len(0).map_err(|e| failure(&record_path, e))?;
             Some(file)
@@ -116,7 +121,7 @@ fn stopped_host(path: &Path) -> bool {
 pub(crate) fn busy(path: &Path) -> String {
     let owner = address(path).map(|address| match owner_pid(path) { Some(pid) => format!("{address} (pid {pid})"), None => address })
         .unwrap_or_else(|| "another CLI command or a server starting up (address pending)".into());
-    format!("E_STORE_BUSY at {}: this store is live; owned by {owner}; no work was admitted. Stop its `snapback4 dev` or `snapback4 serve` process (or wait for the owning CLI command), rerun this command once, then restart the server. Exclusion holds while <database>-owner is left in place; deleting or replacing it while a process runs ends exclusion and does not stop that process", path.display())
+    format!("E_STORE_BUSY at {}: this store is live; owned by {owner}; directory {}; no work was admitted. Stop its `snapback4 dev` or `snapback4 serve` process (or wait for the owning CLI command), rerun this command once, then restart the server. Exclusion holds while <database>-owner is left in place; deleting or replacing it while a process runs ends exclusion and does not stop that process", path.display(),path.parent().unwrap_or(Path::new(".")).display())
 }
 
 #[cfg(unix)]

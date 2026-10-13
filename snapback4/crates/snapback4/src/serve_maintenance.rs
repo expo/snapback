@@ -394,12 +394,22 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
 /// what `snapback4 run <job>` forwards to while dev owns the store.
 pub(super) fn run_job(request: Request, shared: &Shared, name: &str, body: &str) {
     use snapback4_core::{JobState, error::Refusal, ir::ProgramKind, wire};
-    if !shared.personas { return respond(request, 403, json!({"denied":refusal_json(&Refusal::new("E_AUTH", "auth", "running a job on request is a development door; a deployed job runs from its schedule").guide("jobs"))})); }
+    let service_route=request.url().starts_with("/jobs/");
+    let service=if service_route {
+        match super::session_identity::principal_of(&request,shared) {
+            Ok((principal,kind,snapback4_core::identity::SessionScope::Full)) if kind=="service" && principal.starts_with("service:") => Some(principal),
+            _ => return respond(request,403,json!({"denied":refusal_json(&Refusal::new("E_AUTH","auth","triggering a deployed system job requires a full service token").guide("jobs"))})),
+        }
+    } else {
+        if !shared.personas {return respond(request,403,json!({"denied":refusal_json(&Refusal::new("E_AUTH","auth","/dev/jobs is a development door; use run <job> --release <dir> with a service token").guide("jobs"))}));}
+        None
+    };
     let refuse = |request, status, refusal: Refusal| respond(request, status, json!({"denied":refusal_json(&refusal.guide("jobs"))}));
     let payload: serde_json::Value = match serde_json::from_str(if body.trim().is_empty() { "{}" } else { body }) {
         Ok(payload) => payload,
         Err(error) => return refuse(request, 400, Refusal::new("E_INPUT", "input", format!("the request body is not JSON: {error}; send {{\"args\":{{..}}}}"))),
     };
+    if service_route && !shared.personas {crate::release_requests::Scope::admit(&shared.release_requests,||*lock(&shared.generation));}
     let program = lock(&shared.bound).programs.iter().find(|p| p.program.name == name).map(|p| p.program.clone());
     let program = match program {
         Some(program) if program.kind == ProgramKind::Job => program,
@@ -416,14 +426,22 @@ pub(super) fn run_job(request: Request, shared: &Shared, name: &str, body: &str)
             }
         }
     }
-    let id = match lock(&shared.engine).enqueue_job(name, args, shared.now()) {
+    let mut admitted=lock(&shared.engine);
+    crate::release_requests::stamp(admitted.generation());
+    if let Some(service)=&service {
+        if let Err(why)=super::session_identity::mutation_authority(&request,shared,&admitted,service) {drop(admitted);return refuse(request,403,why);}
+    }
+    let queued=admitted.enqueue_job(name,args,shared.now());
+    drop(admitted);
+    crate::release_requests::executed();
+    let id = match queued {
         Ok(id) => id,
         Err(error) => return respond(request, 400, json!({"denied":refusal_json(&error.refusal())})),
     };
     // FIFO: earlier queued runs finish first, as with `run` on a stopped store;
     // the background tick may run some chunks too, through the same engine.
     let run = loop {
-        let current = lock(&shared.engine).job(&id);
+        let current = {let engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.job(&id)};
         match current {
             Ok(Some(run)) if matches!(run.state, JobState::Done | JobState::Parked) || crate::lifecycle::stopping() => break run,
             Ok(Some(_)) => {}

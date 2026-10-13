@@ -11,8 +11,8 @@ use snapback4_core::meter::Ceilings;
 use snapback4_core::{Context, Engine, Value, WriteState};
 use snapback4_lang::guide::{self, KEYWORDS, LANGUAGE, card, codes, explain_code, language, quarry};
 use std::collections::BTreeMap;
-
-
+#[path = "guide/rollback.rs"]
+mod rollback;
 #[test]
 fn time_waiting_cards_point_to_cli_and_http_clock_controls() {
     for name in ["expire", "jobs", "effects"] {

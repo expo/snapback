@@ -213,6 +213,8 @@ pub(crate) fn activate_retained(
         let mut invalid = 0;
         let mut samples = Vec::new();
         rows(tx, name, |row| {
+            // @ref LLP 3000.000.000#10-wave-10-release-lifecycle-amendment — historical capture restoration needs no audience recapture.
+            if retained.contains(name) && row.field(PARENT_DEADLINE).is_ok() && t.fields.keys().all(|f|row.field(f).is_ok()) {return Ok(());}
             let Some(map) = &map else {
                 invalid += 1;
                 sample(&mut samples, &row, &t.reference, &t.parent);
@@ -239,7 +241,7 @@ pub(crate) fn activate_retained(
             }
             Ok(())
         })?;
-        if invalid > 0 || map.is_none() {
+        if invalid > 0 {
             return Err(refusal(
                 name,
                 invalid,
