@@ -1,6 +1,25 @@
 //! Physical page eligibility derived solely from Quarry surface declarations.
 use super::*;
 
+/// The executable predicate classifier currently knows literal/viewer point
+/// terms only. Preserve an explicit boundary for admitted native argument
+/// and signed-expression keys rather than reporting a model disagreement
+/// under an incompletely translated completeness proof.
+pub(super) fn static_key_issue(read: &ReadExpr) -> Option<&'static str> {
+    fn missing(expr: &Expr) -> bool {
+        match expr {
+            Expr::Exists { read, .. } => read.keys.iter().all(|key| model_independent(&key.value))
+                && read.keys.iter().any(|key|
+                !matches!(&key.value, Expr::Literal { .. })
+                && !matches!(&key.value, Expr::Name { name, .. } if name == "viewer")),
+            Expr::Binary { left, right, .. } => missing(left) || missing(right),
+            Expr::Unary { value, .. } => missing(value),
+            _ => false,
+        }
+    }
+    read.filter.as_deref().is_some_and(missing).then_some("page-static-key-expression")
+}
+
 // @ref LLP 3000.036.001#16 — reproduce implicit bounds from surface
 // constraints, independently of the planner's selected index or IR.
 pub(super) fn implicit_page(module: &LeanModule, read: &ReadExpr) -> Option<ReadExpr> {

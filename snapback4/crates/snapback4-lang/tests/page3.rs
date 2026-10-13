@@ -293,3 +293,11 @@ fn four_variant_archive_with_reviewer_is_a_seven_lane_complete_cursor() {
         assert_eq!(ids, ["r0", "r2", "r3", "r4"]); assert!(complete.iter().all(|c| *c));
     }
 }
+
+#[test]
+fn a_negated_probe_keeps_the_existing_single_scan() {
+    let source = COMPOUND.replace(".owner = viewer or (exists roles[viewer] and .open = true)", ".owner = viewer and not exists roles[viewer]");
+    let b = clean(&source);
+    assert!(snapback4_core::ir::body_merges(&b.programs[0].program.body).is_empty());
+    assert!(has_note(&b, "N_NEVER_COMPLETE"));
+}

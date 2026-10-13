@@ -67,6 +67,10 @@ pub(super) fn expand(tables: &Tables, synthesized: &BTreeSet<(String, String)>, 
                 if witness.replace(atom.clone()).is_some() { return None; }
             } else if intent::equality(atom, table).is_some() {
                 pins.push(atom.clone());
+            } else if matches!(atom, Expr::Unary { .. }) {
+                // A bare negated boolean pin was handled above. Negated
+                // probes are outside this positive distribution classifier.
+                return None;
             } else if !branches::columns_within(atom, &[]) { return None; }
         }
         let mut lane_read = read.clone();

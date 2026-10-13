@@ -894,6 +894,7 @@ impl<'a> Scope<'a> {
     fn read(&self, read: &ReadExpr) -> R<Json> {
         let print = || crate::print::read_expr(read);
         if let Some(page) = pages::implicit_page(self.module, read) { return self.read(&page); }
+        if let Some(reason) = pages::static_key_issue(read) { return no(reason, print()); }
         if let Some(reason) = pages::membership_physical_issue(self.module, read) {
             return no(reason, print());
         }

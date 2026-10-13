@@ -150,7 +150,7 @@ fn the_emitter_covers_the_generated_corpus_with_named_exceptions() {
     }
     // Outside it: the unpaged aggregates, page projections (`shape`), the
     // loop of a prefetch-reachable fold, and expiry, which the model leaves out.
-    assert_eq!(reasons, ["call-max", "call-min", "call-sum", "index-computed-or-words", "loop", "shape", "table-expiry"].map(String::from).into());
+    assert_eq!(reasons, ["call-max", "call-min", "call-sum", "index-computed-or-words", "loop", "page-static-key-expression", "shape", "table-expiry"].map(String::from).into());
     assert!(supported > 2000, "{supported}");
 }
 
@@ -1299,5 +1299,28 @@ fn page3_outer_compound_grant_agrees_with_the_native_page() {
         let modeled = lean::ask(&module.case("run", module.store(&rows).unwrap(), who, module.tag_args("run", &json!({"c":null})).unwrap(), None).unwrap()).unwrap();
         assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data));
         assert_eq!(modeled["complete"], actual.complete); assert!(actual.complete);
+    }
+}
+
+#[test]
+fn page3_argument_and_signed_static_keys_have_a_named_model_boundary() {
+    for key in ["n", "-1"] {
+        let source = format!("table roles:\n  principal: principal\n  slot: int\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  owner: principal\n  assignee: principal\n  at: int\n  read <- .owner = viewer or .assignee = viewer\n  online only\nquery run(n: int, c: cursor ?):\n  return docs where (.owner = viewer or (.assignee = viewer and exists roles[principal = viewer, slot = {key}])) first 2 by .at after c\n");
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let mut engine = snapback4_core::Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        engine.seed([("docs".into(), snapback4_core::value::object([
+            ("id", snapback4_core::Value::Id("d".into())), ("owner", snapback4_core::Value::Id("alice".into())),
+            ("assignee", snapback4_core::Value::Id("bob".into())), ("at", snapback4_core::Value::Int(1))]))]).unwrap();
+        let actual = engine.query("run", snapback4_core::Context::new("alice", [("n".into(), snapback4_core::Value::Int(0)), ("c".into(), snapback4_core::Value::Null)].into_iter().collect())).unwrap();
+        assert!(actual.complete); assert_eq!(actual.data.as_array().unwrap().len(), 1);
+        let model = lean::module(&source).unwrap();
+        assert_eq!(model.program("run").unwrap_err().reason, "page-static-key-expression", "{key}");
+        // The oracle must account for this as unsupported, never a pass.
+        let mut case = lean::generate(0);
+        case.program.body = snapback4_difftest::ast::Body::Read { kind: snapback4_difftest::ast::Read::Page, take: 2, descending: false, filter: false, owner: false, project: None };
+        let checked = lean::compare(&case, &source).unwrap();
+        assert!(matches!(checked.verdict, Verdict::Unsupported(ref reason) if reason == "page-static-key-expression"));
+        assert_eq!(checked.executed, 0);
     }
 }
