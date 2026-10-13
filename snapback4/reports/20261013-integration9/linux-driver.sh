@@ -27,6 +27,6 @@ printf 'FILES=%s SLOTS=%s\n' "${#files[@]}" "$slots" > "$proof/linux-client-inve
 run client-tests node scripts/run-client-tests.mjs "$slots" files "${files[@]}"
 run client-models node scripts/run-client-tests.mjs 1 models packages/snapback4/test/app-session-model.test.mjs packages/snapback4/test/online-client-model.test.mjs
 run docs-budget env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 node scripts/docs-budget.mjs
-run ref-check ../ref-check
+run ref-check bash -c 'cd .. && ./ref-check'
 printf 'FINAL_FAILURES=%s\n' "$failures" > "$proof/linux-result.txt"
 [ "$failures" -eq 0 ]
