@@ -78,11 +78,11 @@ fn memory_mutation_does_not_need_sqlite_writer_lock_and_restart_is_empty() {
     let mut reader = e.reader().unwrap();
     let incarnation = e.ephemeral_hub().snapshot().unwrap().version.incarnation;
     let tx = e.store_mut().transaction().unwrap();
-    let now = std::time::Instant::now();
     reader
         .mutate_ephemeral("setTyping", ctx("alice", 1000, &args("r")))
         .unwrap();
-    assert!(now.elapsed() < std::time::Duration::from_millis(250));
+    // Success while this write transaction is held proves independence;
+    // elapsed wall time also charges unrelated libtest scheduling.
     tx.rollback().unwrap();
     assert_eq!(page(&mut e, "bob", 1001).data.as_array().unwrap().len(), 1);
     drop(reader);

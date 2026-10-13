@@ -1,3 +1,4 @@
+import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.033#3 — Round 6: read credentials survive refresh attempts and restarts; obsolete sign-out watermarks are bounded.
 import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -100,14 +101,15 @@ for (const caller of ['waiting peer', 'third app']) test(`logout cancels a held 
   const reading = b.client.query(query, {}); await entered.promise;
   assert.equal((await a.client.refreshSession()).why.code, 'E_READ_ONLY_REFRESH');
   const logout = (caller === 'waiting peer' ? b : c).auth.logout();
-  assert.equal((await Promise.race([logout, delay(500).then(() => ({ ok: false }))])).ok, true);
+  // The read remains held until after logout: completion proves independence.
+  assert.equal((await logout).ok, true);
   await signedOutRestart(f);
   release.resolve(); assert.ok('denied' in await reading);
   await until(async () => (await f.probe(f.initial.token)).denied?.code === 'E_AUTH');
   assert.ok(!requests.includes('/auth/refresh'));
 });
 
-for (const readOnly of [true, false]) test(`24 account switches bound sign-out watermarks; readOnly=${readOnly}`, { timeout: 15000 }, async t => {
+for (const readOnly of [true, false]) test(`24 account switches bound sign-out watermarks; readOnly=${readOnly}`, { timeout: hangBudget(24) }, async t => {
   const f = await fixture(t, readOnly), active = f.app(); await active.ready;
   for (let i = 0; i < 24; i++) {
     const stale = f.app(); await stale.ready;

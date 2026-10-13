@@ -233,6 +233,10 @@ pub fn serve(
         #[cfg(test)]
         poll_wait: Mutex::new(None),
         #[cfg(test)]
+        poll_resumed: Mutex::new(None),
+        #[cfg(test)]
+        poll_notified: Mutex::new(None),
+        #[cfg(test)]
         query_wait: Mutex::new(None),
         #[cfg(test)]
         reader_open: Mutex::new(None),

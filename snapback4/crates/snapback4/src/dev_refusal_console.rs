@@ -22,7 +22,7 @@ impl Console {
     pub fn push(&mut self, record: Value, identity: &Value, out: &mut impl Write) {
         self.push_at(record, Instant::now(), identity, out);
     }
-    fn push_at(&mut self, record: Value, now: Instant, identity: &Value, out: &mut impl Write) {
+    pub(super) fn push_at(&mut self, record: Value, now: Instant, identity: &Value, out: &mut impl Write) {
         self.flush_due(now, identity, out);
         if let Some(entry) = self.entries.iter_mut().find(|entry| same_cause(&entry.record, &record)) {
             entry.count = entry.count.saturating_add(1);

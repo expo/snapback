@@ -202,18 +202,47 @@ fn changes_refresh_is_engine_work_but_poll_sleep_is_not() {
     let fresh = query_readers::FreshDirectory::new().unwrap();
     let host = Host::with_store(true, fresh.store().unwrap(), SOURCE);
     *lock(&host.shared.changes_refresh) = Some(Arc::new(|| thread::sleep(Duration::from_millis(150))));
-    let reply = host.request("GET", "/changes?wait=1", PERSONA, "");
+    // Measure the real condvar interval on the serving thread. A fixed poll
+    // deadline minus an injected refresh is not a sleep measurement: refresh
+    // and reader opening can be descheduled for arbitrarily long under load.
+    let began = Arc::new(Mutex::new(None::<Instant>));
+    let slept = Arc::new(Mutex::new(Duration::ZERO));
+    let (entered, waiting) = mpsc::channel();
+    let start = began.clone();
+    *lock(&host.shared.poll_wait) = Some(Arc::new(move || {
+        *lock(&start) = Some(Instant::now());
+        entered.send(()).unwrap();
+    }));
+    let start = began.clone();
+    let duration = slept.clone();
+    *lock(&host.shared.poll_resumed) = Some(Arc::new(move || {
+        *lock(&duration) += lock(&start).take().unwrap().elapsed();
+    }));
+    let address = host.address;
+    let poll = thread::spawn(move || exchange(address,
+        "GET /changes?wait=25 HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\n\r\n"));
+    waiting.recv_timeout(Duration::from_secs(60)).unwrap();
+    drop(lock(&host.shared.wake)); // The condvar has released the wake mutex.
+    thread::sleep(Duration::from_millis(600));
+    let committed = host.request("POST", "/m/put", PERSONA, r#"{"id":"wake","args":{"n":1}}"#);
+    assert_eq!(body(&committed)["state"], "sent");
+    let reply = poll.join().unwrap();
     assert_eq!(status(&reply), 200, "{reply}");
+    assert_eq!(body(&reply)["tables"], json!(["notes"]));
+    let sleep_ms = lock(&slept).as_secs_f64() * 1000.0;
+    assert!(sleep_ms >= 600.0, "fixture did not hold the actual poll: {sleep_ms}");
     let sample = timing(&reply).unwrap();
     assert!(sample["engine"] >= 150.0, "refresh escaped its engine span: {sample:?}");
-    assert!(sample["total"] - sample["engine"] - sample["wait"] >= 600.0,
-        "poll sleeping entered engine/wait: {sample:?}");
+    // Headers round each duration to microseconds; three rounded components
+    // may lose at most 0.002 ms. Registry maxima retain the exact durations.
+    assert!(sample["total"] - sample["engine"] - sample["wait"] + 0.002 >= sleep_ms,
+        "poll sleeping entered engine/wait ({sleep_ms} ms): {sample:?}");
     let snapshot = counted(&host, "/changes", 1);
     let op = &snapshot["operations"]["/changes"];
     assert!(op["engine"]["max"].as_f64().unwrap() >= 150.0, "{op}");
     assert!(op["total"]["max"].as_f64().unwrap() - op["engine"]["max"].as_f64().unwrap()
-        - op["wait"]["max"].as_f64().unwrap() >= 600.0, "{op}");
-    println!("refresh 150ms, held poll: {sample:?}");
+        - op["wait"]["max"].as_f64().unwrap() >= sleep_ms, "{op}");
+    println!("refresh 150ms, observed poll sleep {sleep_ms}ms: {sample:?}");
 }
 
 #[test]

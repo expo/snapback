@@ -27,6 +27,12 @@ pub(super) struct Recent {
 }
 impl Recent {
     pub fn start(project: &Path, store: &str, address: std::net::SocketAddr, trace_empty: bool, detail: bool) -> Result<Self, String> {
+        Self::start_with_console(project, store, address, trace_empty, detail, Instant::now, std::io::stderr())
+    }
+    pub(super) fn start_with_console(
+        project: &Path, store: &str, address: std::net::SocketAddr, trace_empty: bool, detail: bool,
+        clock: impl Fn() -> Instant + Send + 'static, mut output: impl Write + Send + 'static,
+    ) -> Result<Self, String> {
         if !component(store) { return Err("invalid store identity for dev evidence".into()); }
         let now = snapback4_core::now_ms();
         let instance = snapback4_core::ids::mint(now, &mut 0).map_err(|e| e.to_string())?;
@@ -51,8 +57,8 @@ impl Recent {
             let mut shutdown = None;
             let mut remaining = LIMIT;
             loop {
-                let now = std::time::Instant::now();
-                console.flush_due(now, &identity, &mut std::io::stderr());
+                let now = clock();
+                console.flush_due(now, &identity, &mut output);
                 // The marker follows already accepted records. Drain any
                 // racing handoffs too, bounded by the channel capacity; held
                 // requests need not release their sender clones.
@@ -65,7 +71,7 @@ impl Recent {
                     Ok(Message::Shutdown(done)) => { shutdown = Some(done); continue; },
                     Err(mpsc::RecvTimeoutError::Timeout) => continue,
                     Err(mpsc::RecvTimeoutError::Disconnected) => {
-                        console.flush_all(&identity, &mut std::io::stderr());
+                        console.flush_all(&identity, &mut output);
                         break;
                     }
                 };
@@ -73,12 +79,12 @@ impl Recent {
                 records.insert(at, record.clone());
                 if records.len() > LIMIT { records.pop_front(); }
                 if let Err(error) = save(&path, &identity, &records, writer_dropped.load(Ordering::Relaxed)) {
-                    console.push(json!({"operation":"local evidence writer", "code":"save failed",
-                        "clause":error.to_string()}), &identity, &mut std::io::stderr());
+                    console.push_at(json!({"operation":"local evidence writer", "code":"save failed",
+                        "clause":error.to_string()}), clock(), &identity, &mut output);
                 }
                 // EMPTY_READ is requested local evidence, never a refusal line.
                 if record["emptyRead"] != true {
-                    console.push(record, &identity, &mut std::io::stderr());
+                    console.push_at(record, clock(), &identity, &mut output);
                 }
             }
             // Acknowledgement means records and console groups have been

@@ -122,6 +122,11 @@ pub(crate) struct Supervisor {
 }
 
 impl Supervisor {
+    #[cfg(test)]
+    pub(crate) fn idle_for_test() -> Self {
+        Self { stop: Arc::new(std::sync::atomic::AtomicBool::new(false)), thread: None }
+    }
+
     pub(crate) fn start(
         mut project: Project,
         shared: Arc<Shared>,

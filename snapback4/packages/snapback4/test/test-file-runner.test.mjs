@@ -302,7 +302,7 @@ test('a foreign listing over five seconds leaves sibling cleanup and watchdog ti
 
 test('stall bounds cover single guards with margin, including serial mode and seed overrides', () => {
   const derived = {
-    'test-processes': [5520000,6900000], 'test-file-runner': [1920000,2400000],
+    'test-processes': [5520000,6900000], 'test-file-runner': [3720000,4650000],
     'test-signals': [1020000,1275000], 'export-background': [1020000,1275000],
     'export-failure': [10920000,13650000],
     'ordinary-search-oracle': [8592000,10740000], 'web-admission-review': [6832000,8540000],
@@ -741,4 +741,31 @@ test('keeper exit before its queued cleanup acknowledgement is still an expected
   assert.equal(result.keeperExit.cleanupAcknowledged, true);
   assert.equal(result.reason, undefined, JSON.stringify(result));
   assert.equal(result.passed, true, JSON.stringify(result));
+});
+
+test('real-timer files drain the pool and run serially even after a pooled failure', { timeout: fixtureTestMs(4) }, async t => {
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-timer-group-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const evidence = join(dir, 'events.jsonl');
+  const paths = ['ordinary-a.test.mjs', 'ordinary-b.test.mjs', 'ephemeral-adoption.test.mjs', 'client-seams.test.mjs'].map(name => join(dir, name));
+  for (const [index, path] of paths.entries()) writeFileSync(path, `
+import test from 'node:test';
+import {appendFileSync} from 'node:fs';
+import {setTimeout as delay} from 'node:timers/promises';
+test('group fixture', async () => {
+  appendFileSync(${JSON.stringify(evidence)}, JSON.stringify({index:${index},kind:'start'})+'\\n');
+  await delay(100);
+  appendFileSync(${JSON.stringify(evidence)}, JSON.stringify({index:${index},kind:'end'})+'\\n');
+  if (${index}===0) throw Error('deliberate pooled failure');
+});`);
+  const runner = fileURLToPath(new URL('../../../scripts/run-client-tests.mjs', import.meta.url));
+  const result = await fixtureCommand(process.execPath, [runner, '2', 'files', ...paths], { env: nativeEnv, label: 'timer group ordering' });
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  const events = readFileSync(evidence, 'utf8').trim().split('\n').map(JSON.parse);
+  const at = (index, kind) => events.findIndex(event => event.index === index && event.kind === kind);
+  assert.equal(events.length, 8);
+  assert.ok(at(2,'start') > Math.max(at(0,'end'),at(1,'end')), JSON.stringify(events));
+  assert.ok(at(3,'start') > at(2,'end'), JSON.stringify(events));
+  assert.match(result.stdout, /isolated timer files: 2; concurrency: 1/);
+  assert.match(result.stdout, /client files: 4\/4; failed 1/);
 });

@@ -94,7 +94,10 @@ Gotchas you cannot derive from the code:
   floor(os.availableParallelism() / 3)))` slots (3 on 10 CPUs, 24 on 96).
   This counts Linux CPU affinity and leaves room for each file's servers,
   browser renderers and workers. Acquisition and server-e2e share that pool;
-  there are no extra shard processes outside it. The two full-count model
+  there are no extra shard processes outside it. Real-timer files listed in
+  `TIMER_CLIENT_FILES` drain that pool and run individually afterward with
+  unchanged timing bounds. The quote-jump browser witness remains pooled.
+  The two full-count model
   files retain a separate serial slot. `SNAPBACK4_TEST_SERIAL_CLIENT_FILES=1`
   still forces one client file at a time. The external file watchdog measures
   time since a subtest started or finished: max(900 seconds, largest single

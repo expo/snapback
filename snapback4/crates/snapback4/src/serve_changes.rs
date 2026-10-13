@@ -82,6 +82,10 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
             #[cfg(test)]
             super::test_work(&shared.poll_wait);
             let (_wake, _timeout)=shared.polls.wait_timeout(wake,until.saturating_duration_since(Instant::now())).unwrap_or_else(|e|e.into_inner());
+            #[cfg(test)]
+            super::test_work(&shared.poll_resumed);
+            #[cfg(test)]
+            if !_timeout.timed_out() { super::test_work(&shared.poll_notified); }
         }
     })();
     // @ref LLP 3000.033#1.2 — a reader never enters OR leaves presence.
