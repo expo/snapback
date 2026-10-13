@@ -151,7 +151,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_UPLOAD_DISPATCHED", "placement dispatch was reserved or begun"),
     ("N_NO_PRODUCTION_WRITER", "no production insert path can bootstrap this table"),
     ("N_FIXTURE_ARGUMENT_DRIFT", "a fixture case no longer fits its operation signature"),
-    ("E_UPGRADE", "the package-manager upgrade did not complete"),
+    ("E_UPGRADE", "installation or post-upgrade check failed"),
     ("E_WITNESS_BROWSER", "no usable headless Chromium executable"),
     ("E_WITNESS_AUTH", "the exported app did not sign in"),
     ("E_WITNESS_MUTATION", "no matching mutation was registered"),
