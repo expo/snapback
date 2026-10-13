@@ -693,10 +693,12 @@ pub fn generate(seed: u64) -> Case {
 fn membership_page(case: &mut Case, seed: u64) {
     use crate::ast::{Read, Residency, Rule};
     let mut rng = crate::generate::Rng::new(seed ^ 0x4d45_4d42_4552_5047);
-    let Body::Read { kind: kind @ (Read::Page | Read::Bounded), owner, .. } = &mut case.program.body else { return };
+    let Body::Read { kind: kind @ (Read::Page | Read::Bounded), filter, owner, project, .. } = &mut case.program.body else { return };
     if rng.pick(8) != 0 { return }
     *kind = Read::Page;
+    *filter = false;
     *owner = false;
+    *project = None;
     let items = &mut case.program.tables[0];
     let by_id = rng.pick(2) == 0;
     items.rule = if by_id { Rule::OwnerOrIdWitness } else { Rule::OwnerOrWitness };
@@ -709,6 +711,7 @@ fn membership_page(case: &mut Case, seed: u64) {
     if rng.pick(2) == 0 { access.caps.clear(); }
     case.program.domain = Some("true".into());
     case.program.order = Some(vec!["id".into()]);
+    case.program.residual = None;
     case.program.guard = None;
     case.program.membership_named_reordered = !by_id && rng.pick(2) == 0;
     if by_id { crate::generate::id_membership(case); }
