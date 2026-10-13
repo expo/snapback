@@ -1006,11 +1006,14 @@ fn handle(mut request: Request, shared: &Shared) {
         Ok(body) => body,
         Err(_) => return reject(request, 400, Refusal::new("E_INPUT", "input", "a JSON request body must be valid UTF-8")),
     };
-    if (method == Method::Get && path == "/changes")
+    let request_now = if (method == Method::Get && path == "/changes")
         || (method == Method::Post && (path == "/sync" || path.starts_with("/q/") || path.starts_with("/m/")))
     {
-        if let Err(error) = shared.advance_time_audiences() { return reject(request, 503, error.refusal()); }
-    }
+        match shared.advance_time_audiences() {
+            Ok(now) => Some(now),
+            Err(error) => return reject(request, 503, error.refusal()),
+        }
+    } else { None };
     if operation && !shared.personas {crate::release_requests::Scope::admit(&shared.release_requests,||*lock(&shared.generation));}
     match (method, path.as_str()) {
         (Method::Post, "/dev/clock/advance") => maintenance::advance(request, shared, &body),
@@ -1205,7 +1208,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
             }
             let viewer = principal.clone();
-            let mut context = Context::new(&principal, args).at(shared.now());
+            let mut context = Context::new(&principal, args).at(request_now.unwrap_or_else(|| shared.now()));
             if path.starts_with("/q/") {
                 let provenance = payload.get("provenance").and_then(Json::as_bool) == Some(true);
                 if provenance { context = context.with_row_provenance(); }
@@ -1389,7 +1392,7 @@ fn handle(mut request: Request, shared: &Shared) {
             }
         }
         (Method::Get, "/changes") => changes::serve(request, shared, &url),
-        (Method::Post, "/sync") => sync::serve(request, shared, &body),
+        (Method::Post, "/sync") => sync::serve(request, shared, &body, request_now.expect("sync pins request time")),
         (Method::Post, "/auth/session") => {
             // An application that authenticates its own accounts (a phone
             // it verified, a directory it owns) mints their sessions through

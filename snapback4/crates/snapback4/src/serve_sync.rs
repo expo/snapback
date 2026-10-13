@@ -34,7 +34,7 @@ fn under_generation<T>(engine: &mut Engine, requested: Option<u64>, generation: 
     Ok(SyncOutcome::Page(page))
 }
 
-pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
+pub(super) fn serve(request: Request, shared: &Shared, body: &str, now: i64) {
     // This is also the page path's request authorization. Partition rules
     // filter unreadable rows/groups; they add no whole-request refusal.
     let principal = match principal_of(&request, shared) {
@@ -82,7 +82,6 @@ pub(super) fn serve(request: Request, shared: &Shared, body: &str) {
     // An old snapshot cursor belongs to its database, not merely its schema.
     if requested_store.as_ref().is_some_and(|id| id != &store_id) { after = None; }
     let limit = limit.clamp(1, 10_000);
-    let now = shared.now();
     if from == 0 && !stream {
         // `after` is the previous snapshot page's opaque `next` token.
         let (outcome, generation) = {
