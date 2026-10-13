@@ -93864,3 +93864,12 @@ The artifact passes the existing 690,152 B budget; no further increase.
 The whole-artifact delta over baseline 2,245,422 / 679,351 is +32,931 raw
 / +10,607 gzip. This supersedes the one-row source measurement; no
 per-feature attribution, macOS measurement or runtime-ceiling change.
+
+PAGE final false-guard and signed-witness qualification (2026-10-13):
+the locked Linux web artifact measures 2,278,983 B raw / 690,290 B gzip
+after proven-false prefix alternatives collapse and signed integer
+membership witnesses compare canonically without heap allocation. It is
+138 B over 690,152 B; set 690,790 B = measured gzip plus required 500 B
+platform headroom. Expression and cursor IR remain stable. Whole-artifact
+delta over baseline 2,245,422 / 679,351 is +33,561 raw / +10,939 gzip;
+no per-feature attribution, macOS measurement or runtime-ceiling increase.
