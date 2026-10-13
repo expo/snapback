@@ -210,7 +210,7 @@ fn validate(case: &Json) -> Result<(), String> {
         }
     }
     if let Some(value) = fields.get("count") && value.as_u64().is_none() { return Err(format!("`count` is a non-negative integer, got {value}")); }
-    if let Some(value) = fields.get("args") && !value.is_object() { return Err("\"args\" is an object".into()); }
+    if let Some(value) = fields.get("args") && !value.is_object() && fields.get("expect").and_then(Json::as_str) != Some("E_INPUT") { return Err("\"args\" is an object".into()); }
     Ok(())
 }
 

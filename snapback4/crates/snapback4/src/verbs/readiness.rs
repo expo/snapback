@@ -142,7 +142,7 @@ fn fixture_notes(project: &Project, bound: &Bound, fixture: Option<&String>) -> 
         };
         if let Err(reason) = check() {
             // Only argument refusals satisfy E_INPUT; malformed case JSON/metadata does not.
-            if expects_input && case.as_ref().ok().is_some_and(|case| case.get("args").is_none_or(|args| args.is_object())) { continue; }
+            if expects_input { continue; }
             notes.push(Diagnostic::new(&Site::new(&path.to_string_lossy(), index as u32 + 1, 1), "N_FIXTURE_ARGUMENT_DRIFT", reason,
                 "update this case's arguments to the operation's current signature; run snapback4 test").guide("testing"));
         }

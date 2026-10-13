@@ -511,7 +511,7 @@ fn decided(schema: &Schema, program: &Program, scan: &Scan) -> bool {
 fn fanout(scan: Option<&Scan>, site: &str, reason: &str, rewrite: &str) -> Problem {
     let reason = reason.split_once("; ").map_or(reason, |(reason, _)| reason);
     let population = scan.map(|scan| format!("{} by {} (page bound {}): ", scan.table, scan.index, scan.take.maximum())).unwrap_or_default();
-    Problem { code: "E_STRUCTURAL_FANOUT", site: site.into(), page_site: scan.map(|scan| scan.site.clone()), message: format!("{population}{reason}"), rewrite: rewrite.into() }
+    Problem { code: "E_STRUCTURAL_FANOUT", site: site.into(), page_site: scan.map(|scan| scan.site.clone()), message: format!("{population}{reason}"), rewrite: format!("{rewrite}; for a single row use a point read by id (`table[id]`); for a global count/total read a maintained aggregate whose read rule explicitly admits the caller (public only when its totals may be public)") }
 }
 
 // @ref LLP 3000.007#20.3 — a private feed cleanup must pin the reader; changing its audience is not a rewrite.

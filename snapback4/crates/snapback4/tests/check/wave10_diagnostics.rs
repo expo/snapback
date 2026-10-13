@@ -10,6 +10,7 @@ fn intentional_input_cases_and_later_operations_are_not_fixture_drift() {
         r#"{"op":"answer","args":{},"expect":"E_INPUT"}"#,
         r#"{"op":"answer","args":{"n":"wrong"},"expect":"E_INPUT"}"#,
         r#"{"op":"answer","args":{"n":2,"extra":1},"expect":"E_INPUT"}"#,
+        r#"{"op":"answer","args":false,"expect":"E_INPUT"}"#,
     ].join("\n");
     fs::write(p.0.join("fixtures/test.cases.jsonl"), &cases).unwrap();
     let out = p.run(&["check", "--json"]);

@@ -94442,3 +94442,18 @@ namespace minting, constraint atomicity, readable/hidden unique codes and
 private parent/lookup evidence. Schema unit tests 6/6 and trace renderer 8/8.
 LLP 3000.036.002 carries the normative design; final independent review remains
 in progress. No push or publication.
+
+### 2026-10-13 — Wave 10 DIAG: usable diagnostic repairs
+
+Mixed partial positional keys now fail before an id-type cascade, including
+extra named tests. Nullable upserts offer the emitted `! else NOT_FOUND`
+replacement and explain unreadable results and rollback. Probe inequality
+explains bracket equality and caller-visible filtering. Structural fanout
+names point-by-id and authorized maintained aggregates; job ordering leads
+with stable id. The synced-roster grant diagnostic includes a schema-specific
+trusted-seat recipe preserving online residency and existing read predicates.
+Deploy documents password migration, durable sessions, relationships, seat
+expiry/revocation and waiting for scope delivery. The eight wave-9 emitted-text
+goldens compile each concrete repair against its source; all 120 guide tests,
+101 CLI check tests and six check_notes pass. Non-object argument cases can
+assert their actual E_INPUT. Design and review resolutions: LLP 3000.036.002.

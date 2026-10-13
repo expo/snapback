@@ -26,8 +26,8 @@ pub(super) fn keys<'a>(table: &TableInfo, parts: &'a [KeyPart], index: Option<&s
         // positional prefix plus named suffix must reach the typed pass, which
         // prints the fully named repair.
         let named: Vec<&str> = parts[prefix..].iter().filter_map(|part| part.column.as_deref()).collect();
-        let partial_composite = declared.iter().any(|key| key.columns.len() == parts.len()
-            && named.iter().all(|column| key.columns.iter().any(|key_column| key_column == column))
+        let partial_composite = declared.iter().any(|key| key.columns.len() > prefix && key.columns.len() <= parts.len()
+            && key.columns[prefix..].iter().all(|column| named.contains(&column.as_str()))
             && index.is_none_or(|name| name == key.name));
         if partial_composite { Vec::new() }
         else { declared.iter().copied().filter(|key| key.columns.len() == prefix && index.is_none_or(|name| name == key.name)).collect() }

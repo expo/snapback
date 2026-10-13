@@ -1,12 +1,11 @@
 # Programs — E_STRUCTURAL_FANOUT
 
-For receipt gaps, `guide sequences` pairs `sequence by conversationId` with
-a server mutation reading its blocker before effects. The compiler gives that
-repair first, then a unique parent/ordinal probe helper as fallback. Require authority over the
-whole conversation and a validated received run; hidden rows do not prove
-holes. Resume after the bound, preserving disjoint runs. Counts answer badges,
-not individual receipt coverage. General processing can use query-selected ids
-or a job sweep.
+For one row, use a point read by id (`table[id]`). For a global count/total,
+read a maintained aggregate with a rule authorizing the caller; public totals
+need a public read rule. Neither scans private rows inside the mutation.
+
+For receipt gaps, `guide sequences` has the server blocker read and scoped
+receipt proof; counts do not prove individual receipt coverage.
 
 Example: declare `cap 50 by room` on members, then iterate
 `for m in members where .room = room:`; put the condition and row write inside

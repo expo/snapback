@@ -344,6 +344,11 @@ impl Parser {
             if self.at_kind(Kind::Word) {
                 while self.peek_at(end).value == "." && self.peek_at(end + 1).kind == Kind::Word { end += 2; }
             }
+            if self.at_kind(Kind::Word) && self.peek_at(end).value == "!=" {
+                return Err(syntax_with(&key_site,
+                    "probe brackets take named equalities, not != tests",
+                    "pin a full unique key and compare the row field outside the brackets, or use a bounded program `exists table[key] where .column != value`; program probes see only caller-readable rows, while table-rule probes see all rows; use unique/cap/after insert constraints for invariants across hidden rows"));
+            }
             if self.at_kind(Kind::Word) && self.peek_at(end).value == "=" {
                 column = Some(self.maintain_column()?);
                 self.take("=")?;
