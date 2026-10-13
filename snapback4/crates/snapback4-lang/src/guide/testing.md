@@ -303,7 +303,8 @@ For the default starter's visible form, add these three flags:
 The witness arms a new write observer before pressing Add and waits for that write's
 `sent`; it never injects an extra SDK write. Submit the durable write directly
 from the trusted button click handler (the starter does this); a standalone
-form onSubmit is not click evidence. Finish async validation before enabling it. Mutations
+form onSubmit is not click evidence. Short microtasks within the active click
+can submit; later timers/network work cannot. Finish longer validation before enabling it. Mutations
 from timers/input autosaves cannot satisfy the clicked-button proof. `--as alice` selects a declared
 persona, including on the default identity starter, only under dev.
 Fresh browser/storage and a fresh default backend

@@ -22,6 +22,7 @@ export function registerWebWitness(app: App, api: Operations): void {
       form?.cancel();
       const client = app.client, originalClient = client.mutate, originalApp = app.mutate;
       let click: Event | undefined, claimed = false, cancelObserver = () => {};
+      const outsideClick = Symbol("witness outside clicked dispatch");
       let resolve!: (write: unknown) => void;
       const terminal = new Promise(answer => { resolve = answer; });
       // Chromium's active event ties admission to this actual control's handler.
@@ -36,8 +37,13 @@ export function registerWebWitness(app: App, api: Operations): void {
       const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object"
         ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical((value as Record<string, unknown>)[key])])) : value;
       const execute = async (original: Function, receiver: unknown, op: Mutation<any, any>, args: Record<string, unknown>, options?: any): Promise<Write> => {
-        const invoke = () => original.call(receiver, op, args, options) as Promise<Write>;
-        if (claimed || !click || window.event !== click || !operations.some(value => (value as Mutation<any, any>).name === op.name) || (name && name !== op.name)) return invoke();
+        const durable = operations.some(value => (value as Mutation<any, any>).name === op.name);
+        const eligible = !claimed && !!click && window.event === click && !options?.[outsideClick] && durable && (!name || name === op.name);
+        // An App call entered from a submit/other context must not borrow the
+        // restored outer click when its readiness await reaches the Client.
+        const forwarded = !eligible && receiver === app && durable ? { ...options, [outsideClick]: true } : options;
+        const invoke = () => original.call(receiver, op, args, forwarded) as Promise<Write>;
+        if (!eligible) return invoke();
         claimed = true; restore();
         if (expected && JSON.stringify(canonical(expected)) !== JSON.stringify(canonical(args))) {
           resolve({ state: "failed", why: { code: "E_WITNESS_ARGUMENT" } });

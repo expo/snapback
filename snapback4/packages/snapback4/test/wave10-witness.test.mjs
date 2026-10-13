@@ -86,3 +86,18 @@ button.onclick=e=>{e.preventDefault();setTimeout(()=>form.requestSubmit(button),
   const result = invoke(['witness','web','dist','--url','http://127.0.0.1:4400','--as','alice','--mutation','add','--args','{"title":"proof"}','--field','Task','--value','proof','--button','Add','--timeout','2'], dir);
   assert.equal(result.status,1);assert.match(result.stderr,/E_WITNESS_SENT/);assert.ok(!result.stdout.includes('"state":"sent"'));
 });
+
+for (const mode of ['microtask', 'nested-submit', 'script-click']) test(`clicked dispatch provenance: ${mode}`, { timeout: 15000 }, t => {
+  const dir=project(t);mkdirSync(join(dir,'dist'));
+  writeFileSync(join(dir,'dist/bridge.js'),readFileSync(join(root,'packages/snapback4/dist/witness-web.js')));
+  writeFileSync(join(dir,'dist/index.html'),`<form><label>Task<input></label><button>Add</button></form><script type="module">
+import {registerWebWitness} from './bridge.js';
+const api={add:{kind:'mutation',name:'add'}},client={viewer:()=> 'dev:alice',onWrite:()=>()=>{},mutate:async()=>({state:'sent',id:'proof',seq:1,result:null})};
+const app={client,ready:Promise.resolve({ok:true}),mutate:async(...args)=>{await Promise.resolve();return client.mutate(...args)}};
+registerWebWitness(app,api);const form=document.querySelector('form'),button=document.querySelector('button');
+form.onsubmit=e=>{e.preventDefault();void app.mutate(api.add,{title:'proof'})};
+button.onclick=e=>{e.preventDefault();${mode === 'microtask' ? "void(async()=>{await Promise.resolve();await app.mutate(api.add,{title:'proof'})})()" : mode === 'nested-submit' ? 'form.requestSubmit(button)' : "if(e.isTrusted)setTimeout(()=>button.click(),10);else void app.mutate(api.add,{title:'proof'})"}};
+</script>`);
+  const result=invoke(['witness','web','dist','--url','http://127.0.0.1:4400','--as','alice','--mutation','add','--args','{"title":"proof"}','--field','Task','--value','proof','--button','Add','--timeout','2'],dir);
+  if(mode==='microtask')success(result);else{assert.equal(result.status,1);assert.match(result.stderr,/E_WITNESS_SENT/)}
+});
