@@ -114,6 +114,9 @@ pub struct Table {
     /// `expire at .<column>` (guide expire); the column is a `time ?`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expire: Option<String>,
+    /// `not before .<column>`; null is open and non-null times are server-clock lower bounds.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub not_before: Option<String>,
 }
 impl Table {
     fn source(&self) -> String {
@@ -138,6 +141,9 @@ impl Table {
         }
         if let Some(column) = &self.expire {
             out += &format!("  expire at .{column}\n");
+        }
+        if let Some(column) = &self.not_before {
+            out += &format!("  not before .{column}\n");
         }
         out += match self.residency {
             Residency::Public => "  sync public\n",

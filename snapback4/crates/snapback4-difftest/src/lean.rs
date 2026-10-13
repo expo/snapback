@@ -362,7 +362,7 @@ pub fn compare(case: &Case, source: &str) -> Result<Checked, String> {
         let e_raw = steps.next().ok_or("prelude outcome missing")?.clone();
         let args = module.tag_args(&name, &step.args).map_err(|u| u.to_string())?;
         let viewer = step.viewer.as_deref().unwrap_or(&case.principal);
-        let m_raw = ask(&module.case(&name, store.clone(), viewer, args, None).map_err(|u| u.to_string())?)?;
+        let m_raw = ask(&module.case_at(&name, store.clone(), viewer, args, None, step.at).map_err(|u| u.to_string())?)?;
         executed += 2;
         let (e, m) = (engine_canon(&e_raw), model_canon(&m_raw));
         trail.push(trail_entry(&e, &m));
@@ -375,7 +375,7 @@ pub fn compare(case: &Case, source: &str) -> Result<Checked, String> {
     }
     if mutation {
         let e_raw = execute::execute(&mut engine, case, "run", &case.args);
-        let m_raw = ask(&module.case("run", store.clone(), &case.principal, m_args, None).map_err(|u| u.to_string())?)?;
+        let m_raw = ask(&module.case_at("run", store.clone(), &case.principal, m_args, None, case.clock).map_err(|u| u.to_string())?)?;
         executed += 2;
         let (e, m) = (engine_canon(&e_raw), model_canon(&m_raw));
         let first_class = e.class("kind");
@@ -387,7 +387,7 @@ pub fn compare(case: &Case, source: &str) -> Result<Checked, String> {
         let after = if m.kind == "committed" { m_raw["store"].clone() } else { store };
         let o_args = module.tag_args("observe", &case.args).map_err(|u| u.to_string())?;
         let eo_raw = execute::execute(&mut engine, case, "observe", &case.args);
-        let mo_raw = ask(&module.case("observe", after, &case.principal, o_args, None).map_err(|u| u.to_string())?)?;
+        let mo_raw = ask(&module.case_at("observe", after, &case.principal, o_args, None, case.clock).map_err(|u| u.to_string())?)?;
         executed += 2;
         let (eo, mo) = (engine_canon(&eo_raw), model_canon(&mo_raw));
         trail.push(trail_entry(&eo, &mo));
@@ -402,7 +402,7 @@ pub fn compare(case: &Case, source: &str) -> Result<Checked, String> {
     let mut first_class = String::new();
     loop {
         let e_raw = execute::execute(&mut engine, case, "run", &e_args);
-        let m_raw = ask(&module.case("run", store.clone(), &case.principal, m_args.clone(), None).map_err(|u| u.to_string())?)?;
+        let m_raw = ask(&module.case_at("run", store.clone(), &case.principal, m_args.clone(), None, case.clock).map_err(|u| u.to_string())?)?;
         executed += 2;
         pages += 1;
         let (e, m) = (engine_canon(&e_raw), model_canon(&m_raw));

@@ -98,6 +98,9 @@ pub fn features(case: &Case) -> BTreeSet<String> {
         if table.expire.is_some() {
             out.insert(format!("expire/{}", table.name));
         }
+        if table.not_before.is_some() {
+            out.insert(format!("not-before/{}", table.name));
+        }
         if table.name == "tags" {
             out.insert(format!("tags-rule/{:?}", table.rule));
             out.insert(format!("tags-residency/{:?}", table.residency));
@@ -135,6 +138,18 @@ pub fn features(case: &Case) -> BTreeSet<String> {
             }
             if until < seeded {
                 out.insert("expire/row-expired-when-seeded".into());
+            }
+        }
+        if let Some(opens) = row.get("opensAt") {
+            out.insert("not-before/row".into());
+            if opens.is_null() {
+                out.insert("not-before/null-open".into());
+            } else if opens.as_i64() == Some(case.clock) {
+                out.insert("not-before/exact-boundary".into());
+            } else if opens.as_i64().is_some_and(|time| time < case.clock) {
+                out.insert("not-before/before-boundary".into());
+            } else if opens.as_i64().is_some_and(|time| time > case.clock) {
+                out.insert("not-before/future".into());
             }
         }
     }

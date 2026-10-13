@@ -1107,6 +1107,8 @@ fn fixed_seed_campaign_against_the_model() {
     }
     // Pages continued on both sides' own cursors were compared.
     assert!(report.store_stats["lean-continued-reads"] > 10);
+    assert!(report.coverage["not-before/exact-boundary"] > 0, "{:#?}", report.coverage);
+    assert!(report.coverage["not-before/future"] > 0, "{:#?}", report.coverage);
 }
 
 #[test]

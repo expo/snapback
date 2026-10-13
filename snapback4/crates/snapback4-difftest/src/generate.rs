@@ -116,6 +116,7 @@ pub fn base(seed: u64) -> Case {
         residency,
         effects: None,
         expire: None,
+        not_before: None,
     };
     let access = Table {
         name: "access".into(),
@@ -132,6 +133,7 @@ pub fn base(seed: u64) -> Case {
         residency: Residency::Public,
         effects: None,
         expire: None,
+        not_before: None,
     };
     let values = VALUES;
     let a = values[rng.pick(values.len() as u64) as usize];

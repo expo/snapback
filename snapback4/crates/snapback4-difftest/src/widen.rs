@@ -21,6 +21,9 @@
 //!   expiring at, just before and just after each operation's clock, a clock
 //!   that advances between operations, sweeps, and writes setting
 //!   `until: now + ttl`;
+//! - **lower read lifetimes**, from their own stream: `not before .opensAt`
+//!   rows null-open and just before, exactly at and just after the request
+//!   clock, shared by the native, device and Lean campaigns;
 //! - **secondary unique clashes** (OPEN W4): block writes put `tag0`/`tag1`,
 //!   which seeded rows hold, into the unique `byTag`;
 //! - **calendar builtins** (LLP 3000.040 §2): a scalar `run` over a `t: time`
@@ -51,6 +54,7 @@ use serde_json::{Value as Json, json};
 const STREAM: u64 = 0x5749_4445_4e5f_4757;
 const BRANCH_STREAM: u64 = 0x4252_414e_4348_4553;
 const MEMBERSHIP_STREAM: u64 = 0x4d45_4d42_4552_4e41;
+const NOT_BEFORE_STREAM: u64 = 0x4e4f_545f_4245_464f;
 /// Clock gaps between operations (ms); 0 makes two operations simultaneous.
 const GAPS: [i64; 6] = [0, 1, 37, 500, 1000, 60_000];
 /// Offsets from an operation's clock at which a row expires.
@@ -175,6 +179,7 @@ fn tags_table(rng: &mut Rng) -> Table {
         residency,
         effects: None,
         expire: None,
+        not_before: None,
     }
 }
 fn tags_rows(rng: &mut Rng) -> Vec<(String, Json)> {
@@ -302,8 +307,43 @@ pub fn widen(mut case: Case) -> Case {
         }
     }
     references(&mut case);
+    timed_disclosure(&mut case);
     membership_page(&mut case);
     case
+}
+
+/// Add lower-bound rows from an independent stream. Every selected case has
+/// null-open, before-boundary, exact-boundary and future rows.
+fn timed_disclosure(case: &mut Case) {
+    let mut rng = Rng::new(case.seed ^ NOT_BEFORE_STREAM);
+    if rng.pick(8) != 0 { return }
+    // The executable model describes live(now), while the host publishes a
+    // bounded pending backlog across requests. Seed at this request's clock
+    // and avoid sequential clocks here; lifecycle tests cover publication.
+    if case.seeded_at.is_some() || !case.steps.is_empty() { return }
+    if case.rows.iter().filter(|(name, _)| name == "items").count() < 4 { return }
+    let table = &mut case.program.tables[0];
+    if table.columns.iter().any(|c| c.name == "opensAt") { return }
+    table.columns.push(Column { name: "opensAt".into(), ty: Type::Nullable(Box::new(Type::Time)) });
+    table.keys.push(("byOpensAt".into(), vec!["opensAt".into(), "id".into()], false));
+    table.not_before = Some("opensAt".into());
+    let values = [Json::Null, json!(case.clock - 1), json!(case.clock), json!(case.clock + 1)];
+    let mut i = 0;
+    let mut future_key = None;
+    for (name, row) in &mut case.rows {
+        if name == &table.name {
+            row["opensAt"] = values[i % values.len()].clone();
+            if i % values.len() == 3 {
+                future_key = row["id"].as_str().map(str::to_owned);
+            }
+            i += 1;
+        }
+    }
+    if case.program.mutation() {
+        if let Some(key) = future_key {
+            case.args["key"] = json!(key);
+        }
+    }
 }
 
 /// Add the bounded focal owner-or-membership shape to the ordinary campaign,
