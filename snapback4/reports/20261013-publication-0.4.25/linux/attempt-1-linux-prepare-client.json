@@ -1,0 +1,21 @@
+{
+  "step": "linux-prepare-client",
+  "command": [
+    "env",
+    "-u",
+    "SNAPBACK4_BIN",
+    "-u",
+    "NPM_TOKEN",
+    "-u",
+    "NODE_AUTH_TOKEN",
+    "CARGO_INCREMENTAL=0",
+    "node",
+    "scripts/publish.mjs",
+    "--prepare-client"
+  ],
+  "cwd": "/home/ccheever/projects/sb4-pub-0425/snapback4",
+  "start": 1791872247.13699,
+  "end": 1791872325.3550036,
+  "seconds": 78.218,
+  "exit": 0
+}

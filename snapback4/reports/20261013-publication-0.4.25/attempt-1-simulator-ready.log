@@ -1,0 +1,21 @@
+Monitoring boot status for Snapback4-Expo-0424-20261012 (D2C67F7F-196C-439E-AEB9-3FDA4479761E).
+[2026-10-13 06:27:53 +0000] Status=1, isTerminal=NO, Elapsed=00:03.
+	Waiting on BackBoard
+
+[2026-10-13 06:27:53 +0000] Status=2, isTerminal=NO, Elapsed=00:03.
+	Waiting on Data Migration
+		Reason:(null)
+		Migration Elapsed:00:00 seconds
+
+[2026-10-13 06:27:56 +0000] Status=4, isTerminal=NO, Elapsed=00:06.
+	Waiting on System App
+
+[2026-10-13 06:27:57 +0000] Status=4, isTerminal=NO, Elapsed=00:07.
+	Waiting on System App
+
+[2026-10-13 06:27:59 +0000] Status=4, isTerminal=NO, Elapsed=00:09.
+	Waiting on System App
+
+[2026-10-13 06:28:01 +0000] Status=4294967295, isTerminal=YES, Elapsed=00:11.
+	Finished
+

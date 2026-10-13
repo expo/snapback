@@ -1,0 +1,69 @@
+consumer ok: query complete+fresh, online write sent, offline write pending
+== npm publish snapback4-darwin-arm64-0.4.25.tgz
+npm notice
+npm notice 📦  snapback4-darwin-arm64@0.4.25
+npm notice Tarball Contents
+npm notice 1.2kB THIRD-PARTY-NOTICES
+npm notice 458B package.json
+npm notice 20.0MB snapback4
+npm notice Tarball Details
+npm notice name: snapback4-darwin-arm64
+npm notice version: 0.4.25
+npm notice filename: snapback4-darwin-arm64-0.4.25.tgz
+npm notice package size: 9.7 MB
+npm notice unpacked size: 20.0 MB
+npm notice shasum: 17085a235c4971b3d7b689024e190c2880f4bb3e
+npm notice integrity: sha512-+9b2nC7VkN64x[...]sKiLT6FOFY8Dg==
+npm notice total files: 3
+npm notice
+npm notice Publishing to https://registry.npmjs.org/ with tag latest and public access
+npm notice Your package is being processed and may take a few minutes to become available.
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.25 to become readable
+file:///Users/ccheever/projects/snapback-pub-0425/snapback4/scripts/publication-registry.mjs:59
+  if (after !== artifact.integrity) throw new Error(`npm published ${artifact.name}@${artifact.version}, but registry integrity is ${after ?? "absent after waiting 10 minutes"}; expected ${artifact.integrity}`);
+                                          ^
+
+Error: npm published snapback4-darwin-arm64@0.4.25, but registry integrity is absent after waiting 10 minutes; expected sha512-+9b2nC7VkN64xWCgVFKqgE36q24+sEsow2RBYI6gktJ+u5SciS2W+rU9VqisUo6OuAF4RcnH7sKiLT6FOFY8Dg==
+    at converge (file:///Users/ccheever/projects/snapback-pub-0425/snapback4/scripts/publication-registry.mjs:59:43)
+    at file:///Users/ccheever/projects/snapback-pub-0425/snapback4/scripts/publish.mjs:113:31
+    at withPublicationSnapshot (file:///Users/ccheever/projects/snapback-pub-0425/snapback4/scripts/publication-registry.mjs:18:12)
+    at file:///Users/ccheever/projects/snapback-pub-0425/snapback4/scripts/publish.mjs:108:3
+    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)
+    at async node:internal/modules/esm/loader:643:26
+    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)
+
+Node.js v24.18.0
