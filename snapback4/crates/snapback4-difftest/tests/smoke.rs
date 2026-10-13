@@ -266,6 +266,9 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         if case.program.tables[0].not_before.is_some() {
             dims.push("not-before");
         }
+        if case.program.search_term.is_some() {
+            dims.push("timed-search");
+        }
         // LLP 3000.040 §5: calendar bodies and bounded `score`, from their own stream.
         if case.program.time_arg {
             dims.push("calendar");
@@ -280,7 +283,7 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         let read_rule = case.program.tables[0].effects.as_ref().map_or(&case.program.tables[0].rule, |effects| &effects[0]);
         if case.program.domain.as_deref().is_some_and(|domain| domain.contains(" or "))
             || read_rule == &snapback4_difftest::ast::Rule::TwoParty
-            || read_rule == &snapback4_difftest::ast::Rule::OwnerOrWitness
+            || matches!(read_rule, snapback4_difftest::ast::Rule::OwnerOrWitness | snapback4_difftest::ast::Rule::OwnerOrIdWitness)
                 && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. }) {
             dims.push("branches");
         }
@@ -298,7 +301,7 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         }
         seen.extend(dims);
     }
-    assert_eq!(seen.len(), 12, "{seen:?}");
+    assert_eq!(seen.len(), 13, "{seen:?}");
 }
 
 #[test]
@@ -356,6 +359,27 @@ fn timed_disclosure_generation_covers_edges_reads_and_writes() {
     assert!(reads && writes);
     assert_eq!(future_targets, ["Delete", "Update", "Upsert"].map(String::from).into());
     assert!(future_unique_insert && future_unique_upsert);
+}
+
+#[test]
+fn timed_search_generation_compares_future_word_heads_natively() {
+    let cases = (0..400).map(generate).filter(|case| case.program.search_term.is_some()).collect::<Vec<_>>();
+    assert!(!cases.is_empty(), "the standard 400-case campaign must reach timed search");
+    for case in cases {
+        let source = case.program.source();
+        execute::compile(&source).unwrap_or_else(|e| panic!("seed {}: {e}", case.seed));
+        assert!(source.contains("matching \"a\" first 2 by byWords after c"), "seed {}: {source}", case.seed);
+        let mut engine = execute::seeded(&case, &source).unwrap();
+        let first = execute::execute(&mut engine, &case, "run", &case.args);
+        assert_eq!(first.data().and_then(|data| data.get("Array")).and_then(|rows| rows.as_array()).map(Vec::len), Some(2),
+            "both shared-word live siblings must be returned: seed {}: {first:?}\n{:?}", case.seed, case.rows);
+        assert!(first.next().is_none(), "the online-only nonuniform search must withhold a continuation: seed {}", case.seed);
+        let (verdict, pages) = oracle::timed_search_future_absence(&case, &source).unwrap();
+        assert!(matches!(verdict, Verdict::Pass), "seed {}: {verdict:?}", case.seed);
+        assert_eq!(pages, 2, "the paired first pages must settle without a continuation: seed {}", case.seed);
+        let reason = snapback4_difftest::lean::module(&source).unwrap_err();
+        assert_eq!(reason, "index-computed-or-words", "Lean must explicitly exclude the words index, seed {}", case.seed);
+    }
 }
 
 #[test]

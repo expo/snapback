@@ -476,6 +476,11 @@ pub struct Program {
     /// Timed cases use it to prove future rows remain write-addressable.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub upsert_unique_tag: Option<String>,
+    /// A native-only ordinary words search. The Lean model deliberately does
+    /// not model search discovery, so generated cases carrying this field are
+    /// reported as unsupported by that oracle.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub search_term: Option<String>,
     /// Mutations `prep0`, `prep1`, .. the harness runs in order on the same
     /// store before `run`, each at its step's clock (`Case::steps`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -596,20 +601,35 @@ impl Program {
                 owner,
                 project,
             } => {
-                let mut domain = format!("items where {}", self.domain.as_deref().unwrap_or(".bucket = bucket"));
+                let mut predicates = if self.search_term.is_some() {
+                    Vec::new()
+                } else {
+                    vec![self.domain.as_deref().unwrap_or(".bucket = bucket").to_owned()]
+                };
                 if *owner {
-                    domain += " and .owner = viewer";
+                    predicates.push(".owner = viewer".into());
                 }
                 if *filter {
-                    domain += " and .flag = true";
+                    predicates.push(".flag = true".into());
                 }
                 if let Some(residual) = &self.residual {
-                    domain += &format!(" and {residual}");
+                    predicates.push(residual.clone());
                 }
                 if let Some(guard) = &self.guard {
-                    domain += &format!(" and {guard}");
+                    predicates.push(guard.clone());
                 }
-                let order = self.order.as_ref().map_or(".label, .score".to_string(), |o| o.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", "));
+                let mut domain = "items".to_owned();
+                if let Some(term) = &self.search_term {
+                    domain += &format!(" matching {}", serde_json::to_string(term).unwrap());
+                }
+                if !predicates.is_empty() {
+                    domain += &format!(" where {}", predicates.join(" and "));
+                }
+                let order = if self.search_term.is_some() {
+                    "byWords".to_owned()
+                } else {
+                    self.order.as_ref().map_or(".label, .score".to_string(), |o| o.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", "))
+                };
                 let shape = project.as_ref().map_or(String::new(), |fields| {
                     let mut f = vec!["id"];
                     f.extend(fields.iter().map(Proj::source));

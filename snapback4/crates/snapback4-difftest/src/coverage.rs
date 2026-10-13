@@ -103,6 +103,11 @@ pub fn features(case: &Case) -> BTreeSet<String> {
     if case.program.upsert_unique_tag.is_some() {
         out.insert("not-before/future-unique-upsert".into());
     }
+    if case.program.search_term.is_some() {
+        out.insert("not-before/nonuniform-search".into());
+        out.insert("search/future-word-head".into());
+        out.insert("search/shared-live-word".into());
+    }
     if matches!(case.program.body, Body::Write(Write::Insert, _))
         && case.rows.iter().any(|(table, row)| table == "items"
             && row["tag"] == "tag" && row["opensAt"].as_i64().is_some_and(|at| at > case.clock))

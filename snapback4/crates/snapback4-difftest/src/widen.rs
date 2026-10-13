@@ -24,6 +24,10 @@
 //! - **lower read lifetimes**, from their own stream: `not before .opensAt`
 //!   rows null-open and just before, exactly at and just after the request
 //!   clock, shared by the native, device and Lean campaigns;
+//! - **timed non-uniform search**, on every lower-lifetime page selected by
+//!   that stream: future word heads precede two live rows sharing a word. The
+//!   native paired-world oracle removes the future rows; Lean names search as
+//!   outside its fragment instead of pretending to model word discovery;
 //! - **secondary unique clashes** (OPEN W4): block writes put `tag0`/`tag1`,
 //!   which seeded rows hold, into the unique `byTag`;
 //! - **calendar builtins** (LLP 3000.040 §2): a scalar `run` over a `t: time`
@@ -310,6 +314,7 @@ pub fn widen(mut case: Case) -> Case {
     references(&mut case);
     timed_disclosure(&mut case);
     membership_page(&mut case);
+    timed_search(&mut case);
     case
 }
 
@@ -372,6 +377,42 @@ fn timed_disclosure(case: &mut Case) {
         }
         None => {}
     }
+}
+
+/// Compose lower read lifetimes with non-uniform word discovery. Generated
+/// cases stay small: the native paired-world oracle, not a large population,
+/// observes whether physically future heads perturb data, meter or cursors.
+fn timed_search(case: &mut Case) {
+    let Body::Read { kind: Read::Page, take, descending, filter, owner, project } = &mut case.program.body else { return };
+    let table = &mut case.program.tables[0];
+    if table.not_before.is_none() { return }
+    let rows = case.rows.iter_mut().filter(|(name, _)| name == &table.name).collect::<Vec<_>>();
+    let Some(future) = rows.iter().position(|(_, row)| row["opensAt"].as_i64().is_some_and(|at| at > case.clock)) else { return };
+    if future + 2 >= rows.len() { return }
+    table.rule = Rule::Owner;
+    table.residency = Residency::Online;
+    table.keys.retain(|(name, _, _)| name != "byLabel");
+    table.keys.push(("byWords".into(), vec!["words(label)".into(), "id".into()], false));
+    for column in &mut table.columns {
+        if matches!(column.ty, Type::IntRange(..)) { column.ty = Type::Int; }
+    }
+    for (i, (_, row)) in rows.into_iter().enumerate() {
+        row["owner"] = json!(if i == future + 1 || i == future + 2 { case.principal.clone() } else { "other".into() });
+        row["label"] = json!(if i == future || i == future + 1 || i == future + 2 { "ashared".to_owned() } else { format!("z{i:02}") });
+    }
+    *take = 2;
+    *descending = false;
+    *filter = false;
+    *owner = false;
+    *project = None;
+    case.program.domain = None;
+    case.program.residual = None;
+    case.program.guard = None;
+    case.program.arg_bound = None;
+    case.program.kids = None;
+    case.rows.retain(|(name, _)| name != "kids" && name != "notes");
+    case.program.search_term = Some("a".into());
+    case.args["c"] = Json::Null;
 }
 
 /// Add the focal owner-or-membership shape to the ordinary campaign, after

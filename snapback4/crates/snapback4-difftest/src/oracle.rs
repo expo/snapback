@@ -129,6 +129,9 @@ fn reads(e: &Expr) -> bool {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum Oracle {
     Repeat,
+    /// A timed non-uniform search with its physically future rows present
+    /// against the same logical world with those rows absent.
+    TimedSearchFutureAbsence,
     StoreSqliteRepeat {
         dimension: Option<String>,
         ceiling: u64,
@@ -157,6 +160,7 @@ impl Oracle {
     pub fn name(&self) -> String {
         match self {
             Self::Repeat => "repeat".into(),
+            Self::TimedSearchFutureAbsence => "timed-search-future-absence".into(),
             Self::StoreSqliteRepeat { .. } => "store-sqlite-mutation-repeat".into(),
             Self::Store { prefetch, .. } => {
                 format!("store-postgres-{}", if *prefetch { "on" } else { "off" })
@@ -357,6 +361,7 @@ pub fn ceiling(dimension: &str, n: u64) -> Ceilings {
 pub fn reproduce(case: &Case, source: &str, oracle: &Oracle) -> Result<Verdict, String> {
     match oracle {
         Oracle::Repeat => repeat(case, source).map(|v| v.0),
+        Oracle::TimedSearchFutureAbsence => timed_search_future_absence(case, source).map(|v| v.0),
         Oracle::Store { .. } | Oracle::StoreSqliteRepeat { .. } => {
             #[cfg(feature = "postgres")]
             {
@@ -408,4 +413,41 @@ pub fn repeat(case: &Case, source: &str) -> Result<(Verdict, u64), String> {
         return Ok((Verdict::Pass, 4));
     }
     Ok((Verdict::Pass, 2))
+}
+
+/// Exact paired worlds for the timed word-head composition. Each world uses
+/// its own cursor, but every complete outcome record (including meter and the
+/// continuation token) must agree page by page.
+pub fn timed_search_future_absence(case: &Case, source: &str) -> Result<(Verdict, u64), String> {
+    if case.program.search_term.is_none() {
+        return Ok((Verdict::Unsupported("not-timed-search".into()), 0));
+    }
+    let mut absent = case.clone();
+    absent.rows.retain(|(_, row)| row.get("opensAt").is_none_or(|opens| {
+        opens.is_null() || opens.as_i64().is_some_and(|at| at <= case.clock)
+    }));
+    let mut left = execute::world(&absent, source)?.0;
+    let mut right = execute::world(case, source)?.0;
+    let oracle = Oracle::TimedSearchFutureAbsence;
+    let mut left_args = absent.args.clone();
+    let mut right_args = case.args.clone();
+    let mut trail = Vec::new();
+    for page in 0..=case.rows.len() + 1 {
+        let a = execute::execute(&mut left, &absent, "run", &left_args);
+        let b = execute::execute(&mut right, case, "run", &right_args);
+        if let Some(field) = field(&a, &b, false) {
+            return Ok((disagreement(&oracle, &format!("{}{}", if page == 0 { "" } else { "continuation-" }, field), a, b, trail), 2 * (page as u64 + 1)));
+        }
+        let next = (a.next().map(str::to_owned), b.next().map(str::to_owned));
+        trail.extend([a, b]);
+        match next {
+            (Some(a), Some(b)) => {
+                left_args["c"] = json!(a);
+                right_args["c"] = json!(b);
+            }
+            (None, None) => return Ok((Verdict::Pass, 2 * (page as u64 + 1))),
+            _ => unreachable!("the exact outcome comparison includes next"),
+        }
+    }
+    Err("timed search continuation did not terminate".into())
 }
