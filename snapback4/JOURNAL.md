@@ -94101,3 +94101,23 @@ Targeted default-TMPDIR Mac runs passed all 10 schema and 82 worker tests;
 Linux worker rerun passed 82, affected Rust checks passed, and guide passed
 119. Whole-publication qualification remains separate; this change publishes
 nothing and does not raise a budget.
+
+### 2026-10-13 — MACFIX: complete client-stage disposition
+
+The M5 publication client pool ran all 372 files with the default TMPDIR and
+six file slots. Both commissioned MACFIX files passed in the pool. Initial
+result: 367 files passed, five failed (7,324 native diagnostic test counts:
+7,295 pass, nine fail including parent counts, 20 skip). Two failed imports
+needed the event-slot trace that publication normally generates in its preceding
+Rust stage; the checkout's producer passed and supplied it. Two inherited test
+adapters were fixed without product changes: the compact client-guide assertion
+and mixed byte/compiled-module wasm identities in read-existence integration.
+The fifth was the unchanged quote-jump browser's online visible-original pixel
+position under pool load. The serial full-count app-session and online-client
+models passed 81/81. After that slot drained, all five affected files passed
+in the ordinary runner's one-file slot, 167/167, with no assertion weakened.
+The initial pool red remains evidence; the quote-jump nondeterminism is recorded
+in issues/20261013-snapback4-quote-jump-visible-position-flake.md. Root ref-check
+passes. The requested root inventory audit is blocked by fresh-tree Snapback 1
+root dependencies/generated demo leaves, outside this Snapback 4 repair.
+No full scripts/test.sh, simulator boot, origin push or publication occurred.
