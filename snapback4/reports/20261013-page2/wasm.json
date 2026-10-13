@@ -1,1 +1,18 @@
-{"at":"2026-10-13T18:16:36Z","sha":"fa75d82735","dirty":false,"wasm":{"raw":2301917,"gzip":701899,"brotli":530447},"glue":{"raw":15462,"gzip":3677,"brotli":3254},"wasmOpt":true,"budget":702399,"over":0}
+{
+  "at": "2026-10-13T19:13:00Z",
+  "sha": "0f97de33c5",
+  "dirty": false,
+  "wasm": {
+    "raw": 2302339,
+    "gzip": 701955,
+    "brotli": 530689
+  },
+  "glue": {
+    "raw": 15462,
+    "gzip": 3677,
+    "brotli": 3254
+  },
+  "wasmOpt": true,
+  "budget": 702455,
+  "over": 0
+}

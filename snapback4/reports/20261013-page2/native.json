@@ -488,7 +488,7 @@
   "slowest_case_seconds": 0.0,
   "slowest_case_seed": null,
   "time_limited_workers": 0,
-  "seconds": 4.035413091,
+  "seconds": 4.446109321,
   "seed": 0,
   "cases": 400
 }

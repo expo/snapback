@@ -301,10 +301,10 @@
     "lean-supported-query": 251,
     "lean-unsupported": 80
   },
-  "slowest_case_seconds": 0.950128952,
+  "slowest_case_seconds": 1.119494041,
   "slowest_case_seed": 110,
   "time_limited_workers": 0,
-  "seconds": 1.7796043849999998,
+  "seconds": 2.059842858,
   "seed": 0,
   "cases": 400
 }

@@ -68,3 +68,15 @@ c572c9e9cc Retain timed-search review brief and seventh Muse READY verdict
 e979db7bb9 Specify durable evidence for timed-row publication and revocation
 47a1d4b098 Track timed image publication through expiry
 fa75d82735 Measure actual-publication device with 500 B wasm headroom
+98226e004c Refresh PAGE2 final campaigns and publication-aware wasm receipt
+0f65f6034c Retain eighth semantic reviews and pending absence blocker
+4f43d0b11c Specify pending publication as transient logical unknown
+098e0d5357 Retry reads while timed publication is pending
+46b75b6822 Preserve timed publication through row adapters
+46189f1654 Record timed metadata through overlays and PostgreSQL refusal
+6a516216cb Cover pending timed write retries end to end
+96cf6eee5b Measure pending-read device with 500 B wasm headroom
+8e0c6986ee Record PAGE2 round-nine reviews and job clock requirement
+5735d2a87e Specify snapshot clocks and timed asset authorization
+d0e1c30841 Pin timed jobs inside writer transactions
+0f97de33c5 Use the numbered job lifetime reference anchor
