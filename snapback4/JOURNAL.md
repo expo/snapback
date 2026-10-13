@@ -93855,3 +93855,12 @@ Raise the budget to 690,152 B = measurement plus required 500 B platform
 headroom in the same commit. Whole-artifact delta over the worktree
 baseline 2,245,422 / 679,351 is +32,320 raw / +10,301 gzip; no independent
 per-feature attribution, macOS measurement or runtime ceiling increase.
+
+PAGE required-Boolean guard qualification: the locked Linux web artifact
+now measures 2,278,353 B raw / 689,958 B gzip after required Boolean
+negation and inequality normalize under both literal and argument pins.
+Optional unknown Booleans and negated probes retain their prior refusal.
+The artifact passes the existing 690,152 B budget; no further increase.
+The whole-artifact delta over baseline 2,245,422 / 679,351 is +32,931 raw
+/ +10,607 gzip. This supersedes the one-row source measurement; no
+per-feature attribution, macOS measurement or runtime-ceiling change.
