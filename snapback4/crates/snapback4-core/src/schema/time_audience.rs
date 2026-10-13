@@ -101,12 +101,13 @@ pub(super) fn validate(schema: &Schema, issues: &mut Vec<SchemaIssue>) {
                 .count() as u64;
             let mut read_probes = Vec::new();
             crate::engine::rules::probe_sites(&table.rules.read, &mut read_probes);
-            // A join carries a subset of the audience row's bounded fields,
-            // plus less framing than the decode reservation already keeps.
-            // Charge the whole row envelope to every possible event so one
-            // accepted opening cannot exceed the empty-commit wire budget.
+            // The opening row is decoded before publication, including for an
+            // online-only table which emits no event. A join carries a subset
+            // of that row's bounded fields plus less framing than this same
+            // envelope. Reserve at least the base decode and one envelope for
+            // every possible event.
             let bytes = crate::rows::disclosed::decode_reservation(table)
-                .saturating_mul(events);
+                .saturating_mul(events.max(1));
             if events > MAX_OPENING_EVENTS || bytes > MAX_OPENING_BYTES {
                 issues.push(SchemaIssue { path: format!("{path}.notBefore"), message: format!(
                     "not before opening fanout is too large for one bounded publication commit ({events} events, {bytes} reserved bytes); split this audience into smaller tables"

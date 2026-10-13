@@ -532,6 +532,24 @@ fn adoption_rebuilds_openings_and_group_authority_when_the_lower_lifetime_change
 }
 
 #[test]
+fn opening_admission_reserves_online_only_base_row_decode() {
+    let refused = snapback4_lang::compile(&[("schema.q".into(), "table releases:
+  opensAt: time
+  body: text <=2000000
+  by byOpening: opensAt
+  not before .opensAt
+  read <- allow
+  online only
+".into())]);
+    assert!(refused.diagnostics.iter().any(|diagnostic| {
+        diagnostic.site.file == "schema.q"
+            && diagnostic.site.line > 0
+            && diagnostic.message.contains("0 events")
+            && diagnostic.message.contains("reserved bytes")
+    }), "{:#?}", refused.diagnostics);
+}
+
+#[test]
 fn opening_admission_refuses_private_delivery_witness_walks_before_adoption() {
     let admitted = snapback4_lang::compile(&[("schema.q".into(), private_delivery_source(1, 0, true, false))]);
     assert!(admitted.diagnostics.is_empty(), "{:#?}", admitted.diagnostics);
