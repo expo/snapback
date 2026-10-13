@@ -312,6 +312,7 @@ unique bounds one witness, while the runtime read meter bounds any inverted
 population.
 Equalities outside `point` are residual predicates rather than point-key
 components. -/
+-- @ref LLP 3000.036.001#15 — original point, discovery unique and cap are distinct source proofs.
 def membershipEligible (sch : Schema) (t : String) (point : List String)
     (key : List (String × Term)) : Bool :=
   match sch.table? t, membershipColumns key with
