@@ -322,6 +322,10 @@ fn timed_disclosure(case: &mut Case) {
     // and avoid sequential clocks here; lifecycle tests cover publication.
     if case.seeded_at.is_some() || !case.steps.is_empty() { return }
     if case.rows.iter().filter(|(name, _)| name == "items").count() < 4 { return }
+    let write = match &case.program.body {
+        Body::Write(kind, _) => Some(kind.clone()),
+        _ => None,
+    };
     let table = &mut case.program.tables[0];
     if table.columns.iter().any(|c| c.name == "opensAt") { return }
     table.columns.push(Column { name: "opensAt".into(), ty: Type::Nullable(Box::new(Type::Time)) });
@@ -330,19 +334,42 @@ fn timed_disclosure(case: &mut Case) {
     let values = [Json::Null, json!(case.clock - 1), json!(case.clock), json!(case.clock + 1)];
     let mut i = 0;
     let mut future_key = None;
+    let mut future_tag = None;
     for (name, row) in &mut case.rows {
         if name == &table.name {
             row["opensAt"] = values[i % values.len()].clone();
             if i % values.len() == 3 {
                 future_key = row["id"].as_str().map(str::to_owned);
+                if matches!(write, Some(Write::Insert)) {
+                    row["tag"] = json!("tag");
+                }
+                future_tag = row["tag"].as_str().map(str::to_owned);
             }
             i += 1;
         }
     }
-    if case.program.mutation() {
-        if let Some(key) = future_key {
-            case.args["key"] = json!(key);
+    match write {
+        Some(Write::Insert) => {
+            // The id is absent while `byTag` is occupied by a future row.
+            // A physical unique lookup must refuse without disclosing it.
+            table.rule = Rule::Allow;
+            case.args["key"] = json!("future-unique-duplicate");
         }
+        Some(Write::Upsert) => {
+            // Natural-key target resolution is physical: patch this future
+            // row, but keep its result/read image hidden until the boundary.
+            table.rule = Rule::Allow;
+            case.program.upsert_unique_tag = future_tag;
+            if let Some(key) = future_key {
+                case.args["key"] = json!(key);
+            }
+        }
+        Some(Write::Update | Write::Delete) => {
+            if let Some(key) = future_key {
+                case.args["key"] = json!(key);
+            }
+        }
+        None => {}
     }
 }
 

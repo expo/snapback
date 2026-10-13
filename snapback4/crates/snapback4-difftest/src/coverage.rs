@@ -94,6 +94,15 @@ pub fn features(case: &Case) -> BTreeSet<String> {
             }
         }
     }
+    if case.program.upsert_unique_tag.is_some() {
+        out.insert("not-before/future-unique-upsert".into());
+    }
+    if matches!(case.program.body, Body::Write(Write::Insert, _))
+        && case.rows.iter().any(|(table, row)| table == "items"
+            && row["tag"] == "tag" && row["opensAt"].as_i64().is_some_and(|at| at > case.clock))
+    {
+        out.insert("not-before/future-unique-insert-collision".into());
+    }
     for table in &case.program.tables {
         if table.expire.is_some() {
             out.insert(format!("expire/{}", table.name));

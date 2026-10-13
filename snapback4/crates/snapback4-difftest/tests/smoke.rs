@@ -183,6 +183,17 @@ fn device_oracle_fixed_seeds_on_both_device_stores() {
         timed.program.tables[0].residency = Residency::Public;
         devices::check(&timed, &mut report, &mut files, |_| {}).unwrap();
     }
+    for unique in ["insert", "upsert"] {
+        let mut timed = (0..20_000).map(generate).find(|case| match unique {
+            "insert" => matches!(case.program.body, Body::Write(Write::Insert, _))
+                && case.rows.iter().any(|(table, row)| table == "items" && row["tag"] == "tag"
+                    && row["opensAt"].as_i64().is_some_and(|at| at > case.clock)),
+            "upsert" => case.program.upsert_unique_tag.is_some(),
+            _ => unreachable!(),
+        }).unwrap_or_else(|| panic!("timed generator must reach future unique {unique}"));
+        timed.program.tables[0].residency = Residency::Public;
+        devices::check(&timed, &mut report, &mut files, |_| {}).unwrap();
+    }
     // A predicted insert, its settlement and convergence on both stores.
     let mut insert = generate(0);
     insert.program.body = Body::Write(Write::Insert, Expr::Int(1));
@@ -280,6 +291,8 @@ fn timed_disclosure_generation_covers_edges_reads_and_writes() {
     let mut reads = false;
     let mut writes = false;
     let mut future_targets = std::collections::BTreeSet::new();
+    let mut future_unique_insert = false;
+    let mut future_unique_upsert = false;
     for seed in 0..100_000 {
         let case = generate(seed);
         if case.program.tables[0].not_before.is_none() { continue }
@@ -290,6 +303,28 @@ fn timed_disclosure_generation_covers_edges_reads_and_writes() {
             assert!(values.contains(&expected), "seed {seed}: {values:?}");
         }
         execute::compile(&case.program.source()).unwrap_or_else(|e| panic!("seed {seed}: {e}"));
+        if matches!(case.program.body, Body::Write(Write::Insert, _))
+            && case.rows.iter().any(|(table, row)| table == "items" && row["tag"] == "tag"
+                && row["opensAt"].as_i64().is_some_and(|at| at > case.clock))
+        {
+            future_unique_insert = true;
+            assert!(case.rows.iter().all(|(_, row)| row["id"] != case.args["key"]), "seed {seed}");
+            let source = case.program.source();
+            let mut engine = execute::seeded(&case, &source).unwrap();
+            let outcome = execute::execute(&mut engine, &case, "run", &case.args);
+            assert_eq!(outcome.refusal().unwrap()["code"], "E_RULE", "seed {seed}: {outcome:?}");
+        }
+        if let Some(tag) = &case.program.upsert_unique_tag {
+            future_unique_upsert = true;
+            let target = case.rows.iter().find(|(table, row)| table == "items" && row["tag"] == tag.as_str()).unwrap();
+            assert_eq!(target.1["opensAt"], json!(case.clock + 1), "seed {seed}");
+            assert!(case.program.source().contains(&format!("upsert items[tag = {tag:?}]")), "seed {seed}");
+            let source = case.program.source();
+            let mut engine = execute::seeded(&case, &source).unwrap();
+            let outcome = execute::execute(&mut engine, &case, "run", &case.args);
+            assert!(outcome.refusal().is_none(), "seed {seed}: {outcome:?}");
+            assert_eq!(outcome.data().cloned(), Some(json!("Null")), "future patch must stay hidden: seed {seed}: {outcome:?}");
+        }
         if case.program.mutation() {
             writes = true;
             if let Body::Write(kind @ (Write::Update | Write::Upsert | Write::Delete), _) = &case.program.body {
@@ -301,10 +336,11 @@ fn timed_disclosure_generation_covers_edges_reads_and_writes() {
         } else {
             reads = true;
         }
-        if reads && writes && future_targets.len() == 3 { break }
+        if reads && writes && future_targets.len() == 3 && future_unique_insert && future_unique_upsert { break }
     }
     assert!(reads && writes);
     assert_eq!(future_targets, ["Delete", "Update", "Upsert"].map(String::from).into());
+    assert!(future_unique_insert && future_unique_upsert);
 }
 
 #[test]

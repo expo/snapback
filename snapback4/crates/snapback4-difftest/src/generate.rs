@@ -240,6 +240,7 @@ pub fn base(seed: u64) -> Case {
             guard: None,
             membership_named_reordered: false,
             boolean_grant_normalized: false,
+            upsert_unique_tag: None,
             prelude: vec![],
             time_arg: false,
             arg_bound: None,

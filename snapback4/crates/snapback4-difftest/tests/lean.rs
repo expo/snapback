@@ -362,6 +362,27 @@ fn reordered_named_membership_key_agrees_with_the_model() {
 }
 
 #[test]
+fn future_unique_insert_and_upsert_agree_with_the_physical_model() {
+    if !model_built() { return; }
+    let cases = [
+        ("insert collision", (0..20_000).map(snapback4_difftest::generate::generate).find(|case|
+            matches!(case.program.body, snapback4_difftest::ast::Body::Write(snapback4_difftest::ast::Write::Insert, _))
+                && case.rows.iter().any(|(table, row)| table == "items" && row["tag"] == "tag"
+                    && row["opensAt"].as_i64().is_some_and(|at| at > case.clock))
+        ).expect("timed generator reaches a future unique insert collision")),
+        ("natural upsert", (0..20_000).map(snapback4_difftest::generate::generate).find(|case|
+            case.program.upsert_unique_tag.is_some()
+        ).expect("timed generator reaches a future natural-key upsert")),
+    ];
+    for (name, case) in cases {
+        let source = case.program.source();
+        execute::compile(&source).unwrap_or_else(|e| panic!("{name}: {e}"));
+        let checked = lean::compare(&case, &source).unwrap();
+        assert!(matches!(checked.verdict, Verdict::Pass), "{name}: {:?}\n{source}", checked.verdict);
+    }
+}
+
+#[test]
 fn typed_positional_and_named_membership_keys_agree_with_the_engine() {
     if !model_built() { return; }
     let typed = "table memberships:\n  parent: text <=40\n  n: int\n  principal: principal\n  unique parent, principal\n  unique n, principal\n  cap 16 by principal\n  read <- allow\n  online only\ntable documents:\n  owner: principal\n  parent: text <=40\n  at: int\n  read <- .owner = viewer or exists memberships[.parent, viewer]\n  online only\nquery run(c: cursor ?):\n  return documents last 10 by .at after c\n";

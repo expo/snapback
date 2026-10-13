@@ -468,6 +468,10 @@ pub struct Program {
     /// pins `.flag = false`, exercising Boolean page-guard normalization.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub boolean_grant_normalized: bool,
+    /// A generated `upsert` targets this physical `byTag` value instead of id.
+    /// Timed cases use it to prove future rows remain write-addressable.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub upsert_unique_tag: Option<String>,
     /// Mutations `prep0`, `prep1`, .. the harness runs in order on the same
     /// store before `run`, each at its step's clock (`Case::steps`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -634,13 +638,18 @@ impl Program {
                     "owner: viewer, bucket, score: {}, label: '𐀀', flag: true, maybe: n, tag: 'tag'",
                     e.source()
                 );
-                out += &match kind {
-                    Write::Insert => format!("  insert items {{ id: key, {fields} }}\n"),
-                    Write::Upsert => format!("  upsert items[key] {{ {fields} }}\n"),
-                    Write::Update => format!("  update items[key] {{ score: {} }}\n", e.source()),
-                    Write::Delete => "  delete items[key]\n".into(),
-                };
-                "true".into()
+                if matches!(kind, Write::Upsert) && let Some(tag) = &self.upsert_unique_tag {
+                    let target = format!("tag = {}", serde_json::to_string(tag).unwrap());
+                    format!("upsert items[{target}] {{ {fields} }}")
+                } else {
+                    out += &match kind {
+                        Write::Insert => format!("  insert items {{ id: key, {fields} }}\n"),
+                        Write::Upsert => format!("  upsert items[key] {{ {fields} }}\n"),
+                        Write::Update => format!("  update items[key] {{ score: {} }}\n", e.source()),
+                        Write::Delete => "  delete items[key]\n".into(),
+                    };
+                    "true".into()
+                }
             }
             Body::Block(block) => Self::block_source(block, &mut out),
         };
