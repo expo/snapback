@@ -1,6 +1,6 @@
 # Snapback 4 Darwin bootstrap inspector times out under shared-host contention
 
-**Status:** Open
+**Status:** Closed
 **Date:** 2026-10-13
 **Scope:** Publication client fixture infrastructure
 
@@ -25,8 +25,24 @@ No inspector error/malformed-row refusal or signal custody check is weakened.
 Linux nine group tests pass, including partial-output and exhausted-retry
 negative controls. Independent Muse and fresh Codex 6.1 high source reviews both mark the repair
 READY at 1bc9993aec with no material finding. After the repair, another 69
-process/signal controls pass on Linux (78 total across three files). Required
-complete Mac client qualification remains pending;
-a targeted pass cannot close this ticket or qualify the suite.
+process/signal controls pass on Linux (78 total across three files). At the repair commit, complete Mac qualification was still pending; a targeted
+pass could not close this ticket or qualify the suite.
 
-Evidence will be archived under snapback4/reports/20261013-integration7/mac/.
+Evidence is archived under snapback4/reports/20261013-integration7/mac/.
+
+## Resolution — 2026-10-13
+
+Repair 1bc9993aec, independently reviewed READY by Muse and fresh Codex 6.1 high.
+Fixed source b7f161eef8 completes the normal six-slot full Mac ordinary pool
+373/373 (7363 passed /20 skipped /0 failed), then the default serial models
+81/81 (no skipped or failed tests): one complete green publication client
+stage. The original in-chat-search and keep-app-expiry files both pass in
+that full pool. No seeds, assertions, deadlines or slot counts are reduced.
+
+The extra generic Swift build passes with ARCHS=arm64, no simulator boot.
+An intervening host reboot interrupted the preceding Swift attempt before
+clients started; preserve its incomplete log separately. Root prerequisites
+and inventory/Guide checks pass. Archived final Mac evidence records source,
+Node 24.19.0, default TMPDIR, ulimit 65536 and the published 0.2.33 fence cache.
+This bounds a transient leaf-inspector timeout, not arbitrary host hangs;
+second timeout/malformed output still refuses, and no partial snapshot counts.

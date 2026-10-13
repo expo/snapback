@@ -1,26 +1,31 @@
 {
-  "74895a66f0": {
-    "snapback4/crates": "7177cbd53dc907bb66dafdebb242a1c3a2d97cf6",
-    "snapback4/Cargo.toml": "cfc453cd3d9b411f295458f438575f34434657c7",
-    "snapback4/Cargo.lock": "638a6299f2e88a56d73565dc94c539c75ab30891",
-    "snapback4/packages/snapback4/src": "298ed8736e31cc254c9f328c3991b668bf8d6764",
-    "snapback4/packages/snapback4-expo/src": "cc2123a4e698c21fcad88840a94d46018901ea4f",
-    "snapback4/native-fixtures/following/Cargo.lock": "e2d3d85ea5e6138a32c5e97c3293e3f45e1b34ee"
-  },
-  "b7f161eef8": {
-    "snapback4/crates": "7177cbd53dc907bb66dafdebb242a1c3a2d97cf6",
-    "snapback4/Cargo.toml": "cfc453cd3d9b411f295458f438575f34434657c7",
-    "snapback4/Cargo.lock": "638a6299f2e88a56d73565dc94c539c75ab30891",
-    "snapback4/packages/snapback4/src": "298ed8736e31cc254c9f328c3991b668bf8d6764",
-    "snapback4/packages/snapback4-expo/src": "cc2123a4e698c21fcad88840a94d46018901ea4f",
-    "snapback4/native-fixtures/following/Cargo.lock": "e2d3d85ea5e6138a32c5e97c3293e3f45e1b34ee"
-  },
-  "HEAD": {
-    "snapback4/crates": "7177cbd53dc907bb66dafdebb242a1c3a2d97cf6",
-    "snapback4/Cargo.toml": "cfc453cd3d9b411f295458f438575f34434657c7",
-    "snapback4/Cargo.lock": "638a6299f2e88a56d73565dc94c539c75ab30891",
-    "snapback4/packages/snapback4/src": "298ed8736e31cc254c9f328c3991b668bf8d6764",
-    "snapback4/packages/snapback4-expo/src": "cc2123a4e698c21fcad88840a94d46018901ea4f",
-    "snapback4/native-fixtures/following/Cargo.lock": "e2d3d85ea5e6138a32c5e97c3293e3f45e1b34ee"
+  "capturedAtCommit": "0ac31ee16ae3b18f2c5ceead0a5770aec36b5ca5",
+  "qualifiedNativeCommit": "74895a66f0dd64efda0bdd077474b7fe496e9877",
+  "qualifiedMacClientCommit": "b7f161eef8ae6d705edab56207f2b83b98dd559f",
+  "objects": {
+    "74895a66f0dd64efda0bdd077474b7fe496e9877": {
+      "snapback4/crates": "7177cbd53dc907bb66dafdebb242a1c3a2d97cf6",
+      "snapback4/Cargo.toml": "cfc453cd3d9b411f295458f438575f34434657c7",
+      "snapback4/Cargo.lock": "638a6299f2e88a56d73565dc94c539c75ab30891",
+      "snapback4/packages/snapback4/src": "298ed8736e31cc254c9f328c3991b668bf8d6764",
+      "snapback4/packages/snapback4-expo/src": "cc2123a4e698c21fcad88840a94d46018901ea4f",
+      "snapback4/native-fixtures/following/Cargo.lock": "e2d3d85ea5e6138a32c5e97c3293e3f45e1b34ee"
+    },
+    "b7f161eef8ae6d705edab56207f2b83b98dd559f": {
+      "snapback4/crates": "7177cbd53dc907bb66dafdebb242a1c3a2d97cf6",
+      "snapback4/Cargo.toml": "cfc453cd3d9b411f295458f438575f34434657c7",
+      "snapback4/Cargo.lock": "638a6299f2e88a56d73565dc94c539c75ab30891",
+      "snapback4/packages/snapback4/src": "298ed8736e31cc254c9f328c3991b668bf8d6764",
+      "snapback4/packages/snapback4-expo/src": "cc2123a4e698c21fcad88840a94d46018901ea4f",
+      "snapback4/native-fixtures/following/Cargo.lock": "e2d3d85ea5e6138a32c5e97c3293e3f45e1b34ee"
+    },
+    "0ac31ee16ae3b18f2c5ceead0a5770aec36b5ca5": {
+      "snapback4/crates": "7177cbd53dc907bb66dafdebb242a1c3a2d97cf6",
+      "snapback4/Cargo.toml": "cfc453cd3d9b411f295458f438575f34434657c7",
+      "snapback4/Cargo.lock": "638a6299f2e88a56d73565dc94c539c75ab30891",
+      "snapback4/packages/snapback4/src": "298ed8736e31cc254c9f328c3991b668bf8d6764",
+      "snapback4/packages/snapback4-expo/src": "cc2123a4e698c21fcad88840a94d46018901ea4f",
+      "snapback4/native-fixtures/following/Cargo.lock": "e2d3d85ea5e6138a32c5e97c3293e3f45e1b34ee"
+    }
   }
 }

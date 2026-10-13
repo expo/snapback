@@ -33,3 +33,14 @@ completion, then distinguish fixture layout settling from a product scroll.
 Keep browser measurement independent of driver descheduling and preserve the
 existing no-scroll/highlight/arrival assertions. No origin push or publication
 was performed by MACFIX.
+
+## Integration 7 pooled evidence — 2026-10-13
+
+The unchanged quote-jump browser file passes inside the fresh full Mac pool
+at b7f161eef8 (six slots /default TMPDIR /descriptor limit 65536), about
+38.7 seconds. All 373 ordinary files then pass, followed by all 81 default-count
+serial models. Three complete Linux pools also passed this file. Keep the
+original 273-to-307 failure and its solo-pass evidence: this clean pool does not
+identify or repair that earlier layout-sensitive race. The ticket remains open
+for geometry/scroll instrumentation; no pixel/timing bar was weakened. Final
+pool logs are archived under snapback4/reports/20261013-integration7/mac/.

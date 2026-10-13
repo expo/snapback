@@ -94363,3 +94363,20 @@ pool and serial full-count models at reviewed source b7f161eef8. Re-establish
 only this driver's caffeinate assertion and capture its PID from the private
 log descriptor; old pre-reboot PID records confer no authority. No simulator
 boot. Full pool results remain pending.
+
+### 2026-10-13 — Integration 7 complete, 0.4.25
+
+Fresh post-reboot Mac rerun2 exits 0 across corrected generic Swift build, all
+373 ordinary client files (7363 pass /20 skip /0 fail) and full-count serial
+models 81/81. Original MACFIX five files and DX browser proofs pass inside that
+one complete pool. Keep the original quote-jump flake ticket open with both
+its earlier geometry failure and this pooled pass. Close the separate bootstrap
+inspector-timeout ticket after its bounded retry and independent READY pair.
+Mac workspace Rust/doctests, xcframework and root codegen/inventories/Guide
+were already green; Linux final bumped five-crate command exits 0, full ordinary
+pool and models pass, version-reader/control checks pass, Lean 68/58/7 and rebuilt
+20k native /1000 device difftests qualify. Lean 20k retains exactly 230 known
+disagreements, no new signatures. Final Linux wasm 2291429 raw/698386 gzip/527885
+brotli; Mac 2291752 raw/698034 gzip; budget 698886=gzip measurement+500. Archive
+source/environment/log evidence and scoped Git input equality. No origin push,
+publication or simulator boot; only the requested final Mac verification ref.

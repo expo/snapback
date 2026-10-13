@@ -1,4 +1,4 @@
-# Integration 7 — final Linux qualification; Mac client rerun pending
+# Integration 7 — complete, 0.4.25
 
 Base: `63b83fed66`; branch: `sb4-loop`; version: **0.4.25**.
 No origin push and no npm publication. Only the expressly requested Mac
@@ -45,7 +45,7 @@ Ordered `--no-ff` merges:
   5100 processes. `1bc9993aec` retries only ETIMEDOUT once within the unchanged
   sixty-second cleanup deadline. Discards partial bytes; requires two fresh
   complete empty snapshots; no signal-custody weakening. `b7f161eef8`
-  preserves both independent READY reviews. Full Mac rerun is pending.
+  preserves both independent READY reviews. The complete post-reboot Mac client stage passes in one run, including full-count serial models.
 
 ## Verification
 
@@ -73,7 +73,7 @@ Linux final bumped source:
   inventory and Guide checks runnable on both hosts. Inventories pass:
   365 package tests / 35 script tests / 31 demos / 487 publication leaves /
   162 Guide pages / 1937 snippets. Full root Guide **22/22**, 121 inherited
-  warnings. Ref-check **543 LLPs / 11726 refs / 0 errors**.
+  warnings. Ref-check **543 LLPs / 11727 refs / 0 errors**.
 
 Mac required publication stages:
 
@@ -83,8 +83,11 @@ Mac required publication stages:
 - Root install/codegen/inventories/Guide: **all exit 0**; no missing prerequisites.
 - First full client run was stopped after two bootstrap inspector timeouts;
   logs retain both real refusals and explicitly aborted/unscheduled remainder.
-  It is not a qualified stage. A complete fixed-source pool and full serial
-  models must pass in one run before this integration is complete.
+  It is not a qualified stage. The fresh post-reboot fixed-source pool passes **373/373**, **7363 passed /
+  20 skipped /0 failed**, followed by full-count serial models **81/81**, no
+  skips or failures: **the entire publication client stage exits 0 in one run**.
+  Node 24.19.0, default TMPDIR, ulimit 65536, six slots, published-0.2.33 fence
+  cache; source `b7f161eef8`. No assertions, seeds or deadlines were reduced.
 - Extra Swift invocation initially refused `-arch` together with a destination
   (exit 70). Corrected invocation uses `ARCHS=arm64`; interrupted by host reboot
   before completion. Fresh post-reboot compile **exit 0 / BUILD SUCCEEDED**.
@@ -92,7 +95,8 @@ Mac required publication stages:
 - MACFIX's original five reds: two missing event traces supplied by the full
   native producer stage; one-shot/read-existence adapters repaired in MACFIX;
   prior quote-jump layout failure remains honestly tracked in its open ticket.
-  Integration 7 Mac pool verdict for the quote-jump file is pending.
+  Integration 7's full pool passes all five original files, including the unchanged
+  quote-jump browser and DX browser proofs. The original flake ticket remains open.
 
 ## Wasm and reviews
 
@@ -110,13 +114,21 @@ preserved and corrected, round 5 both READY (`0969a934ec`). Bounded inspector
 repair round 6 **both READY** (`1bc9993aec`), no material findings. Reviews establish
 source readiness; they do not replace execution qualification or author acceptance.
 
-## Evidence and outstanding work
+## Evidence and disposition
 
 Evidence: `snapback4/reports/20261013-integration7/`. Superseded red runs and
 selection mistakes remain separately recorded; targeted passes do not relabel
 an earlier full-suite red. Root-only executable mode changes caused by Bun
 were restored. No full `scripts/test.sh` invocation; cargo uses disabled
-incremental/debug settings throughout. No user permission or credential exposure.
+incremental/debug settings throughout.
 
-Outstanding: one complete green Mac client/model run,
-final cross-host archive and report commit; final verification-ref transfer only.
+All requested implementation and qualification is complete. Final cross-host
+archives and scoped Git input digests live beside this report. The native Rust
+inputs, manifests and JS/Expo runtime trees at Mac Rust source `74895a66f0`, Mac
+client source `b7f161eef8`, and final branch are identical; only test cleanup and
+documentation/evidence changed after the native qualification. The macOS
+bootstrap-inspector and Linux browser-lock tickets are closed. The original
+quote-jump layout flake remains documented in its existing open ticket; its file
+passed in this complete Mac pool without weakening a pixel/timing assertion.
+No required work is deferred. No publication or origin push; only the explicitly
+requested final Mac verification-ref transfer. Protected worktrees remain intact.

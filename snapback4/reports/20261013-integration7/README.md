@@ -24,5 +24,13 @@ command exits zero; post-bump live-version files and inspector controls pass.
 Mac initial native/root/xcframework evidence and the superseded red/aborted
 client pool are archived under mac/. The helper mirrors the publication Rust
 and complete ordinary-client-plus-full-model stages, without invoking test.sh.
-The corrected generic Swift compile and complete fixed-source Mac client stage
-are pending; they will receive distinct evidence and exit verdicts.
+The first corrected generic Swift attempt was interrupted by a host reboot
+before clients started. Fresh rerun2 is entirely green: Swift BUILD SUCCEEDED,
+373/373 ordinary files (7363 pass/20 skip/0 fail), then all 81 full-count models.
+Source b7f161eef8 and Node 24.19.0/default TMPDIR/ulimit 65536/six slots/fence 0.2.33
+are recorded in the distinct final Mac archive. All five original MACFIX reds
+and DX browser proofs pass in this complete pool. The original quote-jump
+flake remains honestly ticketed; bootstrap inspector timeout repair is closed.
+verification.json contains statuses and artifact SHA256s; scoped-inputs.json
+binds native/runtime/manifests to the qualified Git objects. No publication or
+origin push is claimed. Only the expressly authorized Mac ref is transferred.

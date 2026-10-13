@@ -1,5 +1,6 @@
 // Bootstrap inspection cannot import test-signals: that API is still compiling.
 // This is read-only. No row or group number authorizes signal dispatch.
+// @ref LLP 3000#publication-suite-under-contention — timed-out bytes cannot prove empty compiler custody.
 import { setTimeout as sleep } from 'node:timers/promises';
 
 export async function waitForEmptyGroup(group, run) {
