@@ -1324,3 +1324,24 @@ fn page3_argument_and_signed_static_keys_have_a_named_model_boundary() {
         assert_eq!(checked.executed, 0);
     }
 }
+
+#[test]
+fn page3_membership_and_compound_filters_keep_the_read_free_model_gate() {
+    if !model_built() { return; }
+    for compound in [false, true] {
+        let rule = if compound { ".owner = viewer or (exists members[.group, viewer] and .open = true)" } else { "exists members[.group, viewer]" };
+        let source = format!("table roles:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable members:\n  group: int\n  principal: principal\n  unique group, principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  group: int\n  owner: principal\n  open: bool\n  at: int\n  read <- {rule}\n  online only\nquery run(c: cursor ?):\n  return docs where (.at > 0 or (.at < 0 and exists roles[viewer])) first 2 by .at after c\n");
+        let b = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+        assert!(b.diagnostics.is_empty());
+        let rows: Vec<(String, serde_json::Value)> = vec![("members".into(), json!({"id":"m", "group":1,"principal":"alice"})),
+            ("docs".into(), json!({"id":"d", "group":1,"owner":"bob","open":true,"at":1}))];
+        let mut e = snapback4_core::Engine::memory(b.schema, b.programs.into_iter().map(|p|p.program)).unwrap();
+        e.seed(rows.iter().map(|(table,row)| (table.clone(), snapback4_core::wire::row_from_json(&e.schema().tables[table],row).unwrap())).collect::<Vec<_>>()).unwrap();
+        let actual = e.query("run", snapback4_core::Context::new("alice", [("c".into(),snapback4_core::Value::Null)].into_iter().collect())).unwrap();
+        assert!(!actual.complete && actual.data.as_array().unwrap().len()==1);
+        let model = lean::module(&source).unwrap();
+        let modeled = lean::ask(&model.case("run", model.store(&rows).unwrap(), "alice", model.tag_args("run", &json!({"c":null})).unwrap(), None).unwrap()).unwrap();
+        assert_eq!(modeled["complete"], actual.complete, "compound={compound}");
+        assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data));
+    }
+}

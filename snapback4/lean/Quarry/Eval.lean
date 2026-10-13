@@ -580,6 +580,7 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
   | some td =>
     let fs := (filter.map Expr.conjuncts).getD []
     let total := pins.all (fun p => p.2.total) && fs.all (Expr.readablePredicate sch)
+    let readFree := pins.all (fun p => p.2.total) && fs.all Expr.total
     let alts : Option (List (List Expr)) :=
       match fs.filter Expr.isOr with
       | [o] =>
@@ -639,7 +640,7 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
                   && laneFits order ((pair.2, .viewer) :: a.filterMap Expr.eqPin) pins
       | none => false
     let case4 := guards && alts.isNone && compoundDecided sch td pins order
-    total && (case1 || case2 || case3 || case4)
+    (total && (case1 || case2)) || (readFree && (case3 || case4))
 
 def keyValue (k : Key) : Value := .arr (k.map .s)
 
