@@ -94442,3 +94442,26 @@ gzip. The budget is 700,533 B, this measurement plus the requested 500 B.
 This is a whole-artifact delta, with no per-feature attribution or runtime
 ceiling increase. Blind reviews and final qualification are in progress and
 will be recorded in a subsequent entry; this entry makes no READY claim.
+
+
+## 2026-10-13 — PAGE2 reviewed write occupancy and final device bytes
+
+The third blind pass marked the planner READY and found lower-lifetime write
+occupancy and inactive-witness allowance gaps. The implementation now reserves
+future natural unique keys, addresses future rows through ordinary Quarry
+WriteTarget updates/upserts, keeps their collisions generic, and refunds
+inactive witness work before public authorization-walk exhaustion. A near-limit
+paired-world regression matches 4,200 future witnesses against absence. The
+own-id membership page also handles `byId` continuations, with native, Lean,
+and both device stores exercising the shared cursor.
+
+Compact boundary joins are bounded independently of expanded acquisitions. A
+5,000-row × 4,000-byte group regression confirms a bounded `E_BOUND` response
+with the existing `snapshot: true` recovery at stream limit one; paged snapshots
+then recover every current row without publishing a partial acquisition.
+
+After these semantic corrections, the locked Linux web device measures
+2,300,658 B raw / 701,352 B gzip. The final budget is 701,852 B, measurement
+plus 500 B, superseding provisional PAGE2 700,533 B. Against `f9e40ef515`,
+this is +9,229 raw / +2,966 gzip. No per-feature attribution or runtime ceiling
+increase. Fourth-round blind reviews and final campaigns are in progress.
