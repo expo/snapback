@@ -94413,3 +94413,32 @@ stops (difftest retained findings; macOS SUN_LEN control socket; 0.2.33 fence
 and `/private/var` worker dir), each fixed on main. Hashes, timings and every
 attempt: `reports/20261013-publication-0.4.25/REPORT.md`; the 0.4.24 Linux
 evidence: `reports/20261012-publication-0.4.24/`.
+
+
+## 2026-10-13 — PAGE2 wave-10 planner and lower read lifetime
+
+PAGE2 broadens the owner-or-membership page classifier under LLP 3000.036.001
+§15: an exact total point witness admits metered all-or-nothing discovery,
+ordinary caps remain optional availability constraints, row-id target lanes
+share the existing order/frontier, and public parent-owner sources are admitted.
+`branch-membership-v2` distinguishes the newly admitted shapes without
+reclassifying old capped v1 plans. The initial 50-odd-schema survey is
+20 `N_NEVER_COMPLETE` notes in 13 schemas to 18 notes in 11; the parent-owner
+and own-id membership pages clear. Hidden parent-source inversions remain
+outside this first exact-readable-source slice. The final workstream report
+records the complete shape audit and all affected checks.
+
+LLP 3000.036.002 adds `not before .timeColumn`, combined with upper expiry as
+`[opens, expires)`. Future payloads stay server-side; natural host requests and
+held polls advance a private, bounded opening ledger and publish ordinary
+commits. The server clock floor is durable and monotonic, pending overdue rows
+remain unavailable until publication, and future rows reserve physical unique
+keys and unexpired cap slots. Blind-writer and composite-role recipes preserve
+existing rule semantics; mutable-parent diagnostics explain copied columns.
+
+The locked Linux web build measures 2,297,734 B raw / 700,033 B gzip, versus
+2,291,429 / 698,386 at this worktree's base `f9e40ef515`: +6,305 raw / +1,647
+gzip. The budget is 700,533 B, this measurement plus the requested 500 B.
+This is a whole-artifact delta, with no per-feature attribution or runtime
+ceiling increase. Blind reviews and final qualification are in progress and
+will be recorded in a subsequent entry; this entry makes no READY claim.
