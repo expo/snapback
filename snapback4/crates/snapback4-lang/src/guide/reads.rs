@@ -35,6 +35,9 @@ Repeated `where` clauses combine with `and` in order.
 Reads select authorized rows by id, predicate or search text.
 Add an order, page size and cursor to browse a population.
 
+Projections drop `id` unless listed: `{ title }` omits id; `{ id, title }` preserves it. Whole rows retain id.
+
+
 ### Pages and cursors
 
 State the rows, then the order and page. `messages where .roomId = roomId

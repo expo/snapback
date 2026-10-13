@@ -178,8 +178,8 @@ fn main() -> ExitCode {
                             else if let Some(words) = words_of("section") { guide::section(name, &card, &words) }
                             else if let Some(words) = words_of("find") { guide::find(name, &card, &words) }
                             // An alias that names a section prints it; piped (an agent's tool), a
-                            // card up to 400 lines prints whole, a longer one its first section too.
-                            // @ref LLP 3000.007#20.1 — wave 6: aliases land on their section; wave 7: non-TTY prints whole cards up to a cap.
+                            // card prints whole; use --section to narrow it.
+                            // @ref LLP 3000.007#20.1 — wave 6: aliases land on their section; wave 7 cap superseded by LLP 3000.011.003.000 §9: full non-TTY cards.
                             else if let Some(landing) = guide::alias_landing(keyword, name, &card) { Ok(landing) }
                             else if std::io::IsTerminal::is_terminal(&std::io::stdout()) { Ok(guide::overview(name, &card).unwrap_or_else(|| card.clone())) }
                             else { Ok(guide::piped(name, &card)) };

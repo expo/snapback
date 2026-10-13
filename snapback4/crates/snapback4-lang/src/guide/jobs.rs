@@ -257,6 +257,17 @@ with `count(messages where .conversationId = conversationId and .at >= periodSta
 and .at < periodEnd)` and its marker with `emit … once`. The runtime meter
 still refuses oversized work.
 
+## Period boundaries and anchors
+
+`periodEnd` is the scheduled firing boundary, not the invocation's finish time.
+`periodStart` is the preceding boundary; the represented period is [periodStart, periodEnd).
+Fixed `every N` schedules anchor to the Unix epoch in UTC, shifted by `at HH:MM`.
+`every 7d` therefore fires on Thursday at 00:00 UTC (1970-01-01 was Thursday),
+not seven days after deploy. `every 7d at 08:00` stays Thursday 08:00 UTC.
+For another weekday, schedule daily and gate the job using day(periodEnd) % 7
+(Unix Thursday is 0, Monday is 4); never assume a deployment-time anchor.
+Calendar month/year schedules use UTC month boundaries; `guide time` has their syntax.
+
 ## Operations
 
 In tests, use `snapback4 clock advance <dur>` or `POST /dev/clock/advance`; each example line advances the running dev once.

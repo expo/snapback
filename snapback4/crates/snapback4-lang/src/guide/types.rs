@@ -15,17 +15,9 @@ mutation createProfile(name: text 1..80):
   return insert profiles { owner: viewer, name }
 ```
 
-Columns and arguments are required unless their type ends in `?`; omitted optional values are null.
-A table name means a reference: any id string. Its target is never read, and
-membership cannot prove it exists: use `require exists t[id] else CODE`, or
-bind with `r = t[id] ! else CODE`.
-`default` fills omissions; explicit values win.
-There are no floats: `money` and `decimal S` are integers in minor units, and
-a fraction anywhere in JSON, `json` values included, refuses E_INPUT (guide wire).
-Enums widen within text bounds.
-`require exists t[k]`, `require t[k] != null`, and present `if t[k] != null`
-branches narrow identical admitted unique-key reads, including helper arguments.
-Guard nullable keys first (guide indexes). Writes, rebindings and viewer changes invalidate it.
+Required columns/arguments become nullable with `?`; omission becomes null. Table types are references; neither typing nor membership reads the target: use `require exists t[id] else CODE` or `r = t[id] ! else CODE`.
+Defaults fill omissions; explicit values win. Formats: handle and url; email is application validation or identity signup/login, not `format email`.
+Money/decimal are scaled integers; JSON fractions refuse E_INPUT. Identical admitted unique-key reads narrow after exists/non-null guards, including pure helper arguments; writes, rebinding and viewer changes invalidate proof.
 
 ## Limits
 
@@ -35,6 +27,9 @@ Guard nullable keys first (guide indexes). Writes, rebindings and viewer changes
 - New required defaults must also fit the existing store: E_ADOPT.
 
 ## Details
+
+Types describe the values a column or argument accepts.
+They also set limits on text, lists and uploaded assets.
 
 ### Column types
 
@@ -72,15 +67,9 @@ query typed(c: cursor ?, handle: text 3..20 format handle):   -- arguments take 
   return everything[handle = handle]
 ```
 
-Types describe the values a column or argument accepts.
-They also set limits on text, lists and uploaded assets.
-
 ### Null guards and ids
 
-Null guards narrow repeated pure `fn` calls over identical lexical names,
-snapshot fields, literals or pure calls. Pure helpers read no tables/clocks
-and write nothing. Rebinding argument roots invalidates facts. Other calls
-need binding once; both calls remain metered.
+Null guards narrow identical pure helper calls; rebinding invalidates proof. Bind impure calls once; both calls remain metered.
 
 Mixed-table references need explicit generic ids: `[exposedId(x), exposedId(y)]`.
 For nested `[].id` conflicts, widen each projected field with `exposedId(row.id)`.

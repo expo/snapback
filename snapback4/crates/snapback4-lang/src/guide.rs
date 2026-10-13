@@ -64,13 +64,13 @@ mod sharing;
 mod indexes;
 #[path = "guide/types.rs"]
 mod types;
-pub use discovery::{FULL_LINES, PIPED_FULL_LINES, piped, alias_landing, aliases, find, listing, nearest, overview, overview_and_first_section, section, section_index, sections};
+pub use discovery::{FULL_LINES, piped, alias_landing, aliases, find, listing, nearest, overview, overview_and_first_section, section, section_index, sections};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "deploy", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "deploy", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet", "changes"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
-    ("release", "deploy"), ("serve", "deploy"), ("production", "deploy"), ("rollback", "deploy"), ("upgrade", "deploy"),
+    ("release", "deploy"), ("serve", "deploy"), ("production", "deploy"), ("rollback", "deploy"), ("upgrade", "changes"), ("optional param", "types"), ("mutation default", "writes"), ("service seat", "deploy"),
     ("identity", "deploy"), ("password", "deploy"), ("tokens", "deploy"), ("migrations", "deploy"),
     ("test", "testing"), ("tests", "testing"), ("fixture", "testing"), ("fixtures", "testing"), ("acceptance", "testing"), ("e2e", "testing"), ("cases", "testing"),
     ("index", "start"),
@@ -242,6 +242,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
         "witness" => include_str!("guide/witness.md"),
         "prediction" => prediction::CARD,
         "evolution" => discovery::EVOLUTION,
+        "changes" => concat!("# Changes in ", env!("CARGO_PKG_VERSION"), "\n\nCompiler upgrades explain changes for the current schema.\n\n```sh\nsnapback4 upgrade\n```\n\nUpgrade with `snapback4 upgrade`; it pins core and installed Expo adapters together, captures the old check, and runs the new check.\nThe first check after a version change prints new notes by code, changed generated API types, and new refusals for your schema.\n\nKeyed aggregates: a hidden key reads null; an authorized missing count group reads 0.\nA private keyed count can therefore change from number to number | null in the generated API.\nUse `qtySum[room] ?? 0` only when treating a hidden or missing value as zero is your intended application policy.\nNew notes are advice, not compilation failures; new refusals need a schema repair.\n\nNative Expo adapters need a rebuild after upgrade. Exact apps: `bun exact.mjs snapback --rebuild`.\nRun your acceptance and visible-form proof after check; `guide testing` has the commands.\n"),
         "types" => types::CARD,
         "time" => include_str!("guide/time.md"),
         "cheatsheet" => include_str!("guide/cheatsheet.md"),
@@ -595,6 +596,12 @@ mutation sendPhotos(photos: [image <=10000000] <=4):
   return insert clips { ownerId: viewer, photos, at: now }
 ```
 
+`POST /assets` uploads raw bytes with the viewer's session (Authorization: Bearer TOKEN) or a declared dev persona (x-snapback-persona: alice).
+Set Content-Type to the file MIME type; the response is `{ "asset": { "id": "...", "type": "image/png", "bytes": 123, "width": 1, "height": 1, "duration": null } }`.
+For files use `POST /assets?as=file&name=voice.wav`; the asset has id, type, bytes and name.
+Pass `{ id }` to a placement mutation: the home row's read rule then authorizes `GET /assets/<id>`.
+An uploaded but unplaced asset is private to its uploader. Audio is a file, not a video.
+
 Upload each image first, then pass the list of `{ id }` values to `sendPhotos`.
 Each element inherits the row's read rule.
 `[image <=10000000 once] <=4` applies one view per principal to each image.
@@ -831,7 +838,7 @@ mutation addReceipt(scan: file <=10000000 ('application/pdf', 'image/jpeg', 'ima
   return insert receipts { owner: viewer, scan, at: now }
 ```
 
-Verifiable types, the default list: `application/pdf`, `text/plain`,
+Verifiable types, the default list: `audio/wav`, `audio/mpeg` (MP3), `audio/flac`, `application/pdf`, `text/plain`,
 `text/csv`, `text/markdown`, `application/json`, `image/png`, `image/jpeg`,
 `image/webp`, `image/gif`, `application/zip` and the Office Open XML
 document, sheet and presentation types. HTML, SVG, XML and JavaScript are
@@ -931,7 +938,7 @@ Seed `approvers` with `{"id":"a1","principal":"dev:ana"}` in a fixture.
 `useUpload` and `uploadAndPlace` commit a byte copy and its placing mutation
 together to the device outbox. For the API, Exact adapter contract, typed
 states, native save and WAV/MP3/FLAC file types, read the package's
-`OFFLINE-UPLOADS.md`. DX owns full starter/guide integration of this surface.
+`OFFLINE-UPLOADS.md`.
 
 `E_CANCELLED`: the save/share sheet was cancelled. Call `saveAsset` again
 when the user wants to retry.
