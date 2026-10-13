@@ -49,7 +49,12 @@ impl Runner<'_> {
         let mut prefixes = Vec::with_capacity(merge.lanes.len());
         for lane in &merge.lanes {
             let scan = match lane.source.as_ref().and_then(LaneSource::scan) { Some(source) if lane.membership() => source, _ => &lane.scan };
-            prefixes.push(self.branch_prefix_values(scan, metered_merge)?);
+            let prefix = self.branch_prefix_values(scan, metered_merge);
+            let prefix = if metered_merge {
+                let Some(prefix) = self.membership_discovery_steps(prefix)? else { return Ok(Vec::new()); };
+                prefix
+            } else { prefix? };
+            prefixes.push(prefix);
         }
         if metered_merge { self.meter.heap(word_heap::slots::<Value>(1) + word_heap::allocation(64))?; }
         let scope = branch_scope(&prefixes)?;
@@ -139,7 +144,7 @@ impl Runner<'_> {
                     Ok(prefixes)
                 })();
                 if let Some(prior) = prior { *self.env.get_mut(&lane.binding).expect("saved binding") = prior; } else { self.env.remove(&lane.binding); }
-                let prefixes = prefixes?;
+                let Some(prefixes) = self.membership_discovery_steps(prefixes)? else { return Ok((Vec::new(), false, None)); };
                 if self.value_source_incomplete || self.read_capped() { return Ok((Vec::new(), false, None)); }
                 for prefix in prefixes {
                     let opened = self.open_branch_lane(lane, prefix, after.as_ref(), Some(Default::default()), true)?;

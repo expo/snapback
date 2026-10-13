@@ -1027,6 +1027,10 @@ impl<'r> Runner<'r> {
             return self.scan_words(scan).map(|rows| (rows, Vec::new()));
         }
         let prefix = self.prefix_values(scan)?;
+        self.scan_with_prefix(scan, word, prefix)
+    }
+
+    fn scan_with_prefix(&mut self, scan: &Scan, word: Option<&WordRead>, prefix: Vec<Value>) -> Result<(Vec<Value>, Vec<Vec<u8>>), RuntimeError> {
         self.timeline_read_pending(&scan.table, &scan.index, &prefix)?;
         let table = self.schema.table(&scan.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", scan.table)))?;
         let index = table.index(&scan.index).ok_or_else(|| {
@@ -1718,11 +1722,10 @@ impl<'r> Runner<'r> {
             self.page_depth += 1;
             let sources = self.lane_values(lane)?;
             self.page_depth -= 1;
+            if lane.membership() && self.value_source_incomplete { return Ok(Vec::new()); }
             for source_row in sources {
                 if !self.charge_lane(lane, &merge.site)? { break; }
-                if lane.source.is_some() {
-                    self.env.insert(lane.binding.clone(), source_row);
-                }
+                let prior_binding = lane.source.as_ref().map(|_| self.env.insert(lane.binding.clone(), source_row));
                 self.statements(&lane.setup, &merge.site)?;
                 self.page_depth += 1;
                 // Pages look ahead; existence needs only its first witness.
@@ -1743,8 +1746,19 @@ impl<'r> Runner<'r> {
                 }
                 // @ref LLP 3000.007#20.22.4 — a matching existence scan stops at its first witness, without lookahead or later word lanes.
                 lane_scan.take = Bound::Literal(if lane_scan.existence { 1 } else { take as u32 + 1 });
-                let (rows, _) = self.scan_with_words(&lane_scan, word)?;
+                let rows = if lane.membership() && !lane_scan.prefix.iter().any(|key| matches!(key, IndexKeyExpr::WordPrefix(_))) {
+                    let prefix = self.prefix_values(&lane_scan);
+                    let Some(prefix) = self.membership_discovery_steps(prefix)? else {
+                        self.restore_lane_binding(lane, prior_binding);
+                        self.page_depth = outer_depth;
+                        return Ok(Vec::new());
+                    };
+                    self.scan_with_prefix(&lane_scan, word, prefix)?.0
+                } else {
+                    self.scan_with_words(&lane_scan, word)?.0
+                };
                 self.page_depth = outer_depth;
+                self.restore_lane_binding(lane, prior_binding);
                 if lane_scan.existence && !rows.is_empty() { return Ok(rows); }
                 for row in rows {
                     let id = row.field("id")?.as_str()?.to_owned();
@@ -1778,6 +1792,28 @@ impl<'r> Runner<'r> {
         Ok(candidates.into_iter().map(|(_, row)| row).collect())
     }
 
+    fn restore_lane_binding(&mut self, lane: &MergeLane, prior: Option<Option<Value>>) {
+        if let Some(prior) = prior {
+            if let Some(value) = prior { self.env.insert(lane.binding.clone(), value); }
+            else { self.env.remove(&lane.binding); }
+        }
+    }
+
+    // @ref LLP 3000.036.001#15 — expression steps spent while discovering a
+    // membership population are a read cut, never an aborting partial fact.
+    pub(super) fn membership_discovery_steps<T>(&mut self, result: Result<T, RuntimeError>) -> Result<Option<T>, RuntimeError> {
+        match result {
+            Err(RuntimeError::Bound { kind: MeterKind::Steps, site, .. }) if self.meter.cut == crate::meter::Cut::Cap => {
+                self.meter.capped_at.get_or_insert((MeterKind::Steps, site));
+                self.value_source_incomplete = true;
+                self.read_capped();
+                Ok(None)
+            }
+            Ok(value) => Ok(Some(value)),
+            Err(error) => Err(error),
+        }
+    }
+
     fn lane_values(&mut self, lane: &MergeLane) -> Result<Box<dyn Iterator<Item = Value>>, RuntimeError> {
         let prior_discovery = self.discovering_values;
         self.discovering_values |= lane.distinct.is_some();
@@ -1797,40 +1833,53 @@ impl<'r> Runner<'r> {
         if lane.distinct.is_some() && (self.read_capped() || self.page_overflow || self.beyond_horizon || self.presence_unknown) {
             self.value_source_incomplete = true;
         }
-        let values = values?;
+        let values = if lane.membership() {
+            let Some(values) = self.membership_discovery_steps(values)? else { return Ok(Box::new(std::iter::empty())); };
+            if self.value_source_incomplete { return Ok(Box::new(std::iter::empty())); }
+            values
+        } else { values? };
         let Some(distinct) = &lane.distinct else { return Ok(values); };
         let prior = self.env.get_mut(&lane.binding).map(|value| std::mem::replace(value, Value::Null));
         let mut inserted_binding = false;
         let mut seen = BTreeSet::new();
         let mut unique = Vec::new();
         let null_is_witness = lane.membership() && rules::membership_null_distinct(self.schema, lane);
-        for value in values {
-            if !self.read_charge(MeterKind::Steps, 1)? { break; }
-            if let Some(binding) = self.env.get_mut(&lane.binding) {
-                *binding = value;
-            } else {
-                self.meter.heap(word_heap::text(&lane.binding) + word_heap::insertion::<String, Value>(self.env.len()))?;
-                self.env.insert(lane.binding.clone(), value);
-                inserted_binding = true;
+        let result = (|| -> Result<(), RuntimeError> {
+            for value in values {
+                if !self.read_charge(MeterKind::Steps, 1)? { break; }
+                if let Some(binding) = self.env.get_mut(&lane.binding) {
+                    *binding = value;
+                } else {
+                    self.meter.heap(word_heap::text(&lane.binding) + word_heap::insertion::<String, Value>(self.env.len()))?;
+                    self.env.insert(lane.binding.clone(), value);
+                    inserted_binding = true;
+                }
+                let key = self.expr(distinct)?;
+                let value = std::mem::replace(self.env.get_mut(&lane.binding).expect("lane binding"), Value::Null);
+                if key == Value::Null && !null_is_witness { continue; }
+                let bytes = crate::json_codec::value_bytes(&key).map_err(|error| RuntimeError::Store(error.to_string()))?;
+                let bytes = usize::try_from(bytes).unwrap_or(usize::MAX);
+                self.meter.heap(word_heap::allocation(bytes)
+                    + word_heap::insertion::<String, ()>(seen.len()))?;
+                // @ref LLP 3000.036.001#14 — preflight and a fixed-capacity writer keep escaped discovery keys inside their prepaid heap.
+                let key = crate::json_codec::to_text_preallocated(&key, bytes)
+                    .map_err(|error| RuntimeError::Store(error.to_string()))?;
+                if seen.insert(key) { word_heap::push(&mut self.meter, &mut unique, value)?; }
             }
-            let key = self.expr(distinct)?;
-            let value = std::mem::replace(self.env.get_mut(&lane.binding).expect("lane binding"), Value::Null);
-            if key == Value::Null && !null_is_witness { continue; }
-            let bytes = crate::json_codec::value_bytes(&key).map_err(|error| RuntimeError::Store(error.to_string()))?;
-            let bytes = usize::try_from(bytes).unwrap_or(usize::MAX);
-            self.meter.heap(word_heap::allocation(bytes)
-                + word_heap::insertion::<String, ()>(seen.len()))?;
-            // @ref LLP 3000.036.001#14 — preflight and a fixed-capacity writer keep escaped discovery keys inside their prepaid heap.
-            let key = crate::json_codec::to_text_preallocated(&key, bytes)
-                .map_err(|error| RuntimeError::Store(error.to_string()))?;
-            if seen.insert(key) { word_heap::push(&mut self.meter, &mut unique, value)?; }
-        }
+            self.meter.heap(word_heap::slots::<std::vec::IntoIter<Value>>(1))
+        })();
         if let Some(prior) = prior {
             *self.env.get_mut(&lane.binding).expect("prior lane binding") = prior;
         } else if inserted_binding {
             self.env.remove(&lane.binding);
         }
-        self.meter.heap(word_heap::slots::<std::vec::IntoIter<Value>>(1))?;
+        if lane.membership() {
+            let Some(()) = self.membership_discovery_steps(result)? else { return Ok(Box::new(std::iter::empty())); };
+            if self.read_capped() {
+                self.value_source_incomplete = true;
+                return Ok(Box::new(std::iter::empty()));
+            }
+        } else { result?; }
         Ok(Box::new(unique.into_iter()))
     }
 
