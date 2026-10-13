@@ -14,6 +14,7 @@ import { createLocalClient } from "../dist/local.js";
 import { legacyInputRefusal, syncTransport } from "../dist/local-sync.js";
 import { processDevice } from "../dist/native.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
+const packageVersion = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
@@ -555,7 +556,7 @@ for (const tier of ["wasm", "process"]) test(`${tier}: invalid early heads are r
 for (const tier of ['wasm', 'process']) test(`${tier}: actual engine headers and typed incompatibility retain queued writes`, async t => {
   const f = await fixture(t, tier);
   const engine = (await f.ok({op:'engine_info'}));
-  assert.equal(engine.version, '0.4.24');
+  assert.equal(engine.version, packageVersion);
   assert.ok(engine.capabilities.includes('branch-merge-v1'));
   assert.ok(engine.capabilities.includes('sync-generation-v1'));
   for (const path of ['/schema','/sync','/changes']) {

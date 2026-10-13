@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createLocalClient, DeviceVersionError } from '../dist/local.js';
 import { webDevice, memoryPersistence } from '../dist/web.js';
+const packageVersion = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 
 test('startup compatibility refusal is typed before a backend reaches the device', async () => {
   const engine = {format:1,version:'0.4.23',capabilities:[]};
@@ -26,7 +27,7 @@ test('wasm opener reads its embedded engine stamp before opening a store', async
     // The worker mode reports from the bytes without starting a worker or instantiating a page VM.
     assert.deepEqual(await opener.engineInfo(),stamp);
   }
-  assert.equal(stamp.version,'0.4.24');
+  assert.equal(stamp.version,packageVersion);
   assert.ok(stamp.capabilities.includes('sync-generation-v1'));
 });
 
@@ -62,7 +63,7 @@ test('a corrupt process engine-info response becomes an explicit unknown engine'
 
 for(const worker of [false,true]) test(`${worker?'worker':'direct'} opener pins the preflight artifact when its URL changes`,async t=>{
   const bytes=readFileSync(new URL('../dist/wasm/snapback4_device_bg.wasm',import.meta.url));
-  const bad=Buffer.from(bytes);const at=bad.indexOf(Buffer.from('"version":"0.4.24"'));assert.ok(at>=0);bad[at+'"version":"0.4.2'.length]=0x33;
+  const bad=Buffer.from(bytes);const at=bad.indexOf(Buffer.from('"version":' + JSON.stringify(packageVersion)));assert.ok(at>=0);bad[at+'"version":"0.4.2'.length]=0x33;
   const prior=globalThis.fetch;let requests=0;globalThis.fetch=async()=>new Response(++requests===1?bytes:bad);
   t.after(()=>{globalThis.fetch=prior;});
   const opener=webDevice(worker?{worker:true,wasm:'https://hand.invalid/device.wasm'}:{wasm:'https://hand.invalid/device.wasm',persist:memoryPersistence()});
@@ -70,16 +71,16 @@ for(const worker of [false,true]) test(`${worker?'worker':'direct'} opener pins 
   // primitive with an injected store, then the worker's bytes path below.
   if(worker){
     const {prepareWasm}=await import('../dist/web-wasm.js');const pinned=await prepareWasm('https://hand.invalid/device.wasm',memoryPersistence());
-    const workerOpener=webDevice({worker:true,wasm:pinned.source});assert.equal((await workerOpener.engineInfo()).version,'0.4.24');assert.equal(requests,1);return;
+    const workerOpener=webDevice({worker:true,wasm:pinned.source});assert.equal((await workerOpener.engineInfo()).version,packageVersion);assert.equal(requests,1);return;
   }
-  assert.equal((await opener.engineInfo()).version,'0.4.24');
+  assert.equal((await opener.engineInfo()).version,packageVersion);
   const core=await opener.open('pinned-url',{initial_backend:{generation:1,schema:{tables:{},maintains:[]},programs:[]}});
-  t.after(()=>core.close());assert.equal((await core.call({op:'engine_info'})).ok.version,'0.4.24');assert.equal(requests,1);
+  t.after(()=>core.close());assert.equal((await core.call({op:'engine_info'})).ok.version,packageVersion);assert.equal(requests,1);
 });
 
 test('another initialized artifact cannot skip identity admission through a global ready shortcut',async()=>{
   const bytes=readFileSync(new URL('../dist/wasm/snapback4_device_bg.wasm',import.meta.url));
-  const altered=Buffer.from(bytes);const at=altered.indexOf(Buffer.from('"version":"0.4.24"'));assert.ok(at>=0);altered[at+'"version":"0.4.2'.length]=0x33;
+  const altered=Buffer.from(bytes);const at=altered.indexOf(Buffer.from('"version":' + JSON.stringify(packageVersion)));assert.ok(at>=0);altered[at+'"version":"0.4.2'.length]=0x33;
   const persist=memoryPersistence();let claims=0;const claim=persist.claim;
   const opener=webDevice({wasm:altered,persist:{...persist,claim:async(...args)=>{claims++;return claim(...args);}}});
   assert.equal((await opener.engineInfo()).version,'0.4.23');
