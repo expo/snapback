@@ -66,7 +66,9 @@ fn conjuncts(rule: RuleExpr, out: &mut Vec<RuleExpr>) {
 }
 
 fn simplify_prefix(rule: &RuleExpr, name: &str, table: &Table, pinned: &BTreeMap<&String, &Expr>) -> RuleExpr {
-    if rule_true(rule, name, table, &|name| pinned.iter().find_map(|(key, value)| (key.as_str() == name).then_some(*value))) { return RuleExpr::Allow; }
+    let pin = |name: &str| pinned.iter().find_map(|(key, value)| (key.as_str() == name).then_some(*value));
+    if rule_known(rule, true, name, table, &pin) { return RuleExpr::Allow; }
+    if rule_known(rule, false, name, table, &pin) { return RuleExpr::Deny; }
     match rule {
         RuleExpr::And(terms) => {
             let mut out = Vec::new();
@@ -78,7 +80,16 @@ fn simplify_prefix(rule: &RuleExpr, name: &str, table: &Table, pinned: &BTreeMap
             // Use the same self-witness absorption as uniformity, but remove
             // the absorbed field read from the expression we actually run.
             let terms = rule.disjuncts();
-            RuleExpr::Or(terms.iter().filter(|term| !terms.iter().any(|other| self_probe_absorbs(name, table, term, other))).map(|term| simplify_prefix(term, name, table, pinned)).collect())
+            let mut out: Vec<_> = terms.iter()
+                .filter(|term| !terms.iter().any(|other| self_probe_absorbs(name, table, term, other)))
+                .map(|term| simplify_prefix(term, name, table, pinned))
+                .filter(|term| !matches!(term, RuleExpr::Deny))
+                .collect();
+            match out.len() {
+                0 => RuleExpr::Deny,
+                1 => out.pop().unwrap(),
+                _ => RuleExpr::Or(out),
+            }
         }
         RuleExpr::Not(inner) => {
             let inner = simplify_prefix(inner, name, table, pinned);
@@ -622,8 +633,7 @@ fn membership_witness(schema: &Schema, lane: &crate::ir::MergeLane, null_distinc
         if !probe_index.components.iter().zip(key).all(|(part, term)| part.column().is_some_and(|column| matches(column, term)))
             || !equalities.iter().all(|(column, term)| matches(column, term)) { return false; }
         !null_distinct || probe_index.components.iter().all(|part| part.column().is_some_and(|column| column != source_column
-            && fixed(column).is_some_and(|expr| matches!(expr, Expr::Input(Input::Viewer))
-                || matches!(expr, Expr::Literal(value) if value != &Value::Null))))
+            && fixed(column).is_some_and(|expr| matches!(expr, Expr::Input(Input::Viewer)) || fixed_non_null_literal(expr))))
     })
 }
 
@@ -649,7 +659,28 @@ fn source_field(expr: &Expr, column: &str) -> bool {
 
 fn term_matches_expr(term: &RuleTerm, expr: &Expr) -> bool {
     match (term, expr) { (RuleTerm::Viewer, Expr::Input(Input::Viewer)) => true,
-        (RuleTerm::Literal(a), Expr::Literal(b)) => a == b, _ => false }
+        (RuleTerm::Literal(value), expr) => literal_matches_expr(value, expr), _ => false }
+}
+
+fn literal_matches_expr(value: &Value, expr: &Expr) -> bool {
+    match expr {
+        Expr::Literal(other) => value == other,
+        Expr::Unary { op: crate::ir::UnaryOp::Neg, .. } => matches!(value, Value::Int(expected)
+            if expr_int_literal(expr).is_some_and(|actual| actual == i128::from(*expected))),
+        _ => false,
+    }
+}
+
+fn expr_int_literal(expr: &Expr) -> Option<i128> {
+    match expr {
+        Expr::Literal(Value::Int(value)) => Some(i128::from(*value)),
+        Expr::Unary { op: crate::ir::UnaryOp::Neg, value } => expr_int_literal(value).map(|value| -value),
+        _ => None,
+    }
+}
+
+fn fixed_non_null_literal(expr: &Expr) -> bool {
+    matches!(expr, Expr::Literal(value) if value != &Value::Null) || expr_int_literal(expr).is_some()
 }
 
 /// Compare two merge positions without allocating their cursor descriptors.
