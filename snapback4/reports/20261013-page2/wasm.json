@@ -1,1 +1,1 @@
-{"at":"2026-10-13T17:30:48Z","sha":"d491a49a09","dirty":false,"wasm":{"raw":2301467,"gzip":701506,"brotli":530138},"glue":{"raw":15462,"gzip":3677,"brotli":3254},"wasmOpt":true,"budget":702006,"over":0}
+{"at":"2026-10-13T18:16:36Z","sha":"fa75d82735","dirty":false,"wasm":{"raw":2301917,"gzip":701899,"brotli":530447},"glue":{"raw":15462,"gzip":3677,"brotli":3254},"wasmOpt":true,"budget":702399,"over":0}

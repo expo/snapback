@@ -56,3 +56,15 @@ da035e5541 Retain fifth PAGE2 review and never-live refund finding
 bf31f1f599 Preserve expired witness allowance before opening
 1ae0a39c7b Strengthen never-live witness regression
 23b9fb1af9 Measure expiry-first PAGE2 artifact with 500 B headroom
+d491a49a09 Retain sixth blind PAGE2 brief and Muse READY review
+761100a4a8 Record final PAGE2 campaigns, farm survey and clean wasm receipt
+8cb3046e15 Retain sixth fresh review and future-word discovery finding
+829bc19b2a Refund hidden timed word discovery
+c80852270e Measure lifetime-aware search with 500 B wasm headroom
+c572c9e9cc Retain timed-search review brief and seventh Muse READY verdict
+476c7e4fca Exercise timed nonuniform search discovery
+278fd77317 Retain seventh fresh review and unpublished expiry finding
+530723d0f4 Record timed search composition coverage and correct test provenance
+e979db7bb9 Specify durable evidence for timed-row publication and revocation
+47a1d4b098 Track timed image publication through expiry
+fa75d82735 Measure actual-publication device with 500 B wasm headroom
