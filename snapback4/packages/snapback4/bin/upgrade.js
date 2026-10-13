@@ -12,7 +12,7 @@ function run() {
   let root = process.cwd();
   while (!existsSync(join(root, 'package.json'))) { const parent = dirname(root); if (parent === root) throw Error('E_UPGRADE: no project package.json'); root = parent; }
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  const schema = existsSync(join(root, 'snapback/schema.q'));
+  const schema = existsSync(join(root, 'snapback')) && readdirSync(join(root, 'snapback')).some(file => file.endsWith('.q'));
   const cli = () => {
     const require = createRequire(join(root, 'package.json'));
     return join(dirname(dirname(require.resolve('snapback4/bin-path'))), 'bin/snapback4.js');

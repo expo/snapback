@@ -81,3 +81,16 @@ test('upgrade captures the old installed compiler, checks the new one and points
   assert.equal(JSON.parse(readFileSync(join(dir, '.snapback4/check-surface.json'))).version, '0.4.25');
 });
 
+
+test('module-only backends compile and participate in upgrade qualification', t => {
+  const dir = project(t); mkdirSync(join(dir, 'snapback')); writeFileSync(join(dir, 'snapback/notes.q'), aggregates);
+  success(invoke(['check'], dir));
+  assert.match(readFileSync(join(dir, 'snapback/generated/api.ts'), 'utf8'), /roomCount/);
+  // A failing installation helper must not erase the old compiler baseline.
+  const old = readFileSync(join(dir, '.snapback4/check-surface.json'), 'utf8');
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ packageManager: 'npm@10', dependencies: { snapback4: '0.4.25' } }));
+  mkdirSync(join(dir, 'node_modules')); symlinkSync(join(root, 'packages/snapback4'), join(dir, 'node_modules/snapback4'));
+  mkdirSync(join(dir, 'tools')); writeFileSync(join(dir, 'tools/npm'), `#!${process.execPath}\nprocess.exit(1);`, { mode: 0o755 });
+  const result = invoke(['upgrade'], dir, { PATH: `${join(dir, 'tools')}:${process.env.PATH}` }); assert.equal(result.status, 1);
+  assert.match(result.stderr, /E_UPGRADE/); assert.equal(JSON.parse(readFileSync(join(dir, '.snapback4/check-surface.json'))).sources[0][0], 'notes.q');
+});

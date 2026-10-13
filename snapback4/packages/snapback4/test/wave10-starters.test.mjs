@@ -29,7 +29,7 @@ for (const mode of ['env', 'flag']) test(`portable ${mode} range sets URLs, Vite
 });
 
 test('invalid ranges refuse before writing; explicit ports must lie inside a range', t => {
-  for (const args of [['--port-range', '9-1'], ['--port-range', '0-10'], ['--port-range', '30000-30000'], ['--port-range', '30000-30009', '--port', '4400'], ['--port-range', '30000-30009', '--web-port', '5173']]) {
+  for (const args of [['--port-range', '9-1'], ['--port-range', '0-10'], ['--port-range', '65535-65535'], ['--port-range', '30000-30000'], ['--port-range', '30000-30009', '--port', '4400'], ['--port-range', '30000-30009', '--web-port', '5173']]) {
     const dir = project(t); const result = invoke(['init', '--web', ...args], dir);
     assert.equal(result.status, 2); assert.match(result.stderr, /E_INPUT/);
     assert.throws(() => readFileSync(join(dir, 'package.json')));
@@ -84,3 +84,16 @@ test('the published stopChild accepts handles and validates unknown shapes; serv
   await stopChild(child); assert.notEqual(child.signalCode, null); await stopChild(child);
 });
 
+
+test('Expo Todos README and client both adapt from synced to journal and back', t => {
+  const dir = project(t); success(invoke(['init', '--expo'], dir));
+  const schema = join(dir, 'snapback/schema.q'), original = readFileSync(schema, 'utf8');
+  writeFileSync(schema, original.replace('  sync to .ownerId', '  online only'));
+  success(invoke(['init', '--adapt'], dir));
+  const readme = readFileSync(join(dir, 'README.md'), 'utf8');
+  assert.match(readme, /principal write journal/); assert.ok(!readme.includes('wasm device'));
+  assert.ok(!readFileSync(join(dir, 'src/client.ts'), 'utf8').includes('webDevice'));
+  writeFileSync(schema, original); success(invoke(['init', '--adapt'], dir));
+  assert.ok(readFileSync(join(dir, 'README.md'), 'utf8').includes('wasm') && !readFileSync(join(dir, 'README.md'), 'utf8').includes('principal write journal'));
+  assert.match(readFileSync(join(dir, 'src/client.ts'), 'utf8'), /webDevice/);
+});

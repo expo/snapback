@@ -87,7 +87,7 @@ pub fn init(options: &Options) -> i32 {
         return 2;
     }
     if let Some((low, high)) = range {
-        if [port, web_port].into_iter().flatten().any(|port| port < low || port > high) {
+        if ((web || expo) && web_port.is_none()) || [port, web_port].into_iter().flatten().any(|port| port < low || port > high) {
             eprintln!("E_INPUT: client/backend/frontend ports must fit --port-range {low}-{high}; allow at least two ports for a UI starter"); return 2;
         }
     }

@@ -158,7 +158,7 @@ for (const template of [[], ["--template", "chat"]]) test(`Expo ${template.lengt
   const require = createRequire(join(reference, "package.json"));
   assert.equal(actual.devDependencies["babel-preset-expo"], require("babel-preset-expo/package.json").version);
   const starterConfig = json(join(reference, "app.json"));
-  if (chat) assert.deepEqual(json(join(dir, "app.json")), starterConfig);
+  if (chat) { const withFavicon = { ...starterConfig, expo: { ...starterConfig.expo, web: { ...starterConfig.expo.web, favicon: "./assets/favicon.svg" } } }; assert.deepEqual(json(join(dir, "app.json")), withFavicon); }
   else assert.deepEqual(json(join(dir, "app.json")).expo.plugins, starterConfig.expo.plugins);
   assert.equal(read(join(dir, "expo-env.d.ts")), '/// <reference types="expo/types" />\n');
   assert.deepEqual(json(join(dir, "tsconfig.json")), json(join(reference, "tsconfig.json")));

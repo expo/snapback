@@ -31,7 +31,7 @@ function Todos() {
         placeholder="What needs doing?" maxLength={200} onSubmitEditing={submit} />
       <Button title="Add" onPress={submit} />
     </View>
-    <Text accessibilityRole="status">{add.last?.state ?? "Ready"}</Text>
+    <Text accessibilityLiveRegion="polite">{add.last?.state ?? "Ready"}</Text>
     {failed && <Text style={{ color: "crimson" }}>{failed.why.message}</Text>}
     <TodoList todos={todos} toggle={toggle} remove={remove} />
     <Button title="Sign out" onPress={() => void auth.logout()} />
