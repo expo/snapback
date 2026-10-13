@@ -94523,3 +94523,23 @@ The locked Linux web artifact measures 2,301,917 B raw / 701,899 B gzip. Set
 62 B gzip change. Against `f9e40ef515`, the whole artifact adds 10,488 B raw /
 3,513 B gzip. No runtime ceiling increase, per-feature attribution or macOS
 measurement. Eighth-round blind reviews and final campaigns are in progress.
+
+
+## 2026-10-13 — PAGE2 pending logical reads and durable retry
+
+Overdue unexpired pending rows raise a transient signal before any logical
+absence, authored unwrap or witness can consume them. Normal server queries
+use the existing loading outcome; mutations roll back without caching an
+applied-id receipt. Blind physical cancellation/rescheduling remains valid.
+Mixed ephemeral query overlays forward durable timed metadata; the experimental
+PostgreSQL evaluation adapter refuses not-before schemas. Exact old-code
+negative controls reproduce both false absence and early overlay disclosure.
+Timed core is 20/20; full guide 120/120, simulator transport 4/4, device timed
+suite 6/6 (Memory and SQLite), and host clocks 27/27 pass. Device queued retries
+survive restart and settle the original id exactly once after publication.
+
+The locked Linux web artifact measures 2,302,339 B raw / 701,955 B gzip. Set
+702,455 B = measurement plus 500 B, superseding 702,399 B by the measured
+56 B gzip change. Against `f9e40ef515`, the complete artifact adds 10,910 B raw /
+3,569 B gzip. No runtime ceiling increase, per-feature attribution or macOS
+measurement. Ninth-round blind reviews and final campaigns are in progress.
