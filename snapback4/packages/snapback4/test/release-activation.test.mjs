@@ -826,7 +826,7 @@ test('an unserved release cannot create a shadow development store', { timeout: 
 });
 
 test('owned serve death before hot commit and after commit recovers database authority', { timeout: hangBudget(12) }, async t => {
-  const { app, deployment, schema, run }=fixture(t);run('deploy',deployment);
+  const { app, deployment, schema, run, invoke }=fixture(t);run('deploy',deployment);
   await serve(deployment,async(url,headers,_session,_logs,child)=>{
     const written=await(await fetch(url+'/m/add',{method:'POST',headers,body:JSON.stringify({id:'before-crash',args:{}})})).json();assert.equal(written.state,'sent');
     writeFileSync(schema,source.replace('return 1','return 2'));
@@ -841,8 +841,9 @@ test('owned serve death before hot commit and after commit recovers database aut
   });
   await serve(deployment,async(url,headers,_session,_logs,child)=>{
     const before=await(await fetch(url+'/q/q',{method:'POST',headers,body:'{"args":{}}'})).json();assert.equal(before.data,1);
-    run('rollback',deployment,'--to','2');
-    assert.equal(state(join(deployment,'store.sqlite')).metadata.release,'2');
+    assert.equal(invoke('rollback',deployment,'--to','2').status,1,'precommit killed candidate cannot be selected');
+    run('deploy',deployment);
+    assert.equal(state(join(deployment,'store.sqlite')).metadata.release,'3');
     const exit=once(child,'exit');child.kill('SIGKILL');await exit;
     writeFileSync(join(deployment,'current'),'1\n');
   });
@@ -972,9 +973,9 @@ test('REL minimum-text widening warns in both deploy and rollback directions', {
 `;
   writeFileSync(schema,code(6));run('deploy',deployment);
   writeFileSync(schema,code(4));
-  const widened=invoke('deploy',deployment);assert.equal(widened.status,0);assert.match(widened.stderr,/WARNING rollback compatibility: codes.code/);
+  const widened=invoke('deploy',deployment);assert.equal(widened.status,0);assert.doesNotMatch(widened.stderr,/WARNING rollback compatibility/);
   writeFileSync(schema,code(8));run('deploy',deployment);
-  const rolled=invoke('rollback',deployment,'--to','2');assert.equal(rolled.status,0);assert.match(rolled.stderr,/WARNING rollback compatibility: codes.code/);
+  const rolled=invoke('rollback',deployment,'--to','2');assert.equal(rolled.status,0);assert.doesNotMatch(rolled.stderr,/WARNING rollback compatibility/);
   const media=(bound,types)=>`table documents:
   photo: image <=${bound} ?
   files: [file <=${bound} (${types})] <=4
@@ -982,7 +983,232 @@ test('REL minimum-text widening warns in both deploy and rollback directions', {
 `;
   writeFileSync(schema,media(10,"'application/pdf'"));run('deploy',deployment);
   writeFileSync(schema,media(1000,"'application/pdf','text/plain'"));
-  const assets=invoke('deploy',deployment);assert.equal(assets.status,0);assert.match(assets.stderr,/documents.photo/);assert.match(assets.stderr,/documents.files/);
+  const assets=invoke('deploy',deployment);assert.equal(assets.status,0);assert.doesNotMatch(assets.stderr,/WARNING rollback compatibility/);
   writeFileSync(schema,media(5,"'application/pdf'"));run('deploy',deployment);
-  const assetRollback=invoke('rollback',deployment,'--to','5');assert.equal(assetRollback.status,0);assert.match(assetRollback.stderr,/documents.photo/);assert.match(assetRollback.stderr,/documents.files/);
+  const assetRollback=invoke('rollback',deployment,'--to','5');assert.equal(assetRollback.status,0);assert.doesNotMatch(assetRollback.stderr,/WARNING rollback compatibility/);
+});
+
+test('REL2 refused deploy is unselectable and latest restores the adopted source', {timeout:hangBudget(3)}, async t=>{
+  const {deployment,schema,run,invoke}=fixture(t);
+  run('deploy',deployment);
+  const v2=source.replace('  body: text','  extra: int default 9\n  body: text');
+  writeFileSync(schema,v2);run('deploy',deployment);run('rollback',deployment,'--to','1');
+  const refused=invoke('deploy',deployment);assert.equal(refused.status,1);
+  assert.match(refused.stderr,/E_ADOPT: source matches latest; use `snapback4 rollback .* --to latest`/);
+  assert.doesNotMatch(refused.stderr,/"sample_ids"/);
+  const structured=invoke('deploy',deployment,'--json');assert.equal(structured.status,1);assert.equal(JSON.parse(structured.stdout).dormant[0].key,'column:items.extra');
+  rmSync(join(deployment,'releases/3/.pending-adoption'));
+  assert.equal(JSON.parse(run('releases',deployment)).latest,2);
+  for(const args of [['rollback',deployment,'--to','3'],['rollback',deployment,'--to','3','--check'],['releases',deployment,'3'],['check','--store',join(deployment,'store.sqlite'),'--release','3']]) {
+    const r=invoke(...args);assert.equal(r.status,1,r.stdout);assert.match(r.stderr,/did not complete adoption/);
+  }
+  await serve(deployment,async()=>{
+    run('rollback',deployment,'--to','latest');assert.equal(state(join(deployment,'store.sqlite')).metadata.release,'2');
+    run('rollback',deployment,'--to','1');
+    assert.equal(invoke('deploy',deployment).status,1);
+    assert.equal(JSON.parse(run('releases',deployment)).latest,2);
+    run('rollback',deployment,'--to','latest');
+  });
+});
+
+test('REL2 bare rollback follows active history and committed pending sources recover', {timeout:hangBudget(2)},t=>{
+  const {deployment,schema,run}=fixture(t);
+  run('deploy',deployment);
+  writeFileSync(schema,source.replace('return 1','return 2'));run('deploy',deployment);
+  writeFileSync(schema,source.replace('return 1','return 3'));run('deploy',deployment);
+  run('rollback',deployment,'--to','1');run('rollback',deployment);
+  assert.equal(state(join(deployment,'store.sqlite')).metadata.release,'3');
+  // Models process loss after DB commit, before marker cleanup.
+  writeFileSync(join(deployment,'releases/3/.pending-adoption'),'pending\n');
+  assert.equal(JSON.parse(run('releases',deployment)).latest,3);
+  run('rollback',deployment,'--to','3');
+  // A crash-reserved directory without source is never latest.
+  mkdirSync(join(deployment,'releases/99'));
+  assert.equal(JSON.parse(run('releases',deployment)).latest,3);
+});
+
+test('REL2 CLI help, guide list and dry-run refusal are discoverable',t=>{
+  const {run,invoke}=fixture(t);
+  for(const [verb,flags] of [['deploy',['check','restore-dormant','json','verbose','allow-feed-adoption']],['rollback',['check','to','json','verbose']],['serve',['port','bind','worker','claim-waits']]]) {
+    const help=run(verb,'--help');for(const flag of flags)assert.ok(help.includes('--'+flag),help);
+  }
+  assert.match(run('serve','--help'),/running serve adopts/);
+  assert.match(run('rollback','--help'),/previously active/);
+  assert.equal(run('guide','--list'),run('guide'));
+  assert.match(invoke('rollback','unused','--dry-run').stderr,/preview is --check/);
+});
+
+test('REL2 deploy preview preserves live state, refuses name reuse and narrates dormancy', {timeout:hangBudget(3)},async t=>{
+  const {deployment,schema,run,invoke}=fixture(t);
+  const base=source+`table holds:
+  item: items
+  read <- allow
+  insert <- allow
+mutation hold(item: items):
+  return insert holds {item}
+job sweep():
+  chunk row in items first 1 by byId:
+    update items[row.id] {body: row.body}
+schedule sweepEvery every 1d: sweep
+`;
+  const v1=base.replace('  insert <- allow\n  sync public','  insert <- allow\n  update <- allow\n  sync public');
+  writeFileSync(schema,v1);run('deploy',deployment);
+  await serve(deployment,async(url,headers)=>{
+    const added=await releasePost(url,headers,'/m/add',{},'rel2-preview-add');
+    await releasePost(url,headers,'/m/hold',{item:added.result.id},'rel2-preview-hold');
+    const before=state(join(deployment,'store.sqlite'));
+    writeFileSync(schema,source);
+    const preview=run('deploy',deployment,'--check');
+    assert.doesNotMatch(preview,/rows are lost|values are lost|engine capture.*filled/);
+    assert.match(preview,/holds.*1 rows dormant/);assert.match(preview,/sample ids/);
+    assert.match(preview,/WARNING scheduled job sweep/);assert.match(preview,/holds or other safeguards/);
+    assert.deepEqual(state(join(deployment,'store.sqlite')),before);
+    assert.equal(JSON.parse(run('releases',deployment)).latest,1);
+    run('deploy',deployment);
+    writeFileSync(schema,v1);
+    assert.equal(invoke('deploy',deployment,'--check').status,1);
+    assert.match(run('deploy',deployment,'--check','--restore-dormant'),/preview/);
+  });
+});
+
+test('REL2 served job uses a full service token and served source', {timeout:hangBudget(3)},async t=>{
+  const {app,deployment,schema,run}=fixture(t);
+  writeFileSync(schema,source.replace('  insert <- allow','  insert <- allow\n  update <- allow')+`job sweep():
+  chunk row in items first 1 by byId:
+    update items[row.id] {body: 'swept'}
+`);run('deploy',deployment);
+  await serve(deployment,async(url,headers)=>{
+    await releasePost(url,headers,'/m/add',{},'rel2-job-add');
+    const read=(await(await fetch(url+'/auth/narrow',{method:'POST',headers,body:'{}'})).json()).session;assert.ok(read?.token);
+    for(const h of [{},headers,{'x-snapback-persona':'alice'},{authorization:`Bearer ${read.token}`}]) {
+      const response=await fetch(url+'/jobs/sweep',{method:'POST',headers:h,body:'{"args":{}}'});
+      assert.ok([401,403].includes(response.status));
+    }
+    const token=run('token','--service','ops','--release',deployment).trim();
+    writeFileSync(schema,'broken source is deliberately unused\n');
+    const result=spawnSync(binary,['run','sweep','--release',deployment,'--json'],{cwd:tmpdir(),env:{...process.env,SNAPBACK4_SERVICE_TOKEN:token},encoding:'utf8',timeout:hangBudget()});
+    assert.equal(result.status,0,result.stderr+result.stdout);assert.equal(JSON.parse(result.stdout).state,'done');
+    const db=new DatabaseSync(join(deployment,'store.sqlite'),{readOnly:true});
+    try{assert.ok(db.prepare('SELECT data FROM r').all().some(row=>row.data.includes('swept')));}finally{db.close();}
+    const dev=await fetch(url+'/dev/jobs/sweep',{method:'POST',headers:{authorization:`Bearer ${token}`},body:'{}'});assert.equal(dev.status,403);
+  });
+});
+
+test('REL2 stale lock is reclaimed and live conflict identifies PID URL and directory', {timeout:hangBudget(3)},async t=>{
+  const {deployment,run,invoke}=fixture(t);run('deploy',deployment);
+  const dead=spawn(process.execPath,['-e','process.exit(0)']);await once(dead,'exit');
+  writeFileSync(join(deployment,'serve.lock'),`4400\nhttp://127.0.0.1:4400\npid ${dead.pid}\n`);
+  chmodSync(join(deployment,'serve.lock'),0o600);
+  const reclaimed=invoke('rollback',deployment,'--to','1');assert.equal(reclaimed.status,0,reclaimed.stderr);
+  assert.match(reclaimed.stderr,new RegExp(`reclaimed stale serve.lock: dead PID ${dead.pid}`));
+  await serve(deployment,async(url,_headers,_session,_log,child)=>{
+    const conflict=invoke('serve',deployment,'--port','0');assert.equal(conflict.status,1);
+    assert.ok(conflict.stderr.includes(url),conflict.stderr);assert.ok(conflict.stderr.includes(String(child.pid)),conflict.stderr);assert.ok(conflict.stderr.includes(deployment),conflict.stderr);
+  });
+});
+
+test('REL2 old release sees E_OP, NOT_FOUND and null; forward restores exact values', {timeout:hangBudget(3)},async t=>{
+  const {deployment,schema,run}=fixture(t);
+  const v1=source.replace('  body: text',"  status: enum('old') default 'old'\n  body: text").replace('  insert <- allow','  insert <- allow\n  update <- allow')+`query readItem(item: items):
+  return items[item]
+mutation editItem(item: items):
+  row = items[item]! else NOT_FOUND
+  update items[row.id] {body: 'edited'}
+`;
+  writeFileSync(schema,v1);run('deploy',deployment);
+  const v2=v1.replace("enum('old')","enum('old','new')")+`query newOnly():
+  return 2
+mutation makeNew(item: items):
+  update items[item] {status: 'new'}
+`;
+  writeFileSync(schema,v2);run('deploy',deployment);
+  await serve(deployment,async(url,headers)=>{
+    const item=(await releasePost(url,headers,'/m/add',{},'rel2-proof-add')).result.id;
+    await releasePost(url,headers,'/m/makeNew',{item},'rel2-proof-new');
+    const receipt=run('rollback',deployment,'--to','1');assert.ok(receipt.includes(item),receipt);
+    const absent=await fetch(url+'/q/newOnly',{method:'POST',headers,body:'{"args":{}}'});assert.equal(absent.status,404);assert.equal((await absent.json()).denied.code,'E_OP');
+    const edit=await(await fetch(url+'/m/editItem',{method:'POST',headers,body:JSON.stringify({id:'rel2-proof-edit',args:{item}})})).json();
+    assert.equal(edit.why.code,'NOT_FOUND');
+    assert.equal((await releasePost(url,headers,'/q/readItem',{item})).data,null);
+    run('rollback',deployment,'--to','latest');
+    const original=(await releasePost(url,headers,'/q/readItem',{item})).data;
+    assert.equal(original.status,'new');assert.equal(original.body,'kept');
+  });
+});
+
+test('REL2 first deploy check creates no live store or numbered release', {timeout:hangBudget(2)},t=>{
+  const {deployment,run}=fixture(t);
+  assert.match(run('deploy',deployment,'--check'),/preview/);
+  assert.equal(existsSync(join(deployment,'store.sqlite')),false);
+  assert.equal(existsSync(join(deployment,'releases/1')),false);
+});
+
+test('REL2 populated compatibility warnings include counts', {timeout:hangBudget(3)},async t=>{
+  const {deployment,schema,run,invoke}=fixture(t);
+  const old=source.replace('  body: text <=100','  body: text 4..100');
+  writeFileSync(schema,old);run('deploy',deployment);
+  await serve(deployment,async(url,headers)=>{
+    await releasePost(url,headers,'/m/add',{},'rel2-warning-row');
+    writeFileSync(schema,source);
+    const r=invoke('deploy',deployment);assert.equal(r.status,0,r.stderr);assert.match(r.stderr,/WARNING rollback compatibility: items.body \(1 existing rows\)/);
+  });
+});
+
+test('REL2 successful preview reports a rebuilt maintain instead of its speculative refusal', {timeout:hangBudget(3)},async t=>{
+  const {deployment,schema,run}=fixture(t);
+  const v1=source.replace('  body: text',"  status: enum('old') default 'old'\n  body: text").replace('  insert <- allow','  insert <- allow\n  update <- allow')+`view noteCounts: count items where .status = 'old' by .body
+`;
+  writeFileSync(schema,v1);run('deploy',deployment);
+  const v2=v1.replace("enum('old')","enum('old','new')").replace(" where .status = 'old'",'')+`mutation markNew(item: items):
+  update items[item] {status: 'new'}
+`;
+  writeFileSync(schema,v2);run('deploy',deployment);
+  await serve(deployment,async(url,headers)=>{
+    const first=(await releasePost(url,headers,'/m/add',{},'rel2-maintain-one')).result.id;
+    await releasePost(url,headers,'/m/add',{},'rel2-maintain-two');
+    await releasePost(url,headers,'/m/markNew',{item:first},'rel2-maintain-mark');
+    for(const flags of [[],['--json']]) {
+      const preview=run('rollback',deployment,'--to','1','--check',...flags);
+      assert.match(preview,/maintain noteCounts: rebuilt from 1 source rows/);
+      assert.doesNotMatch(preview,/cannot adopt|rows are lost|values are lost|keep the prior maintain definition/);
+    }
+  });
+});
+
+test('REL2 legacy predecessor stays selectable after release-history upgrade', {timeout:hangBudget(2)},t=>{
+  const {deployment,schema,run}=fixture(t);run('deploy',deployment);
+  const legacy=new DatabaseSync(join(deployment,'store.sqlite'));
+  try{legacy.exec(`DROP TABLE IF EXISTS _release_event_items; DROP TABLE IF EXISTS _release_events; DROP TABLE IF EXISTS _dormant_refs; DROP TABLE IF EXISTS _dormant_values; DROP TABLE IF EXISTS _dormant_rows; DROP TABLE IF EXISTS _dormant_tables; DROP TABLE IF EXISTS _dormant_columns; DROP TABLE IF EXISTS _dormant_indexes; DROP TABLE IF EXISTS _dormant_narrow_rows; UPDATE _meta SET value='snapback4-store-1' WHERE key='version'; DELETE FROM _meta WHERE key='release_revision';`);}finally{legacy.close();}
+  writeFileSync(schema,source.replace('return 1','return 2'));run('deploy',deployment);
+  run('rollback',deployment);assert.equal(state(join(deployment,'store.sqlite')).metadata.release,'1');
+  run('rollback',deployment,'--to','2');run('rollback',deployment,'--to','1');
+});
+
+test('REL2 successful preview validates uniqueness after narrowed rows become dormant', {timeout:hangBudget(3)},async t=>{
+  const {deployment,schema,run}=fixture(t);
+  const broad=source.replace('  body: text',"  status: enum('old','new') default 'old'\n  body: text").replace('  insert <- allow','  insert <- allow\n  update <- allow')+`mutation makeNew(item: items):
+  update items[item] {status:'new'}
+`;
+  writeFileSync(schema,broad);run('deploy',deployment);
+  await serve(deployment,async(url,headers)=>{
+    const first=(await releasePost(url,headers,'/m/add',{},'rel2-unique-first')).result.id;
+    await releasePost(url,headers,'/m/add',{},'rel2-unique-second');await releasePost(url,headers,'/m/makeNew',{item:first},'rel2-unique-mark');
+    const narrower=broad.replace("enum('old','new')","enum('old')").replace('  read <- allow','  unique body\n  read <- allow').split('mutation makeNew')[0];
+    writeFileSync(schema,narrower);
+    for(const flags of [[],['--json']]) {
+      const preview=run('deploy',deployment,'--check',...flags);assert.doesNotMatch(preview,/conflict|repair|inspect:/);assert.match(preview,/active rows satisfy/);
+    }
+    run('deploy',deployment);
+  });
+});
+
+test('REL2 deploy check validates declared worker secret selection without launching', {timeout:hangBudget(2)},t=>{
+  const {app,deployment,schema,run,invoke}=fixture(t);run('deploy',deployment);
+  writeFileSync(schema,source.replace('return 1','return 2'));
+  mkdirSync(join(app,'snapback/workers'),{recursive:true});writeFileSync(join(app,'snapback/workers/ops.mjs'),'// snapback4 secrets: UNDECLARED_REVIEW_KEY\n');
+  const saved=state(join(deployment,'store.sqlite'));
+  for(const flags of [['--check'],[]]) {
+    const r=invoke('deploy',deployment,...flags);assert.equal(r.status,1,r.stdout+r.stderr);assert.match(r.stderr,/not a declared action, effect or route secret/);
+    assert.deepEqual(state(join(deployment,'store.sqlite')),saved);
+  }
 });

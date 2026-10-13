@@ -206,7 +206,8 @@ impl Store {
             }
         }
         let workers:Vec<(String,String)>=tx.conn().prepare("SELECT key,value FROM _meta WHERE key='worker:status' OR key LIKE 'worker:status:%' ORDER BY key LIMIT 16")?.query_map([],|r|Ok((r.get(0)?,r.get(1)?)))?.collect::<Result<_,_>>()?;
-        let result = serde_json::json!({"release":tx.meta("release")?.and_then(|v|v.parse::<u64>().ok()),"revision":tx.meta("release_revision")?.and_then(|v|v.parse::<u64>().ok()).unwrap_or(0),"generation":tx.meta("generation")?.and_then(|v|v.parse::<u64>().ok()).unwrap_or(1),"native_digest":tx.meta("release_native_digest")?,"events_after":events.last().map(|e|e["id"].clone()),"events":events,"items_after":inventory_page.last().map(|i|i["key"].clone()),"items":inventory_page,"event":event_id,"workers":workers});
+        let previous_active: Option<u64> = if present(tx.conn())? {tx.conn().query_row("SELECT previous FROM _release_events WHERE release IS NOT NULL AND previous != release AND operation != 'prune' ORDER BY id DESC LIMIT 1",[],|r|r.get::<_,Option<i64>>(0)).optional()?.flatten().map(|n|n as u64)} else {None};
+        let result = serde_json::json!({"previous_active":previous_active,"release":tx.meta("release")?.and_then(|v|v.parse::<u64>().ok()),"revision":tx.meta("release_revision")?.and_then(|v|v.parse::<u64>().ok()).unwrap_or(0),"generation":tx.meta("generation")?.and_then(|v|v.parse::<u64>().ok()).unwrap_or(1),"native_digest":tx.meta("release_native_digest")?,"events_after":events.last().map(|e|e["id"].clone()),"events":events,"items_after":inventory_page.last().map(|i|i["key"].clone()),"items":inventory_page,"event":event_id,"workers":workers});
         tx.rollback()?;
         Ok(result)
     }

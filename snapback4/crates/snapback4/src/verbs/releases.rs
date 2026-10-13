@@ -2,6 +2,8 @@
 use super::*;
 use crate::store_owner::Owner;
 use std::path::{Path, PathBuf};
+struct Stage(PathBuf);
+impl Drop for Stage {fn drop(&mut self){let _=std::fs::remove_dir_all(&self.0);}}
 
 fn directory(options: &Options) -> Result<PathBuf, String> {
     options
@@ -76,20 +78,6 @@ fn check_change(
 ) -> Result<(), String> {
     if let Some(n) = previous {
         let old = bound_at(dir.join("releases").join(n.to_string()))?;
-        for step in snapback4_core::successor::classify(&old.schema, &bound.schema) {
-            let message = step
-                .message
-                .replace("its rows are lost", "its rows become dormant")
-                .replace("its values are lost", "its values become dormant");
-            if !options.json && (options.flags.contains_key("verbose") || options.flags.contains_key("check")) { println!(
-                "  {:?}: {message}",
-                if step.change == snapback4_core::successor::Change::Destructive {
-                    "Retained"
-                } else {
-                    "Checked"
-                }
-            ); }
-        }
         let mut hazards=std::collections::BTreeSet::new();
         for step in snapback4_core::successor::classify(&bound.schema,&old.schema) {
             if step.change==snapback4_core::successor::Change::Narrowing && step.path.contains(".columns.") {
@@ -108,8 +96,12 @@ fn check_change(
                 }
             }
         }
+        let rows = snapback4_core::Store::open_read_only(&dir.join("store.sqlite")).map_err(|e|e.to_string())?;
         for path in hazards {
-            eprintln!("WARNING rollback compatibility: {path} admits values the other release refuses; those rows become dormant when switching back");
+            let table=path.split('.').next().unwrap();
+            let count: u64=rows.conn().query_row("SELECT COUNT(*) FROM r WHERE t=(SELECT num FROM _catalog WHERE name=?1)",[table],|r|r.get::<_,i64>(0).map(|n|n as u64)).map_err(|e|e.to_string())?;
+            if count == 0 {continue;}
+            eprintln!("WARNING rollback compatibility: {path} ({count} existing rows) admits values the other release refuses; those rows become dormant when switching back");
         }
     }
     if options.flags.contains_key("allow-destructive") {
@@ -223,7 +215,7 @@ fn activate(
             },
         )?;
         if options.json {println!("{}",result);} else {
-            println!("release {release} is current as generation {}; {}",result["generation"],result["adoption"].as_str().unwrap_or("adopted"));
+            println!("release {release} is current as generation {}; {}; running serve adopted the release",result["generation"],result["adoption"].as_str().unwrap_or("adopted"));
             if options.flags.contains_key("verbose") {println!("{}",result["details"].as_str().unwrap_or(""));}
         }
     }
@@ -249,11 +241,15 @@ pub fn deploy(options: &Options) -> i32 {
         (|| {
             let dir = canonical_directory(options)?;
             let _command = command_lock(&dir)?;
-            let _deployment = target(&dir)?;
+            let checking=options.flags.contains_key("check");
+            let _deployment = if checking {None} else {target(&dir)?};
             let project = project_or_exit();
             let bound = compile_or_exit(&project, options.json);
             std::fs::create_dir_all(dir.join("releases")).map_err(|e| e.to_string())?;
-            let held = status(&dir, _deployment.as_ref(), 0, None, None)?;
+            let held = if checking {
+                if dir.join("store.sqlite").exists() {snapback4_core::Store::open_read_only(&dir.join("store.sqlite")).and_then(|mut s|s.release_status(0,None,None)).map_err(|e|e.to_string())?}
+                else {serde_json::json!({"release":null,"revision":0,"generation":1})}
+            } else {status(&dir, _deployment.as_ref(), 0, None, None)?};
             let previous = if let Some(owner) = _deployment.as_ref() {
                 current(&dir, owner)?
             } else {
@@ -266,6 +262,7 @@ pub fn deploy(options: &Options) -> i32 {
             let stage = releases.join(format!(".stage-{}", std::process::id()));
             if stage.exists() {std::fs::remove_dir_all(&stage).map_err(|e|e.to_string())?;}
             std::fs::create_dir(&stage).map_err(|e| e.to_string())?;
+            let _cleanup=Stage(stage.clone());
             std::fs::create_dir(stage.join("snapback")).map_err(|e| e.to_string())?;
             for (name,text) in sources {
                 let path=stage.join("snapback").join(name);
@@ -293,12 +290,20 @@ pub fn deploy(options: &Options) -> i32 {
                 }
             }
             let mut n=std::fs::read_dir(&releases).map_err(|e|e.to_string())?.filter_map(Result::ok).filter_map(|e|e.file_name().to_str()?.parse::<u64>().ok()).max().unwrap_or(0);
+            let staged_bound = bound_at(stage.clone())?;
+            if options.flags.contains_key("check") {
+                let mut preview_options=options.clone();preview_options.flags.insert("deploy-direction".into(),String::new());
+                let result=super::release_preview::preview(&dir.join("store.sqlite"),stage.clone(),n.checked_add(1).ok_or("release identity exhausted")?,&preview_options);
+                let _=std::fs::remove_dir_all(&stage);
+                return result;
+            }
             let final_dir=loop {
                 n=n.checked_add(1).ok_or("release identity exhausted")?;
                 let path=releases.join(n.to_string());
                 match std::fs::create_dir(&path) {Ok(())=>break path,Err(e) if e.kind()==std::io::ErrorKind::AlreadyExists=>continue,Err(e)=>return Err(e.to_string())}
             };
-            let staged_bound = bound_at(stage.clone())?;
+            // @ref LLP 3000.000.000#10-wave-10-release-lifecycle-amendment — only committed adoption makes a candidate selectable.
+            std::fs::write(stage.join(".pending-adoption"), b"pending\n").map_err(|e|e.to_string())?;
             if staged_bound.schema != bound.schema {
                 return Err("staged source does not match the compiled schema".into());
             }
@@ -307,7 +312,7 @@ pub fn deploy(options: &Options) -> i32 {
             std::fs::File::open(&releases)
                 .and_then(|f| f.sync_all())
                 .map_err(|e| e.to_string())?;
-            activate(
+            let result=activate(
                 &dir,
                 _deployment.as_ref(),
                 n,
@@ -318,8 +323,30 @@ pub fn deploy(options: &Options) -> i32 {
                 options.flags.contains_key("restore-dormant"),
                 options.flags.contains_key("allow-feed-adoption"),
                 options,
-            )?;
-
+            );
+            match result {
+                Ok(()) => { if let Err(error)=std::fs::remove_file(final_dir.join(".pending-adoption")) {eprintln!("release {n} committed; pending-marker cleanup failed: {error}; history proves adoption");} }
+                Err(error) => {
+                    // Keep the source reserved even after a lost reply; committed history is authoritative.
+                    let matching_latest=latest(&dir).ok().filter(|id|crate::release_files::digest(&final_dir).ok()==crate::release_files::digest(&releases.join(id.to_string())).ok());
+                    let error=if error.contains("dormant names") && matching_latest.is_some() {
+                        format!("E_ADOPT: source matches latest; use `snapback4 rollback {} --to latest` to reactivate it; alternatively `snapback4 deploy {} --restore-dormant`. {error}",dir.display(),dir.display())
+                    } else {error};
+                    if options.json && error.contains("dormant names") {
+                        let mut inventory=Vec::new();let mut cursor=None;
+                        loop {
+                            let page=status(&dir,_deployment.as_ref(),0,cursor,None)?;
+                            let items=page["items"].as_array().ok_or("invalid dormant inventory response")?;
+                            if items.is_empty() {break;}
+                            inventory.extend(items.iter().cloned());
+                            cursor=items.last().and_then(|i|i["key"].as_str()).map(str::to_owned);
+                            if cursor.is_none() {break;}
+                        }
+                        println!("{}",serde_json::json!({"ok":false,"code":"E_ADOPT","message":error,"dormant":inventory}));
+                    }
+                    return Err(error);
+                }
+            }
             Ok(())
         })(),
     )
@@ -352,15 +379,9 @@ pub fn rollback(options: &Options) -> i32 {
                 })
                 .transpose()?;
             let previous = selected
-                .or_else(|| {
-                    (1..active).rev().find(|n| {
-                        dir.join("releases")
-                            .join(n.to_string())
-                            .join("snapback/schema.q")
-                            .is_file()
-                    })
-                })
+                .or_else(|| held["previous_active"].as_u64())
                 .ok_or("nothing to roll back to")?;
+            selectable(&dir, previous)?;
             let bound = bound_at(dir.join("releases").join(previous.to_string()))?;
             check_change(&dir, Some(active), &bound, options)?;
             if options.flags.contains_key("check") {
@@ -413,7 +434,7 @@ pub fn releases(options: &Options) -> i32 {
             result["latest"]=serde_json::json!(latest(&dir).ok());
             if let Some(selector)=options.positionals.get(1) {
                 let n=if selector=="latest" {latest(&dir)?} else {selector.parse::<u64>().ok().filter(|n|*n>0).ok_or("releases selection requires N or latest")?};
-                let root=dir.join("releases").join(n.to_string());bound_at(root.clone())?;
+                selectable(&dir,n)?;let root=dir.join("releases").join(n.to_string());bound_at(root.clone())?;
                 result["selected"]=serde_json::json!({"release":n,"current":result["release"].as_u64()==Some(n),"digest":crate::release_files::digest(&root)?});
             }
             println!("{}", serde_json::to_string_pretty(&result).unwrap());
@@ -627,11 +648,11 @@ mod tests {
 
 fn receipt(release:u64,generation:u64,report:&snapback4_core::store::adoption_report::AdoptionReport,options:&Options){
     if options.json {println!("{}",serde_json::json!({"release":release,"generation":generation,"adoption":report.compact(),"details":report.summary()}));}
-    else {println!("release {release} is current as generation {generation}; {}",report.compact());if options.flags.contains_key("verbose"){println!("{}",report.summary());}}
+    else {println!("release {release} is current as generation {generation}; {}; a running serve adopts the release",report.compact());if options.flags.contains_key("verbose"){println!("{}",report.summary());}}
 }
 fn latest(dir:&Path)->Result<u64,String>{
     std::fs::read_dir(dir.join("releases")).map_err(|e|e.to_string())?.filter_map(Result::ok)
-        .filter_map(|e|e.file_name().to_str()?.parse::<u64>().ok().filter(|_|bound_at(e.path()).is_ok()))
+        .filter_map(|e|e.file_name().to_str()?.parse::<u64>().ok().filter(|n|selectable(dir,*n).is_ok()))
         .max().ok_or("no complete immutable releases".into())
 }
 pub(super) fn check_release(options:&Options)->i32 {
@@ -640,6 +661,18 @@ pub(super) fn check_release(options:&Options)->i32 {
         let dir=store.parent().ok_or("store has no deployment directory")?;
         let selected=options.flags.get("release").ok_or("--release required")?;
         let n=if selected=="latest"{latest(dir)?}else{selected.parse::<u64>().ok().filter(|n|*n>0).ok_or("--release requires N or latest")?};
+        selectable(dir,n)?;
         super::release_preview::preview(&store,dir.join("releases").join(n.to_string()),n,options)
     })())
+}
+
+fn selectable(dir:&Path,release:u64)->Result<(),String> {
+    let root=dir.join("releases").join(release.to_string());
+    let store=snapback4_core::Store::open_read_only(&dir.join("store.sqlite")).map_err(|e|e.to_string())?;
+    let history:bool=store.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name='_release_events')",[],|r|r.get(0)).map_err(|e|e.to_string())?;
+    if history || root.join(".pending-adoption").exists() {
+        let committed=if history {store.conn().query_row("SELECT EXISTS(SELECT 1 FROM _release_events WHERE (release=?1 OR previous=?1) AND operation!='prune')",[i64::try_from(release).map_err(|_|"release identity exceeds SQLite range")?],|r|r.get::<_,bool>(0)).map_err(|e|e.to_string())?} else {false};
+        if !committed {return Err(format!("release {release} did not complete adoption; select a successful release with --to latest"));}
+    }
+    bound_at(root).map(|_|())
 }
