@@ -1071,6 +1071,15 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                     let mut copy = condition.clone();
                     super::intent_walk::expression(&mut copy, &mut |expr| {
                         for (name, shape) in definitions(catalog, expr) {
+                            // In a requirement, a helper can invert an input
+                            // solely in its returned expression. Inspect all
+                            // actual values, not just guard-consuming definitions.
+                            let inputs = match expr {
+                                Expr::Call { args, .. } => args.clone(),
+                                Expr::ShapeUse { base, .. } | Expr::Shape { base, .. } => vec![(**base).clone()],
+                                _ => vec![],
+                            };
+                            for input in inputs { input_guards(catalog, schema, program, &input, &known, global, system, visiting, notes); }
                             let key = format!("{shape}:{name}");
                             if !visiting.insert(key.clone()) { continue; }
                             if let Some(inner) = helper_body(catalog, &name, shape) {

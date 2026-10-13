@@ -243,3 +243,27 @@ fn query_prefix_aliases_used_as_guards_are_checked_at_observation_time() {
         assert_eq!(b.notes.iter().filter(|n| n.code == "N_UNREADABLE_PROBE").count(), count, "{tail}: {:?}", b.notes);
     }
 }
+
+#[test]
+fn requirement_called_helpers_observe_direct_inputs_before_returned_inversion() {
+    let schema = SCHEMA.replace("  unique job\n", "  unique job\n  by byJob: job, id\n");
+    for probe in ["exists approvals[job]", "exists approvals[job = job] by byJob"] {
+        for helper in [
+            "fn check(hit: bool):\n  require not hit else JOB_APPROVED\n  return true\n",
+            "fn check(hit: bool): not hit\n",
+        ] {
+            for role in ["", "  require exists staff[viewer] else FORBIDDEN\n"] {
+                let source = format!("{schema}{helper}query upload(job: id):\n{role}  require check({probe}) else JOB_APPROVED\n  return null\n");
+                let b = compile(&[("schema.q".into(), source)]);
+                assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+                assert_eq!(b.notes.iter().filter(|n| n.code == "N_UNREADABLE_PROBE").count(), usize::from(role.is_empty()), "{:?}", b.notes);
+            }
+        }
+        for role in ["", "  require exists staff[viewer] else FORBIDDEN\n"] {
+            let source = format!("{schema}shape check = {{ absent: not .hit }}\nquery upload(job: id):\n{role}  require ({{ hit: {probe} }} check).absent else JOB_APPROVED\n  return null\n");
+            let b = compile(&[("schema.q".into(), source)]);
+            assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+            assert_eq!(b.notes.iter().filter(|n| n.code == "N_UNREADABLE_PROBE").count(), usize::from(role.is_empty()), "{:?}", b.notes);
+        }
+    }
+}

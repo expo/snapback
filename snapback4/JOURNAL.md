@@ -94500,3 +94500,14 @@ cannot borrow raw-column pins from another index. The guard suite now has 20
 passing tests with direct, alias, echo, row-filter and collision variants;
 guide 120 and emitted rewrite goldens eight pass. CLI checks and final blind
 review follow this frozen delta. Round-six reviews are preserved verbatim.
+
+### 2026-10-13 — Wave 10 DIAG: requirement helper inputs
+
+The seventh Codex review found direct inputs to helpers reached from require,
+including inversion in a helper's return expression. Requirement context now
+observes all actual helper/shape input values immutably using original-time
+facts, without depending on a guard inside the definition. Direct positive
+existence authorization and visible candidate filters remain unchanged.
+Point/prefix/helper/shape and proven-role variants extend the 21-test guard
+suite; guide 120 and emitted rewrite goldens eight pass. Round-seven reviews
+are preserved verbatim; the next frozen revision receives fresh reviews.
