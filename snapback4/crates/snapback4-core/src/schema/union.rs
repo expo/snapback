@@ -54,8 +54,8 @@ pub(super) fn validate(schema: &Schema, table_name: &str, table: &Table, sync: &
     }
     // The exclusions of §8: each would need its own retention design.
     if table.through.is_some() { issue(issues, format!("{line}: a table that reads through its parent cannot sync to a union; use `online only`")); }
-    if let Some((child, _)) = schema.tables.iter().find(|(_, child)| child.through.as_ref().is_some_and(|through| through.parent == table_name)) {
-        issue(issues, format!("{line}: {child} reads through {table_name}, and a child cannot inherit a union audience; make {child} `online only` or sync {table_name} to one audience"));
+    if let Some((child, _)) = schema.tables.iter().find(|(_, child)| child.sync.is_some() && child.through.as_ref().is_some_and(|through| through.parent == table_name)) {
+        issue(issues, format!("{line}: {child} reads through {table_name}, and a child cannot inherit a union audience; make {child} `online only` or sync {table_name} to one audience; to retain independent child audiences, copy the deciding principal/group columns onto {child} (immutable, checked against the parent on insert), replace `read through` with an explicit read rule, and sync that rule (guide sharing)"));
     }
     if table.leave == LeavePolicy::DeliveredHistory { issue(issues, format!("{line}: `retain delivered-history` cannot apply to a union; a left group's retained rows and a column arm's current rows would share the group's markers")); }
     if table.written_by.values().any(|authority| !authority.audience) { issue(issues, format!("{line}: a union cannot carry private field owners (`written by` without `readable by audience`)")); }

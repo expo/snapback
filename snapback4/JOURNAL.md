@@ -94427,3 +94427,18 @@ note. Mintable service names count as bootstrap paths; impossible seats do not.
 Design and blind review record: LLP 3000.036.002. Affected check/check_notes:
 101/101 and 6/6; fixture constraint atomicity and authored uniqueness tests
 also pass. No push or publication; HS/REL2/DX2/PAGE2 retain their named scopes.
+
+### 2026-10-13 — Wave 10 DIAG: service roster authority and private refusal evidence
+
+A whole positive service-seat branch now proves server membership insert/update
+authority; ordinary self-join, inequality and negation remain refused. Service
+read grants still create no device partition. A union parent names only a
+read-through child actually inheriting sync, with the copied-column alternative.
+Grant repairs absorb member-and-extra arms already covered by a standalone
+member arm. Developer traces identify an unread parent's rule and the filtered
+caller's principal; public refusals retain their privacy boundary. Runtime
+regressions pass for enrollment/revocation, expired/revoked seats, reserved
+namespace minting, constraint atomicity, readable/hidden unique codes and
+private parent/lookup evidence. Schema unit tests 6/6 and trace renderer 8/8.
+LLP 3000.036.002 carries the normative design; final independent review remains
+in progress. No push or publication.
