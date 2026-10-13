@@ -430,34 +430,35 @@ def Rule.disclosing (sch : Schema) : Rule → Bool
 /-- A Boolean test whose only unknown is a row field. `usableGuard` separately
 requires that field to be a page pin; a literal pin is folded before this test.
 Keeping this shape narrow avoids admitting arbitrary negated expressions. -/
-def Rule.pinnedBoolTest : Rule → Bool
-  | .eq (.col .self _) (.lit (.bool _)) | .eq (.lit (.bool _)) (.col .self _) => true
-  | .ne (.col .self _) (.lit (.bool _)) | .ne (.lit (.bool _)) (.col .self _) => true
-  | .not a => a.pinnedBoolTest
+def Rule.pinnedBoolTest (td : TableDecl) : Rule → Bool
+  | .eq (.col .self c) (.lit (.bool _)) | .eq (.lit (.bool _)) (.col .self c)
+  | .ne (.col .self c) (.lit (.bool _)) | .ne (.lit (.bool _)) (.col .self c) =>
+      td.cols.any fun col => col.name == c && !col.nullable
+  | .not a => a.pinnedBoolTest td
   | _ => false
 
 /-- Positivity for a planned page guard. A negated required-Boolean test may
 depend on the runtime value of its page pin, but never on a probe. Runtime
 `granted` still uses the stricter `Rule.positive` after substituting the actual
 scalar pins. -/
-def Rule.guardPositive : Rule → Bool
-  | .not a => a.pinnedBoolTest
-  | .and a b | .or a b => a.guardPositive && b.guardPositive
+def Rule.guardPositive (td : TableDecl) : Rule → Bool
+  | .not a => a.pinnedBoolTest td
+  | .and a b | .or a b => a.guardPositive td && b.guardPositive td
   | .allow | .deny | .eq .. | .ne .. | .probe .. => true
 
 /-- Disclosure for a planned guard treats a negated pinned-Boolean test as a
 local condition on the page prefix. Negated probes remain inadmissible. -/
-def Rule.guardDisclosing (sch : Schema) : Rule → Bool
-  | .not a => a.pinnedBoolTest
-  | .and a b => a.guardDisclosing sch && b.guardDisclosing sch
+def Rule.guardDisclosing (sch : Schema) (td : TableDecl) : Rule → Bool
+  | .not a => a.pinnedBoolTest td
+  | .and a b => a.guardDisclosing sch td && b.guardDisclosing sch td
   | r => r.disclosing sch
 
 /-- A page guard the engine evaluates once per caller (LLP 3000.036 §12.1,
 §16.3; `rules::covering_grant`): no `not`, every row column it reads pinned by
 the page (none, for a grant), and disclosing. -/
-def Rule.usableGuard (sch : Schema) (pins : List (String × Expr)) (d : Rule) : Bool :=
+def Rule.usableGuard (sch : Schema) (td : TableDecl) (pins : List (String × Expr)) (d : Rule) : Bool :=
   let d' := d.guardForm pins
-  d'.selfCols.all (fun c => pins.any (·.1 == c)) && d'.guardPositive && d'.guardDisclosing sch
+  d'.selfCols.all (fun c => pins.any (·.1 == c)) && d'.guardPositive td && d'.guardDisclosing sch td
 
 def Rule.party? : Rule → Option String
   | .eq (.col .self c) .viewer | .eq .viewer (.col .self c) => some c
@@ -465,10 +466,10 @@ def Rule.party? : Rule → Option String
 
 /-- Case 2's parties: a read rule of at least two disjuncts, each a party
 (`.col = viewer`) or a usable page guard, with at least one party. -/
-def Rule.branchParties (sch : Schema) (pins : List (String × Expr)) (guards : Bool) (r : Rule) : Option (List String) :=
+def Rule.branchParties (sch : Schema) (td : TableDecl) (pins : List (String × Expr)) (guards : Bool) (r : Rule) : Option (List String) :=
   let ds := r.disjuncts
   let ps := (ds.filterMap Rule.party?).eraseDups
-  if 2 ≤ ds.length && !ps.isEmpty && ds.all (fun d => d.party?.isSome || (guards && d.usableGuard sch pins)) then some ps else none
+  if 2 ≤ ds.length && !ps.isEmpty && ds.all (fun d => d.party?.isSome || (guards && d.usableGuard sch td pins)) then some ps else none
 
 /-- An alternative's eligible pin: not `id`, and on a nullable column only
 `viewer` (a branch never seeks a null the filter would reject). -/
@@ -531,7 +532,7 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
             || alts.any fun bases => bases.any fun a => (a.filterMap Expr.eqPin).any (·.1 == pair.2)
       | .party _ => false
     let case1 := if reservedMembership || pinnedMembership then false else case1Candidate
-    let case2 := if !guards || reservedMembership || pinnedMembership then false else match td.read.branchParties sch guardPins true with
+    let case2 := if !guards || reservedMembership || pinnedMembership then false else match td.read.branchParties sch td guardPins true with
       | some ps =>
         let bases := alts.getD [[]]
         -- The grant lane is always planned (the system reads it whole).
