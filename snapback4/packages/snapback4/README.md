@@ -1,7 +1,6 @@
 # snapback4
 
-A scale-to-zero backend: Quarry declares your data and rules; typed clients read online or on a device, using the same
-Rust interpreter as the server. The package carries the TypeScript client and the CLI (prebuilt for macOS arm64 and Linux x64).
+A scale-to-zero backend: Quarry declares your data and rules; typed clients read online or on a device, using the same Rust interpreter as the server. The package carries the TypeScript client and the CLI (prebuilt for macOS arm64 and Linux x64).
 
 ## Start here: a new app in five steps
 
@@ -35,20 +34,11 @@ npx snapback4 init --web                                   # or --expo: sign-in 
 
 ### 1. Create and run the backend
 
-Follow this `README.md` through password signup, profile, avatar and reopen. Run step 1 above with `npx snapback4 init --expo`, then
-`npm install`; the example uses the Expo starter's React Native and SecureStore. Replace `snapback/schema.q`, `src/client.ts`
-and `App.tsx` with the blocks below. Run `npx snapback4 init --adapt` to remove untouched todo fixtures, then `npx snapback4 check`; keep `npx snapback4 dev` running in one
-terminal and `npm start` in another (Expo Go), or `npm run ios:dev` for a native development build. Do not set a persona
-for this password example. The iOS simulator reaches `http://127.0.0.1:4400`; set `EXPO_PUBLIC_SNAPBACK_URL` to your TLS
-deployment for a physical phone. Keep the starter's `expo-env.d.ts`: it types `process.env`.
+Follow this `README.md` through password signup, profile, avatar and reopen. Run step 1 above with `npx snapback4 init --expo`, then `npm install`; the example uses the Expo starter's React Native and SecureStore. Replace `snapback/schema.q`, `src/client.ts` and `App.tsx` with the blocks below. Run `npx snapback4 init --adapt` to remove untouched todo fixtures, then `npx snapback4 check`; keep `npx snapback4 dev` running in one terminal and `npm start` in another (Expo Go), or `npm run ios:dev` for a native development build. Do not set a persona for this password example. The iOS simulator reaches `http://127.0.0.1:4400`; set `EXPO_PUBLIC_SNAPBACK_URL` to your TLS deployment for a physical phone. Keep the starter's `expo-env.d.ts`: it types `process.env`.
 
 ### 2. Declare identity and a profile
 
-An email-and-password product declares `use identity password`; plain `use identity` also mints guest sessions. Password
-signup requires at least 8 characters (Unicode scalar values) and at most 1,024 UTF-8 bytes; login accepts at most 1,024
-UTF-8 bytes. Sessions normally last seven days. Handles are discoverable; profiles and avatars are private to their
-owner. `profileFor` explicitly refuses another owner; table rules otherwise hide unreadable rows as missing. Handle
-claims are server-authoritative.
+An email-and-password product declares `use identity password`; plain `use identity` also mints guest sessions. Password signup requires at least 8 characters (Unicode scalar values) and at most 1,024 UTF-8 bytes; login accepts at most 1,024 UTF-8 bytes. Sessions normally last seven days. Handles are discoverable; profiles and avatars are private to their owner. `profileFor` explicitly refuses another owner; table rules otherwise hide unreadable rows as missing. Handle claims are server-authoritative.
 
 ```quarry
 use identity password
@@ -88,19 +78,13 @@ mutation placeAvatar(avatar: image <=10000000):
   update profiles[principal = viewer] { avatar }
 ```
 
-A post-signup availability check uses the new session. Incomplete or stale availability is not permission to claim a handle.
-Availability and handle saves use the server; your private profile is held locally. The unique index decides races.
+A post-signup availability check uses the new session. Incomplete or stale availability is not permission to claim a handle. Availability and handle saves use the server; your private profile is held locally. The unique index decides races.
 
 ### 3. Create the app
 
-Replace `src/client.ts`: the app restores the session, opens its client and owns pending writes across restarts.
-Native sessions use SecureStore; browser persistence is explicit because page scripts can read localStorage. Keep the starter's Metro config and wasm transformer. `assets` retains viewed media within its device byte budget; Expo Go uses the online client and ignores it.
+Replace `src/client.ts`: the app restores the session, opens its client and owns pending writes across restarts. Native sessions use SecureStore; browser persistence is explicit because page scripts can read localStorage. Keep the starter's Metro config and wasm transformer. `assets` retains viewed media within its device byte budget; Expo Go uses the online client and ignores it.
 
-At every milestone, `npm run export:ios` publishes Hermes to `dist/` and returns; native proof runs in the background at background QoS while you keep building.
-Both Expo starters include it. The next export and `npx snapback4 doctor` print the result; `npx snapback4 witness status --wait` waits for your final report.
-Failures stay visible with their log paths without failing a successful export. Unavailable hosts report a skip. A newer export supersedes pending proof.
-Receipts in `artifacts/native-smoke/<timestamp>` bind the loaded export hash. Matching native inputs reuse a Release app; native changes rebuild. Background preparation allows 900 seconds without output activity and at most 60 minutes total. Activity alone does not establish build progress; repeated output can keep a stalled build occupied until that cap.
-`npm run native:smoke` explicitly waits for a full build and smoke. Empty starters prove lifecycle; write replay needs an app scenario (`guide witness`).
+At every milestone, `npm run export:ios` publishes Hermes to `dist/` and returns; native proof runs in the background at background QoS while you keep building. Both Expo starters include it. The next export and `npx snapback4 doctor` print the result; `npx snapback4 witness status --wait` waits for your final report. Failures stay visible with their log paths without failing a successful export. Unavailable hosts report a skip. A newer export supersedes pending proof. Receipts in `artifacts/native-smoke/<timestamp>` bind the loaded export hash. Matching native inputs reuse a Release app; native changes rebuild. Background preparation allows 900 seconds without output activity and at most 60 minutes total. Activity alone does not establish build progress; repeated output can keep a stalled build occupied until that cap. `npm run native:smoke` explicitly waits for a full build and smoke. Empty starters prove lifecycle; write replay needs an app scenario (`guide witness`).
 
 ```ts
 // src/client.ts
@@ -126,9 +110,7 @@ export const app = createApp({
 
 ### 4. Sign in, save and render
 
-Replace `App.tsx`. A refused sign-in returns `{ ok: false, why }`. A missing profile resumes onboarding; a denied read
-remains an error. Enter an image URI accessible to the host (on web its server must allow CORS), or pass a photo
-picker's Blob to `upload`. Uploads require a connection; placement is a mutation.
+Replace `App.tsx`. A refused sign-in returns `{ ok: false, why }`. A missing profile resumes onboarding; a denied read remains an error. Enter an image URI accessible to the host (on web its server must allow CORS), or pass a photo picker's Blob to `upload`. Uploads require a connection; placement is a mutation.
 
 ```tsx
 // App.tsx
@@ -185,11 +167,9 @@ function Profile() {
 }
 ```
 
-A failed handle save keeps the session; choose another handle. Under `AppProvider`, online mutations persist IDs and arguments before dispatch;
-local devices own a durable outbox. Pending writes stay with their original account. Terminal `sent` confirms execution; `failed` carries the refusal.
+A failed handle save keeps the session; choose another handle. Under `AppProvider`, online mutations persist IDs and arguments before dispatch; local devices own a durable outbox. Pending writes stay with their original account. Terminal `sent` confirms execution; `failed` carries the refusal.
 
-Explicit write IDs must use the accepted form (26 Crockford base32 characters, starting with `0`–`7`). Normally omit `id`; the client mints it. To keep one intent across retries, call `mintId()` once and keep that ID with its unchanged
-arguments. For a fixture or seed label, `idFrom(label)` gives the same valid ID every time (it sorts before minted IDs):
+Explicit write IDs must use the accepted form (26 Crockford base32 characters, starting with `0`–`7`). Normally omit `id`; the client mints it. To keep one intent across retries, call `mintId()` once and keep that ID with its unchanged arguments. For a fixture or seed label, `idFrom(label)` gives the same valid ID every time (it sorts before minted IDs):
 
 ```ts
 import { mintId, idFrom } from "snapback4/client";

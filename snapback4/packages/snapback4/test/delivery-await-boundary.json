@@ -536,8 +536,8 @@
     "sha256": "9bb04329d983701a1907eeb3c0d2852716cfe7f5cdca39bfc347e63776b16af0"
   },
   "witness-web.ts": {
-    "count": 2,
-    "sha256": "020163a24ffe12d6a54f1ecc2663da1cd9f1f30cc2aaf3e77f88ccdc7eabf206"
+    "count": 3,
+    "sha256": "b50ed1c62dc12414b8ddffbc3abfcddaa21212f951c56d62abfe4f878b8f8be6"
   },
   "worker-ledger.ts": {
     "count": 6,
@@ -546,6 +546,10 @@
   "worker.ts": {
     "count": 40,
     "sha256": "a6eae732b03a25ae5889d80e2f30fd6bb79fe73039ec02034f43c81c1b1cf82a"
+  },
+  "write-settlement.ts": {
+    "count": 2,
+    "sha256": "84d1f76b664d14b82a626b86ab0023730cc64511afe0dfdec89fe86bd5a054c8"
   },
   "writes.ts": {
     "count": 11,
