@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
@@ -12,9 +12,9 @@ import { createClient } from '../dist/client.js';
 import { createLocalClient } from '../dist/local.js';
 import { existence, readPresentation } from '../dist/contract.js';
 import { processDevice } from '../dist/native.js';
-import { memoryPersistence, webDevice } from '../dist/web.js';
+// @ref LLP 3000.001.000#build-stamp — one in-process glue instance must keep one runtime identity across fixture openers.
+import { opener as fixtureOpener } from './helpers/answers-stay.mjs';
 const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, '../../../target/debug/snapback4');
-const wasm = readFileSync(new URL('../src/wasm/snapback4_device_bg.wasm', import.meta.url));
 const until = async check => { return awaitState(check); };
 const source = `use personas alice, bob
 table rows:
@@ -52,7 +52,7 @@ for (const tier of ['wasm', 'native']) test(`${tier}: real hidden/missing reads 
   online = createClient({ url, persona: 'alice' });
   const onlineHidden = await online.query(op, hiddenArgs), onlineMissing = await online.query(op, missingArgs);
   assert.equal(existence(onlineHidden), 'absent'); assert.deepEqual(onlineHidden, onlineMissing);
-  const opener = tier === 'wasm' ? webDevice({ wasm, persist: memoryPersistence() }) : processDevice({ dir: join(dir, 'replica'), binary });
+  const opener = tier === 'wasm' ? fixtureOpener('wasm', dir) : processDevice({ dir: join(dir, 'replica'), binary });
   const device = { async open(...args) {
     const core = await opener.open(...args);
     return { ...core, async call(request, notify) {
