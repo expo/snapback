@@ -115,6 +115,43 @@ query documents(c: cursor ?):
 }
 
 #[test]
+fn row_id_targets_share_by_id_order_and_resume_from_their_pinned_position() {
+    let source = "table documents:
+  owner: principal
+  read <- .owner = viewer or exists shares[.id, viewer]
+  online only
+table shares:
+  document: documents
+  principal: principal
+  unique document, principal
+  read <- .principal = viewer
+  online only
+query documents(c: cursor ?):
+  return documents first 1 by .id after c
+";
+    let rows = vec![
+        ("documents", vec![("id", id("a-owned")), ("owner", id("alice"))]),
+        ("documents", vec![("id", id("b-shared")), ("owner", id("bob"))]),
+        ("documents", vec![("id", id("c-hidden")), ("owner", id("bob"))]),
+        ("documents", vec![("id", id("d-shared")), ("owner", id("bob"))]),
+        ("shares", vec![("id", id("s1")), ("document", id("b-shared")), ("principal", id("alice"))]),
+        ("shares", vec![("id", id("s2")), ("document", id("d-shared")), ("principal", id("alice"))])];
+    let compiled = bound(source);
+    assert!(!compiled.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"), "{:#?}", compiled.notes);
+    assert!(compiled.schema.required_capabilities().contains("branch-membership-v2"));
+    let mut engine = engine(source, rows);
+    let first = engine.query("documents", Context::new("alice", args())).unwrap();
+    assert_eq!(ids(&first.data), ["a-owned"]);
+    let second = engine.query("documents", Context::new("alice", BTreeMap::from([
+        ("c".into(), Value::String(first.next.expect("first cursor")))]))).unwrap();
+    assert_eq!(ids(&second.data), ["b-shared"]);
+    let third = engine.query("documents", Context::new("alice", BTreeMap::from([
+        ("c".into(), Value::String(second.next.expect("second cursor")))]))).unwrap();
+    assert_eq!(ids(&third.data), ["d-shared"]);
+    assert!(third.complete && third.next.is_none(), "{third:?}");
+}
+
+#[test]
 fn parent_owner_by_id_witness_discovers_targets_without_a_cap() {
     let source = "table offers:
   baker: principal

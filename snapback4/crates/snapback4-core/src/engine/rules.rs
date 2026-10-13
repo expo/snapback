@@ -558,9 +558,13 @@ pub fn branch_merge_lazy(schema: &Schema, merge: &Merge) -> bool {
                 .and_then(|column| table.columns.get(column)).is_some_and(|kind| !kind.is_optional())))
             .any(|candidate| candidate.components.iter().all(|part| part.column().is_some_and(|column|
                 index.components.iter().take(scan.prefix.len()).any(|prefix| prefix.column() == Some(column)))));
+        // A membership target selected by its intrinsic id is physically a
+        // fully pinned byId point, but its logical merge position is that id.
+        // Compare it as the unpinned id suffix used by every other lane.
+        let position_prefix = scan.prefix.len() - usize::from(membership_point_id(schema, lane));
         let same = match suffix {
-            Some((first_index, first_prefix)) => same_merge_position(table, first_index, first_prefix, index, scan.prefix.len()),
-            None => { suffix = Some((index, scan.prefix.len())); true }
+            Some((first_index, first_prefix)) => same_merge_position(table, first_index, first_prefix, index, position_prefix),
+            None => { suffix = Some((index, position_prefix)); true }
         };
         let authority = if lane.membership() { membership_branch(schema, lane) }
             else if lane.system() { lane.source.is_none() }
@@ -569,7 +573,8 @@ pub fn branch_merge_lazy(schema: &Schema, merge: &Merge) -> bool {
         lane.project.is_none() && lane.setup.is_empty() && scan.table == first.scan.table
             && scan.prefix.iter().all(|key| matches!(key, IndexKeyExpr::Scalar(_)))
             && scan.order == first.scan.order && !scan.existence && same
-            && scan.prefix.len() < index.components.len() && index.word_component().is_none()
+            && (scan.prefix.len() < index.components.len() || membership_point_id(schema, lane))
+            && index.word_component().is_none()
             // A dynamic target-id lane uses `[id, order…]`: its scalar id
             // prefix is already a total point even though the physical index
             // is non-unique and need not repeat id as a suffix.
@@ -577,6 +582,19 @@ pub fn branch_merge_lazy(schema: &Schema, merge: &Merge) -> bool {
                 || index.components.last().and_then(|component| component.column()).is_some_and(|c| c == "id"))
             && authority
     })
+}
+
+/// An intrinsic-id membership lane retains id as its logical merge position
+/// even though the physical byId scan pins that sole component.
+pub(crate) fn membership_point_id(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
+    if !lane.membership() || lane.scan.range.is_some() { return false; }
+    let Some(table) = schema.table(&lane.scan.table) else { return false };
+    let Some(index) = table.index(&lane.scan.index) else { return false };
+    let Some(Expr::Field { base, name: source_column }) = lane.distinct.as_ref() else { return false };
+    if !matches!(base.as_ref(), Expr::Variable(binding) if binding == &lane.binding) { return false; }
+    lane.scan.prefix.len() == index.components.len()
+        && index.components.last().and_then(|part| part.column()).is_some_and(|column| column == "id")
+        && membership_outer_column(schema, lane, source_column) == Some("id")
 }
 
 /// The source is readable under its fixed pins, and its row is the exact

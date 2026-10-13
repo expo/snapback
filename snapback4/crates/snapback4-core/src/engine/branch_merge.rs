@@ -231,16 +231,30 @@ impl Runner<'_> {
         // Scan merely to clear it; evaluate only the remaining bounds here.
         let mut bounds = self.word_bounds(scan, definition, index, None, metered, true)?;
         if metered && let Some((values, _)) = after { self.meter.heap(DisclosedKeys(values).heap())?; }
-        match after { Some((values, true)) => bounds.at_or_after = Some(values.clone()), Some((values, false)) => bounds.after = Some(values.clone()), None => {} }
+        let point_id = rules::membership_point_id(self.schema, lane);
+        let mut done = false;
+        if point_id {
+            // The point's pinned id is also its logical page position. Decide
+            // the shared cursor here instead of applying it after the fully
+            // consumed physical prefix.
+            if let Some((values, inclusive)) = after {
+                let position = &prefix[prefix.len() - 1..];
+                let comparison = Self::compare(position, values, scan.order);
+                done = comparison == Ordering::Less || comparison == Ordering::Equal && !inclusive;
+            }
+        } else {
+            match after { Some((values, true)) => bounds.at_or_after = Some(values.clone()), Some((values, false)) => bounds.after = Some(values.clone()), None => {} }
+        }
         let suffix = index.components.iter().skip(scan.prefix.len()).filter_map(|component| component.key_name());
         let (position_len, ends_in_id) = suffix.fold((0usize, false), |(len, _), name| (len + 1, name == "id"));
-        let position_len = position_len + usize::from(!ends_in_id);
-        Ok(Lane { scan, prefix, bounds, buffer: VecDeque::new(), done: false, grant, metered, position_len, through: None })
+        let position_len = position_len + usize::from(!ends_in_id || point_id);
+        Ok(Lane { scan, prefix, bounds, buffer: VecDeque::new(), done, grant, metered, position_len, through: None })
     }
 
     /// Read a lane's next batch strictly after its position, recording how
     /// far it examined.
     fn fill_branch(&mut self, lane: &mut Lane<'_>, batch: usize) -> Result<(), RuntimeError> {
+        if lane.done { return Ok(()); }
         // Arm the capture with the lane's own table and index: `scan_consumed`
         // then records the last rule-visible candidate this read examined,
         // filter rejects included (never a nested read's key).

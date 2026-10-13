@@ -240,7 +240,9 @@ fn push_membership_lane(candidate: &Requests, table: &TableInfo, lanes: &mut Vec
 fn membership_source_capped(tables: &Tables, source: &ReadExpr) -> bool {
     let Some(table) = tables.get(&source.table) else { return false };
     let pinned: Vec<&str> = source.keys.iter().filter_map(|key| key.column.as_deref()).collect();
-    table.decl.caps.iter().any(|cap| cap.by.iter().all(|column| pinned.contains(&column.as_str())))
+    table.decl.caps.iter().any(|cap| cap.by.iter().all(|column| pinned.contains(&column.as_str()))
+        && !cap.by.iter().any(|column| table.decl.columns.iter().any(|field| &field.name == column
+            && field.on_delete.as_ref().is_some_and(|(action, _)| action == &OnDelete::SetNull))))
 }
 
 fn membership_cap_repair(table: &TableInfo, source: &ReadExpr, index: &IndexDecl) -> Option<String> {
