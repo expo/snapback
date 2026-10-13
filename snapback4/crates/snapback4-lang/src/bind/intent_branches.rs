@@ -30,7 +30,9 @@ fn bounded_page(tables: &Tables, requests: &Requests, read: &ReadExpr) -> Option
     let mut probe = requests.clone();
     probe.read(tables, &mut planned, false);
     let pinned: Vec<String> = planned.keys.iter().filter_map(|key| key.column.clone()).collect();
-    let cap = table.decl.caps.iter().filter(|cap| cap.by.iter().all(|column| pinned.contains(column)))
+    let cap = table.decl.caps.iter().filter(|cap| cap.by.iter().all(|column| pinned.contains(column))
+        && !cap.by.iter().any(|column| table.decl.columns.iter().any(|field| &field.name == column
+            && field.on_delete.as_ref().is_some_and(|(action, _)| action == &OnDelete::SetNull))))
         .map(|cap| cap.max).chain(table.indexes.iter().filter(|index| table.total_unique(index))
             .filter(|index| index.columns.iter().all(|column| pinned.contains(column))).map(|_| 1)).min()?;
     if u64::from(cap) > snapback4_core::Ceilings::default().examined { return None; }

@@ -159,7 +159,7 @@ impl Runner<'_> {
                 // @ref LLP 3000.036.001#16 — a full union replica walks its
                 // held authorized rows; it never decides a remote role probe.
                 // scan_consumed still checks acquisition and meters the page.
-                let held_union = self.device && definition.sync.as_ref()
+                let held_union = lane.grant() && self.device && definition.sync.as_ref()
                     .is_some_and(|sync| sync.is_union());
                 if !self.context.is_system() && !held_union {
                     let rule = if lane.guarded() { rules::page_guard_decision(self.schema, &lane.scan) }

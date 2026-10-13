@@ -158,10 +158,11 @@ fn guard_decision(schema: &Schema, scan: &Scan, pinned_guards: bool) -> Option<R
     let table = schema.table(&scan.table)?;
     if table.through.is_some() { return None; }
     let rule = &table.rules.read;
-    if !matches!(rule, RuleExpr::Or(_)) { return None; }
+    if !matches!(rule, RuleExpr::Or(_) | RuleExpr::And(_)) { return None; }
     let pinned = if pinned_guards { scan_pinned(table, scan) } else { Vec::new() };
     let pinned_map: BTreeMap<_, _> = pinned.iter().map(|(column, value)| (*column, *value)).collect();
-    let guards: Vec<RuleExpr> = rule.disjuncts().into_iter()
+    let alternatives = positive_ranges(rule).unwrap_or_else(|| rule.disjuncts().into_iter().cloned().collect());
+    let guards: Vec<RuleExpr> = alternatives.iter()
         .filter_map(|disjunct| {
             let simplified = simplify_prefix(disjunct, &scan.table, table, &pinned_map);
             let mut fields = BTreeSet::new();
@@ -172,6 +173,34 @@ fn guard_decision(schema: &Schema, scan: &Scan, pinned_guards: bool) -> Option<R
         })
         .collect();
     (!guards.is_empty()).then(|| if guards.len() == 1 { guards.into_iter().next().unwrap() } else { RuleExpr::Or(guards) })
+}
+
+// @ref LLP 3000.036.001#16 — positive compound guards retain every conjunct,
+// with the same seven-alternative bound as compile-time distribution.
+fn positive_ranges(rule: &RuleExpr) -> Option<Vec<RuleExpr>> {
+    match rule {
+        RuleExpr::Or(parts) => {
+            let mut out = Vec::new();
+            for part in parts {
+                let alternatives = positive_ranges(part)?;
+                if out.len() + alternatives.len() > 7 { return None; }
+                out.extend(alternatives);
+            }
+            Some(out)
+        }
+        RuleExpr::And(parts) => {
+            let mut out = vec![Vec::new()];
+            for part in parts {
+                let alternatives = positive_ranges(part)?;
+                if out.len().saturating_mul(alternatives.len()) > 7 { return None; }
+                out = out.into_iter().flat_map(|prefix| alternatives.iter().map(move |part| {
+                    let mut conjunction = prefix.clone(); conjunction.push(part.clone()); conjunction
+                })).collect();
+            }
+            Some(out.into_iter().map(RuleExpr::And).collect())
+        }
+        _ => Some(vec![rule.clone()]),
+    }
 }
 
 /// The columns the scan's prefix pins, with their value expressions.
@@ -587,7 +616,7 @@ pub fn branch_merge_lazy(schema: &Schema, merge: &Merge) -> bool {
 
 /// An intrinsic-id membership lane retains id as its logical merge position
 /// even though the physical byId scan pins that sole component.
-pub(crate) fn membership_point_id(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
+pub fn membership_point_id(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
     if !lane.membership() || lane.scan.range.is_some() { return false; }
     let Some(table) = schema.table(&lane.scan.table) else { return false };
     let Some(index) = table.index(&lane.scan.index) else { return false };

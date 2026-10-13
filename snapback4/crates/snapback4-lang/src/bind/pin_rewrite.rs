@@ -78,7 +78,11 @@ pub(super) fn hidden_parent_repair(schema: &Schema, name: &str, table: &Table) -
         let [RuleTerm::Field(reference)] = key.as_slice() else { return None };
         let [(owner, RuleTerm::Viewer)] = equalities.as_slice() else { return None };
         let source = schema.table(parent)?;
-        if source.index(index)?.columns() != ["id"] || !source.immutable_fields().any(|field| field == owner) { return None; }
+        if source.index(index)?.columns() != ["id"] || !source.immutable_fields().any(|field| field == owner)
+            || source.read_lifetime_sensitive() || source.through.is_some()
+            || table.on_delete.get(reference).is_some_and(|action| !matches!(action, snapback4_core::schema::references::OnDelete::Restrict | snapback4_core::schema::references::OnDelete::Cascade))
+            || source.columns.get(owner) != Some(&ColumnType::Principal)
+            || !matches!(table.columns.get(reference), Some(ColumnType::Ref { table }) if table == parent) { return None; }
         Some((rule, parent, reference, owner))
     })?;
     let (rule, parent, reference, owner) = probe;
@@ -86,7 +90,7 @@ pub(super) fn hidden_parent_repair(schema: &Schema, name: &str, table: &Table) -
     let copy = format!("{reference}{}{}", chars.next()?.to_uppercase(), chars.as_str());
     if table.columns.contains_key(&copy) { return None; }
     let read = table.rules.read.quarry().replace(&rule.quarry(), &format!(".{copy} = viewer"));
-    Some(format!("on table {} add `{copy}: principal` and `immutable {copy}`; replace its read declaration with `read <- {read}`; replace its insert declaration with `insert <- ({}) and exists {parent}[.{reference}, {owner} = .{copy}]`; in every `insert {} {{ … }}` payload add `{copy}: {reference}.{owner}` (the reference's readable parent field), and backfill that field from {parent}.{owner} in existing rows and trusted seeds before adoption. The parent declares `immutable {owner}`, so this preserves the original readers; a mutable parent owner instead requires transactional copy propagation", name, table.rules.insert.quarry(), name))
+    Some(format!("on table {} declare `{reference}: {parent} on delete restrict`, add `{copy}: principal` and `immutable {reference}, {copy}`; replace its read declaration with `read <- {read}`; replace its insert declaration with `insert <- ({}) and exists {parent}[.{reference}, {owner} = .{copy}]`; in every `insert {} {{ … }}` payload add `{copy}: {copy}Source.{owner}` after inserting `{copy}Source = {parent}[{reference}] ! else NOT_FOUND` immediately before that insert (using the same reference value supplied in its payload), and backfill that field from {parent}.{owner} in existing rows and trusted seeds before adoption. The parent declares `immutable {owner}`, so this preserves the original readers; a mutable parent owner instead requires transactional copy propagation", name, table.rules.insert.quarry(), name))
 }
 
 /// The page statement of a one-statement query declaration: its `return`'s

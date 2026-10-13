@@ -196,8 +196,8 @@ pub fn programs(
         fact.branch_merge = merges.iter().any(|m| m.branches());
         fact.branch_pages_v2 = merges.iter().any(|merge| merge.branches() && merge.lanes.iter().any(|lane|
             lane.guarded() || schema.table(&lane.scan.table).is_some_and(|table|
-                table.sync.as_ref().is_some_and(snapback4_core::schema::Sync::is_union)
-                || table.index(&lane.scan.index).is_some_and(|index| lane.scan.prefix.len() == index.components.len()))));
+                lane.grant() && table.sync.as_ref().is_some_and(snapback4_core::schema::Sync::is_union)
+                || !snapback4_core::engine::rules::membership_point_id(schema, lane) && table.index(&lane.scan.index).is_some_and(|index| lane.scan.prefix.len() == index.components.len()))));
         fact.branch_membership = merges.iter().any(|merge| merge.lanes.iter().any(|lane| lane.membership()));
         fact.branch_membership_v2 = merges.iter().flat_map(|merge| &merge.lanes)
             .any(|lane| membership_v2(schema, lane));
