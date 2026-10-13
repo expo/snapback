@@ -3987,3 +3987,9 @@ export function PhotoCapture({ photo }: { photo: Blob }) {
   return <button disabled={!upload.available} onClick={() => upload.uploadAndPlace({ conversationId: "c" }, photo)}>{upload.state?.state ?? "Send photo"}</button>;
 }
 ```
+
+### Device build identity
+
+Every wasm producer linking `snapback4-device` receives a `snapback4.engine` custom section from the crate. Its `{format:1, version, capabilities}` agrees with `engine_info`, available before partition open. Native hosts expose the same identity; Rust adapters use `engine::headers()` and forward `x-snapback-device` with schema, sync and changes requests. Exact's `.wasm.json` and the package's `.engine.json` are derived diagnostics. `check` and Exact preflight read the embedded identity and compare the server's public-projection floor and capabilities. A package version or sidecar cannot substitute for it.
+
+The public declarations typecheck with ES2022 and WebWorker libraries without DOM or Node globals. Custom session mirrors implement the structural `StorageLike` interface from `snapback4/auth`.

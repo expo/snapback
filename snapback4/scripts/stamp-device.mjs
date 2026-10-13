@@ -1,17 +1,12 @@
-// @ref LLP 3000.001.000#build-stamp — stamp the optimized artifact using its own exported engine identity.
+// @ref LLP 3000.001.000#build-stamp — verify the crate's stamp survives bindgen and optimization.
 import { readFileSync, writeFileSync } from 'node:fs';
+import { isDeepStrictEqual } from 'node:util';
 import { initSync, engine_info } from '../packages/snapback4/src/wasm/snapback4_device.js';
 const file = process.argv[2];
-const bytes = readFileSync(file);
-const module = new WebAssembly.Module(bytes);
-if (WebAssembly.Module.customSections(module, "snapback4.engine").length) throw new Error("device stamp already present; rebuild from the unstamped optimized artifact");
+const module = new WebAssembly.Module(readFileSync(file));
+const sections = WebAssembly.Module.customSections(module, 'snapback4.engine');
+if (sections.length !== 1) throw new Error('device must carry exactly one crate-owned snapback4.engine section');
+const stamp = JSON.parse(Buffer.from(sections[0]).toString());
 initSync({ module });
-const stamp = JSON.parse(engine_info());
-const leb = n => { const bytes = []; do { let b = n & 127; n >>>= 7; bytes.push(b | (n ? 128 : 0)); } while (n); return Buffer.from(bytes); };
-const name = Buffer.from('snapback4.engine');
-const body = Buffer.concat([leb(name.length), name, Buffer.from(JSON.stringify(stamp))]);
-writeFileSync(file, Buffer.concat([bytes, Buffer.from([0]), leb(body.length), body]));
-const written = new WebAssembly.Module(readFileSync(file));
-const stamps = WebAssembly.Module.customSections(written, 'snapback4.engine');
-if (stamps.length !== 1 || Buffer.compare(Buffer.from(stamps[0]), Buffer.from(JSON.stringify(stamp)))) throw new Error('device stamp readback differs');
+if (!isDeepStrictEqual(stamp, JSON.parse(engine_info()))) throw new Error('embedded identity differs from engine_info');
 writeFileSync(file + '.engine.json', JSON.stringify(stamp, null, 2) + '\n');

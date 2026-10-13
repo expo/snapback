@@ -8,6 +8,7 @@
 //! `snapback4 device` process for Node.
 
 pub mod call;
+pub mod engine;
 pub mod device;
 pub mod memory;
 pub mod opening;

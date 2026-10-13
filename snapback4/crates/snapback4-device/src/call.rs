@@ -71,7 +71,8 @@ pub fn call<S: DeviceStore>(device: &mut Device<S>, mut request: Json) -> Json {
     };
     let result = answer((|| -> Result<Json, RuntimeError> {
         Ok(match op.as_str() {
-            "engine_info" => encoded(&snapback4_core::device_protocol::DeviceEngine::current())?,
+            "engine_headers" => encoded(&crate::engine::headers())?,
+            "engine_info" => encoded(&crate::engine::info())?,
             // @ref LLP 3000.019#3.4 — local physical counts, never server data or query authority.
             #[cfg(feature = "native")]
             "residency" => device.residency()?,

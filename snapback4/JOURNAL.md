@@ -94413,3 +94413,24 @@ stops (difftest retained findings; macOS SUN_LEN control socket; 0.2.33 fence
 and `/private/var` worker dir), each fixed on main. Hashes, timings and every
 attempt: `reports/20261013-publication-0.4.25/REPORT.md`; the 0.4.24 Linux
 evidence: `reports/20261012-publication-0.4.24/`.
+
+## 2026-10-13 — HS: device identity belongs to the crate
+
+Wave 10's Exact lanes exposed the parallel HAND/EX4 contracts: embedded
+`snapback4.engine` versus Cargo-lock/sidecar identity, and required versus
+missing transport headers. The device crate now emits the custom section for
+all wasm producers and exposes pre-open identity and headers. Build scripts
+verify preservation rather than append stamps. Exact derives its diagnostic
+sidecar, forwards the crate's headers, and compares the same public-projection
+floor/capabilities as check. Version components are decimal u32 values; the
+repair command is `bun exact.mjs snapback --rebuild`.
+
+Public declarations use structural StorageLike and pass ES2022/WebWorker with
+no DOM or Node globals; bindgen's optional ESNext disposal declaration is not
+in the ES2022 surface. Web starters install Node types and all seven init
+variants typecheck. External crate linkage survives bindgen/optimization and
+passes check/schema/sync/changes. Fresh Exact browser guestbooks exercise dev
+and serve, offline write/reconnect, and authoritative server delivery. The
+wasm remains under the existing 698,886 B budget (698,727 B gzip); no ceiling
+was raised. Review and verification records are in WORKSTREAM-REPORT.md and
+the HS artifacts under llp/reviews. No publication or push was performed.

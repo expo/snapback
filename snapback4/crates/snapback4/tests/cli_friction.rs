@@ -802,7 +802,7 @@ fn not_run_probes_make_the_summary_incomplete() {
 fn stamped_wasm(stamp: &serde_json::Value) -> Vec<u8> {
     fn leb(mut n: usize) -> Vec<u8> { let mut b = Vec::new(); loop { let low = (n & 127) as u8; n >>= 7; b.push(low | if n > 0 { 128 } else { 0 }); if n == 0 { return b; } } }
     let name = b"snapback4.engine";
-    let mut section = leb(name.len()); section.extend(name); section.extend(serde_json::to_vec(stamp).unwrap());
+    let mut section = leb(name.len()); section.extend(name); let engine: snapback4_core::device_protocol::DeviceEngine = serde_json::from_value(stamp.clone()).unwrap(); section.extend(serde_json::to_vec(&engine).unwrap());
     let mut wasm = b"\0asm\x01\0\0\0".to_vec(); wasm.push(0); wasm.extend(leb(section.len())); wasm.extend(section); wasm
 }
 #[test]

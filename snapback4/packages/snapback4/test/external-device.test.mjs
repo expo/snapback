@@ -1,0 +1,50 @@
+// @ref LLP 3000.001.000#build-stamp — independent producers inherit the stamp without packaging scripts.
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
+import { join, resolve } from 'node:path';
+import { execFileSync, spawnSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
+import { server, binary } from './helpers/app-server.mjs';
+const workspace = resolve(import.meta.dirname, '../../..');
+test('external crate-built wasm passes check and the real schema/sync handshake', async t => {
+  const fixture = mkdtempSync(join(workspace, 'target/hs-producer-'));
+  t.after(() => rmSync(fixture, {recursive: true, force: true}));
+  mkdirSync(join(fixture, 'src'));
+  writeFileSync(join(fixture, 'Cargo.toml'), `[package]\nname = "hs-external-device"\nversion = "0.1.0"\nedition = "2024"\n[workspace]\n[lib]\ncrate-type = ["cdylib"]\n[dependencies]\nsnapback4-device = {path = ${JSON.stringify(join(workspace, 'crates/snapback4-device'))}, default-features = false, features = ["web"]}\nwasm-bindgen = "=0.2.127"\nserde_json = "1"\n`);
+  writeFileSync(join(fixture, 'src/lib.rs'), 'use wasm_bindgen::prelude::*; #[wasm_bindgen] pub fn external_headers() -> String { serde_json::to_string(&snapback4_device::engine::headers()).unwrap() }\n');
+  execFileSync('cargo', ['build', '--manifest-path', join(fixture, 'Cargo.toml'), '--target', 'wasm32-unknown-unknown', '--release'], {
+    env: {...process.env, CARGO_TARGET_DIR: join(workspace, 'target/hs-producer-build'), CARGO_INCREMENTAL: '0', CARGO_PROFILE_DEV_DEBUG: '0', CARGO_PROFILE_TEST_DEBUG: '0'}, stdio: ['ignore', 'pipe', 'pipe'] });
+  const raw = join(workspace, 'target/hs-producer-build/wasm32-unknown-unknown/release/hs_external_device.wasm');
+  execFileSync('wasm-bindgen', ['--target', 'web', '--out-dir', fixture, '--out-name', 'external', raw]);
+  const optimized = join(fixture, 'external_bg.opt.wasm');
+  execFileSync(process.execPath, [join(workspace, 'node_modules/binaryen/bin/wasm-opt'), '-Os', '--enable-bulk-memory', '--enable-nontrapping-float-to-int', join(fixture, 'external_bg.wasm'), '-o', optimized]);
+  const bytes = readFileSync(optimized);
+  writeFileSync(join(fixture, 'external.mjs'), readFileSync(join(fixture, 'external.js')));
+  const engine = await import(pathToFileURL(join(fixture, 'external.mjs')).href);
+  engine.initSync({module: bytes});
+  const deviceHeaders = JSON.parse(engine.external_headers());
+  const sections = WebAssembly.Module.customSections(new WebAssembly.Module(bytes), 'snapback4.engine');
+  assert.equal(sections.length, 1);
+  const identity = JSON.parse(Buffer.from(sections[0]).toString());
+  assert.equal(identity.format, 1);
+  assert.deepEqual(JSON.parse(deviceHeaders['x-snapback-device']), identity);
+  const host = await server(t);
+  const app = join(host.dir, 'exact-app'); mkdirSync(join(app, 'assets'), {recursive: true});
+  writeFileSync(join(app, 'app.json'), JSON.stringify({typescript: {sources: {backend: '../snapback/generated'}}}));
+  writeFileSync(join(app, 'assets/snapback4.wasm'), bytes);
+  const checked = execFileSync(binary, ['check'], {cwd: host.dir, encoding: 'utf8'});
+  assert.match(checked, /check: ok/);
+  writeFileSync(join(app, 'assets/snapback4.wasm'), Buffer.from([0,97,115,109,1,0,0,0]));
+  const refused = spawnSync(binary, ['check'], {cwd: host.dir, encoding: 'utf8'});
+  assert.notEqual(refused.status, 0); assert.match(refused.stderr + refused.stdout, /E_DEVICE_VERSION/);
+  writeFileSync(join(app, 'assets/snapback4.wasm'), bytes);
+  const headers = {'x-snapback-persona': 'alice', ...deviceHeaders};
+  const schema = await fetch(host.url + '/schema', {headers}); assert.equal(schema.status, 200);
+  const backend = await schema.json();
+  const synced = await fetch(host.url + '/sync', {method: 'POST', headers: {...headers, 'content-type': 'application/json'},
+    body: JSON.stringify({from: 0, limit: 100, after: null, stream: false, pending: [], generation: backend.generation})});
+  assert.equal(synced.status, 200, JSON.stringify(await synced.clone().json()));
+  const changes = await fetch(host.url + '/changes?since=0&wait=0', {headers});
+  assert.equal(changes.status, 200);
+});

@@ -29,6 +29,9 @@ if [ "$(gzip -9 -c < "$out/os.wasm" | wc -c)" -lt "$(gzip -9 -c < "$wasm" | wc -
 # Compare identical gzip headers; temporary filenames must not buy bytes.
 node "$optimizer" --code-folding --duplicate-function-elimination --dce --vacuum --enable-bulk-memory --enable-nontrapping-float-to-int -o "$out/fold.wasm" "$wasm"
 if [ "$(gzip -9 -c < "$out/fold.wasm" | wc -c)" -lt "$(gzip -9 -c < "$wasm" | wc -c)" ]; then mv "$out/fold.wasm" "$wasm"; else rm "$out/fold.wasm"; fi
+# ES2022 consumers use free(); bindgen's optional ESNext disposal is omitted.
+node -e 'const fs = require("node:fs"), path = process.argv[1];
+fs.writeFileSync(path, fs.readFileSync(path, "utf8").replace(/^\s*\[Symbol\.dispose\]\(\): void;\n/gm, ""));' "$out/snapback4_device.d.ts"
 rm -f "$out/.gitignore" "$out/package.json"
 node scripts/stamp-device.mjs "$wasm"
 gzip_bytes=$(gzip -9 -c "$wasm" | wc -c | tr -d ' ')

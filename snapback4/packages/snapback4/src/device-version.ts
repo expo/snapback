@@ -49,7 +49,7 @@ export function deviceVersionState(engine: DeviceEngine, onStatus?: (status: Dev
 export async function probeDeviceEngine(core: DeviceCore, reported?: DeviceEngine): Promise<DeviceEngine> {
   let actual: unknown;
   try { await requireSyncProtocol(core); actual = (await core.call({ op: "engine_info" })).ok; }
-  catch (cause) { throw new DeviceVersionError({ code: "E_DEVICE_VERSION", family: "device-version", message: `device engine ${reported?.version ?? "unknown (unstamped)"} lacks engine-handshake-v1; rebuild the device: bun exact.mjs snapback / npx expo run:ios / rebuild the web app; ${String(cause)}` }); }
-  if (!validEngine(actual)) throw new DeviceVersionError({ code: "E_DEVICE_VERSION", family: "device-version", message: "device engine unknown (unstamped) lacks engine-handshake-v1; rebuild the device: bun exact.mjs snapback / npx expo run:ios / rebuild the web app" });
+  catch (cause) { throw new DeviceVersionError({ code: "E_DEVICE_VERSION", family: "device-version", message: `device engine ${reported?.version ?? "unknown (unstamped)"} lacks engine-handshake-v1; rebuild the device: bun exact.mjs snapback --rebuild / npx expo run:ios / rebuild the web app; ${String(cause)}` }); }
+  if (!validEngine(actual)) throw new DeviceVersionError({ code: "E_DEVICE_VERSION", family: "device-version", message: "device engine unknown (unstamped) lacks engine-handshake-v1; rebuild the device: bun exact.mjs snapback --rebuild / npx expo run:ios / rebuild the web app" });
   return actual;
 }

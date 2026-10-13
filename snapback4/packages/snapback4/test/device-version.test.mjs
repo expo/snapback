@@ -80,7 +80,7 @@ for(const worker of [false,true]) test(`${worker?'worker':'direct'} opener pins 
 
 test('another initialized artifact cannot skip identity admission through a global ready shortcut',async()=>{
   const bytes=readFileSync(new URL('../dist/wasm/snapback4_device_bg.wasm',import.meta.url));
-  const altered=Buffer.from(bytes);const at=altered.indexOf(Buffer.from('"version":' + JSON.stringify(packageVersion)));assert.ok(at>=0);altered[at+'"version":"0.4.2'.length]=0x33;
+  const altered=Buffer.from(bytes);const needle=Buffer.from('"version":' + JSON.stringify(packageVersion));const at=altered.lastIndexOf(needle);assert.ok(at>=0);altered[at+'"version":"0.4.2'.length]=0x33;
   const persist=memoryPersistence();let claims=0;const claim=persist.claim;
   const opener=webDevice({wasm:altered,persist:{...persist,claim:async(...args)=>{claims++;return claim(...args);}}});
   assert.equal((await opener.engineInfo()).version,'0.4.23');
