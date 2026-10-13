@@ -127,7 +127,9 @@ impl Host {
         )
         .unwrap();
         let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(dev, 0).unwrap()));
-        let authoritative_now = lock(&clock).now();
+        let authoritative_now = if engine.schema().tables.values().any(|table| table.not_before.is_some()) {
+            lock(&clock).now()
+        } else { i64::MIN };
         let presence = Arc::new(Live::new(clock.clone()));
         engine.set_presence(Some(presence.clone()));
         let refusals = recent.unwrap_or_else(|| evidence.map(|project| dev_refusals::Recent::start(project,
