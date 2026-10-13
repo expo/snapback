@@ -23,7 +23,10 @@ Repair: retry only ETIMEDOUT once within that original sixty-second deadline,
 discard all timeout bytes and require two fresh complete empty snapshots.
 No inspector error/malformed-row refusal or signal custody check is weakened.
 Linux nine group tests pass, including partial-output and exhausted-retry
-negative controls. Required complete Mac client qualification remains pending;
+negative controls. Independent Muse and fresh Codex 6.1 high source reviews both mark the repair
+READY at 1bc9993aec with no material finding. After the repair, another 69
+process/signal controls pass on Linux (78 total across three files). Required
+complete Mac client qualification remains pending;
 a targeted pass cannot close this ticket or qualify the suite.
 
 Evidence will be archived under snapback4/reports/20261013-integration7/mac/.

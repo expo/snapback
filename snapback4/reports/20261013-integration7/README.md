@@ -16,5 +16,13 @@ browser's prior MACFIX nondeterminism remains tracked in its existing open ticke
 The rebuilt difftest reports cover native 20k, both devices seeds 0–999 and Lean
 20k. Lean exits 1 for exactly the four pre-existing signatures, not a new family.
 The wasm record before the version bump is dirty and historical; the final bumped
-measurement and budget +500 B supersede it. Both blind source review rounds,
-briefs and raw invocation transcripts are retained. Final qualification follows.
+measurement and budget +500 B supersede it. All six blind review rounds, briefs and raw invocation transcripts are retained.
+Final source rounds 3 and 6 are both READY; narrow documentation round 5 is
+also both READY. Original NOT READY rounds remain intact. Linux bumped Rust
+command exits zero; post-bump live-version files and inspector controls pass.
+
+Mac initial native/root/xcframework evidence and the superseded red/aborted
+client pool are archived under mac/. The helper mirrors the publication Rust
+and complete ordinary-client-plus-full-model stages, without invoking test.sh.
+The corrected generic Swift compile and complete fixed-source Mac client stage
+are pending; they will receive distinct evidence and exit verdicts.

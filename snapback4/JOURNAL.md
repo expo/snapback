@@ -94341,3 +94341,16 @@ bytes, and still require two fresh empty snapshots. Nine Linux group tests pass,
 including retry exhaustion and partial-output controls. Preserve the original
 red pool and require a new complete green Mac run. Track evidence in the
 Darwin-bootstrap-inspector ticket; do not signal unrelated hosts/processes.
+
+### 2026-10-13 — Integration 7 Mac access interruption during extra Swift build
+
+The corrected generic iOS-simulator build passes argument validation and
+compiles the Snapback Expo module, then progresses through third-party Expo
+Swift sources. SSH access fails again; Tailscale reports the required M5 host
+offline with LastSeen 05:30 UTC. The owned nohup driver queues the full fixed
+client stage after Swift exits; retain it rather than launch duplicates. Native
+Rust, xcframework and root checks are already qualified and archived. No final
+Mac client or Swift exit is claimed while access is unavailable. Linux exact
+bumped five-crate command has exited 0, and independent repair reviews both
+mark 1bc9993aec READY. Qualification remains pending until complete Mac results
+can be inspected; no origin push/publication or simulator boot.
