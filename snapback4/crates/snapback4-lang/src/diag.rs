@@ -28,6 +28,8 @@ impl fmt::Display for Site {
 pub enum SourceRewriteKind {
     MixedKey,
     NamedUpdate,
+    WriteResultNarrowing,
+    MembershipBootstrap,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -203,6 +205,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "EMPTY_READ" | "E_FIELD_AUTHORITY" | "N_MAINTAIN_DELTA" | "E_RULE" => "rules",
         "E_NOT_PREDICTABLE" | "N_HORIZON_GUARD" | "E_PREDICT" => "prediction",
         "N_SEQUENCE_READ" => "sequences",
+        "N_UNREADABLE_PROBE" => "rules",
         "N_NO_PRODUCTION_WRITER" | "E_UPGRADE" => "deploy",
         "N_FIXTURE_ARGUMENT_DRIFT" | "E_WITNESS_BROWSER" | "E_WITNESS_AUTH" | "E_WITNESS_MUTATION" | "E_WITNESS_ARGUMENT" | "E_WITNESS_EXPORT" | "E_WITNESS_READY" | "E_WITNESS_SENT" | "E_WITNESS_WEB" => "testing",
         "N_WRITE_DENIED" | "N_READ_DENIED" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" => "rules",

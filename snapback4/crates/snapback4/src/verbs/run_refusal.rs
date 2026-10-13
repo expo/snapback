@@ -19,7 +19,7 @@ pub(super) fn record(cause: &RefusingClause, sites: &BTreeMap<(String, String), 
     let clause = sites.get(&(cause.table.clone(), cause.phase.clone()))
         .or_else(|| sites.get(&(cause.table.clone(), cause.clause.clone())));
     let site = clause.or_else(|| sites.get(&(cause.table.clone(), "table".into())));
-    json!({"table": cause.table, "clause": cause.clause, "phase": cause.phase, "site": site,
+    json!({"table": cause.table, "clause": cause.clause, "phase": cause.phase, "viewer": cause.viewer, "terminal": cause.terminal, "site": site,
         "siteKind": if clause.is_some() { "clause" } else if site.is_some() { "table" } else { "" }, "executionSite": cause.site})
 }
 
@@ -132,7 +132,12 @@ pub(super) fn explain(record: &Json, source: &dyn Fn(&str) -> Option<String>) ->
         (None, Some(site), Some(line)) => format!("{clause}, at `{line}` ({site})"),
         (_, site, _) => format!("{clause} ({}{generation})", site.unwrap_or("<generated>")),
     };
-    let mut out = format!("dev: {table} refused it: {text}{at} — development evidence only; the refusal a client sees never names the clause");
+    let viewer = record["viewer"].as_str().unwrap_or("this viewer");
+    let mut out = if effect == Some("read") && record["terminal"] == false {
+        format!("dev: hidden from {viewer} by {table}'s read rule: {text}{at} — development evidence only; the refusal a client sees never names the clause")
+    } else {
+        format!("dev: {table} refused it: {text}{at} — development evidence only; the refusal a client sees never names the clause")
+    };
     if matches!(effect, Some("insert" | "update" | "delete")) {
         out.push_str("\n  a mutation's writes pass the table's insert, update and delete rules as the caller; only a job runs as the system (guide rules)");
     }
@@ -151,6 +156,15 @@ mod tests {
         let text = explain(&record, &|file| (file == "schema.q").then(|| SCHEMA.to_owned())).unwrap();
         assert!(text.starts_with("dev: orders refused it: `update <- deny` (schema.q:4:3), at submit:2 — "), "{text}");
         assert!(text.contains("only a job runs as the system"), "{text}");
+    }
+
+    #[test]
+    fn a_service_lookup_names_the_read_rule_hiding_it() {
+        let record = json!({"table":"scenes","viewer":"service:ops","terminal":false,"clause":"read rule","phase":"read rule","site":"schema.q:3:3","executionSite":"bootstrap:2"});
+        let source = "table scenes:\n  owner: principal\n  read <- .owner = viewer\n";
+        let text = explain(&record, &|_| Some(source.into())).unwrap();
+        assert!(text.starts_with("dev: hidden from service:ops by scenes's read rule"), "{text}");
+        assert!(text.contains("read <- .owner = viewer"));
     }
 
     #[test]

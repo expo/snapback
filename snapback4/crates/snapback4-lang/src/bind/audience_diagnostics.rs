@@ -96,7 +96,7 @@ impl Grants {
             let Some(repair) = audience_grant_repair(schema, &target, &binding, update) else { continue };
             let probe = format!("exists {target}[{}viewer]", binding.columns.iter().map(|column| format!(".{column}, ")).collect::<String>());
             let synced = contents.join(", ");
-            let roster = if binding.columns.is_empty() { " The roster has no group columns, so it is one group: a caller already in it may add others, and the first member is seeded (fixtures, `/seed`) or written by a job as the system." } else { "" };
+            let roster = if binding.columns.is_empty() { " The roster has no group columns, so it is one group: a caller already in it may add others, and the first production member is added by a trusted service-seat mutation (fixtures and `/seed` are dev-only)." } else { "" };
             let (message, rewrite) = if update {
                 (format!("{target} can retarget the private audience of {synced}: an update that changes {} on {target} moves a grant, so make those columns immutable or guard every update branch with an independent grant probe `{probe}`",
                     binding.columns.iter().chain([&binding.principal]).cloned().collect::<Vec<_>>().join(", ")),
@@ -111,7 +111,25 @@ impl Grants {
                      None => repair.rule.clone(),
                  })
             };
-            out.push(Diagnostic::new(&site, "E_SYNC", message, rewrite).guide("sync"));
+            let rewrite = if !update && binding.columns.is_empty() {
+                // @ref LLP 3000.036.002#2 — replace the unsafe branch with a trusted bootstrap.
+                let info = &catalog.tables[&target];
+                let authored: Vec<_> = info.decl.columns.iter().filter(|column| column.maintained.is_none()).collect();
+                let writable: Vec<_> = authored.iter().copied().filter(|column| column.sequence.is_none()).collect();
+                let fields = authored.iter().map(|column| format!("  {}: {}", column.name, column.sequence.as_ref().map(|scope| format!("sequence by {scope}")).unwrap_or_else(|| crate::print::scalar_type(&column.type_)))).collect::<Vec<_>>().join("\n");
+                let args = writable.iter().map(|column| format!("{}: {}", column.name, crate::print::scalar_type(&column.type_))).collect::<Vec<_>>().join(", ");
+                let payload = writable.iter().map(|column| column.name.clone()).collect::<Vec<_>>().join(", ");
+                let residency = if schema.tables[&target].sync.is_some() { "sync" } else { "online only" };
+                let mut letters = target.chars();
+                let operation = format!("grant{}{}", letters.next().map(|c| c.to_uppercase().to_string()).unwrap_or_default(), letters.as_str());
+                format!("{rewrite}; for a production staff roster, replace its insert rule with `insert <- viewer = 'service:ops' or {probe}`. A minimal roster recipe using your writable fields is below; apply it in the existing schema, retaining referenced tables, other constraints and write rules:\n\nuse identity password\ntable {target}:\n{fields}\n  unique {}\n  immutable {}\n  read <- {} or viewer = 'service:ops'\n  insert <- viewer = 'service:ops' or {probe}\n  {residency}\n\nmutation {operation}({args}):\n  return insert {target} {{ {payload} }}\n\nMint `snapback4 token --service ops --release ./deployment` locally against that store; call {operation} with the signed-up account principal and its bearer seat token. Service grants add no device audience (guide deploy).",
+                    binding.principal, binding.principal, schema.tables[&target].rules.read.quarry())
+            } else { rewrite };
+            let diagnostic = Diagnostic::new(&site, "E_SYNC", message, rewrite).guide("sync");
+            out.push(if !update && binding.columns.is_empty() {
+                diagnostic.source_rewrite(crate::diag::SourceRewriteKind::MembershipBootstrap,
+                    format!("insert <- viewer = 'service:ops' or {probe}"))
+            } else { diagnostic });
         }
         out
     }

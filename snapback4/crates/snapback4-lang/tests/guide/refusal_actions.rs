@@ -56,6 +56,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_PROBE_ONLY_READ", &["write `read through", "name the caller"]),
     ("N_VACUOUS_RULE", &["If being one is a role, test it"]),
     ("N_LOOKUP_HIDDEN", &["Let the role read the rows it acts on"]),
+    ("N_UNREADABLE_PROBE", &["Use a unique/cap/after insert constraint for an invariant across hidden rows", "caller-visible existence is intended"]),
     ("N_REQUIRE_HIDDEN", &["Let the callers who run the check read those rows"]),
     ("N_REQUIRE_REFUSED", &["add them to the delete rule", "drop that branch from the require"]),
     ("N_READ_DENIED", &["give it the rule its readers need over its group keys"]),

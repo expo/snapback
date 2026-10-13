@@ -132,5 +132,18 @@ pub(super) fn write_rewrite(field: &ObjectField, expected: &Ty, got: &Ty) -> Str
             if let Some(value) = &field.value { return format!("{}: {} ?? 0 (only if your application treats a hidden/missing value as zero)", field.name, print::expression(value)); }
         }
     }
-    format!("write {} into {}", expected.name(), field.name)
+    format!("write {} into {}", expected.name(), field.name)}
+
+// @ref LLP 3000.036.002#5 — a successful upsert may return no readable row.
+pub(super) fn write_field_type(info: &TableInfo, field: &ObjectField, expected: &Ty, actual: &Ty) -> Diagnostic {
+    let message = format!("{}.{} is {}; got {}", info.decl.name, field.name, expected.name(), actual.name());
+    let row_reference = matches!((actual.required(), expected.required()), (Ty::Row(a) | Ty::WriteRow(a), Ty::Ref(b)) if a == b);
+    if actual.is_optional() && (row_reference || matches!(actual.required(), Ty::Ref(_)) && actual.required().writable_to(expected)) {
+        let value = field.value.as_ref().map(print::expression).unwrap_or_else(|| field.name.clone());
+        let narrowed = if row_reference { format!("(({value}) ! else NOT_FOUND).id") } else { format!("({value}) ! else NOT_FOUND") };
+        return type_error(&field.site, format!("{message}; an upsert result (and its id) is nullable: a successful write may leave its resulting row unreadable; a lookup may also be absent or hidden; narrow the result with ! else before using this reference"),
+            format!("use `{narrowed}` for this field (or bind the upsert result with `! else NOT_FOUND`); the refusal rolls back this mutation"))
+            .source_rewrite(crate::diag::SourceRewriteKind::WriteResultNarrowing, narrowed).guide("writes");
+    }
+    type_error(&field.site, message, write_rewrite(field, expected, actual))
 }

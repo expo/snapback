@@ -109,7 +109,7 @@ impl Runner<'_> {
             // Engine event slots are stamped after predecessor/sequence checks,
             // just as on an ordinary insert; preflight validates authored fields.
             if let Err(error) = super::validate::validate_before_slots(self.schema, table_name, &row) {
-                return Err(if matches!(error, RuntimeError::Input(_)) { self.no_write_target() } else { error });
+                return Err(if matches!(error, RuntimeError::Input(_)) && !self.context.is_system() { self.no_write_target() } else { error });
             }
         }
         if !authorized && !self.check_rule(table_name, Effect::Insert, None, &row)? {
@@ -273,6 +273,13 @@ impl Runner<'_> {
 
     pub(super) fn insert_upsert(&mut self, table_name: &str, addressed_index: &str, row: Supplied) -> Result<(), RuntimeError> {
         self.refuse_upsert_owned(table_name)?;
+        // @ref LLP 3000.036.002#5 — trusted fixture imports preserve the constraint layer.
+        if self.context.is_system() {
+            return self.insert_attempt(table_name, row, false, Some(addressed_index)).map(|_| ()).map_err(|error| match error {
+                RuntimeError::Input(message) => RuntimeError::Constraint(message),
+                other => other,
+            });
+        }
         if self.schema.tables[table_name].through.is_some() {
             // A read-through child's insert arm keeps the hidden-target word for every authority refusal.
             return self.insert_attempt(table_name, row, false, Some(addressed_index)).map(|_| ()).map_err(|e| match e {

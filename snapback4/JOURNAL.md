@@ -94496,3 +94496,142 @@ wasm is 2294460 raw /698592 gzip. Scoped runtime/build Git inputs equal the
 final integration. No simulator boot, origin push or publication. Verbatim
 independent codec READY reviews and execution evidence are archived under
 llp/reviews and reports/20261013-integration8.
+### 2026-10-13 — Wave 10 DIAG: fixture intent and root bootstrap notes
+
+In the dedicated sb4-w10-diag worktree, check now scopes shared fixture cases
+to declared operations and treats an actually expected E_INPUT as intentional.
+The case runner still executes negative cases and prints their exact input
+cause; unknown operations and malformed metadata remain errors in test.
+Trusted fixture imports retain column/constraint refusals instead of masking
+invalid values as NOT_FOUND. Production notes group blocked dependency roots
+(and cycles), name their dependents, and collapse persona-only identity to one
+note. Mintable service names count as bootstrap paths; impossible seats do not.
+Design and blind review record: LLP 3000.036.002. Affected check/check_notes:
+101/101 and 6/6; fixture constraint atomicity and authored uniqueness tests
+also pass. No push or publication; HS/REL2/DX2/PAGE2 retain their named scopes.
+
+### 2026-10-13 — Wave 10 DIAG: service roster authority and private refusal evidence
+
+A whole positive service-seat branch now proves server membership insert/update
+authority; ordinary self-join, inequality and negation remain refused. Service
+read grants still create no device partition. A union parent names only a
+read-through child actually inheriting sync, with the copied-column alternative.
+Grant repairs absorb member-and-extra arms already covered by a standalone
+member arm. Developer traces identify an unread parent's rule and the filtered
+caller's principal; public refusals retain their privacy boundary. Runtime
+regressions pass for enrollment/revocation, expired/revoked seats, reserved
+namespace minting, constraint atomicity, readable/hidden unique codes and
+private parent/lookup evidence. Schema unit tests 6/6 and trace renderer 8/8.
+LLP 3000.036.002 carries the normative design; final independent review remains
+in progress. No push or publication.
+
+### 2026-10-13 — Wave 10 DIAG: usable diagnostic repairs
+
+Mixed partial positional keys now fail before an id-type cascade, including
+extra named tests. Nullable upserts offer the emitted `! else NOT_FOUND`
+replacement and explain unreadable results and rollback. Probe inequality
+explains bracket equality and caller-visible filtering. Structural fanout
+names point-by-id and authorized maintained aggregates; job ordering leads
+with stable id. The synced-roster grant diagnostic includes a schema-specific
+trusted-seat recipe preserving online residency and existing read predicates.
+Deploy documents password migration, durable sessions, relationships, seat
+expiry/revocation and waiting for scope delivery. The eight wave-9 emitted-text
+goldens compile each concrete repair against its source; all 120 guide tests,
+101 CLI check tests and six check_notes pass. Non-object argument cases can
+assert their actual E_INPUT. Design and review resolutions: LLP 3000.036.002.
+
+### 2026-10-13 — Wave 10 DIAG: unreadable guard observations
+
+N_UNREADABLE_PROBE explains private program probes used to enforce absence;
+execution still sees caller-readable rows and table rules still see all rows.
+The note names the hiding rule, recommends an invariant constraint, and
+recognizes proven membership/ownership without making private rows public.
+Analysis follows helpers, shapes/spreads and job viewer scopes. Argument
+snapshots use fresh names; ambiguous positional keys prove nothing. Effects,
+loop backedges/rebinding, viewer changes and control-flow exits cannot retain
+stale role evidence. Positive existence requires remain authorization checks;
+point values are inspected when observed so later aliases cannot hide defects.
+17 focused guard regressions, five runtime regressions and eight emitted-text
+goldens pass; guide 120/120 and CLI check/check_notes 101/101 + 6/6 pass.
+The published prediction guard pins its intended owner. LLP 3000.036.002
+records the policy and fresh dual-family review is pending this frozen delta.
+
+### 2026-10-13 — Wave 10 DIAG: guard wrappers and prefix alias dependencies
+
+The fifth fresh Codex review found two missing guard forms: wrapped require
+expressions and query-prefix values later used through aliases. Requirements
+now traverse expression children, preserving the positive-existence exemption.
+Reverse binding dependencies identify guard-consumed query values, including
+objects, possible rebindings and inputs to guard-consuming helpers/shapes;
+visibility is checked when the defining observation happened. Later grants do
+not supply retrospective proof. Returned prefix answers stay quiet. The guide
+120, CLI check/check_notes 101+6, guard regressions 19 and rewrite goldens eight
+pass. The horizon CLI fixture pins its one expected guard note. Review-round
+five outputs and resolutions are preserved; round six will review the new
+frozen delta. No push or publication.
+
+### 2026-10-13 — Wave 10 DIAG: direct guard inputs and immutable proof
+
+The sixth Codex review identified direct helper arguments, shape bases and
+loop domains that evade binding-only tracking. Direct boolean inputs now use
+the same original-time visibility evidence. An immutable value traversal keeps
+row-dependent visible-hit filters separate without editing the AST used as
+proof; global gates lower to conditionals and are checked. Snapshot marker
+names exclude every actual argument identifier, and explicit computed indices
+cannot borrow raw-column pins from another index. The guard suite now has 20
+passing tests with direct, alias, echo, row-filter and collision variants;
+guide 120 and emitted rewrite goldens eight pass. CLI checks and final blind
+review follow this frozen delta. Round-six reviews are preserved verbatim.
+
+### 2026-10-13 — Wave 10 DIAG: requirement helper inputs
+
+The seventh Codex review found direct inputs to helpers reached from require,
+including inversion in a helper's return expression. Requirement context now
+observes all actual helper/shape input values immutably using original-time
+facts, without depending on a guard inside the definition. Direct positive
+existence authorization and visible candidate filters remain unchanged.
+Point/prefix/helper/shape and proven-role variants extend the 21-test guard
+suite; guide 120 and emitted rewrite goldens eight pass. Round-seven reviews
+are preserved verbatim; the next frozen revision receives fresh reviews.
+
+### 2026-10-13 — Wave 10 DIAG: shorthand scope and inline requirement shapes
+
+The eighth Codex review found shorthand names hidden from global-fact and
+argument proof checks. Object/write shorthand now expands only in analysis
+clones before proof classification, effect discovery, shadowing, snapshot
+exclusions/substitution/validation and printing. Runtime expressions remain
+unchanged. Requirement inline shape bases are inspected independently of
+named-definition discovery. Shorthand/explicit same/different argument cases
+and point/prefix inline inversion extend the guard suite to 22 passing tests;
+guide 120 and emitted rewrite goldens eight pass. Round-eight reviews are
+preserved verbatim; final CLI checks and a fresh review pair follow.
+
+### 2026-10-13 — Wave 10 DIAG: ordinary query point-filter boundary
+
+The ninth Codex review found point probes still inspected in ordinary query
+candidate filters. Ordinary query values now use the immutable value traversal
+already used at guard input boundaries, treating point/prefix row-dependent
+filters alike. Lowered global conditionals and actual guard values remain
+checked. Positive/negative point-filter and global-point-gate regressions join
+the existing prefix cases. Runtime expressions/admission stay unchanged.
+Muse9 remained in flight when the correction began; a fresh frozen round10
+will bind final acceptance, and all received output will be retained.
+
+The point-filter correction passes guide120, guard23 and golden8; latest CLI
+check101/check_notes6 and ref-check pass. Muse9's fallback stalled over25
+minutes with no verdict, was interrupted after ownership verification, and is
+retained as an incomplete attempt; retry uses the next frozen revision.
+
+### 2026-10-13 — Wave 10 DIAG complete, independent READY verdicts
+
+Fresh Muse contributor and fresh Codex gpt-6.1-sol (both high) returned READY
+on 5b6cd28a1d and the same LLP 3000.036.002 normative revision (SHA-256
+6df24c51a8d5704b7ca45567fa321ca38e83738cd47914974000ffbda5fea88d). Reviews are preserved verbatim with provenance. The RFC is Implemented
+and its current link is archived; no semantic source changed after review.
+Fix-list5, fix-list7 and every fix-list15 bullet are implemented with affected
+tests, including 23 guard, 120 guide, eight emitted rewrite golden and five
+runtime regressions; latest CLI check101/check_notes6 and ref-check pass.
+Other affected core/language/simulator suites passed earlier on unchanged
+semantic inputs. WORKSTREAM-REPORT.md records per-item commits, tests,
+decisions, review rounds and other-lane pointers. No DIAG deferrals, push or
+publication; final delivery is local for coordinator integration.

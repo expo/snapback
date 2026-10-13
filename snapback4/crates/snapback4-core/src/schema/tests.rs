@@ -82,18 +82,22 @@ fn a_roster_without_group_columns_grants_through_membership_only() {
 
 // LLP 3000.036.000 §2.2: the printed repair keeps guarded branches and conjoins the probe to the rest.
 #[test]
-fn the_grant_repair_conjoins_the_probe_to_each_unguarded_branch() {
+fn the_grant_repair_conjoins_unguarded_branches_and_absorbs_redundant_arms() {
     let mut schema = target_sync_schema(false, false);
     let owner = probe("rooms", "byId", vec![RuleTerm::Field("room".into())]);
     let member = probe("memberships", "byRoomPrincipal", vec![RuleTerm::Field("room".into()), RuleTerm::Viewer]);
     schema.tables.get_mut("memberships").unwrap().rules.insert = RuleExpr::Or(vec![member.clone(), owner.clone()]);
     let binding = audience_binding(&schema, "messages", &schema.tables["messages"], schema.tables["messages"].sync.as_ref().unwrap()).unwrap();
     let repair = audience_grant_repair(&schema, "memberships", &binding, false).unwrap();
-    assert_eq!(repair.rule, "insert <- exists memberships[.room, viewer] or (exists rooms[.room] and exists memberships[.room, viewer])");
+    // @ref LLP 3000.036.002#5 — the broader member arm absorbs member-and-parent.
+    assert_eq!(repair.rule, "insert <- exists memberships[.room, viewer]");
     assert_eq!(repair.unguarded, vec!["exists rooms[.room]".to_owned()]);
     schema.tables.get_mut("memberships").unwrap().rules.insert = RuleExpr::Or(vec![member, RuleExpr::And(vec![owner.clone(), RuleExpr::Eq(RuleTerm::Field("principal".into()), RuleTerm::Viewer)])]);
     let repair = audience_grant_repair(&schema, "memberships", &binding, false).unwrap();
-    assert!(repair.rule.ends_with("(exists rooms[.room] and .principal = viewer and exists memberships[.room, viewer])"), "{}", repair.rule);
+    assert_eq!(repair.rule, "insert <- exists memberships[.room, viewer]");
+    schema.tables.get_mut("memberships").unwrap().rules.insert = owner;
+    let repair = audience_grant_repair(&schema, "memberships", &binding, false).unwrap();
+    assert_eq!(repair.rule, "insert <- exists rooms[.room] and exists memberships[.room, viewer]");
 }
 
 // Defence for hand-built schemas: compiler-admitted union columns are required,

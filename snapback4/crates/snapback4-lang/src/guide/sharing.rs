@@ -565,6 +565,13 @@ mutation setStatus(request: id, status: enum('open', 'doing', 'done')):
 ```
 
 
+### Production roster bootstrap
+
+A whole `viewer = 'service:ops'` insert/update branch may grant membership on
+the server; it adds no device audience. Use `guide deploy --section first admin`
+for the compiled synced-roster mutation and token commands. Every ordinary
+branch still needs prior membership or a group created by the mutation.
+
 ### Anyone may join (open groups)
 
 **Open groups.** A membership anyone may insert for themselves

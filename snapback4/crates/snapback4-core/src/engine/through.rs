@@ -81,7 +81,9 @@ impl Runner<'_> {
                 rules::evaluate(&table.rules.read, &viewer, None, &row, false, &mut super::read::PrefixProbe { runner, allowance })
             })?;
             if !readable {
-                return Err(self.rule_refusal(name, Effect::Insert, "read through parent read rule"));
+                // @ref LLP 3000.036.002#5 — only the developer trace names the unread parent.
+                self.refusing_phase(&through.parent, &format!("insert into {name} needs unread parent {} through .{}", through.parent, through.reference), "read rule");
+                return Err(RuntimeError::Rule { table: name.into(), effect: Effect::Insert });
             }
         }
         Ok(row.capture_input(&CaptureInput(())))

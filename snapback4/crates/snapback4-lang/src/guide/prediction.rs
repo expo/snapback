@@ -46,7 +46,7 @@ mutation post(body: text <=200) predicts:
   insert notes { owner: viewer, body, at: now }  -- no existence guard needed
 
 mutation guardedPost(id: notes, body: text <=200):
-  if not exists notes[id]:                      -- horizon site: a miss is unknown
+  if not exists notes[id, owner = viewer]:                      -- horizon site: a miss is unknown
     insert notes { id, owner: viewer, body, at: now }
   return null
 

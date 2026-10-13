@@ -1529,6 +1529,8 @@ fn grant_guard(
         !columns.is_empty() && columns.iter().all(|column|
         key.iter().any(|term| matches!(term, RuleTerm::Field(field) | RuleTerm::NextField(field) if field == column)))
     };
+    // @ref LLP 3000.036.002#2 — a trusted seat grants on the server, never a device audience.
+    if rule.service_grant().is_some() { return true; }
     match rule {
         RuleExpr::Deny => true,
         RuleExpr::Exists { table, index, key, .. } => table == audience_name && audience.index(index).is_some_and(|index| {
@@ -1580,10 +1582,15 @@ pub fn audience_grant_repair(schema: &Schema, target_name: &str, binding: &Audie
             other => RuleExpr::And(vec![other.clone(), probe.clone()]),
         }
     };
-    let repaired = match rule {
+    let mut repaired = match rule {
         RuleExpr::Or(_) => RuleExpr::Or(rule.disjuncts().into_iter().map(conjoin).collect()),
         other => conjoin(other),
     };
+    // A standalone membership arm absorbs every extra conjunction of that same arm.
+    if let RuleExpr::Or(items) = &mut repaired && items.contains(&probe) {
+        items.retain(|item| item == &probe || !matches!(item, RuleExpr::And(parts) if parts.contains(&probe)));
+        if items.len() == 1 { repaired = items.pop().unwrap(); }
+    }
     let creates = |rule: &RuleExpr| rule.disjuncts().iter().any(|branch| matches!(branch, RuleExpr::Created { .. })
         || matches!(branch, RuleExpr::And(items) if items.iter().any(|item| matches!(item, RuleExpr::Created { .. }))));
     let created = match binding.columns.as_slice() {

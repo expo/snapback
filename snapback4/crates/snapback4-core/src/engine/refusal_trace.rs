@@ -7,6 +7,7 @@ use crate::{RuntimeError, schema::Effect};
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct RefusingClause {
     pub table: String,
+    pub viewer: String,
     pub clause: String,
     pub phase: String,
     pub terminal: bool,
@@ -27,7 +28,7 @@ impl Runner<'_> {
     pub(super) fn no_candidate(&self, table: &str, site: &str) {
         if let Some(trace) = &self.context.refusal_trace {
             trace.0.lock().unwrap_or_else(|e| e.into_inner()).get_or_insert_with(|| RefusingClause {
-                table: table.into(), clause: "no-candidate".into(), phase: "storage probe".into(),
+                table: table.into(), viewer: self.context.viewer.clone(), clause: "no-candidate".into(), phase: "storage probe".into(),
                 terminal: false, no_candidate: true, site: site.into(), generation: self.context.generation,
             });
         }
@@ -48,7 +49,7 @@ impl Runner<'_> {
         #[cfg(feature = "sqlite")]
         if let Some(trace) = &self.context.refusal_trace {
             *trace.0.lock().unwrap_or_else(|e| e.into_inner()) = Some(RefusingClause {
-                table: table.into(), clause: clause.into(), phase: phase.into(), terminal, no_candidate: false, site: self.statement_site.clone(), generation: self.context.generation,
+                table: table.into(), viewer: self.context.viewer.clone(), clause: clause.into(), phase: phase.into(), terminal, no_candidate: false, site: self.statement_site.clone(), generation: self.context.generation,
             });
         }
         #[cfg(not(feature = "sqlite"))]

@@ -40,6 +40,8 @@ use identity password
 table admins:
   principal: principal
   unique principal
+  immutable principal
+  sync
   read <- .principal = viewer or viewer = 'service:ops'
   insert <- viewer = 'service:ops' or exists admins[principal = viewer]
 mutation grantAdmin(principal: principal):
@@ -60,7 +62,9 @@ curl -s "$U/m/grantAdmin" -H "Authorization: Bearer $TOKEN" \
 unset TOKEN
 ```
 
-Mint locally against the same store. Token stdout is only the credential; prose is stderr. Protect it. A repeat grant hits uniqueness; add revocation deliberately.
+This roster is synced. A whole service-seat branch may add the first member; ordinary callers must already hold the roster. Service grants add no device audience. The mutation completes before the grant syncs; wait for the enrolled account's client to receive its scope before using offline staff reads.
+
+Mint locally against the same store. Token stdout is only the credential; prose is stderr. Protect it; it expires under the seat-session policy. Rotate the credential by revoking its session (guide services) and minting a replacement. Expired or revoked bearer sessions cannot invoke the mutation. A repeat grant hits uniqueness; add membership revocation deliberately.
 
 ## Migrations and adoption
 
@@ -82,9 +86,7 @@ Preview runs exact adoption on a private disk snapshot and removes it, without a
 
 Widened enum values, or short codes a loose release wrote, become dormant rows when selected types cannot hold them; compatible forward restores exact values. Reference dependents also leave the active population. Rules, counts, maintained views and reacquired sync partitions see only active rows. Point reads/updates/ deletes see absent rows; dormant ids stay reserved. Nominal reference values stay legal, as for other missing ids; require/read-through decides live-target admission. Dormant rows occupy no cap/unique slots, so older writes can require a bridge repair. Removed tables/columns/indexes also stay dormant. Fresh-source name reuse needs --restore-dormant; rollback selects restoration explicitly. Old active updates keep dormant cells; active deletion removes them. Only active referential actions run: parent deletion invalidates dormant lifetimes. Narrowed rows with invalid visible references stay dormant; whole-table/column restoration retains its E_ADOPT barrier. Prune previews counts/bytes/sample ids; `prune ./deployment --allow-destructive` permanently drops all dormant storage. No age collector or implicit pruning exists. Deploy/rollback --allow-destructive bypasses neither validation nor retention. --allow-feed-adoption permits the explicit feed launch. Inspect releases after an ambiguous reply. Details: [SERVER.md — Release lifecycle](SERVER.md#release-lifecycle).
 
-Check business compatibility separately: old payment code may accept payment while a new review row is dormant. Pause that workflow or deploy a bridge preserving its checks. Old source cannot supply absent product logic. An absent operation returns
-404 `{denied:{code:"E_OP",…},generation:G}`; a mutation's incompatible arguments
-return 200 `{state:"failed",why:{code:"E_INPUT",…},generation:G}`.
+Check business compatibility separately: old payment code may accept payment while a new review row is dormant. Pause that workflow or deploy a bridge preserving its checks. Old source cannot supply absent product logic. An absent operation returns 404 `{denied:{code:"E_OP",…},generation:G}`; a mutation's incompatible arguments return 200 `{state:"failed",why:{code:"E_INPUT",…},generation:G}`.
 
 ## What the old release sees
 
@@ -120,10 +122,10 @@ unset SNAPBACK4_SERVICE_TOKEN
 `--token-env NAME` reads another environment variable. The command uses served source, so it also works outside the app directory. A lost reply is ambiguous; inspect the queue before retrying. DX2 owns starter and client job recipes.
 
 ## Persona transition checklist
-1. Add password identity and signup/login UI; persist the real session.
-2. Map each persona role to real account principals through the trusted seat recipe.
+1. Add password identity and signup/login UI; persist sessions with localStorageSessionStore on web or the secure native store, and verify restart.
+2. Replace hard-coded persona owners/UI with signed-in account principals; map roles through the trusted seat recipe.
 3. Give profiles a production write path and authorized directory; expose no credentials.
-4. Provide invitations or explicit principal sharing; test expiry, revocation and outsiders.
+4. Create required teams/memberships, invitations or principal sharing; wait for scope delivery before offline reads; test expiry, revocation and outsiders.
 5. Bootstrap every required table without fixtures/seed; guide start/client covers first writers and password starters.
 6. Prove real-account writes, role checks, sign-out and rollback on durable storage behind TLS.
 
@@ -133,6 +135,6 @@ unset SNAPBACK4_SERVICE_TOKEN
 
 ## Authoring and proof refusals
 
-N_NO_PRODUCTION_WRITER means no production insert path can bootstrap this table. Add a service-seat insert mutation.
+N_NO_PRODUCTION_WRITER means no production insert path can bootstrap this table. It groups root blockers with their dependents; persona-only schemas get one identity note. Add a service-seat insert mutation and provision real account relationships.
 
 E_UPGRADE means installation or post-upgrade check failed. Repair the package-manager or registry error and rerun upgrade. Packages may already be pinned: if check failed, repair the reported schema/device refusal and rerun check.

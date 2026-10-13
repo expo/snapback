@@ -1196,7 +1196,7 @@ impl<'a> Binder<'a> {
                     literal_in_range(info, &field.name, scalar, &e, &field.site)?;
                     self.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
                     if !t.writable_to(&expected) {
-                        return Err(type_error(&field.site, format!("{}.{} is {}; got {}", info.decl.name, field.name, expected.name(), t.name()), diagnostics::write_rewrite(field, &expected, &t)));
+                        return Err(diagnostics::write_field_type(info, field, &expected, &t));
                     }
                     let e = if expr::allocates(&e) { self.snapshot(e, out) } else { e };
                     exprs.push((field.name.clone(), e));
@@ -1223,7 +1223,7 @@ impl<'a> Binder<'a> {
             literal_in_range(info, &field.name, scalar, &e, &field.site)?;
             self.sequence_setup(exprs.iter_mut().map(|(_, e)| e), setup, out);
             if !t.writable_to(&expected) {
-                return Err(type_error(&field.site, format!("{}.{} is {}; got {}", info.decl.name, field.name, expected.name(), t.name()), diagnostics::write_rewrite(field, &expected, &t)));
+                return Err(diagnostics::write_field_type(info, field, &expected, &t));
             }
             let e = if expr::allocates(&e) { self.snapshot(e, out) } else { e };
             if !given.insert(field.name.clone()) {
@@ -1376,7 +1376,7 @@ fn stable_chunk(catalog: &Catalog, site: &Site, scan: &Scan) -> Fallible<()> {
         columns
     });
     if !moving.is_empty() {
-        return Err(Diagnostic::new(site, "E_JOB_CURSOR_INDEX", format!("sweep over {}.{} sweeps by {}, which a write could change under the cursor; a sweep's index columns are id or immutable", scan.table, scan.index, moving.join(", ")), format!("immutable {}  -- on table {}, or use `for row in {}:` for stable id order", moving.join(", "), scan.table, scan.table)).guide("jobs"));
+        return Err(Diagnostic::new(site, "E_JOB_CURSOR_INDEX", format!("sweep over {}.{} sweeps by {}, which a write could change under the cursor; a sweep's index columns are id or immutable", scan.table, scan.index, moving.join(", ")), format!("use `for row in {}:` for stable id order; if this order is required, declare `immutable {}` on table {}", scan.table, moving.join(", "), scan.table)).guide("jobs"));
     }
     Ok(())
 }

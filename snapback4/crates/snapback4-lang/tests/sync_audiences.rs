@@ -91,7 +91,7 @@ table notes:
     // the grant probe that the empty group spells as `exists staff[viewer]`.
     let refused = refusal(&roster.replacen("  insert <- exists staff[viewer]\n", "  insert <- .principal = viewer\n", 1));
     assert_eq!(refused.site.line, 6);
-    assert!(refused.message.contains("one group") && refused.rewrite == "insert <- .principal = viewer and exists staff[viewer]", "{refused:?}");
+    assert!(refused.message.contains("one group") && refused.rewrite.starts_with("insert <- .principal = viewer and exists staff[viewer];") && refused.rewrite.contains("service:ops"), "{refused:?}");
 }
 
 #[test]
