@@ -109,6 +109,14 @@ pub struct Execution {
     /// PAGE cannot execute its discovery-before-output contract.
     #[serde(default, rename = "branchMembership", skip_serializing_if = "std::ops::Not::not")]
     pub branch_membership: bool,
+    /// PAGE2 admits metered discovery and target-row-id point lanes. A v1
+    /// device must refuse these plans instead of falling back to eager merge.
+    #[serde(
+        default,
+        rename = "branchMembershipV2",
+        skip_serializing_if = "std::ops::Not::not"
+    )]
+    pub branch_membership_v2: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub renews: bool,
     #[serde(default, rename = "renewMs", skip_serializing_if = "Option::is_none")]

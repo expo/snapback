@@ -195,8 +195,14 @@ pub fn programs(
         let merges = snapback4_core::ir::body_merges(&bound.program.body);
         fact.branch_merge = merges.iter().any(|m| m.branches());
         fact.branch_membership = merges.iter().any(|merge| merge.lanes.iter().any(|lane| lane.membership()));
+        fact.branch_membership_v2 = merges.iter().flat_map(|merge| &merge.lanes)
+            .any(|lane| membership_v2(schema, lane));
         schema.operations.insert(bound.program.name.clone(), fact);
     }
+}
+
+fn membership_v2(schema: &Schema, lane: &snapback4_core::ir::MergeLane) -> bool {
+    lane.membership() && !snapback4_core::engine::rules::membership_v1(schema, lane)
 }
 pub fn notes(schema: &Schema, programs: &[BoundProgram]) -> Vec<Diagnostic> {
     programs.iter().filter_map(|bound| {

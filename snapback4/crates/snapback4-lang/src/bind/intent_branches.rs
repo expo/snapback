@@ -82,13 +82,14 @@ fn membership(tables: &Tables, synthesized: &std::collections::BTreeSet<(String,
     // before the candidate can retain party/source indexes the original scan
     // does not use.
     let membership_targets: Vec<String> = memberships.iter().map(membership_target).collect::<Option<_>>()?;
-    if membership_targets.iter().any(|target| target == "id" || base.iter().any(|branch|
+    if membership_targets.iter().any(|target| base.iter().any(|branch|
         branch.iter().filter_map(|predicate| intent::equality(predicate, table)).any(|(column, _)| column == *target))) { return None; }
     let descriptor_count = 1usize.saturating_add(base.len().saturating_mul(parties.len().saturating_add(memberships.len())));
     if descriptor_count > MAX_BRANCHES { return None; }
     let mut candidate = requests.clone();
     let errors = candidate.error_count();
     let mut lanes = Vec::with_capacity(descriptor_count);
+    let mut cap_repairs = Vec::new();
     let mut order = None;
     let mut system = read.clone(); candidate.read(tables, &mut system, false);
     push_membership_lane(&candidate, table, &mut lanes, &mut order, system, SYSTEM_LANE, None, None, read.filter.clone())?;
@@ -119,7 +120,7 @@ fn membership(tables: &Tables, synthesized: &std::collections::BTreeSet<(String,
             // inferred index when the authored point supplies this proof.
             let one_row = source_table.indexes.iter().filter(|index| source_table.total_unique(index)
                 && index.columns.iter().all(|column| source.keys.iter().any(|key| key.column.as_ref() == Some(column)))
-                && one_row_source_admitted(tables, source_table, source, index))
+                && one_row_source_admitted(source_table, source, index))
                 .min_by_key(|index| (index.columns.len(), &index.name))
                 .map(|index| (index.name.clone(), index.columns.clone()));
             if let Some((name, columns)) = one_row {
@@ -148,15 +149,26 @@ fn membership(tables: &Tables, synthesized: &std::collections::BTreeSet<(String,
             // Uniform denial is not an empty discovery range. PAGE may commit
             // its speculative indexes only when the fixed source pins prove
             // a true read-rule disjunct, matching the core validator.
+            let admitted = one_row || membership_probe_total_unique(tables, synthesized, table, predicate)
+                || membership_source_capped(tables, source);
             if !membership_source_witness(tables, synthesized, table, predicate, source)
-                || !membership_source_capped(tables, source) || !read_rule(source_table).is_some_and(|rule| by_form(rule, source))
+                || !read_rule(source_table).is_some_and(|rule| by_form(rule, source))
                 || candidate.branch_index_width(source_table, source).is_none_or(|width| width > 8)
                 || !candidate.branch_index_fits(source_table, source) { return None; }
+            if !admitted {
+                cap_repairs.push((source.table.clone(), membership_cap_repair(source_table, source, source_index)?));
+            }
             push_membership_lane(&candidate, table, &mut lanes, &mut order, *lane.planned.take()?, MEMBERSHIP_LANE,
                 lane.loop_.take(), lane.distinct.take(), lane.admission.take())?;
         }
     }
     if candidate.error_count() != errors { return None; }
+    if !cap_repairs.is_empty() {
+        cap_repairs.sort(); cap_repairs.dedup();
+        let declarations = cap_repairs.iter().map(|(table, declaration)| format!("`{declaration}` on table {table}")).collect::<Vec<_>>().join(" and ");
+        requests.cap_repairs.insert(read.site.to_string(), format!("add {declarations}; this is a hard stored-row limit that can refuse adoption or later writes once the group is full, so add it only when it is a real product enrollment limit"));
+        return None;
+    }
     *requests = candidate;
     Some(MergeExpr { view_order: Vec::new(), table: read.table.clone(), matching: None, filter: None, index: String::new(), order: range.order, take: range.take,
         cursor: range.cursor.clone(), lanes, site: read.site.clone() })
@@ -170,11 +182,10 @@ fn source_key_equality(key: KeyPart) -> Option<Expr> {
     }), right: Box::new(key.value), site })
 }
 
-fn one_row_source_admitted(tables: &Tables, table: &TableInfo, source: &ReadExpr, index: &IndexDecl) -> bool {
+fn one_row_source_admitted(table: &TableInfo, source: &ReadExpr, index: &IndexDecl) -> bool {
     let mut point = source.clone();
     point.keys.retain(|key| key.column.as_ref().is_some_and(|column| index.columns.contains(column)));
-    membership_source_capped(tables, &point)
-        && read_rule(table).is_some_and(|rule| by_form(rule, &point))
+    read_rule(table).is_some_and(|rule| by_form(rule, &point))
 }
 
 /// Confirm, while requests still live in the throwaway candidate, that every
@@ -225,8 +236,36 @@ fn push_membership_lane(candidate: &Requests, table: &TableInfo, lanes: &mut Vec
 fn membership_source_capped(tables: &Tables, source: &ReadExpr) -> bool {
     let Some(table) = tables.get(&source.table) else { return false };
     let pinned: Vec<&str> = source.keys.iter().filter_map(|key| key.column.as_deref()).collect();
-    let ceiling = snapback4_core::Ceilings::default().examined;
-    table.decl.caps.iter().any(|cap| u64::from(cap.max) <= ceiling && cap.by.iter().all(|column| pinned.contains(&column.as_str())))
+    table.decl.caps.iter().any(|cap| cap.by.iter().all(|column| pinned.contains(&column.as_str())))
+}
+
+fn membership_cap_repair(table: &TableInfo, source: &ReadExpr, index: &IndexDecl) -> Option<String> {
+    let fixed = index.columns.iter().zip(&source.keys).filter_map(|(column, key)| {
+        let non_null = matches!(&key.value, Expr::Name { name, .. } if name == "viewer")
+            || matches!(&key.value, Expr::Literal { value, .. } if !matches!(value, Literal::Null))
+            || matches!(&key.value, Expr::Unary { op, value, .. } if op == "-" && matches!(value.as_ref(), Expr::Literal { value: Literal::Number(_), .. }));
+        (column != "id" && non_null && table.columns.get(column).is_some_and(|kind| !kind.optional)).then_some(column.clone())
+    }).collect::<Vec<_>>();
+    Some(if fixed.is_empty() { "cap 50".into() } else { format!("cap 50 by {}", fixed.join(", ")) })
+}
+
+/// The original rule probe's selected point is total. This proves one witness
+/// for an outer row, not a bound on the inverted discovery population; §15's
+/// all-or-nothing meter cut supplies that safety.
+// @ref LLP 3000.036.001#15 — exact total membership points admit metered discovery without pretending to cap a viewer's memberships.
+fn membership_probe_total_unique(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>,
+    focal: &TableInfo, predicate: &Expr) -> bool {
+    let Expr::Exists { read, .. } = predicate else { return false };
+    let Some(table) = tables.get(&read.table) else { return false };
+    let Some(columns) = super::intent_lanes::probe_columns(tables, synthesized, focal, read) else { return false };
+    let named = read.keys.iter().all(|key| key.column.is_some());
+    table.indexes.iter().filter(|index| table.total_unique(index))
+        .filter(|index| read.index.as_ref().is_none_or(|name| name == &index.name))
+        .any(|index| if named {
+            index.columns.iter().all(|column| columns.contains(column))
+        } else {
+            index.columns == columns
+        })
 }
 
 fn membership_target(predicate: &Expr) -> Option<String> {
@@ -252,21 +291,25 @@ fn owner_membership_shape(tables: &Tables, synthesized: &std::collections::BTree
     let Some(rule) = read_rule(table) else { return false };
     let mut leaves = Vec::new(); disjuncts(rule, &mut leaves);
     let party = leaves.iter().any(|leaf| self::party(table, leaf).is_some());
-    let membership = leaves.iter().any(|leaf| membership_probe_capped(tables, synthesized, table, leaf));
-    party && membership && leaves.iter().all(|leaf| self::party(table, leaf).is_some() || membership_probe_capped(tables, synthesized, table, leaf))
+    let membership = leaves.iter().any(|leaf| membership_probe_point(tables, synthesized, table, leaf));
+    party && membership && leaves.iter().all(|leaf| self::party(table, leaf).is_some() || membership_probe_point(tables, synthesized, table, leaf))
 }
 
-fn membership_probe_capped(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>, focal: &TableInfo, predicate: &Expr) -> bool {
+fn membership_probe_point(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>, focal: &TableInfo, predicate: &Expr) -> bool {
     let Expr::Exists { read, .. } = predicate else { return false };
-    // PAGE reserves only a probe with one target-row component. A fully fixed
-    // capped probe is an ordinary static grant and remains eligible for the
-    // older branch merge.
+    // PAGE reserves only an exact point with one target-row component. A
+    // fully fixed probe is an ordinary static grant and remains eligible for
+    // the older branch merge.
     if membership_target(predicate).is_none() { return false; }
     let Some(table) = tables.get(&read.table) else { return false };
     let Some(columns) = super::intent_lanes::probe_columns(tables, synthesized, focal, read) else { return false };
-    let fixed: Vec<String> = read.keys.iter().zip(columns).filter_map(|(key, column)|
-        intent::column(&key.value).is_none().then_some(column)).collect();
-    table.decl.caps.iter().any(|cap| cap.by.iter().all(|column| fixed.contains(column)))
+    let named = read.keys.iter().all(|key| key.column.is_some());
+    // A byId parent-owner probe remains an ordinary page guard when the
+    // outer id/reference is already pinned. Reserve the composite membership
+    // points whose inverted discovery belongs to PAGE.
+    table.indexes.iter().filter(|index| index.unique && index.is_plain() && index.columns != ["id"])
+        .filter(|index| read.index.as_ref().is_none_or(|name| name == &index.name))
+        .any(|index| if named { index.columns.iter().all(|column| columns.contains(column)) } else { index.columns == columns })
 }
 
 /// `exists t where W` with `W` branch-decided: `exists (branch 1) or …`, each
