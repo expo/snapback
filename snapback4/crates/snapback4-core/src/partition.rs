@@ -931,6 +931,7 @@ pub fn changed_group_audiences(previous: Option<&Schema>, schema: &Schema) -> Ve
         };
         let content: Vec<_> = prefix.iter().map(|column| reading(table, column)).collect();
         let members: Vec<_> = binding.columns.iter().chain([&binding.principal]).map(|column| reading(target_table, column)).collect();
+        let opening = target_table.not_before.as_ref().map(|column| reading(target_table, column));
         let lifetime = target_table.expire.as_ref().map(|column| reading(target_table, column));
         let effective = target_table.expiry_column().map(|column| reading(target_table, &column.to_owned()));
         // Inherited lifetime inputs can change without changing capture types.
@@ -941,11 +942,11 @@ pub fn changed_group_audiences(previous: Option<&Schema>, schema: &Schema) -> Ve
         while let Some(parent) = next {
             if !seen.insert(parent) { break; }
             let Some(owner) = schema.table(parent) else { break; };
-            ancestors.push((parent, &owner.columns, &owner.defaults, &owner.expire, &owner.through,
+            ancestors.push((parent, &owner.columns, &owner.defaults, &owner.not_before, &owner.expire, &owner.through,
             ));
             next = owner.through.as_ref().map(|t| t.parent.as_str());
         }
-        Some(canonical_json(&serde_json::json!([target, content, members, binding.group_index, lifetime, effective,
+        Some(canonical_json(&serde_json::json!([target, content, members, binding.group_index, opening, lifetime, effective,
             target_table.through, table.through.as_ref().map(|t| &t.identity), ancestors])))
     };
     schema.synced().filter(|(_, _, sync)| matches!(sync.audience, Audience::Target { .. }))
@@ -956,7 +957,7 @@ pub fn changed_group_audiences(previous: Option<&Schema>, schema: &Schema) -> Ve
 /// The groups a principal held during `(watermark, now]`, per content
 /// table, from its memberships now and the joins and scopes logged since.
 #[cfg(feature = "sqlite")]
-fn intervals(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark: u64) -> Result<BTreeMap<(String, String), Vec<Interval>>, RuntimeError> {
+fn intervals(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark: u64, now: i64) -> Result<BTreeMap<(String, String), Vec<Interval>>, RuntimeError> {
     // Physical memberships provide the initial state for databases whose old
     // ledger predates expiry metadata. Logical expiry still bounds every span.
     let mut current = BTreeMap::new();
@@ -967,7 +968,9 @@ fn intervals(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermark
             RuntimeError::Schema(format!("sync to {target} has no audience index"))
         })?;
         for (member, _) in tx.scan(target, &bound.principal_index, &[Value::Id(principal.to_owned())], &Bounds::default(), Dir::Asc, usize::MAX)? {
-            let member = row_image(&member, schema.table(target).expect("validated audience target"));
+            let table = schema.table(target).expect("validated audience target");
+            let member = row_image(&member, table);
+            if !published(tx, target, table, &member, now)? { continue; }
             let group: Vec<Value> = bound.columns.iter().map(|c| member.field(c).cloned().unwrap_or(Value::Null)).collect();
             if group.contains(&Value::Null) { continue; }
             let expiry = schema.table(target).and_then(|table| table.deadline(&member));
@@ -1080,7 +1083,7 @@ pub fn stream(tx: &dyn PartitionRows, schema: &Schema, principal: &str, watermar
     });
     // A cursor from a replaced database is not evidence that this store reached it.
     if watermark > head || (watermark == head && !expiring_audience) { return Ok(StreamPage { images_at: Some(head), acquisitions: Vec::new(), events: Vec::new(), watermark: head, more: false, joined: BTreeMap::new() }); }
-    let held = intervals(tx, schema, principal, watermark)?;
+    let held = intervals(tx, schema, principal, watermark, now)?;
     let mut spans = vec![(partition_of(principal), watermark.saturating_add(1), None, None,
         ), (PUBLIC.to_owned(), watermark.saturating_add(1), None, None)];
     // A group acquired by a join reads its log after the join's commit: the

@@ -59,6 +59,26 @@ query firstVisible():
   return tasks first 1 by .id
 ";
 
+fn membership_source(not_before: Option<&str>) -> String {
+    let opening = not_before.map_or(String::new(), |field| format!("  not before .{field}\n"));
+    format!("table members:
+  room: text <=20
+  principal: principal
+  opensAt: time ?
+  opensAgain: time ?
+  unique byRoomPrincipal: room, principal
+  by byOpening: opensAt
+  by byOpeningAgain: opensAgain
+  read <- .principal = viewer
+{opening}  sync to .principal
+table notes:
+  room: text <=20
+  body: text <=100
+  read <- exists members[.room, viewer]
+  sync to members[.room]
+")
+}
+
 fn engine_at(now: i64) -> Engine {
     let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
     assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
@@ -410,4 +430,72 @@ fn an_ordinary_schema_does_not_acquire_the_time_audience_clock_floor() {
     assert_eq!(engine.store().meta("time_audience_clock").unwrap(), None);
     assert_eq!(engine.query("clock", Context::new("alice", Default::default()).at(100)).unwrap().data, Value::Int(100));
     assert_eq!(engine.query("clock", Context::new("alice", Default::default()).at(50)).unwrap().data, Value::Int(50));
+}
+
+#[test]
+fn adoption_rebuilds_openings_and_group_authority_when_the_lower_lifetime_changes() {
+    let compile = |opening| {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), membership_source(opening))]);
+        assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+        bound
+    };
+    let plain = compile(None);
+    let timed = compile(Some("opensAt"));
+    let rebound = compile(Some("opensAgain"));
+
+    for (from, to) in [(&plain.schema, &timed.schema), (&timed.schema, &rebound.schema), (&rebound.schema, &plain.schema)] {
+        assert!(snapback4_core::successor::classify(from, to).iter().any(|step| {
+            step.path == "tables.members.notBefore"
+                && step.change == snapback4_core::successor::Change::RuleChange
+        }));
+        assert_eq!(snapback4_core::partition::changed_group_audiences(Some(from), to), ["notes"]);
+    }
+
+    let mut engine = Engine::new_at(
+        Store::memory().unwrap(),
+        plain.schema.clone(),
+        plain.programs.iter().map(|program| program.program.clone()),
+        0,
+    ).unwrap();
+    engine.seed_at([
+        ("members".into(), object([
+            ("id", Value::Id("member".into())),
+            ("room", Value::String("room".into())),
+            ("principal", Value::Id("alice".into())),
+            ("opensAt", Value::Int(100)),
+            ("opensAgain", Value::Int(200)),
+        ])),
+        ("notes".into(), object([
+            ("id", Value::Id("note".into())),
+            ("room", Value::String("room".into())),
+            ("body", Value::String("secret".into())),
+        ])),
+    ], 0).unwrap();
+    let (before, _) = engine.snapshot_at("alice", 0).unwrap();
+    assert!(before.iter().any(|event| event.table == "notes" && event.id == "note"));
+
+    engine.adopt_at(timed.schema, timed.programs.into_iter().map(|program| program.program), 0).unwrap();
+    let pending = engine.store().conn().query_row("SELECT count(*) FROM _time_openings", [], |row| row.get::<_, i64>(0)).unwrap();
+    assert_eq!(pending, 1, "adding a lower lifetime rebuilds the pending ledger");
+    let (hidden, _) = engine.snapshot_at("alice", 0).unwrap();
+    assert!(!hidden.iter().any(|event| event.table == "members" && event.id == "member"), "the future membership row is revoked by the new generation");
+    assert!(!hidden.iter().any(|event| event.table == "notes" && event.id == "note"), "a pre-adoption grant cannot survive the audience epoch");
+
+    let watermark = engine.seq().unwrap();
+    let opened = engine.stream_at("alice", watermark, 100, 100).unwrap();
+    assert!(opened.events.iter().any(|event| event.table == "members" && event.id == "member" && event.kind == "put"), "the opening publishes the membership row");
+    assert!(opened.events.iter().any(|event| event.table == "notes" && event.id == "note" && event.kind == "put"), "the opening acquires the membership content");
+    assert!(opened.events.iter().any(|event| event.table == "notes" && event.kind == "scope"), "a post-epoch acquisition first clears stale retained authority");
+
+    engine.adopt_at(rebound.schema, rebound.programs.into_iter().map(|program| program.program), 100).unwrap();
+    let pending = engine.store().conn().query_row("SELECT count(*) FROM _time_openings", [], |row| row.get::<_, i64>(0)).unwrap();
+    assert_eq!(pending, 1, "rebinding the lower lifetime rebuilds the pending ledger");
+    let (hidden, _) = engine.snapshot_at("alice", 100).unwrap();
+    assert!(!hidden.iter().any(|event| event.table == "notes" && event.id == "note"), "rebinding to a future column revokes the old grant");
+
+    engine.adopt_at(plain.schema, plain.programs.into_iter().map(|program| program.program), 100).unwrap();
+    let pending = engine.store().conn().query_row("SELECT count(*) FROM _time_openings", [], |row| row.get::<_, i64>(0)).unwrap();
+    assert_eq!(pending, 0, "removing the lower lifetime clears its private ledger");
+    let (visible, _) = engine.snapshot_at("alice", 100).unwrap();
+    assert!(visible.iter().any(|event| event.table == "notes" && event.id == "note"), "the new generation derives the immediate grant");
 }

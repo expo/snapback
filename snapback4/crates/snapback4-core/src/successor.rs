@@ -141,6 +141,9 @@ pub fn classify(from: &Schema, to: &Schema) -> Vec<Step> {
         if old.sync != new.sync {
             steps.push(Step { path: format!("{path}.sync"), change: Change::RuleChange, message: format!("{name}'s sync declaration changes; every device re-derives its partition of {name}") });
         }
+        if old.not_before != new.not_before {
+            steps.push(Step { path: format!("{path}.notBefore"), change: Change::RuleChange, message: match &new.not_before { Some(column) => format!("{name} now opens at .{column}; every device re-derives its partition of {name}"), None => format!("{name} no longer opens at .{}; every device re-derives its partition of {name}", old.not_before.as_deref().unwrap_or("")) } });
+        }
         if old.expire != new.expire {
             steps.push(Step { path: format!("{path}.expire"), change: Change::RuleChange, message: match &new.expire { Some(column) => format!("{name} now expires at .{column}; rows already past it vanish and are swept"), None => format!("{name} no longer expires; rows past .{} stay", old.expire.as_deref().unwrap_or("")) } });
         }
