@@ -29,13 +29,6 @@ query myNotes(c: cursor ?):
   return notes where .owner = viewer last 20 by .at after c
 mutation addNote(body: text):
   return insert notes { owner: viewer, body }
-table announcements:
-  body: text <=4000
-  opensAt: time ?
-  by byOpening: opensAt, id
-  not before .opensAt                  -- absent to reads until the server reaches this lower read-lifetime boundary; null opens immediately
-  public 'announcements become public on the server clock'
-  online only
 ```
 
 Tables have an implicit `id`. `query` pages newest first; pass `next` as `c`. `addNote` inserts atomically with default time.
@@ -537,40 +530,28 @@ A maintained count can use another table's row as its key: `view unread: count m
 
 `snapback/schema.q` holds tables, views, shapes, helpers, programs and schedules in any order. Other `.q` files share its namespace; their operations and scheduled jobs use `<module>.<name>`. `check --fix` qualifies an unambiguous bare job name. Comments start with `--`; blocks indent two spaces. The suite compiles every block.
 
-Time arithmetic uses durations: `now + 1m` is one minute from now, and `now - .at` is elapsed time; `day(now)`, `hour(now)` and `bucket(now, 2m)`
-produce UTC calendar ordinals (`guide time`).
+Time arithmetic uses durations: `now + 1m` is one minute from now, and `now - .at` is elapsed time; `day(now)`, `hour(now)` and `bucket(now, 2m)` produce UTC calendar ordinals (`guide time`).
 
-`createRoom` above predicts: its room is readable through the membership
-inserted later in the same call. Reads authorize the current provisional
-image against all pending writes. `edit` of retained history after leaving
-the room also predicts, but the edited image is hidden until settlement.
-See `guide prediction`.
+`createRoom` above predicts: its room is readable through the membership inserted later in the same call.
+Reads authorize the current provisional image against all pending writes. `edit` of retained history after leaving
+the room also predicts, but the edited image is hidden until settlement. See `guide prediction`.
 
-`t[id]` reads one row; positional composite keys require an unambiguous declared
-unique key. Named keys select columns. `t where predicate first 20 by .at after c`
-pages ascending; `last` descends, with id breaking ties. Optional filters use
-`(status = null or .status = status)`; empty `matching q` browses in order.
-`count`, `sum`, `min` and `max` stream domains. Min/max skip nulls and return null
-for empty/all-null domains, otherwise the value's type. Their second argument
-accepts scalar row expressions; `.field` binds that row and named locals remain
-in scope. Move ambiguous enclosing-row references into a helper with named inputs.
-Literal `.col` extrema seek the first visible matching non-null indexed value;
-other expressions scan under meters (constant under a cap, growing otherwise). `check --cost` names the plan. A cut aggregate
-is unavailable, including before `??`; devices need complete domain coverage.
-Rules precede comparisons. `exists` stops at a visible match; unknown domains
-cannot prove absence. See `guide reads`.
+`t[id]` reads one row; positional composite keys require an unambiguous declared unique key. Named keys select columns.
+`t where predicate first 20 by .at after c` pages ascending; `last` descends, with id breaking ties.
+Optional filters use `(status = null or .status = status)`; empty `matching q` browses in order.
+`count`, `sum`, `min` and `max` stream domains. Min/max skip nulls and return null for empty/all-null domains, otherwise the value's type.
+Their second argument accepts scalar row expressions; `.field` binds that row and named locals remain in scope. Move ambiguous enclosing-row references into a helper with named inputs.
+Literal `.col` extrema seek the first visible matching non-null indexed value; other expressions scan under meters (constant under a cap, growing otherwise). `check --cost` names the plan.
+A cut aggregate is unavailable, including before `??`; devices need complete domain coverage.
+Rules precede comparisons. `exists` stops at a visible match; unknown domains cannot prove absence. See `guide reads`.
 
 `ys = xs + [value]`, `[a] + [b]` and `return xs + [value]` concatenate lists; item types join and bounds add.
 `xs = []` then `xs = xs + [value]` appends under the heap meter; `for x in xs:` can iterate the accumulated list.
 
-`sha256` is for high-entropy capability tokens and content checksums. It hashes
-the exact UTF-8 bytes without normalization and returns lowercase hexadecimal.
-It is not password hashing, low-entropy email anonymization, a signature, a
-MAC, or entropy generation; a digest is not automatically safe to publish.
+`sha256` is for high-entropy capability tokens and content checksums. It hashes the exact UTF-8 bytes without normalization and returns lowercase hexadecimal.
+It is not password hashing, low-entropy email anonymization, a signature, a MAC, or entropy generation; a digest is not automatically safe to publish.
 
-`unique principal, day(at)` enforces calendar uniqueness. `search body`
-declares word-prefix search. The planner builds indexes for predicates,
-order, rule probes, sync, caps and expiry (`guide indexes`).
+`unique principal, day(at)` enforces calendar uniqueness. `search body` declares word-prefix search. The planner builds indexes for predicates, order, rule probes, sync, caps and expiry (`guide indexes`).
 
 ## With `use server`
 
@@ -593,8 +574,7 @@ effects, actions, routes, services, presence, receipts, read-only, manual-receip
 
 ## An ID belongs to one intent
 
-For a public Following feed, see `guide feeds`. Materialization requires
-public sources with immutable mappings and owner write rules. Posts and reposts
+For a public Following feed, see `guide feeds`. Materialization requires public sources with immutable mappings and owner write rules. Posts and reposts
 may bound acquisition by time; public follows may sync fully, use a horizon,
 or stay online only.
 

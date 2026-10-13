@@ -388,9 +388,6 @@ The HTTP /seed development door already runs through the host. `check`, `data`,
 
 Expiry makes a row invisible when its declared deadline passes.
 The server then deletes it and syncs the deletion to devices holding it.
-Together, `not before .opensAt` and `expire at .expiresAt` define the half-open
-read lifetime `[opensAt, expiresAt)`: the first is the lower boundary and the
-second is the upper boundary. `guide timed disclosure` has the compiled recipe.
 
 ```quarry
 table stories:
@@ -410,6 +407,9 @@ mutation postStory(body: text <=500, ttl: int ?):
 query expiringStories(c: cursor ?):
   return stories where .authorId = viewer after c last 20 by .id { id, body, expiresAt }
 ```
+
+`not before .opensAt` and `expire at .expiresAt` define `[opensAt, expiresAt)`;
+`guide timed disclosure` has the compiled recipe.
 
 `guide reads` carries a compilable typing table and its 4,500 ms deadline.
 This is an application table, separate from the server's `connected[p]`.
