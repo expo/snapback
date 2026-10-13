@@ -436,6 +436,15 @@ impl RuleCtx<'_> {
                 let (s, k) = literal_scalar(value)?;
                 Ok((json!({"lit": s}), k))
             }
+            // @ref LLP 3000.036.001#14 — fixed membership residuals compare canonical scalar values across rule and expression IR.
+            Expr::Unary { op, value, .. } if op == "-" => match value.as_ref() {
+                Expr::Literal { value: Literal::Number(n), .. } => {
+                    let magnitude = n.parse::<i64>().map_err(|_| Unsupported::new("number-literal", n.clone()))?;
+                    let value = magnitude.checked_neg().ok_or_else(|| Unsupported::new("number-literal", format!("-{n}")))?;
+                    Ok((json!({"lit": {"int": value.to_string()}}), Some(Kind::Int)))
+                }
+                _ => no("rule-term", crate::print::expression(e)),
+            },
             Expr::Member { base, name, .. } => {
                 let image = match (base.as_ref(), images) {
                     (Expr::Focal { .. }, Images::As(img)) => *img,
