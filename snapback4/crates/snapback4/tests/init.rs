@@ -1215,7 +1215,7 @@ fn the_readme_says_what_works_offline_from_the_schemas_synced_tables() {
         if flag == "--web" { assert!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap().contains("device: webDevice()"), "adapt follows the newly synced table"); }
         assert!(after.replace('\n', " ").contains("the synced table (`notes`) reads and writes offline"), "{flag}: {after}");
         assert_eq!(after.split("\n\n").filter(|paragraph| !paragraph.starts_with("Offline")).collect::<Vec<_>>(),
-            readme.replace("web uses the principal write journal (no synced tables).", "web uses the wasm\ndevice.").split("\n\n").filter(|paragraph| !paragraph.starts_with("Offline")).collect::<Vec<_>>(), "{flag}: only offline wording changes");
+            readme.replace("web uses the principal write journal (no synced tables).", "web uses the wasm\ndevice.").replace("or the principal write journal (web, no synced tables).", "or `webDevice()` (web).").split("\n\n").filter(|paragraph| !paragraph.starts_with("Offline")).collect::<Vec<_>>(), "{flag}: only offline wording changes");
         assert!(dir.init(&["--adapt"]).status.success());
         assert_eq!(fs::read_to_string(dir.0.join("README.md")).unwrap(), after, "{flag}: adapt is idempotent");
         // 0.4.22's README (the unconditional claim) is still the starter's, and is rewritten.
