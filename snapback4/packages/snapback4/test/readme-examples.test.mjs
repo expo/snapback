@@ -30,6 +30,8 @@ export declare const api: {
   messageReceipts: Query<{ conversation: string; c?: Cursor | null }, { id: string; receipt: string }[]>;
   receiptFamilies: { chat: ReceiptFamily<{ id: string; joinedOrdinal: number; deliveredOrdinal: number; seenOrdinal: number }, "conversation", "through"> };
   myMembership: Query<{ conversationId: string }, { id: string } | null>;
+  staffNotes: Query<{}, { id: string; title: string }[]>;
+  add: Mutation<{ title: string }, null>;
   members: Query<{ conversationId: string }, { id: string }[]>;
   inboxCards: Query<{ c?: Cursor | null }, { id: string; title: string; memberCount: number }[]>;
   messagePhoto: Query<{ id: string }, { photo: { id: string } | null; tombstone: boolean; expiresAt: number | null } | null>;

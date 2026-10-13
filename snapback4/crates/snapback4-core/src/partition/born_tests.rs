@@ -80,6 +80,17 @@ fn randomized_commits_match_original_events_and_meter() {
                 let old = tx.get(table_name, id).unwrap();
                 if old.is_none() && new.is_none() { return; }
                 let table = schema.table(table_name).unwrap();
+                // The real writer enforces the declared unique membership key.
+                // Raw test writes must not create impossible physical siblings;
+                // expiry replacement/retirement has its own engine-level suite.
+                if matches!(table_name, "members" | "private_members") {
+                    if let Some(row) = &new {
+                        let key = [row.field("group").unwrap().clone(), row.field("person").unwrap().clone()];
+                        let conflicts = crate::rows::Rows::scan(&tx, table_name, "byGroupPerson", &key,
+                            &Bounds::default(), Dir::Asc, usize::MAX).unwrap();
+                        if conflicts.iter().any(|(other, _)| other.field("id").unwrap().as_str().unwrap() != id) { return; }
+                    }
+                }
                 if let Some(new) = &new { tx.put(table_name, table, new, old.as_ref()).unwrap(); }
                 else { tx.delete(table_name, table, old.as_ref().unwrap()).unwrap(); }
                 account_row_change::<true>(&mut actual, table_name, old.as_ref(), new.as_ref(), origin).unwrap();
@@ -88,11 +99,7 @@ fn randomized_commits_match_original_events_and_meter() {
                     "seed {seed}, commit {commit}, step {step}, table {table_name}, id {id}");
                 assert_eq!(actual.meter.used, reference.meter.used, "meter at seed {seed}, commit {commit}, step {step}");
                 assert_eq!(actual.born_rows, reference.born_rows);
-                // Timed publication can visit an empty audience before it has
-                // a grant. Missing and zero counters denote the same birth count.
-                let nonzero = |grants: &std::collections::HashMap<(String, String, String), usize>| grants.iter()
-                    .filter(|(_, count)| **count != 0).map(|(key, count)| (key.clone(), *count)).collect::<std::collections::BTreeMap<_, _>>();
-                assert_eq!(nonzero(&actual.born_grants), nonzero(&reference.born_grants));
+                assert_eq!(actual.born_grants, reference.born_grants);
                 step += 1;
             };
             // Across commits this pins a preexisting renewal, revoke, rebirth,

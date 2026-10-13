@@ -133,7 +133,7 @@ test("init keeps the local default and makes a compiled online starter without s
     assert.equal(checked.status, 0, checked.stdout + checked.stderr);
     const result = JSON.parse(checked.stdout);
     assert.equal(result.synced, mode === "online" ? 0 : 1);
-    assert.equal(result.notes.length, 0);
+    assert.deepEqual(result.notes.map(note => note.code), ["N_NO_PRODUCTION_WRITER"]);
   }
   assert.equal(invoke("init", "--online", "--expo", "bad").status, 2);
   assert.equal(existsSync(join(dir, "bad")), false);

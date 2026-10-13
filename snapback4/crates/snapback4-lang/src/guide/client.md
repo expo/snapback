@@ -16,11 +16,16 @@ export function Inbox() { const page = usePage(api.inboxCards, {}), status = rea
 
 ## Reference
 ```tsx
-const send = useMutation(api.send);
-async function submit() {
-  const text = draft; setDraft("");
-  const write = await send.run({ conversationId, body: text }, { waitSeconds: 0 });
-  if (write.state === "failed") setDraft(current => current || text);
+import { useState } from "react"; import { matchRead, useMutation, useQuery } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+export function Composer({conversationId}:{conversationId:string}) {
+  const [draft,setDraft]=useState(""),[submitted,setSubmitted]=useState("");
+  const send=useMutation(api.send),member=useQuery(api.myMembership,{conversationId});
+  const blocked=matchRead(member,{denied:()=>true,absent:read=>read.fresh&&!read.revalidating,partial:()=>false,otherwise:()=>false});
+  async function submit(){if(blocked)return;const text=draft;setSubmitted(text);setDraft("");const write=await send.run({conversationId,body:text},{waitSeconds:0});if(write.state==="failed")setDraft(current=>current||text);}
+  return <><input value={draft} onChange={e=>setDraft(e.target.value)}/>
+    <button disabled={send.inFlight||blocked} onClick={()=>void submit()}>Send</button>
+    {send.last?.state==="failed"&&submitted&&<p role="alert">Not sent: {submitted} <button onClick={()=>setDraft(current=>current?current+" "+submitted:submitted)}>Edit</button> <button onClick={()=>setSubmitted("")}>Dismiss</button></p>}</>;
 }
 ```
 Keep the composer mounted above reactive rows; [full screen](CLIENT-AND-OPERATIONS.md#a-stable-conversation-screen).
@@ -32,7 +37,7 @@ Membership: no horizon, the conversation's own group and messages' audience prov
 `usePendingItems({writes,rows,scope,rowKey,intentKey})`: mapped row/intent union through observed settlement. `usePendingState(op,{scope,current,read?,value})`: latest admitted intent. [Reference](CLIENT-AND-OPERATIONS.md); non-JS hosts: “The device reply”.
 
 ## Read boundaries
-`query(op,args)` settles ready/denied within 30 seconds including queued work. Dependent writes settle or have complete device predictions; unrelated writes pass. Offline data/predictions can answer; unavailable reads refuse E_OFFLINE. After four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; offline unavailable reads give immediate `E_OFFLINE`; unavailable held reads refuse E_QUERY_HELD. Partial/stale answers remain explicit.
+`query(op,args)` settles ready/denied within 30 seconds including queued work. Dependent writes settle or have complete device predictions; unrelated writes pass. Offline data/predictions can answer; unavailable reads refuse E_OFFLINE. After four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; offline unavailable reads give immediate `E_OFFLINE`; permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Partial/stale answers remain explicit.
 
 ## Password React and Expo
 
@@ -70,26 +75,20 @@ SDK sign-in answers `{ok:true, session}` or `{ok:false, why}`. Expo uses SecureS
 
 ## Generic read props and outcomes
 
-An empty complete list is `absent` only with `cut:null`, no continuation or blocking prediction. List props: `Read<T[]>` (`T extends { id: string }`); operation props: `UseQuery<typeof api.op>`. Ordinary `run()` waits for `sent | failed`, independent of query subscribers or component unmount; keep the App alive to collect its receipt. Offline it waits for reconnect. Explicit `{ waitSeconds: 0 }` returns custody immediately; pending is not success.
+List props: `Read<T[]>` (`T extends { id: string }`); operation props: `UseQuery<typeof api.op>`. Ordinary `run()` waits for `sent | failed`, independent of query subscribers or component unmount; keep the App alive to collect its receipt. Offline it waits for reconnect. Explicit `{ waitSeconds: 0 }` returns custody immediately; pending is not success.
 `sentResult(write)` returns the fresh result (including null) or undefined for pending, failed and replayed receipts; failed carries why.
 
 ```tsx
 import { matchRead, otherwiseAll, sentResult, useMutation, useQuery } from "snapback4/react";
-const read = useQuery(api.staffNotes, {}, { skip: !granted }); // avoids unauthorized requests until role grant
-const text = matchRead(read, { ...otherwiseAll(() => "Unavailable"), absent: () => "No notes", present: rows => `${rows.length} notes` });
-const add = useMutation(api.add);
-const write = await add.run({ title: "Proof" });
-const result = sentResult(write);
-if (result !== undefined) console.log(result); // null is a legitimate fresh result
-if (write.state === "failed") console.log(write.why.message);
+import { api } from "../snapback/generated/api";
+export function StaffNotes({granted}:{granted:boolean}) {
+  const read=useQuery(api.staffNotes,{}, {skip:!granted}),add=useMutation(api.add);
+  const text=matchRead(read,{...otherwiseAll(()=>"Unavailable"),absent:()=>"No notes",present:rows=>`${rows.length} notes`});
+  async function submit(){const write=await add.run({title:"Proof"});const result=sentResult(write);if(result!==undefined)console.log(result);if(write.state==="failed")console.log(write.why.message);}
+  return <>{matchRead(read,{loading:()=>"Loading…",denied:why=>why.message,absent:()=>text,partial:()=>"Partial results",present:data=>`${data.length} notes`})}<button onClick={()=>void submit()}>Add</button></>;
+}
 ```
-
-A complete empty list is absent, not loading; handle it alongside rows:
-
-```tsx
-const rows = matchRead(read, { loading: () => "Loading…", denied: why => why.message,
-  absent: () => "No notes", partial: () => "Partial results", present: data => `${data.length} notes` });
-```
+A complete empty list is absent; null is a legitimate fresh write result.
 
 Keyed counts: hidden key → null; authorized missing count group → 0; public count → number. Choose `count ?? 0` explicitly. `useQuery` is live; after sent, `client.query(...)` reads once.
 

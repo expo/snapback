@@ -437,11 +437,7 @@ impl Engine {
             .map_err(|e| RuntimeError::Store(format!("no readable activated backend in this store: {e}")))?;
         let kept = crate::store::opening::Backend(generation, schema.clone(), programs.clone());
         let generation = u64::try_from(generation).map_err(|_| RuntimeError::Store("negative stored generation".into()))?;
-        let schema = serde_json::from_str(&schema).map_err(|e| {
-            RuntimeError::decode(e, |e| {
-                RuntimeError::Store(format!("invalid stored schema: {e}"))
-            })
-        })?;
+        let schema = serde_json::from_str(&schema).map_err(|e| RuntimeError::decode(e, |e| RuntimeError::Store(format!("invalid stored schema: {e}"))))?;
         crate::schema::timeline::check_version(&schema)?;
         timeline::check_no_rebuilds(&tx, &schema)?;
         schema.check_row_view_audiences()?;

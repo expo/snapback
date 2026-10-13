@@ -91,12 +91,13 @@ test("the largest row-bounded source batch recovers oversized parent mirrors by 
   for(const d of clients){
     d.record=true;d.offline=false;await d.client.sync();
     const state=(await d.core.call({op:"state"})).ok;
-    assert.equal(state.generation,head.generation);assert.equal(state.watermark,refused.watermark);
+    assert.equal(state.generation,head.generation);
     const refusedPage=d.pages.find(({request,page})=>request.limit===1 && page.denied?.code==="E_BOUND" && page.snapshot);
     assert.ok(refusedPage);
     assert.equal(refusedPage.page.watermark,refused.watermark);
     const accepted=d.pages.find(({request,page})=>request.from===0 && page.snapshot && !page.denied);
     assert.ok(accepted);
+    assert.equal(state.watermark,accepted.page.watermark, "successful snapshot owns progress");
     assert.equal(accepted.page.watermark,refusedPage.page.watermark);
     for(let n=0;n<moves;n++)for(const [prefix,value] of [["p",0],["q",1]]){
       const id=prefix+n;

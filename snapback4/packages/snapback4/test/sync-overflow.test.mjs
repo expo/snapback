@@ -225,7 +225,7 @@ for (const tier of ["wasm", "process"]) test(`${tier} a new replica recovers its
   const stream = await f.post("/sync", { from: 0, stream: true, limit: 1 });
   assert.equal(stream.denied?.message, refusal);
   assert.equal(stream.snapshot, true);
-  assert.equal(stream.watermark, 1);
+  assert.equal(stream.watermark, 0, "a refused acquisition cannot invent applied progress");
   await device.client.sync();
   const state = (await device.core.call({ op: "state" })).ok;
   assert.equal(state.watermark, 1);
