@@ -48,7 +48,7 @@ fn id(value: &str) -> Value {
     Value::Id(value.into())
 }
 
-fn answers(bound: Bound, rows: Vec<(String, Value)>) -> (Vec<String>, bool) {
+fn answers(bound: Bound, rows: Vec<(String, Value)>) -> (Vec<String>, bool, bool) {
     let mut engine = Engine::memory(
         bound.schema,
         bound.programs.into_iter().map(|program| program.program),
@@ -74,10 +74,10 @@ fn answers(bound: Bound, rows: Vec<(String, Value)>) -> (Vec<String>, bool) {
             Context::new("alice", BTreeMap::from([("id".into(), id("shared"))])),
         )
         .unwrap();
-    (ids, point.data != Value::Null)
+    (ids, point.data != Value::Null, page.complete)
 }
 
-fn run(nullable: bool, reverse_unique: bool, exact_member: bool) -> (Vec<String>, bool) {
+fn run(nullable: bool, reverse_unique: bool, exact_member: bool) -> (Vec<String>, bool, bool) {
     let source = source(nullable, reverse_unique);
     let bound = clean(&source);
     let page_program = &bound
@@ -185,7 +185,7 @@ fn run(nullable: bool, reverse_unique: bool, exact_member: bool) -> (Vec<String>
 #[test]
 fn fixed_membership_id_preserves_nullable_natural_key_authorization() {
     for nullable in [true, false] {
-        let (present_page, present_point) = run(nullable, false, true);
+        let (present_page, present_point, _) = run(nullable, false, true);
         assert_eq!(
             present_page.contains(&"shared".into()),
             present_point,
@@ -193,7 +193,7 @@ fn fixed_membership_id_preserves_nullable_natural_key_authorization() {
         );
         assert!(present_point, "the exact m1 witness authorizes both reads");
 
-        let (missing_page, missing_point) = run(nullable, false, false);
+        let (missing_page, missing_point, _) = run(nullable, false, false);
         assert_eq!(
             missing_page.contains(&"shared".into()),
             missing_point,
@@ -209,16 +209,105 @@ fn fixed_membership_id_preserves_nullable_natural_key_authorization() {
 
 #[test]
 fn authored_reverse_unique_preserves_nullable_fixed_id_authorization() {
-    let (present_page, present_point) = run(true, true, true);
+    let (present_page, present_point, _) = run(true, true, true);
     assert_eq!(present_page.contains(&"shared".into()), present_point);
     assert!(present_point, "the exact m1 witness authorizes both reads");
 
-    let (missing_page, missing_point) = run(true, true, false);
+    let (missing_page, missing_point, _) = run(true, true, false);
     assert_eq!(missing_page.contains(&"shared".into()), missing_point);
     assert!(
         !missing_point,
         "m0 must not stand in for the fixed m1 witness"
     );
+}
+
+#[test]
+fn a_fully_pinned_unique_discovers_its_nullable_residual_column() {
+    for nullable in [true, false] {
+        let source = source(nullable, false)
+            .replace("  unique parent, principal\n", "  unique principal\n")
+            .replace("id = 'm1', ", "");
+        let bound = clean(&source);
+        let page_program = &bound
+            .programs
+            .iter()
+            .find(|program| program.program.name == "documents")
+            .unwrap()
+            .program;
+        let merge = snapback4_core::ir::body_merges(&page_program.body)
+            .into_iter()
+            .find(|merge| merge.branches())
+            .expect("owner-or-membership branch merge");
+        let membership = merge
+            .lanes
+            .iter()
+            .find(|lane| lane.membership())
+            .expect("one membership lane");
+        let source_scan = membership
+            .source
+            .as_ref()
+            .and_then(snapback4_core::ir::LaneSource::scan)
+            .unwrap();
+        let source_index = &bound.schema.tables["members"].indexes[&source_scan.index];
+        assert_eq!(source_index.columns(), ["principal"]);
+        assert!(source_index.unique);
+
+        let parent = if nullable {
+            Value::Null
+        } else {
+            Value::String("p1".into())
+        };
+        let common_rows = vec![
+            row(
+                "documents",
+                [
+                    ("id", id("owned")),
+                    ("parent", parent.clone()),
+                    ("owner", id("alice")),
+                    ("at", Value::Int(1)),
+                ],
+            ),
+            row(
+                "documents",
+                [
+                    ("id", id("shared")),
+                    ("parent", parent.clone()),
+                    ("owner", id("bob")),
+                    ("at", Value::Int(2)),
+                ],
+            ),
+        ];
+        let mut present_rows = common_rows.clone();
+        present_rows.push(row(
+            "members",
+            [
+                ("id", id("m1")),
+                ("parent", parent),
+                ("principal", id("alice")),
+            ],
+        ));
+        let (present_page, present_point, present_complete) = answers(clean(&source), present_rows);
+        assert_eq!(
+            present_page.contains(&"shared".into()),
+            present_point,
+            "nullable={nullable}"
+        );
+        assert!(
+            present_point && present_complete,
+            "nullable={nullable}: the one source row opens a complete lane"
+        );
+
+        let (missing_page, missing_point, missing_complete) = answers(bound, common_rows);
+        assert_eq!(
+            missing_page.contains(&"shared".into()),
+            missing_point,
+            "nullable={nullable}"
+        );
+        assert!(
+            !missing_point && missing_complete,
+            "nullable={nullable}: the absent source row opens no lane"
+        );
+    }
 }
 
 #[test]
