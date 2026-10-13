@@ -31,7 +31,7 @@ test('external crate-built wasm passes check and the real schema/sync handshake'
   assert.deepEqual(JSON.parse(deviceHeaders['x-snapback-device']), identity);
   const host = await server(t);
   const app = join(host.dir, 'exact-app'); mkdirSync(join(app, 'assets'), {recursive: true});
-  writeFileSync(join(app, 'app.json'), JSON.stringify({typescript: {sources: {backend: '../snapback/generated'}}}));
+  writeFileSync(join(app, 'app.json'), JSON.stringify({typescript: {sources: {snapback4: '../../exact2/snapback4/ts', backend: '../snapback/generated'}}}));
   writeFileSync(join(app, 'assets/snapback4.wasm'), bytes);
   const checked = execFileSync(binary, ['check'], {cwd: host.dir, encoding: 'utf8'});
   assert.match(checked, /check: ok/);

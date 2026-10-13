@@ -248,7 +248,7 @@ After authentication, an incompatible device receives HTTP 409
 `{denied:{code:"E_DEVICE_VERSION",family:"device-version",message,...}}`
 before any sync body or backend is decoded. The message names the device
 and server versions, missing capability, floor and rebuild commands:
-Exact `bun exact.mjs snapback`, Expo `npx expo run:ios`, web reinstall the
+Exact `bun exact.mjs snapback --rebuild`, Expo `npx expo run:ios`, web reinstall the
 server's `snapback4` version and rebuild. Unstamped devices have unknown
 version. `/sync` requires the handshake; a bare online/one-shot `/changes`
 or `/schema` caller has no replica and needs none.
@@ -261,8 +261,20 @@ device. Its reads are denied, rather than pretending it is an offline link.
 
 Optimized wasm carries one `snapback4.engine` custom section with UTF-8
 engine JSON. Native's stamp is returned by the binary, not a sidecar. `check`
-and `doctor` inspect mounted Exact apps (`app.json`'s
-`typescript.sources.backend` points to this backend's `snapback/generated`,
-plus `assets/snapback4.wasm`) before UI testing. Missing or incompatible
-stamps require a rebuild. Exact builds copy the stamped artifact intact and use this format in their
+and `doctor` inspect Exact apps mounted to this backend's generated operations
+before UI testing. Discovery covers app.json in the backend root and its immediate
+child app directories whose backend source mount resolves to this project's
+generated operations. Custom declarations are read from app.json, app.ts and
+mounted adapter entries (snapback.ts for directories, or the mounted source file).
+Relative declarations resolve beside their source; /assets/ URLs resolve inside
+the app after URL decoding and query/fragment removal. A declared `snapback4/ts` device adapter requires its default
+wasm asset; relocated device adapters are recognized by their runtime web-device
+imports and re-exports, including namespace/default and static dynamic forms.
+Erased type-only, interface and ambient declarations do not load a device.
+A statically declared custom artifact is identified by its embedded engine section.
+Missing or incompatible device stamps require a rebuild. A `snapback4/online`
+adapter or generated-operations-only mount requires no wasm, including when the
+schema has zero synced tables. Unused default assets and unrelated wasm do not
+create a device requirement. Computed or remote custom URLs are checked by the
+runtime handshake. Exact builds copy the stamped artifact intact and use this format in their
 build/test preflight.

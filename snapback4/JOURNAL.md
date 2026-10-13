@@ -94496,3 +94496,21 @@ wasm is 2294460 raw /698592 gzip. Scoped runtime/build Git inputs equal the
 final integration. No simulator boot, origin push or publication. Verbatim
 independent codec READY reviews and execution evidence are archived under
 llp/reviews and reports/20261013-integration8.
+
+## 2026-10-13 — GATE: Exact generated operations do not imply a replica
+
+EX5's declared online adapter serves zero-synced-table apps directly from the
+server. Scope check/doctor's device gate to the declared Exact device adapter,
+relocated web-device imports, or statically declared custom artifacts identified
+by their embedded section. Keep HS's canonical identity and public compatibility
+contract. Online/generated-only mounts need no wasm; unused assets do not add a
+consumer. A copied EX5 online adapter fixture proves check, dev and serve query
+and write, using production guest authentication for serve. Scope and static
+URL limits are recorded in LLP 3000.001.000; no runtime admission is relaxed.
+
+GATE review follow-up: three independent Codex rounds found valid TypeScript
+forms a handwritten scanner could not classify reliably. Replace it with the
+pinned Oxc TypeScript AST parser in the CLI only. Runtime literal/value imports
+establish static declarations; erased types do not. This removes the token
+heuristic and leaves device runtime and wasm unchanged. Preserve every supplied
+counterexample as a check/doctor regression and rerun both review families.
