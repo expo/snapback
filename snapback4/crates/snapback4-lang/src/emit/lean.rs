@@ -366,6 +366,7 @@ fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Json> {
         "uniques": shape.uniques,
         "uniqueCodes": shape.codes,
         "caps": shape.caps.iter().map(|(max, by)| json!({"by": by, "max": max})).collect::<Vec<_>>(),
+        "notBefore": t.not_before.as_ref().map(|(column, _)| column),
         "read": rule("read"), "insert": rule("insert"), "update": rule("update"), "delete": rule("delete"),
     }))
 }
@@ -1250,9 +1251,10 @@ struct ModelMembershipPhysical {
     source_admissible: bool,
 }
 
-/// The physical source key and target parent column of one capped membership
-/// leaf. A fully pinned total unique may replace the provisional discovery key;
-/// the other fixed equalities are residuals on its at-most-one row.
+/// The physical source key and target parent column of one membership leaf.
+/// A fully pinned total unique may replace the provisional discovery key; the
+/// other fixed equalities are residuals on its at-most-one row. Otherwise an
+/// applicable cap or the rule probe's total point admits metered discovery.
 fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) -> Option<ModelMembershipPhysical> {
     let Expr::Exists { read, .. } = expression else { return None };
     if read.range.is_some() || read.filter.is_some() || read.keys.is_empty() { return None }
@@ -1277,26 +1279,26 @@ fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) ->
         }
     }
     let (source_parent, target_parent) = target?;
-    let ceiling = snapback4_core::Ceilings::default().examined;
-    let bounded = source.caps.iter().any(|(max, by)| u64::from(*max) <= ceiling
-        && by.iter().all(|column| column != "id" && fixed_terms.iter().any(|term| &term.0 == column)));
-    if !bounded { return None }
+    let bounded = source.caps.iter().any(|(_, by)|
+        by.iter().all(|column| column != "id" && fixed_terms.iter().any(|term| &term.0 == column)));
     let mut fixed = fixed_terms.iter().map(|term| term.0.clone()).collect::<Vec<_>>();
     fixed.sort();
     fixed.dedup();
     let source_parent_is_id = source_parent == "id";
     let surface = module.surface_tables.iter().find(|table| table.name == source.name);
+    let point_total = surface.is_some_and(|table| table.indexes.iter().any(|index|
+        model_total_unique(source, index)
+            && read.index.as_ref().is_none_or(|name| name == &index.name)
+            && index.columns.iter().all(|column| columns.contains(column))));
     let read_rule = surface.and_then(|table| {
         let rules = table.rules.iter().filter(|rule| rule.effect == Effect::Read).collect::<Vec<_>>();
         match rules.as_slice() { [rule] => Some(&rule.value), _ => None }
     });
     let one_row = surface.and_then(|table| table.indexes.iter().filter(|index| {
-        let capped = source.caps.iter().any(|(max, by)| u64::from(*max) <= ceiling
-            && by.iter().all(|column| index.columns.contains(column)));
         let point = fixed_terms.iter().filter(|term| index.columns.contains(&term.0)).cloned().collect::<Vec<_>>();
         model_total_unique(source, index)
             && index.columns.iter().all(|column| fixed.contains(column))
-            && capped && read_rule.is_some_and(|rule| model_read_by_form(rule, &point))
+            && read_rule.is_some_and(|rule| model_read_by_form(rule, &point))
     }).min_by_key(|index| (index.columns.len(), &index.name)));
     let (source_key, source_index, source_admissible) = if let Some(index) = one_row {
         (index.columns.clone(), Some(index.name.clone()), true)
@@ -1313,7 +1315,7 @@ fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) ->
             [index] => index.columns.iter().any(|column| column == "id") || model_total_unique(source, index),
             [] | [_, _, ..] => true,
         };
-        (source_key, None, total_id_source)
+        (source_key, None, total_id_source && (bounded || point_total))
     };
     Some(ModelMembershipPhysical { source: source.name.clone(), columns: source_key, index: source_index, target_parent, source_admissible })
 }
@@ -1419,22 +1421,16 @@ impl LeanModule {
     /// A program's case JSON, or why it is outside the fragment.
     pub fn program(&self, name: &str) -> R<&Json> {
         match self.programs.get(name) {
-            Some(Ok(p)) => Ok(p),
-            Some(Err(e)) => Err(e.clone()),
+            Some(Ok(p)) => Ok(p), Some(Err(e)) => Err(e.clone()),
             None => no("program-unknown", name),
         }
     }
-
     fn tag(&self, kind: &Kind, nullable: bool, v: &Json, at: &str) -> R<Json> {
-        if v.is_null() {
-            return if nullable { Ok(json!({"null": null})) } else { no("input-null", at) };
-        }
+        if v.is_null() { return if nullable { Ok(json!({"null": null})) } else { no("input-null", at) }; }
         Ok(match (kind, v) {
             (Kind::Int, Json::Number(n)) if n.is_i64() => json!({"int": n.as_i64().unwrap().to_string()}),
             (Kind::Text(max), Json::String(s)) => {
-                if max.is_some_and(|m| s.chars().count() > m as usize) {
-                    return no("text-bound", at);
-                }
+                if max.is_some_and(|m| s.chars().count() > m as usize) { return no("text-bound", at); }
                 json!({"text": s})
             }
             (Kind::Id(_), Json::String(s)) => json!({"id": s}),
@@ -1451,9 +1447,8 @@ impl LeanModule {
             let Some(t) = self.tables.iter().find(|t| &t.name == name) else { return no("row-table", name.clone()) };
             let Some(obj) = row.as_object() else { return no("row-form", name.clone()) };
             let Some(id) = obj.get("id").and_then(Json::as_str) else { return no("row-id", name.clone()) };
-            if let Some(extra) = obj.keys().find(|k| *k != "id" && t.col(k).is_none()) {
-                return no("row-column", format!("{name}.{extra}"));
-            }
+            if let Some(extra) = obj.keys().find(|k| *k != "id" && t.col(k).is_none())
+                { return no("row-column", format!("{name}.{extra}")); }
             let mut cols = Map::new();
             for c in &t.cols {
                 let v = obj.get(&c.name).cloned().unwrap_or(Json::Null);
@@ -1479,24 +1474,24 @@ impl LeanModule {
 
     /// One complete case for `entry`.
     pub fn case(&self, entry: &str, store: Json, viewer: &str, args: Map<String, Json>, budget: Option<u64>) -> R<Json> {
-        Ok(json!({
-            "version": 1, "schema": self.schema, "helpers": self.helpers, "store": store,
-            "viewer": viewer, "program": self.program(entry)?, "args": args, "budget": budget,
-        }))
+        self.case_at(entry, store, viewer, args, budget, 0)
     }
 
+    /// One complete case for `entry`, evaluated at the server request clock.
+    pub fn case_at(&self, entry: &str, store: Json, viewer: &str, args: Map<String, Json>, budget: Option<u64>, now: i64) -> R<Json> {
+        Ok(json!({
+            "version": 1, "schema": self.schema, "helpers": self.helpers, "store": store,
+            "viewer": viewer, "now": now, "program": self.program(entry)?, "args": args, "budget": budget,
+        }))
+    }
     /// The schema, helpers and every supported program (`check --emit-lean`).
     pub fn to_json(&self) -> Json {
         let mut programs = Map::new();
         let mut unsupported = Map::new();
         for (name, p) in &self.programs {
             match p {
-                Ok(p) => {
-                    programs.insert(name.clone(), p.clone());
-                }
-                Err(e) => {
-                    unsupported.insert(name.clone(), json!(e));
-                }
+                Ok(p) => { programs.insert(name.clone(), p.clone()); }
+                Err(e) => { unsupported.insert(name.clone(), json!(e)); }
             }
         }
         json!({"version": 1, "schema": self.schema, "helpers": self.helpers, "programs": programs, "unsupported": unsupported})
