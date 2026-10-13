@@ -70,6 +70,8 @@ impl std::fmt::Display for Unsupported {
     }
 }
 
+mod pages;
+
 type R<T> = Result<T, Unsupported>;
 
 /// The calendar builtins the model evaluates (LLP 3000.040 §2.5).
@@ -891,9 +893,11 @@ impl<'a> Scope<'a> {
 
     fn read(&self, read: &ReadExpr) -> R<Json> {
         let print = || crate::print::read_expr(read);
-        if let Some(reason) = owner_membership_physical_issue(self.module, read) {
+        if let Some(page) = pages::implicit_page(self.module, read) { return self.read(&page); }
+        if let Some(reason) = pages::membership_physical_issue(self.module, read) {
             return no(reason, print());
         }
+        if let Some(reason) = pages::compound_physical_issue(self.module, read) { return no(reason, print()); }
         match &read.range {
             None if read.filter.is_none() && !read.keys.is_empty() => {
                 if read.index.is_some() || !read.seeks.is_empty() || read.matching.is_some() || !read.computed.is_empty() {
@@ -1318,46 +1322,6 @@ fn membership_physical(module: &LeanModule, focal: &Table, expression: &Expr) ->
         (source_key, None, total_id_source && (bounded || point_total))
     };
     Some(ModelMembershipPhysical { source: source.name.clone(), columns: source_key, index: source_index, target_parent, source_admissible })
-}
-
-fn owner_membership_physical_issue(module: &LeanModule, read: &ReadExpr) -> Option<&'static str> {
-    if read.range.is_none() || !read.keys.is_empty() { return None }
-    let target = module.tables.iter().find(|table| table.name == read.table)?;
-    let decl = module.surface_tables.iter().find(|table| table.name == read.table)?;
-    let rule = decl.rules.iter().find(|rule| rule.effect == Effect::Read && rule.bindings.is_empty()).map(|rule| &rule.value)?;
-    let mut leaves = Vec::new();
-    flatten_or(rule, &mut leaves);
-    let mut parties = Vec::new();
-    let mut memberships = Vec::new();
-    for leaf in leaves {
-        if let Some(column) = party_column(target, leaf) { parties.push(column.to_owned()); }
-        else if let Some(membership) = membership_physical(module, target, leaf) { memberships.push(membership); }
-        else { return None; }
-    }
-    if memberships.is_empty() { return None }
-    if memberships.iter().any(|membership| !membership.source_admissible) {
-        return Some("page-membership-source-unique");
-    }
-    let mut fits = Vec::new();
-    for membership in &memberships {
-        let Some(table) = module.tables.iter().find(|table| table.name == membership.source) else { return Some("page-membership-key-bound") };
-        fits.push(match &membership.index {
-            Some(index) => model_selected_index_fit(module, table, index),
-            None => model_plain_index_fit(module, table, &membership.columns, false),
-        });
-    }
-    let (system_pins, branches) = model_page_pins(target, read);
-    fits.push(model_plain_index_fit(module, target, &model_lane_columns(system_pins, &read.order_keys), true));
-    for branch in branches {
-        for prefix in parties.iter().chain(memberships.iter().map(|membership| &membership.target_parent)) {
-            let mut pins = branch.clone();
-            if !pins.contains(prefix) { pins.push(prefix.clone()); pins.sort(); }
-            fits.push(model_plain_index_fit(module, target, &model_lane_columns(pins, &read.order_keys), true));
-        }
-    }
-    if fits.contains(&ModelIndexFit::Ambiguous) { Some("page-membership-index-selection") }
-    else if fits.contains(&ModelIndexFit::Nonportable) { Some("page-membership-key-bound") }
-    else { None }
 }
 
 /// A returned page whose `where` holds both a guard and an argument-presence

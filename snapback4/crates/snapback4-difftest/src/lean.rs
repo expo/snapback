@@ -522,6 +522,8 @@ pub fn features(case: &Case) -> Vec<String> {
             out.push(format!("write-{w:?}-readable-by-{:?}", rules[0]).to_lowercase());
         }
     }
+    if matches!(rules[0], Rule::PureIdWitness | Rule::CompoundGrant | Rule::CompoundMembership | Rule::RoleGrant) || rules[0] == Rule::Witness && case.program.domain.as_deref() == Some("true") { out.push(format!("page3-{:?}", rules[0]).to_lowercase()); }
+    if rules[0] == Rule::OwnerOrGrant && case.program.domain.as_deref().is_some_and(|d| d.contains("exists access")) { out.push("page3-static-predicate".into()); }
     if rules[0] == Rule::OwnerOrGrant {
         out.push("read-grant".into());
     }
@@ -689,6 +691,7 @@ pub fn generate(seed: u64) -> Case {
     }
     membership_page(&mut case, seed);
     boolean_grant_page(&mut case, seed);
+    crate::generate::page3(&mut case);
     case
 }
 

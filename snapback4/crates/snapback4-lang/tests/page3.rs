@@ -181,3 +181,64 @@ query list(c: cursor ?):
     let (rows, complete) = walk(&mut e, "list", "erin", &[]);
     assert_eq!(rows, ["a", "c"]); assert!(complete.iter().all(|c| *c));
 }
+#[test]
+fn a_readable_static_predicate_keeps_system_selection_and_safe_cut_continuations() {
+    let source = ROLE.replace("return docs first 1", "return docs where (.owner = viewer or exists roles[principal = viewer, role = 'admin']) first 1");
+    let b = clean(&source); assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:?}", b.notes);
+    let rows = vec![
+        ("roles", vec![("id", id("grant")), ("principal", id("sam")), ("role", Value::String("admin".into()))]),
+        doc("a", "bob", 1, 1), doc("b", "sam", 2, 2), doc("c", "sam", 3, 3), doc("d", "bob", 4, 4)];
+    let mut full = engine(&source, rows.clone());
+    let all = walk(&mut full, "list", "sam", &[]).0;
+    assert_eq!(all, ["a", "b", "c", "d"]);
+    let mut system = Context::system(); system.args.insert("c".into(), Value::Null);
+    assert!(ids(&full.query("list", system).unwrap().data).is_empty(), "the system keeps W, even though it bypasses R");
+    let mut exercised = 0;
+    for ceiling in 1..32 {
+        let mut e = engine(&source, rows.clone());
+        e.set_ceilings(snapback4_core::Ceilings { examined: ceiling, ..Default::default() });
+        let page = e.query("list", Context::new("sam", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
+        if page.complete { continue; }
+        exercised += 1;
+        let mut got = ids(&page.data);
+        if let Some(cursor) = page.next {
+            e.set_ceilings(snapback4_core::Ceilings::default());
+            let rest = e.query("list", Context::new("sam", BTreeMap::from([("c".into(), Value::String(cursor))]))).unwrap();
+            got.extend(ids(&rest.data));
+            assert_eq!(got, all[..got.len()], "ceiling {ceiling}: interrupted predicates cannot skip a row");
+        } else { assert_eq!(got, all[..got.len()]); }
+    }
+    assert!(exercised > 0);
+}
+#[test]
+fn an_outer_conjunction_keeps_the_status_condition_in_every_grant_range() {
+    let source = COMPOUND.replace(".owner = viewer or (exists roles[viewer] and .open = true)", "(.owner = viewer or exists roles[viewer]) and .open = true");
+    let b = clean(&source); assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:?}", b.notes);
+    let mut e = engine(&source, vec![
+        ("roles", vec![("id", id("grant")), ("principal", id("alice"))]),
+        ("docs", vec![("id", id("a")), ("owner", id("bob")), ("open", Value::Bool(true)), ("at", Value::Int(1))]),
+        ("docs", vec![("id", id("b")), ("owner", id("alice")), ("open", Value::Bool(false)), ("at", Value::Int(2))])]);
+    let (rows, complete) = walk(&mut e, "list", "alice", &[]);
+    assert_eq!(rows, ["a"]); assert!(complete.iter().all(|c| *c));
+}
+#[test]
+fn compound_membership_keeps_every_where_alternative() {
+    let source = PURE.replace("  read <- exists members[.group, viewer]\n", "  open: bool\n  read <- .owner = viewer or (exists members[.group, viewer] and .open = true)\n")
+        .replace("return docs first 1", "return docs where (.owner = 'alice' or .owner = 'bob') first 1");
+    let b = clean(&source); assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:?}", b.notes);
+    let mut rows = vec![
+        ("members", vec![("id", id("m1")), ("group", Value::Int(1)), ("principal", id("erin"))]),
+        doc("a", "alice", 1, 1), doc("b", "bob", 1, 2)];
+    for (table, fields) in &mut rows { if *table == "docs" { fields.push(("open", Value::Bool(true))); } }
+    let mut e = engine(&source, rows);
+    let (rows, complete) = walk(&mut e, "list", "erin", &[]);
+    assert_eq!(rows, ["a", "b"]); assert!(complete.iter().all(|c| *c));
+}
+#[test]
+fn page2_id_membership_does_not_gain_the_page3_capability() {
+    let source = PURE.replace("exists members[.group, viewer]", "exists members[.id, viewer]")
+        .replace("  group: int\n  principal", "  group: docs\n  principal");
+    let b = clean(&source);
+    assert!(b.schema.required_capabilities().contains("branch-membership-v2"));
+    assert!(!b.schema.required_capabilities().contains("branch-pages-v2"));
+}

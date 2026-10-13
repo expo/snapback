@@ -287,6 +287,10 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
                 && matches!(case.program.body, Body::Read { kind: Read::Page | Read::Bounded, owner: false, .. }) {
             dims.push("branches");
         }
+        if matches!(read_rule, Rule::PureIdWitness | Rule::CompoundGrant | Rule::CompoundMembership | Rule::RoleGrant)
+            || read_rule == &Rule::Witness && case.program.domain.as_deref() == Some("true") {
+            dims.push("page3");
+        }
         if case.program.kids.is_some() {
             dims.push("references");
         }
@@ -301,7 +305,7 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         }
         seen.extend(dims);
     }
-    assert_eq!(seen.len(), 13, "{seen:?}");
+    assert_eq!(seen.len(), 14, "{seen:?}");
 }
 
 #[test]
@@ -593,4 +597,35 @@ fn generated_reference_predicate_is_reached_by_the_meter_oracle() {
     assert!(!report.failed(), "{report:#?}");
     assert!(report.pages_with_resumable_cut > 0);
     assert_eq!(report.coverage["read/reference-predicate"], 1);
+}
+
+#[test]
+fn page3_generation_compares_every_new_family_natively_and_in_lean() {
+    use snapback4_difftest::lean;
+    if !lean::oracle_path().is_file() { return; }
+    let mut seen = std::collections::BTreeSet::new();
+    for seed in 0..20_000 {
+        let case = lean::generate(seed);
+        let rule = &case.program.tables[0].rule;
+        let family = match rule {
+            Rule::PureIdWitness => "pure-id",
+            Rule::Witness if case.program.domain.as_deref() == Some("true") => "pure-group",
+            Rule::CompoundGrant => "compound-grant",
+            Rule::CompoundMembership => "compound-membership",
+            Rule::RoleGrant => "role-literal",
+            Rule::OwnerOrGrant if case.program.domain.as_deref().is_some_and(|d| d.contains("exists access")) => "static-predicate",
+            _ => continue,
+        };
+        if seen.contains(family) { continue; }
+        let source = case.program.source();
+        let checked = lean::compare(&case, &source).unwrap();
+        if matches!(checked.verdict, Verdict::Unsupported(_)) { continue; }
+        assert!(matches!(checked.verdict, Verdict::Pass), "{family} seed {seed}: {:?}\n{source}", checked.verdict);
+        let mut report = Report::default();
+        campaign::check(&case, &mut report, |_| {});
+        assert!(!report.failed(), "{family} seed {seed}: {report:?}");
+        seen.insert(family);
+        if seen.len() == 6 { break; }
+    }
+    assert_eq!(seen.len(), 6, "{seen:?}");
 }

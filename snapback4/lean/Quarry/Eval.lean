@@ -447,6 +447,25 @@ def Rule.usableGuard (sch : Schema) (td : TableDecl) (pins : List (String × Exp
   let d' := d.guardForm pins
   d'.selfCols.all (fun c => pins.any (·.1 == c)) && d'.guardPositive td && d'.guardDisclosing sch td
 
+/-- A readable fixed total point in a predicate has a Boolean result. Its
+physical read may cut; native continuation excludes the interrupted row. -/
+def Expr.readablePredicate (sch : Schema) (e : Expr) : Bool :=
+  if e.total then true else match e with
+  | .and a b | .or a b => a.readablePredicate sch && b.readablePredicate sch
+  | .bin .ne (.point t keys) (.lit (.s .null)) =>
+      match sch.table? t with
+      | none => false
+      | some td =>
+        let terms := keys.mapM fun p => match p.2 with
+          | .viewer => some (p.1, Term.viewer)
+          | .lit (.s v) => some (p.1, Term.lit v)
+          | _ => none
+        terms.any fun key =>
+          let total := td.uniques.any fun unique => unique.all fun c =>
+            keys.any (·.1 == c) && td.cols.any (fun col => col.name == c && !col.nullable)
+          td.notBefore.isNone && total && (Rule.probe t (keys.map (·.1)) key).disclosing sch
+  | _ => false
+
 def Rule.party? : Rule → Option String
   | .eq (.col .self c) .viewer | .eq .viewer (.col .self c) => some c
   | _ => none
@@ -559,7 +578,7 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
   | none => false
   | some td =>
     let fs := (filter.map Expr.conjuncts).getD []
-    let total := pins.all (fun p => p.2.total) && fs.all Expr.total
+    let total := pins.all (fun p => p.2.total) && fs.all (Expr.readablePredicate sch)
     let alts : Option (List (List Expr)) :=
       match fs.filter Expr.isOr with
       | [o] =>
@@ -581,7 +600,8 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
     -- When an exact membership target is already pinned the Rust planner
     -- keeps the original scan. That PAGE fallback governs every older branch
     -- case as well; otherwise case 1 could still classify the same read.
-    let pinnedMembership := membershipRule.any fun leaves => leaves.any fun leaf => match leaf with
+    let pinnedMembership := membershipRule.any fun leaves =>
+      leaves.any (fun leaf => match leaf with | .party _ => true | _ => false) && leaves.any fun leaf => match leaf with
       | .membership _ point key => if point == ["id"] then false else
           (membershipColumns key).any fun pair =>
             pins.any (·.1 == pair.2)

@@ -55,6 +55,10 @@ pub enum Rule {
     /// `.owner = viewer or exists access[.id, viewer]`: the membership maps
     /// its required `item` reference to the target row's intrinsic id.
     OwnerOrIdWitness,
+    PureIdWitness,
+    CompoundGrant,
+    CompoundMembership,
+    RoleGrant,
     /// `.owner = viewer or exists access[0, viewer]`: a readable grant that
     /// reads no row column (LLP 3000.036 §12.1; Lean variants).
     OwnerOrGrant,
@@ -77,6 +81,10 @@ impl Rule {
             Self::Owner => ".owner = viewer",
             Self::Witness => "exists access[.bucket, viewer]",
             Self::OwnerOrWitness => ".owner = viewer or exists access[.bucket, viewer]",
+            Self::PureIdWitness => "exists access[.id, viewer]",
+            Self::CompoundGrant => ".owner = viewer or (exists access[0, viewer] and .flag = true)",
+            Self::CompoundMembership => ".owner = viewer or (exists access[.bucket, viewer] and .flag = true)",
+            Self::RoleGrant => ".owner = viewer or exists access[bucket = 0, principal = viewer, role = 'admin']",
             Self::OwnerOrIdWitness => ".owner = viewer or exists access[.id, viewer]",
             Self::OwnerOrGrant => ".owner = viewer or exists access[0, viewer]",
             Self::Member => ".principal = viewer",

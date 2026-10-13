@@ -1281,3 +1281,23 @@ fn live_reference_fields_agree_with_the_model_for_visible_hidden_and_missing_tar
         }
     }
 }
+
+#[test]
+fn page3_outer_compound_grant_agrees_with_the_native_page() {
+    if !model_built() { return; }
+    let source = "table roles:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable documents:\n  owner: principal\n  open: bool\n  read <- (.owner = viewer or exists roles[viewer]) and .open = true\n  online only\nquery run(c: cursor ?):\n  return documents first 10 by .id after c\n";
+    let rows: Vec<(String, serde_json::Value)> = vec![("roles".into(), json!({"id":"s", "principal":"alice"})),
+        ("documents".into(), json!({"id":"a", "owner":"bob", "open":true})),
+        ("documents".into(), json!({"id":"b", "owner":"alice", "open":false}))];
+    let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(b.diagnostics.is_empty());
+    let mut e = snapback4_core::Engine::memory(b.schema, b.programs.into_iter().map(|p|p.program)).unwrap();
+    e.seed(rows.iter().map(|(table, row)| (table.clone(), snapback4_core::wire::row_from_json(&e.schema().tables[table], row).unwrap())).collect::<Vec<_>>()).unwrap();
+    let module = lean::module(source).unwrap();
+    for who in ["alice", "bob", "erin"] {
+        let actual = e.query("run", snapback4_core::Context::new(who, [("c".into(), snapback4_core::Value::Null)].into_iter().collect())).unwrap();
+        let modeled = lean::ask(&module.case("run", module.store(&rows).unwrap(), who, module.tag_args("run", &json!({"c":null})).unwrap(), None).unwrap()).unwrap();
+        assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data));
+        assert_eq!(modeled["complete"], actual.complete); assert!(actual.complete);
+    }
+}

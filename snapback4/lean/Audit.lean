@@ -61,3 +61,4 @@ open Quarry
 #print axioms Calendar.yearStart_le
 #print axioms Calendar.lt_yearStart_succ
 #print axioms Calendar.marchDays_succ
+#print axioms Quarry.positiveRanges_eval

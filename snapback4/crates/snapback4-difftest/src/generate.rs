@@ -314,3 +314,33 @@ pub fn base(seed: u64) -> Case {
         sweep: false,
     }
 }
+
+/// PAGE3 independent stream: ordinary complete pages with pure membership,
+/// compound grants/memberships and static role residuals. No bound IR edits.
+pub(crate) fn page3(case: &mut Case) {
+    use crate::ast::{Body, Read, Rule, Residency, Type};
+    let mut rng = Rng::new(case.seed ^ 0x5041_4745_335f_454e);
+    if rng.pick(6) != 0 { return; }
+    let Body::Read { kind: kind @ (Read::Page | Read::Bounded), filter, owner, project, .. } = &mut case.program.body else { return };
+    *kind = Read::Page; *filter = false; *owner = false; *project = None;
+    let shape = rng.pick(6);
+    case.program.domain = Some("true".into());
+    case.program.order = Some(vec!["id".into()]);
+    case.program.residual = None; case.program.guard = None;
+    case.program.search_term = None; case.program.boolean_grant_normalized = false;
+    case.program.membership_named_reordered = false;
+    let rule = match shape { 0 => Rule::Witness, 1 => Rule::PureIdWitness, 2 => Rule::CompoundGrant, 3 => Rule::CompoundMembership, 4 => Rule::RoleGrant, _ => Rule::OwnerOrGrant };
+    if shape == 5 { case.program.domain = Some(".owner = viewer or exists access[0, viewer]".into()); }
+    let items = &mut case.program.tables[0];
+    items.rule = rule; items.effects = None; items.residency = Residency::Online;
+    let access = case.program.tables.iter_mut().find(|t| t.name == "access").unwrap();
+    access.rule = Rule::Member; access.effects = None; access.residency = Residency::Member;
+    access.expire = None; access.not_before = None;
+    if rng.pick(2) == 0 { access.caps.clear(); }
+    if shape == 1 && !access.columns.iter().any(|column| column.name == "item") { id_membership(case); }
+    if shape == 4 {
+        let access = case.program.tables.iter_mut().find(|t| t.name == "access").unwrap();
+        if !access.columns.iter().any(|column| column.name == "role") { access.columns.push(column("role", Type::Text)); }
+        for (name, row) in &mut case.rows { if name == "access" { row["role"] = json!(if rng.pick(2) == 0 { "admin" } else { "staff" }); } }
+    }
+}

@@ -434,3 +434,64 @@ fn sqlite_owner_membership_expiry_and_source_horizon() {
 fn memory_owner_membership_expiry_and_source_horizon() {
     owner_membership_boundaries(&mut Memory::new());
 }
+
+const PAGE3_ROLE_UNION: &str = "table staff:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  insert <- deny
+  delete <- deny
+  online only
+table tickets:
+  owner: principal
+  at: int
+  read <- .owner = viewer or exists staff[viewer]
+  sync
+query tickets(c: cursor ?):
+  return tickets first 1 by .at after c
+";
+fn page3_role_union<H: Host>(host: &mut H) {
+    for viewer in ["ann", "sam", "erin"] {
+        let (mut engine, backend) = compile(PAGE3_ROLE_UNION);
+        engine.seed(vec![row("staff", vec![("id", id("s")), ("principal", id("sam"))]),
+            row("tickets", vec![("id", id("a")), ("owner", id("ann")), ("at", Value::Int(1))]),
+            row("tickets", vec![("id", id("b")), ("owner", id("bob")), ("at", Value::Int(2))]),
+            row("tickets", vec![("id", id("c")), ("owner", id("ann")), ("at", Value::Int(3))])]).unwrap();
+        assert!(backend.schema.required_capabilities().contains("branch-pages-v2"));
+        let key = format!("page3-{viewer}");
+        let mut device = host.open(&key, Some(backend)).unwrap();
+        let (_, missing, _) = device.query_with_coverage("tickets", viewer, &json!({"c": null}), 1_000);
+        assert!(missing, "{}: unacquired union is unknown", host.label());
+        for (n, page) in snapshot_pages(&mut engine, viewer, 2).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
+        let server = walk_server(&mut engine, "tickets", viewer, &[]);
+        let held = walk_device(&mut device, "tickets", viewer, json!({}));
+        assert_eq!((held.0, held.1, held.2), (server.0.clone(), true, false), "{} {viewer}", host.label());
+        // The grant roster is online only: completeness came from the acquired
+        // union, without a device role probe. Server/device cursors interoperate.
+        let first = engine.query("tickets", context(viewer, &[("c", Value::Null)])).unwrap();
+        if let Some(next) = first.next {
+            let (continued, missing, _) = device.query_with_coverage("tickets", viewer, &json!({"c": next}), 1_000);
+            assert!(!missing); assert!(continued.unwrap().complete);
+        }
+        host.close(&key, device);
+        let mut device = host.open(&key, None).unwrap();
+        let again = walk_device(&mut device, "tickets", viewer, json!({}));
+        assert_eq!((again.0, again.1, again.2), (server.0, true, false));
+        host.close(&key, device);
+    }
+}
+#[test]
+fn memory_page3_role_union_keeps_complete_acquired_pages() { page3_role_union(&mut Memory::new()); }
+#[test]
+fn sqlite_page3_role_union_keeps_complete_acquired_pages() { page3_role_union(&mut Sqlite::new("page3-role-union")); }
+
+#[test]
+fn memory_page3_pure_membership_keeps_source_acquisition_fence() {
+    let source = OWNER_MEMBERSHIP.replace(".owner = viewer or exists memberships[.parent, viewer]", "exists memberships[.parent, viewer]").replace("sync to .owner or memberships[.parent]", "sync to memberships[.parent]");
+    let (mut engine, backend) = compile(&source);
+    engine.seed(vec![row("memberships", vec![("id", id("m")), ("parent", Value::String("p1".into())), ("principal", id("ann"))]),
+        row("documents", vec![("id", id("d")), ("parent", Value::String("p1".into())), ("owner", id("bob")), ("at", Value::Int(1))])]).unwrap();
+    let mut host = Memory::new(); let mut device = host.open("page3-pure", Some(backend)).unwrap();
+    for (n, page) in snapshot_pages(&mut engine, "ann", 2).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
+    assert_eq!(walk_device(&mut device, "documents", "ann", json!({})), (vec!["d".into()], true, false));
+}

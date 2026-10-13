@@ -82,10 +82,12 @@ pub(super) fn expand(tables: &Tables, synthesized: &BTreeSet<(String, String)>, 
             if leaf.iter().any(|atom| !matches!(atom, Expr::Exists { .. }) && intent::equality(atom, table).is_none()) { return None; }
             let mut local = tables.clone();
             local.get_mut(&read.table)?.decl.rules.iter_mut().find(|rule| rule.effect == Effect::Read)?.value = witness;
-            let mut merge = branches::membership(&local, synthesized, &mut candidate, &lane_read)?;
-            let lane = merge.lanes.pop()?;
-            if order.as_ref() != Some(&lane.planned.as_ref()?.order_keys) { return None; }
-            lanes.push(lane);
+            let merge = branches::membership(&local, synthesized, &mut candidate, &lane_read)?;
+            for lane in merge.lanes.into_iter().filter(|lane| lane.branch.as_deref() != Some(SYSTEM_LANE)) {
+                if order.as_ref() != Some(&lane.planned.as_ref()?.order_keys) { return None; }
+                lanes.push(lane);
+                if lanes.len() > branches::MAX_BRANCHES { return None; }
+            }
         } else {
             candidate.plan_lane(tables, &mut lane_read);
             let branch = if branches::decided(tables, &lane_read) { BRANCH_LANE } else { GUARDED_LANE };
