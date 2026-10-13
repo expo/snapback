@@ -162,6 +162,9 @@ impl Shared {
     }
     fn advance_time_audiences(&self) -> Result<i64, snapback4_core::RuntimeError> {
         let requested = lock(&self.clock).now();
+        // Non-timed reader traffic must retain its independent reader lane,
+        // including while adoption or a mutation deliberately holds the writer.
+        if self.time_audience_clock.load(Ordering::Acquire) == i64::MIN { return Ok(requested); }
         let mut engine = lock(&self.engine);
         let before = engine.seq()?;
         let now = engine.advance_time_audiences_at(requested)?;
@@ -169,7 +172,10 @@ impl Shared {
         if engine.seq()? != before { self.durable_committed(&engine); }
         Ok(now)
     }
-    fn next_time_audience(&self) -> Result<Option<i64>, snapback4_core::RuntimeError> { lock(&self.engine).next_time_audience_at() }
+    fn next_time_audience(&self) -> Result<Option<i64>, snapback4_core::RuntimeError> {
+        if self.time_audience_clock.load(Ordering::Acquire) == i64::MIN { return Ok(None); }
+        lock(&self.engine).next_time_audience_at()
+    }
     fn time_audience_delay(&self, at: i64) -> Duration {
         let raw = lock(&self.clock).now();
         let floor = self.time_audience_clock.load(Ordering::Acquire);

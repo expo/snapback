@@ -94846,3 +94846,10 @@ Pre-bump locked Linux web device: 2308188 raw /704317 gzip bytes; set
 Integration 8; no per-feature attribution or runtime ceiling increase. Final
 version is remeasured after the separate bump. Lean: 71 examples, 58 theorem
 axiom audits and seven oracle fixtures pass.
+
+Integration 9 qualification found timed-boundary maintenance taking the writer
+lock even on non-timed HTTP reader traffic. The no-timed-schema sentinel now
+bypasses writer maintenance and opening lookup, preserving independent reader
+lanes through held mutations/adoption. Existing concurrency tests exercise
+the regression; timed schemas retain the publication barrier. Test host floors
+now follow the same schema-dependent initialization as production.
