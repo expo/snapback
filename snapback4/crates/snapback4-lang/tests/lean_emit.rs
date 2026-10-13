@@ -255,6 +255,15 @@ query documents(c: cursor ?):
 }
 
 #[test]
+fn set_null_cap_cannot_admit_membership_discovery_to_the_model() {
+    let source = "table parents:\n  read <- allow\n  delete <- allow\ntable documents:\n  home: parents\n  read <- exists members[folder = .home, document = .id]\n  online only\ntable members:\n  folder: parents ? on delete set null\n  document: documents\n  unique folder, document\n  cap 5 by folder\n  read <- allow\n  online only\nquery documents(c: cursor ?):\n  return documents first 2 by .id after c\n";
+    let Err(LeanError::Diagnostics(diagnostics)) = lean(&[("schema.q".into(), source.into())]) else {
+        panic!("set-null cap must fail before Lean membership classification")
+    };
+    assert!(diagnostics.iter().any(|diagnostic| diagnostic.starts_with("E_REFERENCE_ACTION:")), "{diagnostics:#?}");
+}
+
+#[test]
 fn reordered_named_membership_key_emits_the_same_page_fragment() {
     let source = |probe| format!("table memberships:
   parent: text <=40

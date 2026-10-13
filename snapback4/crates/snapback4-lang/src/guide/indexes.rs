@@ -90,7 +90,15 @@ one query: under `.requester = viewer or .owner = viewer`, `swaps first 20 by
 merge of the two pinned ranges, a row in both once, with one cursor, and is
 complete. Each `or` branch must pin an index prefix that decides the rule, and
 the predicate must be comparisons (no arithmetic or calls); up to 8 branches.
-Otherwise the note prints one query per party. A child page pins the column its rule reads, read from the
+Owner-or-membership also works when the membership rule is an exact point:
+`.owner = viewer or exists members[.parent, viewer]`. The usual `unique parent,
+principal` needs no cap: it bounds witnesses per target row, not a viewer's
+memberships. Discovery is metered and publishes no rows or cursor if cut. Add
+`cap N by principal` only as a real enrollment limit; writes and adoption
+enforce it, and bounded enrollment guarantees availability. The target can be
+the row id (`exists members[.id, viewer]`) or a readable parent's id
+(`exists offers[.offer, baker = viewer]`); page order and its id tie-breaker
+remain. Otherwise the note prints one query per party. A child page pins the column its rule reads, read from the
 parent it already names: `parent = cards[card] ! else NOT_FOUND`, then
 `.board = parent.board`; copy that column onto the child as an immutable field
 and check it in the insert rule. A capacity check reads a count whose read rule
