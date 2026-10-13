@@ -1009,6 +1009,7 @@ impl super::Engine {
         {
             loop {
                 let tx = self.store.transaction()?;
+                let now = super::time_audience::pin_writer_time(&self.schema, &tx, now)?;
                 let Some((work, _)) = tx
                     .scan(
                         &m.work_table(),

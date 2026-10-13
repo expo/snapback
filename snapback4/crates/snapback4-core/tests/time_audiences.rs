@@ -1,4 +1,5 @@
 use snapback4_core::{Context, Engine, Value, WriteState, store::Store, value::object};
+use std::collections::BTreeMap;
 
 const SOURCE: &str = "table announcements:
   opensAt: time ?
@@ -676,6 +677,55 @@ fn an_ordinary_schema_does_not_acquire_the_time_audience_clock_floor() {
     assert_eq!(engine.store().meta("time_audience_clock").unwrap(), None);
     assert_eq!(engine.query("clock", Context::new("alice", Default::default()).at(100)).unwrap().data, Value::Int(100));
     assert_eq!(engine.query("clock", Context::new("alice", Default::default()).at(50)).unwrap().data, Value::Int(50));
+}
+
+#[test]
+fn a_timed_home_withholds_its_asset_bytes_until_publication() {
+    let source = "use server
+table releases:
+  owner: principal
+  opensAt: time
+  document: file <=1000
+  by byOpening: opensAt
+  not before .opensAt
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  update <- .owner = viewer
+  sync to .owner
+mutation publish(document: file <=1000, opensAt: time):
+  return insert releases { owner: viewer, document, opensAt }
+mutation delay(id: releases, opensAt: time):
+  update releases[id] { opensAt }
+";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    let mut engine = Engine::new_at(
+        Store::memory().unwrap(),
+        bound.schema,
+        bound.programs.into_iter().map(|program| program.program),
+        100,
+    ).unwrap();
+    let asset = engine.store_file("alice", b"%PDF-1.7\n%%EOF\n", Some("application/pdf"), "release.pdf", 100).unwrap();
+    let handle = Value::Map(BTreeMap::from([("id".into(), Value::Id(asset.id.clone()))]).into());
+    let published = engine.mutate("publish", None, Context::new("alice", BTreeMap::from([
+        ("document".into(), handle),
+        ("opensAt".into(), Value::Int(200)),
+    ])).at(100)).unwrap();
+    let row = match published.state {
+        WriteState::Sent { result, .. } => result,
+        other => panic!("{other:?}"),
+    };
+    let id = row.field("id").unwrap().as_str().unwrap().to_owned();
+
+    assert_eq!(engine.asset_access("alice", &asset.id, 199).unwrap_err().code(), "E_ASSET_UNKNOWN");
+    assert!(engine.asset_access("alice", &asset.id, 200).is_ok());
+    let delayed = engine.mutate("delay", None, Context::new("alice", BTreeMap::from([
+        ("id".into(), Value::Id(id)),
+        ("opensAt".into(), Value::Int(300)),
+    ])).at(201)).unwrap();
+    assert!(matches!(delayed.state, WriteState::Sent { .. }), "{delayed:?}");
+    assert_eq!(engine.asset_access("alice", &asset.id, 299).unwrap_err().code(), "E_ASSET_UNKNOWN");
+    assert!(engine.asset_access("alice", &asset.id, 300).is_ok());
 }
 
 #[test]

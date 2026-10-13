@@ -427,10 +427,15 @@ impl Engine {
         if context.presence.is_none() {
             context.presence = self.presence.clone();
         }
-        let now = context.now.unwrap();
         let viewer = context.viewer.clone();
         validate::validate_inputs(&self.schema, program, &mut context.args)?;
         let tx = self.store.read_transaction()?;
+        let now = super::time_audience::observe_reader_time(
+            &self.schema,
+            &tx,
+            context.now.unwrap(),
+        )?;
+        context.now = Some(now);
         let identity = tx.meta("store_id")?.unwrap_or_default();
         let generation = tx
             .meta("generation")?

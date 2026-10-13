@@ -243,6 +243,10 @@ impl Engine {
         let started = std::time::Instant::now();
         let presence = self.presence.clone();
         let tx = self.store.transaction()?;
+        // @ref LLP 3000.036.002#3.2-image-transitions — a job's
+        // runner, partition events and commit share the floor pinned inside
+        // their writer transaction, for Quarry and native chunks alike.
+        let now = super::time_audience::pin_writer_time(&self.schema, &tx, now)?;
         let head = tx.conn().query_row(&format!("SELECT {COLUMNS} FROM _jobs WHERE state IN ('queued', 'running') ORDER BY created_at, id LIMIT 1"), [], read_head).optional()?;
         let Some(mut head) = head else { return Ok(None) };
         let program = self.programs.get(&head.run.name).cloned();

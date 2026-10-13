@@ -2,6 +2,43 @@
 
 use super::*;
 
+/// Pin an application writer after it owns the store's writer transaction.
+/// Untimed schemas retain their historical clock behavior and metadata.
+pub(super) fn pin_writer_time(
+    schema: &Schema,
+    tx: &crate::store::Tx<'_>,
+    requested: i64,
+) -> Result<i64, RuntimeError> {
+    if schema
+        .tables
+        .values()
+        .any(|table| table.not_before.is_some())
+    {
+        tx.pin_time_audience_clock(requested)
+    } else {
+        Ok(requested)
+    }
+}
+
+/// Observe the durable floor from the same snapshot an operation will read.
+/// A different engine can advance between the request prelude and this read
+/// transaction; an already-published row must not disappear in that gap.
+pub(super) fn observe_reader_time(
+    schema: &Schema,
+    tx: &crate::store::Tx<'_>,
+    requested: i64,
+) -> Result<i64, RuntimeError> {
+    if schema
+        .tables
+        .values()
+        .any(|table| table.not_before.is_some())
+    {
+        Ok(requested.max(tx.time_audience_clock()?))
+    } else {
+        Ok(requested)
+    }
+}
+
 impl Engine {
     /// Advance the server-authoritative lower-lifetime ledger for one host
     /// request. Detached read engines only observe the durable clock floor.

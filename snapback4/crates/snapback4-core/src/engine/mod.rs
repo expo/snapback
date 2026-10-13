@@ -606,6 +606,7 @@ impl Engine {
             return Ok(0);
         }
         let tx = self.store.transaction()?;
+        let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
         let seq = tx.next_seq()?;
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
         let mut removed = 0_u64;
@@ -692,6 +693,11 @@ impl Engine {
             context.presence = self.presence.clone();
         }
         let tx = self.store.read_transaction()?;
+        context.now = Some(time_audience::observe_reader_time(
+            &self.schema,
+            &tx,
+            context.now.unwrap_or(0),
+        )?);
         let seq = tx.next_seq()? - 1;
         *cut = Some(seq);
         let touches = self.schema.operations.get(name).is_some_and(|f| !f.ephemeral_reads.is_empty());
@@ -874,6 +880,11 @@ impl Engine {
             return Ok(outcome);
         }
         if let Some(op)=op{assets::require_placement(&tx,&context.viewer,op,name,&wire_args)?;}
+        context.now = Some(time_audience::pin_writer_time(
+            &self.schema,
+            &tx,
+            context.now.unwrap_or(0),
+        )?);
         self.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
         if program.kind == ProgramKind::Query {
@@ -993,6 +1004,7 @@ impl Engine {
     pub fn seed_at(&mut self, rows: impl IntoIterator<Item = (String, Value)>, now: i64) -> Result<u64, RuntimeError> {
         let now = self.advance_time_audience(now)?;
         let tx = self.store.transaction()?;
+        let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
         let count = seed_rows(&self.schema, &tx, rows, now)?;
         tx.commit()?;
         Ok(count)
@@ -1005,6 +1017,7 @@ impl Engine {
         timeline::check_import(&self.schema, table)?;
         let now = self.advance_time_audience(crate::now_ms())?;
         let tx = self.store.transaction()?;
+        let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
         let seq = tx.next_seq()?;
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
         let removed = match runner.delete(table, id) {
@@ -1042,6 +1055,7 @@ impl Engine {
         if mode == LoadMode::Restore || self.schema.tables.values().all(|table| table.recorded.is_empty() && table.maintained.is_empty()) { return self.load_stored_rows(rows, mode); }
         let now = self.advance_time_audience(crate::now_ms())?;
         let tx = self.store.transaction()?;
+        let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
         let seq = tx.next_seq()?;
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
         let mut imported = BTreeMap::new();
@@ -1105,6 +1119,7 @@ impl Engine {
     fn load_stored_rows(&mut self, rows: impl IntoIterator<Item = (String, Value)>, mode: LoadMode) -> Result<u64, RuntimeError> {
         let now = self.advance_time_audience(crate::now_ms())?;
         let tx = self.store.transaction()?;
+        let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
         let mut seq = tx.next_seq()?;
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
         let mut count = 0;
@@ -1174,6 +1189,7 @@ impl Engine {
             None => None,
         };
         let tx = self.store.read_transaction()?;
+        let now = time_audience::observe_reader_time(&self.schema, &tx, now)?;
         let page = partition::snapshot_page(&tx, &self.schema, principal, cursor, limit, now)?;
         tx.rollback()?;
         Ok(page)
@@ -1187,6 +1203,7 @@ impl Engine {
     pub fn snapshot_at(&mut self, principal: &str, now: i64) -> Result<(Vec<Event>, u64), RuntimeError> {
         let now = self.advance_time_audience(now)?;
         let tx = self.store.read_transaction()?;
+        let now = time_audience::observe_reader_time(&self.schema, &tx, now)?;
         let watermark = tx.next_seq()? - 1;
         let events = partition::snapshot(&tx, &self.schema, principal, now)?;
         tx.rollback()?;
@@ -1200,6 +1217,7 @@ impl Engine {
     pub fn stream_at(&mut self, principal: &str, watermark: u64, limit: usize, now: i64) -> Result<partition::StreamPage, RuntimeError> {
         let now = self.advance_time_audience(now)?;
         let tx = self.store.read_transaction()?;
+        let now = time_audience::observe_reader_time(&self.schema, &tx, now)?;
         let page = partition::stream(&tx, &self.schema, principal, watermark, limit, now)?;
         tx.rollback()?;
         Ok(page)

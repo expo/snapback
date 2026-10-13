@@ -41,6 +41,7 @@ impl Engine {
         // Like adoption: no ephemeral program runs across the identity change.
         drop(self.ephemeral.lock()?);
         let tx = self.store.transaction()?;
+        let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
         let previous_store_id = tx.meta("store_id")?.unwrap_or_default();
         let head = tx.next_seq()?.saturating_sub(1);
         let assets: Vec<String> = tx.conn().prepare("SELECT id FROM _assets")?.query_map([], |row| row.get(0))?.collect::<Result<_, _>>()?;

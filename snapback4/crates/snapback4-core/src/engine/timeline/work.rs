@@ -192,6 +192,7 @@ impl Engine {
             let index = if rotate { (self.timeline_schedule.next + offset) % count } else { offset };
             let timeline = self.schema.timelines[index].clone();
             let tx = self.store.transaction()?;
+            let now = super::super::time_audience::pin_writer_time(&self.schema, &tx, now)?;
             tx.savepoint("timeline_chunk")?;
             let seq = tx.next_seq()?;
             let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::job(), Cut::Abort), seq);
