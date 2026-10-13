@@ -94,6 +94,15 @@ pub(super) fn validate(schema: &Schema, issues: &mut Vec<SchemaIssue>) {
                 .filter(|(audience, _)| matches!(audience, Audience::Target { table: target, .. } if target == name))
                 .count() as u64;
             let events = own.saturating_add(memberships);
+            let owner_slots = table
+                .written_by
+                .values()
+                .filter(|authority| !authority.audience)
+                .count() as u64;
+            let rule_probes = owner_slots.saturating_mul(
+                crate::engine::rules::rule_probes(&table.rules.read),
+            );
+            let ceilings = crate::meter::Ceilings::default();
             // A join carries a subset of the audience row's bounded fields,
             // plus less framing than the decode reservation already keeps.
             // Charge the whole row envelope to every possible event so one
@@ -103,6 +112,11 @@ pub(super) fn validate(schema: &Schema, issues: &mut Vec<SchemaIssue>) {
             if events > MAX_OPENING_EVENTS || bytes > MAX_OPENING_BYTES {
                 issues.push(SchemaIssue { path: format!("{path}.notBefore"), message: format!(
                     "not before opening fanout is too large for one bounded publication commit ({events} events, {bytes} reserved bytes); split this audience into smaller tables"
+                ) });
+            }
+            if rule_probes > ceilings.rule_probes || events > ceilings.steps {
+                issues.push(SchemaIssue { path: format!("{path}.notBefore"), message: format!(
+                    "not before opening needs {rule_probes} rule probes and {events} steps, beyond one bounded publication commit; reduce private written fields or simplify the read rule"
                 ) });
             }
         }

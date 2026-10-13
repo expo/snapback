@@ -79,6 +79,28 @@ table notes:
 ")
 }
 
+fn private_delivery_source(fields: usize, probes: usize, timed: bool) -> String {
+    let mut source = "table grants:
+  group: text <=20
+  principal: principal
+  unique byGroupPrincipal: group, principal
+  read <- .principal = viewer
+  sync to .principal
+table releases:
+  group: text <=20
+  owner: principal
+  opensAt: time
+  by byOpening: opensAt
+".to_owned();
+    for field in 0..fields {
+        source.push_str(&format!("  private{field}: bool default false written by .owner\n"));
+    }
+    if timed { source.push_str("  not before .opensAt\n"); }
+    let witness = "exists grants[group = .group, principal = viewer]";
+    source.push_str(&format!("  read <- {}\n  sync to grants[.group]\n", std::iter::repeat(witness).take(probes).collect::<Vec<_>>().join(" or ")));
+    source
+}
+
 fn engine_at(now: i64) -> Engine {
     let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
     assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
@@ -498,4 +520,34 @@ fn adoption_rebuilds_openings_and_group_authority_when_the_lower_lifetime_change
     assert_eq!(pending, 0, "removing the lower lifetime clears its private ledger");
     let (visible, _) = engine.snapshot_at("alice", 100).unwrap();
     assert!(visible.iter().any(|event| event.table == "notes" && event.id == "note"), "the new generation derives the immediate grant");
+}
+
+#[test]
+fn opening_admission_bounds_private_delivery_rule_work_before_adoption() {
+    let admitted = snapback4_lang::compile(&[("schema.q".into(), private_delivery_source(1, 128, true))]);
+    assert!(admitted.diagnostics.is_empty(), "{:#?}", admitted.diagnostics);
+
+    let refused = snapback4_lang::compile(&[("schema.q".into(), private_delivery_source(65, 128, true))]);
+    assert!(refused.diagnostics.iter().any(|diagnostic| {
+        diagnostic.site.file == "schema.q"
+            && diagnostic.site.line > 0
+            && diagnostic.message.contains("8320 rule probes")
+            && diagnostic.message.contains("bounded publication commit")
+    }), "{:#?}", refused.diagnostics);
+
+    let plain = snapback4_lang::compile(&[("schema.q".into(), private_delivery_source(65, 128, false))]);
+    assert!(plain.diagnostics.is_empty(), "{:#?}", plain.diagnostics);
+    let mut engine = Engine::new_at(
+        Store::memory().unwrap(),
+        plain.schema,
+        plain.programs.into_iter().map(|program| program.program),
+        0,
+    ).unwrap();
+    let error = engine.adopt_at(
+        refused.schema,
+        refused.programs.into_iter().map(|program| program.program),
+        0,
+    ).unwrap_err();
+    assert!(error.to_string().contains("8320 rule probes"), "{error}");
+    assert_eq!(engine.store().conn().query_row("SELECT count(*) FROM _time_openings", [], |row| row.get::<_, i64>(0)).unwrap(), 0);
 }

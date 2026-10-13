@@ -38,6 +38,26 @@ mutation remove(key: releases):
   return null
 "#;
 
+fn membership_source(timed: bool) -> String {
+    let opening = if timed { "  not before .opensAt\n" } else { "" };
+    format!(r#"table members:
+  room: text <=20
+  principal: principal
+  opensAt: time
+  unique byRoomPrincipal: room, principal
+  by byOpening: opensAt
+  read <- .principal = viewer
+{opening}  sync to .principal
+table notes:
+  room: text <=20
+  body: text <=100
+  read <- exists members[.room, viewer]
+  sync to members[.room]
+query visibleNotes():
+  return notes first 20 by .id
+"#)
+}
+
 fn compile_at(now: i64) -> (Engine, Backend) {
     let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
     assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
@@ -268,4 +288,60 @@ fn time_audience_lifecycle_memory_device() {
 #[test]
 fn time_audience_lifecycle_sqlite_device() {
     lifecycle(&mut Sqlite::new("time-audience"));
+}
+
+fn adoption_withholds_previously_held_group<H: Host>(host: &mut H) {
+    let plain = snapback4_lang::compile(&[("schema.q".into(), membership_source(false))]);
+    assert!(plain.diagnostics.is_empty(), "{:#?}", plain.diagnostics);
+    let plain_programs: Vec<_> = plain.programs.into_iter().map(|program| program.program).collect();
+    let mut server = Engine::new_at(Store::memory().unwrap(), plain.schema.clone(), plain_programs.clone(), 0).unwrap();
+    server.seed_at([
+        ("members".into(), object([
+            ("id", id("member")),
+            ("room", Value::String("room".into())),
+            ("principal", id("alice")),
+            ("opensAt", Value::Int(OPEN)),
+        ])),
+        ("notes".into(), object([
+            ("id", id("note")),
+            ("room", Value::String("room".into())),
+            ("body", Value::String("secret".into())),
+        ])),
+    ], 0).unwrap();
+    let mut device = host.open("time-audience-adoption", Some(Backend {
+        generation: server.generation(),
+        schema: plain.schema,
+        programs: plain_programs,
+    })).unwrap();
+    device.apply(&snapshot(&mut server, "alice", 0), true).unwrap();
+    assert_eq!(device.query("visibleNotes", "alice", &json!({}), 0).unwrap().data.as_array().unwrap().len(), 1);
+
+    let timed = snapback4_lang::compile(&[("schema.q".into(), membership_source(true))]);
+    assert!(timed.diagnostics.is_empty(), "{:#?}", timed.diagnostics);
+    let timed_programs: Vec<_> = timed.programs.into_iter().map(|program| program.program).collect();
+    server.adopt_at(timed.schema.clone(), timed_programs.clone(), 0).unwrap();
+    device.adopt(Backend { generation: server.generation(), schema: timed.schema, programs: timed_programs }).unwrap();
+    assert!(device.query("visibleNotes", "alice", &json!({}), OPEN + 10_000).is_err(), "the new generation is fenced before its snapshot");
+
+    let hidden = snapshot(&mut server, "alice", 0);
+    assert!(!hidden.events.iter().any(|event| event.table == "notes" && event.id == "note"));
+    device.apply(&hidden, true).unwrap();
+    assert!(device.query("visibleNotes", "alice", &json!({}), OPEN + 10_000).unwrap().data.as_array().unwrap().is_empty(), "a hostile local clock cannot restore the old row or group grant");
+
+    let from = device.state().unwrap().0;
+    let opened = stream(&mut server, "alice", from, OPEN);
+    assert!(opened.events.iter().any(|event| event.table == "notes" && event.id == "note" && event.kind == "put"));
+    device.apply(&opened, false).unwrap();
+    assert_eq!(device.query("visibleNotes", "alice", &json!({}), 0).unwrap().data.as_array().unwrap().len(), 1, "the authoritative opening restores the group and payload under the applied server clock");
+    host.close("time-audience-adoption", device);
+}
+
+#[test]
+fn time_audience_adoption_memory_device() {
+    adoption_withholds_previously_held_group(&mut Memory::new());
+}
+
+#[test]
+fn time_audience_adoption_sqlite_device() {
+    adoption_withholds_previously_held_group(&mut Sqlite::new("time-audience-adoption"));
 }
