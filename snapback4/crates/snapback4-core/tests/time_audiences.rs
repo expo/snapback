@@ -395,3 +395,19 @@ fn future_rule_witnesses_do_not_spend_the_authorization_walk() {
     assert_eq!(future.next, absent.next);
     assert_eq!(future.unavailable, absent.unavailable);
 }
+
+#[test]
+fn an_ordinary_schema_does_not_acquire_the_time_audience_clock_floor() {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), "query clock():\n  return now\n".into())]);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    let mut engine = Engine::new_at(
+        Store::memory().unwrap(),
+        bound.schema,
+        bound.programs.into_iter().map(|program| program.program),
+        100,
+    ).unwrap();
+
+    assert_eq!(engine.store().meta("time_audience_clock").unwrap(), None);
+    assert_eq!(engine.query("clock", Context::new("alice", Default::default()).at(100)).unwrap().data, Value::Int(100));
+    assert_eq!(engine.query("clock", Context::new("alice", Default::default()).at(50)).unwrap().data, Value::Int(50));
+}

@@ -175,7 +175,11 @@ impl Store {
         let tx = Tx { activation_scan, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size,
             server: self.server,
             catalog: &catalog };
-        let now = tx.pin_time_audience_clock(now)?;
+        let now = if schema.tables.values().any(|table| table.not_before.is_some()) {
+            tx.pin_time_audience_clock(now)?
+        } else {
+            now
+        };
         // @ref LLP 3000.013#12.1 — occupancy belongs to successful activation,
         // never opening a legacy store that may subsequently refuse adoption.
         let cap_counts = crate::rows::caps::required(schema) || tx.meta("cap_counts_schema")?.is_some();
