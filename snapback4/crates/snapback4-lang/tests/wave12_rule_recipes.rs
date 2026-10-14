@@ -298,15 +298,23 @@ fn presence_copies_scope_and_revokes_with_enrolment() {
     assert!(read(&mut e, "presence", "carol", args.clone(), 1000).is_null());
     write(&mut e, "leaveSpace", "bob", json!({"space":"s"}), 1000);
     assert!(read(&mut e, "presence", "bob", args.clone(), 1000).is_null());
-    fail(
-        &mut e,
-        "pulse",
-        "bob",
-        json!({"space":"s"}),
-        1000,
-        "NOT_FOUND",
+    fail(&mut e, "pulse", "bob", json!({"space":"s"}), 1000, "E_RULE");
+    assert!(
+        e.schema().operations["pulse"].renews,
+        "the presence helper must support SDK renewal"
     );
-    assert!(read(&mut e, "presence", "alice", args, 5000).is_null());
+    // Rejoining creates a new durable enrolment id while the old memory row is
+    // still alive; its stable scope/principal key must renew immediately.
+    write(&mut e, "leaveSpace", "alice", json!({"space":"s"}), 1000);
+    assert!(read(&mut e, "presence", "alice", args.clone(), 1000).is_null());
+    seed(
+        &mut e,
+        "enrolments",
+        json!({"id":"alice-rejoined","space":"s","principal":"alice"}),
+    );
+    write(&mut e, "pulse", "alice", json!({"space":"s"}), 1001);
+    assert!(!read(&mut e, "presence", "alice", args.clone(), 1001).is_null());
+    assert!(read(&mut e, "presence", "alice", args, 5001).is_null());
 }
 #[test]
 fn system_job_comparison_does_not_publish_scores() {

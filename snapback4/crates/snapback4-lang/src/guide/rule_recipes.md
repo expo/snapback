@@ -650,10 +650,10 @@ query ownBallot(poll: polls):
 ## Ephemeral presence under an enrolment parent
 
 An ephemeral row cannot use `read through`. Copy the durable scope, verify it
-against the writer-readable enrolment on every write, and probe the durable
-roster for current read authority. Removing enrolment hides presence on the
-next read; the memory row need not be deleted first. Renewals also require
-membership. Never replace presence with a durable table to repair this refusal.
+against the unique enrolment key on every write, and probe the durable
+roster for current read authority. Removing a viewer's enrolment hides presence
+from that viewer on the next read; a departed writer's row lasts at most 4s.
+Renewals require membership, including after leave/rejoin. Never replace presence with a durable table to repair this refusal.
 
 ```quarry
 table spaces:
@@ -670,18 +670,16 @@ table enrolments:
   delete <- .principal = viewer or viewer = 'service:ops'
   online only
 table presenceRows:
-  enrolment: enrolments
   space: spaces
   principal: principal
   unique space, principal
-  immutable enrolment, space, principal
+  immutable space, principal
   read <- exists enrolments[.space, viewer]
-  insert <- .principal = viewer and exists enrolments[.space, viewer] and .space = .enrolment.space
-  update <- .principal = viewer and exists enrolments[.space, viewer] and .space = .enrolment.space
+  insert <- .principal = viewer and exists enrolments[.space, viewer]
+  update <- .principal = viewer and exists enrolments[.space, viewer]
   ephemeral 4s
 mutation pulse(space: spaces):
-  m = enrolments[space, viewer] ! else NOT_FOUND
-  return upsert presenceRows[space, viewer] { enrolment: m.id }
+  upsert presenceRows[space, viewer] {}
 mutation leaveSpace(space: spaces):
   delete enrolments[space, viewer]
   return null

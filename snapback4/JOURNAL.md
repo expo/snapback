@@ -95471,3 +95471,13 @@ preserves every existing occurrence/private write site; all 88 read-authority
 tests pass after that reviewed census update. Root inventory/guide, references,
 docs budget and all 41 affected client tests pass. Full Rust closeout is recorded
 in the lane's WORKSTREAM-REPORT.md and reports/wave12-rules2 evidence.
+
+### 2026-10-15 — RULES2 presence heartbeat uses the stable audience key
+
+Final recipe qualification tightened the presence example: copy only space and
+principal, and verify membership by its unique space/principal probe in both
+write rules. The heartbeat now has no read-derived payload or row return and
+qualifies for SDK renewal; it renews immediately after leaving and rejoining
+under a new enrolment id while its old memory row is still live. Viewer
+revocation is immediate, writer rows live at most four seconds. This removes
+unnecessary enrolment-id custody without changing the engine or language.
