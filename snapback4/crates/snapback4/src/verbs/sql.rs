@@ -29,6 +29,9 @@ pub fn sql(options: &Options) -> i32 {
 
 fn inspect(options: &Options) -> Result<()> {
     let [statement] = options.positionals.as_slice() else { return Err(("E_INPUT", format!("usage: snapback4 sql '<SELECT …> | \\dt | \\d table' [--release dir] [--limit N] [--json|--json-objects]; {CATALOG_HINT}"))); };
+    if let Some(flag) = misplaced_flag(statement) {
+        return Err(("E_INPUT", format!("{flag} is inside the SQL argument; put CLI options after its closing quote: snapback4 sql 'SELECT …' {flag}{}", if flag == "--release" { " <dir>" } else if flag == "--limit" { " N" } else { "" })));
+    }
     let command = catalog::command(statement)?;
     let body = if command.is_none() { select_body(statement)? } else { String::new() };
     let limit = match options.flags.get("limit") {
@@ -40,7 +43,10 @@ fn inspect(options: &Options) -> Result<()> {
         None => project_or_exit().store_path(),
     };
     // @ref LLP 3000.007#8 — developer SQL is read-only, never rule-filtered
-    let conn = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(store_error)?;
+    let conn = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY).map_err(|error| {
+        let (code, message) = store_error(error);
+        (code, format!("{message}{}", store_hint(&path, options)))
+    })?;
     conn.execute_batch("BEGIN DEFERRED").map_err(store_error)?;
     // Catalog, compiled columns and rows all belong to the same WAL snapshot.
     let (generation, schema) = catalog::active_schema(&conn)?;
@@ -246,4 +252,52 @@ fn select_body(sql: &str) -> Result<String> {
         return Err(("E_SQL_READ_ONLY", "sql accepts one SELECT or WITH … SELECT statement".into()));
     }
     Ok(body)
+}
+
+// A quoted SQL string may itself contain a CLI-looking value. Only flag tokens
+// outside SQLite quotes are a misplaced option (including SQLite line comments).
+fn misplaced_flag(statement: &str) -> Option<&'static str> {
+    let mut chars = statement.char_indices().peekable();
+    while let Some((offset, c)) = chars.next() {
+        if matches!(c, '\'' | '"' | '`' | '[') {
+            let end = if c == '[' { ']' } else { c };
+            while let Some((_, c)) = chars.next() {
+                if c == end {
+                    if end != ']' && chars.peek().is_some_and(|(_, c)| *c == end) { chars.next(); }
+                    else { break; }
+                }
+            }
+        } else if c == '/' && chars.peek().is_some_and(|(_, c)| *c == '*') {
+            chars.next();
+            while let Some((_, c)) = chars.next() {
+                if c == '*' && chars.peek().is_some_and(|(_, c)| *c == '/') { chars.next(); break; }
+            }
+        } else if c == '-' {
+            for flag in ["--release", "--limit", "--json-objects", "--json"] {
+                if let Some(tail) = statement[offset..].strip_prefix(flag) {
+                    if tail.is_empty() || tail.starts_with(char::is_whitespace) || tail.starts_with('=') { return Some(flag); }
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Missing development stores never imply that a neighbouring release is the
+/// store to inspect. Name the explicit selection without opening or adopting it.
+pub(super) fn store_hint(path: &Path, options: &Options) -> String {
+    if options.flags.contains_key("release") || path.exists() { return String::new(); }
+    let Some(root) = path.parent().and_then(Path::parent) else { return String::new(); };
+    let mut dirs = Vec::new();
+    if root.join("store.sqlite").is_file() { dirs.push(root.to_path_buf()); }
+    if let Ok(entries) = std::fs::read_dir(root) {
+        for entry in entries.flatten() {
+            if entry.file_name() != ".snapback4" && entry.file_type().is_ok_and(|kind| kind.is_dir())
+                && entry.path().join("store.sqlite").is_file() { dirs.push(entry.path()); }
+        }
+    }
+    dirs.sort();
+    if dirs.is_empty() { return String::new(); }
+    format!("; no development store at {}. Deployment stores are present at {}; select one explicitly with --release <dir>",
+        path.display(), dirs.iter().map(|dir| dir.display().to_string()).collect::<Vec<_>>().join(", "))
 }

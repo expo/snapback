@@ -2,8 +2,8 @@
 //! verbs agents script against have a page; any other verb prints its lines
 //! from the full help.
 
-const INIT: &str = "snapback4 init [dir] [--online|--expo|--web] [--template chat] [--port N] [--port-range A-B] [--web-port N] [--skip-existing]
-snapback4 init [dir] --adapt
+const INIT: &str = "snapback4 init [dir] [--online|--expo|--web [--online]] [--template chat] [--port N] [--port-range A-B] [--web-port N] [--skip-existing]
+snapback4 init [dir] --adapt [--dry-run|--apply]
 
 Starts a project in dir (default: here) without overwriting anything: an
 existing package.json has the starter's dependencies and scripts merged in
@@ -14,6 +14,8 @@ conflicting value refuses before any file is written.
   (no flag)        snapback/schema.q: the local-first todo schema, and .gitignore
   --online         plus an online client, package.json and README
   --web            a Vite + React todos app (vite.config.mts, src/App.tsx)
+  --web --online   Vite + React without a device: server reads and journaled
+                   writes; the new schema has no sync (your schema is kept)
   --expo           an Expo todos app
   --template chat  with --web or --expo: the full reference chat app
   --port N         the backend port: the client's URL, the README's
@@ -37,11 +39,15 @@ names the starter files that no longer fit it, and --adapt fits them:
   --adapt          remove the todo starter's fixtures and cases when the
                    schema has no todos table and its operations (fixtures/
                    itself stays); rewrite the starter screen and client for
-                   the schema's sign-in (guest sign-in, or a persona picker
+                   the schema's sign-in (guest, password, or a persona picker
                    for `use personas` without `use identity`), keeping the
                    backend port, and replace the Todos screen with a Home
                    screen that compiles against any schema. Only files whose
-                   bytes still match what init wrote are touched.
+                   bytes still match what init wrote are touched. The plan
+                   lists every rewrite/removal before applying. Edited
+                   application files make the default a preview.
+  --dry-run        with --adapt: preview only, changing no files
+  --apply          with --adapt: apply the plan, keeping edited files intact
 
 Next: npm install (when a package.json was written), snapback4 check, then
 snapback4 dev. Exit 0 when written, 1 on a conflict, 2 on bad flags.
@@ -189,7 +195,8 @@ States:
   refused CODE as expected (test.cases.jsonl:N)   that persona's own case
                                 expects CODE for this query: not a failure
   refused CODE on derived arguments   the query's own require refused the
-                                arguments test derived from the data (a row of
+                                arguments test derived from the data (shortest text/list
+                                values, not representative boundary values; a row of
                                 each referenced table, preferring one whose
                                 answer is not empty for the persona; the
                                 persona); not a failure: give it real

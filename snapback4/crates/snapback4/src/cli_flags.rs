@@ -1,9 +1,9 @@
 //! Validate the complete command before any project, store or host work.
-const SWITCHES: &[&str] = &["list", "help", "initialize", "environment-skip", "background", "if-present", "check", "engine-info", "json", "json-objects", "trace-empty", "latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "resume-clock", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "restore-dormant", "allow-feed-adoption", "i-understand-cleartext", "skip-existing", "sections", "adapt", "full", "smoke", "prime", "relaunch", "restart", "wait"];
+const SWITCHES: &[&str] = &["list", "help", "initialize", "environment-skip", "background", "if-present", "check", "engine-info", "json", "json-objects", "trace-empty", "latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "resume-clock", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "restore-dormant", "allow-feed-adoption", "i-understand-cleartext", "skip-existing", "sections", "adapt", "dry-run", "apply", "full", "smoke", "prime", "relaunch", "restart", "wait"];
 
 fn allowed(verb: &str) -> &'static str {
     match verb {
-        "init" | "new" => "online expo web template recipe port port-range web-port skip-existing adapt prefix authors edges public-profiles public-posts public-follows public-reposts",
+        "init" | "new" => "online expo web template recipe port port-range web-port skip-existing adapt dry-run apply prefix authors edges public-profiles public-posts public-follows public-reposts",
         "check" => "cost residency fix json verbose store fixture as emit-lean url release",
         "device" => "engine-info",
         "types" => "json",
@@ -19,7 +19,7 @@ fn allowed(verb: &str) -> &'static str {
         "test" => "fixture as residency verbose json",
         "why" => "verbose release values json instance store",
         "guide" => "list full sections section find",
-        "data" => "limit json",
+        "data" => "release limit json",
         "sql" => "release limit json json-objects",
         "token" => "service days release json",
         "doctor" => "url latency reset json instance release",

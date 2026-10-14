@@ -747,15 +747,16 @@ pub fn run(options: &Options) -> i32 {
 
 pub fn data(options: &Options) -> i32 {
     let Some(table) = options.positionals.first() else {
-        eprintln!("usage: snapback4 data <table> [--limit N]");
+        eprintln!("usage: snapback4 data <table> [--release <dir>] [--limit N]");
         return 2;
     };
-    let project = project_or_exit();
+    let path = options.flags.get("release").map(|dir| Path::new(dir).join("store.sqlite"))
+        .unwrap_or_else(|| project_or_exit().store_path());
     // @ref LLP 3000.019#3.4 — inspection must not acquire a writer through store initialization.
-    let mut store = match snapback4_core::Store::open_read_only(&project.store_path()) {
+    let mut store = match snapback4_core::Store::open_read_only(&path) {
         Ok(store) => store,
         Err(error) => {
-            eprintln!("cannot open the store: {error}");
+            eprintln!("cannot open the store: {error}{}", sql::store_hint(&path, options));
             return 2;
         }
     };

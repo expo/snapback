@@ -12,16 +12,17 @@ mod adapt;
 mod ports;
 pub(crate) use adapt::{report as starter_leftovers, report_json as starter_leftovers_json};
 
-const USAGE: &str = "usage: snapback4 init [dir] [--online|--expo|--web]";
+const USAGE: &str = "usage: snapback4 init [dir] [--online|--expo|--web [--online]]";
 
 pub fn init(options: &Options) -> i32 {
     // @ref LLP 3000.011.003.000#7.2 — the init-first path: fit the starter already written to the schema written since.
     if options.flags.contains_key("adapt") {
-        if options.positionals.len() > 1 || options.flags.keys().any(|flag| !matches!(flag.as_str(), "adapt" | "web" | "expo")) {
-            eprintln!("usage: snapback4 init [dir] --adapt\n  --adapt fits the starter files init wrote to your snapback/*.q; it takes no other starter flags");
+        if options.positionals.len() > 1 || options.flags.keys().any(|flag| !matches!(flag.as_str(), "adapt" | "web" | "expo" | "dry-run" | "apply")) {
+            eprintln!("usage: snapback4 init [dir] --adapt [--dry-run|--apply]\n  --adapt fits the starter files init wrote to your snapback/*.q; it takes no other starter flags");
             return 2;
         }
-        return adapt::adapt(options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new(".")));
+        if options.flags.contains_key("dry-run") && options.flags.contains_key("apply") { eprintln!("E_INPUT: --dry-run and --apply are mutually exclusive"); return 2; }
+        return adapt::adapt(options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new(".")), options.flags.contains_key("dry-run"), options.flags.contains_key("apply"));
     }
     let template = options.flags.get("template").map(String::as_str);
     let modes = ["online", "expo", "web"].iter().filter(|flag| options.flags.contains_key(**flag)).count();
@@ -46,7 +47,8 @@ pub fn init(options: &Options) -> i32 {
         eprintln!("E_RECIPE_RETIRED: the Following recipe installer is retired; no files written\n  rewrite: maintain feed: timeline\n    events posts by authorId, at removed by removed\n    reposts reposts by actorId, postId, at\n    edges follows by followerId, followedId\n  use a fresh feed name; dev adopts retained sources and deploy requires --allow-feed-adoption; see snapback4 guide feeds");
         return 2;
     }
-    if options.positionals.len() > 1 || modes > 1 || options.flags.contains_key("recipe") {
+    let online_web = modes == 2 && options.flags.contains_key("online") && options.flags.contains_key("web");
+    if options.positionals.len() > 1 || (modes > 1 && !online_web) || options.flags.contains_key("recipe") || options.flags.contains_key("dry-run") || options.flags.contains_key("apply") {
         eprintln!("{USAGE}");
         return 2;
     }
@@ -108,6 +110,13 @@ pub fn init(options: &Options) -> i32 {
         else if chat && web { web::files() } else if chat { expo_files() }
         else if web { starter::web_files(&shape) } else if expo { starter::expo_files(&shape) }
         else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
+    if online_web {
+        for (name, text) in &mut files {
+            if *name == "src/client.ts" { *text = starter::online_web_client(text.clone()); }
+            if *name == "README.md" { *text = starter::online_readme(text); }
+            if *name == "snapback/schema.q" { *text = text.replace("  sync to .ownerId            -- each owner's devices hold their own todos and work offline", "  online only"); }
+        }
+    }
     if web && !files.iter().any(|(name, _)| *name == "public/favicon.svg") {
         files.push(("public/favicon.svg", include_str!("init/starter/favicon.svg").to_owned()));
         for (name, text) in &mut files { if *name == "index.html" { *text = text.replace("<head>", "<head>\n<link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\" />"); } }
@@ -256,6 +265,7 @@ pub fn init(options: &Options) -> i32 {
     let kind = if social { "Expo Router social app" } else if chat && expo { "Expo chat app" } else if chat { "Vite chat app" }
         else if expo && home { &format!("Expo app: sign-in and a Home screen for your snapback/*.q, native when available, online in Expo Go{}", shape.offline.summary()) }
         else if expo { "Expo todos: native when available, online in Expo Go" }
+        else if online_web { "Vite + React app, online reads and journaled writes (no device)" }
         else if web && home { &format!("Vite + React app: sign-in and a Home screen for your snapback/*.q{}", shape.offline.summary()) } else if web { "Vite + React todos, offline-capable" }
         else if online { "online-only" } else { "local-first" };
     println!("init: wrote {} files in {} — {kind} — next: {install}`snapback4 check`, then `{dev}`{}", files.len(), dir.display(), readme.map(|name| format!("; see {name}")).unwrap_or_default());

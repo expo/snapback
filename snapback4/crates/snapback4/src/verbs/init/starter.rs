@@ -171,6 +171,28 @@ pub(super) fn web_client(client: String, offline: &Offline) -> String {
     } else { client }
 }
 
+/// Explicit server execution still uses the browser journal for writes.
+// @ref LLP 3000.013.000#3 — explicit online writes choose the journal even if the retained schema syncs.
+pub(super) fn online_web_client(client: String) -> String {
+    web_client(client, &Offline::Tables { synced: vec![], total: 0 })
+        .replace("createApp({ ", "createApp({ writes: \"online\", ")
+        .replace("// A device supplies offline reads for synced tables and queues writes.\n// With no synced table, init omits the device and uses the browser write journal.", "// Reads execute on the server; browser writes use the principal journal.")
+}
+
+pub(super) fn online_readme(text: &str) -> String {
+    let text = text.replace("A Vite + React app over a local-first Snapback 4 backend", "A Vite + React app over an online Snapback 4 backend")
+        .replace("It works offline and syncs when the link returns.", "Reads need the server; offline writes queue in the browser journal.")
+        .replace("one `createApp` for the whole app. This synced todo schema\n  uses `device: webDevice()`", "one `createApp` with `writes: \"online\"` and\n  `localStorageSessionStore()`, without a device")
+        .replace("one `createApp` per app (or chosen persona). With no synced\n  table it uses the browser principal journal; synced tables use `webDevice()`\n  for offline reads and predictions.", "one `createApp` per app (or chosen persona), explicitly selecting\n  `writes: \"online\"`. Reads run on the server and writes use the browser journal.")
+        .replace("(tables, rules, `sync`, queries, mutations)", "(tables, rules, queries, mutations)");
+    const ONLINE: &str = "Offline: reads need the server. Writes queue in this browser's principal journal\nand settle when the link returns. This starter explicitly selects online writes\nand ships no device, even if you later add a synced table.";
+    let mut text = text.split("\n\n").map(|paragraph| if paragraph.starts_with("Offline") { ONLINE } else { paragraph }).collect::<Vec<_>>().join("\n\n");
+    if !text.split("\n\n").any(|paragraph| paragraph.starts_with("Offline")) {
+        text = text.replacen("\n\n```sh", &format!("\n\n{ONLINE}\n\n```sh"), 1);
+    }
+    text
+}
+
 /// Behind the persona picker there is no session: "Sign out" (`auth.logout()`)
 /// showed "Signed out" and then a "Choose a persona" button, two steps for a
 /// switch (wave 5 lane 062). The persona Home takes the picker's `leave` and

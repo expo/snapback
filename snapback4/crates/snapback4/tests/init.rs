@@ -426,7 +426,7 @@ fn web_chat_template_embeds_reference_and_keeps_default_schema_only() {
 
 #[test]
 fn web_starter_refuses_conflicts_before_writing() {
-    for flag in ["--online", "--expo"] {
+    for flag in ["--expo"] {
         let dir = Dir::new();
         let output = Command::new(BIN).args(["init", "--web", flag]).current_dir(&dir.0).output().unwrap();
         assert_eq!(output.status.code(), Some(2));
@@ -528,7 +528,7 @@ fn usage_stderr_never_recommends_the_retired_installer() {
         let expected = if flags.contains(&"--help") { 0 } else { 2 };
         assert_eq!(output.status.code(), Some(expected), "{flags:?}: {output:?}");
         let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
-        assert!(text.contains("init [dir] [--online|--expo|--web]"), "{text}");
+        assert!(text.contains("init [dir] [--online|--expo|--web [--online]]"), "{text}");
         assert!(!text.contains("--recipe"), "{text}");
         assert_eq!(snapshot(&dir.0), before);
     }
@@ -979,7 +979,11 @@ fn adapt_never_touches_a_file_the_project_changed() {
     let stdout = String::from_utf8_lossy(&checked.stdout);
     // Wave 6: the README is the starter's own, unmodified, so it follows the schema even beside a changed screen.
     assert!(stdout.contains("starter: 2 files left") && stdout.contains("fixtures/todos.jsonl") && stdout.contains("README.md") && !stdout.contains("App.tsx"), "{stdout}");
-    let adapted = dir.init(&["--adapt"]);
+    let before = snapshot(&dir.0);
+    let preview = dir.init(&["--adapt"]);
+    assert!(preview.status.success() && String::from_utf8_lossy(&preview.stdout).contains("preview only"), "{preview:?}");
+    assert_eq!(snapshot(&dir.0), before, "edited app defaults to a nonmutating preview");
+    let adapted = dir.init(&["--adapt", "--apply"]);
     assert!(adapted.status.success(), "{adapted:?}");
     assert!(!dir.0.join("fixtures/todos.jsonl").exists());
     assert_eq!(fs::read_to_string(dir.0.join("fixtures/test.cases.jsonl")).unwrap(), cases);

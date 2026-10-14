@@ -42,9 +42,10 @@ use std::process::ExitCode;
 
 const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on every device
 
-  init [dir] [--online|--expo|--web]  start a project: a schema; --web a Vite + React todos app; --expo an Expo todos app; --online a schema and an online client
+  init [dir] [--online|--expo|--web [--online]]  start a project: a schema; --web a Vite + React todos app; --expo an Expo todos app; --online a schema and an online client
        [--template chat] [--port N] [--web-port N] [--skip-existing]  --web or --expo with --template chat: the full reference chat app; --port: the backend port the client calls; --web-port: the Vite page's port (default: the next port); --skip-existing: keep existing files, write only missing ones
-  init [dir] --adapt               fit the starter init wrote to the schema written since: remove its unmodified todo fixtures (fixtures/ stays), rewrite its unmodified screen for the schema's sign-in and operations
+  init [dir] --web --online        Vite + React, server reads and browser journal writes, no device
+  init [dir] --adapt [--dry-run|--apply]  preview or fit the starter init wrote to the schema written since: remove its unmodified todo fixtures (fixtures/ stays), rewrite its unmodified screen for the schema's sign-in and operations
   new <dir> --template social|chat   social: Expo Router social starter (feed, chats, search, profile); chat: add --web or --expo
   check [--cost|--residency|--fix|--json|--verbose] [--store path] [--fixture dir --as p]  compile snapback/*.q; check store adoption; write types; build native jobs; --verbose includes note explanations and redundant cascades
   check --emit-lean <file.q>          print the checked file as the Lean model's case JSON (LLP 3000.035 §5.2; snapback4/lean); programs outside the model's fragment are listed with a reason
@@ -68,7 +69,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   test [--fixture dir] [--as p] [--residency [--verbose]]    load --fixture or ./fixtures when present, run every query, print the meters; --residency: acquisition report only; add --verbose to run queries and print meters
   why <E_CODE | op | table | id>   explain a refusal or note with its card section, an operation's cost, a table's rules, or work by id; --release <dir>, --values
   guide [keyword|aliases] [--full|--sections|--section <words|N>|--find <words>]  list cards (guide aliases: every alias), or print one card (over 130 lines: its opening, numbered index and, when piped, its first section; an alias that names a section prints it; --full: all of it), its index, one section (a word no heading names prints the section that mentions it most), or the lines that hold every word (a|b or a OR b: either)
-  data <table> [--limit N]         inspect stored rows as an administrator (bypasses read rules)
+  data <table> [--release dir] [--limit N]         inspect stored rows as an administrator (bypasses read rules)
   sql <SELECT> [--release dir] [--limit N] [--json|--json-objects]  read-only inspection of your store (not rule-filtered)
     --json-objects                  envelope {columns, header, limit, more, rows, ruleFiltered}; rows are objects; declared boolean columns are true/false, SQL expressions keep SQLite types
     sql '\\dt' / '.tables'           application tables, maintained views, bounded row counts, active generation

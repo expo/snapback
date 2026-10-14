@@ -1011,3 +1011,35 @@ fn mutation_reply_omits_unrequested_id_and_keeps_result_id() {
     let (_, replay) = http(&url, "POST", "/m/add", Some("alice"), r#"{"id":"proof-write","args":{"title":"second"}}"#);
     assert_eq!(replay["replayed"], true); assert!(replay.get("result").is_none());
 }
+
+#[test]
+fn inspection_selects_release_explicitly_and_names_misplaced_sql_flags() {
+    let project = Project::new("use identity password\ntable notes:\n  body: text <=100\n  public 'public notes'\n  online only\nquery alive():\n  return true\n");
+    let deployed = project.run(&["deploy", "deployment"]);
+    assert!(deployed.status.success(), "{}", text(&deployed));
+    assert!(!project.0.join(".snapback4/store.sqlite").exists());
+    for args in [&["sql", "SELECT id FROM notes"][..], &["data", "notes"]] {
+        let output = project.run(args);
+        assert!(!output.status.success());
+        let error = text(&output);
+        assert!(error.contains("--release <dir>") && error.contains("deployment"), "{error}");
+        assert!(!project.0.join(".snapback4/store.sqlite").exists());
+    }
+    for flag in ["--release deployment", "--limit 10", "--json", "--json-objects"] {
+        let output = project.run(&["sql", &format!("SELECT id FROM notes {flag}")]);
+        assert!(!output.status.success());
+        let error = text(&output);
+        assert!(error.contains("inside the SQL argument") && error.contains("closing quote"), "{error}");
+    }
+    let output = project.run(&["sql", "SELECT '--release deployment' AS literal", "--release", "deployment", "--json-objects"]);
+    assert!(output.status.success(), "{}", text(&output));
+    let answer: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(answer["rows"][0]["literal"], "--release deployment");
+    let output = project.run(&["data", "notes", "--release", "deployment"]);
+    assert!(output.status.success(), "{}", text(&output));
+    assert_eq!(output.stdout, b"");
+    // Explicit release inspection also works outside an application's source tree.
+    let output = Command::new(BIN).current_dir(std::env::temp_dir()).args(["data", "notes", "--release"])
+        .arg(project.0.join("deployment")).output().unwrap();
+    assert!(output.status.success(), "{}", text(&output));
+}
