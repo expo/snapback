@@ -119,7 +119,6 @@ impl Engine {
                 let mut capture = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
                 capture.capture_activation(previous.as_ref(), Some(report))?;
                 report.detail("capture recorded paths", phase);
-                capture.rebuild_recorded_activation(previous.as_ref(), &rebuild.iter().copied().filter(|m| m.private.is_none()).collect::<Vec<_>>(), report)?;
             }
             let mut runner = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
             if repair_maintained_ids {
@@ -127,6 +126,13 @@ impl Engine {
                 let rewritten = runner.rewrite_legacy_maintained_references(&rebuild.iter().copied().cloned().collect::<Vec<_>>())?;
                 if rewritten != 0 { report.changes.push(format!("rewrote {rewritten} legacy aggregate references")); }
                 report.detail("rewrite legacy aggregate references", started);
+            }
+            // Legacy maps must be captured before any activation rebuild can
+            // remove their target rows. Recorded values themselves are
+            // stamped first so their historical paths may still traverse the
+            // predecessor addresses.
+            if attribution {
+                runner.rebuild_recorded_activation(previous.as_ref(), &rebuild.iter().copied().filter(|m| m.private.is_none()).collect::<Vec<_>>(), report)?;
             }
             runner.activate_columns(previous.as_ref(), &rebuild, &columns, Some(report))?;
             for maintain in rebuild.into_iter().filter(|m| m.private.is_none()) {

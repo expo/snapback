@@ -176,15 +176,22 @@ impl Runner<'_> {
             let existing = runner.tx.get(allowance, table_name, &id)?;
             if let Some(row) = &existing {
                 if !runner.expired(table, row) { runner.visible_collision(table_name, row, Effect::Insert, "unique id")?; }
-                // @ref LLP 3000.014#3-a-child-lives-within-its-parent — an expired birth with physical
-                // children collides like a live birth: check the old image's authority under the same
-                // reservation, without treating expiry as denial. A non-reader never probes the children.
-                else if has_children && !runner.check_rule(table_name, Effect::Read, None, row)? {
-                    return Err(runner.rule_refusal(table_name, Effect::Insert, "unique id"));
-                }
+                // The expired predecessor is internal retirement work. Its
+                // read rule cannot veto or disclose a logically absent image;
+                // the authorized replacement still applies its reference
+                // actions transactionally below.
             }
             Ok(existing)
         })?;
+        // @ref LLP 3000.039#6.4 — a logical device miss cannot prove there is
+        // no hidden, expired physical predecessor whose retirement would run
+        // reference actions. Controller-minted identities are the existing
+        // fresh-address proof; every other referenced same-id insert queues.
+        if self.device && predecessor.is_none() && has_children && !minted {
+            return Err(RuntimeError::Prediction(format!(
+                "same-id insert into referenced {table_name} needs the server's physical predecessor check; queued without predicted rows"
+            )));
+        }
         if predecessor.as_ref().is_none_or(|old| self.expired(table, old)) && has_children {
             let mark = self.meter.mark();
             if self.physical_children(table_name, &Value::Id(id.clone()))? {

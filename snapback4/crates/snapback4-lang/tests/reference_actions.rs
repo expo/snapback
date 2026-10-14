@@ -156,6 +156,33 @@ mutation dropBox(id: boxes):
 }
 
 #[test]
+fn same_id_insert_retires_an_unreadable_expired_predecessor_with_actions() {
+    let source = r#"
+table parents:
+  expiresAt: time ?
+  expire at .expiresAt
+  read <- deny
+  insert <- allow
+table kids:
+  parent: parents on delete cascade
+  cap 5 by parent
+  read <- deny
+mutation replace(id: id):
+  insert parents { id }
+"#;
+    let mut e = engine(source);
+    e.seed_at(vec![
+        row("parents", &[("id", id("p")), ("expiresAt", Value::Int(900))]),
+        row("kids", &[("id", id("k")), ("parent", id("p"))]),
+    ], 500).unwrap();
+    let out = e.mutate("replace", None, ctx("alice", &[("id", id("p"))])).unwrap();
+    assert_eq!(refusal(&out), None, "expired retirement bypasses only the root's read/delete authority: {out:?}");
+    assert_eq!((count(&e, "parents"), count(&e, "kids")), (1, 0));
+    let parent = &e.store().rows("parents").unwrap()[0];
+    assert!(parent.field("expiresAt").is_err(), "the replacement has no expiry: {parent:?}");
+}
+
+#[test]
 fn a_diamond_deletes_together_and_the_reported_reference_is_in_schema_order() {
     let source = r#"
 table roots:

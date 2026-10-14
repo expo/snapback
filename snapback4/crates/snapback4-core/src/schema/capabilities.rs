@@ -75,6 +75,9 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     ("maintained-id-sha256-v1", |s| s.maintains.iter().any(|m| m.row_key.is_none())),
     // @ref LLP 3000.039#8 — an older engine or device must not delete with the old (orphaning) semantics.
     ("reference-actions", |s| s.tables.values().any(|t| !t.on_delete.is_empty())),
+    // @ref LLP 3000.039#6.4 — pre-Wave-12 devices neither retire expiry
+    // through actions nor queue an unproved same-id physical predecessor.
+    ("expiry-reference-actions-v1", |s| s.tables.iter().any(|(name, table)| table.is_expiring() && s.is_referenced(name))),
     ("read-through", |s| s.tables.values().any(|t| t.through.is_some()) || s.maintains.iter().any(|m| m.parent_key.is_some() || !m.aliases.is_empty())),
     // Device projections keep column metadata but omit private maintains.
     ("maintained-column", |s| s.tables.values().any(|t| !t.maintained.is_empty()) || s.maintains.iter().any(|m| m.private.is_some())),
@@ -206,6 +209,11 @@ impl<'de> Deserialize<'de> for Schema {
         // its next serialization stamps the capability, so old devices refuse.
         if !declared.contains("maintained-id-sha256-v1") {
             required.remove("maintained-id-sha256-v1");
+        }
+        // Kept pre-Wave-12 schemas need the server's new expiry action path,
+        // then stamp the device fence on their next published projection.
+        if !declared.contains("expiry-reference-actions-v1") {
+            required.remove("expiry-reference-actions-v1");
         }
         // Before the shared fence, the binder emitted Recorded on F2 tables
         // even when the same schema also declared timelines. Only that legacy

@@ -166,6 +166,50 @@ table dualNullableChildren:
     assert_eq!(dual[0].field("right").unwrap(), &snapback4_core::Value::Null);
     host.close("expiry-actions", d);
 
+    // A hidden expired predecessor is absent from the device's logical
+    // snapshot, but replacing it on the server retires its cascade child.
+    // The device cannot predict only the new parent and retain that child.
+    let replacement = r#"
+table parents:
+  owner: principal
+  until: time ?
+  expire at .until
+  read <- .owner = viewer
+  insert <- allow
+  sync to .owner
+table children:
+  parent: parents on delete cascade
+  holder: principal
+  cap 1 by parent
+  public
+  sync public
+mutation replace(id: id):
+  insert parents { id, owner: viewer }
+"#;
+    let (mut e, b) = compile(replacement);
+    e.seed_at([
+        ("parents".into(), snapback4_core::value::object([
+            ("id", id("p")), ("owner", id("alice")), ("until", snapback4_core::Value::Int(10)),
+        ])),
+        ("children".into(), snapback4_core::value::object([
+            ("id", id("c")), ("parent", id("p")), ("holder", id("bob")),
+        ])),
+    ], 0).unwrap();
+    let mut d = host.open("expiry-same-id-replacement", Some(b)).unwrap();
+    acquire(&mut e, &mut d, "bob", 100);
+    assert!(d.store().raw_rows("parents").is_empty());
+    assert_eq!(d.store().raw_rows("children").len(), 1);
+    let from = d.state().unwrap().0;
+    let queued = d.predict("replace", "bob", &json!({"id":"p"}), 100, vec![], 1).unwrap_err();
+    assert_eq!(queued.code(), "E_PREDICT", "{}: {queued:?}", host.label());
+    assert!(d.store().raw_rows("parents").is_empty());
+    assert_eq!(d.store().raw_rows("children").len(), 1, "prediction rolls back completely");
+    assert_eq!(write(&mut e, "replace", "bob", &[("id", id("p"))]), "ok");
+    d.apply(&stream_page(&mut e, "bob", from), false).unwrap();
+    assert_eq!(d.store().raw_rows("parents").len(), 1);
+    assert!(d.store().raw_rows("children").is_empty());
+    host.close("expiry-same-id-replacement", d);
+
     // An expiring row-keyed-view source follows the same server action path;
     // derived maintenance cannot delete it before cascade/set-null run. The
     // device receives the committed source and child changes together.

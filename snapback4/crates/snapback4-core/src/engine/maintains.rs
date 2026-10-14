@@ -226,7 +226,13 @@ impl Runner<'_> {
 
         let mut ids: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
         let mut settled = false;
-        for _ in 0..=legacy.len() {
+        // One dependency edge can settle per pass.  Count identities rather
+        // than target tables: one aggregate target may contain an arbitrary
+        // acyclic chain of references to other rows in that same target.
+        let identity_count = legacy.iter().map(|(_, rows)| rows.len()).sum::<usize>();
+        // The first pass also materializes empty target maps, so retain one
+        // additional observation pass even when every target is empty.
+        for _ in 0..=identity_count.saturating_add(1) {
             let mut next_ids: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
             for (target, rows) in &legacy {
                 let target_ids = next_ids.entry(target.clone()).or_default();
