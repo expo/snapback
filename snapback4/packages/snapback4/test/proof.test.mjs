@@ -92,6 +92,7 @@ test("cleanup bounds stalled actions and continues after errors", async () => {
   let later = false;
   await assert.rejects(cleanup(() => { throw Error("broken"); }, () => { later = true; }), AggregateError); assert.ok(later);
   await assert.rejects(bounded(new Promise(() => {}), 20, "stall"), /timed out/);
+  await assert.rejects(waitForFresh({ count: () => new Promise(() => {}) }, null, 20), /no fresh signal/);
   await assert.rejects(stopChild({ nope: true }), /ChildProcess/);
 });
 test("exit sweep kills registered child, not a neighboring child", async t => {
@@ -168,4 +169,19 @@ test("saved schemas typecheck server companions against private candidate API wi
   assert.match(readFileSync(join(cwd, "deploy/releases/1/snapback/generated/api.ts"), "utf8"), /amount/);
   assert.equal(readFileSync(join(cwd, "snapback/generated/api.ts"), "utf8"), before);
   assert.equal(readFileSync(join(cwd, "snapback/schema.q"), "utf8"), schema);
+});
+
+test("ready PID and served marker mismatches refuse instead of adopting another identity", { skip: process.platform === "win32" }, async t => {
+  const cwd = fixture(t), original = process.env.SNAPBACK4_BIN;
+  try {
+    for (const wrong of ["pid", "marker"]) {
+      const binary = join(cwd, `fake-${wrong}.mjs`);
+      const script = `#!${process.execPath}\nimport {createServer} from 'node:http'; const server=createServer((req,res)=>{ res.setHeader('content-type','application/json'); res.end(JSON.stringify({pid:process.pid, proof_id:${wrong === "marker" ? "'wrong-marker'" : "process.env.SNAPBACK4_PROOF_ID"}})); }); server.listen(0,'127.0.0.1',()=>console.error('SNAPBACK4_READY verb=dev generation=1 url=http://127.0.0.1:'+server.address().port+' pid='+${wrong === "pid" ? "(process.pid+1)" : "process.pid"}));`;
+      writeFileSync(binary, script, { mode: 0o755 });
+      process.env.SNAPBACK4_BIN = binary;
+      await assert.rejects(startDev({ cwd, timeoutMs: 5000 }), /identity mismatch/);
+    }
+  } finally {
+    if (original === undefined) delete process.env.SNAPBACK4_BIN; else process.env.SNAPBACK4_BIN = original;
+  }
 });

@@ -7,6 +7,7 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { artifact, cleanSource, clientManifest, digest, json, linuxRustFlags, linuxTarget, manifest, nodeVersion, platforms, refuseCredentials, run, save, sqliteBuildFlags, sri, validateLinux } from "./publication-artifacts.mjs";
 import { checkElf } from "./check-elf.mjs";
+import { proveGeneratedProofs } from "./publication-frontend-proofs.mjs";
 import { prootProof } from "./qualify-linux-proot.mjs";
 export function containerRuntime(probeRuntime = name => spawnSync(name, ["info"], { stdio: "ignore", timeout: 15_000 })) {
   for (const name of ["docker", "podman"]) {
@@ -46,7 +47,7 @@ export function containerProof(runtime, client, platform, version, work, expo) {
   }
   return proofs;
 }
-export function qualify(args = process.argv.slice(2)) {
+export async function qualify(args = process.argv.slice(2)) {
   refuseCredentials(); // Must precede all commands, including argument-dependent work.
   if (process.platform !== "linux" || process.arch !== "x64") throw new Error("Linux qualification requires a linux-x64 host");
   const options = {};
@@ -80,13 +81,17 @@ export function qualify(args = process.argv.slice(2)) {
     copyFileSync(binary, join(pkg, "snapback4"));
     const [packed] = JSON.parse(run("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", work], { cwd: pkg }));
     const tarball = join(work, packed.filename), platform = artifact(tarball, platforms[1], version);
+    // The container starter-toolchain proof remains beside this loaded-host
+    // browser proof; both execute the same retained client/platform bytes.
+    const frontendProofs = await proveGeneratedProofs(client, tarball, expo, out);
+    save(join(out, "frontend-proofs.json"), frontendProofs);
     const proofs = runtime === "proot" ? prootProof(client, tarball, version, undefined, undefined, expo) : containerProof(runtime, client, tarball, version, work, expo);
     // Keep executed consumer evidence on a red suite, without a success receipt.
     // An isolated flake rerun cannot turn the original suite into a release pass.
     save(join(out, "proofs.json"), { source, route: runtime, proofs, suite: { exitCode: result.status, summary } });
     if (!suitePassed) throw new Error(`Linux source suite failed: ${summary ?? result.error?.message ?? result.status}; see ${log}; consumer evidence in proofs.json (no qualification receipt)`);
     const cc = process.env.SNAPBACK4_MUSL_CC ?? join(process.env.HOME, ".local/share/snapback4-musl-1.2.5/bin/musl-gcc");
-    const receipt = { format: 1, route: runtime, source, target: linuxTarget, toolchain: { rustc: run("rustc", ["-Vv"]).trim(), cargo: run("cargo", ["-V"]).trim(), cc: run(cc, ["--version"]).trim(), linker: cc }, flags: { LIBSQLITE3_FLAGS: sqliteBuildFlags, RUSTFLAGS: linuxRustFlags }, suite: { status: "passed", exitCode: result.status, summary }, proofs, elf, platform, binarySha256, clientIntegrity, expo: artifact(expo, "snapback4-expo", version) };
+    const receipt = { format: 1, route: runtime, source, target: linuxTarget, toolchain: { rustc: run("rustc", ["-Vv"]).trim(), cargo: run("cargo", ["-V"]).trim(), cc: run(cc, ["--version"]).trim(), linker: cc }, flags: { LIBSQLITE3_FLAGS: sqliteBuildFlags, RUSTFLAGS: linuxRustFlags }, suite: { status: "passed", exitCode: result.status, summary }, proofs, frontendProofs, elf, platform, binarySha256, clientIntegrity, expo: artifact(expo, "snapback4-expo", version) };
     if (cleanSource(root) !== source || sri(client) !== clientIntegrity || sri(expo) !== expoIntegrity) throw new Error("release source or client changed during Linux qualification");
     validateLinux(receipt, tarball, { version, integrity: clientIntegrity }, source);
     copyFileSync(tarball, join(out, packed.filename));
@@ -95,4 +100,4 @@ export function qualify(args = process.argv.slice(2)) {
     return receipt;
   } finally { rmSync(work, { recursive: true, force: true }); }
 }
-if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) qualify();
+if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url)) await qualify();

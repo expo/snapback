@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { digest, json, member, sqliteBuildFlags, sri, validateLinux } from "../../../scripts/publication-artifacts.mjs";
+import { digest, json, member, sqliteBuildFlags, sri, validateLinux, validateFrontendProofs } from "../../../scripts/publication-artifacts.mjs";
 import { runToolchainCommand } from "../../../scripts/publication-starters.mjs";
 import { containerRuntime } from "../../../scripts/qualify-linux.mjs";
 import { fetchPinned, prootCommand, prootEnvironment } from "../../../scripts/qualify-linux-proot.mjs";
@@ -13,7 +13,13 @@ import { proofEntrypoint } from "./helpers/linux-proof-harness.mjs";
 function qualify(t, scenario = {}) {
   const root = mkdtempSync(join(tmpdir(), "snapback4-linux-test-")); t.after(() => rmSync(root, { recursive: true, force: true }));
   for (const dir of ["scripts", "packages/snapback4", "packages/snapback4-linux-x64", "target/x86_64-unknown-linux-musl/production"]) mkdirSync(join(root, dir), { recursive: true });
-  for (const file of ["qualify-linux.mjs", "qualify-linux-proot.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-artifacts.mjs", "publication-roundtrip.mjs", "publication-starters.mjs", "test-command-owner.mjs", "test-owned-command.mjs", "test-command-group.mjs", "build-linux-musl.sh"]) copyFileSync(new URL(`../../../scripts/${file}`, import.meta.url), join(root, "scripts", file));
+  for (const file of ["qualify-linux.mjs", "qualify-linux-proot.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-artifacts.mjs", "publication-roundtrip.mjs", "publication-starters.mjs", "publication-frontend-proofs.mjs", "test-command-owner.mjs", "test-owned-command.mjs", "test-command-group.mjs", "build-linux-musl.sh"]) copyFileSync(new URL(`../../../scripts/${file}`, import.meta.url), join(root, "scripts", file));
+  writeFileSync(join(root, "scripts/publication-frontend-proofs.mjs"), `
+    export async function proveGeneratedProofs(client, platform, expo, out) {
+      if (${JSON.stringify(scenario.frontendFail ?? false)}) throw Error('deliberately failing generated frontend proof');
+      return ['web', 'expo'].flatMap(kind => [1, 2].map(attempt => ({ kind, attempt, status: 'passed', range: [30000, 30020], occupied: 30000, cpuLoadWorkers: 2, logs: out + '/logs' })));
+    }
+  `);
   writeFileSync(join(root, "scripts/publication-roundtrip.mjs"), proofEntrypoint);
   writeFileSync(join(root, "scripts/publication-starters.mjs"), `
     import { appendFileSync } from 'node:fs';
@@ -179,6 +185,7 @@ test("Linux qualification receipt binds source, toolchain, suite, both container
   const r = qualify(t); assert.equal(r.status, 0, r.stderr);
   const tarball = join(r.root, "out", r.receipt.platform.filename);
   assert.equal(r.receipt.binarySha256, digest(r.binary)); assert.equal(r.receipt.platform.integrity, sri(tarball)); assert.equal(r.receipt.clientIntegrity, sri(r.client));
+  assert.deepEqual(r.receipt.frontendProofs.map(p => [p.kind, p.attempt, p.status]), [['web', 1, 'passed'], ['web', 2, 'passed'], ['expo', 1, 'passed'], ['expo', 2, 'passed']]);
   validateLinux(r.receipt, tarball, { version: "0.0.0", integrity: sri(r.client) }, "a".repeat(40));
   assert.deepEqual(r.receipt.proofs.map(p => p.base), ["ubuntu:22.04", "alpine"]);
   assert.equal(r.receipt.suite.summary, "== 0 failure(s) in 2 s");
@@ -305,4 +312,18 @@ test("toolchain timeout kills a TERM-ignoring driver and grandchild without a nu
   const pid = Number(readFileSync(pidFile, "utf8"));
   const probe = spawnSync("/bin/ps", ["-p", String(pid), "-o", "stat="], { encoding: "utf8", timeout: 2_000 });
   assert.ok(probe.status === 1 || /^\s*[ZX]/.test(probe.stdout), `grandchild must be gone or dead, not executing: ${probe.stdout}`);
+});
+
+test("failed generated frontend proof prevents a Linux qualification receipt", t => {
+  const result = qualify(t, { frontendFail: true });
+  assert.notEqual(result.status, 0); assert.equal(result.receipt, null);
+  assert.match(result.stderr, /deliberately failing generated frontend proof/);
+});
+
+test("imported loaded-host proof evidence cannot omit a failed or repeated attempt", () => {
+  const evidence = ["web", "expo"].flatMap(kind => [1, 2].map(attempt => ({ kind, attempt, status: "passed", range: [29040, 29049], occupied: 29040, cpuLoadWorkers: 2 })));
+  validateFrontendProofs(evidence);
+  for (const corrupt of [evidence.slice(1), evidence.map((p, i) => i === 3 ? { ...p, attempt: 1 } : p), evidence.map((p, i) => i === 0 ? { ...p, status: "failed" } : p)]) {
+    assert.throws(() => validateFrontendProofs(corrupt), /both generated frontend proofs twice/);
+  }
 });

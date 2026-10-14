@@ -21,7 +21,7 @@ pub(super) fn sources(project: &Project, options: &Options, flag: &str) -> Resul
 pub(super) fn compile(sources: &[(String, String)], options: &Options, flag: &str) -> snapback4_lang::Bound {
     let mut bound = snapback4_lang::compile(sources);
     if let Some(file) = options.flags.get(flag) {
-        for diagnostic in bound.diagnostics.iter_mut().chain(bound.notes.iter_mut()) { diagnostic.site.file = file.clone(); }
+        for diagnostic in &mut bound.diagnostics { diagnostic.site.file = file.clone(); }
     }
     bound
 }
@@ -45,6 +45,7 @@ impl Candidate {
         static SERIAL: AtomicUsize = AtomicUsize::new(0);
         let root = std::env::temp_dir().join(format!("snapback4-saved-source-{}-{}", std::process::id(), SERIAL.fetch_add(1, Ordering::Relaxed)));
         std::fs::create_dir(&root).map_err(|e| e.to_string())?;
+        #[cfg(unix)] snapback4_core::private_fs::directory(&root).map_err(|e| e.to_string())?;
         let candidate = Self { project: Project { root } };
         // The worker snapshotter captures the actual import closure and refuses
         // symlinks. Copy those captured bytes, not an unbounded application tree.
@@ -133,6 +134,20 @@ mod tests {
         std::fs::remove_dir_all(root).unwrap();
     }
     #[test]
+    fn inherited_native_workspace_refuses_before_touching_working_generated_types() {
+        let root = dir("workspace"); let stage = dir("workspace-stage");
+        let original = Project { root: root.clone() };
+        std::fs::create_dir_all(original.native_dir()).unwrap();
+        std::fs::write(original.native_manifest(), "[package]\nname = \"fixture\"\nversion.workspace = true\n").unwrap();
+        std::fs::write(original.native_types(), "working sentinel").unwrap();
+        let bound = snapback4_lang::compile(&[("schema.q".into(), "job sweep(): native\n".into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let error = Candidate::prepare(&original, &stage, &bound).err().unwrap();
+        assert!(error.contains("workspace-inherited") && error.contains("standalone"), "{error}");
+        assert_eq!(std::fs::read_to_string(original.native_types()).unwrap(), "working sentinel");
+        std::fs::remove_dir_all(root).unwrap(); std::fs::remove_dir_all(stage).unwrap();
+    }
+    #[test]
     fn native_types_are_built_for_selected_source_in_private_tree() {
         let root = dir("native"); let stage = dir("stage");
         let original = Project { root: root.clone() };
@@ -162,7 +177,12 @@ mod tests {
 fn rebase_native(text: &str, original: &Path, source_root: &Path, target_root: &Path, workspace: bool) -> Result<String, String> {
     let mut manifest: toml::Value = text.parse().map_err(|e| format!("saved-source native manifest: {e}"))?;
     fn inherited(value: &toml::Value) -> bool {
-        match value { toml::Value::Table(fields) => fields.get("workspace").and_then(toml::Value::as_bool) == Some(true) || fields.values().any(inherited), toml::Value::Array(items) => items.iter().any(inherited), _ => false }
+        let marker = |field: &toml::Value| field.get("workspace").and_then(toml::Value::as_bool) == Some(true);
+        if value.get("package").and_then(toml::Value::as_table).is_some_and(|fields| fields.iter().any(|(key, field)| key != "metadata" && marker(field))) { return true; }
+        for key in ["dependencies", "dev-dependencies", "build-dependencies"] {
+            if value.get(key).and_then(toml::Value::as_table).is_some_and(|fields| fields.values().any(marker)) { return true; }
+        }
+        value.get("target").and_then(toml::Value::as_table).is_some_and(|targets| targets.values().any(inherited))
     }
     if !workspace && inherited(&manifest) { return Err("workspace-inherited native packages require a complete standalone [workspace] under snapback/native; copy its workspace package/dependency declarations before saved-source deployment".into()); }
     fn dependency_group(group: &mut toml::Value, root: &Path, source_root: &Path, target_root: &Path) -> Result<(), String> {

@@ -95107,3 +95107,29 @@ variables. Independent review logs retain their actual commands; Codex's
 additional review-side test invocations used the default profile rather than
 the explicitly requested environment, a delegation-brief omission. Future
 review briefs must pass those Cargo constraints explicitly.
+
+## 2026-10-14 — PROOF: packaged process and browser proofs
+
+Wave 11's proof kit is implemented under `snapback4/proof` (LLP
+3000.011.003.000.000): direct native/static/Vite hosts, runtime port ranges,
+file logs, ready/HTTP identity checks, bounded cleanup, browser flags/helpers,
+and close-based CLI/tool calls. Frontend private groups have a driver liveness
+pipe and a live keeper; an abruptly killed driver cannot leave the frontend
+or its compiler group running. Normal native servers use their existing parent
+supervision. Browser receipts stay in the existing app witness outside unmounts.
+
+Saved complete sources compile/stage as canonical `schema.q`, so archive names
+cannot rename operations. Companions check/build against private generated
+signatures; native dependencies are rebased using TOML, including copied local
+workspace crates. Working source/generated files stay intact. Fixture aliases
+resolve explicitly or refuse by name, with terminal literal escapes.
+
+Web/Expo/adapt generate kit proofs and declare the driver; ports are chosen at
+execution. The Linux qualification adds four occupied-port/loaded-host browser
+attempts beside the existing toolchain proof and records their results. Both
+final blind reviewers are READY. The copied wave-11 UI proofs all passed:
+018 176→100 lines, 020 172→99, 057 154→12 (including their orchestration helpers).
+The testing card shrank from 349 to 161 lines. Detailed validation/evidence are
+in `reports/20261014-proof-kit` and the workstream report. No publication/push;
+root Snapback 1 guide/inventory checks retain missing-dependency/generated-demo
+preconditions outside this fence.

@@ -152,9 +152,9 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
 export async function waitForFresh(locator: Locator, previous: string | null, timeoutMs = 30_000): Promise<string> {
   const end = performance.now() + deadline(timeoutMs, 30_000);
   while (performance.now() < end) {
-    if (await locator.count()) {
+    if (await bounded(locator.count(), Math.max(1, end - performance.now()), "no fresh signal (locator count)")) {
       try {
-        const text = await locator.textContent({ timeout: Math.max(1, Math.min(1000, end - performance.now())) });
+        const text = await bounded(locator.textContent({ timeout: Math.max(1, Math.min(1000, end - performance.now())) }), Math.max(1, end - performance.now()), "no fresh signal (text)");
         if (text && text !== previous) return text;
       } catch (error) {
         if (!(error instanceof Error) || error.name !== "TimeoutError") throw error;

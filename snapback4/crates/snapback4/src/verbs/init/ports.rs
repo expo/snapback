@@ -3,14 +3,9 @@ use super::super::Options;
 use serde_json::{Value, json};
 
 pub(super) fn range(options: &Options) -> Result<Option<(u16, u16)>, String> {
-    let text = match options.flags.get("port-range") {
-        Some(text) => Some(text.clone()),
-        None => match (std::env::var("PORT_LO").ok(), std::env::var("PORT_HI").ok()) {
-            (None, None) => None,
-            (Some(low), Some(high)) => Some(format!("{low}-{high}")),
-            _ => return Err("PORT_LO and PORT_HI must be set together".into()),
-        }
-    };
+    // Environment belongs to the process launch, never to generated files.
+    // Validate malformed assigned ranges at run time through snapback4/proof.
+    let text = options.flags.get("port-range").cloned();
     let Some(text) = text else { return Ok(None) };
     let (low, high) = text.split_once('-').ok_or("--port-range must be A-B (1 <= A <= B <= 65535)")?;
     let (low, high) = (low.parse::<u16>(), high.parse::<u16>());

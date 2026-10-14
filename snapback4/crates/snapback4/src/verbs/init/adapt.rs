@@ -288,11 +288,12 @@ pub(crate) fn report_json(dir: &Path) -> serde_json::Value {
 
 /// `snapback4 init --adapt [dir]`.
 pub(super) fn adapt(dir: &Path) -> i32 {
-    match own_schema(dir) {
-        Ok(Some(_)) => {}
+    let own = match own_schema(dir) {
+        Ok(Some(own)) => own,
         Ok(None) => { eprintln!("init --adapt: no snapback/*.q in {}; nothing to adapt to (run `snapback4 init --web` or `--expo` first)", dir.display()); return 1; }
         Err(error) => { eprintln!("init: {error}"); return 2; }
-    }
+    };
+    if let Err(error) = super::proof::adapt(dir, &own) { eprintln!("init --adapt proof: {error}"); return 2; }
     let (found, advice) = leftovers(dir);
     let mut removed = Vec::new();
     let mut rewritten = Vec::new();
