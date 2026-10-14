@@ -274,7 +274,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_CLOCK_INPUT", "Backward/zero advances and invalid values refuse E_CLOCK_INPUT."),
     ("E_CLOSED", "E_CLOSED means the client closed while a request was in flight."),
     ("E_CONFLICT", "E_CONFLICT means a conditional update found that the row changed."),
-    ("E_CONSTRAINT", "E_CONSTRAINT means a unique key, product cap, immutable field, format or postcondition rejected the write."),
+    ("E_CONSTRAINT", "E_CONSTRAINT means an intrinsic id unique key, product cap, immutable field, format or postcondition rejected the write."),
     ("E_CURSOR_INDEX", "E_CURSOR_INDEX concerns an older explicit index that lacks a total order."),
     ("E_DEVICE_VERSION", "E_DEVICE_VERSION means JavaScript opened a device module missing the required sync receipt protocol."),
     ("E_DIV_ZERO", "`/` and `%` give the Euclidean quotient and remainder of ints or times; zero refuses `E_DIV_ZERO`."),
