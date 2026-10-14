@@ -18,14 +18,22 @@ Initial `git status --short` and `git log sb4-loop..HEAD`: both empty. Pristine 
 
 All 100 wave-12 final schemas checked in disposable copies; zero refusals, **324 notes**, exactly matching the analysis. Source hashes retained and checked unchanged. Raw result: `snapback4/reports/wave12-lang/before.json`; reusable survey: `snapback4/reports/wave12-lang/survey.py`.
 
-Snapback 4 frozen Bun install and baseline CLI build pass. Initial wasm/client build and Integration-11 root dependency/generated-artifact setup are running. Final checks and measurement follow integration.
+Snapback 4 frozen Bun install, baseline CLI build, initial wasm build (2,319,740 raw / 707,674 gzip B) and client build pass. Integration-11 root frozen install, workspace hoist, generated artifacts, diagnostics/symbol registries and guide manifest pass without tracked drift. Required root inventories pass (365 package tests, 35 script tests, 31 demos, 487 publication leaves); all 22 guide checks pass with zero failures/skips/preconditions and 121 inherited warnings. Hashed compressed logs: `snapback4/reports/wave12-lang/setup-results.json`. Final product tests and measurement follow integration.
 
 ## Implementation and verification ledger
 
-- P1/P2: expiry actions and fixed aggregate identity; implementation lane active.
-- P3/P4 and diagnostics/notes/cascade guidance: implementation lane active, reservations first.
-- Language gaps: ungrouped views, aggregate narrowing, email, enum search, rounded decimal division; implementation lane active.
-- Completeness reach and equality-filter repairs: implementation lane active.
+- P1/P2: initial implementation `20e7c22d11`, formal/generator coverage `f5adbda0d1`. Expiry applies reference actions atomically; restricted expired roots stay physically present but logically expired. Fixed 64-character SHA-256 identities replace unbounded aggregate IDs; 0.4.28 adoption has an explicit migration witness. Independent review found fairness and PostgreSQL-reopen gaps; fixes and second review are in progress.
+- P3/P4: implemented and focused tests passing in `4433843552`; broader diagnostics/notes/cascade guidance and paired review active.
+- Language gaps: email `b081f96054`; remaining semantics `0fe7cc1263`. Count proof capture belongs to the exact domain and reaching transaction state, invalidated by writes/rebinding/authority changes. Four-argument rounded division explicitly selects decimal scale, so integer averages can represent fractional results without manual multiplication. Formal, simulator/device coverage and paired reviews remain in progress.
+- Completeness reach and equality-filter repairs: `4dbf2ffc8e`, coverage `c1e494491b`, Lean precision `f3e35c177b`. PAGE5 adds bounded equality products, fixed plus varying grant audiences, and server-only exact vacancy probes (including hidden/timed probe targets). Muse round 1 READY; fresh Codex pending. Unsupported shapes retain honest notes.
 - Before/after census, global tests, wasm budget, root checks and final report: coordinator owned.
 
+Intermediate integration: the first post-change census found one previously clean refusal (074 owner-or-manager guards); it exposed a diagnostic key-binding compatibility regression. The diagnostics lane is restoring the valid binding path before final qualification. The intermediate census is not final evidence. Full Lean check passed (54 build jobs, 65 audited theorems with standard axioms only, 88 examples, 7 oracle fixtures); reference audit passed (547 LLPs, 11,869 refs, zero errors/unchecked).
+
+Completeness boundaries: 087 `weeklyLoss` combines varying floor membership and non-equality residual alternatives; only its fixed manager grant can decide the whole page. 033 `commentsOf` has a chapter-owner hop plus author party and three varying grants, outside the one-varying-witness fragment. These remain honest capped forms for other callers.
+
 No completion or qualification claim yet. Final commits, review artifacts, test totals, remaining boundaries and per-code before/after notes will replace this in-progress ledger.
+
+Root recheck: the first repeated guide run saw the root dependency tree absent and skipped four dependency-backed checks. Restored the pinned frozen install/hoist, revalidated generated artifacts, and reran: inventories PASS and guide 22/22 with zero skips/preconditions. Docs budget PASS (320/320 lines plus self-containment test). Evidence: `root-recheck-results.json`.
+
+Provisional campaigns (not final qualification): 2,000 native and 512 device cases had no signatures; 2,000 Lean cases found four signatures outside the known baseline. All four now replay PASS after model fixes; they remain visible in the provisional report rather than entering the allowed baseline. Candidate wasm passed strict audits at 2,334,662 raw / 712,133 gzip / 538,021 Brotli bytes; the old budget correctly refused the candidate, and final measurement plus exactly 500 B will replace it after semantic freeze.
