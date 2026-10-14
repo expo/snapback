@@ -115,6 +115,7 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
             let site = catalog.site_for(&issue.path);
             if issue.message.starts_with("ephemeral:") {
                 let (message, fix) = issue.message.split_once("; ").unwrap_or((&issue.message, "keep that data in a durable table"));
+                let fix = if message.contains("through cannot appear") { "copy the durable enrolment scope onto the ephemeral row and validate it in insert/update rules; guide rule-recipes, Ephemeral presence under an enrolment parent" } else { fix };
                 diagnostics.push(Diagnostic::new(&site, "E_QUARRY_EPHEMERAL", message, fix).guide("ephemeral"));
             } else if issue.message.starts_with("written by:") {
                 diagnostics.push(Diagnostic::new(&site, "E_FIELD_AUTHORITY", issue.message, "name a required principal column of this table; declare a default; use readable by audience before indexing or deriving from the field").guide("rules"));

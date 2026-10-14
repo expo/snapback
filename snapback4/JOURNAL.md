@@ -95436,3 +95436,23 @@ qualifiers remain distinct from final success. `reports/20261014-fix28/` retains
 exact-byte/source bindings, complete proof matrices and hashed command logs.
 Consumer evidence has publicationQualified false and suite not-run. No full
 scripts/test.sh, native iOS/Mac publication qualification, upload or push.
+
+### 2026-10-14 — RULES2 wave 12 authorization recipes and composition notes
+
+Added compiled rule-recipes for the remaining day/window, column privacy,
+status-count, mutable-parent, threshold-publication, secret-ballot, media-link,
+enrolment-presence and blind-comparison shapes, plus invite/self-join/public
+metadata entry models. Each runs under its shipped rules in the language tests.
+Refusals point to the repair recipes; ephemeral read-through suggests a copied
+validated durable scope. The cheatsheet uses one clerk/officer roster for its
+owner-or-staff union. KIT retains testing authoring; SURF retains transport/UI.
+
+The checker proves narrow contradictions between preceding caller gates and
+update/upsert rules, and identifies always-null nullable point lookups. Unknown
+role overlap stays quiet; nullable snapshots never stand for physical row
+fields. LLP 3000.036.002 §9 records the proof boundary. LLP 3000.036 §22 records
+the end games and reasons for deferring column reads, roster-plus-group union
+sync, windowed unions and changed-only sugar. No runtime authority, sync,
+protocol, expiry, planner or adoption behavior changes. A uniformly denied
+hidden-only page is complete/empty; a nonuniform empty page may remain partial,
+which the testing pointer now says explicitly.

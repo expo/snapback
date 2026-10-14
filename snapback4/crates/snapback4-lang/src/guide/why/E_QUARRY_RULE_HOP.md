@@ -26,3 +26,5 @@ never becomes a value that negation can turn into authority.
 One problem is printed per rule; when the rule hops more than once, its message names every other hop's site, and a table that reads `through` this one is named (its copy of the rule is checked once this one binds), so one pass repairs them all.
 
 Copied audience columns: `snapback4 guide rule-recipes --section "Copied audiences"` validates the copy at insert; keep it immutable when it represents the creation-time audience.
+
+A mutable parent: `guide rule-recipes --section "Audience follows a mutable parent"`; ephemeral presence: `guide rule-recipes --section "Ephemeral presence under an enrolment parent"` copies and validates the durable scope.

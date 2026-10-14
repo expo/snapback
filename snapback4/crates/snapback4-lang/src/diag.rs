@@ -207,6 +207,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_NOT_PREDICTABLE" | "N_HORIZON_GUARD" | "E_PREDICT" => "prediction",
         "N_SEQUENCE_READ" => "sequences",
         "N_UNREADABLE_PROBE" => "rules",
+        "N_LOOKUP_NEVER_VISIBLE" => "rule-recipes",
         "N_PERSONA_PRINCIPAL" => "personas",
         "N_NO_PRODUCTION_WRITER" | "E_UPGRADE" => "deploy",
         "N_FIXTURE_ARGUMENT_DRIFT" | "E_WITNESS_BROWSER" | "E_WITNESS_AUTH" | "E_WITNESS_MUTATION" | "E_WITNESS_ARGUMENT" | "E_WITNESS_EXPORT" | "E_WITNESS_READY" | "E_WITNESS_SENT" | "E_WITNESS_WEB" => "testing",

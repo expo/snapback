@@ -157,7 +157,7 @@ fn forbidden_table_clauses() {
             "read through .roomId",
         ),
         "through",
-        "durable",
+        "copy the durable enrolment scope",
     );
 }
 #[test]

@@ -1,8 +1,6 @@
 # Programs — E_STRUCTURAL_FANOUT
 
-For one row, use a point read by id (`table[id]`). For a global count/total,
-read a maintained aggregate with a rule authorizing the caller; public totals
-need a public read rule. Neither scans private rows inside the mutation.
+For one row, use a point read by id (`table[id]`). For a global total, use a maintained aggregate authorizing the caller; public totals need a public read rule. Neither scans private rows inside the mutation.
 
 For receipt gaps, `guide sequences` has the server blocker read and scoped
 receipt proof; counts do not prove individual receipt coverage. Declare
@@ -50,6 +48,5 @@ query cut is an incomplete null; a mutation cut is `E_BOUND` with no write.
 Mutation prefix existence tests require a uniform plain prefix and the same
 expiry admission as other scans (guide programs). Rule probes keep
 exact-key, one-unit semantics. `exists` accepts predicates and seeks, but no `first`/`last` or cursor.
-Its rewrite also names a count view over your table (guide indexes, "Private lists").
 
-Population conditions: guide rule-recipes --section "Materialised access" (trusted creation/revocation).
+Recipes: `guide rule-recipes` — Status dashboard over private rows; Minimum-group publication; Materialised access; Blind comparison with a system job.

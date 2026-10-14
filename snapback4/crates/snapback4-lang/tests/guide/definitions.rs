@@ -137,6 +137,7 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("N_LOOKUP_NEVER_VISIBLE", "nullable point lookup is always null"),
     ("N_SYNC_EMPTY", "a cursorless device page filters a public, unbounded synced table by a reference"),
 
     ("E_UNIQUE", "E_UNIQUE means a caller-readable row already holds this declared secondary unique key."),

@@ -172,3 +172,7 @@ Full bodies for the preceding fixture (omitted request ids stay omitted):
 ```
 
 A full `cap` counts every row, readable or not, and refuses `E_CONSTRAINT`.
+
+## Hidden-only pages
+
+A uniformly denied page over only hidden rows is `complete` and empty, never `denied`; nonuniform scans can remain partial (`guide indexes`). Assert empty data and completeness for that denied scope, and use a readable role query for access UI (`guide refusals`, `guide rule-recipes`). KIT owns the rest of this page.

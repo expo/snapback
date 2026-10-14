@@ -34,10 +34,11 @@ view openItems: count items where .done = false by .owner, .list   -- a maintain
   read <- .owner = viewer
 table staff:                              -- a role: one row per staff member (guide recipes)
   principal: principal
-  unique principal
+  role: enum('clerk', 'officer')
+  unique principal                        -- one roster row holds either staff role
   read <- .principal = viewer
   online only
-table requests:                           -- owner or staff: a union, so `sync` holds both (guide sharing)
+table requests:                           -- owner or clerk/officer: one roster, one group arm (guide sharing) (guide sharing)
   author: principal
   title: text 1..200
   read <- .author = viewer or exists staff[viewer]
