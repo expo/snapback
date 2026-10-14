@@ -62,6 +62,11 @@ query privateEntries():
         assert!(bound.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"),
             "{expression}: {:#?}", bound.diagnostics);
     }
+    for expression in ["min((total where true by byId), .value + 0)", "max((total where true by byId), .value + 0)"] {
+        let bound = compile(&[("bad.q".into(), format!("{source}\nquery badExtremum():\n  return {expression}\n"))]);
+        assert!(bound.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+            && diagnostic.message.contains("global maintained scalar")), "{expression}: {:#?}", bound.diagnostics);
+    }
     let mut engine = engine(source);
     let query = |engine: &mut Engine| engine.query("totalEntries", Context::new("alice", BTreeMap::new())).unwrap().data;
     let private = |engine: &mut Engine, viewer| engine.query("privateEntries", Context::new(viewer, BTreeMap::new())).unwrap().data;
@@ -85,6 +90,17 @@ query privateEntries():
     assert_eq!(query(&mut engine), Value::Int(0));
     assert!(engine.store().rows("total").unwrap().is_empty(), "zero deletes the physical aggregate row");
     assert!(engine.store().rows("privateTotal").unwrap().is_empty(), "private zero also has no physical row");
+}
+
+#[test]
+fn global_scalar_names_do_not_shadow_contextual_builtins() {
+    let table = "table entries:\n  public 'prototype'\n";
+    for name in ["viewer", "now", "commit", "new"] {
+        let bound = compile(&[("bad.q".into(), format!("{table}view {name}: count entries\n  read <- allow\n  online only\nquery show():\n  return {name}\n"))]);
+        assert!(bound.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_RESERVED"
+            && diagnostic.message.contains(name)), "{name}: {:#?}", bound.diagnostics);
+    }
+    checked(&format!("{table}view total: count entries\n  read <- allow\n  online only\nquery show():\n  return total\n"));
 }
 
 #[test]

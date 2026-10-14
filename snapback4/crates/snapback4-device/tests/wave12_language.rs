@@ -85,3 +85,21 @@ fn wave12_semantics_match_on_both_device_stores() {
     parity(&mut Memory::new());
     parity(&mut Sqlite::new("wave12-language"));
 }
+
+#[test]
+fn pre_wave_closed_enums_reject_email_and_rounded_division() {
+    #[allow(dead_code)]
+    #[derive(Debug, serde::Deserialize)]
+    enum PreWaveTextFormat { Handle, Url }
+    #[allow(dead_code)]
+    #[derive(Debug, serde::Deserialize)]
+    enum PreWaveBuiltin { Count, Sum }
+
+    let email = serde_json::to_value(snapback4_core::schema::TextFormat::Email).unwrap();
+    let divide = serde_json::to_value(snapback4_core::ir::Builtin::Divide {
+        rounding: snapback4_core::ir::Rounding::HalfEven,
+        scale: Some(2),
+    }).unwrap();
+    assert!(serde_json::from_value::<PreWaveTextFormat>(email).unwrap_err().to_string().contains("unknown variant"));
+    assert!(serde_json::from_value::<PreWaveBuiltin>(divide).unwrap_err().to_string().contains("unknown variant"));
+}

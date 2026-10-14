@@ -44,8 +44,18 @@ planner.
   closes those counterexamples. The second pair found that the global scalar
   still entered loop/aggregate domains and that one IR assertion was stale.
   The fixes now reject loop, aggregate and `exists` use, assert the actual
-  point-read IR, and pass `maintains` 15/15 plus Wave 12 semantics 6/6. A fresh
-  same-revision review pair remains in progress.
+  point-read IR, and pass `maintains` 15/15.
+- The third blind pair returned Muse READY and Codex NOT READY with one exact
+  expression-extrema fallback that could recover a global view after ordinary
+  aggregate-domain rejection. The intent registry and typed-binder fallback
+  now both exclude ungrouped targets, with `min` and `max` regressions. Global
+  scalar declarations also refuse `viewer`, `now`, `commit` and `new` rather
+  than shadowing contextual builtins. Wave 12 semantics pass 7/7.
+- Closed-enum compatibility evidence proves a pre-wave decoder rejects both
+  `email` and `Divide` as unknown variants; the full device scenario and the
+  compatibility witness pass 2/2. The coordinated focused generated family
+  for all five semantics is pending its owner-provided result before the next
+  same-revision review pair.
 
 ## Concerns / decisions
 

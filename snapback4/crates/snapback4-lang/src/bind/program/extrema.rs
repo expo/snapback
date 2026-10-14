@@ -8,8 +8,11 @@ impl Binder<'_> {
         if matches!(&args[1], A::Member { base, .. } if matches!(base.as_ref(), A::Focal { .. })) {
             return self.column_extremum(name, args, out);
         }
-        let candidate = self.aggregate_domain(&args[0]).or_else(||
-            self.catalog.extremum_domains.get(&args[0].site().to_string()).cloned());
+        let candidate = self.aggregate_domain(&args[0]).or_else(|| {
+            self.catalog.extremum_domains.get(&args[0].site().to_string()).filter(|read|
+                !self.catalog.tables.get(&read.table).and_then(|table| table.maintained.as_ref())
+                    .is_some_and(|maintain| maintain.by.is_empty())).cloned()
+        });
         let domain = if let Some(read) = candidate {
             self.is_page(&read, ReadMode::FilteredPoint)?.then_some(read)
         } else { None };

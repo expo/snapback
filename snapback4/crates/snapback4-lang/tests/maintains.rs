@@ -102,6 +102,11 @@ query totalPosts():
         assert!(rejected.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"),
             "{expression}: {:#?}", rejected.diagnostics);
     }
+    for expression in ["min((total where true by byId), .value + 0)", "max((total where true by byId), .value + 0)"] {
+        let rejected = compile(&format!("view total: count posts\n  read <- allow\n  online only\nquery leak():\n  return {expression}\n"));
+        assert!(rejected.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+            && diagnostic.message.contains("global maintained scalar")), "{expression}: {:#?}", rejected.diagnostics);
+    }
 }
 
 #[test]
