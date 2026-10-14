@@ -142,6 +142,8 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_CASCADE_BOUND", "`on delete cascade` or `set null` needs `cap N by <column>` or a plain single-column `unique <column>` bound of one, and a delete reserves its cascade's worst case, which must fit the program (a mutation or a job chunk). Lower the cap, keep restrict and delete the rows first in a job, mark the target and sweep it, or declare keep. guide writes."),
     ("N_PATCH_CLEARS", "a note, not an error — an update patch writes an optional mutation argument straight into a nullable column beside other fields, and nothing tests the argument: an omitted argument is null, the same as an explicit null, so a client that sends only the other fields clears the column. Write `c: x ?? row.c` to keep it, with a `clear: bool ?` flag when clearing is meant; guide writes."),
     ("E_UPGRADE", "the package-manager upgrade did not complete; Repair the package-manager or registry error and rerun upgrade; guide deploy."),
+    ("E_FIXTURE_ALIAS", "fixture alias cannot resolve; use $name or $name.field saved by an earlier case, or escape with $$ / $literal. guide testing."),
+    ("E_FIXTURE_TIME", "invalid relative fixture time; use now or now±positive integer ms/s/m/h/d/w in a time field. guide testing."),
     ("E_WITNESS_BROWSER", "no usable headless Chromium executable; Set SNAPBACK4_CHROMIUM; guide testing."),
     ("E_WITNESS_AUTH", "the exported app did not sign in; Check the persona or credentials and register its client; guide testing."),
     ("E_WITNESS_MUTATION", "no matching mutation was registered; Pass --mutation with a generated API name; guide testing."),

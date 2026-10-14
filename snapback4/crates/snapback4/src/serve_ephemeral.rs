@@ -242,7 +242,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
     context.delivery_fingerprint = fingerprint;
     let result = match reader {
         Ok((epoch, mut reader)) => {
-            if let Some(sites) = sites { context = super::dev_refusals::response::context(context, sites, reader.generation()); }
+            if let Some(sites) = sites { context = super::dev_refusals::response::context(context, sites, &reader); }
             let _timing = latency::EngineSpan::new();
             let result = intent_store(&reader, &payload).and_then(|()| {
                 reader.require_non_media_ephemeral(&principal,id.as_deref()).map_err(|e|e.refusal())?;
@@ -261,7 +261,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
             #[cfg(test)]
             test_work(&shared.mutation_wait);
             let mut engine = producing_engine(shared);
-            if shared.personas { context = super::dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), engine.generation()); }
+            if shared.personas { context = super::dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), &engine); }
             mutation_authority(&request, shared, &engine, &principal)
                 .and_then(|()| intent_store(&engine, &payload))
                 .and_then(|()| {

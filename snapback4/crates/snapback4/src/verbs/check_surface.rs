@@ -1,4 +1,5 @@
 //! A compiler upgrade explains the delta against the previous successful check.
+// @ref LLP 3000.000.000.000#6-upgrade-evidence — persist real per-query proof classes, never invent the previous class.
 // @ref LLP 3000.011.003.000#9 — snapshots explain versions; failed compilation cannot replace the old API.
 use super::*;
 use serde::{Deserialize, Serialize};
@@ -9,6 +10,7 @@ struct Surface {
     version: String,
     #[serde(default)] sources: Option<Vec<(String, String)>>,
     api: String,
+    #[serde(default)] completeness: Option<BTreeMap<String, String>>,
     notes: BTreeMap<String, usize>,
     refusals: BTreeMap<String, usize>,
 }
@@ -21,7 +23,28 @@ fn counts(notes: &[snapback4_lang::Diagnostic]) -> BTreeMap<String, usize> {
 fn current(project: &Project, bound: &Bound) -> Surface {
     Surface { version: env!("CARGO_PKG_VERSION").into(), sources: project.sources().ok(),
         api: if bound.diagnostics.is_empty() { snapback4_lang::emit::typescript(bound) } else { String::new() },
-        notes: counts(&bound.notes), refusals: counts(&bound.diagnostics) }
+        notes: counts(&bound.notes), refusals: counts(&bound.diagnostics), completeness: Some(completeness(bound)) }
+}
+/// Static proof class, never a promise about a concrete runtime page.
+fn completeness(bound: &Bound) -> BTreeMap<String, String> {
+    bound.programs.iter().filter(|p| p.program.kind == ir::ProgramKind::Query).map(|p| {
+        let class = if bound.schema.operations.get(&p.program.name).is_some_and(|f| f.held) { "held: device coverage required" }
+        else if bound.notes.iter().chain(&p.notes).any(|n| n.site == p.site && n.code == "N_NEVER_COMPLETE") { "capped: absence not proved" }
+        else if bound.notes.iter().chain(&p.notes).any(|n| n.site == p.site && n.code == "N_CONDITIONAL_COMPLETE") { "conditional: pinned audience only" }
+        else { "eligible: subject to runtime authority, coverage and limits" };
+        (p.program.name.clone(), class.into())
+    }).collect()
+}
+fn completeness_delta(before: Option<&BTreeMap<String, String>>, after: Option<&BTreeMap<String, String>>) -> Vec<String> {
+    let (Some(before), Some(after)) = (before, after) else {
+        return vec!["  query completeness: previous proof classes unavailable; no old verdict invented".into()];
+    };
+    let keys: std::collections::BTreeSet<_> = before.keys().chain(after.keys()).collect();
+    let mut lines = keys.into_iter().filter(|key| before.get(*key) != after.get(*key)).map(|key|
+        format!("  query completeness {key}: {} → {}", before.get(key).map(String::as_str).unwrap_or("(added)"), after.get(key).map(String::as_str).unwrap_or("(removed)"))
+    ).collect::<Vec<_>>();
+    if lines.is_empty() { lines.push("  query completeness: unchanged".into()); }
+    lines
 }
 /// The emitter's own fixed layout: row columns and complete operation signatures.
 /// Inline object types stay on one line; comments and runtime api objects are excluded.
@@ -50,6 +73,7 @@ fn types(api: &str) -> BTreeMap<String, String> {
     types
 }
 fn operation_types(value: &str) -> Option<(String, String)> {
+    let value = value.split(" & { available(").next()?;
     let body = value.split_once('<')?.1.strip_suffix('>')?;
     let mut depth = 0i32;
     for (index, ch) in body.char_indices() {
@@ -90,6 +114,7 @@ pub(super) fn report(project: &Project, bound: &Bound, json: bool) {
         }
         if !changed { lines.push("  generated/api.ts types: unchanged".into()); }
     }
+    lines.extend(completeness_delta(old.completeness.as_ref(), new.completeness.as_ref()));
     lines.push("  release card: snapback4 guide changes".into());
     for line in lines { if json { eprintln!("{line}"); } else { println!("{line}"); } }
 }
@@ -111,8 +136,17 @@ pub(super) fn remember(project: &Project, bound: &Bound) {
 mod tests {
     use super::*;
     #[test]
+    fn snapshot_completeness_uses_the_compilers_actual_query_proof_classes() {
+        let source = "table rows:\n  owner: principal\n  by byOwner: owner, id\n  read <- .owner = viewer\n  online only\nquery all():\n  return rows first 10 by .id\nquery mine():\n  return rows where .owner = viewer first 10 by .id\n";
+        let bound = snapback4_lang::compile(&[("schema.q".into(),source.into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}",bound.diagnostics);
+        let classes = completeness(&bound);
+        assert_eq!(classes["all"], "capped: absence not proved");
+        assert!(classes["mine"].starts_with("eligible:"), "{classes:?}");
+    }
+    #[test]
     fn generated_surface_separates_modules_columns_and_nested_types() {
-        let api = "export type Rows = {\n  things: {\n    id: string;\n    total: number | null;\n  };\n};\nexport type Ops = {\n  stats: {\n    count: Query<{ room: string; labels: Array<string> }, number | null>;\n  };\n};\nexport const api: Ops = {\n  fake: 42;\n};";
+        let api = "export type Rows = {\n  things: {\n    id: string;\n    total: number | null;\n  };\n};\nexport type Ops = {\n  stats: {\n    count: Query<{ room: string; labels: Array<string> }, number | null> & { available(release: ReleaseSnapshot): boolean };\n  };\n};\nexport const api: Ops = {\n  fake: 42;\n};";
         let types = types(api);
         assert_eq!(types["Rows.things.total"], "number | null");
         assert_eq!(types["Ops.stats.count.result"], "number | null");

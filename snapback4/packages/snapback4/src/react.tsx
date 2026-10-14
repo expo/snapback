@@ -1,3 +1,5 @@
+import { releaseLoading, type ReleaseSnapshot } from "./release.ts";
+export type { ReleaseSnapshot, ServedRelease } from "./release.ts";
 import { hasUploads } from "./uploads.ts";
 import { mintId } from "./client.ts";
 import { settleMutation } from "./write-settlement.ts";
@@ -69,6 +71,15 @@ export function useClient(): Client {
   const client = useContext(ClientContext);
   if (!client) throw new Error("useClient: no <AppProvider> or <SnapbackProvider> above this component");
   return client;
+}
+
+/** Served capabilities follow generation changes, including when query gates are closed. */
+export function useRelease(): ReleaseSnapshot {
+  const client = useClient();
+  const source = client.release;
+  const subscribe = useCallback((notify: () => void) => source?.subscribe(notify) ?? (() => {}), [source]);
+  const getSnapshot = useCallback(() => source?.getSnapshot() ?? releaseLoading, [source]);
+  return useSyncExternalStore(subscribe, getSnapshot, () => releaseLoading);
 }
 
 /** The app-owned server arm; follows account changes and credential rotation. */

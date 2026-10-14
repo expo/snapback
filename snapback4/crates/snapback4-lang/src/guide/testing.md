@@ -23,7 +23,13 @@ one `<table>.jsonl` per declared table, each line an object with `id` and fields
 ```
 
 Persona alice is `dev:alice`, never the literal `alice`. References use row ids;
-time is Unix milliseconds; money/decimal use integer minor units; bytes are hex;
+time is Unix milliseconds or `"now"`, `"now-1h"`, `"now+2d"` in typed time fields
+(including optional/list time leaves). Durations are positive whole ms/s/m/h/d/w.
+Typed time arguments in cases accept the same forms.
+One clock captured at test start anchors these values, seed defaults, cases and
+the sweep, so timed fixtures do not rot; malformed/overflowing relative times
+refuse E_FIXTURE_TIME. Text and JSON fields retain literal strings.
+Money/decimal use integer minor units; bytes are hex;
 optional fields may be absent/null. Parents and children load in one batch.
 Defaults, unique keys, caps, maintained values and sequences obey normal insert
 semantics: omit sequence and engine-maintained columns. A missing parent is
@@ -31,7 +37,7 @@ NOT_FOUND; a bad row or unknown table fails the run before any case executes.
 
 Add `test.cases.jsonl` to that directory. Cases execute in order; writes change
 what later cases see. The complete vocabulary is `as`, `op`, `args`, `expect`,
-`data`, `count`, `save`, `label`; unknown keys fail before any case runs.
+`data`, `match`, `count`, `save`, `label`; unknown keys fail before any case runs.
 
 ```jsonl
 {"as":"alice","op":"addCard","args":{"board":"board-alice","text":"eggs"},"save":"eggs"}
@@ -41,15 +47,21 @@ what later cases see. The complete vocabulary is `as`, `op`, `args`, `expect`,
 
 `save` names an answer: `$eggs` means its row id, `$eggs.text` its field.
 A bare argument equal to a saved alias refuses with the `$name` rewrite.
-Unknown aliases and missing fields refuse by name. `$$text` means literal
+Aliases resolve recursively inside args, data and match. Unknown aliases and
+missing fields refuse E_FIXTURE_ALIAS by name. `$$text` means literal
 `$text`; `{"$literal":"eggs"}` means literal `eggs`, even if saved as an alias.
-`data` asserts the exact result; `count` its length. A mutation defaults to
+`data` asserts the exact result; `match` asserts a recursive object subset
+(`"match":{"name":"Ash"}` permits an extra id). Arrays retain their exact
+length/order, with each element matched recursively; scalars compare exactly.
+Both assertions may appear together. `count` asserts length. A mutation defaults to
 `sent`; a query to its check verdict (`complete`, or complete/capped when
 N_NEVER_COMPLETE). Set `expect` to `complete`, `capped`, `ok`, `denied`, or a
 refusal code. `as` must be a declared persona; outsiders need their own persona.
 
-The sweep runs each query with that persona's case arguments when available,
-otherwise derives arguments from data (text uses the shortest valid value).
+After the cases, the sweep runs every query with that persona's case arguments when available,
+otherwise derives arguments from the store after the cases' writes (text uses
+the shortest valid value). Saved-alias arguments belong to the case run; the
+sweep uses another literal-argument case or derives arguments for that query.
 It prints examined rows, entries, probes, steps, heap/output bytes and ceilings.
 `complete` is the whole answer; `capped` is a partial answer, not a refusal.
 Expected refusals pass; denied queries, failed cases and invalid fixtures exit 1.
@@ -124,8 +136,19 @@ production omits it. `guide wire --section envelopes` has full examples.
 Each dev memory start is empty. Between scenarios on one dev, POST `/dev/reset`
 with `{seed:[{table,row}]}` atomically clears rows, logs, queues, assets, accounts
 and sessions, retains schema/personas/seats, and returns `{reset:true}` with a
-new store identity. Reopen clients after reset. `/seed` is an upsert, not reset;
+new store identity. Reopen clients after reset. Seed persona rosters before
+calling operations that use them: a fresh dev has no admins or memberships.
+`/seed` takes a **bare array**, beside reset's wrapper:
+
+```json
+[{"table":"boards","row":{"id":"board-alice","owner":"dev:alice","title":"Groceries"}}]
+```
+
+POST it to `/seed` to upsert without resetting;
 changing an immutable field refuses E_CONSTRAINT. Both doors are dev-only.
+Advance time without sleeping with `snapback4 clock advance +2h` (add `--port N`
+for another dev), or POST `/dev/clock/advance` with `{"duration":"+2h"}`.
+Clock controls are dev-only; `guide clock` covers status, reset and restart.
 
 ## Day-two proofs with immutable sources
 

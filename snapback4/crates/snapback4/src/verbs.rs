@@ -13,6 +13,7 @@ use std::path::Path;
 use std::time::Instant;
 
 mod fix;
+mod fix_fixtures;
 mod init;
 mod sql;
 mod work_records;
@@ -262,6 +263,9 @@ pub fn check(options: &Options) -> i32 {
         Ok(bound) => bound,
         Err(code) => return code,
     };
+    if options.flags.contains_key("fix") && bound.diagnostics.is_empty() {
+        if let Err(error) = fix_fixtures::run(&project, &bound, options) { eprintln!("check --fix: {error}"); return 2; }
+    }
     if !crate::exact_device::check(&project.root, &bound.schema, options.json) { return 1; }
     if !bound.diagnostics.is_empty() {
         check_surface::report(&project, &bound, options.json);
@@ -1187,9 +1191,10 @@ pub fn test(options: &Options) -> i32 {
             Err(error) => { eprintln!("{error}"); return 1; }
         }
     };
+    let fixture_now = snapback4_core::now_ms();
     let opened = match &_owner {
-        Some(owner) => owner.open_engine(&bound, std::time::Duration::from_secs(5), snapback4_core::now_ms()).map_err(|e| e.to_string()),
-        None => test_fixture::engine(&project, &bound, options),
+        Some(owner) => owner.open_engine(&bound, std::time::Duration::from_secs(5), fixture_now).map_err(|e| e.to_string()),
+        None => test_fixture::engine_at(&project, &bound, options, fixture_now),
     };
     let mut engine = match opened {
         Ok(engine) => engine,
@@ -1201,6 +1206,14 @@ pub fn test(options: &Options) -> i32 {
         if let Err(error) = residency::measure(&mut engine, &bound, &personas, verbose) { eprintln!("residency measurement failed: {error}"); return 1; }
         if !verbose { return 0; }
     }
+    let (mut passed, mut failed_cases) = (0, 0);
+    if let Some(fixture) = options.flags.get("fixture") {
+
+        match test_cases::run(&mut engine, &bound, fixture, &sources, fixture_now) {
+            Ok((p, f)) => { passed = p; failed_cases = f; }
+            Err(error) => { eprintln!("{error}"); return 1; }
+        }
+    }
     let ceilings = engine.ceilings();
     let mut failures = 0;
     println!("test: {:<28} {:>8} {:>8} {:>8} {:>8} {:>10} {:>10}", "operation (persona)", "examined", "entries", "probes", "steps", "heap B", "output B");
@@ -1209,7 +1222,7 @@ pub fn test(options: &Options) -> i32 {
     let mut held_not_run = 0;
     let mut near = Vec::new();
     let (mut complete, mut capped, mut refused_derived, mut expected) = (0usize, 0usize, 0usize, 0usize);
-    let explicit = options.flags.get("fixture").map(|fixture| test_cases::explicit(fixture, &bound.personas)).unwrap_or_default();
+    let explicit = options.flags.get("fixture").map(|fixture| test_cases::explicit(fixture, &bound, fixture_now)).unwrap_or_default();
     for program in &bound.programs {
         if program.program.kind != ProgramKind::Query {
             continue;
@@ -1265,7 +1278,7 @@ pub fn test(options: &Options) -> i32 {
             let tried = candidates.len();
             for (args, source) in candidates {
                 let started = Instant::now();
-                let result = engine.query(name, Context::new(principal.clone(), args.clone()));
+                let result = engine.query(name, Context::new(principal.clone(), args.clone()).at(fixture_now));
                 let ms = started.elapsed().as_secs_f64() * 1000.0;
                 let rank = match &result { Ok(outcome) if !empty_answer(&outcome.data) => 0, Ok(_) => 1, Err(_) => 2 };
                 if chosen.as_ref().is_none_or(|(best, ..)| rank < *best) { chosen = Some((rank, args, source, result, ms)); }
@@ -1324,14 +1337,6 @@ pub fn test(options: &Options) -> i32 {
     if near.len() > 10 { println!("near ceiling: {} more query/persona reads passed half a ceiling without a cut", near.len() - 10); }
     for line in &skipped {
         println!("      not run: {line} — add a row of that table to the fixture, or a case in {}", test_cases::FILE);
-    }
-    let (mut passed, mut failed_cases) = (0, 0);
-    if let Some(fixture) = options.flags.get("fixture") {
-
-        match test_cases::run(&mut engine, &bound, fixture, &sources) {
-            Ok((p, f)) => { passed = p; failed_cases = f; }
-            Err(error) => { eprintln!("{error}"); return 1; }
-        }
     }
     // One line a script or an agent can read: derived refusals and unrun
     // queries are not failures, but they are not coverage either.
@@ -1396,6 +1401,7 @@ fn arg_word(kind: &ir::ArgType) -> String {
 
 
 mod releases;
+mod release_safeguards;
 mod release_preview;
 mod release_narration;
 pub use releases::{deploy, prune, releases, rollback, serve_release};

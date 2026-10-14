@@ -1080,8 +1080,8 @@ fn handle(mut request: Request, shared: &Shared) {
             };
             let body = {
                 let bound = lock(&shared.bound);
-                let ops: Vec<Json> = bound.programs.iter().map(|p| json!({ "name": p.program.name, "kind": p.program.kind.word() })).collect();
-                let tables: Vec<Json> = bound.schema.visible_tables().map(|(name, table)| json!({ "name": name, "sync": table.sync.as_ref().map(|s| s.line_in(table)) })).collect();
+                let ops: Vec<Json> = bound.programs.iter().filter(|p| p.program.kind != snapback4_core::ir::ProgramKind::Job).map(|p| json!({ "name": p.program.name, "kind": p.program.kind.word(), "args": p.program.args })).collect();
+                let tables: Vec<Json> = bound.schema.visible_tables().map(|(name, table)| json!({ "name": name, "sync": table.sync.as_ref().map(|s| s.line_in(table)), "fields": table.columns.iter().filter(|(column, _)| !table.private_field(column) && !table.engine_field(column)).collect::<BTreeMap<_,_>>() })).collect();
                 json!({ "snapback4": env!("CARGO_PKG_VERSION"), "device_compatibility": snapback4_core::device_protocol::compatibility(&bound.schema.public_projection()), "generation": *lock(&shared.generation), "seq": seq, "ops": ops, "tables": tables })
             };
             respond_timed(request, shared, 200, body);
@@ -1269,7 +1269,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         #[cfg(test)]
                         test_work(&shared.query_wait);
                         let reads_presence = presence_of(&reader);
-                        let context = dev_refusals::response::context(context, reader.refusal_sites.clone(), reader.generation());
+                        let context = dev_refusals::response::context(context, reader.refusal_sites.clone(), &reader);
                         let query_generation = reader.generation();
                         let decoration_paths = reader.program(&op).filter(|_| reader.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
                         let scopes = read_scopes::dependencies(&reader, &op, &context);
@@ -1288,7 +1288,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let mut engine = lock(&shared.engine);
                         let metadata = response_head(&mut engine);
                         let reads_presence = presence_of(&engine);
-                        if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), engine.generation()); }
+                        if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), &engine); }
                         let query_generation = engine.generation();
                         let decoration_paths = engine.program(&op).filter(|_| engine.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
                         let scopes = read_scopes::dependencies(&engine, &op, &context);
@@ -1393,7 +1393,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         drop(engine);
                         return ephemeral::serve(request, shared, &op, &body);
                     }
-                    if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), engine.generation()); }
+                    if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), &engine); }
                     context.delivery_fingerprint = delivery_fingerprint;
                     let outcome = intent_store(&engine, &payload).and_then(|()| engine.mutate(&op, id.as_deref(), context.with_wire_args(args_json)).map_err(|error| error.refusal()));
                     if matches!(&outcome, Ok(outcome) if !outcome.receipt_only && matches!(outcome.state, WriteState::Sent { .. })) {

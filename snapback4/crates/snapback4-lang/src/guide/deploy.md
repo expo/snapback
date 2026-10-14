@@ -112,9 +112,62 @@ Preview names missing operations, changed rule clauses, absent schedules and pop
 Receipts and previews count storage by kind: `1 row, 2 cells, 0 index entries dormant`. Dormant rows cover their retained cells; standalone cell counts/samples belong only to active rows. Bytes/assets follow the same disjoint ownership. Samples are labelled and unique within each kind/path, for example `rows notes [A]; cells notes.color [B, C]`. A retained index definition represents logical entries to rebuild, not a dormant physical index. A widening note describes values later writes could use; a compatibility WARNING counts only current values the selected release cannot hold. Compatible forward has no such warning.
 
 ## Clients across rollback
-Generated required fields and operations describe the schema checked when the client was built. Rolling the server back does not rebuild that client. Choose a release-matched frontend: in a separate copy of the selected immutable source, run `snapback4 check`, rebuild the frontend against that generated API and deploy it alongside the backend. Keep the immutable deployment source intact. An Expo/Exact runtime change also needs a device rebuild; JavaScript reload alone does not rebuild it.
+Generated required fields describe the checked schema. For one frontend spanning
+releases, save a complete baseline outside snapback/ and add
+`snapback/client-compatibility.json`:
+```json
+{"baseline":"versions/v1.q","since_release":2}
+```
+`check` and `dev` then emit added row/result fields as optional, labelled
+"Since release 2", retaining older result value domains. Added parameters on
+existing operations are optional too. The label is your release number, not a
+server generation. Without this opt-in the ordinary required types remain.
 
-For one frontend spanning both releases, author a compatibility boundary at the response: validate newer fields at runtime before using them, and render their older-release fallback. A v2 generated required `color` field can be absent under v1; TypeScript requiredness is no runtime guarantee. For example, `typeof row.color === 'string' ? row.color : 'none'` supplies the old-release fallback. Before exposing a newer workflow, check the authenticated served operation catalog (`GET /`) for its operation, and still handle `E_OP` if a switch races that check. Handle authored lookup guard refusals separately from bare-query null. Do not replace a missing safeguard with a frontend type assertion. Test both directions with the same frontend and bearer session, asserting field fallbacks, missing-operation handling, business checks and restored original values.
+`useRelease()` from snapback4/react follows the authenticated served catalog,
+including when all query gates are closed. It returns loading, denied, or
+`{generation, operations, tables}`; operations include argument shapes and tables
+include public field shapes. Every generated handle has `available(release)`:
+false while unready, or when its name/kind/argument signature differs. It checks
+capability, not caller authorization or unchanged business semantics. A switch
+can race it; still handle E_OP/E_INPUT and authored refusals.
+
+Keep drafts above generation-sensitive gates. Gate the read/action component,
+not the form state; use the optional generated field's ordinary fallback:
+```tsx
+function Screen() {
+  const [draft, setDraft] = useState("");
+  const release = useRelease();
+  return <><input value={draft} onChange={e => setDraft(e.target.value)} />
+    {api.newOnly.available(release) ? <NewRead draft={draft} /> : <p>Unavailable on this release</p>}
+  </>;
+}
+// A baseline row: <span>{row.color ?? "none"}</span>
+```
+The SDK withdraws old metadata on observed generation changes and polls the
+catalog while subscribed. Offline/catalog failures return loading. Closing or
+retiring an account withdraws metadata. Dormant means absent on the served
+release, not deleted: use "Unavailable on this release" for a selected row
+until compatible forward. Test v2 → v1 → v2 with the same frontend, including
+field fallbacks, absent operations, drafts and restored values.
+
+A release-matched frontend can instead check the selected immutable source in a
+separate copy and rebuild there. Preserve the deployment source. An Expo/Exact
+runtime change needs a device rebuild; JavaScript reload alone cannot rebuild it.
+
+## Bridge a safety gate before rollback
+`rollback --check` names selected operations whose read dependencies contain
+dormant rows, with table counts and sample ids: for example, release 1's `book`
+cannot see a dormant `grounding` row. These are conservative dependency warnings,
+not assertions that every dormant row would match a guard. Counts come from the
+preview snapshot; concurrent writes can change a later activation.
+
+Before rolling back a booking/payment/approval guard, deploy a bridge that keeps
+its safety table, widened value domain, read audience and mutation `require`.
+Migrate/repair newer rows while that check still executes. Test that a blocked
+booking/payment still refuses. Only then contract to older source. If the older
+source cannot enforce the invariant, pause that workflow. Storage retention
+cannot supply absent product logic. SURF owns general lifecycle prose; KIT owns
+the packaged day-two proof recipe in guide testing.
 
 ## Trigger a deployed job
 A running serve accepts `POST /jobs/<job>` with a full service token; the job executes as the system on its FIFO queue and server clock. Every full service seat can trigger system jobs, so provision these tokens only to trusted operators. Guest/account sessions, read-scoped tokens and personas cannot use this door. `POST /dev/jobs/<job>` remains development-only.

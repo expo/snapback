@@ -177,3 +177,91 @@ fn an_online_only_check_drops_the_never_predict_paragraph_and_each_note_leads_wi
     assert!(run(&["check"]).contains("server-run"), "{}", run(&["check"]));
     fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn upgrade_delta_reports_real_completeness_changes_and_old_snapshot_gaps() {
+    let dir = std::env::temp_dir().join(format!("sb4-rel3-completeness-{}", std::process::id()));
+    fs::create_dir_all(dir.join("snapback")).unwrap();
+    fs::write(dir.join("snapback/schema.q"), "query alive():\n  return true\n").unwrap();
+    let run = || Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).arg("check").output().unwrap();
+    assert!(run().status.success());
+    let path = dir.join(".snapback4/check-surface.json");
+    let current: serde_json::Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    for with_baseline in [true, false] {
+        let mut old = current.clone();
+        old["version"] = "0.4.27".into();
+        if with_baseline { old["completeness"]["alive"] = "capped: absence not proved".into(); }
+        else { old.as_object_mut().unwrap().remove("completeness"); }
+        fs::write(&path, old.to_string()).unwrap();
+        let result = run();
+        assert!(result.status.success(), "{result:?}");
+        let text = String::from_utf8(result.stdout).unwrap();
+        if with_baseline { assert!(text.contains("query completeness alive: capped: absence not proved → eligible:"), "{text}"); }
+        else { assert!(text.contains("previous proof classes unavailable"), "{text}"); }
+    }
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn direct_install_history_prints_exact_device_rebuild_once_even_on_failed_check() {
+    for json in [false, true] {
+        let dir = std::env::temp_dir().join(format!("sb4-rel3-rebuild-{}-{json}", std::process::id()));
+        fs::create_dir_all(dir.join("snapback")).unwrap();
+        fs::create_dir_all(dir.join("app")).unwrap();
+        fs::create_dir_all(dir.join(".snapback4")).unwrap();
+        fs::write(dir.join("snapback/schema.q"), "query alive():\n  return true\n").unwrap();
+        fs::write(dir.join("app/app.json"), r#"{"typescript":{"sources":{"backend":"../snapback/generated","snapback4":"vendor/snapback4/ts"}}}"#).unwrap();
+        fs::write(dir.join(".snapback4/runtime-version.json"), r#"{"version":"0.4.27"}"#).unwrap();
+        let run = || {
+            let mut command = Command::new(env!("CARGO_BIN_EXE_snapback4"));
+            command.current_dir(&dir).arg("check");
+            if json { command.arg("--json"); }
+            command.output().unwrap()
+        };
+        let first = run();
+        assert!(!first.status.success(), "missing wasm must refuse");
+        let text = String::from_utf8(if json { first.stderr } else { first.stdout }).unwrap();
+        assert_eq!(text.matches("Exact device: bun exact.mjs snapback --rebuild").count(), 1, "{text}");
+        let second = run();
+        assert!(!String::from_utf8_lossy(&second.stdout).contains("Exact device:"));
+        assert!(!String::from_utf8_lossy(&second.stderr).contains("Exact device:"));
+        fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[test]
+fn runtime_change_with_online_exact_mount_does_not_request_a_device_rebuild() {
+    let dir = std::env::temp_dir().join(format!("sb4-rel3-online-{}", std::process::id()));
+    fs::create_dir_all(dir.join("snapback")).unwrap();
+    fs::create_dir_all(dir.join("app")).unwrap();
+    fs::create_dir_all(dir.join(".snapback4")).unwrap();
+    fs::write(dir.join("snapback/schema.q"), "query alive():\n  return true\n").unwrap();
+    fs::write(dir.join("app/app.json"), r#"{"typescript":{"sources":{"backend":"../snapback/generated","snapback4":"vendor/snapback4-online/ts"}}}"#).unwrap();
+    fs::write(dir.join(".snapback4/runtime-version.json"), r#"{"version":"0.4.27"}"#).unwrap();
+    let out = Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).arg("check").output().unwrap();
+    assert!(out.status.success(), "{out:?}");
+    assert!(!String::from_utf8_lossy(&out.stdout).contains("Exact device:"));
+    fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn check_fix_replays_documented_unique_renames_without_touching_other_constraints_or_hidden_conflicts() {
+    let dir = std::env::temp_dir().join(format!("sb4-rel3-rename-{}", std::process::id()));
+    fs::create_dir_all(dir.join("snapback")).unwrap();
+    fs::create_dir_all(dir.join("fixtures")).unwrap();
+    fs::write(dir.join("snapback/schema.q"), "use personas alice\ntable names:\n  name: text <=30\n  unique byName: name\n  public\n  insert <- true\n  online only\nmutation add(id: names, name: text <=30):\n  return insert names {id, name}\ntable hiddenNames:\n  name: text <=30\n  owner: principal\n  unique byName: name\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nmutation hidden(id: hiddenNames, name: text <=30, owner: principal):\n  return insert hiddenNames {id, name, owner}\n").unwrap();
+    fs::write(dir.join("fixtures/names.jsonl"), "{\"id\":\"one\",\"name\":\"existing\"}\n").unwrap();
+    fs::write(dir.join("fixtures/hiddenNames.jsonl"), "{\"id\":\"private\",\"name\":\"existing\",\"owner\":\"dev:bob\"}\n").unwrap();
+    let cases = " {\"op\":\"add\", \"args\":{\"id\":\"two\",\"name\":\"existing\"},\"expect\" : \"E_CONSTRAINT\",\"label\":\"E_CONSTRAINT\"}\r\n{\"op\":\"add\",\"args\":{\"id\":\"one\",\"name\":\"different\"},\"expect\":\"E_CONSTRAINT\"}\r\n{\"op\":\"hidden\",\"args\":{\"id\":\"another\",\"name\":\"existing\",\"owner\":\"dev:alice\"},\"expect\":\"E_CONSTRAINT\"}\r\n";
+    let path=dir.join("fixtures/test.cases.jsonl"); fs::write(&path,cases).unwrap();
+    let out=Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(["check","--fix","--json"]).output().unwrap();
+    assert!(out.status.success(),"{out:?}");
+    serde_json::from_slice::<serde_json::Value>(&out.stdout).expect("check --json stays one object during private replay");
+    let fixed=fs::read_to_string(&path).unwrap();
+    assert_eq!(fixed,cases.replacen("\"expect\" : \"E_CONSTRAINT\"","\"expect\" : \"E_UNIQUE\"",1));
+    let repeat=Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&dir).args(["check","--fix","--json"]).output().unwrap();
+    assert!(repeat.status.success(),"{repeat:?}");
+    assert_eq!(fs::read_to_string(&path).unwrap(),fixed);
+    assert!(!dir.join(".snapback4/store.sqlite").exists(),"fixture replay must not create the dev store");
+    fs::remove_dir_all(dir).unwrap();
+}

@@ -562,7 +562,7 @@ query reportPage(c: cursor ?):\n  require exists staff[viewer] else NOT_STAFF\n 
     let output = project.run(&["test", "--fixture", "fx", "--as", "alice"]);
     let out = text(&output);
     assert_eq!(output.status.code(), Some(1), "{out}");
-    assert!(out.contains("test.cases.jsonl:2: unknown key `rows` (did you mean `count`?); a case takes only `as`, `op`, `args`, `expect`, `data`, `count`, `save`, `label`"), "{out}");
+    assert!(out.contains("test.cases.jsonl:2: unknown key `rows` (did you mean `count`?); a case takes only `as`, `op`, `args`, `expect`, `data`, `match`, `count`, `save`, `label`"), "{out}");
     assert!(!out.contains("ok   test.cases.jsonl:1"), "no line runs before every line is valid:\n{out}");
     project.write("fx/test.cases.jsonl", "{\"as\":\"alice\",\"op\":\"reportPage\",\"expect\":{\"data\":[]}}\n");
     let out = text(&project.run(&["test", "--fixture", "fx", "--as", "alice"]));
@@ -625,7 +625,7 @@ query staffNotes(c: cursor ?):\n  require exists staff[viewer] else NOT_STAFF\n 
     let alice = out.lines().find(|line| line.contains("note (alice)")).unwrap();
     assert!(alice.contains("complete") && alice.contains("{\"id\":\"N2\"}"), "{out}");
     assert!(out.lines().any(|line| line.contains("note (bob)") && line.contains("(from test.cases.jsonl:3)")), "{out}");
-    let expected = out.lines().find(|line| line.contains("staffNotes (alice)")).unwrap();
+    let expected = out.lines().find(|line| line.contains("staffNotes (alice)") && line.contains("refused NOT_STAFF as expected")).unwrap();
     assert!(expected.contains("refused NOT_STAFF as expected (test.cases.jsonl:1)") && !expected.contains("give it yours") && !expected.contains("(from "), "{out}");
     assert!(out.lines().any(|line| line.contains("staffNotes (bob)") && line.contains("refused NOT_STAFF on derived arguments")), "{out}");
     assert!(out.contains("1 refused as your cases expect, 1 refused by their own require") && out.contains("cases: 3 passed, 0 failed — pass"), "{out}");
@@ -1046,4 +1046,23 @@ fn inspection_selects_release_explicitly_and_names_misplaced_sql_flags() {
     let output = Command::new(BIN).current_dir(std::env::temp_dir()).args(["data", "notes", "--release"])
         .arg(project.0.join("deployment")).output().unwrap();
     assert!(output.status.success(), "{}", text(&output));
+}
+
+/// The sweep consumes the store produced by ordered cases, including rows
+/// absent from the initial seed, and its help explains both phases.
+#[test]
+fn rel3_sweep_runs_after_cases_and_derives_their_new_rows() {
+    let project = Project::new("use personas alice\ntable notes:\n  title: text <=80\n  public 'fixture'\n  insert <- allow\n  online only\nmutation add(title: text <=80):\n  insert notes { title }\nquery one(id: notes):\n  return notes[id]\n");
+    project.write("fixtures/test.cases.jsonl", "{\"op\":\"add\",\"args\":{\"title\":\"Ash\"},\"match\":{\"title\":\"Ash\"}}\n");
+    let output = project.run(&["test"]);
+    let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+    assert!(output.status.success(), "{text}");
+    assert!(text.find("ok   test.cases.jsonl:1").unwrap() < text.find("test: operation (persona)").unwrap(), "{text}");
+    let sweep = text.lines().find(|line| line.contains("one (alice)")).unwrap();
+    assert!(sweep.contains("complete") && !sweep.contains("not run"), "{text}");
+    let output = project.run(&["test", "--help"]);
+    let text = String::from_utf8_lossy(&output.stdout);
+    for term in ["then sweeps every query", "derives arguments", "Cases default to sent", "N_NEVER_COMPLETE"] {
+        assert!(text.contains(term), "{term}: {text}");
+    }
 }

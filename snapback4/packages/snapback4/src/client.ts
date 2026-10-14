@@ -1,3 +1,4 @@
+import { servedRelease } from "./release.ts";
 import { dependencies, intersects, intervalChanges, readFootprint, type Changes, QueryCuts, waitForQueryWrites } from "./query-dependencies.ts";
 import { bindSessionRefusal } from "./session-refusal.ts";
 import { bindFollowing } from "./following-transport.ts";
@@ -176,6 +177,7 @@ export function idFrom(key: string): string {
 let warnedBrowserWrites = false;
 
 export function createClient(options: ClientOptions): Client {
+  let release: ReturnType<typeof servedRelease> | undefined;
   validateReadOptions(options);
   // @ref LLP 3000.013#6.2 — say so at construction, not at the first refused click.
   if (!options.readOnly && !sdkOwning() && browserAdmission() && !warnedBrowserWrites) {
@@ -193,6 +195,7 @@ export function createClient(options: ClientOptions): Client {
       if (sent !== headers.authorization) return Response.json({ denied: auth() }, { status: 401 });
     }
     const response = await transport(...args);
+    release?.hint(response);
     if (!closed && response.headers.get("x-snapback-ephemeral") === "1" && !ephemeralAdvertised) {
       ephemeralAdvertised = true;
       backendLoaded = false;
@@ -1290,6 +1293,7 @@ export function createClient(options: ClientOptions): Client {
       await Promise.all([closing, draining]);
     },
     close() {
+      release?.close();
       readWork.clear();
       cancelReadyNotification(); readyNotifications.clear();
       if (closing) return closing;
@@ -1320,6 +1324,10 @@ export function createClient(options: ClientOptions): Client {
       return closing;
     },
   };
+  release = servedRelease({ url: base, fetch: doFetch, headers: () => headers, current: () => !closed && credentials && !storeRefusal && !changesRefusal });
+  Object.assign(client, { release });
+  client.onSession(() => release?.invalidate());
+  client.onViewer(() => release?.invalidate());
   bindFollowing(client, async (op, args, body, signal) => {
     const revision = credentialRevision, epoch = queryEpoch;
     const blocked = () => closed || !credentials || !!storeRefusal || !!changesRefusal || link !== "online" || !!refreshing || pending.length > 0;

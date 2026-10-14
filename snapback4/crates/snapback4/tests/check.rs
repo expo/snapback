@@ -1713,3 +1713,25 @@ fn production_readiness_follows_positive_cycles_and_read_through_parents() {
 
 #[path = "check/wave10_diagnostics.rs"]
 mod wave10_diagnostics;
+
+// @ref LLP 3000.000.000.000#3-generated-compatibility — invalid baselines never replace a generated API.
+#[test]
+fn client_compatibility_configuration_refuses_invalid_baselines_without_rewriting_api() {
+    let p = Project::new();
+    assert!(p.run(&["check"]).status.success());
+    let api = p.0.join("snapback/generated/api.ts");
+    let original = fs::read(&api).unwrap();
+    for config in [r#"{"baseline":"missing.q","since_release":2}"#, r#"{"baseline":"schema.q","since_release":0}"#, r#"{"baseline":"schema.q","since_release":2,"typo":true}"#] {
+        fs::write(p.0.join("snapback/client-compatibility.json"), config).unwrap();
+        let output = p.run(&["check"]);
+        assert!(!output.status.success(), "{output:?}");
+        assert!(String::from_utf8_lossy(&output.stderr).contains("client-compatibility.json"), "{output:?}");
+        assert_eq!(fs::read(&api).unwrap(), original);
+    }
+    fs::write(p.0.join("bad.q"), "table :\n").unwrap();
+    fs::write(p.0.join("snapback/client-compatibility.json"), r#"{"baseline":"bad.q","since_release":2}"#).unwrap();
+    let output = p.run(&["check"]);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("saved baseline does not compile"));
+    assert_eq!(fs::read(&api).unwrap(), original);
+}

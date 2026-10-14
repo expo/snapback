@@ -5,9 +5,14 @@ use snapback4_core::{Engine, wire};
 use snapback4_lang::Bound;
 
 pub(super) fn engine(project: &Project, bound: &Bound, options: &Options) -> Result<Engine, String> {
+    engine_at(project, bound, options, snapback4_core::now_ms())
+}
+
+pub(super) fn engine_at(project: &Project, bound: &Bound, options: &Options, now: i64) -> Result<Engine, String> {
     let Some(fixture) = options.flags.get("fixture") else {
         if options.flags.contains_key("source") {
-            return Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).map_err(|e| e.to_string());
+            let store = snapback4_core::Store::memory().map_err(|e| e.to_string())?;
+            return Engine::new_at(store, bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()), now).map_err(|e| e.to_string());
         }
         return project.open_engine(bound).map_err(|error| format!("cannot open the store: {error}"));
     };
@@ -17,7 +22,8 @@ pub(super) fn engine(project: &Project, bound: &Bound, options: &Options) -> Res
     // them once; column derives stay installed and maintain as rows insert.
     let residency = options.flags.contains_key("residency");
     if residency { schema.maintains.retain(|m| m.private.is_some()); }
-    let mut engine = Engine::memory(schema, bound.programs.iter().map(|p| p.program.clone())).map_err(|error| format!("cannot open a store: {error}"))?;
+    let store = snapback4_core::Store::memory().map_err(|error| format!("cannot open a store: {error}"))?;
+    let mut engine = Engine::new_at(store, schema, bound.programs.iter().map(|p| p.program.clone()), now).map_err(|error| format!("cannot open a store: {error}"))?;
     let mut names = Vec::new();
     for entry in std::fs::read_dir(fixture).map_err(|error| format!("cannot read fixture directory {fixture}: {error}"))? {
         let entry = entry.map_err(|error| format!("cannot read fixture directory {fixture}: {error}"))?;
@@ -50,6 +56,7 @@ pub(super) fn engine(project: &Project, bound: &Bound, options: &Options) -> Res
             // columns are dropped and rebuilt from the source rows. `test`
             // refuses them as an insert and `/seed` do (E_MAINTAINED_COLUMN).
             if residency && let Some(fields) = json.as_object_mut() { fields.retain(|field, _| !definition.maintained.contains_key(field)); }
+            relative_times(definition, &mut json, now).map_err(|why| format!("{at}: {why}"))?;
             if let Some(why) = wire::bare_principal(definition, &json) { return Err(format!("{at}: {why}")); }
             let row = wire::row_from_json(definition, &json).map_err(|error| format!("{at}: {error}\n  hint: a fixture row is one JSON object per line with the table's fields and an \"id\"; see snapback4 guide testing"))?;
             rows.push((table.to_owned(), row));
@@ -66,16 +73,61 @@ pub(super) fn engine(project: &Project, bound: &Bound, options: &Options) -> Res
             unknown.join(", "), if unknown.len() == 1 { "s" } else { "" }, tables.join(", "), super::test_cases::FILE));
     }
     // Fixture rows take `/seed`'s insert path (defaults, sequences, unique with the author's codes, caps, maintained views), not the trusted bulk import.
-    let loaded = engine.seed(rows).map_err(|error| {
+    let loaded = engine.seed_at(rows, now).map_err(|error| {
         let text = error.to_string();
         let hint = if text.contains("NOT_FOUND") { "\n  hint: every fixture file loads as one batch, parents first; NOT_FOUND means a referenced or read-through parent row is in no fixture file (check the id)" } else { "" };
         format!("{fixture}: {text}{hint}")
     })?;
     if residency {
-        engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).map_err(|error| format!("cannot build fixture maintains: {error}"))?;
+        engine.adopt_at(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()), now).map_err(|error| format!("cannot build fixture maintains: {error}"))?;
     }
     if !options.json { println!("test: loaded {loaded} rows from {fixture} in {:.1} s", started.elapsed().as_secs_f64()); }
     Ok(engine)
+}
+
+// @ref LLP 3000.000.000.000#5-fixtures-and-dev-evidence — relative time leaves, seeds and operations share one captured clock.
+/// Only typed time leaves interpret `now`: text and JSON retain their literals.
+fn relative_times(table: &snapback4_core::schema::Table, row: &mut serde_json::Value, now: i64) -> Result<(), String> {
+    if let Some(fields) = row.as_object_mut() {
+        for (name, value) in fields {
+            if let Some(kind) = table.columns.get(name) { time_value(kind, value, now).map_err(|why| format!("{name}: {why}"))?; }
+        }
+    }
+    Ok(())
+}
+
+pub(super) fn time_value(kind: &snapback4_core::schema::ColumnType, value: &mut serde_json::Value, now: i64) -> Result<(), String> {
+    use snapback4_core::schema::ColumnType;
+    match (kind, value) {
+        (ColumnType::Optional(inner), value) if !value.is_null() => time_value(inner, value, now),
+        (ColumnType::List { of, .. } | ColumnType::ListRange { of, .. }, serde_json::Value::Array(items)) => {
+            for item in items { time_value(of, item, now)?; }
+            Ok(())
+        }
+        (ColumnType::Time, value) => {
+            let Some(text) = value.as_str().filter(|text| text.starts_with("now")) else { return Ok(()) };
+            let delta = if text == "now" { 0 } else {
+                let offset = text.strip_prefix("now").unwrap();
+                if !offset.starts_with(['+', '-']) { return Err(format!("E_FIXTURE_TIME: {text:?}: expected now or now±duration (ms, s, m, h, d, w)")); }
+                crate::dev_clock::offset(offset).map_err(|why| format!("E_FIXTURE_TIME: {text:?}: {}", why.message))?
+            };
+            let resolved = now.checked_add(delta).filter(|time| (0..=snapback4_core::value::I53_MAX).contains(time))
+                .ok_or_else(|| format!("E_FIXTURE_TIME: {text:?} is outside Unix milliseconds 0..9007199254740991"))?;
+            *value = resolved.into();
+            Ok(())
+        }
+        _ => Ok(()),
+    }
+}
+pub(super) fn argument_times(kinds: &std::collections::BTreeMap<String, snapback4_core::ir::ArgType>, args: &mut serde_json::Value, now: i64) -> Result<(), String> {
+    if let Some(fields) = args.as_object_mut() {
+        for (name, value) in fields {
+            if let Some(kind) = kinds.get(name).and_then(snapback4_core::schema::arg_as_column) {
+                time_value(&kind, value, now).map_err(|why| format!("{name}: {why}"))?;
+            }
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -131,5 +183,52 @@ mod order_tests {
         let engine = engine.unwrap();
         assert_eq!(engine.store().rows("items").unwrap().len(), 1);
         assert_eq!(engine.store().rows("lists").unwrap().len(), 1);
+    }
+}
+
+#[cfg(test)]
+mod relative_tests {
+    use super::*;
+    use serde_json::json;
+    #[test]
+    fn relative_time_is_typed_checked_and_does_not_rewrite_text_or_json() {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), "table notes:\n  at: time\n  optionalAt: time ?\n  title: text <=80\n  payload: json <=200\n  public 'fixture'\n  online only\n".into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let mut table = bound.schema.tables["notes"].clone();
+        use snapback4_core::schema::ColumnType;
+        table.columns.insert("times".into(), ColumnType::List { of: Box::new(ColumnType::Optional(Box::new(ColumnType::Time))), max: 4 });
+        let now = 1_000_000_000;
+        for (text, expected) in [("now", now), ("now-1h", now-3_600_000), ("now+2d", now+172_800_000), ("now+1ms", now+1)] {
+            let mut row = json!({"at":text, "optionalAt":text, "title":"now-1h", "payload":{"time":"now"}});
+            relative_times(&table, &mut row, now).unwrap();
+            assert_eq!(row, json!({"at":expected,"optionalAt":expected,"title":"now-1h","payload":{"time":"now"}}));
+        }
+        for text in ["nowsoon", "now+0h", "now+1.5h", "now-9999999999999999999h", "now-100w"] {
+            let error = relative_times(&table, &mut json!({"at":text}), now).unwrap_err();
+            assert!(error.contains("E_FIXTURE_TIME") && error.contains(text), "{error}");
+        }
+        let mut null = json!({"at":42,"optionalAt":null});
+        relative_times(&table, &mut null, now).unwrap();
+        assert_eq!(null, json!({"at":42,"optionalAt":null}));
+        let mut list = json!({"times":["now", null, "now-1s"]});
+        relative_times(&table, &mut list, now).unwrap();
+        assert_eq!(list, json!({"times":[now, null, now-1000]}));
+    }
+    #[test]
+    fn seed_defaults_and_relative_rows_share_the_captured_clock() {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), "table notes:\n  at: time default now\n  ends: time\n  expire at .ends\n  public 'fixture'\n  online only\nquery one():\n  return notes[\"n\"]\n".into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let root = std::env::temp_dir().join(format!("rel3-relative-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("notes.jsonl"), r#"{"id":"n","ends":"now+1ms"}"#).unwrap();
+        let options = Options { positionals: vec![], json: true, flags: [("fixture".into(),root.to_str().unwrap().into())].into() };
+        let now = snapback4_core::now_ms();
+        let mut engine = engine_at(&Project { root:root.clone() }, &bound, &options, now).unwrap();
+        let row = engine.query("one", snapback4_core::Context::new("dev:alice", Default::default()).at(now)).unwrap().data;
+        assert_eq!(row.field("at").unwrap(), &snapback4_core::Value::Int(now));
+        assert_eq!(row.field("ends").unwrap(), &snapback4_core::Value::Int(now+1));
+        let gone = engine.query("one", snapback4_core::Context::new("dev:alice", Default::default()).at(now+1)).unwrap().data;
+        assert_eq!(gone, snapback4_core::Value::Null);
+        std::fs::remove_dir_all(root).unwrap();
     }
 }

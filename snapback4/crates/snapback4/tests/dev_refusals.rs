@@ -447,3 +447,56 @@ fn ephemeral_and_action_http_doors_apply_dev_principal_guards_and_seat_clauses()
  let denied=prod.request("add","alice",&auth);assert_eq!(denied["why"]["code"],"E_RULE","{denied}");assert!(denied["why"]["message"].as_str().unwrap().ends_with("typing rule clause: insert <- .owner = viewer"),"{denied}");
  let action=prod.post_authenticated("/a/notify?wait=0",json!({"id":"prod-action","args":{"owner":"alice"}}),&auth);assert_eq!(action["state"],"pending","{action}");
 }
+
+#[test]
+fn an_empty_persona_roster_has_a_dev_only_seed_hint_that_clears_after_seeding() {
+ let project = Project::new();
+ let source = "use personas alice\ntable admins:\n  principal: principal\n  unique byPrincipal: principal\n  public\n  online only\ntable rows:\n  owner: principal\n  read <- .owner = viewer\n  insert <- exists admins[viewer]\n  online only\nmutation add(owner: principal):\n  return insert rows {owner}\nmutation gate(owner: principal):\n  require exists admins[viewer] else NOT_ADMIN\n  return true\n";
+ fs::write(project.0.join("snapback/schema.q"), source).unwrap();
+ let host=Host::start(project.clone(),true,false);
+ let reply=host.refuse("add");
+ assert!(!reply.to_string().contains("seed"), "private evidence leaked: {reply}");
+ let store=reply["store_id"].as_str().unwrap();
+ let evidence=project.wait_record(store,"add");
+ assert_eq!(evidence["records"][0]["seedHint"], "no rows in admins: seed it with /dev/reset");
+ let gated=host.request("gate","dev:alice","x-snapback-persona: alice");
+ assert_eq!(gated["why"]["code"], "NOT_ADMIN", "{gated}");
+ let evidence=project.wait_record(store,"gate");
+ assert_eq!(evidence["records"].as_array().unwrap().last().unwrap()["seedHint"], "no rows in admins: seed it with /dev/reset");
+ let deadline=Instant::now()+Duration::from_secs(5);
+ loop {
+  let stderr=fs::read_to_string(&host.stderr).unwrap();
+  if stderr.contains("no rows in admins: seed it with /dev/reset") { break; }
+  assert!(Instant::now()<deadline, "{stderr}"); std::thread::sleep(Duration::from_millis(10));
+ }
+ drop(host);
+ let prod=Host::start(project.clone(),false,false);
+ let minted=Command::new(BIN).current_dir(&project.0).args(["token","--service","roster-test","--release","release"]).output().unwrap();
+ assert!(minted.status.success(), "{minted:?}");
+ let token=String::from_utf8(minted.stdout).unwrap();
+ let refusal=prod.request("add","bob",&format!("Authorization: Bearer {}",token.trim()));
+ assert_eq!(refusal["why"]["code"], "E_RULE");
+ assert!(!refusal.to_string().contains("seedHint"));
+ assert!(!refusal.to_string().contains("no rows in"));
+ assert!(!fs::read_to_string(&prod.stderr).unwrap().contains("seed it"));
+ drop(prod);
+ // A nonempty roster with no matching alice is a different issue, not an empty store.
+ let host=Host::start_storage(project.clone(),true,false,&[],false);
+ let body=json!([{"table":"admins","row":{"id":"admin-bob","principal":"dev:bob"}}]).to_string();
+ let mut stream=TcpStream::connect(&host.address).unwrap();
+ write!(stream,"POST /seed HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{body}",body.len()).unwrap();
+ let mut response=String::new(); stream.read_to_string(&mut response).unwrap();
+ assert!(response.starts_with("HTTP/1.1 200"),"{response}");
+ let _reply=host.refuse("add");
+ let deadline=Instant::now()+Duration::from_secs(5);
+ loop {
+  let out=project.why(&[]);
+  if out.status.success() {
+   let evidence: Value=serde_json::from_slice(&out.stdout).unwrap();
+   if let Some(record)=evidence["records"].as_array().and_then(|records|records.last()) {
+    assert!(record.get("seedHint").is_none(),"{evidence}"); break;
+   }
+  }
+  assert!(Instant::now()<deadline,"writer did not save nonempty-roster evidence"); std::thread::sleep(Duration::from_millis(10));
+ }
+}

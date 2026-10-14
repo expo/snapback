@@ -45,7 +45,8 @@ pub struct Explicit { pub at: String, pub op: String, pub principal: String, pub
 /// The cases file read leniently, before the sweep: a line that does not
 /// parse is left to [`run`], which refuses it with its line number.
 // @ref LLP 3000.036#15.2 — wave 7: the sweep runs a persona's own case arguments and labels a refusal its case expects.
-pub fn explicit(fixture: &str, declared: &[String]) -> Vec<Explicit> {
+pub fn explicit(fixture: &str, bound: &Bound, now: i64) -> Vec<Explicit> {
+    let declared = &bound.personas;
     let Ok(text) = std::fs::read_to_string(Path::new(fixture).join(FILE)) else { return Vec::new() };
     fn saved(value: &Json) -> bool {
         match value { Json::String(text) => text.starts_with('$') && text.len() > 1, Json::Array(items) => items.iter().any(saved), Json::Object(fields) => fields.len() == 1 && fields.contains_key("$literal") || fields.values().any(saved), _ => false }
@@ -57,14 +58,22 @@ pub fn explicit(fixture: &str, declared: &[String]) -> Vec<Explicit> {
         let op = case.get("op")?.as_str()?.to_owned();
         let persona = case.get("as").and_then(Json::as_str).unwrap_or_else(|| default_persona(declared));
         let principal = if persona.contains(':') { persona.to_owned() } else { persona_principal(persona) };
-        let args = Some(case.get("args").cloned().unwrap_or_else(|| json!({}))).filter(|args| args.is_object() && !saved(args));
+        let mut args = Some(case.get("args").cloned().unwrap_or_else(|| json!({}))).filter(|args| args.is_object() && !saved(args));
+        if let Some(args) = &mut args && let Some(program) = bound.programs.iter().find(|program| program.program.name == op) {
+            super::test_fixture::argument_times(&program.program.args, args, now).ok()?;
+        }
         Some(Explicit { at: format!("{FILE}:{}", index + 1), op, principal, args, expect: case.get("expect").and_then(Json::as_str).map(str::to_owned) })
     }).collect()
 }
 
 /// Runs every case; prints one line each and returns (passed, failed).
 /// `sources` are the compiled files, to quote a refusing clause's line.
-pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String, String)]) -> Result<(usize, usize), String> {
+pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String, String)], now: i64) -> Result<(usize, usize), String> {
+    run_observed(engine, bound, fixture, sources, now, false, |_, _| {})
+}
+
+pub(super) fn run_observed(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String, String)], now: i64, quiet: bool, mut observed: impl FnMut(&str, &str)) -> Result<(usize, usize), String> {
+    macro_rules! case_line { ($($args:tt)*) => { if !quiet { println!($($args)*); } }; }
     let path = Path::new(fixture).join(FILE);
     let text = match std::fs::read_to_string(&path) {
         Ok(text) => text,
@@ -85,7 +94,7 @@ pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String
         validate(&case).map_err(|why| format!("{at}: {why}"))?;
         cases.push((at, case));
     }
-    println!("test: cases from {FILE}");
+    case_line!("test: cases from {FILE}");
     for (at, case) in cases {
         let Some(op) = case.get("op").and_then(Json::as_str) else { return Err(format!("{at}: each case names \"op\" (a query or mutation)")) };
         let Some(bound_program) = bound.programs.iter().find(|p| p.program.name == op) else {
@@ -101,7 +110,10 @@ pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String
         let explicit = case.get("expect").and_then(Json::as_str);
         let expect = explicit.unwrap_or(match program.kind { ProgramKind::Query if never_complete.is_some() => "ok", ProgramKind::Query => "complete", _ => "sent" });
         let label = case.get("label").and_then(Json::as_str).map(|l| format!(" — {l}")).unwrap_or_default();
-        let raw_args = substitute(case.get("args").cloned().unwrap_or_else(|| json!({})), &saved).map_err(|why| format!("{at}: {why}"))?;
+        let mut raw_args = substitute(case.get("args").cloned().unwrap_or_else(|| json!({})), &saved).map_err(|why| format!("{at}: {why}"))?;
+        super::test_fixture::argument_times(&program.args, &mut raw_args, now).map_err(|why| format!("{at}: {why}"))?;
+        let expected_data = case.get("data").cloned().map(|data| substitute(data, &saved)).transpose().map_err(|why| format!("{at}: {why}"))?;
+        let expected_match = case.get("match").cloned().map(|data| substitute(data, &saved)).transpose().map_err(|why| format!("{at}: {why}"))?;
         let input = (|| -> Result<_, Refusal> {
             if let Some(why)=crate::persona_principals::arguments(&bound.personas,&program.args,&raw_args) { return Err(why); }
             let mut args = BTreeMap::new();
@@ -116,7 +128,7 @@ pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String
         let args = input.unwrap_or_default();
         let trace = RefusalTrace::default();
         let context_viewer = principal.clone();
-        let context = Context::new(principal, args).with_refusal_trace(trace.clone());
+        let context = Context::new(principal, args).at(now).with_refusal_trace(trace.clone());
         // (outcome word, answer) or a refusal
         let mut unavailable = false;
         let got: Result<(&str, Json), Refusal> = if let Some(refusal) = input_refusal { Err(refusal) }
@@ -148,10 +160,13 @@ pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String
                     if admitted && explicit.is_none() && verdicts_shown.insert(op.to_owned()) { notes.push(format!("capped is this query's check verdict: {note}")); }
                     if !admitted { notes.push(format!("hint: {note}; a capped answer still holds every row you may read: add \"expect\":\"capped\" (or drop \"expect\"), or pin the page as the note's rewrite says (snapback4 check --verbose)")); }
                 }
-                if let Some(data) = case.get("data") && data != answer {
+                if let Some(data) = &expected_data && data != answer {
                     problems.push(format!("data differs: got {answer}"));
                     // @ref LLP 3000.036#15.12 — an unavailable answer is not a null value: say why it has none.
                     if unavailable { notes.push("null here is no answer (a client shows `loading`), not a null value: a ceiling cut it, or an `exists` over rows this viewer only partly reads found no row it may read, which cannot prove absence (snapback4 check --verbose)".into()); }
+                }
+                if let Some(expected) = &expected_match && !subset(expected, answer) {
+                    problems.push(format!("match differs: expected subset {expected}, got {answer}"));
                 }
                 if let Some(count) = case.get("count").and_then(Json::as_u64) {
                     let length = answer.as_array().map(|a| a.len()).or_else(|| answer.get("items").and_then(Json::as_array).map(|a| a.len()));
@@ -169,22 +184,23 @@ pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String
                 code.clone()
             }
         };
+        observed(&at, &shown);
         if problems.is_empty() {
             passed += 1;
-            println!("      ok   {at} {op} ({persona}) → {shown}{label}");
-            if let Err(refusal) = &got && refusal.code == "E_INPUT" { println!("           {}", refusal.message); }
+            case_line!("      ok   {at} {op} ({persona}) → {shown}{label}");
+            if let Err(refusal) = &got && refusal.code == "E_INPUT" { case_line!("           {}", refusal.message); }
         } else {
             failed += 1;
-            println!("      FAIL {at} {op} ({persona}) → {shown}{label}: {}", problems.join("; "));
+            case_line!("      FAIL {at} {op} ({persona}) → {shown}{label}: {}", problems.join("; "));
         }
-        if program.kind == ProgramKind::Query && trace.hidden() > 0 { println!("           hidden: {} (encountered row images filtered by read rules)", trace.hidden()); }
-        for note in notes { println!("           {note}"); }
+        if program.kind == ProgramKind::Query && trace.hidden() > 0 { case_line!("           hidden: {} (encountered row images filtered by read rules)", trace.hidden()); }
+        for note in notes { case_line!("           {note}"); }
     }
     Ok((passed, failed))
 }
 
 /// The keys a case line may carry.
-pub const KEYS: [&str; 8] = ["as", "op", "args", "expect", "data", "count", "save", "label"];
+pub const KEYS: [&str; 9] = ["as", "op", "args", "expect", "data", "match", "count", "save", "label"];
 
 // @ref LLP 3000.036#15.3 — an unknown key is refused, never ignored: ignoring it was a false green.
 fn validate(case: &Json) -> Result<(), String> {
@@ -297,6 +313,17 @@ fn operation_site(bound: &Bound, site: &str) -> Option<String> {
     Some(format!("{}:{}:1", program.site.file, program.site.line + line.checked_sub(1)?))
 }
 
+// @ref LLP 3000.000.000.000#5-fixtures-and-dev-evidence — object subsets retain exact array positions and scalar equality.
+/// Object keys are a recursive subset; arrays retain exact length and order.
+fn subset(expected: &Json, answer: &Json) -> bool {
+    match (expected, answer) {
+        (Json::Object(wanted), Json::Object(got)) => wanted.iter().all(|(key, value)| got.get(key).is_some_and(|got| subset(value, got))),
+        (Json::Array(wanted), Json::Array(got)) => wanted.len() == got.len() && wanted.iter().zip(got).all(|(value, got)| subset(value, got)),
+        _ => expected == answer,
+    }
+}
+
+// @ref LLP 3000.000.000.000#5-fixtures-and-dev-evidence — args and both assertion forms resolve the same named aliases.
 /// `"$name"` is a saved answer (a saved row's id); `"$name.field"` (any depth) one of its fields.
 fn substitute(value: Json, saved: &BTreeMap<String, Json>) -> Result<Json, String> {
     Ok(match value {
@@ -305,10 +332,10 @@ fn substitute(value: Json, saved: &BTreeMap<String, Json>) -> Result<Json, Strin
         Json::String(text) if text.starts_with('$') && text.len() > 1 => {
             let mut parts = text[1..].split('.');
             let name = parts.next().unwrap_or_default();
-            let mut current = saved.get(name).ok_or_else(|| format!("{text}: nothing was saved as {name} (add \"save\": \"{name}\" to an earlier case)"))?;
+            let mut current = saved.get(name).ok_or_else(|| format!("E_FIXTURE_ALIAS: {text}: nothing was saved as {name} (add \"save\": \"{name}\" to an earlier case)"))?;
             let mut fields = 0;
             for part in parts {
-                current = current.get(part).ok_or_else(|| format!("{text}: the saved answer has no field {part}"))?;
+                current = current.get(part).ok_or_else(|| format!("E_FIXTURE_ALIAS: {text}: the saved answer has no field {part}"))?;
                 fields += 1;
             }
             // An argument names a row by its id: a bare `$name` for a saved
@@ -316,7 +343,7 @@ fn substitute(value: Json, saved: &BTreeMap<String, Json>) -> Result<Json, Strin
             match current.get("id").and_then(Json::as_str) { Some(id) if fields == 0 => Json::String(id.to_owned()), _ => current.clone() }
         }
         // @ref LLP 3000.011.003.000.000#2 — a bare save alias refuses by name instead of becoming a silent literal id.
-        Json::String(text) if saved.contains_key(&text) => return Err(format!("{text:?} names a saved answer; write \"${text}\" for its id (or \"${text}.field\" for a field)")),
+        Json::String(text) if saved.contains_key(&text) => return Err(format!("E_FIXTURE_ALIAS: {text:?} names a saved answer; write \"${text}\" for its id (or \"${text}.field\" for a field)")),
         Json::Array(items) => Json::Array(items.into_iter().map(|item| substitute(item, saved)).collect::<Result<_, _>>()?),
         Json::Object(fields) => Json::Object(fields.into_iter().map(|(k, v)| Ok((k, substitute(v, saved)?))).collect::<Result<_, String>>()?),
         other => other,
@@ -336,5 +363,38 @@ mod saved_alias_tests {
         assert!(substitute(json!("$missing"), &saved).unwrap_err().contains("nothing was saved as missing"));
         assert!(substitute(json!("$r1.absent"), &saved).unwrap_err().contains("no field absent"));
         assert_eq!(substitute(json!({"text":{"$literal":"r1"}, "money":"$$50", "ordinary":"price $50"}), &saved).unwrap(), json!({"text":"r1", "money":"$50", "ordinary":"price $50"}));
+    }
+}
+
+#[cfg(test)]
+mod rel3_tests {
+    use super::*;
+    #[test]
+    fn match_is_recursive_and_arrays_preserve_length_and_order() {
+        assert!(validate(&json!({"op":"read", "match":{"name":"Ash"}})).is_ok());
+        assert!(subset(&json!({"nested":{"name":"Ash"}, "rows":[{"n":1}]}), &json!({"id":"x", "nested":{"name":"Ash","n":7}, "rows":[{"n":1,"extra":true}]})));
+        for wrong in [json!({"nested":{"name":"Oak"}}), json!({"rows":[]}), json!({"rows":[{"n":2}]}), json!({"missing":null})] {
+            assert!(!subset(&wrong, &json!({"nested":{"name":"Ash"},"rows":[{"n":1}]})), "{wrong}");
+        }
+    }
+    #[test]
+    fn saved_aliases_resolve_in_exact_and_subset_assertions_and_cases_share_clock() {
+        let source = "use personas alice\ntable notes:\n  title: text <=80\n  public 'fixture'\n  insert <- allow\n  online only\nmutation add(title: text <=80):\n  insert notes { title }\nquery row(id: notes):\n  return notes[id]\nquery clock(at: time ?):\n  return now\nquery clockArg(at: time):\n  return at\n";
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let mut engine = Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
+        let root = std::env::temp_dir().join(format!("rel3-case-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let path = root.join(FILE);
+        std::fs::write(&path, "{\"op\":\"add\",\"args\":{\"title\":\"Ash\"},\"save\":\"ash\"}\n{\"op\":\"row\",\"args\":{\"id\":\"$ash\"},\"data\":{\"id\":\"$ash\",\"title\":\"$ash.title\"},\"match\":{\"title\":\"Ash\"}}\n{\"op\":\"clock\",\"args\":{\"at\":\"now-1s\"},\"data\":123456789}\n{\"op\":\"clockArg\",\"args\":{\"at\":\"now+1h\"},\"data\":127056789}\n").unwrap();
+        assert_eq!(run(&mut engine, &bound, root.to_str().unwrap(), &[], 123456789).unwrap(), (4, 0));
+        let explicit = explicit(root.to_str().unwrap(), &bound, 123456789);
+        assert_eq!(explicit[3].args.as_ref().unwrap()["at"], json!(127056789));
+        std::fs::write(&path, "{\"op\":\"clock\",\"data\":{\"nested\":[\"$missing.id\"]}}\n").unwrap();
+        let error = run(&mut engine, &bound, root.to_str().unwrap(), &[], 123456789).unwrap_err();
+        assert!(error.contains("E_FIXTURE_ALIAS") && error.contains("$missing.id"), "{error}");
+        std::fs::write(&path, "{\"op\":\"clock\",\"match\":0}\n").unwrap();
+        assert_eq!(run(&mut engine, &bound, root.to_str().unwrap(), &[], 123456789).unwrap(), (0, 1));
+        std::fs::remove_dir_all(root).unwrap();
     }
 }
