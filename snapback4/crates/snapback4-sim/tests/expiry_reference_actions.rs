@@ -128,6 +128,49 @@ table cascadeGrandchildren:
 }
 
 #[test]
+fn read_through_closure_probe_is_admitted_before_a_low_ceiling_delete() {
+    let source = r#"
+table roots:
+  public
+  delete <- allow
+table children:
+  root: roots on delete cascade
+  cap 2 by root
+  public
+table grandchildren:
+  child: children on delete cascade
+  cap 2 by child
+  immutable child
+  read through .child
+mutation drop(id: roots):
+  delete roots[id]
+"#;
+    let world = || {
+        let mut e = engine(source);
+        e.seed_at([
+            ("roots".into(), object([("id", id("p"))])),
+            ("children".into(), object([("id", id("c")), ("root", id("p"))])),
+            ("grandchildren".into(), object([("id", id("g")), ("child", id("c"))])),
+        ], 0).unwrap();
+        e
+    };
+    let context = || Context::new("dev:alice", BTreeMap::from([("id".into(), id("p"))])).at(100);
+    let mut complete = world();
+    let sent = complete.mutate("drop", None, context()).unwrap();
+    assert!(matches!(sent.state, WriteState::Sent { .. }), "{:?}", sent.state);
+
+    let mut cut = world();
+    let mut ceilings = cut.ceilings();
+    ceilings.examined = sent.metered.examined - 1;
+    cut.set_ceilings(ceilings);
+    let refused = cut.mutate("drop", None, context()).unwrap();
+    assert!(matches!(refused.state, WriteState::Failed { ref why, .. } if why.code == "E_BOUND"), "{:?}", refused.state);
+    assert_eq!(cut.store().rows("roots").unwrap().len(), 1);
+    assert_eq!(cut.store().rows("children").unwrap().len(), 1);
+    assert_eq!(cut.store().rows("grandchildren").unwrap().len(), 1);
+}
+
+#[test]
 fn commit_retirement_and_expired_same_id_replacement_apply_actions() {
     let source = format!(r#"{SWEEP}
 mutation bornExpired():
@@ -164,6 +207,38 @@ mutation replaceExpired():
     assert_eq!(e.store().rows("roots").unwrap().len(), 1);
     assert_eq!(e.store().rows("roots").unwrap()[0].field("expiresAt").unwrap(), &Value::Null);
     assert!(e.store().rows("cascadeKids").unwrap().is_empty(), "same-id cleanup cannot orphan the expired predecessor's child");
+}
+
+#[test]
+fn same_id_replacement_reloads_maintained_columns_after_cascade_retirement() {
+    let source = r#"
+table roots:
+  expiresAt: time ?
+  by byExpiry: expiresAt
+  expire at .expiresAt
+  childCount: count children by root
+  public
+  insert <- allow
+table children:
+  root: roots on delete cascade
+  cap 4 by root
+  public
+mutation replace():
+  insert roots {id: 'same', expiresAt: null}
+"#;
+    let mut e = engine(source);
+    e.seed_at([
+        ("roots".into(), object([("id", id("same")), ("expiresAt", Value::Int(10))])),
+        ("children".into(), object([("id", id("child")), ("root", id("same"))])),
+    ], 0).unwrap();
+    assert_eq!(e.store().rows("roots").unwrap()[0].field("childCount").unwrap(), &Value::Int(1));
+
+    let replaced = e.mutate("replace", None, Context::new("dev:alice", BTreeMap::new()).at(100)).unwrap();
+    assert!(matches!(replaced.state, WriteState::Sent { .. }), "{:?}", replaced.state);
+    let roots = e.store().rows("roots").unwrap();
+    assert_eq!(roots.len(), 1);
+    assert_eq!(roots[0].field("childCount").unwrap(), &Value::Int(0));
+    assert!(e.store().rows("children").unwrap().is_empty());
 }
 
 #[test]

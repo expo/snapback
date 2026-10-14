@@ -228,6 +228,7 @@ impl Schema {
     // @ref LLP 3000.039#5.1 — the reservation is schema-fixed; LLP 3000.015 §2's law for work shaped by hidden rows.
     pub fn delete_reservation(&self, parent: &str) -> Option<Price> {
         let bounds = self.closure_bounds(parent)?;
+        let closure_rows = bounds.iter().map(|(_, n)| *n).fold(0_u64, u64::saturating_add);
         let mut price = [0_u64; 7];
         let mut heap = 0_u64;
         let mut identities = 0_u64;
@@ -241,6 +242,20 @@ impl Schema {
                 heap = heap.max(unit[4]);
                 add(&mut price, [unit[0], unit[1], unit[2] + 1, unit[3], 0, unit[5], unit[6]].map(|v| v.saturating_mul(n)));
                 identities = identities.saturating_add(n);
+                // Before any set-null write, each reached cascade row proves
+                // that no physically retained read-through child lies outside
+                // the closure. A table can skip every identity in the closure
+                // and then inspect one outside witness. Execution performs
+                // these probes under reference_prepaid, so their complete
+                // schema bound belongs in this outer admission reservation.
+                let outside_limit = closure_rows.saturating_add(1);
+                let through_children: Vec<_> = self.children(table).collect();
+                let probes = n.saturating_mul(through_children.len() as u64).saturating_mul(outside_limit);
+                add(&mut price, [probes, 0, probes, 0, 0, 0, 0]);
+                let outside_heap = through_children.iter()
+                    .map(|(_, child, _)| crate::engine::row_copy_ceiling(child).saturating_mul(outside_limit))
+                    .fold(0_u64, u64::saturating_add);
+                heap = heap.max(outside_heap);
             }
             for r in self.referencing(table) {
                 // A capped walk holds one page of child images per seek.

@@ -137,9 +137,7 @@ impl Runner<'_> {
         }
         if sequence_full { return Err(super::sequences::exhausted()); }
         let row = self.record_insert(table_name, row)?;
-        let row = self.birth_columns(table_name, row)?;
         let row = self.with_asset_facts(table_name, row, None, None)?;
-        super::validate::validate_before_slots(self.schema, table_name, &row)?;
         if if_absent {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
                 let key = index_values(index, &row);
@@ -206,6 +204,13 @@ impl Runner<'_> {
             // disclosed examination (LLP 3000.015 §§1–2).
             self.retire_expired_row(table_name, existing)?;
         }
+        // Retiring an expired predecessor can cascade a source row whose
+        // contribution determines this image's maintained columns. Initialize
+        // them from the post-retirement private totals. Maintained columns are
+        // forbidden from constraints and authority, so the earlier collision
+        // and authorization preflights need only the authored image.
+        let row = self.birth_columns(table_name, row)?;
+        super::validate::validate_before_slots(self.schema, table_name, &row)?;
         // @ref LLP 3000.007#20.5 — an authored plain insert predicts unproved; a later refusal is then the server's
         // to report. The engine's own timeline writes are not the author's prediction.
         if let Some(index) = proof.filter(|_| {
