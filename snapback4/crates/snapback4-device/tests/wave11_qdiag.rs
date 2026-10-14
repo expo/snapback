@@ -3,7 +3,7 @@ use common::*;
 use snapback4_core::{Context, WriteState};
 use snapback4_device::{device::Device,store::DeviceStore};
 use serde_json::json;
-const SOURCE:&str="table parents:\n  label: text <=20\n  unique label\n  public\n  insert <- allow\n  sync public\ntable kids:\n  parent: parents on delete keep\n  unique parent\n  public\n  insert <- allow\n  sync public\nfn label(p: parents): p.label\nmutation add(id: id, child: id, title: text <=20):\n  p = insert parents { id, label: title }\n  insert kids { id: child, parent: p }\n  return label(p)\nmutation clash(id: id, parent: parents):\n  insert parents { id: 'rolledback', label: 'temporary' }\n  insert kids { id, parent }\nquery parents(c: cursor ?):\n  return parents first 20 by .id after c\n";
+const SOURCE:&str="table media:\n  photo: image <=5MB\n  public\ntable parents:\n  label: text <=20\n  unique label\n  public\n  insert <- allow\n  sync public\ntable kids:\n  parent: parents on delete keep\n  unique parent\n  public\n  insert <- allow\n  sync public\nfn label(p: parents): p.label\nmutation add(id: id, child: id, title: text <=20):\n  p = insert parents { id, label: title }\n  insert kids { id: child, parent: p }\n  return label(p)\nmutation clash(id: id, parent: parents):\n  insert parents { id: 'rolledback', label: 'temporary' }\n  insert kids { id, parent }\nquery parents(c: cursor ?):\n  return parents first 20 by .id after c\n";
 fn run<H:Host>(host:&mut H){
  let (mut e,b)=compile(SOURCE);
  let mut d=host.open("qdiag",Some(b)).unwrap();

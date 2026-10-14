@@ -849,7 +849,7 @@ impl<'a> Scope<'a> {
 
     /// A key, resolved to named columns of `table`.
     fn key(&self, table: &Table, keys: &[KeyPart]) -> R<Vec<Json>> {
-        let kinds: Vec<Option<Kind>> = keys.iter().map(|k| self.kind(&k.value)).collect();
+        let kinds: Vec<Option<Kind>> = keys.iter().map(|k| match self.ty(&k.value) { Ty::Row(t)=>Some(Kind::Id(IdSort::Ref(t))), _=>self.kind(&k.value) }).collect();
         let columns = resolve_key(table, keys, &kinds)?;
         let mut out = Vec::new();
         for (c, k) in columns.iter().zip(keys) {

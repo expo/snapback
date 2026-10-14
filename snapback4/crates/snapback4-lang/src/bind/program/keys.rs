@@ -43,5 +43,5 @@ impl<'a> Binder<'a> {
 fn key_identity(info: &TableInfo, column: &str) -> Option<Ty> {
     let ty = if column == "id" { Ty::Ref(info.decl.name.clone()) }
         else { Ty::from_scalar(info.columns.get(column)?) };
-    ty.is_identity().then_some(ty)
+    ty.required().is_identity().then_some(ty)
 }

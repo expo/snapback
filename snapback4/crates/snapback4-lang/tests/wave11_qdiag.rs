@@ -146,3 +146,13 @@ fn required_row_expression_keys_keep_intrinsic_identity_precedence(){
  let explicit=checked(&source.replace("return parents[parents[p] ! else NOT_FOUND]","return parents[(parents[p] ! else NOT_FOUND).id]"));assert!(explicit.diagnostics.is_empty(),"{:?}",explicit.diagnostics);
  let strip=|b:&snapback4_lang::Bound|{let mut v=serde_json::to_value(&b.programs[0].program).unwrap();fn erase(v:&mut serde_json::Value){match v{serde_json::Value::Object(o)=>{o.remove("site");for v in o.values_mut(){erase(v);}},serde_json::Value::Array(a)=>for v in a{erase(v);},_=>{}}}erase(&mut v);v};assert_eq!(strip(&b),strip(&explicit));
 }
+
+#[test]
+fn required_rows_project_into_nullable_reference_keys(){
+ let tables="table parents:\n  public\ntable kids:\n  parent: parents ? on delete keep\n  unique byParent: parent\n  public\n";
+ for key in ["kids[parent = r]","kids[r] by byParent","kids[parent = r] by byParent"] {
+  let source=format!("{tables}query child(parent: parents):\n  r = parents[parent] ! else NOT_FOUND\n  return {key}\n");let b=checked(&source);assert!(b.diagnostics.is_empty(),"{key}: {:?}",b.diagnostics);
+  let explicit=source.replace("parent = r]","parent = r.id]").replace("kids[r]","kids[r.id]");assert!(checked(&explicit).diagnostics.is_empty());
+  let optional=source.replace("parents[parent] ! else NOT_FOUND","parents[parent]");assert!(!checked(&optional).diagnostics.is_empty(),"optional source row accepted: {key}");
+ }
+}

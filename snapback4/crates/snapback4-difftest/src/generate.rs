@@ -359,7 +359,7 @@ pub fn qdiag(seed:u64) -> (Case,String,String) {
     let (owner,visible)=(if rng.pick(2)==0 {"alice"} else {"bob"},rng.pick(2)==0);
     if rng.pick(3)==0 { case.rows.push(("kids".into(),json!({"id":"old-child","item":"new-parent","owner":owner}))); }
     let read=if visible {"allow"} else {".owner = viewer"};
-    let implicit=format!("table items:\n  owner: principal\n  label: text <=64\n  public\n  insert <- allow\n  sync public\ntable kids:\n  item: items on delete keep\n  owner: principal\n  unique item\n  read <- {read}\n  insert <- allow\n  online only\nmutation run(key: id, k2: id, bucket: int, c: cursor ?, n: int ?, a: int, b: int):\n  item = insert items {{ id:key, owner:viewer, label:'parent' }}\n  insert kids {{ id:k2, item, owner:viewer }}\n  return item.id\nquery observe(key: id, k2: id):\n  return {{ item:items[key], child:kids[k2] }}\n");
-    let explicit=implicit.replace("id:k2, item, owner","id:k2, item:item.id, owner");
+    let implicit=format!("table items:\n  sibling: items ? on delete keep\n  unique sibling\n  owner: principal\n  label: text <=64\n  public\n  insert <- allow\n  sync public\ntable kids:\n  item: items on delete keep\n  owner: principal\n  unique item\n  read <- {read}\n  insert <- allow\n  online only\nmutation run(key: id, k2: id, bucket: int, c: cursor ?, n: int ?, a: int, b: int):\n  item = insert items {{ id:key, owner:viewer, label:'parent' }}\n  insert kids {{ id:k2, item, owner:viewer }}\n  seen = items[items[key] ! else NOT_FOUND] ! else NOT_FOUND\n  return seen.id\nquery observe(key: id, k2: id):\n  return {{ item:items[key], child:kids[k2] }}\n");
+    let explicit=implicit.replace("id:k2, item, owner","id:k2, item:item.id, owner").replace("items[items[key] ! else NOT_FOUND]","items[(items[key] ! else NOT_FOUND).id]");
     (case,implicit,explicit)
 }
