@@ -85,6 +85,10 @@ test("useSignedInViewer returns the signed-in viewer and refuses E_AUTH outside 
       assert.equal(error.why.code, "E_AUTH");
       assert.match(error.message, new RegExp(`auth.state is "${state}"`));
       assert.match(error.why.rewrite, /auth\.state === "signed-in"/);
+      if (state === "restoring") {
+        assert.match(error.message, /if \(auth\.state === "restoring"\) return <Loading \/>/);
+        assert.match(error.message, /only when `auth\.state === "signed-in"`/);
+      }
       return true;
     });
   }

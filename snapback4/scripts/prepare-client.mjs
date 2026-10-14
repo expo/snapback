@@ -1,9 +1,11 @@
+import { lintPackagedDocs } from "./packaged-docs.mjs";
 import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { basename, join } from "node:path";
 import { tmpdir } from "node:os";
 import { artifact, cleanSource, clientManifest, json, platforms, run, save, verifyArtifact } from "./publication-artifacts.mjs";
 // @ref LLP 3000.021#3.3 — pack once, after rebuilding generated wasm and removing dist
 export function prepareClient(root, version, directory, selectedPlatforms = platforms) {
+  lintPackagedDocs(root);
   const receiptPath = join(directory, "prepare.json");
   if (existsSync(receiptPath)) throw new Error(`prepared client already exists at ${receiptPath}; reuse it or bump the release version`);
   const source = cleanSource(root), pkg = join(root, "packages/snapback4");

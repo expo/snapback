@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { lintPackagedDocs } from "./packaged-docs.mjs";
 // @ref LLP 3000.021#3.3 — a publication is one client and a qualified artifact per platform
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, statSync, appendFileSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
@@ -10,6 +11,7 @@ import { prepareClient, loadPrepared } from "./prepare-client.mjs";
 import { proveDarwin } from "./publication-consumer.mjs";
 import { converge, registryIntegrity, withPublicationSnapshot } from "./publication-registry.mjs";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+lintPackagedDocs(root);
 const pkg = join(root, "packages/snapback4"), version = json(join(pkg, "package.json")).version;
 const flags = new Set(["--dry-run", "--resume", "--prepare-client"]), values = new Map();
 for (let i = 2; i < process.argv.length; i++) {
