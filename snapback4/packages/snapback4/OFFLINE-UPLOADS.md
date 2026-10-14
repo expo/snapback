@@ -104,5 +104,5 @@ all symbol capabilities and committed-reply callbacks. The underlying
 implementation details; they are not permission to send placement through an
 online client around the device's dependency barrier.
 
-Exact implements its adapter side in its workstream. DX owns starter and
-main guide integration; HAND owns general wire/protocol text.
+Host adapters forward the device protocol. Starter/client examples are in
+`guide client`; the wire contract is in `guide wire`.

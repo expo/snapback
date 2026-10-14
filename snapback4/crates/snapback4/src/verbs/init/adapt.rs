@@ -29,38 +29,48 @@ pub(super) fn fits_todos(own: &OwnSchema) -> bool {
 /// What the schema in `dir` leaves of the starter, and the advice that goes
 /// with it (a sign-in the project must write by hand). No schema: nothing.
 pub(crate) fn leftovers(dir: &Path) -> (Vec<Leftover>, Vec<String>) {
-    let Ok(Some(own)) = own_schema(dir) else { return (Vec::new(), Vec::new()) };
+    let (found, advice, _) = plan(dir);
+    (found, advice)
+}
+
+fn plan(dir: &Path) -> (Vec<Leftover>, Vec<String>, Vec<String>) {
+    let Ok(Some(own)) = own_schema(dir) else { return (Vec::new(), Vec::new(), Vec::new()) };
     let mut found = Vec::new();
     let mut advice = Vec::new();
+    let mut modified = Vec::new();
     let todos = fits_todos(&own);
-    if !todos {
-        for (path, text) in starter::FIXTURES {
-            if read(dir, path).is_some_and(|current| current == super::without_design_references(text)) {
-                let what = if path.ends_with("todos.jsonl") { "rows for the todo starter's `todos` table" } else { "cases for the todo starter's list/add/toggle/remove" };
-                found.push(Leftover { path, why: format!("the unmodified {what}; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it"), rewrite: None });
-            }
+    for (path, text) in starter::FIXTURES {
+        let current = read(dir, path);
+        if current.as_ref().is_some_and(|current| *current != super::without_design_references(text)) { modified.push(path.to_owned()); }
+        if !todos && current.is_some_and(|current| current == super::without_design_references(text)) {
+            let what = if path.ends_with("todos.jsonl") { "rows for the todo starter's `todos` table" } else { "cases for the todo starter's list/add/toggle/remove" };
+            found.push(Leftover { path, why: format!("the unmodified {what}; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it"), rewrite: None });
         }
     }
     for platform in [Platform::Web, Platform::Expo] {
-        screens(dir, platform, &own, todos, &mut found, &mut advice);
+        if !screens(dir, platform, &own, todos, &mut found, &mut advice) {
+            for path in [platform.paths().0, platform.paths().1] { if read(dir, path).is_some() { modified.push(path.to_owned()); } }
+        }
     }
     if let Some(text) = read(dir, "src/native-smoke.ts") {
         let wanted = starter::native_smoke(own.identity.is_some_and(|(password, guests)| password && !guests));
-        if text != wanted && [false, true].into_iter().any(|password| text == starter::native_smoke(password)) {
+        let recognized = [false, true].into_iter().any(|password| text == starter::native_smoke(password));
+        if !recognized { modified.push("src/native-smoke.ts".to_owned()); }
+        if text != wanted && recognized {
             found.push(Leftover { path: "src/native-smoke.ts", why: "the unmodified native smoke helper uses the previous schema's sign-in".into(), rewrite: Some(wanted) });
         }
     }
-    readme(dir, &own, todos, &mut found);
+    readme(dir, &own, todos, &mut found, &mut modified);
     app_json(dir, &mut found);
     expo_favicon(dir, &mut found);
-    (found, advice)
+    (found, advice, modified)
 }
 
 /// The starter README, while it is still one init wrote (for either screen,
 /// at the ports it names), when it describes another screen than the schema
 /// now gets: the Todos README beside a project's schema, or the reverse.
 // @ref LLP 3000.011.003.000#7.4 — wave 6 (042): adapt rewrote the screen but left a README about todos and guest sign-in.
-fn readme(dir: &Path, own: &OwnSchema, todos: bool, found: &mut Vec<Leftover>) {
+fn readme(dir: &Path, own: &OwnSchema, todos: bool, found: &mut Vec<Leftover>, modified: &mut Vec<String>) {
     let platform = if dir.join("src/App.tsx").is_file() { Platform::Web } else if dir.join("App.tsx").is_file() { Platform::Expo } else { return };
     let title = super::title(dir);
     let personas = own.identity.is_none() && !own.personas.is_empty();
@@ -73,12 +83,18 @@ fn readme(dir: &Path, own: &OwnSchema, todos: bool, found: &mut Vec<Leftover>) {
         // The offline paragraph names the schema's synced tables when init
         // wrote it; any of them (or 0.4.22's unconditional claim) still matches.
         let masked = starter::without_offline(&text);
+        let explicit_online = read(dir, "src/client.ts").is_some_and(|client| client.contains("writes: \"online\""));
         let matched = ports.into_iter().find(|&(port, web_port)| {
             [(Body::Todos, false), (Body::Home(None), false), (Body::Home(None), true)].iter()
-                .any(|(body, personas)| [false, true].iter().any(|password| masked == starter::without_offline(&super::localize(path, &super::without_design_references(&starter::identity_readme(platform, &title, body, *personas, &starter::Offline::Unknown, *password)), port, web_port))))
+                .any(|(body, personas)| [false, true].iter().any(|password| [false, true].iter().any(|online| {
+                    let readme = starter::identity_readme(platform, &title, body, *personas, &starter::Offline::Unknown, *password);
+                    let readme = if *online { starter::online_readme(&readme) } else { readme };
+                    masked == starter::without_offline(&super::localize(path, &super::without_design_references(&readme), port, web_port))
+                })))
         });
-        let Some((port, web_port)) = matched else { continue };
+        let Some((port, web_port)) = matched else { modified.push(path.to_owned()); continue };
         let wanted = super::localize(path, &super::without_design_references(&starter::identity_readme(platform, &title, &wanted_body, personas, &own.offline, own.identity.is_some_and(|(password, guests)| password && !guests))), port, web_port);
+        let wanted = if explicit_online { starter::online_readme(&wanted) } else { wanted };
         if wanted == text { continue; }
         let about = if todos { "the todo starter's operations, which your snapback/*.q declares again" } else { "your snapback/*.q and the Home screen, named after this directory" };
         let only_offline = !text.starts_with("# Todos") && starter::without_offline(&wanted) == masked;
@@ -156,15 +172,16 @@ fn wanted(own: &OwnSchema) -> Result<SignIn, &'static str> {
     }
 }
 
-fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: &mut Vec<Leftover>, advice: &mut Vec<String>) {
+fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: &mut Vec<Leftover>, advice: &mut Vec<String>) -> bool {
     let (app_path, client_path) = platform.paths();
-    let (Some(app), Some(client)) = (read(dir, app_path), read(dir, client_path)) else { return };
+    let (Some(app), Some(client)) = (read(dir, app_path), read(dir, client_path)) else { return true };
     // Which starter screen is on disk, if both files are still as init wrote
     // them: its sign-in (guest, or a persona picker) and its body.
     let journal_shape = starter::Offline::Tables { synced: vec![], total: 0 };
+    let explicit_online = platform == Platform::Web && client.contains("writes: \"online\"");
     let client_shape = normalized(&client);
     let matches_client = |reference: &str, personas: bool| [reference, starter::previous_client(platform, personas)].iter().any(|reference|
-        client_shape == normalized(reference) || client_shape == normalized(&starter::web_client((*reference).to_owned(), &journal_shape)));
+        client_shape == normalized(reference) || client_shape == normalized(&starter::web_client((*reference).to_owned(), &journal_shape)) || client_shape == normalized(&starter::online_web_client((*reference).to_owned())));
     let current = [Body::Todos, Body::Home(first_read(&app))].into_iter().find_map(|body| [false, true].into_iter().find_map(|previous| {
         let screens = |personas: Option<&[String]>, password| if previous { starter::previous_screens(platform, personas, &body, password) } else { starter::identity_screens(platform, personas, &body, password) };
         let (guest_app, guest_client) = screens(None, false);
@@ -175,7 +192,7 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
         else if app == persona_app && matches_client(&persona_client, true) { Some((SignIn::Personas(personas_of(&client)), body.clone())) }
         else { None }
     }));
-    let Some((sign_in, body)) = current else { return };
+    let Some((sign_in, body)) = current else { return false };
     // A Home keeps its read while the schema still declares that query
     // argument-free; a Home without one stays as written (it fits any schema).
     let wanted_body = match &body {
@@ -193,9 +210,9 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
         }
     };
     let (app_text, mut client_text) = starter::identity_screens(platform, wanted_sign_in.personas(), &wanted_body, wanted_sign_in == SignIn::Password);
-    client_text = starter::web_client(client_text, &own.offline);
+    client_text = if explicit_online { starter::online_web_client(client_text) } else { starter::web_client(client_text, &own.offline) };
     let client_changed = client_shape != normalized(&client_text);
-    if wanted_sign_in == sign_in && app == app_text && wanted_body == body && !client_changed { return; }
+    if wanted_sign_in == sign_in && app == app_text && wanted_body == body && !client_changed { return true; }
     let mut reasons = Vec::new();
     let mut client_leftover = None;
     if wanted_sign_in != sign_in {
@@ -223,6 +240,7 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
     let why = if why.starts_with("the unmodified") { why } else { format!("the unmodified starter screen: {why}") };
     found.push(Leftover { path: app_path, why, rewrite: Some(app_text) });
     found.extend(client_leftover);
+    true
 }
 
 /// The `api` path a starter Home's first read calls, if it has one.
@@ -287,13 +305,23 @@ pub(crate) fn report_json(dir: &Path) -> serde_json::Value {
 }
 
 /// `snapback4 init --adapt [dir]`.
-pub(super) fn adapt(dir: &Path) -> i32 {
+pub(super) fn adapt(dir: &Path, dry_run: bool, apply: bool) -> i32 {
     match own_schema(dir) {
         Ok(Some(_)) => {}
         Ok(None) => { eprintln!("init --adapt: no snapback/*.q in {}; nothing to adapt to (run `snapback4 init --web` or `--expo` first)", dir.display()); return 1; }
         Err(error) => { eprintln!("init: {error}"); return 2; }
     }
-    let (found, advice) = leftovers(dir);
+    let (found, advice, modified) = plan(dir);
+    if !found.is_empty() {
+        println!("init --adapt: planned changes (only unmodified starter files):");
+        for change in &found { println!("  {} {} — {}", if change.rewrite.is_some() { "rewrite" } else { "remove" }, change.path, change.why); }
+    }
+    if !modified.is_empty() { println!("init --adapt: application-owned or modified files stay unchanged: {}", modified.join(", ")); }
+    if dry_run || (!apply && !modified.is_empty() && !found.is_empty()) {
+        println!("init --adapt: preview only; no files changed. Run `snapback4 init{} --adapt --apply` to apply the listed changes", if dir == Path::new(".") { String::new() } else { format!(" {}", dir.display()) });
+        for line in advice { println!("init --adapt: {line}"); }
+        return 0;
+    }
     let mut removed = Vec::new();
     let mut rewritten = Vec::new();
     for leftover in &found {

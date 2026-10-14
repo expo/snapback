@@ -1,0 +1,75 @@
+//! Init's explicit online web tier and adaptation preview contract.
+use std::{fs, path::PathBuf, process::{Command, Output}, sync::atomic::{AtomicUsize, Ordering}};
+const BIN: &str = env!("CARGO_BIN_EXE_snapback4");
+static NEXT: AtomicUsize = AtomicUsize::new(0);
+struct Project(PathBuf);
+impl Project {
+    fn new() -> Self {
+        let path = std::env::temp_dir().join(format!("sb4-dx3-init-{}-{}", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)));
+        fs::create_dir_all(&path).unwrap(); Self(path)
+    }
+    fn run(&self, args: &[&str]) -> Output {
+        Command::new(BIN).args(args).current_dir(&self.0).env_remove("PORT_LO").env_remove("PORT_HI").output().unwrap()
+    }
+    fn text(&self, path: &str) -> String { fs::read_to_string(self.0.join(path)).unwrap() }
+}
+impl Drop for Project { fn drop(&mut self) { fs::remove_dir_all(&self.0).unwrap(); } }
+fn ok(output: Output) -> String {
+    assert!(output.status.success(), "{output:?}"); String::from_utf8(output.stdout).unwrap()
+}
+#[test]
+fn explicit_online_web_starter_checks_and_keeps_the_choice_when_adapted() {
+    let dir = Project::new();
+    let output = ok(dir.run(&["init", "--web", "--online"]));
+    assert!(output.contains("no device"), "{output}");
+    assert!(dir.text("src/client.ts").contains("writes: \"online\""));
+    assert!(!dir.text("src/client.ts").contains("webDevice"));
+    assert!(!dir.text("snapback/schema.q").contains("sync to"));
+    assert!(!dir.text("README.md").contains("works offline"));
+    ok(dir.run(&["check"])); ok(dir.run(&["test", "--fixture", "fixtures", "--as", "alice"]));
+    let schema = dir.text("snapback/schema.q").replace("use identity ", "use identity password ").replace("  online only", "  sync to .ownerId");
+    fs::write(dir.0.join("snapback/schema.q"), schema).unwrap();
+    let plan = ok(dir.run(&["init", "--adapt", "--dry-run"]));
+    assert!(plan.contains("rewrite src/App.tsx") && plan.contains("preview only"), "{plan}");
+    ok(dir.run(&["init", "--adapt"]));
+    assert!(dir.text("src/App.tsx").contains("auth.signup"));
+    assert!(dir.text("src/client.ts").contains("writes: \"online\"") && !dir.text("src/client.ts").contains("webDevice"));
+    assert!(dir.text("README.md").contains("ships no device"));
+    ok(dir.run(&["check"]));
+}
+#[test]
+fn online_web_keeps_an_existing_synced_schema_and_supports_personas() {
+    for identity in ["use personas alice", "use identity password"] {
+        let dir = Project::new(); fs::create_dir(dir.0.join("snapback")).unwrap();
+        let schema = format!("{identity}\ntable notes:\n  owner: principal\n  title: text <=80\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  sync to .owner\nquery mine():\n  return notes where .owner = viewer first 20 by .id\nmutation add(title: text <=80):\n  return insert notes {{ owner: viewer, title }}\n");
+        fs::write(dir.0.join("snapback/schema.q"), &schema).unwrap();
+        ok(dir.run(&["init", "--web", "--online"]));
+        assert_eq!(dir.text("snapback/schema.q"), schema);
+        assert!(dir.text("src/client.ts").contains("writes: \"online\""));
+        assert!(!dir.text("src/client.ts").contains("webDevice"));
+        ok(dir.run(&["check"]));
+    }
+}
+#[test]
+fn dry_run_lists_removals_and_rewrites_without_changing_files() {
+    let dir = Project::new(); ok(dir.run(&["init", "--web"]));
+    fs::write(dir.0.join("snapback/schema.q"), "use personas alice\ntable notes:\n  body: text <=80\n  public 'shared'\n").unwrap();
+    let app = dir.text("src/App.tsx"); let readme = dir.text("README.md"); let fixture = dir.text("fixtures/todos.jsonl");
+    let plan = ok(dir.run(&["init", "--adapt", "--dry-run"]));
+    assert!(plan.contains("remove fixtures/todos.jsonl") && plan.contains("rewrite src/App.tsx"), "{plan}");
+    assert_eq!(dir.text("src/App.tsx"), app); assert_eq!(dir.text("README.md"), readme); assert_eq!(dir.text("fixtures/todos.jsonl"), fixture);
+    fs::write(dir.0.join("README.md"), "Application-owned introduction\n").unwrap();
+    let applied = ok(dir.run(&["init", "--adapt", "--apply"]));
+    assert!(applied.contains("application-owned or modified files stay unchanged: README.md"), "{applied}");
+    assert_eq!(dir.text("README.md"), "Application-owned introduction\n");
+    assert!(!dir.0.join("fixtures/todos.jsonl").exists());
+    assert!(dir.text("src/App.tsx").contains("usePersonaApp"));
+}
+#[test]
+fn preview_flags_require_adapt_and_cannot_be_combined() {
+    for args in [vec!["init", "--dry-run"], vec!["init", "--apply"], vec!["init", "--adapt", "--dry-run", "--apply"], vec!["init", "--expo", "--online"], vec!["init", "--web", "--online", "--template", "chat"]] {
+        let dir = Project::new(); let result = dir.run(&args);
+        assert_eq!(result.status.code(), Some(2), "{args:?}: {result:?}");
+        assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
+    }
+}

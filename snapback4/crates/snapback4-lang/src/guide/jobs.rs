@@ -265,7 +265,7 @@ Fixed `every N` schedules anchor to the Unix epoch in UTC, shifted by `at HH:MM`
 `every 7d` therefore fires on Thursday at 00:00 UTC (1970-01-01 was Thursday),
 not seven days after deploy. `every 7d at 08:00` stays Thursday 08:00 UTC.
 For another weekday, schedule daily and gate the job using day(periodEnd) % 7
-(Unix Thursday is 0, Monday is 4); never assume a deployment-time anchor.
+(Thursday=0, Friday=1, Saturday=2, Sunday=3, Monday=4, Tuesday=5, Wednesday=6); never assume a deployment-time anchor.
 Calendar month/year schedules use UTC month boundaries; `guide time` has their syntax.
 
 ## Operations

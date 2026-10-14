@@ -18,15 +18,14 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
 `update` patches; `if` tests the old row.
 `upsert` inserts/patches; `delete` removes the row: NOT_FOUND when absent
 (guard with `if exists t[id]:`); references obey `on delete` (recipes).
-An omitted optional argument is null, the same as an explicit null: `x = null`
-is true either way, and no test tells them apart. So a patch `{ c: x }` clears `c` when `x` is omitted: write
-`x ?? row.c` to keep it, and pass a flag when clearing is meant (Details).
+Omitted optional arguments are null. `{ c: x }` clears `c` when `x` is omitted; `x ?? row.c` keeps it (Details).
 Write results contain omitted optional columns as null and defaults as values;
 updates retain unchanged fields. These fields add no prediction dependency.
 Owned/sequence/receipt fields keep their projection and settlement rules.
 E_MAINTAINED_COLUMN_RESULT requires an authorized reread for maintained columns.
 Refusals roll back the mutation. Mutation writes pass table rules as the caller;
-only jobs run as the system.
+helpers obey them too. Only jobs run as the system.
+Insert variables keep insert images after updates; reread for final images (null if hidden).
 Retry an intent with its minted write id.
 
 Receipt gaps: `guide sequences`.

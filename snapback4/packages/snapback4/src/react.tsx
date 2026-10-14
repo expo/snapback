@@ -474,7 +474,10 @@ export function useSignedInViewer(): Principal {
   if (viewer === null) {
     const why: Refusal = { code: "E_AUTH", family: "auth", message: `useSignedInViewer: no signed-in viewer${auth ? ` (auth.state is "${auth.state}")` : ""}.`,
       rewrite: 'render this component only under `auth.state === "signed-in"` (useAuth), or call useViewer() where signed out is a state to show' };
-    throw Object.assign(new Error(`E_AUTH: ${why.message} Render it only under a signed-in gate, or use useViewer().`), { why });
+    const gate = auth?.state === "restoring"
+      ? 'Wait for restoration: `if (auth.state === "restoring") return <Loading />`; render this component only when `auth.state === "signed-in"`.'
+      : 'Render it only under `auth.state === "signed-in"`, or use useViewer().';
+    throw Object.assign(new Error(`E_AUTH: ${why.message} ${gate}`), { why });
   }
   return viewer;
 }

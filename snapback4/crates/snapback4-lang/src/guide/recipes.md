@@ -90,11 +90,12 @@ mutation close(ticket: tickets):
   update tickets[ticket] { done: true }
 ```
 
-Roles change who reads which rows, so the tables stay `online only` here:
-the `grant` rule's `service:ops` branch proves no grant, and a synced roster
-needs every insert branch to. `guide sharing` syncs owner-or-staff tickets as
-a union when staff add staff. Seed the first admin; do not write a
-persona into a rule (`viewer = 'dev:alice'` only exists under `dev`). Under
+Roles change who reads which rows; this example stays `online only` by choice.
+A whole `service:ops` insert branch is legal on a synced roster, as in
+`guide deploy`; it supplies no device audience. Ordinary insert branches must
+prove the writer's independent grant. `guide sharing` shows owner-or-staff sync.
+Seed the first admin in development or enroll it with the seat in production;
+`viewer = 'dev:alice'` is a development principal, never a production grant. Under
 `dev` and `test` the seed is a fixture row, written as the system:
 
 ```jsonl

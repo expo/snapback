@@ -23,9 +23,9 @@ table items:
   owner: principal
   text: text 1..200
   done: bool default false
-  immutable list, owner
+  immutable list, owner                   -- copied audience stays fixed; a parent transfer does not transfer children
   read <- .owner = viewer                 -- `read through .list` would inherit the list's rule, online only
-  insert <- .owner = viewer and .list.owner = viewer   -- a read rule hops once, online only; else exists lists[.list, owner = viewer]
+  insert <- .owner = viewer and exists lists[.list, owner = .owner] -- verify the copied audience (guide rule-recipes)
   update <- .owner = viewer
   delete <- .owner = viewer
   cap 500 by list
@@ -92,6 +92,7 @@ mutation removeItem(item: items):
   retain search sync unique update` (and `id`). As parameter, local and loop names: `and as break continue
   created delete device elif else emit exists false for if insert merge not null oblivious or require return
   true update upsert viewer walk while`. A shape or object field cannot be named `pending` (row metadata).
+- Time-varying access: `not before .opensAt`/`expire at .endsAt`; an event copies private payload into an authorized publication table (`guide rule-recipes`). A clock does not belong in read rules.
 - Background work: `job`, `schedule x every 1d at 03:00: x`, `every 1 month at day 1 09:00` (UTC), `effect` (`guide jobs`, `guide effects`).
 
 ## Roles and rosters
@@ -144,13 +145,16 @@ npx snapback4 clock advance 1h      # move a running dev's clock (guide time)
 ```ts
 import { createApp } from "snapback4/app";               // createApp({ url, device: webDevice() })
 import { webDevice } from "snapback4/web";               // Expo: nativeDevice from snapback4-expo
-import { AppProvider, useAuth, usePage, useQuery, useMutation, matchRead, isFailed } from "snapback4/react";
+import { AppProvider, useAuth, usePage, useQuery, useMutation, matchRead, isFailed, sentResult } from "snapback4/react";
 import { api } from "../snapback/generated/api.ts";
 
 const lists = usePage(api.myLists, {});                  // lists.items, lists.hasMore, lists.loadMore()
 const open = useQuery(api.openCount, { list });           // a Read: render it with matchRead
 matchRead(open, { present: n => n, partial: n => n, denied: why => why.message, otherwise: () => "…" });
-const add = useMutation(api.addList);                     // add.run({ title }); add.last?.state
+const add = useMutation(api.addList);
+const write = await add.run({ title: "Groceries" });
+if (write.state === "failed") console.log(write.why.message);
+const result = sentResult(write); // fresh sent result; undefined for pending/failed/replayed
 [add.last].find(isFailed)?.why.message;                   // the refusal of the last run, if any
 ```
 
@@ -161,6 +165,7 @@ and `await client.mutate(api.addList, { title })`. Every export by subpath: `gui
 
 - `npx snapback4 test --fixture fixtures --as alice`: `fixtures/<table>.jsonl` rows, then `fixtures/test.cases.jsonl`:
   `{"as":"bob","op":"addItem","args":{"list":"l1","text":"x"},"expect":"denied"}` (`guide testing`).
+- `/q/<query>` returns `{data, complete, next, cut, ...}` or `{denied:{code,...}}`; `/m/<mutation>` returns `{state:"sent", result, ...}` or `{state:"failed", why:{code,...}}`. Check `/m`'s state, not a top-level denied. Raw `/assets` upload returns `{asset, generation}`; SDK upload returns `{ok, asset}`.
 - Over HTTP: `dev --port 0 --memory` (stdout's first line is the URL); `POST /seed`, `/q/<query>`, `/m/<mutation>` with `x-snapback-persona: alice` (`guide testing --section acceptance`).
 
 Maintained totals: `view total: sum expenses of .amount by .owner` beside `view n: count expenses by .owner`. `cap` groups by stored columns; store `day(startsAt)` in an immutable int dayNumber before grouping by it.

@@ -533,9 +533,8 @@ does not stand in for billing entitlement.
 `organizationRecordInvitation` accepts an exact recipient email and a digest.
 It is the ordinary managed transaction a later action will call, and an admin
 may call it directly. It therefore proves neither entropy nor server-random
-issuance. B1d.2b owns the action that generates 32 random bytes, returns or
-delivers the raw token, and calls this seam with only its digest. No action or
-handler is added in B1d.2a. The accepted staging shape is any 64-character
+issuance. A trusted issuance action generates 32 random bytes, returns or
+delivers the raw token, and calls this seam with only its digest. The accepted staging shape is any 64-character
 value already equal to its lowercase form; this does not validate that every
 character is hexadecimal. Directly staged non-hex garbage cannot redeem
 against the hex result of `sha256(rawToken)`, though it may reserve

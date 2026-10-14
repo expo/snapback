@@ -21,6 +21,8 @@ query open(c: cursor ?):
   return tasks where .ownerId = viewer and .done = false first 20 by .at after c
 ```
 
+`by .id` sorts ids, not creation times. `last N` reverses order: newest-first with chronological keys such as `.at`.
+
 State the predicate and order. `check` chooses an existing index or creates
 one. Rules, sync, caps and expiry also obtain their access indexes. A table
 needs no `by` declaration for these reads.
