@@ -1207,6 +1207,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 operation_refusal(request, shared, 404, dev_doors::stale(shared, Refusal::new("E_OP", "op", format!("unknown operation {op}")).guide("programs")));
                 return;
             };
+            if let Some(why) = dev_doors::persona_argument(shared, &arg_types, &args_json) { argument_refusal(request, shared, payload.get("id").and_then(Json::as_str), why); return; }
             let mut args = BTreeMap::new();
             if let Json::Object(fields) = &args_json {
                 for (name, value) in fields {

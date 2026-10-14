@@ -47,7 +47,7 @@ fn production_readiness_groups_dependents_and_collapses_persona_identity() {
     let json = parsed(&out);
     let notes: Vec<_> = json["notes"].as_array().unwrap().iter().filter(|n| n["code"] == "N_NO_PRODUCTION_WRITER").collect();
     assert_eq!(notes.len(), 1, "{json}");
-    assert!(notes[0]["message"].as_str().unwrap().starts_with("persona-only: no production identity"));
+    assert!(notes[0]["message"].as_str().unwrap().starts_with("persona-only: safe to ignore without `use identity`; no production identity"));
     for seat in ["ops", "not a seat", ""] {
         p.source(&source.replace("insert <- exists staff[viewer]", &format!("insert <- viewer = 'service:{seat}' or exists staff[viewer]")));
         let out = p.run(&["check", "--json"]); assert!(out.status.success(), "{out:?}");

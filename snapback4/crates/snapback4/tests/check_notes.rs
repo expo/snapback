@@ -157,9 +157,9 @@ fn an_online_only_check_drops_the_never_predict_paragraph_and_each_note_leads_wi
     let online = "table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable tickets:\n  owner: principal\n  at: time\n  immutable owner\n  read <- .owner = viewer or exists staff[viewer]\n  insert <- .owner = viewer\n  online only\nquery all():\n  return tickets where .at + 1 > 0 first 50 by .at\nmutation open(at: time):\n  return insert tickets { owner: viewer, at }\n";
     fs::write(dir.join("snapback/schema.q"), online).unwrap();
     let plain = run(&["check"]);
-    assert!(!plain.contains("never predict"), "{plain}");
+    assert!(!plain.contains("server-run"), "{plain}");
     let verbose = run(&["check", "--verbose"]);
-    assert!(verbose.contains("1 mutation never predicts: open"));
+    assert!(verbose.contains("1 mutation is server-run (online app: no action): open"));
     assert!(verbose.contains("N_NEVER_COMPLETE: query all:") && verbose.contains("rewrite: Branch on the grant"), "{verbose}");
     let notes: Vec<&str> = plain.lines().filter(|line| line.starts_with("note: schema.q")).collect();
     assert!(!notes.is_empty(), "{plain}");
@@ -174,6 +174,6 @@ fn an_online_only_check_drops_the_never_predict_paragraph_and_each_note_leads_wi
     assert!(plain.contains("N_NO_CURSOR: no action for a top-N list."), "{plain}");
     // A synced table keeps the paragraph.
     fs::write(dir.join("snapback/schema.q"), "table notes:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  sync\ntable log:\n  owner: principal\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nmutation add():\n  insert log { owner: viewer }\n  return insert notes { owner: viewer }\n").unwrap();
-    assert!(run(&["check"]).contains("never predict"), "{}", run(&["check"]));
+    assert!(run(&["check"]).contains("server-run"), "{}", run(&["check"]));
     fs::remove_dir_all(dir).unwrap();
 }

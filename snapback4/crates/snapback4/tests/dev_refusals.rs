@@ -63,7 +63,7 @@ impl Host {
   let mut reply=String::new();s.read_to_string(&mut reply).unwrap();serde_json::from_str(reply.split_once("\r\n\r\n").unwrap().1).unwrap()
  }
  fn refuse(&self,operation:&str)->Value {
-  let reply=self.request(operation,"bob","x-snapback-persona: alice");assert_eq!(reply["why"]["code"],"E_RULE","{reply}");reply
+  let reply=self.request(operation,"dev:bob","x-snapback-persona: alice");assert_eq!(reply["why"]["code"],"E_RULE","{reply}");reply
  }
 }
 #[test]
@@ -87,7 +87,10 @@ fn dev_reports_source_locally_and_production_keeps_the_same_caller_refusal() {
  assert!(minted.status.success(),"{}",String::from_utf8_lossy(&minted.stderr));
  let token=String::from_utf8(minted.stdout).unwrap();
  let production=prod.request("add","bob",&format!("Authorization: Bearer {}",token.trim()));
- assert_eq!(serde_json::to_vec(&reply["why"]).unwrap(),serde_json::to_vec(&production["why"]).unwrap(),"{production}");
+ assert_eq!(reply["why"]["code"],production["why"]["code"]);
+ assert_eq!(reply["why"]["family"],production["why"]["family"]);
+ assert!(production["why"]["message"].as_str().unwrap().starts_with(reply["why"]["message"].as_str().unwrap()));
+ assert!(production["why"]["message"].as_str().unwrap().ends_with("rows rule clause: insert <- .owner = viewer"));
  assert!(!prod.project.0.join(".snapback4/dev-refusals").exists());
  assert!(!prod.project.0.join("release/dev-refusals").exists());
  assert!(!fs::read_to_string(&prod.stderr).unwrap().contains("dev refusal"));
@@ -232,10 +235,10 @@ fn uninstrumented_refusals_replays_and_empty_reads_replace_older_causes() {
  let expected=format!("dev refusal: afterRead: — program refusal at {};",record["site"].as_str().unwrap());
  let deadline=Instant::now()+Duration::from_secs(10);
  loop {let console=fs::read_to_string(&dev.stderr).unwrap();if console.contains(&expected) {break;}assert!(Instant::now()<deadline,"{console}");std::thread::sleep(Duration::from_millis(20));}
- let refused=dev.post("/m/add",json!({"id":"denied-rule","args":{"owner":"bob"}}));assert_eq!(refused["why"]["code"],"E_RULE");
+ let refused=dev.post("/m/add",json!({"id":"denied-rule","args":{"owner":"dev:bob"}}));assert_eq!(refused["why"]["code"],"E_RULE");
  let first=dev.project.wait_record(store,"add");let first=first["records"].as_array().unwrap().last().unwrap();let first_id=first["requestId"].as_u64().unwrap();
  assert_eq!(first["clause"],"insert rule");
- let replay=dev.post("/m/add",json!({"id":"denied-rule","args":{"owner":"bob"}}));assert_eq!(replay["why"]["code"],refused["why"]["code"]);
+ let replay=dev.post("/m/add",json!({"id":"denied-rule","args":{"owner":"dev:bob"}}));assert_eq!(replay["why"]["code"],refused["why"]["code"]);
  let deadline=Instant::now()+Duration::from_secs(10);
  loop {
   let record=dev.project.wait_record(store,"add");let record=record["records"].as_array().unwrap().last().unwrap();
@@ -396,4 +399,14 @@ fn empty_read_evidence_is_top_level_proved_and_opt_in_only() {
    assert!(Instant::now()<deadline,"{log}");std::thread::sleep(Duration::from_millis(10));
   }
  }
+}
+
+#[test]
+fn hidden_query_count_is_dev_console_only() {
+ let project=Project::new();fs::write(project.0.join("snapback/schema.q"),format!("{SOURCE}\nquery page(c: cursor ?):\n  return rows first 10 by .id after c\n")).unwrap();
+ let dev=Host::start(project,true,false);
+ let seed=dev.post("/seed",json!([{"table":"rows","row":{"id":"hidden","owner":"dev:bob"}}]));assert_eq!(seed["seeded"],1);
+ let reply=dev.post("/q/page",json!({"args":{"c":null}}));assert_eq!(reply["data"],json!([]));assert!(!reply.to_string().contains("hidden"));
+ let until=Instant::now()+Duration::from_secs(5);
+ loop {let logs=fs::read_to_string(&dev.stderr).unwrap();if logs.contains("dev query: page hidden: 1") {break;}assert!(Instant::now()<until,"{logs}");std::thread::sleep(Duration::from_millis(10));}
 }

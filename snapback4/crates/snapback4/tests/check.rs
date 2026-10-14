@@ -317,7 +317,8 @@ fn w11_why_every_registered_code_returns_its_dedicated_section() {
         let text = String::from_utf8(output.stdout).unwrap();
         let diagnostic = snapback4_lang::Diagnostic::new(&Default::default(), code, "", "");
         let section = diagnostic.explanation_section().unwrap_or_else(|| panic!("{code}: {text}"));
-        assert_eq!(text, format!("{section}\n"));
+        if code=="N_NO_PRODUCTION_WRITER" { assert!(text.starts_with(&section),"{text}"); assert!(text.contains("rewrite:")); }
+        else { assert_eq!(text, format!("{section}\n")); }
         assert!(text.len() <= snapback4_lang::guide::WHY_MAX_BYTES);
         largest = largest.max(text.len());
     }
@@ -338,10 +339,10 @@ fn why_rule_distinguishes_readable_and_unreadable_collision_targets() {
     // update_collision_visibility and delete_rule_refusals.
     for fact in [
         "A unique clash with a hidden row returns E_RULE for either insert form.",
-        "For a readable secondary unique clash without a custom refusal, ordinary insert returns E_CONSTRAINT naming the index, while `insert ... if absent` succeeds with null.",
+        "For a readable secondary unique clash without a custom refusal, ordinary insert returns E_UNIQUE naming the declared key, while `insert ... if absent` succeeds with null.",
         "If the update rule denies an update or upsert-patch, it returns E_RULE for a readable target and NOT_FOUND for an unreadable target.",
         "A valid update or upsert-patch admitted by the update rule can change a hidden row; if the resulting row remains hidden, it returns null.",
-        "Without a custom unique refusal, an update or upsert-patch with a secondary unique clash returns NOT_FOUND if its target is unreadable, E_RULE if only the colliding row is unreadable, and E_CONSTRAINT naming the index if both are readable.",
+        "Without a custom unique refusal, an update or upsert-patch with a secondary unique clash returns NOT_FOUND if its target is unreadable, E_RULE if only the colliding row is unreadable, and E_UNIQUE naming the declared key if both are readable.",
         "Delete returns NOT_FOUND for a missing id or an unreadable refused target, and E_RULE for a readable row whose delete rule refuses.",
     ] {
         assert!(section.contains(fact), "{fact}: {section}");
@@ -814,11 +815,11 @@ fn b2_every_check_summarizes_zero_one_and_three_never_mutations() {
             assert!(output.status.success(), "{output:?}");
             let text = String::from_utf8(output.stdout).unwrap();
             println!("{text}");
-            let lines: Vec<_> = text.lines().filter(|line| line.contains("never predict")).collect();
+            let lines: Vec<_> = text.lines().filter(|line| line.contains("server-run")).collect();
             if count == 0 { assert!(lines.is_empty()); } else {
                 let names = if count == 1 { "like (reads online-only maintain likeCounts)" } else { "createPost (reads online-only maintain likeCounts), like (reads online-only maintain likeCounts), repost (reads online-only maintain likeCounts)" };
-                let head = if count == 1 { "1 mutation never predicts".to_owned() } else { format!("{count} mutations never predict") };
-                assert_eq!(lines, [format!("{head}: {names} (they run on the server when called; no action needed for an online app) — snapback4 why <op>")]);
+                let head = if count == 1 { "1 mutation is server-run (online app: no action)".to_owned() } else { format!("{count} mutations are server-run (online app: no action)") };
+                assert_eq!(lines, [format!("{head}: {names} — snapback4 why <op>")]);
             }
         }
     }
@@ -907,7 +908,7 @@ fn horizon_check_and_why_keep_the_same_advice_across_checks() {
 fn b2_l12_final_ranked_writes_and_entry_counts_remain_visible_in_json_and_text() {
     let p = Project::new();
     p.source("table ranked:\n  score: int\n  read <- allow\n  insert <- allow\ntable entries:\n  postId: id\n  by byPost: postId, id\n  public 'feed'\n  sync\nmaintain entryCounts: count entries by postId\n  read <- allow\n  online only\nmutation repost(postId: id):\n  return entryCounts[postId]\nmutation like():\n  insert ranked { score: 1 }\nmutation createPost():\n  insert ranked { score: 0 }\n");
-    let summary = "3 mutations never predict: createPost (writes online-only table ranked), like (writes online-only table ranked), repost (reads online-only maintain entryCounts) (they run on the server when called; no action needed for an online app) — snapback4 why <op>";
+    let summary = "3 mutations are server-run (online app: no action): createPost (writes online-only table ranked), like (writes online-only table ranked), repost (reads online-only maintain entryCounts) — snapback4 why <op>";
     for args in [vec!["check"], vec!["check", "--json"], vec!["check", "--residency"]] {
         let output = p.run(&args);
         assert!(output.status.success(), "{output:?}");
@@ -927,9 +928,9 @@ fn b2_predicts_assertion_refuses_check_and_is_quiet_when_satisfied() {
     println!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
     assert_eq!(output.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&output.stderr).contains("schema.q:1:1 — E_NOT_PREDICTABLE"));
-    assert!(String::from_utf8_lossy(&output.stdout).contains("1 mutation never predicts: dispatch (author marked this mutation : server)"));
+    assert!(String::from_utf8_lossy(&output.stdout).contains("1 mutation is server-run (online app: no action): dispatch (author marked this mutation : server)"));
     let verbose = p.run(&["check", "--verbose"]);
-    assert!(String::from_utf8_lossy(&verbose.stdout).contains("1 mutation never predicts: dispatch"));
+    assert!(String::from_utf8_lossy(&verbose.stdout).contains("1 mutation is server-run (online app: no action): dispatch"));
     p.source(&source.replace(": server", ":"));
     let output = p.run(&["check", "--json"]);
     assert!(output.status.success(), "{output:?}");

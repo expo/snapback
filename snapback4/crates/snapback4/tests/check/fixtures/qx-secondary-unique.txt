@@ -1,12 +1,12 @@
 6 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
 review — can cost correctness or completeness:
-note: schema.q:52:5 — N_REFERENCE_UNCHECKED: review: this reference argument is never looked up. mutation membership stores argument group directly in members.group, but never looks up groups[group]: a reference accepts any well-formed id even when the row is absent
-note: N_REFERENCE_UNCHECKED (as above) also for mutation move (schema.q:57:3)
-note: schema.q:1:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. groups: no production writer can bootstrap this root; members depend on it; fixtures and /seed are dev-only
-note: N_NO_PRODUCTION_WRITER (as above) also for messages: no production writer can bootstrap this root (schema.q:18:1)
+note: schema.q:52:5 — N_REFERENCE_UNCHECKED: review: this reference argument is never looked up. mutation membership stores argument group directly in members.group, but never looks up groups[group]: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation move (schema.q:57:3) — snapback4 why N_REFERENCE_UNCHECKED
+note: schema.q:1:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. groups: no production writer can bootstrap this root; members depend on it; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for messages: no production writer can bootstrap this root (schema.q:18:1) — snapback4 why N_NO_PRODUCTION_WRITER
 by design — what a declaration implies; no action needed for online use:
-note: schema.q:1:1 — N_NO_HORIZON: no action for an online app. table groups: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; measure what it costs with `check --residency`
-note: N_NO_HORIZON (as above) also for table reactions (schema.q:28:1)
+note: schema.q:1:1 — N_NO_HORIZON: no action for an online app. table groups: `sync public` has no horizon, so every row of every group a device holds reaches it and stays; a device that holds many groups, or a public table that grows, pays for all of it at every cold start; measure what it costs with `check --residency` — snapback4 why N_NO_HORIZON
+note: N_NO_HORIZON (as above) also for table reactions (schema.q:28:1) — snapback4 why N_NO_HORIZON
 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
 check --verbose for explanations, rewrites and execution details; why <op> for one operation
 residency (facts)

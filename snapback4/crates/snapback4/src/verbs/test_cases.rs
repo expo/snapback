@@ -103,6 +103,7 @@ pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String
         let label = case.get("label").and_then(Json::as_str).map(|l| format!(" — {l}")).unwrap_or_default();
         let raw_args = substitute(case.get("args").cloned().unwrap_or_else(|| json!({})), &saved).map_err(|why| format!("{at}: {why}"))?;
         let input = (|| -> Result<_, Refusal> {
+            if let Some(why)=crate::persona_principals::arguments(&bound.personas,&program.args,&raw_args) { return Err(why); }
             let mut args = BTreeMap::new();
             let fields = raw_args.as_object().ok_or_else(|| Refusal::new("E_INPUT", "input", "args must be an object"))?;
             for (name, value) in fields {
@@ -176,6 +177,7 @@ pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String
             failed += 1;
             println!("      FAIL {at} {op} ({persona}) → {shown}{label}: {}", problems.join("; "));
         }
+        if program.kind == ProgramKind::Query && trace.hidden() > 0 { println!("           hidden: {} (encountered row images filtered by read rules)", trace.hidden()); }
         for note in notes { println!("           {note}"); }
     }
     Ok((passed, failed))

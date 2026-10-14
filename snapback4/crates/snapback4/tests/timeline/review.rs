@@ -155,7 +155,7 @@ fn structural_checks_still_run_inside_transition_authority() {
         e.mutate("register",None,context("a",&[],1)).unwrap();
         {let out=e.mutate("publish",None,context("a",&[("postId",id("first"))],2)).unwrap();assert!(matches!(out.state,WriteState::Sent{..}));}
         let before=snapshot(&e);let out=e.mutate("publish",None,context("a",&[("postId",id("second"))],3)).unwrap();
-        assert!(matches!(&out.state,WriteState::Failed{why,..} if why.code=="E_CONSTRAINT"),"{out:?}");assert_eq!(snapshot(&e),before);
+        assert!(matches!(&out.state,WriteState::Failed{why,..} if why.code==if uniqueness {"E_UNIQUE"} else {"E_CONSTRAINT"}),"{out:?}");assert_eq!(snapshot(&e),before);
     }
 }
 

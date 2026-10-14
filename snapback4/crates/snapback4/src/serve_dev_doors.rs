@@ -27,6 +27,12 @@ pub(super) fn stale(shared: &Shared, refusal: Refusal) -> Refusal {
     Refusal { message, rewrite: Some("restart `snapback4 dev` (or drop --no-watch so saves re-adopt), then retry".into()), ..refusal }
 }
 
+// @ref LLP 3000.036.002#8 — persona names are not their principals; dev only.
+pub(super) fn persona_argument(shared: &Shared, kinds: &BTreeMap<String,snapback4_core::ir::ArgType>, args: &Json) -> Option<Refusal> {
+    if !shared.personas { return None; }
+    let bound = lock(&shared.bound);
+    crate::persona_principals::arguments(&bound.personas,kinds,args)
+}
 // Rows are written as the system principal; each names its id because seed is an upsert by id.
 pub(super) fn seed(request: Request, shared: &Shared, body: &str) {
     if !shared.personas || !request.remote_addr().is_some_and(|a| a.ip().is_loopback()) {

@@ -10,7 +10,7 @@ struct Entry { record: Value, count: u64, until: Instant }
 pub(super) struct Console { entries: VecDeque<Entry>, detail: bool }
 
 fn same_cause(a: &Value, b: &Value) -> bool {
-    ["operation", "code", "table", "clause", "phase", "site", "executionSite", "generation", "hiddenBy"]
+    ["operation", "code", "table", "clause", "phase", "site", "executionSite", "generation", "hiddenBy", "preflight"]
         .iter().all(|key| a[key] == b[key])
 }
 impl Console {
@@ -56,7 +56,7 @@ impl Console {
             let on = r["table"].as_str().filter(|t| !t.is_empty()).map(|t| format!(" on {t}")).unwrap_or_default();
             let hidden = r["hiddenBy"]["table"].as_str().map(|t| format!("; the {t} row is hidden by its read rule at {} (hidden reads as absent)", r["hiddenBy"]["readRuleSite"].as_str().unwrap_or("<generated>"))).unwrap_or_default();
             let times = if entry.count > 1 { format!(" ×{}", entry.count) } else { String::new() };
-            format!("dev refusal: {} {} at {} ({}{on}){hidden}{times} — snapback4 why recent\n", r["operation"].as_str().unwrap_or(""), r["code"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["clause"].as_str().unwrap_or(""))
+            format!("dev {}: {} {} at {} ({}{on}){hidden}{times} — snapback4 why recent\n", if r["preflight"].as_bool() == Some(true) { "auth preflight probe" } else { "refusal" }, r["operation"].as_str().unwrap_or(""), r["code"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["clause"].as_str().unwrap_or(""))
         };
         let _ = out.write_all(line.as_bytes());
     }

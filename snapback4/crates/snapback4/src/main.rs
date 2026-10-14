@@ -11,6 +11,7 @@ mod guide_find;
 mod device_handshake;
 mod exact_device;
 mod note_rank;
+mod persona_principals;
 mod assets;
 mod host_limits;
 mod auth;
