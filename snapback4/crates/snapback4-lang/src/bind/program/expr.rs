@@ -70,7 +70,7 @@ impl Binder<'_> {
         self.returned_data &= matches!(expr, A::Array { .. } | A::Object { .. } | A::Shape { .. } | A::ShapeUse { .. } | A::Member { .. } | A::Name { .. } | A::Focal { .. });
         let start = out.len();
         let result = self.expr_inner(expr, out);
-        if point_facts::writes(&out[start..]) { self.invalidate_points(); }
+        if !matches!(expr, A::Write { .. }) && point_facts::writes(&out[start..]) { self.invalidate_points(); }
         self.returned_data = prior;
         // Even a builtin's ordinary type refusal should explain why a whole
         // maintained value cannot be consumed. Successful calls are checked by
@@ -240,6 +240,7 @@ impl Binder<'_> {
                 let tmp = self.temp("present");
                 out.push(Stmt::Let { name: tmp.clone(), value: e });
                 out.push(Stmt::Require { condition: Expr::Binary { op: BinaryOp::Ne, left: Box::new(ir::var(&tmp)), right: Box::new(Expr::Literal(Value::Null)) }, code: code.clone(), site: Some(site.to_string()), message: message.clone() });
+                if let A::Read(read) = value.as_ref() { self.narrow_point(read); }
                 Ok((ir::var(&tmp), t.required()))
             }
             A::Shape { base, fields, .. } => self.shape(base, fields, site, out),

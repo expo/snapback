@@ -1,4 +1,4 @@
-//! Presence facts for identical point reads within one unchanged transaction state.
+//! Presence facts for identical point reads across proved stable transaction states.
 use super::*;
 use std::collections::BTreeSet;
 const POINT: &str = "$point";
@@ -92,6 +92,69 @@ impl Binder<'_> {
         }
     }
 
+    // @ref LLP 3000.013#2.2 — post-write presence follows only a stable
+    // point key and a read grant whose deciding state the write cannot change.
+    pub(super) fn invalidate_after_write(&mut self, expr: &A) {
+        let A::Write { op: WriteOp::Update, table, fields, .. } = expr else {
+            self.invalidate_points(); return;
+        };
+        let Some(definition) = self.schema.table(table) else { self.invalidate_points(); return };
+        let mut deciding = BTreeSet::new();
+        definition.rules.read.fields(&mut deciding);
+        let independent = self.row_independent_read_proved(table);
+        let stable_read = independent || !fields.iter().any(|field| deciding.contains(&field.name));
+        // Maintained columns and self-probes can change indirectly. Lifetimes
+        // and through authority retain the conservative transaction barrier.
+        let safe = self.ordinary_write_lifetime(table) && stable_read
+            && definition.maintained.is_empty()
+            && !rule_probes(&definition.rules.read, table)
+            && rule_dependencies_stable(self.schema, &definition.rules.read);
+        for scope in &mut self.scopes {
+            for binding in scope.values_mut() {
+                binding.fields.retain(|key, _| match key.first().map(String::as_str) {
+                    Some(POINT) => safe && key.get(1) == Some(table) && key.get(2)
+                        .and_then(|index| definition.index(index)).is_some_and(|index|
+                            !fields.iter().any(|field| index.columns().contains(&field.name)
+                                || key.iter().skip(3).any(|part| part.starts_with(&format!("Some({:?}):", field.name))))),
+                    Some(maintain_types::AUTHORIZATION) => false,
+                    _ => true,
+                });
+            }
+        }
+    }
+
+    pub(super) fn ordinary_write_lifetime(&self, table: &str) -> bool {
+        self.schema.table(table).is_some_and(|table| table.expire.is_none()
+            && table.not_before.is_none() && table.through.is_none() && table.ephemeral.is_none())
+    }
+
+    pub(super) fn row_independent_read_proved(&self, table: &str) -> bool {
+        let Some(info) = self.catalog.tables.get(table) else { return false };
+        if self.schema.tables[table].rules.read.is_uniformly_readable() { return true; }
+        let Some(rule) = info.decl.rules.iter().find(|rule| rule.effect == ast::Effect::Read) else { return false };
+        fn proved(binder: &Binder<'_>, table: &str, value: &A) -> bool {
+            if let A::Binary { op, left, right, .. } = value && op == "or" {
+                return proved(binder, table, left) || proved(binder, table, right);
+            }
+            let mut value = value.clone();
+            maintain_types::normalize_rule_constants(&mut value);
+            let mut row_dependent = false;
+            super::super::intent_walk::expression(&mut value, &mut |expr| {
+                if matches!(expr, A::Focal { .. }) { row_dependent = true; }
+                if let A::Call { name, .. } = expr && binder.catalog.functions.contains_key(name) {
+                    row_dependent = true;
+                }
+                if let A::Read(read) | A::Exists { read, .. } | A::Created { read, .. } = expr {
+                    row_dependent |= read.table == table || binder.catalog.tables.get(&read.table)
+                        .is_none_or(|info| info.maintained.is_some())
+                        || binder.schema.table(&read.table).is_none_or(|target| !target.maintained.is_empty() || target.through.is_some());
+                }
+            });
+            !row_dependent && binder.point_guard_safe(&value) && binder.authorization_proved(&value, true)
+        }
+        proved(self, table, &rule.value)
+    }
+
     pub(super) fn parent_rewrite(&self, value: &A) -> Option<String> {
         let A::Member { base, name, .. } = value else { return None; };
         let A::Read(read) = base.as_ref() else { return None; };
@@ -105,4 +168,25 @@ impl Binder<'_> {
 
 pub(super) fn writes(body: &[Stmt]) -> bool {
     ir::effects::Effects::writes_in(body)
+}
+
+fn rule_probes(rule: &snapback4_core::schema::RuleExpr, target: &str) -> bool {
+    use snapback4_core::schema::RuleExpr;
+    match rule {
+        RuleExpr::Exists { table, .. } | RuleExpr::Created { table, .. } => table == target,
+        RuleExpr::And(items) | RuleExpr::Or(items) => items.iter().any(|rule| rule_probes(rule, target)),
+        RuleExpr::Not(rule) => rule_probes(rule, target),
+        _ => false,
+    }
+}
+
+fn rule_dependencies_stable(schema: &snapback4_core::schema::Schema, rule: &snapback4_core::schema::RuleExpr) -> bool {
+    use snapback4_core::schema::RuleExpr;
+    match rule {
+        RuleExpr::Exists { table, .. } | RuleExpr::Created { table, .. } => schema.table(table)
+            .is_some_and(|target| target.maintained.is_empty() && target.through.is_none() && schema.maintain_for(table).is_none()),
+        RuleExpr::And(items) | RuleExpr::Or(items) => items.iter().all(|rule| rule_dependencies_stable(schema, rule)),
+        RuleExpr::Not(rule) => rule_dependencies_stable(schema, rule),
+        _ => true,
+    }
 }

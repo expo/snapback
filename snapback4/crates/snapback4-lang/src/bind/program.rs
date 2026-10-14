@@ -1005,7 +1005,7 @@ impl<'a> Binder<'a> {
     /// image, an update's or upsert's re-read row, null for a delete).
     fn write(&mut self, expr: &A, out: &mut setup::Body, valued: bool) -> Fallible<Option<(Expr, Ty)>> {
         let result = self.write_inner(expr, out, valued);
-        self.invalidate_points();
+        self.invalidate_after_write(expr);
         result
     }
 
@@ -1101,7 +1101,11 @@ impl<'a> Binder<'a> {
                 let result = valued.then(|| self.temp("written"));
                 let target = Read { site: site.to_string(), table: table.clone(), index: key.index, key: key.key, provenance: KeyProvenance::Shape };
                 out.push(Stmt::WriteTarget { target, patch, upsert, condition, result: result.clone() });
-                Ok(result.map(|name| (ir::var(&name), self.write_result_type(info).optional())))
+                let row_ty = self.write_result_type(info);
+                let row_ty = if self.ordinary_write_lifetime(table) && self.row_independent_read_proved(table) {
+                    row_ty
+                } else { row_ty.optional() };
+                Ok(result.map(|name| (ir::var(&name), row_ty)))
             }
             WriteOp::Delete => {
                 let key = self.write_key(info, keys, site, out).map_err(|error| self.extra_write_test(info, expr, error))?;

@@ -97,7 +97,7 @@ impl Binder<'_> {
     /// Facts may prove a read rule without restating the whole expression:
     /// one admitted disjunct proves an `or`, while every conjunct proves an
     /// `and`. This is the same propositional narrowing used by control flow.
-    fn authorization_proved(&self, condition: &A, truth: bool) -> bool {
+    pub(super) fn authorization_proved(&self, condition: &A, truth: bool) -> bool {
         if self.condition_known(condition, truth) || self.authorization_holds(condition, truth) {
             return true;
         }
