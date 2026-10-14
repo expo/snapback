@@ -136,7 +136,9 @@ pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, bef
         let Some(next) = target.table(name) else { continue; };
         for effect in [snapback4_core::schema::Effect::Read, snapback4_core::schema::Effect::Insert, snapback4_core::schema::Effect::Update, snapback4_core::schema::Effect::Delete] {
             let (before, after) = (old.rules.for_effect(effect), next.rules.for_effect(effect));
-            if before == after { continue; }
+            let before_judged=if effect==snapback4_core::schema::Effect::Update {old.update_rule_judged()} else {std::borrow::Cow::Borrowed(before)};
+            let after_judged=if effect==snapback4_core::schema::Effect::Update {next.update_rule_judged()} else {std::borrow::Cow::Borrowed(after)};
+            if before_judged == after_judged { continue; }
             // Probes and typed references can change interpretation with their
             // dependencies. Suppress no warning unless all non-rule schema
             // inputs and every other table remain identical.
@@ -147,15 +149,17 @@ pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, bef
                 snapback4_core::schema::Effect::Update=>&mut stable.rules.update,
                 snapback4_core::schema::Effect::Delete=>&mut stable.rules.delete,
             } = after.clone();
+            // The image-binding flag is represented by the judged rule above.
+            if effect==snapback4_core::schema::Effect::Update {stable.update_transition=next.update_transition;}
             let mut probes=Vec::new();
-            snapback4_core::engine::rules::probe_sites(before,&mut probes);
-            snapback4_core::engine::rules::probe_sites(after,&mut probes);
+            snapback4_core::engine::rules::probe_sites(&before_judged,&mut probes);
+            snapback4_core::engine::rules::probe_sites(&after_judged,&mut probes);
             let self_reference=probes.iter().any(|(table,_)|table==name);
             let dependencies_stable = !self_reference && stable == *next && current.tables.iter().all(|(n,t)| n == name || target.table(n) == Some(t))
                 && current.auth == target.auth && current.maintains == target.maintains
                 && current.timelines == target.timelines && current.delivery == target.delivery
                 && current.receipts == target.receipts && current.receipt_dependencies == target.receipt_dependencies;
-            let change = if dependencies_stable { clauses::compare(&clauses::rule(before), &clauses::rule(after)) } else { Change::Unknown };
+            let change = if dependencies_stable { clauses::compare(&clauses::rule(&before_judged), &clauses::rule(&after_judged)) } else { Change::Unknown };
             let line = format!("{target_label} {} {name}.{effect}; old: {} | new: {}", match change { Change::Tightens => "tightens", Change::Loosens => "loosens", Change::Same => "keeps equivalent", Change::Unknown => "changes (implication unproved)" }, before.quarry(), after.quarry());
             if matches!(change,Change::Same | Change::Tightens) { notes.push(line); } else { warnings.push(line); }
         }

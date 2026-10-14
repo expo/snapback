@@ -245,3 +245,28 @@ test('nested guards display changed enclosing bindings across control-flow scope
   run('deploy',deployment);
   assert.equal((await host.post('/m/edit',{note:added.result.id,body:'blocked'})).state,'sent');
 });
+
+test('the farm named-image tightening compares effective old/next rules and protects the reverse', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=initial.replace("enum('draft')","enum('draft', 'archived')").replace('update <- allow','update <- .owner = viewer')+`mutation transfer(note: notes, owner: principal):
+  update notes[note] {owner}
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);
+  const added=await host.post('/m/add',{body:'before'});
+  const tight=source.replace('update <- .owner = viewer',"update (old, next) <- next.owner = viewer and old.owner = viewer and old.status != 'archived'");
+  writeFileSync(schema,tight);
+  const preview=run('deploy',deployment,'--check').stdout;
+  assert.match(preview,/note: release 2 tightens notes.update/);
+  assert.doesNotMatch(preview,/WARNING.*notes.update/);
+  run('deploy',deployment);
+  assert.match(run('rollback',deployment,'--to','1','--check').stdout,/WARNING release 1 loosens notes.update/);
+  run('rollback',deployment,'--to','1');
+  const other=await (await fetch(host.url+'/auth/guest',{method:'POST',body:'{}'})).json();
+  const take=async()=> (await fetch(host.url+'/m/transfer',{method:'POST',headers:{authorization:'Bearer '+other.session.token,'content-type':'application/json'},body:JSON.stringify({args:{note:added.result.id,owner:other.session.principal}})})).json();
+  assert.equal((await take()).why.code,'E_RULE');
+  writeFileSync(schema,source.replace('update <- .owner = viewer','update (old, next) <- next.owner = viewer'));
+  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*loosens notes.update/);
+  run('deploy',deployment);
+  assert.equal((await take()).state,'sent');
+});

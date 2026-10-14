@@ -63,12 +63,17 @@ fn equality(a: String,b: String, negated: bool, maybe: bool) -> Formula {
     let atom = if maybe { Formula::Maybe(name) } else { Formula::Atom(name) };
     if negated { Formula::Not(Box::new(atom)) } else { atom }
 }
+// Field and NextField load the same next image; OldField remains distinct.
+fn term_key(term: &snapback4_core::schema::RuleTerm) -> String {
+    use snapback4_core::schema::RuleTerm;
+    serde_json::to_string(&match term {RuleTerm::NextField(name)=>RuleTerm::Field(name.clone()),other=>other.clone()}).unwrap()
+}
 pub(super) fn rule(value: &RuleExpr) -> Formula {
     match value {
         RuleExpr::Allow | RuleExpr::Public { .. } => Formula::Yes, RuleExpr::Deny => Formula::No,
-        RuleExpr::Eq(a,b) | RuleExpr::Ne(a,b) => equality(serde_json::to_string(a).unwrap(),serde_json::to_string(b).unwrap(),matches!(value,RuleExpr::Ne(..)), a.references().count()>0 || b.references().count()>0),
+        RuleExpr::Eq(a,b) | RuleExpr::Ne(a,b) => equality(term_key(a),term_key(b),matches!(value,RuleExpr::Ne(..)), a.references().count()>0 || b.references().count()>0),
         RuleExpr::Not(a) => Formula::Not(Box::new(rule(a))), RuleExpr::And(a) => Formula::And(a.iter().map(rule).collect()), RuleExpr::Or(a) => Formula::Or(a.iter().map(rule).collect()),
-        RuleExpr::Compare(_,a,b) if a.references().count()==0 && b.references().count()==0 => Formula::Atom(serde_json::to_string(value).unwrap()),
+        RuleExpr::Compare(op,a,b) if a.references().count()==0 && b.references().count()==0 => Formula::Atom(format!("compare:{op:?}:{}:{}",term_key(a),term_key(b))),
         _ => Formula::Maybe(serde_json::to_string(value).unwrap()),
     }
 }
