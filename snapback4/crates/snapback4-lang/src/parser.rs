@@ -157,7 +157,13 @@ impl Parser {
                     self.position += 1;
                     password = false;
                 }
+                if let (Some(first), Some(first_site)) =
+                    (self.document.identity, self.document.identity_site.as_ref())
+                {
+                    return Err(repeated_identity(&site, first, first_site, (password, guests)));
+                }
                 self.document.identity = Some((password, guests));
+                self.document.identity_site = Some(site.clone());
             }
             "personas" => {
                 let first = self.word()?;
@@ -1405,6 +1411,26 @@ impl Parser {
             self.position += 1;
         }
     }
+}
+
+pub(crate) fn repeated_identity(
+    site: &Site,
+    first: (bool, bool),
+    first_site: &Site,
+    repeated: (bool, bool),
+) -> Diagnostic {
+    let methods = |(password, guests)| match (password, guests) {
+        (true, true) => "password and guests",
+        (true, false) => "password",
+        (false, true) => "guests",
+        (false, false) => "no methods",
+    };
+    syntax_with(
+        site,
+        format!("`use identity` is project-wide: {} already declared at {first_site}; this repeated declaration names {}", methods(first), methods(repeated)),
+        "keep one declaration: `use identity` (password and guests), `use identity password`, or `use identity guests`",
+    )
+    .guide("production")
 }
 
 /// `system` is never a rule word: the system principal consults no rules.

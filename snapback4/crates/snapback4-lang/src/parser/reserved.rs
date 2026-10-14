@@ -12,9 +12,9 @@ pub(crate) const TABLE_WORDS: &[&str] = &[
 /// Words a statement or expression reads as syntax, so a parameter, local or
 /// loop variable of that name cannot be used (or silently means the keyword).
 pub(crate) const BINDING_WORDS: &[&str] = &[
-    "and", "as", "break", "continue", "created", "delete", "device", "elif", "else", "emit", "exists",
-    "false", "for", "if", "insert", "merge", "not", "null", "oblivious", "or", "require", "return",
-    "true", "update", "upsert", "viewer", "walk", "while",
+    "and", "as", "break", "commit", "continue", "created", "delete", "device", "elif", "else", "emit",
+    "exists", "false", "for", "if", "insert", "merge", "new", "not", "now", "null", "oblivious", "or",
+    "require", "return", "true", "update", "upsert", "viewer", "walk", "while",
 ];
 
 fn rename(word: &str) -> String {
@@ -39,6 +39,9 @@ fn rename(word: &str) -> String {
         "deliver" => "delivery".into(),
         "walk" => "outing".into(),
         "viewer" => "who".into(),
+        "now" => "at".into(),
+        "commit" => "committedAt".into(),
+        "new" => "newId".into(),
         other => format!("{other}Value"),
     }
 }

@@ -97,6 +97,21 @@ pub fn bind(documents: Vec<Document>) -> Bound {
 // verifying the diagnostics from a rejected candidate.
 pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     let mut diagnostics = Vec::new();
+    let mut first_identity = None;
+    for document in &documents {
+        if let (Some(methods), Some(site)) = (document.identity, document.identity_site.as_ref()) {
+            if let Some((first_methods, first_site)) = &first_identity {
+                diagnostics.push(crate::parser::repeated_identity(
+                    site,
+                    *first_methods,
+                    first_site,
+                    methods,
+                ));
+            } else {
+                first_identity = Some((methods, site.clone()));
+            }
+        }
+    }
     // @ref LLP 3000.007#8 — catalog provenance comes from source, before any generated declarations.
     let authored_indexes = documents.iter().flat_map(|doc|
         doc.tables.iter().map(|t| (&t.name, &t.indexes))

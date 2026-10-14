@@ -546,6 +546,8 @@ pub struct Document {
     pub source: crate::source::SourceMap,
     pub file: String,
     pub identity: Option<(bool, bool)>,
+    /// Location of the one project-wide `use identity` declaration.
+    pub identity_site: Option<Site>,
     /// Project-wide opt-in, collected across documents like `use identity`.
     pub server: bool,
     pub tables: Vec<TableDecl>,

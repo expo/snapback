@@ -137,13 +137,16 @@ fn reserved_words_are_named_at_their_declaration() {
         ("table updates:\n  owner: principal\n  read <- .owner = viewer\n  delete <- .owner = viewer\n  online only\nmutation removeUpdate(update: updates):\n  delete updates[update]\n", "update", "change"),
         ("query q(x: int):\n  walk = x + 1\n  return walk\n", "walk", "outing"),
         ("query q(x: int):\n  for viewer in range(0, x):\n    return viewer\n", "viewer", "who"),
+        ("query q(now: time):\n  return now\n", "now", "at"),
+        ("mutation m():\n  commit = now\n  return commit\n", "commit", "committedAt"),
+        ("mutation m(x: int):\n  for new in range(0, x):\n    return new\n", "new", "newId"),
     ] {
         let d = one(source, "E_QUARRY_RESERVED");
         assert!(d.message.contains(&format!("`{word}` is a reserved word")), "{d}");
         assert!(d.rewrite.contains(rename), "{d}");
     }
     let why = snapback4_lang::guide::explain_code("E_QUARRY_RESERVED").unwrap();
-    assert!(why.contains("`read`") && why.contains("`viewer`") && why.contains("Rename it"), "{why}");
+    assert!(why.contains("`read`") && why.contains("`viewer`") && why.contains("`now`") && why.contains("Rename it"), "{why}");
 }
 
 const IDEAS: &str = "table ideas:
