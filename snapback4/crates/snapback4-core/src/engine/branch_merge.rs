@@ -110,6 +110,12 @@ impl Runner<'_> {
         // finishes before any target row may be emitted.
         let mut lanes: Vec<Lane<'_>> = Vec::new();
         let mut covered = false;
+        // @ref LLP 3000.007#18.2 — delivered history stays readable after its
+        // live membership ends. The whole authored range carries W and normal
+        // acquisition/retention coverage; never rediscover only current groups.
+        let history = self.device && merge.lanes.iter().any(|lane| lane.membership()
+            && self.schema.tables[&lane.scan.table].leave == crate::schema::LeavePolicy::DeliveredHistory
+            && self.schema.tables[&lane.scan.table].sync.is_some());
         if metered_merge { self.meter.heap(word_heap::slots::<(&MergeLane, Vec<Value>)>(merge.lanes.len()))?; }
         let numbered: Vec<(&MergeLane, Vec<Value>)> = merge.lanes.iter().zip(prefixes).collect();
         for (lane, prefix) in numbered.iter().filter(|(lane, _)| lane.system())
@@ -117,7 +123,7 @@ impl Runner<'_> {
             .chain(numbered.iter().filter(|(lane, _)| !lane.system() && !lane.grant())) {
             if covered { break; }
             if lane.system() {
-                if !self.context.is_system() { continue; }
+                if !self.context.is_system() && !history { continue; }
                 let prefix = self.clone_branch_prefix(prefix, metered_merge)?;
                 let opened = self.open_branch_lane(lane, prefix, after.as_ref(), None, metered_merge)?;
                 self.push_branch_lane(&mut lanes, opened, metered_merge, site)?; covered = true; continue;

@@ -1403,3 +1403,33 @@ fn declined_named_index_candidate_is_named_unsupported_and_never_an_oracle_pass(
     assert!(matches!(checked.verdict,Verdict::Unsupported(ref reason) if reason=="page-named-index-fallback"),"{:?}",checked.verdict);
     assert_eq!(checked.executed,0);
 }
+
+#[test]
+fn conjunctive_and_prefix_pinned_negative_grants_cannot_escape_the_fallback_boundary() {
+    for (roles, guard, tail) in [
+        ("", "not exists roles[viewer] and .flag = true", "return exists docs where .flag = true"),
+        ("", "not exists roles[viewer] and .flag = true", "return docs where .flag = true and .at + 1 > 0 first 10 by .at"),
+        ("  group: int\n", "not exists roles[group = .group, principal = viewer]", "return exists docs where .group = 1"),
+    ] {
+        let unique=if roles.is_empty(){"principal"}else{"group, principal"};
+        let source=format!("table roles:\n{roles}  principal: principal\n  unique {unique}\n  read <- .principal = viewer\n  online only\ntable docs:\n  owner: principal\n  group: int\n  flag: bool\n  at: int\n  read <- .owner = viewer or ({guard})\n  online only\nquery run():\n  {tail}\n");
+        let b=snapback4_lang::compile(&[("schema.q".into(),source.clone())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        let mut e=snapback4_core::Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+        assert!(e.query("run",snapback4_core::Context::new("alice",Default::default())).unwrap().complete);
+        let mut case=lean::generate(1);case.rows.clear();case.args=json!({});case.program.prelude.clear();case.steps.clear();
+        case.program.body=snapback4_difftest::ast::Body::Scalar(snapback4_difftest::ast::Expr::Bool(true));
+        let checked=lean::compare(&case,&source).unwrap();
+        assert!(matches!(checked.verdict,Verdict::Unsupported(ref reason) if reason=="page-negative-grant-fallback"),"{:?}",checked.verdict);assert_eq!(checked.executed,0);
+    }
+}
+
+#[test]
+fn distributed_negative_guard_overflow_is_excluded_even_with_only_two_top_level_disjuncts() {
+    let fields=(0..8).map(|n|format!("  b{n}: bool\n")).collect::<String>();
+    let alternatives=(0..8).map(|n|format!(".b{n} = true")).collect::<Vec<_>>().join(" or ");
+    let source=format!("table roles:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  owner: principal\n{fields}  read <- .owner = viewer or (not exists roles[viewer] and ({alternatives}))\n  online only\nquery run():\n  return docs where .b0 = true first 10 by .id\n");
+    let mut case=lean::generate(1);case.rows.clear();case.args=json!({});case.program.prelude.clear();case.steps.clear();
+    case.program.body=snapback4_difftest::ast::Body::Scalar(snapback4_difftest::ast::Expr::Bool(true));
+    let checked=lean::compare(&case,&source).unwrap();
+    assert!(matches!(checked.verdict,Verdict::Unsupported(ref reason) if reason=="page-negative-grant-fallback"),"{:?}",checked.verdict);assert_eq!(checked.executed,0);
+}

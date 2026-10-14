@@ -170,14 +170,17 @@ pub(super) fn compound_physical_issue(module: &LeanModule, read: &ReadExpr) -> O
 /// that executable completeness fragment until its negative-view proof lands.
 pub(super) fn negative_grant_issue(module: &LeanModule, read: &ReadExpr) -> Option<&'static str> {
     if !read.keys.is_empty() && read.filter.is_none() && read.range.is_none() { return None; }
-    fn static_negative(expr: &Expr) -> bool {
-        matches!(expr, Expr::Unary { op, value, .. } if op == "not" && matches!(value.as_ref(), Expr::Exists { read, .. }
-            if read.keys.iter().all(|key| !reads_row(&key.value))))
+    fn negative_probe(expr: &Expr) -> bool {
+        match expr {
+            Expr::Unary { op, value, .. } if op=="not" => matches!(value.as_ref(),Expr::Exists {..}),
+            Expr::Binary { op, left, right, .. } if op=="and" || op=="or" => negative_probe(left) || negative_probe(right),
+            _=>false,
+        }
     }
     let table = module.surface_tables.iter().find(|table| table.name == read.table)?;
     let rule = &table.rules.iter().find(|rule| rule.effect == Effect::Read)?.value;
     let mut leaves = Vec::new(); flatten_or(rule, &mut leaves);
-    if leaves.len() < 2 || !leaves.iter().any(|leaf| static_negative(leaf)) { return None; }
+    if leaves.len() < 2 || !leaves.iter().any(|leaf| negative_probe(leaf)) { return None; }
     fn total(expr: &Expr) -> bool {
         match expr {
             Expr::Name { .. } | Expr::Literal { .. } | Expr::Focal { .. } => true,
@@ -187,7 +190,14 @@ pub(super) fn negative_grant_issue(module: &LeanModule, read: &ReadExpr) -> Opti
             Expr::Array { items, .. } => items.iter().all(total), _ => false,
         }
     }
-    (read.range.is_none() || read.filter.as_deref().is_some_and(|filter| !total(filter)) || leaves.len() >= 8)
+    fn distributed_width(expr: &Expr) -> usize {
+        match expr {
+            Expr::Binary { op, left, right, .. } if op=="or" => distributed_width(left).saturating_add(distributed_width(right)).min(8),
+            Expr::Binary { op, left, right, .. } if op=="and" => distributed_width(left).saturating_mul(distributed_width(right)).min(8),
+            _=>1,
+        }
+    }
+    (read.range.is_none() || read.filter.as_deref().is_some_and(|filter| !total(filter)) || distributed_width(rule) >= 8)
         .then_some("page-negative-grant-fallback")
 }
 

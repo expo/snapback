@@ -200,7 +200,7 @@ pub fn programs(
                 lane.grant() && table.sync.as_ref().is_some_and(snapback4_core::schema::Sync::is_union)
                 || !snapback4_core::engine::rules::membership_point_id(schema, lane) && table.index(&lane.scan.index).is_some_and(|index| lane.scan.prefix.len() == index.components.len()))));
         // @ref LLP 3000.036.001#17 — older validators cannot prove a fixed second witness field.
-        fact.branch_pages_v3 = merges.iter().flat_map(|merge| &merge.lanes).any(|lane| schema.table(&lane.scan.table).is_some_and(|table| lane.membership() && multi_field_probe(&table.rules.read)
+        fact.branch_pages_v3 = merges.iter().flat_map(|merge| &merge.lanes).any(|lane| schema.table(&lane.scan.table).is_some_and(|table| lane.membership() && (multi_field_probe(&table.rules.read) || table.leave == snapback4_core::schema::LeavePolicy::DeliveredHistory)
                 || (lane.guarded() || lane.grant()) && negative_probe(&table.rules.read)));
         fact.branch_pages_v3 |= snapback4_core::ir::scans(&bound.program).iter().any(|scan|
             snapback4_core::engine::rules::page_guard_decision(schema, scan).as_ref().is_some_and(negative_probe));
