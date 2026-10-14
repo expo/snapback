@@ -78,7 +78,7 @@ pub enum Rule {
     TwoParty,
     /// Two independently distributed positive alternatives (PAGE5).
     ProductScope,
-    /// One readable fixed point guard beside one per-row membership (PAGE5).
+    /// Grouped readable fixed point guards beside one per-row membership (PAGE5).
     FixedPerRow,
     /// An owner alternative beside an exact missing-point predicate (PAGE5).
     Vacancy,
@@ -107,7 +107,7 @@ impl Rule {
             Self::NamedOld => "old.owner = viewer",
             Self::TwoParty => ".owner = viewer or .helper = viewer",
             Self::ProductScope => "(.owner = viewer or .helper = viewer) and (.status = 'open' or .status = 'active')",
-            Self::FixedPerRow => "exists roles[.bucket, viewer] and exists access[.id, viewer]",
+            Self::FixedPerRow => "(exists roles[.bucket, viewer] and exists seats[.bucket, viewer]) and exists access[.id, viewer]",
             Self::Vacancy => "not exists access[item = .id] or .owner = viewer",
         }
     }

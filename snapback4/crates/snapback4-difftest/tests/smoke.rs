@@ -758,3 +758,22 @@ fn page5_generated_families_compile_and_compare_natively() {
     }
     assert_eq!(seen, ["page5/fixed-per-row", "page5/product-scope", "page5/vacancy"].map(String::from).into());
 }
+
+#[test]
+fn membership_page_with_two_filter_alternatives_stays_incomplete_in_lean_and_native() {
+    let have_model = model_built();
+    for seed in 0..4 {
+        let case = snapback4_difftest::generate::page_membership_filter_fallback(seed);
+        let source = case.program.source();
+        execute::compile(&source).unwrap_or_else(|error| panic!("seed {seed}: {error}\n{source}"));
+        let mut engine = execute::engine(&case, &source).unwrap();
+        let outcome = execute::execute(&mut engine, &case, "run", &case.args);
+        assert_eq!(outcome.value["complete"], false, "seed {seed}: {outcome:?}\n{source}");
+        let mut report = Report::default(); campaign::check(&case, &mut report, |_| {});
+        assert!(!report.failed(), "seed {seed}: {report:?}\n{source}");
+        if have_model {
+            let checked = snapback4_difftest::lean::compare(&case, &source).unwrap();
+            assert!(matches!(checked.verdict, Verdict::Pass), "seed {seed}: {:?}\n{source}", checked.verdict);
+        }
+    }
+}

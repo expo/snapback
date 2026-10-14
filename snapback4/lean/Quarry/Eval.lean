@@ -647,10 +647,11 @@ def compoundDecided (sch : Schema) (td : TableDecl) (pins : List (String × Expr
                   !ps.any (·.1 == pair.2) && (!order.contains pair.2 || pair.2 == "id" && order == ["id"])
                   && laneFits order ((pair.2, .viewer) :: extra) pins
               | _ => false
-            | [a, b] =>
-                (fixedPointGuard sch td ps a && varyingPointGrant sch ps order b)
-                  || (fixedPointGuard sch td ps b && varyingPointGrant sch ps order a)
-            | _ => false)
+            | _ =>
+                own.length >= 2
+                  && (own.filter (varyingPointGrant sch ps order)).length == 1
+                  && own.all (fun r => varyingPointGrant sch ps order r
+                    || fixedPointGuard sch td ps r))
 
 
 /-- The exact positive where witness of PAGE4. Other audiences cannot
@@ -714,6 +715,7 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
         if 2 ≤ as.length && as.length ≤ 8 && as.all (fun a => a.conjuncts.any (eligiblePin td))
         then some (as.map Expr.conjuncts) else none
       | _ => none
+    let filterAlternativesSupported := alts.isSome || !(fs.any Expr.isOr)
     -- The planner pins a bare boolean conjunct too (`where .flag`); the
     -- emitter leaves it in the filter.
     let pins := pins ++ (fs.filter (!·.isOr)).filterMap Expr.eqPin
@@ -742,7 +744,7 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
         | .membership source _ key => (membershipColumns key).any (fun pair => guardPins.any (·.1 == pair.2))
             && (sch.table? source).any (fun source => source.notBefore.isNone)
         | _ => false
-    let case2 := if !guards || ((reservedMembership || pinnedMembership) && !fixedMembership) then false else match td.read.branchParties sch td guardPins true with
+    let case2 := if !guards || !filterAlternativesSupported || ((reservedMembership || pinnedMembership) && !fixedMembership) then false else match td.read.branchParties sch td guardPins true with
       | some ps =>
         let bases := alts.getD [[]]
         -- The grant lane is always planned (the system reads it whole).
@@ -755,7 +757,7 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
     -- PAGE: one system descriptor, party descriptors and eligible exact
     -- membership descriptors. Dynamic discovery does not count against
     -- eight; its static membership descriptor does.
-    let case3 := if !guards then false else match membershipRule with
+    let case3 := if !guards || !filterAlternativesSupported then false else match membershipRule with
       | some leaves =>
         let bases := alts.getD [[]]
         let parties := leaves.filterMap fun leaf => match leaf with | .party c => some c | _ => none

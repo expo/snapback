@@ -971,11 +971,14 @@ def page5Product : Schema := { tables := [
 def page5FixedPerRow : Schema := { tables := [
   { name := "roles", cols := [c "bucket", c "principal"], uniques := [["bucket", "principal"]]
     read := .eq (self "principal") .viewer },
+  { name := "seats", cols := [c "bucket", c "principal"], uniques := [["bucket", "principal"]]
+    read := .eq (self "principal") .viewer },
   { name := "access", cols := [c "item", c "principal"], uniques := [["item", "principal"]]
     read := .eq (self "principal") .viewer },
   { name := "items", cols := [c "bucket", c "at"]
     read := .and
-      (.probe "roles" ["bucket", "principal"] [("bucket", self "bucket"), ("principal", .viewer)])
+      (.and (.probe "roles" ["bucket", "principal"] [("bucket", self "bucket"), ("principal", .viewer)])
+        (.probe "seats" ["bucket", "principal"] [("bucket", self "bucket"), ("principal", .viewer)]))
       (.probe "access" ["item", "principal"] [("item", self "id"), ("principal", .viewer)]) }] }
 
 def page5Vacancy : Schema := { tables := [
@@ -997,11 +1000,12 @@ def page5VacancyExamples : List Example := [
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"a","owner":"alice","helper":"bob","status":"open","at":1},{"id":"b","owner":"bob","helper":"alice","status":"active","at":2}],"complete":true,"next":null}"# },
   { name := "page5-fixed-plus-per-row"
-    source := "LLP 3000.036.001 §18: one readable fixed point may guard one varying per-row membership lane"
+    source := "LLP 3000.036.001 §18: readable fixed points may guard one varying per-row membership lane"
     case := {
       schema := page5FixedPerRow
       store := mkStore [
         ("roles", [mkRow "r" [("bucket", N 1), ("principal", I "alice")]]),
+        ("seats", [mkRow "s" [("bucket", N 1), ("principal", I "alice")]]),
         ("access", [mkRow "x" [("item", I "a"), ("principal", I "alice")],
           mkRow "y" [("item", I "c"), ("principal", I "alice")]]),
         ("items", [mkRow "a" [("bucket", N 1), ("at", N 1)],
@@ -1030,6 +1034,13 @@ def page4FallbackSchema : Schema := { tables := [
   { name := "items", cols := [c "owner", c "helper" true, c "bucket", c "flag", c "score", c "maybe" true]
     read := .or (.eq (self "owner") .viewer) (.eq (self "helper") .viewer) }] }
 
+def pageMembershipFilterFallbackSchema : Schema := { tables := [
+  { name := "access", cols := [c "bucket", c "principal"], uniques := [["bucket", "principal"]]
+    caps := [{ columns := ["principal"], max := 16 }], read := .allow },
+  { name := "items", cols := [c "owner", c "bucket", c "score", c "label", c "flag"]
+    read := .or (.eq (self "owner") .viewer)
+      (.probe "access" ["bucket", "principal"] [("bucket", self "bucket"), ("principal", .viewer)]) }] }
+
 def page4FallbackExamples : List Example := [
   { name := "page4-pinned-leading-order-empty-fallback"
     source := "LLP 3000.036.001 §17: mismatched system/party order retains the incomplete authored scan"
@@ -1043,7 +1054,16 @@ def page4FallbackExamples : List Example := [
               store := mkStore [("items", [mkRow "a" [("owner", I "alice"), ("helper", .null), ("bucket", N 0), ("maybe", .null)]])], viewer := alice,
               program := query [.ret (.page "items" [("bucket", int 0), ("maybe", .lit (.s .null))] none ["maybe"] true 2 (some (.lit (.s .null))))] }
     tables := []
-    expected := r#"{"kind":"answer","data":[{"id":"a","owner":"alice","helper":null,"bucket":0,"maybe":null}],"complete":false,"next":null}"# }
+    expected := r#"{"kind":"answer","data":[{"id":"a","owner":"alice","helper":null,"bucket":0,"maybe":null}],"complete":false,"next":null}"# },
+  { name := "page-membership-two-filter-alternatives-fallback"
+    source := "LLP 3000.036.001 §18: membership PAGE does not discard a second undistributed where alternative"
+    case := { schema := pageMembershipFilterFallbackSchema, store := Store.empty, viewer := alice,
+              program := query [.ret (.page "items" [] (some (.and
+                (.or (.bin .eq (.dot "bucket") (int 0)) (.bin .eq (.dot "bucket") (int 1)))
+                (.or (.bin .gt (.dot "score") (int 0)) (.bin .eq (.dot "flag") (.lit (.s (.bool false)))))))
+                ["label", "score"] false 1 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[],"complete":false,"next":null}"# }
 ]
 
 /-- Every example: the guide cards' and the referential actions'. -/

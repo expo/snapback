@@ -489,7 +489,12 @@ pub fn page5(seed: u64, shape: u64) -> Case {
                 keys: vec![("byBucketPrincipal".into(), vec!["bucket".into(), "principal".into()], true)], caps: vec![],
                 rule: Rule::Member, residency: Residency::Online, effects: None, expire: None, not_before: None };
             case.program.tables.push(roles);
+            let seats = Table { name: "seats".into(), columns: vec![column("bucket", Type::Int), column("principal", Type::Principal)],
+                keys: vec![("byBucketPrincipal".into(), vec!["bucket".into(), "principal".into()], true)], caps: vec![],
+                rule: Rule::Member, residency: Residency::Online, effects: None, expire: None, not_before: None };
+            case.program.tables.push(seats);
             if rng.pick(4) != 0 { case.rows.push(("roles".into(), json!({"id":format!("role-{seed}"), "bucket":bucket, "principal":case.principal}))); }
+            if rng.pick(4) != 0 { case.rows.push(("seats".into(), json!({"id":format!("seat-{seed}"), "bucket":bucket, "principal":case.principal}))); }
         }
         _ => {
             case.program.tables[0].rule = Rule::Vacancy;
@@ -515,4 +520,26 @@ pub(crate) fn page5_features(case: &Case) -> Vec<String> {
         _ => None,
     };
     family.map(|name| vec![format!("page5/{name}")]).unwrap_or_default()
+}
+
+/// A membership PAGE with two independent `or` filters stays on the ordinary
+/// incomplete scan. The native membership planner distributes at most one
+/// such filter; the independent model must not silently discard the second.
+// @ref LLP 3000.036.001#18 — undistributed query alternatives are outside the constructive PAGE fragment.
+pub fn page_membership_filter_fallback(seed: u64) -> Case {
+    let mut case = base(seed);
+    case.program.tables[0].rule = Rule::OwnerOrWitness;
+    case.program.tables[0].effects = None;
+    case.program.tables[0].residency = Residency::Online;
+    let access = case.program.tables.iter_mut().find(|table| table.name == "access").unwrap();
+    access.rule = Rule::Allow; access.effects = None; access.residency = Residency::Public;
+    access.expire = None; access.not_before = None;
+    case.program.body = Body::Read { kind: Read::Page, take: 1, descending: seed % 2 == 0,
+        filter: false, owner: false, project: None };
+    case.program.domain = Some("(.bucket = bucket or .bucket = 1)".into());
+    case.program.residual = Some("(.score > 0 or .flag = false)".into());
+    case.program.order = Some(vec!["label".into(), "score".into()]);
+    case.program.named_page_order = None; case.program.prelude.clear(); case.program.lets.clear();
+    case.steps.clear(); case.rows.clear();
+    case
 }

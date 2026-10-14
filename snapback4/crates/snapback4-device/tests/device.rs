@@ -60,6 +60,12 @@ query available(c: cursor ?):
   unique bucket, principal
   read <- .principal = viewer
   online only
+table seats:
+  bucket: int
+  principal: principal
+  unique bucket, principal
+  read <- .principal = viewer
+  online only
 table access:
   item: items
   principal: principal
@@ -69,7 +75,7 @@ table access:
 table items:
   bucket: int
   at: int
-  read <- exists roles[.bucket, viewer] and exists access[.id, viewer]
+  read <- (exists roles[.bucket, viewer] and exists seats[.bucket, viewer]) and exists access[.id, viewer]
   online only
 query page(bucket: int, c: cursor ?):
   return items where .bucket = bucket first 1 by .at after c

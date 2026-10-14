@@ -231,7 +231,7 @@ fn two_principal_status_scope_and_fixed_plus_per_row_grants_are_complete() {
     ]).unwrap();
     assert_eq!(walk(&mut e, "walks", "alice"), ["a", "b"]);
 
-    let grants = "table chapterAccess:\n  chapter: int\n  principal: principal\n  unique chapter, principal\n  read <- .principal = viewer\n  online only\ntable versionAccess:\n  version: id\n  principal: principal\n  unique version, principal\n  read <- .principal = viewer\n  online only\ntable versions:\n  chapter: int\n  at: int\n  read <- exists chapterAccess[.chapter, viewer] and exists versionAccess[.id, viewer]\n  online only\nquery versionsOf(chapter: int, c: cursor ?):\n  return versions where .chapter = chapter first 1 by .at after c\n";
+    let grants = "table chapterAccess:\n  chapter: int\n  principal: principal\n  unique chapter, principal\n  read <- .principal = viewer\n  online only\ntable chapterSeats:\n  chapter: int\n  principal: principal\n  unique chapter, principal\n  read <- .principal = viewer\n  online only\ntable versionAccess:\n  version: id\n  principal: principal\n  unique version, principal\n  read <- .principal = viewer\n  online only\ntable versions:\n  chapter: int\n  at: int\n  read <- (exists chapterAccess[.chapter, viewer] and exists chapterSeats[.chapter, viewer]) and exists versionAccess[.id, viewer]\n  online only\nquery versionsOf(chapter: int, c: cursor ?):\n  return versions where .chapter = chapter first 1 by .at after c\n";
     let b = compile(&[("schema.q".into(), grants.into())]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     assert!(!b.notes.iter().any(|n| matches!(n.code.as_str(), "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE")), "{:?}", b.notes);
@@ -239,6 +239,7 @@ fn two_principal_status_scope_and_fixed_plus_per_row_grants_are_complete() {
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     e.seed([
         ("chapterAccess".into(), object([("id", id("ca")), ("chapter", Value::Int(1)), ("principal", id("alice"))])),
+        ("chapterSeats".into(), object([("id", id("cs")), ("chapter", Value::Int(1)), ("principal", id("alice"))])),
         ("versionAccess".into(), object([("id", id("va")), ("version", id("a")), ("principal", id("alice"))])),
         ("versions".into(), object([("id", id("a")), ("chapter", Value::Int(1)), ("at", Value::Int(1))])),
         ("versions".into(), object([("id", id("b")), ("chapter", Value::Int(1)), ("at", Value::Int(2))])),
@@ -263,19 +264,40 @@ fn two_principal_status_scope_and_fixed_plus_per_row_grants_are_complete() {
         assert!(declined.diagnostics.is_empty(), "{:?}", declined.diagnostics);
         assert!(declined.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE"), "{:?}", declined.notes);
     }
+
+    // Validator readability is about the generated residual point after page
+    // pins are substituted: roles[viewer] is visible even though the authored
+    // fixed guard is roles[.bucket].
+    let substituted = "table roles:\n  bucket: principal\n  unique bucket\n  read <- .bucket = viewer\n  online only\ntable access:\n  item: id\n  principal: principal\n  unique item, principal\n  read <- .principal = viewer\n  online only\ntable items:\n  bucket: principal\n  at: int\n  read <- exists roles[.bucket] and exists access[.id, viewer]\n  online only\nquery mine(c: cursor ?):\n  return items where .bucket = viewer first 10 by .at after c\n";
+    let b = compile(&[("schema.q".into(), substituted.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert!(!b.notes.iter().any(|n| matches!(n.code.as_str(), "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE")), "{:?}", b.notes);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    e.seed([
+        ("roles".into(), object([("id", id("r")), ("bucket", id("alice"))])),
+        ("access".into(), object([("id", id("x")), ("item", id("a")), ("principal", id("alice"))])),
+        ("items".into(), object([("id", id("a")), ("bucket", id("alice")), ("at", Value::Int(1))])),
+        ("items".into(), object([("id", id("b")), ("bucket", id("alice")), ("at", Value::Int(2))])),
+    ]).unwrap();
+    let r = e.query("mine", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
+    assert!(r.complete, "{r:?}");
+    assert_eq!(r.data.as_array().unwrap().iter().map(|row| row.field("id").unwrap().as_str().unwrap()).collect::<Vec<_>>(), ["a"]);
 }
 
 #[test]
 fn equality_filter_note_prints_one_matching_index_and_query() {
-    let source = "table skippers:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable watches:\n  crew: principal\n  starts: time\n  by byStart: starts, id\n  read <- .crew = viewer or exists skippers[viewer]\n  online only\nquery myWatches():\n  return watches where .crew = viewer first 240 by byStart\n";
+    let source = "table skippers:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable logs:\n  starts: time\n  by byStart: starts, id\n  public\n  online only\ntable watches:\n  crew: principal\n  starts: time\n  by byStart: starts, id\n  read <- .crew = viewer or exists skippers[viewer]\n  online only\nquery myWatches():\n  ignored = logs first 1 by byStart\n  return watches where .crew = viewer first 240 by byStart\n";
     let b = compile(&[("schema.q".into(), source.into())]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     let note = b.notes.iter().find(|note| note.code == "N_NEVER_COMPLETE").unwrap();
     assert!(note.rewrite.contains("by byCrewStarts: crew, starts, id"), "{note}");
-    assert!(note.rewrite.contains("return watches where .crew = viewer first 240 by byCrewStarts"), "{note}");
+    assert!(note.rewrite.contains("ignored = logs first 1 by byStart"), "{note}");
+    assert!(note.rewrite.contains("return watches[] first 240 by byCrewStarts where .crew = viewer"), "{note}");
 
-    let repaired = source.replace("  by byStart: starts, id", "  by byStart: starts, id\n  by byCrewStarts: crew, starts, id")
-        .replace("first 240 by byStart", "first 240 by byCrewStarts");
+    let rewritten = note.rewrite.split("```quarry\n").nth(1).and_then(|rest| rest.split("\n```").next()).unwrap();
+    let query = source.find("query myWatches():").unwrap();
+    let repaired = format!("{}{}\n", source[..query].replace("  by byStart: starts, id\n  read <- .crew = viewer",
+        "  by byStart: starts, id\n  by byCrewStarts: crew, starts, id\n  read <- .crew = viewer"), rewritten);
     let b = compile(&[("schema.q".into(), repaired)]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     assert!(!b.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"), "{:?}", b.notes);

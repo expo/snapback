@@ -774,17 +774,46 @@ fn membership_witness(schema: &Schema, lane: &crate::ir::MergeLane, null_distinc
         !null_distinct || probe_index.components.iter().all(|part| part.column().is_some_and(|column| column != source_column
             && fixed(column).is_some_and(|expr| matches!(expr, Expr::Input(Input::Viewer)) || fixed_non_null_literal(expr))))
     }, &|rule| rule_true(rule, &lane.scan.table, outer_table, &pinned)
-        || lane.scan.filter.as_deref().is_some_and(|filter| fixed_filter_requires_rule(schema, filter, rule, &pins)))
+        || lane.scan.filter.as_deref().is_some_and(|filter|
+            fixed_rule_holds(schema, filter, rule, &lane.scan.table, outer_table, &pinned, &pins)))
 }
 
-/// A generated membership lane may retain a second, prefix-fixed point grant
+/// Every sibling of a varying membership witness must already hold. Preserve
+/// authored Boolean grouping: every fixed conjunct is required, while proving
+/// one fixed alternative is enough for an authored disjunction.
+fn fixed_rule_holds<'a>(schema: &Schema, filter: &Expr, rule: &RuleExpr,
+    outer_name: &str, outer_table: &Table, pinned: &impl Fn(&str) -> Option<&'a Expr>,
+    pins: &[(&String, &Expr)]) -> bool {
+    if rule_true(rule, outer_name, outer_table, pinned) { return true; }
+    match rule {
+        RuleExpr::And(parts) => parts.iter().all(|part|
+            fixed_rule_holds(schema, filter, part, outer_name, outer_table, pinned, pins)),
+        RuleExpr::Or(parts) => parts.iter().any(|part|
+            fixed_rule_holds(schema, filter, part, outer_name, outer_table, pinned, pins)),
+        _ => fixed_filter_requires_rule(schema, filter, rule, pins),
+    }
+}
+
+/// A generated membership lane may retain prefix-fixed point grants
 /// as a residual predicate.  Recognize only the exact bound point expression:
 /// this proves that every row emitted by the lane satisfies that conjunct,
 /// while a missing, reordered or merely similar probe keeps the merge out.
-// @ref LLP 3000.036.001#18 — one fixed grant may guard one varying per-row grant.
+// @ref LLP 3000.036.001#18 — fixed grants may guard one varying per-row grant.
 fn fixed_filter_requires_rule(schema: &Schema, filter: &Expr, rule: &RuleExpr,
     pins: &[(&String, &Expr)]) -> bool {
     if let Expr::Binary { op: crate::ir::BinaryOp::And, left, right } = filter {
+        return fixed_filter_requires_rule(schema, left, rule, pins)
+            || fixed_filter_requires_rule(schema, right, rule, pins);
+    }
+    // The IR preserves short-circuit `a and b` as a tiny Boolean block.
+    // Accept only that exact lowering: both operands are necessary, while an
+    // `or` block assigns on the false branch and cannot establish either one.
+    if let Expr::Block { body, value } = filter
+        && let [crate::ir::Stmt::Let { name, value: left }, crate::ir::Stmt::If {
+            condition: Expr::Variable(condition), then_body, else_body }] = body.as_slice()
+        && let [crate::ir::Stmt::Assign { name: assigned, value: right }] = then_body.as_slice()
+        && else_body.is_empty() && condition == name && assigned == name
+        && matches!(value.as_ref(), Expr::Variable(result) if result == name) {
         return fixed_filter_requires_rule(schema, left, rule, pins)
             || fixed_filter_requires_rule(schema, right, rule, pins);
     }
@@ -794,9 +823,21 @@ fn fixed_filter_requires_rule(schema: &Schema, filter: &Expr, rule: &RuleExpr,
     equalities.is_empty() && target.through.is_none() && target.not_before.is_none() && !target.is_expiring()
         && point.unique && point.is_plain() && point.components.iter().all(|part| part.column()
             .and_then(|column| target.columns.get(column)).is_some_and(|kind| !kind.is_optional()))
-        && schema.rule_input_is_readable(table, index, key)
         && &read.table == table && &read.index == index && read.key.len() == key.len()
         && read.key.iter().zip(key).all(|(expression, term)| rule_term_expression(term, expression, pins))
+        && point_read_is_visible(schema, read)
+}
+
+/// A rule probe uses system authority, but the retained residual point uses
+/// ordinary caller authority. Re-prove that the generated, pin-substituted
+/// point is visible instead of asking about the unsubstituted authored terms.
+fn point_read_is_visible(schema: &Schema, read: &crate::ir::Read) -> bool {
+    let Some(table) = schema.table(&read.table) else { return false };
+    let Some(index) = table.index(&read.index) else { return false };
+    if !index.is_plain() || index.components.len() != read.key.len() { return false; }
+    let pinned = |name: &str| index.components.iter().zip(&read.key).find_map(|(part, value)|
+        (part.column().is_some_and(|column| column == name)).then_some(value));
+    visibility(&read.table, table, &table.rules.read, &pinned).decided_true
 }
 
 fn rule_term_expression(term: &RuleTerm, expression: &Expr, pins: &[(&String, &Expr)]) -> bool {

@@ -863,8 +863,8 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                 && schema.operations.get(&bound.program.name).is_some_and(|fact| fact.runs.as_deref() == Some("device")))
                 .then(|| first_paste::held_query(catalog, &bound.site)).flatten();
             let scope_rewrite = existing.map(|(name, _)| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); the existing index `{name}: {columns}` supports it; or read the page on the device", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));
-            let equality_index_rewrite = equality_filter_index_rewrite(table, scan, &unpinned, &leading,
-                catalog.source.declarations.get(&bound.site.to_string()).map(String::as_str));
+            let equality_index_rewrite = equality_filter_index_rewrite(catalog, table, scan, &unpinned, &leading,
+                &bound.site, bound.sources.get(&scan.site).map(|(site, _)| site));
             let cap_repair = bound
                 .sources
                 .get(&scan.site)
@@ -948,8 +948,9 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
 /// named order index leaves it as a residual filter. Print the two exact edits
 /// together: the compatible declaration and the same query selecting it.
 // @ref LLP 3000.036.001#18 — equality-filter advice is mechanically coherent even when it remains advisory.
-fn equality_filter_index_rewrite(table: &snapback4_core::schema::Table, scan: &snapback4_core::ir::Scan,
-    unpinned: &[String], leading: &[String], declaration: Option<&str>) -> Option<String> {
+fn equality_filter_index_rewrite(catalog: &Catalog, table: &snapback4_core::schema::Table,
+    scan: &snapback4_core::ir::Scan, unpinned: &[String], leading: &[String],
+    declaration_site: &crate::Site, read_site: Option<&crate::Site>) -> Option<String> {
     use snapback4_core::ir::{BinaryOp, Expr};
     fn pins(expr: &Expr, column: &str) -> bool {
         match expr {
