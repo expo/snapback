@@ -10,6 +10,19 @@ use snapback4_difftest::{
     shrink,
 };
 
+// Match tests/lean.rs: native/compiler coverage remains mandatory without
+// the optional model, and a requested Lean qualification never skips it.
+fn model_built() -> bool {
+    snapback4_difftest::lean::refresh().unwrap_or_else(|error| panic!("{error}"));
+    let path = snapback4_difftest::lean::oracle_path();
+    if path.is_file() { return true; }
+    if std::env::var_os("SNAPBACK4_REQUIRE_LEAN").is_some() {
+        panic!("SNAPBACK4_REQUIRE_LEAN is set but {} is missing: cd snapback4/lean && lake build", path.display());
+    }
+    eprintln!("SKIPPED (Lean oracle not built at {}): cd snapback4/lean && lake build", path.display());
+    false
+}
+
 #[test]
 fn fixed_seeds_compile_execute_and_continue() {
     let mut report = Report::default();
@@ -432,9 +445,11 @@ fn native_and_lean_generators_reach_fully_pinned_membership_discovery() {
     let mut report = Report::default();
     campaign::check(&native, &mut report, |_| {});
     assert!(!report.failed(), "{report:#?}\n{}", native.program.source());
-    let mut lean_report = Report::default();
-    snapback4_difftest::lean::check(&lean, &mut lean_report, |_| {}).unwrap();
-    assert!(!lean_report.failed(), "{lean_report:#?}\n{}", lean.program.source());
+    if model_built() {
+        let mut lean_report = Report::default();
+        snapback4_difftest::lean::check(&lean, &mut lean_report, |_| {}).unwrap();
+        assert!(!lean_report.failed(), "{lean_report:#?}\n{}", lean.program.source());
+    }
     assert!(snapback4_difftest::lean::features(&lean).iter()
         .any(|feature| feature == "branch-rule-membership-discovery-unique"));
 }
@@ -469,9 +484,11 @@ fn native_and_lean_generators_reach_by_id_membership_pages() {
     let mut report = Report::default();
     campaign::check(&native, &mut report, |_| {});
     assert!(!report.failed(), "{report:#?}");
-    let mut lean_report = Report::default();
-    snapback4_difftest::lean::check(&lean, &mut lean_report, |_| {}).unwrap();
-    assert!(!lean_report.failed(), "{lean_report:#?}\n{}", lean.program.source());
+    if model_built() {
+        let mut lean_report = Report::default();
+        snapback4_difftest::lean::check(&lean, &mut lean_report, |_| {}).unwrap();
+        assert!(!lean_report.failed(), "{lean_report:#?}\n{}", lean.program.source());
+    }
 }
 
 #[test]

@@ -25,7 +25,7 @@ run package-typecheck bun run --cwd packages/snapback4 typecheck
 run package-build bun run --cwd packages/snapback4 build
 run chat-check bash -c 'cd apps/chat && ../../target/debug/snapback4 check'
 run lean-setup bash -c 'cd lean && lake build quarry-oracle'
-run cargo-test env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 node scripts/run-rust-tests.mjs
+run cargo-test env SNAPBACK4_REQUIRE_LEAN=1 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 node scripts/run-rust-tests.mjs
 run fixture-tests node scripts/run-client-tests.mjs 1 files fixtures/
 run chat-typecheck bun run --cwd apps/chat typecheck
 run expo-typecheck bun run --cwd apps/chat-expo typecheck

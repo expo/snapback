@@ -94895,3 +94895,11 @@ Lean 4.34.1 oracle before the full Rust stage. Preserve all native and Lean
 assertions; do not change the machine default toolchain or other worktrees.
 Linux already passed all 19 smoke cases with its qualified oracle. Both Mac
 publication halves are rerun together after this setup repair.
+
+The missing-oracle failure also exposed two new smoke tests bypassing the
+AGENTS.md optional-model policy already implemented in tests/lean.rs. Refresh
+and detect the model before their comparison arm; keep both generated-source
+and native campaign checks unconditional. Missing optional models log SKIPPED;
+SNAPBACK4_REQUIRE_LEAN makes absence fail. Mac qualification sets that flag,
+so the repaired full pass exercises every model comparison with the pinned
+oracle. Linux validates present, absent-optional and absent-required paths.
