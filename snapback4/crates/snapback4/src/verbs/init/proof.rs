@@ -10,11 +10,14 @@ pub(super) fn readme(mut text: String) -> String {
     text
 }
 
-pub(super) fn files(files: &mut Vec<(&'static str, String)>, _options: &Options, backend: u16, frontend: u16, web: bool, _shape: &super::starter::Shape) {
+pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, backend: u16, frontend: u16, web: bool, _shape: &super::starter::Shape) {
     for (name, text) in files.iter_mut().filter(|(name, _)| *name == "README.md") {
         *text = readme(std::mem::take(text)); let _ = name;
     }
-    let proof = include_str!("frontend-proof.mjs").to_owned();
+    // Social keeps account controls on its Profile tab; prove the actual route.
+    let proof = include_str!("frontend-proof.mjs").replace("// TEMPLATE_READY", if options.flags.get("template").is_some_and(|template| template == "social") {
+        "await page.getByText(\"Profile\", { exact: true }).click();"
+    } else { "" });
     files.push(("scripts/frontend-proof.mjs", proof));
     files.push(("scripts/day2-proof.mjs", include_str!("day2-proof.mjs").to_owned()));
     files.push(("scripts/launch.mjs", include_str!("launch.mjs").replace("BACKEND", &backend.to_string()).replace("FRONTEND", &frontend.to_string())));

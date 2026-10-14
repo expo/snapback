@@ -23,6 +23,7 @@ try {
       assert.ok(personas.length, "declare identity or personas before proving the starter");
       await page.getByRole("button", { name: personas[0], exact: true }).click();
     }
+    // TEMPLATE_READY
     await page.getByRole("button", { name: /^(Sign out|Switch persona)$/, exact: true }).waitFor();
     const task = page.getByLabel("Task", { exact: true });
     if (await task.count()) {

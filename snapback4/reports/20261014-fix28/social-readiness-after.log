@@ -1,0 +1,10 @@
+
+> snapback4-social-starter@0.0.1 frontend:proof
+> node scripts/frontend-proof.mjs
+
+frontend:proof passed
+
+> snapback4-social-starter@0.0.1 frontend:proof
+> node scripts/frontend-proof.mjs
+
+frontend:proof passed

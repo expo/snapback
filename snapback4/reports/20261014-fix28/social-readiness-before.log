@@ -1,0 +1,19 @@
+
+> snapback4-social-starter@0.0.1 frontend:proof
+> node scripts/frontend-proof.mjs
+
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('button', { name: /^(Sign out|Switch persona)$/ }) to be visible[22m
+
+    at /home/ccheever/projects/sb4-w12-fix28/snapback4/target/fix28-social-readiness/scripts/frontend-proof.mjs:26:90
+    at async withBrowser (/home/ccheever/projects/sb4-w12-fix28/snapback4/target/fix28-before-extra-social/node_modules/snapback4/dist/proof.js:171:16)
+    at async file:///home/ccheever/projects/sb4-w12-fix28/snapback4/target/fix28-social-readiness/scripts/frontend-proof.mjs:13:3 {
+  name: 'TimeoutError'
+}
+
+Node.js v24.13.1

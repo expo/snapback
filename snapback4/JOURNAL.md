@@ -95406,3 +95406,11 @@ check regressions verify each stable history entry once after prereleases;
 web/Expo regressions verify old README adaptation and edited-file preservation.
 The first post-fix qualifier was interrupted through its owned tool session
 before completing, so it supplies no successful qualification evidence.
+
+FIX28 social proof closeout: fixing ?api= reveals the social template's Sign out
+control is on Profile, while the generic proof remains on Following. A packed
+consumer reproduction with only the URL fixed still times out; clicking Profile
+through its rendered tab passes twice with occupied-port/CPU load. Emit that
+step only for --template social; retain generic defaults/other templates. The
+all-template regression checks its selection, and final packed matrices execute
+it. The second qualifier was interrupted before completing and claims no pass.

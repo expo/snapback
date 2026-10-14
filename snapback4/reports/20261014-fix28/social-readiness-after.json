@@ -1,0 +1,40 @@
+[
+  {
+    "starter": "expo-social",
+    "kind": "expo",
+    "attempt": 1,
+    "status": "passed",
+    "elapsedMs": 1997,
+    "range": [
+      42767,
+      42787
+    ],
+    "occupied": 42767,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      2,
+      2.79,
+      3.34
+    ],
+    "logs": "/home/ccheever/projects/sb4-w12-fix28/snapback4/target/fix28-social-readiness/logs"
+  },
+  {
+    "starter": "expo-social",
+    "kind": "expo",
+    "attempt": 2,
+    "status": "passed",
+    "elapsedMs": 1982,
+    "range": [
+      41975,
+      41995
+    ],
+    "occupied": 41975,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      2,
+      2.79,
+      3.34
+    ],
+    "logs": "/home/ccheever/projects/sb4-w12-fix28/snapback4/target/fix28-social-readiness/logs"
+  }
+]

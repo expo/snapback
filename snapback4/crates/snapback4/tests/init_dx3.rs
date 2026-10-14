@@ -104,6 +104,7 @@ fn every_frontend_template_documents_proofs_and_expo_uses_the_runtime_api() {
     for args in [vec!["init", "--web"], vec!["init", "--web", "--online"], vec!["init", "--expo"], vec!["init", "--web", "--template", "chat"], vec!["init", "--expo", "--template", "chat"], vec!["init", "--template", "social"]] {
         let dir = Project::new(); ok(dir.run(&args));
         let readme = dir.text("README.md");
+        assert_eq!(dir.text("scripts/frontend-proof.mjs").contains("getByText(\"Profile\", { exact: true }).click()"), args.contains(&"social"));
         for word in ["frontend:proof", "day2:proof", "PORT_LO", "PORT_HI", "CHROME"] { assert!(readme.contains(word), "{args:?}: missing {word}"); }
         let package: serde_json::Value = serde_json::from_str(&dir.text("package.json")).unwrap();
         assert_eq!(package["scripts"]["frontend:proof"], "node scripts/frontend-proof.mjs");
