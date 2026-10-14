@@ -1,0 +1,190 @@
+TAP version 13
+# Subtest: wasm keep=undefined: queued presence checks a second change at the response boundary
+ok 1 - wasm keep=undefined: queued presence checks a second change at the response boundary
+  ---
+  duration_ms: 431.091125
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined: queued presence checks a second change at the callback boundary
+ok 2 - wasm keep=undefined: queued presence checks a second change at the callback boundary
+  ---
+  duration_ms: 417.115875
+  type: 'test'
+  ...
+# Subtest: wasm keep=false: queued presence checks a second change at the response boundary
+ok 3 - wasm keep=false: queued presence checks a second change at the response boundary
+  ---
+  duration_ms: 434.020792
+  type: 'test'
+  ...
+# Subtest: wasm keep=false: queued presence checks a second change at the callback boundary
+ok 4 - wasm keep=false: queued presence checks a second change at the callback boundary
+  ---
+  duration_ms: 451.059042
+  type: 'test'
+  ...
+# Subtest: wasm keep=true: queued presence checks a second change at the response boundary
+ok 5 - wasm keep=true: queued presence checks a second change at the response boundary
+  ---
+  duration_ms: 449.142458
+  type: 'test'
+  ...
+# Subtest: wasm keep=true: queued presence checks a second change at the callback boundary
+ok 6 - wasm keep=true: queued presence checks a second change at the callback boundary
+  ---
+  duration_ms: 428.224708
+  type: 'test'
+  ...
+# Subtest: process keep=undefined: queued presence checks a second change at the response boundary
+ok 7 - process keep=undefined: queued presence checks a second change at the response boundary
+  ---
+  duration_ms: 270.013792
+  type: 'test'
+  ...
+# Subtest: process keep=undefined: queued presence checks a second change at the callback boundary
+ok 8 - process keep=undefined: queued presence checks a second change at the callback boundary
+  ---
+  duration_ms: 302.123292
+  type: 'test'
+  ...
+# Subtest: process keep=false: queued presence checks a second change at the response boundary
+ok 9 - process keep=false: queued presence checks a second change at the response boundary
+  ---
+  duration_ms: 294.093041
+  type: 'test'
+  ...
+# Subtest: process keep=false: queued presence checks a second change at the callback boundary
+ok 10 - process keep=false: queued presence checks a second change at the callback boundary
+  ---
+  duration_ms: 339.667875
+  type: 'test'
+  ...
+# Subtest: process keep=true: queued presence checks a second change at the response boundary
+ok 11 - process keep=true: queued presence checks a second change at the response boundary
+  ---
+  duration_ms: 279.700791
+  type: 'test'
+  ...
+# Subtest: process keep=true: queued presence checks a second change at the callback boundary
+ok 12 - process keep=true: queued presence checks a second change at the callback boundary
+  ---
+  duration_ms: 276.607958
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined: a full queue cannot postpone the change transition
+ok 13 - wasm keep=undefined: a full queue cannot postpone the change transition
+  ---
+  duration_ms: 407.422208
+  type: 'test'
+  ...
+# Subtest: wasm keep=false: a full queue cannot postpone the change transition
+ok 14 - wasm keep=false: a full queue cannot postpone the change transition
+  ---
+  duration_ms: 401.896458
+  type: 'test'
+  ...
+# Subtest: wasm keep=true: a full queue cannot postpone the change transition
+ok 15 - wasm keep=true: a full queue cannot postpone the change transition
+  ---
+  duration_ms: 355.682834
+  type: 'test'
+  ...
+# Subtest: process keep=undefined: a full queue cannot postpone the change transition
+ok 16 - process keep=undefined: a full queue cannot postpone the change transition
+  ---
+  duration_ms: 227.282166
+  type: 'test'
+  ...
+# Subtest: process keep=false: a full queue cannot postpone the change transition
+ok 17 - process keep=false: a full queue cannot postpone the change transition
+  ---
+  duration_ms: 260.753542
+  type: 'test'
+  ...
+# Subtest: process keep=true: a full queue cannot postpone the change transition
+ok 18 - process keep=true: a full queue cannot postpone the change transition
+  ---
+  duration_ms: 249.46425
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined: queued publication rechecks a floor raised after evaluation
+ok 19 - wasm keep=undefined: queued publication rechecks a floor raised after evaluation
+  ---
+  duration_ms: 375.719042
+  type: 'test'
+  ...
+# Subtest: wasm keep=undefined: presence publication rechecks a floor raised after evaluation
+ok 20 - wasm keep=undefined: presence publication rechecks a floor raised after evaluation
+  ---
+  duration_ms: 611.33
+  type: 'test'
+  ...
+# Subtest: wasm keep=false: queued publication rechecks a floor raised after evaluation
+ok 21 - wasm keep=false: queued publication rechecks a floor raised after evaluation
+  ---
+  duration_ms: 360.868791
+  type: 'test'
+  ...
+# Subtest: wasm keep=false: presence publication rechecks a floor raised after evaluation
+ok 22 - wasm keep=false: presence publication rechecks a floor raised after evaluation
+  ---
+  duration_ms: 616.443917
+  type: 'test'
+  ...
+# Subtest: wasm keep=true: queued publication rechecks a floor raised after evaluation
+ok 23 - wasm keep=true: queued publication rechecks a floor raised after evaluation
+  ---
+  duration_ms: 393.791209
+  type: 'test'
+  ...
+# Subtest: wasm keep=true: presence publication rechecks a floor raised after evaluation
+ok 24 - wasm keep=true: presence publication rechecks a floor raised after evaluation
+  ---
+  duration_ms: 595.907375
+  type: 'test'
+  ...
+# Subtest: process keep=undefined: queued publication rechecks a floor raised after evaluation
+ok 25 - process keep=undefined: queued publication rechecks a floor raised after evaluation
+  ---
+  duration_ms: 216.435917
+  type: 'test'
+  ...
+# Subtest: process keep=undefined: presence publication rechecks a floor raised after evaluation
+ok 26 - process keep=undefined: presence publication rechecks a floor raised after evaluation
+  ---
+  duration_ms: 457.884125
+  type: 'test'
+  ...
+# Subtest: process keep=false: queued publication rechecks a floor raised after evaluation
+ok 27 - process keep=false: queued publication rechecks a floor raised after evaluation
+  ---
+  duration_ms: 240.437958
+  type: 'test'
+  ...
+# Subtest: process keep=false: presence publication rechecks a floor raised after evaluation
+ok 28 - process keep=false: presence publication rechecks a floor raised after evaluation
+  ---
+  duration_ms: 455.942709
+  type: 'test'
+  ...
+# Subtest: process keep=true: queued publication rechecks a floor raised after evaluation
+ok 29 - process keep=true: queued publication rechecks a floor raised after evaluation
+  ---
+  duration_ms: 211.152084
+  type: 'test'
+  ...
+# Subtest: process keep=true: presence publication rechecks a floor raised after evaluation
+ok 30 - process keep=true: presence publication rechecks a floor raised after evaluation
+  ---
+  duration_ms: 466.983459
+  type: 'test'
+  ...
+1..30
+# tests 30
+# suites 0
+# pass 30
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 11556.120416

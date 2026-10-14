@@ -1,0 +1,17 @@
+{
+  "step": "linux-isolated-test-processes",
+  "command": [
+    "env",
+    "-u",
+    "SNAPBACK4_BIN",
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "packages/snapback4/test/test-processes.test.mjs"
+  ],
+  "cwd": "/home/ccheever/projects/sb4-pub-0427/snapback4",
+  "start": 1791972554.2514987,
+  "end": 1791972585.4791906,
+  "seconds": 31.228,
+  "exit": 0
+}

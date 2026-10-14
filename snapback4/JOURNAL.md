@@ -95436,3 +95436,29 @@ qualifiers remain distinct from final success. `reports/20261014-fix28/` retains
 exact-byte/source bindings, complete proof matrices and hashed command logs.
 Consumer evidence has publicationQualified false and suite not-run. No full
 scripts/test.sh, native iOS/Mac publication qualification, upload or push.
+
+## 2026-10-15 — 0.4.27 published (snapback4, both platforms, snapback4-expo)
+
+`snapback4`, `snapback4-darwin-arm64`, `snapback4-linux-x64` and
+`snapback4-expo` 0.4.27 are published from `ce229488de` (EXPOFIX plus the
+corrected Expo starter expectations); all four `latest` = 0.4.27:
+
+| Package | Registry integrity |
+|---|---|
+| `snapback4` | `sha512-WO5W0VgkcLVmzyGe/pd52hFMulYD2yPD2FBC75HPz4sYlwR38gZ9ecEQ74LirkOgPdBQ+YYPnhKdGZE3t7H1dw==` |
+| `snapback4-darwin-arm64` | `sha512-0FvoPDtSD03g/ZjQoFUYjtJmgceKHtIha/UbdotGjxJN9wj+WHFyzitwk83kRKh2tKf50OosCp6dNyEsS52G5Q==` |
+| `snapback4-linux-x64` | `sha512-PZDOlWCPu+W+LC43rwxJyWActOWewE8mSmhDbfNaKCVsrlDT7scKGZtWRVKK0ZMQ7Mep/BkUQPRkEPFv09YZiA==` |
+| `snapback4-expo` | `sha512-DSIn1aGzqotkPpP8lsezqAb2lSgJL+JxEzJ7ynS1QveSbSsnvKlk/6eN+G3kIkXTiJ60aIG+fghAbO+Nhz14Jw==` |
+
+The client and the packed Expo adapter were prepared on the M5 after the native
+build, so the bytes the new packed starter proof exercised on Ubuntu, Alpine
+and Darwin are the published Expo bytes. The first `8d1302f5e8` attempt stopped
+on stale `periphery.test.mjs` expectations. At `ce229488de`, Linux passed its
+second full pool (`== 0 failure(s) in 2544 s`) after a host-process inspection
+flake in the first; the Mac passed its fourth dry run (`== 0 failure(s) in 8389
+s`) after a run interrupted by the laptop sleeping and changing networks and a
+run with two load timing failures (`run_admission` log race; one release-control
+`Broken pipe` on `rollback --check`), each of which passed alone and in another
+full pool. Two `--resume`s were needed because npm took ~17 minutes to make the
+Linux platform readable. Clean installs on Linux and the Mac print `snapback4
+0.4.27` and pass `init` + `check`. Details: `reports/20261014-publication-0.4.27/REPORT.md`.

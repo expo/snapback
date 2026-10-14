@@ -1,0 +1,118 @@
+TAP version 13
+# Subtest: process: omitted change tables recover a disjoint local profile, keep=undefined
+ok 1 - process: omitted change tables recover a disjoint local profile, keep=undefined
+  ---
+  duration_ms: 356.877375
+  type: 'test'
+  ...
+# Subtest: process: omitted change tables recover a disjoint local profile, keep=undefined, held
+ok 2 - process: omitted change tables recover a disjoint local profile, keep=undefined, held
+  ---
+  duration_ms: 364.166
+  type: 'test'
+  ...
+# Subtest: process: omitted change tables recover a disjoint local profile, keep=true
+ok 3 - process: omitted change tables recover a disjoint local profile, keep=true
+  ---
+  duration_ms: 346.826875
+  type: 'test'
+  ...
+# Subtest: process: omitted change tables recover a disjoint local profile, keep=true, held
+ok 4 - process: omitted change tables recover a disjoint local profile, keep=true, held
+  ---
+  duration_ms: 371.433875
+  type: 'test'
+  ...
+# Subtest: process: omitted change tables recover a disjoint local profile, keep=false
+ok 5 - process: omitted change tables recover a disjoint local profile, keep=false
+  ---
+  duration_ms: 375.867875
+  type: 'test'
+  ...
+# Subtest: process: omitted change tables recover a disjoint local profile, keep=false, held
+ok 6 - process: omitted change tables recover a disjoint local profile, keep=false, held
+  ---
+  duration_ms: 346.169042
+  type: 'test'
+  ...
+# Subtest: wasm: omitted change tables recover a disjoint local profile, keep=undefined
+ok 7 - wasm: omitted change tables recover a disjoint local profile, keep=undefined
+  ---
+  duration_ms: 371.558375
+  type: 'test'
+  ...
+# Subtest: wasm: omitted change tables recover a disjoint local profile, keep=undefined, held
+ok 8 - wasm: omitted change tables recover a disjoint local profile, keep=undefined, held
+  ---
+  duration_ms: 342.862625
+  type: 'test'
+  ...
+# Subtest: wasm: omitted change tables recover a disjoint local profile, keep=true
+ok 9 - wasm: omitted change tables recover a disjoint local profile, keep=true
+  ---
+  duration_ms: 340.06825
+  type: 'test'
+  ...
+# Subtest: wasm: omitted change tables recover a disjoint local profile, keep=true, held
+ok 10 - wasm: omitted change tables recover a disjoint local profile, keep=true, held
+  ---
+  duration_ms: 374.398084
+  type: 'test'
+  ...
+# Subtest: wasm: omitted change tables recover a disjoint local profile, keep=false
+ok 11 - wasm: omitted change tables recover a disjoint local profile, keep=false
+  ---
+  duration_ms: 316.759625
+  type: 'test'
+  ...
+# Subtest: wasm: omitted change tables recover a disjoint local profile, keep=false, held
+ok 12 - wasm: omitted change tables recover a disjoint local profile, keep=false, held
+  ---
+  duration_ms: 342.904125
+  type: 'test'
+  ...
+# Subtest: online: already-expired replies recover through paced work, warm=false, keep=undefined
+ok 13 - online: already-expired replies recover through paced work, warm=false, keep=undefined
+  ---
+  duration_ms: 349.28
+  type: 'test'
+  ...
+# Subtest: online: already-expired replies recover through paced work, warm=false, keep=true
+ok 14 - online: already-expired replies recover through paced work, warm=false, keep=true
+  ---
+  duration_ms: 322.801041
+  type: 'test'
+  ...
+# Subtest: online: already-expired replies recover through paced work, warm=false, keep=false
+ok 15 - online: already-expired replies recover through paced work, warm=false, keep=false
+  ---
+  duration_ms: 309.510916
+  type: 'test'
+  ...
+# Subtest: online: already-expired replies recover through paced work, warm=true, keep=undefined
+ok 16 - online: already-expired replies recover through paced work, warm=true, keep=undefined
+  ---
+  duration_ms: 336.400958
+  type: 'test'
+  ...
+# Subtest: online: already-expired replies recover through paced work, warm=true, keep=true
+ok 17 - online: already-expired replies recover through paced work, warm=true, keep=true
+  ---
+  duration_ms: 341.929917
+  type: 'test'
+  ...
+# Subtest: online: already-expired replies recover through paced work, warm=true, keep=false
+ok 18 - online: already-expired replies recover through paced work, warm=true, keep=false
+  ---
+  duration_ms: 338.351333
+  type: 'test'
+  ...
+1..18
+# tests 18
+# suites 0
+# pass 18
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6501.409792

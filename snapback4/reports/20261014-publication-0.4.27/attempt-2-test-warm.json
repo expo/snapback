@@ -1,0 +1,20 @@
+{
+  "step": "test-warm",
+  "command": [
+    "env",
+    "-u",
+    "SNAPBACK4_BIN",
+    "PATH=/Users/ccheever/sb4-03-lanes/codesign-relay:/Users/ccheever/.elan/bin:/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/Users/ccheever/.bun/bin:/Users/ccheever/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "CARGO_INCREMENTAL=0",
+    "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "cargo",
+    "test",
+    "--workspace",
+    "--no-run"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0427/snapback4",
+  "start": 1791969287.8792782,
+  "end": 1791973478.330703,
+  "seconds": 4190.451,
+  "exit": 0
+}

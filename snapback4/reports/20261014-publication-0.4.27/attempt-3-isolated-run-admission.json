@@ -1,0 +1,23 @@
+{
+  "step": "isolated-run-admission",
+  "command": [
+    "env",
+    "-u",
+    "SNAPBACK4_BIN",
+    "PATH=/Users/ccheever/.elan/bin:/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/Users/ccheever/.bun/bin:/Users/ccheever/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "SNAPBACK4_REQUIRE_LEAN=1",
+    "CARGO_INCREMENTAL=0",
+    "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "cargo",
+    "test",
+    "-p",
+    "snapback4",
+    "--test",
+    "run_admission"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0427/snapback4",
+  "start": 1792000643.792493,
+  "end": 1792000691.018421,
+  "seconds": 47.226,
+  "exit": 0
+}

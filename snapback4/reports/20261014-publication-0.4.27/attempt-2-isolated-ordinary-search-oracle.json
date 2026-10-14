@@ -1,0 +1,20 @@
+{
+  "step": "isolated-ordinary-search-oracle",
+  "command": [
+    "env",
+    "-u",
+    "SNAPBACK4_BIN",
+    "PATH=/Users/ccheever/.elan/bin:/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/Users/ccheever/.bun/bin:/Users/ccheever/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "SNAPBACK4_REQUIRE_LEAN=1",
+    "SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33",
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "packages/snapback4/test/ordinary-search-oracle.test.mjs"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0427/snapback4",
+  "start": 1791996571.301926,
+  "end": 1791996973.042947,
+  "seconds": 401.741,
+  "exit": 0
+}

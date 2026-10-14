@@ -1,0 +1,259 @@
+TAP version 13
+# Subtest: rollback then deploy keeps immutable source identities and serving only attaches
+ok 1 - rollback then deploy keeps immutable source identities and serving only attaches
+  ---
+  duration_ms: 302.798833
+  type: 'test'
+  ...
+# Subtest: live release deploy and rollback activate without restart
+ok 2 - live release deploy and rollback activate without restart
+  ---
+  duration_ms: 369.994
+  type: 'test'
+  ...
+# Subtest: required pointer and ledger failures happen before database activation
+ok 3 - required pointer and ledger failures happen before database activation
+  ---
+  duration_ms: 157.764291
+  type: 'test'
+  ...
+# Subtest: data and doctor inspect persisted state despite destructive or broken source edits
+ok 4 - data and doctor inspect persisted state despite destructive or broken source edits
+  ---
+  duration_ms: 37.171375
+  type: 'test'
+  ...
+# Subtest: serving edited release schema or programs refuses without adopting them
+ok 5 - serving edited release schema or programs refuses without adopting them
+  ---
+  duration_ms: 61.426041
+  type: 'test'
+  ...
+# Subtest: legacy pointer deployments upgrade through deploy, never implicit serving
+ok 6 - legacy pointer deployments upgrade through deploy, never implicit serving
+  ---
+  duration_ms: 242.22425
+  type: 'test'
+  ...
+# Subtest: local dev and run cannot reactivate source inside a deployed release
+ok 7 - local dev and run cannot reactivate source inside a deployed release
+  ---
+  duration_ms: 298.31625
+  type: 'test'
+  ...
+# Subtest: inspection of a new project does not initialize a store
+ok 8 - inspection of a new project does not initialize a store
+  ---
+  duration_ms: 10.654291
+  type: 'test'
+  ...
+# Subtest: check reports generated-type write failures and data refuses malformed limits
+ok 9 - check reports generated-type write failures and data refuses malformed limits
+  ---
+  duration_ms: 24.146875
+  type: 'test'
+  ...
+# Subtest: run says when a job ignores --as and executes as the system
+ok 10 - run says when a job ignores --as and executes as the system
+  ---
+  duration_ms: 14.000375
+  type: 'test'
+  ...
+# Subtest: stopped full-release restore preserves its recovery point and stays separate from the original
+ok 11 - stopped full-release restore preserves its recovery point and stays separate from the original
+  ---
+  duration_ms: 1187.996875
+  type: 'test'
+  ...
+# recovery point: release 1, generation 1, sequence 1; password login and rotation passed; fresh process device only; post-backup original writes excluded; queued effects never delivered; process/stopped-copy recovery, WAL synchronous=NORMAL, no power-loss claim
+# Subtest: a queued scheduled job survives serving process death and runs once after restart
+ok 12 - a queued scheduled job survives serving process death and runs once after restart
+  ---
+  duration_ms: 2374.274125
+  type: 'test'
+  ...
+# owned serve SIGKILL after durable schedule admission, before first chunk; same job id resumed once; one queued effect; no external worker; WAL synchronous=NORMAL, no power-loss claim
+# Subtest: release serving repairs dangling legacy links and refuses an unexpected regular store file
+ok 13 - release serving repairs dangling legacy links and refuses an unexpected regular store file
+  ---
+  duration_ms: 366.85725
+  type: 'test'
+  ...
+# Subtest: release nextExpiry excludes irrelevant hidden grants: owner
+ok 14 - release nextExpiry excludes irrelevant hidden grants: owner
+  ---
+  duration_ms: 236.60675
+  type: 'test'
+  ...
+# Subtest: release nextExpiry excludes irrelevant hidden grants: failed branch
+ok 15 - release nextExpiry excludes irrelevant hidden grants: failed branch
+  ---
+  duration_ms: 226.677334
+  type: 'test'
+  ...
+# Subtest: release nextExpiry excludes irrelevant hidden grants: second witness
+ok 16 - release nextExpiry excludes irrelevant hidden grants: second witness
+  ---
+  duration_ms: 215.916917
+  type: 'test'
+  ...
+# Subtest: release nextExpiry excludes irrelevant hidden grants: multiple witnesses
+ok 17 - release nextExpiry excludes irrelevant hidden grants: multiple witnesses
+  ---
+  duration_ms: 231.838625
+  type: 'test'
+  ...
+# Subtest: release nextExpiry excludes irrelevant hidden grants: correlated branches
+ok 18 - release nextExpiry excludes irrelevant hidden grants: correlated branches
+  ---
+  duration_ms: 227.242208
+  type: 'test'
+  ...
+# Subtest: hot additive rollback and forward preserve dormant data, old writes and a connected client
+ok 19 - hot additive rollback and forward preserve dormant data, old writes and a connected client
+  ---
+  duration_ms: 1333.786125
+  type: 'test'
+  ...
+# Subtest: native-only hot activation advances generation and refreshes an already connected device
+ok 20 - native-only hot activation advances generation and refreshes an already connected device
+  ---
+  duration_ms: 4219.185334
+  type: 'test'
+  ...
+# Subtest: hot release replaces, adds and retires named workers without restarting serve
+ok 21 - hot release replaces, adds and retires named workers without restarting serve
+  ---
+  duration_ms: 1286.012666
+  type: 'test'
+  ...
+# Subtest: an unserved release cannot create a shadow development store
+ok 22 - an unserved release cannot create a shadow development store
+  ---
+  duration_ms: 85.965083
+  type: 'test'
+  ...
+# Subtest: owned serve death before hot commit and after commit recovers database authority
+ok 23 - owned serve death before hot commit and after commit recovers database authority
+  ---
+  duration_ms: 5674.951208
+  type: 'test'
+  ...
+# Subtest: REL identical source is a no-op; latest and exact previews never activate
+ok 24 - REL identical source is a no-op; latest and exact previews never activate
+  ---
+  duration_ms: 550.050833
+  type: 'test'
+  ...
+# Subtest: REL 16 concurrent callers remain request-safe over six hot switch pairs
+ok 25 - REL 16 concurrent callers remain request-safe over six hot switch pairs
+  ---
+  duration_ms: 1473.290333
+  type: 'test'
+  ...
+# 6471 HTTP replies across 12 hot activations
+# Subtest: REL mutation decoding and many-item previews report complete plans
+ok 26 - REL mutation decoding and many-item previews report complete plans
+  ---
+  duration_ms: 557.421666
+  type: 'test'
+  ...
+# Subtest: REL minimum-text widening warns in both deploy and rollback directions
+ok 27 - REL minimum-text widening warns in both deploy and rollback directions
+  ---
+  duration_ms: 532.592292
+  type: 'test'
+  ...
+# Subtest: REL2 refused deploy is unselectable and latest restores the adopted source
+ok 28 - REL2 refused deploy is unselectable and latest restores the adopted source
+  ---
+  duration_ms: 828.007292
+  type: 'test'
+  ...
+# Subtest: REL2 bare rollback follows active history and committed pending sources recover
+ok 29 - REL2 bare rollback follows active history and committed pending sources recover
+  ---
+  duration_ms: 415.87475
+  type: 'test'
+  ...
+# Subtest: REL2 CLI help, guide list and dry-run refusal are discoverable
+ok 30 - REL2 CLI help, guide list and dry-run refusal are discoverable
+  ---
+  duration_ms: 23.515209
+  type: 'test'
+  ...
+# Subtest: REL2 deploy preview preserves live state, refuses name reuse and narrates dormancy
+ok 31 - REL2 deploy preview preserves live state, refuses name reuse and narrates dormancy
+  ---
+  duration_ms: 348.935958
+  type: 'test'
+  ...
+# Subtest: REL2 served job uses a full service token and served source
+ok 32 - REL2 served job uses a full service token and served source
+  ---
+  duration_ms: 239.194458
+  type: 'test'
+  ...
+# Subtest: REL2 stale lock is reclaimed and live conflict identifies PID URL and directory
+ok 33 - REL2 stale lock is reclaimed and live conflict identifies PID URL and directory
+  ---
+  duration_ms: 302.962417
+  type: 'test'
+  ...
+# Subtest: REL2 old release sees E_OP, NOT_FOUND and null; forward restores exact values
+ok 34 - REL2 old release sees E_OP, NOT_FOUND and null; forward restores exact values
+  ---
+  duration_ms: 486.248583
+  type: 'test'
+  ...
+# Subtest: REL2 first deploy check creates no live store or numbered release
+ok 35 - REL2 first deploy check creates no live store or numbered release
+  ---
+  duration_ms: 28.91325
+  type: 'test'
+  ...
+# Subtest: REL2 populated compatibility warnings include counts
+ok 36 - REL2 populated compatibility warnings include counts
+  ---
+  duration_ms: 212.553208
+  type: 'test'
+  ...
+# Subtest: REL2 successful preview reports a rebuilt maintain instead of its speculative refusal
+ok 37 - REL2 successful preview reports a rebuilt maintain instead of its speculative refusal
+  ---
+  duration_ms: 336.13525
+  type: 'test'
+  ...
+# Subtest: REL2 legacy predecessor stays selectable after release-history upgrade
+ok 38 - REL2 legacy predecessor stays selectable after release-history upgrade
+  ---
+  duration_ms: 268.734208
+  type: 'test'
+  ...
+# Subtest: REL2 successful preview validates uniqueness after narrowed rows become dormant
+ok 39 - REL2 successful preview validates uniqueness after narrowed rows become dormant
+  ---
+  duration_ms: 314.412
+  type: 'test'
+  ...
+# Subtest: REL2 deploy check validates declared worker secret selection without launching
+ok 40 - REL2 deploy check validates declared worker secret selection without launching
+  ---
+  duration_ms: 159.438542
+  type: 'test'
+  ...
+# Subtest: REL2 receipts find dormant sample ids beyond empty inventory definitions
+ok 41 - REL2 receipts find dormant sample ids beyond empty inventory definitions
+  ---
+  duration_ms: 308.758458
+  type: 'test'
+  ...
+1..41
+# tests 41
+# suites 0
+# pass 41
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 26664.669042

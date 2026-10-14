@@ -1,0 +1,152 @@
+TAP version 13
+# Subtest: a late React entry shares the mounted document without optimizer invalidation or reload
+ok 1 - a late React entry shares the mounted document without optimizer invalidation or reload
+  ---
+  duration_ms: 766.945958
+  type: 'test'
+  ...
+# {"ms":772,"event":"page:framenavigated","detail":{"url":"http://127.0.0.1:56332/","main":true}}
+# {"ms":853,"event":"page:console","detail":{"type":"debug","text":"[vite] connecting..."}}
+# {"ms":863,"event":"websocket:received","detail":"{\\"type\\":\\"connected\\"}"}
+# {"ms":863,"event":"page:console","detail":{"type":"debug","text":"[vite] connected."}}
+# {"ms":886,"event":"page:console","detail":{"type":"info","text":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}}
+# {"ms":887,"event":"page:console","detail":{"type":"warning","text":"snapback4: createClient in a browser reads, but refuses durable writes with E_ADMISSION: it has no synchronous admission journal. For browser writes use createApp({ url, sessionStore: localStorageSessionStore() }) when no table syncs, otherwise createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() }). Pass readOnly: true to silence this."}}
+# {"ms":898,"event":"page:console","detail":{"type":"error","text":"Failed to load resource: the server responded with a status of 404 (Not Found)"}}
+# {"ms":907,"event":"teardown"}
+# {"ms":909,"event":"page:close"}
+# {"ms":932,"event":"browser:disconnected"}
+# {"ms":963,"event":"server:close"}
+# Subtest: useQuery and usePage keep canonical arguments across renders, preserving loaded pages
+ok 2 - useQuery and usePage keep canonical arguments across renders, preserving loaded pages
+  ---
+  duration_ms: 581.61725
+  type: 'test'
+  ...
+# {"ms":1301,"event":"page:framenavigated","detail":{"url":"http://127.0.0.1:56351/","main":true}}
+# {"ms":1385,"event":"page:console","detail":{"type":"debug","text":"[vite] connecting..."}}
+# {"ms":1387,"event":"websocket:received","detail":"{\\"type\\":\\"connected\\"}"}
+# {"ms":1387,"event":"page:console","detail":{"type":"debug","text":"[vite] connected."}}
+# {"ms":1406,"event":"page:console","detail":{"type":"info","text":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}}
+# {"ms":1407,"event":"page:console","detail":{"type":"warning","text":"snapback4: createClient in a browser reads, but refuses durable writes with E_ADMISSION: it has no synchronous admission journal. For browser writes use createApp({ url, sessionStore: localStorageSessionStore() }) when no table syncs, otherwise createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() }). Pass readOnly: true to silence this."}}
+# {"ms":1419,"event":"page:console","detail":{"type":"error","text":"Failed to load resource: the server responded with a status of 404 (Not Found)"}}
+# {"ms":1487,"event":"teardown"}
+# {"ms":1489,"event":"page:close"}
+# {"ms":1514,"event":"browser:disconnected"}
+# {"ms":1544,"event":"server:close"}
+# Subtest: 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders
+ok 3 - 1,000 per-row useQuery hooks: a relevant write renders revalidating answers with zero loading renders
+  ---
+  duration_ms: 600.838667
+  type: 'test'
+  ...
+# {"ms":1882,"event":"page:framenavigated","detail":{"url":"http://127.0.0.1:56375/","main":true}}
+# {"ms":1962,"event":"page:console","detail":{"type":"debug","text":"[vite] connecting..."}}
+# {"ms":1964,"event":"websocket:received","detail":"{\\"type\\":\\"connected\\"}"}
+# {"ms":1964,"event":"page:console","detail":{"type":"debug","text":"[vite] connected."}}
+# {"ms":1983,"event":"page:console","detail":{"type":"info","text":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}}
+# {"ms":1984,"event":"page:console","detail":{"type":"warning","text":"snapback4: createClient in a browser reads, but refuses durable writes with E_ADMISSION: it has no synchronous admission journal. For browser writes use createApp({ url, sessionStore: localStorageSessionStore() }) when no table syncs, otherwise createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() }). Pass readOnly: true to silence this."}}
+# {"ms":2024,"event":"page:console","detail":{"type":"error","text":"Failed to load resource: the server responded with a status of 404 (Not Found)"}}
+# {"ms":2095,"event":"teardown"}
+# {"ms":2097,"event":"page:close"}
+# {"ms":2113,"event":"browser:disconnected"}
+# {"ms":2145,"event":"server:close"}
+# Subtest: ready per-row completions share a React notification turn; publication does not wait for that turn
+ok 4 - ready per-row completions share a React notification turn; publication does not wait for that turn
+  ---
+  duration_ms: 533.314708
+  type: 'test'
+  ...
+# {"ms":2467,"event":"page:framenavigated","detail":{"url":"http://127.0.0.1:56398/","main":true}}
+# {"ms":2543,"event":"page:console","detail":{"type":"debug","text":"[vite] connecting..."}}
+# {"ms":2544,"event":"websocket:received","detail":"{\\"type\\":\\"connected\\"}"}
+# {"ms":2544,"event":"page:console","detail":{"type":"debug","text":"[vite] connected."}}
+# {"ms":2563,"event":"page:console","detail":{"type":"info","text":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}}
+# {"ms":2564,"event":"page:console","detail":{"type":"warning","text":"snapback4: createClient in a browser reads, but refuses durable writes with E_ADMISSION: it has no synchronous admission journal. For browser writes use createApp({ url, sessionStore: localStorageSessionStore() }) when no table syncs, otherwise createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() }). Pass readOnly: true to silence this."}}
+# {"ms":2579,"event":"page:console","detail":{"type":"error","text":"Failed to load resource: the server responded with a status of 404 (Not Found)"}}
+# {"commits":1,"loading":0,"replaced":8}
+# {"ms":2627,"event":"teardown"}
+# {"ms":2629,"event":"page:close"}
+# {"ms":2647,"event":"browser:disconnected"}
+# {"ms":2679,"event":"server:close"}
+# Subtest: a terminal refusal bypasses a held ready-notification turn and retires its pending completions
+ok 5 - a terminal refusal bypasses a held ready-notification turn and retires its pending completions
+  ---
+  duration_ms: 531.980084
+  type: 'test'
+  ...
+# {"ms":3005,"event":"page:framenavigated","detail":{"url":"http://127.0.0.1:56422/","main":true}}
+# {"ms":3079,"event":"page:console","detail":{"type":"debug","text":"[vite] connecting..."}}
+# {"ms":3080,"event":"websocket:received","detail":"{\\"type\\":\\"connected\\"}"}
+# {"ms":3080,"event":"page:console","detail":{"type":"debug","text":"[vite] connected."}}
+# {"ms":3099,"event":"page:console","detail":{"type":"info","text":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}}
+# {"ms":3100,"event":"page:console","detail":{"type":"warning","text":"snapback4: createClient in a browser reads, but refuses durable writes with E_ADMISSION: it has no synchronous admission journal. For browser writes use createApp({ url, sessionStore: localStorageSessionStore() }) when no table syncs, otherwise createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() }). Pass readOnly: true to silence this."}}
+# {"ms":3112,"event":"page:console","detail":{"type":"error","text":"Failed to load resource: the server responded with a status of 404 (Not Found)"}}
+# {"ms":3151,"event":"teardown"}
+# {"ms":3153,"event":"page:close"}
+# {"ms":3180,"event":"browser:disconnected"}
+# {"ms":3211,"event":"server:close"}
+# Subtest: wasm: 1,000 per-row hooks retain through a relevant write with the real clock
+ok 6 - wasm: 1,000 per-row hooks retain through a relevant write with the real clock
+  ---
+  duration_ms: 3470.267083
+  type: 'test'
+  ...
+# {"ms":3572,"event":"page:framenavigated","detail":{"url":"http://127.0.0.1:56445/","main":true}}
+# {"ms":3697,"event":"page:console","detail":{"type":"debug","text":"[vite] connecting..."}}
+# {"ms":3715,"event":"page:console","detail":{"type":"info","text":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}}
+# {"ms":3718,"event":"websocket:received","detail":"{\\"type\\":\\"connected\\"}"}
+# {"ms":3718,"event":"page:console","detail":{"type":"debug","text":"[vite] connected."}}
+# {"ms":3720,"event":"page:console","detail":{"type":"error","text":"Failed to load resource: the server responded with a status of 404 (Not Found)"}}
+# {"tier":"wasm","loading":0,"calls":2000,"revalidated":1000,"firstStart":1791996995726,"lastStart":1791996997883,"wallIsReal":true,"link":"online"}
+# {"ms":6623,"event":"teardown"}
+# {"ms":6626,"event":"page:close"}
+# {"ms":6647,"event":"browser:disconnected"}
+# {"ms":6680,"event":"server:close"}
+# Subtest: worker: 1,000 per-row hooks retain through a relevant write with the real clock
+ok 7 - worker: 1,000 per-row hooks retain through a relevant write with the real clock
+  ---
+  duration_ms: 3722.739042
+  type: 'test'
+  ...
+# {"ms":7045,"event":"page:framenavigated","detail":{"url":"http://127.0.0.1:56478/","main":true}}
+# {"ms":7171,"event":"page:console","detail":{"type":"debug","text":"[vite] connecting..."}}
+# {"ms":7189,"event":"page:console","detail":{"type":"info","text":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}}
+# {"ms":7192,"event":"websocket:received","detail":"{\\"type\\":\\"connected\\"}"}
+# {"ms":7192,"event":"page:console","detail":{"type":"debug","text":"[vite] connected."}}
+# {"ms":7195,"event":"page:console","detail":{"type":"error","text":"Failed to load resource: the server responded with a status of 404 (Not Found)"}}
+# {"tier":"worker","loading":0,"calls":2000,"revalidated":1000,"firstStart":1791996999383,"lastStart":1791997001605,"wallIsReal":true,"link":"online"}
+# {"ms":10345,"event":"teardown"}
+# {"ms":10348,"event":"page:close"}
+# {"ms":10367,"event":"browser:disconnected"}
+# {"ms":10403,"event":"server:close"}
+# Subtest: process: 1,000 per-row hooks retain through a relevant write with the real clock
+ok 8 - process: 1,000 per-row hooks retain through a relevant write with the real clock
+  ---
+  duration_ms: 4051.894334
+  type: 'test'
+  ...
+# {"ms":10776,"event":"page:framenavigated","detail":{"url":"http://127.0.0.1:56512/","main":true}}
+# {"ms":10899,"event":"page:console","detail":{"type":"debug","text":"[vite] connecting..."}}
+# {"ms":10917,"event":"page:console","detail":{"type":"info","text":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}}
+# {"ms":10920,"event":"websocket:received","detail":"{\\"type\\":\\"connected\\"}"}
+# {"ms":10920,"event":"page:console","detail":{"type":"debug","text":"[vite] connected."}}
+# {"ms":10923,"event":"page:console","detail":{"type":"error","text":"Failed to load resource: the server responded with a status of 404 (Not Found)"}}
+# {"ms":11436,"event":"page:framenavigated","detail":{"url":"http://127.0.0.1:56512/","main":true}}
+# {"ms":11441,"event":"page:console","detail":{"type":"debug","text":"[vite] connecting..."}}
+# {"ms":11445,"event":"websocket:received","detail":"{\\"type\\":\\"connected\\"}"}
+# {"ms":11445,"event":"page:console","detail":{"type":"debug","text":"[vite] connected."}}
+# {"ms":11454,"event":"page:console","detail":{"type":"info","text":"%cDownload the React DevTools for a better development experience: https://react.dev/link/react-devtools font-weight:bold"}}
+# {"tier":"process","loading":0,"calls":2000,"revalidated":1000,"firstStart":1791997003330,"lastStart":1791997005649,"wallIsReal":true,"link":"online"}
+# {"ms":14392,"event":"teardown"}
+# {"ms":14394,"event":"page:close"}
+# {"ms":14414,"event":"browser:disconnected"}
+# {"ms":14456,"event":"server:close"}
+1..8
+# tests 8
+# suites 0
+# pass 8
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 14489.011083
