@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {spawnSync} from 'node:child_process';
-import {readFileSync} from 'node:fs';
+import {readFileSync,copyFileSync,chmodSync,mkdtempSync,rmSync,writeFileSync} from 'node:fs';
+import {join} from 'node:path';
+import {tmpdir} from 'node:os';
 import {fileURLToPath} from 'node:url';
 import {assertChangelogHelp,checkVerbHelp,changelogFlags} from '../../../scripts/check-verb-help.mjs';
 import {createClient} from '../dist/client.js';
@@ -35,4 +37,21 @@ test('bare operation names refuse with generated handle guidance before query/wr
     const write=await client.mutate('add',{});assert.equal(write.state,'failed');assert.equal(write.why.code,'E_OP');assert.match(write.why.message,/generated handle \(api.op\)/);
     assert.ok(requests.every(url=>!String(url).includes("/q/")&&!String(url).includes("/m/")));
   } finally { await client.close(); }
+});
+
+
+test('a staged standalone binary owns every native verb help without companion JS helpers', t => {
+  const dir=mkdtempSync(join(tmpdir(),'surf-staged-help-'));
+  t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  const staged=join(dir,'snapback4');copyFileSync(binary,staged);chmodSync(staged,0o755);
+  const poison=join(dir,'must-not-load.js');writeFileSync(poison,'throw Error("help delegated to companion JS")');
+  const env={...process.env,SNAPBACK4_UPGRADE_HELPER:poison,SNAPBACK4_WEB_HELPER:poison};
+  for (const verb of ['init','new','check','device','types','dev','deploy','rollback','prune','releases','serve','run','clock','reset','test','why','guide','data','sql','token','doctor','upgrade','witness','version']) {
+    const result=spawnSync(staged,[verb,'--help'],{cwd:dir,env,encoding:'utf8',timeout:30000});
+    assert.equal(result.status,0,verb+': '+result.stdout+result.stderr);
+    assert.match(result.stdout,/Flags \(validated before any project or store work\)/,verb);
+  }
+  const web=spawnSync(staged,['witness','web','--help'],{cwd:dir,env,encoding:'utf8',timeout:30000});
+  assert.equal(web.status,0,web.stderr);assert.match(web.stdout,/witness web/);assert.match(web.stdout,/--password-env/);
+  checkVerbHelp(staged,changelog);
 });
