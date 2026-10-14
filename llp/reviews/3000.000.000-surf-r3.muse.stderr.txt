@@ -1,0 +1,3 @@
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-w12-surf (cwd default)
+muse: workspace trust: trusted source=run-flag

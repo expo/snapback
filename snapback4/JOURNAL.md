@@ -95436,3 +95436,23 @@ qualifiers remain distinct from final success. `reports/20261014-fix28/` retains
 exact-byte/source bindings, complete proof matrices and hashed command logs.
 Consumer evidence has publicationQualified false and suite not-run. No full
 scripts/test.sh, native iOS/Mac publication qualification, upload or push.
+
+## 2026-10-15 — SURF wave 12, target 0.4.29
+
+Generated native verb flags and standalone help now share validation metadata;
+publication checks announced flags against built and installed help, with the
+0.4.28 omission and an isolated staged binary as controls. Release narration
+uses the engine's effective old/next rules, a bounded three-valued implication
+proof and ordered/lexically contextual requirement previews. Tightening notes
+and loosening/uncertainty warnings retain both clauses.
+
+Expo gains an injective SecureStore session adapter with no Swift/ABI change.
+Production/client recipes cover the minimal bar, principal sharing, enrollment,
+list props, partial fallback, upload custody and raw HTTP. Auth discovery marks
+dev, type/output text agrees with the actual API, and guide discovery no longer
+calls a successful keyword a miss. Scope and results: root WORKSTREAM-REPORT.md.
+
+Both independent fresh families are READY on semantic 03342458bd; all received
+rounds and briefs are retained under llp/reviews/3000.000.000-surf-r*.
+Subsequent changes are aliases, explanatory text and tests. Version remains
+0.4.28 until integration. No full test.sh, push, publication or Mac qualification.
