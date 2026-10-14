@@ -94903,3 +94903,12 @@ and native campaign checks unconditional. Missing optional models log SKIPPED;
 SNAPBACK4_REQUIRE_LEAN makes absence fail. Mac qualification sets that flag,
 so the repaired full pass exercises every model comparison with the pinned
 oracle. Linux validates present, absent-optional and absent-required paths.
+
+The first pooled Mac client pass hit two direct-window adoption guards in
+follow-window.test.mjs at 40 seconds; worker cases passed. Both identical
+direct-window cases then passed in the scoped Mac trace in about 1.5 seconds,
+including automatic adoption and all custody/receipt assertions. Add this
+17th timer-sensitive file to the existing drained serial group. Preserve the
+40-second browser guard, 60-second test guard and every causal assertion.
+Validate the complete file and runner on Linux, then both full Mac halves in
+one fresh pass. No product timing or source custody rule changes.

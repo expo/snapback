@@ -208,6 +208,7 @@ export const TIMER_CLIENT_FILES = new Set([
   'admit-before-identity.test.mjs', 'client-seams.test.mjs',
   'ephemeral-adoption.test.mjs', 'ephemeral-watches.test.mjs', 'ephemeral-e2e.test.mjs',
   'export-maintenance-wakeup.test.mjs', 'export-background.test.mjs',
+  'follow-window.test.mjs',
   'maintenance-evidence.test.mjs', 'keepalive-retry.test.mjs',
   'transport-http.test.mjs', 'test-file-runner.test.mjs', 'test-signals.test.mjs',
   'read-only-round5.test.mjs', 'server-clock-wire.test.mjs', 'server-clock-browser.test.mjs',
