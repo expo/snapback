@@ -15,4 +15,3 @@ query list(c: cursor ?):
   return docs first 1 by .at after c
 query scoped(c: cursor ?):
   return docs where exists members[.group, viewer] first 1 by .at after c
-
