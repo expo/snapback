@@ -215,11 +215,31 @@ def opened (td : TableDecl) (now : Int) (r : Row) : Bool :=
     | .int opens => opens <= now
     | _ => false
 
-/-- The physical store with future rows removed. Rule probes use this store too,
-so an unopened row cannot act as an authorization witness. -/
+/-- Whether a row remains before its table's upper read lifetime. Null has no
+upper bound; the checked schema guarantees that a non-null value is a time. -/
+-- @ref LLP 3000.036.003#3-semantics — upper read lifetimes filter every logical read before physical cleanup.
+def unexpired (td : TableDecl) (now : Int) (r : Row) : Bool :=
+  match td.expire with
+  | none => true
+  | some c => match r.get c with
+    | .null => true
+    | .int closes => now < closes
+    | _ => false
+
+def live (td : TableDecl) (now : Int) (r : Row) : Bool := opened td now r && unexpired td now r
+
+/-- Referential actions ignore expired child images but still govern a child
+whose lower read lifetime has not opened yet, matching the physical engine. -/
+def unexpiredStore (sch : Schema) (s : Store) (now : Int) : Store := fun t =>
+  match sch.table? t with
+  | some td => (s t).filter (unexpired td now)
+  | none => []
+
+/-- The physical store with rows outside their logical lifetime removed. Rule
+probes use this store too, so a future or expired row cannot authorize work. -/
 def openedStore (sch : Schema) (s : Store) (now : Int) : Store := fun t =>
   match sch.table? t with
-  | some td => (s t).filter (opened td now)
+  | some td => (s t).filter (live td now)
   | none => []
 
 /-- Read-rule visibility for one image at a request clock. The image may be a
@@ -227,7 +247,7 @@ physical write target, while every probe it performs sees only opened rows. -/
 def readableAt (sch : Schema) (s : Store) (v : List Nat) (now : Int)
     (t : String) (r : Row) : Bool :=
   match sch.table? t with
-  | some td => opened td now r && td.read.eval (openedStore sch s now) v { self := some r }
+  | some td => live td now r && td.read.eval (openedStore sch s now) v { self := some r }
   | none => false
 
 /-- Request-time visibility, including the server-enforced lower read lifetime. -/

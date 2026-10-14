@@ -50,6 +50,7 @@ elan.
 | Values | `Quarry/Value.lean` | Scalars: null, bool, i53 int, text (as code points), nominal id, bytes. Values: scalars, arrays, rows. The one total order. A self-delimiting order-preserving key encoding. |
 | Syntax | `Quarry/Syntax.lean` | Schema: tables, typed nullable columns, unique keys with `else CODE`, read/insert/update/delete rules. Rules: allow, deny, `=`, `!=`, `exists t[..]` probes, and, or, not, over the row, old/next images and `viewer`. Expressions: arithmetic, comparison, and/or/not, `!` / `else`, `??`, conditionals, pure helper calls, arrays, records, point reads, pages, `count`, `exists`. Statements: `x = e`, `require`, `if`, `return`, and insert/upsert/update/delete. |
 | Store and rules | `Quarry/Store.lean` | Rows, the store, rule evaluation, visibility (`visibleRows`), a rule's disjuncts and terms. |
+| Maintained identity | `Quarry/Maintained.lean` | An independent logical abstraction of the versioned aggregate digest: every logical group, including the empty tuple, has a 64-character identity within the id bound; adoption replaces legacy ids and publishes the version in one state. It does not reproduce or verify SHA-256. |
 | Evaluator | `Quarry/Eval.lean` | `evalExpr` and `execStmts`: total and structural on fuel. The page walk, `complete` and `next`, counts and search `exists`; when a scan is decided (its pins, or a page guard: a grant or a pinned parent probe). Reads see only a `View` of visible rows. |
 | Writes | `Quarry/Write.lean` | Insert, upsert, update and delete, with rule checks and the documented refusal codes (`E_RULE`, `NOT_FOUND`, `E_CONFLICT`, `E_CONSTRAINT`, `E_REFERENCED`, application codes). A delete applies its references' `on delete` actions (LLP 3000.039 §3): the read prerequisite, the cascade closure, restrict probes outside it, set null, removal. Caps are carried as unenforced declarations: the emitter admits a capped table only when the program never inserts into or updates it. |
 | Calendar | `Quarry/Calendar.lean` | The UTC builtins of LLP 3000.040 §2.2: `day`, `hour`, `bucket` as period ordinals; `month`, `year`, `monthStart`, `yearStart` over the proleptic Gregorian calendar, by a 400/100/4/1-year decomposition independent of the engine's algorithm. Unbounded `Int`; the evaluator refuses `E_OVERFLOW` outside i53. |
@@ -60,8 +61,8 @@ elan.
 **Out of scope** (§5.2): the meter, apart from one abstract ceiling on
 visible candidates examined (OPEN M1), and the following:
 
-- expiry and ephemeral tables;
-- maintained columns and views;
+- ephemeral tables and physical expiry scheduling (request-time expiry and explicit sweeps are modeled);
+- maintained columns and view evaluation (their fixed physical identity/adoption invariants are modeled);
 - residency, sync and devices;
 - search, jobs and effects;
 - loops, `walk`, `merge` and shapes;
@@ -131,7 +132,7 @@ returned. Changing a witness row is a change of authority, not a disclosure.
   Each rule is evaluated in the store immediately before that write.
 - `refDelete_without_actions`: a delete from a table that no action-carrying
   reference names removes exactly that row, as every delete did before.
-- `mutation_authorized`: a committed mutation's store is reached by a chain
+- `mutation_authorized`: a committed ordinary mutation's store is reached by a chain
   of authorized steps. The proof uses `execStmts_inv`: statements change the
   world only through writes.
 
@@ -225,7 +226,7 @@ The model is an oracle of the Stage 1 harness (LLP 3000.035 §5.2), built on
   *surface* tree (never the binder's IR, so the binder is under test too)
   into the terms of `Syntax.lean`, with the expansions listed there. Anything
   outside the core fragment is an `Unsupported` with a stable reason (for
-  example `call-sum`, `now`, `loop`, `table-expiry`, `type-money`), never a
+  example `call-sum`, `now`, `loop`, `type-money`), never a
   partial translation. `snapback4 check --emit-lean <file.q>` prints one
   file's translation.
 - **The runner**, `quarry-oracle` (`Oracle.lean`), reads one case per line
@@ -306,7 +307,7 @@ How the harness compares against the engine's outcome record:
 | `answer.complete` | `complete` | exact |
 | `answer.next` | `next` | presence only (OPEN C1); then each side continues from its own cursor and the next page is compared, to the end |
 | `committed.store` | the engine's store | through `observe` (a point reread), run on each side's resulting store |
-| (none) | meter fields, cut sites, `tables`, `seq`, expiry | not compared: out of scope |
+| (none) | meter fields, cut sites, `tables`, `seq` | not compared: out of scope; explicit expiry sweeps advance and compare both stores |
 
 The engine runs at the default ceilings and the model unbounded, so no
 compared case is cut. Comparing cuts (OPEN M1: a cut is reported, and

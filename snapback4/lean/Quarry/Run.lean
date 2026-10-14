@@ -45,6 +45,8 @@ structure Case where
   program : Program
   args : List (String × Value) := []
   budget : Option Nat := none
+  /-- Run only the server expiry sweep and return its resulting store. -/
+  sweepOnly : Bool := false
 
 def Case.ctx (c : Case) : Ctx :=
   { schema := c.schema, viewer := c.viewer, now := c.now, helpers := c.helpers, budget := c.budget,
@@ -76,8 +78,9 @@ def runMutation (c : Case) : Outcome :=
     | .error .unavailable => .refused "E_BOUND"
 
 def run (c : Case) : Outcome :=
-  match c.program.kind with
-  | .query => runQuery c
-  | .mutation => runMutation c
+  if c.sweepOnly then .committed .null (sweepExpired c.schema c.store c.now)
+  else match c.program.kind with
+    | .query => runQuery c
+    | .mutation => runMutation c
 
 end Quarry

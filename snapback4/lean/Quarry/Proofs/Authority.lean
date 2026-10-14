@@ -232,9 +232,10 @@ theorem execStmts_inv {W : Type} (H : Hooks W) (cx : Ctx) (R : W → W → Prop)
 /-- **Write authority, whole mutation.** Every committed mutation's store is
 reached from the original by a chain of authorized steps. -/
 theorem mutation_authorized {c : Case} {res : Value} {s' : Store}
-    (hk : c.program.kind = .mutation) (h : run c = .committed res s') :
+    (hk : c.program.kind = .mutation) (hs : c.sweepOnly = false)
+    (h : run c = .committed res s') :
     Steps c.schema c.viewer c.now c.store s' := by
-  simp only [run, hk, runMutation] at h
+  simp [run, hs, hk, runMutation] at h
   split at h
   · cases h
   · cases h

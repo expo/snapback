@@ -77,6 +77,46 @@ fn task_ids<S: DeviceStore>(d: &mut Device<S>) -> Json {
 }
 
 fn run<H: Host>(host: &mut H) {
+    // Digest-addressed maintained rows use the same fixed identity on the
+    // server and each device store, even for the largest composite values in
+    // this generated family.
+    let aggregate = r#"
+table groups:
+  public
+  sync public
+table entries:
+  owner: principal
+  parent: groups
+  token: text <=64
+  amount: int
+  public
+  sync public
+view totals: sum entries of .amount by .owner, .parent, .token
+  public
+"#;
+    let (mut e, b) = compile(aggregate);
+    let principal = "p".repeat(64);
+    let parent = "r".repeat(64);
+    let token = "x".repeat(64);
+    e.seed_at([
+        ("groups".into(), snapback4_core::value::object([("id", id(&parent))])),
+        ("entries".into(), snapback4_core::value::object([
+            ("id", id("entry")), ("owner", id(&principal)), ("parent", id(&parent)),
+            ("token", snapback4_core::Value::String(token.clone())),
+            ("amount", snapback4_core::Value::Int(7)),
+        ])),
+    ], 0).unwrap();
+    let expected = snapback4_core::schema::maintained_id(&[
+        id(&principal), id(&parent), snapback4_core::Value::String(token),
+    ]);
+    assert_eq!(expected.len(), 64);
+    let mut d = host.open("aggregate-digest", Some(b)).unwrap();
+    acquire(&mut e, &mut d, &principal, 0);
+    let rows = d.store().raw_rows("totals");
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].field("id").unwrap(), &id(&expected));
+    host.close("aggregate-digest", d);
+
     // Server expiry is a physical retirement with the schema's declared
     // referential effects. Devices receive that one committed closure just as
     // they receive an authored parent delete.
@@ -88,10 +128,12 @@ table parents:
   sync public
 table cascadeChildren:
   parent: parents on delete cascade
+  cap 1 by parent
   public 'cascadeChildren'
   sync public
 table nullableChildren:
   parent: parents ? on delete set null
+  cap 1 by parent
   public 'nullableChildren'
   sync public
 "#;

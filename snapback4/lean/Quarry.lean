@@ -3,6 +3,7 @@ import Quarry.Value
 import Quarry.Calendar
 import Quarry.Syntax
 import Quarry.Store
+import Quarry.Maintained
 import Quarry.Eval
 import Quarry.Write
 import Quarry.Run

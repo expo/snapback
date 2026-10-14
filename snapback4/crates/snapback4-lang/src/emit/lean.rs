@@ -285,7 +285,6 @@ fn table_shape(t: &ast::TableDecl) -> R<Table> {
         (!t.immutable.is_empty(), "immutable"),
         (!t.final_exists.is_empty(), "after-insert"),
         (t.retain.is_some(), "retain"),
-        (t.expire.is_some(), "expiry"),
     ] {
         if present {
             return no(&format!("table-{what}"), format!("table {} declares {what}", t.name));
@@ -369,6 +368,7 @@ fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Json> {
         "uniqueCodes": shape.codes,
         "caps": shape.caps.iter().map(|(max, by)| json!({"by": by, "max": max})).collect::<Vec<_>>(),
         "notBefore": t.not_before.as_ref().map(|(column, _)| column),
+        "expire": t.expire.as_ref().map(|(column, _)| column),
         "read": rule("read"), "insert": rule("insert"), "update": rule("update"), "delete": rule("delete"),
     }))
 }
@@ -1467,10 +1467,13 @@ impl LeanModule {
 
     /// One complete case for `entry`, evaluated at the server request clock.
     pub fn case_at(&self, entry: &str, store: Json, viewer: &str, args: Map<String, Json>, budget: Option<u64>, now: i64) -> R<Json> {
-        Ok(json!({
-            "version": 1, "schema": self.schema, "helpers": self.helpers, "store": store,
-            "viewer": viewer, "now": now, "program": self.program(entry)?, "args": args, "budget": budget,
-        }))
+        self.case_at_sweep(entry, store, viewer, args, budget, now, false)
+    }
+
+    /// A formal expiry-only case; `entry` supplies an unexecuted typed program.
+    pub fn case_at_sweep(&self, entry: &str, store: Json, viewer: &str, args: Map<String, Json>, budget: Option<u64>, now: i64, sweep: bool) -> R<Json> {
+        Ok(json!({ "version": 1, "schema": self.schema, "helpers": self.helpers, "store": store,
+            "viewer": viewer, "now": now, "program": self.program(entry)?, "args": args, "budget": budget, "sweep": sweep }))
     }
     /// The schema, helpers and every supported program (`check --emit-lean`).
     pub fn to_json(&self) -> Json {

@@ -11,6 +11,11 @@ open Quarry
 #print axioms keyCmp_lawful
 #print axioms id_ne_text
 #print axioms codepoint_order
+#print axioms maintainedIdV1_length
+#print axioms maintainedIdV1_fits
+#print axioms adoptMaintainedV1_version
+#print axioms adoptMaintainedV1_ids
+#print axioms adoptMaintainedV1_values
 #print axioms run_deterministic
 #print axioms sortRows_perm
 #print axioms candidates_perm

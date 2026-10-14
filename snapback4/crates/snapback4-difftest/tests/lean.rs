@@ -122,6 +122,8 @@ fn assert_membership_agreement(source: &str, membership: serde_json::Value) {
 #[test]
 fn the_emitter_covers_the_generated_corpus_with_named_exceptions() {
     let mut supported = 0;
+    let mut expiry_supported = 0;
+    let mut expiry_swept = 0;
     let mut reasons = BTreeSet::new();
     for seed in 0..3000 {
         let case = lean::generate(seed);
@@ -129,16 +131,23 @@ fn the_emitter_covers_the_generated_corpus_with_named_exceptions() {
         execute::compile(&source).unwrap_or_else(|e| panic!("seed {seed} does not compile: {e}\n{source}"));
         let module = match lean::module(&source) {
             Ok(m) => m,
-            // Expiry and words indexes are outside the model at the schema level.
+            // Words indexes remain outside the model at the schema level.
             Err(r) => {
-                assert!(matches!(r.as_str(), "table-expiry" | "index-computed-or-words"), "seed {seed}: {r}");
+                assert_eq!(r, "index-computed-or-words", "seed {seed}: {r}");
                 reasons.insert(r);
                 continue;
             }
         };
+        if source.contains("expire at") {
+            expiry_supported += 1;
+        }
         match module.program("run") {
             Ok(_) => {
                 supported += 1;
+                if source.contains("expire at")
+                    && (case.sweep || case.steps.iter().any(|step| step.sweep)) {
+                    expiry_swept += 1;
+                }
                 module.store(&case.rows).unwrap();
                 module.tag_args("run", &case.args).unwrap();
                 module.program("observe").ok();
@@ -149,9 +158,25 @@ fn the_emitter_covers_the_generated_corpus_with_named_exceptions() {
         }
     }
     // Outside it: the unpaged aggregates, page projections (`shape`), the
-    // loop of a prefetch-reachable fold, and expiry, which the model leaves out.
-    assert_eq!(reasons, ["call-max", "call-min", "call-sum", "index-computed-or-words", "loop", "page-compound-where-branches", "page-static-key-expression", "shape", "table-expiry"].map(String::from).into());
+    // loop of a prefetch-reachable fold. Expiry remains in the model fragment.
+    assert_eq!(reasons, ["call-max", "call-min", "call-sum", "index-computed-or-words", "loop", "now", "page-compound-where-branches", "page-static-key-expression", "shape"].map(String::from).into());
     assert!(supported > 2000, "{supported}");
+    assert!(expiry_supported > 0, "generated corpus did not exercise expiry");
+    assert!(expiry_swept > 0, "generated corpus did not execute an expiry sweep");
+}
+
+#[test]
+fn generated_expiry_sweep_agrees_with_the_engine_and_model() {
+    if !model_built() { return; }
+    let case = (0..20_000).map(lean::generate).find(|case| {
+        let source = case.program.source();
+        source.contains("expire at")
+            && (case.sweep || case.steps.iter().any(|step| step.sweep))
+            && lean::module(&source).is_ok_and(|module| module.program("run").is_ok())
+    }).expect("generated corpus reaches a supported expiry sweep");
+    let source = case.program.source();
+    let checked = lean::compare(&case, &source).unwrap();
+    assert!(matches!(checked.verdict, Verdict::Pass), "seed {}: {:?}\n{source}", case.seed, checked.verdict);
 }
 
 #[test]
@@ -1442,5 +1467,33 @@ fn conjunction_root_negative_fallbacks_are_named_unsupported() {
         case.program.body=snapback4_difftest::ast::Body::Scalar(snapback4_difftest::ast::Expr::Bool(true));
         let checked=lean::compare(&case,&source).unwrap();
         assert!(matches!(checked.verdict,Verdict::Unsupported(ref reason) if reason=="page-negative-grant-fallback"));assert_eq!(checked.executed,0);
+    }
+}
+
+#[test]
+fn aggregate_identity_generator_checks_bounded_digest_shape_outside_oracle_verdicts() {
+    // Maintained-view evaluation is outside the Lean oracle. Exercise its
+    // physical identity as an explicit generator invariant, so these cases
+    // cannot be counted as oracle passes merely because they are unsupported.
+    use snapback4_core::Value;
+    let mut rng = snapback4_difftest::generate::Rng::new(0x3000_0070_0030_0001);
+    let mut ids = std::collections::BTreeSet::new();
+    for n in 0..256 {
+        let key = if n == 0 {
+            vec![]
+        } else {
+            let principal = format!("p{:063}", rng.next());
+            let reference = format!("r{:063}", rng.next());
+            let len = rng.pick(65) as usize;
+            let token = format!("{:016x}", rng.next()).repeat(4)[..len].to_owned();
+            vec![Value::Id(principal), Value::Id(reference), Value::String(token),
+                 Value::Int((rng.next() & ((1 << 53) - 1)) as i64)]
+        };
+        let id = snapback4_core::schema::maintained_id(&key);
+        assert_eq!(id.len(), 64, "seeded case {n}: {key:?}");
+        assert!(id.bytes().all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase()));
+        assert!(snapback4_core::value::identity_fits(&id));
+        assert_eq!(id, snapback4_core::schema::maintained_id(&key));
+        assert!(ids.insert(id), "unexpected digest collision in generated corpus");
     }
 }

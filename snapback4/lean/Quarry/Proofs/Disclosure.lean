@@ -29,10 +29,10 @@ order, and its read rule was decided by the pins (`pageRead_complete`).
 namespace Quarry
 
 /-- **Noninterference.** -/
-theorem query_noninterference {c : Case} (hk : c.program.kind = .query) {s1 s2 : Store}
+theorem query_noninterference {c : Case} (hk : c.program.kind = .query) (hs : c.sweepOnly = false) {s1 s2 : Store}
     (h : visibleRowsAt c.schema s1 c.viewer c.now = visibleRowsAt c.schema s2 c.viewer c.now) :
     run { c with store := s1 } = run { c with store := s2 } := by
-  simp only [run, hk, runQuery, Case.ctx, h]
+  simp [run, hs, hk, runQuery, Case.ctx, h]
 
 /-- A query never changes anything: its world is the view, and every write
 refuses. -/
@@ -329,10 +329,10 @@ theorem visibleRows_insert_hidden {sch : Schema} {s : Store} {v : List Nat} {t :
   · simp only [Store.insertRow, Store.set, ht, ite_false]
 
 /-- **A hidden row changes no query outcome.** -/
-theorem query_ignores_hidden_insert {c : Case} (hk : c.program.kind = .query) {t : String} {r : Row}
+theorem query_ignores_hidden_insert {c : Case} (hk : c.program.kind = .query) (hs : c.sweepOnly = false) {t : String} {r : Row}
     (h : visibleRowsAt c.schema (c.store.insertRow t r) c.viewer c.now =
       visibleRowsAt c.schema c.store c.viewer c.now) :
     run { c with store := c.store.insertRow t r } = run c :=
-  query_noninterference (s2 := c.store) hk h
+  query_noninterference (s2 := c.store) hk hs h
 
 end Quarry

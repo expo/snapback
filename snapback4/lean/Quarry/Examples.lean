@@ -800,6 +800,20 @@ def projectStore (note : Bool) : Store := mkStore [
   ("tags", [mkRow "g" [("task", I "t2")]]),
   ("logs", [mkRow "l" [("task", I "t1")]])]
 
+def expiryRefSchema : Schema := { tables := [
+  { name := "parents", cols := [c "until"], expire := some "until", read := .allow },
+  { name := "cascadeKids", cols := [refCol "parent" "parents" (some .cascade)], read := .allow },
+  { name := "nullableKids", cols := [refCol "parent" "parents" (some .setNull) (nullable := true)], read := .allow },
+  { name := "blockers", cols := [refCol "parent" "parents" (some .restrict), c "until"],
+    expire := some "until", read := .allow }] }
+
+def expiryRefStore : Store := mkStore [
+  ("parents", [mkRow "a" [("until", .int 10)], mkRow "e" [("until", .int 10)], mkRow "z" [("until", .int 10)]]),
+  ("cascadeKids", [mkRow "ca" [("parent", I "a")], mkRow "cz" [("parent", I "z")]]),
+  ("nullableKids", [mkRow "nz" [("parent", I "z")]]),
+  ("blockers", [mkRow "ba" [("parent", I "a"), ("until", .int 20)],
+    mkRow "be" [("parent", I "e"), ("until", .int 10)]])]
+
 def refExamples : List Example := [
   { name := "delete-cascade"
     source := "LLP 3000.039 §3: a cascade deletes the referencing rows, hidden ones included; set null clears outside the closure; keep keeps"
@@ -818,7 +832,13 @@ def refExamples : List Example := [
     case := { schema := projectsSchema, store := projectStore false, viewer := alice,
               program := mutation [.write none (.delete "tasks" [("id", idE "t1")])] }
     tables := []
-    expected := r#"{"kind":"refused","code":"NOT_FOUND"}"# }
+    expected := r#"{"kind":"refused","code":"NOT_FOUND"}"# },
+  { name := "expiry-actions-and-restrict-progress"
+    source := "LLP 3000.039 §3: expiry retains a restricted root, then advances to apply cascade and set null to later due roots"
+    case := { schema := expiryRefSchema, store := expiryRefStore, viewer := alice,
+              program := query [.ret (lit .null)], now := 10, sweepOnly := true }
+    tables := ["parents", "cascadeKids", "nullableKids", "blockers"]
+    expected := r#"{"kind":"committed","result":null,"store":{"parents":[{"id":"a","until":10}],"cascadeKids":[{"id":"ca","parent":"a"}],"nullableKids":[{"id":"nz","parent":null}],"blockers":[{"id":"ba","parent":"a","until":20}]}}"# }
 ]
 
 def page3Pure : Schema := { tables := membershipDocs.tables.map fun t =>

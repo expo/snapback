@@ -90,7 +90,7 @@ fn a_0_4_28_store_rebuilds_legacy_aggregate_ids_and_fences_old_devices() {
     let store = dir.0.join(".snapback4/store.sqlite");
     let legacy = aggregate_id(&store);
     assert!(
-        legacy.len() > snapback4_core::rows::MAX_ID_BYTES,
+        !snapback4_core::value::identity_fits(&legacy),
         "the frozen binary must have written the oversized legacy address"
     );
     let before: u64 = Connection::open(&store)
@@ -125,7 +125,7 @@ fn a_0_4_28_store_rebuilds_legacy_aggregate_ids_and_fences_old_devices() {
         String::from_utf8_lossy(&opened.stderr)
     );
     let answer: serde_json::Value = serde_json::from_slice(&opened.stdout).unwrap();
-    assert_eq!(answer["data"]["value"], 7, "{answer}");
+    assert_eq!(answer["data"], 7, "{answer}");
 
     let digest = aggregate_id(&store);
     assert_eq!(digest.len(), 64);

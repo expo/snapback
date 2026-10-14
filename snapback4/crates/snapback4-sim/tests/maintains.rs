@@ -48,6 +48,50 @@ fn engine(source: &str) -> Engine {
 }
 
 #[test]
+fn generated_composite_aggregate_groups_keep_fixed_digest_identities() {
+    let source = r#"table parents:
+  insert <- allow
+  read <- allow
+table entries:
+  owner: principal
+  parent: parents
+  token: text <=64
+  amount: int
+  insert <- allow
+  read <- allow
+view totals: sum entries of .amount by .owner, .parent, .token
+  read <- allow
+mutation add(row: id, owner: principal, parent: parents, token: text <=64):
+  insert entries {id: row, owner, parent, token, amount: 1}
+"#;
+    let mut e = engine(source);
+    let principal = "p".repeat(64);
+    let parent = "r".repeat(64);
+    e.seed([("parents".into(), object([("id", Value::Id(parent.clone()))]))]).unwrap();
+    for n in 0..32 {
+        let token = format!("{n:02}{}", "x".repeat(62));
+        let result = e.mutate("add", None, Context::new(&principal, BTreeMap::from([
+            ("row".into(), Value::Id(format!("e{n}"))),
+            ("owner".into(), Value::Id(principal.clone())),
+            ("parent".into(), Value::Id(parent.clone())),
+            ("token".into(), Value::String(token)),
+        ]))).unwrap();
+        assert!(matches!(result.state, WriteState::Sent { .. }), "{result:?}");
+    }
+    let rows = e.store().rows("totals").unwrap();
+    assert_eq!(rows.len(), 32);
+    for row in rows {
+        let Value::Id(id) = row.field("id").unwrap() else { panic!("aggregate id") };
+        assert_eq!(id.len(), 64);
+        assert!(snapback4_core::value::identity_fits(id));
+        assert_eq!(id, &snapback4_core::schema::maintained_id(&[
+            row.field("owner").unwrap().clone(), row.field("parent").unwrap().clone(),
+            row.field("token").unwrap().clone(),
+        ]));
+    }
+}
+
+#[test]
 fn anchored_calendar_keys_match_on_server_memory_and_sqlite() {
     use snapback4_core::wire;
     use snapback4_device::{device::{Backend, Device, StreamPage}, memory::MemoryStore, store::DeviceStore};

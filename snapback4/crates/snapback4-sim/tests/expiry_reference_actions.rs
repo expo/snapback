@@ -18,20 +18,24 @@ table roots:
   by byExpiry: expiresAt
   expire at .expiresAt
   public 'roots'
+  insert <- allow
   sync public
 table cascadeKids:
   root: roots on delete cascade
   cap 4 by root
   public 'cascade kids'
+  insert <- allow
   sync public
 table nullableKids:
   root: roots ? on delete set null
   cap 4 by root
   public 'nullable kids'
+  insert <- allow
   sync public
 table blockers:
   root: roots
   public 'blockers'
+  insert <- allow
   sync public
 "#;
 
@@ -82,6 +86,7 @@ table children:
   public 'children'
 table grandchildren:
   child: children
+  immutable child
   read through .child
 "#;
     let mut e = engine(source);

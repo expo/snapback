@@ -26,7 +26,8 @@
 //!   (`post-*`): the engine's store, and the model's committed store (or the
 //!   original store after a refusal).
 //!
-//! Meter fields, cut sites, `tables`, `seq` and expiry are not compared.
+//! Meter fields, cut sites, `tables` and `seq` are not compared. Expiry
+//! sweeps advance both stores before the following program is compared.
 //!
 //! **Signatures** are `lean--{field}--{engine}~{model}`, each side's stable
 //! class (a refusal code, `unavailable`, `committed`, or the data's shape).
@@ -372,10 +373,22 @@ pub fn compare(case: &Case, source: &str) -> Result<Checked, String> {
     let mut executed = 0;
     let mut pages = 0;
     let mut store = store;
-    let mut steps = prelude.iter().filter(|o| o.kind != "sweep");
+    let mut steps = prelude.iter();
     let mut trail = vec![];
     for (i, step) in case.steps.iter().enumerate() {
         let name = format!("prep{i}");
+        if step.sweep {
+            let e_sweep = steps.next().ok_or("prelude sweep outcome missing")?;
+            if e_sweep.kind != "sweep" || e_sweep.value.get("error").is_some() {
+                return Err(format!("engine prelude sweep failed: {:?}", e_sweep.value));
+            }
+            let args = module.tag_args(&name, &step.args).map_err(|u| u.to_string())?;
+            let viewer = step.viewer.as_deref().unwrap_or(&case.principal);
+            let swept = ask(&module.case_at_sweep(&name, store.clone(), viewer, args, None, step.at, true).map_err(|u| u.to_string())?)?;
+            executed += 1;
+            if swept["kind"] != "committed" { return Err(format!("Lean prelude sweep failed: {swept}")); }
+            store = swept["store"].clone();
+        }
         let e_raw = steps.next().ok_or("prelude outcome missing")?.clone();
         let args = module.tag_args(&name, &step.args).map_err(|u| u.to_string())?;
         let viewer = step.viewer.as_deref().unwrap_or(&case.principal);
@@ -389,6 +402,16 @@ pub fn compare(case: &Case, source: &str) -> Result<Checked, String> {
         if m.kind == "committed" {
             store = m_raw["store"].clone();
         }
+    }
+    if case.sweep {
+        let e_sweep = steps.next().ok_or("final sweep outcome missing")?;
+        if e_sweep.kind != "sweep" || e_sweep.value.get("error").is_some() {
+            return Err(format!("engine final sweep failed: {:?}", e_sweep.value));
+        }
+        let swept = ask(&module.case_at_sweep("run", store.clone(), &case.principal, m_args.clone(), None, case.clock, true).map_err(|u| u.to_string())?)?;
+        executed += 1;
+        if swept["kind"] != "committed" { return Err(format!("Lean final sweep failed: {swept}")); }
+        store = swept["store"].clone();
     }
     if mutation {
         let e_raw = execute::execute(&mut engine, case, "run", &case.args);
@@ -830,9 +853,9 @@ fn variants(case: &mut Case, seed: u64) {
     }
 }
 
-/// Remove the widened dimensions outside the model's fragment (`widen.rs`):
-/// page projections (`shape`) and expiry (`table-expiry`, and the `now` of
-/// `until: now + ttl`). Blocks and the prelude are inside it.
+/// Remove widened dimensions outside the model's fragment (`widen.rs`): page
+/// projections (`shape`) and write TTL expressions. Declared upper lifetimes,
+/// seeded expiry values and explicit sweeps stay in the formal comparison.
 pub fn narrow(case: &mut Case) {
     use crate::ast::Stmt;
     if let Body::Read { project, .. } = &mut case.program.body {
@@ -852,16 +875,6 @@ pub fn narrow(case: &mut Case) {
         case.program.tables.retain(|t| t.name != "tags");
         case.rows.retain(|(t, _)| t != "tags");
     }
-    for t in &mut case.program.tables {
-        if t.expire.take().is_some() {
-            t.columns.retain(|c| c.name != "until");
-        }
-    }
-    for (_, row) in &mut case.rows {
-        if let Some(o) = row.as_object_mut() {
-            o.remove("until");
-        }
-    }
     fn plain(stmts: &mut [Stmt]) {
         for s in stmts {
             match s {
@@ -879,10 +892,6 @@ pub fn narrow(case: &mut Case) {
     }
     for b in &mut case.program.prelude {
         plain(&mut b.stmts);
-    }
-    case.sweep = false;
-    for s in &mut case.steps {
-        s.sweep = false;
     }
 }
 

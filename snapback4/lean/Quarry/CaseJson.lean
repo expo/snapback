@@ -238,7 +238,10 @@ def table (j : Json) : D TableDecl := do
   let notBefore := match optField j "notBefore" with
     | some (.str column) => some column
     | _ => none
-  return { name := ← str j "name", cols, uniques, uniqueCodes := codes, caps, notBefore,
+  let expire := match optField j "expire" with
+    | some (.str column) => some column
+    | _ => none
+  return { name := ← str j "name", cols, uniques, uniqueCodes := codes, caps, notBefore, expire,
            read := ← rule (← field j "read"), insert := ← rule (← field j "insert"),
            update := ← rule (← field j "update"), delete := ← rule (← field j "delete") }
 
@@ -288,8 +291,11 @@ def case (j : Json) : D (Case × List String) := do
   let now ← match optField j "now" with
     | some n => n.getInt?
     | none => pure 0
+  let sweepOnly ← match optField j "sweep" with
+    | some b => b.getBool?
+    | none => pure false
   return ({ schema := sch, helpers, store, viewer := cps (← str j "viewer"), now,
-            program := ← program (← field j "program"), args, budget },
+            program := ← program (← field j "program"), args, budget, sweepOnly },
           sch.tables.map (·.name))
 
 /-! ## Tagged output -/

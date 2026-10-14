@@ -219,6 +219,44 @@ def refDelete (sch : Schema) (s : Store) (t : String) (old : Row) : Except Stop 
   if restricted sch s cl then throw (.refuse "E_REFERENCED")
   else pure (cl.foldl (fun s p => s.removeRow p.1 p.2) (setNulls sch cl s))
 
+/-- Apply actions to the physical store using only the rows that are logically
+live as action witnesses. The root may itself be absent from `witnesses`. -/
+def refDeleteFrom (sch : Schema) (witnesses physical : Store) (t : String) (old : Row) : Except Stop Store :=
+  let cl := closure sch witnesses (storeSize sch witnesses + 1) [(t, old)] [(t, old)]
+  if restricted sch witnesses cl then throw (.refuse "E_REFERENCED")
+  else
+    let physical := cl.foldl (fun s (parent, row) => (referencing sch parent).foldl (fun s (child, col, action) =>
+      if action == .setNull then
+        ((witnesses child).filter fun k => names k col row.id && !inClosure cl child k).foldl
+          (fun s k => s.replaceRow child k (clearCol k col)) s
+      else s) s) physical
+    pure (cl.foldl (fun s p => s.removeRow p.1 p.2) physical)
+
+/-! ## Expiry retirement (LLP 3000.036.003 §6; LLP 3000.039 §3) -/
+
+def expired (td : TableDecl) (now : Int) (r : Row) : Bool :=
+  match td.expire with
+  | none => false
+  | some c => match r.get c with
+    | .int closes => closes <= now
+    | _ => false
+
+def stored (s : Store) (t : String) (r : Row) : Bool :=
+  (s t).any fun current => current.id == r.id
+
+/-- Retire every due physical row. `restrict` retains that root but never
+stops later due keys; cascade and set-null are committed with the root. The
+model has no read-through retained-history rows, so every non-restricted due
+root can be retired immediately. -/
+def sweepExpired (sch : Schema) (s : Store) (now : Int) : Store :=
+  sch.tables.foldl (fun s td => (s td.name).foldl (fun s r =>
+    if expired td now r && stored s td.name r then
+      match refDeleteFrom sch (unexpiredStore sch s now) s td.name r with
+      | .ok next => next
+      | .error (.refuse "E_REFERENCED") => s
+      | .error _ => s
+    else s) s) s
+
 /-- Apply one write to the store. -/
 def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
   | .insert t fields ifAbsent =>
