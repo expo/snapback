@@ -2,7 +2,7 @@
 
 `check --json` ran in 100 independent copies of final `snapback/*.q`, with no
 fixtures, stores, generated artifacts or writes in the evidence lanes. Every
-schema passed before (`c22dfefc9c`) and after (`45c2936e64`), with the same 324
+schema passed before (`c22dfefc9c`) and after (`1ac7589835`), with the same 324
 notes. The compressed raw results, per-schema source hashes and census are
 beside this file. New notes by code: **N_WRITE_DENIED +0;
 N_LOOKUP_NEVER_VISIBLE +0; every other code +0**. New refusals: zero.

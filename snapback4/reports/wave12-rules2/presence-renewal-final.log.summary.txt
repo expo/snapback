@@ -1,0 +1,2 @@
+     Running tests/wave12_rule_recipes.rs (snapback4/target/debug/deps/wave12_rule_recipes-f8068ff96b38a840)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.01s

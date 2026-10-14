@@ -95481,3 +95481,17 @@ qualifies for SDK renewal; it renews immediately after leaving and rejoining
 under a new enrolment id while its old memory row is still live. Viewer
 revocation is immediate, writer rows live at most four seconds. This removes
 unnecessary enrolment-id custody without changing the engine or language.
+
+### 2026-10-15 — RULES2 verification complete; no push
+
+The focused final presence/budget review at `1ac7589835` is READY from both
+fresh model families. Full default Rust inventories pass: 1,157 CLI, 1,975
+language, 1,547 device, 656 simulator and 79 difftest tests; default opt-in
+ignored tests remain ignored. The guide passes 123, recipes 13, composition
+proofs 11, older rule-expressiveness 5, and affected clients 41. The final
+100-schema check retains exactly 324 notes and adds no refusals. Root inventory
+and all 22 guide checks pass; ref-check has no errors/unchecked references and
+the README remains 320/320. Raw schema census, source hashes, scoped target
+results, concise verification logs and precision notes are under
+reports/wave12-rules2. The workstream report is at the worktree root. No push
+or publication; coordinator integration owns 0.4.29.

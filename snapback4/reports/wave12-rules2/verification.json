@@ -1,0 +1,2140 @@
+{
+  "reviewedImplementation": "45c2936e64",
+  "finalPresenceRevision": "1ac7589835",
+  "cargoEnvironment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "packages": {
+    "snapback4": {
+      "integrationTargets": 44,
+      "passedTargets": 44,
+      "unitResults": {
+        "unit:src/main.rs": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 427,
+          "failed": 0,
+          "ignored": 5
+        }
+      },
+      "targetResults": {
+        "check": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 101,
+          "failed": 0,
+          "ignored": 0
+        },
+        "check_cost_source": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0
+        },
+        "check_notes": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "cli_friction": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 29,
+          "failed": 0,
+          "ignored": 0
+        },
+        "clock": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 27,
+          "failed": 0,
+          "ignored": 0
+        },
+        "column_commit": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "delivery_page": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "dev_refusals": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 26,
+          "failed": 0,
+          "ignored": 0
+        },
+        "dev_reset": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        "expiry_writes": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 41,
+          "failed": 0,
+          "ignored": 0
+        },
+        "familiar": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "feed_bridge": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0
+        },
+        "fix": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 27,
+          "failed": 0,
+          "ignored": 0
+        },
+        "following_view": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "http": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0
+        },
+        "http_emfile": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0
+        },
+        "init": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 50,
+          "failed": 0,
+          "ignored": 0
+        },
+        "init_dx3": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0
+        },
+        "intent_issue_tracker": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0
+        },
+        "latency": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0
+        },
+        "lifecycle": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 28,
+          "failed": 0,
+          "ignored": 0
+        },
+        "maintenance_chunks": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "maintenance_latency": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 4
+        },
+        "overload": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "read_latency": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 2
+        },
+        "replay": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 24,
+          "failed": 0,
+          "ignored": 0
+        },
+        "run_admission": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 28,
+          "failed": 0,
+          "ignored": 0
+        },
+        "scale": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 29,
+          "failed": 0,
+          "ignored": 0
+        },
+        "scale_curves": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "scale_extremum_expressions": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 22,
+          "failed": 0,
+          "ignored": 0
+        },
+        "scale_intent": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0
+        },
+        "scale_row_ranges": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0
+        },
+        "scale_variants": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 36,
+          "failed": 0,
+          "ignored": 0
+        },
+        "scale_windows_expiry": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0
+        },
+        "timeline": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 23,
+          "failed": 0,
+          "ignored": 0
+        },
+        "timeline_adoption": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0
+        },
+        "timeline_delivery": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "timeline_delivery_counterexample": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "timeline_design": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "token_live": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 22,
+          "failed": 0,
+          "ignored": 0
+        },
+        "witness": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 34,
+          "failed": 0,
+          "ignored": 0
+        },
+        "witness_web": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "work_records": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "written_by": {
+          "log": "full-lang-cli-complete.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        }
+      },
+      "passed": 1157,
+      "ignored": 11
+    },
+    "snapback4-lang": {
+      "integrationTargets": 148,
+      "passedTargets": 148,
+      "unitResults": {
+        "unit:src/lib.rs": {
+          "log": "full-lang-final.log",
+          "passed": 32,
+          "failed": 0,
+          "ignored": 0
+        }
+      },
+      "targetResults": {
+        "actions": {
+          "log": "full-lang-final.log",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0
+        },
+        "aggregate_copies": {
+          "log": "full-lang-final.log",
+          "passed": 64,
+          "failed": 0,
+          "ignored": 4
+        },
+        "attribution_guide": {
+          "log": "full-lang-final.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "audience_bounds": {
+          "log": "full-lang-final.log",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0
+        },
+        "audience_bounds_runtime": {
+          "log": "full-lang-final.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 1
+        },
+        "bounded_calendar_caps": {
+          "log": "full-lang-final.log",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0
+        },
+        "bounded_following": {
+          "log": "full-lang-final.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "branch_merge": {
+          "log": "full-lang-final.log",
+          "passed": 57,
+          "failed": 0,
+          "ignored": 0
+        },
+        "builder_guidance": {
+          "log": "full-lang-final.log",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "chat": {
+          "log": "full-lang-final.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        "clique_03": {
+          "log": "full-lang-final.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "components": {
+          "log": "full-lang-final.log",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0
+        },
+        "constraint_diagnostics": {
+          "log": "full-lang-final.log",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0
+        },
+        "control_flow": {
+          "log": "full-lang-final.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "cursor_advice": {
+          "log": "full-lang-final.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "declarative_receipts": {
+          "log": "full-lang-final.log",
+          "passed": 211,
+          "failed": 0,
+          "ignored": 0
+        },
+        "delivery": {
+          "log": "full-lang-final.log",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0
+        },
+        "delivery_clause": {
+          "log": "full-lang-final.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "delivery_integration": {
+          "log": "full-lang-final.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "delivery_replay_conversion": {
+          "log": "full-lang-final.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 1
+        },
+        "denied_writes": {
+          "log": "full-lang-final.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "derived_maintains": {
+          "log": "full-lang-final.log",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0
+        },
+        "effect_reads": {
+          "log": "full-lang-final.log",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0
+        },
+        "ephemeral": {
+          "log": "full-lang-final.log",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0
+        },
+        "ephemeral_compat": {
+          "log": "full-lang-final.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "ergonomics": {
+          "log": "full-lang-final.log",
+          "passed": 25,
+          "failed": 0,
+          "ignored": 0
+        },
+        "expiring_mutations": {
+          "log": "full-lang-final.log",
+          "passed": 19,
+          "failed": 0,
+          "ignored": 1
+        },
+        "extrema": {
+          "log": "full-lang-final.log",
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0
+        },
+        "extremum_expressions": {
+          "log": "full-lang-final.log",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0
+        },
+        "familiar_guesses": {
+          "log": "full-lang-final.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "familiar_predicates": {
+          "log": "full-lang-final.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "familiar_repairs": {
+          "log": "full-lang-final.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "familiar_source_repairs": {
+          "log": "full-lang-final.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        "familiar_verified_repairs": {
+          "log": "full-lang-final.log",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0
+        },
+        "feed_forms": {
+          "log": "full-lang-final.log",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0
+        },
+        "file_assets": {
+          "log": "full-lang-final.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "first_paste": {
+          "log": "full-lang-final.log",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0
+        },
+        "following_adoption_research": {
+          "log": "full-lang-final.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 2
+        },
+        "following_atomic_launch": {
+          "log": "full-lang-final.log",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 2
+        },
+        "following_history": {
+          "log": "full-lang-final.log",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0
+        },
+        "following_history_research": {
+          "log": "full-lang-final.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 2
+        },
+        "following_view": {
+          "log": "full-lang-final.log",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0
+        },
+        "frontend_regressions": {
+          "log": "full-lang-final.log",
+          "passed": 40,
+          "failed": 0,
+          "ignored": 0
+        },
+        "guide": {
+          "log": "final-affected-qualified.log",
+          "passed": 123,
+          "failed": 0,
+          "ignored": 0
+        },
+        "held_unknown": {
+          "log": "full-lang-final.log",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0
+        },
+        "helper_placement": {
+          "log": "full-lang-final.log",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0
+        },
+        "intent_aggregate_safety": {
+          "log": "full-lang-final.log",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "intent_delta10": {
+          "log": "full-lang-final.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "intent_followup": {
+          "log": "full-lang-final.log",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "intent_nulls": {
+          "log": "full-lang-final.log",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0
+        },
+        "intent_order": {
+          "log": "full-lang-final.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "intent_predicates": {
+          "log": "full-lang-final.log",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0
+        },
+        "intent_review": {
+          "log": "full-lang-final.log",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0
+        },
+        "intent_target": {
+          "log": "full-lang-final.log",
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0
+        },
+        "intent_variants": {
+          "log": "full-lang-final.log",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0
+        },
+        "intent_variants_review": {
+          "log": "full-lang-final.log",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0
+        },
+        "job_viewer": {
+          "log": "full-lang-final.log",
+          "passed": 18,
+          "failed": 0,
+          "ignored": 0
+        },
+        "joined_shapes": {
+          "log": "full-lang-final.log",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0
+        },
+        "lane_domains": {
+          "log": "full-lang-final.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "lean_emit": {
+          "log": "full-lang-final.log",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0
+        },
+        "list_expressions": {
+          "log": "full-lang-final.log",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0
+        },
+        "list_lower_bounds": {
+          "log": "full-lang-final.log",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0
+        },
+        "list_reference_repair": {
+          "log": "full-lang-final.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "list_widening": {
+          "log": "full-lang-final.log",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0
+        },
+        "lookup_selection": {
+          "log": "full-lang-final.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        "lowering": {
+          "log": "full-lang-final.log",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0
+        },
+        "maintained_columns": {
+          "log": "full-lang-final.log",
+          "passed": 42,
+          "failed": 0,
+          "ignored": 0
+        },
+        "maintained_result_types": {
+          "log": "full-lang-final.log",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0
+        },
+        "maintains": {
+          "log": "full-lang-final.log",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0
+        },
+        "matching_order": {
+          "log": "full-lang-final.log",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0
+        },
+        "membership_nullable_authorization": {
+          "log": "full-lang-final.log",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "membership_paths": {
+          "log": "full-lang-final.log",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0
+        },
+        "mixed_keys": {
+          "log": "full-lang-final.log",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0
+        },
+        "mp_reproduction": {
+          "log": "full-lang-final.log",
+          "passed": 18,
+          "failed": 0,
+          "ignored": 0
+        },
+        "mutation_result_types": {
+          "log": "full-lang-final.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "natural_forms": {
+          "log": "full-lang-final.log",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0
+        },
+        "own_keys": {
+          "log": "full-lang-final.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        "page2_membership": {
+          "log": "full-lang-final.log",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "page3": {
+          "log": "full-lang-final.log",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0
+        },
+        "page4": {
+          "log": "full-lang-final.log",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0
+        },
+        "papercuts": {
+          "log": "full-lang-final.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "prefix_reads": {
+          "log": "full-lang-final.log",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0
+        },
+        "presence": {
+          "log": "full-lang-final.log",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0
+        },
+        "printed_rewrites": {
+          "log": "full-lang-final.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "pure_call_narrowing": {
+          "log": "full-lang-final.log",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0
+        },
+        "qe2_ergonomics": {
+          "log": "full-lang-final.log",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0
+        },
+        "query_settlement": {
+          "log": "full-lang-final.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "read_through": {
+          "log": "full-lang-final.log",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0
+        },
+        "read_through_provenance": {
+          "log": "full-lang-final.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "read_through_review": {
+          "log": "full-lang-final.log",
+          "passed": 35,
+          "failed": 0,
+          "ignored": 0
+        },
+        "read_through_sync": {
+          "log": "full-lang-final.log",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "read_through_transactions": {
+          "log": "full-lang-final.log",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0
+        },
+        "receipt_gaps": {
+          "log": "full-lang-final.log",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0
+        },
+        "recorded_round1": {
+          "log": "full-lang-final.log",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "reference_actions": {
+          "log": "full-lang-final.log",
+          "passed": 28,
+          "failed": 0,
+          "ignored": 0
+        },
+        "repairs": {
+          "log": "full-lang-final.log",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0
+        },
+        "reservation_app_headroom": {
+          "log": "full-lang-final.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        "residency_notes": {
+          "log": "full-lang-final.log",
+          "passed": 44,
+          "failed": 0,
+          "ignored": 0
+        },
+        "revocation_soundness": {
+          "log": "full-lang-final.log",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "routes": {
+          "log": "full-lang-final.log",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0
+        },
+        "row_keyed_views": {
+          "log": "full-lang-final.log",
+          "passed": 46,
+          "failed": 0,
+          "ignored": 0
+        },
+        "rx_legacy_identity": {
+          "log": "full-lang-final.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "rx_rule_enforcement": {
+          "log": "full-lang-final.log",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0
+        },
+        "rx_rule_hops": {
+          "log": "full-lang-final.log",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0
+        },
+        "schedule_durations": {
+          "log": "full-lang-final.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "search_guidance": {
+          "log": "full-lang-final.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "selected_prefix": {
+          "log": "full-lang-final.log",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "selected_prefix_cursors": {
+          "log": "full-lang-final.log",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "selected_prefix_regressions": {
+          "log": "full-lang-final.log",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0
+        },
+        "sequence_by": {
+          "log": "full-lang-final.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "server_opt_in": {
+          "log": "full-lang-final.log",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0
+        },
+        "shape_meter": {
+          "log": "full-lang-final.log",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0
+        },
+        "shape_overrides": {
+          "log": "full-lang-final.log",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "sparse_filter": {
+          "log": "full-lang-final.log",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0
+        },
+        "spelling": {
+          "log": "full-lang-final.log",
+          "passed": 19,
+          "failed": 0,
+          "ignored": 0
+        },
+        "sync_audiences": {
+          "log": "full-lang-final.log",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0
+        },
+        "sync_windows": {
+          "log": "full-lang-final.log",
+          "passed": 40,
+          "failed": 0,
+          "ignored": 0
+        },
+        "system_principal": {
+          "log": "full-lang-final.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        "time_audiences": {
+          "log": "full-lang-final.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "time_indexes": {
+          "log": "full-lang-final.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        "timeline_background": {
+          "log": "full-lang-final.log",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0
+        },
+        "timeline_epoch_counterexample": {
+          "log": "full-lang-final.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "timeline_fairness": {
+          "log": "full-lang-final.log",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0
+        },
+        "timeline_guide": {
+          "log": "full-lang-final.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        "timeline_live_latency": {
+          "log": "full-lang-final.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "typed_positional_keys": {
+          "log": "full-lang-final.log",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0
+        },
+        "typed_positional_sync": {
+          "log": "full-lang-final.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "union_limits": {
+          "log": "full-lang-final.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        "verified_index_repairs": {
+          "log": "full-lang-final.log",
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0
+        },
+        "wave10_guard_notes": {
+          "log": "full-lang-final.log",
+          "passed": 23,
+          "failed": 0,
+          "ignored": 0
+        },
+        "wave10_rules_expressiveness": {
+          "log": "final-affected-qualified.log",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "wave10_runtime_diagnostics": {
+          "log": "lang-remaining.log",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "wave11_docs": {
+          "log": "lang-remaining.log",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0
+        },
+        "wave11_qdiag": {
+          "log": "lang-remaining.log",
+          "passed": 19,
+          "failed": 0,
+          "ignored": 0
+        },
+        "wave11_runtime": {
+          "log": "lang-remaining.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "wave12_rule_composition": {
+          "log": "final-affected-qualified.log",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0
+        },
+        "wave12_rule_recipes": {
+          "log": "final-affected-qualified.log",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0
+        },
+        "wave1_rule_language": {
+          "log": "lang-remaining.log",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0
+        },
+        "wave2_rule_language": {
+          "log": "lang-remaining.log",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0
+        },
+        "wave3_rule_language": {
+          "log": "lang-remaining.log",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0
+        },
+        "wave4_rule_language": {
+          "log": "lang-remaining.log",
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0
+        },
+        "wave5_rule_language": {
+          "log": "lang-remaining.log",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0
+        },
+        "wave6_rule_language": {
+          "log": "lang-remaining.log",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 1
+        },
+        "wave7_rule_language": {
+          "log": "lang-remaining.log",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0
+        },
+        "wave8_rule_language": {
+          "log": "lang-remaining.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "wave9_completeness_notes": {
+          "log": "lang-remaining.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "wave9_rule_diagnostic_rewrites": {
+          "log": "lang-remaining.log",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0
+        },
+        "written_by": {
+          "log": "lang-remaining.log",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0
+        }
+      },
+      "passed": 1975,
+      "ignored": 14
+    },
+    "snapback4-device": {
+      "integrationTargets": 96,
+      "passedTargets": 96,
+      "unitResults": {
+        "unit:src/lib.rs": {
+          "log": "device-sim-difftest.log",
+          "passed": 64,
+          "failed": 0,
+          "ignored": 0
+        }
+      },
+      "targetResults": {
+        "acquisition_crash": {
+          "log": "device-sim-difftest.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "adoption": {
+          "log": "device-sim-difftest.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "asset_lists": {
+          "log": "device-sim-difftest.log",
+          "passed": 22,
+          "failed": 0,
+          "ignored": 0
+        },
+        "background_durability": {
+          "log": "device-sim-difftest.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "bounded_calendar_caps": {
+          "log": "device-sim-difftest.log",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0
+        },
+        "bounded_following": {
+          "log": "device-sim-difftest.log",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0
+        },
+        "branch_merge": {
+          "log": "device-sim-difftest.log",
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0
+        },
+        "codec": {
+          "log": "device-sim-difftest.log",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0
+        },
+        "column_activation": {
+          "log": "device-sim-difftest.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "components": {
+          "log": "device-sim-difftest.log",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0
+        },
+        "cut": {
+          "log": "device-sim-difftest.log",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "delivery": {
+          "log": "device-sim-difftest.log",
+          "passed": 30,
+          "failed": 0,
+          "ignored": 0
+        },
+        "device": {
+          "log": "device-sim-difftest.log",
+          "passed": 439,
+          "failed": 0,
+          "ignored": 0
+        },
+        "device_diet": {
+          "log": "device-sim-difftest.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "diet_timing": {
+          "log": "device-sim-difftest.log",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 1
+        },
+        "disclosure": {
+          "log": "device-sim-difftest.log",
+          "passed": 21,
+          "failed": 0,
+          "ignored": 0
+        },
+        "ephemeral": {
+          "log": "device-sim-difftest.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "event_slots": {
+          "log": "device-sim-difftest.log",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0
+        },
+        "event_slots_trace": {
+          "log": "device-sim-difftest.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "expiring_counts": {
+          "log": "device-sim-difftest.log",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 1
+        },
+        "expiring_counts_probe": {
+          "log": "device-sim-difftest.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "expiring_counts_upgrade": {
+          "log": "device-sim-difftest.log",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "expiring_mutations": {
+          "log": "device-sim-difftest.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        "extrema": {
+          "log": "device-sim-difftest.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "extremum_expressions": {
+          "log": "device-sim-difftest.log",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0
+        },
+        "file_assets": {
+          "log": "device-sim-difftest.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        "first_instinct": {
+          "log": "device-sim-difftest.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        "first_paste": {
+          "log": "device-sim-difftest.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "following_meters": {
+          "log": "device-sim-difftest.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "following_model": {
+          "log": "device-sim-difftest.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "following_view": {
+          "log": "device-sim-difftest.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "heavy_acquisition": {
+          "log": "device-sim-difftest.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "helper_pages": {
+          "log": "device-sim-difftest.log",
+          "passed": 90,
+          "failed": 0,
+          "ignored": 0
+        },
+        "index_key_bound": {
+          "log": "device-sim-difftest.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "intent_variants": {
+          "log": "device-sim-difftest.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        "intent_views": {
+          "log": "device-sim-difftest.log",
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0
+        },
+        "list_lower_bounds": {
+          "log": "device-sim-difftest.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "matching_order": {
+          "log": "device-sim-difftest.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "mixed_keys": {
+          "log": "device-sim-difftest.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "mp_builder": {
+          "log": "device-sim-difftest.log",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "named_key_lookup": {
+          "log": "device-sim-difftest.log",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0
+        },
+        "native": {
+          "log": "device-sim-difftest.log",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0
+        },
+        "native_following": {
+          "log": "device-sim-difftest.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "native_reads": {
+          "log": "device-sim-difftest.log",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0
+        },
+        "natural_forms": {
+          "log": "device-sim-difftest.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        "nl_qe2_integration": {
+          "log": "device-sim-difftest.log",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0
+        },
+        "own_keys": {
+          "log": "device-sim-difftest.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "own_keys_cost": {
+          "log": "device-sim-difftest.log",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 2
+        },
+        "point_probe_admission": {
+          "log": "device-sim-difftest.log",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0
+        },
+        "prediction_write_set": {
+          "log": "device-sim-difftest.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "qe2_allocations": {
+          "log": "device-sim-difftest.log",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0
+        },
+        "qe2_ergonomics": {
+          "log": "device-sim-difftest.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "query_unavailable": {
+          "log": "device-sim-difftest.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "read_through": {
+          "log": "device-sim-difftest.log",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0
+        },
+        "read_through_review": {
+          "log": "device-sim-difftest.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "readauth": {
+          "log": "device-census.log",
+          "passed": 88,
+          "failed": 0,
+          "ignored": 0
+        },
+        "recorded_coverage": {
+          "log": "device-remaining.log",
+          "passed": 24,
+          "failed": 0,
+          "ignored": 0
+        },
+        "reference_actions": {
+          "log": "device-remaining.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "repair_b": {
+          "log": "device-remaining.log",
+          "passed": 110,
+          "failed": 0,
+          "ignored": 0
+        },
+        "repair_b_boundaries": {
+          "log": "device-remaining.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "repair_b_counterexample": {
+          "log": "device-remaining.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "repair_b_legacy_r6": {
+          "log": "device-remaining.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        "repair_b_round2_counterexample": {
+          "log": "device-remaining.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        "repair_b_round3_counterexample": {
+          "log": "device-remaining.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "residency": {
+          "log": "device-remaining.log",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0
+        },
+        "retained_history": {
+          "log": "device-remaining.log",
+          "passed": 20,
+          "failed": 0,
+          "ignored": 0
+        },
+        "retained_release": {
+          "log": "device-remaining.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "review_parent_floor": {
+          "log": "device-remaining.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "row_keyed_views": {
+          "log": "device-remaining.log",
+          "passed": 24,
+          "failed": 0,
+          "ignored": 0
+        },
+        "row_view_disclosure": {
+          "log": "device-remaining.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "row_view_expiry": {
+          "log": "device-remaining.log",
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0
+        },
+        "rx_rule_hops": {
+          "log": "device-remaining.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "schema_capabilities": {
+          "log": "device-remaining.log",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0
+        },
+        "schema_capabilities_legacy": {
+          "log": "device-remaining.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "search_exists": {
+          "log": "device-remaining.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "sequence_by": {
+          "log": "device-remaining.log",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0
+        },
+        "sequence_disclosure": {
+          "log": "device-remaining.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        "server_clock": {
+          "log": "device-remaining.log",
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0
+        },
+        "shape_overrides": {
+          "log": "device-remaining.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "spread_metadata": {
+          "log": "device-remaining.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "spread_pending_union": {
+          "log": "device-remaining.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "sqlite_bulk": {
+          "log": "device-remaining.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "sync_windows": {
+          "log": "device-remaining.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "time_audiences": {
+          "log": "device-remaining.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "timed_search": {
+          "log": "device-remaining.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "timeline": {
+          "log": "device-remaining.log",
+          "passed": 26,
+          "failed": 0,
+          "ignored": 0
+        },
+        "topn_complete": {
+          "log": "device-remaining.log",
+          "passed": 8,
+          "failed": 0,
+          "ignored": 0
+        },
+        "unicode": {
+          "log": "device-remaining.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "unread_range": {
+          "log": "device-remaining.log",
+          "passed": 7,
+          "failed": 0,
+          "ignored": 0
+        },
+        "upload_intents": {
+          "log": "device-remaining.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "upload_receipts": {
+          "log": "device-remaining.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "upsert_constraints": {
+          "log": "device-remaining.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "w13g_probe": {
+          "log": "device-remaining.log",
+          "passed": 142,
+          "failed": 0,
+          "ignored": 0
+        },
+        "wave11_qdiag": {
+          "log": "device-remaining.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "write_authority": {
+          "log": "device-remaining.log",
+          "passed": 10,
+          "failed": 0,
+          "ignored": 0
+        },
+        "written_by": {
+          "log": "device-remaining.log",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0
+        }
+      },
+      "passed": 1547,
+      "ignored": 4
+    },
+    "snapback4-sim": {
+      "integrationTargets": 40,
+      "passedTargets": 40,
+      "unitResults": {
+        "unit:src/lib.rs": {
+          "log": "sim-difftest-final.log",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0
+        }
+      },
+      "targetResults": {
+        "adoption": {
+          "log": "sim-difftest-final.log",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "clique": {
+          "log": "sim-difftest-final.log",
+          "passed": 254,
+          "failed": 0,
+          "ignored": 1
+        },
+        "condition_authority": {
+          "log": "sim-difftest-final.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "decorated_search": {
+          "log": "sim-difftest-final.log",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0
+        },
+        "device": {
+          "log": "sim-difftest-final.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "digest_count": {
+          "log": "sim-difftest-final.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "exhaustive": {
+          "log": "sim-difftest-final.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 1
+        },
+        "filters": {
+          "log": "sim-difftest-final.log",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "helper_pages": {
+          "log": "sim-difftest-final.log",
+          "passed": 43,
+          "failed": 0,
+          "ignored": 0
+        },
+        "helper_sweep": {
+          "log": "sim-difftest-final.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "intent_integration": {
+          "log": "sim-difftest-final.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "loopbar": {
+          "log": "sim-difftest-final.log",
+          "passed": 6,
+          "failed": 0,
+          "ignored": 0
+        },
+        "maintain_measurement": {
+          "log": "sim-difftest-final.log",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 2
+        },
+        "maintains": {
+          "log": "sim-difftest-final.log",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0
+        },
+        "maintains_recorded": {
+          "log": "sim-difftest-final.log",
+          "passed": 19,
+          "failed": 0,
+          "ignored": 0
+        },
+        "maintains_review": {
+          "log": "sim-difftest-final.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "membership": {
+          "log": "sim-difftest-final.log",
+          "passed": 23,
+          "failed": 0,
+          "ignored": 0
+        },
+        "membership_search": {
+          "log": "sim-difftest-final.log",
+          "passed": 24,
+          "failed": 0,
+          "ignored": 0
+        },
+        "native": {
+          "log": "sim-difftest-final.log",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 1
+        },
+        "ordinary_search": {
+          "log": "sim-difftest-final.log",
+          "passed": 19,
+          "failed": 0,
+          "ignored": 0
+        },
+        "page_admission": {
+          "log": "sim-difftest-final.log",
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0
+        },
+        "reference_exhaustive": {
+          "log": "sim-difftest-final.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "residency": {
+          "log": "sim-difftest-final.log",
+          "passed": 17,
+          "failed": 0,
+          "ignored": 0
+        },
+        "retained_release": {
+          "log": "sim-difftest-final.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "review_corrections": {
+          "log": "sim-difftest-final.log",
+          "passed": 32,
+          "failed": 0,
+          "ignored": 0
+        },
+        "reviews": {
+          "log": "sim-difftest-final.log",
+          "passed": 30,
+          "failed": 0,
+          "ignored": 0
+        },
+        "roster": {
+          "log": "sim-difftest-final.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "search_merge": {
+          "log": "sim-difftest-final.log",
+          "passed": 11,
+          "failed": 0,
+          "ignored": 0
+        },
+        "security": {
+          "log": "sim-difftest-final.log",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0
+        },
+        "time_audiences": {
+          "log": "sim-difftest-final.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        "timed_search": {
+          "log": "sim-difftest-final.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "topn_complete": {
+          "log": "sim-difftest-final.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "union": {
+          "log": "sim-difftest-final.log",
+          "passed": 29,
+          "failed": 0,
+          "ignored": 2
+        },
+        "wave11_qdiag": {
+          "log": "sim-difftest-final.log",
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0
+        },
+        "work_intent": {
+          "log": "sim-difftest-final.log",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0
+        },
+        "work_intent_review": {
+          "log": "sim-difftest-final.log",
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0
+        },
+        "work_intent_review2": {
+          "log": "sim-difftest-final.log",
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0
+        },
+        "work_intent_review3": {
+          "log": "sim-difftest-final.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "work_intent_review4": {
+          "log": "sim-difftest-final.log",
+          "passed": 3,
+          "failed": 0,
+          "ignored": 0
+        },
+        "write_authority": {
+          "log": "sim-difftest-final.log",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        }
+      },
+      "passed": 656,
+      "ignored": 7
+    },
+    "snapback4-difftest": {
+      "integrationTargets": 6,
+      "passedTargets": 6,
+      "unitResults": {
+        "unit:src/lib.rs": {
+          "log": "sim-difftest-final.log",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        "unit:src/main.rs": {
+          "log": "sim-difftest-final.log",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        }
+      },
+      "targetResults": {
+        "devices": {
+          "log": "sim-difftest-final.log",
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0
+        },
+        "lang2": {
+          "log": "sim-difftest-final.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        },
+        "lean": {
+          "log": "sim-difftest-final.log",
+          "passed": 41,
+          "failed": 0,
+          "ignored": 0
+        },
+        "smoke": {
+          "log": "sim-difftest-final.log",
+          "passed": 24,
+          "failed": 0,
+          "ignored": 0
+        },
+        "stores": {
+          "log": "sim-difftest-final.log",
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        "wave11_qdiag": {
+          "log": "sim-difftest-final.log",
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        }
+      },
+      "passed": 79,
+      "ignored": 0
+    }
+  },
+  "client": {
+    "files": 4,
+    "passed": 41,
+    "failed": 0
+  },
+  "rootGuide": {
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0,
+    "preconditions": 0,
+    "inheritedWarnings": 121
+  },
+  "docsBudget": {
+    "readmeLines": 320,
+    "limit": 320,
+    "selfContainmentTest": "passed"
+  },
+  "census": {
+    "beforeOk": 100,
+    "afterOk": 100,
+    "notesBefore": 324,
+    "notesAfter": 324,
+    "newNotes": 0,
+    "newRefusals": 0
+  },
+  "packageAudit": "Each result is assigned to its actual package; combined cargo logs switch package at their unit-test executable.",
+  "finalReviewRevision": "1ac7589835",
+  "reviews": {
+    "composition": "Muse and Codex READY at 45c2936e64",
+    "presenceAndRecipeBudget": "Muse and Codex READY at 1ac7589835"
+  },
+  "affectedFinal": {
+    "guide": 123,
+    "composition": 11,
+    "recipes": 13,
+    "oldRuleExpressiveness": 5,
+    "failures": 0
+  },
+  "resumedInventories": "After fixing the static device census and historical cookbook guard, reran the failed targets and ran all unfinished targets, including doctests. Previously passed runtime model targets were not repeated."
+}

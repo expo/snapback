@@ -1,0 +1,102 @@
+     Running unittests src/lib.rs (target/debug/deps/snapback4_difftest-d7760e7cf9384075)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running unittests src/main.rs (target/debug/deps/snapback4_difftest-37bce157e4d2f4ab)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/devices.rs (target/debug/deps/devices-5461ee6dea4086c3)
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.66s
+     Running tests/lang2.rs (target/debug/deps/lang2-a54f90027f44258e)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.06s
+     Running tests/lean.rs (target/debug/deps/lean-225da4c9836cbd6d)
+test result: ok. 41 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 18.31s
+     Running tests/smoke.rs (target/debug/deps/smoke-a2e9a4522987fcdc)
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.36s
+     Running tests/stores.rs (target/debug/deps/stores-ca64e51939459905)
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/wave11_qdiag.rs (target/debug/deps/wave11_qdiag-78ae1ee445b7537c)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.10s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_sim-c76f3851bcd12c7b)
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.75s
+     Running tests/adoption.rs (target/debug/deps/adoption-003cac332350d93b)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+     Running tests/clique.rs (target/debug/deps/clique-eaded2a0138193fa)
+test result: ok. 254 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 140.52s
+     Running tests/condition_authority.rs (target/debug/deps/condition_authority-f00dd8f295342c1e)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.84s
+     Running tests/decorated_search.rs (target/debug/deps/decorated_search-b78d31f6c2439938)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.16s
+     Running tests/device.rs (target/debug/deps/device-21e37d2a5391bbd7)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests/digest_count.rs (target/debug/deps/digest_count-c9888196932a1753)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.89s
+     Running tests/exhaustive.rs (target/debug/deps/exhaustive-70e4c9776022d25f)
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 4.88s
+     Running tests/filters.rs (target/debug/deps/filters-d56c397547442eaf)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+     Running tests/helper_pages.rs (target/debug/deps/helper_pages-b38b42167ccc1691)
+test result: ok. 43 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.54s
+     Running tests/helper_sweep.rs (target/debug/deps/helper_sweep-d9767ccbc1bb9bad)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+     Running tests/intent_integration.rs (target/debug/deps/intent_integration-6aacea0ac8fbd411)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.71s
+     Running tests/loopbar.rs (target/debug/deps/loopbar-28e42dd917742edb)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+     Running tests/maintain_measurement.rs (target/debug/deps/maintain_measurement-1937bd2b04ac50cd)
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/maintains.rs (target/debug/deps/maintains-e650ba0d1390b206)
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 46.96s
+     Running tests/maintains_recorded.rs (target/debug/deps/maintains_recorded-1b7d8cd6f3f31190)
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.90s
+     Running tests/maintains_review.rs (target/debug/deps/maintains_review-678a3e6300c0e616)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.95s
+     Running tests/membership.rs (target/debug/deps/membership-5a3a0f422bd596cf)
+test result: ok. 23 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.54s
+     Running tests/membership_search.rs (target/debug/deps/membership_search-10930060eb4ed634)
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.95s
+     Running tests/native.rs (target/debug/deps/native-da4fa98ffb0e7c2c)
+test result: ok. 12 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.49s
+     Running tests/ordinary_search.rs (target/debug/deps/ordinary_search-c7e87be2b6f1c372)
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.18s
+     Running tests/page_admission.rs (target/debug/deps/page_admission-ad8e9041cc521696)
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.30s
+     Running tests/reference_exhaustive.rs (target/debug/deps/reference_exhaustive-d04eacc3fa99e8bd)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.41s
+     Running tests/residency.rs (target/debug/deps/residency-7a833a58247ea565)
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+     Running tests/retained_release.rs (target/debug/deps/retained_release-3c219e2d9c24eeee)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+     Running tests/review_corrections.rs (target/debug/deps/review_corrections-1487fb87f1d2bb16)
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.13s
+     Running tests/reviews.rs (target/debug/deps/reviews-c2fd50e4f4e18431)
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.01s
+     Running tests/roster.rs (target/debug/deps/roster-0f962dc3f19c27bc)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 5.06s
+     Running tests/search_merge.rs (target/debug/deps/search_merge-9aeb8291303306a1)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+     Running tests/security.rs (target/debug/deps/security-c1ac38fc933dacfa)
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+     Running tests/time_audiences.rs (target/debug/deps/time_audiences-0723a5241a13c546)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+     Running tests/timed_search.rs (target/debug/deps/timed_search-386714e48bf2991e)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+     Running tests/topn_complete.rs (target/debug/deps/topn_complete-468917bde05181fd)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+     Running tests/union.rs (target/debug/deps/union-5a264fe538dad313)
+test result: ok. 29 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 327.69s
+     Running tests/wave11_qdiag.rs (target/debug/deps/wave11_qdiag-9bec9320e153ed6a)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+     Running tests/work_intent.rs (target/debug/deps/work_intent-12ab5091c35200c8)
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 32.60s
+     Running tests/work_intent_review.rs (target/debug/deps/work_intent_review-0aea65b1c41cbef5)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+     Running tests/work_intent_review2.rs (target/debug/deps/work_intent_review2-27719c7ec1300ee2)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.98s
+     Running tests/work_intent_review3.rs (target/debug/deps/work_intent_review3-ed5106198fb15d2b)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+     Running tests/work_intent_review4.rs (target/debug/deps/work_intent_review4-b3b0ffa6a64c4e7b)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+     Running tests/write_authority.rs (target/debug/deps/write_authority-a9b1bd9ca4a744e2)
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 8.99s
+   Doc-tests snapback4_difftest
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+   Doc-tests snapback4_sim
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s

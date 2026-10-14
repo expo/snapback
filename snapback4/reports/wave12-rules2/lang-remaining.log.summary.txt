@@ -1,0 +1,34 @@
+     Running tests/wave10_runtime_diagnostics.rs (target/debug/deps/wave10_runtime_diagnostics-d66d69b6916bc649)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+     Running tests/wave11_docs.rs (target/debug/deps/wave11_docs-76f7674b954731bb)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.43s
+     Running tests/wave11_qdiag.rs (target/debug/deps/wave11_qdiag-4494593b83756f51)
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/wave11_runtime.rs (target/debug/deps/wave11_runtime-9a497fa97af0356f)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+     Running tests/wave12_rule_composition.rs (target/debug/deps/wave12_rule_composition-71ca00ef0289e6dd)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+     Running tests/wave12_rule_recipes.rs (target/debug/deps/wave12_rule_recipes-f8068ff96b38a840)
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+     Running tests/wave1_rule_language.rs (target/debug/deps/wave1_rule_language-2e17350e72dd1aa6)
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests/wave2_rule_language.rs (target/debug/deps/wave2_rule_language-eacb7c7a77ba1448)
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+     Running tests/wave3_rule_language.rs (target/debug/deps/wave3_rule_language-a8126de4f72d42bd)
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+     Running tests/wave4_rule_language.rs (target/debug/deps/wave4_rule_language-40f0c96e11d42613)
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s
+     Running tests/wave5_rule_language.rs (target/debug/deps/wave5_rule_language-ac3ab36f6f4aad43)
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.17s
+     Running tests/wave6_rule_language.rs (target/debug/deps/wave6_rule_language-b33ef266746a41c1)
+test result: ok. 12 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.65s
+     Running tests/wave7_rule_language.rs (target/debug/deps/wave7_rule_language-e898bffadb93b0e3)
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.90s
+     Running tests/wave8_rule_language.rs (target/debug/deps/wave8_rule_language-bebccf9f2b8b101f)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+     Running tests/wave9_completeness_notes.rs (target/debug/deps/wave9_completeness_notes-54b4c89676d76f6f)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+     Running tests/wave9_rule_diagnostic_rewrites.rs (target/debug/deps/wave9_rule_diagnostic_rewrites-d35ba12d26ed64d4)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+     Running tests/written_by.rs (target/debug/deps/written_by-c3a55e1c83062240)
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s

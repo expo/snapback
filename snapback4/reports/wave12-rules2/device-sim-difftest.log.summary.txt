@@ -1,0 +1,114 @@
+     Running unittests src/lib.rs (target/debug/deps/snapback4_device-af131fb363169358)
+test result: ok. 64 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.56s
+     Running tests/acquisition_crash.rs (target/debug/deps/acquisition_crash-660583a66fe6cc97)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.42s
+     Running tests/adoption.rs (target/debug/deps/adoption-0d6a940a73131827)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.57s
+     Running tests/asset_lists.rs (target/debug/deps/asset_lists-2e3eaf0a75bef1f6)
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.32s
+     Running tests/background_durability.rs (target/debug/deps/background_durability-9d309b4254ed7d69)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+     Running tests/bounded_calendar_caps.rs (target/debug/deps/bounded_calendar_caps-890b6a1ca1fe4605)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.35s
+     Running tests/bounded_following.rs (target/debug/deps/bounded_following-79aa8075ec5803d8)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.12s
+     Running tests/branch_merge.rs (target/debug/deps/branch_merge-dea1432a62555bab)
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.31s
+     Running tests/codec.rs (target/debug/deps/codec-f4452766a16cfe17)
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.23s
+     Running tests/column_activation.rs (target/debug/deps/column_activation-a1fc2d90aca418c5)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.13s
+     Running tests/components.rs (target/debug/deps/components-91a3aec39150f12f)
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+     Running tests/cut.rs (target/debug/deps/cut-9542ba34dd2d44c9)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+     Running tests/delivery.rs (target/debug/deps/delivery-e4eb6d33caf95670)
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.16s
+     Running tests/device.rs (target/debug/deps/device-0c9dea2cb91242d9)
+test result: ok. 439 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 351.41s
+     Running tests/device_diet.rs (target/debug/deps/device_diet-8c8f8493b470cd44)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+     Running tests/diet_timing.rs (target/debug/deps/diet_timing-0f9a258da6a3f0e0)
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/disclosure.rs (target/debug/deps/disclosure-8edfe56cfb7d3d43)
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 286.77s
+     Running tests/ephemeral.rs (target/debug/deps/ephemeral-6d298610b62870e7)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+     Running tests/event_slots.rs (target/debug/deps/event_slots-986bda08cc281cec)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.59s
+     Running tests/event_slots_trace.rs (target/debug/deps/event_slots_trace-92993427a7c96080)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+     Running tests/expiring_counts.rs (target/debug/deps/expiring_counts-4bf484ca9c1bd808)
+test result: ok. 9 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.69s
+     Running tests/expiring_counts_probe.rs (target/debug/deps/expiring_counts_probe-3bb704a49370e85d)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.47s
+     Running tests/expiring_counts_upgrade.rs (target/debug/deps/expiring_counts_upgrade-3c0e70bea6878885)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+     Running tests/expiring_mutations.rs (target/debug/deps/expiring_mutations-76ce959a01c0cf26)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.16s
+     Running tests/extrema.rs (target/debug/deps/extrema-eea18f30122d1006)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+     Running tests/extremum_expressions.rs (target/debug/deps/extremum_expressions-f45ae5b90bea7939)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.62s
+     Running tests/file_assets.rs (target/debug/deps/file_assets-127b5f117d78a16e)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+     Running tests/first_instinct.rs (target/debug/deps/first_instinct-22c3e9422ac48bad)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.28s
+     Running tests/first_paste.rs (target/debug/deps/first_paste-7a2799733a2a5689)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+     Running tests/following_meters.rs (target/debug/deps/following_meters-921591f67ee86d29)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests/following_model.rs (target/debug/deps/following_model-f20dce12553f38d2)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.72s
+     Running tests/following_view.rs (target/debug/deps/following_view-cf1c43186e6cb4e8)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.87s
+     Running tests/heavy_acquisition.rs (target/debug/deps/heavy_acquisition-9ac2da79812b3cb5)
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.74s
+     Running tests/helper_pages.rs (target/debug/deps/helper_pages-e064a90a38903d87)
+test result: ok. 90 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 36.03s
+     Running tests/index_key_bound.rs (target/debug/deps/index_key_bound-58e5998a4cac9875)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests/intent_variants.rs (target/debug/deps/intent_variants-ab56b197faea25bf)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+     Running tests/intent_views.rs (target/debug/deps/intent_views-27c786426ee6576d)
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.67s
+     Running tests/list_lower_bounds.rs (target/debug/deps/list_lower_bounds-2131f15ba9f2987e)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+     Running tests/matching_order.rs (target/debug/deps/matching_order-be151e4fafb1f25e)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.44s
+     Running tests/mixed_keys.rs (target/debug/deps/mixed_keys-9a00269db58a3dbd)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+     Running tests/mp_builder.rs (target/debug/deps/mp_builder-ead8378d214b346c)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.09s
+     Running tests/named_key_lookup.rs (target/debug/deps/named_key_lookup-ab8c97d4390a78d4)
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.01s
+     Running tests/native.rs (target/debug/deps/native-451e64601b6a749a)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.49s
+     Running tests/native_following.rs (target/debug/deps/native_following-e699b5431b3b2c48)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.53s
+     Running tests/native_reads.rs (target/debug/deps/native_reads-f8575f5e8a8aa141)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.24s
+     Running tests/natural_forms.rs (target/debug/deps/natural_forms-dd0e179d3c78d3fa)
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+     Running tests/nl_qe2_integration.rs (target/debug/deps/nl_qe2_integration-cf319d2363d3a01f)
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.57s
+     Running tests/own_keys.rs (target/debug/deps/own_keys-1ab632395575a4a2)
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+     Running tests/own_keys_cost.rs (target/debug/deps/own_keys_cost-d01a33fa942cf93b)
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+     Running tests/point_probe_admission.rs (target/debug/deps/point_probe_admission-4515c28bbf40062b)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.01s
+     Running tests/prediction_write_set.rs (target/debug/deps/prediction_write_set-49741d28b96241d5)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+     Running tests/qe2_allocations.rs (target/debug/deps/qe2_allocations-4b1b1fd80c4b50b5)
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s
+     Running tests/qe2_ergonomics.rs (target/debug/deps/qe2_ergonomics-09f40624cb736c6b)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+     Running tests/query_unavailable.rs (target/debug/deps/query_unavailable-25c4b701ec49fd2d)
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+     Running tests/read_through.rs (target/debug/deps/read_through-3ae4754b72b83fff)
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.81s
+     Running tests/read_through_review.rs (target/debug/deps/read_through_review-17e67c9aacf68463)
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+     Running tests/readauth.rs (target/debug/deps/readauth-d6d29c517f9443d9)
+test result: FAILED. 87 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.33s
