@@ -22,6 +22,7 @@ pub(crate) use init::without_design_references;
 pub use sql::sql;
 mod residency;
 mod test_fixture;
+mod proof_source;
 mod test_cases;
 /// A fixture directory's case file: not a table's rows.
 pub(crate) const CASES_FILE: &str = test_cases::FILE;
@@ -1161,7 +1162,8 @@ pub fn why(options: &Options) -> i32 {
 /// (optionally loaded from a fixture) and print the meters beside the
 /// ceilings, so a builder reads numbers instead of being refused on a bound.
 pub fn test(options: &Options) -> i32 {
-    let project = project_or_exit();
+    let project = match proof_source::project(options, "source") { Ok(project) => project, Err(e) => { eprintln!("test: {e}"); return 2; } };
+    let sources = match proof_source::sources(&project, options, "source") { Ok(sources) => sources, Err(e) => { eprintln!("test: {e}"); return 2; } };
     let mut defaults = options.clone();
     if !defaults.flags.contains_key("fixture") && project.root.join("fixtures").is_dir() {
         let fixture = project.root.join("fixtures");
@@ -1169,7 +1171,7 @@ pub fn test(options: &Options) -> i32 {
         defaults.flags.insert("fixture".into(), fixture.to_string_lossy().into_owned());
     }
     let options = &defaults;
-    let bound = compile_or_exit(&project, options.json);
+    let bound = compiled_or_exit(proof_source::compile(&sources, options, "source"), options.json);
     // test applies dev's cast: a persona dev would refuse is not run as an ordinary viewer.
     // Residency measures any principal in the data (scale fixtures name thousands), so it notes instead.
     if let Some(why) = options.flags.get("as").and_then(|names| names.split(',').find_map(|name| test_cases::undeclared_persona(name, &bound.personas))) {
@@ -1179,7 +1181,7 @@ pub fn test(options: &Options) -> i32 {
         }
         eprintln!("test --residency --as: measuring an undeclared principal; dev would refuse it as a persona");
     }
-    let _owner = if options.flags.contains_key("fixture") { None } else {
+    let _owner = if options.flags.contains_key("fixture") || options.flags.contains_key("source") { None } else {
         match crate::store_owner::command(&project.store_path()) {
             Ok(owner) => Some(owner),
             Err(error) => { eprintln!("{error}"); return 1; }
@@ -1325,7 +1327,7 @@ pub fn test(options: &Options) -> i32 {
     }
     let (mut passed, mut failed_cases) = (0, 0);
     if let Some(fixture) = options.flags.get("fixture") {
-        let sources = project.sources().unwrap_or_default();
+
         match test_cases::run(&mut engine, &bound, fixture, &sources) {
             Ok((p, f)) => { passed = p; failed_cases = f; }
             Err(error) => { eprintln!("{error}"); return 1; }

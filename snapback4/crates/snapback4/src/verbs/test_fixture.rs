@@ -5,7 +5,12 @@ use snapback4_core::{Engine, wire};
 use snapback4_lang::Bound;
 
 pub(super) fn engine(project: &Project, bound: &Bound, options: &Options) -> Result<Engine, String> {
-    let Some(fixture) = options.flags.get("fixture") else { return project.open_engine(bound).map_err(|error| format!("cannot open the store: {error}")); };
+    let Some(fixture) = options.flags.get("fixture") else {
+        if options.flags.contains_key("source") {
+            return Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).map_err(|e| e.to_string());
+        }
+        return project.open_engine(bound).map_err(|error| format!("cannot open the store: {error}"));
+    };
     let started = std::time::Instant::now();
     let mut schema = bound.schema.clone();
     // Residency defers ordinary maintains until after bulk loading and builds

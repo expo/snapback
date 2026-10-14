@@ -226,8 +226,9 @@ pub fn deploy(options: &Options) -> i32 {
             let checking=options.flags.contains_key("check");
             let _deployment = if checking {None} else {target(&dir)?};
             if let Some(owner) = &_deployment { owner.report_reclaim(options.flags.contains_key("verbose")); }
-            let project = project_or_exit();
-            let bound = compile_or_exit(&project, options.json);
+            let project = super::proof_source::project(options, "schema")?;
+            let sources = super::proof_source::sources(&project, options, "schema")?;
+            let bound = compiled_or_exit(super::proof_source::compile(&sources, options, "schema"), options.json);
             std::fs::create_dir_all(dir.join("releases")).map_err(|e| e.to_string())?;
             let held = if checking {
                 if dir.join("store.sqlite").exists() {snapback4_core::Store::open_read_only(&dir.join("store.sqlite")).and_then(|mut s|s.release_status(0,None,None)).map_err(|e|e.to_string())?}
@@ -240,7 +241,6 @@ pub fn deploy(options: &Options) -> i32 {
             };
             let revision = held["revision"].as_u64().unwrap_or(0);
             check_change(&dir, previous, &bound, options, None)?;
-            let sources = project.sources().map_err(|e| e.to_string())?;
             let releases = dir.join("releases").canonicalize().map_err(|e| e.to_string())?;
             let stage = releases.join(format!(".stage-{}", std::process::id()));
             if stage.exists() {std::fs::remove_dir_all(&stage).map_err(|e|e.to_string())?;}
@@ -252,10 +252,15 @@ pub fn deploy(options: &Options) -> i32 {
                 if let Some(parent)=path.parent(){std::fs::create_dir_all(parent).map_err(|e|e.to_string())?;}
                 std::fs::write(path,text).map_err(|e|e.to_string())?;
             }
-            // A native job's module is built from the project and travels with
-            // the release beside its source (LLP 3000.005).
+            crate::dev_worker::package(&project, &stage)?;
+            // @ref LLP 3000.011.003.000.000#2 — saved schemas prepare companion types in a private snapshot, never in working generated/.
+            let private = if options.flags.contains_key("schema") {
+                Some(super::proof_source::Candidate::prepare(&project, &stage, &bound)?)
+            } else { None };
+            let build_project = private.as_ref().map(|candidate| &candidate.project).unwrap_or(&project);
+            // A native job's module travels with the captured source.
             if let Some(built) =
-                crate::native::build(&project, &bound).map_err(|p| p.to_string())?
+                crate::native::build(build_project, &bound).map_err(|p| p.to_string())?
             {
                 let generated = stage.join("snapback").join("generated");
                 std::fs::create_dir_all(&generated).map_err(|e| e.to_string())?;
@@ -263,7 +268,15 @@ pub fn deploy(options: &Options) -> i32 {
                     .map_err(|e| e.to_string())?;
             }
             std::fs::write(stage.join("device-compatibility.json"), serde_json::to_vec_pretty(&snapback4_core::device_protocol::compatibility(&bound.schema.public_projection())).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
-            crate::dev_worker::package(&project, &stage)?;
+            if private.is_some() && project.server_source().is_some() {
+                let source = build_project.server_source().ok_or("saved-source server snapshot is absent")?;
+                std::fs::copy(&source, stage.join("snapback").join(source.file_name().unwrap())).map_err(|e| e.to_string())?;
+                let generated = stage.join("snapback/generated");
+                std::fs::create_dir_all(&generated).map_err(|e| e.to_string())?;
+                for name in ["api.ts", "server.ts", "package.json"] {
+                    std::fs::copy(build_project.generated_dir().join(name), generated.join(name)).map_err(|e| e.to_string())?;
+                }
+            }
             if let Some(previous)=previous {
                 if held["release"].as_u64()==Some(previous) && crate::release_files::digest(&stage)?==crate::release_files::digest(&releases.join(previous.to_string()))? {
                     std::fs::remove_dir_all(&stage).map_err(|e|e.to_string())?;

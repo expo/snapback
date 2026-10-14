@@ -10,6 +10,7 @@ mod social;
 mod starter;
 mod adapt;
 mod ports;
+mod proof;
 pub(crate) use adapt::{report as starter_leftovers, report_json as starter_leftovers_json};
 
 const USAGE: &str = "usage: snapback4 init [dir] [--online|--expo|--web [--online]]";
@@ -143,6 +144,7 @@ pub fn init(options: &Options) -> i32 {
     }
     if web || expo {
         ports::scripts(&mut files, port.unwrap_or(4400), web_port.unwrap_or(if web { 5173 } else { 8081 }), range, web);
+        proof::files(&mut files, options, port.unwrap_or(4400), web_port.unwrap_or(if web { 5173 } else { 8081 }), web, &shape);
     }
     let mut conflicts = Vec::new();
     // A project's existing introduction is unrelated to the starter. Keep it

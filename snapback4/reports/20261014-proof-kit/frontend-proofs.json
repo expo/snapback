@@ -1,0 +1,74 @@
+[
+  {
+    "kind": "web",
+    "attempt": 1,
+    "status": "passed",
+    "elapsedMs": 1888,
+    "range": [
+      34457,
+      34477
+    ],
+    "occupied": 34457,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      16.13,
+      26.44,
+      19.67
+    ],
+    "logs": "/tmp/sb4-w11-proof-qualification-final/frontend-web/logs"
+  },
+  {
+    "kind": "web",
+    "attempt": 2,
+    "status": "passed",
+    "elapsedMs": 1878,
+    "range": [
+      38379,
+      38399
+    ],
+    "occupied": 38379,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      15.24,
+      26.09,
+      19.59
+    ],
+    "logs": "/tmp/sb4-w11-proof-qualification-final/frontend-web/logs"
+  },
+  {
+    "kind": "expo",
+    "attempt": 1,
+    "status": "passed",
+    "elapsedMs": 1869,
+    "range": [
+      39183,
+      39203
+    ],
+    "occupied": 39183,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      15.03,
+      25.3,
+      19.47
+    ],
+    "logs": "/tmp/sb4-w11-proof-qualification-final/frontend-expo/logs"
+  },
+  {
+    "kind": "expo",
+    "attempt": 2,
+    "status": "passed",
+    "elapsedMs": 1930,
+    "range": [
+      45371,
+      45391
+    ],
+    "occupied": 45371,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      15.03,
+      25.3,
+      19.47
+    ],
+    "logs": "/tmp/sb4-w11-proof-qualification-final/frontend-expo/logs"
+  }
+]

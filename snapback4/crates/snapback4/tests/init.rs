@@ -54,7 +54,7 @@ fn init_merges_packages_and_preserves_unrelated_metadata() {
         assert_eq!(after["dependencies"]["unrelated"], "1");
         assert_eq!(after["devDependencies"]["my-tool"], "2");
         assert_eq!(after["scripts"]["test"], "my-tests");
-        if flag == "--expo" { assert_eq!(after["scripts"]["start"], "expo start --port 8081"); assert_eq!(after["devDependencies"]["babel-preset-expo"], "57.0.11"); }
+        if flag == "--expo" { assert_eq!(after["scripts"]["start"], "node scripts/launch.mjs expo"); assert_eq!(after["devDependencies"]["babel-preset-expo"], "57.0.11"); }
         assert!(dir.0.join("snapback/schema.q").exists());
         if flag == "--expo" { assert!(dir.0.join("expo-env.d.ts").is_file(), "Expo's types declare process.env for the starter's typecheck"); }
         if flag == "--expo" && chat {
@@ -600,7 +600,8 @@ fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
             assert!(!dir.0.join(chat).exists(), "{flag}: the small starter carries no chat file {chat}");
         }
         let texts = starter_texts(&dir.0);
-        assert!(texts.len() <= 18, "{flag}: {} files", texts.len());
+        // Three kit scripts replace builder-owned process orchestration.
+        assert!(texts.len() <= 21, "{flag}: {} files", texts.len());
         let schema = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();
         let bound = snapback4_lang::compile(&[("schema.q".into(), schema)]);
         assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);
@@ -1391,4 +1392,45 @@ fn adapt_repairs_only_the_owned_0_4_26_expo_favicon() {
         assert_eq!(after.pointer("/expo/web/favicon").is_some(), edited);
         assert_eq!(dir.0.join("assets/favicon.svg").exists(), edited);
     }
+}
+
+#[test]
+fn generated_proofs_read_ports_at_execution_and_declare_the_driver() {
+    for flag in ["--web", "--expo"] {
+        let dir = Dir::new();
+        let output = Command::new(BIN).args(["init", flag]).env("PORT_LO", "29040").env("PORT_HI", "29049").current_dir(&dir.0).output().unwrap();
+        assert!(output.status.success(), "{output:?}");
+        let package: Value = serde_json::from_slice(&fs::read(dir.0.join("package.json")).unwrap()).unwrap();
+        assert_eq!(package["scripts"]["frontend:proof"], "node scripts/frontend-proof.mjs");
+        assert_eq!(package["devDependencies"]["playwright-core"], "1.55.1");
+        for path in ["package.json", "scripts/frontend-proof.mjs", "scripts/launch.mjs", "src/client.ts"] {
+            let body = fs::read_to_string(dir.0.join(path)).unwrap();
+            assert!(!body.contains("29040") && !body.contains("29041") && !body.contains("29049"), "{flag}: initializer's environment leaked into {path}");
+        }
+        let proof = fs::read_to_string(dir.0.join("scripts/frontend-proof.mjs")).unwrap();
+        assert!(proof.contains("snapback4/proof") && proof.contains("encodeURIComponent(dev.url)") && proof.contains("cleanup("));
+        assert!(!proof.contains("spawn(") && !proof.contains("npx") && !proof.contains("--port"));
+    }
+}
+
+#[test]
+fn adapt_adds_missing_proof_files_and_preserves_application_proofs() {
+    let dir = Dir::new(); assert!(dir.run("--web").status.success());
+    fs::remove_file(dir.0.join("scripts/frontend-proof.mjs")).unwrap();
+    let path = dir.0.join("package.json");
+    let mut package: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    package["scripts"].as_object_mut().unwrap().remove("frontend:proof");
+    package["devDependencies"].as_object_mut().unwrap().remove("playwright-core");
+    fs::write(&path, package.to_string()).unwrap();
+    assert!(dir.init(&["--adapt"]).status.success());
+    assert!(dir.0.join("scripts/frontend-proof.mjs").is_file());
+    let mut package: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    assert_eq!(package["scripts"]["frontend:proof"], "node scripts/frontend-proof.mjs");
+    assert_eq!(package["devDependencies"]["playwright-core"], "1.55.1");
+    package["scripts"]["frontend:proof"] = json!("my-custom-proof"); fs::write(&path, package.to_string()).unwrap();
+    fs::write(dir.0.join("scripts/frontend-proof.mjs"), "// application-owned proof\n").unwrap();
+    assert!(dir.init(&["--adapt"]).status.success());
+    let package: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+    assert_eq!(package["scripts"]["frontend:proof"], "my-custom-proof");
+    assert_eq!(fs::read_to_string(dir.0.join("scripts/frontend-proof.mjs")).unwrap(), "// application-owned proof\n");
 }

@@ -53,7 +53,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   types                            compile and write snapback/generated/api.ts
   dev [--port N|A-B] [--bind IP] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h|--resume-clock] [--trace-empty] [long-wait flags]
                                       --trace-empty: record unknown empty reads in why recent; --replay: suppress new effects and hold schedules; --hold-effects: pause claims, keep effects for later; serve on 127.0.0.1:4400, re-adopting on every save (--no-watch: never; restart to serve edits); --fresh/--memory: a store in memory that dies with this process
-  deploy <dir> [--check] [--restore-dormant] [--allow-feed-adoption]  a release: the compiled backend into <dir>/releases/N, current → N; running serve adopts
+  deploy <dir> [--schema file.q] [--check] [--restore-dormant] [--allow-feed-adoption]  a release: the compiled backend into <dir>/releases/N, current → N; running serve adopts
   rollback <dir> [--to N|latest] [--check]  bare: previously active release; incompatible present values become dormant per row; --check previews without activating
   prune <dir> [--allow-destructive] preview or explicitly drop dormant storage
   releases <dir> [N|latest] [--after ID] [--items-after KEY] [--event ID]  inspect authoritative release history/storage
@@ -67,7 +67,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
   run <op> [json] --as <persona|principal-id> [--port N] [--now <milliseconds|+duration>]   run one operation against the local store (a job runs whole, as the system); beside a live dev, forwarded to it as the persona; --port N: to the dev on that port (a dev --fresh)
   clock advance <duration> [--port N]  advance a running dev clock, sweep expiry and run due jobs
   reset [--port N] [--seed <fixture dir|rows.json>] [--clock reset]  empty a running dev's store (POST /dev/reset): rows, views, queues, assets, accounts; a new store identity; reseed in the same transaction; personas and service seats stay
-  test [--fixture dir] [--as p] [--residency [--verbose]]    load --fixture or ./fixtures when present, run every query, print the meters; --residency: acquisition report only; add --verbose to run queries and print meters
+  test [--source file.q] [--fixture dir] [--as p] [--residency [--verbose]]    load --fixture or ./fixtures when present, run every query, print the meters; --residency: acquisition report only; add --verbose to run queries and print meters
   why <E_CODE | op | table | id>   explain a refusal or note with its card section, an operation's cost, a table's rules, or work by id; --release <dir>, --values
   guide [keyword|aliases] [--full|--sections|--section <words|N>|--find <words>]  list cards (guide aliases: every alias), or print one card (over 130 lines: its opening, numbered index and, when piped, its first section; an alias that names a section prints it; --full: all of it), its index, one section (a word no heading names prints the section that mentions it most), or the lines that hold every word (a|b or a OR b: either)
   data <table> [--release dir] [--limit N]         inspect stored rows as an administrator (bypasses read rules)

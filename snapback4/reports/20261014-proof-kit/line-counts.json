@@ -1,0 +1,29 @@
+[
+  {
+    "lane": "018-day2-cross-country-team-splits",
+    "files": [
+      "scripts/frontend-proof.mjs",
+      "scripts/harness.mjs"
+    ],
+    "before": 176,
+    "after": 100
+  },
+  {
+    "lane": "020-day2-golf-tee-time-lottery",
+    "files": [
+      "scripts/frontend-proof.mjs",
+      "scripts/proof-lib.mjs"
+    ],
+    "before": 172,
+    "after": 99
+  },
+  {
+    "lane": "057-service-status-page",
+    "files": [
+      "scripts/frontend-proof.mjs",
+      "scripts/lib/dev-host.mjs"
+    ],
+    "before": 154,
+    "after": 12
+  }
+]
