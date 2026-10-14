@@ -1,0 +1,15 @@
+{
+  "semanticSource": "22e1fbf41ae181a527e4a50d0f502ff593eba120",
+  "finalVerdicts": {
+    "Muse": "READY",
+    "freshCodex": "READY"
+  },
+  "sha256": {
+    "3000.011.003.000-fix28-r1.brief.txt": "b096550cd1c595aac027a076756c9ac7ea7badeb243e7603ae115d2c2828f917",
+    "3000.011.003.000-fix28-r1.muse.md": "f6a115305054f8d6987faf55fc4825c6107bd9a9bbd0db922264e57277731ea8",
+    "3000.011.003.000-fix28-r1.codex.md": "69366ef2a7c8c98b92a5c001701d8a51b8ddf16a9d36605a4b28d1c8d65ef44b",
+    "3000.011.003.000-fix28-r2.brief.txt": "c668c5a2df197a715c8b332b4837904aa7adcb167fd9e1e37301e4914ef2facd",
+    "3000.011.003.000-fix28-r2.muse.md": "b67ef2e87bad8ea2e06a1d0236f5c6a24675930b2d8c9bd9c18766ea7a70e162",
+    "3000.011.003.000-fix28-r2.codex.md": "7f2ba505e78c9f6c808d3cea5bb2837c86126c787f978d78064259c151efa227"
+  }
+}

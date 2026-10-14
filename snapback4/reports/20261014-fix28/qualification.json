@@ -1,0 +1,186 @@
+{
+  "semanticSource": "22e1fbf41ae181a527e4a50d0f502ff593eba120",
+  "version": "0.4.28",
+  "mode": "consumer-only",
+  "publicationQualified": false,
+  "frontendAttempts": 12,
+  "starterFrontendAttempts": 12,
+  "adaptedAttempts": 4,
+  "distributions": [
+    {
+      "base": "ubuntu:24.04",
+      "status": "passed"
+    },
+    {
+      "base": "alpine",
+      "status": "passed"
+    }
+  ],
+  "clientIntegrity": "sha512-PCmRz1Io9zwVnG7SZAvbEqVkMGHJ5LPg4WU8nDPpehQLn5j2Wvgou6XC2V118oaDxFVw0av8O0eK2tR63Ok1Mw==",
+  "expoIntegrity": "sha512-xrZQCiga5iarZEd0j/BO897v2h5EvTl3Zk6hWxNe1/KnLMQmbHRGTtM6bWrmCCAOCAZFwbOiR9SWVlNHSnHFCw==",
+  "platform": {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.28",
+    "filename": "snapback4-linux-x64-0.4.28.tgz",
+    "integrity": "sha512-dd87pj5oKnGYBAhcljb0rNspcNEIb0SfUsfTIrRD0waUOv2LZ6LgPTXvzT2L1XIYTb9D9eGrU7uUJyweI1VEkA==",
+    "bytes": 11784459
+  },
+  "binarySha256": "b26a14971f8f6496ac0bd25c064d302d29c2ca4c8217d6a09f5f5cff50e57a41",
+  "results": {
+    "affected_client": {
+      "passed": 139,
+      "failed": 0,
+      "skipped": 0
+    },
+    "dormant_rust": {
+      "passed": 47,
+      "failed": 0
+    },
+    "cli_binary": {
+      "passed": 427,
+      "failed": 0,
+      "ignored": 5
+    },
+    "check": {
+      "passed": 101,
+      "failed": 0
+    },
+    "check_notes": {
+      "passed": 6,
+      "failed": 0
+    },
+    "init_complete_rerun": {
+      "passed": 50,
+      "failed": 0
+    },
+    "init_dx3_final": {
+      "passed": 7,
+      "failed": 0
+    },
+    "targeted_readme": {
+      "passed": 3,
+      "failed": 0
+    },
+    "targeted_init_proofs": {
+      "passed": 2,
+      "failed": 0
+    },
+    "prerelease_rust": {
+      "passed": 1,
+      "failed": 0
+    },
+    "lock_resolution": {
+      "passed": 1,
+      "failed": 0
+    },
+    "guide_rust": {
+      "passed": 123,
+      "failed": 0
+    },
+    "root_guide": {
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "preconditions": 0,
+      "inherited_warnings": 121
+    },
+    "ref": {
+      "errors": 0,
+      "unchecked": 0
+    },
+    "docs_budget": {
+      "readme_lines": 320,
+      "budget": 320,
+      "named_test_passed": 1
+    },
+    "root_inventories": "PASS"
+  },
+  "logs": {
+    "client": {
+      "file": "fix28-client-complete.log",
+      "sha256": "72ffe7492a7db957c13262b8f8a800e9acef30f87e690b95fc735d4d80a1db3b"
+    },
+    "dormant_rust": {
+      "file": "fix28-dormant-rust.log",
+      "sha256": "9ca1520c33c307ed55c8385763b52d2ef164047c1afe4dfd096c1d5be1cdc9d6"
+    },
+    "cli_rust": {
+      "file": "fix28-cli-rust.log",
+      "sha256": "8baa5bda0b40d5df2c6ebdf72b10f37a13199da276da7eaf1f88dadbf344ecf4"
+    },
+    "init_rerun": {
+      "file": "fix28-init-rust.log",
+      "sha256": "3ea741955122d6154d1946599f451660e9745a92638fb4ed8bf5b47bde794437"
+    },
+    "init_review": {
+      "file": "fix28-init-review-rust.log",
+      "sha256": "8ca65a6b8d3b51e7d7ed4a2dd12392723b3769deb4e736674a905a25ae02c7b2"
+    },
+    "social_rust": {
+      "file": "fix28-social-rust.log",
+      "sha256": "4ba3cb9b6aed83dea1818e41259de996aeca5511b520c68abafbd2445da39a29"
+    },
+    "proof_init_rust": {
+      "file": "fix28-proof-init-rust.log",
+      "sha256": "d717a0f87d9d441f7cda94c61a9b318d615b3b882276458775b4bf6cd6c54efc"
+    },
+    "readme_rust": {
+      "file": "fix28-readme-rust.log",
+      "sha256": "3d58122b2687ab95c254dd80ef1ea812e7d4e55b0a1a666685c0bbf9c402e07b"
+    },
+    "history_rust": {
+      "file": "fix28-history-rust.log",
+      "sha256": "19eb775102b204ed8b1990ec695a67618f3fd636bbcf1f0de2a959a311a8d156"
+    },
+    "lock_rust": {
+      "file": "fix28-lock-rust.log",
+      "sha256": "8df65f5bc5356cf3b8d3235627ac45cbdfcc8a70c61d17bce1d35db85d34b69e"
+    },
+    "guide_rust": {
+      "file": "fix28-guide-rust.log",
+      "sha256": "9f77fe11d229a0c32a60d9ca4a91fc12274fc4dd2fafe1904d2eb709bbe7e739"
+    },
+    "ref": {
+      "file": "fix28-ref-complete.log",
+      "sha256": "74f452d179b9de6a23a0745f8d3a29433ea7a2d91f4cd11bd9aacc216ebf3ca4"
+    },
+    "docs_budget": {
+      "file": "fix28-docs-budget-final.log",
+      "sha256": "fa4d2f898e29d265e19d3139e5c6c4c0d093c8253f415a1a99d958c5bbcfe35a"
+    },
+    "root_inventories": {
+      "file": "fix28-root-inventories-complete.log",
+      "sha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813"
+    },
+    "root_guide": {
+      "file": "fix28-root-guide-complete.log",
+      "sha256": "d62ed70274abd318ee262e7995bcfbd000425b050f7b6cba9b28582c0c074559"
+    },
+    "prepare": {
+      "file": "fix28-qualified-prepare.log",
+      "sha256": "a231c86947ec117132a88d5cd709175ab0a69bcf9f7f1ab58d5f7b4bce4c90fd"
+    },
+    "linux_consumer": {
+      "file": "fix28-qualified.log",
+      "sha256": "6ae724cc2a618a0082798f4271f729e809975829a70b4a3fa467ed99d7084dce"
+    }
+  },
+  "historical_reds": {
+    "original_packed_qualification": "before-qualification.log",
+    "original_starter_toolchain": "before-starter-toolchain.log",
+    "expo_templates": "before-expo-templates.log",
+    "cli_initial_init_assertion": "fix28-cli-rust.log (49 pass/1 stale assertion; full init rerun passes)",
+    "interrupted_qualifiers": [
+      "target/fix28-after",
+      "target/fix28-final",
+      "target/fix28-complete"
+    ]
+  },
+  "non_runs": [
+    "full scripts/test.sh",
+    "Mac publication qualification",
+    "native iOS execution",
+    "npm publish",
+    "git push"
+  ]
+}

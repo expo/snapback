@@ -1,0 +1,230 @@
+[
+  {
+    "starter": "web",
+    "kind": "web",
+    "attempt": 1,
+    "status": "passed",
+    "elapsedMs": 1906,
+    "range": [
+      39275,
+      39295
+    ],
+    "occupied": 39275,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      3.35,
+      3.05,
+      3.21
+    ],
+    "logs": "/home/ccheever/projects/sb4-w12-fix28/snapback4/target/fix28-qualified/frontend-web/logs"
+  },
+  {
+    "starter": "web",
+    "kind": "web",
+    "attempt": 2,
+    "status": "passed",
+    "elapsedMs": 1986,
+    "range": [
+      41971,
+      41991
+    ],
+    "occupied": 41971,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      3.41,
+      3.07,
+      3.21
+    ],
+    "logs": "/home/ccheever/projects/sb4-w12-fix28/snapback4/target/fix28-qualified/frontend-web/logs"
+  },
+  {
+    "starter": "web-online",
+    "kind": "web",
+    "attempt": 1,
+    "status": "passed",
+    "elapsedMs": 1428,
+    "range": [
+      39107,
+      39127
+    ],
+    "occupied": 39107,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      3.29,
+      3.05,
+      3.2
+    ],
+    "logs": "/home/ccheever/projects/sb4-w12-fix28/snapback4/target/fix28-qualified/frontend-web-online/logs"
+  },
+  {
+    "starter": "web-online",
+    "kind": "web",
+    "attempt": 2,
+    "status": "passed",
+    "elapsedMs": 1345,
+    "range": [
+      39601,
+      39621
+    ],
+    "occupied": 39601,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      3.43,
+      3.08,
+      3.21
+    ],
+    "logs": "/home/ccheever/projects/sb4-w12-fix28/snapback4/target/fix28-qualified/frontend-web-online/logs"
+  },
+  {
+    "starter": "expo",
+    "kind": "expo",
+    "attempt": 1,
+    "status": "passed",
+    "elapsedMs": 1899,
+    "range": [
+      42405,
+      42425
+    ],
+    "occupied": 42405,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      3.49,
+      3.11,
+      3.22
+    ],
+    "logs": "/home/ccheever/projects/sb4-w12-fix28/snapback4/target/fix28-qualified/frontend-expo/logs"
+  },
+  {
+    "starter": "expo",
+    "kind": "expo",
+    "attempt": 2,
+    "status": "passed",
+    "elapsedMs": 1970,
+    "range": [
+      40655,
+      40675
+    ],
+    "occupied": 40655,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      3.53,
+      3.12,
+      3.22
+    ],
+    "logs": "/home/ccheever/projects/sb4-w12-fix28/snapback4/target/fix28-qualified/frontend-expo/logs"
+  },
+  {
+    "starter": "web-chat",
+    "kind": "web",
+    "attempt": 1,
+    "status": "passed",
+    "elapsedMs": 1711,
+    "range": [
+      42533,
+      42553
+    ],
+    "occupied": 42533,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      3.57,
+      3.14,
+      3.23
+    ],
+    "logs": "/home/ccheever/projects/sb4-w12-fix28/snapback4/target/fix28-qualified/frontend-web-chat/logs"
+  },
+  {
+    "starter": "web-chat",
+    "kind": "web",
+    "attempt": 2,
+    "status": "passed",
+    "elapsedMs": 1687,
+    "range": [
+      33195,
+      33215
+    ],
+    "occupied": 33195,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      3.57,
+      3.14,
+      3.23
+    ],
+    "logs": "/home/ccheever/projects/sb4-w12-fix28/snapback4/target/fix28-qualified/frontend-web-chat/logs"
+  },
+  {
+    "starter": "expo-chat",
+    "kind": "expo",
+    "attempt": 1,
+    "status": "passed",
+    "elapsedMs": 1839,
+    "range": [
+      41267,
+      41287
+    ],
+    "occupied": 41267,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      3.74,
+      3.2,
+      3.25
+    ],
+    "logs": "/home/ccheever/projects/sb4-w12-fix28/snapback4/target/fix28-qualified/frontend-expo-chat/logs"
+  },
+  {
+    "starter": "expo-chat",
+    "kind": "expo",
+    "attempt": 2,
+    "status": "passed",
+    "elapsedMs": 1629,
+    "range": [
+      44231,
+      44251
+    ],
+    "occupied": 44231,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      3.76,
+      3.21,
+      3.25
+    ],
+    "logs": "/home/ccheever/projects/sb4-w12-fix28/snapback4/target/fix28-qualified/frontend-expo-chat/logs"
+  },
+  {
+    "starter": "expo-social",
+    "kind": "expo",
+    "attempt": 1,
+    "status": "passed",
+    "elapsedMs": 1951,
+    "range": [
+      42419,
+      42439
+    ],
+    "occupied": 42419,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      3.9,
+      3.28,
+      3.27
+    ],
+    "logs": "/home/ccheever/projects/sb4-w12-fix28/snapback4/target/fix28-qualified/frontend-expo-social/logs"
+  },
+  {
+    "starter": "expo-social",
+    "kind": "expo",
+    "attempt": 2,
+    "status": "passed",
+    "elapsedMs": 2012,
+    "range": [
+      43795,
+      43815
+    ],
+    "occupied": 43795,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      3.9,
+      3.28,
+      3.27
+    ],
+    "logs": "/home/ccheever/projects/sb4-w12-fix28/snapback4/target/fix28-qualified/frontend-expo-social/logs"
+  }
+]

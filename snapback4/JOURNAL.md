@@ -95422,3 +95422,17 @@ first fails for duplicate output, then verifies one emission and silent repeat.
 This is output custody only; no package/version/history interval change.
 The prior qualification attempt was interrupted before completing; a fresh
 exact packed-client run follows this final helper change.
+
+FIX28 final qualification and reviews: semantic source `22e1fbf41a` keeps 0.4.28
+and passes fresh `publish.mjs --prepare-client` plus Linux consumer qualification:
+12 PROOF frontend attempts, the independent starter toolchain's 12 plus four
+adapted attempts, and Ubuntu 24.04/Alpine installed consumers/all six toolchains.
+Both fresh Muse and Codex reviews return READY on that revision. The affected
+client run has 139 passes; dormant Rust 47; CLI binary 427/5 opt-in ignores,
+check 101, check_notes 6; full init rerun 50, final init_dx3 7, guide 123; targeted
+README/proof/history/lock controls pass. Root inventories and all 22 guide checks,
+references and README 320/320 budget pass. Original reds and three interrupted
+qualifiers remain distinct from final success. `reports/20261014-fix28/` retains
+exact-byte/source bindings, complete proof matrices and hashed command logs.
+Consumer evidence has publicationQualified false and suite not-run. No full
+scripts/test.sh, native iOS/Mac publication qualification, upload or push.

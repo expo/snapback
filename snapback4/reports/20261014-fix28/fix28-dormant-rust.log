@@ -1,0 +1,65 @@
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:24:8
+   |
+24 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling snapback4-core v0.4.28 (/home/ccheever/projects/sb4-w12-fix28/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.28 (/home/ccheever/projects/sb4-w12-fix28/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 49.62s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-f5fc548e1ba17955)
+
+running 47 tests
+test store::dormant_tests::narr_text_constraints_and_literal_default_counts_share_activation_predicate ... ok
+test store::dormant_tests::maintain_refusal_names_its_selected_source_population_and_values ... ok
+test store::dormant_tests::release_refuses_durable_to_ephemeral_or_derived_ownership_with_population ... ok
+test store::dormant_tests::refusal_for_a_new_through_capture_names_missing_parent_and_child ... ok
+test store::dormant_tests::true_format_two_store_allows_deletion_before_its_first_upgrade ... ok
+test store::dormant_tests::narr_counts_column_values_not_population_and_word_entries_not_rows ... ok
+test store::dormant_tests::dormant_reference_cannot_attach_to_identical_reused_parent ... ok
+test store::dormant_tests::direct_expiry_removal_cannot_revive_a_narrowed_source_lifetime ... ok
+test store::dormant_tests::release_store_2_keeps_deletion_evidence_before_its_next_upgrade ... ok
+test store::dormant_tests::tentative_restoration_with_no_visibility_delta_keeps_generation_and_cursors ... ok
+test store::dormant_tests::dormant_through_deadline_refuses_retargeted_parent_reference ... ok
+test store::dormant_tests::partial_restoration_prunes_only_dormant_asset_homes ... ok
+test store::dormant_tests::revision_fences_aba_equal_content_and_native_only_generations ... ok
+test store::dormant_tests::dormant_through_captures_keep_parent_lifetime_when_reference_stays_active ... ok
+test store::dormant_tests::restored_recorded_attribution_preserves_values_and_nulls_before_aggregate_rebuild ... ok
+test store::dormant_tests::combined_narrowing_and_lifetime_removal_never_resurrects_expired_children ... ok
+test store::dormant_tests::restored_through_deadline_recomputes_before_queries_sync_and_asset_reads ... ok
+test store::dormant_tests::audit_keeps_before_after_and_partial_restoration_counts ... ok
+test store::dormant_tests::late_readthrough_retirement_is_not_a_narrowed_restoration_in_audit ... ok
+test store::dormant_tests::dormant_row_reference_never_recaptures_a_deleted_parent_lifetime ... ok
+test store::dormant_tests::dormant_unique_index_revalidates_older_writes_with_exact_population ... ok
+test store::dormant_tests::removing_readthrough_cannot_revive_an_expired_narrowed_source_lifetime ... ok
+test store::dormant_tests::activation_expiry_invalidates_parent_lifetime_and_failed_commit_undoes_it ... ok
+test store::dormant_tests::audit_pages_distinguish_same_named_column_and_index ... ok
+test store::dormant_tests::initially_dangling_keep_reference_restores_after_table_then_type_dormancy ... ok
+test store::dormant_tests::dormant_assets_cannot_be_fetched_or_collected_until_explicit_prune ... ok
+test store::dormant_tests::narr_dormant_rows_cover_their_separately_retained_cells ... ok
+test store::dormant_tests::enum_in_use_is_hidden_on_rollback_and_restored_verbatim ... ok
+test store::dormant_tests::equal_schema_activation_closes_new_nominal_references_and_replaces_generation ... ok
+test store::dormant_tests::file_allowlist_and_kind_narrowing_preserve_retained_asset_facts ... ok
+test store::dormant_tests::narrowing_hides_reference_closure_and_rebuilds_unchanged_counts_and_indexes ... ok
+test store::dormant_tests::historical_through_captures_restore_after_public_rule_widening ... ok
+test store::dormant_tests::additive_rollback_keeps_cells_tables_and_older_writes_without_disclosure ... ok
+test store::dormant_tests::sparse_defaults_are_captured_and_defaultless_forward_refuses_new_rows ... ok
+test store::dormant_tests::partial_table_restoration_latest_cell_wins_and_prune_is_explicit ... ok
+test store::dormant_tests::narrowing_preserves_legally_dangling_keep_references_and_omitted_invalid_cells ... ok
+test store::dormant_tests::too_short_old_writes_are_dormant_on_forward_and_restored_on_rollback ... ok
+test store::dormant_tests::release_internal_names_refuse_and_development_keeps_legacy_format ... ok
+test store::dormant_tests::joint_parent_child_retirement_preserves_lifetimes_in_both_name_orders ... ok
+test store::dormant_tests::expiry_of_an_active_row_does_not_audit_its_dormant_cells_as_restored ... ok
+test store::dormant_tests::narrowing_restored_storage_keeps_deleted_parent_evidence_even_after_id_reuse ... ok
+test store::dormant_tests::whole_table_transfer_preserves_full_source_lifetime_until_classification ... ok
+test store::dormant_tests::restoration_into_a_narrower_table_or_column_retains_source_values_and_definition ... ok
+test store::dormant_tests::rollback_runs_only_active_actions_and_deleted_parents_block_dormant_restoration ... ok
+test store::dormant_tests::restoring_null_exempt_caps_matches_runtime_and_successor_assessment ... ok
+test store::dormant_tests::rollback_replaces_newer_actions_on_a_reference_that_stays_active ... ok
+test store::dormant_tests::asset_byte_narrowing_hides_and_restores_scalar_optional_and_list_rows ... ok
+
+test result: ok. 47 passed; 0 failed; 0 ignored; 0 measured; 293 filtered out; finished in 2.23s
+
