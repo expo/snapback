@@ -37,6 +37,8 @@ slots=$((cpus/3)); [ "$slots" -lt 1 ] && slots=1; [ "$slots" -gt 24 ] && slots=2
 printf 'FILES=%s CPUS=%s SLOTS=%s\n' "${#files[@]}" "$cpus" "$slots" > "$proof/client-inventory.txt"
 run client-tests node scripts/run-client-tests.mjs "$slots" files "${files[@]}"
 run client-models node scripts/run-client-tests.mjs 1 models packages/snapback4/test/app-session-model.test.mjs packages/snapback4/test/online-client-model.test.mjs
+run wasm-measure env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 bash scripts/measure-wasm.sh
+run wasm-budget-check node -e 'const fs=require("node:fs");const m=JSON.parse(fs.readFileSync("metrics/wasm.jsonl","utf8").trim().split("\n").at(-1));console.log(JSON.stringify(m));if(m.over)process.exit(1)'
 run xcframework env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 bash scripts/build-xcframework.sh
 run swift-compile env SKIP_BUNDLING=1 xcodebuild -workspace apps/chat-expo/ios/Snapback4chat.xcworkspace -scheme Snapback4chat -configuration Release -destination 'generic/platform=iOS Simulator' ARCHS=arm64 -derivedDataPath target/integ6-expo CODE_SIGNING_ALLOWED=NO SKIP_BUNDLING=1 build
 printf 'FINAL_FAILURES=%s\n' "$failures" > "$proof/result.txt"
