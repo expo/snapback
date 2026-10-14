@@ -1,0 +1,18 @@
+Clean-directory verification after publication (2026-10-14). SNAPBACK4_BIN unset.
+
+npm view (Linux):
+snapback4@0.4.26               sha512-CI5qlD2O/PyI+1kVdFu6qqMFIySL9xe6xBKCGpYPVt2uxd73d1dcQ8ek8wA4lPnlcfFDPj+4C7ee9n26bRBFmA==  latest=0.4.26
+snapback4-darwin-arm64@0.4.26  sha512-j5KjH/hQQIgOA0GsWRrOf+Fa6XjrfYUXAYOSLNf669ECSkdE0tkdQ4pL10aj1FiFtZVXYaY23gUzwKDoT/j4zg==  latest=0.4.26
+snapback4-linux-x64@0.4.26     sha512-3/ZygjCN3D50/qfdf6aTS0+ejuwyt6FJjhwi0dkIRfCb3zdZgf4V1mf4sRfTQHebEHAv51XQ9jzOqzw/LjBDQg==  latest=0.4.26
+snapback4-expo@0.4.26          sha512-iQ9djVj78drf1YyR0aTSItpHZ0sJ1Q/uGcCOkGSlgvJ9aJ1ihUAVHNuMsHzXL6ax7E0n49tBH21VSBrs4jBfkg==  latest=0.4.26
+
+Linux (expo-build-1000, node 24.13.1), fresh scratch dir:
+  npm i snapback4@0.4.26               -> added 7 packages (snapback4, snapback4-linux-x64)
+  npx --no-install snapback4 --version -> snapback4 0.4.26
+  snapback4 init app; (app) snapback4 check -> check: ok — 1 table (1 synced), 4 operations, no problems, 1 note; exit 0
+
+Mac (M5 black, node 24.18.0), fresh mktemp dir:
+  npm i snapback4@0.4.26 snapback4-expo@0.4.26 -> snapback4, snapback4-darwin-arm64, snapback4-expo 0.4.26
+  npx --no-install snapback4 --version -> snapback4 0.4.26
+  installed binary: Authority=Developer ID Application: Charles Cheever (UD2ZVW5WU5), TeamIdentifier=UD2ZVW5WU5
+  snapback4 init app; (app) snapback4 check -> check: ok — 1 table (1 synced), 4 operations, no problems, 1 note; exit 0

@@ -1,0 +1,15 @@
+{
+  "step": "lean-setup",
+  "command": [
+    "env",
+    "PATH=/Users/ccheever/sb4-03-lanes/codesign-relay:/Users/ccheever/.elan/bin:/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/Users/ccheever/.bun/bin:/Users/ccheever/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "lake",
+    "build",
+    "quarry-oracle"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0426/snapback4/lean",
+  "start": 1791946264.444059,
+  "end": 1791946271.2490938,
+  "seconds": 6.805,
+  "exit": 0
+}

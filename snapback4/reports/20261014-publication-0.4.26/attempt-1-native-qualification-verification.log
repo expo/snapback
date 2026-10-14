@@ -1,0 +1,21 @@
+{
+  "offline": {
+    "manifest": "offline-ios-run.json",
+    "exitStatus": 0,
+    "seconds": 10.332,
+    "prime": true,
+    "relaunch": false,
+    "artifactHashesVerified": true,
+    "installedExecutableSha256": "cc26f28b42bf2ff49b18238ecf0f33343bb9d082a0f1b43a8d0e798020dac45b"
+  },
+  "restart": {
+    "manifest": "restart-ios-run.json",
+    "exitStatus": 0,
+    "seconds": 12.822,
+    "prime": true,
+    "relaunch": true,
+    "artifactHashesVerified": true,
+    "installedExecutableSha256": "cc26f28b42bf2ff49b18238ecf0f33343bb9d082a0f1b43a8d0e798020dac45b"
+  }
+}
+All native artifact hashes and framework source hashes verified; Expo source bytes recorded.

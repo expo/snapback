@@ -1,0 +1,18 @@
+{
+  "step": "cargo-build",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "cargo",
+    "build",
+    "--locked",
+    "-p",
+    "snapback4"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0426/snapback4",
+  "start": 1791946068.846865,
+  "end": 1791946092.3339012,
+  "seconds": 23.487,
+  "exit": 0
+}

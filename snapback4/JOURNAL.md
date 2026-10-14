@@ -94942,3 +94942,29 @@ compressed logs, stage statuses, archive hashes, lane reports and native
 export/digest audits are in reports/20261013-integration9/. The only remaining
 red is the documented baseline Lean signature set. No GitHub push or npm
 publication; SSH delivery is restricted to the named Mac sb4-integ9 ref.
+
+
+## 2026-10-14 — 0.4.26 published (snapback4, both platforms, snapback4-expo)
+
+`snapback4`, `snapback4-darwin-arm64`, `snapback4-linux-x64` and
+`snapback4-expo` 0.4.26 are published from `063b334862` (Integration 9), by
+the 0.4.25 cross-host path, with no failed qualification or retry. Registry
+integrity (all `latest` = 0.4.26):
+
+| Package | Registry integrity |
+|---|---|
+| `snapback4` | `sha512-CI5qlD2O/PyI+1kVdFu6qqMFIySL9xe6xBKCGpYPVt2uxd73d1dcQ8ek8wA4lPnlcfFDPj+4C7ee9n26bRBFmA==` |
+| `snapback4-darwin-arm64` | `sha512-j5KjH/hQQIgOA0GsWRrOf+Fa6XjrfYUXAYOSLNf669ECSkdE0tkdQ4pL10aj1FiFtZVXYaY23gUzwKDoT/j4zg==` |
+| `snapback4-linux-x64` | `sha512-3/ZygjCN3D50/qfdf6aTS0+ejuwyt6FJjhwi0dkIRfCb3zdZgf4V1mf4sRfTQHebEHAv51XQ9jzOqzw/LjBDQg==` |
+| `snapback4-expo` | `sha512-iQ9djVj78drf1YyR0aTSItpHZ0sJ1Q/uGcCOkGSlgvJ9aJ1ihUAVHNuMsHzXL6ax7E0n49tBH21VSBrs4jBfkg==` |
+
+The publication path saw Integration 9's Lean oracle setup on both hosts:
+Elan on PATH, `lake build quarry-oracle` in the publication worktree, and
+`SNAPBACK4_REQUIRE_LEAN=1`; difftest smoke 19/19 and lean 32/32 ran, with no
+skips. Linux qualified `== 0 failure(s) in 2619 s` with both proot consumers;
+the Mac native witness passed (offline 10.3 s, restart 12.8 s; simulator shut
+down) and the dry run passed `== 0 failure(s) in 8579 s` under the default
+`/var/folders` TMPDIR and `ulimit -n 65536`. One `--resume` published the
+platforms, then the client; the Expo adapter followed. Clean installs on Linux
+and the Mac print `snapback4 0.4.26` and pass `init` + `check`. Hashes,
+timings and logs: `reports/20261014-publication-0.4.26/REPORT.md`.
