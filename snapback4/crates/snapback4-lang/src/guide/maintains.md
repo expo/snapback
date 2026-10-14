@@ -42,7 +42,7 @@ A filter or projection is planned when read. Branches form a union without a cop
 
 Each union branch runs under its own source's read rule before filtering or projection. Branches have compatible fields and types. Identity includes both branch and source id; equal ids in different tables remain distinct events. The exposed `id` is the source id. Include a branch discriminator, such as `repost`, when forming a client list key. A predicate on a projected column reaches each source; a constant predicate selects branches. Order fields must map to source columns in every branch.
 
-A maintained view has rows `{ id, <group columns>, value }`. A full group key returns a scalar. An authorized miss is zero; a hidden hit and hidden miss are both null. Pages return existing groups, using `first`/`last`, `by .column`
+A maintained view has rows `{ id, <group columns>, value }`. A full group key returns a scalar. An authorized miss is zero; a hidden hit and hidden miss are both null. Omit `by` for one global scalar such as `view totalPosts: count posts`, read it by its bare name, and receive zero for authorized absence; its compiler-owned physical group key is not an application column. Pages return existing groups, using `first`/`last`, `by .column`
 and `after c`. A domain may use an inherited product cap or the runtime meter.
 Source caps can bound distinct groups; no new target cap is enforced.
 

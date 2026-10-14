@@ -18,14 +18,16 @@ mutation createProfile(name: text 1..80):
 Reference contexts project required rows’ `.id`. Media: decimal KB/MB/GB.
 
 Columns/arguments become nullable with `?`; omission becomes null. Table types are references; neither typing nor membership reads the target: use `require exists t[id] else CODE` or `r = t[id] ! else CODE`.
-Defaults fill omissions; explicit values win. Formats: handle/url; email uses application validation or identity signup/login, not `format email`.
-Money/decimal are scaled integers; fractions refuse E_INPUT. Identical admitted unique-key reads narrow after exists/non-null guards, including pure helper arguments; writes, rebinding and viewer changes invalidate proof.
+Defaults fill omissions; explicit values win. Formats: handle/url/email. `format email` is the shared ASCII address contract described below; identity providers may apply additional policy.
+Money/decimal are scaled integers; fractions refuse E_INPUT. Divide them by an int with an explicit rounding mode, for example `divide(amount, 3, 'half-even')`. To produce a fractional decimal from integer inputs, name its result scale: `divide(total, count, 2, 'half-even')` returns `decimal 2`; no floating point or manual `total * 100` is introduced. Identical admitted unique-key reads narrow after exists/non-null guards, including pure helper arguments; writes, rebinding and viewer changes invalidate proof. A matching `require count(domain) > 0` also makes `min`, `max` and `sum` of a required column non-null until a write or authority change invalidates that proof.
 
 ## Limits
 
 - Guard or assert nullable values before passing them to required parameters: E_QUARRY_TYPE.
 - Values and arithmetic must fit the integer range: E_OVERFLOW.
 - `/` and `%` take ints and floor: `-7 / 2` is -4, `-7 % 2` is 1. A divisor must be nonzero: E_DIV_ZERO.
+- `divide(value, int, mode)` preserves int/decimal/money and requires one of `toward-zero`, `away-from-zero`, `floor`, `ceiling`, `half-away-from-zero` or `half-even` as a literal mode. It uses checked integer quotient/remainder arithmetic; zero refuses E_DIV_ZERO and overflow refuses E_OVERFLOW.
+- `divide(int, int, scale, mode)` returns `decimal scale`; `scale` is a literal from 0 through 12. Scaling uses a checked wide integer, then applies the same signed rounding rule and i53 result check. Null inputs are never zero.
 - New required defaults must also fit the existing store: E_ADOPT.
 
 ## Details
@@ -98,6 +100,14 @@ checks them (`E_INPUT`).
 `text` defaults to `text <=10000` characters in columns, arguments and helper
 parameters. Write `text <=N` or `text M..N` when the bound is a product rule;
 an indexed column must also fit the key budget (`guide indexes`).
+
+`format email` accepts one ASCII `@`, a 1–64 character local part made from
+letters, digits and `!#$%&'*+-/=?^_`{|}~` atoms separated by single dots, and a
+1–253 character domain made from 1–63 character ASCII letter/digit/hyphen
+labels. Dots cannot lead, trail or repeat, and a domain label cannot begin or
+end with `-`. A single domain label such as `alice@localhost` is allowed.
+The engine does not normalize case or Unicode; store a separate normalized
+lookup column when the product needs case-insensitive identity matching.
 
 ## Engine-assigned per-parent sequences
 

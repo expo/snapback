@@ -1575,7 +1575,9 @@ fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
     // its mentions, or every mention when they spread; only an unmentioned word refuses.
     let (code, topic) = guide(&["types", "--section", "Integer"]);
     assert_eq!(code, Some(0), "{topic}");
-    assert!(topic.starts_with("No heading of guide types is named \"Integer\"; ") && topic.contains("an integer within") && !topic.contains("## Tables"), "{topic}");
+    assert!(topic.starts_with("No heading of guide types is named \"Integer\", and its mentions span 3 sections; here they are:")
+        && topic.contains("an integer within") && topic.contains("divide(int, int, scale, mode)")
+        && !topic.contains("## Tables"), "{topic}");
     let (code, audience) = guide(&["sync", "--section", "audience"]);
     assert_eq!(code, Some(0), "{audience}");
     assert!(audience.contains("# Sync") && audience.contains("sync to .col") && audience.lines().count() < 80, "one short section: {audience}");
