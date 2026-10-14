@@ -18,6 +18,39 @@ fn target_group_key(maintain: &Maintain, key: &[Value]) -> Vec<Value> {
     if maintain.by.is_empty() { vec![Value::Bool(true)] } else { key.to_vec() }
 }
 
+#[cfg(feature = "sqlite")]
+fn has_legacy_maintained_reference(
+    kind: &crate::schema::ColumnType,
+    ids: &BTreeMap<String, BTreeMap<String, String>>,
+) -> bool {
+    match kind {
+        crate::schema::ColumnType::Ref { table } => ids.get(table).is_some_and(|ids| !ids.is_empty()),
+        crate::schema::ColumnType::Optional(inner)
+        | crate::schema::ColumnType::List { of: inner, .. }
+        | crate::schema::ColumnType::ListRange { of: inner, .. } => has_legacy_maintained_reference(inner, ids),
+        _ => false,
+    }
+}
+
+#[cfg(feature = "sqlite")]
+fn rewrite_legacy_maintained_reference(
+    kind: &crate::schema::ColumnType,
+    value: &mut Value,
+    ids: &BTreeMap<String, BTreeMap<String, String>>,
+) -> bool {
+    match (kind, value) {
+        (crate::schema::ColumnType::Ref { table }, Value::Id(id)) => {
+            let Some(next) = ids.get(table).and_then(|ids| ids.get(id)) else { return false };
+            *id = next.clone();
+            true
+        }
+        (crate::schema::ColumnType::Optional(inner), value) => rewrite_legacy_maintained_reference(inner, value, ids),
+        (crate::schema::ColumnType::List { of, .. } | crate::schema::ColumnType::ListRange { of, .. }, Value::Array(values)) =>
+            values.iter_mut().fold(false, |changed, value| rewrite_legacy_maintained_reference(of, value, ids) || changed),
+        _ => false,
+    }
+}
+
 impl Runner<'_> {
     // @ref LLP 3000.022#14.3 — no predicted delta enters receipt-derived state.
     pub(super) fn defer_receipt_maintain(&self, m: &Maintain) -> bool {
@@ -159,6 +192,95 @@ impl Runner<'_> {
         let rows = self.rebuilt_source_rows;
         report.views.push(crate::store::adoption_report::ViewBuild { name: maintain.label(), rows, elapsed: started.elapsed() });
         Ok(())
+    }
+
+    /// Derive every legacy-to-digest aggregate id map to a fixed point, then
+    /// rewrite typed references before rebuilding the target rows. The fixed
+    /// point matters when one aggregate groups by a reference to another.
+    /// Every pass is inside the adoption writer transaction, so no reader can
+    /// observe a dangling intermediate reference.
+    #[cfg(feature = "sqlite")]
+    pub(crate) fn rewrite_legacy_maintained_references(&mut self, maintains: &[Maintain]) -> Result<u64, RuntimeError> {
+        let mut legacy = Vec::new();
+        for maintain in maintains.iter().filter(|maintain| maintain.private.is_none() && maintain.row_key.is_none()) {
+            let target = self.schema.tables[&maintain.target].clone();
+            let fields: Vec<_> = maintain.group_fields().into_iter().map(|field| {
+                let kind = target.columns.get(&field).expect("validated maintain group").clone();
+                (field, kind)
+            }).collect();
+            let mut rows = Vec::new();
+            let mut bounds = Bounds::default();
+            loop {
+                let page = self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &maintain.target, "byId", &[], &bounds, Dir::Asc, 256))?;
+                if page.is_empty() { break; }
+                for (row, encoded) in page {
+                    bounds.after = crate::key::decode(&encoded);
+                    let old = row.field("id")?.as_str()?.to_owned();
+                    let key = fields.iter().map(|(field, kind)| Ok((kind.clone(), row.field(field)?.clone())))
+                        .collect::<Result<Vec<_>, RuntimeError>>()?;
+                    rows.push((old, key));
+                }
+            }
+            legacy.push((maintain.target.clone(), rows));
+        }
+
+        let mut ids: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
+        let mut settled = false;
+        for _ in 0..=legacy.len() {
+            let mut next_ids: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
+            for (target, rows) in &legacy {
+                let target_ids = next_ids.entry(target.clone()).or_default();
+                for (old, key) in rows {
+                    let key: Vec<_> = key.iter().map(|(kind, value)| {
+                        let mut value = value.clone();
+                        rewrite_legacy_maintained_reference(kind, &mut value, &ids);
+                        value
+                    }).collect();
+                    let next = maintained_id(&key);
+                    if old != &next { target_ids.insert(old.clone(), next); }
+                }
+            }
+            if next_ids == ids {
+                ids = next_ids;
+                settled = true;
+                break;
+            }
+            ids = next_ids;
+        }
+        if !settled {
+            return Err(RuntimeError::Schema("legacy aggregate identity references form a cycle".into()));
+        }
+
+        let references: Vec<_> = self.schema.tables.iter().filter_map(|(name, table)| {
+            let columns: Vec<_> = table.columns.iter().filter_map(|(column, kind)|
+                has_legacy_maintained_reference(kind, &ids).then(|| (column.clone(), kind.clone())))
+                .collect();
+            (!columns.is_empty()).then(|| (name.clone(), table.clone(), columns))
+        }).collect();
+        let mut rewritten = 0_u64;
+        for (name, table, columns) in references {
+            let mut bounds = Bounds::default();
+            loop {
+                let page = self.metered_scan(|runner, allowance| runner.tx.scan(allowance, &name, "byId", &[], &bounds, Dir::Asc, 256))?;
+                if page.is_empty() { break; }
+                for (old, encoded) in page {
+                    bounds.after = crate::key::decode(&encoded);
+                    let mut next = old.clone();
+                    let mut changed = false;
+                    if let Value::Row(fields) | Value::Map(fields) = &mut next {
+                        for (column, kind) in &columns {
+                            let Some(value) = fields.get_mut(column) else { continue };
+                            changed |= rewrite_legacy_maintained_reference(kind, value, &ids);
+                        }
+                    }
+                    if changed {
+                        self.tx.put(&name, &table, &next, Some(&old))?;
+                        rewritten = rewritten.saturating_add(1);
+                    }
+                }
+            }
+        }
+        Ok(rewritten)
     }
 
     /// Build one aggregate from the rows in the store: the target's rows go,

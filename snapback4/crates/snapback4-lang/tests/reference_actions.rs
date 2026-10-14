@@ -730,7 +730,8 @@ fn a_cascade_releases_a_hidden_childs_file_asset() {
 #[test]
 fn cascaded_lifetime_probes_spend_the_physical_allowance_once() {
     let mut source = "table roots:\n  read <- allow\n  delete <- allow\ntable mids:\n  root: roots on delete cascade\n  cap 30 by root\n  read <- deny\ntable leaves:\n  mid: mids\n  immutable mid\n  read through .mid\ntable pins0:\n  mid: mids\n  read <- allow\ntable pins1:\n  mid: mids\n  read <- allow\nmutation drop(root: roots):\n  delete roots[root]\n".to_owned();
-    for n in 2..134 { source.push_str(&format!("table pins{n}:\n  mid: mids\n  read <- allow\n")); }
+    for n in 2..133 { source.push_str(&format!("table pins{n}:\n  mid: mids\n  read <- allow\n")); }
+    for n in 0..15 { source.push_str(&format!("table rootPins{n}:\n  root: roots\n  read <- allow\n")); }
     let b = bound(&source);
     assert_eq!(b.schema.delete_reservation("roots").unwrap()[2], 8_192);
     let run = |hidden: bool| {
@@ -808,7 +809,8 @@ fn a_hidden_cascade_grant_revocation_has_a_static_event_envelope() {
 #[test]
 fn a_cascade_through_child_reserves_both_its_walk_and_lifetime_probe() {
     let mut source = "table roots:\n  read <- allow\n  delete <- allow\ntable mids:\n  root: roots on delete cascade\n  cap 30 by root\n  read <- deny\ntable leaves:\n  mid: mids on delete cascade\n  cap 1 by mid\n  immutable mid\n  read through .mid\nmutation drop(root: roots):\n  delete roots[root]\n".to_owned();
-    for n in 0..132 { source.push_str(&format!("table pins{n}:\n  mid: mids\n  read <- allow\n")); }
+    for n in 0..116 { source.push_str(&format!("table pins{n}:\n  mid: mids\n  read <- allow\n")); }
+    for n in 0..15 { source.push_str(&format!("table rootPins{n}:\n  root: roots\n  read <- allow\n")); }
     let b = bound(&source);
     assert_eq!(b.schema.delete_reservation("roots").unwrap()[2], 8_192);
     let run = |hidden: bool| {

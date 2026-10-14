@@ -59,6 +59,9 @@ table entries:
   public
 view totals: count entries by .bucket
   public
+table pointers:
+  total: totals
+  public
 "#.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let schema: Schema = serde_json::from_str(&serde_json::to_string(&bound.schema).unwrap()).unwrap();
@@ -79,6 +82,8 @@ view totals: count entries by .bucket
         fields.insert("id".into(), Value::Id(legacy.clone()));
     }
     tx.put("totals", &target, &old, None).unwrap();
+    let pointer_table = engine.schema.tables["pointers"].clone();
+    tx.put("pointers", &pointer_table, &object([("id", Value::Id("pointer".into())), ("total", Value::Id(legacy.clone()))]), None).unwrap();
     tx.execute("UPDATE _backend SET maintained_identity_version=NULL WHERE singleton", &[]).unwrap();
     tx.commit().unwrap();
     drop(engine);
@@ -89,6 +94,7 @@ view totals: count entries by .bucket
     assert!(tx.get("totals", &legacy).unwrap().is_none());
     let rebuilt = tx.get("totals", &digest).unwrap().expect("digest aggregate");
     assert_eq!(rebuilt.field("value").unwrap(), &Value::Int(1));
+    assert_eq!(tx.get("pointers", "pointer").unwrap().unwrap().field("total").unwrap(), &Value::Id(digest));
     tx.rollback().unwrap();
 }
 

@@ -15,8 +15,22 @@ table entries:
   public
 view totals: sum entries of .amount by .group
   public
+table pointers:
+  total: totals
+  insert <- allow
+  public
+view pointerTotals: count pointers by .total
+  public
+table saved:
+  target: pointerTotals
+  insert <- allow
+  public
 mutation add(group: text <=256, amount: int):
   insert entries {group, amount}
+mutation point(total: totals):
+  insert pointers {total}
+mutation save(target: pointerTotals):
+  insert saved {target}
 query total(group: text <=256):
   return totals[group]
 "#;
@@ -93,6 +107,23 @@ fn a_0_4_28_store_rebuilds_legacy_aggregate_ids_and_fences_old_devices() {
         !snapback4_core::value::identity_fits(&legacy),
         "the frozen binary must have written the oversized legacy address"
     );
+    let small_group = "small";
+    let legacy_small = snapback4_core::value::canonical_json(&[
+        snapback4_core::Value::String(small_group.into()),
+    ]);
+    let legacy_pointer_total = snapback4_core::value::canonical_json(&[
+        snapback4_core::Value::Id(legacy_small.clone()),
+    ]);
+    for (operation, args) in [
+        ("add", serde_json::json!({"group": small_group, "amount": 3})),
+        ("point", serde_json::json!({"total": legacy_small})),
+        ("save", serde_json::json!({"target": legacy_pointer_total})),
+    ] {
+        let output = Command::new(&baseline).current_dir(&dir.0)
+            .args(["run", operation, &args.to_string(), "--as", "alice", "--now", "1", "--json"])
+            .output().unwrap();
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    }
     let before: u64 = Connection::open(&store)
         .unwrap()
         .query_row(
@@ -152,6 +183,27 @@ fn a_0_4_28_store_rebuilds_legacy_aggregate_ids_and_fences_old_devices() {
         "identity adoption must publish a new device generation"
     );
     assert_eq!(marker, snapback4_core::schema::MAINTAINED_ID_VERSION);
+    let small_digest = snapback4_core::schema::maintained_id(&[snapback4_core::Value::String(small_group.into())]);
+    let pointer: String = conn.query_row(
+        "SELECT r.data FROM r JOIN _catalog c ON c.num=r.t WHERE c.name='pointers'",
+        [], |row| row.get(0),
+    ).unwrap();
+    let pointer: snapback4_core::Value = serde_json::from_str(&pointer).unwrap();
+    assert_eq!(pointer.field("total").unwrap(), &snapback4_core::Value::Id(small_digest.clone()), "adoption rewrites surviving references before replacing their aggregate targets");
+    let pointer_total_digest = snapback4_core::schema::maintained_id(&[
+        snapback4_core::Value::Id(small_digest),
+    ]);
+    let saved: String = conn.query_row(
+        "SELECT r.data FROM r JOIN _catalog c ON c.num=r.t WHERE c.name='saved'",
+        [], |row| row.get(0),
+    ).unwrap();
+    let saved: snapback4_core::Value = serde_json::from_str(&saved).unwrap();
+    assert_eq!(saved.field("target").unwrap(), &snapback4_core::Value::Id(pointer_total_digest.clone()), "adoption resolves aggregate-reference dependencies before rewriting transitive references");
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM r JOIN _catalog c ON c.num=r.t WHERE c.name='pointerTotals' AND r.id=?1",
+        [&pointer_total_digest], |row| row.get(0),
+    ).unwrap();
+    assert_eq!(count, 1, "the transitive reference must address the rebuilt aggregate row");
 
     let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);

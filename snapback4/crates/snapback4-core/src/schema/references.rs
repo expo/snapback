@@ -228,7 +228,6 @@ impl Schema {
     // @ref LLP 3000.039#5.1 — the reservation is schema-fixed; LLP 3000.015 §2's law for work shaped by hidden rows.
     pub fn delete_reservation(&self, parent: &str) -> Option<Price> {
         let bounds = self.closure_bounds(parent)?;
-        let closure_rows = bounds.iter().map(|(_, n)| *n).fold(0_u64, u64::saturating_add);
         let mut price = [0_u64; 7];
         let mut heap = 0_u64;
         let mut identities = 0_u64;
@@ -244,16 +243,19 @@ impl Schema {
                 identities = identities.saturating_add(n);
                 // Before any set-null write, each reached cascade row proves
                 // that no physically retained read-through child lies outside
-                // the closure. A table can skip every identity in the closure
-                // and then inspect one outside witness. Execution performs
+                // the closure. Each child table can skip every reached
+                // identity from that table and then inspect one outside
+                // witness. Execution performs
                 // these probes under reference_prepaid, so their complete
                 // schema bound belongs in this outer admission reservation.
-                let outside_limit = closure_rows.saturating_add(1);
                 let through_children: Vec<_> = self.children(table).collect();
-                let probes = n.saturating_mul(through_children.len() as u64).saturating_mul(outside_limit);
+                let probes_per_row = through_children.iter()
+                    .map(|(child, _, _)| rows_of(child).saturating_add(1))
+                    .fold(0_u64, u64::saturating_add);
+                let probes = n.saturating_mul(probes_per_row);
                 add(&mut price, [probes, 0, probes, 0, 0, 0, 0]);
                 let outside_heap = through_children.iter()
-                    .map(|(_, child, _)| crate::engine::row_copy_ceiling(child).saturating_mul(outside_limit))
+                    .map(|(name, child, _)| crate::engine::row_copy_ceiling(child).saturating_mul(rows_of(name).saturating_add(1)))
                     .fold(0_u64, u64::saturating_add);
                 heap = heap.max(outside_heap);
             }

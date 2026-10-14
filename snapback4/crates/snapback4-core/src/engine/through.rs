@@ -110,20 +110,23 @@ impl Runner<'_> {
         let children: Vec<_> = self
             .schema
             .children(parent)
-            .map(|(n, _, _)| n.clone())
+            .map(|(n, _, _)| {
+                // Only identities from this child table can appear in its
+                // index scan. Identities from other closure tables cannot
+                // consume a row in this table's prefix.
+                let inside = deleting.iter().filter(|(table, _)| table == n).count();
+                (n.clone(), inside.saturating_add(1))
+            })
             .collect();
-        // At most `deleting.len()` matching rows can be skipped across a
-        // table: row ids are unique. One more row decides outside occupancy.
-        let limit = deleting.len().saturating_add(1);
         // Reserve the complete schema-fixed probe set before its first seek.
         // Never short-circuit on an occupied table, including at low ceilings.
         // @ref LLP 3000.015#2 — the seeks draw from the request's physical allowance; occupancy never selects the logical charge.
-        let heap = children.iter().map(|name| super::write_target::row_copy_ceiling(&self.schema.tables[name]).saturating_mul(limit as u64)).fold(0_u64, u64::saturating_add);
-        let probes = (children.len() as u64).saturating_mul(limit as u64);
+        let heap = children.iter().map(|(name, limit)| super::write_target::row_copy_ceiling(&self.schema.tables[name]).saturating_mul(*limit as u64)).fold(0_u64, u64::saturating_add);
+        let probes = children.iter().map(|(_, limit)| *limit as u64).fold(0_u64, u64::saturating_add);
         self.authorized_scan(&[(MeterKind::Examined, probes), (MeterKind::Steps, probes), (MeterKind::HeapBytes, heap)], |runner, scope| {
             let mut occupied = false;
-            for name in &children {
-                let rows = runner.tx.scan(scope, name, CHILDREN, &[id.clone()], &Bounds::default(), Dir::Asc, limit)?;
+            for (name, limit) in &children {
+                let rows = runner.tx.scan(scope, name, CHILDREN, &[id.clone()], &Bounds::default(), Dir::Asc, *limit)?;
                 occupied |= rows.into_iter().any(|(row, _)| row.field("id").ok().and_then(|id| id.as_str().ok())
                     .is_none_or(|child| !deleting.contains(&(name.clone(), child.to_owned()))));
             }

@@ -122,6 +122,12 @@ impl Engine {
                 capture.rebuild_recorded_activation(previous.as_ref(), &rebuild.iter().copied().filter(|m| m.private.is_none()).collect::<Vec<_>>(), report)?;
             }
             let mut runner = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+            if repair_maintained_ids {
+                let started = std::time::Instant::now();
+                let rewritten = runner.rewrite_legacy_maintained_references(&rebuild.iter().copied().cloned().collect::<Vec<_>>())?;
+                if rewritten != 0 { report.changes.push(format!("rewrote {rewritten} legacy aggregate references")); }
+                report.detail("rewrite legacy aggregate references", started);
+            }
             runner.activate_columns(previous.as_ref(), &rebuild, &columns, Some(report))?;
             for maintain in rebuild.into_iter().filter(|m| m.private.is_none()) {
                 if !recorded::table_paths_changed(schema.table(&maintain.source), previous.as_ref().and_then(|s| s.table(&maintain.source))) {
