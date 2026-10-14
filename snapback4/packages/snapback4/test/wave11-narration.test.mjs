@@ -113,7 +113,7 @@ test('rollback preview distinguishes missing schedules, edited source and curren
   writeFileSync(schema, v1.replace('body: n.body', "body: 'edited'").replace('  update <- allow', "  update <- viewer = 'service:ops'")); run('deploy', deployment);
   const changed = run('rollback', deployment, '--to', '1', '--check').stdout;
   assert.match(changed, /WARNING job remind source changes in release 1; schedule remindDaily remains/);
-  assert.match(changed, /release 1 lacks current rule clause notes.update <- \(viewer = 'service:ops'\); review business compatibility/);
+  assert.match(changed, /WARNING release 1 loosens notes.update; old: viewer = 'service:ops' \| new: allow/);
   writeFileSync(schema, v1.replace('schedule remindDaily every 1d: remind', 'schedule otherDaily every 2d: remind')); run('deploy', deployment);
   assert.match(run('rollback', deployment, '--to', '1', '--check').stdout, /release 1 lacks schedule otherDaily \(job remind\)/);
 });

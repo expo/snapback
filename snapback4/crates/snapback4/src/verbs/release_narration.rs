@@ -131,23 +131,79 @@ pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, bef
     for name in before_programs.keys().filter(|n| !after_programs.contains_key(*n)) {
         warnings.push(format!("{target_label} lacks operation {name}"));
     }
+    use super::clause_compare::{self as clauses, Change};
+    for (name, old) in &current.tables {
+        let Some(next) = target.table(name) else { continue; };
+        for effect in [snapback4_core::schema::Effect::Read, snapback4_core::schema::Effect::Insert, snapback4_core::schema::Effect::Update, snapback4_core::schema::Effect::Delete] {
+            let (before, after) = (old.rules.for_effect(effect), next.rules.for_effect(effect));
+            if before == after { continue; }
+            // Probes and typed references can change interpretation with their
+            // dependencies. Suppress no warning unless all non-rule schema
+            // inputs and every other table remain identical.
+            let mut stable = old.clone(); stable.rules = next.rules.clone();
+            let dependencies_stable = stable == *next && current.tables.iter().all(|(n,t)| n == name || target.table(n) == Some(t));
+            let change = if dependencies_stable { clauses::compare(&clauses::rule(before), &clauses::rule(after)) } else { Change::Unknown };
+            let line = format!("{target_label} {} {name}.{effect}; old: {} | new: {}", match change { Change::Tightens => "tightens", Change::Loosens => "loosens", Change::Same => "keeps equivalent", Change::Unknown => "changes (implication unproved)" }, before.quarry(), after.quarry());
+            if matches!(change,Change::Same | Change::Tightens) { notes.push(line); } else { warnings.push(line); }
+        }
+    }
     if let Some(project) = old_project {
-        for (file, source) in project.sources().map_err(|e| e.to_string())? {
-            for table in snapback4_lang::parse_document(&file, &source).0.tables {
-                for rule in table.rules {
-                    let Some(old) = current.table(&table.name) else { continue; };
-                    let effect = match rule.effect {
-                        snapback4_lang::ast::Effect::Read => snapback4_core::schema::Effect::Read,
-                        snapback4_lang::ast::Effect::Insert => snapback4_core::schema::Effect::Insert,
-                        snapback4_lang::ast::Effect::Update => snapback4_core::schema::Effect::Update,
-                        snapback4_lang::ast::Effect::Delete => snapback4_core::schema::Effect::Delete,
-                    };
-                    if target.table(&table.name).is_some_and(|next| next.rules.for_effect(effect) == old.rules.for_effect(effect)) { continue; }
-                    warnings.push(format!("{target_label} lacks current rule clause {}.{} <- {}; review business compatibility", table.name, format!("{:?}", rule.effect).to_lowercase(), snapback4_lang::print::expression(&rule.value)));
-                }
-            }
+        let old = authored_programs(&project)?;
+        let next = authored_programs(candidate)?;
+        for (name, before) in old {
+            let Some(after) = next.get(&name) else { continue; };
+            if before.kind != snapback4_lang::ast::ProgramKind::Mutation { continue; }
+            let (old_lines, old_formula) = requirements(&before);
+            let (new_lines, new_formula) = requirements(after);
+            if old_lines == new_lines { continue; }
+            let same_args = before.args.iter().map(|a|(&a.name,&a.type_)).eq(after.args.iter().map(|a|(&a.name,&a.type_)));
+            let change = if same_args { old_formula.zip(new_formula).map(|(a,b)|clauses::compare(&a,&b)).unwrap_or(Change::Unknown) } else { Change::Unknown };
+            // Refusal code/message changes are observable even for equivalent predicates.
+            let change = if change == Change::Same { Change::Unknown } else { change };
+            let line = format!("{target_label} {} {name}.require; old: {} | new: {}", match change { Change::Tightens => "tightens", Change::Loosens => "loosens", _ => "changes (implication unproved)" }, if old_lines.is_empty() { "allow".into() } else { old_lines.join("; ") }, if new_lines.is_empty() { "allow".into() } else { new_lines.join("; ") });
+            if change == Change::Tightens { notes.push(line); } else { warnings.push(line); }
         }
     }
     warnings.sort(); warnings.dedup(); notes.sort(); notes.dedup();
     Ok((warnings, notes))
+}
+
+fn authored_programs(project: &Project) -> Result<BTreeMap<String,snapback4_lang::ast::ProgramDecl>,String> {
+    let mut out = BTreeMap::new();
+    for (file,source) in project.sources().map_err(|e|e.to_string())? {
+        let module = Path::new(&file).file_stem().and_then(|s|s.to_str()).unwrap_or("schema");
+        for program in snapback4_lang::parse_document(&file,&source).0.programs {
+            let name = if module == "schema" { program.name.clone() } else { format!("{module}.{}",program.name) };
+            out.insert(name,program);
+        }
+    }
+    Ok(out)
+}
+fn requirements(program: &snapback4_lang::ast::ProgramDecl) -> (Vec<String>,Option<super::clause_compare::Formula>) {
+    use snapback4_lang::ast::Stmt;
+    use super::clause_compare::{self as clauses,Formula};
+    fn collect(body: &[Stmt], path: &str, lines: &mut Vec<String>) {
+        for (i,stmt) in body.iter().enumerate() {
+            let at = format!("{path}/{i}");
+            match stmt {
+                Stmt::Require { condition,code,message,.. } => lines.push(format!("{at}: require {} else {code}{}",snapback4_lang::print::expression(condition),message.as_ref().map(|s|format!(" {}",snapback4_lang::print::quote(s))).unwrap_or_default())),
+                Stmt::If { condition,then_body,else_body,.. } => { let at=format!("{at} if {}",snapback4_lang::print::expression(condition)); collect(then_body,&format!("{at}/then"),lines);collect(else_body,&format!("{at}/else"),lines); },
+                Stmt::For { name,domain,body,.. } => collect(body,&format!("{at} for {name} in {}",snapback4_lang::print::expression(domain)),lines),
+                Stmt::As { principal,body,.. } => collect(body,&format!("{at} as {}",snapback4_lang::print::expression(principal)),lines), _ => (),
+            }
+        }
+    }
+    let mut lines=Vec::new(); collect(&program.prelude,"prelude",&mut lines);collect(&program.body,"body",&mut lines);
+    let args = program.args.iter().map(|a|a.name.clone()).collect();
+    let mut prefix=true; let mut formulas=Some(Vec::new());
+    for stmt in program.prelude.iter().chain(&program.body) {
+        if let Stmt::Require {condition,..}=stmt {
+            if !prefix { formulas=None; }
+            if let Some(parts)=&mut formulas { if let Some(formula)=clauses::require(condition,&args) {parts.push(formula);} else {formulas=None;} }
+        } else { prefix=false; }
+    }
+    // Nested requirements cannot be replaced by a conjunction.
+    let count = program.prelude.iter().chain(&program.body).filter(|s|matches!(s,Stmt::Require{..})).count();
+    if count != lines.len() { formulas=None; }
+    (lines,formulas.map(Formula::And))
 }

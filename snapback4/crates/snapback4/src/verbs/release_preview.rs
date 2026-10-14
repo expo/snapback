@@ -1,4 +1,5 @@
 //! Operator preflight runs the real activation on a private disk-backed snapshot.
+// REL3 owns dormant-visibility counts here; SURF clause narration lives in release_narration.
 // @ref LLP 3000.000.000#92-exact-preview-and-operator-vocabulary — no live pointer, generation or audit changes.
 use super::*;
 use std::path::{Path, PathBuf};

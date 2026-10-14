@@ -489,7 +489,7 @@ fn catalog_and_changes_require_live_identity_and_release_refuses_dev_doors() {
     for dev in [true, false] {
         let host = Host::new(dev);
         let response = host.request("GET", "/auth/config", "", "");
-        assert_eq!(body(&response), json!({ "guests": true, "password": true, "generation":1 }));
+        assert_eq!(body(&response), json!({ "guests": true, "password": true, "development":dev, "generation":1 }));
         let session = body(&host.request("POST", "/auth/guest", "", "{}"));
         let token = session["session"]["token"].as_str().unwrap();
         let bearer = format!("Authorization: Bearer {token}\r\n");

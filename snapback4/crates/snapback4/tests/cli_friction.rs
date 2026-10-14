@@ -1047,3 +1047,29 @@ fn inspection_selects_release_explicitly_and_names_misplaced_sql_flags() {
         .arg(project.0.join("deployment")).output().unwrap();
     assert!(output.status.success(), "{}", text(&output));
 }
+
+#[test]
+fn surf_saved_copy_hint_is_visible_without_turning_json_into_mixed_stdout() {
+    let source="table notes:\n  body: text <=80\n  public\n  online only\n";
+    let project=Project::new(source);
+    project.write("snapback/old.q",source);
+    for args in [&["check"][..],&["check","--json"][..]] {
+        let output=project.run(args);
+        assert!(!output.status.success());
+        assert!(text(&output).contains("a saved copy? keep saved sources outside snapback/"),"{}",text(&output));
+        if args.len()>1 { serde_json::from_slice::<serde_json::Value>(&output.stdout).unwrap(); }
+    }
+    project.write("snapback/old.q","table other:\n  body: text <=80\n  public\n  online only\n");
+    let output=project.run(&["check"]);assert!(output.status.success(),"{}",text(&output));assert!(!text(&output).contains("a saved copy?"));
+}
+
+#[test]
+fn surf_unreferenced_smoke_helper_is_info_without_a_schema_mismatch_claim() {
+    let project=Project::new("use identity password\n");
+    project.write("src/native-smoke.ts","export function smokeSegment() {}\n");
+    let output=project.run(&["check"]);
+    assert!(output.status.success(),"{}",text(&output));
+    let output=text(&output);
+    assert!(output.contains("info: src/native-smoke.ts"),"{output}");
+    assert!(!output.contains("a screen") && !output.contains("WARNING"),"{output}");
+}

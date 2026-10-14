@@ -56,9 +56,12 @@ fn plan(dir: &Path) -> (Vec<Leftover>, Vec<String>, Vec<String>) {
         let wanted = starter::native_smoke(own.identity.is_some_and(|(password, guests)| password && !guests));
         let recognized = [false, true].into_iter().any(|password| text == starter::native_smoke(password));
         if !recognized { modified.push("src/native-smoke.ts".to_owned()); }
-        if text != wanted && recognized {
+        if text != wanted && recognized && ["App.tsx", "src/App.tsx", "src/client.ts"].iter().any(|path| read(dir, path).is_some_and(|text| text.contains("native-smoke"))) {
             found.push(Leftover { path: "src/native-smoke.ts", why: "the unmodified native smoke helper uses the previous schema's sign-in".into(), rewrite: Some(wanted) });
         }
+    }
+    if read(dir, "src/native-smoke.ts").is_some() && !["App.tsx", "src/App.tsx", "src/client.ts"].iter().any(|path| read(dir, path).is_some_and(|text| text.contains("native-smoke"))) {
+        advice.push("info: src/native-smoke.ts is unused; adapt it before running a native smoke proof".into());
     }
     readme(dir, &own, todos, &mut found, &mut modified);
     app_json(dir, &mut found);
@@ -285,6 +288,7 @@ fn port_of(client: &str) -> Option<&str> {
 pub(crate) fn report(dir: &Path) -> Option<String> {
     let (found, advice) = leftovers(dir);
     if found.is_empty() && advice.is_empty() { return None; }
+    if found.is_empty() && advice.iter().all(|line| line.starts_with("info:")) { return Some(advice.join("\n")); }
     let mut lines = Vec::new();
     for leftover in &found { lines.push(format!("  {}: {}", leftover.path, leftover.why)); }
     for line in &advice { lines.push(format!("  {line}")); }

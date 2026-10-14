@@ -262,6 +262,7 @@ pub fn check(options: &Options) -> i32 {
         Ok(bound) => bound,
         Err(code) => return code,
     };
+    if let Some(hint) = project.saved_copy_hint() { if options.json { eprintln!("check: {hint}"); } else { println!("check: {hint}"); } }
     if !crate::exact_device::check(&project.root, &bound.schema, options.json) { return 1; }
     if !bound.diagnostics.is_empty() {
         check_surface::report(&project, &bound, options.json);
@@ -1398,6 +1399,7 @@ fn arg_word(kind: &ir::ArgType) -> String {
 mod releases;
 mod release_preview;
 mod release_narration;
+mod clause_compare;
 pub use releases::{deploy, prune, releases, rollback, serve_release};
 pub(crate) use releases::release_bind;
 
