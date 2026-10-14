@@ -338,7 +338,7 @@ query mine(c: cursor ?):
     assert!(merged.diagnostics.is_empty() && !merged.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE"), "{:#?}", merged.notes);
     let two_party = note(&swaps.replace(".at > 0", ".at + 1 > 0"), "N_NEVER_COMPLETE");
     assert!(two_party.rewrite.contains("swaps where .requester = viewer") && two_party.rewrite.contains("swaps where .owner = viewer"), "{two_party}");
-    let parent = note("table boards:
+    let parent_source = "table boards:
   owner: principal
   read <- .owner = viewer
   online only
@@ -359,7 +359,13 @@ table comments:
   online only
 query discussion(card: cards, c: cursor ?):
   return comments where .card = card first 20 by .id after c
-", "N_NEVER_COMPLETE");
+";
+    // @ref LLP 3000.036.001#16 — pure membership now discovers complete parent ranges; fallible arithmetic keeps the missing-pin diagnostic.
+    let pure = clean(parent_source);
+    assert!(!pure.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"), "{:?}", pure.notes);
+    let fallible = parent_source.replace("table comments:\n", "table comments:\n  at: int\n")
+        .replace("where .card = card first", "where .card = card and .at + 1 > 0 first");
+    let parent = note(&fallible, "N_NEVER_COMPLETE");
     assert!(parent.rewrite.contains("cardRow = cards[card] ! else NOT_FOUND") && parent.rewrite.contains(".board = cardRow.board"), "{parent}");
     let staff_source = "table staff:
   principal: principal

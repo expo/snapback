@@ -95085,3 +95085,25 @@ blank-search browse arm, with its existing capability facts and inferred unique
 source constraint. All thirteen fixture populations retain identical authorized
 pages and seeded row bytes; only compiled backends change. The native generator
 and no-update comparison pass. No fixture was hand-merged.
+
+Integration 10's final full simulator run exposed a compiler interaction:
+PAGE3 expanded the pure-membership empty-search browse arm, breaking the
+existing paired-scan recognition and disabling nonempty search inference.
+Keep compiler-generated pure-membership search variants out of branch page
+expansion, using a separate site set so equality/order pin handling stays
+unchanged. Plain membership lists and owner/compound PAGE3 families remain
+eligible. The unchanged 99,090-row case, all four read-cut controls and ten
+word-expansion device tests pass. Regenerate word-expansion.json again: this
+supersedes the earlier temporary backend changes and restores its original
+main bytes. The compiler regression checks ordinary inference beside a PAGE3
+list merge. Fresh Codex and Muse both mark this final patch READY.
+
+The wave-1 missing-pin diagnostic now uses an arithmetic filter to retain its
+negative coverage; its original pure-membership page is asserted note-free.
+Final rebuilt native/device/Lean campaigns retain the same totals and no new
+signatures, and the farm remains 2 notes in one original schema / 0 repaired.
+Every orchestrated Cargo qualification carries the three requested profile
+variables. Independent review logs retain their actual commands; Codex's
+additional review-side test invocations used the default profile rather than
+the explicitly requested environment, a delegation-brief omission. Future
+review briefs must pass those Cargo constraints explicitly.

@@ -23,6 +23,17 @@ fn engine(source: &str, rows: Rows) -> Engine {
 
 fn id(text: &str) -> Value { Value::Id(text.into()) }
 
+#[test]
+fn word_search_keeps_its_browse_scan_and_inference_beside_a_pure_membership_list() {
+    let b = clean("table members:\n  room: id\n  principal: principal\n  unique room, principal\n  by principalRoom: principal, room, id\n  read <- .principal = viewer\n  sync\ntable messages:\n  room: id\n  body: text <=100\n  at: time\n  search body\n  by global: at, id\n  read <- exists members[.room, viewer]\n  sync to members[.room]\nquery search(q: text <=100, c: cursor ?):\n  return messages matching q last 10 by .at after c\nquery list(c: cursor ?):\n  return messages last 10 by .at after c\n");
+    let search = &b.programs.iter().find(|p| p.program.name == "search").unwrap().program;
+    let list = &b.programs.iter().find(|p| p.program.name == "list").unwrap().program;
+    assert!(snapback4_core::search_plan::ordinary::plan(&b.schema, search).is_some(), "{search:?}");
+    assert!(snapback4_core::ir::body_merges(&search.body).is_empty(), "both word-search arms keep their original scans");
+    assert!(snapback4_core::ir::body_merges(&list.body).iter().any(|merge|
+        merge.lanes.iter().any(|lane| lane.membership())), "the ordinary private list still gets PAGE3: {list:?}");
+}
+
 fn ids(data: &Value) -> Vec<String> {
     data.as_array().unwrap().iter().map(|row| match row.field("id") { Ok(Value::Id(id)) => id.clone(), other => panic!("{other:?}") }).collect()
 }

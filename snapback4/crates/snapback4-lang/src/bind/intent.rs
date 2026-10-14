@@ -319,10 +319,25 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
     let synthesized = catalog.synthesized.clone();
     // Reads already inside a merge (a union view's branches) are its lanes.
     let mut merged = std::collections::BTreeSet::new();
+    let mut search_variants = std::collections::BTreeSet::new();
     for doc in &mut catalog.documents {
-        walk::document(doc, &mut |value| if let Expr::Merge(_) = value {
-            let mut copy = value.clone();
-            walk::expression(&mut copy, &mut |inner| if let Expr::Read(read) = inner { merged.insert(read.site.to_string()); });
+        walk::document(doc, &mut |value| {
+            if let Expr::Merge(_) = value {
+                let mut copy = value.clone();
+                walk::expression(&mut copy, &mut |inner| if let Expr::Read(read) = inner { merged.insert(read.site.to_string()); });
+            }
+            // @ref LLP 3000.028#3.3 — empty needles retain the original browse arm; the paired scan form also proves nonempty inferred search.
+            if let Expr::If { condition, otherwise, site, .. } = value
+                && super::intent_variants::condition(condition).is_some_and(|(kind, _)| kind == super::intent_variants::SEARCH) {
+                let mut browse = *otherwise.clone();
+                walk::expression(&mut browse, &mut |leaf| {
+                    if let Expr::Read(read) = leaf && read.site == *site
+                        && tables.get(&read.table).is_some_and(|table|
+                            matches!(super::intent_branches::read_rule(table), Some(Expr::Exists { .. }))) {
+                        search_variants.insert(site.to_string());
+                    }
+                });
+            }
         });
     }
     let mut requests = Requests { contexts, merged, ..Default::default() };
@@ -435,16 +450,16 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
                     candidate.lane = false;
                     requests = candidate;
                     *value = Expr::Merge(merge);
-                } else if !requests.merged.contains(&read.site.to_string()) && let Some(merge) = super::intent_branches::expand(&tables, &synthesized, &mut requests, read) {
+                } else if !search_variants.contains(&read.site.to_string()) && !requests.merged.contains(&read.site.to_string()) && let Some(merge) = super::intent_branches::expand(&tables, &synthesized, &mut requests, read) {
                     *value = Expr::Merge(merge);
                 } else { requests.read(&tables, read, false); }
             } else if lanes && let Expr::Read(read) = value
-                && !requests.contexts.domains.contains(&read.site.to_string()) && !requests.merged.contains(&read.site.to_string())
+                && !requests.contexts.domains.contains(&read.site.to_string()) && !requests.merged.contains(&read.site.to_string()) && !search_variants.contains(&read.site.to_string())
                 && let Some(merge) = super::intent_branches::expand(&tables, &synthesized, &mut requests, read) {
                 // @ref LLP 3000.036.001#3 — an undecided page whose branches each decide the rule reads as their merge.
                 *value = Expr::Merge(merge);
             } else if lanes && let Expr::Exists { read, site } = value
-                && !requests.merged.contains(&read.site.to_string())
+                && !requests.merged.contains(&read.site.to_string()) && !search_variants.contains(&read.site.to_string())
                 && let Some(either) = super::intent_branches::exists(&tables, &mut requests, read, site) {
                 *value = either;
             } else if let Expr::Read(read) | Expr::Exists { read, .. } = value { requests.read(&tables, read, false); }
