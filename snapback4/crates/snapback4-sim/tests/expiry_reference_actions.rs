@@ -100,22 +100,31 @@ table grandchildren:
   child: children
   immutable child
   read through .child
+table cascadeGrandchildren:
+  child: children on delete cascade
+  cap 1 by child
+  immutable child
+  read through .child
 "#;
     let mut e = engine(source);
     e.seed_at([
         ("roots".into(), object([("id", id("p")), ("expiresAt", Value::Int(10))])),
+        ("roots".into(), object([("id", id("q-cascade")), ("expiresAt", Value::Int(10))])),
         ("roots".into(), object([("id", id("z-free")), ("expiresAt", Value::Int(10))])),
         ("nullableKids".into(), object([("id", id("n")), ("root", id("p"))])),
         ("children".into(), object([("id", id("c")), ("root", id("p"))])),
+        ("children".into(), object([("id", id("d")), ("root", id("q-cascade"))])),
         ("grandchildren".into(), object([("id", id("g")), ("child", id("c"))])),
+        ("cascadeGrandchildren".into(), object([("id", id("h")), ("child", id("d"))])),
     ], 0).unwrap();
 
-    assert_eq!(e.sweep_expired(10, 10).unwrap(), 1, "the physically retained closure yields to a later due root");
+    assert_eq!(e.sweep_expired(10, 10).unwrap(), 2, "the retained closure yields, while a read-through row inside another cascade is deleted first");
     assert_eq!(e.store().rows("nullableKids").unwrap()[0].field("root").unwrap(), &id("p"), "preflight runs before set-null writes");
     assert!(!e.store().rows("roots").unwrap().iter().any(|row| row.field("id").unwrap() == &id("z-free")));
     for table in ["roots", "children", "grandchildren"] {
         assert_eq!(e.store().rows(table).unwrap().len(), 1, "{table}");
     }
+    assert!(e.store().rows("cascadeGrandchildren").unwrap().is_empty());
 }
 
 #[test]

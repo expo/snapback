@@ -189,19 +189,27 @@ table grandchildren:
   child: children
   immutable child
   read through .child
+table cascadeGrandchildren:
+  child: children on delete cascade
+  cap 1 by child
+  immutable child
+  read through .child
 "#;
     let (mut e, b) = compile(retained_expiry);
     e.seed_at([
         ("roots".into(), snapback4_core::value::object([("id", id("p")), ("until", snapback4_core::Value::Int(10))])),
+        ("roots".into(), snapback4_core::value::object([("id", id("q")), ("until", snapback4_core::Value::Int(10))])),
         ("roots".into(), snapback4_core::value::object([("id", id("z")), ("until", snapback4_core::Value::Int(10))])),
         ("nullableKids".into(), snapback4_core::value::object([("id", id("n")), ("root", id("p"))])),
         ("children".into(), snapback4_core::value::object([("id", id("c")), ("root", id("p"))])),
+        ("children".into(), snapback4_core::value::object([("id", id("d")), ("root", id("q"))])),
         ("grandchildren".into(), snapback4_core::value::object([("id", id("g")), ("child", id("c"))])),
+        ("cascadeGrandchildren".into(), snapback4_core::value::object([("id", id("h")), ("child", id("d"))])),
     ], 0).unwrap();
     let mut d = host.open("expiry-retained-cascade", Some(b)).unwrap();
     acquire(&mut e, &mut d, "alice", 0);
     let from = d.state().unwrap().0;
-    assert_eq!(e.sweep_expired(10, 10).unwrap(), 1);
+    assert_eq!(e.sweep_expired(10, 10).unwrap(), 2);
     d.apply(&stream_page(&mut e, "alice", from), false).unwrap();
     assert_eq!(d.store().raw_rows("roots").len(), 1);
     assert_eq!(d.store().raw_rows("nullableKids")[0].field("root").unwrap(), &id("p"));

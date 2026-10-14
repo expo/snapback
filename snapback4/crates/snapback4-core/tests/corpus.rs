@@ -249,10 +249,17 @@ fn run_store(case: &Case, postgres: bool) -> Verdict {
         }
         return Verdict::Fail(format!("schema validation failed: {}: {}", issues[0].path, issues[0].message));
     }
+    let maintained_ids = match legacy_maintained_ids(&schema, &case.receipt.rows) {
+        Ok(ids) => ids,
+        Err(error) => return Verdict::Fail(format!("maintained id translation failed: {error}")),
+    };
     let mut expected = match card_expected(case, &schema, &program) {
         Ok(expected) => expected,
         Err(error) => return Verdict::Fail(format!("oracle translation failed: {error}")),
     };
+    if let Err(error) = translate_legacy_maintained_expected(&mut expected, &maintained_ids) {
+        return Verdict::Fail(format!("maintained oracle translation failed: {error}"));
+    }
     if let Some(token) = &expected.next {
         if let Some(scoped) = cursors::scope(token,&schema,&program,&case.context.viewer,&case.context.args) { expected.next = Some(scoped); }
     }
@@ -279,6 +286,7 @@ fn run_store(case: &Case, postgres: bool) -> Verdict {
                 }
             }
         }
+        translate_legacy_maintained_row(&schema, &row.table, &mut value, &maintained_ids);
         (row.table.clone(), value)
     }).collect();
     let mut context_args = case.context.args.clone();
@@ -436,6 +444,61 @@ fn legacy_schema_definitions(schema: &mut Schema) {
             }
             table.indexes.insert(name, Index { components: maintain.by.iter().cloned().map(IndexComponent::Column).collect(), unique: true });
         }
+    }
+}
+
+/// The copied corpus is a frozen image of the pre-digest store. Translate
+/// maintained target identities at the adapter boundary so its logical values
+/// remain an oracle for the current address function. Other row ids retain
+/// their exact frozen spelling.
+fn legacy_maintained_ids(schema: &Schema, rows: &[ReceiptRow]) -> Result<BTreeMap<String, String>, String> {
+    let mut ids = BTreeMap::new();
+    for receipt in rows {
+        let Some(maintain) = schema.maintains.iter().find(|maintain| maintain.target == receipt.table && maintain.row_key.is_none()) else { continue };
+        let old = match receipt.row.field("id") {
+            Ok(Value::Id(id)) => id,
+            Ok(_) => return Err(format!("{}.id is not an id", receipt.table)),
+            Err(error) => return Err(format!("{}.id: {error}", receipt.table)),
+        };
+        let key = maintain.by.iter().map(|field| receipt.row.field(field).cloned().map_err(|error| format!("{}.{}: {error}", receipt.table, field))).collect::<Result<Vec<_>, _>>()?;
+        let new = snapback4_core::schema::maintained_id(&key);
+        if let Some(prior) = ids.insert(old.clone(), new.clone())
+            && prior != new
+        {
+            return Err(format!("legacy id {old} names more than one maintained group"));
+        }
+    }
+    Ok(ids)
+}
+
+fn translate_legacy_maintained_row(schema: &Schema, table: &str, row: &mut Value, ids: &BTreeMap<String, String>) {
+    if !schema.maintains.iter().any(|maintain| maintain.target == table && maintain.row_key.is_none()) { return; }
+    let (Value::Row(fields) | Value::Map(fields)) = row else { return };
+    let Some(Value::Id(id)) = fields.get_mut("id") else { return };
+    if let Some(replacement) = ids.get(id) {
+        *id = replacement.clone();
+    }
+}
+
+fn translate_legacy_maintained_expected(expected: &mut Expected, ids: &BTreeMap<String, String>) -> Result<(), String> {
+    if ids.is_empty() || expected.error_code.is_some() { return Ok(()); }
+    let Some(canonical) = &expected.canonical_result else { return Ok(()) };
+    let mut value: Value = serde_json::from_str(canonical).map_err(|error| error.to_string())?;
+    translate_legacy_maintained_result(&mut value, ids);
+    expected.canonical_result = Some(snapback4_core::value::canonical_json(&value));
+    Ok(())
+}
+
+fn translate_legacy_maintained_result(value: &mut Value, ids: &BTreeMap<String, String>) {
+    match value {
+        Value::Id(id) => {
+            if let Some(replacement) = ids.get(id) {
+                *id = replacement.clone();
+            }
+        }
+        Value::Array(values) => values.iter_mut().for_each(|value| translate_legacy_maintained_result(value, ids)),
+        Value::Row(fields) | Value::Map(fields) => fields.values_mut().for_each(|value| translate_legacy_maintained_result(value, ids)),
+        _ => {}
     }
 }
 
@@ -796,7 +859,7 @@ mod adapter {
                 ("exists", Value::Bool(false)), ("row", Value::Null),
                 ("group", snapback4_core::value::object([
                     ("__proto__", Value::Null), ("toString", Value::Null), ("value", Value::Int(1)),
-                    ("id", Value::Id("[\"Null\",\"Null\"]".into())),
+                    ("id", Value::Id(snapback4_core::schema::maintained_id(&[Value::Null, Value::Null]))),
                 ])),
             ])));
             assert!(matches!(run(&c), Verdict::Pass), "{name}: {:?}", run(&c));

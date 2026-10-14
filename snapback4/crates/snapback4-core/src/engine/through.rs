@@ -7,6 +7,7 @@ use crate::{
     schema::{Effect, Table, through::*},
     value::{Supplied, Value},
 };
+use std::collections::BTreeSet;
 
 /// Minted only here: the stamped image re-enters the supplied-input channel
 /// under reserve_capture's declared allowance.
@@ -94,19 +95,37 @@ impl Runner<'_> {
         parent: &str,
         id: &Value,
     ) -> Result<bool, RuntimeError> {
+        self.physical_children_outside(parent, id, &BTreeSet::new())
+    }
+
+    /// Whether a read-through child remains outside a delete's cascade
+    /// closure. Children in `deleting` are removed first by deletion_order and
+    /// therefore do not physically retain their parent.
+    pub(super) fn physical_children_outside(
+        &mut self,
+        parent: &str,
+        id: &Value,
+        deleting: &BTreeSet<(String, String)>,
+    ) -> Result<bool, RuntimeError> {
         let children: Vec<_> = self
             .schema
             .children(parent)
             .map(|(n, _, _)| n.clone())
             .collect();
+        // At most `deleting.len()` matching rows can be skipped across a
+        // table: row ids are unique. One more row decides outside occupancy.
+        let limit = deleting.len().saturating_add(1);
         // Reserve the complete schema-fixed probe set before its first seek.
         // Never short-circuit on an occupied table, including at low ceilings.
         // @ref LLP 3000.015#2 — the seeks draw from the request's physical allowance; occupancy never selects the logical charge.
-        let heap = children.iter().map(|name| super::write_target::row_copy_ceiling(&self.schema.tables[name])).fold(0_u64, u64::saturating_add);
-        self.authorized_scan(&[(MeterKind::Examined, children.len() as u64), (MeterKind::Steps, children.len() as u64), (MeterKind::HeapBytes, heap)], |runner, scope| {
+        let heap = children.iter().map(|name| super::write_target::row_copy_ceiling(&self.schema.tables[name]).saturating_mul(limit as u64)).fold(0_u64, u64::saturating_add);
+        let probes = (children.len() as u64).saturating_mul(limit as u64);
+        self.authorized_scan(&[(MeterKind::Examined, probes), (MeterKind::Steps, probes), (MeterKind::HeapBytes, heap)], |runner, scope| {
             let mut occupied = false;
             for name in &children {
-                occupied |= !runner.tx.scan(scope, name, CHILDREN, &[id.clone()], &Bounds::default(), Dir::Asc, 1)?.is_empty();
+                let rows = runner.tx.scan(scope, name, CHILDREN, &[id.clone()], &Bounds::default(), Dir::Asc, limit)?;
+                occupied |= rows.into_iter().any(|(row, _)| row.field("id").ok().and_then(|id| id.as_str().ok())
+                    .is_none_or(|child| !deleting.contains(&(name.clone(), child.to_owned()))));
             }
             Ok(occupied)
         })

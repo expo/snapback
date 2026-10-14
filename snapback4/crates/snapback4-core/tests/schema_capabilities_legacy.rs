@@ -19,13 +19,13 @@ fn genuine_legacy_recorded_and_timeline_infers_both_and_emits_one_carrier() {
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     assert_ne!(backend.schema, bound.schema, "v2 deliberately changes the owned shapes");
     assert!(bound.schema.required_capabilities().contains("timeline-v2"));
-    assert_eq!(backend.schema.required_capabilities(), ["recorded-attribution".into(), "timeline".into()].into());
+    assert_eq!(backend.schema.required_capabilities(), ["maintained-id-sha256-v1".into(), "recorded-attribution".into(), "timeline".into()].into());
     let encoded = serde_json::to_string(&backend.schema).unwrap();
     assert!(!encoded.contains("Recorded"));
     assert_eq!(encoded.matches("Capabilities").count(), 1);
     let modern: serde_json::Value = serde_json::from_str(&encoded).unwrap();
     let constraints = modern["tables"][backend.schema.tables.keys().next().unwrap()]["constraints"].as_array().unwrap();
-    assert_eq!(constraints.last().unwrap(), &json!({"Capabilities":["recorded-attribution", "timeline"]}));
+    assert_eq!(constraints.last().unwrap(), &json!({"Capabilities":["maintained-id-sha256-v1", "recorded-attribution", "timeline"]}));
     assert_eq!(serde_json::from_str::<Schema>(&encoded).unwrap(), backend.schema);
 }
 

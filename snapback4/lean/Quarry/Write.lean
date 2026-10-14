@@ -247,6 +247,17 @@ def expired (td : TableDecl) (now : Int) (r : Row) : Bool :=
 def stored (s : Store) (t : String) (r : Row) : Bool :=
   (s t).any fun current => current.id == r.id
 
+/-- Retire a due row that physically holds an inserted id. The native engine
+does this before checking the new image's remaining unique keys, in the same
+transaction as the insert. -/
+def retireExpiredSameId (sch : Schema) (s : Store) (now : Int) (t : String)
+    (td : TableDecl) (rid : List Nat) : Except Stop Store :=
+  match findRow (s t) [("id", .id rid)] with
+  | some old =>
+    if expired td now old then refDeleteFrom sch (unexpiredStore sch s now) s t old
+    else pure s
+  | none => pure s
+
 /-- Retire every due physical row. `restrict` retains that root but never
 stops later due keys; cascade and set-null are committed with the root. The
 model has no read-through retained-history rows, so every non-restricted due
@@ -269,6 +280,7 @@ def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
       let fs ← scalarsE fields
       let rid ← insertId fs
       let img ← buildImage td rid fs eInput
+      let s ← retireExpiredSameId cx.schema s cx.now t td rid
       doInsertImage cx.schema s cx.viewer cx.now t td img ifAbsent eRule eRule
   | .update t key patch cond =>
     match cx.schema.table? t with
@@ -278,18 +290,21 @@ def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
       let ps ← scalarsE patch
       match findRow (s t) ks with
       | none => throw notFound
-      | some old => doUpdateRow cx.schema s cx.viewer cx.now t td old ps cond
+      | some old => do
+        guardE (unexpired td cx.now old) notFound
+        doUpdateRow cx.schema s cx.viewer cx.now t td old ps cond
   | .upsert t key patch =>
     match cx.schema.table? t with
     | none => throw eInput
     | some td => do
       let ks ← scalarsE key
       let ps ← scalarsE patch
-      match findRow (s t) ks with
+      match findRow ((s t).filter (unexpired td cx.now)) ks with
       | some old => doUpdateRow cx.schema s cx.viewer cx.now t td old ps none
       | none => do
         let rid ← upsertId ks ps
         let img ← buildImage td rid (ks ++ ps) notFound
+        let s ← retireExpiredSameId cx.schema s cx.now t td rid
         doInsertImage cx.schema s cx.viewer cx.now t td img false notFound notFound
   | .delete t key =>
     match cx.schema.table? t with
@@ -299,6 +314,7 @@ def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
       match findRow (s t) ks with
       | none => throw notFound
       | some old => do
+        guardE (unexpired td cx.now old) notFound
         guardE (td.delete.eval (openedStore cx.schema s cx.now) cx.viewer { self := some old })
           (if readableAt cx.schema s cx.viewer cx.now t old then eRule else notFound)
         guardE ((referencing cx.schema t).isEmpty || readableAt cx.schema s cx.viewer cx.now t old) notFound

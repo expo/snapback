@@ -33,6 +33,12 @@ inductive Step (sch : Schema) (v : List Nat) (now : Int) : Store → Store → P
       td.delete.eval (openedStore sch s now) v { self := some old } = true →
       refDelete sch s t old = .ok s' →
       Step sch v now s s'
+  /-- An expired same-id row is retired inside an insert transaction before
+  the replacement image's remaining constraints are checked. -/
+  | retire {s s' : Store} {t : String} {td : TableDecl} {old : Row} :
+      sch.table? t = some td → old ∈ s t → expired td now old = true →
+      refDeleteFrom sch (unexpiredStore sch s now) s t old = .ok s' →
+      Step sch v now s s'
 
 inductive Steps (sch : Schema) (v : List Nat) (now : Int) : Store → Store → Prop
   | refl (s : Store) : Steps sch v now s s
@@ -88,6 +94,21 @@ theorem doUpdateRow_ok {sch s v now t td old patch cond val s'}
   cases h
   exact ⟨nw, guardE_ok hg, rfl⟩
 
+theorem retireExpiredSameId_steps {sch s s' v now t td rid}
+    (ht : sch.table? t = some td)
+    (h : retireExpiredSameId sch s now t td rid = .ok s') :
+    Steps sch v now s s' := by
+  unfold retireExpiredSameId at h
+  split at h
+  · rename_i old hold
+    split at h
+    · rename_i hexp
+      exact .step (.retire ht (findRow_mem hold) hexp h) (.refl _)
+    · cases h
+      exact .refl _
+  · cases h
+    exact .refl _
+
 /-- **Referential actions change nothing a schema does not declare**
 (LLP 3000.039 §1): a delete from a table no action-carrying reference names
 removes exactly that row, as every delete did before. -/
@@ -101,7 +122,7 @@ theorem refDelete_without_actions {sch : Schema} {s : Store} {t : String} {old :
 
 /-- **Write authority, one write.** -/
 theorem applyWrite_authorized {cx : Ctx} {s s' : Store} {rw : RWrite} {val : Value}
-    (h : applyWrite cx s rw = .ok (val, s')) : s' = s ∨ Step cx.schema cx.viewer cx.now s s' := by
+    (h : applyWrite cx s rw = .ok (val, s')) : Steps cx.schema cx.viewer cx.now s s' := by
   cases rw with
   | insert t fields ifAbsent =>
     simp only [applyWrite] at h
@@ -111,9 +132,11 @@ theorem applyWrite_authorized {cx : Ctx} {s s' : Store} {rw : RWrite} {val : Val
       obtain ⟨_, -, h⟩ := bind_ok h
       obtain ⟨_, -, h⟩ := bind_ok h
       obtain ⟨img, -, h⟩ := bind_ok h
+      obtain ⟨s0, hr, h⟩ := bind_ok h
+      have hs0 := retireExpiredSameId_steps (v := cx.viewer) htd hr
       rcases doInsertImage_ok h with h | ⟨hr, h⟩
-      · exact .inl h
-      · subst h; exact .inr (.insert htd hr)
+      · subst h; exact hs0
+      · subst h; exact hs0.trans (.step (.insert htd hr) (.refl _))
   | update t key patch cond =>
     simp only [applyWrite] at h
     split at h
@@ -124,8 +147,9 @@ theorem applyWrite_authorized {cx : Ctx} {s s' : Store} {rw : RWrite} {val : Val
       split at h
       · cases h
       · rename_i old hold
+        obtain ⟨_, -, h⟩ := bind_ok h
         obtain ⟨nw, hr, h⟩ := doUpdateRow_ok h
-        subst h; exact .inr (.update htd (findRow_mem hold) hr)
+        subst h; exact .step (.update htd (findRow_mem hold) hr) (.refl _)
   | upsert t key patch =>
     simp only [applyWrite] at h
     split at h
@@ -136,12 +160,15 @@ theorem applyWrite_authorized {cx : Ctx} {s s' : Store} {rw : RWrite} {val : Val
       split at h
       · rename_i old hold
         obtain ⟨nw, hr, h⟩ := doUpdateRow_ok h
-        subst h; exact .inr (.update htd (findRow_mem hold) hr)
+        subst h
+        exact .step (.update htd (List.mem_filter.1 (findRow_mem hold)).1 hr) (.refl _)
       · obtain ⟨_, -, h⟩ := bind_ok h
         obtain ⟨img, -, h⟩ := bind_ok h
+        obtain ⟨s0, hrs, h⟩ := bind_ok h
+        have hs0 := retireExpiredSameId_steps (v := cx.viewer) htd hrs
         rcases doInsertImage_ok h with h | ⟨hr, h⟩
-        · exact .inl h
-        · subst h; exact .inr (.insert htd hr)
+        · subst h; exact hs0
+        · subst h; exact hs0.trans (.step (.insert htd hr) (.refl _))
   | delete t key =>
     simp only [applyWrite] at h
     split at h
@@ -151,11 +178,12 @@ theorem applyWrite_authorized {cx : Ctx} {s s' : Store} {rw : RWrite} {val : Val
       split at h
       · cases h
       · rename_i old hold
+        obtain ⟨_, -, h⟩ := bind_ok h
         obtain ⟨_, hg, h⟩ := bind_ok h
         obtain ⟨_, -, h⟩ := bind_ok h
         obtain ⟨s2, hd, h⟩ := bind_ok h
         cases h
-        exact .inr (.delete htd (findRow_mem hold) (guardE_ok hg) hd)
+        exact .step (.delete htd (findRow_mem hold) (guardE_ok hg) hd) (.refl _)
 
 end Quarry
 
@@ -244,7 +272,7 @@ theorem mutation_authorized {c : Case} {res : Value} {s' : Store}
       cases h
       exact execStmts_inv storeHooks c.ctx (Steps c.schema c.viewer c.now) Steps.refl
         (fun _ _ _ => Steps.trans)
-        (fun w rw val w' happ => Steps.of_step_or_eq (applyWrite_authorized (cx := c.ctx) happ))
+        (fun w rw val w' happ => applyWrite_authorized (cx := c.ctx) happ)
         _ _ _ _ _ _ _ _ _ hx
     · cases h
     · cases h

@@ -103,7 +103,7 @@ impl Runner<'_> {
         // can retain this root and continue without relying on transaction
         // rollback to undo a partial closure.
         for (table, id) in visits.iter().skip(1) {
-            if self.physical_children(table, id)? {
+            if self.physical_children_outside(table, id, &seen)? {
                 return Err(self.parent_has_children(table));
             }
         }

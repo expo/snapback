@@ -845,6 +845,14 @@ def expiryRefStore : Store := mkStore [
   ("blockers", [mkRow "ba" [("parent", I "a"), ("until", .int 20)],
     mkRow "be" [("parent", I "e"), ("until", .int 10)]])]
 
+def expiryWriteSchema : Schema := { tables := [
+  { name := "items", cols := [c "owner", c "until" true, c "tag"], uniques := [["tag"]],
+    expire := some "until", read := .allow, insert := .allow, update := .allow, delete := .allow }] }
+
+def expiryWriteStore : Store := mkStore [
+  ("items", [mkRow "r0" [("owner", I "alice"), ("until", N 10), ("tag", I "tag0")],
+    mkRow "r1" [("owner", I "alice"), ("until", .null), ("tag", I "tag1")]])]
+
 def refExamples : List Example := [
   { name := "delete-cascade"
     source := "LLP 3000.039 §3: a cascade deletes the referencing rows, hidden ones included; set null clears outside the closure; keep keeps"
@@ -869,7 +877,26 @@ def refExamples : List Example := [
     case := { schema := expiryRefSchema, store := expiryRefStore, viewer := alice,
               program := query [.ret (lit .null)], now := 10, sweepOnly := true }
     tables := ["parents", "cascadeKids", "nullableKids", "dualNullableKids", "blockers"]
-    expected := r#"{"kind":"committed","result":null,"store":{"parents":[{"id":"a","until":10}],"cascadeKids":[{"id":"ca","parent":"a"}],"nullableKids":[{"id":"nz","parent":null}],"dualNullableKids":[{"id":"dn","left":null,"right":null}],"blockers":[{"id":"ba","parent":"a","until":20}]}}"# }
+    expected := r#"{"kind":"committed","result":null,"store":{"parents":[{"id":"a","until":10}],"cascadeKids":[{"id":"ca","parent":"a"}],"nullableKids":[{"id":"nz","parent":null}],"dualNullableKids":[{"id":"dn","left":null,"right":null}],"blockers":[{"id":"ba","parent":"a","until":20}]}}"# },
+  { name := "update-expired-target-is-not-found"
+    source := "LLP 3000.036.003 §3: an expired physical row is absent from update target lookup"
+    case := { schema := expiryWriteSchema, store := expiryWriteStore, viewer := alice, now := 10,
+              program := mutation [.write none (.update "items" [("id", idE "r0")] [("owner", idE "bob")] none)] }
+    tables := []
+    expected := r#"{"kind":"refused","code":"NOT_FOUND"}"# },
+  { name := "delete-expired-target-is-not-found"
+    source := "LLP 3000.036.003 §3: an expired physical row is absent from delete target lookup"
+    case := { schema := expiryWriteSchema, store := expiryWriteStore, viewer := alice, now := 10,
+              program := mutation [.write none (.delete "items" [("id", idE "r0")])] }
+    tables := []
+    expected := r#"{"kind":"refused","code":"NOT_FOUND"}"# },
+  { name := "upsert-retires-expired-id-before-secondary-unique"
+    source := "LLP 3000.036.003 §6: an expired same-id row retires before an upsert checks the new image's other unique keys"
+    case := { schema := expiryWriteSchema, store := expiryWriteStore, viewer := alice, now := 10,
+              program := mutation [.write none (.upsert "items" [("id", idE "r0")]
+                [("owner", idE "alice"), ("until", int 20), ("tag", idE "tag1")])] }
+    tables := []
+    expected := r#"{"kind":"refused","code":"E_UNIQUE"}"# }
 ]
 
 def page3Pure : Schema := { tables := membershipDocs.tables.map fun t =>

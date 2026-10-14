@@ -18,10 +18,11 @@ fn capabilities_are_derived_independently_and_together() {
     let mut private_only = columns.clone();
     for table in private_only.tables.values_mut() { table.maintained.clear(); }
     assert!(private_only.maintains.iter().any(|m| m.private.is_some()));
-    for schema in [&columns, &projection, &private_only] {
-        assert_eq!(schema.required_capabilities(), ["maintained-column".into(), "source-write-reservations-v1".into(), "source-write-reservations-v2".into()].into());
+    for schema in [&columns, &private_only] {
+        assert_eq!(schema.required_capabilities(), ["maintained-column".into(), "maintained-id-sha256-v1".into(), "source-write-reservations-v1".into(), "source-write-reservations-v2".into()].into());
     }
-    assert_eq!(recorded.required_capabilities(), ["recorded-attribution".into(), "source-write-reservations-v1".into(), "source-write-reservations-v2".into()].into());
+    assert_eq!(projection.required_capabilities(), ["maintained-column".into(), "source-write-reservations-v1".into(), "source-write-reservations-v2".into()].into());
+    assert_eq!(recorded.required_capabilities(), ["maintained-id-sha256-v1".into(), "recorded-attribution".into(), "source-write-reservations-v1".into(), "source-write-reservations-v2".into()].into());
     assert_eq!(timeline.required_capabilities(), ["timeline-event-slots".into(), "timeline-v2".into()].into());
     let mut both = timeline.clone();
     both.tables.get_mut("posts").unwrap().recorded = recorded.tables["likes"].recorded.clone();
@@ -113,7 +114,7 @@ fn legacy_recorded_fixture_decodes_and_emits_only_capabilities() {
     assert_eq!(schema.tables["posts"].recorded.len(), 1);
     assert!(schema.tables.values().all(|t| !t.constraints.iter().any(|c|
         matches!(c, snapback4_core::schema::Constraint::Recorded | snapback4_core::schema::Constraint::Capabilities(_)))));
-    assert_eq!(schema.required_capabilities(), ["recorded-attribution".into()].into());
+    assert_eq!(schema.required_capabilities(), ["maintained-id-sha256-v1".into(), "recorded-attribution".into()].into());
     let encoded = serde_json::to_string(&schema).unwrap();
     assert!(!encoded.contains("Recorded"));
     assert_eq!(encoded.matches("Capabilities").count(), 1);
