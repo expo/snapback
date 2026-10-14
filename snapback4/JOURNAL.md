@@ -94884,3 +94884,14 @@ mock newly installed package and persisted check-surface version must follow
 the package release. Read that release once rather than pinning the live
 compiler to 0.4.25; retain the deliberately old 0.4.24 baseline. All four
 upgrade cases pass before the bump and will be rerun against 0.4.26.
+
+### 2026-10-14 — Integration 9 Mac Lean prerequisite
+
+The full publication workspace now includes PAGE2 smoke witnesses that execute
+the Lean oracle. The first Mac pass found the two strict witnesses failing
+because that worktree had no quarry-oracle and Elan was outside the instructed
+PATH. Add Elan to the qualification driver only and build the repository-pinned
+Lean 4.34.1 oracle before the full Rust stage. Preserve all native and Lean
+assertions; do not change the machine default toolchain or other worktrees.
+Linux already passed all 19 smoke cases with its qualified oracle. Both Mac
+publication halves are rerun together after this setup repair.

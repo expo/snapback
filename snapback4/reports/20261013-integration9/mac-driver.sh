@@ -2,7 +2,7 @@
 set -u
 unset SNAPBACK4_BIN
 export PATH=/opt/homebrew/bin:$HOME/.volta/bin:$HOME/.cargo/bin:$HOME/.bun/bin:$PATH
-export PATH=$HOME/.volta/tools/image/node/24.19.0/bin:$PATH
+export PATH=$HOME/.volta/tools/image/node/24.19.0/bin:$HOME/.elan/bin:$PATH
 export SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33
 export LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT
 export CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
@@ -24,6 +24,7 @@ run release-guard env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFIL
 run package-typecheck bun run --cwd packages/snapback4 typecheck
 run package-build bun run --cwd packages/snapback4 build
 run chat-check bash -c 'cd apps/chat && ../../target/debug/snapback4 check'
+run lean-setup bash -c 'cd lean && lake build quarry-oracle'
 run cargo-test env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 node scripts/run-rust-tests.mjs
 run fixture-tests node scripts/run-client-tests.mjs 1 files fixtures/
 run chat-typecheck bun run --cwd apps/chat typecheck
