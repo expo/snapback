@@ -158,7 +158,8 @@ for (const template of [[], ["--template", "chat"]]) test(`Expo ${template.lengt
   const require = createRequire(join(reference, "package.json"));
   assert.equal(actual.devDependencies["babel-preset-expo"], require("babel-preset-expo/package.json").version);
   const starterConfig = json(join(reference, "app.json"));
-  if (chat) { const withFavicon = { ...starterConfig, expo: { ...starterConfig.expo, web: { ...starterConfig.expo.web, favicon: "./assets/favicon.svg" } } }; assert.deepEqual(json(join(dir, "app.json")), withFavicon); }
+  // Expo's favicon pipeline accepts only raster images, so the starter ships none (0.4.27).
+  if (chat) assert.deepEqual(json(join(dir, "app.json")), starterConfig);
   else assert.deepEqual(json(join(dir, "app.json")).expo.plugins, starterConfig.expo.plugins);
   assert.equal(read(join(dir, "expo-env.d.ts")), '/// <reference types="expo/types" />\n');
   assert.deepEqual(json(join(dir, "tsconfig.json")), json(join(reference, "tsconfig.json")));
@@ -182,7 +183,7 @@ for (const template of [[], ["--template", "chat"]]) test(`Expo ${template.lengt
   assert.ok(transform({ src: shipped, options: { platform: "web" } }).src.includes('options.wasm ?? require("./wasm/snapback4_device_bg.wasm")'));
   assert.match(read(join(dir, "src/client.ts")), /createApp/);
   assert.match(read(join(dir, "App.tsx")), /AppProvider|useAuth/);
-  assert.equal(actual.scripts["build:web"], chat ? "expo export -p web && snapback4 web-shell dist" : "expo export --platform web --clear && snapback4 web-shell dist");
+  assert.equal(actual.scripts["build:web"], chat ? "expo export -p web --max-workers 2 && snapback4 web-shell dist" : "expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist");
   const schema = read(join(dir, "snapback/schema.q"));
   assert.doesNotMatch(schema, /^\s*(?:use\s+server\b|action\s|route\s)/m);
   assert.doesNotMatch(schema, /^\s*schedule\b.*:\s*invite\b/m);
