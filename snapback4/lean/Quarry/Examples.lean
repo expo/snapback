@@ -857,6 +857,17 @@ def expirySecondaryTargetStore : Store := mkStore [
   ("items", [mkRow "r0" [("owner", I "alice"), ("until", N 10), ("tag", I "tag0")],
     mkRow "r1" [("owner", I "alice"), ("until", .null), ("tag", I "tag0")]])]
 
+def sweepScaleSchema : Schema := { tables := [
+  { name := "items", cols := [refCol "tag" "tags" (some .restrict), c "until"],
+    expire := some "until", read := .allow },
+  { name := "tags", cols := [c "until"], expire := some "until", read := .allow }] }
+
+def sweepScaleStore : Store := mkStore [
+  ("items", (List.range 14).map fun n =>
+    mkRow s!"item{n}" [("tag", I s!"tag{n}"), ("until", N 10)]),
+  ("tags", (List.range 14).map fun n =>
+    mkRow s!"tag{n}" [("until", N 10)])]
+
 def ifAbsentExpirySchema : Schema := { tables := [
   { name := "parents", cols := [c "until", c "tag"], uniques := [["tag"]],
     expire := some "until", read := .allow, insert := .allow, update := .allow, delete := .allow },
@@ -949,6 +960,12 @@ def refExamples : List Example := [
                 .ret (lit .null)] }
     tables := ["items"]
     expected := r#"{"kind":"committed","result":null,"store":{"items":[{"id":"r0","owner":"alice","tag":"tag0","until":10}]}}"# },
+  { name := "expiry-sweep-scales-across-restrict-rows"
+    source := "LLP 3000.036.003 §6 and LLP 3000.039 §3: a sweep retires many due roots in table order while restrict sees the current live witness store"
+    case := { schema := sweepScaleSchema, store := sweepScaleStore, viewer := alice, now := 10,
+              program := query [.ret (lit .null)], sweepOnly := true }
+    tables := ["items", "tags"]
+    expected := r#"{"kind":"committed","result":null,"store":{"items":[],"tags":[]}}"# },
   { name := "upsert-retires-expired-id-before-secondary-unique"
     source := "LLP 3000.036.003 §6: an expired same-id row retires before an upsert checks the new image's other unique keys"
     case := { schema := expiryWriteSchema, store := expiryWriteStore, viewer := alice, now := 10,

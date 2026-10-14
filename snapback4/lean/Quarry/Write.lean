@@ -277,18 +277,39 @@ def insertIfAbsentClash (sch : Schema) (s : Store) (v : List Nat) (now : Int)
     pure true
   | none => pure false
 
+/-- An eager snapshot of the declared table rows used while sweeping. A
+`Store` update is a functional closure over the previous store; repeatedly
+retiring rows through that representation retains an exponentially growing
+evaluation tree. Snapshotting after each successful retirement changes only
+the representation, while preserving table order and action sequencing. -/
+abbrev MaterialStore := Array (String × List Row)
+
+def materialRows (tables : List String) (s : Store) : MaterialStore :=
+  tables.toArray.map fun t => (t, s t)
+
+def MaterialStore.store (rows : MaterialStore) (fallback : Store) : Store := fun t =>
+  match rows.find? fun p => p.1 == t with
+  | some (_, rs) => rs
+  | none => fallback t
+
+-- @ref LLP 3000.036.003#6 — sweep each due root transactionally in table order.
 /-- Retire every due physical row. `restrict` retains that root but never
 stops later due keys; cascade and set-null are committed with the root. The
 model has no read-through retained-history rows, so every non-restricted due
 root can be retired immediately. -/
 def sweepExpired (sch : Schema) (s : Store) (now : Int) : Store :=
-  sch.tables.foldl (fun s td => (s td.name).foldl (fun s r =>
-    if expired td now r && stored s td.name r then
-      match refDeleteFrom sch (unexpiredStore sch s now) s td.name r with
-      | .ok next => next
-      | .error (.refuse "E_REFERENCED") => s
-      | .error _ => s
-    else s) s) s
+  let tables := sch.tables.map (·.name)
+  let rows := sch.tables.foldl (fun rows td =>
+    let physical := rows.store s
+    (physical td.name).foldl (fun rows r =>
+      let physical := rows.store s
+      if expired td now r && stored physical td.name r then
+        match refDeleteFrom sch (unexpiredStore sch physical now) physical td.name r with
+        | .ok next => materialRows tables next
+        | .error (.refuse "E_REFERENCED") => rows
+        | .error _ => rows
+      else rows) rows) (materialRows tables s)
+  rows.store s
 
 -- @ref LLP 3000.036.003#6 — same-id replacement authorizes, retires with actions, then inserts.
 /-- Apply one write to the store. -/
