@@ -95232,3 +95232,31 @@ The testing card shrank from 349 to 161 lines. Detailed validation/evidence are
 in `reports/20261014-proof-kit` and the workstream report. No publication/push;
 root Snapback 1 guide/inventory checks retain missing-dependency/generated-demo
 preconditions outside this fence.
+
+## 2026-10-14 — Integration 11: four wave-11 lanes and 0.4.28
+
+Merge NARR, QDIAG, DX3 and PROOF in order with no-ff; PAGE4 is excluded.
+Preserve Integration 10's word-search/compiler and speculative-scan controls.
+Append-only records and guide code facts retain both sides. Starter adaptation
+returns from DX3's dry-run/edited-file preview before PROOF creates missing
+infrastructure. Saved-source deployment retains NARR's lock reclaim and
+compatibility rehearsal beside PROOF's explicit source selection. The starter
+LLP uses §11 for NARR, §12 for DX3 and §13 for PROOF to avoid duplicate anchors.
+
+The packaged changelog covers all merged lanes and PAGE3's prior integration,
+including terminal client settlement, custody and restoring/type semantics.
+LLP 3000.037 §§14–15 record both waves from their actual package baselines.
+The version bump follows 82855e5ed5's ten-file surface as its own commit.
+
+Locked Linux merged wasm: 2,314,402 B raw / 705,888 B gzip. Set 706,388 B =
+measurement + exactly 500 B platform headroom; whole-artifact delta against
+Integration 10 is +956 B raw / +583 B gzip. No per-feature byte attribution
+or runtime ceiling increase. Mac measurement/suite follow at 0.4.28 publication.
+
+The requested Linux installed-consumer qualification must coexist with the
+explicit ban on full scripts/test.sh. Add opt-in --consumer-only to the existing
+qualifier: execute the packed loaded-host browser and Ubuntu/Alpine starter
+proofs, retain digests/evidence, and never issue a publication receipt. Ordinary
+full qualification and receipt validation remain unchanged. Container and
+proot controls prove no test.sh invocation/receipt, and a failed starter refuses.
+All requested Rust/client/oracle checks run independently for integration.

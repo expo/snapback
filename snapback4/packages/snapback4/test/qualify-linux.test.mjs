@@ -169,7 +169,7 @@ syncBuiltinESMExports();
   // Exercise that entrypoint distinction on every host, with the real CLI guard.
   const entry = join(root, "qualify-link.mjs");
   symlinkSync(join(root, "scripts/qualify-linux.mjs"), entry);
-  const result = spawnSync(process.execPath, ["--import", join(root, "mock.mjs"), entry, "--client", client, "--expo", join(root, "expo.tgz"), "--out", join(root, "out")], { encoding: "utf8", env });
+  const result = spawnSync(process.execPath, ["--import", join(root, "mock.mjs"), entry, "--client", client, "--expo", join(root, "expo.tgz"), "--out", join(root, "out"), ...(scenario.consumerOnly ? ["--consumer-only"] : [])], { encoding: "utf8", env });
   const receiptPath = join(root, "out/receipt.json");
   return { ...result, root, client, binary, receipt: existsSync(receiptPath) ? json(receiptPath) : null, commands: existsSync(join(root, "commands.jsonl")) ? readFileSync(join(root, "commands.jsonl"), "utf8").trim().split("\n").map(JSON.parse) : [] };
 }
@@ -326,4 +326,21 @@ test("imported loaded-host proof evidence cannot omit a failed or repeated attem
   for (const corrupt of [evidence.slice(1), evidence.map((p, i) => i === 3 ? { ...p, attempt: 1 } : p), evidence.map((p, i) => i === 0 ? { ...p, status: "failed" } : p)]) {
     assert.throws(() => validateFrontendProofs(corrupt), /both generated frontend proofs twice/);
   }
+});
+
+for (const proot of [false, true]) test(`consumer-only ${proot ? 'proot' : 'container'} proves packed starters without a suite receipt`, t => {
+  const r = qualify(t, { consumerOnly: true, proot, suiteFail: true });
+  assert.equal(r.status, 0, r.stderr); assert.equal(r.receipt, null);
+  const evidence = json(join(r.root, 'out/consumer.json'));
+  assert.equal(evidence.publicationQualified, false);
+  assert.deepEqual(evidence.suite, { status: 'not-run' });
+  validateFrontendProofs(evidence.frontendProofs);
+  assert.equal(evidence.proofs.length, 2);
+  assert.ok(!r.commands.some(c => c.cmd === 'bash' && c.args.some(a => a.endsWith('/test.sh'))));
+  assert.equal(readFileSync(join(r.root, 'executed-proofs.jsonl'), 'utf8').trim().split('\n').length, 2);
+});
+test('consumer-only refuses a failed packed starter without evidence or receipt', t => {
+  const r = qualify(t, { consumerOnly: true, startersFail: true });
+  assert.notEqual(r.status, 0); assert.equal(r.receipt, null);
+  assert.equal(existsSync(join(r.root, 'out/consumer.json')), false);
 });

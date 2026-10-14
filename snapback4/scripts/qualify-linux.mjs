@@ -5,7 +5,7 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpat
 import { join, resolve, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { artifact, cleanSource, clientManifest, digest, json, linuxRustFlags, linuxTarget, manifest, nodeVersion, platforms, refuseCredentials, run, save, sqliteBuildFlags, sri, validateLinux } from "./publication-artifacts.mjs";
+import { artifact, cleanSource, clientManifest, digest, json, linuxRustFlags, linuxTarget, manifest, nodeVersion, platforms, refuseCredentials, run, save, sqliteBuildFlags, sri, validateLinux, validateFrontendProofs } from "./publication-artifacts.mjs";
 import { checkElf } from "./check-elf.mjs";
 import { proveGeneratedProofs } from "./publication-frontend-proofs.mjs";
 import { prootProof } from "./qualify-linux-proot.mjs";
@@ -50,6 +50,8 @@ export function containerProof(runtime, client, platform, version, work, expo) {
 export async function qualify(args = process.argv.slice(2)) {
   refuseCredentials(); // Must precede all commands, including argument-dependent work.
   if (process.platform !== "linux" || process.arch !== "x64") throw new Error("Linux qualification requires a linux-x64 host");
+  const consumerOnly = args.includes("--consumer-only");
+  args = args.filter(arg => arg !== "--consumer-only");
   const options = {};
   for (let i = 0; i < args.length; i += 2) {
     if (!["--client", "--expo", "--out"].includes(args[i]) || !args[i + 1] || args[i + 1].startsWith("--")) throw new Error("usage: qualify-linux.mjs --client /path/client.tgz --expo /path/expo.tgz --out /path/new-directory");
@@ -65,11 +67,14 @@ export async function qualify(args = process.argv.slice(2)) {
   const clientIntegrity = sri(client), expoIntegrity = sri(expo), runtime = containerRuntime();
   const env = { ...process.env, LIBSQLITE3_FLAGS: sqliteBuildFlags }; delete env.SNAPBACK4_BIN;
   mkdirSync(out, { recursive: true });
-  const log = join(out, "suite.log"), fd = openSync(log, "w");
-  let result;
-  try { result = spawnSync("bash", [join(root, "scripts/test.sh")], { cwd: root, env, stdio: ["ignore", fd, fd] }); }
-  finally { closeSync(fd); }
-  const summary = readFileSync(log, "utf8").match(/^== \d+ failure\(s\) in \d+ s$/m)?.[0];
+  const log = join(out, "suite.log");
+  let result = { status: null }, summary;
+  if (!consumerOnly) {
+    const fd = openSync(log, "w");
+    try { result = spawnSync("bash", [join(root, "scripts/test.sh")], { cwd: root, env, stdio: ["ignore", fd, fd] }); }
+    finally { closeSync(fd); }
+    summary = readFileSync(log, "utf8").match(/^== \d+ failure\(s\) in \d+ s$/m)?.[0];
+  }
   const suitePassed = result.status === 0 && summary?.startsWith("== 0 ");
   run("bash", [join(root, "scripts/build-linux-musl.sh")], { cwd: root, env, stdio: "inherit" });
   const binary = join(root, `target/${linuxTarget}/production/snapback4`), binarySha256 = digest(binary), elf = checkElf(readFileSync(binary));
@@ -89,6 +94,20 @@ export async function qualify(args = process.argv.slice(2)) {
     // Keep executed consumer evidence on a red suite, without a success receipt.
     // An isolated flake rerun cannot turn the original suite into a release pass.
     save(join(out, "proofs.json"), { source, route: runtime, proofs, suite: { exitCode: result.status, summary } });
+    // Integration may commission only installed-consumer proofs. This path
+    // cannot produce the receipt publication imports as suite qualification.
+    if (consumerOnly) {
+      validateFrontendProofs(frontendProofs);
+      if (cleanSource(root) !== source || sri(client) !== clientIntegrity || sri(expo) !== expoIntegrity)
+        throw new Error("release source or client changed during consumer qualification");
+      copyFileSync(tarball, join(out, packed.filename));
+      const evidence = { format: 1, mode: "consumer-only", source, version, route: runtime,
+        clientIntegrity, expoIntegrity, platform, binarySha256, elf, frontendProofs, proofs,
+        suite: { status: "not-run" }, publicationQualified: false };
+      save(join(out, "consumer.json"), evidence);
+      console.log(JSON.stringify(evidence, null, 2));
+      return evidence;
+    }
     if (!suitePassed) throw new Error(`Linux source suite failed: ${summary ?? result.error?.message ?? result.status}; see ${log}; consumer evidence in proofs.json (no qualification receipt)`);
     const cc = process.env.SNAPBACK4_MUSL_CC ?? join(process.env.HOME, ".local/share/snapback4-musl-1.2.5/bin/musl-gcc");
     const receipt = { format: 1, route: runtime, source, target: linuxTarget, toolchain: { rustc: run("rustc", ["-Vv"]).trim(), cargo: run("cargo", ["-V"]).trim(), cc: run(cc, ["--version"]).trim(), linker: cc }, flags: { LIBSQLITE3_FLAGS: sqliteBuildFlags, RUSTFLAGS: linuxRustFlags }, suite: { status: "passed", exitCode: result.status, summary }, proofs, frontendProofs, elf, platform, binarySha256, clientIntegrity, expo: artifact(expo, "snapback4-expo", version) };
