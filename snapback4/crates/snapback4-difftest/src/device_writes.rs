@@ -58,11 +58,16 @@ pub const UNHELD_UNIQUE: &str = "predicted-then-refused-unheld-unique-key";
 /// wide `observe` (`[items[key], items[k2]]`), that key's element.
 fn holds_row(o: &Outcome, target: &Key) -> bool {
     let Some(data) = o.data() else { return false };
-    let row = match data.get("Array").and_then(Json::as_array) {
-        Some(items) => items.get(usize::from(*target == Key::K2)),
-        None => Some(data),
-    };
-    row.and_then(|d| d.get("Row")).is_some()
+    fn observed_item<'a>(data: &'a Json, target: &Key) -> Option<&'a Json> {
+        if let Some(items) = data.get("Array").and_then(Json::as_array) {
+            return observed_item(items.get(usize::from(*target == Key::K2))?, target);
+        }
+        if let Some(item) = data.get("Row").and_then(|row| row.get("item")) {
+            return observed_item(item, target);
+        }
+        Some(data)
+    }
+    observed_item(data, target).and_then(|d| d.get("Row")).is_some()
 }
 
 /// The inserts that can be a program's first write, as `(target, tag)`,

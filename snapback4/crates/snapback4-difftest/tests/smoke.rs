@@ -47,6 +47,30 @@ fn fixed_seeds_compile_execute_and_continue() {
 }
 
 #[test]
+fn generated_zero_divisors_are_expected_runtime_refusals() {
+    let case = (0..20_000)
+        .map(generate)
+        .find(|case| {
+            matches!(
+                &case.program.body,
+                Body::Scalar(Expr::RoundedDivide(_, _, _, divisor))
+                    if matches!(divisor.as_ref(), Expr::Int(0))
+                        || matches!(divisor.as_ref(), Expr::Arg(name, _) if case.args[name] == json!(0))
+            )
+        })
+        .expect("rounded division generator must reach a zero divisor");
+    let source = case.program.source();
+    let mut engine = execute::engine(&case, &source).unwrap();
+    let outcome = execute::execute(&mut engine, &case, "run", &case.args);
+    assert_eq!(outcome.refusal().unwrap()["code"], "E_DIV_ZERO", "seed {}: {source}", case.seed);
+
+    let mut report = Report::default();
+    campaign::check(&case, &mut report, |_| {});
+    assert_eq!(report.runtime_refusals.get("E_DIV_ZERO"), Some(&1), "{report:#?}");
+    assert!(report.runtime_refused_unexpected.is_empty(), "{report:#?}");
+}
+
+#[test]
 fn helper_calls_have_distinct_arguments_and_skipped_assertions_do_not_run() {
     let mut case = generate(0);
     case.program.tables.clear();

@@ -156,6 +156,29 @@ fn a_predicted_insert_over_an_unheld_supplied_id_is_the_named_outcome() {
 }
 
 #[test]
+fn an_unheld_insert_with_a_referential_observe_wrapper_is_the_named_outcome() {
+    // Retained campaign seed 4799 observes `{ item, kids }`; the hidden
+    // clashing item remains absent beneath that wrapper on both stores.
+    let case = generate(4799);
+    assert!(case.program.kids.is_some(), "{}", case.program.source());
+    assert_eq!(case.principal, "bob");
+    assert_eq!(case.args["key"], "r0");
+    assert_eq!(clashing_row(&case, &seeded_items(&case)).as_deref(), Some("r0"));
+
+    let mut report = snapback4_difftest::campaign::Report::default();
+    let mut files = devices::Files::new().unwrap();
+    let mut found = Vec::new();
+    devices::check(&case, &mut report, &mut files, |f| found.push(f.signature)).unwrap();
+    assert!(found.is_empty(), "{found:?}");
+    for store in devices::STORES {
+        let write = &report.by_oracle[&format!("device-{store}-write")];
+        assert_eq!(write.named.get(UNHELD_UNIQUE), Some(&1), "{report:#?}");
+        assert_eq!(write.disagreeing, 0, "{report:#?}");
+        assert_eq!(report.by_oracle[&format!("device-{store}-converge")].passed, 1, "{report:#?}");
+    }
+}
+
+#[test]
 fn a_predicted_insert_over_a_hidden_secondary_unique_value_is_the_named_outcome() {
     // A hidden collision on a secondary unique key, with a fresh row id: the
     // device predicts, the server refuses E_RULE. Charlie's 2026-10-08 ruling
