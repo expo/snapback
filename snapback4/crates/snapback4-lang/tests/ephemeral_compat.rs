@@ -9,6 +9,8 @@ fn durable_schema_and_types_keep_base_bytes() {
     for entry in std::fs::read_dir(&root).unwrap() {
         let file = entry.unwrap().path();
         if file.extension().is_none_or(|e| e != "q") { continue; }
+        // PAGE4 is a new v3 fixture, outside this pre-E1 durable corpus.
+        if file.file_name().unwrap() == "page4-union.q" { continue; }
         let source = std::fs::read_to_string(&file).unwrap();
         let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
         if !bound.diagnostics.is_empty() { continue; } // Repair fixtures deliberately refuse.

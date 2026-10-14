@@ -416,7 +416,7 @@ def Rule.disclosing (sch : Schema) : Rule → Bool
   | _ => false
 
 /-- A negated static probe can certify absence only at a total readable
-point without a lifetime. This does not admit negative row-source discovery. -/
+point without a lifetime. Negative row-source discovery stays excluded. -/
 def Rule.negativePoint (sch : Schema) (r : Rule) : Bool :=
   match r with
   | .probe t point key => match sch.table? t with
@@ -649,7 +649,13 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
               || alts.any fun bases => bases.any fun a => (a.filterMap Expr.eqPin).any (·.1 == pair.2)
       | .party _ => false
     let case1 := if reservedMembership || pinnedMembership then false else case1Candidate
-    let case2 := if !guards || reservedMembership || pinnedMembership then false else match td.read.branchParties sch td guardPins true with
+    let fixedMembership := td.read.accessLeaves.any fun leaves =>
+      let members := leaves.filter fun leaf => match leaf with | .membership .. => true | _ => false
+      !members.isEmpty && members.all fun leaf => match leaf with
+        | .membership source _ key => (membershipColumns key).any (fun pair => guardPins.any (·.1 == pair.2))
+            && (sch.table? source).any (fun source => source.notBefore.isNone)
+        | _ => false
+    let case2 := if !guards || ((reservedMembership || pinnedMembership) && !fixedMembership) then false else match td.read.branchParties sch td guardPins true with
       | some ps =>
         let bases := alts.getD [[]]
         -- The grant lane is always planned (the system reads it whole).
@@ -678,7 +684,7 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
                   && !(a.filterMap Expr.eqPin).any (·.1 == pair.2)
                   && laneFits order ((pair.2, .viewer) :: a.filterMap Expr.eqPin) pins
       | none => false
-    let case4 := guards && alts.isNone && compoundDecided sch td pins order
+    let case4 := guards && !reservedMembership && !pinnedMembership && alts.isNone && compoundDecided sch td pins order
     let witnessScope := guards && pins.all (fun p => p.2.total) && scopedWitnessDecided sch td pins fs order
     (total && (case1 || case2)) || (readFree && (case3 || case4)) || witnessScope
 

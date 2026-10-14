@@ -333,6 +333,7 @@ fn pure_expr(expr: &Expr) -> bool {
 
 fn pure_builtin(builtin: &Builtin) -> bool {
     match builtin {
+        Builtin::RequireUncapped => false,
         #[cfg(feature = "sqlite")]
         Builtin::JobAs | Builtin::JobQuery { .. } => false,
         Builtin::Divmod { .. } | Builtin::Sha256 | Builtin::Connected => false,

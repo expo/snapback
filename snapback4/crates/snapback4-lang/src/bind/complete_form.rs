@@ -335,3 +335,14 @@ mod tests {
         assert_eq!(same_readers(&with, &original, &atoms), Ok(()));
     }
 }
+
+/// Failure of a Boolean polarity classifier is not hidden-source evidence.
+/// Name only actual probes whose source cannot be observed through its pins.
+pub(super) fn hidden_source(schema: &Schema, rule: &RuleExpr) -> bool {
+    match rule {
+        RuleExpr::Exists { .. } => !snapback4_core::engine::rules::pinned_probe_readable(schema, rule),
+        RuleExpr::And(parts) | RuleExpr::Or(parts) => parts.iter().any(|rule| hidden_source(schema, rule)),
+        RuleExpr::Not(inner) => hidden_source(schema, inner),
+        _ => false,
+    }
+}

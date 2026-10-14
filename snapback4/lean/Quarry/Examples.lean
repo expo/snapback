@@ -855,8 +855,44 @@ def page3Examples : List Example := [
     expected := r#"{"kind":"answer","data":[{"id":"a","owner":"bob","open":true}],"complete":true,"next":null}"# }
 ]
 
+def page4Mixed : Schema := { tables := [
+  { name := "members", cols := [c "parent", c "principal"], uniques := [["parent", "principal"]], read := .eq (self "principal") .viewer },
+  { name := "documents", cols := [c "owner", c "parent", c "open"]
+    read := .or (.eq (self "owner") .viewer) (.or (.eq (self "open") (.lit (.bool true)))
+      (.probe "members" ["parent", "principal"] [("parent", self "parent"), ("principal", .viewer)])) }] }
+
+def page4Store : Store := mkStore [
+  ("members", [mkRow "m" [("parent", I "p1"), ("principal", I "alice")]]),
+  ("documents", [mkRow "a" [("owner", I "bob"), ("parent", I "p1"), ("open", .bool false)],
+    mkRow "b" [("owner", I "bob"), ("parent", I "p2"), ("open", .bool true)],
+    mkRow "c" [("owner", I "alice"), ("parent", I "p2"), ("open", .bool false)],
+    mkRow "d" [("owner", I "bob"), ("parent", I "p2"), ("open", .bool false)]])]
+
+def page4Examples : List Example := [
+  { name := "page4-owner-public-member"
+    source := "LLP 3000.036.001 §17: mixed positive alternatives cover all audiences"
+    case := { schema := page4Mixed, store := page4Store, viewer := alice,
+              program := query [.ret (.page "documents" [] none [] false 20 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"a","owner":"bob","parent":"p1","open":false},{"id":"b","owner":"bob","parent":"p2","open":true},{"id":"c","owner":"alice","parent":"p2","open":false}],"complete":true,"next":null}"# },
+  { name := "page4-exact-where-witness"
+    source := "LLP 3000.036.001 §17: a where witness excludes every other audience"
+    case := { schema := page4Mixed, store := page4Store, viewer := alice,
+              program := query [.ret (.page "documents" [] (some (.bin .ne (.point "members"
+                [("parent", .dot "parent"), ("principal", .viewer)]) (.lit (.s .null)))) [] false 20 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"a","owner":"bob","parent":"p1","open":false}],"complete":true,"next":null}"# },
+  { name := "page4-exact-where-empty"
+    source := "LLP 3000.036.001 §17: public and owned rows cannot contaminate an empty witness scope"
+    case := { schema := page4Mixed, store := page4Store, viewer := bob,
+              program := query [.ret (.page "documents" [] (some (.bin .ne (.point "members"
+                [("parent", .dot "parent"), ("principal", .viewer)]) (.lit (.s .null)))) [] false 20 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[],"complete":true,"next":null}"# }
+]
+
 /-- Every example: the guide cards' and the referential actions'. -/
-def all : List Example := examples ++ merged ++ refExamples ++ page3Examples
+def all : List Example := examples ++ merged ++ refExamples ++ page3Examples ++ page4Examples
 
 /-- Run every example; returns the failures. -/
 def check : List (String × String × String) :=

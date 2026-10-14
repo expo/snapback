@@ -147,6 +147,10 @@ fn row_independent(rule: &RuleExpr) -> bool {
 }
 
 fn pin_for(schema: &Schema, program: &Program, scan: &Scan, table: &Table, column: &str) -> (String, Option<String>) {
+    if let RuleExpr::Not(inner) = &table.rules.read
+        && matches!(table.columns.get(column), Some(ColumnType::Bool))
+        && let RuleExpr::Eq(RuleTerm::Field(field), RuleTerm::Literal(snapback4_core::Value::Bool(expected))) = inner.as_ref()
+        && field == column { return (format!(".{column} = {}", !expected), None); }
     let viewer = matches!(&table.rules.read, rule if contains_viewer_eq(rule, column));
     if viewer { return (format!(".{column} = viewer"), None); }
     let kind = table.columns.get(column).map(ColumnType::required);

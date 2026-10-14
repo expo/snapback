@@ -236,7 +236,12 @@ impl Binder<'_> {
             A::Created { .. } => Err(unknown(site, "created is valid only in an insert table rule", "use exists here")),
             A::Assert { value, code, message, .. } => {
                 validate_code(site, code)?;
-                let (e, t) = self.expr(value, out)?;
+                let (mut e, t) = self.expr(value, out)?;
+                // A row point may return null because its read meter cut. Do
+                // not turn that unavailable fact into an authored NOT_FOUND.
+                if self.caller_kind == ProgramKind::Query && t.is_optional() && matches!(t.required(), Ty::Row(_)) {
+                    e = Expr::Builtin { builtin: Builtin::RequireUncapped, args: vec![e] };
+                }
                 let tmp = self.temp("present");
                 out.push(Stmt::Let { name: tmp.clone(), value: e });
                 out.push(Stmt::Require { condition: Expr::Binary { op: BinaryOp::Ne, left: Box::new(ir::var(&tmp)), right: Box::new(Expr::Literal(Value::Null)) }, code: code.clone(), site: Some(site.to_string()), message: message.clone() });

@@ -291,6 +291,7 @@ pub fn base(seed: u64) -> Case {
             reverse: false,
             helper: true,
             order: None,
+            named_page_order: None,
             residual: None,
             domain: None,
             guard: None,
@@ -354,10 +355,13 @@ pub(crate) fn page4(case: &mut Case) {
     if rng.pick(6)!=0 {return;}
     let Body::Read {kind: kind @ (Read::Page | Read::Bounded),filter,owner,project,..}=&mut case.program.body else {return};
     *kind=Read::Page;*filter=false;*owner=false;*project=None;
-    let shape=rng.pick(7);
+    if case.program.tables.iter().any(|table| table.name=="access" && table.columns.iter().any(|column|matches!(column.ty, Type::Nullable(_)))) {return;}
+    let shape=rng.pick(9);
     // These are read families; old widened writes must not omit a newly
     // introduced schema column or mutate this family's seeded authority.
     case.program.prelude.clear();case.steps.clear();
+    case.args.as_object_mut().unwrap().remove("k2");
+    case.program.named_page_order=None;
     case.program.domain=Some("true".into());case.program.order=Some(vec!["id".into()]);
     case.program.residual=None;case.program.guard=None;case.program.search_term=None;
     case.program.membership_named_reordered=false;case.program.boolean_grant_normalized=false;
@@ -365,7 +369,14 @@ pub(crate) fn page4(case: &mut Case) {
     let access=case.program.tables.iter_mut().find(|t|t.name=="access").unwrap();
     access.effects=Some(vec![Rule::Member,Rule::Deny,Rule::Deny,Rule::Deny]);access.rule=Rule::Member;access.residency=Residency::Member;
     access.expire=None;access.not_before=None;access.caps.clear();
-    case.program.tables[0].rule=match shape {0=>Rule::OwnerPublicMember,1=>Rule::OwnerPublicIdMember,2=>Rule::OwnerOrWitness,3=>Rule::PairWitness,6=>Rule::NegativeGrant,_=>Rule::Witness};
+    case.program.tables[0].rule=match shape {0|7=>Rule::OwnerPublicMember,8=>Rule::OwnerOrWitness,1=>Rule::OwnerPublicIdMember,2=>Rule::OwnerOrWitness,3=>Rule::PairWitness,6=>Rule::NegativeGrant,_=>Rule::Witness};
+    if shape==7 {
+        let items=&mut case.program.tables[0];
+        items.keys.retain(|(name,_,_)|name!="byPage4");
+        items.keys.push(("byPage4".into(),vec!["score".into(),"id".into()],false));
+        case.program.order=Some(vec!["score".into()]);case.program.named_page_order=Some("byPage4".into());
+    }
+    if shape==8 {case.program.domain=Some(".bucket = bucket".into());}
     if shape==1 && !case.program.tables.iter().find(|t|t.name=="access").unwrap().columns.iter().any(|c|c.name=="item") {id_membership(case);}
     if shape==2 {case.program.domain=Some("exists access[.bucket, viewer]".into());}
     if shape==3 {
@@ -392,7 +403,9 @@ pub(crate) fn page4(case: &mut Case) {
         case.program.lets.push(("parent".into(),Expr::Assert(Box::new(Expr::Point("parents".into(),Key::Key)))));
         case.program.domain=Some(".tag = parent.id".into());
         case.program.tables[0].residency=Residency::Group;
-        for (t,row) in &mut case.rows {if t=="items" && rng.pick(2)==0 {row["tag"]=json!("parent");}}
+        case.program.tables[0].columns.iter_mut().find(|column| column.name=="tag").unwrap().ty=Type::Id;
+        let mut assigned=false;
+        for (t,row) in &mut case.rows {if t=="items" && !assigned && rng.pick(2)==0 {row["tag"]=json!("parent");assigned=true;}}
     }
     if shape==5 {
         let items=&mut case.program.tables[0];
@@ -404,7 +417,9 @@ pub(crate) fn page4(case: &mut Case) {
 
 pub(crate) fn page4_features(case: &Case) -> Vec<String> {
     let family=match case.program.tables[0].rule {
+        Rule::OwnerPublicMember if case.program.named_page_order.is_some()=>Some("named-plain-page"),
         Rule::OwnerPublicMember=>Some("mixed-public-member"),Rule::OwnerPublicIdMember=>Some("mixed-public-id"),Rule::PairWitness=>Some("pinned-pair"),Rule::NegativeGrant=>Some("negative-readable-grant"),
+        Rule::OwnerOrWitness if case.program.domain.as_deref()==Some(".bucket = bucket")=>Some("pinned-membership-party"),
         Rule::OwnerOrWitness if case.program.domain.as_deref()==Some("exists access[.bucket, viewer]")=>Some("exact-where-scope"),
         Rule::Witness if case.program.domain.as_deref()==Some(".tag = parent.id")=>Some("parent-snapshot"),
         Rule::Witness if case.program.search_term.is_some() && case.program.order.as_ref().is_some_and(|order|order==&["score"])=>Some("online-membership-search"),

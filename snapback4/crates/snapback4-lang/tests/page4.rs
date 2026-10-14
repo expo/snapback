@@ -152,3 +152,50 @@ fn author_id_scope_is_complete_and_discovery_cut_publishes_nothing() {
     let r=e.query("mine",Context::new("alice",BTreeMap::from([("c".into(),Value::Null)]))).unwrap();
     assert!(!r.complete&&r.next.is_none()&&r.data.as_array().unwrap().is_empty(),"{r:?}");
 }
+
+#[test]
+fn parent_snapshot_keys_keep_completeness_when_the_page_is_assigned_and_cut_is_not_absence() {
+    let source="table parents:\n  public 'parents'\n  sync public\ntable members:\n  group: int\n  principal: principal\n  unique group, principal\n  read <- .principal = viewer\n  sync to .principal\ntable children:\n  parent: parents\n  group: int\n  read <- exists members[.group, viewer]\n  sync to members[.group]\nquery direct(parent: parents, c: cursor ?):\n  p = parents[parent] ! else PARENT_MISSING\n  return children where .parent = p.id first 1 by .id after c\nquery assigned(parent: parents, c: cursor ?):\n  p = parents[parent] ! else PARENT_MISSING\n  page = children where .parent = p.id first 1 by .id after c\n  return page\n";
+    let b=compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);assert!(b.schema.required_capabilities().contains("branch-pages-v3"));
+    let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();e.seed([("parents".into(),object([("id",id("p"))]))]).unwrap();
+    let args=BTreeMap::from([("parent".into(),id("p")),("c".into(),Value::Null)]);
+    for query in ["direct","assigned"] {
+        let r=e.query(query,Context::new("alice",args.clone())).unwrap();assert!(r.complete&&r.data.as_array().unwrap().is_empty());
+        e.set_ceilings(snapback4_core::Ceilings {examined:0,..Default::default()});
+        let cut=e.query(query,Context::new("alice",args.clone())).unwrap();
+        assert!(!cut.complete && cut.unavailable && cut.data==Value::Null && cut.next.is_none());
+        e.set_ceilings(Default::default());
+        let mut missing=args.clone();missing.insert("parent".into(),id("missing"));
+        assert_eq!(e.query(query,Context::new("alice",missing)).unwrap_err().code,"PARENT_MISSING");
+    }
+}
+
+#[test]
+fn negative_covering_grant_requires_the_new_capability_and_local_negation_is_analyzer_only() {
+    let source="table roles:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  owner: principal\n  at: int\n  read <- .owner = viewer or not exists roles[viewer]\n  online only\nquery list(c: cursor ?):\n  return docs first 1 by .at after c\n";
+    let b=compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty());assert!(b.schema.required_capabilities().contains("branch-pages-v3"));
+    let b=compile(&[("schema.q".into(),"table docs:\n  flag: bool\n  read <- not .flag\n  online only\nquery list():\n  return docs first 10 by .id\n".into())]);
+    let note=b.notes.iter().find(|n|n.code=="N_NEVER_COMPLETE").unwrap();assert!(note.message.contains("analyzer limitation"));assert!(!note.message.contains("truly partial"));assert!(note.rewrite.contains(".flag = false"),"{note:?}");
+    let repaired=compile(&[("schema.q".into(),"table docs:\n  flag: bool\n  read <- not .flag\n  online only\nquery list():\n  return docs where .flag = false first 10 by .id\n".into())]);assert!(repaired.diagnostics.is_empty());assert!(!repaired.notes.iter().any(|n|n.code=="N_NEVER_COMPLETE"));
+}
+
+#[test]
+fn existing_scoped_word_index_can_gain_only_the_missing_reverse_source_index() {
+    let source="table members:\n  group: int\n  principal: principal\n  unique group, principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  group: int\n  body: text <=100\n  at: int\n  by scoped: group, words(body), at, id\n  read <- exists members[.group, viewer]\n  online only\nquery search(q: text <=100, c: cursor ?):\n  return docs matching q first 1 by .at after c\n";
+    let b=compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    assert!(snapback4_core::search_plan::ordinary::plan(&b.schema,&b.programs[0].program).is_some());
+    assert_eq!(b.schema.tables["docs"].indexes.keys().filter(|name|name.as_str()=="scoped").count(),1);
+    assert!(b.schema.tables["members"].indexes.values().any(|index|index.columns().starts_with(&["principal".into(),"group".into()])));
+}
+
+#[test]
+fn named_plain_page_and_pinned_membership_keep_every_party_complete() {
+    let source=UNION.replace("  at: int", "  at: int\n  by named: at, id").replace("first 1 by .at", "first 1 by named");
+    let b=compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty());assert!(!b.notes.iter().any(|n|n.code=="N_NEVER_COMPLETE"));
+    let source=UNION.replace(".owner = viewer or .open = true or exists members[.group, viewer]", ".owner = viewer or exists members[.group, viewer]")
+        .replace("query list(c: cursor ?):\n  return docs first 1", "query list(g: int, c: cursor ?):\n  return docs where .group = g first 1");
+    let b=compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);assert!(!b.notes.iter().any(|n|n.code=="N_NEVER_COMPLETE"),"{:?}",b.notes);
+    let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    e.seed([("docs".into(),object([("id",id("a")),("owner",id("alice")),("group",Value::Int(1)),("open",Value::Bool(false)),("at",Value::Int(1))]))]).unwrap();
+    let r=e.query("list",Context::new("alice",BTreeMap::from([("g".into(),Value::Int(1)),("c".into(),Value::Null)]))).unwrap();assert!(r.complete&&r.data.as_array().unwrap().len()==1);
+}

@@ -69,14 +69,15 @@ pub(super) fn provision(catalog: &mut Catalog, schema: &mut snapback4_core::sche
         // Prefix exactly the bound ordinary index. Its equality pins, word
         // position and full cursor ordering suffix must survive unchanged.
         index.components.insert(0, IndexComponent::Column(scope.clone()));
-        if table.indexes.values().any(|old| old.components == index.components) { continue; }
+        let existing_words = table.indexes.iter().find(|(_, old)| old.components == index.components).map(|(name, _)| name.clone());
         let info = &catalog.tables[&scan.table];
         let Some(mut declaration) = info.indexes.iter().find(|i| i.name == scan.index).cloned() else { continue };
         declaration.columns.insert(0, scope.clone());
         let Some((position, _)) = &mut declaration.words else { continue };
         *position += 1;
         declaration.site = bound.site.clone();
-        declaration.name = super::intent::index_name(info, &declaration);
+        let new_words = existing_words.is_none();
+        declaration.name = existing_words.unwrap_or_else(|| super::intent::index_name(info, &declaration));
         let mut candidate = schema.clone();
         candidate.tables.get_mut(&scan.table).unwrap().indexes.insert(declaration.name.clone(), index.clone());
         // Online-only memberships do not get sync's reverse audience index.
@@ -89,7 +90,7 @@ pub(super) fn provision(catalog: &mut Catalog, schema: &mut snapback4_core::sche
         let source_columns = vec![principal.clone(), parent.clone(), "id".into()];
         let source_decl = if source_table.indexes.values().any(|index| index.is_plain() && index.columns().starts_with(&source_columns[..2])) { None }
             else {
-                let mut source = source_info.indexes.iter().find(|index| index.is_plain()).cloned().unwrap();
+                let Some(mut source) = source_info.indexes.iter().find(|index| index.is_plain()).cloned() else { continue };
                 source.columns = source_columns.clone(); source.unique = false; source.words = None;
                 source.site = bound.site.clone(); source.name = super::intent::index_name(source_info, &source);
                 candidate.tables.get_mut(members).unwrap().indexes.insert(source.name.clone(), snapback4_core::schema::Index {
@@ -106,9 +107,11 @@ pub(super) fn provision(catalog: &mut Catalog, schema: &mut snapback4_core::sche
             catalog.synthesized.insert((members.clone(), source.name.clone()));
             catalog.tables.get_mut(members).unwrap().indexes.push(source);
         }
-        schema.tables.get_mut(&scan.table).unwrap().indexes.insert(declaration.name.clone(), index);
-        catalog.synthesized.insert((scan.table.clone(), declaration.name.clone()));
-        catalog.tables.get_mut(&scan.table).unwrap().indexes.push(declaration);
+        if new_words {
+            schema.tables.get_mut(&scan.table).unwrap().indexes.insert(declaration.name.clone(), index);
+            catalog.synthesized.insert((scan.table.clone(), declaration.name.clone()));
+            catalog.tables.get_mut(&scan.table).unwrap().indexes.push(declaration);
+        }
     }
 }
 

@@ -313,7 +313,7 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         if matches!(case.program.tables[0].residency, Residency::Group) {
             dims.push("group-pages");
         }
-        if dims.is_empty() {
+        if dims.is_empty() && !snapback4_difftest::lean::features(&case).iter().any(|f| f.starts_with("page4/")) {
             assert_eq!(serde_json::to_value(&case).unwrap(), serde_json::to_value(&plain).unwrap(), "seed {seed}");
         }
         seen.extend(dims);
@@ -380,7 +380,7 @@ fn timed_disclosure_generation_covers_edges_reads_and_writes() {
 
 #[test]
 fn timed_search_generation_compares_future_word_heads_natively() {
-    let cases = (0..400).map(generate).filter(|case| case.program.search_term.is_some()).collect::<Vec<_>>();
+    let cases = (0..400).map(generate).filter(|case| case.program.search_term.is_some() && !snapback4_difftest::lean::features(case).iter().any(|f| f.starts_with("page4/"))).collect::<Vec<_>>();
     assert!(!cases.is_empty(), "the standard 400-case campaign must reach timed search");
     for case in cases {
         let source = case.program.source();
@@ -737,7 +737,7 @@ fn page4_generated_families_compare_and_search_is_explicitly_unsupported_in_lean
         }
         let mut report=Report::default();campaign::check(&case,&mut report, |_| {});
         assert!(!report.failed(),"{family} seed {seed}: {report:?}\n{source}");
-        seen.insert(family);if seen.len()==7 {break;}
+        seen.insert(family);if seen.len()==9 {break;}
     }
-    assert_eq!(seen.len(),7,"{seen:?}");
+    assert_eq!(seen.len(),9,"{seen:?}");
 }

@@ -111,6 +111,7 @@ pub(super) fn expression(value: &Expr) -> bool {
 
 fn builtin_pure(builtin: &Builtin) -> bool {
     match builtin {
+        Builtin::RequireUncapped => false,
         Builtin::JobAs | Builtin::JobQuery { .. } => false,
         Builtin::Connected | Builtin::ReceiptSettled { .. } => false,
         Builtin::ProjectFields { .. } | Builtin::OptionalField { .. } | Builtin::Calendar { .. } | Builtin::Civil(_)

@@ -8,7 +8,7 @@ form, or exact scope pins with their narrowing consequence. A copied parent
 repair includes its write check and backfill; an index alone does not repair
 a hidden witness.
 
-The first read examples use the language card's tables. A page's read rule is checked
+A page's read rule is checked
 once when the prefix decides it, else per row, and a page whose rule still depends
 on a column the scan does not pin is never `complete` (N_NEVER_COMPLETE names
 the missing equality columns and an existing compatible index when one is
@@ -21,10 +21,6 @@ by the chat is complete and no second table is needed. An aborting mutation
 page costs one examined unit before its verdict, plus its rule probes on
 both true and false verdicts; a true verdict then examines candidates.
 A page verdict evaluated from its pinned prefix charges the rule's static probe count on either outcome, including probes skipped by `and`/`or` short-circuiting.
-A point read reserves that same static allowance before its lookup, equally
-for a readable row, a hidden row and a miss. If it cannot pay, authorization
-has no verdict and the answer remains incomplete. A device's trusted held
-row needs no authorization probes.
 A read states its predicate, search text, page size, order and continuation:
 `t where predicate matching q last 20 by .at after c`. Omit parts the read
 does not need. `first` ascends; `last` descends; id breaks ties. Predicates run

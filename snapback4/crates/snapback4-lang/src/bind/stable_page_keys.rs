@@ -14,22 +14,7 @@ fn body(statements: &mut Vec<Stmt>, fields: &BTreeMap<String, BTreeSet<String>>,
     let mut rows = inherited.clone();
     let mut out = Vec::new();
     for mut stmt in std::mem::take(statements) {
-        match &mut stmt {
-            Stmt::Bind { names, value, .. } => {
-                for name in names.iter() { rows.remove(name); }
-                let [name] = names.as_slice() else { out.push(stmt); continue };
-                if let Expr::Assert { value, .. } = value && let Expr::Read(read) = value.as_ref()
-                    && !read.keys.is_empty() && read.range.is_none() && read.filter.is_none() && read.matching.is_none()
-                    && fields.contains_key(&read.table) { rows.insert(name.clone(),read.table.clone()); }
-            }
-            Stmt::If { then_body, else_body, .. } => {
-                body(then_body, fields, &rows, serial); body(else_body, fields, &rows, serial);
-                // A name may be rebound in either arm. Do not assume its old
-                // snapshot type on the joined path.
-                rows.clear();
-            }
-            Stmt::For { .. } | Stmt::As { .. } => { rows.clear(); }
-            Stmt::Return { value, .. } => {
+    if let Stmt::Bind { value, .. } | Stmt::Return { value, .. } = &mut stmt {
                 let read = match value { Expr::Read(read) => Some(read), Expr::Shape { base, .. } | Expr::ShapeUse { base, .. } =>
                     if let Expr::Read(read) = base.as_mut() { Some(read) } else { None }, _ => None };
                 if let Some(read) = read && read.range.is_some() && let Some(filter) = &mut read.filter {
@@ -49,6 +34,21 @@ fn body(statements: &mut Vec<Stmt>, fields: &BTreeMap<String, BTreeSet<String>>,
                     });
                 }
             }
+        match &mut stmt {
+            Stmt::Bind { names, value, .. } => {
+                for name in names.iter() { rows.remove(name); }
+                let [name] = names.as_slice() else { out.push(stmt); continue };
+                if let Expr::Assert { value, .. } = value && let Expr::Read(read) = value.as_ref()
+                    && !read.keys.is_empty() && read.range.is_none() && read.filter.is_none() && read.matching.is_none()
+                    && fields.contains_key(&read.table) { rows.insert(name.clone(),read.table.clone()); }
+            }
+            Stmt::If { then_body, else_body, .. } => {
+                body(then_body, fields, &rows, serial); body(else_body, fields, &rows, serial);
+                // A name may be rebound in either arm. Do not assume its old
+                // snapshot type on the joined path.
+                rows.clear();
+            }
+            Stmt::For { .. } | Stmt::As { .. } => { rows.clear(); }
             _ => {}
         }
         out.push(stmt);

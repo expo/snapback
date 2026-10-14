@@ -268,4 +268,25 @@ theorem positiveRanges_eval {rule : Rule} {ranges : List (List Rule)}
     subst ranges
     simp
 
+/-- PAGE4's fixed viewer component preserves the original point verdict,
+including all additional key equalities and compound conditions. -/
+theorem Rule.eval_viewer_component {s : Store} {v : List Nat} {row : Row} {c : String}
+    (h : row.get c = .id v) (rule : Rule) :
+    rule.eval s v { self := some row } =
+      (rule.mapTerms (fun term => match term with
+        | .col .self name => if name == c then .viewer else term
+        | _ => term)).eval s v { self := some row } := by
+  refine Rule.eval_mapTerms rule fun term _ => ?_
+  cases term with
+  | col image name =>
+      cases image with
+      | self =>
+          by_cases same : name = c
+          · subst name; simp [Term.eval, Imgs.get, h]
+          · simp [same]
+      | old => rfl
+      | next => rfl
+  | viewer => rfl
+  | lit _ => rfl
+
 end Quarry

@@ -883,7 +883,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                             None => format!("; it answers `complete: false` even when every row the caller may read is there — test.cases.jsonl: the default passes it (or write `\"expect\": \"capped\"`); a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; {complete_form} (check --verbose)"),
                         } };
                         let limitation = if conditional { "analyzer limitation for other callers: " }
-                            else if table.rules.read.disjuncts().iter().any(|rule| !snapback4_core::engine::rules::pinned_probe_readable(schema, rule)) {
+                            else if complete_form::hidden_source(schema, &table.rules.read) {
                                 "truly partial absence evidence: "
                             } else { "analyzer limitation: " };
                         let verdict = if conditional { "is `complete`" } else { "is never `complete`" };

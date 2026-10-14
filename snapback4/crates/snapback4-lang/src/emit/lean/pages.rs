@@ -109,6 +109,10 @@ pub(super) fn compound_physical_issue(module: &LeanModule, read: &ReadExpr) -> O
         };
         (out.len() <= 7).then_some(out)
     }
+    let mut simple = Vec::new(); flatten_or(&rule, &mut simple);
+    // Existing party and exact point-membership classifiers take precedence;
+    // their where alternatives already have an independent physical proof.
+    if simple.iter().all(|leaf| party_column(target, leaf).is_some() || membership_physical(module, target, leaf).is_some()) { return None; }
     let leaves = ranges(&rule)?;
     let (system, bases) = model_page_pins(target, read);
     // The model's compound classifier deliberately keeps the where-branch
@@ -159,3 +163,30 @@ pub(super) fn compound_physical_issue(module: &LeanModule, read: &ReadExpr) -> O
     else { None }
 }
 
+
+/// The model's direct grant theorem remains positive. Standard bounded
+/// negative-grant pages use the independent branch classifier; direct scalar
+/// absence/aggregation and fallible-filter fallback stay explicitly outside
+/// that executable completeness fragment until its negative-view proof lands.
+pub(super) fn negative_grant_issue(module: &LeanModule, read: &ReadExpr) -> Option<&'static str> {
+    if !read.keys.is_empty() && read.filter.is_none() && read.range.is_none() { return None; }
+    fn static_negative(expr: &Expr) -> bool {
+        matches!(expr, Expr::Unary { op, value, .. } if op == "not" && matches!(value.as_ref(), Expr::Exists { read, .. }
+            if read.keys.iter().all(|key| !reads_row(&key.value))))
+    }
+    let table = module.surface_tables.iter().find(|table| table.name == read.table)?;
+    let rule = &table.rules.iter().find(|rule| rule.effect == Effect::Read)?.value;
+    let mut leaves = Vec::new(); flatten_or(rule, &mut leaves);
+    if leaves.len() < 2 || !leaves.iter().any(|leaf| static_negative(leaf)) { return None; }
+    fn total(expr: &Expr) -> bool {
+        match expr {
+            Expr::Name { .. } | Expr::Literal { .. } | Expr::Focal { .. } => true,
+            Expr::Member { base, .. } => matches!(base.as_ref(), Expr::Focal { .. }),
+            Expr::Binary { op, left, right, .. } => matches!(op.as_str(), "=" | "!=" | "<" | "<=" | ">" | ">=" | "and" | "or" | "in") && total(left) && total(right),
+            Expr::Unary { op, value, .. } => op == "not" && total(value),
+            Expr::Array { items, .. } => items.iter().all(total), _ => false,
+        }
+    }
+    (read.range.is_none() || read.filter.as_deref().is_some_and(|filter| !total(filter)) || leaves.len() >= 8)
+        .then_some("page-negative-grant-fallback")
+}

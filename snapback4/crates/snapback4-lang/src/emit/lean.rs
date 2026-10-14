@@ -853,6 +853,7 @@ impl<'a> Scope<'a> {
     /// A `where` domain as pins and a residual filter (`Syntax.lean`): each
     /// `.col = e` conjunct whose `e` does not read the row is a pin.
     fn domain(&self, read: &ReadExpr, keyed: bool) -> R<(Vec<Json>, Json)> {
+        if let Some(reason) = pages::negative_grant_issue(self.module, read) { return no(reason, crate::print::read_expr(read)); }
         if read.index.is_some() || !read.seeks.is_empty() || read.matching.is_some() || !read.computed.is_empty() || read.cursor_prefix.is_some() {
             return no("read-form", crate::print::read_expr(read));
         }
@@ -893,7 +894,13 @@ impl<'a> Scope<'a> {
 
     fn read(&self, read: &ReadExpr) -> R<Json> {
         let print = || crate::print::read_expr(read);
+        if read.range.is_some() && read.keys.is_empty() && read.matching.is_none() && read.computed.is_empty()
+            && let Some(index) = read.index.as_ref().and_then(|name| self.module.surface_tables.iter().find(|table|table.name==read.table)?.indexes.iter().find(|index|&index.name==name))
+            && index.is_plain() {
+            let mut normalized=read.clone();normalized.index=None;normalized.order_keys=index.columns.clone();return self.read(&normalized);
+        }
         if let Some(page) = pages::implicit_page(self.module, read) { return self.read(&page); }
+        if let Some(reason) = pages::negative_grant_issue(self.module, read) { return no(reason, print()); }
         if let Some(reason) = pages::static_key_issue(read) { return no(reason, print()); }
         if let Some(reason) = pages::membership_physical_issue(self.module, read) {
             return no(reason, print());

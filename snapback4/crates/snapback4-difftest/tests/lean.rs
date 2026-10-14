@@ -554,7 +554,7 @@ fn fixed_id_points_need_no_discovery_cap_and_agree_with_the_model() {
         assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
         let merged = snapback4_core::ir::body_merges(&bound.programs[0].program.body)
             .into_iter().any(|merge| merge.branches());
-        assert_eq!(merged, filter.is_empty(), "{:#?}\n{source}", bound.notes);
+        assert!(merged, "{:#?}\n{source}", bound.notes);
         let mut engine = snapback4_core::Engine::memory(
             bound.schema,
             bound.programs.into_iter().map(|program| program.program),
@@ -1343,5 +1343,15 @@ fn page3_membership_and_compound_filters_keep_the_read_free_model_gate() {
         let modeled = lean::ask(&model.case("run", model.store(&rows).unwrap(), "alice", model.tag_args("run", &json!({"c":null})).unwrap(), None).unwrap()).unwrap();
         assert_eq!(modeled["complete"], actual.complete, "compound={compound}");
         assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data));
+    }
+}
+
+#[test]
+fn page4_negative_grant_scalar_and_fallible_fallbacks_are_named_not_oracle_passes() {
+    for tail in ["return exists docs where .at >= 0", "return docs where .at + 1 >= 0 first 10 by .at"] {
+        let source=format!("table roles:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  owner: principal\n  at: int\n  read <- .owner = viewer or not exists roles[viewer]\n  online only\nquery run():\n  {tail}\n");
+        let mut case=lean::generate(1);case.rows.clear();case.args=json!({});case.program.prelude.clear();case.steps.clear();
+        case.program.body=snapback4_difftest::ast::Body::Scalar(snapback4_difftest::ast::Expr::Bool(true));
+        let checked=lean::compare(&case,&source).unwrap();assert!(matches!(checked.verdict,Verdict::Unsupported(ref reason) if reason=="page-negative-grant-fallback"),"{:?}",checked.verdict);assert_eq!(checked.executed,0);
     }
 }

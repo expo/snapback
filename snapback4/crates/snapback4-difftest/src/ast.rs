@@ -471,6 +471,9 @@ pub struct Program {
     /// Page order columns replacing `.label, .score` (Lean variants).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub order: Option<Vec<String>>,
+    /// Spell a generated plain page order through its declared index.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub named_page_order: Option<String>,
     /// A further domain conjunct, as source (Lean variants).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub residual: Option<String>,
@@ -644,7 +647,9 @@ impl Program {
                 if !predicates.is_empty() {
                     domain += &format!(" where {}", predicates.join(" and "));
                 }
-                let order = if self.search_term.is_some() && self.order.is_none() {
+                let order = if let Some(name) = &self.named_page_order {
+                    name.clone()
+                } else if self.search_term.is_some() && self.order.is_none() {
                     "byWords".to_owned()
                 } else {
                     self.order.as_ref().map_or(".label, .score".to_string(), |o| o.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", "))

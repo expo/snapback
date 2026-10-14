@@ -366,7 +366,7 @@ query discussion(card: cards, c: cursor ?):
     let fallible = parent_source.replace("table comments:\n", "table comments:\n  at: int\n")
         .replace("where .card = card first", "where .card = card and .at + 1 > 0 first");
     let parent = note(&fallible, "N_NEVER_COMPLETE");
-    assert!(parent.rewrite.contains("cardRow = cards[card] ! else NOT_FOUND") && parent.rewrite.contains(".board = cardRow.board"), "{parent}");
+    assert!(parent.rewrite.contains("cardScope = cards[card] ! else NOT_FOUND") && parent.rewrite.contains(".board = cardScope.board"), "{parent}");
     let staff_source = "table staff:
   principal: principal
   unique principal

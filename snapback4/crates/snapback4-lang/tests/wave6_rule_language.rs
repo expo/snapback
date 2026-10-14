@@ -248,9 +248,9 @@ fn r1_two_parties_and_a_grant_print_one_query_per_party_each_with_the_grant() {
 
 #[test]
 fn r1_a_rule_with_a_party_no_pin_can_select_prints_no_form_and_says_so() {
-    // `.cat.owner` pinned by nothing (the page reads every cat): no branch can
-    // test it, so the honest fallback replaces the code.
-    let query = "query everything(c: cursor ?):\n  return sightings last 50 by .seenAt after c\n";
+    // The fallible residual keeps this outside the page planner; no printed
+    // pin can select the live parent party, so the fallback states its cause.
+    let query = "query everything(c: cursor ?):\n  return sightings where .seenAt + 1 > 0 last 50 by .seenAt after c\n";
     let n = note(&bound(&format!("{SIGHTINGS}{query}")), "N_NEVER_COMPLETE").unwrap().clone();
     assert!(!n.rewrite.contains("query everything"), "no code is printed: {n}");
     assert!(n.rewrite.contains("no verified complete form for this read") && n.message.contains("no verified complete form for this read: keep the query and expect `capped`"), "{n}");
