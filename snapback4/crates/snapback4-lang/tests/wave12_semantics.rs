@@ -188,11 +188,12 @@ table buckets:
 query staleSelfDependent():
   bucket = 1
   bucket = count(buckets[bucket] by byBucket)
+  fresh = count(buckets[bucket] by byBucket)
   require bucket > 0 else EMPTY
   return min(buckets[bucket] by byBucket, .score) + 1
 "#.into())]);
     assert!(self_dependent.diagnostics.iter().any(|d| d.code == "E_QUARRY_TYPE" && d.message.contains("int ?")),
-        "a count result must not inherit the old value's domain provenance: {:#?}", self_dependent.diagnostics);
+        "a stale result must not inherit another count's fresh domain marker: {:#?}", self_dependent.diagnostics);
 
     let pure_domain = checked(&format!(r#"{schema}
 fn sameOwner(owner: principal):

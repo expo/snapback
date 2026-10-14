@@ -126,8 +126,10 @@ impl Binder<'_> {
         let result = self.aggregate_key(&self.aggregate_domain(count_arg)?)?;
         if let Some(name) = captured_name {
             let binding = self.binding(name)?;
+            let definition = format!("{}:{}", binding.runtime, binding.revision);
             let capture = binding.fields.keys().find(|path| path.len() == 3
-                && path[0] == COUNT_CAPTURE && path[1] == result.0[1])?.clone();
+                && path[0] == COUNT_CAPTURE && path[1] == result.0[1]
+                && path[2] == definition)?.clone();
             if binding.fields.get(&capture) != Some(&Ty::Bool)
                 || !result.1.iter().all(|root| self.binding(root)
                     .is_some_and(|binding| binding.fields.get(&capture) == Some(&Ty::Bool)))

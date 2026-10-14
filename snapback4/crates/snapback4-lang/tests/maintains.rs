@@ -107,6 +107,11 @@ query totalPosts():
         assert!(rejected.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
             && diagnostic.message.contains("global maintained scalar")), "{expression}: {:#?}", rejected.diagnostics);
     }
+    for projection in ["total { value }", "total { nested: { value: .value } }"] {
+        let planned = compile(&format!("view total: count posts\n  read <- allow\n  online only\nview exposed:\n  {projection}\nquery leak():\n  return exposed first 1 by .id\n"));
+        assert!(planned.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+            && diagnostic.message.contains("global maintained scalar")), "{projection}: {:#?}", planned.diagnostics);
+    }
 }
 
 #[test]

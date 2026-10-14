@@ -346,6 +346,21 @@ impl<'a> Binder<'a> {
         self.catalog.tables.get(name).ok_or_else(|| unknown(site, format!("unknown table {name}"), name_rewrite(name, self.catalog.tables.keys().map(String::as_str), None)))
     }
 
+    // @ref LLP 3000.013.001#3-global-maintained-view-representation — every
+    // page admission path, including planned-view lanes, rejects the physical
+    // row behind a global maintained scalar.
+    pub(super) fn reject_global_scalar_page(&self, read: &ReadExpr) -> Fallible<()> {
+        if self.catalog.tables.get(&read.table).and_then(|table| table.maintained.as_ref())
+            .is_some_and(|maintain| maintain.by.is_empty())
+            && (!read.keys.is_empty() || read.range.is_some() || read.filter.is_some()
+                || read.matching.is_some() || !read.seeks.is_empty() || !read.order_keys.is_empty())
+        {
+            return Err(type_error(&read.site, format!("{} is one global maintained scalar, not a group table", read.table),
+                format!("read it by its bare name: `return {}`", read.table)).guide("maintains"));
+        }
+        Ok(())
+    }
+
     // ----- reads -----
 
     fn read(&mut self, read: &ReadExpr, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
@@ -353,12 +368,7 @@ impl<'a> Binder<'a> {
             return Err(type_error(&read.site, format!("`{}` is text; `matching` searches a table's word index", read.table),
                 format!("for text compare `{0} = q` or `{0} != q`; for whole-token membership use `q in tokens({0})`; for word-prefix row search write `<table> matching q first 50 by .id`", read.table)).guide("types"));
         }
-        if self.catalog.tables.get(&read.table).and_then(|table| table.maintained.as_ref()).is_some_and(|maintain| maintain.by.is_empty())
-            && (!read.keys.is_empty() || read.range.is_some() || read.filter.is_some() || read.matching.is_some() || !read.seeks.is_empty() || !read.order_keys.is_empty())
-        {
-            return Err(type_error(&read.site, format!("{} is one global maintained scalar, not a group table", read.table),
-                format!("read it by its bare name: `return {}`", read.table)).guide("maintains"));
-        }
+        self.reject_global_scalar_page(read)?;
         if let Some(timeline) = self.schema.timelines.iter().find(|timeline| timeline.name == read.table) {
             let expanded = if let Some(plan) = self.catalog.feed_views.get(&read.table) {
                 super::feed_view::read(timeline, plan, read)?
@@ -406,6 +416,7 @@ impl<'a> Binder<'a> {
     }
 
     fn scan_at(&mut self, read: &ReadExpr, out: &mut setup::Body, position: prefix::Position) -> Fallible<(Scan, u32)> {
+        self.reject_global_scalar_page(read)?;
         let info = self.table(&read.table, &read.site)?;
         let (keys, index, selection) = self.select_index(info, read, ReadMode::Range, out)?;
         let prefix = self.order_keys(info, &index, keys)?;
