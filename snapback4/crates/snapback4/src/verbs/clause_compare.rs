@@ -4,42 +4,72 @@ use snapback4_core::schema::RuleExpr;
 use snapback4_lang::{ast::{Expr, Literal}, print::expression};
 use std::collections::BTreeSet;
 #[derive(Clone)]
-pub(super) enum Formula { Yes, No, Atom(String), Not(Box<Formula>), And(Vec<Formula>), Or(Vec<Formula>) }
+pub(super) enum Formula { Yes, No, Atom(String), Maybe(String), Not(Box<Formula>), And(Vec<Formula>), Or(Vec<Formula>) }
 #[derive(Debug, PartialEq)]
 pub(super) enum Change { Same, Tightens, Loosens, Unknown }
-impl Formula {
-    fn atoms(&self, out: &mut BTreeSet<String>) {
-        match self { Self::Atom(a) => { out.insert(a.clone()); }, Self::Not(a) => a.atoms(out), Self::And(a) | Self::Or(a) => a.iter().for_each(|a| a.atoms(out)), _ => () }
+#[derive(Clone,Copy,PartialEq)]
+enum Truth { Yes, No, Unknown }
+impl Truth {
+    fn not(self) -> Self { match self { Self::Yes=>Self::No, Self::No=>Self::Yes, Self::Unknown=>Self::Unknown } }
+    fn combine(self, other: Self, and: bool) -> Self {
+        let decisive=if and { Self::No } else { Self::Yes };
+        if self==decisive || other==decisive { decisive }
+        else if self==Self::Unknown || other==Self::Unknown { Self::Unknown }
+        else { decisive.not() }
     }
-    fn eval(&self, atoms: &[String], bits: usize) -> bool {
+}
+impl Formula {
+    fn atoms(&self, out: &mut BTreeSet<String>, maybe: &mut BTreeSet<String>) {
         match self {
-            Self::Yes => true, Self::No => false, Self::Atom(a) => bits & (1 << atoms.binary_search(a).unwrap()) != 0,
-            Self::Not(a) => !a.eval(atoms, bits), Self::And(a) => a.iter().all(|a| a.eval(atoms, bits)), Self::Or(a) => a.iter().any(|a| a.eval(atoms, bits)),
+            Self::Atom(a)=>{out.insert(a.clone());},
+            Self::Maybe(a)=>{out.insert(a.clone());maybe.insert(a.clone());},
+            Self::Not(a)=>a.atoms(out,maybe),
+            Self::And(a)|Self::Or(a)=>a.iter().for_each(|a|a.atoms(out,maybe)), _=>()
+        }
+    }
+    fn eval(&self, atoms: &[String], values: &[Truth]) -> Truth {
+        match self {
+            Self::Yes=>Truth::Yes, Self::No=>Truth::No,
+            Self::Atom(a)|Self::Maybe(a)=>values[atoms.binary_search(a).unwrap()],
+            Self::Not(a)=>a.eval(atoms,values).not(),
+            Self::And(a)=>a.iter().fold(Truth::Yes,|v,a|v.combine(a.eval(atoms,values),true)),
+            Self::Or(a)=>a.iter().fold(Truth::No,|v,a|v.combine(a.eval(atoms,values),false)),
         }
     }
 }
 pub(super) fn compare(old: &Formula, new: &Formula) -> Change {
-    let mut atoms = BTreeSet::new(); old.atoms(&mut atoms); new.atoms(&mut atoms);
-    if atoms.len() > 12 { return Change::Unknown; }
-    let atoms: Vec<_> = atoms.into_iter().collect();
-    let (mut old_implies_new, mut new_implies_old) = (true, true);
-    for bits in 0..1 << atoms.len() {
-        let (a,b) = (old.eval(&atoms,bits),new.eval(&atoms,bits));
-        old_implies_new &= !a || b; new_implies_old &= !b || a;
+    let (mut atoms,mut maybe)=(BTreeSet::new(),BTreeSet::new());
+    old.atoms(&mut atoms,&mut maybe);new.atoms(&mut atoms,&mut maybe);
+    if atoms.len()>12 { return Change::Unknown; }
+    let atoms: Vec<_>=atoms.into_iter().collect();
+    let radices: Vec<_>=atoms.iter().map(|a|if maybe.contains(a) {3} else {2}).collect();
+    let valuations: usize=radices.iter().product();
+    if valuations>4096 {return Change::Unknown;}
+    let (mut old_implies_new,mut new_implies_old)=(true,true);
+    for mut code in 0..valuations {
+        let values: Vec<_>=radices.iter().map(|radix| {
+            let digit=code%radix;code/=radix;
+            match digit {0=>Truth::No,1=>Truth::Yes,_=>Truth::Unknown}
+        }).collect();
+        let (a,b)=(old.eval(&atoms,&values),new.eval(&atoms,&values));
+        // Runtime admits only Readable, never Unknown. Preserve that exact cut.
+        old_implies_new &= a!=Truth::Yes || b==Truth::Yes;
+        new_implies_old &= b!=Truth::Yes || a==Truth::Yes;
     }
-    match (old_implies_new,new_implies_old) { (true,true) => Change::Same, (false,true) => Change::Tightens, (true,false) => Change::Loosens, _ => Change::Unknown }
+    match (old_implies_new,new_implies_old) { (true,true)=>Change::Same,(false,true)=>Change::Tightens,(true,false)=>Change::Loosens,_=>Change::Unknown }
 }
-fn equality(a: String,b: String, negated: bool) -> Formula {
+fn equality(a: String,b: String, negated: bool, maybe: bool) -> Formula {
     let name = if a <= b { format!("{a}={b}") } else { format!("{b}={a}") };
-    let atom = Formula::Atom(name);
+    let atom = if maybe { Formula::Maybe(name) } else { Formula::Atom(name) };
     if negated { Formula::Not(Box::new(atom)) } else { atom }
 }
 pub(super) fn rule(value: &RuleExpr) -> Formula {
     match value {
         RuleExpr::Allow | RuleExpr::Public { .. } => Formula::Yes, RuleExpr::Deny => Formula::No,
-        RuleExpr::Eq(a,b) | RuleExpr::Ne(a,b) => equality(serde_json::to_string(a).unwrap(),serde_json::to_string(b).unwrap(),matches!(value,RuleExpr::Ne(..))),
+        RuleExpr::Eq(a,b) | RuleExpr::Ne(a,b) => equality(serde_json::to_string(a).unwrap(),serde_json::to_string(b).unwrap(),matches!(value,RuleExpr::Ne(..)), a.references().count()>0 || b.references().count()>0),
         RuleExpr::Not(a) => Formula::Not(Box::new(rule(a))), RuleExpr::And(a) => Formula::And(a.iter().map(rule).collect()), RuleExpr::Or(a) => Formula::Or(a.iter().map(rule).collect()),
-        _ => Formula::Atom(serde_json::to_string(value).unwrap()),
+        RuleExpr::Compare(_,a,b) if a.references().count()==0 && b.references().count()==0 => Formula::Atom(serde_json::to_string(value).unwrap()),
+        _ => Formula::Maybe(serde_json::to_string(value).unwrap()),
     }
 }
 /// Compare only leading unconditional argument/viewer/now requirements.
@@ -56,7 +86,7 @@ pub(super) fn require(value: &Expr, args: &BTreeSet<String>) -> Option<Formula> 
             if op == "and" { Formula::And(parts) } else { Formula::Or(parts) }
         },
         Expr::Binary { op,left,right,.. } if scalar(left,args) && scalar(right,args) => {
-            if matches!(op.as_str(),"=" | "!=") { equality(expression(left),expression(right),op == "!=") }
+            if matches!(op.as_str(),"=" | "!=") { equality(expression(left),expression(right),op == "!=",false) }
             else { Formula::Atom(expression(value)) }
         },
         Expr::Name { .. } if scalar(value,args) => Formula::Atom(expression(value)),
@@ -76,5 +106,20 @@ mod tests {
         assert_eq!(compare(&Formula::Yes,&Formula::Or(vec![a.clone(),Formula::Not(Box::new(a))])),Change::Same);
         let many=Formula::And((0..13).map(|i|Formula::Atom(i.to_string())).collect());
         assert_eq!(compare(&many,&Formula::Yes),Change::Unknown);
+    }
+}
+
+#[cfg(test)]
+mod unknown_tests {
+    use super::*;
+    #[test]
+    fn reference_unknown_is_not_a_boolean_tautology() {
+        let a=Formula::Maybe("reference".into());
+        let excluded_middle=Formula::Or(vec![a.clone(),Formula::Not(Box::new(a.clone()))]);
+        assert_eq!(compare(&excluded_middle,&Formula::Yes),Change::Loosens);
+        assert_eq!(compare(&Formula::Yes,&excluded_middle),Change::Tightens);
+        assert_eq!(compare(&a,&Formula::And(vec![a.clone(),Formula::Atom("role".into())])),Change::Tightens);
+        let too_many=Formula::And((0..8).map(|i|Formula::Maybe(i.to_string())).collect());
+        assert_eq!(compare(&too_many,&Formula::Yes),Change::Unknown);
     }
 }

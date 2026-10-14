@@ -38,7 +38,7 @@ Membership: no horizon, the conversation's own group and messages' audience prov
 Pending composition: usePendingItems/usePendingState; [reference](CLIENT-AND-OPERATIONS.md).
 
 ## Read boundaries
-`query(op,args)` settles ready/denied within 30 seconds including queued work. Dependent writes settle or have complete device predictions; unrelated writes pass. Offline answers/predictions remain explicit; unavailable reads refuse E_OFFLINE. After four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; unavailable held reads: non-retryable E_QUERY_HELD.
+`query(op,args)` settles ready/denied within 30 seconds including queued work. Dependent writes settle or have complete device predictions; unrelated writes pass. Offline unavailable reads give immediate `E_OFFLINE`. After four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; unavailable held reads: non-retryable E_QUERY_HELD.
 
 ## Password React and Expo
 

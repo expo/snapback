@@ -117,3 +117,35 @@ test('changed nested/local requirements and changed dependency definitions stay 
   writeFileSync(schema,changed);
   assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*implication unproved.*notes.update/);
 });
+
+test('missing reference Unknown cannot suppress a loosening warning as Boolean equivalence', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=`use identity guests
+table parents:
+  owner: principal
+  public
+  online only
+table notes:
+  parent: parents
+  body: text 1..80
+  public
+  insert <- allow
+  update <- .parent.owner = viewer or .parent.owner != viewer
+  online only
+mutation add(parent: parents):
+  return insert notes {parent, body: 'before'}
+mutation edit(note: notes):
+  update notes[note] {body: 'after'}
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);
+  const added=await host.post('/m/add',{parent:'missing'});
+  assert.equal(added.state,'sent',JSON.stringify(added));
+  assert.equal((await host.post('/m/edit',{note:added.result.id})).why.code,'E_RULE');
+  writeFileSync(schema,source.replace('update <- .parent.owner = viewer or .parent.owner != viewer','update <- allow'));
+  const preview=run('deploy',deployment,'--check').stdout;
+  assert.match(preview,/WARNING release 2 loosens notes.update; old:.*parents.*new: allow/);
+  assert.doesNotMatch(preview,/keeps equivalent notes.update/);
+  run('deploy',deployment);
+  assert.equal((await host.post('/m/edit',{note:added.result.id})).state,'sent');
+});
