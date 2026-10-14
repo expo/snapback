@@ -40,13 +40,17 @@ fn page_pins(table: &Table, read: &ReadExpr) -> PagePins {
 }
 
 fn page_pin(table: &Table, expression: &Expr) -> bool {
-    let Expr::Binary { op, left, right, .. } = expression else { return false };
-    if op != "=" { return false; }
-    let (column, value) = if let Some(column) = column_of(left) { (column, right.as_ref()) }
-        else if let Some(column) = column_of(right) { (column, left.as_ref()) }
-        else { return false };
-    column != "id" && model_independent(value) && table.cols.iter().find(|field| field.name == column)
-        .is_some_and(|field| !field.nullable || matches!(value, Expr::Name { name, .. } if name == "viewer"))
+    if let Expr::Binary { op, left, right, .. } = expression && op == "=" {
+        let (column, value) = if let Some(column) = column_of(left) { (column, right.as_ref()) }
+            else if let Some(column) = column_of(right) { (column, left.as_ref()) }
+            else { return false };
+        return column != "id" && model_independent(value) && table.cols.iter().find(|field| field.name == column)
+            .is_some_and(|field| !field.nullable || matches!(value, Expr::Name { name, .. } if name == "viewer"));
+    }
+    let value = if let Expr::Unary { op, value, .. } = expression && op == "not" { value.as_ref() } else { expression };
+    let Some(column) = column_of(value) else { return false };
+    column != "id" && table.cols.iter().find(|field| field.name == column)
+        .is_some_and(|field| !field.nullable && matches!(field.kind, Kind::Bool))
 }
 
 /// The executable predicate classifier currently knows literal/viewer point
@@ -97,7 +101,9 @@ pub(super) fn membership_physical_issue(module: &LeanModule, read: &ReadExpr) ->
     let mut parties = Vec::new();
     let mut memberships = Vec::new();
     for leaf in leaves {
-        if let Some(column) = party_column(target, leaf) { parties.push(column.to_owned()); }
+        if let Some(column) = party_column(target, leaf) {
+            if !parties.iter().any(|party| party == column) { parties.push(column.to_owned()); }
+        }
         else if let Some(membership) = membership_physical(module, target, leaf) { memberships.push(membership); }
         else { return None; }
     }

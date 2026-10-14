@@ -992,6 +992,10 @@ fn equality_filter_index_rewrite(catalog: &Catalog, table: &snapback4_core::sche
     while table.indexes.contains_key(&name) {
         name = format!("by{stem}{suffix}"); suffix += 1;
     }
+    let authored = catalog.tables.get(&scan.table)?;
+    let candidate = crate::ast::IndexDecl { name: name.clone(), columns: leading.to_vec(), unique: false,
+        refusal: None, words: None, computed: Default::default(), site: declaration_site.clone() };
+    if !key_bound::plain_index_fits(authored, &candidate, &name) { return None; }
     // Locate the authored read by its source-map span. A declaration can use
     // the same old index more than once; replacing a text occurrence can edit
     // an earlier, unrelated read and print a query that does not compile.

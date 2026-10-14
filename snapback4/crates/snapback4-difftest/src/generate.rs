@@ -636,6 +636,49 @@ pub fn page_membership_shared_filter_product(seed: u64) -> Case {
     case
 }
 
+/// A required bare Boolean is the common equality prefix of every residual
+/// alternative, in the same way as an explicit `flag = true` equality.
+// @ref LLP 3000.036.001#18 — shared Boolean pins keep positive product comparisons modeled.
+pub fn page_membership_shared_boolean_product(seed: u64) -> Case {
+    let mut case = base(seed);
+    case.program.tables[0].rule = Rule::Witness;
+    case.program.tables[0].effects = None;
+    case.program.tables[0].residency = Residency::Online;
+    let access = case.program.tables.iter_mut().find(|table| table.name == "access").unwrap();
+    access.rule = Rule::Allow; access.effects = None; access.residency = Residency::Public;
+    access.expire = None; access.not_before = None;
+    case.program.body = Body::Read { kind: Read::Page, take: 1, descending: seed % 2 == 0,
+        filter: false, owner: false, project: None };
+    case.program.domain = Some(".flag".into());
+    case.program.residual = Some("(.score > 0 or .score > 10)".into());
+    case.program.order = Some(vec!["label".into(), "score".into()]);
+    case.program.named_page_order = None; case.program.prelude.clear(); case.program.lets.clear(); case.steps.clear();
+    case
+}
+
+/// Repeated party leaves are one physical audience prefix. Three filter
+/// alternatives therefore use seven descriptors, not ten.
+// @ref LLP 3000.036.001#18 — model descriptor accounting deduplicates party columns like native PAGE.
+pub fn page_membership_repeated_party_product(seed: u64) -> Case {
+    let mut case = base(seed);
+    case.program.tables[0].rule = Rule::RepeatedPartyMembership;
+    case.program.tables[0].effects = None;
+    case.program.tables[0].residency = Residency::Online;
+    case.program.tables[0].columns.push(column("region", Type::Text));
+    let access = case.program.tables.iter_mut().find(|table| table.name == "access").unwrap();
+    access.rule = Rule::Allow; access.effects = None; access.residency = Residency::Public;
+    access.expire = None; access.not_before = None;
+    case.program.body = Body::Read { kind: Read::Page, take: 1, descending: seed % 2 == 0,
+        filter: false, owner: false, project: None };
+    case.program.domain = Some("(.region = 'north' or .region = 'south' or .region = 'west')".into());
+    case.program.residual = None; case.program.order = Some(vec!["label".into(), "score".into()]);
+    case.program.named_page_order = None; case.program.prelude.clear(); case.program.lets.clear(); case.steps.clear();
+    for (table, row) in &mut case.rows { if table == "items" {
+        row["region"] = json!(["north", "south", "west", "other"][(seed as usize) % 4]);
+    }}
+    case
+}
+
 /// Vacancy may use the target table's always-present required unique id even
 /// though the explicit column/unique lists omit that intrinsic point.
 // @ref LLP 3000.036.001#18 — implicit id is a required exact vacancy point.

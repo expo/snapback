@@ -315,6 +315,15 @@ fn equality_filter_note_prints_one_matching_index_and_query() {
     let b = compile(&[("schema.q".into(), repaired)]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     assert!(!b.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"), "{:?}", b.notes);
+
+    // The old order still fits, but adding the authorization prefix would
+    // exceed the portable encoded-key ceiling. Do not print an edit that the
+    // compiler itself rejects.
+    let wide = source.replace("table watches:\n  crew: principal\n  starts: time", "table watches:\n  crew: principal\n  starts: text <=430");
+    let b = compile(&[("schema.q".into(), wide)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let note = b.notes.iter().find(|note| note.code == "N_NEVER_COMPLETE").unwrap();
+    assert!(!note.rewrite.contains("by byCrewStarts: crew, starts, id"), "{note}");
 }
 
 #[test]

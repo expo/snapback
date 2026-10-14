@@ -84,6 +84,8 @@ pub enum Rule {
     Vacancy,
     /// The same vacancy predicate through the target's implicit unique id.
     VacancyImplicitId,
+    /// A duplicated party leaf beside membership, for model descriptor accounting.
+    RepeatedPartyMembership,
 }
 impl Rule {
     fn source(&self) -> &'static str {
@@ -112,6 +114,7 @@ impl Rule {
             Self::FixedPerRow => "((exists roles[.bucket, viewer] and exists seats[.bucket, viewer]) and exists permits[viewer]) and exists access[.id, .bucket, viewer]",
             Self::Vacancy => "not exists access[item = .id] or .owner = viewer",
             Self::VacancyImplicitId => "not exists items[id = .id] or .owner = viewer",
+            Self::RepeatedPartyMembership => ".owner = viewer or .owner = viewer or exists access[.bucket, viewer]",
         }
     }
     /// Whether the rule names the update's two images (`update (old, next)`).

@@ -804,6 +804,8 @@ fn page5_review_boundaries_agree_in_generated_native_and_lean_cases() {
         for (case, complete, model_boundary) in [
             (snapback4_difftest::generate::page_membership_filter_overflow(seed), false, Some("page-membership-filter-product")),
             (snapback4_difftest::generate::page_membership_shared_filter_product(seed), true, None),
+            (snapback4_difftest::generate::page_membership_shared_boolean_product(seed), true, None),
+            (snapback4_difftest::generate::page_membership_repeated_party_product(seed), true, None),
             (snapback4_difftest::generate::page5_implicit_id_vacancy(seed), true, None),
         ] {
             let source = case.program.source();
