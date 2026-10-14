@@ -2,10 +2,11 @@
 use serde_json::{Value, json};
 use super::{Options, pretty};
 
+const README_PROOFS: &str = "\n## Frontend and day-two proofs\n\nAfter `npm run build` (web) or `npm run build:web` (Expo), run\n`npm run frontend:proof` to prove sign-in and the starter form in Chromium.\nAfter replacing the screen, add your business assertions to scripts/frontend-proof.mjs.\n`npm run day2:proof -- versions/v1.q versions/v2.q` proves saved-source deploy,\nrollback and compatible forward without replacing your working schema.\nSet `PORT_LO` and `PORT_HI` at run time to confine proof servers and launchers;\nunset means allocated proof ports and the interactive starter defaults.\nSet `CHROME=/path/to/chromium` or install Playwright's Chromium (`npx playwright-core install chromium`).\n";
+/// Only the exact generated appendix is ignored for historical byte recognition.
+pub(super) fn without_readme(text: &str) -> &str { text.strip_suffix(README_PROOFS).unwrap_or(text) }
 pub(super) fn readme(mut text: String) -> String {
-    if !text.contains("`npm run frontend:proof`") {
-        text.push_str("\n## Frontend and day-two proofs\n\nAfter `npm run build` (web) or `npm run build:web` (Expo), run\n`npm run frontend:proof` to prove sign-in and the starter form in Chromium.\nAfter replacing the screen, add your business assertions to scripts/frontend-proof.mjs.\n`npm run day2:proof -- versions/v1.q versions/v2.q` proves saved-source deploy,\nrollback and compatible forward without replacing your working schema.\nSet `PORT_LO` and `PORT_HI` at run time to confine proof servers and launchers;\nunset means allocated proof ports and the interactive starter defaults.\nSet `CHROME=/path/to/chromium` or install Playwright's Chromium (`npx playwright-core install chromium`).\n");
-    }
+    if !text.contains("`npm run frontend:proof`") { text.push_str(README_PROOFS); }
     text
 }
 

@@ -95395,3 +95395,14 @@ is one row plus two cells. Audit keeps actual restoration counters and distingui
 a truly empty definition from zero standalone cells covered by a dormant row.
 The widening note says rows that later use those values. LLP 3000.000.000 §11
 and the deploy card document the disjoint counts. Validation/review follows.
+
+FIX28 review round 1: Muse found code sound but required final evidence; fresh
+Codex found historical README recognition lost its old exact bytes and Rust
+history lost accepted prerelease suffixes. Recognize old READMEs by ignoring
+only the exact generated proof appendix (preserve edits), and distinguish
+proof-only advice from offline changes. Align Rust/JS prerelease ordering,
+including dotted/numeric suffixes without floating-point precision loss. Real
+check regressions verify each stable history entry once after prereleases;
+web/Expo regressions verify old README adaptation and edited-file preservation.
+The first post-fix qualifier was interrupted through its owned tool session
+before completing, so it supplies no successful qualification evidence.

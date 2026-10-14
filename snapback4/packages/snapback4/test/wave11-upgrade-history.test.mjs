@@ -81,8 +81,20 @@ test('runtime history remains visible when the first check refuses device prefli
 
 
 test('downgrade ordering includes prereleases and numeric prerelease identifiers', () => {
-  for (const [older, newer] of [['0.4.26', '0.4.28'], ['0.4.28-rc.1', '0.4.28'], ['0.4.28-rc.2', '0.4.28-rc.10'], ['0.4.28-1', '0.4.28-a']]) {
+  for (const [older, newer] of [['0.4.26', '0.4.28'], ['0.4.28-rc.1', '0.4.28'], ['0.4.28-rc.2', '0.4.28-rc.10'], ['0.4.28-1', '0.4.28-a'], ['0.4.28-9007199254740992', '0.4.28-9007199254740993']]) {
     assert.ok(compareVersions(older, newer) < 0); assert.ok(compareVersions(newer, older) > 0);
   }
   assert.equal(compareVersions('0.4.28', '0.4.28'), 0);
+});
+
+test('real check shows the stable release after a prerelease acknowledgment exactly once', t => {
+  const history = readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8');
+  for (const previous of ['0.4.28-rc', '0.4.28-rc.1', '0.4.28-rc.9007199254740993']) {
+    const {dir,schema,run} = fixture(t); writeFileSync(schema,v1); mkdirSync(join(dir,'.snapback4'));
+    writeFileSync(join(dir,'.snapback4/runtime-version.json'),JSON.stringify({version:previous}));
+    const result = run('check','--json'); assert.ok(result.stderr.includes(runtimeChanges(history,previous,installed)),result.stderr);
+    assert.match(result.stderr,/## 0\.4\.28/); assert.equal(JSON.parse(result.stdout).ok,true);
+    assert.doesNotMatch(run('check').stdout,/runtime changes:/);
+    assert.equal(JSON.parse(readFileSync(join(dir,'.snapback4/runtime-version.json'))).version,installed);
+  }
 });

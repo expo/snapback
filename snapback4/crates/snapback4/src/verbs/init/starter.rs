@@ -94,7 +94,7 @@ pub(super) fn without_offline(text: &str) -> String {
         ("started from the Snapback 4 Expo starter. Development and production builds\nopen the native device and work offline; Expo Go uses the online client; web\nuses the wasm device.\n",
             "started from the Snapback 4 Expo starter. Development and production builds\nopen the native device; Expo Go uses the online client; web uses the wasm\ndevice.\n\nOFFLINE\n"),
     ];
-    let mut text = text.to_owned();
+    let mut text = super::proof::without_readme(text).to_owned();
     for (old, new) in legacy { text = text.replacen(old, new, 1); }
     text = text.replace("web uses the principal write journal (no synced tables)", "web uses the wasm\ndevice")
         .replace("or the principal write journal (web, no synced tables)", "or `webDevice()` (web)")

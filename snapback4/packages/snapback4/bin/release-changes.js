@@ -51,7 +51,7 @@ export function compareVersions(a, b) {
     if (aa[i] === ba[i]) continue;
     if (aa[i] === undefined || ba[i] === undefined) return aa[i] === undefined ? -1 : 1;
     const an = /^\d+$/.test(aa[i]), bn = /^\d+$/.test(ba[i]);
-    if (an && bn) return Number(aa[i]) - Number(ba[i]);
+    if (an && bn) { const av = aa[i].replace(/^0+/, ''), bv = ba[i].replace(/^0+/, ''); if (av === bv) continue; return av.length - bv.length || (av < bv ? -1 : 1); }
     if (an !== bn) return an ? -1 : 1;
     return aa[i] < ba[i] ? -1 : 1;
   }
