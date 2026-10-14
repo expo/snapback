@@ -274,5 +274,5 @@ pub fn persona_principal(name: &str) -> String {
 }
 
 /// The lines `.gitignore` needs for a project.
-pub const GENERATED_PACKAGE: &str = "{\"type\":\"module\"}\n";
+pub const GENERATED_PACKAGE: &str = concat!("{\"type\":\"module\",\"snapback4Version\":\"", env!("CARGO_PKG_VERSION"), "\"}\n");
 pub const GITIGNORE: &str = "# snapback4\n.snapback4/\nsnapback/generated/\n";

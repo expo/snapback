@@ -95115,3 +95115,46 @@ that control now explicitly selects byId to exercise the original speculative
 scan. Every assertion remains, and the full repaired authority file passes
 13/13. The qualified ordinary count is 7,395. Both full-count models pass
 81/81 and fixtures 9/9. No cancellation/TODO or runtime/client relaxation.
+
+
+## 2026-10-14 — NARR: release facts and runtime upgrade history (wave 11)
+
+NARR lands directional value compatibility (shared with activation), lexical
+module-qualified job/schedule comparisons, separate dormant row/cell/logical
+index-entry receipts and samples, and owned serve.lock cleanup. Rollback
+preview names absent operations/current rule clauses; the deploy card covers
+explicit query guards, ignored columns and release-spanning frontend types.
+
+The packaged changelog generates the changes card through the compiler
+version, backfills 0.4.26 terminal run settlement and 0.4.27 changes, and feeds
+upgrade/first check without inventing compiler snapshots. Previous versions
+come from real installed/lock/generated metadata; ambiguous resolutions are
+unavailable. A pending run warns after ten continuous offline seconds in dev,
+without cancellation, custody changes or a Hermes import.meta requirement.
+Stamp diagnostics distinguish absent identity from an older stamped engine.
+P9 is small advice for the observed cursorless public reference subdivision;
+PAGE4 owns planner/runtime reach, EX6 owns Exact rebuild implementation, and
+DX3 owns other client recipes and inherited packaged-text cleanup.
+
+Both independent common-rule reviews were NOT READY in round 1; regressions
+cover the findings. Both mark f70dc90f4d READY in round 2; artifacts are under
+llp/reviews/3000.000.000-narr-rN.*. Affected Rust/client/adoption/rollback suites,
+Expo Babel, Snapback 4 guide/docs budget, wasm and reference checks pass.
+Required root inventory/guide attempts report missing Snapback 1 generated
+outputs/root dependencies, outside this fence. WORKSTREAM-REPORT.md records
+commands/results and integration ownership. No push/publication; integrator
+owns 0.4.28's version bump and the other lanes' changelog entries.
+
+NARR final confirmation: 3b770ea426 uses the full column declaration in generic
+widening advice because the type display omits separate text minimum/format
+constraints. Both focused round-3 reviews mark it READY, and the real CLI
+minimum-length regression passes. Extra review controls prove history still
+prints when device preflight refuses, and silence P9 for pinned audiences and
+cursor traversals. No classifier, validation or runtime change follows round 2.
+
+NARR grouped-source follow-up: 031adb3be4 derives job declaration boundaries
+from full-file lexer indentation/delimiter depth. Valid multiline signatures
+and column-one object fields no longer look like declaration endings. The
+stronger module/job regression and all five narration probes pass. Both
+focused round-4 reviews are READY, retained under the same NARR review prefix.
+No Quarry parser, IR, classifier, storage, runtime or protocol changed.

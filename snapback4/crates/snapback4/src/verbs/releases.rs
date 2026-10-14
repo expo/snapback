@@ -75,33 +75,15 @@ fn check_change(
     previous: Option<u64>,
     bound: &snapback4_lang::Bound,
     options: &Options,
+    target_release: Option<u64>,
 ) -> Result<(), String> {
-    if let Some(n) = previous {
+    if !options.flags.contains_key("check") && let Some(n) = previous {
         let old = bound_at(dir.join("releases").join(n.to_string()))?;
-        let mut hazards=std::collections::BTreeSet::new();
-        for step in snapback4_core::successor::classify(&bound.schema,&old.schema) {
-            if step.change==snapback4_core::successor::Change::Narrowing && step.path.contains(".columns.") {
-                hazards.insert(step.path.replace("tables.","").replace(".columns.","."));
-            }
-        }
-        for (name,current) in &old.schema.tables {
-            let Some(candidate)=bound.schema.table(name) else {continue};
-            for constraint in &current.constraints {
-                if let snapback4_core::schema::Constraint::Text{field,min,format}=constraint {
-                    if !candidate.columns.contains_key(field) {continue;}
-                    let wanted=candidate.constraints.iter().find_map(|c|match c {
-                        snapback4_core::schema::Constraint::Text{field:f,min,format} if f==field =>Some((*min,*format)),_=>None,
-                    }).unwrap_or((0,None));
-                    if wanted.0<*min || format.is_some() && wanted.1!=*format {hazards.insert(format!("{name}.{field}"));}
-                }
-            }
-        }
-        let rows = snapback4_core::Store::open_read_only(&dir.join("store.sqlite")).map_err(|e|e.to_string())?;
-        for path in hazards {
-            let table=path.split('.').next().unwrap();
-            let count: u64=rows.conn().query_row("SELECT COUNT(*) FROM r WHERE t=(SELECT num FROM _catalog WHERE name=?1)",[table],|r|r.get::<_,i64>(0).map(|n|n as u64)).map_err(|e|e.to_string())?;
-            if count == 0 {continue;}
-            eprintln!("WARNING rollback compatibility: {path} ({count} existing rows) admits values the other release refuses; those rows become dormant when switching back");
+        let store = snapback4_core::Store::open_read_only(&dir.join("store.sqlite")).map_err(|e| e.to_string())?;
+        let target_label = target_release.map(|n| format!("release {n}")).unwrap_or_else(|| "the new release".into());
+        let lines = super::release_narration::compatibility(&store, &old.schema, &bound.schema, n, &target_label, target_release.is_none())?;
+        for line in lines {
+            eprintln!("{line}");
         }
     }
     if options.flags.contains_key("allow-destructive") {
@@ -243,6 +225,7 @@ pub fn deploy(options: &Options) -> i32 {
             let _command = command_lock(&dir)?;
             let checking=options.flags.contains_key("check");
             let _deployment = if checking {None} else {target(&dir)?};
+            if let Some(owner) = &_deployment { owner.report_reclaim(options.flags.contains_key("verbose")); }
             let project = project_or_exit();
             let bound = compile_or_exit(&project, options.json);
             std::fs::create_dir_all(dir.join("releases")).map_err(|e| e.to_string())?;
@@ -256,7 +239,7 @@ pub fn deploy(options: &Options) -> i32 {
                 held["release"].as_u64()
             };
             let revision = held["revision"].as_u64().unwrap_or(0);
-            check_change(&dir, previous, &bound, options)?;
+            check_change(&dir, previous, &bound, options, None)?;
             let sources = project.sources().map_err(|e| e.to_string())?;
             let releases = dir.join("releases").canonicalize().map_err(|e| e.to_string())?;
             let stage = releases.join(format!(".stage-{}", std::process::id()));
@@ -359,6 +342,7 @@ pub fn rollback(options: &Options) -> i32 {
             let dir = directory(options)?;
             let _command = command_lock(&dir)?;
             let _deployment = target(&dir)?;
+            if let Some(owner) = &_deployment { owner.report_reclaim(options.flags.contains_key("verbose")); }
             let held = status(&dir, _deployment.as_ref(), 0, None, None)?;
             let active = if let Some(owner) = _deployment.as_ref() {
                 current(&dir, owner)?
@@ -383,7 +367,7 @@ pub fn rollback(options: &Options) -> i32 {
                 .ok_or("nothing to roll back to")?;
             selectable(&dir, previous)?;
             let bound = bound_at(dir.join("releases").join(previous.to_string()))?;
-            check_change(&dir, Some(active), &bound, options)?;
+            check_change(&dir, Some(active), &bound, options, Some(previous))?;
             if options.flags.contains_key("check") {
                 return super::release_preview::preview(&dir.join("store.sqlite"),dir.join("releases").join(previous.to_string()),previous,options);
             }
@@ -501,6 +485,7 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
     let dir = canonical_directory(options)?;
     crate::host_limits::initialize();
     let owner = crate::store_owner::host(&dir.join("store.sqlite"))?;
+    owner.report_reclaim(options.flags.contains_key("verbose"));
     let current = current(&dir, &owner)?.ok_or("no current release; deploy first")?;
     let release = Project {
         root: dir.join("releases").join(current.to_string())
@@ -648,7 +633,7 @@ mod tests {
 
 fn receipt(release:u64,generation:u64,report:&snapback4_core::store::adoption_report::AdoptionReport,options:&Options){
     if options.json {println!("{}",serde_json::json!({"release":release,"generation":generation,"adoption":report.compact(),"details":report.summary()}));}
-    else {println!("release {release} is current as generation {generation}; {}; a running serve adopts the release",report.compact());if options.flags.contains_key("verbose"){println!("{}",report.summary());}}
+    else {println!("release {release} is current as generation {generation}; {}",report.compact());if options.flags.contains_key("verbose"){println!("{}",report.summary());}}
 }
 fn latest(dir:&Path)->Result<u64,String>{
     std::fs::read_dir(dir.join("releases")).map_err(|e|e.to_string())?.filter_map(Result::ok)

@@ -9,6 +9,7 @@ pub(crate) struct Owner {
     identity: (u64, u64),
     path: PathBuf,
     record: Option<File>,
+    reclaimed: Option<String>,
     pub(crate) token_authority: Option<crate::serve::token::Authority>,
 }
 
@@ -90,18 +91,19 @@ fn acquire(store: &Path, shared: bool, wait: Duration) -> Result<Owner, String> 
         let database = snapback4_core::private_fs::database_metadata(&path).map_err(|e| failure(&path, e))?
             .ok_or_else(|| failure(&path, "database disappeared during ownership acquisition"))?;
         if before.as_ref().is_some_and(|old| !same_file(old, &database)) { continue; }
+        let mut reclaimed = None;
         let record = if shared { None } else {
             let record_path = path.with_file_name("serve.lock");
             if let Some(pid)=owner_pid(&path) {
                 if unsafe {libc::kill(pid as libc::pid_t,0)} == -1 && std::io::Error::last_os_error().raw_os_error()==Some(libc::ESRCH) {
-                    eprintln!("reclaimed stale serve.lock: dead PID {pid}; URL {}; directory {}",address(&path).unwrap_or_else(||"unknown".into()),path.parent().unwrap().display());
+                    reclaimed = Some(format!("reclaimed stale serve.lock: dead PID {pid}; directory {}", path.parent().unwrap().display()));
                 }
             }
             let file = regular(&record_path, true, &path)?;
             file.set_len(0).map_err(|e| failure(&record_path, e))?;
             Some(file)
         };
-        return Ok(Owner { _sidecar: std::sync::Arc::new(sidecar), identity: (database.dev(), database.ino()), path, record, token_authority: None });
+        return Ok(Owner { _sidecar: std::sync::Arc::new(sidecar), identity: (database.dev(), database.ino()), path, record, reclaimed, token_authority: None });
     }
     Err(failure(store, "database path kept changing during ownership acquisition"))
 }
@@ -154,6 +156,21 @@ fn owner_pid(_: &Path) -> Option<u32> { None }
 pub(crate) fn address(_: &Path) -> Option<String> { None }
 
 impl Owner {
+    pub(crate) fn report_reclaim(&self, verbose: bool) {
+        if verbose && let Some(note) = &self.reclaimed { eprintln!("note: {note}"); }
+    }
+
+    // @ref LLP 3000.000.000#11-wave-11-factual-release-narration — unlink only our address inode; the ownership sidecar remains named.
+    pub(crate) fn clear_address(&self) {
+        #[cfg(unix)]
+        if let Some(file) = &self.record {
+            let path = self.path.with_file_name("serve.lock");
+            if let (Ok(held), Ok(named)) = (file.metadata(), fs::symlink_metadata(&path))
+                && same_file(&held, &named) {
+                let _ = fs::remove_file(path);
+            }
+        }
+    }
     pub(crate) fn worker_lock(&self) -> std::sync::Arc<File> { self._sidecar.clone() }
 
     pub(crate) fn path(&self) -> Result<&Path, RuntimeError> {
@@ -181,6 +198,8 @@ impl Owner {
         Engine::new_at(store, bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone()), now)
     }
 }
+
+impl Drop for Owner { fn drop(&mut self) { self.clear_address(); } }
 
 pub(crate) fn announce(owner: &mut Owner, address: std::net::SocketAddr) -> Result<(), String> {
     // @ref LLP 3000.019#3.4 — live token work runs through the owner, with proof of local store access.

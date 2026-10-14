@@ -54,19 +54,23 @@ pub(super) fn preview(
     let candidate_schema=bound.schema.clone();
     let candidate_programs:std::collections::BTreeMap<_,_>=bound.programs.iter().map(|p|(p.program.name.clone(),p.program.clone())).collect();
     let mut hazards=Vec::new();
+    let mut notes=Vec::new();
     let prior:Option<(String,String)>=store.conn().query_row("SELECT schema,programs FROM _generations WHERE generation=(SELECT CAST(value AS INTEGER) FROM _meta WHERE key='generation')",[],|r|Ok((r.get(0)?,r.get(1)?))).ok();
     if let Some((schema,programs))=prior {
         let prior:snapback4_core::Schema=serde_json::from_str(&schema).map_err(|e|e.to_string())?;
         steps=snapback4_core::successor::classify(&prior,&candidate_schema);
         let programs:std::collections::BTreeMap<String,snapback4_core::ir::Program>=serde_json::from_str(&programs).map_err(|e|e.to_string())?;
-        for schedule in &prior.schedules {
-            if !candidate_schema.schedules.contains(schedule) || programs.get(&schedule.target)!=candidate_programs.get(&schedule.target) {
-                hazards.push(format!("scheduled job {}: target lacks this schedule or its logic",schedule.target));
-            }
+        let target_label = format!("release {release}");
+        let compatibility = super::release_narration::compatibility(&store, &prior, &candidate_schema, held["release"].as_u64().unwrap_or(0), &target_label, options.flags.contains_key("deploy-direction"))?;
+        for line in compatibility {
+            if let Some(warning) = line.strip_prefix("WARNING ") { hazards.push(warning.to_owned()); }
+            else { notes.push(line.trim_start_matches("note: ").to_owned()); }
         }
+        let (behavior_warnings, behavior_notes) = super::release_narration::behavior(store_path, &prior, &candidate_schema, &programs, &candidate_programs, &project, held["release"].as_u64(), &target_label)?;
+        hazards.extend(behavior_warnings); notes.extend(behavior_notes);
         for name in prior.tables.keys().filter(|name|!candidate_schema.tables.contains_key(*name) && prior.maintain_for(name).is_none() && prior.tables[*name].ephemeral.is_none()) {
             let count:u64=store.conn().query_row("SELECT COUNT(*) FROM r WHERE t=(SELECT num FROM _catalog WHERE name=?1)",[name],|r|r.get::<_,i64>(0).map(|n|n as u64)).map_err(|e|e.to_string())?;
-            if count>0 {hazards.push(format!("table {name} (holds or other safeguards): {count} rows become dormant; target lacks their safeguards"));}
+            if count>0 {hazards.push(format!("table {name}: {count} rows become dormant; {target_label} lacks this table's behavior"));}
         }
     }
     let mut engine = snapback4_core::Engine::new_release_prepared(
@@ -102,23 +106,19 @@ pub(super) fn preview(
         }
         let path=step.path.strip_prefix("tables.").unwrap_or(&step.path).replace(".columns.",".");
         let count=planned["items"].as_array().into_iter().flatten().find(|i|i["path"].as_str()==Some(path.as_str())).and_then(|i|i["rows"].as_u64()).unwrap_or(0);
-        step.message=step.message.replace("its rows are lost",&format!("its rows become dormant ({count} rows; restored on forward)")).replace("its values are lost",&format!("its values become dormant ({count} rows; restored on forward)"));
+        let unit = if step.path.contains(".columns.") { "cells" } else if step.path.contains(".indexes.") { "entries" } else { "rows" };
+        step.message=step.message.replace("its rows are lost",&format!("its {unit} become dormant ({count} {unit}; restored on forward)")).replace("its values are lost",&format!("its cells become dormant ({count} cells; restored on forward)"));
     }
     if options.json {
-        println!("{}",serde_json::to_string_pretty(&serde_json::json!({"preview":true,"hazards":hazards,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report.summary()})).unwrap());
+        println!("{}",serde_json::to_string_pretty(&serde_json::json!({"preview":true,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report.summary()})).unwrap());
     } else {
-        let rows: u64 = planned["items"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter(|i| i["kind"] == "rows")
-            .filter_map(|i| i["rows"].as_u64())
-            .sum();
-        println!("preview: release {release} would be current as generation {}; {rows} dormant narrowed rows; live release unchanged",engine.generation());
+        let items: Vec<snapback4_core::store::DormantItem> = serde_json::from_value(planned["items"].clone()).map_err(|e| e.to_string())?;
+        println!("preview: release {release} would be current as generation {}; {}; live release unchanged", engine.generation(), snapback4_core::store::adoption_report::AdoptionReport::dormant(&items));
         for step in steps {println!("  {}: {}",step.path,step.message);}
         for hazard in hazards {println!("  WARNING {hazard}");}
-        for item in planned["items"].as_array().into_iter().flatten() {
-            println!("  {}: {} rows dormant (restored on forward); sample ids {}", item["key"], item["rows"],item["sample_ids"]);
+        for note in notes {println!("  note: {note}");}
+        for item in &items {
+            println!("  {}: {} {} dormant (restored on compatible forward); sample ids [{}]", item.key, item.rows, item.unit(), item.sample_ids.join(", "));
         }
         if options.flags.contains_key("verbose") {
             println!("{}", engine.store().adoption_report.summary());

@@ -760,3 +760,26 @@ fn ephemeral_prediction_notes_never_teach_pending_writes() {
     assert!(lines.contains("queues until the server answers"), "{lines}");
     assert!(!lines.contains("fails offline"), "{lines}");
 }
+
+#[test]
+fn narr_filtered_unbounded_device_page_names_empty_partition_coverage_without_replanning() {
+    let source = "table sailings:\n  public\n  sync public\ntable notices:\n  sailing: sailings\n  at: time default now\n  immutable sailing, at\n  public\n  sync public\nquery noticesFor(sailing: sailings):\n  return notices where .sailing = sailing first 100 by .at\n";
+    let bound = clean(source);
+    let notes: Vec<_> = bound.notes.iter().filter(|n| n.code == "N_SYNC_EMPTY").collect();
+    assert_eq!(notes.len(), 1, "{:?}", bound.notes);
+    assert_eq!(bound.schema.operations["noticesFor"].runs.as_deref(), Some("device"));
+    assert!(notes[0].message.contains("empty filtered partition"));
+    assert!(notes[0].rewrite.contains("read its window unfiltered"));
+    for control in [source.replace("where .sailing = sailing ", ""), source.replace("sync public\nquery", "sync public last 100 by .at, .id\nquery"), source.replace("sync public", "online only")] {
+        assert!(!clean(&control).notes.iter().any(|n| n.code == "N_SYNC_EMPTY"), "{control}");
+    }
+    let cursor = source.replace("noticesFor(sailing: sailings)", "noticesFor(sailing: sailings, c: cursor ?)").replace("first 100 by .at", "first 100 by .at after c");
+    assert!(!clean(&cursor).notes.iter().any(|n| n.code == "N_SYNC_EMPTY"));
+    let owned = source.replace("table notices:\n", "table notices:\n  owner: principal\n")
+        .replace("immutable sailing, at", "immutable owner, sailing, at")
+        .replace("public\n  sync public\nquery", "read <- .owner = viewer\n  sync to .owner\nquery")
+        .replace("where .sailing = sailing", "where .owner = viewer and .sailing = sailing");
+    let bound = clean(&owned);
+    assert_eq!(bound.schema.operations["noticesFor"].runs.as_deref(), Some("device"));
+    assert!(!bound.notes.iter().any(|n| n.code == "N_SYNC_EMPTY"));
+}

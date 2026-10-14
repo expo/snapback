@@ -15,6 +15,7 @@ pub mod source;
 pub mod recipe;
 mod repair;
 pub mod types;
+pub mod release_changes;
 
 pub use bind::{Bound, BoundProgram, bind};
 pub use diag::{Diagnostic, Site};

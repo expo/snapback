@@ -246,7 +246,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
         "witness" => include_str!("guide/witness.md"),
         "prediction" => prediction::CARD,
         "evolution" => discovery::EVOLUTION,
-        "changes" => concat!("# Changes in ", env!("CARGO_PKG_VERSION"), "\n\nCompiler upgrades explain changes for the current schema.\n\n```sh\nsnapback4 upgrade\n```\n\nUpgrade with `snapback4 upgrade`; it pins core and installed Expo adapters together, captures the old check, and runs the new check.\nThe first check after a version change prints new notes by code, changed generated API types, and new refusals for your schema.\n\nKeyed aggregates: a hidden key reads null; an authorized missing count group reads 0.\nA private keyed count can therefore change from number to number | null in the generated API.\nUse `qtySum[room] ?? 0` only when treating a hidden or missing value as zero is your intended application policy.\nNew notes are advice, not compilation failures; new refusals need a schema repair.\n\nNative Expo adapters need a rebuild after upgrade. Exact apps: `bun exact.mjs snapback --rebuild`.\nRun your acceptance and visible-form proof after check; `guide testing` has the commands.\n"),
+        "changes" => include_str!(concat!(env!("OUT_DIR"), "/changes.md")),
         "types" => types::CARD,
         "time" => include_str!("guide/time.md"),
         "cheatsheet" => include_str!("guide/cheatsheet.md"),

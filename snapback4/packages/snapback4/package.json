@@ -94,6 +94,7 @@
     "dist",
     "bin",
     "README.md",
+    "CHANGELOG.md",
     "SERVER.md",
     "CLIENT-AND-OPERATIONS.md",
     "FOLLOWING-ADOPTION.md",

@@ -16,18 +16,24 @@ fn incompatible(tx:&Tx<'_>,schema: &Schema, name: &str, row: &Value) -> Result<b
     for (column,kind) in &table.columns {
         if table.engine_field(column) || table.maintained.contains_key(column) {continue;}
         if let Ok(value)=row.field(column) {
-            if crate::engine::validate::validate_column(name,column,kind,Some(value)).is_err() {return Ok(true);}
-            // @ref LLP 3000.038#1-the-type — asset facts belong to the ledger, including optional/list leaves.
-            match super::activation::validate_assets(tx,kind,Some(value)) {
-                Err(RuntimeError::Asset{code:"E_ASSET_TYPE"|"E_ASSET_TOO_LARGE",..})=>return Ok(true),
-                Err(error)=>return Err(error),
-                Ok(())=>(),
-            }
+            if incompatible_column(tx, table, name, column, kind, value)? { return Ok(true); }
         }
     }
-    Ok(table.constraints.iter().any(|c| matches!(c, Constraint::Text {field,min,format}
-        if !table.engine_field(field) && !table.maintained.contains_key(field) && row.field(field).is_ok_and(|v| matches!(v, Value::String(s)
-            if crate::engine::validate::validate_text(field,s,*min,*format).is_err())))))
+    Ok(false)
+}
+
+// @ref LLP 3000.000.000#11-wave-11-factual-release-narration — the warning and activation share the value predicate, including ledger-backed assets.
+pub(super) fn incompatible_column(tx: &Tx<'_>, table: &Table, name: &str, column: &str, kind: &ColumnType, value: &Value) -> Result<bool, RuntimeError> {
+    if crate::engine::validate::validate_column(name, column, kind, Some(value)).is_err() { return Ok(true); }
+    // @ref LLP 3000.038#1-the-type — asset facts belong to the ledger, including optional/list leaves.
+    match super::activation::validate_assets(tx, kind, Some(value)) {
+        Err(RuntimeError::Asset { code: "E_ASSET_TYPE" | "E_ASSET_TOO_LARGE", .. }) => return Ok(true),
+        Err(error) => return Err(error),
+        Ok(()) => (),
+    }
+    Ok(table.constraints.iter().any(|c| matches!(c, Constraint::Text { field, min, format }
+        if field == column && matches!(value, Value::String(s)
+            if crate::engine::validate::validate_text(field, s, *min, *format).is_err()))))
 }
 
 fn refs(kind: &ColumnType, value: &Value, out: &mut Vec<(String, String)>) {

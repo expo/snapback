@@ -4,6 +4,7 @@ import { readFileSync, existsSync, writeFileSync, mkdirSync, readdirSync } from 
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
+import { previousVersion, installedHistory, runtimeChanges } from './release-changes.js';
 
 function run() {
   const args = process.argv.slice(2);
@@ -12,6 +13,7 @@ function run() {
   let root = process.cwd();
   while (!existsSync(join(root, 'package.json'))) { const parent = dirname(root); if (parent === root) throw Error('E_UPGRADE: no project package.json'); root = parent; }
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
+  const previous = previousVersion(root);
   const schema = existsSync(join(root, 'snapback')) && readdirSync(join(root, 'snapback')).some(file => file.endsWith('.q'));
   // Resolve in a fresh Node process: pnpm can replace the package symlink,
   // while this helper's module/realpath cache still points at the old release.
@@ -41,7 +43,13 @@ try {
       const sources = readdirSync(join(root, 'snapback')).filter(file => file.endsWith('.q')).sort((a, b) => a === 'schema.q' ? -1 : b === 'schema.q' ? 1 : a.localeCompare(b)).map(file => [file, readFileSync(join(root, 'snapback', file), 'utf8')]);
       mkdirSync(join(root, '.snapback4'), { recursive: true });
       writeFileSync(join(root, '.snapback4/check-surface.json'), JSON.stringify({ version, sources, api: readFileSync(api, 'utf8'), notes: counts(facts.notes), refusals: counts(facts.problems) }));
-    } else console.log('upgrade: schema comparison baseline unavailable; old check did not complete');
+    } else {
+      if (previous) {
+        mkdirSync(join(root, '.snapback4'), { recursive: true });
+        writeFileSync(join(root, '.snapback4/upgrade-version.json'), JSON.stringify({ version: previous }));
+      }
+      console.log(`upgrade: old check did not complete; ${previous ? 'runtime history is still available from the previous package version' : 'previous package version is unavailable; see guide changes'}`);
+    }
   }
   const declared = pkg.packageManager?.split('@')[0];
   const locks = [['bun', ['bun.lock', 'bun.lockb']], ['pnpm', ['pnpm-lock.yaml']], ['npm', ['package-lock.json', 'npm-shrinkwrap.json']]].filter(([, files]) => files.some(file => existsSync(join(root, file)))).map(([pm]) => pm);
@@ -81,6 +89,10 @@ try {
   for (const name of targets) if (!dependencies.some(key => after[key]?.[name] === version)) throw Error(`E_UPGRADE: ${name} was not pinned to ${version}`);
   const exact = existsSync(join(root, 'exact.mjs')) || existsSync(join(root, 'exact.json')) || dependencies.some(key => Object.keys(pkg[key] ?? {}).some(name => /^exact2?(?:$|[-/])/.test(name)));
   if (exact) console.log('Exact device rebuild: bun exact.mjs snapback --rebuild'); // HS owns this command and the pairing gate.
+  if (!schema && previous) {
+    try { process.stdout.write(runtimeChanges(installedHistory(root), previous, version)); }
+    catch { console.log('runtime history unavailable in installed package; run snapback4 guide changes'); }
+  }
   if (schema) {
     const checked = check();
     if (checked.stderr) process.stderr.write(checked.stderr);

@@ -65,10 +65,6 @@ fn operation_types(value: &str) -> Option<(String, String)> {
 
 pub(super) fn report(project: &Project, bound: &Bound, json: bool) {
     let old: Surface = match fs::read(path(project)).ok().and_then(|b| serde_json::from_slice(&b).ok()) { Some(old) => old, None => {
-        if project.generated_dir().join("api.ts").is_file() {
-            let line = "upgrade delta: previous compiler baseline unavailable; run check to establish notes/types/refusals for future upgrades";
-            if json { eprintln!("{line}"); } else { println!("{line}"); }
-        }
         return;
     } };
     let new = current(project, bound);
@@ -104,7 +100,9 @@ pub(super) fn remember(project: &Project, bound: &Bound) {
         fs::create_dir_all(project.data_dir())?;
         let temporary = path(project).with_extension(format!("{}.tmp", std::process::id()));
         fs::write(&temporary, serde_json::to_vec_pretty(&current(project, bound))?)?;
-        fs::rename(temporary, path(project))
+        fs::rename(temporary, path(project))?;
+        let _ = fs::remove_file(project.data_dir().join("upgrade-version.json"));
+        Ok(())
     };
     if let Err(error) = save() { eprintln!("check: upgrade comparison not saved: {error}"); }
 }
