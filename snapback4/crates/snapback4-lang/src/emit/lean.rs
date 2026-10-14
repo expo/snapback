@@ -897,7 +897,9 @@ impl<'a> Scope<'a> {
         if read.range.is_some() && read.keys.is_empty() && read.matching.is_none() && read.computed.is_empty()
             && let Some(index) = read.index.as_ref().and_then(|name| self.module.surface_tables.iter().find(|table|table.name==read.table)?.indexes.iter().find(|index|&index.name==name))
             && index.is_plain() {
-            let mut normalized=read.clone();normalized.index=None;normalized.order_keys=index.columns.clone();return self.read(&normalized);
+            let mut normalized=read.clone();normalized.index=None;normalized.order_keys=index.columns.clone();
+            if !pages::named_merge_fragment(self.module, &normalized) { return no("page-named-index-fallback", print()); }
+            return self.read(&normalized);
         }
         if let Some(page) = pages::implicit_page(self.module, read) { return self.read(&page); }
         if let Some(reason) = pages::negative_grant_issue(self.module, read) { return no(reason, print()); }

@@ -292,6 +292,7 @@ pub fn base(seed: u64) -> Case {
             helper: true,
             order: None,
             named_page_order: None,
+            principal_arg: None,
             residual: None,
             domain: None,
             guard: None,
@@ -361,7 +362,7 @@ pub(crate) fn page4(case: &mut Case) {
     // introduced schema column or mutate this family's seeded authority.
     case.program.prelude.clear();case.steps.clear();
     case.args.as_object_mut().unwrap().remove("k2");
-    case.program.named_page_order=None;
+    case.program.named_page_order=None;case.program.principal_arg=None;case.args.as_object_mut().unwrap().remove("manager");
     case.program.domain=Some("true".into());case.program.order=Some(vec!["id".into()]);
     case.program.residual=None;case.program.guard=None;case.program.search_term=None;
     case.program.membership_named_reordered=false;case.program.boolean_grant_normalized=false;
@@ -392,6 +393,10 @@ pub(crate) fn page4(case: &mut Case) {
         for (table,row) in &mut case.rows {if table=="access" {row["helper"]=json!(if row["principal"]=="alice" {"bob"} else {"alice"});}}
         for (t,row) in &mut case.rows {if t=="items" {row["helper"]=json!(if rng.pick(2)==0 {"alice"}else{"bob"});}}
     }
+    if shape==3 && rng.pick(2)==0 {
+        case.program.principal_arg=Some("manager".into());case.program.domain=Some(".helper = manager".into());
+        case.args["manager"]=json!(if rng.pick(2)==0 {"alice"}else{"bob"});
+    }
     if shape==4 {
         if !case.program.tables.iter().any(|t|t.name=="parents") {
             case.program.tables.push(Table {name:"parents".into(),columns:vec![],keys:vec![],caps:vec![],rule:Rule::Allow,residency:Residency::Public,effects:None,expire:None,not_before:None});
@@ -418,7 +423,7 @@ pub(crate) fn page4(case: &mut Case) {
 pub(crate) fn page4_features(case: &Case) -> Vec<String> {
     let family=match case.program.tables[0].rule {
         Rule::OwnerPublicMember if case.program.named_page_order.is_some()=>Some("named-plain-page"),
-        Rule::OwnerPublicMember=>Some("mixed-public-member"),Rule::OwnerPublicIdMember=>Some("mixed-public-id"),Rule::PairWitness=>Some("pinned-pair"),Rule::NegativeGrant=>Some("negative-readable-grant"),
+        Rule::OwnerPublicMember=>Some("mixed-public-member"),Rule::OwnerPublicIdMember=>Some("mixed-public-id"),Rule::PairWitness if case.program.principal_arg.is_some()=>Some("pinned-pair-argument"),Rule::PairWitness=>Some("pinned-pair"),Rule::NegativeGrant=>Some("negative-readable-grant"),
         Rule::OwnerOrWitness if case.program.domain.as_deref()==Some(".bucket = bucket")=>Some("pinned-membership-party"),
         Rule::OwnerOrWitness if case.program.domain.as_deref()==Some("exists access[.bucket, viewer]")=>Some("exact-where-scope"),
         Rule::Witness if case.program.domain.as_deref()==Some(".tag = parent.id")=>Some("parent-snapshot"),

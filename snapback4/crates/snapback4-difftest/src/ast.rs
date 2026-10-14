@@ -474,6 +474,8 @@ pub struct Program {
     /// Spell a generated plain page order through its declared index.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub named_page_order: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub principal_arg: Option<String>,
     /// A further domain conjunct, as source (Lean variants).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub residual: Option<String>,
@@ -603,6 +605,7 @@ impl Program {
         out += &declarations.join("\n");
         let mutation = self.mutation();
         let mut signature = format!("{}{}", if self.wide() { WIDE_SIGNATURE } else { SIGNATURE }, if self.time_arg { ", t: time" } else { "" });
+        if let Some(name) = &self.principal_arg { signature += &format!(", {name}: principal"); }
         if let Some((min, max)) = self.arg_bound {
             signature = signature.replace(", a: int,", &format!(", a: {},", Type::IntRange(min, max).source()));
         }

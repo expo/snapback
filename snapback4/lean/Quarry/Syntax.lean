@@ -67,6 +67,9 @@ inductive Img where
 inductive Term where
   | col (i : Img) (c : String)
   | viewer
+  /-- Opaque lexical pin used only by the independent page classifier.
+  Authored rule JSON cannot decode it; it is never a runtime rule value. -/
+  | param (name : String)
   | lit (v : Scalar)
   deriving Repr, DecidableEq
 

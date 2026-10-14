@@ -737,7 +737,7 @@ fn page4_generated_families_compare_and_search_is_explicitly_unsupported_in_lean
         }
         let mut report=Report::default();campaign::check(&case,&mut report, |_| {});
         assert!(!report.failed(),"{family} seed {seed}: {report:?}\n{source}");
-        seen.insert(family);if seen.len()==9 {break;}
+        seen.insert(family);if seen.len()==10 {break;}
     }
-    assert_eq!(seen.len(),9,"{seen:?}");
+    assert_eq!(seen.len(),10,"{seen:?}");
 }

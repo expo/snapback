@@ -335,7 +335,7 @@ table tasks:
 query full():
   return tasks first 5000 by .id
 query originalWalk():
-  return tasks first 5000 by byId
+  return tasks where .ticket + 0 >= 0 first 5000 by byId
 ";
     let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);

@@ -1357,3 +1357,49 @@ fn page4_negative_grant_scalar_and_fallible_fallbacks_are_named_not_oracle_passe
         let checked=lean::compare(&case,&source).unwrap();assert!(matches!(checked.verdict,Verdict::Unsupported(ref reason) if reason=="page-negative-grant-fallback"),"{:?}",checked.verdict);assert_eq!(checked.executed,0);
     }
 }
+
+#[test]
+fn lexical_witness_pins_preserve_identity_and_match_native_without_literal_laundering() {
+    if !model_built() { return; }
+    for source_read in ["allow", ".manager = 1"] {
+        let manager_kind=if source_read=="allow" {"principal"}else{"int"};
+        let manager=if source_read=="allow" {json!("bob")}else{json!(1)};
+        let other_manager=if source_read=="allow" {json!("mallory")}else{json!(2)};
+        let source=format!("table reporting:\n  manager: {manager_kind}\n  report: principal\n  unique report\n  read <- {source_read}\n  online only\ntable agendas:\n  owner: principal\n  manager: {manager_kind}\n  report: principal\n  read <- .owner = viewer or exists reporting[report = .report, manager = .manager]\n  online only\nquery run(m: {manager_kind}):\n  return agendas where .manager = m first 20 by .id\n");
+        for populated in [false, true] {
+            let b=snapback4_lang::compile(&[("schema.q".into(),source.clone())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+            let mut e=snapback4_core::Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+            let rows: Vec<(String,serde_json::Value)>=if populated {vec![
+                ("reporting".into(),json!({"id":"r","manager":manager.clone(),"report":"erin"})),
+                ("agendas".into(),json!({"id":"a","owner":"alice","manager":manager.clone(),"report":"nobody"})),
+                ("agendas".into(),json!({"id":"b","owner":"charlie","manager":manager.clone(),"report":"erin"})),
+                ("agendas".into(),json!({"id":"c","owner":"charlie","manager":other_manager.clone(),"report":"erin"})),
+            ]}else{vec![]};
+            e.seed(rows.iter().map(|(table,row)|(table.clone(),snapback4_core::wire::row_from_json(&e.schema().tables[table],row).unwrap())).collect::<Vec<_>>()).unwrap();
+            let module=lean::module(&source).unwrap();
+            for m in [manager.clone(),other_manager.clone()] {
+                let value=if let Some(n)=m.as_i64() {snapback4_core::Value::Int(n)}else{snapback4_core::Value::Id(m.as_str().unwrap().into())};
+                let actual=e.query("run",snapback4_core::Context::new("alice",[("m".into(),value)].into())).unwrap();
+                let case=module.case("run",module.store(&rows).unwrap(),"alice",module.tag_args("run",&json!({"m":m})).unwrap(),None).unwrap();
+                let modeled=lean::ask(&case).unwrap();
+                assert_eq!(modeled["kind"],"answer","{modeled}");
+                assert_eq!(lean::model_value(&modeled["data"]),lean::engine_value(&actual.data),"{source_read} {populated} {m}");
+                assert_eq!(modeled["complete"],actual.complete,"{source_read} {populated} {m}: {modeled} / {actual:?}");
+                assert_eq!(actual.complete,source_read=="allow");
+            }
+        }
+    }
+}
+
+#[test]
+fn declined_named_index_candidate_is_named_unsupported_and_never_an_oracle_pass() {
+    let source="table docs:\n  owner: principal\n  at: int\n  by byAt: at, id\n  read <- .owner = viewer\n  online only\nquery run():\n  return docs where .owner = viewer first 10 by byAt\n";
+    let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty());
+    let mut e=snapback4_core::Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    assert!(!e.query("run",snapback4_core::Context::new("alice",Default::default())).unwrap().complete);
+    let mut case=lean::generate(1);case.rows.clear();case.args=json!({});case.program.prelude.clear();case.steps.clear();
+    case.program.body=snapback4_difftest::ast::Body::Scalar(snapback4_difftest::ast::Expr::Bool(true));
+    let checked=lean::compare(&case,source).unwrap();
+    assert!(matches!(checked.verdict,Verdict::Unsupported(ref reason) if reason=="page-named-index-fallback"),"{:?}",checked.verdict);
+    assert_eq!(checked.executed,0);
+}

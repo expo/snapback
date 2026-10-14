@@ -38,6 +38,7 @@ theorem partyLeaves_cover (r : Rule) : ∀ {ps : List String}, r.partyLeaves = s
         revert he
         cases (Imgs.get im .self).map (·.get c) <;> simp [eq_comm]
       | _ => simp [Rule.partyLeaves] at hp
+    | param _ => simp [Rule.partyLeaves] at hp
     | lit _ => simp [Rule.partyLeaves] at hp
   | or a b iha ihb =>
     intro ps hp s v im he
@@ -110,6 +111,7 @@ theorem accessLeaves_sound (rule : Rule) : ∀ {leaves branch s v r},
         have hrow : r.get c = .id v := by simpa [AccessBranch.holds] using hh
         simpa [Rule.eval, Term.eval, Imgs.get] using hrow.symm
       | _ => simp [Rule.accessLeaves] at hl
+    | param _ => simp [Rule.accessLeaves] at hl
     | lit _ => simp [Rule.accessLeaves] at hl
   | probe t point key =>
     intro leaves branch s v r hl hb hh
@@ -160,6 +162,7 @@ theorem accessLeaves_cover (rule : Rule) : ∀ {leaves s v r},
         have hrow : Scalar.id v = r.get c := by simpa [Rule.eval, Term.eval, Imgs.get] using he
         exact ⟨.party c, List.mem_singleton_self _, by simpa [AccessBranch.holds] using hrow.symm⟩
       | _ => simp [Rule.accessLeaves] at hl
+    | param _ => simp [Rule.accessLeaves] at hl
     | lit _ => simp [Rule.accessLeaves] at hl
   | probe t point key =>
     intro leaves s v r hl he
@@ -287,6 +290,7 @@ theorem Rule.eval_viewer_component {s : Store} {v : List Nat} {row : Row} {c : S
       | old => rfl
       | next => rfl
   | viewer => rfl
+  | param _ => rfl
   | lit _ => rfl
 
 end Quarry

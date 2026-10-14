@@ -536,3 +536,19 @@ fn page4_online<H: Host>(host: &mut H) {
 fn memory_page4_public_member_union_does_not_invent_offline_coverage() {page4_online(&mut Memory::new());}
 #[test]
 fn sqlite_page4_public_member_union_does_not_invent_offline_coverage() {page4_online(&mut Sqlite::new("page4-online"));}
+
+fn page4_online_word_search<H: Host>(host: &mut H) {
+    let source=format!("{}\nquery search(q: text <=100, c: cursor ?):\n  return docs matching q first 1 by .at after c\n",
+        include_str!("../../snapback4-lang/tests/fixtures/page4-union.q")
+            .replace(".owner = viewer or .open = true or exists members[.group, viewer]", "exists members[.group, viewer]")
+            .replace("  at: int", "  at: int\n  body: text <=100\n  by wordsByAt: words(body), at, id"));
+    let (_, backend)=compile(&source);
+    let mut device=host.open("page4-online-search",Some(backend)).unwrap();
+    let (out, unknown, _)=device.query_with_coverage("search","ann",&json!({"q":"granite","c":null}),1000);
+    let out=out.unwrap();
+    assert!(unknown && !out.complete && out.next.is_none(),"{}: {out:?}",host.label());
+}
+#[test]
+fn memory_page4_online_word_search_keeps_missing_holdings_unknown() {page4_online_word_search(&mut Memory::new());}
+#[test]
+fn sqlite_page4_online_word_search_keeps_missing_holdings_unknown() {page4_online_word_search(&mut Sqlite::new("page4-online-search"));}

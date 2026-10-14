@@ -281,6 +281,7 @@ def Rule.accessLeaves : Rule → Option (List AccessBranch)
 
 def Term.fixedExpr : Term → Option Expr
   | .viewer => some .viewer
+  | .param name => some (.var name)
   | .lit v => some (.lit (.s v))
   | _ => none
 
@@ -380,11 +381,12 @@ value that decides nothing; or the target's rule carries the same probe.
 Nested `or` and `not` disclose nothing. -/
 def Term.asKnown : Term → Option Expr
   | .viewer => some .viewer
+  | .param name => some (.var name)
   | .lit v => some (.lit (.s v))
   | .col _ _ => none
 
-/-- Substitute only literal/viewer page pins into a rule. Other expressions
-remain row-dependent; they cannot justify folding a guard. -/
+/-- Infallible lexical names remain opaque fixed expressions. Their actual
+values never become literals and cannot manufacture a viewer/literal proof. -/
 def Term.guardPin (pins : List (String × Expr)) : Term → Term
   | .col .self c => match pins.lookup c with
     | some .viewer => .viewer
@@ -392,14 +394,26 @@ def Term.guardPin (pins : List (String × Expr)) : Term → Term
     | _ => .col .self c
   | t => t
 
+/-- Probe components may carry opaque lexical pins. Local Boolean guards
+retain their row field identity so required/nullable checks remain explicit. -/
+def Term.witnessPin (pins : List (String × Expr)) : Term → Term
+  | .col .self c => match pins.lookup c with
+    | some (.var name) => .param name
+    | _ => (Term.col .self c).guardPin pins
+  | t => t.guardPin pins
+
 /-- The guard form inspected by PAGE after its known page pins are applied. -/
-def Rule.guardForm (pins : List (String × Expr)) (d : Rule) : Rule :=
-  (d.mapTerms (Term.guardPin pins)).normalize
+def Rule.guardForm (pins : List (String × Expr)) : Rule → Rule
+  | .probe t point key => (Rule.probe t point (key.map fun p => (p.1, p.2.witnessPin pins))).normalize
+  | .and a b => (Rule.and (a.guardForm pins) (b.guardForm pins)).normalize
+  | .or a b => (Rule.or (a.guardForm pins) (b.guardForm pins)).normalize
+  | .not a => (Rule.not (a.guardForm pins)).normalize
+  | d => (d.mapTerms (Term.guardPin pins)).normalize
 
 def Rule.disclosing (sch : Schema) : Rule → Bool
   | .allow => true
   | .eq a b | .ne a b => [a, b].all fun t => match t with
-    | .viewer | .lit _ | .col .self _ => true
+    | .viewer | .param _ | .lit _ | .col .self _ => true
     | _ => false
   | .and a b => a.disclosing sch && b.disclosing sch
   | .probe t _ key => match sch.table? t with

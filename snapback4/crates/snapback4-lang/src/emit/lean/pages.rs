@@ -190,3 +190,17 @@ pub(super) fn negative_grant_issue(module: &LeanModule, read: &ReadExpr) -> Opti
     (read.range.is_none() || read.filter.as_deref().is_some_and(|filter| !total(filter)) || leaves.len() >= 8)
         .then_some("page-negative-grant-fallback")
 }
+
+/// Named order normalization is speculative in the native compiler. Only
+/// the independently modeled unfiltered mixed range fragment normalizes here;
+/// filtered or one-party fallback candidates stay named Unsupported.
+pub(super) fn named_merge_fragment(module: &LeanModule, read: &ReadExpr) -> bool {
+    if read.filter.as_deref().is_some_and(|filter| !matches!(filter, Expr::Literal { value: Literal::Bool(true), .. })) { return false; }
+    let Some(target)=module.tables.iter().find(|t|t.name==read.table) else {return false;};
+    let Some(rule)=module.surface_tables.iter().find(|t|t.name==read.table).and_then(|t|t.rules.iter().find(|r|r.effect==Effect::Read)).map(|r|&r.value) else {return false;};
+    if !matches!(rule,Expr::Binary {op,..} if op=="or") {return false;}
+    let mut leaves=Vec::new();flatten_or(rule,&mut leaves);
+    leaves.len()<=7 && leaves.iter().any(|leaf|party_column(target,leaf).is_some())
+        && leaves.iter().all(|leaf|party_column(target,leaf).is_some() || membership_physical(module,target,leaf).is_some()
+            || model_equality_column(target,leaf).is_some())
+}
