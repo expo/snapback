@@ -167,13 +167,12 @@ impl Engine {
         });
         if outcome.is_ok() {
             if let Some((retained,restored))=population.get().filter(|(a,b)|*a>0 || *b>0) {
-                store.adoption_report.changes.insert(0,format!("{retained} rows dormant, {restored} restored"));
+                store.adoption_report.changes.insert(0,format!("{retained} newly dormant {}; {restored} narrowed {} restored", if retained == 1 { "row" } else { "rows" }, if restored == 1 { "row" } else { "rows" }));
             }
         }
         if outcome.is_ok() {
             if let Ok(items)=store.dormant_inventory(None,usize::MAX) {
-                let ids=items.into_iter().flat_map(|i|i.sample_ids).take(5).collect::<Vec<_>>();
-                if !ids.is_empty() {store.adoption_report.changes.insert(0,format!("sample dormant ids [{}]",ids.join(", ")));}
+                if release.is_some() { store.adoption_report.changes.insert(0, crate::store::adoption_report::AdoptionReport::dormant(&items)); }
             }
         }
         outcome

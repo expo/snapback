@@ -24,6 +24,38 @@ pub struct DormantItem {
     pub before_sample_ids:Option<Vec<String>>,
 }
 
+impl DormantItem {
+    pub fn unit(&self) -> &'static str {
+        match (self.kind.as_str(), self.rows) { ("column", 1) => "cell", ("column", _) => "cells", ("index", 1) => "entry", ("index", _) => "entries", (_, 1) => "row", _ => "rows" }
+    }
+}
+
+impl Store {
+    /// Values presently in active rows, independently of table population or other columns.
+    pub fn rollback_incompatible_values(&self, current: &Schema, target: &Schema, name: &str, column: &str) -> Result<(u64, Vec<String>), RuntimeError> {
+        let tx = self.authority_transaction()?;
+        let table = &target.tables[name];
+        let kind = &table.columns[column];
+        if table.engine_field(column) || table.maintained.contains_key(column) { return Ok((0, Vec::new())); }
+        let mut count = 0;
+        let mut samples = std::collections::BTreeSet::new();
+        let mut statement = tx.conn().prepare("SELECT data FROM r WHERE t=(SELECT num FROM _catalog WHERE name=?1) ORDER BY id")?;
+        for data in statement.query_map([name], |r| r.get::<_, String>(0))? {
+            let mut row: Value = serde_json::from_str(&data?).map_err(|e| RuntimeError::Store(e.to_string()))?;
+            crate::schema::materialize_optional_fields(&mut row, &current.tables[name]);
+            if let Ok(value) = row.field(column)
+                && super::narrowed::incompatible_column(&tx, table, name, column, kind, value)? {
+                count += 1;
+                if samples.len() < 5 {
+                    let text = match value { Value::String(s) => format!("'{}'", s.replace('\\', "\\\\").replace('\'', "\\'").replace('\n', "\\n").replace('\r', "\\r")), _ => canonical_json(value) };
+                    samples.insert(super::adopt_refusals::bounded(&text));
+                }
+            }
+        }
+        Ok((count, samples.into_iter().collect()))
+    }
+}
+
 fn sql_number(n: u64) -> Result<i64, RuntimeError> {
     i64::try_from(n).map_err(|_| {
         RuntimeError::Generation("release counter exceeds SQLite integer range".into())
@@ -50,7 +82,7 @@ pub(crate) fn inventory(
     } else {""};
     let query=format!("SELECT path,kind,table_name,column_name FROM (
         SELECT table_name AS path,'table' AS kind,table_name,NULL AS column_name FROM _dormant_tables
-        UNION ALL SELECT table_name||'.'||column_name,'column',table_name,column_name FROM _dormant_columns WHERE table_name NOT IN (SELECT table_name FROM _dormant_tables)
+        UNION ALL SELECT table_name||'.'||column_name,'column',table_name,column_name FROM _dormant_columns c WHERE table_name NOT IN (SELECT table_name FROM _dormant_tables) OR EXISTS(SELECT 1 FROM _dormant_values v JOIN _catalog t ON t.num=v.t WHERE t.name=c.table_name AND v.column_name=c.column_name)
         UNION ALL SELECT table_name||'.'||index_name,'index',table_name,index_name FROM _dormant_indexes {narrowed})
         WHERE (?1 IS NULL OR kind||':'||path>?1) ORDER BY kind||':'||path LIMIT ?2");
     let mut statement=conn.prepare(&query)?;
@@ -68,8 +100,8 @@ pub(crate) fn inventory(
             })
             .optional()?;
         let Some(t) = t else { continue };
-        let (count,bytes):(u64,u64)=match kind.as_str(){
-            "table"=>conn.query_row("SELECT COUNT(*),COALESCE(SUM(octet_length(id)+octet_length(data)),0)+(SELECT COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_values WHERE t=?1) FROM _dormant_rows WHERE t=?1",[t],|r|Ok((r.get::<_,i64>(0)? as u64,r.get::<_,i64>(1)? as u64)))?,
+        let (mut count,bytes):(u64,u64)=match kind.as_str(){
+            "table"=>conn.query_row("SELECT COUNT(*),COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_rows WHERE t=?1",[t],|r|Ok((r.get::<_,i64>(0)? as u64,r.get::<_,i64>(1)? as u64)))?,
             "rows"=>conn.query_row("SELECT COUNT(*),COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_narrow_rows WHERE t=?1",[t],|r|Ok((r.get::<_,i64>(0)? as u64,r.get::<_,i64>(1)? as u64)))?,
             "column"=>conn.query_row("SELECT COUNT(*),COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_values WHERE t=?1 AND column_name=?2",params![t,column],|r|Ok((r.get::<_,i64>(0)? as u64,r.get::<_,i64>(1)? as u64)))?,
             _=>conn.query_row("SELECT COUNT(*),0 FROM (SELECT id FROM r WHERE t=?1 UNION SELECT id FROM _dormant_rows WHERE t=?1)",[t],|r|Ok((r.get::<_,i64>(0)? as u64,r.get::<_,i64>(1)? as u64)))?,
@@ -84,20 +116,23 @@ pub(crate) fn inventory(
                 "SELECT id FROM (SELECT id FROM r WHERE t=?1 UNION SELECT id FROM _dormant_rows WHERE t=?1) WHERE ?2 IS NOT NULL ORDER BY id LIMIT 5"
             }
         };
-        let ids = conn
+        let mut ids = conn
             .prepare(query)?
             .query_map(params![t, column], |r| r.get::<_, String>(0))?
             .collect::<Result<Vec<_>, _>>()?
             .into_iter()
             .map(|id| super::adopt_refusals::bounded(&id))
             .collect();
+        if kind == "index" {
+            (count, ids) = index_entries(conn, t, &name, column.as_deref().unwrap())?;
+        }
         let asset_bytes = if kind == "index" {
             0
         } else {
             let selector=match kind.as_str(){
                 "rows"=>"EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=?3 AND n.id=_assets.home_id)",
                 "column"=>"EXISTS(SELECT 1 FROM _dormant_values v WHERE v.t=?3 AND v.id=_assets.home_id AND v.column_name=_assets.home_column)",
-                _=>"?3 IS NOT NULL",
+                _=>"?3 IS NOT NULL AND NOT EXISTS(SELECT 1 FROM _dormant_values v WHERE v.t=?3 AND v.id=_assets.home_id AND v.column_name=_assets.home_column)",
             };
             conn.query_row(&format!("SELECT COALESCE(SUM(bytes),0) FROM _assets WHERE home_table=?1 AND (?2 IS NULL OR home_column=?2) AND released_at IS NULL AND {selector}"),params![name,if kind=="table" || kind=="rows" {None}else{column.as_deref()},t],|r|r.get::<_,i64>(0).map(|n|n as u64))?
         };
@@ -114,6 +149,36 @@ pub(crate) fn inventory(
         });
     }
     Ok(out)
+}
+
+/// Retained definitions represent logical entries, rebuilt on restoration.
+/// A words index has zero or many entries per image; a row count is not its size.
+fn index_entries(conn: &Connection, t: i64, table: &str, index: &str) -> Result<(u64, Vec<String>), RuntimeError> {
+    let definition: String = conn.query_row("SELECT definition FROM _dormant_indexes WHERE table_name=?1 AND index_name=?2", params![table, index], |r| r.get(0))?;
+    let index: crate::schema::Index = serde_json::from_str(&definition).map_err(|e| RuntimeError::Store(e.to_string()))?;
+    let schema: Option<String> = conn.query_row("SELECT schema FROM _generations WHERE generation=(SELECT CAST(value AS INTEGER) FROM _meta WHERE key='generation')", [], |r| r.get(0)).optional()?;
+    let schema: Option<Schema> = schema.map(|s| serde_json::from_str(&s).map_err(|e| RuntimeError::Store(e.to_string()))).transpose()?;
+    let query = if super::narrowed::present(conn)? {
+        "SELECT id,data FROM r WHERE t=?1 UNION ALL SELECT id,data FROM _dormant_rows WHERE t=?1 UNION ALL SELECT id,data FROM _dormant_narrow_rows WHERE t=?1 ORDER BY id"
+    } else { "SELECT id,data FROM r WHERE t=?1 UNION ALL SELECT id,data FROM _dormant_rows WHERE t=?1 ORDER BY id" };
+    let mut count = 0;
+    let mut samples = std::collections::BTreeSet::new();
+    let mut statement = conn.prepare(query)?;
+    for image in statement.query_map([t], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))? {
+        let (id, data) = image?;
+        let mut row: Value = serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?;
+        if let Some(table) = schema.as_ref().and_then(|s| s.table(table)) { crate::schema::materialize_optional_fields(&mut row, table); }
+        for cell in conn.prepare("SELECT column_name,data FROM _dormant_values WHERE t=?1 AND id=?2")?.query_map(params![t, id], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))? {
+            let (column, value) = cell?;
+            if let Value::Row(fields) | Value::Map(fields) = &mut row {
+                fields.entry(column).or_insert(serde_json::from_str(&value).map_err(|e| RuntimeError::Store(e.to_string()))?);
+            }
+        }
+        let entries = crate::rows::index_keys(&index, &row, &id).len() as u64;
+        count += entries;
+        if entries > 0 && samples.len() < 5 { samples.insert(super::adopt_refusals::bounded(&id)); }
+    }
+    Ok((count, samples.into_iter().collect()))
 }
 
 // @ref LLP 3000.000.000#91-per-row-narrowed-value-dormancy — only rows surviving every activation phase count as restored.

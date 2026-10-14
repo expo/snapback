@@ -1255,3 +1255,54 @@ fn historical_through_captures_restore_after_public_rule_widening() {
     let error=activate(&mut e,full,1).unwrap_err().to_string();
     assert!(error.contains("E_READ_THROUGH_ADOPT") && error.contains("new"),"{error}");
 }
+
+#[test]
+fn narr_counts_column_values_not_population_and_word_entries_not_rows() {
+    let source = "table docs:\n  title: text <=100\n  status: enum('draft') default 'draft'\n  public\n  insert <- allow\n  update <- allow\n  online only\n";
+    let wide = source.replace("enum('draft')", "enum('draft', 'archived')").replace("  title: text", "  by search: words(title), id\n  title: text");
+    let mut e = engine(&wide);
+    for (id, title, status) in [("a", "red blue red", "archived"), ("b", "green", "draft"), ("c", "", "draft")] {
+        seed(&mut e, "docs", serde_json::json!({"id":id,"title":title,"status":status}));
+    }
+    let (target, _) = compile(source);
+    let (count, values) = e.store().rollback_incompatible_values(e.schema(), &target, "docs", "status").unwrap();
+    assert_eq!(count, 1); assert_eq!(values, ["'archived'"]);
+    activate(&mut e, source, 2).unwrap();
+    let items = e.store_mut().dormant_inventory(None, usize::MAX).unwrap();
+    let index = items.iter().find(|i| i.kind == "index" && i.path == "docs.search").unwrap();
+    assert_eq!(index.rows, 3, "two distinct tokens plus one token; the narrowed image also contributes");
+    assert_eq!(index.sample_ids, ["a", "b"]);
+    assert_eq!(index.unit(), "entries");
+    assert!(crate::store::adoption_report::AdoptionReport::dormant(&items).contains("1 row, 0 cells, 3 index entries dormant"));
+}
+
+#[test]
+fn narr_text_constraints_and_literal_default_counts_share_activation_predicate() {
+    let source = "table docs:\n  code: text <=10 default 'x'\n  public\n  online only\n";
+    let mut e = engine(source);
+    seed(&mut e, "docs", serde_json::json!({"id":"a","code":"long"}));
+    seed(&mut e, "docs", serde_json::json!({"id":"b","code":"x"}));
+    let (target, _) = compile(&source.replace("text <=10", "text 2..10").replace("default 'x'", "default 'xx'"));
+    let (count, _) = e.store().rollback_incompatible_values(e.schema(), &target, "docs", "code").unwrap();
+    assert_eq!(count, 1);
+    let (same, _) = compile(source);
+    assert_eq!(e.store().rollback_incompatible_values(e.schema(), &same, "docs", "code").unwrap().0, 0);
+}
+
+#[test]
+fn narr_separate_cells_remain_counted_under_a_dormant_table() {
+    let mut e = engine(&v2());
+    for id in ["a", "b", "c"] { seed(&mut e, "rows", serde_json::json!({"id":id,"n":1,"status":"active","extra":42})); }
+    activate(&mut e, V1, 2).unwrap();
+    let before = e.store_mut().dormant_inventory(None, usize::MAX).unwrap();
+    assert_eq!(before.iter().filter(|i|i.kind == "column").map(|i|i.rows).sum::<u64>(), 3);
+    activate(&mut e, "query value():\n  return 1\n", 3).unwrap();
+    let after = e.store_mut().dormant_inventory(None, usize::MAX).unwrap();
+    assert_eq!(after.iter().filter(|i|i.kind == "column").map(|i|i.rows).sum::<u64>(), 3);
+    assert!(crate::store::adoption_report::AdoptionReport::dormant(&after).contains("3 rows, 3 cells"));
+    let actual:i64 = e.store().conn().query_row("SELECT COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_rows", [], |r|r.get(0)).unwrap();
+    assert_eq!(after.iter().filter(|i|i.kind == "table").map(|i|i.bytes).sum::<u64>(), actual as u64);
+    activate(&mut e, &v2(), 1).unwrap();
+    assert_eq!(e.store().count("rows").unwrap(), 3);
+    assert!(e.store_mut().dormant_inventory(None, usize::MAX).unwrap().is_empty());
+}

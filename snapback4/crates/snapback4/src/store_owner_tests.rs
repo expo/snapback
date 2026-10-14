@@ -188,3 +188,23 @@ fn removed_or_replaced_sidecar_ends_exclusion_documented_boundary() {
         fs::remove_dir_all(dir).unwrap();
     }
 }
+
+#[test]
+fn address_cleanup_preserves_replacements_and_the_ownership_sidecar() {
+    let dir = std::env::temp_dir().join(format!("snapback4-owner-cleanup-{}", std::process::id()));
+    let path = dir.join("store.sqlite");
+    let mut owner = command(&path).unwrap();
+    announce(&mut owner, "127.0.0.1:4567".parse().unwrap()).unwrap();
+    let record = dir.join("serve.lock");
+    owner.clear_address();
+    assert!(!record.exists());
+    assert!(snapback4_core::private_fs::owner_path(&path).exists());
+    drop(owner);
+    let mut owner = command(&path).unwrap();
+    announce(&mut owner, "127.0.0.1:4567".parse().unwrap()).unwrap();
+    fs::rename(&record, dir.join("old-address")).unwrap();
+    fs::write(&record, "replacement").unwrap();
+    drop(owner);
+    assert_eq!(fs::read_to_string(record).unwrap(), "replacement");
+    fs::remove_dir_all(dir).unwrap();
+}

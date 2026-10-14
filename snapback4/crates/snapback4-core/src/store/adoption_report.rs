@@ -19,6 +19,23 @@ pub struct ViewBuild {
 }
 
 impl AdoptionReport {
+    // @ref LLP 3000.000.000#11-wave-11-factual-release-narration — current dormant storage is counted by unit; samples never mix units.
+    pub fn dormant(items: &[super::release_history::DormantItem]) -> String {
+        let mut counts = [0u64; 3];
+        let mut samples = std::collections::BTreeMap::<String, std::collections::BTreeSet<String>>::new();
+        for item in items {
+            let (slot, label) = match item.kind.as_str() {
+                "column" => (1, format!("cells {}", item.path)),
+                "index" => (2, format!("entries {}", item.path)),
+                _ => (0, format!("rows {}", item.path)),
+            };
+            counts[slot] += item.rows;
+            if !item.sample_ids.is_empty() { samples.entry(label).or_default().extend(item.sample_ids.iter().cloned()); }
+        }
+        let labelled = samples.into_iter().map(|(label, ids)| format!("{label} [{}]", ids.into_iter().take(5).collect::<Vec<_>>().join(", "))).collect::<Vec<_>>();
+        format!("{} {}, {} {}, {} index {} dormant{}", counts[0], if counts[0] == 1 { "row" } else { "rows" }, counts[1], if counts[1] == 1 { "cell" } else { "cells" }, counts[2], if counts[2] == 1 { "entry" } else { "entries" },
+            if labelled.is_empty() { String::new() } else { format!("; samples: {}", labelled.join("; ")) })
+    }
     pub fn compact(&self)->String {
         let elapsed:Duration=self.phases.iter().map(|(_,d)|*d).sum();
         let mut changes=self.changes.iter().take(5).cloned().collect::<Vec<_>>();

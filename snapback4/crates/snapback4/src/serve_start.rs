@@ -94,6 +94,7 @@ pub fn serve(
         Mode::Release { owner, .. } => Some(owner.clone()),
         _ => host_lock.take().map(Arc::new),
     };
+    if let Some(owner) = &host_owner { owner.report_reclaim(matches!(mode, Mode::Dev { verbose: true, .. })); }
     // `--fresh` has private, disposable storage and the same WAL readers as dev.
     let fresh = if matches!(mode, Mode::Dev { fresh: true, .. }) {
         Some(query_readers::FreshDirectory::new()?)

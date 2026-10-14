@@ -946,7 +946,7 @@ query input(n: int):
     run('sql',inspect[1],'--release',deployment,'--json');
     const saved=state(join(deployment,'store.sqlite'));
     const plan=run('rollback',deployment,'--to','1','--check');
-    assert.match(plan,/1 dormant narrowed rows/);assert.match(plan,/rows:values/);
+    assert.match(plan,/1 row, 20 cells, 0 index entries dormant/);assert.match(plan,/rows:values/);
     for(const flags of [[],['--verbose']]) {
       const structured=JSON.parse(run('rollback',deployment,'--to','1','--check','--json',...flags));
       assert.equal(structured.preview,true);assert.ok(structured.steps.length>0);
@@ -1060,8 +1060,8 @@ schedule sweepEvery every 1d: sweep
     writeFileSync(schema,source);
     const preview=run('deploy',deployment,'--check');
     assert.doesNotMatch(preview,/rows are lost|values are lost|engine capture.*filled/);
-    assert.match(preview,/holds.*1 rows dormant/);assert.match(preview,/sample ids/);
-    assert.match(preview,/WARNING scheduled job sweep/);assert.match(preview,/holds or other safeguards/);
+    assert.match(preview,/holds.*1 row dormant/);assert.match(preview,/sample ids/);
+    assert.match(preview,/WARNING release 2 lacks schedule sweepEvery \(job sweep\)/);assert.match(preview,/target|release 2 lacks this table\'s behavior/);
     assert.deepEqual(state(join(deployment,'store.sqlite')),before);
     assert.equal(JSON.parse(run('releases',deployment)).latest,1);
     run('deploy',deployment);
@@ -1099,7 +1099,9 @@ test('REL2 stale lock is reclaimed and live conflict identifies PID URL and dire
   const dead=spawn(process.execPath,['-e','process.exit(0)']);await once(dead,'exit');
   writeFileSync(join(deployment,'serve.lock'),`4400\nhttp://127.0.0.1:4400\npid ${dead.pid}\n`);
   chmodSync(join(deployment,'serve.lock'),0o600);
-  const reclaimed=invoke('rollback',deployment,'--to','1');assert.equal(reclaimed.status,0,reclaimed.stderr);
+  const silent=invoke('rollback',deployment,'--to','1');assert.equal(silent.status,0,silent.stderr);assert.doesNotMatch(silent.stderr,/stale serve.lock|reclaimed/);
+  writeFileSync(join(deployment,'serve.lock'),`4400\nhttp://127.0.0.1:4400\npid ${dead.pid}\n`);chmodSync(join(deployment,'serve.lock'),0o600);
+  const reclaimed=invoke('rollback',deployment,'--to','1','--verbose');assert.equal(reclaimed.status,0,reclaimed.stderr);
   assert.match(reclaimed.stderr,new RegExp(`reclaimed stale serve.lock: dead PID ${dead.pid}`));
   await serve(deployment,async(url,_headers,_session,_log,child)=>{
     const conflict=invoke('serve',deployment,'--port','0');assert.equal(conflict.status,1);
@@ -1143,14 +1145,14 @@ test('REL2 first deploy check creates no live store or numbered release', {timeo
   assert.equal(existsSync(join(deployment,'releases/1')),false);
 });
 
-test('REL2 populated compatibility warnings include counts', {timeout:hangBudget(3)},async t=>{
+test('NARR populated widening describes future risk without miscounting compatible rows', {timeout:hangBudget(3)},async t=>{
   const {deployment,schema,run,invoke}=fixture(t);
   const old=source.replace('  body: text <=100','  body: text 4..100');
   writeFileSync(schema,old);run('deploy',deployment);
   await serve(deployment,async(url,headers)=>{
     await releasePost(url,headers,'/m/add',{},'rel2-warning-row');
     writeFileSync(schema,source);
-    const r=invoke('deploy',deployment);assert.equal(r.status,0,r.stderr);assert.match(r.stderr,/WARNING rollback compatibility: items.body \(1 existing rows\)/);
+    const r=invoke('deploy',deployment);assert.equal(r.status,0,r.stderr);assert.doesNotMatch(r.stderr,/WARNING|existing rows/);assert.match(r.stderr,/note: items.body admits values outside release 1/);
   });
 });
 

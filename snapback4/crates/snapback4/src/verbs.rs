@@ -1389,6 +1389,7 @@ fn arg_word(kind: &ir::ArgType) -> String {
 
 mod releases;
 mod release_preview;
+mod release_narration;
 pub use releases::{deploy, prune, releases, rollback, serve_release};
 pub(crate) use releases::release_bind;
 

@@ -93,7 +93,9 @@ Check business compatibility separately: old payment code may accept payment whi
 | Request after rollback | Result |
 |---|---|
 | An operation absent from the old release | HTTP 404 `{denied:{code:"E_OP"}}` |
-| Point mutation of a dormant row | `NOT_FOUND` from an explicit lookup guard; a point query reads null |
+| Bare point query of a dormant row | Reads null |
+| Point query or mutation with an explicit `! else CODE` guard | Refuses its guard code (`NOT_FOUND` when authored that way) |
+| Added columns after rollback | Ignored by the older release; their cells stay dormant |
 | Counts, rules, maintained views and sync | Only the active population |
 | Compatible forward to the newer release | Original dormant values restored |
 
@@ -109,7 +111,16 @@ await cli('rollback', deployment, '--to', 'latest');
 assert.equal((await post('/q/readItem', {item})).data.status, 'new');
 ```
 
-Preview flags absent schedules and populated removed tables: dormant holds no longer enforce their safeguards. Captures from the original read-through lifetime stay dormant with columns; restoring the same capture definition restores them. New rows without those captures still need safe audience correspondence.
+Preview names missing operations, changed rule clauses, absent schedules and populated removed tables: dormant holds no longer enforce their safeguards. A changed job body is named separately; an unchanged job that compiles differently after a dependency change gets a note. Captures from the original read-through lifetime stay dormant with columns; restoring the same capture definition restores them. New rows without those captures still need safe audience correspondence.
+
+Receipts and previews count storage by kind: `1 row, 3 cells, 0 index entries dormant`. Samples are labelled and unique within each kind/path, for example `rows notes [A]; cells notes.color [A, B, C]`. A retained index definition represents logical entries to rebuild, not a dormant physical index. A widening note describes values later writes could use; a compatibility WARNING counts only current values the selected release cannot hold. Compatible forward has no such warning.
+
+## Clients across rollback
+
+Generated required fields and operations describe the schema checked when the client was built. Rolling the server back does not rebuild that client. Choose a release-matched frontend: in a separate copy of the selected immutable source, run `snapback4 check`, rebuild the frontend against that generated API and deploy it alongside the backend. Keep the immutable deployment source intact. An Expo/Exact runtime change also needs a device rebuild; JavaScript reload alone does not rebuild it.
+
+For one frontend spanning both releases, author a compatibility boundary at the response: validate newer fields at runtime before using them, and render their older-release fallback. A v2 generated required `color` field can be absent under v1; TypeScript requiredness is no runtime guarantee. For example, `typeof row.color === 'string' ? row.color : 'none'` supplies the old-release fallback.
+Before exposing a newer workflow, check the authenticated served operation catalog (`GET /`) for its operation, and still handle `E_OP` if a switch races that check. Handle authored lookup guard refusals separately from bare-query null. Do not replace a missing safeguard with a frontend type assertion. Test both directions with the same frontend and bearer session, asserting field fallbacks, missing-operation handling, business checks and restored original values.
 
 ## Trigger a deployed job
 
@@ -135,6 +146,4 @@ unset SNAPBACK4_SERVICE_TOKEN
 
 ## Authoring and proof refusals
 
-N_NO_PRODUCTION_WRITER means no production insert path can bootstrap this table. It groups root blockers with their dependents; persona-only schemas get one identity note. Add a service-seat insert mutation and provision real account relationships.
-
-E_UPGRADE means installation or post-upgrade check failed. Repair the package-manager or registry error and rerun upgrade. Packages may already be pinned: if check failed, repair the reported schema/device refusal and rerun check.
+N_NO_PRODUCTION_WRITER means no production insert path can bootstrap this table. It groups root blockers with their dependents; persona-only schemas get one identity note. Add a service-seat insert mutation and provision real account relationships. E_UPGRADE means installation or post-upgrade check failed. Repair the package-manager or registry error and rerun upgrade. Packages may already be pinned: if check failed, repair the reported schema/device refusal and rerun check.

@@ -346,6 +346,7 @@ fn serve_requests(
                     thread.join().map_err(|_| "release-control thread panicked during shutdown")?;
                 }
             }
+            if let Some(owner) = &shared.owner { owner.clear_address(); }
             return Ok(());
         }
         for (name, thread) in &background {

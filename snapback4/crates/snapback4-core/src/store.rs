@@ -40,6 +40,7 @@ mod narrowed;
 pub(crate) mod opening;
 mod ownership;
 pub(crate) mod release_history;
+pub use release_history::DormantItem;
 mod sequences;
 mod successor;
 pub(crate) mod time_audience;
