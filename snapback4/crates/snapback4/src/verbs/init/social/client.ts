@@ -1,3 +1,5 @@
+import { registerWebWitness } from "snapback4/witness-web";
+import { api } from "../snapback/generated/api";
 import { smokeOrigin } from "snapback4-expo/witness";
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
@@ -19,3 +21,5 @@ export const app = createApp({ url,
   sessionStore: Platform.OS === "web" ? localStorageSessionStore() : nativeStore,
   device: Platform.OS === "web" ? webDevice() : nativeAvailable() ? nativeDevice : undefined,
 });
+
+registerWebWitness(app, api);

@@ -5,9 +5,9 @@ import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
-import { chromium, type BrowserContext, type BrowserServer, type LaunchOptions, type Locator, type Page } from "playwright-core";
+import type { BrowserContext, BrowserType, LaunchOptions, Locator, Page } from "playwright-core";
 import { resolveBinary } from "./bin-path.ts";
-import { bounded, deadline, logged, logText, portRange, ready, register, stopChild, type ProofHost, type ProofOptions } from "./proof-process.ts";
+import { bounded, deadline, logged, logText, portRange, ready, stopChild, type ProofHost, type ProofOptions, logsDir } from "./proof-process.ts";
 export { bounded, cleanup, stopChild, portRange } from "./proof-process.ts";
 export type { ProofHost, ProofOptions } from "./proof-process.ts";
 
@@ -73,7 +73,7 @@ export function startVite(dir: string, options: ProofOptions = {}): Promise<Proo
 export interface CliResult { code: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string; logs: ProofHost["logs"] }
 /** Waits for close (stdio drained), never merges the two streams. Nonzero is returned for refusal assertions. */
 export function cli(args: readonly string[], options: ProofOptions = {}): Promise<CliResult> {
-  return command(resolveBinary(), args, options);
+  return command(process.execPath, [fileURLToPath(new URL("../bin/snapback4.js", import.meta.url)), ...args], options);
 }
 /** A bounded directly spawned build/tool command, with the same file logs. */
 export async function command(binary: string, args: readonly string[], options: ProofOptions = {}): Promise<CliResult> {
@@ -105,51 +105,46 @@ export function testSource(source: string, options: ProofOptions = {}) {
 export function sandboxUnavailable(error: unknown): boolean {
   return /No usable sandbox|Running as root without --no-sandbox|Failed to move to new namespace|SUID sandbox|sandbox.*Operation not permitted|Failed to unshare.*Operation not permitted/i.test(String(error));
 }
-export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions, "cwd" | "logsDir">, proof: (context: BrowserContext) => Promise<T>): Promise<T> {
-  const directory = resolve(options.cwd ?? ".", options.logsDir ?? "logs"); mkdirSync(directory, { recursive: true, mode: 0o700 });
-  const logId = randomUUID();
-  const out = openSync(join(directory, `${logId}.browser.stdout.log`), "wx", 0o600);
-  const err = openSync(join(directory, `${logId}.browser.stderr.log`), "wx", 0o600);
-  const { executablePath, ...other } = options;
+export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions, "cwd" | "logsDir"> & { chromium?: BrowserType }, proof: (context: BrowserContext) => Promise<T>): Promise<T> {
+  const directory = logsDir(options); mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const err = openSync(join(directory, `${randomUUID()}.browser.stderr.log`), "wx", 0o600);
+  const { chromium: suppliedChromium, executablePath, cwd: _cwd, logsDir: _logs, ...other } = options;
+  const caller = suppliedChromium ?? (await import("playwright-core")).chromium;
   const launch = { ...other, ...(executablePath === undefined ? {} : { executablePath }), timeout: deadline(options.timeout, 30_000), logger: {
     isEnabled: () => true,
     log: (name: string, severity: string, message: string | Error) => { writeSync(err, `${name} ${severity}: ${String(message)}\n`); },
   } };
   const args = [...(options.args ?? [])];
   if (process.getuid?.() === 0 && !args.includes("--no-sandbox")) args.push("--no-sandbox");
-  let server: BrowserServer;
-  try { server = await chromium.launchServer({ ...launch, args, chromiumSandbox: !args.includes("--no-sandbox") }); }
-  catch (error) {
-    if (args.includes("--no-sandbox") || !sandboxUnavailable(error)) { closeSync(out); closeSync(err); throw error; }
-    try { server = await chromium.launchServer({ ...launch, args: [...args, "--no-sandbox"], chromiumSandbox: false }); }
-    catch (retry) { closeSync(out); closeSync(err); throw retry; }
-  }
-  const browserChild = server.process(); register(browserChild);
-  const stdout = (chunk: Buffer) => writeSync(out, chunk), stderr = (chunk: Buffer) => writeSync(err, chunk);
-  browserChild.stdout?.on("data", stdout); browserChild.stderr?.on("data", stderr);
-  let context: BrowserContext | undefined;
+  // Playwright owns its browser child over a pipe, including parent-exit cleanup.
+  // No WebSocket server or TCP debugging port is opened.
+  let browser;
   try {
-    const browser = await chromium.connect(server.wsEndpoint(), { timeout: launch.timeout });
-    context = await browser.newContext();
-    context.setDefaultTimeout(30_000); context.setDefaultNavigationTimeout(30_000);
-    return await proof(context);
-  } finally {
-    // Killing the retained browser child also bounds a hung close; do not let
-    // an earlier cleanup failure skip the process stop.
-    try { if (context) await bounded(context.close(), 5000, "browser context close"); }
-    finally {
-      try { await bounded(server.close(), 5000, "browser close"); }
-      finally {
-        try { await stopChild(browserChild, 1000); }
-        finally {
-          browserChild.stdout?.removeListener("data", stdout); browserChild.stderr?.removeListener("data", stderr);
-          closeSync(out); closeSync(err);
-        }
-      }
+    try { browser = await caller.launch({ ...launch, args, chromiumSandbox: !args.includes("--no-sandbox") }); }
+    catch (error) {
+      if (args.includes("--no-sandbox") || !sandboxUnavailable(error)) throw error;
+      browser = await caller.launch({ ...launch, args: [...args, "--no-sandbox"], chromiumSandbox: false });
     }
-  }
+    let context: BrowserContext | undefined;
+    try {
+      context = await browser.newContext();
+      context.setDefaultTimeout(30_000); context.setDefaultNavigationTimeout(30_000);
+      return await proof(context);
+    } finally {
+      try { if (context) await bounded(context.close(), 5000, "browser context close"); }
+      finally { await bounded(browser.close(), 5000, "browser close"); }
+    }
+  } finally { closeSync(err); }
 }
-export async function waitForFresh(locator: Locator, previous: string | null, timeoutMs = 30_000): Promise<string> {
+/** Match rendered text, excluding editable values. Scope to the evidence container. */
+export function renderedText(page: Page, text: string | RegExp, options: { within?: Locator } = {}): Locator {
+  return (options.within ?? page).getByText(text, { exact: true }).and(page.locator(":not(input):not(textarea)"));
+}
+/** Activate before taking a screenshot, particularly on loaded shared hosts. */
+export async function frontPage(page: Page): Promise<Page> { await page.bringToFront(); return page; }
+export { logsDir } from "./proof-process.ts";
+export async function waitForFresh(locator: Locator, previous: string | null, timeoutMs: number | { within: Locator; timeoutMs?: number } = 30_000): Promise<string> {
+  if (typeof timeoutMs !== "number") { locator = timeoutMs.within.locator(locator); timeoutMs = timeoutMs.timeoutMs ?? 30_000; }
   const end = performance.now() + deadline(timeoutMs, 30_000);
   while (performance.now() < end) {
     if (await bounded(locator.count(), Math.max(1, end - performance.now()), "no fresh signal (locator count)")) {

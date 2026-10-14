@@ -2,6 +2,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { closeSync, mkdirSync, openSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import { stripVTControlCharacters } from "node:util";
@@ -86,9 +87,13 @@ export function portRange(env: NodeJS.ProcessEnv = process.env): string {
   }
   return `${Number(low)}-${Number(high)}`;
 }
+/** Default logs never become application source inputs (including Exact app/). */
+export function logsDir(options: Pick<ProofOptions, "cwd" | "logsDir"> = {}): string {
+  return options.logsDir === undefined ? join(tmpdir(), "snapback4-proof-logs") : resolve(options.cwd ?? ".", options.logsDir);
+}
 export function logged(command: string, args: readonly string[], options: ProofOptions = {}) {
   const cwd = resolve(options.cwd ?? "."), id = randomUUID();
-  const directory = resolve(cwd, options.logsDir ?? "logs"); mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const directory = logsDir(options); mkdirSync(directory, { recursive: true, mode: 0o700 });
   const logs = { stdout: join(directory, `${id}.stdout.log`), stderr: join(directory, `${id}.stderr.log`) };
   const out = openSync(logs.stdout, "wx", 0o600), err = openSync(logs.stderr, "wx", 0o600);
   let child: ChildProcess;

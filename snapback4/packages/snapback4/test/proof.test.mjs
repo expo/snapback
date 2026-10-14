@@ -30,7 +30,7 @@ test("native and static bind beyond an occupied port; identity and independent l
     assert.ok(Number(new URL(dev.url).port) > port); assert.equal((await (await fetch(dev.url + "/dev/status")).json()).pid, dev.pid);
     web = await startStatic("dist", { cwd, env }); assert.notEqual(web.url, dev.url);
     assert.equal(await (await fetch(web.url)).text(), "<h1>owned</h1>");
-    for (const log of Object.values(dev.logs)) assert.ok(log.startsWith(join(cwd, "logs")));
+    for (const log of Object.values(dev.logs)) assert.ok(log.startsWith(tmpdir()), "default logs stay outside app sources");
     assert.match(readFileSync(dev.logs.stderr, "utf8"), /SNAPBACK4_READY/);
   } finally { await cleanup(() => web?.stop(), () => stopChild(dev)); }
 });

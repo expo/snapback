@@ -11,7 +11,9 @@ try { console.log(dev.url); } finally { await cleanup(() => dev.stop()); }
 
 Build with `npm run build` (web) or `npm run build:web` (Expo web) first.
 After replacing the starter screen, replace its business assertions too.
-`init --adapt` adds missing proof files and manifest entries, keeping your edits.
+`init --adapt` previews only and writes nothing; use the printed `--apply` command.
+A custom Home has no write scenario: replace the Home assertions; a proof without a write fails.
+`day2:proof` uses versions/v1.q and versions/v2.q (initial copies of your complete schema).
 
 ## Fixtures and cases
 
@@ -66,7 +68,7 @@ The same kit supports HTTP and browser proofs.
 
 ```js
 import assert from "node:assert/strict";
-import { startDev, startStatic, withBrowser, fillRN, statusText,
+import { startDev, startStatic, withBrowser, fillRN, renderedText,
   waitForFresh, bounded, cleanup } from "snapback4/proof";
 
 const dev = await startDev(); // memory store; actual runtime URL
@@ -75,14 +77,16 @@ try {
   web = await startStatic("dist");
   await withBrowser({ executablePath: process.env.CHROME }, async context => {
     const page = await context.newPage();
-    await page.goto(`${web.url}/?api=${encodeURIComponent(dev.url)}`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${web.url}/?api=${encodeURIComponent(dev.url)}&witness=web`, { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: "Continue as a guest", exact: true }).click();
     const title = `Proof ${crypto.randomUUID()}`;
     await fillRN(page.getByLabel("Task", { exact: true }), title);
-    const ack = page.waitForResponse(r => r.url().endsWith("/m/add"));
-    await page.getByRole("button", { name: "Add", exact: true }).click();
-    assert.equal((await (await ack).json()).state, "sent");
-    await waitForFresh(statusText(page, new RegExp(title)), null);
+    const button = page.getByRole("button", { name: "Add", exact: true });
+    await button.evaluate((element, title) => window.__snapback4Witness.beginForm("add", {title}, element), title);
+    await button.click();
+    const receipt = await bounded(page.evaluate(() => window.__snapback4Witness.formResult()), 30000, "write receipt");
+    assert.equal(receipt.state, "sent", JSON.stringify(receipt));
+    await waitForFresh(renderedText(page, title, {within: page.getByRole("list")}), null);
   });
 } finally { await cleanup(() => web?.stop(), () => dev.stop()); }
 ```
@@ -90,12 +94,16 @@ try {
 The kit spawns binaries directly, binds the first free port in PORT_LO..PORT_HI
 at run time (or an OS-assigned port with neither set), strips ANSI ready lines,
 asserts served identity and owns bounded cleanup. Each child logs separate
-stdout/stderr files in logs/. `startServe(deployDir)` serves a deployment;
+stdout/stderr files outside application sources by default (`logsDir()` uses the OS temporary directory).
+Set `logsDir` explicitly to retain a chosen artifact directory. `startServe(deployDir)` serves a deployment;
 `startVite(dir)` serves the app's Vite config; `startStatic(dir)` serves built
 output, including wasm. Never spawn npx or shell wrappers for proof hosts.
 `startDev(args)` and `stopChild(ChildProcess | {url, stop})` remain supported.
-`cli(args)` awaits close and returns `{code, stdout, stderr, logs}`; assert code
-when expecting success. Set CHROME to an installed Chromium; root or a recognized
+`cli(args)` dispatches every published verb through the installed JS wrapper, including web-shell,
+awaits close and returns `{code, stdout, stderr, logs}`; assert code
+when expecting success. `withBrowser({ chromium })` uses the caller’s Playwright (including @playwright/test);
+playwright-core is an optional peer required when using browsers. Chromium launches over
+a pipe, with no WebSocket listener. Set CHROME to an installed Chromium; root or a recognized
 unavailable sandbox selects --no-sandbox. Ordinary hosts first use the sandbox.
 
 `fillRN` clears then uses pressSequentially so RN-web gets real keystrokes.
@@ -104,7 +112,33 @@ has no content-derived accessible name, so never getByRole('status', {name}).
 `selectByValue(locator, value)` uses a stable option value, not a label regex.
 Never wait for networkidle: live queries hold long polls. Wait for the control.
 
-Four rules keep proofs honest:
+`renderedText(page, text, { within: container })` excludes inputs and textareas.
+`waitForFresh(locator, previous, { within: container, timeoutMs: 30000 })` scopes a fresh signal.
+`await frontPage(page)` brings the page forward before `await page.screenshot(...)`.
+
+E_WITNESS_DISABLED means claiming is not armed. Add &witness=web to the proof URL.
+
+E_WITNESS_UNCLAIMED means the armed durable write's event, operation or arguments did not match. Inspect the reason in formResult; the application write still runs normally.
+
+## Web witness (15-line contract)
+
+registerWebWitness(app, api) always installs window.__snapback4Witness in a browser.
+Load the proof URL with ?witness=web (or &witness=web) to arm writes.
+Without it, beginForm/mutate throws E_WITNESS_DISABLED: add &witness=web.
+After signing in, get the actual submit button Element from the page.
+beginForm(name, expected | null, button) arms one durable mutation.
+name is the generated operation name; undefined accepts any durable operation.
+expected matches canonical JSON exactly: object key order is ignored.
+Include every argument, including explicit nulls; null skips argument matching.
+Click the armed button with Playwright; script clicks do not qualify.
+A synchronous form onSubmit caused by that button also qualifies.
+Timers or later requestSubmit calls do not inherit a prior click.
+formResult() returns a Promise of { state, id, seq?, result?, why?, mutation }.
+Require state === "sent" before asserting the rendered business result.
+An unclaimable durable write settles failed/E_WITNESS_UNCLAIMED with event/operation/arguments detail.
+Keep the promise outside components that may unmount; rearming cancels observation.
+
+Eight rules keep proofs honest:
 
 - Log to files, never pipes. A descendant holding a pipe can hide completion.
 - Wait for a fresh signal for each write: its terminal receipt, changed write id,
@@ -113,6 +147,11 @@ Four rules keep proofs honest:
   app's registered SDK witness before clicking, then asserts that write's sent.
 - An HTTP acknowledgement is not React settlement. Assert sent, then wait for
   the rendered authoritative projection; a predicted row/pending is not commit.
+
+- Scope row assertions to the list or detail container they prove.
+- Keep status text disjoint from row text; echoing a draft is not a committed row.
+- An input’s value is never evidence of a write; assert rendered output.
+- Seed persona rosters before browser proofs with POST /dev/reset {seed}.
 
 Raw HTTP: POST `/q/name` with `{args}` returns `{data, complete, cut, next}`
 or `{denied}`. POST `/m/name` returns `{state:'sent', result}` or

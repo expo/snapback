@@ -149,6 +149,8 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_WITNESS_EXPORT", "the export has no index.html; Run build:web first; guide testing."),
     ("E_WITNESS_READY", "the app could not open its write custody; Repair the reported schema or storage refusal; guide testing."),
     ("E_WITNESS_SENT", "the write failed, stayed pending or timed out; Inspect the refusal; pending is not success; guide testing."),
+    ("E_WITNESS_DISABLED", "witness claiming is disabled; Add &witness=web to the proof URL; guide testing."),
+    ("E_WITNESS_UNCLAIMED", "an armed durable write could not be claimed; Inspect event, operation and exact arguments; guide testing."),
     ("E_WITNESS_WEB", "the browser proof could not complete; Check the export, browser and application; guide testing."),
     ("N_UNREADABLE_PROBE", "a program guard probes rows its caller may not read. Hidden rows are filtered by the target read rule; a negative guard cannot enforce global absence. Use a unique/cap/final constraint for cross-reader invariants; guide rules."),
     ("N_PERSONA_PRINCIPAL", "a principal column holds a bare declared persona name. Write dev:NAME for development; production uses an account principal. guide personas."),

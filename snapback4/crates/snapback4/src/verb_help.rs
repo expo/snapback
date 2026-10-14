@@ -22,7 +22,7 @@ conflicting value refuses before any file is written.
                    `snapback4 dev --port N`, and with --web the page on N+1
                    (dev and preview), so one flag moves all of them
                    (default 4400; the page 5173)
-  --port-range A-B  scaffold all ports inside this range (or PORT_LO/PORT_HI)
+  --port-range A-B  set interactive defaults; PORT_LO/PORT_HI override at run time
   --web-port N     the Vite page's port instead of N+1 (--web only)
   --skip-existing  keep every existing file and write only the missing ones
 
@@ -36,7 +36,7 @@ screen picks a persona instead of signing in as a guest.
 Init first, schema second: once you replace the starter's schema, `check`
 names the starter files that no longer fit it, and --adapt fits them:
 
-  --adapt          remove the todo starter's fixtures and cases when the
+  --adapt          preview only; writes nothing. End with the exact --apply command.\n                   Plan to remove the todo starter's fixtures and cases when the
                    schema has no todos table and its operations (fixtures/
                    itself stays); rewrite the starter screen and client for
                    the schema's sign-in (guest, password, or a persona picker
@@ -44,8 +44,7 @@ names the starter files that no longer fit it, and --adapt fits them:
                    backend port, and replace the Todos screen with a Home
                    screen that compiles against any schema. Only files whose
                    bytes still match what init wrote are touched. The plan
-                   lists every rewrite/removal before applying. Edited
-                   application files make the default a preview.
+                   lists every rewrite/removal; only --apply changes files.
   --dry-run        with --adapt: preview only, changing no files
   --apply          with --adapt: apply the plan, keeping edited files intact
 

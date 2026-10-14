@@ -31,7 +31,7 @@ for (const identity of [null, 'use identity password', 'use personas alice']) te
   if (!identity) {
     const schema = join(dir, 'snapback/schema.q');
     writeFileSync(schema, readFileSync(schema, 'utf8').replace('use identity ', 'use identity password '));
-    run(bin, ['init', '--adapt'], dir);
+    run(bin, ['init', '--adapt', '--apply'], dir);
     run(bin, ['check'], dir);
     run(join(root, 'node_modules/.bin/tsc'), ['--noEmit'], dir);
   }

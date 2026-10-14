@@ -22,7 +22,7 @@ for (const persona of [undefined, 'alice']) test(`default web starter ${persona 
   const proof = invoke(['witness', 'web', 'dist', ...(persona ? ['--as', persona, '--port-range', '30100-30109'] : []), '--mutation', 'add', '--args', '{"title":"Visible proof"}', '--field', 'Task', '--value', 'Visible proof', '--button', 'Add'], dir);
   success(proof); assert.equal(JSON.parse(proof.stdout).proof, 'visible-form'); assert.equal(JSON.parse(proof.stdout).state, 'sent');
   const wrong = invoke(['witness', 'web', 'dist', '--mutation', 'add', '--args', '{"title":"Other value"}', '--field', 'Task', '--value', 'Visible proof', '--button', 'Add', '--timeout', '5'], dir);
-  assert.equal(wrong.status, 1); assert.match(wrong.stderr, /E_WITNESS_ARGUMENT/);
+  assert.equal(wrong.status, 1); assert.match(wrong.stderr, /E_WITNESS_UNCLAIMED/);
   if (persona) { const sdk = invoke(['witness', 'web', 'dist', '--as', 'alice', '--mutation', 'add', '--args', '{"title":"SDK proof"}'], dir); success(sdk); }
 });
 
@@ -43,7 +43,9 @@ test('visible-form arming ignores old sent state, isolates the clicked mutation 
   window.__snapback4Witness.beginForm('add', { title: 'new' }, button);
   let settled = false; window.__snapback4Witness.formResult().then(() => settled = true);
   await Promise.resolve(); assert.equal(settled, false, 'existing sent text is not a write');
-  await app.client.mutate(mutation, { title: 'new' }); await Promise.resolve(); assert.equal(settled, false, 'matching background write before click is ignored');
+  await app.client.mutate(mutation, { title: 'new' }); await Promise.resolve(); assert.equal(settled, true, 'an armed unclaimed background write fails promptly');
+  assert.equal((await window.__snapback4Witness.formResult()).why.code, 'E_WITNESS_UNCLAIMED');
+  window.__snapback4Witness.beginForm('add', {title:'new'}, button);
   const click = { isTrusted: true, composedPath: () => [button] }; window.event = click; for (const capture of captures) capture(click);
   const returned = await app.client.mutate(mutation, { title: 'new' }); assert.equal(returned.state, 'pending', 'instrumentation preserves UI custody');
   const receipt = await window.__snapback4Witness.formResult(); assert.equal(receipt.state, 'sent'); assert.equal(receipt.mutation, 'add');
@@ -62,7 +64,7 @@ const api={add:{kind:'mutation',name:'add'}}, listeners=new Set();let n=0;
 const client={viewer:()=> 'dev:alice',onWrite:fn=>{listeners.add(fn);return()=>listeners.delete(fn)},mutate:async(op,args)=>({state:'sent',id:String(++n),seq:n,result:args})};
 const app={client,ready:Promise.resolve({ok:true}),mutate:async(...args)=>{await Promise.resolve();return client.mutate(...args)}};
 registerWebWitness(app,api);
-setInterval(()=>client.mutate(api.add,{title:'proof'}),20);
+${active ? '' : `setInterval(()=>client.mutate(api.add,{title:'proof'}),20);`}
 ${active ? "document.querySelector('button').onclick=()=>void app.mutate(api.add,{title:'proof'});" : ''}
 </script>`);
   const result = invoke(['witness', 'web', 'dist', '--url', 'http://127.0.0.1:4400', '--as', 'alice', '--mutation', 'add', '--args', '{"title":"proof"}', '--field', 'Task', '--value', 'proof', '--button', 'Add', '--timeout', '2'], dir);
@@ -87,7 +89,7 @@ button.onclick=e=>{e.preventDefault();setTimeout(()=>form.requestSubmit(button),
   assert.equal(result.status,1);assert.match(result.stderr,/E_WITNESS_SENT/);assert.ok(!result.stdout.includes('"state":"sent"'));
 });
 
-for (const mode of ['microtask', 'nested-submit', 'script-click']) test(`clicked dispatch provenance: ${mode}`, { timeout: 15000 }, t => {
+for (const mode of ['microtask', 'nested-submit', 'script-click', 'nested-script-click']) test(`clicked dispatch provenance: ${mode}`, { timeout: 15000 }, t => {
   const dir=project(t);mkdirSync(join(dir,'dist'));
   writeFileSync(join(dir,'dist/bridge.js'),readFileSync(join(root,'packages/snapback4/dist/witness-web.js')));
   writeFileSync(join(dir,'dist/index.html'),`<form><label>Task<input></label><button>Add</button></form><script type="module">
@@ -96,10 +98,10 @@ const api={add:{kind:'mutation',name:'add'}},client={viewer:()=> 'dev:alice',onW
 const app={client,ready:Promise.resolve({ok:true}),mutate:async(...args)=>{await Promise.resolve();return client.mutate(...args)}};
 registerWebWitness(app,api);const form=document.querySelector('form'),button=document.querySelector('button');
 form.onsubmit=e=>{e.preventDefault();void app.mutate(api.add,{title:'proof'})};
-button.onclick=e=>{e.preventDefault();${mode === 'microtask' ? "void(async()=>{await Promise.resolve();await app.mutate(api.add,{title:'proof'})})()" : mode === 'nested-submit' ? 'form.requestSubmit(button)' : "if(e.isTrusted)setTimeout(()=>button.click(),10);else void app.mutate(api.add,{title:'proof'})"}};
+button.onclick=e=>{e.preventDefault();${mode === 'microtask' ? "void(async()=>{await Promise.resolve();await app.mutate(api.add,{title:'proof'})})()" : mode === 'nested-submit' ? 'form.requestSubmit(button)' : mode === 'nested-script-click' ? 'if(e.isTrusted)button.click()' : "if(e.isTrusted)setTimeout(()=>button.click(),10);else void app.mutate(api.add,{title:'proof'})"}};
 </script>`);
   const result=invoke(['witness','web','dist','--url','http://127.0.0.1:4400','--as','alice','--mutation','add','--args','{"title":"proof"}','--field','Task','--value','proof','--button','Add','--timeout','2'],dir);
-  if(mode==='microtask')success(result);else{assert.equal(result.status,1);assert.match(result.stderr,/E_WITNESS_SENT/)}
+  if(mode==='microtask'||mode==='nested-submit')success(result);else{assert.equal(result.status,1);assert.match(result.stderr,/E_WITNESS_SENT/)}
 });
 
 test('unapproved App calls preserve supported options from prototypes, non-enumerable fields and private getters', async t => {

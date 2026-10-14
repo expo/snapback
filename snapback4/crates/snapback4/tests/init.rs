@@ -601,7 +601,7 @@ fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
         }
         let texts = starter_texts(&dir.0);
         // Three kit scripts replace builder-owned process orchestration.
-        assert!(texts.len() <= 21, "{flag}: {} files", texts.len());
+        assert!(texts.len() <= 23, "{flag}: {} files", texts.len());
         let schema = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();
         let bound = snapback4_lang::compile(&[("schema.q".into(), schema)]);
         assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);
@@ -790,7 +790,7 @@ fn init_web_port_moves_vite_with_the_backend() {
     let output = dir.init(&["--web", "--port", "50540"]);
     assert!(output.status.success(), "{output:?}");
     let config = fs::read_to_string(dir.0.join("vite.config.mts")).unwrap();
-    assert!(config.contains("server: { port: 50541, strictPort: true }") && config.contains("preview: { port: 50541, strictPort: true }"), "{config}");
+    assert!(config.contains("frontendPort = proofRange[0] === undefined ? 50541") && config.contains("server: { port: frontendPort, strictPort: true }") && config.contains("preview: { port: frontendPort, strictPort: true }"), "{config}");
     assert!(fs::read_to_string(dir.0.join("README.md")).unwrap().contains("http://localhost:50541"));
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("http://127.0.0.1:50540") && stdout.contains("http://localhost:50541"), "{stdout}");
@@ -798,7 +798,7 @@ fn init_web_port_moves_vite_with_the_backend() {
         let dir = Dir::new();
         assert!(dir.init(args).status.success(), "{args:?}");
         let config = fs::read_to_string(dir.0.join("vite.config.mts")).unwrap();
-        assert!(config.contains("port: 4600") && !config.contains("5173"), "{args:?}: {config}");
+        assert!(config.contains("frontendPort = proofRange[0] === undefined ? 4600") && !config.contains("5173"), "{args:?}: {config}");
         assert!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap().contains("127.0.0.1:4400"));
     }
     for args in [&["--expo", "--web-port", "4600"][..], &["--web", "--web-port", "0"], &["--web", "--port", "4500", "--web-port", "4500"]] {
@@ -889,7 +889,7 @@ fn init_first_then_schema_leftovers_are_named_and_adapted() {
     assert_eq!(again.status.code(), Some(1));
     let refusal = String::from_utf8_lossy(&again.stderr);
     assert!(refusal.lines().next().unwrap().contains("snapback4 init --adapt") && !refusal.contains("schema.q already exists"), "{refusal}");
-    let adapted = dir.init(&["--adapt"]);
+    let adapted = dir.init(&["--adapt", "--apply"]);
     assert!(adapted.status.success(), "{adapted:?}");
     let stdout = String::from_utf8_lossy(&adapted.stdout);
     assert!(stdout.contains("removed fixtures/todos.jsonl and fixtures/test.cases.jsonl") && stdout.contains("rewrote src/App.tsx and src/client.ts and README.md"), "{stdout}");
@@ -922,10 +922,10 @@ fn init_first_then_schema_leftovers_are_named_and_adapted() {
     assert!(!String::from_utf8_lossy(&check(&dir).stdout).contains("starter:"));
     // New personas rewrite the picker's list; `use identity` brings the guest screen back.
     fs::write(dir.0.join("snapback/schema.q"), personas.replace("carol, dave", "erin")).unwrap();
-    assert!(dir.init(&["--adapt"]).status.success());
+    assert!(dir.init(&["--adapt", "--apply"]).status.success());
     assert!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap().contains(r#"= ["erin"];"#));
     fs::write(dir.0.join("snapback/schema.q"), format!("use identity\n{personas}")).unwrap();
-    assert!(dir.init(&["--adapt"]).status.success());
+    assert!(dir.init(&["--adapt", "--apply"]).status.success());
     let guest = Dir::new();
     fs::create_dir_all(guest.0.join("snapback")).unwrap();
     fs::write(guest.0.join("snapback/schema.q"), format!("use identity\n{personas}")).unwrap();
@@ -934,7 +934,7 @@ fn init_first_then_schema_leftovers_are_named_and_adapted() {
         assert_eq!(fs::read_to_string(dir.0.join(file)).unwrap(), fs::read_to_string(guest.0.join(file)).unwrap(), "{file}");
     }
     // A second adapt has nothing to do.
-    let idle = dir.init(&["--adapt"]);
+    let idle = dir.init(&["--adapt", "--apply"]);
     assert!(idle.status.success() && String::from_utf8_lossy(&idle.stdout).contains("nothing to adapt"), "{idle:?}");
 }
 
@@ -954,14 +954,14 @@ fn adapt_names_an_old_expo_starters_ids_after_the_directory() {
     fs::write(dir.join("app.json"), &old).unwrap();
     let checked = String::from_utf8_lossy(&run(&["check"]).stdout).into_owned();
     assert!(checked.contains("app.json: the todo starter's ids") && checked.contains("dev.snapback4.app4hclub"), "{checked}");
-    let adapted = run(&["init", "--adapt"]);
+    let adapted = run(&["init", "--adapt", "--apply"]);
     assert!(adapted.status.success() && String::from_utf8_lossy(&adapted.stdout).contains("rewrote") && String::from_utf8_lossy(&adapted.stdout).contains("app.json"), "{adapted:?}");
     assert_eq!(fs::read_to_string(dir.join("app.json")).unwrap(), fresh, "only the ids change");
     // A project that set its own bundle id keeps the file as it is.
     let mine = old.replace("\"dev.snapback4.todos\",\n      \"supportsTablet\"", "\"com.example.club\",\n      \"supportsTablet\"");
     assert_ne!(mine, old);
     fs::write(dir.join("app.json"), &mine).unwrap();
-    assert!(String::from_utf8_lossy(&run(&["init", "--adapt"]).stdout).contains("nothing to adapt"));
+    assert!(String::from_utf8_lossy(&run(&["init", "--adapt", "--apply"]).stdout).contains("nothing to adapt"));
     assert_eq!(fs::read_to_string(dir.join("app.json")).unwrap(), mine);
 }
 
@@ -996,7 +996,7 @@ fn adapt_never_touches_a_file_the_project_changed() {
     let dir = Dir::new();
     assert!(dir.init(&["--expo"]).status.success());
     fs::write(dir.0.join("snapback/schema.q"), "use personas carol\ntable notes:\n  body: text <=100\n  public 'shared'\n").unwrap();
-    assert!(dir.init(&["--adapt"]).status.success());
+    assert!(dir.init(&["--adapt", "--apply"]).status.success());
     assert!(fs::read_to_string(dir.0.join("App.tsx")).unwrap().contains("usePersonaApp(persona, openApp)"));
     assert!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap().contains(r#"= ["carol"];"#));
     // --adapt takes no starter flags and needs a schema.
@@ -1084,7 +1084,7 @@ fn adapt_keeps_the_fixture_directory_and_the_projects_own_rows() {
     fs::write(dir.0.join("snapback/schema.q"), "use identity\nuse personas alice\ntable notes:\n  body: text <=100\n  ownerId: principal\n  read <- .ownerId = viewer\n  insert <- .ownerId = viewer\nquery mine(c: cursor ?):\n  return notes where .ownerId = viewer after c first 50 by .id\n").unwrap();
     let mine = "{\"id\":\"n1\",\"body\":\"hi\",\"ownerId\":\"dev:alice\"}\n";
     fs::write(dir.0.join("fixtures/notes.jsonl"), mine).unwrap();
-    let adapted = dir.init(&["--adapt"]);
+    let adapted = dir.init(&["--adapt", "--apply"]);
     assert!(adapted.status.success(), "{adapted:?}");
     let stdout = String::from_utf8_lossy(&adapted.stdout);
     assert!(stdout.contains("removed fixtures/todos.jsonl and fixtures/test.cases.jsonl") && !stdout.contains("notes.jsonl"), "{stdout}");
@@ -1095,7 +1095,7 @@ fn adapt_keeps_the_fixture_directory_and_the_projects_own_rows() {
     let dir = Dir::new();
     assert!(dir.init(&["--expo"]).status.success());
     fs::write(dir.0.join("snapback/schema.q"), "use personas carol\ntable notes:\n  body: text <=100\n  public 'shared'\n").unwrap();
-    assert!(dir.init(&["--adapt"]).status.success());
+    assert!(dir.init(&["--adapt", "--apply"]).status.success());
     assert!(dir.0.join("fixtures").is_dir());
     fs::write(dir.0.join("fixtures/notes.jsonl"), "{\"id\":\"n1\",\"body\":\"hi\"}\n").unwrap();
 }
@@ -1115,7 +1115,7 @@ fn a_schema_without_the_todo_operations_gets_a_neutral_home_screen() {
             let first = Dir::new();
             assert!(first.init(&[flag]).status.success());
             fs::write(first.0.join("snapback/schema.q"), &schema).unwrap();
-            let adapted = first.init(&["--adapt"]);
+            let adapted = first.init(&["--adapt", "--apply"]);
             assert!(adapted.status.success(), "{adapted:?}");
             let stdout = String::from_utf8_lossy(&adapted.stdout);
             assert!(stdout.contains(&format!("rewrote {app_path}")) && stdout.contains("replace Home with your own screens"), "{flag} {sign_in}: {stdout}");
@@ -1142,7 +1142,7 @@ fn a_schema_without_the_todo_operations_gets_a_neutral_home_screen() {
             assert_eq!(unique.len(), modules.len(), "{flag} {sign_in}: {app}");
             // Nothing left over, and a second adapt has nothing to do.
             assert!(!String::from_utf8_lossy(&Command::new(BIN).arg("check").current_dir(&first.0).output().unwrap().stdout).contains("starter:"));
-            assert!(String::from_utf8_lossy(&first.init(&["--adapt"]).stdout).contains("nothing to adapt"));
+            assert!(String::from_utf8_lossy(&first.init(&["--adapt", "--apply"]).stdout).contains("nothing to adapt"));
             // Schema first writes exactly the same screen and client.
             let schema_first = Dir::new();
             fs::create_dir_all(schema_first.0.join("snapback")).unwrap();
@@ -1155,7 +1155,7 @@ fn a_schema_without_the_todo_operations_gets_a_neutral_home_screen() {
             assert_eq!(body(&first), body(&schema_first), "{flag} {sign_in}: README");
             // Restoring the todo operations brings the Todos screen back.
             fs::write(first.0.join("snapback/schema.q"), format!("{sign_in}{}", include_str!("../src/verbs/init/starter/schema.q").lines().filter(|line| !line.starts_with("use ")).collect::<Vec<_>>().join("\n"))).unwrap();
-            assert!(first.init(&["--adapt"]).status.success());
+            assert!(first.init(&["--adapt", "--apply"]).status.success());
             assert!(fs::read_to_string(first.0.join(app_path)).unwrap().contains("function Todos()"), "{flag} {sign_in}");
             assert!(fs::read_to_string(first.0.join("README.md")).unwrap().starts_with("# Todos: a Snapback 4"), "{flag} {sign_in}: the todo README comes back with the screen");
         }
@@ -1214,14 +1214,14 @@ fn the_readme_says_what_works_offline_from_the_schemas_synced_tables() {
         fs::write(dir.0.join("snapback/schema.q"), &synced).unwrap();
         let checked = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
         assert!(String::from_utf8_lossy(&checked.stdout).contains("README.md: the unmodified starter README says what works offline for another schema"), "{flag}: {checked:?}");
-        let adapted = dir.init(&["--adapt"]);
+        let adapted = dir.init(&["--adapt", "--apply"]);
         assert!(adapted.status.success() && String::from_utf8_lossy(&adapted.stdout).contains("rewrote") && String::from_utf8_lossy(&adapted.stdout).contains("README.md"), "{flag}: {adapted:?}");
         let after = fs::read_to_string(dir.0.join("README.md")).unwrap();
         if flag == "--web" { assert!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap().contains("device: webDevice()"), "adapt follows the newly synced table"); }
         assert!(after.replace('\n', " ").contains("the synced table (`notes`) reads and writes offline"), "{flag}: {after}");
         assert_eq!(after.split("\n\n").filter(|paragraph| !paragraph.starts_with("Offline")).collect::<Vec<_>>(),
             readme.replace("web uses the principal write journal (no synced tables).", "web uses the wasm\ndevice.").replace("or the principal write journal (web, no synced tables).", "or `webDevice()` (web).").split("\n\n").filter(|paragraph| !paragraph.starts_with("Offline")).collect::<Vec<_>>(), "{flag}: only offline wording changes");
-        assert!(dir.init(&["--adapt"]).status.success());
+        assert!(dir.init(&["--adapt", "--apply"]).status.success());
         assert_eq!(fs::read_to_string(dir.0.join("README.md")).unwrap(), after, "{flag}: adapt is idempotent");
         // 0.4.22's README (the unconditional claim) is still the starter's, and is rewritten.
         let legacy = match flag {
@@ -1232,12 +1232,12 @@ fn the_readme_says_what_works_offline_from_the_schemas_synced_tables() {
         };
         assert_ne!(legacy, after);
         fs::write(dir.0.join("README.md"), &legacy).unwrap();
-        assert!(dir.init(&["--adapt"]).status.success());
+        assert!(dir.init(&["--adapt", "--apply"]).status.success());
         assert_eq!(fs::read_to_string(dir.0.join("README.md")).unwrap(), after, "{flag}: 0.4.22's README is rewritten");
         // A README the project edited is never touched.
         fs::write(dir.0.join("README.md"), format!("{after}\nMy notes.\n")).unwrap();
         fs::write(dir.0.join("snapback/schema.q"), online).unwrap();
-        assert!(dir.init(&["--adapt"]).status.success());
+        assert!(dir.init(&["--adapt", "--apply"]).status.success());
         assert!(fs::read_to_string(dir.0.join("README.md")).unwrap().ends_with("My notes.\n"));
     }
     // The todo starter's own schema syncs its one table; its README keeps its claim.
@@ -1312,7 +1312,7 @@ fn adapt_switches_guest_password_and_persona_and_keeps_password_readme() {
         for (identity, expected) in [("use identity password", "the password sign-in"), ("use personas alice", "a persona picker"), ("use identity password", "the password sign-in"), ("use identity", "the guest sign-in")] {
             let body = original.lines().filter(|line| !line.starts_with("use identity") && !line.starts_with("use personas")).collect::<Vec<_>>().join("\n");
             fs::write(&path, format!("{identity}\n{body}\n")).unwrap();
-            let out = dir.init(&["--adapt"]); assert!(out.status.success(), "{out:?}");
+            let out = dir.init(&["--adapt", "--apply"]); assert!(out.status.success(), "{out:?}");
             let text = String::from_utf8_lossy(&out.stdout); assert!(text.contains(expected), "{text}");
             let app = fs::read_to_string(dir.0.join(if mode == "--web" { "src/App.tsx" } else { "App.tsx" })).unwrap();
             if identity.contains("password") {
@@ -1344,14 +1344,14 @@ fn untouched_previous_release_clients_adapt_to_password_but_edits_stay_owned() {
         let schema = dir.0.join("snapback/schema.q");
         let body = fs::read_to_string(&schema).unwrap().lines().filter(|l| !l.starts_with("use identity") && !l.starts_with("use personas")).collect::<Vec<_>>().join("\n");
         fs::write(schema, format!("use identity password\n{body}\n")).unwrap();
-        let out = dir.init(&["--adapt"]); assert!(out.status.success(), "{out:?}");
+        let out = dir.init(&["--adapt", "--apply"]); assert!(out.status.success(), "{out:?}");
         let app_path = dir.0.join(if mode == "--web" { "src/App.tsx" } else { "App.tsx" });
         let app = fs::read_to_string(&app_path).unwrap(); assert!(app.contains("auth.signup") && !app.contains("auth.guest()"), "{app}");
         let adapted = fs::read_to_string(dir.0.join("src/client.ts")).unwrap();
         assert!(adapted.contains("127.0.0.1:4517") && adapted.contains("registerWebWitness"));
         fs::write(dir.0.join("src/client.ts"), format!("{client}\n// An application edit.\n")).unwrap();
         let before = fs::read_to_string(&app_path).unwrap();
-        assert!(dir.init(&["--adapt"]).status.success());
+        assert!(dir.init(&["--adapt", "--apply"]).status.success());
         assert_eq!(fs::read_to_string(app_path).unwrap(), before);
         assert!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap().ends_with("// An application edit.\n"));
     }
@@ -1386,7 +1386,7 @@ fn adapt_repairs_only_the_owned_0_4_26_expo_favicon() {
         config["expo"]["web"]["favicon"] = json!("./assets/favicon.svg");
         config["expo"]["description"] = json!("keep this");
         fs::write(&path, config.to_string()).unwrap();
-        assert!(dir.init(&["--adapt"]).status.success());
+        assert!(dir.init(&["--adapt", "--apply"]).status.success());
         let after: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
         assert_eq!(after["expo"]["description"], "keep this");
         assert_eq!(after.pointer("/expo/web/favicon").is_some(), edited);
@@ -1422,14 +1422,14 @@ fn adapt_adds_missing_proof_files_and_preserves_application_proofs() {
     package["scripts"].as_object_mut().unwrap().remove("frontend:proof");
     package["devDependencies"].as_object_mut().unwrap().remove("playwright-core");
     fs::write(&path, package.to_string()).unwrap();
-    assert!(dir.init(&["--adapt"]).status.success());
+    assert!(dir.init(&["--adapt", "--apply"]).status.success());
     assert!(dir.0.join("scripts/frontend-proof.mjs").is_file());
     let mut package: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
     assert_eq!(package["scripts"]["frontend:proof"], "node scripts/frontend-proof.mjs");
     assert_eq!(package["devDependencies"]["playwright-core"], "1.55.1");
     package["scripts"]["frontend:proof"] = json!("my-custom-proof"); fs::write(&path, package.to_string()).unwrap();
     fs::write(dir.0.join("scripts/frontend-proof.mjs"), "// application-owned proof\n").unwrap();
-    assert!(dir.init(&["--adapt"]).status.success());
+    assert!(dir.init(&["--adapt", "--apply"]).status.success());
     let package: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
     assert_eq!(package["scripts"]["frontend:proof"], "my-custom-proof");
     assert_eq!(fs::read_to_string(dir.0.join("scripts/frontend-proof.mjs")).unwrap(), "// application-owned proof\n");

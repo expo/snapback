@@ -163,6 +163,8 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_WITNESS_EXPORT", "the export has no index.html"),
     ("E_WITNESS_READY", "the app could not open its write custody"),
     ("E_WITNESS_SENT", "the write failed, stayed pending or timed out"),
+    ("E_WITNESS_DISABLED", "claiming is not armed"),
+    ("E_WITNESS_UNCLAIMED", "event, operation or arguments did not match"),
     ("E_WITNESS_WEB", "the browser proof could not complete"),
     ("E_REDUNDANT_RULE", "E_REDUNDANT_RULE means an aggregate read rule repeats its parent's rule"),
     ("N_CONDITIONAL_COMPLETE", "N_CONDITIONAL_COMPLETE means a readable pinned-parent guard decides the page"),
