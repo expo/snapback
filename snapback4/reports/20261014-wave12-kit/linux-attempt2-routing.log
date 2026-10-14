@@ -1,0 +1,452 @@
+info: component rust-std for target x86_64-unknown-linux-musl is up to date
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:292:13
+    |
+292 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:503:15
+    |
+503 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: `snapback4-core` (lib) generated 9 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling snapback4-lang v0.4.28 (/home/ccheever/projects/sb4-w12-kit/snapback4/crates/snapback4-lang)
+warning: dropping unsupported crate type `cdylib` for target `x86_64-unknown-linux-musl`
+
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:450:51
+    |
+450 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 2 warnings (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4 v0.4.28 (/home/ccheever/projects/sb4-w12-kit/snapback4/crates/snapback4)
+warning: use of deprecated type alias `libc::time_t`: This type is changed to 64-bit in musl 1.2.0, we'll follow that change in the future release. See #1848 for more info.
+   --> crates/snapback4/src/verbs/witness/background.rs:388:65
+    |
+388 |     let seconds = (value.as_u64().unwrap_or(0) / 1000) as libc::time_t;
+    |                                                                 ^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:115:30
+    |
+115 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:131:30
+    |
+131 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+
+warning: method `push` is never used
+  --> crates/snapback4/src/dev_refusal_console.rs:22:12
+   |
+16 | impl Console {
+   | ------------ method in this implementation
+...
+22 |     pub fn push(&mut self, record: Value, identity: &Value, out: &mut impl Write) {
+   |            ^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `human_period` is never used
+   --> crates/snapback4/src/verbs.rs:822:4
+    |
+822 | fn human_period(ms: u64) -> String {
+    |    ^^^^^^^^^^^^
+
+warning: `snapback4` (bin "snapback4") generated 5 warnings (run `cargo fix --bin "snapback4" -p snapback4` to apply 2 suggestions)
+    Finished `production` profile [optimized] target(s) in 4m 24s
+{"status":"passed","machine":"x86_64","interpreter":null,"needed":[]}
+
+added 6 packages in 2s
+init: wrote 20 files in . — Vite + React todos, offline-capable — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:29040; `npm run dev` serves the page on http://localhost:29041; `init --web --port N` sets the backend to N and the page to N+1 together
+[1mnpm install[0m
+
+added 26 packages in 2s
+check: ok — 1 table (1 synced), 4 operations, no problems, 3.9 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 134 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    0.45 kB │ gzip:   0.29 kB
+dist/assets/web-worker-entry-DseDHWyJ.js          25.02 kB
+dist/assets/snapback4_device_bg-LOu4IHPv.wasm  2,319.74 kB │ gzip: 719.82 kB
+dist/assets/index-D1mLdyLc.css                     0.36 kB │ gzip:   0.24 kB
+dist/assets/index-CiBYTUdW.js                    586.13 kB │ gzip: 186.58 kB
+
+✓ built in 287ms
+web-shell: 6 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 1s
+init: wrote 20 files in . — Vite + React app, online reads and journaled writes (no device) — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:29040; `npm run dev` serves the page on http://localhost:29041; `init --web --port N` sets the backend to N and the page to N+1 together
+[1mnpm install[0m
+
+added 26 packages in 2s
+check: ok — 1 table (0 synced), 4 operations, no problems, 4.0 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 116 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.46 kB │ gzip:   0.29 kB
+dist/assets/index-D1mLdyLc.css    0.36 kB │ gzip:   0.24 kB
+dist/assets/index-BmTkbUNy.js   525.55 kB │ gzip: 167.78 kB
+
+✓ built in 206ms
+web-shell: 4 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 1s
+init: wrote 21 files in . — Expo todos: native when available, online in Expo Go — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, native-smoke.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:29040; `npm run web` serves http://localhost:29041; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together
+[1mnpm install[0m
+
+added 502 packages in 16s
+check: ok — 1 table (1 synced), 4 operations, no problems, 3.9 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+| (node:2565236) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:2565236) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+Web Bundled 4865ms index.js (327 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/index-d7e30ed3a6eee25bf8b68c686383e754.js (833KB)
+_expo/static/js/web/web-worker-entry-17adb7552f751f2793d718b043a62664.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 5 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 1s
+init: wrote 23 files in . — Vite chat app — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, src/{App.tsx, client.ts, Composer.tsx, Thread.tsx, Inbox.tsx, main.tsx, intents.ts, state.ts, vite-env.d.ts}, snapback/{schema.q, worker.ts, generated/package.json}, public/favicon.svg, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:29040; `npm run dev` serves the page on http://localhost:29041; `init --web --port N` sets the backend to N and the page to N+1 together
+[1mnpm install[0m
+
+added 26 packages in 2s
+check: ok — 5 tables, 1 view (5 synced), 12 operations, no problems, 7 notes, 11.6 ms
+7 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:85:10 — N_REFERENCE_UNCHECKED: review: this reference argument is never looked up. mutation addMember stores argument conversationId directly in memberships.conversationId, but never looks up conversations[conversationId]: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation send (schema.q:94:9); mutation sendPhoto (schema.q:99:9) — snapback4 why N_REFERENCE_UNCHECKED
+note: schema.q:30:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. conversations: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for memberships: no production writer can bootstrap this root (schema.q:40:1); profiles: no production writer can bootstrap this root (schema.q:16:1) — snapback4 why N_NO_PRODUCTION_WRITER
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:79:1 — N_NO_CURSOR: no action for a top-N list. query inbox returns a page of 50 memberships rows with no cursor, so the page cannot continue: rows past the first 50 are not reachable. Fine for a top-50 list, or a list that stays under 50 rows; a pinned unique key or a `cap` at or under 50 silences this — snapback4 why N_NO_CURSOR
+1 mutation is server-run (online app: no action): markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-chat@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-chat@0.0.1 build
+> vite build && snapback4 web-shell dist
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 139 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    1.21 kB │ gzip:   0.66 kB
+dist/assets/web-worker-entry-DseDHWyJ.js          25.02 kB
+dist/assets/snapback4_device_bg-LOu4IHPv.wasm  2,319.74 kB │ gzip: 719.82 kB
+dist/assets/index-Y5y9Vrwq.js                    593.90 kB │ gzip: 188.87 kB
+
+✓ built in 294ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+web-shell: 5 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 1s
+init: wrote 25 files in . — Expo chat app — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, native-smoke.ts, Inbox.tsx, Thread.tsx, intents.ts, intent-store.ts, intent-store.web.ts, intent-store.native.ts}, snapback/{schema.q, generated/package.json}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:29040; `npm run web` serves http://localhost:29041; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together
+[1mnpm install[0m
+
+added 502 packages in 8s
+check: ok — 5 tables, 1 view (5 synced), 11 operations, no problems, 7 notes, 10.9 ms
+7 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:83:10 — N_REFERENCE_UNCHECKED: review: this reference argument is never looked up. mutation addMember stores argument conversationId directly in memberships.conversationId, but never looks up conversations[conversationId]: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation send (schema.q:92:9); mutation sendPhoto (schema.q:97:9) — snapback4 why N_REFERENCE_UNCHECKED
+note: schema.q:28:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. conversations: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for memberships: no production writer can bootstrap this root (schema.q:38:1); profiles: no production writer can bootstrap this root (schema.q:14:1) — snapback4 why N_NO_PRODUCTION_WRITER
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:77:1 — N_NO_CURSOR: no action for a top-N list. query inbox returns a page of 50 memberships rows with no cursor, so the page cannot continue: rows past the first 50 are not reachable. Fine for a top-50 list, or a list that stays under 50 rows; a pinned unique key or a `cap` at or under 50 silences this — snapback4 why N_NO_CURSOR
+1 mutation is server-run (online app: no action): markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-expo-chat@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-expo-chat@0.0.1 build:web
+> expo export -p web --max-workers 2 && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+| (node:2570403) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:2570403) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+Web Bundled 1315ms index.js (361 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/index-f5f2810a1ef99b40cb3349c6ad48a1f1.js (911KB)
+_expo/static/js/web/web-worker-entry-ad6abe14ce74f5528d9040aba55a5c61.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 5 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 1s
+init: wrote 46 files in . — Expo Router social app — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, expo-env.d.ts, README.md, tsconfig.json, app.json, src/ (20 files), scripts/{seed.mjs, frontend-proof.mjs, day2-proof.mjs, launch.mjs}, snapback/{workers/notifications.mjs, schema.q, generated/package.json}, app/{_layout.tsx, conversation/[id].tsx, dm/[other].tsx, (tabs)/_layout.tsx, (tabs)/index.tsx, (tabs)/chats.tsx, (tabs)/search.tsx, (tabs)/profile.tsx, search-chat/[id].tsx}, versions/{v1.q, v2.q}
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:29040; `npm run web` serves http://localhost:29041; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together
+[1mnpm install[0m
+
+added 584 packages in 12s
+check: ok — 16 tables, 1 view (15 synced), 31 operations, no problems, 17 notes, 64.0 ms
+17 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:232:1 — N_NEVER_COMPLETE — verdict: capped; the server cannot prove that this page contains every readable row — snapback4 why N_NEVER_COMPLETE
+  who: no caller group is proved complete by this page
+  what: pin every read-rule scope or handle `complete: false` as more rows may exist; check --verbose shows the proof and checked repair
+note: schema.q:80:7 — N_REFERENCE_UNCHECKED: review: this reference argument is never looked up. mutation send stores argument conversation directly in messages.conversation, but never looks up conversations[conversation]: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation add (schema.q:85:3); mutation setLike (schema.q:207:5) — snapback4 why N_REFERENCE_UNCHECKED
+note: table followingEdges:1:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. followingEdges: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for followingFeed: no production writer can bootstrap this root (table followingFeed:1:1); followingPosts: no production writer can bootstrap this root (table followingPosts:1:1); followingRemovedEvents: no production writer can bootstrap this root (table followingRemovedEvents:1:1); followingWork: no production writer can bootstrap this root (table followingWork:1:1); reposts: no production writer can bootstrap this root (schema.q:170:1) — snapback4 why N_NO_PRODUCTION_WRITER
+note: programs.search.0 — N_SEARCH_OPEN: review. opening every membership and head must fit one read; an opening cut refuses E_SEARCH_OPEN without a continuation — snapback4 why N_SEARCH_OPEN
+performance — costs speed, meter headroom or offline coverage:
+note: schema.q:67:69 — N_SEEK: no action unless it is slow (`check --cost` measures it). a `where` on the next index column is a seek; write it in the key — snapback4 why N_SEEK
+note: N_SEEK (as above) also for a (schema.q:72:69) — snapback4 why N_SEEK
+note: schema.q:225:1 — N_EPHEMERAL_SERVER: no action unless it is slow (`check --cost` measures it). typingIn runs on the server because it reads an ephemeral table — snapback4 why N_EPHEMERAL_SERVER
+note: programs.search.0 — N_SEARCH_WORDS: no action unless it is slow (`check --cost` measures it). word expansion and further-term misses consume the meter; compact membership refills rescan words and charge repeated work — snapback4 why N_SEARCH_WORDS
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:230:10 — N_SYNC_ORDER: no action for an online app. query searchChat `messages[conversation = conversation] matching q last 20 by .at after c`: the order differs: the page reads by .at, .id, the window by .ordinal, .id; write `last 20 by .ordinal, .id` — it reads messages by .at, .id, newest first (index [conversation, at, id]); its sync window is last 500 by .ordinal, .id, newest first (index byConversationOrdinal [conversation, ordinal]); the client needs the server for this read; offline coverage is unknown — snapback4 why N_SYNC_ORDER
+note: N_SYNC_ORDER (as above) also for query search (schema.q:233:10) — snapback4 why N_SYNC_ORDER
+8 mutations are server-run (online app: no action): compactReceipts (reads receipt-owned or derived field members.deliveredOrdinal), delivered (reads receipt-owned or derived field conversations.lastOrdinal), follow (writes online-only table follows), leave (receipt membership changes and progress need settled state), seen (reads receipt-owned or derived field conversations.lastOrdinal), setTyping (writes online-only table typing), stopTyping (writes online-only table typing), unfollow (writes online-only table follows); 4 mutations have insert arms that may queue; 3 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-social-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-social-starter@0.0.1 build:web
+> expo export -p web --max-workers 2 && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+| (node:2572364) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:2572364) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+Web Bundled 8534ms node_modules/expo-router/entry.js (929 modules)
+
+› Assets (19):
+node_modules/expo-router/assets/arrow_down.017bc6ba3fc25503e5eb5e53826d48a8.png (9.5KB)
+node_modules/expo-router/assets/error.d1ea1496f9057eb392d5bbf3732a61b7.png (469B)
+node_modules/expo-router/assets/file.19eeb73b9593a38f8e9f418337fc7d10.png (138B)
+node_modules/expo-router/assets/forward.d8b800c443b8972542883e0b9de2bdc6.png (188B)
+node_modules/expo-router/assets/pkg.ab19f4cbc543357183a20571f68380a3.png (364B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.0a328cd9c1afd0afe8e3b1ec5165b1b4.png (653B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon.35ba0eaec5a4f5ed12ca16fabeae451d.png (207B)
+node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55.png (4 variations | 425B)
+node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7.png (4 variations | 235B)
+node_modules/expo-router/assets/react-navigation/elements/search-icon.286d67d3f74808a60a78d3ebf1a5fb57.png (928B)
+node_modules/expo-router/assets/sitemap.412dd9275b6b48ad28f5e3d81bb1f626.png (465B)
+node_modules/expo-router/assets/unmatched.20e71bdf79e3a97bf55fd9e164041578.png (4.8KB)
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/entry-04333c04c91827f8a828d285ceb6fe89.js (1.6MB)
+_expo/static/js/web/web-worker-entry-650f0e4244a9b624e4155750c59de637.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 23 files at /; wrote snapback4-sw.js
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+locator.evaluate: Error: E_WITNESS_DISABLED: add &witness=web
+    at o (http://127.0.0.1:33315/_expo/static/js/web/entry-04333c04c91827f8a828d285ceb6fe89.js:939:252)
+    at Object.beginForm (http://127.0.0.1:33315/_expo/static/js/web/entry-04333c04c91827f8a828d285ceb6fe89.js:939:621)
+    at eval (eval at evaluate (:291:30), <anonymous>:1:47)
+    at UtilityScript.evaluate (<anonymous>:293:16)
+    at UtilityScript.<anonymous> (<anonymous>:1:44)
+    at /home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-final/frontend-expo-social/scripts/frontend-proof.mjs:36:20
+    at async withBrowser (/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-final/frontend-expo-social/node_modules/snapback4/dist/proof.js:156:20)
+    at async file:///home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-final/frontend-expo-social/scripts/frontend-proof.mjs:14:3
+
+Node.js v24.13.1
+file:///home/ccheever/projects/sb4-w12-kit/snapback4/scripts/publication-starters.mjs:45
+  if (status !== 0) throw Error(`${command}: toolchain command exited ${status}`);
+                          ^
+
+Error: strace: toolchain command exited 1
+    at runToolchainCommand (file:///home/ccheever/projects/sb4-w12-kit/snapback4/scripts/publication-starters.mjs:45:27)
+    at async proveFrontendTwice (file:///home/ccheever/projects/sb4-w12-kit/snapback4/scripts/publication-starters.mjs:76:7)
+    at async proveGeneratedProofs (file:///home/ccheever/projects/sb4-w12-kit/snapback4/scripts/publication-frontend-proofs.mjs:32:21)
+    at async qualify (file:///home/ccheever/projects/sb4-w12-kit/snapback4/scripts/qualify-linux.mjs:93:28)
+    at async file:///home/ccheever/projects/sb4-w12-kit/snapback4/scripts/qualify-linux.mjs:129:90
+
+Node.js v24.13.1

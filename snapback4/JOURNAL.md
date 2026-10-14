@@ -95465,3 +95465,28 @@ record the Linux listener audit as not-run. The three new H8 tests each fail on
 0.4.28; candidate focused tests and the standalone chat write proof pass. Final
 packed bytes, review confirmations and check results are recorded in this
 workstream's report; no publish or push is authorized here.
+
+## 2026-10-15 — KIT qualification: trace observations and routed witness arming
+
+The first packed frontend passed its write but the /proc listener observer
+refused a transient Chromium sandbox-helper EACCES. The observer now traces
+returned listen calls in the proof's own process tree with strace >=6.8;
+preflight checks the decoder, receipts retain its version and corroborated
+absent/zombie no-return fragments, and one shared validator refuses empty,
+malformed or wrong-range regular and negative evidence. No process is signalled
+by the observer. This is observational qualification, with its limits stated in
+LLP 3000.011.003.000.000 §8. Two more blind review rounds found incomplete named
+listen/result and receipt validation; their concrete controls now pass. Static
+export input validation also moves before keeper spawn so a missing-index
+message flushes before private-group cleanup.
+
+The fresh six-template matrix then passed ten attempts and caught a real social
+starter issue: Expo Router drops the witness query parameter on Profile. Arming
+is sampled at browser registration and retained across same-document routes,
+like the original opt-in registration lifetime; a new registration samples its
+URL again. The global still installs when disabled and names the repair. A real
+browser route/submit regression passes, and the social write passes twice under
+occupied-port/CPU load with listener traces. Registration safely ignores native
+window aliases without browser location; the added Expo template registrations
+therefore do not depend on a native location object. Final exact-pack evidence
+and paired confirmation follow in the workstream report; no publish or push.

@@ -57,6 +57,12 @@ registerWebWitness(app,{save:op});document.querySelector('form').onsubmit=e=>{e.
     await button.click();
     const result=await kit.bounded(page.evaluate(()=>window.__snapback4Witness.formResult()),1000,'onSubmit receipt');
     assert.equal(result.state,'sent'); assert.equal(result.id,'submitted');
+    // Same-document routers may drop the query; the registered app keeps its arm.
+    await page.evaluate(()=>history.pushState({},'', '/profile'));
+    await button.evaluate(e=>window.__snapback4Witness.beginForm('save',null,e));
+    await button.click();
+    assert.equal((await kit.bounded(page.evaluate(()=>window.__snapback4Witness.formResult()),1000,'routed receipt')).state,'sent');
+    // A new document/registration without the flag is disabled.
     // The global exists without the flag, and arming fails with a useful repair.
     await page.goto(web.url);await button.waitFor();
     await assert.rejects(button.evaluate(e=>window.__snapback4Witness.beginForm('save',null,e)),/E_WITNESS_DISABLED/);
@@ -153,4 +159,12 @@ if (!baseline) test('adapt migrates recognized legacy literal scripts/config and
 if (!baseline) test('single-port ranges remain valid for schema-only init; UI init refuses before writes',t=>{
  const schemaOnly=fixture(t);okay(invoke(schemaOnly,['init'],{PORT_LO:'65535',PORT_HI:'65535'}));
  const ui=fixture(t);const result=invoke(ui,['init','--web'],{PORT_LO:'65535',PORT_HI:'65535'});assert.equal(result.status,2);assert.match(result.stderr,/at least two runtime ports/);assert.deepEqual(readdirSync(ui),[]);
+});
+
+if (!baseline) test('native window aliases without a browser location do not install a web witness',async t=>{
+ const {registerWebWitness}=await import('../dist/witness-web.js');
+ const saved=Object.getOwnPropertyDescriptor(globalThis,'window');
+ const nativeWindow={};Object.defineProperty(globalThis,'window',{configurable:true,value:nativeWindow});
+ t.after(()=>{if(saved)Object.defineProperty(globalThis,'window',saved);else delete globalThis.window});
+ assert.doesNotThrow(()=>registerWebWitness({},{}));assert.equal(nativeWindow.__snapback4Witness,undefined);
 });

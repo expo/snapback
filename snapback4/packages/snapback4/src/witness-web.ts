@@ -4,8 +4,9 @@ import type { Mutation, Write } from "./contract.js";
 
 type Operations = Record<string, unknown>;
 export function registerWebWitness(app: App, api: Operations): void {
-  if (typeof window === "undefined") return;
-  const armed = () => { if (new URLSearchParams(window.location.search).get("witness") !== "web") throw Error("E_WITNESS_DISABLED: add &witness=web"); };
+  if (typeof window === "undefined" || typeof window.location?.search !== "string") return;
+  const enabled = new URLSearchParams(window.location.search).get("witness") === "web";
+  const armed = () => { if (!enabled) throw Error("E_WITNESS_DISABLED: add &witness=web"); };
   const operations: unknown[] = [];
   const walk = (value: Operations) => { for (const entry of Object.values(value)) {
     if (entry && typeof entry === "object") {

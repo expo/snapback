@@ -123,7 +123,7 @@ E_WITNESS_UNCLAIMED means the armed durable write's event, operation or argument
 ## Web witness (15-line contract)
 
 registerWebWitness(app, api) always installs window.__snapback4Witness in a browser.
-Load the proof URL with ?witness=web (or &witness=web) to arm writes.
+Load ?witness=web (or &witness=web) before registration; arming survives SPA routes.
 Without it, beginForm/mutate throws E_WITNESS_DISABLED: add &witness=web.
 After signing in, get the actual submit button Element from the page.
 beginForm(name, expected | null, button) arms one durable mutation.
