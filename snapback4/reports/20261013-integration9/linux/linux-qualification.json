@@ -7,7 +7,7 @@
     "target_summaries": 382
   },
   "clients": {
-    "source": "e43bb5b35c18ed4174bfaf059e20851763435a39",
+    "source": "b6dc002a4b0f030771ab79bdb6900c3386a877d8",
     "files": 381,
     "tests": 7438,
     "passed": 7382,
@@ -27,7 +27,10 @@
       "tests": 9,
       "passed": 9,
       "failed": 0
-    }
+    },
+    "first_qualified_source": "e43bb5b35c18ed4174bfaf059e20851763435a39",
+    "version": "0.4.26",
+    "isolated_timer_files": 17
   },
   "root": {
     "inventories": {
@@ -75,6 +78,12 @@
     "extra_budget_check": {
       "required_env_rerun_exit": 0,
       "note": "One additional exploratory Node budget check inherited default Cargo debug/incremental settings. It was immediately repeated with all three required flags; its six unused incremental caches and guide binary were removed. Required qualification stages all used the requested flags."
+    },
+    "mac_repair_controls": {
+      "required_lean_smoke_passed": 19,
+      "optional_missing_native_passed": 2,
+      "required_missing_expected_exit": 101,
+      "runner_and_adoption_passed": 67
     }
   }
 }
