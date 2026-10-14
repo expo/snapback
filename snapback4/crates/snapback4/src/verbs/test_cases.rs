@@ -48,7 +48,7 @@ pub struct Explicit { pub at: String, pub op: String, pub principal: String, pub
 pub fn explicit(fixture: &str, declared: &[String]) -> Vec<Explicit> {
     let Ok(text) = std::fs::read_to_string(Path::new(fixture).join(FILE)) else { return Vec::new() };
     fn saved(value: &Json) -> bool {
-        match value { Json::String(text) => text.starts_with('$') && text.len() > 1, Json::Array(items) => items.iter().any(saved), Json::Object(fields) => fields.values().any(saved), _ => false }
+        match value { Json::String(text) => text.starts_with('$') && text.len() > 1, Json::Array(items) => items.iter().any(saved), Json::Object(fields) => fields.len() == 1 && fields.contains_key("$literal") || fields.values().any(saved), _ => false }
     }
     text.lines().enumerate().filter_map(|(index, line)| {
         let line = line.trim();
@@ -209,6 +209,9 @@ fn validate(case: &Json) -> Result<(), String> {
             return Err(format!("`{key}` is a string, got {value}{hint}"));
         }
     }
+    if let Some(name) = fields.get("save").and_then(Json::as_str) && (name.is_empty() || name.contains('.') || name.starts_with('$')) {
+        return Err(format!("save alias {name:?} must be nonempty with no dot or leading dollar; use a name such as r1, then reference $r1 or $r1.field"));
+    }
     if let Some(value) = fields.get("count") && value.as_u64().is_none() { return Err(format!("`count` is a non-negative integer, got {value}")); }
     if let Some(value) = fields.get("args") && !value.is_object() && fields.get("expect").and_then(Json::as_str) != Some("E_INPUT") { return Err("\"args\" is an object".into()); }
     Ok(())
@@ -295,6 +298,8 @@ fn operation_site(bound: &Bound, site: &str) -> Option<String> {
 /// `"$name"` is a saved answer (a saved row's id); `"$name.field"` (any depth) one of its fields.
 fn substitute(value: Json, saved: &BTreeMap<String, Json>) -> Result<Json, String> {
     Ok(match value {
+        Json::Object(mut fields) if fields.len() == 1 && fields.contains_key("$literal") => fields.remove("$literal").unwrap(),
+        Json::String(text) if text.starts_with("$$") => Json::String(text[1..].to_owned()),
         Json::String(text) if text.starts_with('$') && text.len() > 1 => {
             let mut parts = text[1..].split('.');
             let name = parts.next().unwrap_or_default();
@@ -308,8 +313,26 @@ fn substitute(value: Json, saved: &BTreeMap<String, Json>) -> Result<Json, Strin
             // row (an insert's answer) means that row's id.
             match current.get("id").and_then(Json::as_str) { Some(id) if fields == 0 => Json::String(id.to_owned()), _ => current.clone() }
         }
+        // @ref LLP 3000.011.003.000.000#2 — a bare save alias refuses by name instead of becoming a silent literal id.
+        Json::String(text) if saved.contains_key(&text) => return Err(format!("{text:?} names a saved answer; write \"${text}\" for its id (or \"${text}.field\" for a field)")),
         Json::Array(items) => Json::Array(items.into_iter().map(|item| substitute(item, saved)).collect::<Result<_, _>>()?),
         Json::Object(fields) => Json::Object(fields.into_iter().map(|(k, v)| Ok((k, substitute(v, saved)?))).collect::<Result<_, String>>()?),
         other => other,
     })
+}
+
+#[cfg(test)]
+mod saved_alias_tests {
+    use super::*;
+    #[test]
+    fn aliases_resolve_or_refuse_by_name_and_literals_are_expressible() {
+        for name in ["", "r.1", "$r1"] { assert!(validate(&json!({"op":"add", "save":name})).unwrap_err().contains("save alias")); }
+        let saved = [("r1".into(), json!({"id":"real-row-id", "text":"hello", "nested":{"n":2}}))].into();
+        assert_eq!(substitute(json!({"row":"$r1", "text":"$r1.text", "nested":["$r1.nested.n"]}), &saved).unwrap(), json!({"row":"real-row-id", "text":"hello", "nested":[2]}));
+        let refused = substitute(json!({"row":"r1"}), &saved).unwrap_err();
+        assert!(refused.contains("r1") && refused.contains("$r1"), "{refused}");
+        assert!(substitute(json!("$missing"), &saved).unwrap_err().contains("nothing was saved as missing"));
+        assert!(substitute(json!("$r1.absent"), &saved).unwrap_err().contains("no field absent"));
+        assert_eq!(substitute(json!({"text":{"$literal":"r1"}, "money":"$$50", "ordinary":"price $50"}), &saved).unwrap(), json!({"text":"r1", "money":"$50", "ordinary":"price $50"}));
+    }
 }

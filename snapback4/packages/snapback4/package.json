@@ -81,6 +81,11 @@
       "types": "./dist/witness-web.d.ts",
       "import": "./dist/witness-web.js",
       "default": "./dist/witness-web.js"
+    },
+    "./proof": {
+      "types": "./dist/proof.d.ts",
+      "import": "./dist/proof.js",
+      "default": "./dist/proof.js"
     }
   },
   "imports": {

@@ -155,7 +155,7 @@ Where it runs:
 A job runs whole as the system (--as is ignored). Exit 0 sent/complete, 1
 refused (the refusing clause and its site are printed), 2 cannot run.";
 
-const TEST: &str = "snapback4 test [--fixture dir] [--as persona] [--json] [--residency [--verbose]]
+const TEST: &str = "snapback4 test [--source file.q] [--fixture dir] [--as persona] [--json] [--residency [--verbose]]
 
 Runs every query as each persona and prints its meters; with a fixture it
 first loads the rows into a private in-memory store and afterwards runs
