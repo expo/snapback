@@ -146,7 +146,12 @@ impl Catalog {
                 }
             }
             for maintain in &doc.maintains {
-                if maintain.by.is_empty() && matches!(maintain.name.as_str(), "viewer" | "now" | "commit" | "new") {
+                let mut maintain = maintain.clone();
+                super::maintains::normalize_keys(&mut maintain);
+                if maintain.row_key.is_none()
+                    && maintain.by.is_empty()
+                    && matches!(maintain.name.as_str(), "viewer" | "now" | "commit" | "new")
+                {
                     diagnostics.push(Diagnostic::new(&maintain.site, "E_QUARRY_RESERVED",
                         format!("global maintained scalar `{}` would shadow Quarry's contextual `{}` builtin", maintain.name, maintain.name),
                         format!("rename the view, for example `view total{}: ...`", maintain.name[..1].to_uppercase() + &maintain.name[1..])).guide("maintains"));
@@ -156,8 +161,6 @@ impl Catalog {
                     diagnostics.push(unknown(&maintain.site, format!("maintain {} collides with a table of the same name", maintain.name), "rename the aggregate view"));
                     continue;
                 }
-                let mut maintain = maintain.clone();
-                super::maintains::normalize_keys(&mut maintain);
                 maintains.insert(maintain.name.clone(), maintain);
             }
             for shape in &doc.shapes {

@@ -101,6 +101,7 @@ fn global_scalar_names_do_not_shadow_contextual_builtins() {
             && diagnostic.message.contains(name)), "{name}: {:#?}", bound.diagnostics);
     }
     checked(&format!("{table}view total: count entries\n  read <- allow\n  online only\nquery show():\n  return total\n"));
+    checked("table categorized:\n  category: enum('one', 'two')\n  public 'prototype'\nview now: count categorized by .category\n  read <- allow\n  online only\nquery show():\n  return now['one']\n");
 }
 
 #[test]
