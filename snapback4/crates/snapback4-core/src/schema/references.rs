@@ -298,6 +298,14 @@ impl Schema {
         Some(price)
     }
 
+    /// Diagnostic recipe price: action work plus the root's ordinary write.
+    /// Execution retains its existing separate charges for these two terms.
+    pub fn delete_total_reservation(&self, parent: &str) -> Option<Price> {
+        let mut total = self.delete_reservation(parent)?;
+        add(&mut total, self.unit_write(parent)?);
+        Some(total)
+    }
+
     /// Event images remain live until commit, after action scratch is released.
     pub fn delete_event_heap(&self, parent: &str) -> Option<u64> {
         self.retained_action_heap(parent, self.delete_reservation(parent)?[3])

@@ -49,6 +49,9 @@ pub(in crate::serve) fn response(bytes: &[u8]) -> Option<Pending> {
         let mut c = c.borrow_mut();
         let evidence = c.as_mut()?;
         let body: Value = serde_json::from_slice(bytes).ok()?;
+        if evidence.query && evidence.trace.hidden() > 0 {
+            eprintln!("dev query: {} hidden: {} (encountered row images filtered by read rules)", evidence.operation, evidence.trace.hidden());
+        }
         let code = body.get("denied").or_else(|| body.get("why")).and_then(|v| v.get("code")).and_then(Value::as_str);
         let traced = evidence.trace.take();
         let why = body.get("denied").or_else(|| body.get("why"));
@@ -74,7 +77,8 @@ pub(in crate::serve) fn response(bytes: &[u8]) -> Option<Pending> {
             }
             None => return None,
         };
-        let mut record = json!({"operation":evidence.operation, "code":code, "requestId":evidence.request,
+        let preflight = code == "E_AUTH" && evidence.generation.is_none() && why.and_then(|v| v.get("site")).is_none();
+        let mut record = json!({"preflight":preflight,"operation":evidence.operation, "code":code, "requestId":evidence.request,
             "generation":evidence.generation, "clause":"cause not instrumented", "at":snapback4_core::now_ms()});
         // A program's own `require … else CODE` (or `! else CODE`) carries
         // its source site in the refusal itself: the response's own

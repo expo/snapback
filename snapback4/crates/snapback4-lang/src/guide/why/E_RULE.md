@@ -3,14 +3,14 @@
 `insert` and `insert ... if absent` return E_RULE when the insert rule denies
 the viewer. A unique clash with a hidden row returns E_RULE for either insert
 form. For a readable secondary unique clash without a custom refusal, ordinary
-insert returns E_CONSTRAINT naming the index, while `insert ... if absent`
+insert returns E_UNIQUE naming the declared key, while `insert ... if absent`
 succeeds with null. If the update rule denies an update or upsert-patch, it
 returns E_RULE for a readable target and NOT_FOUND for an unreadable target. A
 valid update or upsert-patch admitted by the update rule can change a hidden
 row; if the resulting row remains hidden, it returns null. Without a custom
 unique refusal, an update or upsert-patch with a secondary unique clash returns
 NOT_FOUND if its target is unreadable, E_RULE if only the colliding row is
-unreadable, and E_CONSTRAINT naming the index if both are readable. For rule
+unreadable, and E_UNIQUE naming the declared key if both are readable. For rule
 denial, an update condition or a secondary unique clash on an unreadable target,
 NOT_FOUND carries no row, index, column or branch detail. A missing update
 target or an incomplete upsert insert patch returns NOT_FOUND. An update

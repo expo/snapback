@@ -14,6 +14,7 @@ mod views;
 mod maintains;
 mod timeline;
 mod expected;
+mod types;
 mod reserved;
 mod programs;
 mod actions;
@@ -629,6 +630,12 @@ impl Parser {
         }
         // @ref LLP 3000.039#2 — `on delete` follows the type and its `?`.
         let on_delete = if self.at("on") && self.peek_at(1).value == "delete" { Some(self.parse_on_delete(&name.value)?) } else { None };
+        if on_delete.is_some() && self.at("?") {
+            let mut optional = type_.clone(); optional.optional = true;
+            let action = match on_delete.as_ref().unwrap().0 { OnDelete::Keep => "keep", OnDelete::Cascade => "cascade", OnDelete::Restrict => "restrict", OnDelete::SetNull => "set null" };
+            return Err(syntax_with(&self.peek().site, "the optional marker belongs on the reference type before its delete action",
+                format!("{}: {} on delete {action}", name.value, print::scalar_type(&optional))).guide("writes"));
+        }
         let default = if self.maybe("default") { Some(self.expression(0, &["written", "readable"])?) } else { None };
         let mut written_by = None;
         let mut readable_by_audience = false;
@@ -1012,187 +1019,9 @@ impl Parser {
         Ok(token.value)
     }
 
-    fn parse_args(&mut self) -> Fallible<Vec<ArgDecl>> {
-        self.take("(")?;
-        let mut args = Vec::new();
-        while !self.at(")") {
-            let name = self.peek().clone();
-            let binding = self.local_name()?;
-            self.take(":")?;
-            let type_site = self.peek().site.clone();
-            let type_ = self.parse_type(false).map_err(|mut d| {
-                if d.mechanical && d.message.starts_with("once is a column modifier") {
-                    // Nested element types need a whole-list rewrite, not an argument fragment.
-                    if d.site == type_site { d.site = name.site.clone(); d.rewrite = format!("{binding}: {}", d.rewrite); }
-                    else { d.mechanical = false; }
-                }
-                d
-            })?;
-            args.push(ArgDecl { name: binding, type_, site: name.site });
-            if !self.maybe(",") {
-                break;
-            }
-        }
-        self.take(")")?;
-        Ok(args)
-    }
 
-    fn parse_type(&mut self, column: bool) -> Fallible<ScalarType> {
-        let site = self.peek().site.clone();
-        let mut kind;
-        if self.maybe("[") {
-            let item = self.parse_type(column)?;
-            self.take("]")?;
-            // @ref LLP 3000.007#5.4 — list ranges share text's inclusive spelling.
-            let bounds_error = |site: &Site| syntax_with(site, "list bounds require <=N or an inclusive a..b range", "write [T] <=N or [T] a..b, for example [int] 1..8").guide("types");
-            let number = |parser: &mut Self| -> Fallible<u32> {
-                if parser.at("-") {
-                    return Err(syntax(&parser.peek().site, "list bounds must be nonnegative integers"));
-                }
-                if !parser.at_kind(Kind::Number) { return Err(bounds_error(&parser.peek().site)); }
-                let token = parser.take_kind(Kind::Number)?;
-                if token.value.contains('.') {
-                    return Err(syntax(&token.site, "list bounds must be integers; fractional bounds are not allowed"));
-                }
-                token.value.parse::<u32>().map_err(|_| syntax(&token.site, "list bounds must be integers from 0 through 4294967295"))
-            };
-            let (min, max) = if self.maybe("<=") {
-                (0, number(self)?)
-            } else {
-                let min = number(self)?;
-                if !self.maybe(".") || !self.maybe(".") { return Err(bounds_error(&self.peek().site)); }
-                (min, number(self)?)
-            };
-            if min > max {
-                return Err(syntax(&site, "list minimum must not exceed its maximum"));
-            }
-            if item.optional {
-                return Err(syntax(&site, "list element types cannot be optional"));
-            }
-            kind = TypeKind::List { item: Box::new(item), min, max };
-        } else {
-            let name = self.word()?;
-            kind = match name.value.as_str() {
-                "text" => {
-                    let (min, max) = if self.maybe("<=") {
-                        (None, self.number()?)
-                    } else if self.at_kind(Kind::Number) {
-                        let min = self.number()?;
-                        self.take(".")?;
-                        self.take(".")?;
-                        (Some(min), self.number()?)
-                    } else {
-                        // The default is normalized here; every downstream
-                        // validator and resource calculation sees the same bound.
-                        (None, 10_000)
-                    };
-                    let mut format = None;
-                    if self.maybe("format") {
-                        let value = self.word()?;
-                        if value.value != "handle" && value.value != "url" {
-                            let bound = match min {
-                                Some(min) => format!("{min}..{max}"),
-                                None => format!("<={max}"),
-                            };
-                            return Err(syntax_with(&value.site, format!("unknown text format {}", value.value), format!("use text {bound} format handle or text {bound} format url")));
-                        }
-                        format = Some(value.value);
-                    }
-                    TypeKind::Text { min, max, format }
-                }
-                "decimal" => TypeKind::Decimal { scale: self.scale("decimal 12")? },
-                "money" => {
-                    let currency = self.word()?;
-                    if currency.value.len() != 3 || !currency.value.bytes().all(|b| b.is_ascii_uppercase()) {
-                        return Err(syntax_with(&currency.site, "money currency must be exactly three uppercase letters", "use money USD or money USD 2"));
-                    }
-                    let scale = if self.at_kind(Kind::Number) { self.scale(&format!("money {} 12", currency.value))? } else { 2 };
-                    TypeKind::Money { currency: currency.value, scale }
-                }
-                "json" => {
-                    self.take("<=")?;
-                    TypeKind::Json { max: self.number()? }
-                }
-                "bytes" => {
-                    self.take("<=")?;
-                    TypeKind::Bytes { max: self.number()? }
-                }
-                "image" => {
-                    self.take("<=")?;
-                    TypeKind::Image { max: self.number()?, once: false }
-                }
-                "video" => {
-                    self.take("<=")?;
-                    TypeKind::Video { max: self.number()? }
-                }
-                // `file` is a type only before `<=`: a table named `file` stays a reference.
-                // @ref LLP 3000.038#1 — the allow-list names only types the server can verify against the bytes.
-                "file" if self.at("<=") => {
-                    self.take("<=")?;
-                    let max = self.number()?;
-                    let mut types = Vec::new();
-                    if self.maybe("(") {
-                        while !self.at(")") {
-                            let value = self.take_kind(Kind::Str)?;
-                            if let Some(why) = snapback4_core::assets::file_type_refusal(&value.value) {
-                                return Err(syntax_with(&value.site, why, format!("file <={max} ('application/pdf', 'text/plain')")).guide("assets"));
-                            }
-                            if types.contains(&value.value) {
-                                return Err(syntax_with(&value.site, format!("'{}' is listed twice", value.value), "list each media type once"));
-                            }
-                            types.push(value.value);
-                            if !self.maybe(",") { break; }
-                        }
-                        self.take(")")?;
-                        if types.is_empty() {
-                            return Err(syntax_with(&site, "a file allow-list needs at least one media type", format!("file <={max} ('application/pdf'), or file <={max} for every verifiable type")).guide("assets"));
-                        }
-                    }
-                    TypeKind::File { max, types }
-                }
-                "cursor" => TypeKind::Cursor,
-                "id" => TypeKind::Id,
-                "principal" => TypeKind::Principal,
-                "int" if self.at_kind(Kind::Number) || matches!(self.peek().value.as_str(), "<=" | ">=" | "<" | ">" | "-" | ".") => {
-                    let (min, max) = self.int_range(&name.site)?;
-                    TypeKind::IntRange { min, max }
-                }
-                "int" => TypeKind::Int,
-                "time" => TypeKind::Time,
-                "bool" => TypeKind::Bool,
-                "enum" => {
-                    self.take("(")?;
-                    let mut variants = Vec::new();
-                    while !self.at(")") {
-                        variants.push(self.take_kind(Kind::Str)?.value);
-                        if !self.maybe(",") {
-                            break;
-                        }
-                    }
-                    self.take(")")?;
-                    if variants.is_empty() {
-                        return Err(syntax_with(&site, "enum needs at least one variant", "enum('draft', 'published')"));
-                    }
-                    TypeKind::Enum { variants }
-                }
-                other => TypeKind::Ref { table: other.to_owned() },
-            };
-        }
-        if self.maybe("once") {
-            if !column {
-                let optional = self.maybe("?");
-                return Err(syntax_with(&site, "once is a column modifier, not an argument constraint; declare it on the owning table column", print::scalar_type(&ScalarType { kind, optional })).mechanical());
-            }
-            match &mut kind {
-                TypeKind::Image { once, .. } => *once = true,
-                TypeKind::Video { .. } => return Err(syntax_with(&site, "once is only specified for image columns; video ranges are unspecified", "use photo: image <=10000000 once, or remove once from the video column")),
-                TypeKind::File { .. } => return Err(syntax_with(&site, "once is only specified for image columns; a downloaded file is saved by the browser, so one view cannot be kept", "remove once from the file column; use image <=10000000 once for one-view photos").guide("assets")),
-                _ => return Err(syntax_with(&site, "once is only specified for image columns", "remove once from this column; use image <=10000000 once for one-use images")),
-            }
-        }
-        let optional = self.maybe("?");
-        Ok(ScalarType { kind, optional })
-    }
+
+
 
     /// `int M..N`, `int M..` or `int ..N`: inclusive bounds on the value,
     /// one spelling each. Other comparisons refuse with the canonical form.
@@ -1401,6 +1230,11 @@ impl Parser {
             return Err(syntax_with(&at, format!("Quarry has no `{word}` operator; `{operand} {word} …` is not a condition"),
                 format!("compare whole text with `=` or `!=`; bound its length in the type (`{operand}: text 3..80`); declare a link `text <=200 format url` (http or https; anything else refuses E_INPUT before the program runs) or a handle `format handle`; or check the pattern in the client")).guide("types"));
         }
+        if self.at_kind(Kind::Newline) && self.peek_at(1).value == "else" {
+            let code = self.peek_at(2).value.clone();
+            return Err(syntax_with(&site, "a require's else must be on the condition's closing line",
+                format!("put `else {code}` on the closing line: `require {} else {code}`", print::expression(&condition))).guide("programs"));
+        }
         if !self.at("else") {
             return Err(syntax_with(&site, "require needs a refusal code: require <condition> else CODE", format!("require {} else NOT_ALLOWED", print::expression(&condition))));
         }
@@ -1451,6 +1285,9 @@ impl Parser {
             self.position += 1;
         }
     }
+
+    // @ref LLP 3000.036.002#8 — decimal byte units lower to the existing integer bound.
+
 
     fn number(&mut self) -> Fallible<u32> {
         let token = self.take_kind(Kind::Number)?;

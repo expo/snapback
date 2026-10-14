@@ -13,6 +13,8 @@ pub(crate) mod rule_operator;
 mod pin_rewrite;
 mod complete_form;
 mod auth_lints;
+mod owner_equality;
+mod write_affordances;
 pub(crate) mod audience_diagnostics;
 mod row_views;
 mod through;
@@ -31,6 +33,7 @@ mod page_shapes;
 pub(crate) mod where_guards;
 mod bracket_ranges;
 mod reference_actions;
+mod cascade_repair;
 mod reference_arguments;
 mod delete_guards;
 mod private_scans;
@@ -304,6 +307,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     notes.extend(maintain_authorization::notes(&catalog, &schema));
     // @ref LLP 3000.036#16.4 — wave 6 #22: authorization shapes that compile but grant or withhold more than meant.
     notes.extend(auth_lints::notes(&catalog, &schema));
+    notes.extend(write_affordances::notes(&catalog, &schema));
     notes.extend(optional_patches::notes(&catalog));
     notes.extend(residency::maintain_notes(&catalog, &schema));
     notes.extend(columns::notes(&catalog, &schema));
@@ -320,6 +324,13 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     notes.extend(reference_actions::sites(&catalog, &schema, &mut diagnostics));
     notes.extend(reference_arguments::notes(&catalog, &schema));
     receipts::diagnostics(&catalog.documents, &mut diagnostics);
+    if diagnostics.iter().any(|d| d.code == "E_SYNC") {
+        for note in &mut notes {
+            if matches!(note.code.as_str(),"N_NO_HORIZON"|"N_HORIZON_GUARD"|"N_SYNC_ORDER"|"N_NOT_PREDICTABLE"|"N_HELD_UNKNOWN") {
+                note.message.insert_str(0,"provisional while E_SYNC is unresolved: ");
+            }
+        }
+    }
     // @ref LLP 3000.032#4.3 — use the expanded mapping, never guess default operation names.
     let receipt_members = catalog.documents.iter().flat_map(|doc| {
         let module = std::path::Path::new(&doc.file).file_stem().unwrap().to_string_lossy();

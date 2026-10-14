@@ -16,7 +16,7 @@ pub(crate) enum Tier {
 
 pub(crate) fn tier(code: &str) -> Tier {
     match code {
-        "N_UNREADABLE_PROBE" | "N_NO_PRODUCTION_WRITER" | "N_FIXTURE_ARGUMENT_DRIFT" | "N_REFERENCE_UNCHECKED" | "N_MAINTAIN_AUTHORIZATION" | "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
+        "N_PERSONA_PRINCIPAL" | "N_UNREADABLE_PROBE" | "N_NO_PRODUCTION_WRITER" | "N_FIXTURE_ARGUMENT_DRIFT" | "N_REFERENCE_UNCHECKED" | "N_MAINTAIN_AUTHORIZATION" | "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
         | "N_CLOCK_STORE_AHEAD" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "N_MAINTAIN_DELTA"
         | "N_SEARCH_UNSCOPED" | "N_SEARCH_OPEN" | "N_TIMELINE_PROFILE_CAP" => Tier::Review,
         // @ref LLP 3000.036#13.4 — a cursorless `first N` is what the declaration says: the first N rows (wave 3 #7).
@@ -30,6 +30,7 @@ pub(crate) fn tier(code: &str) -> Tier {
 // @ref LLP 3000.036#17.7 — the verdict leads; the explanation follows it.
 pub(crate) fn verdict(code: &str, summary: &str, form: bool) -> &'static str {
     match code {
+        "N_NO_PRODUCTION_WRITER" if summary.starts_with("persona-only:") => "no action without use identity",
         "N_NO_PRODUCTION_WRITER" => "fix: add a production bootstrap writer",
         "N_FIXTURE_ARGUMENT_DRIFT" => "fix: update the fixture arguments",
         "N_CONDITIONAL_COMPLETE" => "review: complete for the pinned parent audience; other callers may be capped",
@@ -43,8 +44,10 @@ pub(crate) fn verdict(code: &str, summary: &str, form: bool) -> &'static str {
         "N_REFERENCE_UNCHECKED" => "review: this reference argument is never looked up",
         "N_MAINTAIN_AUTHORIZATION" => "review: hidden and absent are different caller outcomes",
         "N_PATCH_CLEARS" => "review: an omitted argument clears this column",
+        "N_WRITE_DENIED" if summary.contains("admits only 'service:") => "review: a seat require grants no table authority",
         "N_WRITE_DENIED" | "N_REQUIRE_REFUSED" => "fix: this write refuses E_RULE for callers you admit",
         "N_READ_DENIED" => "fix: this read always returns null",
+        "N_REQUIRE_HIDDEN" if summary.contains("get NOT_FOUND") => "review: the hidden lookup runs before this require",
         "N_REQUIRE_HIDDEN" => "fix: this require cannot see the rows it tests",
         "N_LOOKUP_HIDDEN" => "review: some writers get NOT_FOUND",
         "N_PROBE_ONLY_READ" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" => "review: who can read this",
@@ -155,6 +158,13 @@ pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
         }
     }
     flush(&mut lines, &mut repeats);
+    // Every advisory line has a direct route to the acceptance recipe.
+    for line in &mut lines {
+        if let Some(code) = line.split_whitespace().find(|word| word.starts_with("N_")) {
+            let code = code.trim_end_matches(':').to_owned();
+            line.push_str(&format!(" — snapback4 why {code}"));
+        }
+    }
     lines
 }
 
@@ -193,7 +203,7 @@ mod tests {
         let with = |site: &str| Note { form: form.clone(), ..note(site, "N_NEVER_COMPLETE", "query q: never complete") };
         let lines = render(vec![with("schema.q:1:1"), with("schema.q:9:1")]);
         assert_eq!(lines[2..8], [
-            "note: schema.q:1:1 — N_NEVER_COMPLETE: fix: use the complete form below, or accept `complete: false`. query q: never complete".to_owned(),
+            "note: schema.q:1:1 — N_NEVER_COMPLETE: fix: use the complete form below, or accept `complete: false`. query q: never complete — snapback4 why N_NEVER_COMPLETE".to_owned(),
             "  rewrite: Branch on the grant and pin the owner for everyone else; both pages are complete:".into(),
             "    query q(c: cursor ?):".into(),
             "      if exists staff[viewer]:".into(),
@@ -201,7 +211,7 @@ mod tests {
             "      return t where .owner = viewer last 50 by .at after c".into(),
         ], "{lines:#?}");
         assert_eq!(lines.len(), 9, "the second note of the same form is the short repeat: {lines:#?}");
-        assert_eq!(lines[8], "note: N_NEVER_COMPLETE (as above) also for query q (schema.q:9:1)", "{lines:#?}");
+        assert_eq!(lines[8], "note: N_NEVER_COMPLETE (as above) also for query q (schema.q:9:1) — snapback4 why N_NEVER_COMPLETE", "{lines:#?}");
     }
 
     #[test]
@@ -213,7 +223,7 @@ mod tests {
         ]);
         let lines = render(vec![Note { compact, ..note("schema.q:8:1", "N_NEVER_COMPLETE", "long planner proof") }]);
         assert_eq!(&lines[2..], [
-            "note: schema.q:8:1 — N_NEVER_COMPLETE — verdict: capped; completeness is not proved",
+            "note: schema.q:8:1 — N_NEVER_COMPLETE — verdict: capped; completeness is not proved — snapback4 why N_NEVER_COMPLETE",
             "  who: no caller group is proved complete by this page",
             "  what: pin the scope; check --verbose shows the checked repair",
         ]);
@@ -233,13 +243,13 @@ mod tests {
         let body: Vec<&str> = lines[1..].iter().map(String::as_str).collect();
         assert_eq!(body, [
             "review — can cost correctness or completeness:",
-            "note: schema.q:104:1 — N_WRITE_DENIED: fix: this write refuses E_RULE for callers you admit. mutation rangers inserts rows no caller may insert (×2 at this site)",
+            "note: schema.q:104:1 — N_WRITE_DENIED: fix: this write refuses E_RULE for callers you admit. mutation rangers inserts rows no caller may insert (×2 at this site) — snapback4 why N_WRITE_DENIED",
             "performance — costs speed, meter headroom or offline coverage:",
-            "note: schema.q:95:1 — N_WIDE_MERGE: no action unless it is slow (`check --cost` measures it). query feed: read cost grows",
+            "note: schema.q:95:1 — N_WIDE_MERGE: no action unless it is slow (`check --cost` measures it). query feed: read cost grows — snapback4 why N_WIDE_MERGE",
             "by design — what a declaration implies; no action needed for online use:",
-            "note: schema.q:71:1 — N_MAINTAIN_SYNCED: no action for an online app. 2 synced maintains",
-            "note: schema.q:78:10 — N_SYNC_ORDER: no action for an online app. query a reads by .id; the client needs the server",
-            "note: N_SYNC_ORDER (as above) also for query b (schema.q:87:10)",
+            "note: schema.q:71:1 — N_MAINTAIN_SYNCED: no action for an online app. 2 synced maintains — snapback4 why N_MAINTAIN_SYNCED",
+            "note: schema.q:78:10 — N_SYNC_ORDER: no action for an online app. query a reads by .id; the client needs the server — snapback4 why N_SYNC_ORDER",
+            "note: N_SYNC_ORDER (as above) also for query b (schema.q:87:10) — snapback4 why N_SYNC_ORDER",
         ]);
         assert!(render(Vec::new()).is_empty());
     }

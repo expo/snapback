@@ -70,6 +70,9 @@ pub(super) fn serve(request: Request, shared: &Shared, operation: &str, body: &s
             json!({"phase":"refused","code":"E_FOLLOWING_INPUT"}),
         );
     };
+    if let Some(why)=super::dev_doors::persona_argument(shared,&program.args,&Json::Object(fields.clone())) {
+        drop(engine);return respond_timed(request,shared,400,json!({"phase":"refused","code":"E_FOLLOWING_INPUT","message":why.message,"denied":why}));
+    }
     for (name, value) in fields {
         let Some(value) = program
             .args

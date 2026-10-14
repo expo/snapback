@@ -598,7 +598,7 @@ fn the_language_card_compiles_and_runs() {
     let WriteState::Failed { why, .. } = duplicate.state else { unreachable!() };
     assert_eq!(why.message, "That handle is taken.");
     let handle_index = bound.schema.tables["profiles"].indexes.iter().find(|(_, index)| index.unique && index.columns() == ["handle"]).unwrap().0;
-    assert_eq!(why.detail.as_deref(), Some(format!("profiles.{handle_index} already has a row where handle = 'alice'").as_str()));
+    assert_eq!(why.detail.as_deref(), Some("profiles: unique handle already has a row where handle = 'alice'"));
 
     let spread = engine.query("spreadProfile", Context::new(alice, args(&[("h", text("alice")), ("extra", text("hello"))]))).unwrap();
     assert_eq!(spread.data.field("spread").unwrap(), spread.data.field("shaped").unwrap());
@@ -1230,7 +1230,7 @@ fn onboarding_recipe_recovers_a_taken_handle_for_the_same_principal() {
     sent(&engine.mutate("createProfile", Some("alice-profile"), Context::new("user:alice", args(&[("handle", text("alice"))])).with_ids(["a".into()])).unwrap());
     assert_eq!(engine.query("handleAvailable", Context::new("guest:visitor", args(&[("handle", text("alice"))]))).unwrap().data, Value::Bool(false));
     let raced = engine.mutate("createProfile", Some("bob-taken"), Context::new("user:bob", args(&[("handle", text("alice"))])).with_ids(["b".into()])).unwrap();
-    assert_eq!(failed(&raced), "E_CONSTRAINT");
+    assert_eq!(failed(&raced), "E_UNIQUE");
     assert_eq!(engine.query("myProfile", Context::new("user:bob", args(&[]))).unwrap().data, Value::Null);
     sent(&engine.mutate("createProfile", Some("bob-profile"), Context::new("user:bob", args(&[("handle", text("bobby"))])).with_ids(["b2".into()])).unwrap());
     assert_eq!(engine.query("myProfile", Context::new("user:bob", args(&[]))).unwrap().data.field("handle").unwrap(), &text("bobby"));

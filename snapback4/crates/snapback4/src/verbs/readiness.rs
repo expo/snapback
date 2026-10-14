@@ -42,8 +42,8 @@ pub(super) fn notes(project: &Project, bound: &Bound, fixture: Option<&String>) 
         {
             let at = blocked.first().map(|name| site(name)).unwrap_or_else(|| Site::new("schema", 1, 1));
             notes.push(Diagnostic::new(&at, "N_NO_PRODUCTION_WRITER",
-                format!("persona-only: no production identity{}", if blocked.is_empty() { String::new() } else { format!("; review bootstrap for {}", blocked.iter().cloned().collect::<Vec<_>>().join(", ")) }),
-                "add use identity password, map roles and relationships to account principals, and provision the first admin; snapback4 guide deploy --section first admin").guide("deploy"));
+                format!("persona-only: safe to ignore without `use identity`; no production identity{}", if blocked.is_empty() { String::new() } else { format!("; review bootstrap for {}", blocked.iter().cloned().collect::<Vec<_>>().join(", ")) }),
+                "safe to ignore without `use identity`; when moving to production, add use identity password, map roles and relationships to account principals, and provision the first admin; snapback4 guide deploy --section first admin").guide("deploy"));
         }
     } else {
         // @ref LLP 3000.036.002#3 — root components explain blocked descendants once.
@@ -75,11 +75,17 @@ pub(super) fn notes(project: &Project, bound: &Bound, fixture: Option<&String>) 
             let dependent = if dependents.is_empty() { String::new() } else { format!("; {} depend on it", dependents.join(", ")) };
             notes.push(Diagnostic::new(&site(root), "N_NO_PRODUCTION_WRITER",
                 format!("{root}: no production writer can bootstrap this root{cycle}{dependent}; fixtures and /seed are dev-only"),
-                "add an insert mutation with a declared service seat to bootstrap the first row; snapback4 guide deploy --section first admin").guide("deploy"));
+                bootstrap_recipe(bound, root)).guide("deploy"));
         }
     }
     notes.extend(fixture_notes(project, bound, fixture));
     notes
+}
+fn bootstrap_recipe(bound: &Bound, table: &str) -> String {
+    let writers: Vec<_> = bound.programs.iter().filter(|p| ir::write_tables(&p.program).iter().any(|(target,effect)| target==table && matches!(*effect,"insert"|"upsert"))).map(|p|p.program.name.clone()).collect();
+    let missing = if writers.is_empty() { format!("missing mutation path: no mutation inserts {table}") }
+        else { format!("missing service-seat bootstrap path through {} (their {table} insert rule depends on rows not yet provisioned)",writers.join(", ")) };
+    format!("{missing}; add a bootstrap{table} mutation that requires `viewer = 'service:ops'`, allow that branch in {table}'s insert rule, and make its required probes readable to the seat. Mint `snapback4 token --service ops --release ./deployment`, then call the mutation with the real account principal and its bearer token. For synced rosters use the independent seat-or-member branch; snapback4 guide deploy --section first admin")
 }
 fn possible(rule: &RuleExpr, rows: &BTreeSet<String>) -> bool {
     match rule {

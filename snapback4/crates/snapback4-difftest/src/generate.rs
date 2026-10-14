@@ -346,3 +346,20 @@ pub(crate) fn page3(case: &mut Case) {
         for (name, row) in &mut case.rows { if name == "access" { row["role"] = json!(if rng.pick(2) == 0 { "admin" } else { "staff" }); } }
     }
 }
+
+/// Wave-11 contextual reference family. Keep the sources independent of IR;
+/// the explicit spelling is a metamorphic oracle for the contextual spelling.
+// @ref LLP 3000.036.002#8 — inserted/lookup snapshots project only in reference contexts.
+pub fn qdiag(seed:u64) -> (Case,String,String) {
+    let mut case=base(seed);
+    case.program.body=Body::Block(Block { stmts:vec![],ret:Expr::Bool(true) });
+    case.program.prelude.clear(); case.steps.clear(); case.rows.clear(); case.budget=Ceilings::default();
+    case.args=json!({"key":"new-parent","k2":"new-child","bucket":0,"c":null,"n":null,"a":0,"b":1});
+    let mut rng=Rng::new(seed);
+    let (owner,visible)=(if rng.pick(2)==0 {"alice"} else {"bob"},rng.pick(2)==0);
+    if rng.pick(3)==0 { case.rows.push(("kids".into(),json!({"id":"old-child","item":"new-parent","owner":owner}))); }
+    let read=if visible {"allow"} else {".owner = viewer"};
+    let implicit=format!("table items:\n  sibling: items ? on delete keep\n  unique sibling\n  owner: principal\n  label: text <=64\n  public\n  insert <- allow\n  sync public\ntable kids:\n  item: items on delete keep\n  owner: principal\n  unique item\n  read <- {read}\n  insert <- allow\n  online only\nmutation run(key: id, k2: id, bucket: int, c: cursor ?, n: int ?, a: int, b: int):\n  item = insert items {{ id:key, owner:viewer, label:'parent' }}\n  insert kids {{ id:k2, item, owner:viewer }}\n  seen = items[items[key] ! else NOT_FOUND] ! else NOT_FOUND\n  return seen.id\nquery observe(key: id, k2: id):\n  return {{ item:items[key], child:kids[k2] }}\n");
+    let explicit=implicit.replace("id:k2, item, owner","id:k2, item:item.id, owner").replace("items[items[key] ! else NOT_FOUND]","items[(items[key] ! else NOT_FOUND).id]");
+    (case,implicit,explicit)
+}

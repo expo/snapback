@@ -180,6 +180,7 @@ impl Binder<'_> {
         }
         // @ref LLP 3000.007#20.3 — an unscoped filter can spend the whole page meter on unrelated authors.
         if self.kind == ProgramKind::Query && read.keys.is_empty() && read.seeks.is_empty() && read.matching.is_none()
+            && crate::bind::unique_bound::group_bound(self.schema, &read.table, &[]).is_none_or(|n| n > 128)
             && has_focal(&predicate) && !pins_leading_column(&predicate, index.columns.first().map(String::as_str))
         {
             let info = self.table(&read.table, &read.site)?;

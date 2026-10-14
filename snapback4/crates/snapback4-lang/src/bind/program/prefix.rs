@@ -120,7 +120,7 @@ impl Binder<'_> {
             // makes every row readable for every caller who reaches it, which the server decides once (read.rs `granted`).
             let guard = grant.as_ref().map_or_else(String::new, |grant| format!("; or guard it with the grant, so every caller who reaches it reads every row: `require {} else …` before it (or `if {}:` around it)", grant.quarry(), grant.quarry()));
             let diagnostic = Diagnostic::new(&read.site, "E_QUARRY_BOUND", format!("{} by {}: a total over rows the viewer may only partly read is not decided by its pinned columns, so no page bound makes it exact", scan.table, scan.index),
-                format!("pin {deciding} with where equalities so one verdict covers every row (the total then covers only that scope){guard}; {}; or return a `first N` page with a cursor and fold it in the client", self.total_view_recipe(read, scan))).guide("bounds");
+                format!("pin {deciding} with where equalities so one verdict covers every row (the total then covers only that scope){guard}; {}. If the maintained count keeps the source's private read rule, its group keys must carry every field that rule reads (including {deciding}); a public total instead deliberately discloses the count across hidden rows; or return a `first N` page with a cursor and fold it in the client", self.total_view_recipe(read, scan))).guide("bounds");
             if grant.is_some() && self.caller_kind == ProgramKind::Query && self.call_chain.len() == 1 {
                 self.pending_totals.push((scan.site.clone(), diagnostic));
                 return Ok(());

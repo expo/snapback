@@ -855,8 +855,28 @@ def page3Examples : List Example := [
     expected := r#"{"kind":"answer","data":[{"id":"a","owner":"bob","open":true}],"complete":true,"next":null}"# }
 ]
 
+-- @ref LLP 3000.036.002#8 — the implicit surface form has the same field projection as explicit .id.
+def qdiagSchema : Schema := { tables := [
+  { name := "parents", cols := [c "owner"], read := .allow, insert := .allow },
+  { name := "kids", cols := [c "parent"], uniques := [["parent"]], read := .allow, insert := .allow }] }
+def qdiagExamples : List Example := [
+  { name := "qdiag-row-reference-projection"
+    source := "LLP 3000.036.002 §8: inserted row in reference context is its id, evaluated once"
+    case := { schema := qdiagSchema, store := mkStore [], viewer := alice,
+              program := mutation [.write (some "p") (.insert "parents" [("id",idE "p"),("owner",idE "alice")] false),
+        .write none (.insert "kids" [("id",idE "k"),("parent",.field (.var "p") "id")] false), .ret (.field (.var "p") "id")] }
+    tables := ["parents","kids"]
+    expected := r#"{"kind":"committed","result":"p","store":{"parents":[{"id":"p","owner":"alice"}],"kids":[{"id":"k","parent":"p"}]}}"# },
+  { name := "qdiag-readable-secondary-unique"
+    source := "LLP 3000.036.002 §8: readable unnamed secondary unique returns E_UNIQUE"
+    case := { schema := qdiagSchema, store := mkStore [("kids",[mkRow "old" [("parent",I "p")]])], viewer := alice,
+              program := mutation [.write none (.insert "kids" [("id",idE "new"),("parent",idE "p")] false)] }
+    tables := []
+    expected := r#"{"kind":"refused","code":"E_UNIQUE"}"# }
+]
+
 /-- Every example: the guide cards' and the referential actions'. -/
-def all : List Example := examples ++ merged ++ refExamples ++ page3Examples
+def all : List Example := examples ++ merged ++ refExamples ++ page3Examples ++ qdiagExamples
 
 /-- Run every example; returns the failures. -/
 def check : List (String × String × String) :=

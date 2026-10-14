@@ -389,6 +389,24 @@ fn flow_condition(
                 right_no,
             )
         }
+        // @ref LLP 3000.036.002#7 — storing null needs no target lookup;
+        // intersect that edge with the checked non-null edge after the if.
+        Expr::Binary { op, left, right, .. } if op == "=" || op == "!=" => {
+            let mut evaluated = flow;
+            flow_expression(catalog, schema, arguments, expression, &mut evaluated, candidates);
+            let mut yes = evaluated.clone();
+            let mut no = evaluated;
+            let name = match (left.as_ref(), right.as_ref()) {
+                (Expr::Name { name, .. }, Expr::Literal { value: crate::ast::Literal::Null, .. })
+                | (Expr::Literal { value: crate::ast::Literal::Null, .. }, Expr::Name { name, .. }) => Some(name),
+                _ => None,
+            };
+            if let Some(name) = name.filter(|name| yes.inputs.contains(*name)) {
+                if op == "=" { yes.checked.insert(name.clone()); }
+                else { no.checked.insert(name.clone()); }
+            }
+            (yes, no)
+        }
         _ => {
             let mut evaluated = flow;
             flow_expression(
@@ -643,6 +661,17 @@ fn helper_condition(catalog: &Catalog, schema: &Schema, expression: &Expr, state
             let (left_yes, left_no) = helper_condition(catalog, schema, left, state, target, stack);
             let (right_yes, right_no) = helper_condition(catalog, schema, right, left_no, target, stack);
             (join_helper_states(Some(left_yes), Some(right_yes)).unwrap(), right_no)
+        }
+        Expr::Binary { op,left,right,.. } if op=="=" || op=="!=" => {
+            let mut evaluated=state;
+            helper_expression(catalog,schema,expression,&mut evaluated,target,stack);
+            let mut yes=evaluated.clone();let mut no=evaluated;
+            let alias=match (left.as_ref(),right.as_ref()) {
+                (Expr::Name {name,..},Expr::Literal {value:crate::ast::Literal::Null,..})|
+                (Expr::Literal {value:crate::ast::Literal::Null,..},Expr::Name {name,..})=>Some(name),_=>None,
+            };
+            if alias.is_some_and(|name|yes.aliases.contains(name)) {if op=="=" {yes.checked=true;} else {no.checked=true;}}
+            (yes,no)
         }
         _ => {
             let mut evaluated = state;

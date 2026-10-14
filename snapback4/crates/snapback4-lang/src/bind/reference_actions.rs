@@ -47,6 +47,7 @@ pub(super) fn indexes(catalog: &mut Catalog) {
 /// engine bookkeeping): lower each action, refusing what a column cannot carry.
 pub(super) fn bind(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &mut Vec<Diagnostic>) {
     let mut lowered: Vec<(String, String, Action)> = Vec::new();
+    let mut unbounded = BTreeMap::new();
     for (name, info) in &catalog.tables {
         if info.maintained.is_some() { continue; }
         for column in &info.decl.columns {
@@ -75,7 +76,7 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &m
             let table = &schema.tables[name];
             let through = table.through.as_ref().is_some_and(|t| t.reference == column.name);
             if chosen.writes() && let Some(reason) = references::write_target_refusal(schema, name) {
-                refuse(diagnostics, format!("{} on {name}.{}: {reason}; another row's delete may not delete or rewrite its rows", chosen.words(), column.name), format!("{}: {parent} on delete restrict   -- or keep", column.name));
+                refuse(diagnostics, format!("{} on {name}.{}: {reason}; another row's delete may not delete or rewrite its rows", chosen.words(), column.name), if reason.contains("maintained sum") { format!("{}: {parent} on delete restrict   -- or keep. For a maintained sum source, unwind it with ordinary deletes in a system job: `job unwind():\n  for row in {name}:\n    delete {name}[row.id]`; each delete updates the sum. Mark the parent for cleanup, filter the job to those parents, and delete each parent only after its children are gone (guide writes)", column.name) } else { format!("{}: {parent} on delete restrict   -- or keep", column.name) });
                 continue;
             }
             if chosen == Action::Keep && through {
@@ -92,10 +93,7 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &m
                 continue;
             }
             if chosen.writes() && schema.reference_cap(name, &column.name).is_none() {
-                diagnostics.push(Diagnostic::new(site, "E_CASCADE_BOUND",
-                    format!("{} on {name}.{} needs `cap N by {}` or plain single-column `unique {}`: a delete of a {parent} row writes its {name} rows in the same transaction, so the number of them must have a product limit", chosen.words(), column.name, column.name, column.name),
-                    format!("cap 500 by {}   -- choose the product limit; use `unique {}` for at most one child; for an unbounded relation keep `on delete restrict` and delete the {name} rows in a job first (guide writes)", column.name, column.name)).guide("writes"));
-                continue;
+                unbounded.entry(parent.clone()).or_insert_with(|| site.clone());
             }
             // `keep` is the legacy meaning, so the schema spells it by absence: a
             // schema whose references all keep stays byte-identical and capability-free.
@@ -107,10 +105,38 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &m
     }
     // Event prices depend on the actions just lowered and must precede bound checks.
     schema.prepare_write_reservations();
+    // Diagnose an authored root's whole cascade once, including missing bounds
+    // below an already-capped edge. Avoid contradictory parent/child recipes.
+    let mut authored=BTreeSet::new();
+    for doc in &catalog.documents {for program in &doc.programs {
+        let mut body=program.prelude.clone();body.extend(program.body.clone());
+        walk::statements(&mut body,&mut |expr| if let Expr::Write {op:WriteOp::Delete,table,..}=expr && schema.tables.contains_key(table) {authored.insert(table.clone());});
+    }}
+    for doc in &catalog.documents {for helper in &doc.functions {
+        let collect=&mut |expr:&mut Expr| if let Expr::Write {op:WriteOp::Delete,table,..}=expr && schema.tables.contains_key(table) {authored.insert(table.clone());};
+        match &helper.body {
+            FunctionBody::Block(body)=>walk::statements(&mut body.clone(),collect),
+            FunctionBody::Expression(expr)=>walk::expression(&mut expr.clone(),collect),
+        }
+    }}
+    let mut roots=BTreeMap::new();
+    for (parent,site) in &unbounded {
+        let found=authored.iter().filter(|root|super::cascade_repair::reaches(schema,root,parent)).collect::<Vec<_>>();
+        if found.is_empty() {roots.insert(parent.clone(),site.clone());}
+        else {for root in found {roots.entry(root.clone()).or_insert_with(||site.clone());}}
+    }
+    let names=roots.keys().cloned().collect::<Vec<_>>();
+    roots.retain(|root,_|!names.iter().any(|other|other!=root && super::cascade_repair::reaches(schema,other,root) && !super::cascade_repair::reaches(schema,root,other)));
+    for (parent,site) in roots {
+        let missing=schema.tables.keys().filter(|table|super::cascade_repair::reaches(schema,&parent,table)).flat_map(|table|schema.referencing(table))
+            .filter(|r|r.action.writes() && schema.reference_cap(r.child,r.column).is_none())
+            .map(|r|format!("{}.{} needs `cap N by {}` or plain single-column `unique {}`",r.child,r.column,r.column,r.column)).collect::<Vec<_>>().join("; ");
+        diagnostics.push(Diagnostic::new(&site,"E_CASCADE_BOUND",format!("delete {parent}: {missing}; all children share one reservation"),super::cascade_repair::recipe(schema,&parent,false)).guide("writes"));
+    }
     // A cascade must end: no table reaches itself through cascades.
     let mut reported = BTreeSet::new();
     for name in schema.tables.keys().cloned().collect::<Vec<_>>() {
-        if schema.delete_reservation(&name).is_some() || !schema.is_referenced(&name) { continue; }
+        if !unbounded.is_empty() || schema.delete_reservation(&name).is_some() || !schema.is_referenced(&name) { continue; }
         let Some(r) = schema.referencing(&name).into_iter().find(|r| r.action == Action::Cascade) else { continue };
         if !reported.insert((r.child.to_owned(), r.column.to_owned())) { continue; }
         let site = catalog.tables.get(r.child).and_then(|info| info.decl.columns.iter().find(|c| c.name == r.column)).map(|c| c.on_delete.as_ref().map_or(&c.site, |(_, s)| s).clone()).unwrap_or_default();
@@ -169,7 +195,7 @@ pub(super) fn sites(catalog: &Catalog, schema: &core::Schema, diagnostics: &mut 
                         .map(|r| format!("{}.{} ({}, cap {})", r.child, r.column, r.action.words(), schema.reference_cap(r.child, r.column).unwrap_or(0))).collect::<Vec<_>>().join(", ");
                     diagnostics.push(Diagnostic::new(&site, "E_CASCADE_BOUND",
                         format!("{word} {}: `delete {parent}[…]` reserves {over} for what it deletes or clears through {chain}, whether or not those rows exist, so the {word} can never commit", program.name),
-                        format!("lower the cap on the cascading reference; or keep `on delete restrict` there and delete those rows first in a job (`chunk`), then the {parent} row; or mark the {parent} row (`archived: bool`) and sweep it in a job (guide writes)")).guide("writes"));
+                        super::cascade_repair::recipe(schema, &parent, program.kind == ProgramKind::Job)).guide("writes"));
                 }
                 // The delete reaches every table its cascades reach; their undeclared
                 // references refuse it too.
@@ -196,7 +222,7 @@ pub(super) fn sites(catalog: &Catalog, schema: &core::Schema, diagnostics: &mut 
                 let sum = summed.iter().find(|(_, c, by, _)| target == parent && c == child && by == column).map(|(view, _, _, summed)| guards.sum_reason(view, child, column, summed)).unwrap_or_default();
                 notes.push(Diagnostic::new(&site, "N_DELETE_RESTRICTED",
                     format!("{word} {}: `delete {parent}[…]`{through} now refuses E_REFERENCED while a live row references it ({named}): an undeclared reference is `on delete restrict`; before 0.4.24 the referencing rows stayed and named a deleted row{sum}", program.name),
-                    format!("declare what deleting a {target} row does to each: `{column}: {target} on delete cascade` deletes the {child} rows (with `cap N by {column}`), `{column}: {target} ? on delete set null` clears an optional reference, `on delete keep` keeps them as before, and `on delete restrict` keeps this refusal; any declaration silences this note. Anyone whose insert rule admits a {child} row naming a {target} can hold it under restrict")).guide("writes"));
+                    format!("declare what deleting a {target} row does to each: `{column}: {target} on delete cascade` deletes the {child} rows (with `cap N by {column}`), `{column}: {target} ? on delete set null` clears an optional reference, `on delete keep` keeps them as before, and `on delete restrict` preserves intended audit history and keeps this refusal; any declaration silences this note. Anyone whose insert rule admits a {child} row naming a {target} can hold it under restrict")).guide("writes"));
             }
         }
     }
@@ -204,7 +230,7 @@ pub(super) fn sites(catalog: &Catalog, schema: &core::Schema, diagnostics: &mut 
 }
 
 /// The meter a reservation exceeds for a mutation (or a job), if any.
-fn over_ceiling(price: &references::Price, job: bool) -> Option<String> {
+pub(super) fn over_ceiling(price: &references::Price, job: bool) -> Option<String> {
     let c = if job { snapback4_core::Ceilings::job() } else { snapback4_core::Ceilings::default() };
     let limits = [(price[3], c.rows_written, "rows written"), (price[2], c.examined, "rows examined"), (price[1], c.index_entries, "index entries"), (price[0], c.steps, "steps"), (price[4], c.heap_bytes, "heap bytes"), (price[5], c.output_bytes, "output bytes"), (price[6], c.rule_probes, "rule probes")];
     limits.iter().find(|(used, limit, _)| used > limit).map(|(used, limit, kind)| format!("{used} {kind} (a {} may use {limit})", if job { "job chunk" } else { "mutation" }))

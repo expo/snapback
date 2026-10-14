@@ -280,6 +280,7 @@ pub fn check(
                     | "NULL_ASSERT"
                     | "E_RULE"
                     | "E_CONSTRAINT"
+                    | "E_UNIQUE"
                     | "E_ID_REUSED"
                     | "E_BOUND"
                     | "REQUIRED"

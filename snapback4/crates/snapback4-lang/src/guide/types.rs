@@ -15,9 +15,11 @@ mutation createProfile(name: text 1..80):
   return insert profiles { owner: viewer, name }
 ```
 
-Required columns/arguments become nullable with `?`; omission becomes null. Table types are references; neither typing nor membership reads the target: use `require exists t[id] else CODE` or `r = t[id] ! else CODE`.
-Defaults fill omissions; explicit values win. Formats: handle and url; email is application validation or identity signup/login, not `format email`.
-Money/decimal are scaled integers; JSON fractions refuse E_INPUT. Identical admitted unique-key reads narrow after exists/non-null guards, including pure helper arguments; writes, rebinding and viewer changes invalidate proof.
+Reference contexts project required rows’ `.id`. Media: decimal KB/MB/GB.
+
+Columns/arguments become nullable with `?`; omission becomes null. Table types are references; neither typing nor membership reads the target: use `require exists t[id] else CODE` or `r = t[id] ! else CODE`.
+Defaults fill omissions; explicit values win. Formats: handle/url; email uses application validation or identity signup/login, not `format email`.
+Money/decimal are scaled integers; fractions refuse E_INPUT. Identical admitted unique-key reads narrow after exists/non-null guards, including pure helper arguments; writes, rebinding and viewer changes invalidate proof.
 
 ## Limits
 

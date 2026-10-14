@@ -598,8 +598,10 @@ impl Binder<'_> {
                 return Err(unknown(&declared.site, format!("duplicate argument {}", declared.name), "rename one helper parameter"));
             }
             let expected = Ty::from_scalar(&declared.type_);
-            let (expr, ty) = if expected.required().is_identity() { self.expr_as_identity(given, out, &expected)? } else { self.expr(given, out)? };
-            // @ref LLP 3000.007#18.5 — call-site expansion preserves a same-table row; references keep their existing meaning.
+            // Helpers are polymorphic over same-table row snapshots; retain their
+            // existing row parameter semantics. Only a literal needs id conversion.
+            let (expr, ty) = if expected.required().is_identity() && matches!(given, A::Literal { .. }) { self.expr_as_identity(given, out, &expected)? } else { self.expr(given, out)? };
+            // @ref LLP 3000.036.002#8 — call-site expansion preserves a same-table row; references keep their existing meaning.
             let expected = match (expected.required(), ty.required()) {
                 (Ty::Ref(table), Ty::Row(row)) if table == row && (!ty.is_optional() || expected.is_optional()) => {
                     if expected.is_optional() { Ty::Row(row).optional() } else { Ty::Row(row) }
@@ -613,7 +615,7 @@ impl Binder<'_> {
                 return Err(type_error(given.site(), format!("{name}'s {} is {}; got {}", declared.name, expected.name(), ty.name()), match (ty.required(), expected.required()) {
                     (Ty::Enum(variants), Ty::Text(max)) if variants.iter().any(|variant| variant.chars().count() > max as usize) => format!("change {name}'s parameter to `{}: {}`; not every variant fits text <={max}", declared.name, ty.name()),
                     _ if ty.is_optional() && !expected.is_optional() => self.parent_rewrite(given).unwrap_or_else(|| format!("{} — require this argument once before calling {name}; absent or hidden rows refuse NOT_FOUND", print::expression(&A::Assert { value: Box::new(given.clone()), code: "NOT_FOUND".into(), message: None, site: given.site().clone() }))),
-                    _ => format!("pass {} for {}", expected.name(), declared.name),
+                    _ => format!("pass {} for {}; a table parameter receives an id when called with a reference, or the same-table row snapshot when called with a row. To read fields from an id, bind `{table}[{}] ! else NOT_FOUND` in the helper; multiline fn bodies need `return value`", expected.name(), declared.name, declared.name, table = match expected.required() { Ty::Ref(t) => t, _ => "<table>".into() }),
                 }));
             }
             let runtime = self.temp(&declared.name);

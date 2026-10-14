@@ -582,11 +582,18 @@ impl Runner<'_> {
                     }
                     // @ref LLP 3000.036#13.9 — the dev log names the `unique` line that refused (wave 3 I3).
                     self.refusing_clause(table_name, &format!("unique {}", index.columns().join(", ")));
-                    let detail = format!("{table_name}.{name} already has a row where {} = {}", index.columns().join(", "), key.iter().map(describe).collect::<Vec<_>>().join(", "));
+                    let declared=index.components.iter().map(|part| match part {
+                        crate::schema::IndexComponent::Calendar(k) if k.function=="bucket" => format!("bucket({}, {}{})",k.column,k.millis,if k.offset==0 {String::new()} else {format!(", {}",k.offset)}),
+                        crate::schema::IndexComponent::Calendar(k)=>format!("{}({}{})",k.function,k.column,if k.offset==0 {String::new()} else {format!(", {}",k.offset)}),
+                        _=>part.key_name().cloned().unwrap_or_else(||"<key>".into()),
+                    }).collect::<Vec<_>>().join(", ");
+                    let detail = format!("{table_name}: unique {declared} already has a row where {declared} = {}", key.iter().map(describe).collect::<Vec<_>>().join(", "));
                     if let Some(refusal) = self.schema.unique_refusals.get(table_name).and_then(|indexes| indexes.get(name)) {
                         return Err(RuntimeError::NamedConstraint { code: refusal.code.clone(), message: refusal.message.clone(), detail });
                     }
-                    return Err(RuntimeError::Constraint(detail));
+                    // @ref LLP 3000.036.002#8 — the public code names uniqueness;
+                    // diagnostics use declared columns, never planner index names.
+                    return Err(RuntimeError::NamedConstraint { code: "E_UNIQUE".into(), message: detail.clone(), detail });
                 }
             }
         }

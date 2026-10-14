@@ -632,6 +632,7 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
     }
     fn readable(catalog: &Catalog, schema: &Schema, read: &ReadExpr, known: &BTreeSet<String>) -> bool {
         let Some(table) = schema.table(&read.table) else { return true };
+        if super::owner_equality::readable(catalog, schema, read, known) { return true; }
         let Some(info) = catalog.tables.get(&read.table) else { return table.rules.read.is_uniformly_readable(); };
         let mut pinned = BTreeMap::new();
         // Unlike older advisory lints, proof cannot guess a non-id key: typed ids
@@ -713,7 +714,12 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
         if system { return; }
         let mut reads = Vec::new();
         let mut copy = analysis_expr(condition);
-        super::intent_walk::expression(&mut copy, &mut |expr| { if let Expr::Exists { read, .. } = expr { reads.push(read.clone()); } });
+        super::intent_walk::expression(&mut copy, &mut |expr| {
+            if let Expr::Exists { read, .. } = expr { reads.push(read.clone()); }
+            if let Expr::Binary { op,left,right,.. } = expr && op == "=" {
+                if let (Expr::Read(read),Expr::Literal { value:Literal::Null,.. }) | (Expr::Literal { value:Literal::Null,.. },Expr::Read(read)) = (left.as_ref(),right.as_ref()) { reads.push(read.clone()); }
+            }
+        });
         for read in reads {
             let Some(table) = schema.table(&read.table) else { continue };
             if readable(catalog, schema, &read, known) { continue; }
@@ -977,6 +983,7 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
         if !named && read.index.is_none() && read.keys.len() == 1 && is_viewer(&read.keys[0].value) {
             indexes.retain(|index| info.columns.get(&index.columns[0]).is_some_and(|kind| kind.kind == TypeKind::Principal));
         }
+        if !named && read.index.is_none() && super::owner_equality::typed_id(catalog, read) { indexes.retain(|index| index.name == "byId"); }
         let [index] = indexes.as_slice() else { return };
         let keys = index.columns.iter().enumerate().filter_map(|(at, column)| {
             let key = if named { read.keys.iter().find(|key| key.column.as_ref() == Some(column)) } else { read.keys.get(at) }?;

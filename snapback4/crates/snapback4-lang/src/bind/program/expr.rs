@@ -624,6 +624,23 @@ impl Binder<'_> {
         self.expr(expr, out)
     }
 
+    pub(super) fn expr_as_reference(&mut self, expr: &A, out: &mut setup::Body, expected: &Ty) -> Fallible<(Expr, Ty)> {
+        let (value, ty) = self.expr_as_identity(expr, out, expected)?;
+        Ok(self.row_identity(value, ty, expected))
+    }
+
+    // @ref LLP 3000.036.002#8 — contextual projection is exactly `.id`,
+    // without a lookup; optional and cross-table rows still need an edit.
+    pub(super) fn row_identity(&self, value: Expr, ty: Ty, expected: &Ty) -> (Expr, Ty) {
+        if !ty.is_optional() && matches!(ty.required(), Ty::Row(_) | Ty::WriteRow(_)) {
+            let table = match ty.required() { Ty::Row(t) | Ty::WriteRow(t) => t, _ => unreachable!() };
+            if expected.required() == Ty::Ref(table.clone()) {
+                return (ir::field(value, "id"), Ty::Ref(table));
+            }
+        }
+        (value, ty)
+    }
+
     pub(super) fn call(&mut self, name: &str, args: &[A], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         if let Some(result) = self.job_query_call(name, args, site, out) { return result; }
         // Compiler-only references bypass the function catalog entirely.

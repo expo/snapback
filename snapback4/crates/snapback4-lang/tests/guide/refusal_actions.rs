@@ -3,6 +3,9 @@
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_SYNC_EMPTY", &["bound the public sync and read the window unfiltered, then filter in the client", "whole acquisition can establish coverage"]),
+
+    ("E_UNIQUE", &["Update the existing row or choose a new key.", "Every refused write rolls back the whole mutation."]),
+    ("N_PERSONA_PRINCIPAL", &["Write 'dev:alice' for development relationships or use the authenticated account principal for production.", "it never changes a value or grants authority."]),
     ("E_ASSET_INTENT_REUSE", &["retry the original bytes, metadata and placing input"]),
     ("E_ASSET_INTENT_EXPIRED", &["Select a new capture/id"]),
     ("E_CANCELLED", &["Call `saveAsset` again when the user wants to retry"]),
@@ -225,7 +228,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_ROUTE_UNKNOWN", &["unavailable work or authority refuses E_ROUTE_UNKNOWN", "Inspect invocation metadata with `why <id>`"]),
     ("E_ROUTE_VERIFY", &["Return `false` for an invalid signature", "with no durable admission", "Verification should have no side effects"]),
     // Write witnesses: rules.rs::{insert_collision_visibility, update_rule_refusals, admitted_hidden_updates, update_collision_visibility, delete_rule_refusals}.
-    ("E_RULE", &["A unique clash with a hidden row returns E_RULE for either insert form.", "If the update rule denies an update or upsert-patch, it returns E_RULE for a readable target and NOT_FOUND for an unreadable target.", "A valid update or upsert-patch admitted by the update rule can change a hidden row; if the resulting row remains hidden, it returns null.", "Without a custom unique refusal, an update or upsert-patch with a secondary unique clash returns NOT_FOUND if its target is unreadable, E_RULE if only the colliding row is unreadable, and E_CONSTRAINT naming the index if both are readable.", "Delete returns NOT_FOUND for a missing id or an unreadable refused target, and E_RULE for a readable row whose delete rule refuses."]),
+    ("E_RULE", &["A unique clash with a hidden row returns E_RULE for either insert form.", "If the update rule denies an update or upsert-patch, it returns E_RULE for a readable target and NOT_FOUND for an unreadable target.", "A valid update or upsert-patch admitted by the update rule can change a hidden row; if the resulting row remains hidden, it returns null.", "Without a custom unique refusal, an update or upsert-patch with a secondary unique clash returns NOT_FOUND if its target is unreadable, E_RULE if only the colliding row is unreadable, and E_UNIQUE naming the declared key if both are readable.", "Delete returns NOT_FOUND for a missing id or an unreadable refused target, and E_RULE for a readable row whose delete rule refuses."]),
     ("E_RUN_BUSY", &["no operation was admitted", "An interruption after admission may have committed work", "inspect the job/operation before invoking it again"]),
     ("E_RUN_SOURCE_CHANGED", &["Check the source and rerun with the intended arguments", "No operation was admitted"]),
     ("E_SCHEDULE", &["A scheduled target accepts no arguments or only `periodStart: time` and `periodEnd: time`", "Use the qualified name for a module job"]),

@@ -5,7 +5,8 @@ use crate::{ast::{IndexDecl, ReadExpr}, diag::Diagnostic, types::Ty};
 
 pub(super) fn candidates<'a>(info: &'a TableInfo, read: &ReadExpr, types: &[(Ty, bool)], synthesized: &std::collections::BTreeSet<(String, String)>) -> Vec<&'a IndexDecl> {
     let identity = read.index.is_none() && types.len() == 1 &&
-        (types[0].0.required() == Ty::Id || types[0].0.required() == Ty::Ref(read.table.clone()));
+        (types[0].0.required() == Ty::Id || types[0].0.required() == Ty::Ref(read.table.clone())
+            || (!types[0].0.is_optional() && matches!(types[0].0.required(),Ty::Row(t)|Ty::WriteRow(t) if t==read.table)));
     info.indexes.iter().filter(|index| !synthesized.contains(&(read.table.clone(), index.name.clone())))
         .filter(|index| match &read.index {
             Some(name) => &index.name == name,
@@ -17,7 +18,7 @@ pub(super) fn candidates<'a>(info: &'a TableInfo, read: &ReadExpr, types: &[(Ty,
             let expected = if index.computed.contains_key(column) { Ty::Int }
                 else if column == "id" { Ty::Ref(read.table.clone()) }
                 else { info.columns.get(column).map(Ty::from_scalar).unwrap_or(Ty::Unknown) };
-            ty.comparable(&expected) || (*literal && expected.is_identity())
+            ty.comparable(&expected) || (!ty.is_optional() && matches!((ty.required(),expected.required()),(Ty::Row(a)|Ty::WriteRow(a),Ty::Ref(b)) if a==b)) || (*literal && expected.is_identity())
         })).collect()
 }
 
