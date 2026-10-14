@@ -95011,3 +95011,53 @@ empty-group probes gate success without mounting host /proc in a guest.
 A TERM-ignoring driver/grandchild regression verifies hard termination and
 bounded return. Numeric PGIDs never authorize a runner signal. Both families
 re-review this final custody change independently.
+### 2026-10-13 — PAGE3 private-page end game
+
+Party/static roles now page both on the server and full union devices;
+pure memberships reuse metered fenced discovery. Positive compound ranges
+retain every status predicate, including parent/status conjunctions and
+nullable-enum non-null alternatives. Hidden parent sources get checked,
+immutable owner/reference-copy edits with backfill and live-parent restrictions.
+First independent Muse/Codex reviews found capability scope, cap exemption,
+copy lifetime/reference and native/model guard-admission issues; fixes are in
+26d03a6fb4 and follow-up qualification. Linux locked web measurement is
+2,310,393 B raw / 704,662 B gzip, +5,258 / +1,407 versus PAGE2. Budget is
+705,162 B, precisely measurement + 500 B. Core runtime ceilings stay fixed.
+
+### 2026-10-14 — PAGE3 completed local qualification
+
+Planner §16 and union §5.3 have Muse and fresh Codex READY in round 5 at
+`65d505289f`. All earlier blockers and fixes are retained with verbatim review
+provenance. Separate readable-static and read-free membership/compound model
+gates now agree; static argument/signed keys retain a named model boundary.
+Private lists recipes are updated and compile.
+
+The 50 copied odd final schemas compile: 18 notes in 11 schemas becomes
+2 hidden-parent notes in one. A second 50-schema corpus with the exact checked
+immutable copy repair has zero notes. No original evidence lane was modified.
+Final seed-0 400-case campaigns compile all sources: native 22,277 and devices
+12,686 executions have no disagreements; Lean 1,108 retains only three known
+C2 pagination occurrences, no new signatures. Model 74 examples/seven fixtures,
+59-theorem standard-axiom audit, Lean difftests 35, smoke 18, PAGE3 language 14,
+emitter 15, device branches 15 and simulator membership 9 pass. Final web/client
+builds and metrology audits pass. Linux gzip 704,662 B / budget 705,162 B
+retain exactly 500 B headroom. Workstream/report evidence is under
+`reports/20261013-page3/`; local Charlie commits only, no push/publication.
+
+### 2026-10-14 — Integration 10: PAGE3 after 0.4.27
+
+Merge PAGE3 with no-ff onto ce229488de, preserving Integration 9's contextual
+`not`, Lean intrinsic-id residual sampling, non-timed reader lanes, expiry-only
+search authorization and grant-counter normalization. Preserve both smoke
+suites; the new PAGE3 family test uses the existing optional-model helper and
+keeps native coverage unconditional. The merged Lean model audits 59 theorems,
+74 examples and seven fixtures. On fresh copies the 50-schema farm matches
+PAGE3: two hidden-parent notes in one original schema, zero after its checked
+immutable-copy repair.
+
+Locked merged Linux wasm measures 2,313,446 B raw / 705,305 B gzip. Set
+705,805 B = measurement + exactly 500 B. Whole-artifact delta versus Integration
+9's final Linux artifact is +5,258 B raw / +1,127 B gzip, without per-feature
+attribution or changed runtime ceilings. Retain 0.4.27: PAGE3 ships with wave-11
+in 0.4.28. Mac suite is deferred to that publication; no push. Linux full
+qualification and regenerated census evidence follow in a separate commit.

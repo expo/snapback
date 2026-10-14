@@ -20,6 +20,9 @@ pub(super) fn pin_rewrite(schema: &Schema, program: &Program, scan: &Scan, table
     };
     let parties: Vec<String> = disjuncts.iter().filter_map(|d| viewer_column(d)).collect();
     let name = &scan.table;
+    if let Some(repair) = hidden_parent_repair(schema, &scan.table, table) {
+        return Some((Some(repair.clone()), format!("the parent-owner witness is not readable to every owner, so discovery cannot certify absence; {repair}")));
+    }
     let grant = snapback4_core::engine::rules::grant_decision(schema, scan);
     let mut out = Vec::new();
     // @ref LLP 3000.036#16.1 — the form is built from every disjunct and printed only when it admits exactly the rule's readers.
@@ -65,6 +68,29 @@ pub(super) fn pin_rewrite(schema: &Schema, program: &Program, scan: &Scan, table
         }
     }
     Some((code, out.join("; ")))
+}
+
+// @ref LLP 3000.036.001#16 — an unreadable immutable parent owner needs an exact checked column copy, never a public parent.
+pub(super) fn hidden_parent_repair(schema: &Schema, name: &str, table: &Table) -> Option<String> {
+    let probe = table.rules.read.disjuncts().into_iter().find_map(|rule| {
+        let RuleExpr::Exists { table: parent, index, key, equalities, .. } = rule else { return None };
+        if snapback4_core::engine::rules::pinned_probe_readable(schema, rule) { return None; }
+        let [RuleTerm::Field(reference)] = key.as_slice() else { return None };
+        let [(owner, RuleTerm::Viewer)] = equalities.as_slice() else { return None };
+        let source = schema.table(parent)?;
+        if source.index(index)?.columns() != ["id"] || !source.immutable_fields().any(|field| field == owner)
+            || source.read_lifetime_sensitive() || source.through.is_some()
+            || table.on_delete.get(reference).is_some_and(|action| !matches!(action, snapback4_core::schema::references::OnDelete::Restrict | snapback4_core::schema::references::OnDelete::Cascade))
+            || source.columns.get(owner) != Some(&ColumnType::Principal)
+            || !matches!(table.columns.get(reference), Some(ColumnType::Ref { table }) if table == parent) { return None; }
+        Some((rule, parent, reference, owner))
+    })?;
+    let (rule, parent, reference, owner) = probe;
+    let mut chars = owner.chars();
+    let copy = format!("{reference}{}{}", chars.next()?.to_uppercase(), chars.as_str());
+    if table.columns.contains_key(&copy) { return None; }
+    let read = table.rules.read.quarry().replace(&rule.quarry(), &format!(".{copy} = viewer"));
+    Some(format!("on table {} declare `{reference}: {parent} on delete restrict`, add `{copy}: principal` and `immutable {reference}, {copy}`; replace its read declaration with `read <- {read}`; replace its insert declaration with `insert <- ({}) and exists {parent}[.{reference}, {owner} = .{copy}]`; in every `insert {} {{ … }}` payload add `{copy}: {copy}Source.{owner}` after inserting `{copy}Source = {parent}[{reference}] ! else NOT_FOUND` immediately before that insert (using the same reference value supplied in its payload), and backfill that field from {parent}.{owner} in existing rows and trusted seeds before adoption. The parent declares `immutable {owner}`, so this preserves the original readers; a mutable parent owner instead requires transactional copy propagation", name, table.rules.insert.quarry(), name))
 }
 
 /// The page statement of a one-statement query declaration: its `return`'s

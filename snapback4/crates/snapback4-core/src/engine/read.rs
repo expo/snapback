@@ -1513,7 +1513,9 @@ impl<'r> Runner<'r> {
         if let Some(mark) = row_heap { self.meter.release_row_heap(mark, row_bytes); }
         // @ref LLP 3000.036.001#6 — a branch lane cut mid-read reports how far it examined (rule-visible rows only).
         if let Some((table, index, frontier)) = &mut self.scan_frontier && *table == scan.table && *index == scan.index {
-            *frontier = if metered_domain {
+            *frontier = if filter_interrupted {
+                None
+            } else if metered_domain {
                 last_rule_visible.take()
             } else {
                 last_rule_visible.clone().or_else(|| keys.last().cloned())

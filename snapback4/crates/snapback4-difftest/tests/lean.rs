@@ -150,7 +150,7 @@ fn the_emitter_covers_the_generated_corpus_with_named_exceptions() {
     }
     // Outside it: the unpaged aggregates, page projections (`shape`), the
     // loop of a prefetch-reachable fold, and expiry, which the model leaves out.
-    assert_eq!(reasons, ["call-max", "call-min", "call-sum", "index-computed-or-words", "loop", "shape", "table-expiry"].map(String::from).into());
+    assert_eq!(reasons, ["call-max", "call-min", "call-sum", "index-computed-or-words", "loop", "page-static-key-expression", "shape", "table-expiry"].map(String::from).into());
     assert!(supported > 2000, "{supported}");
 }
 
@@ -1279,5 +1279,69 @@ fn live_reference_fields_agree_with_the_model_for_visible_hidden_and_missing_tar
             assert_eq!(lean::model_value(&model["data"]),lean::engine_value(&direct.data), "{read} {id}");
             assert_eq!(model["complete"], direct.complete);
         }
+    }
+}
+
+#[test]
+fn page3_outer_compound_grant_agrees_with_the_native_page() {
+    if !model_built() { return; }
+    let source = "table roles:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable documents:\n  owner: principal\n  open: bool\n  read <- (.owner = viewer or exists roles[viewer]) and .open = true\n  online only\nquery run(c: cursor ?):\n  return documents first 10 by .id after c\n";
+    let rows: Vec<(String, serde_json::Value)> = vec![("roles".into(), json!({"id":"s", "principal":"alice"})),
+        ("documents".into(), json!({"id":"a", "owner":"bob", "open":true})),
+        ("documents".into(), json!({"id":"b", "owner":"alice", "open":false}))];
+    let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(b.diagnostics.is_empty());
+    let mut e = snapback4_core::Engine::memory(b.schema, b.programs.into_iter().map(|p|p.program)).unwrap();
+    e.seed(rows.iter().map(|(table, row)| (table.clone(), snapback4_core::wire::row_from_json(&e.schema().tables[table], row).unwrap())).collect::<Vec<_>>()).unwrap();
+    let module = lean::module(source).unwrap();
+    for who in ["alice", "bob", "erin"] {
+        let actual = e.query("run", snapback4_core::Context::new(who, [("c".into(), snapback4_core::Value::Null)].into_iter().collect())).unwrap();
+        let modeled = lean::ask(&module.case("run", module.store(&rows).unwrap(), who, module.tag_args("run", &json!({"c":null})).unwrap(), None).unwrap()).unwrap();
+        assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data));
+        assert_eq!(modeled["complete"], actual.complete); assert!(actual.complete);
+    }
+}
+
+#[test]
+fn page3_argument_and_signed_static_keys_have_a_named_model_boundary() {
+    for key in ["n", "-1"] {
+        let source = format!("table roles:\n  principal: principal\n  slot: int\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  owner: principal\n  assignee: principal\n  at: int\n  read <- .owner = viewer or .assignee = viewer\n  online only\nquery run(n: int, c: cursor ?):\n  return docs where (.owner = viewer or (.assignee = viewer and exists roles[principal = viewer, slot = {key}])) first 2 by .at after c\n");
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let mut engine = snapback4_core::Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+        engine.seed([("docs".into(), snapback4_core::value::object([
+            ("id", snapback4_core::Value::Id("d".into())), ("owner", snapback4_core::Value::Id("alice".into())),
+            ("assignee", snapback4_core::Value::Id("bob".into())), ("at", snapback4_core::Value::Int(1))]))]).unwrap();
+        let actual = engine.query("run", snapback4_core::Context::new("alice", [("n".into(), snapback4_core::Value::Int(0)), ("c".into(), snapback4_core::Value::Null)].into_iter().collect())).unwrap();
+        assert!(actual.complete); assert_eq!(actual.data.as_array().unwrap().len(), 1);
+        let model = lean::module(&source).unwrap();
+        assert_eq!(model.program("run").unwrap_err().reason, "page-static-key-expression", "{key}");
+        // The oracle must account for this as unsupported, never a pass.
+        let mut case = lean::generate(0);
+        case.program.body = snapback4_difftest::ast::Body::Read { kind: snapback4_difftest::ast::Read::Page, take: 2, descending: false, filter: false, owner: false, project: None };
+        let checked = lean::compare(&case, &source).unwrap();
+        assert!(matches!(checked.verdict, Verdict::Unsupported(ref reason) if reason == "page-static-key-expression"));
+        assert_eq!(checked.executed, 0);
+    }
+}
+
+#[test]
+fn page3_membership_and_compound_filters_keep_the_read_free_model_gate() {
+    if !model_built() { return; }
+    for compound in [false, true] {
+        let rule = if compound { ".owner = viewer or (exists members[.group, viewer] and .open = true)" } else { "exists members[.group, viewer]" };
+        let source = format!("table roles:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable members:\n  group: int\n  principal: principal\n  unique group, principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  group: int\n  owner: principal\n  open: bool\n  at: int\n  read <- {rule}\n  online only\nquery run(c: cursor ?):\n  return docs where (.at > 0 or (.at < 0 and exists roles[viewer])) first 2 by .at after c\n");
+        let b = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+        assert!(b.diagnostics.is_empty());
+        let rows: Vec<(String, serde_json::Value)> = vec![("members".into(), json!({"id":"m", "group":1,"principal":"alice"})),
+            ("docs".into(), json!({"id":"d", "group":1,"owner":"bob","open":true,"at":1}))];
+        let mut e = snapback4_core::Engine::memory(b.schema, b.programs.into_iter().map(|p|p.program)).unwrap();
+        e.seed(rows.iter().map(|(table,row)| (table.clone(), snapback4_core::wire::row_from_json(&e.schema().tables[table],row).unwrap())).collect::<Vec<_>>()).unwrap();
+        let actual = e.query("run", snapback4_core::Context::new("alice", [("c".into(),snapback4_core::Value::Null)].into_iter().collect())).unwrap();
+        assert!(!actual.complete && actual.data.as_array().unwrap().len()==1);
+        let model = lean::module(&source).unwrap();
+        let modeled = lean::ask(&model.case("run", model.store(&rows).unwrap(), "alice", model.tag_args("run", &json!({"c":null})).unwrap(), None).unwrap()).unwrap();
+        assert_eq!(modeled["complete"], actual.complete, "compound={compound}");
+        assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data));
     }
 }

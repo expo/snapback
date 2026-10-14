@@ -214,3 +214,55 @@ theorem ownerMembership_cover {sch : Schema} {rule : Rule} {leaves : List Access
   exact accessLeaves_cover rule (ownerMembership_leaves hc) hr
 
 end Quarry
+
+namespace Quarry
+
+/-- Positive distribution preserves exactly the original Boolean rule. The
+bound may decline a decomposition but cannot change any admitted reader. -/
+theorem positiveRanges_eval {rule : Rule} {ranges : List (List Rule)}
+    (h : rule.positiveRanges = some ranges) {s v env} :
+    rule.eval s v env = ranges.any (fun leaf => leaf.all (fun atom => atom.eval s v env)) := by
+  induction rule generalizing ranges with
+  | eq a b =>
+    simp only [Rule.positiveRanges, Option.some.injEq] at h
+    subst ranges
+    simp
+  | probe t point key =>
+    simp only [Rule.positiveRanges, Option.some.injEq] at h
+    subst ranges
+    simp
+  | or a b iha ihb =>
+    cases ha : a.positiveRanges with
+    | none => simp [Rule.positiveRanges, ha] at h
+    | some as =>
+      cases hb : b.positiveRanges with
+      | none => simp [Rule.positiveRanges, ha, hb] at h
+      | some bs =>
+        simp only [Rule.positiveRanges, ha, hb, bind, Option.bind] at h
+        split at h
+        · simp only [Option.some.injEq] at h
+          subst ranges
+          simp [Rule.eval, iha ha, ihb hb, List.any_append]
+        · contradiction
+  | and a b iha ihb =>
+    cases ha : a.positiveRanges with
+    | none => simp [Rule.positiveRanges, ha] at h
+    | some as =>
+      cases hb : b.positiveRanges with
+      | none => simp [Rule.positiveRanges, ha, hb] at h
+      | some bs =>
+        simp only [Rule.positiveRanges, ha, hb, bind, Option.bind] at h
+        split at h
+        · simp only [Option.some.injEq] at h
+          subst ranges
+          rw [Rule.eval, iha ha, ihb hb]
+          simp only [List.any_flatMap, List.any_map, Function.comp_def, List.all_append]
+          rw [List.and_any_distrib_right]
+          simp only [List.and_any_distrib_left]
+        · contradiction
+  | allow => simp [Rule.positiveRanges] at h
+  | deny => simp [Rule.positiveRanges] at h
+  | ne _ _ => simp [Rule.positiveRanges] at h
+  | not _ _ => simp [Rule.positiveRanges] at h
+
+end Quarry

@@ -155,9 +155,16 @@ impl Runner<'_> {
             let definition = &self.schema.tables[&lane.scan.table];
             let index = &definition.indexes[&lane.scan.index];
             let mut grant = None;
-            if lane.grant() {
-                if !self.context.is_system() {
-                    let Some(rule) = rules::covering_grant(self.schema, &lane.scan) else { continue };
+            if lane.grant() || lane.guarded() {
+                // @ref LLP 3000.036.001#16 — a full union replica walks its
+                // held authorized rows; it never decides a remote role probe.
+                // scan_consumed still checks acquisition and meters the page.
+                let held_union = lane.grant() && self.device && definition.sync.as_ref()
+                    .is_some_and(|sync| sync.is_union());
+                if !self.context.is_system() && !held_union {
+                    let rule = if lane.guarded() { rules::page_guard_decision(self.schema, &lane.scan) }
+                        else { rules::covering_grant(self.schema, &lane.scan) };
+                    let Some(rule) = rule else { continue };
                     // @ref LLP 3000.036.001#7 — a device decides a seat (`viewer = 'service:x'`), which reads no row;
                     // a probe guard (a role, a pinned parent) it does not decide (LLP 3000.036 §12.1): the read is unknown and the client asks the server.
                     if self.device && rules::rule_probes(&rule) > 0 {
@@ -168,7 +175,7 @@ impl Runner<'_> {
                     if !allowed { continue; }
                     grant = Some(pending);
                 }
-                covered = true;
+                covered = lane.grant();
             }
             let prefix = self.clone_branch_prefix(prefix, metered_merge)?;
             let opened = self.open_branch_lane(lane, prefix, after.as_ref(), grant, metered_merge)?;

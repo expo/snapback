@@ -194,10 +194,41 @@ pub fn programs(
         fact.search = snapback4_core::search_plan::ordinary::composition(schema, &bound.program);
         let merges = snapback4_core::ir::body_merges(&bound.program.body);
         fact.branch_merge = merges.iter().any(|m| m.branches());
+        fact.branch_pages_v2 = merges.iter().any(|merge| merge.branches() && merge.lanes.iter().any(|lane|
+            lane.guarded() || lane.scan.filter.as_deref().is_some_and(predicate_probe)
+            || schema.table(&lane.scan.table).is_some_and(|table|
+                lane.grant() && table.sync.as_ref().is_some_and(snapback4_core::schema::Sync::is_union)
+                || !snapback4_core::engine::rules::membership_point_id(schema, lane) && table.index(&lane.scan.index).is_some_and(|index| lane.scan.prefix.len() == index.components.len()))));
         fact.branch_membership = merges.iter().any(|merge| merge.lanes.iter().any(|lane| lane.membership()));
         fact.branch_membership_v2 = merges.iter().flat_map(|merge| &merge.lanes)
             .any(|lane| membership_v2(schema, lane));
         schema.operations.insert(bound.program.name.clone(), fact);
+    }
+}
+
+fn predicate_probe(expr: &snapback4_core::ir::Expr) -> bool {
+    use snapback4_core::ir::Expr;
+    match expr {
+        Expr::Exists(_) | Expr::Get(_) => true,
+        Expr::Binary { left, right, .. } => predicate_probe(left) || predicate_probe(right),
+        Expr::Unary { value, .. } => predicate_probe(value),
+        Expr::Field { base, .. } => predicate_probe(base),
+        Expr::Array(values) => values.iter().any(predicate_probe),
+        Expr::Object(fields) => fields.values().any(predicate_probe),
+        Expr::Builtin { args, .. } => args.iter().any(predicate_probe),
+        Expr::Block { body, value } => body.iter().any(predicate_statement) || predicate_probe(value),
+        _ => false,
+    }
+}
+
+fn predicate_statement(stmt: &snapback4_core::ir::Stmt) -> bool {
+    use snapback4_core::ir::Stmt;
+    match stmt {
+        Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. }
+        | Stmt::Push { value, .. } | Stmt::Return(value) | Stmt::Require { condition: value, .. } => predicate_probe(value),
+        Stmt::If { condition, then_body, else_body } => predicate_probe(condition)
+            || then_body.iter().any(predicate_statement) || else_body.iter().any(predicate_statement),
+        _ => false,
     }
 }
 

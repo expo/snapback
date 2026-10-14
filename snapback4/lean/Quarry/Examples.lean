@@ -821,8 +821,42 @@ def refExamples : List Example := [
     expected := r#"{"kind":"refused","code":"NOT_FOUND"}"# }
 ]
 
+def page3Pure : Schema := { tables := membershipDocs.tables.map fun t =>
+  if t.name == "documents" then { t with read := .probe "members" ["parent", "principal"] [("parent", self "parent"), ("principal", .viewer)] } else t }
+
+def page3Compound : Schema := { tables := [
+  { name := "staff", cols := [c "principal"], uniques := [["principal"]], read := .eq (self "principal") .viewer },
+  { name := "documents", cols := [c "owner", c "open"]
+    read := .and (.or (.eq (self "owner") .viewer) (.probe "staff" ["principal"] [("principal", .viewer)])) (.eq (self "open") (.lit (.bool true))) }] }
+
+def page3CompoundStore : Store := mkStore [
+  ("staff", [mkRow "s" [("principal", I "alice")]]),
+  ("documents", [mkRow "a" [("owner", I "bob"), ("open", .bool true)],
+                 mkRow "b" [("owner", I "alice"), ("open", .bool false)]])]
+
+def page3Examples : List Example := [
+  { name := "page3-pure-membership"
+    source := "LLP 3000.036.001 §16: pure exact membership needs no party descriptor"
+    case := { schema := page3Pure, store := membershipDocStore, viewer := alice,
+              program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"d5","owner":"bob","parent":"p2","at":5},{"id":"d4","owner":"bob","parent":"p1","at":4},{"id":"d3","owner":"alice","parent":"p1","at":3}],"complete":true,"next":null}"# },
+  { name := "page3-pure-membership-empty"
+    source := "LLP 3000.036.001 §16: complete empty discovery certifies the empty authorized domain"
+    case := { schema := page3Pure, store := membershipDocStore, viewer := bob,
+              program := query [.ret (.page "documents" [] none ["at"] true 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[],"complete":true,"next":null}"# },
+  { name := "page3-outer-compound-grant"
+    source := "LLP 3000.036.001 §16: distribute the outer status conjunction without discarding it for a grant holder"
+    case := { schema := page3Compound, store := page3CompoundStore, viewer := alice,
+              program := query [.ret (.page "documents" [] none [] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"a","owner":"bob","open":true}],"complete":true,"next":null}"# }
+]
+
 /-- Every example: the guide cards' and the referential actions'. -/
-def all : List Example := examples ++ merged ++ refExamples
+def all : List Example := examples ++ merged ++ refExamples ++ page3Examples
 
 /-- Run every example; returns the failures. -/
 def check : List (String × String × String) :=

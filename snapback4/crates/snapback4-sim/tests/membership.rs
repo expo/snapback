@@ -417,3 +417,46 @@ query documents(c: cursor ?):
     assert_eq!(ids(&after), ["owned"]); assert!(after.complete && after.next.is_none());
     assert_eq!(engine.store().count("groups").unwrap(), 1, "expired source remains physically unswept");
 }
+
+// @ref LLP 3000.036.001#16 — each new read observes current grants/status,
+// while a continuation stays after its original shared position.
+#[test]
+fn page3_compound_status_and_role_revocation_preserve_current_authority() {
+    let source = "table staff:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  delete <- allow
+  online only
+table documents:
+  owner: principal
+  open: bool
+  read <- .owner = viewer or (exists staff[viewer] and .open = true)
+  update <- allow
+  online only
+query documents(c: cursor ?):
+  return documents first 1 by .id after c
+mutation close(document: documents):
+  update documents[document] { open: false }
+mutation revoke(principal: principal):
+  delete staff[principal = principal]
+";
+    let compiled = bound(source);
+    let mut engine = Engine::memory(compiled.schema, compiled.programs.into_iter().map(|p| p.program)).unwrap();
+    let row = |id_: &str, owner: &str, open: bool| ("documents".into(), snapback4_core::value::object([
+        ("id", id(id_)), ("owner", id(owner)), ("open", Value::Bool(open))]));
+    engine.seed([( "staff".into(), snapback4_core::value::object([("id", id("s")), ("principal", id("alice"))])),
+        row("a", "bob", true), row("b", "bob", false), row("c", "alice", false), row("d", "bob", true)]).unwrap();
+    let first = engine.query("documents", context("alice", &[("c", Value::Null)])).unwrap();
+    assert!(first.complete); assert_eq!(first.data.as_array().unwrap()[0].field("id").unwrap(), &id("a"));
+    let cursor = first.next.unwrap();
+    let mut cx = Context::system(); cx.args.insert("document".into(), id("d"));
+    engine.mutate("close", None, cx).unwrap();
+    let mut cx = Context::system(); cx.args.insert("principal".into(), id("alice"));
+    engine.mutate("revoke", None, cx).unwrap();
+    let next = engine.query("documents", context("alice", &[("c", Value::String(cursor))])).unwrap();
+    assert!(next.complete && next.next.is_none());
+    assert_eq!(next.data.as_array().unwrap().iter().map(|r| r.field("id").unwrap().as_str().unwrap()).collect::<Vec<_>>(), ["c"]);
+    let outsider = engine.query("documents", context("erin", &[("c", Value::Null)])).unwrap();
+    assert!(outsider.complete && outsider.data.as_array().unwrap().is_empty());
+}

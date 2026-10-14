@@ -48,3 +48,6 @@
 {"at":"2026-10-13T21:18:56Z","sha":"f0210519f6","dirty":false,"wasm":{"raw":2308188,"gzip":704317,"brotli":531990},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":704817,"over":0}
 {"at":"2026-10-14T00:34:27Z","sha":"82855e5ed5","dirty":false,"wasm":{"raw":2308188,"gzip":704178,"brotli":531888},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":704817,"over":0}
 {"at":"2026-10-14T02:32:18Z","sha":"b6dc002a4b","dirty":false,"wasm":{"raw":2308519,"gzip":703333,"brotli":531983},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":704678,"over":0}
+{"at":"2026-10-13T20:57:25Z","sha":"26d03a6fb4","dirty":true,"wasm":{"raw":2310393,"gzip":704662,"brotli":0},"glue":{"raw":15462,"gzip":3677,"brotli":0},"wasmOpt":true,"budget":703755,"over":907}
+{"at":"2026-10-13T20:59:57Z","sha":"26d03a6fb4","dirty":true,"wasm":{"raw":2310393,"gzip":704662,"brotli":532356},"glue":{"raw":15462,"gzip":3677,"brotli":3254},"wasmOpt":true,"budget":705162,"over":0}
+{"at":"2026-10-13T21:06:55Z","sha":"f11a5e72cd","dirty":false,"wasm":{"raw":2310393,"gzip":704662,"brotli":532356},"glue":{"raw":15462,"gzip":3677,"brotli":3254},"wasmOpt":true,"budget":705162,"over":0}
