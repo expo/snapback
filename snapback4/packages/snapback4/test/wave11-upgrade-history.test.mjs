@@ -67,3 +67,13 @@ test('first check recovers older versions from locks/generated metadata and matc
   assert.match(human.run('check').stdout, /runtime changes: 0\.4\.25 →/);
 });
 
+test('runtime history remains visible when the first check refuses device preflight', t => {
+  const { dir, schema, invoke } = fixture(t); writeFileSync(schema, v1);
+  writeFileSync(join(dir, 'package-lock.json'), JSON.stringify({ packages: { 'node_modules/snapback4': { version: '0.4.25' } } }));
+  mkdirSync(join(dir, 'app')); writeFileSync(join(dir, 'app/app.json'), JSON.stringify({ typescript: { sources: { snapback4: '../../exact2/snapback4/ts', backend: '../snapback/generated' } } }));
+  const checked = invoke('check', '--json'); assert.equal(checked.status, 1);
+  assert.equal(JSON.parse(checked.stdout).denied.code, 'E_DEVICE_VERSION');
+  assert.match(checked.stderr, /runtime changes: 0\.4\.25 →/); assert.match(checked.stderr, /run\(\).*sent \| failed/);
+  assert.equal(existsSync(join(dir, 'snapback/generated/api.ts')), false);
+});
+

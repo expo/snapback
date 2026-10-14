@@ -773,4 +773,13 @@ fn narr_filtered_unbounded_device_page_names_empty_partition_coverage_without_re
     for control in [source.replace("where .sailing = sailing ", ""), source.replace("sync public\nquery", "sync public last 100 by .at, .id\nquery"), source.replace("sync public", "online only")] {
         assert!(!clean(&control).notes.iter().any(|n| n.code == "N_SYNC_EMPTY"), "{control}");
     }
+    let cursor = source.replace("noticesFor(sailing: sailings)", "noticesFor(sailing: sailings, c: cursor ?)").replace("first 100 by .at", "first 100 by .at after c");
+    assert!(!clean(&cursor).notes.iter().any(|n| n.code == "N_SYNC_EMPTY"));
+    let owned = source.replace("table notices:\n", "table notices:\n  owner: principal\n")
+        .replace("immutable sailing, at", "immutable owner, sailing, at")
+        .replace("public\n  sync public\nquery", "read <- .owner = viewer\n  sync to .owner\nquery")
+        .replace("where .sailing = sailing", "where .owner = viewer and .sailing = sailing");
+    let bound = clean(&owned);
+    assert_eq!(bound.schema.operations["noticesFor"].runs.as_deref(), Some("device"));
+    assert!(!bound.notes.iter().any(|n| n.code == "N_SYNC_EMPTY"));
 }
