@@ -35,7 +35,7 @@ roll back with it. In order (each step verified against the engine):
 3. **Inside one write.** The target: an update, delete or upsert patch of a
    missing row is `NOT_FOUND`. Then the table's write rule, which judges the
    row even when the caller cannot read it: it refuses `E_RULE` on a readable
-   row and `NOT_FOUND` on a hidden one. Then `unique` keys: your `else CODE`, or `E_CONSTRAINT` naming the
+   row and `NOT_FOUND` on a hidden one. Then declared `unique` keys: your `else CODE`, or `E_UNIQUE` naming the
    index; a clash with a row the caller cannot read is `E_RULE`. Then `cap`:
    `E_CONSTRAINT`. Then `immutable`: `E_CONSTRAINT` naming the column.
 4. **After the last statement.** `after insert` obligations: `E_CONSTRAINT`
