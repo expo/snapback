@@ -1,8 +1,6 @@
 # Rule recipes: audiences, disclosure and blind writers
 
-These compiled recipes express roles, copied audiences, consent, publication,
-link enrollment and anonymity. Each makes the intended disclosure and write
-authority explicit, including the trade-offs of materialising a grant.
+These compiled recipes express roles, copied audiences, consent, publication, link enrollment and anonymity. Each makes the intended disclosure and write authority explicit, including the trade-offs of materialising a grant.
 
 ```quarry
 use personas alice, bob, carol
@@ -36,17 +34,9 @@ mutation grant(who: principal, role: enum('coordinator', 'commander')):
   return insert roles { principal: who, role }
 ```
 
-When one principal may hold several independent roles, make the pair unique.
-Every point probe then supplies both columns. A bare `exists roles[viewer]`
-is deliberately refused: under `unique principal, role` it names every role
-row for that principal, not one row. Prefer the named spelling in policy;
-the full positional spelling, such as `roles[viewer, 'commander']`, has the
-same meaning. Spell an “any staff role” grant as the `or` of the exact roles
-that grant it.
+When one principal may hold several independent roles, make the pair unique. Every point probe then supplies both columns. A bare `exists roles[viewer]` is deliberately refused: under `unique principal, role` it names every role row for that principal, not one row. Prefer the named spelling in policy; the full positional spelling, such as `roles[viewer, 'commander']`, has the same meaning. Spell an “any staff role” grant as the `or` of the exact roles that grant it.
 
-Seed the first commander or grant it through `service:ops`. A commander may
-also have a coordinator row; the pair constraint prevents only a duplicate
-of the same role. Test both grants separately:
+Seed the first commander or grant it through `service:ops`. A commander may also have a coordinator row; the pair constraint prevents only a duplicate of the same role. Test both grants separately:
 
 ```jsonl
 {"as":"alice","op":"canCoordinate","args":{},"data":true,"label":"alice has the coordinator row"}
@@ -56,12 +46,7 @@ of the same role. Test both grants separately:
 ```
 
 ## Timed disclosure and timed writes
-
-`not before .opensAt` is a server-enforced lower read lifetime. It withholds
-the row from reads, rule probes and sync until the server reaches the boundary;
-it does not authorize a write. Keep a write deadline as an explicit mutation
-`require`. Here submissions close independently, then their secrets become
-public for the half-open interval `[opensAt, expiresAt)`.
+`not before .opensAt` is a server-enforced lower read lifetime. It withholds the row from reads, rule probes and sync until the server reaches the boundary; it does not authorize a write. Keep a write deadline as an explicit mutation `require`. Here submissions close independently, then their secrets become public for the half-open interval `[opensAt, expiresAt)`.
 
 ```quarry
 use personas alice, bob
@@ -100,22 +85,11 @@ query revealed(c: cursor ?):
   return submissions last 50 by .id after c
 ```
 
-A null opening on an optional `time ?` column means immediately readable;
-`expire at` remains the independent upper boundary. Natural server requests
-and sync publish due rows without an application job. A device timer may ask
-for a refresh, but device wall clocks and server-time estimates never unlock
-the secret, and no hidden opening is exposed as `nextExpiry`.
+A null opening on an optional `time ?` column means immediately readable; `expire at` remains the independent upper boundary. Natural server requests and sync publish due rows without an application job. A device timer may ask for a refresh, but device wall clocks and server-time estimates never unlock the secret, and no hidden opening is exposed as `nextExpiry`.
 
 ## A writer who cannot read the parent
 
-A reference value does not itself read or validate its target. When a writer
-may create a child but must not read its parent, put the parent checks in the
-child's insert rule and insert without a program lookup. Rule probes see the
-target row for authorization even when a program lookup would return null.
-Here a recommender can write a letter for an application, while the student
-cannot write their own letter and cannot read any letter. A missing application
-and the student's own application both refuse `E_RULE`; neither is exposed by
-a preliminary `applications[id] !` lookup.
+A reference value does not itself read or validate its target. When a writer may create a child but must not read its parent, put the parent checks in the child's insert rule and insert without a program lookup. Rule probes see the target row for authorization even when a program lookup would return null. Here a recommender can write a letter for an application, while the student cannot write their own letter and cannot read any letter. A missing application and the student's own application both refuse `E_RULE`; neither is exposed by a preliminary `applications[id] !` lookup.
 
 ```quarry
 use personas alice, bob, carol
@@ -150,19 +124,11 @@ query lettersFor(application: applications, c: cursor ?):
   return letters where .application = application first 20 by .id after c
 ```
 
-This form is for a blind writer. If the operation needs parent contents, that
-is a read and the parent must admit the caller. If existing children should
-follow a parent's changing audience, keep the child online and probe each live
-parent condition explicitly. If they should retain the audience chosen at
-creation, copy those audience columns onto the child, make the copies immutable,
-and check every copy against the parent in this same insert rule.
+This form is for a blind writer. If the operation needs parent contents, that is a read and the parent must admit the caller. If existing children should follow a parent's changing audience, keep the child online and probe each live parent condition explicitly. If they should retain the audience chosen at creation, copy those audience columns onto the child, make the copies immutable, and check every copy against the parent in this same insert rule.
 
 ## Copied audiences
 
-Unlike an RLS subquery, a synced rule describes an invertible delivery audience.
-Copy the parent's audience onto each child and verify the copies on insert.
-Immutable copies retain the audience chosen at creation; a parent transfer does
-not transfer these children. Use online live-parent probes when that is required.
+Unlike an RLS subquery, a synced rule describes an invertible delivery audience. Copy the parent's audience onto each child and verify the copies on insert. Immutable copies retain the audience chosen at creation; a parent transfer does not transfer these children. Use online live-parent probes when that is required.
 
 ```quarry
 table folders:
@@ -192,12 +158,7 @@ query file(file: files):
 
 ## Materialised access
 
-A rule cannot scan "all participants consented". Store one grant after a
-mutation checks uniquely addressed consent rows, and delete it when consent is
-withdrawn. This two-person recipe makes those exact probes readable to the
-organizer; it deliberately reveals consent to that organizer. For an arbitrary
-population use an authorized maintained count and compare it with the expected
-population (`guide recipes`, booking); never scan partly readable consent rows.
+A rule cannot scan "all participants consented". Store one grant after a mutation checks uniquely addressed consent rows, and delete it when consent is withdrawn. This two-person recipe makes those exact probes readable to the organizer; it deliberately reveals consent to that organizer. For an arbitrary population use an authorized maintained count and compare it with the expected population (`guide recipes`, booking); never scan partly readable consent rows.
 
 ```quarry
 table agreements:
@@ -242,16 +203,11 @@ query granted(agreement: agreements):
   return exists access[agreement, viewer]
 ```
 
-Participants can read and delete the grant, so withdrawal atomically removes
-it. Every consent or participant change must maintain this grant in the same
-transaction; avoid separate grant repair jobs that leave a disclosure window.
+Participants can read and delete the grant, so withdrawal atomically removes it. Every consent or participant change must maintain this grant in the same transaction; avoid separate grant repair jobs that leave a disclosure window.
 
 ## Copy on reveal: an event opens the payload
 
-Keep the secret in a private table. An authorized event mutation copies it into
-an independently readable table in the same commit. Returning a shape that
-omits a secret is not a column read rule. The private lookup already requires the owner; an outsider gets NOT_FOUND. Reveal is durable; undoing the event
-flag does not retract an already copied payload. To retract it, delete the copy.
+Keep the secret in a private table. An authorized event mutation copies it into an independently readable table in the same commit. Returning a shape that omits a secret is not a column read rule. The private lookup already requires the owner; an outsider gets NOT_FOUND. Reveal is durable; undoing the event flag does not retract an already copied payload. To retract it, delete the copy.
 
 ```quarry
 table drafts:
@@ -277,18 +233,11 @@ query publication(publication: revealed):
   return revealed[publication]
 ```
 
-For time instead of an event, use `not before .opensAt` and `expire at .endsAt`
-(the timed-disclosure recipe above); clocks stay out of read rules.
+For time instead of an event, use `not before .opensAt` and `expire at .endsAt` (the timed-disclosure recipe above); clocks stay out of read rules.
 
 ## Share links: token enrollment, then principal reads
 
-The supported link grants an authenticated visitor a principal row. Possession
-of a high-entropy token authorizes enrollment; the resulting read rule uses the
-principal. Token rows are program-readable, but expose no listing operation or
-token row result. Generate secrets outside Quarry and provision them with a
-service seat. Hashing, leakage prevention and delivery of the link belong to
-the app. Revoking the token prevents new enrollment; revoke grant rows separately
-to remove existing readers. A query argument alone is not a capability grant.
+The supported link grants an authenticated visitor a principal row. Possession of a high-entropy token authorizes enrollment; the resulting read rule uses the principal. Token rows are program-readable, but expose no listing operation or token row result. Generate secrets outside Quarry and provision them with a service seat. Hashing, leakage prevention and delivery of the link belong to the app. Revoking the token prevents new enrollment; revoke grant rows separately to remove existing readers. A query argument alone is not a capability grant.
 
 ```quarry
 table documents:
@@ -334,16 +283,11 @@ query document(document: documents):
   return documents[document]
 ```
 
-Do not publish a generic mutation accepting a document id and inserting a
-reader: that would bypass token enrollment. Mutations are the app's API;
-`insert <- .principal = viewer` alone does not prove token possession.
+Do not publish a generic mutation accepting a document id and inserting a reader: that would bypass token enrollment. Mutations are the app's API; `insert <- .principal = viewer` alone does not prove token possession.
 
 ## Split-table anonymity
 
-Private author attribution belongs in its own table; the published payload has
-no author field. Public replies and private audit rows are linked by id, so
-operators may still correlate them. This is application anonymity from other
-readers, not a claim about network logs or the store administrator.
+Private author attribution belongs in its own table; the published payload has no author field. Public replies and private audit rows are linked by id, so operators may still correlate them. This is application anonymity from other readers, not a claim about network logs or the store administrator.
 
 ```quarry
 table responses:
@@ -371,12 +315,7 @@ query response(response: responses):
 
 ## Versioned media: mutable publication pointer
 
-Keep the band's member roster, immutable version audience and media references
-separate. A publication pointer chooses the released version. Here subscribers
-may read only the current version; moving the pointer immediately removes the
-old version's read grant. Keep it online: a mutable publication condition is
-not an invertible sync audience. The owner retains draft access. Downloads
-also need the version row's read authority (`guide assets`).
+Keep the band's member roster, immutable version audience and media references separate. A publication pointer chooses the released version. Here subscribers may read only the current version; moving the pointer immediately removes the old version's read grant. Keep it online: a mutable publication condition is not an invertible sync audience. The owner retains draft access. Downloads also need the version row's read authority (`guide assets`).
 
 ```quarry
 table bands:
@@ -418,12 +357,7 @@ query version(version: versions):
 
 ## Mine, shared with my groups, and public
 
-A public branch plus private audiences stays online. One live read rule admits
-owners, public entries and team members. Three complete cursor pages serve
-Mine/Public/Team tabs; keep their cursors separate and deduplicate ids if combining
-them in the UI. An owner may make an entry public deliberately. A synced variant splits
-public entries into a public table and keeps owner-or-one-team rows separately
-(`guide sharing`); a union may contain at most one group audience.
+A public branch plus private audiences stays online. One live read rule admits owners, public entries and team members. Three complete cursor pages serve Mine/Public/Team tabs; keep their cursors separate and deduplicate ids if combining them in the UI. An owner may make an entry public deliberately. A synced variant splits public entries into a public table and keeps owner-or-one-team rows separately (`guide sharing`); a union may contain at most one group audience.
 
 ```quarry
 use identity
@@ -463,8 +397,4 @@ query entry(entry: library):
   return library[entry]
 ```
 
-Public visitors still need transport authentication: declare `use identity`,
-call `auth.guest()` from `snapback4/react`'s `useAuth()` (or `client.guest()`),
-then query. Public describes row authority, not an unauthenticated HTTP door.
-A guest can see shared rows, not team rows; password accounts enroll in the
-team roster. Use `use identity password` when the app should have no visitors.
+Public visitors still need transport authentication: declare `use identity`, call `auth.guest()` from `snapback4/react`'s `useAuth()` (or `client.guest()`), then query. Public describes row authority, not an unauthenticated HTTP door. A guest can see shared rows, not team rows; password accounts enroll in the team roster. Use `use identity password` when the app should have no visitors.

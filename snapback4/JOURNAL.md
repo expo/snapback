@@ -95293,3 +95293,18 @@ constraint fact homes to distinguish intrinsic-id E_CONSTRAINT from declared
 E_UNIQUE, including nullable unique writes on both device stores. Adaptation's
 shared plan now names missing proof helpers/package additions before preview,
 with an edited-README dry-run/default-preview/selective-apply subprocess proof.
+
+The complete requested Linux Rust run finished with 6,030 passes, 22 initial
+failures and 41 intentional ignores. Every failure is attributed and repaired
+in affected full files: legacy declared-key assertions now expect E_UNIQUE and
+authored columns while retaining all hidden/replay/rollback comparisons;
+seven proved-stable mutation outputs get exact in-test type overlays against
+unchanged historical compatibility JSON. The byte comparator reports all
+remaining differences instead of stopping at the first fixture. Public upserts
+and required row references get positive controls; nullable read-authority
+paths keep their emitted repair controls. The direct Engine digest model keeps
+its intentional bare Bob principal and verifies the new persona advisory rather
+than changing that audience. The testing card retains cap-count semantics.
+Rule-recipes folds wrapped prose to 400 lines, preserving every Quarry block;
+no documentation cap is raised. Original red logs and scoped green runs remain
+separate evidence; there is no fabricated green exit for the original full run.

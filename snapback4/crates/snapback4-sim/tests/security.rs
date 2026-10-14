@@ -42,7 +42,7 @@ fn hidden_unique_and_id_collisions_have_only_a_generic_rule_refusal() {
         assert!(!why.message.contains("secret@example.com") && !why.message.contains("hidden") && !why.message.contains("already"), "{why}");
     }
     let public = e.mutate("add", None, Context::new("alice", args("secret@example.com"))).unwrap();
-    assert!(matches!(public.state, WriteState::Failed { why, .. } if why.code == "E_CONSTRAINT"));
+    assert!(matches!(public.state, WriteState::Failed { why, .. } if why.code == "E_UNIQUE"));
     let quiet = e.mutate("quiet", None, Context::new("alice", args("secret@example.com"))).unwrap();
     assert!(matches!(quiet.state, WriteState::Sent { result: Value::Null, .. }));
 }

@@ -170,3 +170,5 @@ Full bodies for the preceding fixture (omitted request ids stay omitted):
   "/q/list": {"data":[{"id":"row1","title":"Proof"}],"complete":true,"cut":null,"next":null,"nextExpiry":null,"seq":2,"generation":1,"store_id":"store1","tables":["notes"],"viewer":"dev:alice","scopes":{},"meter":{"cut":null,"examined":1,"heapBytes":937,"indexEntries":0,"outputBytes":89,"probes":0,"rowsWritten":0,"steps":12}}
 }
 ```
+
+A full `cap` counts every row, readable or not, and refuses `E_CONSTRAINT`.

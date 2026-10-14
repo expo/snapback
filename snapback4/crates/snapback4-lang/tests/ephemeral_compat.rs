@@ -141,10 +141,47 @@ fn durable_schema_and_types_keep_base_bytes() {
     assert!(refused.diagnostics.iter().any(|d| d.code == "E_QUARRY_POINT_KEY"));
     assert!(expected.remove("repair-probe.q").is_some());
     assert_eq!(actual.keys().collect::<Vec<_>>(), expected.keys().collect::<Vec<_>>());
-    for (name, (schema, types)) in actual {
-        assert_eq!(strip_update_explanations(&schema), expected[&name].0, "schema bytes: {name}");
-        assert_eq!(strip_following(&strip_row_keys(&strip_hook_hints(&types)), &schema), expected[&name].1, "TypeScript bytes: {name}");
+    // @ref LLP 3000.013#6.5 — DX3 removes null only for these proved-stable
+    // mutation returns. Keep the historical JSON captures and every other
+    // schema/type byte unchanged, including nullable authority-loss controls.
+    for (fixture, operation, table) in [
+        ("following-view.q", "remove", "posts"),
+        ("maintained-columns.q", "change", "likes"),
+        ("row-keyed-view.q", "mark", "members"),
+        ("row-view-inherited-source.q", "mark", "members"),
+        ("sequence-by.q", "move", "messages"),
+        ("sequence-by.q", "put", "messages"),
+        ("timeline-v2.q", "remove", "posts"),
+    ] {
+        let types = &mut expected.get_mut(fixture).unwrap().1;
+        let trailing_newline = types.ends_with('\n');
+        let mut lines: Vec<String> = types.lines().map(str::to_owned).collect();
+        let declaration = format!("  {operation}: Mutation<");
+        let positions: Vec<_> = lines.iter().enumerate().filter_map(|(i, line)| line.starts_with(&declaration).then_some(i)).collect();
+        assert_eq!(positions.len(), 1, "{fixture}/{operation}");
+        let i = positions[0];
+        let nullable = format!("Rows[\"{table}\"] | null");
+        let required = format!("Rows[\"{table}\"]");
+        for at in [i-1, i] {
+            assert_eq!(lines[at].matches(&nullable).count(), 1, "{fixture}/{operation}: {}", lines[at]);
+            lines[at] = lines[at].replacen(&nullable, &required, 1);
+        }
+        *types = lines.join("\n");
+        if trailing_newline { types.push('\n'); }
     }
+    let mut mismatches = Vec::new();
+    for (name, (schema, types)) in actual {
+        if strip_update_explanations(&schema) != expected[&name].0 { mismatches.push(format!("schema bytes: {name}")); }
+        let types = strip_following(&strip_row_keys(&strip_hook_hints(&types)), &schema);
+        if types != expected[&name].1 {
+            let before: Vec<_> = expected[&name].1.lines().collect();
+            let after: Vec<_> = types.lines().collect();
+            for i in 0..before.len().max(after.len()) {
+                if before.get(i) != after.get(i) { mismatches.push(format!("{name} line {}: {:?} -> {:?}", i+1, before.get(i), after.get(i))); }
+            }
+        }
+    }
+    assert!(mismatches.is_empty(), "durable byte differences:\n{}", mismatches.join("\n"));
 }
 
 // QX round 1 appends per-constraint update explanations to existing upsert

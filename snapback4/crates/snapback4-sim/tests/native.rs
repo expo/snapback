@@ -228,7 +228,7 @@ fn a_refused_write_parks_a_native_job_and_rolls_the_chunk_back() {
     engine.install_native(module()).unwrap();
     let run = engine.run_job("clash", BTreeMap::new(), NOW).unwrap();
     assert_eq!(run.state, JobState::Parked, "{run:?}");
-    assert!(run.error.as_deref().unwrap_or("").starts_with("E_CONSTRAINT:"), "{run:?}");
+    assert!(run.error.as_deref().unwrap_or("").starts_with("E_UNIQUE:"), "{run:?}");
     assert_eq!(engine.store().rows("ranked").unwrap().len(), 0, "the chunk rolled back, the first row with it");
 }
 

@@ -159,6 +159,15 @@ fn wave10_mixed_extra_tests_and_nullable_upsert_rewrites_compile() {
         assert!(d.source_rewrite.unwrap().contains("trade = "));
     }
     let source = "table props:\n  label: text <=30\n  unique label\n  public 'props'\ntable uses:\n  prop: props\n  public 'uses'\nmutation add(label: text <=30):\n  p = upsert props[label = label] { label }\n  return insert uses { prop: p.id }\n";
+    // DX3 proves a public, ordinary-lifetime upsert result required. QDIAG
+    // also accepts that row directly in its declared reference destination.
+    for accepted in [source.to_owned(), source.replace("prop: p.id", "prop: p")] {
+        let b = compile(&[("schema.q".into(), accepted)]);
+        assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    }
+    // Keep the actual nullable-authority repair controls independently.
+    let source = source.replace("public 'props'", "read <- .label = 'visible'\n  insert <- allow\n  update <- allow");
+    let source = source.as_str();
     let d = refusal(source, "E_QUARRY_TYPE");
     classified(&d, SourceRewriteKind::WriteResultNarrowing);
     assert!(d.message.contains("upsert") && d.message.contains("unreadable") && d.rewrite.contains("rolls back"), "{d}");

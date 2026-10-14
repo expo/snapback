@@ -124,14 +124,14 @@ fn s05_insert_and_insert_if_absent_on_a_hidden_unique_clash_stay_e_rule() {
     }
 }
 #[test]
-fn s05_a_readable_clash_still_names_the_index() {
+fn s05_a_readable_clash_names_the_declared_key() {
     let mut observations = Vec::new();
     for clash in [true, false] {
         let mut e = world(SOURCE, clash, 7);
         let (_, observation) = observed(&mut e, "add", "alice", json!({"key":"lookup"}), "same");
         if clash {
-            assert_eq!(observation.body()["why"]["code"], "E_CONSTRAINT");
-            assert!(observation.body()["why"]["message"].as_str().unwrap().contains("records.byKey"));
+            assert_eq!(observation.body()["why"]["code"], "E_UNIQUE");
+            assert!(observation.body()["why"]["message"].as_str().unwrap().contains("records: unique key"));
             assert!(observation.body()["why"]["message"].as_str().unwrap().contains("lookup"));
             observation.assert_unchanged();
             assert!(matches!(call(&mut e, "quiet", "alice", json!({"key":"lookup"}), "quiet").state, WriteState::Sent { result: Value::Null, .. }));
@@ -597,7 +597,7 @@ fn w2_receipts_store_the_replay_body_before_revocation_including_diagnostics() {
                 assert_eq!(value(e, "alice"), Value::Null);
             });
             let first = observation.body();
-            assert_eq!(first["why"]["code"], if named { "DUPLICATE" } else { "E_CONSTRAINT" });
+            assert_eq!(first["why"]["code"], if named { "DUPLICATE" } else { "E_UNIQUE" });
             assert!(first["why"][if named { "detail" } else { "message" }].as_str().unwrap().contains("PRIVATE"));
             let receipt: Json = serde_json::from_str(&observation.receipt).unwrap();
             assert!(!receipt.to_string().contains("PRIVATE"));

@@ -22,7 +22,12 @@ fn bound(source: &str) -> snapback4_lang::Bound {
     let denied: Vec<_> = b.notes.iter().filter(|note| note.code == "N_WRITE_DENIED").collect();
     assert_eq!(denied.len(), forged, "{:?}", b.notes);
     assert!(denied.iter().all(|note| note.message.starts_with("digestMarkers has ") && note.message.contains("in `forge`")), "{:?}", b.notes);
-    assert_eq!(b.notes.len(), advised.len() + forged, "{:?}", b.notes);
+    // This direct Engine model intentionally uses bare principals; it never
+    // submits dev HTTP arguments. Rejoining Bob retains its original audience.
+    let persona: Vec<_> = b.notes.iter().filter(|note| note.code == "N_PERSONA_PRINCIPAL").collect();
+    assert_eq!(persona.len(), usize::from(source.contains("principal: 'bob'")), "{:?}", b.notes);
+    assert!(persona.iter().all(|note| note.message.contains("bare persona 'bob'") && note.rewrite.contains("dev:bob")));
+    assert_eq!(b.notes.len(), advised.len() + forged + persona.len(), "{:?}", b.notes);
     for program in advised {
         assert!(b.notes.iter().any(|note| note.code == "N_SYNC_ORDER"
             && note.message.starts_with(&format!("query {} ", program.program.name))), "{:?}", b.notes);
