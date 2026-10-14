@@ -88,6 +88,27 @@ export async function proveFrontendTwice(run, cwd, starter) {
   return results;
 }
 
+// A fixture-owned component makes the custom Home prove an actual rendered write.
+export function installCustomWriteScenario(cwd,kind) {
+  assert.ok(["web","expo"].includes(kind));
+  const screen=join(cwd,kind === "web" ? "src/App.tsx" : "App.tsx");
+  const proofPath=join(cwd,"scripts/frontend-proof.mjs");
+  const original=readFileSync(screen,"utf8"), proof=readFileSync(proofPath,"utf8");
+  assert.equal(original.split("<FirstRead />").length-1,1,"custom qualification needs one generated Home read slot");
+  assert.ok(original.includes("function Home()") && !original.includes("function ProofWrite()"),"custom qualification needs a fresh Home");
+  const needle="renderedText(page, new RegExp(title))";
+  assert.equal(proof.split(needle).length-1,1,"custom qualification needs the generated assertion slot");
+  const imports=`import {useState as proofState} from 'react';\nimport {useMutation as proofMutation,useQuery as proofQuery} from 'snapback4/react';\n`
+    +(kind === "expo" ? `import {TextInput as ProofTextInput} from 'react-native';\n` : '');
+  const body=kind === "web"
+    ? `<section id="proof-rows"><form onSubmit={e=>{e.preventDefault();void writer.run({title:draft})}}><input aria-label="Task" value={draft} onChange={e=>setDraft(e.target.value)}/><button type="submit">Add</button></form><p>{"data" in rows?JSON.stringify(rows.data):""}</p></section>`
+    : `<View nativeID="proof-rows"><ProofTextInput accessibilityLabel="Task" value={draft} onChangeText={setDraft}/><Button title="Add" onPress={()=>void writer.run({title:draft})}/><Text>{"data" in rows?JSON.stringify(rows.data):""}</Text></View>`;
+  const component=`\nfunction ProofWrite(){const [draft,setDraft]=proofState("");const writer=proofMutation(api.add),rows=proofQuery(api.mine,{});return ${body};}\n`;
+  const source=imports+original.replace("<FirstRead />","<FirstRead /><ProofWrite />")+component;
+  const assertion=proof.replace(needle,'renderedText(page, new RegExp(title), { within: page.locator("#proof-rows") })');
+  writeFileSync(screen,source);writeFileSync(proofPath,assertion);
+}
+
 // Runs outside a checkout, using only packed release artifacts. Registry access
 // is needed for Expo/Vite dependencies; npm prefers cached downloads when present.
 export async function proveStarters(client, platform, expo, directory, browserProofs = true) {
@@ -148,19 +169,7 @@ export async function proveStarters(client, platform, expo, directory, browserPr
       writeFileSync(negativeAudit, JSON.stringify(listenerAudit));
       negativeProof = {status:"passed", expected:"no write scenario: replace the Home assertions", listenerAudit};
     }
-    // The application must supply a writer after Home. Reuse this schema's add
-    // operation through a visible form, retaining the generated Home sign-in.
-    const screen = kind === "web" ? "src/App.tsx" : "App.tsx";
-    let source = readFileSync(join(cwd, screen), "utf8");
-    const body = kind === "web"
-      ? `<form onSubmit={e => { e.preventDefault(); void writer.run({title: draft}); }}><input aria-label="Task" value={draft} onChange={e=>setDraft(e.target.value)} /><button type="submit">Add</button></form><p>{"data" in rows ? JSON.stringify(rows.data) : ""}</p>`
-      : `<View><TextInput accessibilityLabel="Task" value={draft} onChangeText={setDraft}/><Button title="Add" onPress={()=>void writer.run({title:draft})}/><Text>{"data" in rows ? JSON.stringify(rows.data) : ""}</Text></View>`;
-    source = `import {useState as proofState} from 'react';\nimport {useMutation as proofMutation, useQuery as proofQuery} from 'snapback4/react';\n` + (kind === "expo" ? `import {TextInput} from 'react-native';\n` : '') + source;
-    source = source.replace('function Home() {', 'function Home() { const [draft,setDraft]=proofState(""); const writer=proofMutation(api.add), rows=proofQuery(api.mine,{});');
-    source = source.replace(kind === "web" ? '<main>' : '<View ', kind === "web" ? `<main>${body}` : `<View `);
-    if (kind === "expo") source = source.replace('<Text style={{ fontSize: 24 }}>', body + '<Text style={{ fontSize: 24 }}>');
-    source = source.replace('<FirstRead />', '');
-    writeFileSync(join(cwd, screen), source);
+    installCustomWriteScenario(cwd,kind);
     await build();
     const adaptedProofs = browserProofs ? await proveFrontendTwice(run, cwd, starter) : [];
     results.push({ starter: id, kind, status: "passed", adapted: "passed", typecheck: "passed", build: "passed", frontendProofs, adaptedProofs, negativeProof, formSubmit: kind === "web" ? "passed" : "not-applicable" });

@@ -95490,3 +95490,14 @@ occupied-port/CPU load with listener traces. Registration safely ignores native
 window aliases without browser location; the added Expo template registrations
 therefore do not depend on a native location object. Final exact-pack evidence
 and paired confirmation follow in the workstream report; no publish or push.
+
+## 2026-10-15 — KIT custom-schema qualification fixture correction
+
+All twelve generated frontend attempts passed at 57002d88cc. The subsequent
+custom-schema fixture failed TypeScript before its positive proof: positional
+JSX insertion had selected Account while the writer variables belonged to Home.
+Qualification now adds a separate ProofWrite component to Home's unique
+FirstRead slot, with a scoped rendered-row assertion. Generated web and Expo
+fixtures both typecheck and refuse repeat application without modifying files.
+The custom web writer remains an actual form onSubmit. This repairs the harness,
+not the product; the failed attempt supplies no complete qualification claim.

@@ -1,0 +1,17 @@
+✔ init  typechecks (820.685583ms)
+✔ init --online typechecks (548.968344ms)
+✔ init --web typechecks (805.755838ms)
+✔ init --expo typechecks (651.77639ms)
+✔ init --web --template chat typechecks (815.287439ms)
+✔ init --expo --template chat typechecks (813.903604ms)
+✔ init --template social typechecks (1024.939811ms)
+✔ custom web qualification component typechecks and refuses reapplication (651.028799ms)
+✔ custom expo qualification component typechecks and refuses reapplication (552.611708ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7186.744343

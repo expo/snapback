@@ -1,0 +1,42 @@
+✔ qualification refuses darwin-arm64 before invoking tools (45.729134ms)
+✔ qualification refuses linux-arm64 before invoking tools (39.671662ms)
+✔ Linux qualification receipt binds source, toolchain, suite, both container proofs, ELF and both digests (472.905049ms)
+✔ Cargo receives the SQLite flags and redirected CARGO_TARGET_DIR packs the binary just built (577.109197ms)
+✔ qualification never writes a success receipt on {"suiteFail":true} (448.472126ms)
+✔ qualification never writes a success receipt on {"proofFail":true} (190.839935ms)
+✔ qualification never writes a success receipt on {"interpreter":true} (39.782938ms)
+✔ qualification never writes a success receipt on {"noRuntime":true} (51.127979ms)
+✔ qualification never writes a success receipt on {"proot":true,"proofFail":true} (193.375046ms)
+✔ qualification never writes a success receipt on {"proot":true,"suiteFail":true} (423.967304ms)
+✔ container executes the proof guard and propagates proofFail without a receipt (191.480125ms)
+✔ container executes the proof guard and propagates startersFail without a receipt (47.83434ms)
+✔ container executes the proof guard and propagates overridePresent without a receipt (52.751162ms)
+✔ container executes the proof guard and propagates wrongNode without a receipt (75.437937ms)
+✔ proot executes the proof guard and propagates proofFail without a receipt (183.052549ms)
+✔ proot executes the proof guard and propagates startersFail without a receipt (50.325275ms)
+✔ proot executes the proof guard and propagates overridePresent without a receipt (59.702765ms)
+✔ proot executes the proof guard and propagates wrongNode without a receipt (89.535154ms)
+✔ runtime selection prefers working Docker then Podman and falls back to proot (0.454642ms)
+✔ pinned download and cached bytes refuse mismatch, with no network (3.901189ms)
+✔ proot binds only disposable inputs, scratch and three devices, with an allowlisted environment (0.607531ms)
+✔ proot invocations use exactly the allowlist despite host sentinels, and bind receipt provenance (466.25625ms)
+✔ toolchain command custody accepts only zero exits and survives spawn failure (380.041734ms)
+✔ toolchain timeout kills a TERM-ignoring driver and grandchild without a numeric signal from the runner (694.755119ms)
+✔ failed generated frontend proof prevents a Linux qualification receipt (44.852971ms)
+✔ imported loaded-host proof evidence cannot omit a failed or repeated attempt (0.879669ms)
+✔ consumer-only container proves packed starters without a suite receipt (431.968841ms)
+✔ consumer-only proot proves packed starters without a suite receipt (454.582948ms)
+✔ consumer-only refuses a failed packed starter without evidence or receipt (46.21342ms)
+✔ starter toolchain evidence requires the full frontend matrix and adapted Home twice (1.509232ms)
+✔ listener trace covers short-lived TCP listeners and refuses unresolved, unfinished and out-of-range calls (56.254304ms)
+✔ missing supported listener tracer refuses qualification before any build (39.294937ms)
+✔ listener tracer preflight rejects obsolete or malformed decoder versions (113.630452ms)
+✔ listener evidence refuses malformed named records and empty or incomplete audits (1.820059ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 6027.230483
