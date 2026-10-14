@@ -28,9 +28,9 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, _options: &Options,
 
 /// Adapt adds missing proof infrastructure, preserving files and script names
 /// already owned by the application. It never runs a package manager.
-pub(super) fn adapt(dir: &std::path::Path, own: &super::OwnSchema) -> std::io::Result<()> {
+pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema) -> std::io::Result<Vec<(&'static str, String)>> {
     let web = dir.join("src/App.tsx").is_file();
-    if !web && !dir.join("App.tsx").is_file() { return Ok(()); }
+    if !web && !dir.join("App.tsx").is_file() { return Ok(Vec::new()); }
     let shape = super::starter::Shape { title: super::title(dir), password: own.identity.is_some_and(|(p, g)| p && !g),
         personas: own.identity.is_none().then(|| own.personas.clone()).filter(|p| !p.is_empty()),
         body: super::starter::Body::Home(None), offline: own.offline.clone() };
@@ -47,11 +47,22 @@ pub(super) fn adapt(dir: &std::path::Path, own: &super::OwnSchema) -> std::io::R
             if (key == "frontend:proof" || key == "day2:proof" || key == "playwright-core") && package[group].get(key).is_none() { package[group][key] = value.clone(); }
         }
     }
-    for (name, body) in generated.into_iter().skip(1) {
+    let mut additions: Vec<_> = generated.into_iter().skip(1)
+        .filter(|(name, _)| !dir.join(name).exists()).collect();
+    if package != original { additions.push(("package.json", pretty(&package))); }
+    Ok(additions)
+}
+
+pub(super) fn apply(dir: &std::path::Path, additions: &[(&str, String)]) -> std::io::Result<()> {
+    for (name, body) in additions {
         let path = dir.join(name);
-        if !path.exists() { std::fs::create_dir_all(path.parent().unwrap())?; use std::io::Write;
-            let mut file = std::fs::OpenOptions::new().write(true).create_new(true).open(&path)?; file.write_all(body.as_bytes())?; }
+        if *name == "package.json" { super::replace_file(&path, body)?; }
+        else {
+            std::fs::create_dir_all(path.parent().unwrap())?;
+            use std::io::Write;
+            let mut file = std::fs::OpenOptions::new().write(true).create_new(true).open(&path)?;
+            file.write_all(body.as_bytes())?;
+        }
     }
-    if package != original { super::replace_file(&path, &pretty(&package))?; }
     Ok(())
 }

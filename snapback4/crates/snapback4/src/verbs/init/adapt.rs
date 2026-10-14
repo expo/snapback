@@ -312,17 +312,24 @@ pub(super) fn adapt(dir: &Path, dry_run: bool, apply: bool) -> i32 {
         Err(error) => { eprintln!("init: {error}"); return 2; }
     };
     let (found, advice, modified) = plan(dir);
-    if !found.is_empty() {
+    let proof = match super::proof::plan(dir, &own) {
+        Ok(proof) => proof,
+        Err(error) => { eprintln!("init --adapt proof: {error}"); return 2; }
+    };
+    if !found.is_empty() || !proof.is_empty() {
         println!("init --adapt: planned changes (only unmodified starter files):");
         for change in &found { println!("  {} {} — {}", if change.rewrite.is_some() { "rewrite" } else { "remove" }, change.path, change.why); }
     }
+    for (path, _) in &proof {
+        println!("  {} {} — missing proof infrastructure", if *path == "package.json" { "extend" } else { "add" }, path);
+    }
     if !modified.is_empty() { println!("init --adapt: application-owned or modified files stay unchanged: {}", modified.join(", ")); }
-    if dry_run || (!apply && !modified.is_empty() && !found.is_empty()) {
+    if dry_run || (!apply && !modified.is_empty() && (!found.is_empty() || !proof.is_empty())) {
         println!("init --adapt: preview only; no files changed. Run `snapback4 init{} --adapt --apply` to apply the listed changes", if dir == Path::new(".") { String::new() } else { format!(" {}", dir.display()) });
         for line in advice { println!("init --adapt: {line}"); }
         return 0;
     }
-    if let Err(error) = super::proof::adapt(dir, &own) { eprintln!("init --adapt proof: {error}"); return 2; }
+    if let Err(error) = super::proof::apply(dir, &proof) { eprintln!("init --adapt proof: {error}"); return 2; }
     let mut removed = Vec::new();
     let mut rewritten = Vec::new();
     for leftover in &found {
@@ -334,7 +341,7 @@ pub(super) fn adapt(dir: &Path, dry_run: bool, apply: bool) -> i32 {
         if let Err(error) = result { eprintln!("init --adapt: {}: {error}", path.display()); return 2; }
     }
     // @ref LLP 3000.011.003.000#7.4 — adapt removes the files it names, never a directory: the next step writes fixtures/<table>.jsonl.
-    if found.is_empty() { println!("init --adapt: nothing to adapt — no unmodified starter file conflicts with your snapback/*.q"); }
+    if found.is_empty() && proof.is_empty() { println!("init --adapt: nothing to adapt — no unmodified starter file conflicts with your snapback/*.q"); }
     if !removed.is_empty() {
         let kept = if removed.iter().any(|path| path.starts_with("fixtures/")) { "; fixtures/ stays for your own rows" } else { "" };
         println!("init --adapt: removed {} (unmodified starter files{kept}; write your own as fixtures/<table>.jsonl and fixtures/test.cases.jsonl, `snapback4 guide testing`)", removed.join(" and "));

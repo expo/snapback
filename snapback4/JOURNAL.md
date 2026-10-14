@@ -95282,3 +95282,14 @@ binary and the merged binary: both compile 100/100; all QDIAG counts match
 Keep that separate rather than suppressing another lane's advice to force an
 incorrect whole-release count. Native 20k/device 0–999 campaigns are green;
 Lean retains the same four historical signatures, zero new signatures.
+
+Final integration guide checks found the combined deploy card over its unchanged
+150-line cap and the original card corpus four words over its 30% reduction
+budget. Compact formatting/prose, preserve every compiled baseline block and
+fact home, and raise no caps. Copy-on-reveal relies on its existing private-owner
+lookup; remove the unreachable duplicate owner require that QDIAG correctly
+notes, retaining outsider refusal and published-copy assertions. Update both
+constraint fact homes to distinguish intrinsic-id E_CONSTRAINT from declared
+E_UNIQUE, including nullable unique writes on both device stores. Adaptation's
+shared plan now names missing proof helpers/package additions before preview,
+with an edited-README dry-run/default-preview/selective-apply subprocess proof.

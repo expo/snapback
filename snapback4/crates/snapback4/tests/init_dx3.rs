@@ -73,3 +73,28 @@ fn preview_flags_require_adapt_and_cannot_be_combined() {
         assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
     }
 }
+
+#[test]
+fn proof_additions_share_the_complete_nonmutating_adaptation_plan() {
+    let dir = Project::new(); ok(dir.run(&["init", "--web"]));
+    for file in ["scripts/frontend-proof.mjs", "scripts/day2-proof.mjs"] { fs::remove_file(dir.0.join(file)).unwrap(); }
+    let mut package: serde_json::Value = serde_json::from_str(&dir.text("package.json")).unwrap();
+    for key in ["frontend:proof", "day2:proof"] { package["scripts"].as_object_mut().unwrap().remove(key); }
+    package["devDependencies"].as_object_mut().unwrap().remove("playwright-core");
+    fs::write(dir.0.join("package.json"), serde_json::to_string_pretty(&package).unwrap()).unwrap();
+    fs::write(dir.0.join("README.md"), "Application-owned introduction\n").unwrap();
+    let before = dir.text("package.json");
+    for args in [vec!["init", "--adapt", "--dry-run"], vec!["init", "--adapt"]] {
+        let output = ok(dir.run(&args));
+        assert!(output.contains("add scripts/frontend-proof.mjs") && output.contains("add scripts/day2-proof.mjs") && output.contains("extend package.json") && output.contains("preview only"), "{output}");
+        assert_eq!(dir.text("package.json"), before);
+        assert!(!dir.0.join("scripts/frontend-proof.mjs").exists());
+        assert_eq!(dir.text("README.md"), "Application-owned introduction\n");
+    }
+    ok(dir.run(&["init", "--adapt", "--apply"]));
+    let package: serde_json::Value = serde_json::from_str(&dir.text("package.json")).unwrap();
+    assert_eq!(package["scripts"]["frontend:proof"], "node scripts/frontend-proof.mjs");
+    assert_eq!(package["devDependencies"]["playwright-core"], "1.55.1");
+    assert!(dir.0.join("scripts/day2-proof.mjs").exists());
+    assert_eq!(dir.text("README.md"), "Application-owned introduction\n");
+}

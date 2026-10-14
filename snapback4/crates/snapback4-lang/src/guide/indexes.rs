@@ -269,8 +269,8 @@ older explicit read syntax; ordinary reads continue to name columns.
 ## Refusals
 
 E_CONSTRAINT means an intrinsic id unique key, product cap, immutable field, format or
-postcondition rejected the write. Keep the rule and correct the named input.
-For a visible duplicate handle, choose a different handle; `if absent` is
+postcondition rejected the write. Keep the rule; correct its input.
+For a visible duplicate handle, choose another; `if absent` is
 appropriate only when doing nothing on an existing row is the intended write.
 
 

@@ -1,22 +1,16 @@
 # Deploy: upgrade, real accounts and schema evolution
-
 A release is immutable source over one durable store. Deploy from the app directory:
-
 ```sh
 bunx snapback4 check
 bunx snapback4 test
 bunx snapback4 deploy ./deployment
 bunx snapback4 serve ./deployment --port 4400
 ```
-
 ## Upgrade
 `snapback4 upgrade [version]` resolves once and exactly pins core and installed Expo adapters with npm/bun/pnpm. Rebuild native apps after adapter changes; commit the lockfile, run check/typecheck/acceptance. `test` uses ./fixtures; `--fixture dir` overrides it. Use the password and first-admin recipes below.
-
 ## Deploy and password identity
 Add `use identity password` (included below). Deploy from the app directory onto durable storage:
-
 Serve admits bearer sessions; personas are 401 and /seed/dev doors 403, even through proxies. Signup creates an account, not a privileged role. See guide client for SDK session stores; auth/headless for account setup. HTTP auth returns session/denied; SDK signup/login from `snapback4/auth` returns ok/why. Check warns on installed version skew.
-
 ```sh
 U=http://127.0.0.1:4400
 curl -s "$U/auth/signup" -H 'Content-Type: application/json' \
@@ -25,13 +19,9 @@ curl -s "$U/auth/signup" -H 'Content-Type: application/json' \
 curl -s "$U/auth/login" -H 'Content-Type: application/json' \
   -d '{"email":"admin@example.test","password":"replace-with-a-private-password"}'
 ```
-
 Keep the session and send `Authorization: Bearer <token>`. Wrong credentials or a disabled identity method are 401 E_AUTH. Sessions survive ordinary deployments and restarts until expiry/revocation; a replaced/reset store requires sign-in again. Never delete a store to make adoption pass. `serve --port N` accepts 0 or A-B; stdout's first line is its URL, stderr includes SNAPBACK4_READY. Wait for readiness.
-
 Layout: releases/N/ holds source; store.sqlite data/sessions/queues; assets/ uploads. The database owns current release/history; current is a text convenience copy, releases.jsonl a convenience ledger. Back up the whole directory, including sidecars/assets/releases, with serve and external workers stopped (CLIENT-AND-OPERATIONS.md §6). A restore does not rewind external effects.
-
 ## First admin: a service seat
-
 Provision roles through an operator seat, with no public first-user race:
 ```quarry
 use identity password

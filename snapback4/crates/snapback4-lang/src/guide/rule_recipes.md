@@ -250,7 +250,7 @@ transaction; avoid separate grant repair jobs that leave a disclosure window.
 
 Keep the secret in a private table. An authorized event mutation copies it into
 an independently readable table in the same commit. Returning a shape that
-omits a secret is not a column read rule. Reveal is durable; undoing the event
+omits a secret is not a column read rule. The private lookup already requires the owner; an outsider gets NOT_FOUND. Reveal is durable; undoing the event
 flag does not retract an already copied payload. To retract it, delete the copy.
 
 ```quarry
@@ -272,7 +272,6 @@ mutation draft(body: text 1..200):
   return insert drafts { owner: viewer, body }
 mutation reveal(draft: drafts):
   d = drafts[draft] ! else NOT_FOUND
-  require d.owner = viewer else NOT_OWNER
   return insert revealed { draft, body: d.body }
 query publication(publication: revealed):
   return revealed[publication]

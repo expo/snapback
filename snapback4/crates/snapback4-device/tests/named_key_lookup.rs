@@ -130,7 +130,7 @@ fn nullable_unique_writes<H: Host>(host: &mut H) {
                 let prediction = device.predict("add", "alice", &snapback4_core::wire::to_json(&input), 10,
                     vec![format!("write-{nulls}-{n}")], 1);
                 if nulls == 0 {
-                    assert_eq!(prediction.unwrap_err().code(), "E_CONSTRAINT");
+                    assert_eq!(prediction.unwrap_err().code(), "E_UNIQUE");
                 } else {
                     assert_eq!(prediction.unwrap().written.len(), 1);
                 }
