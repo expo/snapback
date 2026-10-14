@@ -156,6 +156,8 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("N_NO_PRODUCTION_WRITER", "no production insert path can bootstrap this table"),
     ("N_FIXTURE_ARGUMENT_DRIFT", "a fixture case no longer fits its operation signature"),
     ("E_UPGRADE", "installation or post-upgrade check failed"),
+    ("E_FIXTURE_ALIAS", "a saved alias or path could not resolve"),
+    ("E_FIXTURE_TIME", "a relative fixture time is malformed or out of range"),
     ("E_WITNESS_BROWSER", "no usable headless Chromium executable"),
     ("E_WITNESS_AUTH", "the exported app did not sign in"),
     ("E_WITNESS_MUTATION", "no matching mutation was registered"),

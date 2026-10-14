@@ -1271,13 +1271,18 @@ query one(id: grounding):
   writeFileSync(usage, `import {api, type Rows} from './snapback/generated/api';\nimport type {ArgsOf} from 'snapback4/contract';\ndeclare const row: Rows['grounding'];\nconst color: string | undefined = row.color;\n// @ts-expect-error spanning fields need their baseline fallback\nconst required: string = row.color;\nconst args: ArgsOf<typeof api.one> = {id:'x'};\napi.newOnly.available({loading:true});\n`);
   const program=ts.createProgram([usage],{strict:true,noEmit:true,skipLibCheck:true,target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,moduleResolution:ts.ModuleResolutionKind.Bundler});
   assert.deepEqual(ts.getPreEmitDiagnostics(program).map(d=>ts.flattenDiagnosticMessageText(d.messageText,'\n')),[]);
+  const emptyPreview=JSON.parse(run('rollback',deployment,'--to','1','--check','--json'));
+  assert.ok(!emptyPreview.hazards.some(h=>h.includes('cannot see')));
   const { createClient } = await import('../dist/client.js');
   const { operationAvailable } = await import('../dist/contract.js');
   await serve(deployment, async (url, headers, session) => {
     assert.equal((await fetch(url+'/')).status,401);
     const client=createClient({url,session}); const stop=client.release.subscribe(()=>{});
+    const children=[];
+    const local=await createLocalClient({url,session,waitSeconds:1,device:localReleaseDevice(join(app,'device-rel3'),children)});
+    const stopLocal=local.release.subscribe(()=>{});
     t.after(()=>client.close());
-    const waitGeneration=async n=>waitFor(()=>client.release.getSnapshot().generation===n,`served generation ${n}`);
+    const waitGeneration=async n=>waitFor(()=>client.release.getSnapshot().generation===n && local.release.getSnapshot().generation===n,`served generation ${n} on both tiers`);
     const post=async (path,args={})=>(await fetch(url+path,{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({args})})).json();
     try {
       await waitGeneration(2);
@@ -1305,6 +1310,46 @@ query one(id: grounding):
       assert.equal((await post('/m/book')).why.code,'GROUNDED');
       const bridgePreview=JSON.parse(run('rollback',deployment,'--to','latest','--check','--json'));
       assert.ok(!bridgePreview.hazards.some(h=>h.includes('cannot see') && h.includes('grounding')));
-    } finally { stop(); await client.close(); }
+    } finally { stopLocal(); stop(); await client.close(); await closeReleaseClient(local,children); }
+  });
+});
+
+test('generated spanning API typechecks removed nominal results, baseline privacy and declared optional args', t => {
+  const {app,schema,run}=fixture(t);
+  const base=`table oldRows:
+  n: int
+  public 'old rows'
+  online only
+table profiles:
+  owner: principal
+  secret: text <=20 default '' written by .owner
+  public 'profiles'
+  online only
+query rows():
+  return oldRows[] first 10 by .id
+query nested():
+  return {rows: oldRows[] first 10 by .id}
+query greet(name: text <=20 ?):
+  return name
+`;
+  const next=base.replaceAll('oldRows','newRows').replace('written by .owner','written by .owner readable by audience');
+  mkdirSync(join(app,'versions')); writeFileSync(join(app,'versions/v1.q'),base);
+  writeFileSync(schema,next); writeFileSync(join(app,'snapback/client-compatibility.json'),JSON.stringify({baseline:'versions/v1.q',since_release:2}));
+  run('check'); mkdirSync(join(app,'node_modules')); symlinkSync(join(root,'packages/snapback4'),join(app,'node_modules/snapback4'));
+  const usage=join(app,'usage.ts'); writeFileSync(usage,`import {api,type Rows} from './snapback/generated/api';
+import type {ArgsOf,ResultOf} from 'snapback4/contract';
+const args: ArgsOf<typeof api.greet> = {};
+declare const profile: Rows['profiles'];
+const secret: string | undefined = profile.secret;
+// @ts-expect-error baseline hides this field for other viewers
+const required: string = profile.secret;
+declare const rows: ResultOf<typeof api.rows>;
+declare const nested: ResultOf<typeof api.nested>;
+`);
+  // Reuse the workspace TypeScript; consumers resolve only the linked installed package.
+  return import('node:module').then(({createRequire})=>{
+    const ts=createRequire(join(root,'package.json'))('typescript');
+    const program=ts.createProgram([usage],{strict:true,noEmit:true,skipLibCheck:true,target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext,moduleResolution:ts.ModuleResolutionKind.Bundler});
+    assert.deepEqual(ts.getPreEmitDiagnostics(program).map(d=>ts.flattenDiagnosticMessageText(d.messageText,'\n')),[]);
   });
 });

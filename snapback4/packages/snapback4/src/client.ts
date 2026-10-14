@@ -1324,7 +1324,7 @@ export function createClient(options: ClientOptions): Client {
       return closing;
     },
   };
-  release = servedRelease({ url: base, fetch: doFetch, headers: () => headers, current: () => !closed && credentials && !storeRefusal && !changesRefusal });
+  release = servedRelease({ url: base, fetch: doFetch, headers: () => headers, current: () => !closed && credentials && !storeRefusal });
   Object.assign(client, { release });
   client.onSession(() => release?.invalidate());
   client.onViewer(() => release?.invalidate());

@@ -1,4 +1,4 @@
-export { operationAvailable, type ServedRelease, type ServedOperation, type ReleaseSnapshot, type ReleaseSource } from "./release.ts";
+export { operationAvailable, type ServedRelease, type ServedType, type ServedOperation, type ReleaseSnapshot, type ReleaseSource } from "./release.ts";
 import type { UploadCapabilities } from "./uploads.ts";
 // The index card (LLP 3000 §2; LLP 2000.000 §8). These are the only words a
 // screen may need. The mechanism is built to fit them; a screen that needs a

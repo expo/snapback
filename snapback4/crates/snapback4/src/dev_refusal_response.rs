@@ -164,8 +164,12 @@ fn viewer_rosters(rule: &snapback4_core::schema::RuleExpr, out: &mut Vec<String>
 fn expression_rosters(expression: &snapback4_core::ir::Expr, names: &std::collections::BTreeMap<String, Vec<String>>) -> Vec<String> {
     use snapback4_core::ir::{Expr, Input, BinaryOp};
     match expression {
-        Expr::Exists(read) if read.key.iter().any(|key| matches!(key, Expr::Input(Input::Viewer))) => vec![read.table.clone()],
+        Expr::Exists(read) | Expr::Get(read) if read.key.iter().any(|key| matches!(key, Expr::Input(Input::Viewer))) => vec![read.table.clone()],
         Expr::Variable(name) => names.get(name).cloned().unwrap_or_default(),
+        // Extra named equalities lower exists to a row temporary, a non-null
+        // guard, then the residual comparisons. Track that positive guard.
+        Expr::Binary { op: BinaryOp::Ne, left, right } if matches!(right.as_ref(), Expr::Literal(snapback4_core::Value::Null)) => expression_rosters(left,names),
+        Expr::Binary { op: BinaryOp::Ne, left, right } if matches!(left.as_ref(), Expr::Literal(snapback4_core::Value::Null)) => expression_rosters(right,names),
         Expr::Binary { op: BinaryOp::And | BinaryOp::Or, left, right } => {
             let mut tables = expression_rosters(left,names);
             for table in expression_rosters(right,names) { if !tables.contains(&table) { tables.push(table); } }
@@ -184,9 +188,21 @@ fn program_rosters(body: &[snapback4_core::ir::Stmt], names: &mut std::collectio
                 program_rosters(then_body,&mut names.clone(),out);
                 program_rosters(else_body,&mut names.clone(),out);
                 // An assignment in either branch invalidates an older alias.
-                for statement in then_body.iter().chain(else_body) { if let Stmt::Assign { name, .. } = statement { names.remove(name); } }
+                forget_assignments(then_body,names); forget_assignments(else_body,names);
             }
-            Stmt::For { body, .. } => { program_rosters(body,&mut names.clone(),out); }
+            Stmt::For { body, .. } => { program_rosters(body,&mut names.clone(),out); forget_assignments(body,names); }
+            _ => {},
+        }
+    }
+}
+
+fn forget_assignments(body: &[snapback4_core::ir::Stmt], names: &mut std::collections::BTreeMap<String, Vec<String>>) {
+    use snapback4_core::ir::Stmt;
+    for statement in body {
+        match statement {
+            Stmt::Assign { name, .. } => { names.remove(name); }
+            Stmt::If { then_body, else_body, .. } => { forget_assignments(then_body,names); forget_assignments(else_body,names); }
+            Stmt::For { body, .. } => forget_assignments(body,names),
             _ => {},
         }
     }

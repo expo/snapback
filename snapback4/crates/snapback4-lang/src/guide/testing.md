@@ -13,6 +13,10 @@ Build with `npm run build` (web) or `npm run build:web` (Expo web) first.
 After replacing the starter screen, replace its business assertions too.
 `init --adapt` adds missing proof files and manifest entries, keeping your edits.
 
+E_FIXTURE_ALIAS means a saved alias or path could not resolve. Use an earlier case's `save` name with `$name` or `$name.field`; escape a literal with `$$` or `$literal`. An unresolved assertion fails the case; it never compares the alias as literal data.
+
+E_FIXTURE_TIME means a relative fixture time is malformed or out of range. Use `now` or `now±duration` with positive integral ms/s/m/h/d/w. Relative conversion applies only to typed time leaves; text/JSON strings stay literal.
+
 ## Fixtures and cases
 
 `test` uses ./fixtures; `--fixture dir` overrides it. A fixture directory has

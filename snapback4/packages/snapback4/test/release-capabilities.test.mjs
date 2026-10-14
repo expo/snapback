@@ -70,3 +70,23 @@ test('catalog auth refusals and failures are visible; legacy catalog never claim
   response=Response.json({generation:2,ops:[{name:'newOnly',kind:'query'}],tables:[]}); release.invalidate();
   await delay(50); assert.equal(operationAvailable(release.getSnapshot(),'newOnly','query',{}),false);
 });
+
+test('a query-change-feed refusal cannot strand the independently authenticated catalog', async t => {
+  let generation=1, changed=false;
+  const client=createClient({url:'http://localhost:4400',persona:'alice',fetch:async (url,init)=>{
+    if (url.endsWith('/')) return Response.json({...catalog(2),generation});
+    if (url.endsWith('/schema')) return Response.json({generation,schema:{tables:{},operations:{}},programs:[]});
+    if (url.includes('/changes')) { changed=true; return Response.json({seq:0,generation,denied:{code:'E_RULE',family:'rule',message:'change feed unavailable'}}); }
+    if (url.includes('/q/')) return Response.json({data:1,complete:true,seq:0,generation,tables:[]});
+    return Response.json({ok:true,seq:0,generation});
+  }});
+  t.after(()=>client.close()); const stop=client.release.subscribe(()=>{}); t.after(stop);
+  const watch=client.observe({kind:'query',name:'read'},{}); t.after(()=>watch.close());
+  const unlisten=watch.subscribe(()=>{}); t.after(unlisten);
+  await until(()=>changed && watch.getSnapshot().denied?.code==='E_RULE');
+  watch.close();
+  await until(()=>client.release.getSnapshot().generation===1);
+  generation=2;
+  await until(()=>client.release.getSnapshot().generation===2);
+  assert.equal(operationAvailable(client.release.getSnapshot(),'newOnly','query',{}),true);
+});

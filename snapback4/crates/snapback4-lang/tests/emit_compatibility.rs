@@ -6,7 +6,7 @@ fn checked(source: &str) -> snapback4_lang::Bound {
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     bound
 }
-const OLD: &str = "table items:\n  body: text <=100\n  public 'test items'\n  insert <- allow\n  update <- allow\n  online only\nquery row(id: items):\n  return items[id]\nquery projected(id: items):\n  r = items[id]! else NOT_FOUND\n  return shape r {body: r.body}\nmutation edit(id: items, body: text <=100):\n  return update items[id] {body: body}\n";
+const OLD: &str = "table items:\n  body: text <=100\n  public 'test items'\n  insert <- allow\n  update <- allow\n  online only\nquery row(id: items):\n  return items[id]\nquery projected(id: items):\n  r = items[id]! else NOT_FOUND\n  return {body: r.body}\nmutation edit(id: items, body: text <=100):\n  return update items[id] {body: body}\n";
 #[test]
 fn opt_in_optional_fields_and_arguments_without_changing_default_requiredness() {
     let old = checked(OLD);
@@ -24,9 +24,37 @@ fn opt_in_optional_fields_and_arguments_without_changing_default_requiredness() 
 }
 #[test]
 fn baseline_retains_old_enum_domains_and_new_operation_required_arguments() {
-    let old = checked("query state():\n  return 'old'\n");
-    let new = checked("query state():\n  return 'new'\nquery newOnly(text: text <=20):\n  return text\n");
+    let old = checked("table states:\n  state: enum('old','common')\n  public 'state test'\n  online only\nquery state():\n  return 'old'\n");
+    let new = checked("table states:\n  state: enum('new','common')\n  public 'state test'\n  online only\nquery state():\n  return 'new'\nquery newOnly(text: text <=20):\n  return text\n");
     let api = emit::typescript_spanning(&new, &old, 2);
     assert!(api.contains("newOnly: Query<{ text: string }, string>"), "{api}");
     assert!(!api.contains("text?:"));
+    assert!(api.contains("(\"new\" | \"common\" | \"old\" | \"common\")"), "{api}");
+}
+
+#[test]
+fn declared_optional_arguments_stay_optional_without_baseline_or_since_label() {
+    let bound=checked("query greet(name: text <=20 ?):\n  return name\n");
+    for api in [emit::typescript(&bound),emit::typescript_spanning(&bound,&bound,2)] {
+        assert!(api.contains("greet: Query<{ name?: string | null }"),"{api}");
+        assert!(!api.contains("Since release"));
+    }
+}
+#[test]
+fn baseline_nominal_results_survive_removed_tables_and_nested_return_shapes() {
+    let old=checked("table oldRows:\n  n: int\n  public 'old test'\n  online only\nquery rows():\n  return oldRows[] first 10 by .id\nquery nested():\n  return {rows: oldRows[] first 10 by .id}\n");
+    let new=checked("table newRows:\n  n: int\n  public 'new test'\n  online only\nquery rows():\n  return newRows[] first 10 by .id\nquery nested():\n  return {rows: newRows[] first 10 by .id}\n");
+    let api=emit::typescript_spanning(&new,&old,2);
+    assert!(api.contains("type BaselineRows = {\n  oldRows: {"),"{api}");
+    assert!(api.contains("Rows[\"newRows\"][] | BaselineRows[\"oldRows\"][]"),"{api}");
+    assert!(!api.contains("| Rows[\"oldRows\"]"));
+}
+#[test]
+fn field_hidden_in_either_release_remains_optional_in_spanning_rows() {
+    let private="table profiles:\n  owner: principal\n  secret: text <=20 default '' written by .owner\n  public 'profiles test'\n  online only\nquery rows():\n  return profiles[] first 10 by .id\n";
+    let old=checked(private); let new=checked(&private.replace("written by .owner","written by .owner readable by audience"));
+    assert!(emit::typescript(&new).contains("    secret: string;"));
+    let api=emit::typescript_spanning(&new,&old,2);
+    assert!(api.contains("    secret?: string;"),"{api}");
+    assert!(emit::typescript_spanning(&old,&new,2).contains("    secret?: string;"));
 }

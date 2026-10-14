@@ -97,14 +97,11 @@ Check business compatibility separately: old payment code may accept payment whi
 
 This proof assumes v1 declares `readItem(item)` returning `items[item]` and `editItem(item)` with `row = items[item]! else NOT_FOUND`; v2 adds `newOnly` and writes an enum value v1 cannot hold. Keep the bearer session in `headers`:
 ```js
-await cli('rollback', deployment, '--to', '1');
-const absent = await fetch(url + '/q/newOnly', {method:'POST', headers, body:'{"args":{}}'});
-assert.equal(absent.status, 404);
-assert.equal((await absent.json()).denied.code, 'E_OP');
+await cli('rollback', deployment, '--to', '1'); const absent = await fetch(url + '/q/newOnly', {method:'POST', headers, body:'{"args":{}}'});
+assert.equal(absent.status, 404); assert.equal((await absent.json()).denied.code, 'E_OP');
 assert.equal((await post('/m/editItem', {item})).why.code, 'NOT_FOUND');
 assert.equal((await post('/q/readItem', {item})).data, null);
-await cli('rollback', deployment, '--to', 'latest');
-assert.equal((await post('/q/readItem', {item})).data.status, 'new');
+await cli('rollback', deployment, '--to', 'latest'); assert.equal((await post('/q/readItem', {item})).data.status, 'new');
 ```
 
 Preview names missing operations, changed rule clauses, absent schedules and populated removed tables: dormant holds no longer enforce their safeguards. A changed job body is named separately; an unchanged job that compiles differently after a dependency change gets a note. Captures from the original read-through lifetime stay dormant with columns; restoring the same capture definition restores them. New rows without those captures still need safe audience correspondence.
@@ -112,62 +109,12 @@ Preview names missing operations, changed rule clauses, absent schedules and pop
 Receipts and previews count storage by kind: `1 row, 2 cells, 0 index entries dormant`. Dormant rows cover their retained cells; standalone cell counts/samples belong only to active rows. Bytes/assets follow the same disjoint ownership. Samples are labelled and unique within each kind/path, for example `rows notes [A]; cells notes.color [B, C]`. A retained index definition represents logical entries to rebuild, not a dormant physical index. A widening note describes values later writes could use; a compatibility WARNING counts only current values the selected release cannot hold. Compatible forward has no such warning.
 
 ## Clients across rollback
-Generated required fields describe the checked schema. For one frontend spanning
-releases, save a complete baseline outside snapback/ and add
-`snapback/client-compatibility.json`:
-```json
-{"baseline":"versions/v1.q","since_release":2}
-```
-`check` and `dev` then emit added row/result fields as optional, labelled
-"Since release 2", retaining older result value domains. Added parameters on
-existing operations are optional too. The label is your release number, not a
-server generation. Without this opt-in the ordinary required types remain.
+Save a complete baseline outside snapback/ and create `snapback/client-compatibility.json` containing `{"baseline":"versions/v1.q","since_release":2}`. `check`/`dev` emit added row/result fields and existing-operation parameters as optional, labelled "Since release 2", retaining older result value domains. This is your release label, not server generation; ordinary types stay required without opt-in. Use `row.color ?? "none"` for the baseline fallback.
 
-`useRelease()` from snapback4/react follows the authenticated served catalog,
-including when all query gates are closed. It returns loading, denied, or
-`{generation, operations, tables}`; operations include argument shapes and tables
-include public field shapes. Every generated handle has `available(release)`:
-false while unready, or when its name/kind/argument signature differs. It checks
-capability, not caller authorization or unchanged business semantics. A switch
-can race it; still handle E_OP/E_INPUT and authored refusals.
-
-Keep drafts above generation-sensitive gates. Gate the read/action component,
-not the form state; use the optional generated field's ordinary fallback:
-```tsx
-function Screen() {
-  const [draft, setDraft] = useState("");
-  const release = useRelease();
-  return <><input value={draft} onChange={e => setDraft(e.target.value)} />
-    {api.newOnly.available(release) ? <NewRead draft={draft} /> : <p>Unavailable on this release</p>}
-  </>;
-}
-// A baseline row: <span>{row.color ?? "none"}</span>
-```
-The SDK withdraws old metadata on observed generation changes and polls the
-catalog while subscribed. Offline/catalog failures return loading. Closing or
-retiring an account withdraws metadata. Dormant means absent on the served
-release, not deleted: use "Unavailable on this release" for a selected row
-until compatible forward. Test v2 → v1 → v2 with the same frontend, including
-field fallbacks, absent operations, drafts and restored values.
-
-A release-matched frontend can instead check the selected immutable source in a
-separate copy and rebuild there. Preserve the deployment source. An Expo/Exact
-runtime change needs a device rebuild; JavaScript reload alone cannot rebuild it.
+`useRelease()` from snapback4/react follows the authenticated catalog even when query gates are closed: loading, denied, or `{generation, operations, tables}` with public argument/field shapes. Generated `api.op.available(release)` is false while unready or when name/kind/argument signatures differ. This checks capability, not authorization or unchanged business semantics; still handle E_OP/E_INPUT and authored guard refusals when a switch races it. The SDK withdraws old metadata on observed generations, polls while subscribed, and returns loading offline/on catalog failure; account retirement/close withdraws it. Keep draft state above generation-sensitive read/action gates; remount only the gated children. Dormant means unavailable on this release, not deleted. Test v2 → v1 → v2 with one frontend: field fallbacks, missing operations, retained drafts and restored values. Alternatively check selected immutable source in a separate copy and rebuild its matching frontend. Preserve deployment source; Expo/Exact runtime changes also require a device rebuild.
 
 ## Bridge a safety gate before rollback
-`rollback --check` names selected operations whose read dependencies contain
-dormant rows, with table counts and sample ids: for example, release 1's `book`
-cannot see a dormant `grounding` row. These are conservative dependency warnings,
-not assertions that every dormant row would match a guard. Counts come from the
-preview snapshot; concurrent writes can change a later activation.
-
-Before rolling back a booking/payment/approval guard, deploy a bridge that keeps
-its safety table, widened value domain, read audience and mutation `require`.
-Migrate/repair newer rows while that check still executes. Test that a blocked
-booking/payment still refuses. Only then contract to older source. If the older
-source cannot enforce the invariant, pause that workflow. Storage retention
-cannot supply absent product logic. SURF owns general lifecycle prose; KIT owns
-the packaged day-two proof recipe in guide testing.
+`rollback --check` names selected operations with dormant read dependencies, table counts and sample ids: release 1's `book` cannot see a dormant `grounding` row. These are conservative dependency warnings, not predicate matches. Counts describe the preview snapshot; later writes can change activation. Deploy a bridge preserving the safety table, widened value domain, read audience and mutation `require`. Migrate/repair newer rows while the guard executes; prove the blocked booking/payment still refuses; then contract source. If old source cannot enforce it, pause the workflow: retained storage cannot supply absent logic. SURF owns general lifecycle prose; KIT owns guide testing's packaged proof recipe.
 
 ## Trigger a deployed job
 A running serve accepts `POST /jobs/<job>` with a full service token; the job executes as the system on its FIFO queue and server clock. Every full service seat can trigger system jobs, so provision these tokens only to trusted operators. Guest/account sessions, read-scoped tokens and personas cannot use this door. `POST /dev/jobs/<job>` remains development-only.
