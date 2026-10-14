@@ -15,7 +15,7 @@ import { legacyInputRefusal, syncTransport } from "../dist/local-sync.js";
 import { processDevice } from "../dist/native.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
 const packageVersion = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
-assert.equal(packageVersion, '0.4.26', 'release fixture pin follows the package bump');
+assert.equal(packageVersion, '0.4.27', 'release fixture pin follows the package bump');
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
