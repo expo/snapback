@@ -1,0 +1,78 @@
+{
+  "baseline_commit": "c22dfefc9c",
+  "setup_and_root_checks": [
+    {
+      "file": "logs/lang-baseline-build.log.gz",
+      "uncompressed_sha256": "7fa2b6cbe51d49a8e1829cc2790288aad4ff6c74590144392d0835d6aa4aefca",
+      "bytes": 10274,
+      "exit": 0
+    },
+    {
+      "file": "logs/lang-initial-wasm.log.gz",
+      "uncompressed_sha256": "e1d1f53eb180279b84a538e5a87b422062fb5a250eec617d2cc06a327c030dfe",
+      "bytes": 8339,
+      "exit": 0
+    },
+    {
+      "file": "logs/lang-initial-client-build.log.gz",
+      "uncompressed_sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+      "bytes": 201,
+      "exit": 0
+    },
+    {
+      "file": "logs/lang-root-install.log.gz",
+      "uncompressed_sha256": "49b545f7f8920dd3caa91025465efd5c2d8f745e0246a8fefe584d978b9d9959",
+      "bytes": 397,
+      "exit": 0
+    },
+    {
+      "file": "logs/lang-root-hoist.log.gz",
+      "uncompressed_sha256": "029220472bbb9a59211cb6c81d8ccb8f78c7ec70949efd86002fd311ad794c24",
+      "bytes": 1354,
+      "exit": 0
+    },
+    {
+      "file": "logs/lang-root-generated.log.gz",
+      "uncompressed_sha256": "8ec89bab8bb64e61874c8d984788f1cd609008988f8ed90c71c50e1940c92c5a",
+      "bytes": 60627,
+      "exit": 0
+    },
+    {
+      "file": "logs/lang-root-registry.log.gz",
+      "uncompressed_sha256": "159df982ad3783b1989776e45232b0586b6a0204a934a2df21d12082daea4c62",
+      "bytes": 176,
+      "exit": 0
+    },
+    {
+      "file": "logs/lang-root-symbols.log.gz",
+      "uncompressed_sha256": "ad52e4165d285e1e06676bac3530ed8adfff3a97b45f011a13e4de1ad476704d",
+      "bytes": 104,
+      "exit": 0
+    },
+    {
+      "file": "logs/lang-root-manifest.log.gz",
+      "uncompressed_sha256": "6213da3e2933250b7b5a084ef376581acc2a4822f8a02b5435478b1e764c1bf9",
+      "bytes": 1613,
+      "exit": 0
+    },
+    {
+      "file": "logs/lang-root-inventories.log.gz",
+      "uncompressed_sha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813",
+      "bytes": 3499,
+      "exit": 0
+    },
+    {
+      "file": "logs/lang-root-guide.log.gz",
+      "uncompressed_sha256": "d62ed70274abd318ee262e7995bcfbd000425b050f7b6cba9b28582c0c074559",
+      "bytes": 19451,
+      "exit": 0
+    }
+  ],
+  "root_guide": {
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0,
+    "preconditions": 0,
+    "warnings": 121
+  }
+}
