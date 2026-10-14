@@ -1,0 +1,42 @@
+✔ runtime port range is inclusive, validated, and never cached (0.96765ms)
+✔ native and static bind beyond an occupied port; identity and independent logs (193.990707ms)
+✔ exhausted range and missing export fail with bounded cleanup (136.671082ms)
+✔ static host serves wasm correctly and refuses escaped symlink assets (95.166101ms)
+✔ saved-source deploy, preview, hot forward, rollback and fixture test never change working bytes (531.40677ms)
+✔ cli awaits close, separates output and returns refusal status (81.211416ms)
+✔ ANSI and blank ready lines, early exit, stalled readiness and TERM escalation (225.011933ms)
+✔ cleanup bounds stalled actions and continues after errors (39.879354ms)
+✔ exit sweep kills registered child, not a neighboring child (65.670071ms)
+✔ Vite uses the project's config and bound identity (249.035211ms)
+✔ browser helpers use fresh text, stable values and RN keystrokes (662.81274ms)
+✔ SIGKILLed driver closes frontend liveness and sweeps its whole private group (208.864461ms)
+✔ saved schemas typecheck server companions against private candidate API without replacing working types (2906.956074ms)
+✔ ready PID and served marker mismatches refuse instead of adopting another identity (122.741403ms)
+✔ default web starter guest proves a visible labelled form and ships a favicon (2998.402439ms)
+✔ default web starter alice proves a visible labelled form and ships a favicon (4232.151292ms)
+✔ visible-form arming ignores old sent state, isolates the clicked mutation and cleans repeated observers (3.948077ms)
+✔ form proof rejects matching background writes with a broken button (610.932791ms)
+✔ form proof accepts click-owned app mutation (636.966972ms)
+✔ a later background requestSubmit never inherits a broken button click (621.184206ms)
+✔ clicked dispatch provenance: microtask (595.319568ms)
+✔ clicked dispatch provenance: nested-submit (629.991287ms)
+✔ clicked dispatch provenance: script-click (648.992167ms)
+✔ clicked dispatch provenance: nested-script-click (2676.164981ms)
+✔ unapproved App calls preserve supported options from prototypes, non-enumerable fields and private getters (2.261599ms)
+✔ H8 custom-schema generated proof refuses success without a write (1472.001821ms)
+✔ H8 withBrowser honors caller Playwright and opens no TCP listener (297.214707ms)
+✔ H8 witness claims the trusted button form submit, preserving canonical null arguments (648.623734ms)
+✔ init preserves package identity, reports current range, and adapt is read-only by default (73.641209ms)
+✔ proof.cli runs JS wrapper verbs (39.714477ms)
+✔ rendered evidence excludes textareas and scopes freshness; frontPage activates (428.627978ms)
+✔ unclaimable events, operations and arguments settle with reasons; pending is never terminal (1.813578ms)
+✔ day2 caller source arguments override npm defaults and malformed argument lists refuse (86.557609ms)
+✔ adapt migrates recognized legacy literal scripts/config and preserves explicit defaults (58.309398ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13793.169495

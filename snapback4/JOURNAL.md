@@ -95436,3 +95436,32 @@ qualifiers remain distinct from final success. `reports/20261014-fix28/` retains
 exact-byte/source bindings, complete proof matrices and hashed command logs.
 Consumer evidence has publicationQualified false and suite not-run. No full
 scripts/test.sh, native iOS/Mac publication qualification, upload or push.
+
+## 2026-10-14 — KIT, wave 12: honest proof scaffolds and bounded browsers
+
+The proof kit now launches the caller's Playwright over a pipe, dispatches CLI
+verbs through the installed wrapper, and keeps default logs outside app source.
+Rendered-text/container freshness and frontPage helpers carry the next browser
+pitfalls. The witness global always installs; URL arming is explicit, synchronous
+button-caused submit qualifies, and unclaimable durable writes settle with a
+reason. Pending notifications are never terminal evidence. Custom Home proofs
+fail until the builder supplies a write. Chat and social proofs now exercise
+real stored writes rather than stopping after sign-in.
+
+Init keeps package identity, reports current range URLs, generates saved-source
+snapshots/default day-two arguments, and ends with a bold npm install line.
+Installation stays explicit. Bare adapt writes nothing; only --apply migrates
+recognized generated files, including legacy literal launch commands, while
+preserving explicit port defaults and application edits. UI scaffolds need two
+runtime ports; single-port ranges remain valid for schema-only init/proof hosts.
+LLP 3000.011.003.000.000 §8 records this amendment. Independent reviews found and
+repaired nested script-click provenance, appended source arguments, legacy port
+preservation, missing template registrations and retained log paths.
+
+Linux packed-starter qualification now requires custom-Home negative evidence,
+process-tree listener audits on every browser proof, and an application form
+whose only writer is onSubmit. Darwin consumers keep write/negative cases and
+record the Linux listener audit as not-run. The three new H8 tests each fail on
+0.4.28; candidate focused tests and the standalone chat write proof pass. Final
+packed bytes, review confirmations and check results are recorded in this
+workstream's report; no publish or push is authorized here.

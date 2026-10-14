@@ -17,7 +17,7 @@ function qualify(t, scenario = {}) {
   writeFileSync(join(root, "scripts/publication-frontend-proofs.mjs"), `
     export async function proveGeneratedProofs(client, platform, expo, out) {
       if (${JSON.stringify(scenario.frontendFail ?? false)}) throw Error('deliberately failing generated frontend proof');
-      return ${JSON.stringify(starterCases)}.flatMap(s => [1, 2].map(attempt => ({ starter: s.id, kind: s.kind, attempt, status: 'passed', range: [30000, 30020], occupied: 30000, cpuLoadWorkers: 2, logs: out + '/logs' })));
+      return ${JSON.stringify(starterCases)}.flatMap(s => [1, 2].map(attempt => ({ starter: s.id, kind: s.kind, attempt, status: 'passed', range: [30000, 30020], occupied: 30000, cpuLoadWorkers: 2, listenerAudit: {status:"passed",samples:1,listeners:[]}, logs: out + '/logs' })));
     }
   `);
   writeFileSync(join(root, "scripts/publication-roundtrip.mjs"), proofEntrypoint);
@@ -26,7 +26,7 @@ function qualify(t, scenario = {}) {
     export const starterCases = ${JSON.stringify(starterCases)};
     export async function proveStarters() {
       if (${JSON.stringify(scenario.startersFail ?? false)}) throw Error('deliberately failing starter toolchain');
-      return starterCases.map(s => ({starter:s.id,kind:s.kind,status:'passed',typecheck:'passed',build:'passed',frontendProofs:[1,2].map(attempt=>({starter:s.id,kind:s.kind,attempt,status:'passed',range:[30000,30020],occupied:30000,cpuLoadWorkers:2})),adaptedProofs:[1,2].map(attempt=>({starter:s.id,kind:s.kind,attempt,status:'passed',range:[30000,30020],occupied:30000,cpuLoadWorkers:2}))}));
+      return starterCases.map(s => ({starter:s.id,kind:s.kind,status:'passed',typecheck:'passed',build:'passed',negativeProof:{status:'passed',listenerAudit:{status:'passed'}},formSubmit:'passed',frontendProofs:[1,2].map(attempt=>({starter:s.id,kind:s.kind,attempt,status:'passed',range:[30000,30020],occupied:30000,cpuLoadWorkers:2,listenerAudit:{status:"passed",samples:1,listeners:[]}})),adaptedProofs:[1,2].map(attempt=>({starter:s.id,kind:s.kind,attempt,status:'passed',range:[30000,30020],occupied:30000,cpuLoadWorkers:2,listenerAudit:{status:"passed",samples:1,listeners:[]}}))}));
     }
     if (process.argv[1].endsWith('/starters.mjs')) appendFileSync(process.env.PROOF_EVENTS, JSON.stringify({ event: 'starters' }) + '\\n');
     if (process.env.STARTERS_FAIL === '1') throw Error('deliberately failing starter toolchain');
@@ -326,9 +326,9 @@ test("failed generated frontend proof prevents a Linux qualification receipt", t
 });
 
 test("imported loaded-host proof evidence cannot omit a failed or repeated attempt", () => {
-  const evidence = starterCases.flatMap(s => [1, 2].map(attempt => ({ starter: s.id, kind: s.kind, attempt, status: "passed", range: [29040, 29049], occupied: 29040, cpuLoadWorkers: 2 })));
+  const evidence = starterCases.flatMap(s => [1, 2].map(attempt => ({ starter: s.id, kind: s.kind, attempt, status: "passed", range: [29040, 29049], occupied: 29040, cpuLoadWorkers: 2, listenerAudit: {status:"passed",samples:1,listeners:[]} })));
   validateFrontendProofs(evidence);
-  for (const corrupt of [evidence.slice(1), evidence.map((p, i) => i === 3 ? { ...p, attempt: 1 } : p), evidence.map((p, i) => i === 0 ? { ...p, status: "failed" } : p)]) {
+  for (const corrupt of [evidence.slice(1), evidence.map((p, i) => i === 3 ? { ...p, attempt: 1 } : p), evidence.map((p, i) => i === 0 ? { ...p, status: "failed" } : p), evidence.map((p,i)=>i===0?{...p,listenerAudit:undefined}:p), evidence.map((p,i)=>i===0?{...p,listenerAudit:{status:"passed",samples:1,listeners:[{port:1}]}}:p)]) {
     assert.throws(() => validateFrontendProofs(corrupt), /every generated frontend\/template proof twice/);
   }
 });
@@ -351,10 +351,10 @@ test('consumer-only refuses a failed packed starter without evidence or receipt'
 });
 
 test('starter toolchain evidence requires the full frontend matrix and adapted Home twice', () => {
-  const attempts = s => [1, 2].map(attempt => ({ starter: s.id, kind: s.kind, attempt, status: 'passed', range: [30000, 30020], occupied: 30000, cpuLoadWorkers: 2 }));
-  const evidence = starterCases.map(s => ({starter:s.id,status:'passed',typecheck:'passed',build:'passed',frontendProofs:attempts(s),adaptedProofs:attempts(s)}));
+  const attempts = s => [1, 2].map(attempt => ({ starter: s.id, kind: s.kind, attempt, status: 'passed', range: [30000, 30020], occupied: 30000, cpuLoadWorkers: 2, listenerAudit: {status:"passed",samples:1,listeners:[]} }));
+  const evidence = starterCases.map(s => ({starter:s.id,status:'passed',typecheck:'passed',build:'passed',negativeProof:{status:'passed',listenerAudit:{status:'passed'}},formSubmit:'passed',frontendProofs:attempts(s),adaptedProofs:attempts(s)}));
   validateStarterProofs(evidence);
-  for (const corrupt of [evidence.slice(1), evidence.map(s => s.starter === 'expo-chat' ? {...s,frontendProofs:[]} : s), evidence.map(s => s.starter === 'web' ? {...s,adaptedProofs:s.adaptedProofs.slice(1)} : s), evidence.map(s => s.starter === 'expo-social' ? {...s,build:'failed'} : s)]) {
+  for (const corrupt of [evidence.slice(1), evidence.map(s => s.starter === 'expo-chat' ? {...s,frontendProofs:[]} : s), evidence.map(s => s.starter === 'web' ? {...s,adaptedProofs:s.adaptedProofs.slice(1)} : s), evidence.map(s => s.starter === 'expo-social' ? {...s,build:'failed'} : s), evidence.map(s=>s.starter==='web'?{...s,negativeProof:undefined}:s), evidence.map(s=>s.starter==='web'?{...s,formSubmit:'failed'}:s)]) {
     assert.throws(() => validateStarterProofs(corrupt), /proof/);
   }
 });

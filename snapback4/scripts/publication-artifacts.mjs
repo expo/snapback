@@ -60,7 +60,8 @@ function validAttempts(proofs, starter) {
   return Array.isArray(proofs) && proofs.length === 2 && [1, 2].every(attempt => proofs.some(p =>
     p.starter === starter.id && p.kind === starter.kind && p.attempt === attempt && p.status === "passed" && Array.isArray(p.range) && p.range.length === 2
     && Number.isInteger(p.range[0]) && Number.isInteger(p.range[1]) && p.range[0] > 0 && p.range[1] <= 65535 && p.range[0] < p.range[1]
-    && p.occupied === p.range[0] && p.cpuLoadWorkers >= 1));
+    && p.occupied === p.range[0] && p.cpuLoadWorkers >= 1 && p.listenerAudit?.status === "passed" && p.listenerAudit.samples > 0
+    && Array.isArray(p.listenerAudit.listeners) && p.listenerAudit.listeners.every(row => row.port >= p.range[0] && row.port <= p.range[1])));
 }
 export function validateFrontendProofs(proofs) {
   if (!Array.isArray(proofs) || proofs.length !== starterCases.length * 2 || !starterCases.every(s => validAttempts(proofs.filter(p => p.starter === s.id), s)))
@@ -72,7 +73,7 @@ export function validateStarterProofs(starters) {
   for (const starter of starterCases) {
     const result = starters.find(s => s.starter === starter.id);
     if (!result || result.status !== "passed" || result.typecheck !== "passed" || result.build !== "passed"
-        || (["web", "expo"].includes(starter.id) && !validAttempts(result.adaptedProofs, starter)))
+        || (["web", "expo"].includes(starter.id) && (!validAttempts(result.adaptedProofs, starter) || result.negativeProof?.status !== "passed" || result.negativeProof.listenerAudit?.status !== "passed" || (starter.id === "web" && result.formSubmit !== "passed"))))
       throw Error("Linux receipt needs every starter toolchain and frontend proof, including adapted Home");
   }
 }

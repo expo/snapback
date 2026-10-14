@@ -1,0 +1,24 @@
+✔ guide api has a row for every subpath, and each name it lists is exported there (775.228495ms)
+✔ guide api's Expo names are the Expo package's exports (0.390525ms)
+✔ generated explicit online web client typechecks: default guest (2168.051128ms)
+✔ generated explicit online web client typechecks: use identity password (1061.816625ms)
+✔ generated explicit online web client typechecks: use personas alice (1025.219709ms)
+✔ Expo native smoke reads the current runtime range on each launch (174.854331ms)
+✔ H8 custom-schema generated proof refuses success without a write (1614.579685ms)
+✔ H8 withBrowser honors caller Playwright and opens no TCP listener (289.267285ms)
+✔ H8 witness claims the trusted button form submit, preserving canonical null arguments (651.590715ms)
+✔ init preserves package identity, reports current range, and adapt is read-only by default (97.274976ms)
+✔ proof.cli runs JS wrapper verbs (39.109762ms)
+✔ rendered evidence excludes textareas and scopes freshness; frontPage activates (471.090901ms)
+✔ unclaimable events, operations and arguments settle with reasons; pending is never terminal (1.967609ms)
+✔ day2 caller source arguments override npm defaults and malformed argument lists refuse (84.839267ms)
+✔ adapt migrates recognized legacy literal scripts/config and preserves explicit defaults (42.561556ms)
+✔ single-port ranges remain valid for schema-only init; UI init refuses before writes (10.251777ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4491.559872

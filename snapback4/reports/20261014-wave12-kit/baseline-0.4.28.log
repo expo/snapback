@@ -1,0 +1,62 @@
+✖ H8 custom-schema generated proof refuses success without a write (1336.444717ms)
+✖ H8 withBrowser honors caller Playwright and opens no TCP listener (309.438964ms)
+✖ H8 witness claims the trusted button form submit, preserving canonical null arguments (1597.626244ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 0
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3480.338938
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/wave12-kit.test.mjs:20:1
+✖ H8 custom-schema generated proof refuses success without a write (1336.444717ms)
+  AssertionError [ERR_ASSERTION]: a read-only Home cannot pass a write proof
+      at TestContext.<anonymous> (file:///home/ccheever/projects/sb4-w12-kit/snapback4/packages/snapback4/test/wave12-kit.test.mjs:26:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.start (node:internal/test_runner/test:1000:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/wave12-kit.test.mjs:30:1
+✖ H8 withBrowser honors caller Playwright and opens no TCP listener (309.438964ms)
+  AssertionError [ERR_ASSERTION]: browser proof must have no TCP listener
+  + actual - expected
+  
+  + [
+  +   {
+  +     pid: 1822381,
+  +     port: 46275
+  +   }
+  + ]
+  - []
+  
+      at file:///home/ccheever/projects/sb4-w12-kit/snapback4/packages/snapback4/test/wave12-kit.test.mjs:35:12
+      at async Module.withBrowser (file:///tmp/kit-baseline/proof.mjs:171:16)
+      at async TestContext.<anonymous> (file:///home/ccheever/projects/sb4-w12-kit/snapback4/packages/snapback4/test/wave12-kit.test.mjs:33:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: [ { pid: 1822381, port: 46275 } ],
+    expected: [],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/wave12-kit.test.mjs:40:1
+✖ H8 witness claims the trusted button form submit, preserving canonical null arguments (1597.626244ms)
+  Error: onSubmit receipt timed out after 1000 ms
+      at Timeout.<anonymous> (file:///tmp/kit-baseline/proof-process.mjs:26:49)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)

@@ -67,9 +67,15 @@ export async function proveFrontendTwice(run, cwd, starter) {
     const high = Math.min(65535, low + 20);
     const workers = Array.from({ length: 2 }, () => new Worker(`setInterval(() => { const until = performance.now() + 25; while (performance.now() < until) {} }, 50);`, { eval: true }));
     const started = Date.now(), load = loadavg();
+    const audit = join(cwd, `listener-audit-${attempt}.json`);
+    const auditEnabled = process.platform === "linux";
+    const proofLogs = join(cwd, `proof-logs-${attempt}`);
     try {
-      await run("npm", ["run", "frontend:proof"], cwd, { PORT_LO: String(low), PORT_HI: String(high) });
-      results.push({ starter: starter.id, kind: starter.kind, attempt, status: "passed", elapsedMs: Date.now() - started, range: [low, high], occupied: low, cpuLoadWorkers: workers.length, loadavg: load, logs: join(cwd, "logs") });
+      await run(process.execPath, [...(auditEnabled ? ["--import", fileURLToPath(new URL("./proof-listener-audit.mjs", import.meta.url))] : []), "scripts/frontend-proof.mjs"], cwd, { PORT_LO: String(low), PORT_HI: String(high), ...(auditEnabled ? { SNAPBACK4_AUDIT_LISTENERS: "1", SNAPBACK4_AUDIT_REPORT: audit } : {}), SNAPBACK4_PROOF_LOGS: proofLogs });
+      const listenerAudit = auditEnabled ? JSON.parse(readFileSync(audit, "utf8")) : { status: "not-run", reason: "listener audit belongs to Linux qualification" };
+      if (auditEnabled) { assert.equal(listenerAudit.status, "passed"); assert.ok(listenerAudit.samples > 0); }
+      assert.ok(existsSync(proofLogs));
+      results.push({ starter: starter.id, kind: starter.kind, attempt, status: "passed", elapsedMs: Date.now() - started, range: [low, high], occupied: low, cpuLoadWorkers: workers.length, loadavg: load, listenerAudit, logs: proofLogs });
     } finally {
       const stopped = await Promise.allSettled([...workers.map(worker => boundedStop(worker.terminate(), "CPU worker stop")), boundedStop(new Promise(resolve => occupied.close(resolve)), "occupied listener close")]);
       const failures = stopped.filter(result => result.status === "rejected").map(result => result.reason);
@@ -124,10 +130,34 @@ export async function proveStarters(client, platform, expo, directory, browserPr
     // Exercise init-first adaptation with a different online-only schema: Home,
     // generated API, identity, README and the no-wasm journal must build together.
     writeFileSync(join(cwd, "snapback/schema.q"), `use identity guests\ntable notes:\n  owner: principal\n  title: text <=80\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nquery mine():\n  return notes where .owner = viewer first 20 by .id\nmutation add(title: text <=80):\n  return insert notes { owner: viewer, title }\n`);
-    await run(cli, ["init", "--adapt"], cwd);
+    await run(cli, ["init", "--adapt", "--apply"], cwd);
+    await build();
+    let negativeProof;
+    if (browserProofs) {
+      const guard = join(cwd, "negative-proof.mjs");
+      writeFileSync(guard, `import {spawnSync} from 'node:child_process'; import assert from 'node:assert/strict'; const r=spawnSync(process.execPath,${JSON.stringify([...(process.platform === 'linux' ? ['--import',fileURLToPath(new URL('./proof-listener-audit.mjs',import.meta.url))] : []),'scripts/frontend-proof.mjs'])},{encoding:'utf8',timeout:60000,env:process.env}); process.stdout.write(r.stdout); process.stderr.write(r.stderr); assert.notEqual(r.status,0); assert.match(r.stderr,/no write scenario: replace the Home assertions/);`);
+      const negativeAudit = join(cwd, "negative-listener-audit.json");
+      await run(process.execPath, [guard], cwd, {PORT_LO:"30000",PORT_HI:"30020",...(process.platform === "linux" ? { SNAPBACK4_AUDIT_LISTENERS:"1",SNAPBACK4_AUDIT_REPORT:negativeAudit } : {})});
+      const listenerAudit = process.platform === "linux" ? JSON.parse(readFileSync(negativeAudit,"utf8")) : {status:"not-run",reason:"listener audit belongs to Linux qualification"};
+      if (process.platform === "linux") { assert.equal(listenerAudit.status,"passed"); assert.ok(listenerAudit.samples>0); }
+      negativeProof = {status:"passed", expected:"no write scenario: replace the Home assertions", listenerAudit};
+    }
+    // The application must supply a writer after Home. Reuse this schema's add
+    // operation through a visible form, retaining the generated Home sign-in.
+    const screen = kind === "web" ? "src/App.tsx" : "App.tsx";
+    let source = readFileSync(join(cwd, screen), "utf8");
+    const body = kind === "web"
+      ? `<form onSubmit={e => { e.preventDefault(); void writer.run({title: draft}); }}><input aria-label="Task" value={draft} onChange={e=>setDraft(e.target.value)} /><button type="submit">Add</button></form><p>{"data" in rows ? JSON.stringify(rows.data) : ""}</p>`
+      : `<View><TextInput accessibilityLabel="Task" value={draft} onChangeText={setDraft}/><Button title="Add" onPress={()=>void writer.run({title:draft})}/><Text>{"data" in rows ? JSON.stringify(rows.data) : ""}</Text></View>`;
+    source = `import {useState as proofState} from 'react';\nimport {useMutation as proofMutation, useQuery as proofQuery} from 'snapback4/react';\n` + (kind === "expo" ? `import {TextInput} from 'react-native';\n` : '') + source;
+    source = source.replace('function Home() {', 'function Home() { const [draft,setDraft]=proofState(""); const writer=proofMutation(api.add), rows=proofQuery(api.mine,{});');
+    source = source.replace(kind === "web" ? '<main>' : '<View ', kind === "web" ? `<main>${body}` : `<View `);
+    if (kind === "expo") source = source.replace('<Text style={{ fontSize: 24 }}>', body + '<Text style={{ fontSize: 24 }}>');
+    source = source.replace('<FirstRead />', '');
+    writeFileSync(join(cwd, screen), source);
     await build();
     const adaptedProofs = browserProofs ? await proveFrontendTwice(run, cwd, starter) : [];
-    results.push({ starter: id, kind, status: "passed", adapted: "passed", typecheck: "passed", build: "passed", frontendProofs, adaptedProofs });
+    results.push({ starter: id, kind, status: "passed", adapted: "passed", typecheck: "passed", build: "passed", frontendProofs, adaptedProofs, negativeProof, formSubmit: kind === "web" ? "passed" : "not-applicable" });
   }
   return results;
 }
