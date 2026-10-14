@@ -81,6 +81,7 @@ pub(super) fn detail(code: &str) -> Option<&'static str> {
         "N_NO_CURSOR" => include_str!("why/N_NO_CURSOR.md"),
         "N_OPTIONAL_FILTER_LIMIT" => include_str!("why/N_OPTIONAL_FILTER_LIMIT.md"),
         "N_HELD_UNKNOWN" => include_str!("why/N_HELD_UNKNOWN.md"),
+        "N_SYNC_EMPTY" => include_str!("why/N_SYNC_EMPTY.md"),
         "N_SEEK" => include_str!("why/N_SEEK.md"),
         "N_SPARSE_FILTER" => include_str!("why/N_SPARSE_FILTER.md"),
         "E_WRITE_RECEIPT_EXPIRED" => include_str!("why/E_WRITE_RECEIPT_EXPIRED.md"),

@@ -1,4 +1,5 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("N_SYNC_EMPTY", "family advice — a device-planned filtered page over unbounded sync has no bounded acquisition proof for an empty filtered partition. It can stay loading until coverage is established. Bound sync and read its window unfiltered before filtering in the client, or call through app.online.query / useOnline().query for server history. This is coverage advice, not a claim that every empty read stalls. guide sync."),
     ("E_FOLLOWING_INPUT", "invalid Following opening, arguments or protocol envelope. Use the generated useFollowing binding; guide feeds."),
     ("E_FOLLOWING_DECLARATION", "this query has no admitted Following history projection. Use a descending Following page with bounded ordinary card point reads; guide feeds."),
     ("E_FOLLOWING_PAGE_SIZE", "Following history accepts declared page sizes from 1 through 100. Change the declaration and start a fresh revision; guide feeds."),

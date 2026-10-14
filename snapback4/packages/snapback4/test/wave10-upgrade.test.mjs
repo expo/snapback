@@ -112,3 +112,31 @@ test('upgrade resolves the new compiler after a pnpm-style package symlink repla
   assert.match(result.stdout+result.stderr,/Ops\.roomCount\.result: number → number \| null/);
   assert.equal(JSON.parse(readFileSync(join(dir,'.snapback4/check-surface.json'))).version,releaseVersion);
 });
+
+test('upgrade with a refused old check still narrates runtime changes from its previous version', t => {
+  const dir = project(t); mkdirSync(join(dir, 'snapback')); writeFileSync(join(dir, 'snapback/schema.q'), aggregates);
+  const packageRoot = join(dir, 'node_modules/snapback4'); mkdirSync(join(packageRoot, 'bin'), { recursive: true }); mkdirSync(join(packageRoot, 'dist'));
+  writeFileSync(join(packageRoot, 'package.json'), JSON.stringify({ name: 'snapback4', version: '0.4.25', exports: { './bin-path': './dist/bin-path.js' } })); writeFileSync(join(packageRoot, 'dist/bin-path.js'), '');
+  writeFileSync(join(packageRoot, 'bin/snapback4.js'), `const p=require('../package.json');if(p.version==='0.4.25'){console.log(JSON.stringify({ok:false}));process.exit(1);}const r=require('child_process').spawnSync(${JSON.stringify(bin)},process.argv.slice(2),{encoding:'utf8'});process.stdout.write(r.stdout);process.stderr.write(r.stderr);process.exit(r.status);`);
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ packageManager: 'npm@10', dependencies: { snapback4: '0.4.25' } }));
+  mkdirSync(join(dir, 'tools')); writeFileSync(join(dir, 'tools/npm'), `#!${process.execPath}\nconst fs=require('fs');if(process.argv[2]==='view'){console.log('${JSON.stringify(releaseVersion)}')}else{for(const file of ['package.json','node_modules/snapback4/package.json']){const p=JSON.parse(fs.readFileSync(file));if(p.dependencies)p.dependencies.snapback4='${releaseVersion}';else p.version='${releaseVersion}';fs.writeFileSync(file,JSON.stringify(p));}}`, { mode: 0o755 });
+  const result = invoke(['upgrade'], dir, { PATH: `${join(dir, 'tools')}:${process.env.PATH}` }); success(result);
+  assert.match(result.stderr + result.stdout, /runtime changes: 0\.4\.25 →/);
+  assert.match(result.stderr + result.stdout, /run\(\).*sent \| failed/);
+  assert.match(result.stderr + result.stdout, /0\.4\.27/);
+  assert.equal(JSON.parse(readFileSync(join(dir, '.snapback4/check-surface.json'))).version, releaseVersion);
+});
+
+test('schema-less upgrade reads the new changelog after package symlink replacement', t => {
+  const dir = project(t); mkdirSync(join(dir, 'node_modules')); mkdirSync(join(dir, 'tools'));
+  for (const [folder, version] of [['old', '0.4.25'], ['new', releaseVersion]]) {
+    const pack = join(dir, folder); mkdirSync(join(pack, 'dist'), { recursive: true });
+    writeFileSync(join(pack, 'package.json'), JSON.stringify({ name: 'snapback4', version, exports: { './bin-path': './dist/bin-path.js' } })); writeFileSync(join(pack, 'dist/bin-path.js'), '');
+    writeFileSync(join(pack, 'CHANGELOG.md'), folder === 'old' ? '# no new history' : readFileSync(new URL('../CHANGELOG.md', import.meta.url)));
+  }
+  symlinkSync(join(dir, 'old'), join(dir, 'node_modules/snapback4'));
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ packageManager: 'pnpm@10', dependencies: { snapback4: '0.4.25' } }));
+  writeFileSync(join(dir, 'tools/pnpm'), `#!${process.execPath}\nconst fs=require('fs');if(process.argv[2]==='view'){console.log('${JSON.stringify(releaseVersion)}')}else{const p=JSON.parse(fs.readFileSync('package.json'));p.dependencies.snapback4='${releaseVersion}';fs.writeFileSync('package.json',JSON.stringify(p));fs.unlinkSync('node_modules/snapback4');fs.symlinkSync(${JSON.stringify(join(dir,'new'))},'node_modules/snapback4');}`, { mode: 0o755 });
+  const result = invoke(['upgrade'], dir, { PATH: `${join(dir, 'tools')}:${process.env.PATH}` }); success(result);
+  assert.match(result.stdout, /runtime changes: 0\.4\.25 →/); assert.match(result.stdout, /run\(\).*sent \| failed/);
+});

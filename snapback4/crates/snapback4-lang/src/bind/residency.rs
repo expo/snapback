@@ -10,6 +10,8 @@ mod inserts;
 mod horizons;
 mod components;
 mod effect_reads;
+mod empty_partitions;
+pub(super) use empty_partitions::notes as empty_partition_notes;
 pub(super) use horizons::{guard_notes, incompatible_horizon_pages, needs_whole_partition, sync_order_notes};
 
 pub fn execution(schema: &Schema, program: &Program) -> Execution {

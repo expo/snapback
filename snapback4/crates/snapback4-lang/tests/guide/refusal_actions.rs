@@ -2,6 +2,7 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("N_SYNC_EMPTY", &["bound the public sync and read the window unfiltered, then filter in the client", "whole acquisition can establish coverage"]),
     ("E_ASSET_INTENT_REUSE", &["retry the original bytes, metadata and placing input"]),
     ("E_ASSET_INTENT_EXPIRED", &["Select a new capture/id"]),
     ("E_CANCELLED", &["Call `saveAsset` again when the user wants to retry"]),

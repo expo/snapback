@@ -818,6 +818,7 @@ fn check_and_doctor_refuse_a_mounted_exact_device_before_generated_output() {
     assert!(!output.status.success(), "{}", text(&output));
     assert!(text(&output).contains("E_DEVICE_VERSION"), "{}", text(&output));
     assert!(text(&output).contains("unknown (unstamped)"), "{}", text(&output));
+    assert!(text(&output).contains("no valid build stamp"), "{}", text(&output));
     assert!(!project.0.join("snapback/generated").exists());
     let output = project.run(&["doctor"]);
     assert!(!output.status.success() && text(&output).contains("E_DEVICE_VERSION"), "{}", text(&output));
@@ -829,6 +830,9 @@ fn check_and_doctor_refuse_a_mounted_exact_device_before_generated_output() {
     let output = project.run(&["check", "--json"]);
     assert!(!output.status.success());
     assert!(text(&output).contains("E_DEVICE_VERSION") && text(&output).contains("0.4.23"));
+    assert!(text(&output).contains("build stamp present, but engine predates the floor"), "{}", text(&output));
+    let output = project.run(&["doctor"]);
+    assert!(text(&output).contains("build stamp present, but engine predates the floor"), "{}", text(&output));
 }
 
 #[test]

@@ -28,6 +28,7 @@ pub(crate) const CASES_FILE: &str = test_cases::FILE;
 mod adoption;
 mod package_versions;
 mod check_surface;
+mod upgrade_history;
 #[cfg(test)]
 mod hand_tests;
 mod readiness;
@@ -255,6 +256,7 @@ pub fn check(options: &Options) -> i32 {
     let project = project_or_exit();
     let started = Instant::now();
     package_versions::warn(&project);
+    upgrade_history::report(&project, options.json);
     let mut bound = match fix::checked(if options.flags.contains_key("fix") { fix::compile(&project) } else { project.compile() }) {
         Ok(bound) => bound,
         Err(code) => return code,

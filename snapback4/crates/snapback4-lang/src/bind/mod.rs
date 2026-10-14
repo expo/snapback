@@ -309,6 +309,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     notes.extend(columns::notes(&catalog, &schema));
     notes.extend(residency::guard_notes(&schema, &programs));
     notes.extend(residency::sync_order_notes(&schema, &programs));
+    notes.extend(residency::empty_partition_notes(&schema, &programs));
     notes.extend(held::notes(&schema, &programs));
     notes.extend(timeline::notes(&catalog, &schema));
     if diagnostics.is_empty() { notes.extend(aggregate_copies::notes(&catalog, &schema)); }

@@ -137,6 +137,7 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("N_SYNC_EMPTY", "a cursorless device page filters a public, unbounded synced table by a reference"),
     ("E_ASSET_INTENT_REUSE", "A declaration cannot be changed or reused for another row"),
     ("E_ASSET_INTENT_EXPIRED", "the original asset was collected after settlement"),
     ("E_CANCELLED", "the save/share sheet was cancelled"),
