@@ -5,12 +5,13 @@ import { join, resolve } from 'node:path';
 import ts from 'typescript';
 
 const root = resolve(import.meta.dirname, '..');
-function check(source, fixture, extension = 'ts') {
+function check(source, fixture, extension = 'ts', extra = {}) {
   const config = ts.readConfigFile(join(root, 'tsconfig.json'), ts.sys.readFile);
   const { options } = ts.parseJsonConfigFileContent(config.config, ts.sys, root);
   const file = fixture ? join(root, 'test/fixtures/read-types', fixture) : join(root, `__read_types.${extension}`);
-  const host = ts.createCompilerHost(options), read = host.readFile.bind(host);
-  if (source) host.readFile = path => path === file ? source : read(path);
+  const host = ts.createCompilerHost(options), read = host.readFile.bind(host), exists = host.fileExists.bind(host);
+  host.fileExists = path => Object.hasOwn(extra,path) || exists(path);
+  host.readFile = path => path===file && source ? source : Object.hasOwn(extra,path) ? extra[path] : read(path);
   const diagnostics = ts.getPreEmitDiagnostics(ts.createProgram([file], options, host));
   return { codes: diagnostics.map(d => d.code), text: ts.formatDiagnosticsWithColorAndContext(diagnostics, {
     getCanonicalFileName: file => file, getCurrentDirectory: () => root, getNewLine: () => '\n',
@@ -720,4 +721,25 @@ test('guide useAuth member list typechecks against the emitted React declaration
   auth.session;`);
   assert.deepEqual(result.codes,[],result.text);
   assert.equal(members.length,8);
+});
+
+test('principal-sharing invitation UI compiles against its actual generated production API', async () => {
+  const {readFileSync,writeFileSync,mkdtempSync,mkdirSync,rmSync}=await import('node:fs');
+  const {tmpdir}=await import('node:os');
+  const {spawnSync}=await import('node:child_process');
+  const {fileURLToPath}=await import('node:url');
+  const card=readFileSync(new URL('../../../crates/snapback4-lang/src/guide/production.md',import.meta.url),'utf8');
+  const schema=card.split(/```quarry\n/).map(part=>part.split(/```/)[0]).find(part=>part.includes('table profiles:'));
+  const dir=mkdtempSync(join(tmpdir(),'surf-invitation-types-'));
+  try {
+    mkdirSync(join(dir,'snapback'));writeFileSync(join(dir,'snapback/schema.q'),schema);
+    const binary=process.env.SNAPBACK4_BIN??fileURLToPath(new URL('../../../target/debug/snapback4',import.meta.url));
+    const checked=spawnSync(binary,['check'],{cwd:dir,encoding:'utf8',timeout:30000});
+    assert.equal(checked.status,0,checked.stdout+checked.stderr);
+    const api=readFileSync(join(dir,'snapback/generated/api.ts'),'utf8');
+    const code=card.split('## Invitation UI by shared principal')[1].split(/```tsx\n/)[1].split(/```/)[0]
+      .replace('"snapback4/react"','"./dist/react.js"').replace('"../snapback/generated/api"','"./__surf_generated_api.ts"');
+    const result=check(code,undefined,'tsx',{[join(root,'__surf_generated_api.ts')]:api});
+    assert.deepEqual(result.codes,[],result.text);
+  } finally {rmSync(dir,{recursive:true,force:true});}
 });
