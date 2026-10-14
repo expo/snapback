@@ -1180,8 +1180,8 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                         }
                         for field in fields {
                             match table.columns.get(field).map(ColumnType::required) {
-                                Some(ColumnType::Text { .. }) => {}
-                                Some(kind) => issue(&mut issues, ipath.clone(), format!("words({field}) needs a text column; {field} is {kind}")),
+                                Some(ColumnType::Text { .. } | ColumnType::Enum { .. }) => {}
+                                Some(kind) => issue(&mut issues, ipath.clone(), format!("words({field}) needs a text or enum column; {field} is {kind}")),
                                 None => issue(&mut issues, ipath.clone(), format!("words names undeclared column {field}")),
                             }
                         }
@@ -1339,6 +1339,7 @@ fn validate_rule(schema: &Schema, table: &Table, rule: &RuleExpr, update: bool, 
 }
 
 fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issues: &mut Vec<SchemaIssue>) {
+    const GLOBAL: &str = "$global";
     let path = format!("maintains[{position}]");
     let issue = |issues: &mut Vec<SchemaIssue>, message: String| issues.push(SchemaIssue { path: path.clone(), message });
     let Some(source) = schema.table(&maintain.source) else {
@@ -1363,9 +1364,6 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
         issue(issues, format!("maintain {} cannot expire; give its source {} the lifetime", maintain.target, maintain.source));
     }
     if let Some(message) = maintain.expiring_read_refusal(schema) { issue(issues, message); }
-    if maintain.by.is_empty() {
-        issue(issues, "maintain by needs at least one source column".into());
-    }
     if let Err(message) = maintain.validate_keys(source) { issue(issues, message); }
     for (field, target_field) in maintain.by.iter().zip(maintain.group_fields()) {
         let calendar_type = if maintain.computed.get(field).is_some_and(|key| source.recorded.contains_key(&key.column)) { ColumnType::Optional(Box::new(ColumnType::Int)) } else { ColumnType::Int };
@@ -1398,12 +1396,20 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
         issue(issues, format!("maintain target {}.value must be {expected}", maintain.target));
     }
     let group_fields = maintain.group_fields();
-    let allowed: BTreeSet<&str> = ["id", "value"].into_iter().chain(group_fields.iter().map(String::as_str)).collect();
+    // @ref LLP 3000.013.001#3-global-maintained-view-representation — `$global` is admitted only on the exact compiler-owned ungrouped target.
+    if maintain.by.is_empty() && target.columns.get(GLOBAL) != Some(&ColumnType::Bool) {
+        issue(issues, format!("ungrouped maintain target {} needs its compiler-owned {GLOBAL} bool", maintain.target));
+    }
+    let allowed: BTreeSet<&str> = ["id", "value"].into_iter()
+        .chain(group_fields.iter().map(String::as_str))
+        .chain(maintain.by.is_empty().then_some(GLOBAL))
+        .collect();
     let extra: Vec<_> = target.columns.keys().filter(|c| !allowed.contains(c.as_str())).cloned().collect();
     if !extra.is_empty() {
         issue(issues, format!("maintain target {} has non-aggregate columns {}", maintain.target, extra.join(", ")));
     }
-    if !target.indexes.values().any(|index| index.unique && index.columns() == maintain.group_fields()) {
+    let group_index = if maintain.by.is_empty() { vec![GLOBAL.into()] } else { maintain.group_fields() };
+    if !target.indexes.values().any(|index| index.unique && index.columns() == group_index) {
         issue(issues, format!("maintain target {} needs a unique index over {}", maintain.target, maintain.by.join(", ")));
     }
     // A delivered aggregate reveals a count: every recipient must be able to

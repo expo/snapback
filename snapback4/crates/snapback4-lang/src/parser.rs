@@ -778,13 +778,13 @@ impl Parser {
             column = Some(self.word()?.value);
         }
         let mut filter = if self.maybe("where") { Some(self.filtered_predicate(&source, &[], true)?) } else { None };
-        self.take("by")?;
-        let row_key = if self.peek().kind == Kind::Word && self.peek_at(1).kind == Kind::Word && self.peek_at(1).value != "where" {
+        let grouped = self.maybe("by");
+        let row_key = if grouped && self.peek().kind == Kind::Word && self.peek_at(1).kind == Kind::Word && self.peek_at(1).value != "where" {
             Some((self.word()?.value, self.word()?.value))
         } else { None };
         let mut keys = Vec::new();
         let keys_start = self.position;
-        while row_key.is_none() {
+        while grouped && row_key.is_none() {
             let mut key = self.expression(0, &[",", "<newline>", "where"])?;
             views::unfocal_key(&mut key);
             keys.push(key);

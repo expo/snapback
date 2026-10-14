@@ -73,6 +73,26 @@ query timeKeys():
 }
 
 #[test]
+fn ungrouped_view_is_a_scalar_with_one_hidden_physical_group() {
+    let bound = compile(r#"view total: count posts
+  read <- allow
+  online only
+query totalPosts():
+  return total
+"#);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    assert_eq!(bound.programs[0].result, snapback4_lang::types::Ty::Int);
+    let maintain = &bound.schema.maintains[0];
+    assert!(maintain.by.is_empty());
+    let target = &bound.schema.tables["total"];
+    assert_eq!(target.columns.get("$global"), Some(&snapback4_core::schema::ColumnType::Bool));
+    assert_eq!(target.indexes["byGroup"].columns(), ["$global"]);
+    let encoded = serde_json::to_value(&bound.programs[0].program).unwrap();
+    assert_eq!(encoded["body"][0]["return"]["get"]["index"], "byGroup");
+    assert_eq!(encoded["body"][0]["return"]["get"]["key"], serde_json::json!([true]));
+}
+
+#[test]
 fn maintain_refusals_point_to_the_expression_and_offer_a_rewrite() {
     for head in [
         "count posts where .active = viewer by author",

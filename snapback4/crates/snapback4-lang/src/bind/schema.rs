@@ -1051,6 +1051,7 @@ fn title(value: &str) -> String {
 /// The columns of a generated maintain target: `id`, `value`, and the `by`
 /// columns typed as the source declares them.
 pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<TableDecl> {
+    const GLOBAL: &str = "$global";
     let site = maintain.site.clone();
     if source.maintained.is_some() { return Err(super::maintains::refusal(&site, "a maintain cannot use another maintain as its source", "define the view over application source rows, or use a job sweep")); }
     let mut columns = Vec::new();
@@ -1075,7 +1076,12 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
         let ty = if computed.contains_key(field) { ScalarType { kind: TypeKind::Int, optional: computed[field].column.contains('.') } } else { source.columns[aliases.get(field).unwrap_or(field)].clone() };
         columns.push(ColumnDecl { on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: None, default: None, name: field.clone(), type_: ty, site: site.clone() });
     }
-    let mut indexes = vec![IndexDecl { name: "byGroup".into(), columns: maintain.by.clone(), unique: true, refusal: None, words: None, computed: BTreeMap::new(), site: site.clone() }];
+    // @ref LLP 3000.013.001#3-global-maintained-view-representation — the logical empty tuple gets one store-indexable, compiler-only discriminator.
+    let group = if maintain.by.is_empty() {
+        columns.push(ColumnDecl { on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: None, default: None, name: GLOBAL.into(), type_: ScalarType { kind: TypeKind::Bool, optional: false }, site: site.clone() });
+        vec![GLOBAL.into()]
+    } else { maintain.by.clone() };
+    let mut indexes = vec![IndexDecl { name: "byGroup".into(), columns: group, unique: true, refusal: None, words: None, computed: BTreeMap::new(), site: site.clone() }];
     let mut names = BTreeSet::from(["byGroup".to_owned(), "byId".to_owned()]);
     for index in &maintain.indexes {
         if !names.insert(index.name.clone()) { return Err(super::maintains::refusal(&index.site, format!("duplicate maintain index {}", index.name), "use a distinct index name; byGroup and byId are generated")); }

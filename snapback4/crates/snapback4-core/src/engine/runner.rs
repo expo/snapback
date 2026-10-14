@@ -1169,6 +1169,38 @@ impl<'a> Runner<'a> {
                 }
                 Ok(object([("quotient", Value::Int(numerator.div_euclid(denominator))), ("remainder", Value::Int(numerator.rem_euclid(denominator))), ("sink", Value::String(remainder_sink.clone()))]))
             }
+            Builtin::Divide { rounding, scale } => {
+                let mut numerator = i128::from(args.remove(0).as_int()?);
+                let denominator = i128::from(args.remove(0).as_int()?);
+                if denominator == 0 { return Err(ValueError::DivideByZero.into()); }
+                if let Some(scale) = scale {
+                    let factor = (0..*scale).try_fold(1_i128, |factor, _| factor.checked_mul(10))
+                        .ok_or(ValueError::Overflow(i128::MAX))?;
+                    numerator = numerator.checked_mul(factor).ok_or_else(||
+                        ValueError::Overflow(if numerator < 0 { i128::MIN } else { i128::MAX }))?;
+                }
+                let quotient = numerator / denominator;
+                let remainder = numerator % denominator;
+                if remainder == 0 { return Value::int(quotient).map_err(Into::into); }
+                let direction = if numerator.signum() == denominator.signum() { 1 } else { -1 };
+                let away = quotient + direction;
+                let result = match rounding {
+                    Rounding::TowardZero => quotient,
+                    Rounding::AwayFromZero => away,
+                    Rounding::Floor if direction < 0 => away,
+                    Rounding::Floor => quotient,
+                    Rounding::Ceiling if direction > 0 => away,
+                    Rounding::Ceiling => quotient,
+                    Rounding::HalfAwayFromZero | Rounding::HalfEven => {
+                        let twice_remainder = remainder.abs() * 2;
+                        let divisor = denominator.abs();
+                        if twice_remainder > divisor
+                            || twice_remainder == divisor && (matches!(rounding, Rounding::HalfAwayFromZero) || quotient % 2 != 0)
+                        { away } else { quotient }
+                    }
+                };
+                Value::int(result).map_err(Into::into)
+            }
             Builtin::Sort { keys } => {
                 let mut values = into_array(args.remove(0))?;
                 for value in &values {

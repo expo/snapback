@@ -12,6 +12,12 @@ use crate::value::{I53_MAX, I53_MIN, Value};
 use crate::value::canonical_json;
 use std::collections::BTreeMap;
 
+const GLOBAL: &str = "$global";
+
+fn target_group_key(maintain: &Maintain, key: &[Value]) -> Vec<Value> {
+    if maintain.by.is_empty() { vec![Value::Bool(true)] } else { key.to_vec() }
+}
+
 impl Runner<'_> {
     // @ref LLP 3000.022#14.3 — no predicted delta enters receipt-derived state.
     pub(super) fn defer_receipt_maintain(&self, m: &Maintain) -> bool {
@@ -260,7 +266,7 @@ impl Runner<'_> {
         let source = &self.schema.tables[&maintain.source];
         if source.sync.as_ref().is_none_or(|sync| sync.horizon.is_some()) || self.schema.maintain_subset_unknown(&maintain.target) { return Ok(false); }
         // The target has the same bare audience keys, but no source horizon.
-        if !self.upsert_absence_proven(&maintain.target, "byGroup", key)? { return Ok(false); }
+        if !self.upsert_absence_proven(&maintain.target, "byGroup", &target_group_key(maintain, key))? { return Ok(false); }
         for (name, index) in &source.indexes {
             let values = index.columns().iter().map_while(|column| maintain.by.iter().position(|field| field == column).map(|n| key[n].clone())).collect::<Vec<_>>();
             if self.retained_group(&maintain.source, name, &values)? { return Ok(false); }
@@ -276,8 +282,9 @@ impl Runner<'_> {
         let target = self.schema.table(&maintain.target).expect("validated");
         self.charge_maintain(MeterKind::Examined, 1)?;
         let existing = self.metered_scan(|runner, allowance| runner.tx.get(allowance, &maintain.target, &id))?;
-        if self.device && existing.is_none() && !self.upsert_absence_proven(&maintain.target, "byGroup", &key)? {
-            self.unknown_fact(&maintain.target, "byGroup", &key, "aggregate base");
+        let target_key = target_group_key(maintain, &key);
+        if self.device && existing.is_none() && !self.upsert_absence_proven(&maintain.target, "byGroup", &target_key)? {
+            self.unknown_fact(&maintain.target, "byGroup", &target_key, "aggregate base");
             return Err(RuntimeError::Prediction("the affected aggregate value or its absence is not known locally; queued without a predicted row".into()));
         }
         let old_value = existing.as_ref().and_then(|row| row.field("value").ok()).map(Value::as_int).transpose()?.unwrap_or(0);
@@ -303,6 +310,8 @@ impl Runner<'_> {
         for (field, value) in maintain.group_fields().iter().zip(key.iter().cloned()) {
             row.insert(field.clone(), value);
         }
+        // @ref LLP 3000.013.001#3-global-maintained-view-representation — stores index the one logical empty group by a hidden constant.
+        if maintain.by.is_empty() { row.insert(GLOBAL.into(), Value::Bool(true)); }
         let row = Value::Row(row.into());
         if existing.as_ref() == Some(&row) { return Ok(()); }
         let entries = self.tx.put(&maintain.target, target, &row, existing.as_ref())?;

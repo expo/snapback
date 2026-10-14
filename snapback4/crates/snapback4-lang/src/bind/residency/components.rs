@@ -99,7 +99,7 @@ impl Facts {
         Builtin::JobAs | Builtin::JobQuery { .. } => return None,
                     Builtin::Divmod { remainder_sink } if top.contains(remainder_sink) => return None,
                     Builtin::Connected => self.reads += 1,
-                    Builtin::RequireUncapped | Builtin::ReceiptSettled { .. } | Builtin::ExtremumOf { .. } | Builtin::Extremum { .. } | Builtin::SearchPresent | Builtin::Count | Builtin::CountCapped | Builtin::Sum | Builtin::ProjectFields { .. } | Builtin::OptionalField { .. } | Builtin::Calendar { .. } | Builtin::Civil(_) | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Sha256 | Builtin::Join | Builtin::Group { .. } | Builtin::First | Builtin::Last | Builtin::At | Builtin::Min | Builtin::Max | Builtin::Divmod { .. } | Builtin::Sort { .. } | Builtin::MentionTokens | Builtin::DeterministicShare => {}
+                    Builtin::RequireUncapped | Builtin::ReceiptSettled { .. } | Builtin::ExtremumOf { .. } | Builtin::Extremum { .. } | Builtin::SearchPresent | Builtin::Count | Builtin::CountCapped | Builtin::Sum | Builtin::ProjectFields { .. } | Builtin::OptionalField { .. } | Builtin::Calendar { .. } | Builtin::Civil(_) | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim | Builtin::Sha256 | Builtin::Join | Builtin::Group { .. } | Builtin::First | Builtin::Last | Builtin::At | Builtin::Min | Builtin::Max | Builtin::Divmod { .. } | Builtin::Divide { .. } | Builtin::Sort { .. } | Builtin::MentionTokens | Builtin::DeterministicShare => {}
                 }
                 for arg in args.iter() { self.expr(arg, top)?; }
             }

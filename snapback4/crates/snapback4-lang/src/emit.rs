@@ -27,7 +27,7 @@ pub fn typescript(bound: &Bound) -> String {
     out.push_str("export type Rows = {\n");
     for (name, table) in bound.schema.visible_tables() {
         out.push_str(&format!("  {}: {{\n", property(name)));
-        for (column, kind) in table.columns.iter().filter(|(name, _)| !table.engine_field(name) && !snapback4_core::schema::timeline::is_slot(name)) {
+        for (column, kind) in table.columns.iter().filter(|(name, _)| name.as_str() != "$global" && !table.engine_field(name) && !snapback4_core::schema::timeline::is_slot(name)) {
             // @ref LLP 3000.040#15-generated-typescript — a bound is documented, not branded: the server's E_INPUT is the guarantee.
             if column_has_int_range(kind) { out.push_str(&format!("    /** {kind} */\n")); }
             out.push_str(&format!("    {}: {};\n", format!("{}{}", property(column), if table.private_field(column) { "?" } else { "" }), column_ts(kind, &bound.schema)));

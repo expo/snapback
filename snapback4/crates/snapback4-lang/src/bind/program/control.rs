@@ -125,6 +125,7 @@ impl Binder<'_> {
                 if matches!(value, A::Write { op: WriteOp::Delete, .. }) {
                     return Err(unknown(site, "delete does not yield a value; return a confirmation value after the write", "delete the row, then `return null`"));
                 }
+                let count_capture = self.count_capture(name, value);
                 // @ref LLP 3000.007#5.1 — rebinding preserves the local slot and resets its flow refinement.
                 if let Some(mut binding) = self.binding(name).cloned() {
                     let mut origins = binding.origins.clone();
@@ -147,6 +148,7 @@ impl Binder<'_> {
                     self.scopes.last_mut().unwrap().get_mut(name).unwrap().origins.push((ty, value.clone()));
                     out.push(Stmt::Let { name: runtime, value: expr });
                 }
+                self.record_count_capture(name, count_capture);
                 Ok(())
             }
             S::Require { condition, code, message, site } => {
@@ -462,6 +464,14 @@ impl Binder<'_> {
 
     /// After `require x != null` or inside `if x != null:`, `x` is present.
     pub(super) fn narrow(&mut self, condition: &A, then_branch: bool) {
+        // Aggregate facts may describe filtered domains, so they have a
+        // slightly wider write-free admission check than point facts. Record
+        // them once for the whole, already-evaluated condition: recursively
+        // recording a safe left operand would be stale when a later operand
+        // calls a writeful helper.
+        if self.aggregate_guard_safe(condition) {
+            self.record_aggregate_nonempty(condition, then_branch);
+        }
         self.narrow_inner(condition, then_branch, self.point_guard_safe(condition));
     }
 

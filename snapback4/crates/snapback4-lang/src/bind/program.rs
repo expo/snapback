@@ -16,6 +16,7 @@ mod control;
 mod job_reads;
 mod pure_calls;
 mod point_facts;
+mod aggregate_facts;
 pub(super) mod maintain_types;
 mod flow;
 mod conditional;
@@ -351,6 +352,12 @@ impl<'a> Binder<'a> {
         if read.matching.is_some() && self.binding(&read.table).is_some_and(|b| matches!(b.ty.required(), Ty::Text(_) | Ty::Enum(_))) {
             return Err(type_error(&read.site, format!("`{}` is text; `matching` searches a table's word index", read.table),
                 format!("for text compare `{0} = q` or `{0} != q`; for whole-token membership use `q in tokens({0})`; for word-prefix row search write `<table> matching q first 50 by .id`", read.table)).guide("types"));
+        }
+        if self.catalog.tables.get(&read.table).and_then(|table| table.maintained.as_ref()).is_some_and(|maintain| maintain.by.is_empty())
+            && (!read.keys.is_empty() || read.range.is_some() || read.filter.is_some() || read.matching.is_some() || !read.seeks.is_empty() || !read.order_keys.is_empty())
+        {
+            return Err(type_error(&read.site, format!("{} is one global maintained scalar, not a group table", read.table),
+                format!("read it by its bare name: `return {}`", read.table)).guide("maintains"));
         }
         if let Some(timeline) = self.schema.timelines.iter().find(|timeline| timeline.name == read.table) {
             let expanded = if let Some(plan) = self.catalog.feed_views.get(&read.table) {

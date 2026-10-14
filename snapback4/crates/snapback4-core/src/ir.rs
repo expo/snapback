@@ -270,6 +270,15 @@ pub enum Builtin {
     /// The existing column extremum encoding is unchanged.
     ExtremumOf { max: bool, domain: bool },
     Divmod { remainder_sink: String },
+    /// Checked exact integer division with an author-selected rounding rule.
+    // @ref LLP 3000.013.001#2-rounded-division-table — the mode is a closed wire enum and evaluation never uses floating point.
+    Divide {
+        rounding: Rounding,
+        /// Decimal places requested by the four-argument surface. `None`
+        /// preserves the dividend's already-scaled representation.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        scale: Option<u8>,
+    },
     Sort { keys: Vec<SortKey> },
     MentionTokens,
     SearchPresent,
@@ -292,10 +301,21 @@ impl Builtin {
             #[cfg(feature = "sqlite")]
             Self::JobAs => 2,
             Self::ReceiptSettled { .. } | Self::Extremum { .. } | Self::ProjectFields { .. } | Self::OptionalField { .. } | Self::Calendar { .. } | Self::Civil(_) | Self::Group { .. } | Self::First | Self::Last | Self::Len | Self::Lower | Self::Trim | Self::Sha256 | Self::Sort { .. } | Self::MentionTokens | Self::SearchPresent | Self::RequireUncapped | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
-            Self::ExtremumOf { .. } | Self::At | Self::Concat | Self::Join | Self::Min | Self::Max | Self::Divmod { .. } => 2,
+            Self::ExtremumOf { .. } | Self::At | Self::Concat | Self::Join | Self::Min | Self::Max | Self::Divmod { .. } | Self::Divide { .. } => 2,
             Self::Slice | Self::DeterministicShare => 3,
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Rounding {
+    TowardZero,
+    AwayFromZero,
+    Floor,
+    Ceiling,
+    HalfAwayFromZero,
+    HalfEven,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]

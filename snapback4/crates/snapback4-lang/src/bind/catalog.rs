@@ -85,8 +85,8 @@ impl Catalog {
                     }
                 }
                 for field in &table.search {
-                    if !matches!(columns.get(field), Some(ScalarType { kind: TypeKind::Text { .. }, .. })) {
-                        diagnostics.push(crate::diag::type_error(&table.site, format!("search {} requires a text column on {}", field, table.name), format!("declare `{field}: text <=2000` before `search {field}`")).guide("search"));
+                    if !matches!(columns.get(field), Some(ScalarType { kind: TypeKind::Text { .. } | TypeKind::Enum { .. }, .. })) {
+                        diagnostics.push(crate::diag::type_error(&table.site, format!("search {} requires a text or enum column on {}", field, table.name), format!("declare `{field}: text <=2000` or `{field}: enum('one', 'two')` before `search {field}`")).guide("search"));
                         ok = false;
                     }
                 }
@@ -106,11 +106,11 @@ impl Catalog {
                     }
                     for field in index.words.iter().flat_map(|(_, fields)| fields) {
                         match columns.get(field) {
-                            Some(ScalarType { kind: TypeKind::Text { .. }, .. }) => {}
+                            Some(ScalarType { kind: TypeKind::Text { .. } | TypeKind::Enum { .. }, .. }) => {}
                             // The table stays in the catalog: one line is
                             // wrong, and its readers should hear about that
                             // line, not about a table that vanished.
-                            Some(other) => diagnostics.push(crate::diag::type_error(&index.site, format!("index {}.{} tokenizes {field}, which is {}, not text", table.name, index.name, crate::print::scalar_type(other)), format!("words(<a text column of {}>)", table.name))),
+                            Some(other) => diagnostics.push(crate::diag::type_error(&index.site, format!("index {}.{} tokenizes {field}, which is {}, not text or enum", table.name, index.name, crate::print::scalar_type(other)), format!("words(<a text or enum column of {}>)", table.name))),
                             None => diagnostics.push(crate::diag::type_error(&index.site, format!("index {}.{} tokenizes unknown column {field}", table.name, index.name), name_rewrite(field, columns.keys().map(String::as_str), None))),
                         }
                     }

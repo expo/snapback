@@ -226,7 +226,7 @@ impl Flow<'_> {
                     }
                 }
                 else {
-                    let usage = match builtin { ir::Builtin::Divmod { .. } => "fallible division", ir::Builtin::Slice => "a variable-size slice", _ => "a fallible or variable-cost builtin" };
+                    let usage = match builtin { ir::Builtin::Divmod { .. } | ir::Builtin::Divide { .. } => "fallible division", ir::Builtin::Slice => "a variable-size slice", _ => "a fallible or variable-cost builtin" };
                     self.reject(&origins, usage, site);
                 }
                 origins

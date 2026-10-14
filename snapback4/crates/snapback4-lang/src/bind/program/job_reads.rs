@@ -46,6 +46,8 @@ impl Binder<'_> {
                     part != "$pureCall"
                         && part != "$point"
                         && part != maintain_types::AUTHORIZATION
+                        && part != aggregate_facts::NONEMPTY
+                        && part != aggregate_facts::COUNT_CAPTURE
                 }));
             }
         }
