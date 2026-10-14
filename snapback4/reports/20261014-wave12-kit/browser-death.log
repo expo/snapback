@@ -1,0 +1,1 @@
+PASS: pipe launch browser processes 7 exit after driver SIGKILL

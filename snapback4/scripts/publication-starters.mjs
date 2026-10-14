@@ -68,13 +68,16 @@ export async function proveFrontendTwice(run, cwd, starter) {
     const workers = Array.from({ length: 2 }, () => new Worker(`setInterval(() => { const until = performance.now() + 25; while (performance.now() < until) {} }, 50);`, { eval: true }));
     const started = Date.now(), load = loadavg();
     const audit = join(cwd, `listener-audit-${attempt}.json`);
+    const trace = join(cwd, `listener-audit-${attempt}.trace`);
     const auditEnabled = process.platform === "linux";
+    const tracerVersion = auditEnabled ? (await import("./proof-listener-audit.mjs")).requireListenerTracer() : undefined;
     const proofLogs = join(cwd, `proof-logs-${attempt}`);
     try {
-      await run(process.execPath, [...(auditEnabled ? ["--import", fileURLToPath(new URL("./proof-listener-audit.mjs", import.meta.url))] : []), "scripts/frontend-proof.mjs"], cwd, { PORT_LO: String(low), PORT_HI: String(high), ...(auditEnabled ? { SNAPBACK4_AUDIT_LISTENERS: "1", SNAPBACK4_AUDIT_REPORT: audit } : {}), SNAPBACK4_PROOF_LOGS: proofLogs });
-      const listenerAudit = auditEnabled ? JSON.parse(readFileSync(audit, "utf8")) : { status: "not-run", reason: "listener audit belongs to Linux qualification" };
-      if (auditEnabled) { assert.equal(listenerAudit.status, "passed"); assert.ok(listenerAudit.samples > 0); }
+      await run(auditEnabled ? "strace" : process.execPath, [...(auditEnabled ? ["-f", "-q", "-z", "-yy", "-e", "trace=listen", "-e", "signal=none", "-o", trace, process.execPath] : []), "scripts/frontend-proof.mjs"], cwd, { PORT_LO: String(low), PORT_HI: String(high), SNAPBACK4_PROOF_LOGS: proofLogs });
+      const listenerAudit = auditEnabled ? (await import("./proof-listener-audit.mjs")).auditListenerTrace(readFileSync(trace, "utf8"), low, high) : { status: "not-run", reason: "listener audit belongs to Linux qualification" };
+      if (auditEnabled) { assert.equal(listenerAudit.status, "passed"); assert.ok(listenerAudit.samples > 0); listenerAudit.tracerVersion = tracerVersion; }
       assert.ok(existsSync(proofLogs));
+      writeFileSync(audit, JSON.stringify(listenerAudit));
       results.push({ starter: starter.id, kind: starter.kind, attempt, status: "passed", elapsedMs: Date.now() - started, range: [low, high], occupied: low, cpuLoadWorkers: workers.length, loadavg: load, listenerAudit, logs: proofLogs });
     } finally {
       const stopped = await Promise.allSettled([...workers.map(worker => boundedStop(worker.terminate(), "CPU worker stop")), boundedStop(new Promise(resolve => occupied.close(resolve)), "occupied listener close")]);
@@ -135,11 +138,14 @@ export async function proveStarters(client, platform, expo, directory, browserPr
     let negativeProof;
     if (browserProofs) {
       const guard = join(cwd, "negative-proof.mjs");
-      writeFileSync(guard, `import {spawnSync} from 'node:child_process'; import assert from 'node:assert/strict'; const r=spawnSync(process.execPath,${JSON.stringify([...(process.platform === 'linux' ? ['--import',fileURLToPath(new URL('./proof-listener-audit.mjs',import.meta.url))] : []),'scripts/frontend-proof.mjs'])},{encoding:'utf8',timeout:60000,env:process.env}); process.stdout.write(r.stdout); process.stderr.write(r.stderr); assert.notEqual(r.status,0); assert.match(r.stderr,/no write scenario: replace the Home assertions/);`);
+      const tracerVersion = process.platform === "linux" ? (await import("./proof-listener-audit.mjs")).requireListenerTracer() : undefined;
+      const negativeTrace = join(cwd, "negative-listener-audit.trace");
+      writeFileSync(guard, `import {spawnSync} from 'node:child_process'; import assert from 'node:assert/strict'; const r=spawnSync(${JSON.stringify(process.platform === 'linux' ? 'strace' : process.execPath)},${JSON.stringify([...(process.platform === 'linux' ? ['-f','-q','-z','-yy','-e','trace=listen','-e','signal=none','-o',negativeTrace,process.execPath] : []),'scripts/frontend-proof.mjs'])},{encoding:'utf8',timeout:60000,env:process.env}); process.stdout.write(r.stdout); process.stderr.write(r.stderr); assert.notEqual(r.status,0); assert.match(r.stderr,/no write scenario: replace the Home assertions/);`);
       const negativeAudit = join(cwd, "negative-listener-audit.json");
-      await run(process.execPath, [guard], cwd, {PORT_LO:"30000",PORT_HI:"30020",...(process.platform === "linux" ? { SNAPBACK4_AUDIT_LISTENERS:"1",SNAPBACK4_AUDIT_REPORT:negativeAudit } : {})});
-      const listenerAudit = process.platform === "linux" ? JSON.parse(readFileSync(negativeAudit,"utf8")) : {status:"not-run",reason:"listener audit belongs to Linux qualification"};
-      if (process.platform === "linux") { assert.equal(listenerAudit.status,"passed"); assert.ok(listenerAudit.samples>0); }
+      await run(process.execPath, [guard], cwd, {PORT_LO:"30000",PORT_HI:"30020"});
+      const listenerAudit = process.platform === "linux" ? (await import("./proof-listener-audit.mjs")).auditListenerTrace(readFileSync(negativeTrace,"utf8"),30000,30020) : {status:"not-run",reason:"listener audit belongs to Linux qualification"};
+      if (process.platform === "linux") { assert.equal(listenerAudit.status,"passed"); assert.ok(listenerAudit.samples>0); listenerAudit.tracerVersion = tracerVersion; }
+      writeFileSync(negativeAudit, JSON.stringify(listenerAudit));
       negativeProof = {status:"passed", expected:"no write scenario: replace the Home assertions", listenerAudit};
     }
     // The application must supply a writer after Home. Reuse this schema's add

@@ -10,23 +10,27 @@ import { containerRuntime } from "../../../scripts/qualify-linux.mjs";
 import { fetchPinned, prootCommand, prootEnvironment } from "../../../scripts/qualify-linux-proot.mjs";
 import { prootDistributions } from "../../../scripts/linux-proof-inputs.mjs";
 import { proofEntrypoint } from "./helpers/linux-proof-harness.mjs";
+function audit(range=[30000,30020]) { return {status:"passed",method:"strace-listen",tracerVersion:"strace -- version 6.16",nonReturned:[],samples:1,listeners:[{pid:1,port:range[0]+1}],range}; }
 function qualify(t, scenario = {}) {
   const root = mkdtempSync(join(tmpdir(), "snapback4-linux-test-")); t.after(() => rmSync(root, { recursive: true, force: true }));
   for (const dir of ["scripts", "packages/snapback4", "packages/snapback4-linux-x64", "target/x86_64-unknown-linux-musl/production"]) mkdirSync(join(root, dir), { recursive: true });
-  for (const file of ["qualify-linux.mjs", "qualify-linux-proot.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-artifacts.mjs", "publication-roundtrip.mjs", "publication-starters.mjs", "publication-frontend-proofs.mjs", "test-command-owner.mjs", "test-owned-command.mjs", "test-command-group.mjs", "build-linux-musl.sh"]) copyFileSync(new URL(`../../../scripts/${file}`, import.meta.url), join(root, "scripts", file));
+  for (const file of ["qualify-linux.mjs", "qualify-linux-proot.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-artifacts.mjs", "publication-roundtrip.mjs", "publication-starters.mjs", "publication-frontend-proofs.mjs", "proof-listener-audit.mjs", "test-command-owner.mjs", "test-owned-command.mjs", "test-command-group.mjs", "build-linux-musl.sh"]) copyFileSync(new URL(`../../../scripts/${file}`, import.meta.url), join(root, "scripts", file));
+  writeFileSync(join(root, "scripts/proof-listener-audit.mjs"), `export function requireListenerTracer(){ ${scenario.tracerFail ? "throw Error('E_PROOF_LISTENER: strace 6.8 required')" : "return 'strace -- version 6.16'"} }`);
   writeFileSync(join(root, "scripts/publication-frontend-proofs.mjs"), `
+    const audit = ${audit.toString()};
     export async function proveGeneratedProofs(client, platform, expo, out) {
       if (${JSON.stringify(scenario.frontendFail ?? false)}) throw Error('deliberately failing generated frontend proof');
-      return ${JSON.stringify(starterCases)}.flatMap(s => [1, 2].map(attempt => ({ starter: s.id, kind: s.kind, attempt, status: 'passed', range: [30000, 30020], occupied: 30000, cpuLoadWorkers: 2, listenerAudit: {status:"passed",samples:1,listeners:[]}, logs: out + '/logs' })));
+      return ${JSON.stringify(starterCases)}.flatMap(s => [1, 2].map(attempt => ({ starter: s.id, kind: s.kind, attempt, status: 'passed', range: [30000, 30020], occupied: 30000, cpuLoadWorkers: 2, listenerAudit: audit(), logs: out + '/logs' })));
     }
   `);
   writeFileSync(join(root, "scripts/publication-roundtrip.mjs"), proofEntrypoint);
   writeFileSync(join(root, "scripts/publication-starters.mjs"), `
+    const audit = ${audit.toString()};
     import { appendFileSync } from 'node:fs';
     export const starterCases = ${JSON.stringify(starterCases)};
     export async function proveStarters() {
       if (${JSON.stringify(scenario.startersFail ?? false)}) throw Error('deliberately failing starter toolchain');
-      return starterCases.map(s => ({starter:s.id,kind:s.kind,status:'passed',typecheck:'passed',build:'passed',negativeProof:{status:'passed',listenerAudit:{status:'passed'}},formSubmit:'passed',frontendProofs:[1,2].map(attempt=>({starter:s.id,kind:s.kind,attempt,status:'passed',range:[30000,30020],occupied:30000,cpuLoadWorkers:2,listenerAudit:{status:"passed",samples:1,listeners:[]}})),adaptedProofs:[1,2].map(attempt=>({starter:s.id,kind:s.kind,attempt,status:'passed',range:[30000,30020],occupied:30000,cpuLoadWorkers:2,listenerAudit:{status:"passed",samples:1,listeners:[]}}))}));
+      return starterCases.map(s => ({starter:s.id,kind:s.kind,status:'passed',typecheck:'passed',build:'passed',negativeProof:{status:'passed',listenerAudit:audit()},formSubmit:'passed',frontendProofs:[1,2].map(attempt=>({starter:s.id,kind:s.kind,attempt,status:'passed',range:[30000,30020],occupied:30000,cpuLoadWorkers:2,listenerAudit:audit()})),adaptedProofs:[1,2].map(attempt=>({starter:s.id,kind:s.kind,attempt,status:'passed',range:[30000,30020],occupied:30000,cpuLoadWorkers:2,listenerAudit:audit()}))}));
     }
     if (process.argv[1].endsWith('/starters.mjs')) appendFileSync(process.env.PROOF_EVENTS, JSON.stringify({ event: 'starters' }) + '\\n');
     if (process.env.STARTERS_FAIL === '1') throw Error('deliberately failing starter toolchain');
@@ -326,9 +330,9 @@ test("failed generated frontend proof prevents a Linux qualification receipt", t
 });
 
 test("imported loaded-host proof evidence cannot omit a failed or repeated attempt", () => {
-  const evidence = starterCases.flatMap(s => [1, 2].map(attempt => ({ starter: s.id, kind: s.kind, attempt, status: "passed", range: [29040, 29049], occupied: 29040, cpuLoadWorkers: 2, listenerAudit: {status:"passed",samples:1,listeners:[]} })));
+  const evidence = starterCases.flatMap(s => [1, 2].map(attempt => ({ starter: s.id, kind: s.kind, attempt, status: "passed", range: [29040, 29049], occupied: 29040, cpuLoadWorkers: 2, listenerAudit: audit([29040,29049]) })));
   validateFrontendProofs(evidence);
-  for (const corrupt of [evidence.slice(1), evidence.map((p, i) => i === 3 ? { ...p, attempt: 1 } : p), evidence.map((p, i) => i === 0 ? { ...p, status: "failed" } : p), evidence.map((p,i)=>i===0?{...p,listenerAudit:undefined}:p), evidence.map((p,i)=>i===0?{...p,listenerAudit:{status:"passed",samples:1,listeners:[{port:1}]}}:p)]) {
+  for (const corrupt of [evidence.map((p,i)=>i===0?{...p,listenerAudit:{...p.listenerAudit,nonReturned:[{pid:1,state:"live",record:"???( <unfinished ...>"}]}}:p), evidence.slice(1), evidence.map((p, i) => i === 3 ? { ...p, attempt: 1 } : p), evidence.map((p, i) => i === 0 ? { ...p, status: "failed" } : p), evidence.map((p,i)=>i===0?{...p,listenerAudit:undefined}:p), evidence.map((p,i)=>i===0?{...p,listenerAudit:{status:"passed",method:"strace-listen",tracerVersion:"strace -- version 6.16",nonReturned:[],samples:1,listeners:[{port:1}]}}:p)]) {
     assert.throws(() => validateFrontendProofs(corrupt), /every generated frontend\/template proof twice/);
   }
 });
@@ -351,10 +355,54 @@ test('consumer-only refuses a failed packed starter without evidence or receipt'
 });
 
 test('starter toolchain evidence requires the full frontend matrix and adapted Home twice', () => {
-  const attempts = s => [1, 2].map(attempt => ({ starter: s.id, kind: s.kind, attempt, status: 'passed', range: [30000, 30020], occupied: 30000, cpuLoadWorkers: 2, listenerAudit: {status:"passed",samples:1,listeners:[]} }));
-  const evidence = starterCases.map(s => ({starter:s.id,status:'passed',typecheck:'passed',build:'passed',negativeProof:{status:'passed',listenerAudit:{status:'passed'}},formSubmit:'passed',frontendProofs:attempts(s),adaptedProofs:attempts(s)}));
+  const attempts = s => [1, 2].map(attempt => ({ starter: s.id, kind: s.kind, attempt, status: 'passed', range: [30000, 30020], occupied: 30000, cpuLoadWorkers: 2, listenerAudit: audit() }));
+  const evidence = starterCases.map(s => ({starter:s.id,status:'passed',typecheck:'passed',build:'passed',negativeProof:{status:'passed',listenerAudit:audit()},formSubmit:'passed',frontendProofs:attempts(s),adaptedProofs:attempts(s)}));
   validateStarterProofs(evidence);
   for (const corrupt of [evidence.slice(1), evidence.map(s => s.starter === 'expo-chat' ? {...s,frontendProofs:[]} : s), evidence.map(s => s.starter === 'web' ? {...s,adaptedProofs:s.adaptedProofs.slice(1)} : s), evidence.map(s => s.starter === 'expo-social' ? {...s,build:'failed'} : s), evidence.map(s=>s.starter==='web'?{...s,negativeProof:undefined}:s), evidence.map(s=>s.starter==='web'?{...s,formSubmit:'failed'}:s)]) {
     assert.throws(() => validateStarterProofs(corrupt), /proof/);
   }
+});
+
+test('listener trace covers short-lived TCP listeners and refuses unresolved, unfinished and out-of-range calls', async t=>{
+ const {auditListenerTrace}=await import('../../../scripts/proof-listener-audit.mjs');
+ assert.equal(auditListenerTrace('10 listen(4<TCP:[127.0.0.1:30001]>, 511) = 0\n',30000,30020).listeners[0].port,30001);
+ assert.throws(()=>auditListenerTrace(`${process.pid} ???( <unfinished ...>\n`,30000,30020),/undecoded live process/);
+ assert.throws(()=>auditListenerTrace('10 ???() = 0\n',30000,30020),/unrecognized/);
+ assert.equal(auditListenerTrace('99999999 ???( <detached ...>\n10 listen(4<TCP:[127.0.0.1:30001]>, 511) = 0\n',30000,30020).nonReturned[0].state,'absent');
+ assert.equal(auditListenerTrace('10 listen(4<TCPv6:[[::1]:30001]>, 511 <unfinished ...>\n10 <... listen resumed>) = 0\n',30000,30020).listeners.length,1);
+ for(const trace of ['10 listen(4, 511) = 0\n','10 listen(4<TCP:[127.0.0.1:30001]>, 511 <unfinished ...>\n','10 <... listen resumed>) = 0\n','unrecognized\n','10 listen(4<TCP:[127.0.0.1:40001]>, 511) = 0\n'])assert.throws(()=>auditListenerTrace(trace,30000,30020),/E_PROOF_LISTENER/);
+ if(process.platform!=='linux'){t.diagnostic('Actual syscall tracing is Linux-only');return}
+ const dir=mkdtempSync(join(tmpdir(),'kit-trace-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
+ const trace=join(dir,'listener.trace');
+ const result=spawnSync('strace',['-f','-q','-z','-yy','-e','trace=listen','-e','signal=none','-o',trace,process.execPath,'-e',"const server=require('net').createServer();server.listen(0,'127.0.0.1',()=>server.close())"],{encoding:'utf8',timeout:5000});
+ assert.equal(result.status,0,result.stderr);
+ const calls=readFileSync(trace,'utf8');assert.ok(auditListenerTrace(calls,1,65535).listeners.length>0);assert.throws(()=>auditListenerTrace(calls,1,1),/outside/);
+});
+
+test('missing supported listener tracer refuses qualification before any build',t=>{
+ const result=qualify(t,{consumerOnly:true,tracerFail:true});
+ assert.notEqual(result.status,0);assert.match(result.stderr,/strace 6.8/);assert.ok(!result.commands.some(c=>c.cmd==='bash'));
+});
+
+test('listener tracer preflight rejects obsolete or malformed decoder versions',async t=>{
+ const {requireListenerTracer}=await import('../../../scripts/proof-listener-audit.mjs');
+ const dir=mkdtempSync(join(tmpdir(),'kit-tracer-version-')),saved=process.env.PATH;
+ t.after(()=>{process.env.PATH=saved;rmSync(dir,{recursive:true,force:true})});process.env.PATH=dir;
+ for(const [version,valid] of [['strace -- version 6.7',false],['strace -- version 6.8',true],['not a strace version',false],['strace -- version 6.16',true],['strace -- version 7.0',true]]){
+  const binary=join(dir,'strace');writeFileSync(binary,`#!${process.execPath}\nconsole.log(${JSON.stringify(version)});\n`);chmodSync(binary,0o755);
+  if(valid)assert.equal(requireListenerTracer(),version);else assert.throws(requireListenerTracer,/strace 6.8/);
+ }
+});
+
+test('listener evidence refuses malformed named records and empty or incomplete audits',async()=>{
+ const {auditListenerTrace}=await import('../../../scripts/proof-listener-audit.mjs');
+ const valid='10 listen(4<TCP:[127.0.0.1:30001]>, 511) = 0\n';
+ for(const bad of ['11 listen(4<TCP:[127.0.0.1:30001]>, 511)\n','11 listen(4<TCP:[127.0.0.1:30001]>, 511) = ?\n','11 listen(4<TCP:[127.0.0.1:30001]>, 511 <detached ...>\n','11 listen(4<TCP:[127.0.0.1:30001]>, 511 <unfinished ...>\n11 listen(5<TCP:[127.0.0.1:30001]>, 511 <unfinished ...>\n'])assert.throws(()=>auditListenerTrace(valid+bad,30000,30020),/E_PROOF_LISTENER/);
+ const attempts=s=>[1,2].map(attempt=>({starter:s.id,kind:s.kind,attempt,status:'passed',range:[30000,30020],occupied:30000,cpuLoadWorkers:1,listenerAudit:audit()}));
+ const evidence=starterCases.map(s=>({starter:s.id,status:'passed',typecheck:'passed',build:'passed',frontendProofs:attempts(s),adaptedProofs:attempts(s),negativeProof:{status:'passed',listenerAudit:audit()},formSubmit:'passed'}));
+ validateStarterProofs(evidence);
+ for(const change of [a=>({...a,listeners:[]}),a=>({...a,samples:undefined}),a=>({...a,range:[1,2]}),a=>({...a,listeners:[{pid:0,port:30001}]}),a=>({...a,listeners:[{pid:1,port:30001.5}]})]){
+  const negative=structuredClone(evidence);negative[0].negativeProof.listenerAudit=change(audit());assert.throws(()=>validateStarterProofs(negative),/proof/);
+  const frontend=structuredClone(evidence);frontend[0].frontendProofs[0].listenerAudit=change(audit());assert.throws(()=>validateStarterProofs(frontend),/proof/);
+ }
 });

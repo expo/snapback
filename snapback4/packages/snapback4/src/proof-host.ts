@@ -8,6 +8,11 @@ import { pathToFileURL } from "node:url";
 
 const [kind, directory, ports, vitePath] = process.argv.slice(2);
 if (!directory || !ports || !["static", "vite"].includes(kind!)) throw Error("invalid proof host invocation");
+// @ref LLP 3000.011.003.000.000#8 — missing-export errors flush before keeper cleanup.
+// Validate the static export before creating a keeper: an error must flush
+// before group cleanup can terminate this host.
+const root = realpathSync(directory);
+if (kind === "static" && !existsSync(join(root, "index.html"))) throw Error(`static proof needs ${join(root, "index.html")}; build the app first`);
 // The driver owns this pipe: kernel EOF survives a SIGKILLed driver. Closing
 // the host also closes its keeper's pipe, which sweeps this private group.
 process.stdin.resume();
@@ -25,7 +30,6 @@ if (process.platform !== "win32") {
   // Keep the write end reachable for the entire host lifetime.
   process.once("exit", () => guard.stdin!.destroy());
 }
-const root = realpathSync(directory);
 const marker = `${process.pid}:${process.env.SNAPBACK4_PROOF_LAUNCH}`;
 const range = ports === "0" ? [0, 0] : ports.split("-").map(Number);
 const mime: Record<string, string> = { ".html": "text/html", ".js": "text/javascript", ".mjs": "text/javascript", ".css": "text/css", ".json": "application/json", ".wasm": "application/wasm", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".woff2": "font/woff2" };
@@ -45,7 +49,6 @@ async function host(port: number) {
     if (!address || typeof address === "string") throw Error("Vite has no bound TCP listener");
     return { port: address.port, stop: () => server.close() };
   }
-  if (!existsSync(join(root, "index.html"))) throw Error(`static proof needs ${join(root, "index.html")}; build the app first`);
   const server = createServer((req, res) => {
     res.setHeader("x-snapback4-proof", marker);
     res.setHeader("cache-control", "no-store");
