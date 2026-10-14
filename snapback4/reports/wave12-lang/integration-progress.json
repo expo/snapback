@@ -1,0 +1,51 @@
+{
+  "at": "2026-10-14T23:35:30.442362+00:00",
+  "final_qualification": false,
+  "evidence": [
+    {
+      "label": "initial-full-five",
+      "exit": 101,
+      "status": "not-final: moving tree and concurrent artifact invalidation",
+      "log": "logs/initial-full-five.log.gz",
+      "sha256": "402af818296693de04d9f1db73a7d5db046aad304cb8d7bfa874886b41617310",
+      "passed": 6085,
+      "failed": 43,
+      "ignored": 42,
+      "test_targets": 395
+    },
+    {
+      "label": "lean-102",
+      "exit": 0,
+      "status": "model before pending P1 R4 ordering fixes",
+      "log": "logs/lean-102.log.gz",
+      "sha256": "c995b22cbea4b61e725039e1e3833f5e2f15d9d0b6e48edffa6c0c8a501dae82"
+    },
+    {
+      "label": "ref-current",
+      "exit": 0,
+      "status": "passed",
+      "log": "logs/ref-current.log.gz",
+      "sha256": "a7a82493df2f8538ac3525ef456fbfda6cf611e21e9b43027259868e97fbf2e5"
+    },
+    {
+      "label": "docs-current",
+      "exit": 0,
+      "status": "passed with required Cargo environment",
+      "log": "logs/docs-current.log.gz",
+      "sha256": "f4d2d45ca12defd4f7b87f0f1a0b5de09eaa1a90d5d6ced1547fcf6e4342a29f"
+    }
+  ],
+  "census_v3": {
+    "schemas": 100,
+    "failed": 0,
+    "notes": 318,
+    "P3_P4_exceptions": []
+  },
+  "PAGE5_production_freeze": "fa6c1fdf68",
+  "reviews_pending": [
+    "P1/P2 R5 after native/formal R4 fixes",
+    "language R5 after scoped tests",
+    "PAGE5 R4"
+  ],
+  "cargo_env": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0"
+}
