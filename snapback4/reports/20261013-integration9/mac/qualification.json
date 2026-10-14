@@ -1,0 +1,46 @@
+{
+  "source": "b6dc002a4b0f030771ab79bdb6900c3386a877d8",
+  "rust": {
+    "passed": 6046,
+    "failed": 0,
+    "ignored": 41
+  },
+  "rust_summaries": 1094,
+  "lean_required": true,
+  "models_sequences": [
+    5000,
+    3000
+  ],
+  "isolated_timer_files": 17,
+  "xcframework_slices": 2,
+  "swift_build": "BUILD SUCCEEDED",
+  "simulators_booted": false,
+  "platform": "macOS-27.0.1-arm64-arm-64bit",
+  "client-tests": {
+    "files": 381,
+    "tests": 7437,
+    "pass": 7417,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 20,
+    "todo": 0
+  },
+  "client-models": {
+    "files": 2,
+    "tests": 81,
+    "pass": 81,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "fixture-tests": {
+    "files": 1,
+    "tests": 9,
+    "pass": 9,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  }
+}

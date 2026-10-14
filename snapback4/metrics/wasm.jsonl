@@ -47,3 +47,4 @@
 {"at":"2026-10-13T20:17:26Z","sha":"10d27f62cc","dirty":false,"wasm":{"raw":2305135,"gzip":703255,"brotli":531512},"glue":{"raw":15462,"gzip":3677,"brotli":3254},"wasmOpt":true,"budget":703755,"over":0}
 {"at":"2026-10-13T21:18:56Z","sha":"f0210519f6","dirty":false,"wasm":{"raw":2308188,"gzip":704317,"brotli":531990},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":704817,"over":0}
 {"at":"2026-10-14T00:34:27Z","sha":"82855e5ed5","dirty":false,"wasm":{"raw":2308188,"gzip":704178,"brotli":531888},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":704817,"over":0}
+{"at":"2026-10-14T02:32:18Z","sha":"b6dc002a4b","dirty":false,"wasm":{"raw":2308519,"gzip":703333,"brotli":531983},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":704678,"over":0}

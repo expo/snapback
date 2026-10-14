@@ -1,0 +1,97 @@
+{
+  "install": {
+    "bytes": 97,
+    "sha256": "f7ec845ec954c9b932773ece877e952ae994f8ad6ceba01bf7a0165da103ffdd",
+    "archive_bytes": 106
+  },
+  "build": {
+    "bytes": 6774,
+    "sha256": "ba193eae2b2259d529bd46018cdefc867f24d14041f78363258b535ef266d3da",
+    "archive_bytes": 1618
+  },
+  "wasm-build": {
+    "bytes": 8339,
+    "sha256": "b3e988e5c1f9022c676806616973f18cd54dcf59f93eb2106b4a2557754366ee",
+    "archive_bytes": 2147
+  },
+  "docs-budget": {
+    "bytes": 3837,
+    "sha256": "9eef50a70bb998cb2ad72f3d64a9d32b3619aed9c355185018bbff26328f180f",
+    "archive_bytes": 1303
+  },
+  "release-guard": {
+    "bytes": 62,
+    "sha256": "606aa243b3e304f754940db1b74fae1ccaa3d9b01051e2654385d6738f1e46b1",
+    "archive_bytes": 80
+  },
+  "package-typecheck": {
+    "bytes": 32,
+    "sha256": "38ac890c60e7f38d59ddfb410325cdfb5fca83c9411765c5481754e01c021630",
+    "archive_bytes": 49
+  },
+  "package-build": {
+    "bytes": 201,
+    "sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+    "archive_bytes": 116
+  },
+  "chat-check": {
+    "bytes": 1845,
+    "sha256": "73efacc7ca8795af57248de499ae6dcf54750366af194a2d035f0d4f2c5dddd5",
+    "archive_bytes": 916
+  },
+  "lean-setup": {
+    "bytes": 40,
+    "sha256": "3077ed472a37a64eaece1dc24ac4ee53158a515f03f790fde4877ae693a482bb",
+    "archive_bytes": 60
+  },
+  "cargo-test": {
+    "bytes": 239474,
+    "sha256": "bd63fcc8913b87513ba07137d290e7e54240f1c6ce28d7e04b1c8b1f78ed5af8",
+    "archive_bytes": 25693
+  },
+  "fixture-tests": {
+    "bytes": 2356,
+    "sha256": "f9e3b66b4db63d665be49d07e84848829356113b458476ade59898db4eb397e3",
+    "archive_bytes": 837
+  },
+  "chat-typecheck": {
+    "bytes": 32,
+    "sha256": "38ac890c60e7f38d59ddfb410325cdfb5fca83c9411765c5481754e01c021630",
+    "archive_bytes": 49
+  },
+  "expo-typecheck": {
+    "bytes": 32,
+    "sha256": "38ac890c60e7f38d59ddfb410325cdfb5fca83c9411765c5481754e01c021630",
+    "archive_bytes": 49
+  },
+  "client-tests": {
+    "bytes": 1956559,
+    "sha256": "1a8a643b6c200533ad01f3d7596db6466758850d4d597f89fa7e833343b83299",
+    "archive_bytes": 264870
+  },
+  "client-models": {
+    "bytes": 32648,
+    "sha256": "eb7b9394d0894ca03d71a2cc43a361d5497c450d8493946057278e8f86927320",
+    "archive_bytes": 5971
+  },
+  "wasm-measure": {
+    "bytes": 65430,
+    "sha256": "b9a4f9aa4b9a6f0a341d0dffc201918c5d6304d8112df83fa5232e82dd2ce768",
+    "archive_bytes": 9429
+  },
+  "wasm-budget-check": {
+    "bytes": 203,
+    "sha256": "85fc7ca7d54add37e2380dd2a280cbd618d0c86587d6c0eb0e0e0da6cd85ca1b",
+    "archive_bytes": 170
+  },
+  "xcframework": {
+    "bytes": 5870,
+    "sha256": "ac78decbf47f2c62f66beb648c9c5e988cff24fc1555cc8200bb4023069b8219",
+    "archive_bytes": 1040
+  },
+  "swift-compile": {
+    "bytes": 2228700,
+    "sha256": "9f967031aa05d17f013c5c886692b9b7e8abfd194709adff52679967ebaeb4ae",
+    "archive_bytes": 307817
+  }
+}

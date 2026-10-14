@@ -1,0 +1,14 @@
+{
+  "source": "68f82925d9",
+  "rust_failure_cases": [
+    "native_and_lean_generators_reach_by_id_membership_pages",
+    "native_and_lean_generators_reach_fully_pinned_membership_discovery"
+  ],
+  "rust_reason": "Missing worktree Lean oracle; restored pinned toolchain/oracle and repaired optional-model policy. Final Mac runs require Lean.",
+  "client_failure_cases": [
+    "Chromium worker=false: mounted Following tracks adopted follow custody",
+    "Chromium worker=false: mounted Following tracks adopted unfollow custody"
+  ],
+  "client_reason": "Pooled 40-second browser guards; both scoped direct cases and complete 24-case file pass. Added file to drained timer group, preserving guards.",
+  "cancellation": "Stopped the already-red driver and owned client runner after scoped repairs. Later incomplete/cancelled client-file statuses are not new product failures. Fresh complete one-pass qualification follows at b6dc002a4b."
+}

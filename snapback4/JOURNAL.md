@@ -94912,3 +94912,33 @@ including automatic adoption and all custody/receipt assertions. Add this
 40-second browser guard, 60-second test guard and every causal assertion.
 Validate the complete file and runner on Linux, then both full Mac halves in
 one fresh pass. No product timing or source custody rule changes.
+
+### 2026-10-14 — Integration 9 complete, 0.4.26
+
+REL2, DX2, DIAG, PAGE2, GATE and FLAKE are integrated in that order with
+no-ff merge commits, preserving both sides' features and prose. The separate
+0.4.26 bump is 82855e5ed5 and touches exactly the previous bump's ten paths.
+The final source/harness qualified on both hosts is b6dc002a4b.
+
+Linux: 5,961 Rust passes, zero failures, 41 ignored; the complete repeated
+0.4.26 clients pass 7,382 ordinary plus 81 model tests, 56 skips and nine
+fixture passes. Version checks pass 98 Rust and 185 client tests (nine skips).
+Root inventories and all 22 guide checks pass; ref-check has 545 LLPs,
+11,771 refs, zero errors. Native 20k and device 1k difftests have no errors or
+disagreements. Lean 20k retains only 203 cases in four baseline signatures,
+zero new signatures; all 71 examples, 58 axiom audits and seven oracle cases
+pass. The 17-file drained timer group preserves every guard/assertion.
+
+Mac: both full publication halves pass in one repaired pass, with 6,046 Rust
+passes/41 ignored and 7,417 ordinary plus 81 model passes/20 skips, nine
+fixtures, no failures/cancellations/TODOs. Pinned Lean is required. The
+15 MiB two-slice xcframework and generic arm64 simulator-target Release Swift
+compile pass, with no simulator boot and no other worktree modified.
+
+Locked wasm Linux: 2,308,188 raw / 704,178 gzip / 531,888 brotli bytes.
+Mac: 2,308,519 / 703,333 / 531,983. The cap is 704,678, the larger measured
+gzip plus exactly 500 bytes. No runtime ceiling is raised. Source-bound
+compressed logs, stage statuses, archive hashes, lane reports and native
+export/digest audits are in reports/20261013-integration9/. The only remaining
+red is the documented baseline Lean signature set. No GitHub push or npm
+publication; SSH delivery is restricted to the named Mac sb4-integ9 ref.
