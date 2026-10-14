@@ -54,11 +54,7 @@ pub fn validate(args: &[String]) -> Result<(), String> {
         } else if inline.is_none() {
             // Retired spellings route to their existing no-work explanation,
             // even with a missing value; new unknown flags still refuse here.
-            if matches!(verb, "init" | "new") && matches!(name, "recipe" | "prefix" | "authors" | "edges" | "public-profiles" | "public-posts" | "public-follows" | "public-reposts") {
-                if iter.peek().is_some_and(|value| !value.starts_with("--")) { iter.next(); }
-                continue;
-            }
-            if verb == "witness" && matches!(name, "repack" | "app-project") {
+            if retired(verb,name) {
                 if iter.peek().is_some_and(|value| !value.starts_with("--")) { iter.next(); }
                 continue;
             }
@@ -70,6 +66,14 @@ pub fn validate(args: &[String]) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+fn retired(verb: &str, name: &str) -> bool {
+    match verb {
+        "init" | "new"=>matches!(name,"recipe"|"prefix"|"authors"|"edges"|"public-profiles"|"public-posts"|"public-follows"|"public-reposts"),
+        "witness"=>matches!(name,"repack"|"app-project"),
+        _=>false,
+    }
 }
 
 pub fn switch(name: &str) -> bool { SWITCHES.contains(&name) }
@@ -102,6 +106,7 @@ pub(crate) fn help(verb: &str) -> String {
             ("deploy", "schema") => " — deploy a saved complete source; keep it outside snapback/",
             ("test", "source") => " — test a saved complete source; keep it outside snapback/",
             (_, "help") => " — print this verb's help (-h also works)",
+            _ if retired(verb,name) => " — retired spelling; the command explains its replacement before work",
             _ => "",
         };
         out.push_str(&format!("  --{name}{value}{description}\n"));
@@ -119,6 +124,7 @@ mod projection_tests {
                 assert!(page.lines().any(|line|line.trim_start().starts_with(&format!("--{name}"))),"{verb}: {name}");
                 let args = if super::switch(name) { vec![verb.into(), format!("--{name}")] } else { vec![verb.into(), format!("--{name}"), "value".into()] };
                 assert!(super::validate(&args).is_ok(),"{args:?}");
+                if super::retired(verb,name) { assert!(page.lines().find(|line|line.trim_start().starts_with(&format!("--{name} "))).unwrap().contains("retired spelling")); }
             }
         }
     }
