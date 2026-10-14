@@ -216,3 +216,17 @@ test('equivalent conjunctions preserve first-failure association and local guard
   run('deploy',deployment);
   assert.equal((await host.post('/m/edit',{note,body:'blocked'})).state,'sent');
 });
+
+test('leading program equality stays total for nullable scalar arguments', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=initial+`mutation nullable(note: notes, x: text <=10 ?):
+  require x = 'a' or x != 'a' else BLOCKED
+  update notes[note] {body: 'after'}
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);
+  const added=await host.post('/m/add',{body:'before'});
+  assert.equal((await host.post('/m/nullable',{note:added.result.id,x:null})).state,'sent');
+  writeFileSync(schema,source.replace("x = 'a' or x != 'a'","x != 'a' or x = 'a'"));
+  assert.match(run('deploy',deployment,'--check').stdout,/note:.*keeps equivalent nullable.require/);
+});
