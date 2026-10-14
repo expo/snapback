@@ -141,6 +141,35 @@ fn legacy_recorded_marker_cannot_substitute_for_sequence_capability() {
 }
 
 #[test]
+fn aggregate_identity_capability_upgrades_legacy_wire_and_fences_old_devices() {
+    let schema = compile("table entries:\n  group: text <=64\n  public\nview totals: count entries by .group\n  public\n");
+    assert!(schema.required_capabilities().contains("maintained-id-sha256-v1"));
+
+    // A pre-migration stored schema may already have a carrier for unrelated
+    // capabilities. Decode it once, then stamp the digest identity capability
+    // on every newly published schema/projection.
+    let mut legacy = serde_json::to_value(&schema).unwrap();
+    for table in legacy["tables"].as_object_mut().unwrap().values_mut() {
+        for constraint in table["constraints"].as_array_mut().unwrap() {
+            if let Some(names) = constraint.get_mut("Capabilities").and_then(|value| value.as_array_mut()) {
+                names.retain(|value| value != "maintained-id-sha256-v1");
+            }
+        }
+    }
+    let upgraded: Schema = serde_json::from_value(legacy).unwrap();
+    let encoded = serde_json::to_string(&upgraded).unwrap();
+    assert!(encoded.contains("maintained-id-sha256-v1"));
+
+    let required = snapback4_core::device_protocol::compatibility(&upgraded.public_projection());
+    let mut old = snapback4_core::device_protocol::DeviceEngine::current();
+    old.version = "0.4.28".into();
+    old.capabilities.retain(|capability| capability != "maintained-id-sha256-v1");
+    let refusal = snapback4_core::device_protocol::check(Some(&old), &required).unwrap_err();
+    assert_eq!(refusal.code, "E_DEVICE_VERSION");
+    assert!(refusal.message.contains("maintained-id-sha256-v1"), "{refusal:?}");
+}
+
+#[test]
 fn unknown_missing_and_duplicate_capabilities_refuse_decode() {
     for schema in [
         compile(include_str!("../../snapback4-lang/tests/fixtures/timeline-capability.q")),

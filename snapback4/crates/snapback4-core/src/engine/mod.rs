@@ -367,6 +367,9 @@ pub struct Engine {
     ceilings: Ceilings,
     entropy: u64,
     generation: u64,
+    /// Per-table physical expiry scan positions. Restricted or retained roots
+    /// consume a visit, so later due keys make progress across short sweeps.
+    expiry_after: BTreeMap<String, Vec<Value>>,
     /// Dev engines may consult replay policy; release engines never suppress effects.
     dev_effects: bool,
     /// The app's native module, once installed (LLP 3000.005).
@@ -400,14 +403,14 @@ impl Engine {
         let (generation, metadata) = Self::activate(&mut store, &schema, &programs, None, now, true, None, None)?;
         let dev_effects = metadata.dev_effects;
         store.exclude_ephemeral(&schema);
-        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id, generation, &schema)), store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id, generation, &schema)), store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// A detached read owner for HTTP query/sync computation. Creating it is
     /// brief; materializing its response does not hold the serving engine.
     pub fn reader(&self) -> Result<Self, RuntimeError> {
         Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: self.ephemeral.clone(), store: self.store.reader()?, schema: self.schema.clone(), programs: self.programs.clone(),
-            ceilings: self.ceilings, entropy: 0, generation: self.generation, dev_effects: self.dev_effects,
+            ceilings: self.ceilings, entropy: 0, generation: self.generation, expiry_after: BTreeMap::new(), dev_effects: self.dev_effects,
             #[cfg(feature = "native")] native: self.native.clone(),
             #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: self.presence.clone() })
     }
@@ -452,13 +455,15 @@ impl Engine {
         // @ref LLP 3000.007#20.9.3 — expiry index adoption is required even without physical cap counters.
         let (generation, metadata) = if stored_schema_hash == schema_hash
             && tx.meta("live_sum_candidates")?.as_deref() == Some("1")
+            && (!schema.maintains.iter().any(|maintain| maintain.row_key.is_none())
+                || tx.meta(crate::schema::MAINTAINED_ID_META)?.as_deref() == Some(crate::schema::MAINTAINED_ID_VERSION))
             && (!crate::rows::caps::required(&schema) || tx.meta("cap_counts_schema")?.as_deref() == Some(&schema_hash))
             && (!schema.tables.values().any(|table| table.not_before.is_some())
                 || tx.meta(crate::store::time_audience::PUBLICATION_STATE_KEY)?.as_deref() == Some("1")) { (generation, Store::finish_open(tx)?) }
             else { tx.rollback()?; Self::activate(&mut store, &schema, &programs, None, now, true, expected_release, Some(&kept))? };
         let dev_effects = metadata.dev_effects;
         store.accept_open(); store.exclude_ephemeral(&schema);
-        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id, generation, &schema)), store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id, generation, &schema)), store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// Serving a selected immutable release may attach only while that release
@@ -574,6 +579,7 @@ impl Engine {
         self.schema = schema;
         self.programs = programs;
         self.generation = generation;
+        self.expiry_after.clear();
         self.ephemeral.rebind_committed(metadata.store_id, generation, &self.schema);
         Ok(generation)
     }
@@ -606,22 +612,42 @@ impl Engine {
         let seq = tx.next_seq()?;
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
         let mut removed = 0_u64;
+        let mut visited = 0_usize;
+        let mut expiry_after = self.expiry_after.clone();
         let due = crate::store::Bounds { gte: Some(Value::Int(i64::MIN)), lte: Some(Value::Int(now)), ..Default::default() };
         'tables: for (table_name, index) in &expiring {
+            let mut bounds = due.clone();
+            bounds.after = expiry_after.get(table_name).cloned();
+            let mut wrapped = bounds.after.is_none();
             loop {
-                let batch = (limit - removed as usize).min(256);
+                let batch = (limit - visited).min(256);
                 if batch == 0 {
                     break 'tables;
                 }
-                let rows = tx.scan(table_name, index, &[], &due, crate::store::Dir::Asc, batch)?;
+                let rows = tx.scan(table_name, index, &[], &bounds, crate::store::Dir::Asc, batch)?;
                 let count = rows.len();
-                for (row, _) in rows {
+                for (row, key) in rows {
+                    bounds.after = crate::key::decode(&key);
+                    if let Some(after) = &bounds.after { expiry_after.insert(table_name.clone(), after.clone()); }
+                    visited += 1;
                     if removed > 0 && started.elapsed() >= budget { break 'tables; }
-                    if runner.physical_children(table_name,row.field("id")?)? { break 'tables; }
-                    runner.remove(table_name, &row)?;
-                    removed += 1;
+                    match runner.retire_expired_row(table_name, &row) {
+                        Ok(true) => removed += 1,
+                        Ok(false) => {},
+                        // A restricted root stays physically present and
+                        // logically expired. Continue by key so it cannot
+                        // wedge cleanup of unrelated due rows.
+                        Err(RuntimeError::Structural { code: "E_REFERENCED", .. }) => {},
+                        Err(error) => return Err(error),
+                    }
                 }
                 if count < batch {
+                    expiry_after.remove(table_name);
+                    if !wrapped && visited < limit {
+                        bounds = due.clone();
+                        wrapped = true;
+                        continue;
+                    }
                     break;
                 }
             }
@@ -635,6 +661,7 @@ impl Engine {
             partition::append(&tx, seq, &events)?;
         }
         tx.commit()?;
+        self.expiry_after = expiry_after;
         self.advance_time_audience(now)?;
         Ok(removed)
     }

@@ -70,6 +70,9 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     // @ref LLP 3000.036#12 — a decoder that orders only int/time in insert rules refuses a money or decimal order by name.
     ("insert-rule-order-units", |s| s.tables.values().any(|t| ordered_units(t, &t.rules.insert))),
     ("row-keyed-view", |s| s.maintains.iter().any(|m|m.row_key.is_some())),
+    // @ref LLP 3000.007.003#30-aggregate-target-identity-and-migration — older devices compute canonical-JSON
+    // aggregate ids and would silently miss digest-addressed target rows.
+    ("maintained-id-sha256-v1", |s| s.maintains.iter().any(|m| m.row_key.is_none())),
     // @ref LLP 3000.039#8 — an older engine or device must not delete with the old (orphaning) semantics.
     ("reference-actions", |s| s.tables.values().any(|t| !t.on_delete.is_empty())),
     ("read-through", |s| s.tables.values().any(|t| t.through.is_some()) || s.maintains.iter().any(|m| m.parent_key.is_some() || !m.aliases.is_empty())),
@@ -196,6 +199,12 @@ impl<'de> Deserialize<'de> for Schema {
         for cap in ["source-write-reservations-v1", "source-write-reservations-v2"] {
             if declared.contains(cap) { required.insert(cap.into()); }
             else { required.remove(cap); }
+        }
+        // Stores written before the digest migration have no carrier for this
+        // capability. Admit that persisted schema for server-side rebuilding;
+        // its next serialization stamps the capability, so old devices refuse.
+        if !declared.contains("maintained-id-sha256-v1") {
+            required.remove("maintained-id-sha256-v1");
         }
         // Before the shared fence, the binder emitted Recorded on F2 tables
         // even when the same schema also declared timelines. Only that legacy

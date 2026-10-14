@@ -84,7 +84,9 @@ impl Engine {
             if let Some(options)=release {tx.set_meta("release",&options.release.to_string())?;}
             use rusqlite::OptionalExtension;
             let repair_live_sums = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'live_sum_candidates'", [], |row| row.get::<_, String>(0)).optional()?.as_deref() != Some("1");
-            if !changed && !repair_live_sums { return Ok(()); }
+            let repair_maintained_ids = schema.maintains.iter().any(|maintain| maintain.row_key.is_none())
+                && tx.meta(crate::schema::MAINTAINED_ID_META)?.as_deref() != Some(crate::schema::MAINTAINED_ID_VERSION);
+            if !changed && !repair_live_sums && !repair_maintained_ids { return Ok(()); }
             let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
             let previous: Option<Schema> = previous.map(|text| serde_json::from_str(&text).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))).transpose()?;
             if changed {
@@ -97,9 +99,15 @@ impl Engine {
             let population_changed=tx.meta("activation_population")?.as_deref()==Some("true");
             let rebuild: Vec<_> = schema.maintains.iter().filter(|m| {
                 (changed && (population_changed || previous.as_ref().is_none_or(|old| crate::successor::maintain_rebuild_needed(old, schema, m))))
+                    || (repair_maintained_ids && m.row_key.is_none())
                     || (repair_live_sums && matches!(m.kind, crate::schema::MaintainKind::Sum { .. }) && schema.table(&m.source).is_some_and(|source| source.is_expiring()))
             }).collect();
             tx.set_meta("live_sum_candidates", "1")?;
+            if repair_maintained_ids {
+                // This write is inside the activation transaction: a failed
+                // rebuild leaves both old rows and the old/missing marker.
+                tx.set_meta(crate::schema::MAINTAINED_ID_META, crate::schema::MAINTAINED_ID_VERSION)?;
+            }
             let attribution = recorded::paths_changed(schema, previous.as_ref());
             let columns = column_activation::changed_parents(schema, if population_changed {None} else {previous.as_ref()});
             if rebuild.is_empty() && !attribution && columns.is_empty() { return Ok(()); }

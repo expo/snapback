@@ -114,6 +114,8 @@ pub struct MemoryStore {
     schema: Option<Schema>,
     changes: RefCell<Vec<PendingChange>>,
     drained: Cell<usize>,
+    /// Embedded authoritative sweeps retain progress past blocked due roots.
+    expiry_after: BTreeMap<String, Vec<Value>>,
 }
 
 fn row_key(table: &str, id: &str) -> String {
@@ -873,7 +875,8 @@ impl<'a> Drop for MemoryTx<'a> {
 impl MemoryStore {
     fn install_open_native<R>(&mut self, schema: &Schema, metadata: &BTreeMap<String, String>, reset: bool, expected: &BTreeMap<String, Option<String>>, finish: impl FnOnce(&MemoryTx<'_>) -> Result<R, RuntimeError>) -> Result<R, RuntimeError> {
         let mut next = Self { state: RefCell::new(self.state.borrow().clone()), schema: self.schema.clone(),
-            changes: RefCell::new(self.changes.borrow().clone()), drained: Cell::new(self.drained.get()) };
+            changes: RefCell::new(self.changes.borrow().clone()), drained: Cell::new(self.drained.get()),
+            expiry_after: BTreeMap::new() };
         next.install_checked(schema, metadata, reset, expected)?;
         let tx = next.transaction()?;
         let result = finish(&tx)?;

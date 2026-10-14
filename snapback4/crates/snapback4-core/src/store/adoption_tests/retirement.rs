@@ -92,6 +92,67 @@ fn rebuild_groups(next: &str, remaining: usize) {
     e.adopt_at(next.schema, next.programs, 10).unwrap();
     assert_eq!(e.store().rows("totals").unwrap().len(), remaining);
 }
+
+#[test]
+fn missing_identity_marker_rebuilds_a_principal_reference_and_max_text_group() {
+    const SOURCE: &str = "table parents:\n  public\ntable entries:\n  owner: principal\n  parent: parents\n  token: text <=64\n  amount: int\n  public\nview totals: sum entries of .amount by .owner, .parent, .token\n  public\n";
+    let initial = compile(SOURCE);
+    let mut e = Engine::new_at(Store::memory().unwrap(), initial.schema, initial.programs, 0).unwrap();
+    let owner = format!("user:{}", "o".repeat(59));
+    let parent = "p".repeat(64);
+    let token = "t".repeat(64);
+    assert_eq!((owner.len(), parent.len(), token.len()), (64, 64, 64));
+    e.seed_at([
+        ("parents".into(), object([("id", Value::Id(parent.clone()))])),
+        ("entries".into(), object([("id", Value::Id("entry".into())), ("owner", Value::Id(owner.clone())),
+            ("parent", Value::Id(parent.clone())), ("token", Value::String(token.clone())), ("amount", Value::Int(7))])),
+    ], 0).unwrap();
+    let expected = crate::schema::maintained_id(&[Value::Id(owner), Value::Id(parent), Value::String(token)]);
+    let before = e.store().rows("totals").unwrap();
+    assert_eq!(before.len(), 1);
+    assert_eq!(before[0].field("id").unwrap(), &Value::Id(expected.clone()));
+    assert_eq!(before[0].field("value").unwrap(), &Value::Int(7));
+    assert_eq!(expected.len(), 64);
+
+    e.store().conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
+    let next = compile(SOURCE);
+    assert_eq!(preview(&mut e, &next.schema).aggregate_rows, 1);
+    let generation = e.generation();
+    e.adopt_at(next.schema, next.programs, 1).unwrap();
+    assert!(e.generation() > generation);
+    assert_eq!(e.store().meta(crate::schema::MAINTAINED_ID_META).unwrap().as_deref(), Some(crate::schema::MAINTAINED_ID_VERSION));
+    let after = e.store().rows("totals").unwrap();
+    assert_eq!(after.len(), 1);
+    assert_eq!(after[0].field("id").unwrap(), &Value::Id(expected));
+    assert_eq!(after[0].field("value").unwrap(), &Value::Int(7));
+}
+
+#[test]
+fn identity_redeployment_rebuilds_the_ungrouped_empty_tuple() {
+    const SOURCE: &str = "table entries:\n  public\nview total: count entries\n  public\n";
+    let initial = compile(SOURCE);
+    let mut e = Engine::new_at(Store::memory().unwrap(), initial.schema, initial.programs, 0).unwrap();
+    e.seed_at([("entries".into(), object([("id", Value::Id("entry".into()))]))], 0).unwrap();
+    let expected = crate::schema::maintained_id(&[]);
+    let before = e.store().rows("total").unwrap();
+    assert_eq!(before.len(), 1);
+    assert_eq!(before[0].field("id").unwrap(), &Value::Id(expected.clone()));
+    assert_eq!(before[0].field("$global").unwrap(), &Value::Bool(true));
+    assert_eq!(before[0].field("value").unwrap(), &Value::Int(1));
+
+    e.store().conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
+    let next = compile(SOURCE);
+    assert_eq!(preview(&mut e, &next.schema).aggregate_rows, 1);
+    let generation = e.generation();
+    e.adopt_at(next.schema, next.programs, 1).unwrap();
+    assert!(e.generation() > generation);
+    let after = e.store().rows("total").unwrap();
+    assert_eq!(after.len(), 1);
+    assert_eq!(after[0].field("id").unwrap(), &Value::Id(expected));
+    assert_eq!(after[0].field("$global").unwrap(), &Value::Bool(true));
+    assert_eq!(after[0].field("value").unwrap(), &Value::Int(1));
+}
+
 #[test]
 fn changed_filter_counts_cleared_retained_view_rows() {
     rebuild_groups(&GROUPS.replace("count entries by", "count entries where .n < 0 by"), 0);

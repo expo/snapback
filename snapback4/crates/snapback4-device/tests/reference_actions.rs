@@ -77,6 +77,42 @@ fn task_ids<S: DeviceStore>(d: &mut Device<S>) -> Json {
 }
 
 fn run<H: Host>(host: &mut H) {
+    // Server expiry is a physical retirement with the schema's declared
+    // referential effects. Devices receive that one committed closure just as
+    // they receive an authored parent delete.
+    let expiring = r#"
+table parents:
+  until: time
+  expire at .until
+  public 'parents'
+  sync public
+table cascadeChildren:
+  parent: parents on delete cascade
+  public 'cascadeChildren'
+  sync public
+table nullableChildren:
+  parent: parents ? on delete set null
+  public 'nullableChildren'
+  sync public
+"#;
+    let (mut e, b) = compile(expiring);
+    e.seed_at([
+        ("parents".into(), snapback4_core::value::object([("id", id("p")), ("until", snapback4_core::Value::Int(10))])),
+        ("cascadeChildren".into(), snapback4_core::value::object([("id", id("c")), ("parent", id("p"))])),
+        ("nullableChildren".into(), snapback4_core::value::object([("id", id("n")), ("parent", id("p"))])),
+    ], 0).unwrap();
+    let mut d = host.open("expiry-actions", Some(b)).unwrap();
+    acquire(&mut e, &mut d, "alice", 0);
+    let from = d.state().unwrap().0;
+    assert_eq!(e.sweep_expired(10, 100).unwrap(), 1);
+    d.apply(&stream_page(&mut e, "alice", from), false).unwrap();
+    assert!(d.store().raw_rows("parents").is_empty());
+    assert!(d.store().raw_rows("cascadeChildren").is_empty());
+    let nullable = d.store().raw_rows("nullableChildren");
+    assert_eq!(nullable.len(), 1);
+    assert_eq!(nullable[0].field("parent").unwrap(), &snapback4_core::Value::Null);
+    host.close("expiry-actions", d);
+
     // Every referencing group is public and held: the cascade predicts, deleting the held tasks.
     let (mut e, b) = compile(PUBLIC);
     assert_eq!(write(&mut e, "setup", "alice", &[]), "ok");
@@ -171,6 +207,55 @@ mutation drop(id: parents):
     assert!(queued.to_string().contains("retained"), "{queued:?}");
     assert_eq!(d.store().raw_rows("children").len(), 2, "queue rolls back all local writes");
     host.close("retained-cascade", d);
+}
+
+#[test]
+fn authoritative_memory_sweeps_resume_and_wrap_past_restricted_roots() {
+    let source = r#"
+table roots:
+  expiresAt: time ?
+  expire at .expiresAt
+  public 'roots'
+table cascadeKids:
+  root: roots on delete cascade
+  cap 4 by root
+  public 'cascade kids'
+table nullableKids:
+  root: roots ? on delete set null
+  cap 4 by root
+  public 'nullable kids'
+table blockers:
+  root: roots
+  public 'blockers'
+"#;
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut store = snapback4_device::memory::MemoryStore::new();
+    store.activate_server_at(bound.schema, 0).unwrap();
+    store.seed_server_at([
+        ("roots".into(), snapback4_core::value::object([("id", id("a-blocked")), ("expiresAt", snapback4_core::Value::Int(10))])),
+        ("roots".into(), snapback4_core::value::object([("id", id("b-blocked")), ("expiresAt", snapback4_core::Value::Int(10))])),
+        ("roots".into(), snapback4_core::value::object([("id", id("c-blocked")), ("expiresAt", snapback4_core::Value::Int(10))])),
+        ("roots".into(), snapback4_core::value::object([("id", id("z-free")), ("expiresAt", snapback4_core::Value::Int(10))])),
+        ("cascadeKids".into(), snapback4_core::value::object([("id", id("cz")), ("root", id("z-free"))])),
+        ("nullableKids".into(), snapback4_core::value::object([("id", id("nz")), ("root", id("z-free"))])),
+        ("blockers".into(), snapback4_core::value::object([("id", id("ba")), ("root", id("a-blocked"))])),
+        ("blockers".into(), snapback4_core::value::object([("id", id("bb")), ("root", id("b-blocked"))])),
+        ("blockers".into(), snapback4_core::value::object([("id", id("bc")), ("root", id("c-blocked"))])),
+    ], 0).unwrap();
+    let wrapped_removed: u64 = (0..4).map(|_| store.sweep_server_at(10, 1).unwrap()).sum();
+    assert_eq!(wrapped_removed, 1, "continuation reaches the free root within one bounded turn per due root");
+    assert!(store.raw_rows("cascadeKids").is_empty());
+    assert_eq!(store.raw_rows("nullableKids")[0].field("root").unwrap(), &snapback4_core::Value::Null);
+
+    // The cursor is after z. A lower new key is found after the scan wraps;
+    // each restricted root still consumes one bounded visit.
+    store.seed_server_at([("roots".into(), snapback4_core::value::object([
+        ("id", id("aa-free")), ("expiresAt", snapback4_core::Value::Int(10)),
+    ]))], 0).unwrap();
+    let wrapped_removed: u64 = (0..4).map(|_| store.sweep_server_at(10, 1).unwrap()).sum();
+    assert_eq!(wrapped_removed, 1, "a wrapped scan reaches the new lower key within one bounded turn per due root");
+    assert!(!store.raw_rows("roots").iter().any(|row| row.field("id").unwrap() == &id("aa-free")));
 }
 
 #[test] fn reference_actions_memory() { run(&mut Memory::new()); }

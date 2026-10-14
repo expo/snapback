@@ -172,7 +172,8 @@ impl Runner<'_> {
         // and reserved both target proofs. Retiring an expired predecessor
         // uses that same allowance, not a third read-rule reservation.
         let collision_probes = if upsert_index.is_some() { 0 } else { super::rules::rule_probes(&table.rules.read) };
-        let has_children = self.schema.children(table_name).next().is_some();
+        let has_children = self.schema.children(table_name).next().is_some()
+            || self.schema.is_referenced(table_name);
         let predecessor = self.authorized_scan(&[(MeterKind::RuleProbes, collision_probes)], |runner, allowance| {
             let existing = runner.tx.get(allowance, table_name, &id)?;
             if let Some(row) = &existing {
@@ -203,7 +204,7 @@ impl Runner<'_> {
             }
             // The expired predecessor is internal authorization work, not a
             // disclosed examination (LLP 3000.015 §§1–2).
-            self.remove(table_name, existing)?;
+            self.retire_expired_row(table_name, existing)?;
         }
         // @ref LLP 3000.007#20.5 — an authored plain insert predicts unproved; a later refusal is then the server's
         // to report. The engine's own timeline writes are not the author's prediction.
@@ -446,6 +447,27 @@ impl Runner<'_> {
         self.row_changed(table_name, Some(old), None, Origin::Source)
     }
 
+    /// Physically retire one row whose upper lifetime ended. Expiry bypasses
+    /// the root's authored delete rule and constraints, but it does not bypass
+    /// the schema's declared effects on rows that reference the root. A
+    /// read-through child still retains the expired parent physically.
+    // @ref LLP 3000.039#3 — expiry cleanup runs the same closure/restrict/set-null actions as an authored delete.
+    pub(super) fn retire_expired_row(&mut self, table_name: &str, old: &Value) -> Result<bool, RuntimeError> {
+        if self.physical_children(table_name, old.field("id")?)? { return Ok(false); }
+        let current = if self.schema.is_referenced(table_name) {
+            self.apply_reference_actions(table_name, old)?;
+            // A cascade may maintain a column on the root; delete its current
+            // physical image so index and cap entries match what is stored.
+            let id = old.field("id")?.as_str()?;
+            self.metered_scan(|runner, allowance| runner.tx.get(allowance, table_name, id))?
+                .unwrap_or_else(|| old.clone())
+        } else {
+            old.clone()
+        };
+        self.remove(table_name, &current)?;
+        Ok(true)
+    }
+
     /// At a program commit's end, retire every synced row the commit changed
     /// and every row it inserted whose lifetime has already ended: its final
     /// image was never live at a commit boundary, so it leaves no row for a
@@ -485,7 +507,7 @@ impl Runner<'_> {
             let Some(row) = self.metered_scan(|runner, allowance| runner.tx.get(allowance, table_name, id))? else { return Ok(());
             };
             let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-            if table.expired(&row, now) && !self.physical_children(table_name,row.field("id")?)? { self.remove(table_name, &row) } else { Ok(()) }
+            if table.expired(&row, now) { self.retire_expired_row(table_name, &row).map(|_| ()) } else { Ok(()) }
         });
         let aggregates = self.retiring.take().map(|retiring| retiring.aggregates).unwrap_or_default();
         let retired = retired.and_then(|()| self.apply_retired_aggregates(aggregates));

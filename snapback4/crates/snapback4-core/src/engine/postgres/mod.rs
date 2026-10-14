@@ -49,6 +49,7 @@ pub struct PostgresEngine {
     mode: WriteMode,
     retries: u64,
     precharge: Metered,
+    expiry_after: BTreeMap<String, Vec<Value>>,
 }
 
 impl PostgresEngine {
@@ -143,7 +144,7 @@ impl PostgresEngine {
         tx.commit()?;
         store.generation = generation;
         schema.prepare_delivery_lookup();
-        Ok(Self { store, schema, programs, ceilings: Ceilings::default(), mode: WriteMode::Serialized, retries: 0, precharge: Metered::default() })
+        Ok(Self { store, schema, programs, ceilings: Ceilings::default(), mode: WriteMode::Serialized, retries: 0, precharge: Metered::default(), expiry_after: BTreeMap::new() })
     }
 
     pub fn schema(&self) -> &Schema {

@@ -81,11 +81,14 @@ impl Store {
         let changed = previous != *schema;
         // Legacy live-sum repair can rebuild retained targets even with no schema delta.
         let repair_sums = tx.meta("live_sum_candidates")?.as_deref() != Some("1");
+        let repair_maintained_ids = schema.maintains.iter().any(|maintain| maintain.row_key.is_none())
+            && tx.meta(crate::schema::MAINTAINED_ID_META)?.as_deref() != Some(crate::schema::MAINTAINED_ID_VERSION);
         let cap_schema = tx.meta("cap_counts_schema")?;
         let rebuild_caps = (crate::rows::caps::required(schema) || cap_schema.is_some())
             && cap_schema.as_deref() != Some(&schema.hash());
         let rebuild: Vec<_> = schema.maintains.iter().filter(|m|
             (changed && crate::successor::maintain_rebuild_needed(&previous, schema, m))
+                || (repair_maintained_ids && m.row_key.is_none())
                 || (repair_sums && matches!(m.kind, crate::schema::MaintainKind::Sum { .. })
                     && schema.table(&m.source).is_some_and(|t| t.is_expiring()))).collect();
         if !changed && rebuild.is_empty() && !rebuild_caps {

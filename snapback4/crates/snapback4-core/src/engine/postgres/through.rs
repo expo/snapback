@@ -25,7 +25,8 @@ impl PostgresEngine {
             Meter::new(Ceilings::unbounded(), Cut::Abort),
             seq,
         );
-        let count = runner.sweep_server_rows(limit)?;
+        let mut expiry_after = self.expiry_after.clone();
+        let count = runner.sweep_server_rows(limit, &mut expiry_after)?;
         let events = runner.events.take();
         let tables: Vec<_> = runner.written_tables.iter().cloned().collect();
         let writes = runner.rows_written;
@@ -43,6 +44,7 @@ impl PostgresEngine {
             partition::append(&tx, seq, &events)?;
         }
         tx.commit()?;
+        self.expiry_after = expiry_after;
         Ok(count)
     }
 
@@ -180,6 +182,7 @@ impl PostgresEngine {
         self.schema = schema;
         self.programs = programs;
         self.store.generation = generation;
+        self.expiry_after.clear();
         Ok(generation)
     }
 }

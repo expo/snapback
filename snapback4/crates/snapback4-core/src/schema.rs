@@ -1740,12 +1740,27 @@ pub fn maintained_key(source: &Value, by: &[String]) -> Vec<Value> {
     by.iter().map(|field| source.field(field).cloned().unwrap_or(Value::Null)).collect()
 }
 
-/// The id of a maintained row is its group's canonical form, as Snapback 2
-/// spelled it: an aggregate's identity is its key, and the conformance
-/// corpus holds it to this spelling. Programs read aggregates by group,
-/// never by id.
+/// Activation marker for the maintained-row address function. A missing or
+/// older marker rebuilds every aggregate target before the generation opens.
+pub const MAINTAINED_ID_META: &str = "maintained_id_version";
+pub const MAINTAINED_ID_VERSION: &str = "sha256-v1";
+
+/// The id of a maintained row is a fixed-size digest of its typed group key.
+/// Programs address aggregates by their group index, never by this internal
+/// id. Domain separation makes future encodings explicit migrations.
+// @ref LLP 3000.007.003#30-aggregate-target-identity-and-migration — every aggregate writer, synthetic check row and adoption rebuild shares this bounded identity.
 pub fn maintained_id(key: &[Value]) -> String {
-    crate::value::canonical_json(&key)
+    crate::value::digest(&("snapback4-maintained-id/sha256-v1", key))
+}
+
+#[test]
+fn maintained_identity_is_fixed_size_and_domain_separated() {
+    let short = maintained_id(&[Value::String("x".into())]);
+    let long = maintained_id(&[Value::String("x".repeat(100_000))]);
+    assert_eq!(short.len(), 64);
+    assert_eq!(long.len(), 64);
+    assert_ne!(short, long);
+    assert_ne!(short, crate::value::digest(&[Value::String("x".into())]));
 }
 
 /// Whether a value is (or contains) the reserved system principal.
