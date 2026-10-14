@@ -161,6 +161,20 @@ partial def expr (j : Json) : D Expr := do
       else if name == "yearStart" then pure CalFn.yearStart
       else throw s!"unknown calendar builtin {name}"
     return .cal f (← expr (← field v "arg"))
+  | "roundDiv" => do
+    let mode ← str v "rounding"
+    let rounding : Rounding ← match mode with
+      | "toward-zero" => pure .towardZero
+      | "away-from-zero" => pure .awayFromZero
+      | "floor" => pure .floor
+      | "ceiling" => pure .ceiling
+      | "half-away-from-zero" => pure .halfAwayFromZero
+      | "half-even" => pure .halfEven
+      | _ => throw s!"unknown rounding mode {mode}"
+    let scale ← match optField v "scale" with
+      | none => pure none
+      | some value => pure (some (← value.getNat?))
+    return .roundDiv rounding scale (← expr (← field v "dividend")) (← expr (← field v "divisor"))
   | "arr" => return .arr (← (← v.getArr?).toList.mapM expr)
   | "record" => return .record (← named v)
   | "point" => return .point (← str v "table") (← named (← field v "key"))

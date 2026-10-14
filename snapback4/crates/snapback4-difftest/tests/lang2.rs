@@ -2,7 +2,13 @@
 //! every generated program compiles, the calendar cases are inside the Lean
 //! model's fragment (so `run-lean` compares them rather than skipping them),
 //! and the bounded cases run on the server and both device stores.
-use snapback4_difftest::{ast::{Body, Expr, Type}, execute, generate, lean};
+use snapback4_difftest::{
+    ast::{Body, Expr, Type},
+    campaign::Report,
+    devices, execute, generate, lean,
+    oracle::Verdict,
+};
+use std::collections::BTreeSet;
 
 fn calendar(case: &generate::Case) -> bool {
     fn has(e: &Expr) -> bool {
@@ -20,14 +26,24 @@ fn bounded(case: &generate::Case) -> bool {
     case.program.tables[0].columns.iter().any(|c| matches!(c.ty, Type::IntRange(..))) || case.program.arg_bound.is_some()
 }
 
+fn rounding(case: &generate::Case) -> Option<(&'static str, Option<u8>)> {
+    match &case.program.body {
+        Body::Scalar(Expr::RoundedDivide(mode, scale, ..)) => Some((mode.source(), *scale)),
+        _ => None,
+    }
+}
+
 #[test]
-fn calendar_and_bounded_cases_are_drawn_compile_and_reach_the_model() {
-    let (mut calendars, mut bounds, mut supported) = (0, 0, 0);
+fn calendar_bounded_and_rounded_cases_are_drawn_compile_and_reach_the_model() {
+    let (mut calendars, mut bounds, mut supported, mut rounded) = (0, 0, 0, 0);
+    let mut modes = BTreeSet::new();
+    let mut scales = BTreeSet::new();
+    let mut rounded_representative = None;
     for seed in 0..3_000 {
         // The Lean campaign's case: the shared generator, half narrowed into the fragment.
         let case = lean::generate(seed);
         let source = case.program.source();
-        if calendar(&case) || bounded(&case) {
+        if calendar(&case) || bounded(&case) || rounding(&case).is_some() {
             execute::compile(&source).unwrap_or_else(|e| panic!("seed {seed}: {e}\n{source}"));
         }
         if calendar(&case) {
@@ -39,6 +55,14 @@ fn calendar_and_bounded_cases_are_drawn_compile_and_reach_the_model() {
                 Ok(()) => supported += 1,
                 Err(reason) => assert!(!reason.starts_with("call-") && !reason.starts_with("calendar"), "seed {seed}: {reason}\n{source}"),
             }
+        }
+        if let Some((mode, scale)) = rounding(&case) {
+            rounded += 1;
+            modes.insert(mode);
+            scales.insert(scale);
+            rounded_representative.get_or_insert_with(|| case.clone());
+            let module = lean::module(&source).unwrap_or_else(|reason| panic!("seed {seed}: {reason}\n{source}"));
+            module.program("run").unwrap_or_else(|unsupported| panic!("seed {seed}: {}\n{source}", unsupported.reason));
         }
         let widened = generate::generate(seed);
         if bounded(&widened) {
@@ -52,4 +76,22 @@ fn calendar_and_bounded_cases_are_drawn_compile_and_reach_the_model() {
     assert!(calendars >= 100, "{calendars} calendar cases in 3,000 seeds");
     assert!(supported * 2 >= calendars, "{supported} of {calendars} calendar cases are compared by run-lean");
     assert!(bounds >= 300, "{bounds} bounded cases in 3,000 seeds");
+    assert!(rounded >= 20, "{rounded} rounded-division cases in 3,000 seeds");
+    assert_eq!(modes, ["away-from-zero", "ceiling", "floor", "half-away-from-zero", "half-even", "toward-zero"].into_iter().collect());
+    assert_eq!(scales, [None, Some(0), Some(2), Some(6), Some(12)].into_iter().collect());
+
+    // One drawn member of the new family must execute, not merely compile:
+    // native server versus the independent Lean evaluator, then the same
+    // server outcome versus both device stores.
+    let case = rounded_representative.expect("a rounded-division representative");
+    let source = case.program.source();
+    lean::refresh().unwrap();
+    assert!(lean::oracle_path().is_file(), "build the required Lean oracle first");
+    let checked = lean::compare(&case, &source).unwrap();
+    assert!(matches!(checked.verdict, Verdict::Pass) && checked.executed > 0,
+        "rounded native/Lean execution: {:?}\n{source}", checked.verdict);
+    let mut report = Report::default();
+    let mut files = devices::Files::new().unwrap();
+    devices::check(&case, &mut report, &mut files, |finding| panic!("rounded device disagreement: {finding:?}")).unwrap();
+    assert!(!report.failed() && report.executed > 0, "rounded device executions: {report:#?}");
 }

@@ -94,6 +94,31 @@ def binop (op : BinOp) (a b : Value) : EM Value :=
     else typeErr
   | _, _, _ => typeErr
 
+/-- Truncating quotient/remainder followed by one exact rounding step. The
+model deliberately derives truncation from the existing Euclidean primitive,
+so its oracle is independent of the Rust implementation. -/
+def roundedDiv (rounding : Rounding) (scale : Option Nat) (x y : Int) : EM Value := do
+  if y = 0 then refuse "E_DIV_ZERO"
+  let x := x * (10 : Int) ^ scale.getD 0
+  let qe := Int.ediv x y
+  let re := Int.emod x y
+  let q := if x < 0 ∧ re ≠ 0 then qe + (if y < 0 then -1 else 1) else qe
+  let r := x - q * y
+  if r = 0 then checkI53 q else
+    let direction : Int := if (x < 0) = (y < 0) then 1 else -1
+    let away := q + direction
+    let result := match rounding with
+      | .towardZero => q
+      | .awayFromZero => away
+      | .floor => if direction < 0 then away else q
+      | .ceiling => if 0 < direction then away else q
+      | .halfAwayFromZero => if Int.natAbs r * 2 ≥ Int.natAbs y then away else q
+      | .halfEven =>
+          if Int.natAbs r * 2 > Int.natAbs y ∨
+              (Int.natAbs r * 2 = Int.natAbs y ∧ Int.emod q 2 ≠ 0)
+          then away else q
+    checkI53 result
+
 /-- A calendar builtin over unbounded integers; the caller checks i53. A
 non-positive period or an offset outside `[0, period)` is unreachable from a
 checked program. -/
@@ -929,6 +954,12 @@ def evalExpr : Nat → Ctx → View → Env → Option Value → Expr → EM (Va
       | .s (.int n), g => match g n with
         | some r => return (← checkI53 r, none)
         | none => typeErr
+      | _, _ => typeErr
+    | .roundDiv rounding scale a b => do
+      let (x, _) ← ev a
+      let (y, _) ← ev b
+      match x, y with
+      | .s (.int x), .s (.int y) => return (← roundedDiv rounding scale x y, none)
       | _, _ => typeErr
     | .arr xs => do return (.arr (← evs xs), none)
     | .record fs => do

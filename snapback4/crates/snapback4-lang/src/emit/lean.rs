@@ -669,6 +669,9 @@ impl<'a> Scope<'a> {
                     .unwrap_or(Ty::Unknown)
             }
             Expr::Read(read) if read.range.is_none() && read.filter.is_none() && !read.keys.is_empty() => Ty::Row(read.table.clone()),
+            // The model erases decimal static scale but evaluates its exact stored integer.
+            Expr::Call { name, args, .. } if name == "divide" && args.len() == 4 => if matches!(&args[2], Expr::Literal { value: Literal::Number(_), .. }) { Ty::Scalar(Kind::Int) } else { Ty::Unknown },
+            Expr::Call { name, args, .. } if name == "divide" => args.first().map(|arg| self.ty(arg)).unwrap_or(Ty::Unknown),
             Expr::Call { name, .. } if name == "count" || CALENDAR.contains(&name.as_str()) => Ty::Scalar(Kind::Int),
             Expr::Exists { .. } => Ty::Scalar(Kind::Bool),
             Expr::Unary { op, value, .. } => if op == "not" { Ty::Scalar(Kind::Bool) } else { self.ty(value) },
@@ -794,6 +797,13 @@ impl<'a> Scope<'a> {
                         let (pins, filter) = self.domain(read, false)?;
                         Ok(json!({"count": {"table": read.table, "pins": pins, "filter": filter}}))
                     }
+                    ("divide", [dividend, divisor, Expr::Literal { value: Literal::Str(rounding), .. }])
+                        if matches!(rounding.as_str(), "toward-zero" | "away-from-zero" | "floor" | "ceiling" | "half-away-from-zero" | "half-even") => {
+                        Ok(json!({"roundDiv": {"rounding": rounding, "dividend": self.expr(dividend)?, "divisor": self.expr(divisor)?}}))
+                    }
+                    ("divide", [dividend, divisor, Expr::Literal { value: Literal::Number(scale), .. }, Expr::Literal { value: Literal::Str(rounding), .. }])
+                        if scale.parse::<u8>().is_ok_and(|scale| scale <= 12) && matches!(rounding.as_str(), "toward-zero" | "away-from-zero" | "floor" | "ceiling" | "half-away-from-zero" | "half-even") =>
+                        Ok(json!({"roundDiv": {"rounding": rounding, "scale": scale.parse::<u8>().unwrap(), "dividend": self.expr(dividend)?, "divisor": self.expr(divisor)?}})),
                     _ => no(&format!("call-{name}"), print()),
                 }
             }

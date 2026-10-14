@@ -123,6 +123,7 @@ fn reads(e: &Expr) -> bool {
         Expr::Score(_) | Expr::Present(_) | Expr::Point(..) => true,
         Expr::Binary(_, a, b) => reads(a) || reads(b),
         Expr::Identity(a) | Expr::Assert(a) | Expr::Calendar(_, a) => reads(a),
+        Expr::RoundedDivide(_, _, a, b) => reads(a) || reads(b),
         _ => false,
     }
 }

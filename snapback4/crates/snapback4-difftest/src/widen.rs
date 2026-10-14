@@ -60,6 +60,7 @@ const STREAM: u64 = 0x5749_4445_4e5f_4757;
 const BRANCH_STREAM: u64 = 0x4252_414e_4348_4553;
 const MEMBERSHIP_STREAM: u64 = 0x4d45_4d42_4552_4e41;
 const NOT_BEFORE_STREAM: u64 = 0x4e4f_545f_4245_464f;
+const ROUND_DIV_STREAM: u64 = 0x524f_554e_4444_4956;
 /// Clock gaps between operations (ms); 0 makes two operations simultaneous.
 const GAPS: [i64; 6] = [0, 1, 37, 500, 1000, 60_000];
 /// Offsets from an operation's clock at which a row expires.
@@ -273,6 +274,7 @@ pub fn widen(mut case: Case) -> Case {
     // The clock: seeded, then each step, then `run`; it advances when there
     // is a prelude or expiry. Times stay positive.
     lang2(&mut case);
+    rounded_division(&mut case);
     if !case.steps.is_empty() || expire {
         case.clock += 300_000;
         let mut at = case.clock;
@@ -318,6 +320,22 @@ pub fn widen(mut case: Case) -> Case {
     crate::generate::page3(&mut case);
     crate::generate::page4(&mut case);
     case
+}
+
+/// Exact rounded division comes from its own stream, preserving every older
+/// case whose stream does not select the new expression.
+fn rounded_division(case: &mut Case) {
+    let mut rng = Rng::new(case.seed ^ ROUND_DIV_STREAM);
+    if rng.pick(6) != 0 || !matches!(case.program.body, Body::Scalar(_)) { return; }
+    let modes = [Rounding::TowardZero, Rounding::AwayFromZero, Rounding::Floor,
+        Rounding::Ceiling, Rounding::HalfAwayFromZero, Rounding::HalfEven];
+    let dividend = if rng.pick(2) == 0 { Expr::Arg("a".into(), Type::Int) }
+        else { Expr::Int([-7, -5, -1, 0, 1, 5, 7][rng.pick(7) as usize]) };
+    let divisor = if rng.pick(2) == 0 { Expr::Arg("b".into(), Type::Int) }
+        else { Expr::Int([-3, -2, -1, 0, 1, 2, 3][rng.pick(7) as usize]) };
+    let scale = match rng.pick(5) { 0 => None, 1 => Some(0), 2 => Some(2), 3 => Some(6), _ => Some(12) };
+    case.program.body = Body::Scalar(Expr::RoundedDivide(
+        modes[rng.pick(modes.len() as u64) as usize].clone(), scale, Box::new(dividend), Box::new(divisor)));
 }
 
 /// Add lower-bound rows from an independent stream. Every selected case has

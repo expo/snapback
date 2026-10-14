@@ -135,6 +135,11 @@ inductive CalFn where
   | yearStart
   deriving Repr, DecidableEq
 
+/-- Explicit exact-integer rounding for `divide` (LLP 3000.013.001 §2). -/
+inductive Rounding where
+  | towardZero | awayFromZero | floor | ceiling | halfAwayFromZero | halfEven
+  deriving Repr, DecidableEq
+
 inductive Expr where
   | lit (v : Value)
   | var (x : String)
@@ -159,6 +164,7 @@ inductive Expr where
   | call (f : String) (args : List Expr)
   /-- A calendar builtin over one int. -/
   | cal (f : CalFn) (a : Expr)
+  | roundDiv (rounding : Rounding) (scale : Option Nat) (a b : Expr)
   | arr (xs : List Expr)
   | record (fs : List (String × Expr))
   /-- `t[c = e, …]`: a point read by id or a unique key. -/

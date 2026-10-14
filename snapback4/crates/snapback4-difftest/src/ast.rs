@@ -223,6 +223,29 @@ pub enum Expr {
     Point(String, Key),
     /// A calendar builtin over one int (LLP 3000.040 §2): `month(t)`, ..
     Calendar(Cal, Box<Expr>),
+    RoundedDivide(Rounding, Option<u8>, Box<Expr>, Box<Expr>),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum Rounding {
+    TowardZero,
+    AwayFromZero,
+    Floor,
+    Ceiling,
+    HalfAwayFromZero,
+    HalfEven,
+}
+impl Rounding {
+    pub fn source(&self) -> &'static str {
+        match self {
+            Self::TowardZero => "toward-zero",
+            Self::AwayFromZero => "away-from-zero",
+            Self::Floor => "floor",
+            Self::Ceiling => "ceiling",
+            Self::HalfAwayFromZero => "half-away-from-zero",
+            Self::HalfEven => "half-even",
+        }
+    }
 }
 /// The calendar builtins, with `bucket`'s period and offset in milliseconds.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -261,6 +284,7 @@ impl Expr {
             Self::Point(table, _) => Type::Reference(table.clone()),
             Self::Calendar(Cal::MonthStart | Cal::YearStart, _) => Type::Time,
             Self::Calendar(..) => Type::Int,
+            Self::RoundedDivide(..) => Type::Int,
             Self::Identity(e) => e.ty(),
             Self::Assert(e) => match e.ty() {
                 Type::Nullable(t) => *t,
@@ -285,6 +309,10 @@ impl Expr {
             Self::Identity(e) => format!("identity({})", e.source()),
             Self::Assert(e) => format!("({} ! else NULL_ASSERT)", e.source()),
             Self::Calendar(f, e) => f.source(&e.source()),
+            Self::RoundedDivide(rounding, scale, dividend, divisor) => match scale {
+                Some(scale) => format!("divide({}, {}, {scale}, '{}')", dividend.source(), divisor.source(), rounding.source()),
+                None => format!("divide({}, {}, '{}')", dividend.source(), divisor.source(), rounding.source()),
+            },
         }
     }
     pub fn simpler(&self) -> Vec<Self> {
@@ -309,6 +337,10 @@ impl Expr {
                 }
             }
             Self::Identity(e) => out.push((**e).clone()),
+            Self::RoundedDivide(rounding, scale, a, b) => {
+                for e in a.simpler() { out.push(Self::RoundedDivide(rounding.clone(), *scale, Box::new(e), b.clone())); }
+                for e in b.simpler() { out.push(Self::RoundedDivide(rounding.clone(), *scale, a.clone(), Box::new(e))); }
+            }
             _ => {}
         }
         out.retain(|e| e.source().len() < self.source().len());

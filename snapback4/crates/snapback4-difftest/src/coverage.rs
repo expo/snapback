@@ -221,6 +221,11 @@ fn expr(e: &Expr, out: &mut BTreeSet<String>) {
             out.insert(format!("expr/calendar-{}", f.source("t").split('(').next().unwrap_or_default()));
             expr(e, out);
         }
+        Expr::RoundedDivide(mode, scale, a, b) => {
+            out.insert(format!("expr/rounded-divide-{}-{}", mode.source(), scale.map_or("preserve".into(), |scale| format!("scale-{scale}"))));
+            expr(a, out);
+            expr(b, out);
+        }
         _ => {}
     }
 }

@@ -335,6 +335,10 @@ query zero():
     let bound = checked(source);
     assert_eq!(bound.programs.iter().find(|p| p.program.name == "decimalValue").unwrap().result, Ty::Decimal(2));
     assert_eq!(bound.programs.iter().find(|p| p.program.name == "moneyValue").unwrap().result, Ty::Money("USD".into(), 2));
+    assert_eq!(bound.programs.iter().find(|p| p.program.name == "scaled").unwrap().result,
+        Ty::List(Box::new(Ty::Decimal(2)), 2));
+    assert_eq!(bound.programs.iter().find(|p| p.program.name == "wide").unwrap().result, Ty::Decimal(12));
+    assert_eq!(bound.programs.iter().find(|p| p.program.name == "scaleZero").unwrap().result, Ty::Decimal(0));
     let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     let values = engine.query("rounded", Context::new("alice", BTreeMap::new())).unwrap().data;
     assert_eq!(values, Value::Array([2, 3, 2, 3, 3, 2, 4, -3, -3, -2, -3, -2, 2, 3].into_iter().map(Value::Int).collect()));

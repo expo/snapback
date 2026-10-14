@@ -330,6 +330,34 @@ def examples : List Example := [
               program := scalar (.bin .mod (int 1) (int 0)) }
     tables := []
     expected := r#"{"kind":"refused","code":"E_DIV_ZERO"}"# },
+  { name := "rounded-division"
+    source := "LLP 3000.013.001 §2: divide uses exact signed quotient/remainder arithmetic and one explicit rounding step"
+    case := { schema := plain, store := Store.empty, viewer := alice,
+              program := scalar (.arr [
+                .roundDiv .towardZero none (int 5) (int 2), .roundDiv .awayFromZero none (int 5) (int 2),
+                .roundDiv .floor none (int 5) (int 2), .roundDiv .ceiling none (int 5) (int 2),
+                .roundDiv .halfAwayFromZero none (int 5) (int 2), .roundDiv .halfEven none (int 5) (int 2),
+                .roundDiv .halfEven none (int 7) (int 2), .roundDiv .halfAwayFromZero none (int (-5)) (int 2),
+                .roundDiv .floor none (int (-5)) (int 2), .roundDiv .ceiling none (int (-5)) (int 2),
+                .roundDiv .floor none (int 5) (int (-2)), .roundDiv .ceiling none (int 5) (int (-2)),
+                .roundDiv .halfEven none (int 7) (int 3), .roundDiv .halfEven none (int 8) (int 3),
+                .roundDiv .halfEven (some 2) (int 101) (int 2), .roundDiv .halfEven (some 2) (int (-1)) (int 8),
+                .roundDiv .halfAwayFromZero (some 2) (int (-1)) (int 8),
+                .roundDiv .halfEven (some 12) (int 9007199254740991) (int 9007199254740991)]) }
+    tables := []
+    expected := r#"{"kind":"answer","data":[2,3,2,3,3,2,4,-3,-3,-2,-3,-2,2,3,5050,-12,-13,1000000000000],"complete":true,"next":null}"# },
+  { name := "rounded-division-zero"
+    source := "LLP 3000.013.001 §2: divide by zero refuses E_DIV_ZERO before rounding"
+    case := { schema := plain, store := Store.empty, viewer := alice,
+              program := scalar (.roundDiv .halfEven none (int 1) (int 0)) }
+    tables := []
+    expected := r#"{"kind":"refused","code":"E_DIV_ZERO"}"# },
+  { name := "scaled-division-overflow"
+    source := "LLP 3000.013.001 §2: scaled division checks the rounded result against i53"
+    case := { schema := plain, store := Store.empty, viewer := alice,
+              program := scalar (.roundDiv .halfEven (some 1) (int 9007199254740991) (int 1)) }
+    tables := []
+    expected := r#"{"kind":"refused","code":"E_OVERFLOW"}"# },
   { name := "codepoint-order"
     source := "LLP 3000.035 §2: text compares by code point (U+E000 before U+10000)"
     case := { schema := labels, store := labelStore, viewer := alice,
