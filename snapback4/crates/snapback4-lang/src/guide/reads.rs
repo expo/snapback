@@ -1,7 +1,7 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub(super) const CARD: &str = r##"# Reads
 
-Read authorized rows; `sync … last N` bounds the device's working set, while cursors page server history (offline: acquired data only).
+Read authorized rows. `sync … last N` bounds acquisition; cursors page server history (offline: acquired rows).
 
 ```quarry
 query readForms(roomId: rooms, messageId: messages, c: cursor ?):

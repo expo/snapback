@@ -1,16 +1,22 @@
 # Deploy: upgrade, real accounts and schema evolution
+
 A release is immutable source over one durable store. Deploy from the app directory:
+
 ```sh
 bunx snapback4 check
 bunx snapback4 test
 bunx snapback4 deploy ./deployment
 bunx snapback4 serve ./deployment --port 4400
 ```
+
 ## Upgrade
 `snapback4 upgrade [version]` resolves once and exactly pins core and installed Expo adapters with npm/bun/pnpm. Rebuild native apps after adapter changes; commit the lockfile, run check/typecheck/acceptance. `test` uses ./fixtures; `--fixture dir` overrides it. Use the password and first-admin recipes below.
+
 ## Deploy and password identity
 Add `use identity password` (included below). Deploy from the app directory onto durable storage:
+
 Serve admits bearer sessions; personas are 401 and /seed/dev doors 403, even through proxies. Signup creates an account, not a privileged role. See guide client for SDK session stores; auth/headless for account setup. HTTP auth returns session/denied; SDK signup/login from `snapback4/auth` returns ok/why. Check warns on installed version skew.
+
 ```sh
 U=http://127.0.0.1:4400
 curl -s "$U/auth/signup" -H 'Content-Type: application/json' \
@@ -19,8 +25,11 @@ curl -s "$U/auth/signup" -H 'Content-Type: application/json' \
 curl -s "$U/auth/login" -H 'Content-Type: application/json' \
   -d '{"email":"admin@example.test","password":"replace-with-a-private-password"}'
 ```
+
 Keep the session and send `Authorization: Bearer <token>`. Wrong credentials or a disabled identity method are 401 E_AUTH. Sessions survive ordinary deployments and restarts until expiry/revocation; a replaced/reset store requires sign-in again. Never delete a store to make adoption pass. `serve --port N` accepts 0 or A-B; stdout's first line is its URL, stderr includes SNAPBACK4_READY. Wait for readiness.
+
 Layout: releases/N/ holds source; store.sqlite data/sessions/queues; assets/ uploads. The database owns current release/history; current is a text convenience copy, releases.jsonl a convenience ledger. Back up the whole directory, including sidecars/assets/releases, with serve and external workers stopped (CLIENT-AND-OPERATIONS.md §6). A restore does not rewind external effects.
+
 ## First admin: a service seat
 Provision roles through an operator seat, with no public first-user race:
 ```quarry
@@ -60,7 +69,6 @@ Mint locally against the same store. Token stdout is only the credential; prose 
 Optional/defaulted columns, new tables/ops, non-unique indexes and wider types are additive. Required new fields need a literal default or explicit backfill; default now/viewer cannot invent historical values. Dev check/adoption refuses incompatible values with E_ADOPT. Release type narrowing instead retains each row whose present values cannot fit. Unique/cap conflicts still refuse atomically; repair active rows, or restore through a widened non-unique bridge, repair, then reinstate constraints. Prefer expand → migrate → contract for client compatibility.
 
 ## Rollback after widening, restore and prune
-
 ```sh
 bunx snapback4 rollback ./deployment --to 1 --check
 bunx snapback4 check --store ./deployment/store.sqlite --release 1
@@ -78,7 +86,6 @@ Widened enum values, or short codes a loose release wrote, become dormant rows w
 Check business compatibility separately: old payment code may accept payment while a new review row is dormant. Pause that workflow or deploy a bridge preserving its checks. Old source cannot supply absent product logic. An absent operation returns 404 `{denied:{code:"E_OP",…},generation:G}`; a mutation's incompatible arguments return 200 `{state:"failed",why:{code:"E_INPUT",…},generation:G}`.
 
 ## What the old release sees
-
 | Request after rollback | Result |
 |---|---|
 | An operation absent from the old release | HTTP 404 `{denied:{code:"E_OP"}}` |
@@ -105,14 +112,11 @@ Preview names missing operations, changed rule clauses, absent schedules and pop
 Receipts and previews count storage by kind: `1 row, 3 cells, 0 index entries dormant`. Samples are labelled and unique within each kind/path, for example `rows notes [A]; cells notes.color [A, B, C]`. A retained index definition represents logical entries to rebuild, not a dormant physical index. A widening note describes values later writes could use; a compatibility WARNING counts only current values the selected release cannot hold. Compatible forward has no such warning.
 
 ## Clients across rollback
-
 Generated required fields and operations describe the schema checked when the client was built. Rolling the server back does not rebuild that client. Choose a release-matched frontend: in a separate copy of the selected immutable source, run `snapback4 check`, rebuild the frontend against that generated API and deploy it alongside the backend. Keep the immutable deployment source intact. An Expo/Exact runtime change also needs a device rebuild; JavaScript reload alone does not rebuild it.
 
-For one frontend spanning both releases, author a compatibility boundary at the response: validate newer fields at runtime before using them, and render their older-release fallback. A v2 generated required `color` field can be absent under v1; TypeScript requiredness is no runtime guarantee. For example, `typeof row.color === 'string' ? row.color : 'none'` supplies the old-release fallback.
-Before exposing a newer workflow, check the authenticated served operation catalog (`GET /`) for its operation, and still handle `E_OP` if a switch races that check. Handle authored lookup guard refusals separately from bare-query null. Do not replace a missing safeguard with a frontend type assertion. Test both directions with the same frontend and bearer session, asserting field fallbacks, missing-operation handling, business checks and restored original values.
+For one frontend spanning both releases, author a compatibility boundary at the response: validate newer fields at runtime before using them, and render their older-release fallback. A v2 generated required `color` field can be absent under v1; TypeScript requiredness is no runtime guarantee. For example, `typeof row.color === 'string' ? row.color : 'none'` supplies the old-release fallback. Before exposing a newer workflow, check the authenticated served operation catalog (`GET /`) for its operation, and still handle `E_OP` if a switch races that check. Handle authored lookup guard refusals separately from bare-query null. Do not replace a missing safeguard with a frontend type assertion. Test both directions with the same frontend and bearer session, asserting field fallbacks, missing-operation handling, business checks and restored original values.
 
 ## Trigger a deployed job
-
 A running serve accepts `POST /jobs/<job>` with a full service token; the job executes as the system on its FIFO queue and server clock. Every full service seat can trigger system jobs, so provision these tokens only to trusted operators. Guest/account sessions, read-scoped tokens and personas cannot use this door. `POST /dev/jobs/<job>` remains development-only.
 ```sh
 export SNAPBACK4_SERVICE_TOKEN=$(bunx snapback4 token --service ops --release ./deployment)
@@ -122,7 +126,6 @@ unset SNAPBACK4_SERVICE_TOKEN
 `--token-env NAME` reads another environment variable. The command uses served source, so it also works outside the app directory. A lost reply is ambiguous; inspect the queue before retrying. Starter/client recipes: `guide client`.
 
 ## Persona transition checklist
-
 The complete account directory, linked membership and real-account transition is `guide production`.
 1. Add password identity and signup/login UI; persist sessions with localStorageSessionStore on web or the secure native store, and verify restart.
 2. Replace hard-coded persona owners/UI with signed-in account principals; map roles through the trusted seat recipe.
@@ -132,7 +135,6 @@ The complete account directory, linked membership and real-account transition is
 6. Prove real-account writes, role checks, sign-out and rollback on durable storage behind TLS.
 
 ## Inspection, proxies and TLS
-
 | Door | `dev` | `serve` |
 |---|---|---|
 | `/q`, `/m`, `GET /` compatibility record | Loopback persona or bearer | Bearer session required, including public rows |
@@ -145,5 +147,4 @@ Public visitors obtain guest sessions with `use identity`; `use identity passwor
 `snapback4 sql 'SELECT id, archived FROM notes' --release ./deployment --json` returns positional rows under `columns`; `--json-objects` returns object rows with direct boolean columns as true/false. Schema-qualified relations, recursive or shadowing/forward-reference CTEs need positional --json. Inspection bypasses read rules and can show expired stored rows; it is an operator tool, not an app query surface. Bind loopback behind a TLS proxy. Forward Authorization and preserve response bodies; allow long polls without buffering or early timeouts. Non-loopback HTTP requires `--i-understand-cleartext` and a trusted private hop behind TLS. Identity rate keys use the socket peer, not forwarded headers. Serve refuses personas and dev doors even through a local proxy; see SERVER.md for capacity. `--json-objects` returns `{header, columns, rows, limit, more, ruleFiltered:false}` with object `rows`; `--json` uses positional `rows`. Put flags outside the quoted SQL.
 
 ## Authoring and proof refusals
-
 N_NO_PRODUCTION_WRITER means no production insert path can bootstrap this table. It groups root blockers with their dependents; persona-only schemas get one identity note. Add a service-seat insert mutation and provision real account relationships. E_UPGRADE means installation or post-upgrade check failed. Repair the package-manager or registry error and rerun upgrade. Packages may already be pinned: if check failed, repair the reported schema/device refusal and rerun check.
