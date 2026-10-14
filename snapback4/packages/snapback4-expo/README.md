@@ -106,3 +106,13 @@ recorded simulator, with project and device leases held through cleanup.
 For durable offline media, use the local client's `uploadAndPlace` or `useUpload`
 (re-exported here). `saveAsset(client, id, name?)` presents the iOS save/share sheet
 from authorized or retained bytes. See [the shared upload contract](../snapback4/OFFLINE-UPLOADS.md).
+
+### Persist account sessions
+
+Install with `npx expo install expo-secure-store`, import `* as SecureStore` from
+`expo-secure-store`, then import `secureStoreSessionStore` from `snapback4-expo`.
+Pass `sessionStore: secureStoreSessionStore(SecureStore)` to `createApp`.
+The adapter encodes complete UTF-16 keys injectively; distinct backend and
+read/full session keys stay distinct. Storage failures propagate. This adds no
+Swift code. Rebuild the app after installing SecureStore; see
+[Expo SecureStore](https://docs.expo.dev/versions/latest/sdk/securestore/).

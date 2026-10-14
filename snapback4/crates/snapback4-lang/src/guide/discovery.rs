@@ -404,11 +404,11 @@ pub fn section(name: &str, card: &str, words: &str) -> Result<String, String> {
                     format!("{count} of the {total} lines that mention it; also {others} (--find {words:?} prints them all)")
                 }
             };
-            let note = format!("No heading of guide {name} is named {words:?}; {best}. {heading} holds {share}.");
+            let note = format!("guide {name}: keyword {words:?} opens {best}. {heading} ({share}).");
             let body = if best == 0 { lines[start..end].join("\n").trim_end().to_owned() } else { print(start, end) };
             return Ok(format!("{note}\n\n{body}"));
         }
-        let note = format!("No heading of guide {name} is named {words:?}, and its mentions span {} sections; here they are:\n", counts.len());
+        let note = format!("guide {name}: keyword {words:?} appears in {} sections; matching lines:\n", counts.len());
         return find(name, card, words).map(|lines| format!("{note}{lines}"));
     }
     // A whole-card alias no line mentions prints the card's opening.

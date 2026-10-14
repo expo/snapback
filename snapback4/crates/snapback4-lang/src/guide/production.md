@@ -1,5 +1,23 @@
 # Production: a persona demo becomes an account app
 
+The minimal production bar is identity plus one trusted seat writer per root table that accounts cannot bootstrap. Use real principals and persisted sessions; signup grants no role.
+
+```quarry
+use identity password
+table labels:
+  slug: text 1..40
+  unique slug
+  cap 100
+  immutable slug
+  public 'labels are visible to signed-in accounts'
+  insert <- viewer = 'service:ops'
+  online only
+mutation provisionLabel(slug: text 1..40):
+  require viewer = 'service:ops' else NOT_OPERATOR
+  return insert labels {slug}
+```
+Profiles and teams below are optional application policy. Prove writes, outsiders and durable restart. Mint `token --service ops --release ./deployment` while serve runs, then call `/m/provisionLabel` with its bearer. No production seed door is needed. Add a root's service read branch when its writer probes existing rows. Every mutation still passes table rules (`guide deploy`).
+
 A persona demo becomes a password-account app with self-written profiles,
 a private staff directory and trusted membership enrollment. This policy is
 explicit because directory privacy and enrollment authority are application decisions.
@@ -160,6 +178,35 @@ cross-group grant cannot form a second group audience: enroll staff in each
 team roster or stay online. `guide rule-recipes` covers copied audiences and
 one-group limits. Wait for scope acquisition before treating an offline
 membership or page as complete.
+
+## Invitation UI by shared principal
+
+Replace a persona-name picker with two signed-in controls: each account shares its own opaque principal, and authorized staff paste it into `enroll`. Sharing an id grants no authority; the server checks staff, team and profile. This recipe directly enrolls the invited account, without an acceptance step. For accept/revoke invitations into hidden groups, see `guide rule-recipes`.
+
+```tsx
+import { useState } from "react";
+import { useAuth, useMutation } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+export function SharePrincipal() {
+  const auth = useAuth();
+  if (auth.state !== "signed-in") return null;
+  return <label>Share your account id<input readOnly value={auth.viewer} onFocus={e => e.currentTarget.select()} /></label>;
+}
+export function InviteAccount({team}: {team: string}) {
+  const invite = useMutation(api.enroll), [principal, setPrincipal] = useState("");
+  async function submit() {
+    const sent = principal.trim(); if (!sent) return;
+    const result = await invite.run({team, principal: sent});
+    if (result.state === "sent") setPrincipal(current => current.trim() === sent ? "" : current);
+  }
+  return <form onSubmit={e => {e.preventDefault(); void submit();}}>
+    <input aria-label="Invited account id" required value={principal} onChange={e => setPrincipal(e.target.value)} />
+    <button disabled={invite.inFlight}>Invite account</button>
+    {invite.last?.state === "failed" && <p role="alert">{invite.last.why.message}</p>}
+  </form>;
+}
+```
+Mount InviteAccount only behind a role read, such as `myStaff(): return staff[principal = viewer]` (add that query to the schema above). `absent` on a list can be an authorised empty result; it does not prove staff membership. Handle NOT_STAFF/NO_PROFILE even when the button was enabled. Sign up and register before sharing a principal. Seeded persona names never become production ids.
 
 ## New-app bootstrap for catalogues and first seats
 

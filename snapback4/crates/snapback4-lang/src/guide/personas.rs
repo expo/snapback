@@ -1,8 +1,7 @@
 //! Identity and developer inspection.
 pub(super) const CARD: &str = r##"# Personas
 
-Password accounts work headlessly in Node and browsers; personas are named development users. Both exercise
-application rules with their own principal.
+Every call carries a principal; public visitors use guest sessions; `serve` accepts bearers only. Personas are named development users; password accounts work headlessly in Node and browsers.
 
 ```quarry
 use personas alice, bob
@@ -12,7 +11,7 @@ query whoAmI():
   return viewer
 ```
 
-An email-and-password product declares `use identity password`; plain `use identity` also mints guest sessions.
+/auth/config includes development true on dev, false on serve; hide persona controls unless true. An email-and-password product declares `use identity password`; plain `use identity` also mints guest sessions.
 `use identity guests` admits only guests; without `use identity`, both methods are disabled.
 
 ## Seed accounts headlessly

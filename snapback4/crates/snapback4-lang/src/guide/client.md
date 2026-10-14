@@ -12,7 +12,7 @@ export function Inbox() { const page = usePage(api.inboxCards, {}), status = rea
 ```
 
 - `E_OFFLINE`: unavailable; reconnect.
-- `E_QUERY_RETRY`: settlement exhausted; retry.
+- `E_QUERY_RETRY`: after four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; offline unavailable reads give immediate `E_OFFLINE`.
 
 ## Reference
 `Write<R>`: pending `{id}`; fresh sent `{id,seq,result:R}`; replayed sent `{id,seq,replayed:true}` without result; failed `{id,why}`. Only failed has `why`. `sentResult(write)` extracts a fresh result; undefined means pending/failed/replayed, not success.
@@ -29,16 +29,16 @@ export function Composer({conversationId}:{conversationId:string}) {
     {send.last?.state==="failed"&&submitted&&<p role="alert">Not sent: {submitted} <button onClick={()=>setDraft(current=>current?current+" "+submitted:submitted)}>Edit</button> <button onClick={()=>setSubmitted("")}>Dismiss</button></p>}</>;
 }
 ```
-Validate before run; clear only this draft after a fresh sent receipt. Pending/replayed receipts keep it. Read notices never grant permission. Keep the composer mounted above reactive rows; [full screen](CLIENT-AND-OPERATIONS.md#a-stable-conversation-screen).
+Validate; clear this draft only on fresh sent. Pending/replayed keep it. Notices never grant permission. Keep the composer above reactive rows; [full screen](CLIENT-AND-OPERATIONS.md#a-stable-conversation-screen).
 Membership: no horizon, the conversation's own group and messages' audience prove presence/absence unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. Never add `with own keys` to admin-written memberships.
 `denied` always blocks. `existence(member) === "absent"` blocks only when fresh and non-revalidating. Stale absence queues; `loading`/`partial` never disable.
 
 `waitSeconds: 0` returns at custody; `inFlight` covers admission, ungated by acquisition after session readiness. `usePendingWrites()` lists admitted intents; keep drafts before custody. Predictions: “Sending…”. Persist `{id: mintId(), args}` per account/backend before `run(args, { id, waitSeconds: 0 })`. `usePendingWrite`: “Saving…” during submission, “Checking…” while `restoring`; afterward undefined means unknown. Never auto-resend. Dismiss after lookup. New attempts: new ids; replay omits historical results. Web/Expo starters journal this.
 
-`usePendingItems({writes,rows,scope,rowKey,intentKey})`: mapped row/intent union through observed settlement. `usePendingState(op,{scope,current,read?,value})`: latest admitted intent. [Reference](CLIENT-AND-OPERATIONS.md); non-JS hosts: “The device reply”.
+Pending composition: usePendingItems/usePendingState; [reference](CLIENT-AND-OPERATIONS.md).
 
 ## Read boundaries
-`query(op,args)` settles ready/denied within 30 seconds including queued work. Dependent writes settle or have complete device predictions; unrelated writes pass. Offline data/predictions can answer; unavailable reads refuse E_OFFLINE. After four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; offline unavailable reads give immediate `E_OFFLINE`; permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Partial/stale answers remain explicit.
+`query(op,args)` settles ready/denied within 30 seconds including queued work. Dependent writes settle or have complete device predictions; unrelated writes pass. Offline answers/predictions remain explicit; unavailable reads refuse E_OFFLINE. After four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; unavailable held reads: non-retryable E_QUERY_HELD.
 
 ## Password React and Expo
 
@@ -59,11 +59,15 @@ function Password() {
     <button onClick={() => void submit(false)}>Sign in</button><button onClick={() => void submit(true)}>Sign up</button>{why}</>;
 }
 ```
-SDK sign-in answers `{ok:true, session}` or `{ok:false, why}`. Expo uses SecureStore; web uses localStorageSessionStore. Synced web: webDevice; native: nativeDevice; no-sync: journal (`init --web --online`). Password production transition: `guide production`.
+Sign-in: {ok:true, session} or {ok:false, why}. useAuth exposes no session. Expo: secureStoreSessionStore(SecureStore); web: localStorageSessionStore. guide production.
 
-`useAuth()` members: `state`, `viewer`, `session`, `why`, `signup(email, password)`,
-`login(email, password)`, `guest()`, `logout()`, `logoutEverywhere()`.
-`signOut()` belongs to the client, not useAuth.
+`useAuth()` members: `state`, `viewer`, `why`, `signup(email, password)`, `login(email, password)`, `guest()`, `logout()`, `logoutEverywhere()`.
+`signOut()` belongs to the client, not useAuth. Install `expo-secure-store` with `npx expo install expo-secure-store`, then:
+```ts
+import * as SecureStore from "expo-secure-store"; import { nativeDevice, secureStoreSessionStore } from "snapback4-expo"; import { createApp } from "snapback4/app";
+const app = createApp({url: "http://127.0.0.1:4400", device: nativeDevice, sessionStore: secureStoreSessionStore(SecureStore)});
+```
+Storage failures propagate. Rebuild.
 
 ## React hooks
 `matchRead(read, …)` (no type arguments; or a page) requires five states: `present(data, read)` excludes null; `partial(data, read)` keeps T; `denied(why, read)`; `absent(read)`/`loading(read)`. `otherwise(read)` covers omitted loading/absent/present; denied/partial stay explicit, or `...otherwiseAll(read => …)` anywhere takes all unnamed (named handlers win). `existence(read)` classifies; `isReady(read)` enables `read.existence`; `void client.close()` in cleanup. Types/hooks: `RowOf`/`ResultOf`/`ArgsOf`/`UseQuery`/`UsePage`/`useSignedInViewer()`/`usePersonaApp`; `{ skip: !id }` waits for arguments; `[add, remove].find(isFailed)?.last.why`; helpers take `Outcome | undefined` or `Read<unknown>` ([form](CLIENT-AND-OPERATIONS.md#status-components-and-a-form)).
@@ -74,24 +78,24 @@ SDK sign-in answers `{ok:true, session}` or `{ok:false, why}`. Expo uses SecureS
 
 `app.online`/`useOnline()` (AppProvider): server query/observe, ephemeral mutate, act; no bearer/lifecycle; durable writes: app.mutate. `guide social`/`guide ephemeral`: snapshots/typing/quotes/bounded screens.
 
-## Generic read props and outcomes
+## Read props and outcomes
 
-List props: `Read<T[]>` (`T extends { id: string }`); operation props: `UseQuery<typeof api.op>`. Ordinary `run()` waits for `sent | failed`, even after unmount; keep App alive for receipts. Offline it waits for reconnect. `{ waitSeconds: 0 }` returns custody; pending is not success. Null is a legitimate fresh result.
+List props: `Read<T[]>` (`T extends { id: string }`); operation props: `UseQuery<typeof api.op>`. run() waits for sent/failed, including reconnect; keep App alive. waitSeconds: 0 returns custody. Pending is not success; null is a legitimate result.
 
-Compact list renderer, with two independent `matchRead` calls:
-```tsx
-import { matchRead, otherwiseAll, readPresentation, useQuery } from "snapback4/react";
-import { api } from "../snapback/generated/api";
-export function StaffNotes() {
-  const read=useQuery(api.staffNotes,{}),status=readPresentation(read);
-  const count=matchRead(read,{partial:rows=>`${rows.length} so far`,denied:why=>why.message,present:rows=>`${rows.length} notes`,otherwise:()=>"…"});
-  const list=matchRead(read,{...otherwiseAll(()=>null),present:rows=>rows.map(row=><p key={row.id}>{row.title}</p>)});
-  return <>{count}{status.incomplete&&"Incomplete"}{status.stale&&"Offline copy"}{list}</>;
-}
-```
-`otherwise` still requires explicit denied/partial handlers. `otherwiseAll` supplies every omitted handler; explicit handlers win. No `mapRead` helper is needed: map the rows in `present`, preserving the read's state separately.
+List fallback: matchReadList(page.read, {denied: why => why.message, present: rows => rows.length, otherwise: () => "…"}) covers partial. matchRead keeps explicit denied/partial; otherwiseAll supplies unnamed handlers.
 
 Keyed counts: hidden key → null; authorized missing count group → 0; public count → number. Choose `count ?? 0` explicitly. `useQuery` is live; after sent, `client.query(...)` reads once.
+
+## Shared list and write props
+```tsx
+import { matchReadList, readPresentation, type PageHook, type WriteHook } from "snapback4/react";
+export function SharedList<T extends {id: string}>({page, remove, label}: {page: PageHook<T[]>; remove: WriteHook<{id: string}, unknown>; label: (row: T) => string}) { const status = readPresentation(page.read); return <>{matchReadList(page.read, {denied: why => <p role="alert">{why.message}</p>,
+    otherwise: () => <p>{status.incomplete ? "Incomplete results" : "Waiting or empty"}</p>,
+    present: () => <ul>{page.items.map(row => <li key={row.id}>{label(row)}<button disabled={remove.inFlight} onClick={() => void remove.run({id: row.id})}>Remove</button></li>)}</ul>})}
+    {status.incomplete && <p>More rows may exist</p>}{remove.last?.state === "failed" && <p role="alert">{remove.last.why.message}</p>}
+    <button disabled={!page.hasMore} onClick={page.loadMore}>More</button></>; }
+```
+Pass usePage(api.list) and useMutation(api.remove). Match page.read, render page.items. `absent` can be an authorised empty list; query myMembership for roles. createClient takes generated handles (api.op), never names.
 
 ## Row queries
 Share/paginate (`usePage` queries take `c: cursor ?` with `after c`); authorization remains dependent. Eight active; eight queued observation attempts; direct queries and timed presence refreshes use separate paths. `inspect(client)` and `useInspection(import.meta.env.DEV)` report pressure ([reference](CLIENT-AND-OPERATIONS.md#inspect-subscription-pressure)).

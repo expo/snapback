@@ -1583,7 +1583,7 @@ fn guessed_section_words_land_on_one_section_even_in_another_card() {
     }
     // A plurality of mentions lands on one section and names the others; a tie lists the mentions.
     let count = land("totals", "count");
-    assert!(count.starts_with("No heading of guide totals is named \"count\"; 0. Opening holds") && count.contains("; also "), "{count}");
+    assert!(count.starts_with("guide totals: keyword \"count\" opens 0. Opening") && count.contains("; also "), "{count}");
     assert!(card("react") == card("client") && guide::alias_landing("react", "client", card("client").unwrap()).unwrap().contains("matchRead"));
     assert_eq!(card("money"), card("types"));
 }
@@ -1593,3 +1593,6 @@ mod deploy;
 
 #[path = "guide/wave9_dx.rs"] mod wave9_dx;
 #[path = "guide/wave10_dx.rs"] mod wave10_dx;
+
+#[path = "guide/surf.rs"]
+mod surf;

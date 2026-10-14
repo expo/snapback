@@ -685,3 +685,39 @@ export function Detail({ selected }: { selected: string | null }) {
     assert.deepEqual(result.codes, [], `${entry}\n${result.text}`);
   }
 });
+
+test('matchReadList infers typed list data and mixed returns, while denial remains mandatory', () => {
+  const result=check(`import {matchReadList, type Read} from './dist/contract.js';
+  declare const read: Read<{id: string}[]>;
+  const output=matchReadList(read,{denied: why=>why.message, present: rows=>rows[0]?.id, otherwise: ()=>42});
+  const union: string | number | undefined=output;
+  matchReadList(read,{denied: why=>why.message, partial: rows=>rows.length, otherwise: ()=>0});
+  // @ts-expect-error denial remains explicit for lists
+  matchReadList(read,{present: rows=>rows, otherwise: ()=>null});
+  declare const point: Read<{id:string}|null>;
+  // @ts-expect-error shorthand accepts list reads only
+  matchReadList(point,{denied: ()=>null, otherwise: ()=>null});`);
+  assert.deepEqual(result.codes,[],result.text);
+});
+
+test('guide shared list recipe typechecks against PageHook and WriteHook', async () => {
+  const {readFileSync}=await import('node:fs');
+  const card=readFileSync(new URL('../../../crates/snapback4-lang/src/guide/client.md',import.meta.url),'utf8');
+  const code=card.split('## Shared list and write props')[1].split('```tsx\n')[1].split('```')[0].replace('"snapback4/react"','"./dist/react.js"');
+  const result=check(code,undefined,'tsx');assert.deepEqual(result.codes,[],result.text);
+  assert.doesNotMatch(card,/members:.*`session`/);
+});
+
+test('guide useAuth member list typechecks against the emitted React declaration', async () => {
+  const {readFileSync}=await import('node:fs');
+  const card=readFileSync(new URL('../../../crates/snapback4-lang/src/guide/client.md',import.meta.url),'utf8');
+  const prose=card.split('`useAuth()` members:')[1].split('`signOut()`')[0];
+  const members=[...prose.matchAll(/`([a-zA-Z]+)(?:\([^\)]*\))?`/g)].map(match=>match[1]);
+  const result=check(`import {useAuth} from './dist/react.js';
+  const members: (keyof ReturnType<typeof useAuth>)[] = ${JSON.stringify(members)};
+  const auth=useAuth();
+  // @ts-expect-error bearer custody remains private
+  auth.session;`);
+  assert.deepEqual(result.codes,[],result.text);
+  assert.equal(members.length,8);
+});
