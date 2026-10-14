@@ -64,14 +64,31 @@ fn declarations(project: &Project) -> Result<BTreeMap<String, Vec<(Kind, String)
     let mut out = BTreeMap::new();
     for (file, source) in project.sources().map_err(|e| e.to_string())? {
         let (document, _) = snapback4_lang::parse_document(&file, &source);
-        let lines: Vec<_> = source.lines().collect();
+        let (tokens, errors) = lexer::lex(&file, &source);
+        if !errors.is_empty() { return Err(format!("cannot compare job source in {file}: lexical diagnostics")); }
+        let mut roots = Vec::new();
+        let (mut indent, mut groups) = (0usize, 0usize);
+        for (index, token) in tokens.iter().enumerate() {
+            // Continuation fields/arguments can start at column one inside
+            // delimiters. Only the lexer's actual root declarations end a job.
+            if indent == 0 && groups == 0 && token.kind == Kind::Word && token.site.col == 1 {
+                roots.push((token.site.line, index));
+            }
+            match token.kind {
+                Kind::Indent => indent += 1,
+                Kind::Dedent => indent = indent.saturating_sub(1),
+                Kind::Symbol if matches!(token.value.as_str(), "(" | "[" | "{") => groups += 1,
+                Kind::Symbol if matches!(token.value.as_str(), ")" | "]" | "}") => groups = groups.saturating_sub(1),
+                _ => (),
+            }
+        }
         for program in document.programs {
-            let start = program.site.line as usize - 1;
-            let end = (start + 1..lines.len()).find(|&i| !lines[i].trim().is_empty() && !lines[i].trim_start().starts_with("--") && !lines[i].starts_with(char::is_whitespace)).unwrap_or(lines.len());
-            let text = lines[start..end].join("\n");
+            let Some(position) = roots.iter().position(|(line, _)| *line == program.site.line) else { continue; };
+            let start = roots[position].1;
+            let end = roots.get(position + 1).map_or(tokens.len(), |(_, index)| *index);
             let module = Path::new(&file).file_stem().and_then(|s| s.to_str()).unwrap_or("schema");
             let name = if module == "schema" { program.name } else { format!("{module}.{}", program.name) };
-            out.insert(name, lexer::lex(&file, &text).0.into_iter().map(|t| (t.kind, t.value)).collect());
+            out.insert(name, tokens[start..end].iter().filter(|t| t.kind != Kind::Eof).map(|t| (t.kind, t.value.clone())).collect());
         }
     }
     Ok(out)

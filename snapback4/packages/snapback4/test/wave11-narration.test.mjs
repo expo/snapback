@@ -132,7 +132,7 @@ test('edited module-qualified job source is distinct from dependencies', t => {
   const { dir, schema, deployment, run } = fixture(t);
   writeFileSync(schema, v1.slice(0, v1.indexOf('job remind():')));
   const job = join(dir, 'snapback/maintenance.q');
-  const source = "job remind():\n  chunk n in notes first 10 by byId:\n    update notes[n.id] {body: n.body}\nschedule remindDaily every 1d: maintenance.remind\n";
+  const source = "job remind(\n  periodStart: time,\n  periodEnd: time\n):\n  chunk n in notes first 10 by byId:\n    update notes[n.id] {\nbody: n.body\n    }\nschedule remindDaily every 1d: maintenance.remind\n";
   writeFileSync(job, source); run('deploy', deployment);
   writeFileSync(job, source.replace('body: n.body', "body: 'changed'"));
   const plan = run('deploy', deployment, '--check').stdout;
