@@ -1416,7 +1416,7 @@ fn generated_proofs_read_ports_at_execution_and_declare_the_driver() {
 #[test]
 fn adapt_adds_missing_proof_files_and_preserves_application_proofs() {
     let dir = Dir::new(); assert!(dir.run("--web").status.success());
-    fs::remove_file(dir.0.join("scripts/frontend-proof.mjs")).unwrap();
+    fs::remove_dir_all(dir.0.join("scripts")).unwrap();
     let path = dir.0.join("package.json");
     let mut package: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
     package["scripts"].as_object_mut().unwrap().remove("frontend:proof");

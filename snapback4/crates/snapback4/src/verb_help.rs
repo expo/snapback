@@ -36,7 +36,7 @@ screen picks a persona instead of signing in as a guest.
 Init first, schema second: once you replace the starter's schema, `check`
 names the starter files that no longer fit it, and --adapt fits them:
 
-  --adapt          preview only; writes nothing. End with the exact --apply command.\n                   Plan to remove the todo starter's fixtures and cases when the
+  --adapt          preview only; writes nothing. Ends with the exact --apply command.\n                   Plan to remove the todo starter's fixtures and cases when the
                    schema has no todos table and its operations (fixtures/
                    itself stays); rewrite the starter screen and client for
                    the schema's sign-in (guest, password, or a persona picker

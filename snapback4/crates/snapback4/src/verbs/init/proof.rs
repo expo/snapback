@@ -126,9 +126,9 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema) -> std::io::Re
 pub(super) fn apply(dir: &std::path::Path, additions: &[(&str, String)]) -> std::io::Result<()> {
     for (name, body) in additions {
         let path = dir.join(name);
+        std::fs::create_dir_all(path.parent().unwrap())?;
         if *name == "package.json" || *name == "vite.config.mts" || *name == "scripts/frontend-proof.mjs" || *name == "scripts/day2-proof.mjs" { super::replace_file(&path, body)?; }
         else {
-            std::fs::create_dir_all(path.parent().unwrap())?;
             use std::io::Write;
             let mut file = std::fs::OpenOptions::new().write(true).create_new(true).open(&path)?;
             file.write_all(body.as_bytes())?;

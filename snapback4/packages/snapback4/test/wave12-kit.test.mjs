@@ -27,7 +27,10 @@ test('H8 custom-schema generated proof refuses success without a write', {timeou
   assert.match(result.stderr,/no write scenario: replace the Home assertions/);
 });
 
-test('H8 withBrowser honors caller Playwright and opens no TCP listener', {timeout:30000}, async ()=>{
+test('H8 withBrowser honors caller Playwright and opens no TCP listener', {timeout:30000}, async t=>{
+  const saved=[process.env.PORT_LO,process.env.PORT_HI];
+  process.env.PORT_LO='29130';process.env.PORT_HI='29139';
+  t.after(()=>{for(const [i,key] of ['PORT_LO','PORT_HI'].entries()){if(saved[i]===undefined)delete process.env[key];else process.env[key]=saved[i]}});
   let calls=0;
   const caller={launch: (...args)=>{calls++;return chromium.launch(...args)}};
   await kit.withBrowser({chromium:caller,executablePath:process.env.CHROME,args:["--no-sandbox"]},async context=>{

@@ -75,7 +75,7 @@ export function registerWebWitness(app: App, api: Operations): void {
         let id: string | undefined, early: Write[] = [];
         const stop = client.onWrite(write => {
           if (id === undefined) { early.push(write); if (early.length > 256) early.shift(); }
-          else if (write.id === id && write.state !== "pending") { stop(); resolve({ ...write, mutation: op.name }); }
+          else if (write.id === id) { stop(); resolve({ ...write, mutation: op.name }); }
         });
         cancelObserver = stop;
         try {
