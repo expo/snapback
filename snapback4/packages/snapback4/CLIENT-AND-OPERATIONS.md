@@ -3992,4 +3992,59 @@ export function PhotoCapture({ photo }: { photo: Blob }) {
 
 Every wasm producer linking `snapback4-device` receives a `snapback4.engine` custom section from the crate. Its `{format:1, version, capabilities}` agrees with `engine_info`, available before partition open. Native hosts expose the same identity; Rust adapters use `engine::headers()` and forward `x-snapback-device` with schema, sync and changes requests. Exact's JSON sidecar and the package's engine JSON sidecar are derived diagnostics. `check` and Exact preflight read the embedded identity and compare the server's public-projection floor and capabilities. A package version or sidecar cannot substitute for it.
 
-The public declarations typecheck with ES2022 and WebWorker libraries without DOM or Node globals. Custom session mirrors implement the structural `StorageLike` interface from `snapback4/auth`.
+The application client declarations typecheck with ES2022 and WebWorker libraries without DOM or Node globals. The Node-only proof subpath uses Node and browser DOM types. Custom session mirrors implement the structural `StorageLike` interface from `snapback4/auth`.
+
+### Application proofs in Node
+
+`snapback4/proof` runs in Node with Playwright browser types; application client
+imports remain usable with ES2022/WebWorker types alone. Use the generated
+`frontend:proof` first; `guide testing` shows the short browser recipe. A custom
+proof can compose the same bounded hosts, private logs and saved release inputs:
+
+```ts
+import { startDev, startServe, startStatic, startVite, cli, command, deploy,
+  rollback, testSource, withBrowser, waitForFresh, fillRN, statusText,
+  selectByValue, bounded, cleanup, stopChild, portRange, sandboxUnavailable }
+  from "snapback4/proof";
+
+export async function applicationProof(cwd: string) {
+  const options = { cwd, timeoutMs: 120_000 };
+  console.log("proof port range", portRange());
+  const checked = await cli(["check"], options);
+  if (checked.code !== 0) throw Error(checked.stderr);
+  const acceptance = await testSource("versions/v1.q", options);
+  if (acceptance.code !== 0) throw Error(acceptance.stderr);
+  await deploy("deployment", "versions/v1.q", options);
+  const backend = await startServe("deployment", options);
+  try {
+    const build = await command("npm", ["run", "build"], options);
+    if (build.code !== 0) throw Error(build.stderr);
+    const frontend = await startStatic("dist", options);
+    try {
+      await withBrowser({ cwd }, async context => {
+        const page = await context.newPage();
+        await page.goto(`${frontend.url}/?api=${encodeURIComponent(backend.url)}`);
+        const status = statusText(page), before = await status.textContent();
+        await fillRN(page.getByLabel("Title"), "Proof");
+        await selectByValue(page.getByLabel("Category"), "work");
+        await page.getByRole("button", { name: "Add" }).click();
+        await bounded(waitForFresh(status, before), 35_000, "fresh rendered result");
+      });
+    } finally { await stopChild(frontend); }
+    await deploy("deployment", "versions/v2.q", options);
+    await rollback("deployment", 1, options);
+  } catch (error) {
+    console.error(sandboxUnavailable(error) ? "browser sandbox unavailable" : "proof failed");
+    throw error;
+  } finally { await cleanup(() => backend.stop()); }
+}
+
+// Development hosts use the same custody. Add assertions before stopping them.
+export async function developmentHosts(cwd: string) {
+  const backend = await startDev({ cwd });
+  try {
+    const frontend = await startVite(cwd);
+    await cleanup(() => frontend.stop());
+  } finally { await cleanup(() => backend.stop()); }
+}
+```

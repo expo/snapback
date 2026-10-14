@@ -95260,3 +95260,25 @@ proofs, retain digests/evidence, and never issue a publication receipt. Ordinary
 full qualification and receipt validation remain unchanged. Container and
 proot controls prove no test.sh invocation/receipt, and a failed starter refuses.
 All requested Rust/client/oracle checks run independently for integration.
+
+Integration 11 Linux qualification repairs: regenerate the authoring census
+from its compiled CENSUS_ITEM output (seven rule recipes and production/starter
+changes), and regenerate the delivery await boundary for the Node-only proof
+modules. Existing delivery sites and recipes remain unchanged. The API index
+now lists every proof export; public examples compile against actual types,
+with Node proof declarations checked in Node/DOM and application declarations
+still checked without DOM/Node globals. Signing fixtures load the real packaged
+docs lint and valid fixture guide inputs. Full wire bodies remain beside the
+compact proof guide. Update legacy starter assertions to runtime-port launchers,
+Composer assertions to fresh-sent clearing with concurrent/replayed edits,
+readable declared-key assertions to E_UNIQUE, and ownership setup to graceful
+address-file removal. All original privacy, rollback and no-mutation assertions
+remain. Packaged stopChild now refuses malformed exit/signal fields instead of
+mistaking undefined fields for an already-exited child.
+
+The copied 100-schema survey was rerun with a separately rebuilt 498f8110f9
+binary and the merged binary: both compile 100/100; all QDIAG counts match
+335→326 exactly. NARR adds one intended N_SYNC_EMPTY note (merged total 327).
+Keep that separate rather than suppressing another lane's advice to force an
+incorrect whole-release count. Native 20k/device 0–999 campaigns are green;
+Lean retains the same four historical signatures, zero new signatures.

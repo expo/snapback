@@ -58,7 +58,9 @@ export async function stopChild(child: ChildProcess | Pick<ProofHost, "url" | "s
   if (child && "url" in child && typeof child.url === "string" && typeof child.stop === "function") {
     await bounded(Promise.resolve().then(() => child.stop()), graceMs + 5000, "host stop"); return;
   }
-  if (!child || !("kill" in child) || typeof child.kill !== "function" || typeof child.once !== "function") {
+  if (!child || !("kill" in child) || typeof child.kill !== "function" || typeof child.once !== "function"
+      || !(child.exitCode === null || typeof child.exitCode === "number")
+      || !(child.signalCode === null || typeof child.signalCode === "string")) {
     throw new TypeError("stopChild needs a ChildProcess or { url, stop }");
   }
   if (child.exitCode !== null || child.signalCode !== null) return;

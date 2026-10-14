@@ -137,7 +137,7 @@ fn address_symlinks_and_nonregular_files_are_refused_without_truncation() {
     for kind in ["database", "unrelated", "directory", "fifo", "hardlink", "unrelated-hardlink"] {
         let p = Project::new(); p.initialize();
         let record = p.0.join(".snapback4/serve.lock");
-        fs::remove_file(&record).unwrap();
+        assert!(!record.exists(), "graceful initialization removes its owned address record");
         let unrelated = p.0.join("unrelated");
         fs::write(&unrelated, "keep this unrelated file intact\n").unwrap();
         fs::set_permissions(&unrelated, fs::Permissions::from_mode(0o644)).unwrap();

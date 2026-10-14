@@ -1,3 +1,4 @@
+import { stopChild, startDev, startServe } from "../dist/proof.js";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, symlinkSync, rmSync } from 'node:fs';
@@ -20,10 +21,19 @@ for (const mode of ['env', 'flag']) test(`portable ${mode} range sets URLs, Vite
   const dir = project(t);
   success(invoke(['init', '--web', ...(mode === 'flag' ? ['--port-range', '30100-30109'] : [])], dir, mode === 'env' ? { PORT_LO: '30100', PORT_HI: '30109' } : { PORT_LO: '1', PORT_HI: '2' }));
   const client = readFileSync(join(dir, 'src/client.ts'), 'utf8'), config = readFileSync(join(dir, 'vite.config.mts'), 'utf8');
-  assert.match(client, /127\.0\.0\.1:30100/); assert.ok(!config.includes('5173') && !config.includes('4173')); assert.match(config, /30101/);
+  const backend = mode === 'flag' ? 30100 : 4400, frontend = mode === 'flag' ? 30101 : 5173;
+  assert.ok(client.includes(`127.0.0.1:${backend}`)); assert.ok(config.includes(String(frontend)));
   const pkg = JSON.parse(readFileSync(join(dir, 'package.json')));
-  assert.match(pkg.scripts.backend, /--port 30100/); assert.match(pkg.scripts.dev, /--port 30101/); assert.match(pkg.scripts.preview, /--port 30101/); assert.match(pkg.scripts['proof:web'], /--port-range 30100-30109/);
-  assert.match(readFileSync(join(dir, 'README.md'), 'utf8'), /dev --port 30100/);
+  assert.equal(pkg.scripts.backend, 'node scripts/launch.mjs backend');
+  assert.equal(pkg.scripts.dev, 'node scripts/launch.mjs vite');
+  assert.equal(pkg.scripts.preview, 'node scripts/launch.mjs vite-preview');
+  assert.equal(pkg.scripts['proof:web'], 'node scripts/frontend-proof.mjs');
+  const launcher = readFileSync(join(dir, 'scripts/launch.mjs'), 'utf8');
+  assert.ok(launcher.includes(String(backend)) && launcher.includes(String(frontend)));
+  if (mode === 'env') assert.ok(!launcher.includes('30100') && !client.includes('30100'), 'init environment is not persisted');
+  const readme = readFileSync(join(dir, 'README.md'), 'utf8');
+  if (mode === 'flag') assert.ok(readme.includes(`dev --port ${backend}`));
+  else assert.ok(!readme.includes('30100'), 'README does not inherit the init owner range');
   assert.match(readFileSync(join(dir, 'public/favicon.svg'), 'utf8'), /<svg/);
   assert.match(readFileSync(join(dir, 'index.html'), 'utf8'), /favicon\.svg/);
 });
@@ -34,7 +44,8 @@ test('invalid ranges refuse before writing; explicit ports must lie inside a ran
     assert.equal(result.status, 2); assert.match(result.stderr, /E_INPUT/);
     assert.throws(() => readFileSync(join(dir, 'package.json')));
   }
-  const dir = project(t); assert.equal(invoke(['init', '--web'], dir, { PORT_LO: '30000', PORT_HI: '' }).status, 2);
+  const dir = project(t); success(invoke(['init', '--web'], dir, { PORT_LO: '30000', PORT_HI: '' }));
+  assert.ok(!readFileSync(join(dir, 'scripts/launch.mjs'), 'utf8').includes('30000'), 'runtime environment is validated at invocation');
 });
 
 for (const identity of ['use identity password', 'use identity guests', 'use personas alice']) test(`Expo sync detection and smoke use schema sign-in: ${identity}`, t => {
@@ -69,15 +80,12 @@ test('adapting a guest starter to password changes the untouched smoke helper to
 
 test('the published stopChild accepts handles and validates unknown shapes; serve launcher closes a real release', async t => {
   const guide = readFileSync(join(root, 'crates/snapback4-lang/src/guide/testing.md'), 'utf8');
-  const snippet = guide.match(/async function stopChild\([\s\S]*?(?=\/\/ A refusal)/)[0];
-  const context = vm.createContext({ spawn, once, createInterface, resolveBinary: () => bin, process, setTimeout, clearTimeout });
-  vm.runInContext(snippet + '\nglobalThis.helpers = { stopChild, startDev, startServe };', context);
-  const { stopChild, startDev, startServe } = context.helpers;
+  assert.ok(guide.includes('snapback4/proof'), 'the guide uses the packaged helpers');
   let stopped = false; await stopChild({ url: 'http://example', stop: () => { stopped = true; } }); assert.equal(stopped, true);
   for (const invalid of [null, {}, { exitCode: undefined }, { exitCode: {}, signalCode: null, once() {}, kill() {} }]) await assert.rejects(stopChild(invalid), /stopChild needs/);
   const dir = project(t); success(invoke(['init'], dir));
   success(invoke(['deploy', join(dir, 'deploy')], dir));
-  const server = await startServe(join(dir, 'deploy')); t.after(server.stop);
+  const server = await startServe(join(dir, 'deploy'), { cwd: dir }); t.after(server.stop);
   assert.equal((await fetch(server.url + '/schema')).status, 401); await stopChild(server);
   await assert.rejects(fetch(server.url + '/schema'));
   const child = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)'], { stdio: 'ignore' }); t.after(() => child.kill('SIGKILL'));

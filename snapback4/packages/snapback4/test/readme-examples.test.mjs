@@ -1,4 +1,4 @@
-import { existence, matchRead } from "../dist/contract.js";
+import { existence, matchRead, sentResult } from "../dist/contract.js";
 import { readyRead } from "../dist/read-existence.js";
 import { sessionKey } from "../dist/auth.js";
 import test from "node:test";
@@ -239,13 +239,15 @@ test("W10b typing guidance hides a short-lived server answer before the next ans
 });
 
 // Hold custody open while exercising the actual published composer's event handlers.
-test("client card composer clears at submit and offers refused text without replacing edits", async () => {
+test("client card composer clears after a fresh sent result and preserves concurrent edits", async () => {
   const source = read(join(root, "../../crates/snapback4-lang/src/guide/client.md"))
     .match(/export function Composer[\s\S]*?\n}/)?.[0];
   assert.ok(source);
   for (const [edited, outcome, expected] of [
-    ["", "pending", ""],
-    ["", "failed", "hello"],
+    ["hello", "pending", "hello"],
+    ["hello", "sent", ""],
+    ["hello", "replayed", "hello"],
+    ["hello", "failed", "hello"],
     ["hello again", "pending", "hello again"],
     ["hello again", "sent", "hello again"],
     ["replacement", "pending", "replacement"],
@@ -261,7 +263,7 @@ test("client card composer clears at submit and offers refused text without repl
       target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
     })}\nComposer;`, {
       api: { send: {}, myMembership: {} }, useMutation: () => send,
-      existence, matchRead, isReady: read => "data" in read, useQuery: () => readyRead({ data: { id: "me" }, complete: true, cut: null, fresh: true }),
+      existence, matchRead, sentResult, isReady: read => "data" in read, useQuery: () => readyRead({ data: { id: "me" }, complete: true, cut: null, fresh: true }),
       useState: () => slot++ === 0 ? [draft, update => { draft = typeof update === "function" ? update(draft) : update; }] : [saved, update => { saved = typeof update === "function" ? update(saved) : update; }],
       React: { Fragment: "fragment", createElement: (type, props, ...children) => ({ type, props, children }) },
     });
@@ -269,13 +271,13 @@ test("client card composer clears at submit and offers refused text without repl
     const [input, button] = render();
     assert.equal(button.props.disabled, false);
     button.props.onClick();
-    assert.equal(draft, "", "submit immediately gives the field to the next draft");
+    assert.equal(draft, "hello", "the submitted draft stays until a fresh sent result");
     assert.equal(submitted.args.body, "hello");
-    assert.equal(submitted.options.waitSeconds, 0);
+    assert.equal(submitted.options, undefined, "ordinary run waits for terminal settlement");
     assert.equal(render()[1].props.disabled, true);
     input.props.onChange({ target: { value: edited } });
     assert.equal(draft, edited, "draft stays editable before custody");
-    send.last = { state: outcome }; admit(send.last);
+    send.last = outcome === "replayed" ? {state: "sent", replayed: true} : {state: outcome, ...(outcome === "sent" ? {result: {id: "new-row"}} : {})}; admit(send.last);
     await custody;
     await new Promise(resolve => setImmediate(resolve)); // Drain the VM realm's async continuation too.
     send.inFlight = false; send.pending = outcome === "pending";
@@ -308,7 +310,7 @@ test("client card composer disables only denied or fresh non-revalidating absent
     const Composer = runInNewContext(`${ts.transpile(source.replace("export ", ""), {
       target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
     })}\nComposer;`, {
-      api: { send: {}, myMembership: {} }, existence, matchRead, isReady: read => "data" in read, useQuery: () => member,
+      api: { send: {}, myMembership: {} }, existence, matchRead, sentResult, isReady: read => "data" in read, useQuery: () => member,
       useState: () => ['hello', () => {}],
       useMutation: () => ({ inFlight: false, run: async () => { called = true; return { state: 'pending' }; } }),
       React: { Fragment: 'fragment', createElement: (type, props, ...children) => ({ type, props, children }) },

@@ -407,3 +407,8 @@ export function awaitBoundary() {
 // classified sites. DX's real-browser proof covers sent/refused/replay/timeout,
 // ephemeral exclusion and cleanup. Its two awaits join the complete boundary
 // seal, with no new device delivery site or fault recipe.
+
+// Integration 11: proof.ts/proof-process.ts/proof-host.ts await only test-host,
+// CLI and browser orchestration. They are a Node-only subpath, never imported by
+// app/local/online delivery. proof.test.mjs owns occupied ports, process death,
+// deadlines, group cleanup and browser failures; no delivery fault recipe changes.

@@ -170,7 +170,7 @@ fn failures_after_a_write_undo_every_row_and_epoch() {
         (
             "unique",
             "insert typing { roomId: 'r', principal: viewer }\n  insert typing { roomId: 'r', principal: viewer }",
-            "E_CONSTRAINT",
+            "E_UNIQUE",
         ),
         (
             "cap",

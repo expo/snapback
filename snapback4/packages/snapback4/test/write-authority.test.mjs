@@ -134,7 +134,7 @@ test("write authority: a lost readable key-collision reply cannot recover its ke
   assert.equal((await f.request("/seed", "alice", [{ table: "counters", row: other }])).seeded, 1);
   const input = { id: "lost-key", args: { key: "lookup" } };
   const first = await f.request("/m/put", "alice", input); // application loses this response
-  assert.equal(first.why.code, "E_CONSTRAINT");
+  assert.equal(first.why.code, "E_UNIQUE");
   assert.match(first.why.message, /PRIVATE/);
   await f.seed("dev:carol");
   assert.equal((await f.request("/seed", "alice", [{ table: "counters", row: { ...other, owner: "dev:carol" } }])).seeded, 1);
@@ -142,7 +142,7 @@ test("write authority: a lost readable key-collision reply cannot recover its ke
   assert.equal(retry.why.code, first.why.code);
   assert.equal(retry.replayed, true);
   assert.doesNotMatch(JSON.stringify(retry), /PRIVATE|bySecretAmount/);
-  assert.equal(retry.why.message, "the program refused with E_CONSTRAINT");
+  assert.equal(retry.why.message, "the program refused with E_UNIQUE");
   for (const field of ["code", "site", "rewrite", "guide", "family", "retryable"]) assert.deepEqual(retry.why[field], first.why[field]);
 });
 

@@ -17,7 +17,10 @@ export function publish(t, scenario = {}, previousRoot) {
   if (!previousRoot) {
     t.after(() => rmSync(root, { recursive: true, force: true }));
     for (const dir of ["scripts", "packages/snapback4", "packages/snapback4-expo", `packages/${platform}`, "target/production"]) mkdirSync(join(root, dir), { recursive: true });
-    for (const file of ["publish.mjs", "signing.mjs", "publication-artifacts.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-consumer.mjs", "publication-starters.mjs", "test-command-owner.mjs", "test-owned-command.mjs", "test-command-group.mjs", "publication-roundtrip.mjs", "publication-registry.mjs", "prepare-client.mjs"]) if (existsSync(new URL(file, scripts))) copyFileSync(new URL(file, scripts), join(root, "scripts", file));
+    for (const file of ["publish.mjs", "signing.mjs", "publication-artifacts.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-consumer.mjs", "publication-starters.mjs", "test-command-owner.mjs", "test-owned-command.mjs", "test-command-group.mjs", "publication-roundtrip.mjs", "publication-registry.mjs", "prepare-client.mjs", "packaged-docs.mjs"]) if (existsSync(new URL(file, scripts))) copyFileSync(new URL(file, scripts), join(root, "scripts", file));
+    mkdirSync(join(root, "crates/snapback4-lang/src/guide"), { recursive: true });
+    writeFileSync(join(root, "crates/snapback4-lang/src/guide.rs"), "// fixture guide\n");
+    writeFileSync(join(root, "packages/snapback4/README.md"), "# Fixture client\n");
     for (const dir of ["snapback4", "snapback4-expo", platform]) writeFileSync(join(root, "packages", dir, "package.json"), JSON.stringify({ name: dir, version: "0.0.0", ...(dir === "snapback4" ? { optionalDependencies: { "snapback4-darwin-arm64": "0.0.0", "snapback4-linux-x64": "0.0.0" } } : {}) }));
     writeFileSync(join(root, "scripts/publication-starters.mjs"), `export function proveStarters() { if (process.env.PUBLICATION_STARTERS_FAIL === '1') throw Error('starter export failed'); return [{kind:'expo', status:'passed'}, {kind:'web', status:'passed'}]; }`);
     writeFileSync(join(root, "target/production/snapback4"), "unsigned");

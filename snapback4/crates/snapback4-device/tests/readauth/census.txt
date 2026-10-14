@@ -313,6 +313,11 @@ card/presence/1:sendBrief | eligible
 card/presence/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/presence/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/presence/1:split | never
+card/production/1:createTeam | never
+card/production/1:enroll | never
+card/production/1:grantStaff | never
+card/production/1:provisionCatalogue | never
+card/production/1:register | never
 card/programs/1:checkin | never
 card/programs/1:createRoom | eligible
 card/programs/1:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
@@ -477,6 +482,21 @@ card/routes/1:split | never
 card/rule-recipes/1:grant | never
 card/rule-recipes/2:submit | eligible
 card/rule-recipes/3:addLetter | never
+card/rule-recipes/4:addFile | eligible
+card/rule-recipes/4:addFile | files/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
+card/rule-recipes/4:addFolder | eligible
+card/rule-recipes/4:addFolder | folders/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
+card/rule-recipes/5:consent | never
+card/rule-recipes/5:open | never
+card/rule-recipes/5:withdraw | never
+card/rule-recipes/6:draft | never
+card/rule-recipes/6:reveal | never
+card/rule-recipes/7:claim | never
+card/rule-recipes/7:provisionLink | never
+card/rule-recipes/7:revokeLink | never
+card/rule-recipes/7:revokeReader | never
+card/rule-recipes/8:respond | never
+card/rule-recipes/9:publish | never
 card/rules/6:markRead | eligible
 card/rules/6:markRead | members/update | {"Exists":{"table":"members","index":"$intent:byConversationIdPrincipal:55844466a293ca66","key":[{"Field":"conversationId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/sequences/1:createConversation | never
@@ -581,7 +601,6 @@ card/start/5:add | todos/insert | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read r
 card/start/5:remove | eligible
 card/start/5:toggle | eligible
 card/start/5:toggle | todos/update | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read rule
-card/testing/1:addCard | never
 card/time/1:addShift | eligible
 card/time/1:addShift | shifts/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/time/1:addShift | shiftsByDay/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule

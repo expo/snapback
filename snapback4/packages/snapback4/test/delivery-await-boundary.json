@@ -315,6 +315,22 @@
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
+  "proof-guard.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "proof-host.ts": {
+    "count": 7,
+    "sha256": "02eb293783956fc30045f3fa71c0ab786337ca2acdc355bb7edf6ef239efd24b"
+  },
+  "proof-process.ts": {
+    "count": 6,
+    "sha256": "5b7cdcfd62f5dcf4a6f41dc9d59fec7e5a7e364582c01189c4723b860518e93f"
+  },
+  "proof.ts": {
+    "count": 29,
+    "sha256": "23bfa84e4f70369084db6afa929a4f42634723b1ae2c74957ab09bad2c00c0a2"
+  },
   "query-custody.ts": {
     "count": 1,
     "sha256": "c8a795b4cf3c5f622500bca28e008a254ab73ac03b924d8a0fbd3fd40a261946"

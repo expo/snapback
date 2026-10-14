@@ -991,7 +991,7 @@ fn adapt_never_touches_a_file_the_project_changed() {
     assert_eq!(fs::read_to_string(dir.0.join("App.tsx")).unwrap(), app);
     assert_eq!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap(), client);
     let adapted = String::from_utf8_lossy(&adapted.stdout);
-    assert!(adapted.contains("rewrote README.md —") && !adapted.contains("App.tsx") && !adapted.contains("client.ts"), "{adapted}");
+    assert!(adapted.contains("rewrote README.md —") && adapted.contains("application-owned or modified files stay unchanged:") && !adapted.contains("rewrite App.tsx") && !adapted.contains("rewrite src/client.ts"), "{adapted}");
     // An unmodified Expo screen adapts like the web one.
     let dir = Dir::new();
     assert!(dir.init(&["--expo"]).status.success());
