@@ -1,0 +1,11 @@
+{
+  "source": "ac219032c355d7c55ed8991fa85a409e955d6ceb",
+  "frontendAttempts": 12,
+  "positiveBrowserAttempts": 28,
+  "negativeCustomAttempts": 2,
+  "allAuditsPassed": true,
+  "allObservedTcpPortsInRange": true,
+  "formSubmit": [
+    "web"
+  ]
+}

@@ -1,0 +1,3600 @@
+info: component rust-std for target x86_64-unknown-linux-musl is up to date
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:292:13
+    |
+292 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:503:15
+    |
+503 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: `snapback4-core` (lib) generated 9 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+warning: dropping unsupported crate type `cdylib` for target `x86_64-unknown-linux-musl`
+
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:450:51
+    |
+450 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 2 warnings (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+warning: use of deprecated type alias `libc::time_t`: This type is changed to 64-bit in musl 1.2.0, we'll follow that change in the future release. See #1848 for more info.
+   --> crates/snapback4/src/verbs/witness/background.rs:388:65
+    |
+388 |     let seconds = (value.as_u64().unwrap_or(0) / 1000) as libc::time_t;
+    |                                                                 ^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:115:30
+    |
+115 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:131:30
+    |
+131 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+
+warning: method `push` is never used
+  --> crates/snapback4/src/dev_refusal_console.rs:22:12
+   |
+16 | impl Console {
+   | ------------ method in this implementation
+...
+22 |     pub fn push(&mut self, record: Value, identity: &Value, out: &mut impl Write) {
+   |            ^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `human_period` is never used
+   --> crates/snapback4/src/verbs.rs:822:4
+    |
+822 | fn human_period(ms: u64) -> String {
+    |    ^^^^^^^^^^^^
+
+warning: `snapback4` (bin "snapback4") generated 5 warnings (run `cargo fix --bin "snapback4" -p snapback4` to apply 2 suggestions)
+    Finished `production` profile [optimized] target(s) in 0.18s
+{"status":"passed","machine":"x86_64","interpreter":null,"needed":[]}
+
+added 6 packages in 1s
+init: wrote 20 files in . — Vite + React todos, offline-capable — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:29040; `npm run dev` serves the page on http://localhost:29041; `init --web --port N` sets the backend to N and the page to N+1 together
+[1mnpm install[0m
+
+added 26 packages in 2s
+check: ok — 1 table (1 synced), 4 operations, no problems, 4.3 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 134 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    0.45 kB │ gzip:   0.29 kB
+dist/assets/web-worker-entry-DseDHWyJ.js          25.02 kB
+dist/assets/snapback4_device_bg-LOu4IHPv.wasm  2,319.74 kB │ gzip: 719.82 kB
+dist/assets/index-D1mLdyLc.css                     0.36 kB │ gzip:   0.24 kB
+dist/assets/index-CM1kvKG-.js                    586.18 kB │ gzip: 186.60 kB
+
+✓ built in 341ms
+web-shell: 6 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 1s
+init: wrote 20 files in . — Vite + React app, online reads and journaled writes (no device) — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:29040; `npm run dev` serves the page on http://localhost:29041; `init --web --port N` sets the backend to N and the page to N+1 together
+[1mnpm install[0m
+
+added 26 packages in 2s
+check: ok — 1 table (0 synced), 4 operations, no problems, 5.2 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 116 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.46 kB │ gzip:   0.29 kB
+dist/assets/index-D1mLdyLc.css    0.36 kB │ gzip:   0.24 kB
+dist/assets/index-Dp4bRy1w.js   525.60 kB │ gzip: 167.80 kB
+
+✓ built in 196ms
+web-shell: 4 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 1s
+init: wrote 21 files in . — Expo todos: native when available, online in Expo Go — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, native-smoke.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:29040; `npm run web` serves http://localhost:29041; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together
+[1mnpm install[0m
+
+added 502 packages in 10s
+check: ok — 1 table (1 synced), 4 operations, no problems, 6.5 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+| (node:2790271) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:2790271) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+Web Bundled 7318ms index.js (327 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/index-2d2e1cf472bb061e5bfb1587042db833.js (833KB)
+_expo/static/js/web/web-worker-entry-17adb7552f751f2793d718b043a62664.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 5 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 1s
+init: wrote 23 files in . — Vite chat app — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, src/{App.tsx, client.ts, Composer.tsx, Thread.tsx, Inbox.tsx, main.tsx, intents.ts, state.ts, vite-env.d.ts}, snapback/{schema.q, worker.ts, generated/package.json}, public/favicon.svg, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:29040; `npm run dev` serves the page on http://localhost:29041; `init --web --port N` sets the backend to N and the page to N+1 together
+[1mnpm install[0m
+
+added 26 packages in 2s
+check: ok — 5 tables, 1 view (5 synced), 12 operations, no problems, 7 notes, 12.3 ms
+7 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:85:10 — N_REFERENCE_UNCHECKED: review: this reference argument is never looked up. mutation addMember stores argument conversationId directly in memberships.conversationId, but never looks up conversations[conversationId]: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation send (schema.q:94:9); mutation sendPhoto (schema.q:99:9) — snapback4 why N_REFERENCE_UNCHECKED
+note: schema.q:30:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. conversations: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for memberships: no production writer can bootstrap this root (schema.q:40:1); profiles: no production writer can bootstrap this root (schema.q:16:1) — snapback4 why N_NO_PRODUCTION_WRITER
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:79:1 — N_NO_CURSOR: no action for a top-N list. query inbox returns a page of 50 memberships rows with no cursor, so the page cannot continue: rows past the first 50 are not reachable. Fine for a top-50 list, or a list that stays under 50 rows; a pinned unique key or a `cap` at or under 50 silences this — snapback4 why N_NO_CURSOR
+1 mutation is server-run (online app: no action): markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-chat@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-chat@0.0.1 build
+> vite build && snapback4 web-shell dist
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 139 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    1.21 kB │ gzip:   0.66 kB
+dist/assets/web-worker-entry-DseDHWyJ.js          25.02 kB
+dist/assets/snapback4_device_bg-LOu4IHPv.wasm  2,319.74 kB │ gzip: 719.82 kB
+dist/assets/index-C7h2lOqk.js                    593.95 kB │ gzip: 188.89 kB
+
+✓ built in 237ms
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+web-shell: 5 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 1s
+init: wrote 25 files in . — Expo chat app — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, native-smoke.ts, Inbox.tsx, Thread.tsx, intents.ts, intent-store.ts, intent-store.web.ts, intent-store.native.ts}, snapback/{schema.q, generated/package.json}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:29040; `npm run web` serves http://localhost:29041; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together
+[1mnpm install[0m
+
+added 502 packages in 8s
+check: ok — 5 tables, 1 view (5 synced), 11 operations, no problems, 7 notes, 11.3 ms
+7 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:83:10 — N_REFERENCE_UNCHECKED: review: this reference argument is never looked up. mutation addMember stores argument conversationId directly in memberships.conversationId, but never looks up conversations[conversationId]: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation send (schema.q:92:9); mutation sendPhoto (schema.q:97:9) — snapback4 why N_REFERENCE_UNCHECKED
+note: schema.q:28:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. conversations: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for memberships: no production writer can bootstrap this root (schema.q:38:1); profiles: no production writer can bootstrap this root (schema.q:14:1) — snapback4 why N_NO_PRODUCTION_WRITER
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:77:1 — N_NO_CURSOR: no action for a top-N list. query inbox returns a page of 50 memberships rows with no cursor, so the page cannot continue: rows past the first 50 are not reachable. Fine for a top-50 list, or a list that stays under 50 rows; a pinned unique key or a `cap` at or under 50 silences this — snapback4 why N_NO_CURSOR
+1 mutation is server-run (online app: no action): markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-expo-chat@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-expo-chat@0.0.1 build:web
+> expo export -p web --max-workers 2 && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+| (node:2796323) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:2796323) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+Web Bundled 1444ms index.js (358 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/index-24c5bebfd056738ff3e9ac8e9a3f0ec5.js (911KB)
+_expo/static/js/web/web-worker-entry-ad6abe14ce74f5528d9040aba55a5c61.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 5 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 1s
+init: wrote 46 files in . — Expo Router social app — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, expo-env.d.ts, README.md, tsconfig.json, app.json, src/ (20 files), scripts/{seed.mjs, frontend-proof.mjs, day2-proof.mjs, launch.mjs}, snapback/{workers/notifications.mjs, schema.q, generated/package.json}, app/{_layout.tsx, conversation/[id].tsx, dm/[other].tsx, (tabs)/_layout.tsx, (tabs)/index.tsx, (tabs)/chats.tsx, (tabs)/search.tsx, (tabs)/profile.tsx, search-chat/[id].tsx}, versions/{v1.q, v2.q}
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:29040; `npm run web` serves http://localhost:29041; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together
+[1mnpm install[0m
+
+added 584 packages in 10s
+check: ok — 16 tables, 1 view (15 synced), 31 operations, no problems, 17 notes, 65.7 ms
+17 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:232:1 — N_NEVER_COMPLETE — verdict: capped; the server cannot prove that this page contains every readable row — snapback4 why N_NEVER_COMPLETE
+  who: no caller group is proved complete by this page
+  what: pin every read-rule scope or handle `complete: false` as more rows may exist; check --verbose shows the proof and checked repair
+note: schema.q:80:7 — N_REFERENCE_UNCHECKED: review: this reference argument is never looked up. mutation send stores argument conversation directly in messages.conversation, but never looks up conversations[conversation]: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation add (schema.q:85:3); mutation setLike (schema.q:207:5) — snapback4 why N_REFERENCE_UNCHECKED
+note: table followingEdges:1:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. followingEdges: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for followingFeed: no production writer can bootstrap this root (table followingFeed:1:1); followingPosts: no production writer can bootstrap this root (table followingPosts:1:1); followingRemovedEvents: no production writer can bootstrap this root (table followingRemovedEvents:1:1); followingWork: no production writer can bootstrap this root (table followingWork:1:1); reposts: no production writer can bootstrap this root (schema.q:170:1) — snapback4 why N_NO_PRODUCTION_WRITER
+note: programs.search.0 — N_SEARCH_OPEN: review. opening every membership and head must fit one read; an opening cut refuses E_SEARCH_OPEN without a continuation — snapback4 why N_SEARCH_OPEN
+performance — costs speed, meter headroom or offline coverage:
+note: schema.q:67:69 — N_SEEK: no action unless it is slow (`check --cost` measures it). a `where` on the next index column is a seek; write it in the key — snapback4 why N_SEEK
+note: N_SEEK (as above) also for a (schema.q:72:69) — snapback4 why N_SEEK
+note: schema.q:225:1 — N_EPHEMERAL_SERVER: no action unless it is slow (`check --cost` measures it). typingIn runs on the server because it reads an ephemeral table — snapback4 why N_EPHEMERAL_SERVER
+note: programs.search.0 — N_SEARCH_WORDS: no action unless it is slow (`check --cost` measures it). word expansion and further-term misses consume the meter; compact membership refills rescan words and charge repeated work — snapback4 why N_SEARCH_WORDS
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:230:10 — N_SYNC_ORDER: no action for an online app. query searchChat `messages[conversation = conversation] matching q last 20 by .at after c`: the order differs: the page reads by .at, .id, the window by .ordinal, .id; write `last 20 by .ordinal, .id` — it reads messages by .at, .id, newest first (index [conversation, at, id]); its sync window is last 500 by .ordinal, .id, newest first (index byConversationOrdinal [conversation, ordinal]); the client needs the server for this read; offline coverage is unknown — snapback4 why N_SYNC_ORDER
+note: N_SYNC_ORDER (as above) also for query search (schema.q:233:10) — snapback4 why N_SYNC_ORDER
+8 mutations are server-run (online app: no action): compactReceipts (reads receipt-owned or derived field members.deliveredOrdinal), delivered (reads receipt-owned or derived field conversations.lastOrdinal), follow (writes online-only table follows), leave (receipt membership changes and progress need settled state), seen (reads receipt-owned or derived field conversations.lastOrdinal), setTyping (writes online-only table typing), stopTyping (writes online-only table typing), unfollow (writes online-only table follows); 4 mutations have insert arms that may queue; 3 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-social-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-social-starter@0.0.1 build:web
+> expo export -p web --max-workers 2 && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+| (node:2798387) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:2798387) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+Web Bundled 8705ms node_modules/expo-router/entry.js (929 modules)
+
+› Assets (19):
+node_modules/expo-router/assets/arrow_down.017bc6ba3fc25503e5eb5e53826d48a8.png (9.5KB)
+node_modules/expo-router/assets/error.d1ea1496f9057eb392d5bbf3732a61b7.png (469B)
+node_modules/expo-router/assets/file.19eeb73b9593a38f8e9f418337fc7d10.png (138B)
+node_modules/expo-router/assets/forward.d8b800c443b8972542883e0b9de2bdc6.png (188B)
+node_modules/expo-router/assets/pkg.ab19f4cbc543357183a20571f68380a3.png (364B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.0a328cd9c1afd0afe8e3b1ec5165b1b4.png (653B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon.35ba0eaec5a4f5ed12ca16fabeae451d.png (207B)
+node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55.png (4 variations | 425B)
+node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7.png (4 variations | 235B)
+node_modules/expo-router/assets/react-navigation/elements/search-icon.286d67d3f74808a60a78d3ebf1a5fb57.png (928B)
+node_modules/expo-router/assets/sitemap.412dd9275b6b48ad28f5e3d81bb1f626.png (465B)
+node_modules/expo-router/assets/unmatched.20e71bdf79e3a97bf55fd9e164041578.png (4.8KB)
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/entry-55e9c2036ea608f4c47ea0f0472c351b.js (1.6MB)
+_expo/static/js/web/web-worker-entry-650f0e4244a9b624e4155750c59de637.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 23 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 1s
+init: wrote 20 files in . — Vite + React todos, offline-capable — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+[1mnpm install[0m
+
+added 26 packages in 2s
+check: ok — 1 table (1 synced), 4 operations, no problems, 3.9 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 134 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    0.45 kB │ gzip:   0.29 kB
+dist/assets/web-worker-entry-DseDHWyJ.js          25.02 kB
+dist/assets/snapback4_device_bg-LOu4IHPv.wasm  2,319.74 kB │ gzip: 719.82 kB
+dist/assets/index-D1mLdyLc.css                     0.36 kB │ gzip:   0.24 kB
+dist/assets/index-CM1kvKG-.js                    586.18 kB │ gzip: 186.60 kB
+
+✓ built in 243ms
+web-shell: 6 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+init --adapt: planned changes (only unmodified starter files):
+  remove fixtures/todos.jsonl — the unmodified rows for the todo starter's `todos` table; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  remove fixtures/test.cases.jsonl — the unmodified cases for the todo starter's list/add/toggle/remove; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  rewrite src/App.tsx — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+  rewrite src/client.ts — the unmodified web client needs the device or principal journal selected by your schema's synced tables
+  rewrite README.md — the unmodified starter README describes the todo starter (its todos table and guest sign-in); adapt rewrites it to describe your snapback/*.q and the Home screen, named after this directory
+init --adapt: removed fixtures/todos.jsonl and fixtures/test.cases.jsonl (unmodified starter files; fixtures/ stays for your own rows; write your own as fixtures/<table>.jsonl and fixtures/test.cases.jsonl, `snapback4 guide testing`)
+init --adapt: rewrote src/App.tsx and src/client.ts and README.md — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+init --adapt: next: `snapback4 check` writes snapback/generated/api.ts for the Home screen; replace Home with your own screens (`snapback4 guide client`)
+check: ok — 1 table (0 synced), 2 operations, no problems, 2 notes, 3.2 ms
+2 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+performance — costs speed, meter headroom or offline coverage:
+note: schema.q:10:1 — N_NOT_PREDICTABLE: no action unless it is slow (`check --cost` measures it). add is no longer eligible to predict; queued without a row: online-only table notes (sites: schema.q:11:10) — snapback4 why N_NOT_PREDICTABLE
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:8:1 — N_NO_CURSOR: no action for a top-N list. query mine returns a page of 20 notes rows with no cursor, so the page cannot continue: rows past the first 20 are not reachable. Fine for a top-20 list, or a list that stays under 20 rows; a pinned unique key or a `cap` at or under 20 silences this — snapback4 why N_NO_CURSOR
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 116 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.45 kB │ gzip:   0.29 kB
+dist/assets/index-D1mLdyLc.css    0.36 kB │ gzip:   0.24 kB
+dist/assets/index-C4LAqv11.js   520.71 kB │ gzip: 166.11 kB
+
+✓ built in 207ms
+web-shell: 4 files at /; wrote snapback4-sw.js
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: no write scenario: replace the Home assertions
+    at file:///home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-web/scripts/frontend-proof.mjs:30:12
+    at runNextTicks (node:internal/process/task_queues:64:5)
+    at process.processImmediate (node:internal/timers:472:9)
+    at async withBrowser (file:///home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-web/node_modules/snapback4/dist/proof.js:156:20)
+    at async file:///home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-web/scripts/frontend-proof.mjs:14:3 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 0,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.13.1
+check: ok — 1 table (0 synced), 2 operations, no problems, 1 note, 3.1 ms
+1 advisory note — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:8:1 — N_NO_CURSOR: no action for a top-N list. query mine returns a page of 20 notes rows with no cursor, so the page cannot continue: rows past the first 20 are not reachable. Fine for a top-20 list, or a list that stays under 20 rows; a pinned unique key or a `cap` at or under 20 silences this — snapback4 why N_NO_CURSOR
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 116 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.45 kB │ gzip:   0.29 kB
+dist/assets/index-D1mLdyLc.css    0.36 kB │ gzip:   0.24 kB
+dist/assets/index-CXJE5THP.js   523.50 kB │ gzip: 167.11 kB
+
+✓ built in 173ms
+web-shell: 4 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 1s
+init: wrote 20 files in . — Vite + React app, online reads and journaled writes (no device) — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+[1mnpm install[0m
+
+added 26 packages in 2s
+check: ok — 1 table (0 synced), 4 operations, no problems, 3.8 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 116 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.46 kB │ gzip:   0.29 kB
+dist/assets/index-D1mLdyLc.css    0.36 kB │ gzip:   0.24 kB
+dist/assets/index-Dp4bRy1w.js   525.60 kB │ gzip: 167.80 kB
+
+✓ built in 194ms
+web-shell: 4 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 1s
+init: wrote 21 files in . — Expo todos: native when available, online in Expo Go — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, native-smoke.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together
+[1mnpm install[0m
+
+added 502 packages in 8s
+check: ok — 1 table (1 synced), 4 operations, no problems, 3.9 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 187ms index.js (218 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/index-2d2e1cf472bb061e5bfb1587042db833.js (833KB)
+_expo/static/js/web/web-worker-entry-17adb7552f751f2793d718b043a62664.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+| (node:2808008) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:2808008) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+Web Bundled 5094ms index.js (327 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/index-2d2e1cf472bb061e5bfb1587042db833.js (833KB)
+_expo/static/js/web/web-worker-entry-17adb7552f751f2793d718b043a62664.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 5 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+init --adapt: planned changes (only unmodified starter files):
+  remove fixtures/todos.jsonl — the unmodified rows for the todo starter's `todos` table; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  remove fixtures/test.cases.jsonl — the unmodified cases for the todo starter's list/add/toggle/remove; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  rewrite App.tsx — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+  rewrite src/client.ts — the unmodified web client needs the device or principal journal selected by your schema's synced tables
+  rewrite README.md — the unmodified starter README describes the todo starter (its todos table and guest sign-in); adapt rewrites it to describe your snapback/*.q and the Home screen, named after this directory
+init --adapt: removed fixtures/todos.jsonl and fixtures/test.cases.jsonl (unmodified starter files; fixtures/ stays for your own rows; write your own as fixtures/<table>.jsonl and fixtures/test.cases.jsonl, `snapback4 guide testing`)
+init --adapt: rewrote App.tsx and src/client.ts and README.md — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+init --adapt: next: `snapback4 check` writes snapback/generated/api.ts for the Home screen; replace Home with your own screens (`snapback4 guide client`)
+check: ok — 1 table (0 synced), 2 operations, no problems, 2 notes, 3.1 ms
+2 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+performance — costs speed, meter headroom or offline coverage:
+note: schema.q:10:1 — N_NOT_PREDICTABLE: no action unless it is slow (`check --cost` measures it). add is no longer eligible to predict; queued without a row: online-only table notes (sites: schema.q:11:10) — snapback4 why N_NOT_PREDICTABLE
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:8:1 — N_NO_CURSOR: no action for a top-N list. query mine returns a page of 20 notes rows with no cursor, so the page cannot continue: rows past the first 20 are not reachable. Fine for a top-20 list, or a list that stays under 20 rows; a pinned unique key or a `cap` at or under 20 silences this — snapback4 why N_NO_CURSOR
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+| (node:2809804) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:2809804) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+Web Bundled 929ms index.js (297 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-91cff7c8bb6820bc8dea64b3946e62b3.js (747KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+| (node:2809890) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:2809890) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+Web Bundled 4599ms index.js (297 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-91cff7c8bb6820bc8dea64b3946e62b3.js (747KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 3 files at /; wrote snapback4-sw.js
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: no write scenario: replace the Home assertions
+    at file:///home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-expo/scripts/frontend-proof.mjs:30:12
+    at async withBrowser (file:///home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-expo/node_modules/snapback4/dist/proof.js:156:20)
+    at async file:///home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-expo/scripts/frontend-proof.mjs:14:3 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: 0,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.13.1
+check: ok — 1 table (0 synced), 2 operations, no problems, 1 note, 3.1 ms
+1 advisory note — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:8:1 — N_NO_CURSOR: no action for a top-N list. query mine returns a page of 20 notes rows with no cursor, so the page cannot continue: rows past the first 20 are not reachable. Fine for a top-20 list, or a list that stays under 20 rows; a pinned unique key or a `cap` at or under 20 silences this — snapback4 why N_NO_CURSOR
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+| (node:2810798) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+Web Bundled 640ms index.js (271 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-3ed2517816c5700e2509a94a218b09be.js (754KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+| (node:2810904) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:2810904) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+Web Bundled 4685ms index.js (299 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-3ed2517816c5700e2509a94a218b09be.js (754KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 3 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 1s
+init: wrote 23 files in . — Vite chat app — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, src/{App.tsx, client.ts, Composer.tsx, Thread.tsx, Inbox.tsx, main.tsx, intents.ts, state.ts, vite-env.d.ts}, snapback/{schema.q, worker.ts, generated/package.json}, public/favicon.svg, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+[1mnpm install[0m
+
+added 26 packages in 2s
+check: ok — 5 tables, 1 view (5 synced), 12 operations, no problems, 7 notes, 11.7 ms
+7 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:85:10 — N_REFERENCE_UNCHECKED: review: this reference argument is never looked up. mutation addMember stores argument conversationId directly in memberships.conversationId, but never looks up conversations[conversationId]: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation send (schema.q:94:9); mutation sendPhoto (schema.q:99:9) — snapback4 why N_REFERENCE_UNCHECKED
+note: schema.q:30:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. conversations: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for memberships: no production writer can bootstrap this root (schema.q:40:1); profiles: no production writer can bootstrap this root (schema.q:16:1) — snapback4 why N_NO_PRODUCTION_WRITER
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:79:1 — N_NO_CURSOR: no action for a top-N list. query inbox returns a page of 50 memberships rows with no cursor, so the page cannot continue: rows past the first 50 are not reachable. Fine for a top-50 list, or a list that stays under 50 rows; a pinned unique key or a `cap` at or under 50 silences this — snapback4 why N_NO_CURSOR
+1 mutation is server-run (online app: no action): markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-chat@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-chat@0.0.1 build
+> vite build && snapback4 web-shell dist
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 139 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    1.21 kB │ gzip:   0.66 kB
+dist/assets/web-worker-entry-DseDHWyJ.js          25.02 kB
+dist/assets/snapback4_device_bg-LOu4IHPv.wasm  2,319.74 kB │ gzip: 719.82 kB
+dist/assets/index-C7h2lOqk.js                    593.95 kB │ gzip: 188.89 kB
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 282ms
+web-shell: 5 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 1s
+init: wrote 25 files in . — Expo chat app — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, native-smoke.ts, Inbox.tsx, Thread.tsx, intents.ts, intent-store.ts, intent-store.web.ts, intent-store.native.ts}, snapback/{schema.q, generated/package.json}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together
+[1mnpm install[0m
+
+added 502 packages in 8s
+check: ok — 5 tables, 1 view (5 synced), 11 operations, no problems, 7 notes, 11.0 ms
+7 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:83:10 — N_REFERENCE_UNCHECKED: review: this reference argument is never looked up. mutation addMember stores argument conversationId directly in memberships.conversationId, but never looks up conversations[conversationId]: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation send (schema.q:92:9); mutation sendPhoto (schema.q:97:9) — snapback4 why N_REFERENCE_UNCHECKED
+note: schema.q:28:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. conversations: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for memberships: no production writer can bootstrap this root (schema.q:38:1); profiles: no production writer can bootstrap this root (schema.q:14:1) — snapback4 why N_NO_PRODUCTION_WRITER
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:77:1 — N_NO_CURSOR: no action for a top-N list. query inbox returns a page of 50 memberships rows with no cursor, so the page cannot continue: rows past the first 50 are not reachable. Fine for a top-50 list, or a list that stays under 50 rows; a pinned unique key or a `cap` at or under 50 silences this — snapback4 why N_NO_CURSOR
+1 mutation is server-run (online app: no action): markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-expo-chat@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+| (node:2816844) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:2816844) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+Web Bundled 1924ms index.js (361 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/index-24c5bebfd056738ff3e9ac8e9a3f0ec5.js (911KB)
+_expo/static/js/web/web-worker-entry-ad6abe14ce74f5528d9040aba55a5c61.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-chat@0.0.1 build:web
+> expo export -p web --max-workers 2 && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+Web Bundled 214ms index.js (361 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/index-24c5bebfd056738ff3e9ac8e9a3f0ec5.js (911KB)
+_expo/static/js/web/web-worker-entry-ad6abe14ce74f5528d9040aba55a5c61.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 5 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 1s
+init: wrote 46 files in . — Expo Router social app — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, expo-env.d.ts, README.md, tsconfig.json, app.json, src/ (20 files), scripts/{seed.mjs, frontend-proof.mjs, day2-proof.mjs, launch.mjs}, snapback/{workers/notifications.mjs, schema.q, generated/package.json}, app/{_layout.tsx, conversation/[id].tsx, dm/[other].tsx, (tabs)/_layout.tsx, (tabs)/index.tsx, (tabs)/chats.tsx, (tabs)/search.tsx, (tabs)/profile.tsx, search-chat/[id].tsx}, versions/{v1.q, v2.q}
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together
+[1mnpm install[0m
+
+added 584 packages in 10s
+check: ok — 16 tables, 1 view (15 synced), 31 operations, no problems, 17 notes, 64.7 ms
+17 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:232:1 — N_NEVER_COMPLETE — verdict: capped; the server cannot prove that this page contains every readable row — snapback4 why N_NEVER_COMPLETE
+  who: no caller group is proved complete by this page
+  what: pin every read-rule scope or handle `complete: false` as more rows may exist; check --verbose shows the proof and checked repair
+note: schema.q:80:7 — N_REFERENCE_UNCHECKED: review: this reference argument is never looked up. mutation send stores argument conversation directly in messages.conversation, but never looks up conversations[conversation]: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation add (schema.q:85:3); mutation setLike (schema.q:207:5) — snapback4 why N_REFERENCE_UNCHECKED
+note: table followingEdges:1:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. followingEdges: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for followingFeed: no production writer can bootstrap this root (table followingFeed:1:1); followingPosts: no production writer can bootstrap this root (table followingPosts:1:1); followingRemovedEvents: no production writer can bootstrap this root (table followingRemovedEvents:1:1); followingWork: no production writer can bootstrap this root (table followingWork:1:1); reposts: no production writer can bootstrap this root (schema.q:170:1) — snapback4 why N_NO_PRODUCTION_WRITER
+note: programs.search.0 — N_SEARCH_OPEN: review. opening every membership and head must fit one read; an opening cut refuses E_SEARCH_OPEN without a continuation — snapback4 why N_SEARCH_OPEN
+performance — costs speed, meter headroom or offline coverage:
+note: schema.q:67:69 — N_SEEK: no action unless it is slow (`check --cost` measures it). a `where` on the next index column is a seek; write it in the key — snapback4 why N_SEEK
+note: N_SEEK (as above) also for a (schema.q:72:69) — snapback4 why N_SEEK
+note: schema.q:225:1 — N_EPHEMERAL_SERVER: no action unless it is slow (`check --cost` measures it). typingIn runs on the server because it reads an ephemeral table — snapback4 why N_EPHEMERAL_SERVER
+note: programs.search.0 — N_SEARCH_WORDS: no action unless it is slow (`check --cost` measures it). word expansion and further-term misses consume the meter; compact membership refills rescan words and charge repeated work — snapback4 why N_SEARCH_WORDS
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:230:10 — N_SYNC_ORDER: no action for an online app. query searchChat `messages[conversation = conversation] matching q last 20 by .at after c`: the order differs: the page reads by .at, .id, the window by .ordinal, .id; write `last 20 by .ordinal, .id` — it reads messages by .at, .id, newest first (index [conversation, at, id]); its sync window is last 500 by .ordinal, .id, newest first (index byConversationOrdinal [conversation, ordinal]); the client needs the server for this read; offline coverage is unknown — snapback4 why N_SYNC_ORDER
+note: N_SYNC_ORDER (as above) also for query search (schema.q:233:10) — snapback4 why N_SYNC_ORDER
+8 mutations are server-run (online app: no action): compactReceipts (reads receipt-owned or derived field members.deliveredOrdinal), delivered (reads receipt-owned or derived field conversations.lastOrdinal), follow (writes online-only table follows), leave (receipt membership changes and progress need settled state), seen (reads receipt-owned or derived field conversations.lastOrdinal), setTyping (writes online-only table typing), stopTyping (writes online-only table typing), unfollow (writes online-only table follows); 4 mutations have insert arms that may queue; 3 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-social-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+| (node:2819124) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:2819124) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+Web Bundled 8401ms node_modules/expo-router/entry.js (929 modules)
+
+› Assets (19):
+node_modules/expo-router/assets/arrow_down.017bc6ba3fc25503e5eb5e53826d48a8.png (9.5KB)
+node_modules/expo-router/assets/error.d1ea1496f9057eb392d5bbf3732a61b7.png (469B)
+node_modules/expo-router/assets/file.19eeb73b9593a38f8e9f418337fc7d10.png (138B)
+node_modules/expo-router/assets/forward.d8b800c443b8972542883e0b9de2bdc6.png (188B)
+node_modules/expo-router/assets/pkg.ab19f4cbc543357183a20571f68380a3.png (364B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.0a328cd9c1afd0afe8e3b1ec5165b1b4.png (653B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon.35ba0eaec5a4f5ed12ca16fabeae451d.png (207B)
+node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55.png (4 variations | 425B)
+node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7.png (4 variations | 235B)
+node_modules/expo-router/assets/react-navigation/elements/search-icon.286d67d3f74808a60a78d3ebf1a5fb57.png (928B)
+node_modules/expo-router/assets/sitemap.412dd9275b6b48ad28f5e3d81bb1f626.png (465B)
+node_modules/expo-router/assets/unmatched.20e71bdf79e3a97bf55fd9e164041578.png (4.8KB)
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/entry-55e9c2036ea608f4c47ea0f0472c351b.js (1.6MB)
+_expo/static/js/web/web-worker-entry-650f0e4244a9b624e4155750c59de637.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-social-starter@0.0.1 build:web
+> expo export -p web --max-workers 2 && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+Web Bundled 420ms node_modules/expo-router/entry.js (929 modules)
+
+› Assets (19):
+node_modules/expo-router/assets/arrow_down.017bc6ba3fc25503e5eb5e53826d48a8.png (9.5KB)
+node_modules/expo-router/assets/error.d1ea1496f9057eb392d5bbf3732a61b7.png (469B)
+node_modules/expo-router/assets/file.19eeb73b9593a38f8e9f418337fc7d10.png (138B)
+node_modules/expo-router/assets/forward.d8b800c443b8972542883e0b9de2bdc6.png (188B)
+node_modules/expo-router/assets/pkg.ab19f4cbc543357183a20571f68380a3.png (364B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.0a328cd9c1afd0afe8e3b1ec5165b1b4.png (653B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon.35ba0eaec5a4f5ed12ca16fabeae451d.png (207B)
+node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55.png (4 variations | 425B)
+node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7.png (4 variations | 235B)
+node_modules/expo-router/assets/react-navigation/elements/search-icon.286d67d3f74808a60a78d3ebf1a5fb57.png (928B)
+node_modules/expo-router/assets/sitemap.412dd9275b6b48ad28f5e3d81bb1f626.png (465B)
+node_modules/expo-router/assets/unmatched.20e71bdf79e3a97bf55fd9e164041578.png (4.8KB)
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/entry-55e9c2036ea608f4c47ea0f0472c351b.js (1.6MB)
+_expo/static/js/web/web-worker-entry-650f0e4244a9b624e4155750c59de637.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 23 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 6s
+npm notice
+npm notice New major version of npm available! 10.9.4 -> 12.2.0
+npm notice Changelog: https://github.com/npm/cli/releases/tag/v12.2.0
+npm notice To update run: npm install -g npm@12.2.0
+npm notice
+consumer round trip passed: --version, init, check, dev, write/read and denied cross-persona read
+
+added 6 packages in 4s
+init: wrote 20 files in . — Vite + React todos, offline-capable — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+[1mnpm install[0m
+
+added 26 packages in 13s
+check: ok — 1 table (1 synced), 4 operations, no problems, 25.7 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.0 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 134 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    0.45 kB │ gzip:   0.29 kB
+dist/assets/web-worker-entry-DseDHWyJ.js          25.02 kB
+dist/assets/snapback4_device_bg-LOu4IHPv.wasm  2,319.74 kB │ gzip: 719.82 kB
+dist/assets/index-D1mLdyLc.css                     0.36 kB │ gzip:   0.24 kB
+dist/assets/index-CM1kvKG-.js                    586.18 kB │ gzip: 186.60 kB
+
+[32m✓ built in 4.29s[39m
+web-shell: 6 files at /; wrote snapback4-sw.js
+init --adapt: planned changes (only unmodified starter files):
+  remove fixtures/todos.jsonl — the unmodified rows for the todo starter's `todos` table; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  remove fixtures/test.cases.jsonl — the unmodified cases for the todo starter's list/add/toggle/remove; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  rewrite src/App.tsx — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+  rewrite src/client.ts — the unmodified web client needs the device or principal journal selected by your schema's synced tables
+  rewrite README.md — the unmodified starter README describes the todo starter (its todos table and guest sign-in); adapt rewrites it to describe your snapback/*.q and the Home screen, named after this directory
+init --adapt: removed fixtures/todos.jsonl and fixtures/test.cases.jsonl (unmodified starter files; fixtures/ stays for your own rows; write your own as fixtures/<table>.jsonl and fixtures/test.cases.jsonl, `snapback4 guide testing`)
+init --adapt: rewrote src/App.tsx and src/client.ts and README.md — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+init --adapt: next: `snapback4 check` writes snapback/generated/api.ts for the Home screen; replace Home with your own screens (`snapback4 guide client`)
+check: ok — 1 table (0 synced), 2 operations, no problems, 2 notes, 15.4 ms
+2 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+performance — costs speed, meter headroom or offline coverage:
+note: schema.q:10:1 — N_NOT_PREDICTABLE: no action unless it is slow (`check --cost` measures it). add is no longer eligible to predict; queued without a row: online-only table notes (sites: schema.q:11:10) — snapback4 why N_NOT_PREDICTABLE
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:8:1 — N_NO_CURSOR: no action for a top-N list. query mine returns a page of 20 notes rows with no cursor, so the page cannot continue: rows past the first 20 are not reachable. Fine for a top-20 list, or a list that stays under 20 rows; a pinned unique key or a `cap` at or under 20 silences this — snapback4 why N_NO_CURSOR
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.0 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 116 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.45 kB │ gzip:   0.29 kB
+dist/assets/index-D1mLdyLc.css    0.36 kB │ gzip:   0.24 kB
+dist/assets/index-C4LAqv11.js   520.71 kB │ gzip: 166.11 kB
+
+[32m✓ built in 3.19s[39m
+web-shell: 4 files at /; wrote snapback4-sw.js
+check: ok — 1 table (0 synced), 2 operations, no problems, 1 note, 13.5 ms
+1 advisory note — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:8:1 — N_NO_CURSOR: no action for a top-N list. query mine returns a page of 20 notes rows with no cursor, so the page cannot continue: rows past the first 20 are not reachable. Fine for a top-20 list, or a list that stays under 20 rows; a pinned unique key or a `cap` at or under 20 silences this — snapback4 why N_NO_CURSOR
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.0 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 116 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.45 kB │ gzip:   0.29 kB
+dist/assets/index-D1mLdyLc.css    0.36 kB │ gzip:   0.24 kB
+dist/assets/index-CXJE5THP.js   523.50 kB │ gzip: 167.11 kB
+
+[32m✓ built in 3.27s[39m
+web-shell: 4 files at /; wrote snapback4-sw.js
+
+added 6 packages in 4s
+init: wrote 20 files in . — Vite + React app, online reads and journaled writes (no device) — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+[1mnpm install[0m
+
+added 26 packages in 5s
+check: ok — 1 table (0 synced), 4 operations, no problems, 33.0 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.0 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 116 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.46 kB │ gzip:   0.29 kB
+dist/assets/index-D1mLdyLc.css    0.36 kB │ gzip:   0.24 kB
+dist/assets/index-Dp4bRy1w.js   525.60 kB │ gzip: 167.80 kB
+
+[32m✓ built in 3.32s[39m
+web-shell: 4 files at /; wrote snapback4-sw.js
+
+added 6 packages in 4s
+init: wrote 21 files in . — Expo todos: native when available, online in Expo Go — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, native-smoke.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together
+[1mnpm install[0m
+
+added 502 packages in 35s
+check: ok — 1 table (1 synced), 4 operations, no problems, 22.2 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 8873ms index.js (327 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/index-2d2e1cf472bb061e5bfb1587042db833.js (833KB)
+_expo/static/js/web/web-worker-entry-17adb7552f751f2793d718b043a62664.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Web Bundled 7365ms index.js (327 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/index-2d2e1cf472bb061e5bfb1587042db833.js (833KB)
+_expo/static/js/web/web-worker-entry-17adb7552f751f2793d718b043a62664.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 5 files at /; wrote snapback4-sw.js
+init --adapt: planned changes (only unmodified starter files):
+  remove fixtures/todos.jsonl — the unmodified rows for the todo starter's `todos` table; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  remove fixtures/test.cases.jsonl — the unmodified cases for the todo starter's list/add/toggle/remove; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  rewrite App.tsx — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+  rewrite src/client.ts — the unmodified web client needs the device or principal journal selected by your schema's synced tables
+  rewrite README.md — the unmodified starter README describes the todo starter (its todos table and guest sign-in); adapt rewrites it to describe your snapback/*.q and the Home screen, named after this directory
+init --adapt: removed fixtures/todos.jsonl and fixtures/test.cases.jsonl (unmodified starter files; fixtures/ stays for your own rows; write your own as fixtures/<table>.jsonl and fixtures/test.cases.jsonl, `snapback4 guide testing`)
+init --adapt: rewrote App.tsx and src/client.ts and README.md — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+init --adapt: next: `snapback4 check` writes snapback/generated/api.ts for the Home screen; replace Home with your own screens (`snapback4 guide client`)
+check: ok — 1 table (0 synced), 2 operations, no problems, 2 notes, 15.5 ms
+2 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+performance — costs speed, meter headroom or offline coverage:
+note: schema.q:10:1 — N_NOT_PREDICTABLE: no action unless it is slow (`check --cost` measures it). add is no longer eligible to predict; queued without a row: online-only table notes (sites: schema.q:11:10) — snapback4 why N_NOT_PREDICTABLE
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:8:1 — N_NO_CURSOR: no action for a top-N list. query mine returns a page of 20 notes rows with no cursor, so the page cannot continue: rows past the first 20 are not reachable. Fine for a top-20 list, or a list that stays under 20 rows; a pinned unique key or a `cap` at or under 20 silences this — snapback4 why N_NO_CURSOR
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 2816ms index.js (297 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-91cff7c8bb6820bc8dea64b3946e62b3.js (747KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Web Bundled 7505ms index.js (297 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-91cff7c8bb6820bc8dea64b3946e62b3.js (747KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 3 files at /; wrote snapback4-sw.js
+check: ok — 1 table (0 synced), 2 operations, no problems, 1 note, 19.4 ms
+1 advisory note — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:8:1 — N_NO_CURSOR: no action for a top-N list. query mine returns a page of 20 notes rows with no cursor, so the page cannot continue: rows past the first 20 are not reachable. Fine for a top-20 list, or a list that stays under 20 rows; a pinned unique key or a `cap` at or under 20 silences this — snapback4 why N_NO_CURSOR
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 2112ms index.js (299 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-3ed2517816c5700e2509a94a218b09be.js (754KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Web Bundled 6875ms index.js (299 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-3ed2517816c5700e2509a94a218b09be.js (754KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 3 files at /; wrote snapback4-sw.js
+
+added 6 packages in 4s
+init: wrote 23 files in . — Vite chat app — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, src/{App.tsx, client.ts, Composer.tsx, Thread.tsx, Inbox.tsx, main.tsx, intents.ts, state.ts, vite-env.d.ts}, snapback/{schema.q, worker.ts, generated/package.json}, public/favicon.svg, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+[1mnpm install[0m
+
+added 26 packages in 5s
+check: ok — 5 tables, 1 view (5 synced), 12 operations, no problems, 7 notes, 59.9 ms
+7 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:85:10 — N_REFERENCE_UNCHECKED: review: this reference argument is never looked up. mutation addMember stores argument conversationId directly in memberships.conversationId, but never looks up conversations[conversationId]: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation send (schema.q:94:9); mutation sendPhoto (schema.q:99:9) — snapback4 why N_REFERENCE_UNCHECKED
+note: schema.q:30:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. conversations: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for memberships: no production writer can bootstrap this root (schema.q:40:1); profiles: no production writer can bootstrap this root (schema.q:16:1) — snapback4 why N_NO_PRODUCTION_WRITER
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:79:1 — N_NO_CURSOR: no action for a top-N list. query inbox returns a page of 50 memberships rows with no cursor, so the page cannot continue: rows past the first 50 are not reachable. Fine for a top-50 list, or a list that stays under 50 rows; a pinned unique key or a `cap` at or under 50 silences this — snapback4 why N_NO_CURSOR
+1 mutation is server-run (online app: no action): markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-chat@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-chat@0.0.1 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.0 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 139 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    1.21 kB │ gzip:   0.66 kB
+dist/assets/web-worker-entry-DseDHWyJ.js          25.02 kB
+dist/assets/snapback4_device_bg-LOu4IHPv.wasm  2,319.74 kB │ gzip: 719.82 kB
+dist/assets/index-C7h2lOqk.js                    593.95 kB │ gzip: 188.89 kB
+
+[32m✓ built in 4.17s[39m
+[33m[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+web-shell: 5 files at /; wrote snapback4-sw.js
+
+added 6 packages in 4s
+init: wrote 25 files in . — Expo chat app — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, native-smoke.ts, Inbox.tsx, Thread.tsx, intents.ts, intent-store.ts, intent-store.web.ts, intent-store.native.ts}, snapback/{schema.q, generated/package.json}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together
+[1mnpm install[0m
+
+added 502 packages in 22s
+check: ok — 5 tables, 1 view (5 synced), 11 operations, no problems, 7 notes, 60.2 ms
+7 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:83:10 — N_REFERENCE_UNCHECKED: review: this reference argument is never looked up. mutation addMember stores argument conversationId directly in memberships.conversationId, but never looks up conversations[conversationId]: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation send (schema.q:92:9); mutation sendPhoto (schema.q:97:9) — snapback4 why N_REFERENCE_UNCHECKED
+note: schema.q:28:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. conversations: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for memberships: no production writer can bootstrap this root (schema.q:38:1); profiles: no production writer can bootstrap this root (schema.q:14:1) — snapback4 why N_NO_PRODUCTION_WRITER
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:77:1 — N_NO_CURSOR: no action for a top-N list. query inbox returns a page of 50 memberships rows with no cursor, so the page cannot continue: rows past the first 50 are not reachable. Fine for a top-50 list, or a list that stays under 50 rows; a pinned unique key or a `cap` at or under 50 silences this — snapback4 why N_NO_CURSOR
+1 mutation is server-run (online app: no action): markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-expo-chat@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 3542ms index.js (361 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/index-24c5bebfd056738ff3e9ac8e9a3f0ec5.js (911KB)
+_expo/static/js/web/web-worker-entry-ad6abe14ce74f5528d9040aba55a5c61.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-chat@0.0.1 build:web
+> expo export -p web --max-workers 2 && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+Web Bundled 656ms index.js (361 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/index-24c5bebfd056738ff3e9ac8e9a3f0ec5.js (911KB)
+_expo/static/js/web/web-worker-entry-ad6abe14ce74f5528d9040aba55a5c61.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 5 files at /; wrote snapback4-sw.js
+
+added 6 packages in 4s
+init: wrote 46 files in . — Expo Router social app — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, expo-env.d.ts, README.md, tsconfig.json, app.json, src/ (20 files), scripts/{seed.mjs, frontend-proof.mjs, day2-proof.mjs, launch.mjs}, snapback/{workers/notifications.mjs, schema.q, generated/package.json}, app/{_layout.tsx, conversation/[id].tsx, dm/[other].tsx, (tabs)/_layout.tsx, (tabs)/index.tsx, (tabs)/chats.tsx, (tabs)/search.tsx, (tabs)/profile.tsx, search-chat/[id].tsx}, versions/{v1.q, v2.q}
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together
+[1mnpm install[0m
+
+added 584 packages in 32s
+check: ok — 16 tables, 1 view (15 synced), 31 operations, no problems, 17 notes, 168.6 ms
+17 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:232:1 — N_NEVER_COMPLETE — verdict: capped; the server cannot prove that this page contains every readable row — snapback4 why N_NEVER_COMPLETE
+  who: no caller group is proved complete by this page
+  what: pin every read-rule scope or handle `complete: false` as more rows may exist; check --verbose shows the proof and checked repair
+note: schema.q:80:7 — N_REFERENCE_UNCHECKED: review: this reference argument is never looked up. mutation send stores argument conversation directly in messages.conversation, but never looks up conversations[conversation]: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation add (schema.q:85:3); mutation setLike (schema.q:207:5) — snapback4 why N_REFERENCE_UNCHECKED
+note: table followingEdges:1:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. followingEdges: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for followingFeed: no production writer can bootstrap this root (table followingFeed:1:1); followingPosts: no production writer can bootstrap this root (table followingPosts:1:1); followingRemovedEvents: no production writer can bootstrap this root (table followingRemovedEvents:1:1); followingWork: no production writer can bootstrap this root (table followingWork:1:1); reposts: no production writer can bootstrap this root (schema.q:170:1) — snapback4 why N_NO_PRODUCTION_WRITER
+note: programs.search.0 — N_SEARCH_OPEN: review. opening every membership and head must fit one read; an opening cut refuses E_SEARCH_OPEN without a continuation — snapback4 why N_SEARCH_OPEN
+performance — costs speed, meter headroom or offline coverage:
+note: schema.q:67:69 — N_SEEK: no action unless it is slow (`check --cost` measures it). a `where` on the next index column is a seek; write it in the key — snapback4 why N_SEEK
+note: N_SEEK (as above) also for a (schema.q:72:69) — snapback4 why N_SEEK
+note: schema.q:225:1 — N_EPHEMERAL_SERVER: no action unless it is slow (`check --cost` measures it). typingIn runs on the server because it reads an ephemeral table — snapback4 why N_EPHEMERAL_SERVER
+note: programs.search.0 — N_SEARCH_WORDS: no action unless it is slow (`check --cost` measures it). word expansion and further-term misses consume the meter; compact membership refills rescan words and charge repeated work — snapback4 why N_SEARCH_WORDS
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:230:10 — N_SYNC_ORDER: no action for an online app. query searchChat `messages[conversation = conversation] matching q last 20 by .at after c`: the order differs: the page reads by .at, .id, the window by .ordinal, .id; write `last 20 by .ordinal, .id` — it reads messages by .at, .id, newest first (index [conversation, at, id]); its sync window is last 500 by .ordinal, .id, newest first (index byConversationOrdinal [conversation, ordinal]); the client needs the server for this read; offline coverage is unknown — snapback4 why N_SYNC_ORDER
+note: N_SYNC_ORDER (as above) also for query search (schema.q:233:10) — snapback4 why N_SYNC_ORDER
+8 mutations are server-run (online app: no action): compactReceipts (reads receipt-owned or derived field members.deliveredOrdinal), delivered (reads receipt-owned or derived field conversations.lastOrdinal), follow (writes online-only table follows), leave (receipt membership changes and progress need settled state), seen (reads receipt-owned or derived field conversations.lastOrdinal), setTyping (writes online-only table typing), stopTyping (writes online-only table typing), unfollow (writes online-only table follows); 4 mutations have insert arms that may queue; 3 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-social-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 13088ms node_modules/expo-router/entry.js (929 modules)
+
+› Assets (19):
+node_modules/expo-router/assets/arrow_down.017bc6ba3fc25503e5eb5e53826d48a8.png (9.5KB)
+node_modules/expo-router/assets/error.d1ea1496f9057eb392d5bbf3732a61b7.png (469B)
+node_modules/expo-router/assets/file.19eeb73b9593a38f8e9f418337fc7d10.png (138B)
+node_modules/expo-router/assets/forward.d8b800c443b8972542883e0b9de2bdc6.png (188B)
+node_modules/expo-router/assets/pkg.ab19f4cbc543357183a20571f68380a3.png (364B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.0a328cd9c1afd0afe8e3b1ec5165b1b4.png (653B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon.35ba0eaec5a4f5ed12ca16fabeae451d.png (207B)
+node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55.png (4 variations | 425B)
+node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7.png (4 variations | 235B)
+node_modules/expo-router/assets/react-navigation/elements/search-icon.286d67d3f74808a60a78d3ebf1a5fb57.png (928B)
+node_modules/expo-router/assets/sitemap.412dd9275b6b48ad28f5e3d81bb1f626.png (465B)
+node_modules/expo-router/assets/unmatched.20e71bdf79e3a97bf55fd9e164041578.png (4.8KB)
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/entry-55e9c2036ea608f4c47ea0f0472c351b.js (1.6MB)
+_expo/static/js/web/web-worker-entry-650f0e4244a9b624e4155750c59de637.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-social-starter@0.0.1 build:web
+> expo export -p web --max-workers 2 && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+Web Bundled 1784ms node_modules/expo-router/entry.js (929 modules)
+
+› Assets (19):
+node_modules/expo-router/assets/arrow_down.017bc6ba3fc25503e5eb5e53826d48a8.png (9.5KB)
+node_modules/expo-router/assets/error.d1ea1496f9057eb392d5bbf3732a61b7.png (469B)
+node_modules/expo-router/assets/file.19eeb73b9593a38f8e9f418337fc7d10.png (138B)
+node_modules/expo-router/assets/forward.d8b800c443b8972542883e0b9de2bdc6.png (188B)
+node_modules/expo-router/assets/pkg.ab19f4cbc543357183a20571f68380a3.png (364B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.0a328cd9c1afd0afe8e3b1ec5165b1b4.png (653B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon.35ba0eaec5a4f5ed12ca16fabeae451d.png (207B)
+node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55.png (4 variations | 425B)
+node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7.png (4 variations | 235B)
+node_modules/expo-router/assets/react-navigation/elements/search-icon.286d67d3f74808a60a78d3ebf1a5fb57.png (928B)
+node_modules/expo-router/assets/sitemap.412dd9275b6b48ad28f5e3d81bb1f626.png (465B)
+node_modules/expo-router/assets/unmatched.20e71bdf79e3a97bf55fd9e164041578.png (4.8KB)
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/entry-55e9c2036ea608f4c47ea0f0472c351b.js (1.6MB)
+_expo/static/js/web/web-worker-entry-650f0e4244a9b624e4155750c59de637.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 23 files at /; wrote snapback4-sw.js
+{"starters":[{"starter":"web","kind":"web","status":"passed","adapted":"passed","typecheck":"passed","build":"passed","frontendProofs":[],"adaptedProofs":[],"formSubmit":"passed"},{"starter":"web-online","kind":"web","status":"passed","typecheck":"passed","build":"passed","frontendProofs":[]},{"starter":"expo","kind":"expo","status":"passed","adapted":"passed","typecheck":"passed","build":"passed","frontendProofs":[],"adaptedProofs":[],"formSubmit":"not-applicable"},{"starter":"web-chat","kind":"web","template":"chat","status":"passed","typecheck":"passed","build":"passed","frontendProofs":[]},{"starter":"expo-chat","kind":"expo","template":"chat","status":"passed","typecheck":"passed","build":"passed","frontendProofs":[]},{"starter":"expo-social","kind":"expo","template":"social","status":"passed","typecheck":"passed","build":"passed","frontendProofs":[]}],"dependencies":"npm registry (prefer-offline), Expo network checks disabled"}
+( 1/18) Installing libgcc (15.2.0-r2)
+( 2/18) Installing libstdc++ (15.2.0-r2)
+( 3/18) Installing ada-libs (3.3.0-r0)
+( 4/18) Upgrading libcrypto3 (3.5.5-r0 -> 3.5.8-r0)
+( 5/18) Upgrading libssl3 (3.5.5-r0 -> 3.5.8-r0)
+( 6/18) Upgrading zlib (1.3.1-r2 -> 1.3.2-r0)
+( 7/18) Installing brotli-libs (1.2.0-r0)
+( 8/18) Installing c-ares (1.34.8-r0)
+( 9/18) Installing ca-certificates (20260909-r0)
+(10/18) Installing icu-data-en (76.1-r1)
+  Executing icu-data-en-76.1-r1.post-install
+  * 
+  * If you need ICU with non-English locales and legacy charset support, install
+  * package icu-data-full.
+  * 
+(11/18) Installing icu-libs (76.1-r1)
+(12/18) Installing nghttp2-libs (1.69.0-r0)
+(13/18) Installing simdjson (3.12.0-r0)
+(14/18) Installing simdutf (7.5.0-r1)
+(15/18) Installing sqlite-libs (3.53.4-r0)
+(16/18) Installing zstd-libs (1.5.7-r2)
+(17/18) Installing nodejs (24.18.1-r0)
+(18/18) Installing npm (11.11.0-r0)
+Executing busybox-1.37.0-r30.trigger
+Executing ca-certificates-20260909-r0.trigger
+OK: 83.6 MiB in 31 packages
+
+added 6 packages in 6s
+consumer round trip passed: --version, init, check, dev, write/read and denied cross-persona read
+
+added 6 packages in 5s
+init: wrote 20 files in . — Vite + React todos, offline-capable — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+[1mnpm install[0m
+
+added 26 packages in 13s
+check: ok — 1 table (1 synced), 4 operations, no problems, 24.2 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.0 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 134 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    0.45 kB │ gzip:   0.29 kB
+dist/assets/web-worker-entry-DseDHWyJ.js          25.02 kB
+dist/assets/snapback4_device_bg-LOu4IHPv.wasm  2,319.74 kB │ gzip: 719.82 kB
+dist/assets/index-D1mLdyLc.css                     0.36 kB │ gzip:   0.24 kB
+dist/assets/index-CM1kvKG-.js                    586.18 kB │ gzip: 186.60 kB
+
+[32m✓ built in 4.04s[39m
+web-shell: 6 files at /; wrote snapback4-sw.js
+init --adapt: planned changes (only unmodified starter files):
+  remove fixtures/todos.jsonl — the unmodified rows for the todo starter's `todos` table; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  remove fixtures/test.cases.jsonl — the unmodified cases for the todo starter's list/add/toggle/remove; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  rewrite src/App.tsx — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+  rewrite src/client.ts — the unmodified web client needs the device or principal journal selected by your schema's synced tables
+  rewrite README.md — the unmodified starter README describes the todo starter (its todos table and guest sign-in); adapt rewrites it to describe your snapback/*.q and the Home screen, named after this directory
+init --adapt: removed fixtures/todos.jsonl and fixtures/test.cases.jsonl (unmodified starter files; fixtures/ stays for your own rows; write your own as fixtures/<table>.jsonl and fixtures/test.cases.jsonl, `snapback4 guide testing`)
+init --adapt: rewrote src/App.tsx and src/client.ts and README.md — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+init --adapt: next: `snapback4 check` writes snapback/generated/api.ts for the Home screen; replace Home with your own screens (`snapback4 guide client`)
+check: ok — 1 table (0 synced), 2 operations, no problems, 2 notes, 11.1 ms
+2 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+performance — costs speed, meter headroom or offline coverage:
+note: schema.q:10:1 — N_NOT_PREDICTABLE: no action unless it is slow (`check --cost` measures it). add is no longer eligible to predict; queued without a row: online-only table notes (sites: schema.q:11:10) — snapback4 why N_NOT_PREDICTABLE
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:8:1 — N_NO_CURSOR: no action for a top-N list. query mine returns a page of 20 notes rows with no cursor, so the page cannot continue: rows past the first 20 are not reachable. Fine for a top-20 list, or a list that stays under 20 rows; a pinned unique key or a `cap` at or under 20 silences this — snapback4 why N_NO_CURSOR
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.0 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 116 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.45 kB │ gzip:   0.29 kB
+dist/assets/index-D1mLdyLc.css    0.36 kB │ gzip:   0.24 kB
+dist/assets/index-C4LAqv11.js   520.71 kB │ gzip: 166.11 kB
+
+[32m✓ built in 2.98s[39m
+web-shell: 4 files at /; wrote snapback4-sw.js
+check: ok — 1 table (0 synced), 2 operations, no problems, 1 note, 14.2 ms
+1 advisory note — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:8:1 — N_NO_CURSOR: no action for a top-N list. query mine returns a page of 20 notes rows with no cursor, so the page cannot continue: rows past the first 20 are not reachable. Fine for a top-20 list, or a list that stays under 20 rows; a pinned unique key or a `cap` at or under 20 silences this — snapback4 why N_NO_CURSOR
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.0 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 116 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.45 kB │ gzip:   0.29 kB
+dist/assets/index-D1mLdyLc.css    0.36 kB │ gzip:   0.24 kB
+dist/assets/index-CXJE5THP.js   523.50 kB │ gzip: 167.11 kB
+
+[32m✓ built in 3.23s[39m
+web-shell: 4 files at /; wrote snapback4-sw.js
+
+added 6 packages in 4s
+init: wrote 20 files in . — Vite + React app, online reads and journaled writes (no device) — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+[1mnpm install[0m
+
+added 26 packages in 6s
+check: ok — 1 table (0 synced), 4 operations, no problems, 15.8 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.0 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 116 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.46 kB │ gzip:   0.29 kB
+dist/assets/index-D1mLdyLc.css    0.36 kB │ gzip:   0.24 kB
+dist/assets/index-Dp4bRy1w.js   525.60 kB │ gzip: 167.80 kB
+
+[32m✓ built in 3.05s[39m
+web-shell: 4 files at /; wrote snapback4-sw.js
+
+added 6 packages in 5s
+init: wrote 21 files in . — Expo todos: native when available, online in Expo Go — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, native-smoke.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together
+[1mnpm install[0m
+
+added 502 packages in 56s
+check: ok — 1 table (1 synced), 4 operations, no problems, 16.2 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 10146ms index.js (327 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/index-2d2e1cf472bb061e5bfb1587042db833.js (833KB)
+_expo/static/js/web/web-worker-entry-17adb7552f751f2793d718b043a62664.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Web Bundled 10181ms index.js (327 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/index-2d2e1cf472bb061e5bfb1587042db833.js (833KB)
+_expo/static/js/web/web-worker-entry-17adb7552f751f2793d718b043a62664.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 5 files at /; wrote snapback4-sw.js
+init --adapt: planned changes (only unmodified starter files):
+  remove fixtures/todos.jsonl — the unmodified rows for the todo starter's `todos` table; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  remove fixtures/test.cases.jsonl — the unmodified cases for the todo starter's list/add/toggle/remove; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  rewrite App.tsx — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+  rewrite src/client.ts — the unmodified web client needs the device or principal journal selected by your schema's synced tables
+  rewrite README.md — the unmodified starter README describes the todo starter (its todos table and guest sign-in); adapt rewrites it to describe your snapback/*.q and the Home screen, named after this directory
+init --adapt: removed fixtures/todos.jsonl and fixtures/test.cases.jsonl (unmodified starter files; fixtures/ stays for your own rows; write your own as fixtures/<table>.jsonl and fixtures/test.cases.jsonl, `snapback4 guide testing`)
+init --adapt: rewrote App.tsx and src/client.ts and README.md — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+init --adapt: next: `snapback4 check` writes snapback/generated/api.ts for the Home screen; replace Home with your own screens (`snapback4 guide client`)
+check: ok — 1 table (0 synced), 2 operations, no problems, 2 notes, 20.8 ms
+2 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+performance — costs speed, meter headroom or offline coverage:
+note: schema.q:10:1 — N_NOT_PREDICTABLE: no action unless it is slow (`check --cost` measures it). add is no longer eligible to predict; queued without a row: online-only table notes (sites: schema.q:11:10) — snapback4 why N_NOT_PREDICTABLE
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:8:1 — N_NO_CURSOR: no action for a top-N list. query mine returns a page of 20 notes rows with no cursor, so the page cannot continue: rows past the first 20 are not reachable. Fine for a top-20 list, or a list that stays under 20 rows; a pinned unique key or a `cap` at or under 20 silences this — snapback4 why N_NO_CURSOR
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 2572ms index.js (297 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-91cff7c8bb6820bc8dea64b3946e62b3.js (747KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Web Bundled 10300ms index.js (297 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-91cff7c8bb6820bc8dea64b3946e62b3.js (747KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 3 files at /; wrote snapback4-sw.js
+check: ok — 1 table (0 synced), 2 operations, no problems, 1 note, 20.3 ms
+1 advisory note — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:8:1 — N_NO_CURSOR: no action for a top-N list. query mine returns a page of 20 notes rows with no cursor, so the page cannot continue: rows past the first 20 are not reachable. Fine for a top-20 list, or a list that stays under 20 rows; a pinned unique key or a `cap` at or under 20 silences this — snapback4 why N_NO_CURSOR
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 1847ms index.js (294 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-3ed2517816c5700e2509a94a218b09be.js (754KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Web Bundled 10277ms index.js (299 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-3ed2517816c5700e2509a94a218b09be.js (754KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 3 files at /; wrote snapback4-sw.js
+
+added 6 packages in 4s
+init: wrote 23 files in . — Vite chat app — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, src/{App.tsx, client.ts, Composer.tsx, Thread.tsx, Inbox.tsx, main.tsx, intents.ts, state.ts, vite-env.d.ts}, snapback/{schema.q, worker.ts, generated/package.json}, public/favicon.svg, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+[1mnpm install[0m
+
+added 26 packages in 5s
+check: ok — 5 tables, 1 view (5 synced), 12 operations, no problems, 7 notes, 67.6 ms
+7 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:85:10 — N_REFERENCE_UNCHECKED: review: this reference argument is never looked up. mutation addMember stores argument conversationId directly in memberships.conversationId, but never looks up conversations[conversationId]: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation send (schema.q:94:9); mutation sendPhoto (schema.q:99:9) — snapback4 why N_REFERENCE_UNCHECKED
+note: schema.q:30:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. conversations: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for memberships: no production writer can bootstrap this root (schema.q:40:1); profiles: no production writer can bootstrap this root (schema.q:16:1) — snapback4 why N_NO_PRODUCTION_WRITER
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:79:1 — N_NO_CURSOR: no action for a top-N list. query inbox returns a page of 50 memberships rows with no cursor, so the page cannot continue: rows past the first 50 are not reachable. Fine for a top-50 list, or a list that stays under 50 rows; a pinned unique key or a `cap` at or under 50 silences this — snapback4 why N_NO_CURSOR
+1 mutation is server-run (online app: no action): markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-chat@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-chat@0.0.1 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.0 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 139 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    1.21 kB │ gzip:   0.66 kB
+dist/assets/web-worker-entry-DseDHWyJ.js          25.02 kB
+dist/assets/snapback4_device_bg-LOu4IHPv.wasm  2,319.74 kB │ gzip: 719.82 kB
+dist/assets/index-C7h2lOqk.js                    593.95 kB │ gzip: 188.89 kB
+
+[32m✓ built in 4.11s[39m
+[33m[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+web-shell: 5 files at /; wrote snapback4-sw.js
+
+added 6 packages in 4s
+init: wrote 25 files in . — Expo chat app — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, native-smoke.ts, Inbox.tsx, Thread.tsx, intents.ts, intent-store.ts, intent-store.web.ts, intent-store.native.ts}, snapback/{schema.q, generated/package.json}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together
+[1mnpm install[0m
+
+added 502 packages in 1m
+check: ok — 5 tables, 1 view (5 synced), 11 operations, no problems, 7 notes, 154.5 ms
+7 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:83:10 — N_REFERENCE_UNCHECKED: review: this reference argument is never looked up. mutation addMember stores argument conversationId directly in memberships.conversationId, but never looks up conversations[conversationId]: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation send (schema.q:92:9); mutation sendPhoto (schema.q:97:9) — snapback4 why N_REFERENCE_UNCHECKED
+note: schema.q:28:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. conversations: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for memberships: no production writer can bootstrap this root (schema.q:38:1); profiles: no production writer can bootstrap this root (schema.q:14:1) — snapback4 why N_NO_PRODUCTION_WRITER
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:77:1 — N_NO_CURSOR: no action for a top-N list. query inbox returns a page of 50 memberships rows with no cursor, so the page cannot continue: rows past the first 50 are not reachable. Fine for a top-50 list, or a list that stays under 50 rows; a pinned unique key or a `cap` at or under 50 silences this — snapback4 why N_NO_CURSOR
+1 mutation is server-run (online app: no action): markRead (writes online-only table readMarkers); 1 mutations have insert arms that may queue; 2 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-expo-chat@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 20330ms index.js (361 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/index-24c5bebfd056738ff3e9ac8e9a3f0ec5.js (911KB)
+_expo/static/js/web/web-worker-entry-ad6abe14ce74f5528d9040aba55a5c61.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-chat@0.0.1 build:web
+> expo export -p web --max-workers 2 && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+Web Bundled 2248ms index.js (361 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/index-24c5bebfd056738ff3e9ac8e9a3f0ec5.js (911KB)
+_expo/static/js/web/web-worker-entry-ad6abe14ce74f5528d9040aba55a5c61.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 5 files at /; wrote snapback4-sw.js
+
+added 6 packages in 12s
+init: wrote 46 files in . — Expo Router social app — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, expo-env.d.ts, README.md, tsconfig.json, app.json, src/ (20 files), scripts/{seed.mjs, frontend-proof.mjs, day2-proof.mjs, launch.mjs}, snapback/{workers/notifications.mjs, schema.q, generated/package.json}, app/{_layout.tsx, conversation/[id].tsx, dm/[other].tsx, (tabs)/_layout.tsx, (tabs)/index.tsx, (tabs)/chats.tsx, (tabs)/search.tsx, (tabs)/profile.tsx, search-chat/[id].tsx}, versions/{v1.q, v2.q}
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together
+[1mnpm install[0m
+npm warn ERESOLVE overriding peer dependency
+npm warn While resolving: expo-modules-core@57.0.23
+npm warn Found: react-native-worklets@0.13.0
+npm warn node_modules/react-native-worklets
+npm warn   peerOptional react-native-worklets@"*" from @expo/ui@57.0.24
+npm warn   node_modules/@expo/ui
+npm warn     @expo/ui@"^57.0.20" from expo-router@57.0.23
+npm warn     node_modules/expo-router
+npm warn   1 more (react-native-reanimated)
+npm warn
+npm warn Could not resolve dependency:
+npm warn peerOptional react-native-worklets@"^0.7.4 || ^0.8.0 || ^0.9.0 || ^0.10.0" from expo-modules-core@57.0.23
+npm warn node_modules/expo-modules-core
+npm warn   expo-modules-core@"~57.0.18" from expo@57.0.22
+npm warn   node_modules/expo
+npm warn
+npm warn Conflicting peer dependency: react-native-worklets@0.10.4
+npm warn node_modules/react-native-worklets
+npm warn   peerOptional react-native-worklets@"^0.7.4 || ^0.8.0 || ^0.9.0 || ^0.10.0" from expo-modules-core@57.0.23
+npm warn   node_modules/expo-modules-core
+npm warn     expo-modules-core@"~57.0.18" from expo@57.0.22
+npm warn     node_modules/expo
+
+added 584 packages in 59s
+check: ok — 16 tables, 1 view (15 synced), 31 operations, no problems, 17 notes, 181.5 ms
+17 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+review — can cost correctness or completeness:
+note: schema.q:232:1 — N_NEVER_COMPLETE — verdict: capped; the server cannot prove that this page contains every readable row — snapback4 why N_NEVER_COMPLETE
+  who: no caller group is proved complete by this page
+  what: pin every read-rule scope or handle `complete: false` as more rows may exist; check --verbose shows the proof and checked repair
+note: schema.q:80:7 — N_REFERENCE_UNCHECKED: review: this reference argument is never looked up. mutation send stores argument conversation directly in messages.conversation, but never looks up conversations[conversation]: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
+note: N_REFERENCE_UNCHECKED (as above) also for mutation add (schema.q:85:3); mutation setLike (schema.q:207:5) — snapback4 why N_REFERENCE_UNCHECKED
+note: table followingEdges:1:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. followingEdges: no production writer can bootstrap this root; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER
+note: N_NO_PRODUCTION_WRITER (as above) also for followingFeed: no production writer can bootstrap this root (table followingFeed:1:1); followingPosts: no production writer can bootstrap this root (table followingPosts:1:1); followingRemovedEvents: no production writer can bootstrap this root (table followingRemovedEvents:1:1); followingWork: no production writer can bootstrap this root (table followingWork:1:1); reposts: no production writer can bootstrap this root (schema.q:170:1) — snapback4 why N_NO_PRODUCTION_WRITER
+note: programs.search.0 — N_SEARCH_OPEN: review. opening every membership and head must fit one read; an opening cut refuses E_SEARCH_OPEN without a continuation — snapback4 why N_SEARCH_OPEN
+performance — costs speed, meter headroom or offline coverage:
+note: schema.q:67:69 — N_SEEK: no action unless it is slow (`check --cost` measures it). a `where` on the next index column is a seek; write it in the key — snapback4 why N_SEEK
+note: N_SEEK (as above) also for a (schema.q:72:69) — snapback4 why N_SEEK
+note: schema.q:225:1 — N_EPHEMERAL_SERVER: no action unless it is slow (`check --cost` measures it). typingIn runs on the server because it reads an ephemeral table — snapback4 why N_EPHEMERAL_SERVER
+note: programs.search.0 — N_SEARCH_WORDS: no action unless it is slow (`check --cost` measures it). word expansion and further-term misses consume the meter; compact membership refills rescan words and charge repeated work — snapback4 why N_SEARCH_WORDS
+by design — what a declaration implies; no action needed for online use:
+note: schema.q:230:10 — N_SYNC_ORDER: no action for an online app. query searchChat `messages[conversation = conversation] matching q last 20 by .at after c`: the order differs: the page reads by .at, .id, the window by .ordinal, .id; write `last 20 by .ordinal, .id` — it reads messages by .at, .id, newest first (index [conversation, at, id]); its sync window is last 500 by .ordinal, .id, newest first (index byConversationOrdinal [conversation, ordinal]); the client needs the server for this read; offline coverage is unknown — snapback4 why N_SYNC_ORDER
+note: N_SYNC_ORDER (as above) also for query search (schema.q:233:10) — snapback4 why N_SYNC_ORDER
+8 mutations are server-run (online app: no action): compactReceipts (reads receipt-owned or derived field members.deliveredOrdinal), delivered (reads receipt-owned or derived field conversations.lastOrdinal), follow (writes online-only table follows), leave (receipt membership changes and progress need settled state), seen (reads receipt-owned or derived field conversations.lastOrdinal), setTyping (writes online-only table typing), stopTyping (writes online-only table typing), unfollow (writes online-only table follows); 4 mutations have insert arms that may queue; 3 eligible mutations may queue past a horizon — snapback4 why <op>
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-social-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 20839ms node_modules/expo-router/entry.js (929 modules)
+
+› Assets (19):
+node_modules/expo-router/assets/arrow_down.017bc6ba3fc25503e5eb5e53826d48a8.png (9.5KB)
+node_modules/expo-router/assets/error.d1ea1496f9057eb392d5bbf3732a61b7.png (469B)
+node_modules/expo-router/assets/file.19eeb73b9593a38f8e9f418337fc7d10.png (138B)
+node_modules/expo-router/assets/forward.d8b800c443b8972542883e0b9de2bdc6.png (188B)
+node_modules/expo-router/assets/pkg.ab19f4cbc543357183a20571f68380a3.png (364B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.0a328cd9c1afd0afe8e3b1ec5165b1b4.png (653B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon.35ba0eaec5a4f5ed12ca16fabeae451d.png (207B)
+node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55.png (4 variations | 425B)
+node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7.png (4 variations | 235B)
+node_modules/expo-router/assets/react-navigation/elements/search-icon.286d67d3f74808a60a78d3ebf1a5fb57.png (928B)
+node_modules/expo-router/assets/sitemap.412dd9275b6b48ad28f5e3d81bb1f626.png (465B)
+node_modules/expo-router/assets/unmatched.20e71bdf79e3a97bf55fd9e164041578.png (4.8KB)
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/entry-55e9c2036ea608f4c47ea0f0472c351b.js (1.6MB)
+_expo/static/js/web/web-worker-entry-650f0e4244a9b624e4155750c59de637.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-social-starter@0.0.1 build:web
+> expo export -p web --max-workers 2 && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+Web Bundled 1619ms node_modules/expo-router/entry.js (929 modules)
+
+› Assets (19):
+node_modules/expo-router/assets/arrow_down.017bc6ba3fc25503e5eb5e53826d48a8.png (9.5KB)
+node_modules/expo-router/assets/error.d1ea1496f9057eb392d5bbf3732a61b7.png (469B)
+node_modules/expo-router/assets/file.19eeb73b9593a38f8e9f418337fc7d10.png (138B)
+node_modules/expo-router/assets/forward.d8b800c443b8972542883e0b9de2bdc6.png (188B)
+node_modules/expo-router/assets/pkg.ab19f4cbc543357183a20571f68380a3.png (364B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.0a328cd9c1afd0afe8e3b1ec5165b1b4.png (653B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon.35ba0eaec5a4f5ed12ca16fabeae451d.png (207B)
+node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55.png (4 variations | 425B)
+node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7.png (4 variations | 235B)
+node_modules/expo-router/assets/react-navigation/elements/search-icon.286d67d3f74808a60a78d3ebf1a5fb57.png (928B)
+node_modules/expo-router/assets/sitemap.412dd9275b6b48ad28f5e3d81bb1f626.png (465B)
+node_modules/expo-router/assets/unmatched.20e71bdf79e3a97bf55fd9e164041578.png (4.8KB)
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/entry-55e9c2036ea608f4c47ea0f0472c351b.js (1.6MB)
+_expo/static/js/web/web-worker-entry-650f0e4244a9b624e4155750c59de637.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 23 files at /; wrote snapback4-sw.js
+{"starters":[{"starter":"web","kind":"web","status":"passed","adapted":"passed","typecheck":"passed","build":"passed","frontendProofs":[],"adaptedProofs":[],"formSubmit":"passed"},{"starter":"web-online","kind":"web","status":"passed","typecheck":"passed","build":"passed","frontendProofs":[]},{"starter":"expo","kind":"expo","status":"passed","adapted":"passed","typecheck":"passed","build":"passed","frontendProofs":[],"adaptedProofs":[],"formSubmit":"not-applicable"},{"starter":"web-chat","kind":"web","template":"chat","status":"passed","typecheck":"passed","build":"passed","frontendProofs":[]},{"starter":"expo-chat","kind":"expo","template":"chat","status":"passed","typecheck":"passed","build":"passed","frontendProofs":[]},{"starter":"expo-social","kind":"expo","template":"social","status":"passed","typecheck":"passed","build":"passed","frontendProofs":[]}],"dependencies":"npm registry (prefer-offline), Expo network checks disabled"}
+{
+  "format": 1,
+  "mode": "consumer-only",
+  "source": "ac219032c355d7c55ed8991fa85a409e955d6ceb",
+  "version": "0.4.28",
+  "route": "proot",
+  "clientIntegrity": "sha512-of7rmYpEkhGjp9urI/m1P6/1hJZp2m1qHSIE39dCeGyxjT/sI4XjR+ljIilVOHYg/KaCea6krREmfNoFf2LahQ==",
+  "expoIntegrity": "sha512-xrZQCiga5iarZEd0j/BO897v2h5EvTl3Zk6hWxNe1/KnLMQmbHRGTtM6bWrmCCAOCAZFwbOiR9SWVlNHSnHFCw==",
+  "platform": {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.28",
+    "filename": "snapback4-linux-x64-0.4.28.tgz",
+    "integrity": "sha512-YYTQ5wkpyWxd0TvkPCkLwUj8VOBLuVG9MioKov6pdluHwlRkJuOdseDnNvXtkJKxljMgIwGjoExdQ96er+HKiQ==",
+    "bytes": 11799407
+  },
+  "binarySha256": "d585057677f16e698df3a143b8f6e8793985394c6d0647c5268db3fe46089142",
+  "elf": {
+    "status": "passed",
+    "machine": "x86_64",
+    "interpreter": null,
+    "needed": []
+  },
+  "frontendProofs": [
+    {
+      "starter": "web",
+      "kind": "web",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 4671,
+      "range": [
+        46479,
+        46499
+      ],
+      "occupied": 46479,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        60.69,
+        27.12,
+        22.87
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 4,
+        "listeners": [
+          {
+            "pid": 2786544,
+            "port": 46480
+          },
+          {
+            "pid": 2786544,
+            "port": 46480
+          },
+          {
+            "pid": 2786559,
+            "port": 46481
+          }
+        ],
+        "nonReturned": [
+          {
+            "pid": 2786689,
+            "state": "absent",
+            "record": "???(2786648 +++ exited with 0 +++"
+          }
+        ],
+        "range": [
+          46479,
+          46499
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/frontend-web/proof-logs-1"
+    },
+    {
+      "starter": "web",
+      "kind": "web",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 4524,
+      "range": [
+        33781,
+        33801
+      ],
+      "occupied": 33781,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        65.12,
+        28.6,
+        23.37
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 4,
+        "listeners": [
+          {
+            "pid": 2787104,
+            "port": 33782
+          },
+          {
+            "pid": 2787104,
+            "port": 33782
+          },
+          {
+            "pid": 2787116,
+            "port": 33783
+          }
+        ],
+        "nonReturned": [
+          {
+            "pid": 2787230,
+            "state": "absent",
+            "record": "???( <unfinished ...>"
+          },
+          {
+            "pid": 2787257,
+            "state": "absent",
+            "record": "???(2787228 +++ exited with 0 +++"
+          }
+        ],
+        "range": [
+          33781,
+          33801
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/frontend-web/proof-logs-2"
+    },
+    {
+      "starter": "web-online",
+      "kind": "web",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 3236,
+      "range": [
+        39285,
+        39305
+      ],
+      "occupied": 39285,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        70.06,
+        30.87,
+        24.16
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 4,
+        "listeners": [
+          {
+            "pid": 2788228,
+            "port": 39286
+          },
+          {
+            "pid": 2788228,
+            "port": 39286
+          },
+          {
+            "pid": 2788242,
+            "port": 39287
+          }
+        ],
+        "nonReturned": [
+          {
+            "pid": 2788444,
+            "state": "absent",
+            "record": "???( <unfinished ...>"
+          }
+        ],
+        "range": [
+          39285,
+          39305
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/frontend-web-online/proof-logs-1"
+    },
+    {
+      "starter": "web-online",
+      "kind": "web",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 3395,
+      "range": [
+        36837,
+        36857
+      ],
+      "occupied": 36837,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        71.82,
+        31.88,
+        24.53
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 4,
+        "listeners": [
+          {
+            "pid": 2788575,
+            "port": 36838
+          },
+          {
+            "pid": 2788575,
+            "port": 36838
+          },
+          {
+            "pid": 2788596,
+            "port": 36839
+          }
+        ],
+        "nonReturned": [
+          {
+            "pid": 2788745,
+            "state": "absent",
+            "record": "???(2788720 +++ exited with 0 +++"
+          },
+          {
+            "pid": 2788602,
+            "state": "absent",
+            "record": "???(2788585 +++ exited with 0 +++"
+          }
+        ],
+        "range": [
+          36837,
+          36857
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/frontend-web-online/proof-logs-2"
+    },
+    {
+      "starter": "expo",
+      "kind": "expo",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 3594,
+      "range": [
+        37171,
+        37191
+      ],
+      "occupied": 37171,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        84.59,
+        38.12,
+        26.79
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 4,
+        "listeners": [
+          {
+            "pid": 2791081,
+            "port": 37172
+          },
+          {
+            "pid": 2791081,
+            "port": 37172
+          },
+          {
+            "pid": 2791098,
+            "port": 37173
+          }
+        ],
+        "nonReturned": [],
+        "range": [
+          37171,
+          37191
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/frontend-expo/proof-logs-1"
+    },
+    {
+      "starter": "expo",
+      "kind": "expo",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 3093,
+      "range": [
+        44913,
+        44933
+      ],
+      "occupied": 44913,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        84.59,
+        38.12,
+        26.79
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 4,
+        "listeners": [
+          {
+            "pid": 2791605,
+            "port": 44914
+          },
+          {
+            "pid": 2791605,
+            "port": 44914
+          },
+          {
+            "pid": 2791626,
+            "port": 44915
+          }
+        ],
+        "nonReturned": [],
+        "range": [
+          44913,
+          44933
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/frontend-expo/proof-logs-2"
+    },
+    {
+      "starter": "web-chat",
+      "kind": "web",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 3557,
+      "range": [
+        45401,
+        45421
+      ],
+      "occupied": 45401,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        83.22,
+        39.38,
+        27.32
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 4,
+        "listeners": [
+          {
+            "pid": 2794589,
+            "port": 45402
+          },
+          {
+            "pid": 2794589,
+            "port": 45402
+          },
+          {
+            "pid": 2794619,
+            "port": 45403
+          }
+        ],
+        "nonReturned": [
+          {
+            "pid": 2794724,
+            "state": "absent",
+            "record": "???(2794706 +++ exited with 0 +++"
+          }
+        ],
+        "range": [
+          45401,
+          45421
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/frontend-web-chat/proof-logs-1"
+    },
+    {
+      "starter": "web-chat",
+      "kind": "web",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 3255,
+      "range": [
+        36877,
+        36897
+      ],
+      "occupied": 36877,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        80.8,
+        39.6,
+        27.46
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 4,
+        "listeners": [
+          {
+            "pid": 2795028,
+            "port": 36878
+          },
+          {
+            "pid": 2795028,
+            "port": 36878
+          },
+          {
+            "pid": 2795065,
+            "port": 36879
+          }
+        ],
+        "nonReturned": [],
+        "range": [
+          36877,
+          36897
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/frontend-web-chat/proof-logs-2"
+    },
+    {
+      "starter": "expo-chat",
+      "kind": "expo",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 3815,
+      "range": [
+        36757,
+        36777
+      ],
+      "occupied": 36757,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        72.61,
+        39.82,
+        27.73
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 4,
+        "listeners": [
+          {
+            "pid": 2796532,
+            "port": 36758
+          },
+          {
+            "pid": 2796532,
+            "port": 36758
+          },
+          {
+            "pid": 2796546,
+            "port": 36759
+          }
+        ],
+        "nonReturned": [
+          {
+            "pid": 2796746,
+            "state": "absent",
+            "record": "???( <unfinished ...>"
+          },
+          {
+            "pid": 2796680,
+            "state": "absent",
+            "record": "???( <unfinished ...>"
+          }
+        ],
+        "range": [
+          36757,
+          36777
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/frontend-expo-chat/proof-logs-1"
+    },
+    {
+      "starter": "expo-chat",
+      "kind": "expo",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 3979,
+      "range": [
+        37415,
+        37435
+      ],
+      "occupied": 37415,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        69.76,
+        39.77,
+        27.78
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 4,
+        "listeners": [
+          {
+            "pid": 2796977,
+            "port": 37416
+          },
+          {
+            "pid": 2796977,
+            "port": 37416
+          },
+          {
+            "pid": 2796990,
+            "port": 37417
+          }
+        ],
+        "nonReturned": [],
+        "range": [
+          37415,
+          37435
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/frontend-expo-chat/proof-logs-2"
+    },
+    {
+      "starter": "expo-social",
+      "kind": "expo",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 4571,
+      "range": [
+        39639,
+        39659
+      ],
+      "occupied": 39639,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        58.46,
+        39.49,
+        28
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 4,
+        "listeners": [
+          {
+            "pid": 2798797,
+            "port": 39640
+          },
+          {
+            "pid": 2798797,
+            "port": 39640
+          },
+          {
+            "pid": 2798853,
+            "port": 39641
+          }
+        ],
+        "nonReturned": [
+          {
+            "pid": 2799110,
+            "state": "absent",
+            "record": "???( <unfinished ...>"
+          },
+          {
+            "pid": 2799028,
+            "state": "absent",
+            "record": "???(2798986 +++ exited with 0 +++"
+          }
+        ],
+        "range": [
+          39639,
+          39659
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/frontend-expo-social/proof-logs-1"
+    },
+    {
+      "starter": "expo-social",
+      "kind": "expo",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 4347,
+      "range": [
+        40647,
+        40667
+      ],
+      "occupied": 40647,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        55.54,
+        39.2,
+        27.97
+      ],
+      "listenerAudit": {
+        "status": "passed",
+        "method": "strace-listen",
+        "samples": 4,
+        "listeners": [
+          {
+            "pid": 2799254,
+            "port": 40648
+          },
+          {
+            "pid": 2799254,
+            "port": 40648
+          },
+          {
+            "pid": 2799286,
+            "port": 40649
+          }
+        ],
+        "nonReturned": [],
+        "range": [
+          40647,
+          40667
+        ],
+        "tracerVersion": "strace -- version 6.8"
+      },
+      "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/frontend-expo-social/proof-logs-2"
+    }
+  ],
+  "starterProofs": [
+    {
+      "starter": "web",
+      "kind": "web",
+      "status": "passed",
+      "adapted": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "frontendProofs": [
+        {
+          "starter": "web",
+          "kind": "web",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 3698,
+          "range": [
+            41073,
+            41093
+          ],
+          "occupied": 41073,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            49.92,
+            38.54,
+            27.87
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 4,
+            "listeners": [
+              {
+                "pid": 2800293,
+                "port": 41074
+              },
+              {
+                "pid": 2800293,
+                "port": 41074
+              },
+              {
+                "pid": 2800305,
+                "port": 41075
+              }
+            ],
+            "nonReturned": [],
+            "range": [
+              41073,
+              41093
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-web/proof-logs-1"
+        },
+        {
+          "starter": "web",
+          "kind": "web",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 3076,
+          "range": [
+            35157,
+            35177
+          ],
+          "occupied": 35157,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            47.6,
+            38.24,
+            27.84
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 4,
+            "listeners": [
+              {
+                "pid": 2800719,
+                "port": 35158
+              },
+              {
+                "pid": 2800719,
+                "port": 35158
+              },
+              {
+                "pid": 2800736,
+                "port": 35159
+              }
+            ],
+            "nonReturned": [
+              {
+                "pid": 2800815,
+                "state": "absent",
+                "record": "???( <unfinished ...>"
+              }
+            ],
+            "range": [
+              35157,
+              35177
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-web/proof-logs-2"
+        }
+      ],
+      "adaptedProofs": [
+        {
+          "starter": "web",
+          "kind": "web",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 2651,
+          "range": [
+            39823,
+            39843
+          ],
+          "occupied": 39823,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            43.2,
+            37.61,
+            27.74
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 4,
+            "listeners": [
+              {
+                "pid": 2804650,
+                "port": 39824
+              },
+              {
+                "pid": 2804650,
+                "port": 39824
+              },
+              {
+                "pid": 2804667,
+                "port": 39825
+              }
+            ],
+            "nonReturned": [],
+            "range": [
+              39823,
+              39843
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-web/proof-logs-1"
+        },
+        {
+          "starter": "web",
+          "kind": "web",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 2736,
+          "range": [
+            34467,
+            34487
+          ],
+          "occupied": 34467,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            43.2,
+            37.61,
+            27.74
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 4,
+            "listeners": [
+              {
+                "pid": 2804909,
+                "port": 34468
+              },
+              {
+                "pid": 2804909,
+                "port": 34468
+              },
+              {
+                "pid": 2805242,
+                "port": 34469
+              }
+            ],
+            "nonReturned": [
+              {
+                "pid": 2805450,
+                "state": "absent",
+                "record": "???( <unfinished ...>"
+              }
+            ],
+            "range": [
+              34467,
+              34487
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-web/proof-logs-2"
+        }
+      ],
+      "negativeProof": {
+        "status": "passed",
+        "expected": "no write scenario: replace the Home assertions",
+        "listenerAudit": {
+          "status": "passed",
+          "method": "strace-listen",
+          "samples": 4,
+          "listeners": [
+            {
+              "pid": 2803830,
+              "port": 30000
+            },
+            {
+              "pid": 2803830,
+              "port": 30000
+            },
+            {
+              "pid": 2803856,
+              "port": 30001
+            }
+          ],
+          "nonReturned": [],
+          "range": [
+            30000,
+            30020
+          ],
+          "tracerVersion": "strace -- version 6.8"
+        }
+      },
+      "formSubmit": "passed"
+    },
+    {
+      "starter": "web-online",
+      "kind": "web",
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "frontendProofs": [
+        {
+          "starter": "web-online",
+          "kind": "web",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 2712,
+          "range": [
+            39533,
+            39553
+          ],
+          "occupied": 39533,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            39.31,
+            36.96,
+            27.64
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 4,
+            "listeners": [
+              {
+                "pid": 2806422,
+                "port": 39534
+              },
+              {
+                "pid": 2806422,
+                "port": 39534
+              },
+              {
+                "pid": 2806464,
+                "port": 39535
+              }
+            ],
+            "nonReturned": [],
+            "range": [
+              39533,
+              39553
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-web-online/proof-logs-1"
+        },
+        {
+          "starter": "web-online",
+          "kind": "web",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 2427,
+          "range": [
+            43643,
+            43663
+          ],
+          "occupied": 43643,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            39.31,
+            36.96,
+            27.64
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 4,
+            "listeners": [
+              {
+                "pid": 2806781,
+                "port": 43644
+              },
+              {
+                "pid": 2806781,
+                "port": 43644
+              },
+              {
+                "pid": 2806800,
+                "port": 43645
+              }
+            ],
+            "nonReturned": [
+              {
+                "pid": 2806813,
+                "state": "absent",
+                "record": "???( <unfinished ...>"
+              },
+              {
+                "pid": 2806800,
+                "state": "absent",
+                "record": "???( <unfinished ...>"
+              },
+              {
+                "pid": 2806816,
+                "state": "absent",
+                "record": "???(2806788 +++ exited with 0 +++"
+              }
+            ],
+            "range": [
+              43643,
+              43663
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-web-online/proof-logs-2"
+        }
+      ]
+    },
+    {
+      "starter": "expo",
+      "kind": "expo",
+      "status": "passed",
+      "adapted": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "frontendProofs": [
+        {
+          "starter": "expo",
+          "kind": "expo",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 3803,
+          "range": [
+            41775,
+            41795
+          ],
+          "occupied": 41775,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            32.83,
+            35.61,
+            27.43
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 4,
+            "listeners": [
+              {
+                "pid": 2808689,
+                "port": 41776
+              },
+              {
+                "pid": 2808689,
+                "port": 41776
+              },
+              {
+                "pid": 2808702,
+                "port": 41777
+              }
+            ],
+            "nonReturned": [],
+            "range": [
+              41775,
+              41795
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-expo/proof-logs-1"
+        },
+        {
+          "starter": "expo",
+          "kind": "expo",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 3795,
+          "range": [
+            34545,
+            34565
+          ],
+          "occupied": 34545,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            32.83,
+            35.61,
+            27.43
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 4,
+            "listeners": [
+              {
+                "pid": 2809145,
+                "port": 34546
+              },
+              {
+                "pid": 2809145,
+                "port": 34546
+              },
+              {
+                "pid": 2809162,
+                "port": 34547
+              }
+            ],
+            "nonReturned": [],
+            "range": [
+              34545,
+              34565
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-expo/proof-logs-2"
+        }
+      ],
+      "adaptedProofs": [
+        {
+          "starter": "expo",
+          "kind": "expo",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 2805,
+          "range": [
+            38563,
+            38583
+          ],
+          "occupied": 38563,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            29.23,
+            34.58,
+            27.31
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 4,
+            "listeners": [
+              {
+                "pid": 2811485,
+                "port": 38564
+              },
+              {
+                "pid": 2811485,
+                "port": 38564
+              },
+              {
+                "pid": 2811507,
+                "port": 38565
+              }
+            ],
+            "nonReturned": [],
+            "range": [
+              38563,
+              38583
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-expo/proof-logs-1"
+        },
+        {
+          "starter": "expo",
+          "kind": "expo",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 2685,
+          "range": [
+            42985,
+            43005
+          ],
+          "occupied": 42985,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            29.23,
+            34.58,
+            27.31
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 4,
+            "listeners": [
+              {
+                "pid": 2811911,
+                "port": 42986
+              },
+              {
+                "pid": 2811911,
+                "port": 42986
+              },
+              {
+                "pid": 2811933,
+                "port": 42987
+              }
+            ],
+            "nonReturned": [
+              {
+                "pid": 2812124,
+                "state": "absent",
+                "record": "???( <unfinished ...>"
+              },
+              {
+                "pid": 2812106,
+                "state": "absent",
+                "record": "???( <unfinished ...>"
+              }
+            ],
+            "range": [
+              42985,
+              43005
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-expo/proof-logs-2"
+        }
+      ],
+      "negativeProof": {
+        "status": "passed",
+        "expected": "no write scenario: replace the Home assertions",
+        "listenerAudit": {
+          "status": "passed",
+          "method": "strace-listen",
+          "samples": 4,
+          "listeners": [
+            {
+              "pid": 2810379,
+              "port": 30000
+            },
+            {
+              "pid": 2810379,
+              "port": 30000
+            },
+            {
+              "pid": 2810392,
+              "port": 30001
+            }
+          ],
+          "nonReturned": [
+            {
+              "pid": 2810493,
+              "state": "absent",
+              "record": "???( <unfinished ...>"
+            }
+          ],
+          "range": [
+            30000,
+            30020
+          ],
+          "tracerVersion": "strace -- version 6.8"
+        }
+      },
+      "formSubmit": "not-applicable"
+    },
+    {
+      "starter": "web-chat",
+      "kind": "web",
+      "template": "chat",
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "frontendProofs": [
+        {
+          "starter": "web-chat",
+          "kind": "web",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 4130,
+          "range": [
+            45131,
+            45151
+          ],
+          "occupied": 45131,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            28.15,
+            34.17,
+            27.26
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 4,
+            "listeners": [
+              {
+                "pid": 2812987,
+                "port": 45132
+              },
+              {
+                "pid": 2812987,
+                "port": 45132
+              },
+              {
+                "pid": 2813021,
+                "port": 45133
+              }
+            ],
+            "nonReturned": [
+              {
+                "pid": 2813026,
+                "state": "absent",
+                "record": "???( <unfinished ...>"
+              },
+              {
+                "pid": 2813025,
+                "state": "absent",
+                "record": "???(2812990 +++ exited with 0 +++"
+              }
+            ],
+            "range": [
+              45131,
+              45151
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-web-chat/proof-logs-1"
+        },
+        {
+          "starter": "web-chat",
+          "kind": "web",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 4244,
+          "range": [
+            33017,
+            33037
+          ],
+          "occupied": 33017,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            29.66,
+            34.38,
+            27.36
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 4,
+            "listeners": [
+              {
+                "pid": 2814409,
+                "port": 33018
+              },
+              {
+                "pid": 2814409,
+                "port": 33018
+              },
+              {
+                "pid": 2814719,
+                "port": 33019
+              }
+            ],
+            "nonReturned": [],
+            "range": [
+              33017,
+              33037
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-web-chat/proof-logs-2"
+        }
+      ]
+    },
+    {
+      "starter": "expo-chat",
+      "kind": "expo",
+      "template": "chat",
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "frontendProofs": [
+        {
+          "starter": "expo-chat",
+          "kind": "expo",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 4400,
+          "range": [
+            42605,
+            42625
+          ],
+          "occupied": 42605,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            23.64,
+            32.7,
+            26.96
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 4,
+            "listeners": [
+              {
+                "pid": 2817210,
+                "port": 42606
+              },
+              {
+                "pid": 2817210,
+                "port": 42606
+              },
+              {
+                "pid": 2817232,
+                "port": 42607
+              }
+            ],
+            "nonReturned": [
+              {
+                "pid": 2817237,
+                "state": "absent",
+                "record": "???( <unfinished ...>"
+              },
+              {
+                "pid": 2817232,
+                "state": "absent",
+                "record": "???(2817218 +++ exited with 0 +++"
+              }
+            ],
+            "range": [
+              42605,
+              42625
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-expo-chat/proof-logs-1"
+        },
+        {
+          "starter": "expo-chat",
+          "kind": "expo",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 4333,
+          "range": [
+            34675,
+            34695
+          ],
+          "occupied": 34675,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            22.54,
+            32.33,
+            26.87
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 4,
+            "listeners": [
+              {
+                "pid": 2817702,
+                "port": 34676
+              },
+              {
+                "pid": 2817702,
+                "port": 34676
+              },
+              {
+                "pid": 2817760,
+                "port": 34677
+              }
+            ],
+            "nonReturned": [],
+            "range": [
+              34675,
+              34695
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-expo-chat/proof-logs-2"
+        }
+      ]
+    },
+    {
+      "starter": "expo-social",
+      "kind": "expo",
+      "template": "social",
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "frontendProofs": [
+        {
+          "starter": "expo-social",
+          "kind": "expo",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 4415,
+          "range": [
+            39927,
+            39947
+          ],
+          "occupied": 39927,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            19,
+            30.71,
+            26.48
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 4,
+            "listeners": [
+              {
+                "pid": 2819963,
+                "port": 39928
+              },
+              {
+                "pid": 2819963,
+                "port": 39928
+              },
+              {
+                "pid": 2819989,
+                "port": 39929
+              }
+            ],
+            "nonReturned": [
+              {
+                "pid": 2819992,
+                "state": "absent",
+                "record": "???(2819971 +++ exited with 0 +++"
+              }
+            ],
+            "range": [
+              39927,
+              39947
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-expo-social/proof-logs-1"
+        },
+        {
+          "starter": "expo-social",
+          "kind": "expo",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 4516,
+          "range": [
+            40667,
+            40687
+          ],
+          "occupied": 40667,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            18.2,
+            30.35,
+            26.38
+          ],
+          "listenerAudit": {
+            "status": "passed",
+            "method": "strace-listen",
+            "samples": 4,
+            "listeners": [
+              {
+                "pid": 2820361,
+                "port": 40668
+              },
+              {
+                "pid": 2820361,
+                "port": 40668
+              },
+              {
+                "pid": 2820387,
+                "port": 40669
+              }
+            ],
+            "nonReturned": [],
+            "range": [
+              40667,
+              40687
+            ],
+            "tracerVersion": "strace -- version 6.8"
+          },
+          "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-complete/starter-expo-social/proof-logs-2"
+        }
+      ]
+    }
+  ],
+  "proofs": [
+    {
+      "base": "ubuntu:24.04",
+      "node": "22.22.0",
+      "rootfs": {
+        "url": "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.3-base-amd64.tar.gz",
+        "sha256": "6bc2cde3930ad088b3bb46fa45279e96d25bc3810f209850ecbe4722711874f9"
+      },
+      "tools": [
+        {
+          "url": "https://github.com/proot-me/proot/releases/download/v5.4.1/proot",
+          "sha256": "19f44283f5c0e73091c60195f5fcd4f4c1165505e44410d434e2ab1b677c1a09"
+        },
+        {
+          "url": "https://nodejs.org/dist/v22.22.0/node-v22.22.0-linux-x64.tar.xz",
+          "sha256": "9aa8e9d2298ab68c600bd6fb86a6c13bce11a4eca1ba9b39d79fa021755d7c37"
+        }
+      ],
+      "route": "proot",
+      "runtime": "proot",
+      "status": "passed",
+      "elapsedMs": 308857,
+      "clientIntegrity": "sha512-of7rmYpEkhGjp9urI/m1P6/1hJZp2m1qHSIE39dCeGyxjT/sI4XjR+ljIilVOHYg/KaCea6krREmfNoFf2LahQ==",
+      "platformIntegrity": "sha512-YYTQ5wkpyWxd0TvkPCkLwUj8VOBLuVG9MioKov6pdluHwlRkJuOdseDnNvXtkJKxljMgIwGjoExdQ96er+HKiQ==",
+      "expoIntegrity": "sha512-xrZQCiga5iarZEd0j/BO897v2h5EvTl3Zk6hWxNe1/KnLMQmbHRGTtM6bWrmCCAOCAZFwbOiR9SWVlNHSnHFCw==",
+      "starters": {
+        "web": "passed",
+        "expo": "passed",
+        "adapted": "passed",
+        "templates": "passed"
+      }
+    },
+    {
+      "base": "alpine",
+      "node": "24.18.1",
+      "rootfs": {
+        "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/x86_64/alpine-minirootfs-3.23.3-x86_64.tar.gz",
+        "sha256": "42d0e6d8de5521e7bf92e075e032b5690c1d948fa9775efa32a51a38b25460fb"
+      },
+      "tools": [
+        {
+          "url": "https://github.com/proot-me/proot/releases/download/v5.4.1/proot",
+          "sha256": "19f44283f5c0e73091c60195f5fcd4f4c1165505e44410d434e2ab1b677c1a09"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/nodejs-24.18.1-r0.apk",
+          "sha256": "3c78c9bc8a1d52cc18e79f94120d69ae7705dab1d77054dfa040a064bf344b87"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/ada-libs-3.3.0-r0.apk",
+          "sha256": "5afb61331b184c47e91d0637ecb706aaf30e9270e845a6c0417235bdec2009c1"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/brotli-libs-1.2.0-r0.apk",
+          "sha256": "09fbf1ddf0c71c6c4ab7bc12aef3452d8ace5adeab10c4c30214fc70f5e0e087"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/c-ares-1.34.8-r0.apk",
+          "sha256": "7a570d080d05e60b1256ea73586924bf9a25f468c57aae10d1cdfe7fcc3f93a2"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/ca-certificates-20260909-r0.apk",
+          "sha256": "68ee230255f291fcc7539bacd1cc38cb15debda9cff66e57e9ff022a2c38816c"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/icu-data-en-76.1-r1.apk",
+          "sha256": "82d55e064ca2ff15e6ef6c3b7009eb2e869469f56f36c0d84411b265825a3251"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/icu-libs-76.1-r1.apk",
+          "sha256": "c6b53c168bb1af380fcbc305ff9e25c30e3cab756165fd7b8f77d4dac132aa4d"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/libcrypto3-3.5.8-r0.apk",
+          "sha256": "a5592b5cf276bc7a30ac7b161d46446085490b640faa1f839ea98eb15aacad31"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/libgcc-15.2.0-r2.apk",
+          "sha256": "4279d14cbf43311312d3a7d43619f4c15ede2e46d5608ba421ed157ded57c700"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/libssl3-3.5.8-r0.apk",
+          "sha256": "f80b76cb5e5a52cfc1ced08f8dc3022adc0ce0a3d6e7741976731b22c71fe310"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/libstdc++-15.2.0-r2.apk",
+          "sha256": "d4be2967a06d78b499f5e136323f4ebe51ad367b381933b3369539499c4f5752"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/nghttp2-libs-1.69.0-r0.apk",
+          "sha256": "e52a5325b8720449ed4f123a33202794361b6b164c127abdb4b3c057467e7a41"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/simdjson-3.12.0-r0.apk",
+          "sha256": "1dfe639550b5457018b7993a9ac9417a6b3d0e4ecbbdacf0ef0e3b42582173e4"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/simdutf-7.5.0-r1.apk",
+          "sha256": "6ca498fdaf3eae672e656f3746c2b4a4740a1924d1210af43ec6233b4a5a1476"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/sqlite-libs-3.53.4-r0.apk",
+          "sha256": "414be12c879052f4614a42a10fc12af67a88ba49e8e1e33f78cd9ddbbdb13fee"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/zlib-1.3.2-r0.apk",
+          "sha256": "f56dea63692059bd65854bb179b7551971a441000b0d98c5b031291ca0450b56"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/zstd-libs-1.5.7-r2.apk",
+          "sha256": "d5fcc58f7f071a5658d97b09838668e4443203217631992915b8e60656904104"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/community/x86_64/npm-11.11.0-r0.apk",
+          "sha256": "9ceb98c5ee7b2a5f63b4d7b9a95f48682d5f169031bfe7dd60b68c922cea46e4"
+        }
+      ],
+      "route": "proot",
+      "runtime": "proot",
+      "status": "passed",
+      "elapsedMs": 479584,
+      "clientIntegrity": "sha512-of7rmYpEkhGjp9urI/m1P6/1hJZp2m1qHSIE39dCeGyxjT/sI4XjR+ljIilVOHYg/KaCea6krREmfNoFf2LahQ==",
+      "platformIntegrity": "sha512-YYTQ5wkpyWxd0TvkPCkLwUj8VOBLuVG9MioKov6pdluHwlRkJuOdseDnNvXtkJKxljMgIwGjoExdQ96er+HKiQ==",
+      "expoIntegrity": "sha512-xrZQCiga5iarZEd0j/BO897v2h5EvTl3Zk6hWxNe1/KnLMQmbHRGTtM6bWrmCCAOCAZFwbOiR9SWVlNHSnHFCw==",
+      "starters": {
+        "web": "passed",
+        "expo": "passed",
+        "adapted": "passed",
+        "templates": "passed"
+      }
+    }
+  ],
+  "suite": {
+    "status": "not-run"
+  },
+  "publicationQualified": false
+}

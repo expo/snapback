@@ -1,0 +1,21 @@
+[check-inventories] GAP REVIEW WARNING: row 'backend.structured-stored-fields' expired on 2026-08-25; owner: LLP 0115 CV-4b; pointer: issues/shelved/20260727-backend-bakeoff-improvement-program.md
+[check-inventories] GAP REVIEW WARNING: row 'backend.identity-columns' expired on 2026-09-15; owner: LLP 0191 identity Decision; pointer: issues/shelved/20260808-numeric-identity-default-columns.md
+[check-inventories] GAP REVIEW WARNING: row 'backend.bounded-children-v1' expired on 2026-09-30; owner: Charlie; pointer: issues/shelved/20260727-backend-bakeoff-improvement-program.md
+[check-inventories] GAP REVIEW WARNING: row 'backend.write-activity-v1' expired on 2026-09-30; owner: Charlie; pointer: issues/shelved/20260727-backend-bakeoff-improvement-program.md
+[check-inventories] GAP REVIEW WARNING: row 'backend.handler-typescript' expired on 2026-09-15; owner: LLP 0246; pointer: issues/shelved/20260812-0246-remaining-rollouts-stacked-on-0237.md
+[check-inventories] GAP REVIEW WARNING: row 'backend.sequences' expired on 2026-09-30; owner: Charlie; pointer: issues/shelved/20260825-guide-gap-sequence-publication-targets.md
+[check-inventories] GAP REVIEW WARNING: row 'assets.media-collection.v1' expired on 2026-08-26; owner: LLP 0239 R3; pointer: issues/shelved/20260815-finish-media-happy-path.md
+[check-inventories] GAP REVIEW WARNING: row 'assets.media-command.v1' expired on 2026-09-02; owner: LLP 0239 R4; pointer: issues/shelved/20260815-finish-media-happy-path.md
+[check-inventories] GAP REVIEW WARNING: row 'backend.notifications' expired on 2026-09-06; owner: Charlie; pointer: issues/shelved/20260825-guide-gap-first-class-notifications.md
+[check-inventories] GAP REVIEW WARNING: row 'sync.offline-js-arm-protected' expired on 2026-08-26; owner: orchestrator; pointer: issues/shelved/20260801-js-arm-integrated-authenticated-restart-witness.md
+[check-inventories] GAP REVIEW WARNING: row 'sync.settlement-bounded-skew' expired on 2026-08-28; owner: LLP 0155 Stage 2; pointer: issues/shelved/20260802-0133-receipt-wire-coordination.md
+[check-inventories] GAP REVIEW WARNING: row 'auth.first-party-social-providers' expired on 2026-09-21; owner: issues/shelved/20260808-wave4-identity-program.md; pointer: issues/shelved/20260808-wave4-identity-program.md
+[check-inventories] GAP REVIEW WARNING: row 'auth.field-masking' expired on 2026-09-04; owner: LLP 0235; pointer: issues/shelved/20260821-0235-field-masking-productization.md
+[check-inventories] GAP REVIEW WARNING: row 'clients.non-js' expired on 2026-09-02; owner: Charlie; pointer: issues/shelved/20260825-guide-gap-kotlin-dart-clients.md
+[check-inventories] GAP REVIEW WARNING: row 'clients.poll-hosted' expired on 2026-09-04; owner: Charlie; pointer: issues/shelved/20260728-hosted-lifecycle-carrier-and-custody-gap.md
+[check-inventories] GAP REVIEW WARNING: row 'clients.compose-existing-app' expired on 2026-09-12; owner: unassigned; pointer: issues/shelved/20260808-guide-gap-compose-snapback-into-existing-app.md
+[check-inventories] GAP REVIEW WARNING: row 'operating.agent-safe-storage' expired on 2026-09-08; owner: Charlie; pointer: issues/shelved/20260803-agent-safe-storage-acceptance-tail.md
+[check-inventories] GAP REVIEW WARNING: row 'operating.declaration-conformance' expired on 2026-09-10; owner: ccheever; pointer: issues/shelved/20260803-0146-d1-d3-tranche.md
+[check-inventories] FAIL guide-manifest
+  guide source error: reference-registry inventory failed: [symbol-registry] environment precondition: required packages unavailable: typescript, ajv; run `bun install --frozen-lockfile`
+  registration step: fix any guide source errors, run node scripts/generate-guide-manifest.mjs, and commit both generated guide projections
