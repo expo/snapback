@@ -24,9 +24,9 @@ test('publication check catches 0.4.28 deploy --schema omission and covers every
 test('guide discovery accepts unambiguous names, successful section keywords and quoted/unquoted OR', () => {
   assert.equal(cli('guide','produc'),cli('guide','production'));
   const topic=cli('guide','totals','--section','count');assert.doesNotMatch(topic,/No heading|no section/);assert.match(topic,/count/);
-  const quoted=cli('guide','deploy','--find','bearer OR generation');
-  const unquoted=cli('guide','deploy','--find','bearer','OR','generation');
-  assert.equal(quoted,unquoted);assert.match(quoted,/^\s*\d+: .*bearer/im);assert.match(quoted,/^\s*\d+: .*generation/im);
+  const quoted=cli('guide','deploy','--find','widening OR generation');
+  const unquoted=cli('guide','deploy','--find','widening','OR','generation');
+  assert.equal(quoted,unquoted);assert.match(quoted,/^\s*\d+: .*widening/im);assert.match(quoted,/^\s*\d+: .*generation/im);
 });
 
 test('bare operation names refuse with generated handle guidance before query/write dispatch', async () => {

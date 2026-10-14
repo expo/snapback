@@ -178,7 +178,7 @@ become `read <-`, `create <-` becomes `insert <-`, `modify <-` and `edit <-`
 become `update <-`, and `remove <-` becomes `delete <-`. For `write <-`,
 declare separate insert, update and delete rules for the operations intended.
 
-### What a refused write returns: E_RULE, NOT_FOUND, E_CONSTRAINT
+### What a refused write returns: E_RULE, NOT_FOUND, E_UNIQUE, E_CONSTRAINT
 For update/upsert, "readable" means the read rule admits the old row in the
 pre-write state, before the patch or any of its effects. The engine resolves
 id and unique-key targets privately; the update rule judges old and next.
