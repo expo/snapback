@@ -37,7 +37,7 @@ fn w9c_unique_hook_and_legacy_refusals_on_server() {
     for (hook, code, message) in [
         (" else HANDLE_TAKEN 'That handle is taken.'", "HANDLE_TAKEN", "That handle is taken."),
         (" else HANDLE_TAKEN", "HANDLE_TAKEN", "the program refused with HANDLE_TAKEN"),
-        ("", "E_CONSTRAINT", "profiles.byHandle already has a row where handle = 'alice'"),
+        ("", "E_UNIQUE", "profiles: unique handle already has a row where handle = 'alice'"),
     ] {
         let bound = compile(&profiles(hook));
         let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
@@ -46,7 +46,7 @@ fn w9c_unique_hook_and_legacy_refusals_on_server() {
         let duplicate = create(&mut engine, "p2", "alice");
         let WriteState::Failed { why, .. } = duplicate.state else { panic!("{duplicate:?}") };
         assert_eq!((why.code.as_str(), why.message.as_str()), (code, message));
-        if !hook.is_empty() { assert_eq!(serde_json::to_value(&why).unwrap()["detail"], "profiles.byHandle already has a row where handle = 'alice'"); }
+        if !hook.is_empty() { assert_eq!(serde_json::to_value(&why).unwrap()["detail"], "profiles: unique handle already has a row where handle = 'alice'"); }
         println!("server refusal: {why}");
         assert_eq!(engine.store().count("profiles").unwrap(), 1);
         assert!(matches!(create(&mut engine, "p3", "bob").state, WriteState::Sent { .. }));

@@ -104,9 +104,9 @@ that runs again is a no-op report (`why E_BOUND`, `guide receipts`).
 
 `unique handle else HANDLE_TAKEN 'That handle is taken.'` supplies a
 constraint's user-facing code and message. Render `message`; `detail` retains
-`profiles.byHandle already has a row where handle = 'alice'` for development.
+`profiles: unique handle already has a row where handle = 'alice'` for development.
 Omit the literal to use the default `the program refused with HANDLE_TAKEN`.
-Omit the hook to keep the existing `E_CONSTRAINT` message. The indexes card
+Omit the hook for `E_UNIQUE` on a caller-readable declared key; hidden conflicts retain ambiguous `E_RULE`. The indexes card
 shows the declaration; code validation is the same as `require … else CODE`.
 
 For expiring server scans, `E_BOUND` includes unswept rows. For delivery
