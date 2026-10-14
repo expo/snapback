@@ -59,7 +59,7 @@ function decode(value: unknown): ServedRelease | undefined {
  * Ordinary traffic withdraws the previous snapshot as soon as it observes a newer generation. */
 export function servedRelease(options: { url: string; fetch: typeof fetch; headers(): Record<string, string>; current(): boolean }) {
   let snapshot: ReleaseSnapshot = releaseLoading;
-  let credential = "", minimum = -1, closed = false, revision = 0;
+  let credential = canonical(options.headers()), minimum = -1, closed = false, revision = 0;
   let timer: ReturnType<typeof setTimeout> | undefined, pending: Promise<void> | undefined;
   let aborter: AbortController | undefined;
   const listeners = new Set<() => void>();
@@ -120,6 +120,8 @@ export function servedRelease(options: { url: string; fetch: typeof fetch; heade
       if (timer !== undefined) clearTimeout(timer); timer = undefined; schedule(0);
     },
     hint(response: Response) {
+      const key = identity();
+      if (credential !== key) { credential = key; minimum = -1; revision++; aborter?.abort(); publish(releaseLoading); }
       const value = response.headers.get("x-snapback-generation");
       const next = value === null ? NaN : Number(value);
       if (!Number.isSafeInteger(next) || next <= minimum || !active()) return;

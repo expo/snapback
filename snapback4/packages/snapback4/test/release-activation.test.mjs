@@ -1256,8 +1256,8 @@ query one(id: grounding):
   const v2 = v1.replace("enum('clear', 'hold')", "enum('clear', 'hold', 'inspection')").replace("  body: text <=100", "  body: text <=100\n  color: text <=20 default 'none'").replace("state: 'hold'", "state: 'inspection'") + '\nquery newOnly():\n  return true\n';
   writeFileSync(schema, v1); run('deploy', deployment);
   writeFileSync(schema, v2); run('deploy', deployment);
-  mkdirSync(join(app,'versions')); writeFileSync(join(app,'versions/v1.q'),v1);
-  writeFileSync(join(app,'snapback/client-compatibility.json'),JSON.stringify({baseline:'versions/v1.q',since_release:2}));
+  mkdirSync(join(app,'versions/v1'),{recursive:true}); writeFileSync(join(app,'versions/v1/schema.q'),v1);
+  writeFileSync(join(app,'snapback/client-compatibility.json'),JSON.stringify({baseline:'versions/v1',since_release:2}));
   run('check');
   const generated = readFileSync(join(app,'snapback/generated/api.ts'),'utf8');
   assert.match(generated,/Since release 2/); assert.match(generated,/color\?: string/);
@@ -1333,8 +1333,8 @@ query greet(name: text <=20 ?):
   return name
 `;
   const next=base.replaceAll('oldRows','newRows').replace('written by .owner','written by .owner readable by audience');
-  mkdirSync(join(app,'versions')); writeFileSync(join(app,'versions/v1.q'),base);
-  writeFileSync(schema,next); writeFileSync(join(app,'snapback/client-compatibility.json'),JSON.stringify({baseline:'versions/v1.q',since_release:2}));
+  mkdirSync(join(app,'versions/v1'),{recursive:true}); writeFileSync(join(app,'versions/v1/schema.q'),base);
+  writeFileSync(schema,next); writeFileSync(join(app,'snapback/client-compatibility.json'),JSON.stringify({baseline:'versions/v1',since_release:2}));
   run('check'); mkdirSync(join(app,'node_modules')); symlinkSync(join(root,'packages/snapback4'),join(app,'node_modules/snapback4'));
   const usage=join(app,'usage.ts'); writeFileSync(usage,`import {api,type Rows} from './snapback/generated/api';
 import type {ArgsOf,ResultOf} from 'snapback4/contract';

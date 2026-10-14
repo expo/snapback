@@ -1,0 +1,11 @@
+{
+  "date": "2026-10-14T21:48:10.034391+00:00",
+  "candidate": "5b283a5244",
+  "base": "c22dfefc9c",
+  "brief": "3000.000.000.000-rel3-r2.brief.md",
+  "models": {
+    "codex": "fresh codex exec gpt-6.1-sol high",
+    "muse": "fresh muse-exec.sh muse-spark-1.3-contributor high (prescribed fallback enabled)"
+  },
+  "read_only": true
+}

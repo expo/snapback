@@ -90,3 +90,27 @@ test('a query-change-feed refusal cannot strand the independently authenticated 
   await until(()=>client.release.getSnapshot().generation===2);
   assert.equal(operationAvailable(client.release.getSnapshot(),'newOnly','query',{}),true);
 });
+
+test('a generation observed before first catalog dispatch survives credential initialization', async t => {
+  let generation=2;
+  const release=servedRelease({url:'http://catalog',headers:()=>({authorization:'one'}),current:()=>true,fetch:async()=>Response.json({...catalog(2),generation})});
+  t.after(()=>release.close());
+  release.hint(new Response(null,{headers:{'x-snapback-generation':'3'}}));
+  const stop=release.subscribe(()=>{});t.after(stop);
+  await delay(40);assert.deepEqual(release.getSnapshot(),{loading:true});
+  generation=3;await until(()=>release.getSnapshot().generation===3);
+});
+
+test('a generation observed on new credentials survives the pending old catalog reply', async t => {
+  let token='one', generation=2, reply, calls=0;
+  const release=servedRelease({url:'http://catalog',headers:()=>({authorization:token}),current:()=>true,fetch:async()=>{
+    calls++; if(calls===1)return new Promise(resolve=>{reply=resolve;});
+    return Response.json({...catalog(2),generation});
+  }});
+  t.after(()=>release.close());const stop=release.subscribe(()=>{});t.after(stop);
+  await until(()=>!!reply);token='two';
+  release.hint(new Response(null,{headers:{'x-snapback-generation':'3'}}));
+  reply(Response.json(catalog(2)));await until(()=>calls>=2);
+  assert.deepEqual(release.getSnapshot(),{loading:true});generation=3;
+  await until(()=>release.getSnapshot().generation===3);
+});

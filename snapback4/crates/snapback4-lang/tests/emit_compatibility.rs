@@ -48,6 +48,7 @@ fn baseline_nominal_results_survive_removed_tables_and_nested_return_shapes() {
     assert!(api.contains("type BaselineRows = {\n  oldRows: {"),"{api}");
     assert!(api.contains("Rows[\"newRows\"][] | BaselineRows[\"oldRows\"][]"),"{api}");
     assert!(!api.contains("| Rows[\"oldRows\"]"));
+    assert!(api.contains("  newRows: {\n    id: string;\n    n: number;"), "a row from an entirely new table still has its required fields: {api}");
 }
 #[test]
 fn field_hidden_in_either_release_remains_optional_in_spanning_rows() {
