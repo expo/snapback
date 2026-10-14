@@ -815,7 +815,9 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         let inferred_search = snapback4_core::search_plan::ordinary::plan(schema, &bound.program);
         // @ref LLP 3000.036.001#14 — grant, system and witnessed membership lanes carry their own proof.
         let proof_lanes: Vec<*const snapback4_core::ir::Scan> = snapback4_core::ir::body_merges(&bound.program.body).into_iter()
-            .filter(|merge| merge.branches()).flat_map(|merge| merge.lanes.iter().filter(|lane| lane.grant() || lane.system() || lane.membership() || lane.guarded()).map(|lane| &lane.scan as *const _)).collect();
+            .filter(|merge| merge.branches()).flat_map(|merge| merge.lanes.iter().filter(|lane|
+                lane.grant() || lane.system() || lane.membership() || lane.guarded() || lane.vacancy())
+                .map(|lane| &lane.scan as *const _)).collect();
 
         for scan in snapback4_core::ir::scans(&bound.program) {
             if proof_lanes.contains(&(scan as *const _)) { continue; }
@@ -861,6 +863,8 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                 && schema.operations.get(&bound.program.name).is_some_and(|fact| fact.runs.as_deref() == Some("device")))
                 .then(|| first_paste::held_query(catalog, &bound.site)).flatten();
             let scope_rewrite = existing.map(|(name, _)| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); the existing index `{name}: {columns}` supports it; or read the page on the device", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));
+            let equality_index_rewrite = equality_filter_index_rewrite(table, scan, &unpinned, &leading,
+                catalog.source.declarations.get(&bound.site.to_string()).map(String::as_str));
             let cap_repair = bound
                 .sources
                 .get(&scan.site)
@@ -924,7 +928,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                         admitted.as_ref().map_or_else(String::new, |grant| if conditional { format!(" for callers `{grant}` admits, and otherwise remains capped") } else { format!(" except for callers `{grant}` admits") }),
                         table.rules.read.quarry(), unpinned.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")) },
                     cap_repair.or(held_rewrite).or(search_rewrite.clone()).unwrap_or_else(|| {
-                        let base = scope_rewrite.unwrap_or_else(|| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));
+                        let base = scope_rewrite.or(equality_index_rewrite).unwrap_or_else(|| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));
                         let declaration = catalog.source.declarations.get(&bound.site.to_string()).map(String::as_str);
                         match pin_rewrite::pin_rewrite(schema, &bound.program, scan, table, &unpinned, declaration) {
                             Some((Some(code), pin)) => format!("{code}\n\nOtherwise: {base}. As code: {pin}{parent_advice}"),
@@ -938,6 +942,55 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         }
     }
     notes
+}
+
+/// An authored equality may already be the right authorization scope while a
+/// named order index leaves it as a residual filter. Print the two exact edits
+/// together: the compatible declaration and the same query selecting it.
+// @ref LLP 3000.036.001#18 — equality-filter advice is mechanically coherent even when it remains advisory.
+fn equality_filter_index_rewrite(table: &snapback4_core::schema::Table, scan: &snapback4_core::ir::Scan,
+    unpinned: &[String], leading: &[String], declaration: Option<&str>) -> Option<String> {
+    use snapback4_core::ir::{BinaryOp, Expr};
+    fn pins(expr: &Expr, column: &str) -> bool {
+        match expr {
+            Expr::Binary { op: BinaryOp::And, left, right } => pins(left, column) || pins(right, column),
+            Expr::Binary { op: BinaryOp::Eq, left, right } => field(left, column) && independent(right)
+                || field(right, column) && independent(left),
+            _ => false,
+        }
+    }
+    fn field(expr: &Expr, column: &str) -> bool {
+        matches!(expr, Expr::Field { base, name } if name == column
+            && matches!(base.as_ref(), Expr::Variable(binding) if binding == "$filter"))
+    }
+    fn independent(expr: &Expr) -> bool {
+        match expr {
+            Expr::Field { base, .. } => !matches!(base.as_ref(), Expr::Variable(binding) if binding == "$filter") && independent(base),
+            Expr::Binary { left, right, .. } => independent(left) && independent(right),
+            Expr::Unary { value, .. } => independent(value),
+            Expr::Array(values) => values.iter().all(independent),
+            Expr::Object(fields) => fields.values().all(independent),
+            Expr::Builtin { args, .. } => args.iter().all(independent),
+            Expr::Get(_) | Expr::Exists(_) | Expr::Scan(_) | Expr::Merge(_) | Expr::Block { .. } => false,
+            _ => true,
+        }
+    }
+    let filter = scan.filter.as_deref()?;
+    if unpinned.is_empty() || leading.len() > 8 || !unpinned.iter().all(|column| pins(filter, column)) { return None; }
+    let title = |value: &str| { let mut chars = value.chars(); chars.next()
+        .map(|first| first.to_uppercase().collect::<String>() + chars.as_str()).unwrap_or_default() };
+    let stem = leading.iter().filter(|column| column.as_str() != "id").map(|column| title(column)).collect::<String>();
+    if stem.is_empty() { return None; }
+    let mut name = format!("by{stem}");
+    let mut suffix = 2;
+    while table.indexes.contains_key(&name) {
+        name = format!("by{stem}{suffix}"); suffix += 1;
+    }
+    let declaration = declaration?;
+    let old = format!(" by {}", scan.index);
+    if !declaration.contains(&old) { return None; }
+    let rewritten = declaration.replacen(&old, &format!(" by {name}"), 1);
+    Some(format!("on table {} add `by {name}: {}`; use the same index in the rewritten query:\n```quarry\n{rewritten}\n```", scan.table, leading.join(", ")))
 }
 
 fn matching_merge_rewrite(schema: &Schema, scan: &snapback4_core::ir::Scan, table: &snapback4_core::schema::Table) -> Option<String> {

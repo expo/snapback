@@ -216,3 +216,93 @@ fn compound_prefix_conditional_note_names_the_guard_for_its_admitted_callers() {
     let note=b.notes.iter().find(|n|n.code=="N_CONDITIONAL_COMPLETE").unwrap();
     assert!(note.message.contains("for callers `exists members[") && note.message.contains("and otherwise remains capped"),"{note:?}");
 }
+
+#[test]
+fn two_principal_status_scope_and_fixed_plus_per_row_grants_are_complete() {
+    let escorts = "table roles:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable escorts:\n  student: principal\n  volunteerOne: principal ?\n  volunteerTwo: principal ?\n  status: enum('requested', 'assigned', 'arrived', 'walking', 'completed')\n  at: int\n  read <- .student = viewer or exists roles[viewer] or ((.volunteerOne = viewer or .volunteerTwo = viewer) and (.status = 'assigned' or .status = 'arrived' or .status = 'walking'))\n  online only\nquery walks(c: cursor ?):\n  return escorts where (.volunteerOne = viewer or .volunteerTwo = viewer) and (.status = 'assigned' or .status = 'arrived' or .status = 'walking') first 1 by .at after c\n";
+    let b = compile(&[("schema.q".into(), escorts.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert!(!b.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE"), "{:?}", b.notes);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    e.seed([
+        ("escorts".into(), object([("id", id("a")), ("student", id("s")), ("volunteerOne", id("alice")), ("volunteerTwo", Value::Null), ("status", Value::String("assigned".into())), ("at", Value::Int(1))])),
+        ("escorts".into(), object([("id", id("b")), ("student", id("s")), ("volunteerOne", id("alice")), ("volunteerTwo", id("alice")), ("status", Value::String("walking".into())), ("at", Value::Int(2))])),
+        ("escorts".into(), object([("id", id("hidden")), ("student", id("s")), ("volunteerOne", id("alice")), ("volunteerTwo", Value::Null), ("status", Value::String("completed".into())), ("at", Value::Int(3))])),
+    ]).unwrap();
+    assert_eq!(walk(&mut e, "walks", "alice"), ["a", "b"]);
+
+    let grants = "table chapterAccess:\n  chapter: int\n  principal: principal\n  unique chapter, principal\n  read <- .principal = viewer\n  online only\ntable versionAccess:\n  version: id\n  principal: principal\n  unique version, principal\n  read <- .principal = viewer\n  online only\ntable versions:\n  chapter: int\n  at: int\n  read <- exists chapterAccess[.chapter, viewer] and exists versionAccess[.id, viewer]\n  online only\nquery versionsOf(chapter: int, c: cursor ?):\n  return versions where .chapter = chapter first 1 by .at after c\n";
+    let b = compile(&[("schema.q".into(), grants.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert!(!b.notes.iter().any(|n| matches!(n.code.as_str(), "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE")), "{:?}", b.notes);
+    assert!(b.schema.required_capabilities().contains("branch-pages-v4"));
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    e.seed([
+        ("chapterAccess".into(), object([("id", id("ca")), ("chapter", Value::Int(1)), ("principal", id("alice"))])),
+        ("versionAccess".into(), object([("id", id("va")), ("version", id("a")), ("principal", id("alice"))])),
+        ("versions".into(), object([("id", id("a")), ("chapter", Value::Int(1)), ("at", Value::Int(1))])),
+        ("versions".into(), object([("id", id("b")), ("chapter", Value::Int(1)), ("at", Value::Int(2))])),
+    ]).unwrap();
+    let args = |chapter| BTreeMap::from([("chapter".into(), Value::Int(chapter)), ("c".into(), Value::Null)]);
+    let r = e.query("versionsOf", Context::new("alice", args(1))).unwrap();
+    assert!(r.complete, "{r:?}");
+    assert_eq!(r.data.as_array().unwrap().iter().map(|row| row.field("id").unwrap().as_str().unwrap()).collect::<Vec<_>>(), ["a"]);
+    let r = e.query("versionsOf", Context::new("bob", args(1))).unwrap();
+    assert!(r.complete && r.data.as_array().unwrap().is_empty(), "{r:?}");
+
+    // A rule probe sees its target with system authority, while the residual
+    // query probe uses ordinary read authority.  Keep PAGE out unless those
+    // observations are equivalent for a timeless readable exact point.
+    for unsafe_grant in [
+        grants.replacen("  read <- .principal = viewer", "  read <- deny", 1),
+        grants.replacen("  read <- .principal = viewer", "  until: time ?\n  expire at .until\n  read <- .principal = viewer", 1),
+        grants.replacen("  principal: principal\n  unique chapter, principal", "  principal: principal\n  active: bool\n  unique chapter, principal", 1)
+            .replace("exists chapterAccess[.chapter, viewer]", "exists chapterAccess[chapter = .chapter, principal = viewer, active = true]"),
+    ] {
+        let declined = compile(&[("schema.q".into(), unsafe_grant)]);
+        assert!(declined.diagnostics.is_empty(), "{:?}", declined.diagnostics);
+        assert!(declined.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE"), "{:?}", declined.notes);
+    }
+}
+
+#[test]
+fn equality_filter_note_prints_one_matching_index_and_query() {
+    let source = "table skippers:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable watches:\n  crew: principal\n  starts: time\n  by byStart: starts, id\n  read <- .crew = viewer or exists skippers[viewer]\n  online only\nquery myWatches():\n  return watches where .crew = viewer first 240 by byStart\n";
+    let b = compile(&[("schema.q".into(), source.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let note = b.notes.iter().find(|note| note.code == "N_NEVER_COMPLETE").unwrap();
+    assert!(note.rewrite.contains("by byCrewStarts: crew, starts, id"), "{note}");
+    assert!(note.rewrite.contains("return watches where .crew = viewer first 240 by byCrewStarts"), "{note}");
+
+    let repaired = source.replace("  by byStart: starts, id", "  by byStart: starts, id\n  by byCrewStarts: crew, starts, id")
+        .replace("first 240 by byStart", "first 240 by byCrewStarts");
+    let b = compile(&[("schema.q".into(), repaired)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert!(!b.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"), "{:?}", b.notes);
+}
+
+#[test]
+fn exact_vacancy_pages_publish_only_rule_visible_exhaustion() {
+    let source = "table artists:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable designs:\n  oneOfKind: bool\n  at: int\n  read <- exists artists[viewer] or not .oneOfKind or not exists holds[design = .id] or exists holds[design = .id, owner = viewer]\n  online only\ntable holds:\n  design: designs\n  owner: principal\n  expiresAt: time ?\n  unique design\n  read <- .owner = viewer or exists artists[viewer]\n  expire at .expiresAt\n  online only\nquery available(c: cursor ?):\n  return designs first 1 by .at after c\n";
+    let b = compile(&[("schema.q".into(), source.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert!(!b.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"), "{:?}", b.notes);
+    assert!(b.schema.required_capabilities().contains("branch-pages-v4"));
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    e.seed([
+        ("artists".into(), object([("id", id("artist")), ("principal", id("art"))])),
+        ("designs".into(), object([("id", id("a")), ("oneOfKind", Value::Bool(false)), ("at", Value::Int(1))])),
+        ("designs".into(), object([("id", id("b")), ("oneOfKind", Value::Bool(true)), ("at", Value::Int(2))])),
+        ("designs".into(), object([("id", id("c")), ("oneOfKind", Value::Bool(true)), ("at", Value::Int(3))])),
+        ("holds".into(), object([("id", id("h")), ("design", id("c")), ("owner", id("alice")), ("expiresAt", Value::Null)])),
+    ]).unwrap();
+    assert_eq!(walk(&mut e, "available", "bob"), ["a", "b"]);
+    assert_eq!(walk(&mut e, "available", "alice"), ["a", "b", "c"]);
+    assert_eq!(walk(&mut e, "available", "art"), ["a", "b", "c"]);
+
+    let non_point = source.replace("  design: designs\n", "  design: designs ?\n")
+        .replace(" or exists holds[design = .id, owner = viewer]", "");
+    let declined = compile(&[("schema.q".into(), non_point)]);
+    assert!(declined.diagnostics.is_empty(), "{:?}", declined.diagnostics);
+    assert!(declined.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"));
+}

@@ -205,6 +205,9 @@ pub fn programs(
         fact.branch_pages_v3 |= snapback4_core::ir::scans(&bound.program).iter().any(|scan|
             snapback4_core::engine::rules::page_guard_decision(schema, scan).as_ref().is_some_and(negative_probe));
         fact.branch_pages_v3 |= bound.program.body.iter().any(uncapped_statement);
+        // @ref LLP 3000.036.001#18 — PAGE5's fixed residual point needs the new validator.
+        fact.branch_pages_v4 = merges.iter().flat_map(|merge| &merge.lanes).any(|lane|
+            lane.vacancy() || lane.membership() && lane.scan.filter.as_deref().is_some_and(predicate_probe));
         fact.branch_membership = merges.iter().any(|merge| merge.lanes.iter().any(|lane| lane.membership()));
         fact.branch_membership_v2 = merges.iter().flat_map(|merge| &merge.lanes)
             .any(|lane| membership_v2(schema, lane));

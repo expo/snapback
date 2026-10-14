@@ -1131,6 +1131,7 @@ impl<'r> Runner<'r> {
             let mut cursor = bounds.clone();
             loop {
                 if *remaining == 0 || runner.tx.remaining() == 0 {
+                    if runner.merge_vacancy { runner.value_source_incomplete = true; }
                     runner.filtered_phase(&scan.table, "authorization allowance (read)", "read rule");
                     return Ok(Vec::new());
                 }
@@ -1145,6 +1146,7 @@ impl<'r> Runner<'r> {
         });
         match result {
             Err(RuntimeError::AuthorizationBudget { .. }) => {
+                if self.merge_vacancy { self.value_source_incomplete = true; }
                 self.filtered_phase(&scan.table, "authorization allowance (read)", "read rule");
                 Ok(Vec::new())
             }
@@ -1223,7 +1225,7 @@ impl<'r> Runner<'r> {
                 None => false,
             } };
         let always_visible = always_visible || granted;
-        if !visibility.uniform && !always_visible && !(self.device && table.sync.is_some()) {
+        if !visibility.uniform && !always_visible && !self.merge_vacancy && !(self.device && table.sync.is_some()) {
             self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true);
         }
         let mut visible: Vec<Value> = Vec::new();

@@ -166,6 +166,9 @@ pub struct Runner<'a> {
     pub(super) view_scan_active: bool,
     /// The grant verdict that admitted the branch-merge lane being read.
     pub(super) merge_grant: Option<super::expiry::Pending>,
+    /// A validator-proved vacancy lane may publish exhaustion after its
+    /// private server scan checks every candidate's original read rule.
+    pub(super) merge_vacancy: bool,
     /// Armed by a branch merge around a lane's read with the lane's table and
     /// index: the key of the last rule-visible candidate that read examined.
     pub(super) scan_frontier: Option<(String, String, Option<Vec<u8>>)>,
@@ -346,6 +349,7 @@ impl<'a> Runner<'a> {
             view_seek: None,
             view_scan_active: false,
             merge_grant: None,
+            merge_vacancy: false,
             scan_frontier: None,
             discarded_page_loss: false,
             page_owner: None,

@@ -450,6 +450,10 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
                     candidate.lane = false;
                     requests = candidate;
                     *value = Expr::Merge(merge);
+                } else if let Some(merge) = super::intent_compound::vacancy(&tables, &synthesized, &mut requests, read) {
+                    // @ref LLP 3000.036.001#18 — a generic lane candidate
+                    // must not shadow the exact private vacancy classifier.
+                    *value = Expr::Merge(merge);
                 } else if !search_variants.contains(&read.site.to_string()) && !requests.merged.contains(&read.site.to_string()) && let Some(merge) = super::intent_branches::expand(&tables, &synthesized, &mut requests, read) {
                     *value = Expr::Merge(merge);
                 } else { requests.read(&tables, read, false); }

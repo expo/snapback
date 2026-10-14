@@ -21,6 +21,7 @@ struct Lane<'a> {
     buffer: VecDeque<Value>,
     done: bool,
     grant: Option<super::super::expiry::Pending>,
+    vacancy: bool,
     metered: bool,
     position_len: usize,
     /// The last position this lane examined (read or rejected by the
@@ -266,7 +267,7 @@ impl Runner<'_> {
         let suffix = index.components.iter().skip(scan.prefix.len()).filter_map(|component| component.key_name());
         let (position_len, ends_in_id) = suffix.fold((0usize, false), |(len, _), name| (len + 1, name == "id"));
         let position_len = position_len + usize::from(!ends_in_id || point_id);
-        Ok(Lane { scan, prefix, bounds, buffer: VecDeque::new(), done, grant, metered, position_len, through: None })
+        Ok(Lane { scan, prefix, bounds, buffer: VecDeque::new(), done, grant, vacancy: lane.vacancy(), metered, position_len, through: None })
     }
 
     /// Read a lane's next batch strictly after its position, recording how
@@ -327,9 +328,11 @@ impl Runner<'_> {
     /// grant admitted reads as a decided page (`scan_consumed`'s grant arm).
     fn read_branch(&mut self, lane: &Lane<'_>, batch: usize) -> Result<Vec<Value>, RuntimeError> {
         self.merge_grant = lane.grant;
+        self.merge_vacancy = lane.vacancy;
         if lane.metered { self.meter.heap(DisclosedKeys(&lane.prefix).heap() + DisclosedBounds(&lane.bounds).heap())?; }
         let result = self.scan_consumed(&lane.scan, lane.prefix.clone(), lane.bounds.clone(), batch, None, None, false, lane.metered);
         self.merge_grant = None;
+        self.merge_vacancy = false;
         Ok(result?.0)
     }
 
