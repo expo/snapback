@@ -237,6 +237,13 @@ impl Listener {
         socket_entry(&owned.path).map_err(|e| e.to_string())?;
         Ok(owned)
     }
+    fn accept(&self) -> io::Result<UnixStream> {
+        let (stream, _) = self.listener.accept()?;
+        // Darwin inherits O_NONBLOCK from the listener; input's deadline and
+        // socket timeouts require blocking I/O, even before the client writes.
+        stream.set_nonblocking(false)?;
+        Ok(stream)
+    }
     fn handle(
         &self,
         stream: &mut UnixStream,
@@ -270,8 +277,8 @@ impl Listener {
     }
     pub(crate) fn run(self, mut handle: impl FnMut(Command) -> Result<Value, String>) {
         while !crate::lifecycle::stopping() {
-            match self.listener.accept() {
-                Ok((mut stream, _)) => {
+            match self.accept() {
+                Ok(mut stream) => {
                     self.handle(&mut stream, &mut handle);
                 }
                 Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
@@ -443,6 +450,40 @@ mod tests {
         }
         drop(listener);
         assert!(!path.exists());
+    }
+    #[test]
+    fn accepted_nonblocking_listener_waits_for_delayed_client_input() {
+        let dir = Directory::new(false);
+        let listener = Listener::bind(&dir.0, &dir.0.join("store.sqlite")).unwrap();
+        let path = listener.path.clone();
+        let envelope = Envelope {
+            identity: listener.identity.clone(),
+            command: Command::Status { after: 0, items_after: None, event: None },
+        };
+        // Connect before starting accept so the listener stays nonblocking.
+        let mut client = UnixStream::connect(&path).unwrap();
+        client.set_read_timeout(Some(Duration::from_secs(10))).unwrap();
+        client.set_write_timeout(Some(Duration::from_secs(10))).unwrap();
+        let (accepted, waiting) = mpsc::channel();
+        let task = std::thread::spawn(move || {
+            let mut stream = listener.accept().unwrap();
+            accepted.send(()).unwrap();
+            listener.handle(&mut stream, |command| {
+                assert!(matches!(command, Command::Status { after: 0, .. }));
+                Ok(json!({"delayed":true}))
+            });
+        });
+        waiting.recv_timeout(Duration::from_secs(10)).unwrap();
+        // Without normalization Darwin reads WouldBlock and closes the peer
+        // here. Linux accept does not inherit O_NONBLOCK, so it cannot expose
+        // the unfixed platform bug with this test.
+        std::thread::sleep(Duration::from_millis(100));
+        client.write_all(&serde_json::to_vec(&envelope).unwrap()).unwrap();
+        client.shutdown(std::net::Shutdown::Write).unwrap();
+        let mut reply = String::new();
+        client.read_to_string(&mut reply).unwrap();
+        task.join().unwrap();
+        assert_eq!(serde_json::from_str::<Value>(&reply).unwrap(), json!({"ok":{"delayed":true}}));
     }
     #[test]
     fn input_deadline_expires_while_the_peer_keeps_sending() {

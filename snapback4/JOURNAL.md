@@ -95462,3 +95462,24 @@ run with two load timing failures (`run_admission` log race; one release-control
 full pool. Two `--resume`s were needed because npm took ~17 minutes to make the
 Linux platform readable. Clean installs on Linux and the Mac print `snapback4
 0.4.27` and pass `init` + `check`. Details: `reports/20261014-publication-0.4.27/REPORT.md`.
+
+### 2026-10-15 — PUBFIX28: disjoint preview prose and accepted control streams
+
+The 0.4.28 publication pool caught a stale many-column rollback expectation:
+its only row uses the widened enum value, so narrowing makes the whole row
+dormant. FIX28's disjoint inventory correctly reports one row and zero
+standalone cells; expecting twenty counted the same row's cells again. Keep
+the inventory implementation and correct the assertion. Zero-cell column steps
+now explicitly say no standalone cells become dormant and explain row ownership.
+The regression also adds a compatible live row: one dormant row, twenty dormant
+cells, disjoint sample ids, unchanged preview state, and exact forward restoration.
+
+Release control immediately normalizes accepted streams to blocking mode before
+reading. Darwin inherits O_NONBLOCK from the polling listener; Linux does not.
+The delayed-client regression accepts before writing and exercises production
+normalization. Linux can verify successful behavior but cannot demonstrate the
+unfixed Darwin failure. Audit found no other nonblocking listener in the crate;
+tiny_http's overload response uses nonblocking I/O only after acceptance.
+The macOS ticket is resolved under issues/closed. Version stays 0.4.28; no push
+or publication. Paired semantic reviews and Linux checks are recorded in the
+PUBFIX28 report and llp/reviews.

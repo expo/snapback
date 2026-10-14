@@ -946,20 +946,51 @@ query input(n: int):
     run('sql',inspect[1],'--release',deployment,'--json');
     const saved=state(join(deployment,'store.sqlite'));
     const plan=run('rollback',deployment,'--to','1','--check');
-    assert.match(plan,/1 row, 20 cells, 0 index entries dormant/);assert.match(plan,/rows:values/);
+    // The enum-incompatible row owns all its cells: count it once.
+    assert.match(plan,/1 row, 0 cells, 0 index entries dormant/);assert.match(plan,/rows:values/);
+    assert.doesNotMatch(plan,/its cells become dormant \(0 cells/);
+    for(let n=0;n<20;n++) assert.ok(plan.includes(`tables.values.columns.spare${n}: column values.spare${n} is removed; no standalone cells become dormant`),plan);
     for(const flags of [[],['--verbose']]) {
       const structured=JSON.parse(run('rollback',deployment,'--to','1','--check','--json',...flags));
       assert.equal(structured.preview,true);assert.ok(structured.steps.length>0);
       assert.equal(structured.plan.generation,3);
       assert.ok(structured.plan.items.some(item=>item.key==='rows:values' && item.rows===1));
+      for(let n=0;n<20;n++) {
+        const cells=structured.plan.items.find(item=>item.key===`column:values.spare${n}`);
+        assert.equal(cells.rows,0);assert.deepEqual(cells.sample_ids,[]);
+        const step=structured.steps.find(step=>step.path===`tables.values.columns.spare${n}`);
+        assert.match(step.message,/no standalone cells become dormant/);
+      }
     }
     const checked=JSON.parse(run('check','--store',join(deployment,'store.sqlite'),'--release','1','--json'));
     assert.equal(checked.preview,true);assert.ok(checked.steps.length>0);
     assert.deepEqual(state(join(deployment,'store.sqlite')),saved);
+    // A second row fits release 1, so only its removed-column cells count.
+    const live=await releasePost(url,headers,'/m/add',{},'large-plan-live');assert.equal(live.state,'sent');
+    const mixedSaved=state(join(deployment,'store.sqlite'));
+    const mixed=run('rollback',deployment,'--to','1','--check');
+    assert.match(mixed,/1 row, 20 cells, 0 index entries dormant/);
+    for(let n=0;n<20;n++) assert.ok(mixed.includes(`tables.values.columns.spare${n}: column values.spare${n} is removed; its cells become dormant (1 cells; restored on forward)`),mixed);
+    const mixedJson=JSON.parse(run('rollback',deployment,'--to','1','--check','--json'));
+    const dormantRow=mixedJson.plan.items.find(item=>item.key==='rows:values');
+    assert.equal(dormantRow.rows,1);assert.deepEqual(dormantRow.sample_ids,[added.result.id]);
+    for(let n=0;n<20;n++) {
+      const cells=mixedJson.plan.items.find(item=>item.key===`column:values.spare${n}`);
+      assert.equal(cells.rows,1);assert.deepEqual(cells.sample_ids,[live.result.id]);
+    }
+    assert.deepEqual(state(join(deployment,'store.sqlite')),mixedSaved);
     run('rollback',deployment,'--to','1');
+    assert.deepEqual(state(join(deployment,'store.sqlite')).rows.map(row=>row.id),[live.result.id]);
     for(const args of [{v:'new'},{v:7},{v:'old',extra:true}]) {
       const response=await fetch(url+'/m/echo',{method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify({id:'decode-'+JSON.stringify(args),args})});
       const reply=await response.json();assert.equal(response.status,200);assert.equal(reply.state,'failed');assert.equal(reply.why.code,'E_INPUT');assert.equal(reply.denied,undefined);assert.equal(reply.generation,3);
+    }
+    run('rollback',deployment,'--to','2');
+    const restored=state(join(deployment,'store.sqlite')).rows;
+    assert.equal(restored.length,2);
+    for(const row of restored) {
+      const data=JSON.parse(row.data).Row;
+      for(let n=0;n<20;n++) assert.deepEqual(data[`spare${n}`],{Bool:false});
     }
   });
 });

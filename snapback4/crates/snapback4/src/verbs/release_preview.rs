@@ -107,7 +107,15 @@ pub(super) fn preview(
         let path=step.path.strip_prefix("tables.").unwrap_or(&step.path).replace(".columns.",".");
         let count=planned["items"].as_array().into_iter().flatten().find(|i|i["path"].as_str()==Some(path.as_str())).and_then(|i|i["rows"].as_u64()).unwrap_or(0);
         let unit = if step.path.contains(".columns.") { "cells" } else if step.path.contains(".indexes.") { "entries" } else { "rows" };
-        step.message=step.message.replace("its rows are lost",&format!("its {unit} become dormant ({count} {unit}; restored on forward)")).replace("its values are lost",&format!("its cells become dormant ({count} cells; restored on forward)"));
+        // @ref LLP 3000.000.000#11-wave-11-factual-release-narration — per-path prose uses the same disjoint counts as the inventory totals.
+        let retained = if count == 0 && unit == "cells" {
+            format!("no standalone {unit} become dormant (cells of any dormant rows are counted with those rows)")
+        } else if count == 0 {
+            format!("no {unit} become dormant")
+        } else {
+            format!("its {unit} become dormant ({count} {unit}; restored on forward)")
+        };
+        step.message=step.message.replace("its rows are lost", &retained).replace("its values are lost", &retained);
     }
     if options.json {
         println!("{}",serde_json::to_string_pretty(&serde_json::json!({"preview":true,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report.summary()})).unwrap());

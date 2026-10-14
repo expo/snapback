@@ -1,9 +1,9 @@
 # Snapback 4 release control on macOS: accepted socket is non-blocking, so a slow client gets `Broken pipe`
 
-**Status:** Open
+**Status:** Resolved (PUBFIX28, 2026-10-15)
 **Date:** 2026-10-15
 **Scope:** Snapback 4 `serve` release control (`crates/snapback4/src/release_control.rs`), macOS only
-**Owner:** Unassigned
+**Owner:** PUBFIX28
 
 ## Observation
 
@@ -66,3 +66,26 @@ connect and write) and assert the command succeeds on Darwin.
 
 Evidence: the 0.4.27 publication records above; the 0.4.28 publication attempt
 (`reports/20261015-publication-0.4.28/`, if recorded) did not reach the Mac dry run.
+
+## Resolution — 2026-10-15 (PUBFIX28)
+
+`Listener::accept` now immediately sets each accepted stream to blocking mode
+before peer validation or input. A normalization failure closes the stream and
+uses the existing accept-error diagnostic; no command is admitted. The existing
+five-second total input deadline and socket timeouts remain in force.
+
+`accepted_nonblocking_listener_waits_for_delayed_client_input` uses the production
+accept helper with the listener still nonblocking, waits for acceptance, delays
+100 ms before writing a valid envelope, and asserts a successful command reply.
+It runs on Linux and Darwin. Removing normalization exposes the original race
+on Darwin; Linux cannot demonstrate that pre-fix failure because its accepted
+sockets do not inherit O_NONBLOCK. This Linux workstream claims no Darwin run.
+
+Audit: `release_control.rs` is the only nonblocking listener in the snapback4
+crate. `port_flag.rs` and `witness_socket.rs` pass blocking TCP listeners into
+vendored tiny_http; witness protocol reservations and host-limit test listeners
+are blocking too. tiny_http's accepts are blocking; its nonblocking operation in
+`limits.rs` is a best-effort overload response on an already accepted socket,
+not a listener. No additional listener needs normalization.
+
+The workstream report records complete Linux qualification and commit IDs.
