@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { readFileSync, statSync, writeFileSync, renameSync } from "node:fs";
 import { basename, join } from "node:path";
 import { matchesPinnedProof } from "./linux-proof-inputs.mjs";
+import { starterCases } from "./publication-starters.mjs";
 import { checkElf } from "./check-elf.mjs";
 export const sqliteBuildFlags = "-USQLITE_ENABLE_MEMORY_MANAGEMENT";
 export const platforms = ["snapback4-darwin-arm64", "snapback4-linux-x64"];
@@ -55,12 +56,25 @@ export function refuseCredentials(env = process.env) {
   for (const key of ["NPM_TOKEN", "NODE_AUTH_TOKEN"]) if (Object.hasOwn(env, key))
     throw new Error(`Linux qualification refuses ${key}; unset it before qualification (no authenticated registry writes)`);
 }
-export function validateFrontendProofs(proofs) {
-  if (!Array.isArray(proofs) || proofs.length !== 4 || !["web", "expo"].every(kind => [1, 2].every(attempt => proofs.some(p =>
-    p.kind === kind && p.attempt === attempt && p.status === "passed" && Array.isArray(p.range) && p.range.length === 2
+function validAttempts(proofs, starter) {
+  return Array.isArray(proofs) && proofs.length === 2 && [1, 2].every(attempt => proofs.some(p =>
+    p.starter === starter.id && p.kind === starter.kind && p.attempt === attempt && p.status === "passed" && Array.isArray(p.range) && p.range.length === 2
     && Number.isInteger(p.range[0]) && Number.isInteger(p.range[1]) && p.range[0] > 0 && p.range[1] <= 65535 && p.range[0] < p.range[1]
-    && p.occupied === p.range[0] && p.cpuLoadWorkers >= 1))))
-    throw new Error("Linux receipt needs both generated frontend proofs twice under occupied-port and CPU load");
+    && p.occupied === p.range[0] && p.cpuLoadWorkers >= 1));
+}
+export function validateFrontendProofs(proofs) {
+  if (!Array.isArray(proofs) || proofs.length !== starterCases.length * 2 || !starterCases.every(s => validAttempts(proofs.filter(p => p.starter === s.id), s)))
+    throw new Error("Linux receipt needs every generated frontend/template proof twice under occupied-port and CPU load");
+}
+export function validateStarterProofs(starters) {
+  if (!Array.isArray(starters) || starters.length !== starterCases.length) throw Error("Linux receipt needs every starter toolchain and frontend proof");
+  validateFrontendProofs(starters.flatMap(s => s.frontendProofs ?? []));
+  for (const starter of starterCases) {
+    const result = starters.find(s => s.starter === starter.id);
+    if (!result || result.status !== "passed" || result.typecheck !== "passed" || result.build !== "passed"
+        || (["web", "expo"].includes(starter.id) && !validAttempts(result.adaptedProofs, starter)))
+      throw Error("Linux receipt needs every starter toolchain and frontend proof, including adapted Home");
+  }
 }
 export function validateLinux(receipt, tarball, client, source) {
   if (receipt.format !== 1 || receipt.platform?.name !== platforms[1] || receipt.platform.version !== client.version || receipt.source !== source || !/^[a-f0-9]{40}$/.test(source ?? ""))
@@ -76,7 +90,7 @@ export function validateLinux(receipt, tarball, client, source) {
   // Older staged publications predate this qualification; new releases cannot
   // import a receipt that silently omits the loaded-host browser proof.
   const [major, minor, patch] = client.version.split("-")[0].split(".").map(Number);
-  if (major > 0 || minor > 4 || minor === 4 && patch >= 28) validateFrontendProofs(receipt.frontendProofs);
+  if (major > 0 || minor > 4 || minor === 4 && patch >= 28) { validateFrontendProofs(receipt.frontendProofs); validateStarterProofs(receipt.starterProofs); }
   const proofs = receipt.proofs;
   const proot = receipt.route === "proot";
   const bases = proot ? ["ubuntu:24.04", "alpine"] : ["ubuntu:22.04", "alpine"];

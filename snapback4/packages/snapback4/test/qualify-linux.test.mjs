@@ -5,7 +5,7 @@ import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSy
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { digest, json, member, sqliteBuildFlags, sri, validateLinux, validateFrontendProofs } from "../../../scripts/publication-artifacts.mjs";
-import { runToolchainCommand } from "../../../scripts/publication-starters.mjs";
+import { runToolchainCommand, starterCases } from "../../../scripts/publication-starters.mjs";
 import { containerRuntime } from "../../../scripts/qualify-linux.mjs";
 import { fetchPinned, prootCommand, prootEnvironment } from "../../../scripts/qualify-linux-proot.mjs";
 import { prootDistributions } from "../../../scripts/linux-proof-inputs.mjs";
@@ -17,13 +17,18 @@ function qualify(t, scenario = {}) {
   writeFileSync(join(root, "scripts/publication-frontend-proofs.mjs"), `
     export async function proveGeneratedProofs(client, platform, expo, out) {
       if (${JSON.stringify(scenario.frontendFail ?? false)}) throw Error('deliberately failing generated frontend proof');
-      return ['web', 'expo'].flatMap(kind => [1, 2].map(attempt => ({ kind, attempt, status: 'passed', range: [30000, 30020], occupied: 30000, cpuLoadWorkers: 2, logs: out + '/logs' })));
+      return ${JSON.stringify(starterCases)}.flatMap(s => [1, 2].map(attempt => ({ starter: s.id, kind: s.kind, attempt, status: 'passed', range: [30000, 30020], occupied: 30000, cpuLoadWorkers: 2, logs: out + '/logs' })));
     }
   `);
   writeFileSync(join(root, "scripts/publication-roundtrip.mjs"), proofEntrypoint);
   writeFileSync(join(root, "scripts/publication-starters.mjs"), `
     import { appendFileSync } from 'node:fs';
-    appendFileSync(process.env.PROOF_EVENTS, JSON.stringify({ event: 'starters' }) + '\\n');
+    export const starterCases = ${JSON.stringify(starterCases)};
+    export async function proveStarters() {
+      if (${JSON.stringify(scenario.startersFail ?? false)}) throw Error('deliberately failing starter toolchain');
+      return starterCases.map(s => ({starter:s.id,kind:s.kind,status:'passed',typecheck:'passed',build:'passed',frontendProofs:[1,2].map(attempt=>({starter:s.id,kind:s.kind,attempt,status:'passed',range:[30000,30020],occupied:30000,cpuLoadWorkers:2})),adaptedProofs:[1,2].map(attempt=>({starter:s.id,kind:s.kind,attempt,status:'passed',range:[30000,30020],occupied:30000,cpuLoadWorkers:2}))}));
+    }
+    if (process.argv[1].endsWith('/starters.mjs')) appendFileSync(process.env.PROOF_EVENTS, JSON.stringify({ event: 'starters' }) + '\\n');
     if (process.env.STARTERS_FAIL === '1') throw Error('deliberately failing starter toolchain');
   `);
   if (scenario.proot) {
@@ -185,7 +190,7 @@ test("Linux qualification receipt binds source, toolchain, suite, both container
   const r = qualify(t); assert.equal(r.status, 0, r.stderr);
   const tarball = join(r.root, "out", r.receipt.platform.filename);
   assert.equal(r.receipt.binarySha256, digest(r.binary)); assert.equal(r.receipt.platform.integrity, sri(tarball)); assert.equal(r.receipt.clientIntegrity, sri(r.client));
-  assert.deepEqual(r.receipt.frontendProofs.map(p => [p.kind, p.attempt, p.status]), [['web', 1, 'passed'], ['web', 2, 'passed'], ['expo', 1, 'passed'], ['expo', 2, 'passed']]);
+  assert.deepEqual(r.receipt.frontendProofs.map(p => [p.kind, p.attempt, p.status]), starterCases.flatMap(s => [1,2].map(attempt => [s.kind, attempt, "passed"])));
   validateLinux(r.receipt, tarball, { version: "0.0.0", integrity: sri(r.client) }, "a".repeat(40));
   assert.deepEqual(r.receipt.proofs.map(p => p.base), ["ubuntu:22.04", "alpine"]);
   assert.equal(r.receipt.suite.summary, "== 0 failure(s) in 2 s");
@@ -321,10 +326,10 @@ test("failed generated frontend proof prevents a Linux qualification receipt", t
 });
 
 test("imported loaded-host proof evidence cannot omit a failed or repeated attempt", () => {
-  const evidence = ["web", "expo"].flatMap(kind => [1, 2].map(attempt => ({ kind, attempt, status: "passed", range: [29040, 29049], occupied: 29040, cpuLoadWorkers: 2 })));
+  const evidence = starterCases.flatMap(s => [1, 2].map(attempt => ({ starter: s.id, kind: s.kind, attempt, status: "passed", range: [29040, 29049], occupied: 29040, cpuLoadWorkers: 2 })));
   validateFrontendProofs(evidence);
   for (const corrupt of [evidence.slice(1), evidence.map((p, i) => i === 3 ? { ...p, attempt: 1 } : p), evidence.map((p, i) => i === 0 ? { ...p, status: "failed" } : p)]) {
-    assert.throws(() => validateFrontendProofs(corrupt), /both generated frontend proofs twice/);
+    assert.throws(() => validateFrontendProofs(corrupt), /every generated frontend\/template proof twice/);
   }
 });
 

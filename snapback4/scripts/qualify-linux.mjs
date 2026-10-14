@@ -5,8 +5,9 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpat
 import { join, resolve, dirname } from "node:path";
 import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { artifact, cleanSource, clientManifest, digest, json, linuxRustFlags, linuxTarget, manifest, nodeVersion, platforms, refuseCredentials, run, save, sqliteBuildFlags, sri, validateLinux, validateFrontendProofs } from "./publication-artifacts.mjs";
+import { artifact, cleanSource, clientManifest, digest, json, linuxRustFlags, linuxTarget, manifest, nodeVersion, platforms, refuseCredentials, run, save, sqliteBuildFlags, sri, validateLinux, validateFrontendProofs, validateStarterProofs } from "./publication-artifacts.mjs";
 import { checkElf } from "./check-elf.mjs";
+import { proveStarters } from "./publication-starters.mjs";
 import { proveGeneratedProofs } from "./publication-frontend-proofs.mjs";
 import { prootProof } from "./qualify-linux-proot.mjs";
 export function containerRuntime(probeRuntime = name => spawnSync(name, ["info"], { stdio: "ignore", timeout: 15_000 })) {
@@ -38,7 +39,7 @@ export function containerProof(runtime, client, platform, version, work, expo) {
       // The only host files in the image are these proof inputs. No checkout,
       // home, npmrc, binary override or host credentials enter the container.
       run(runtime, ["run", "--rm", "--name", tag, "--platform", "linux/amd64", tag, "sh", "-ec",
-        `test -z "\${SNAPBACK4_BIN+x}"; test "$(node -v)" = v${nodeVersion}; printf '{"private":true,"type":"module"}' > package.json; npm install --ignore-scripts --no-audit --no-fund /proof/client.tgz /proof/platform.tgz; cp /proof/roundtrip.mjs .; node roundtrip.mjs ${version}; node /proof/starters.mjs /proof/client.tgz /proof/platform.tgz /proof/expo.tgz`], { stdio: "inherit", timeout: 1_200_000 });
+        `test -z "\${SNAPBACK4_BIN+x}"; test "$(node -v)" = v${nodeVersion}; printf '{"private":true,"type":"module"}' > package.json; npm install --ignore-scripts --no-audit --no-fund /proof/client.tgz /proof/platform.tgz; cp /proof/roundtrip.mjs .; node roundtrip.mjs ${version}; node /proof/starters.mjs /proof/client.tgz /proof/platform.tgz /proof/expo.tgz --build-only`], { stdio: "inherit", timeout: 1_200_000 });
       proofs.push({ base, image, runtime, route: runtime, elapsedMs: Date.now() - started, node: nodeVersion, status: "passed", clientIntegrity: sri(client), platformIntegrity: sri(platform), expoIntegrity: sri(expo), starters: { web: "passed", expo: "passed", adapted: "passed", templates: "passed" } });
     } finally {
       spawnSync(runtime, ["rm", "--force", tag], { stdio: "ignore", timeout: 30_000 });
@@ -90,6 +91,11 @@ export async function qualify(args = process.argv.slice(2)) {
     // browser proof; both execute the same retained client/platform bytes.
     const frontendProofs = await proveGeneratedProofs(client, tarball, expo, out);
     save(join(out, "frontend-proofs.json"), frontendProofs);
+    // Browser execution stays on the Linux host: clean userspaces qualify the
+    // distribution toolchains without importing a host browser or its libraries.
+    const starterProofs = await proveStarters(client, tarball, expo, out);
+    save(join(out, "starter-proofs.json"), starterProofs);
+    validateStarterProofs(starterProofs);
     const proofs = runtime === "proot" ? prootProof(client, tarball, version, undefined, undefined, expo) : containerProof(runtime, client, tarball, version, work, expo);
     // Keep executed consumer evidence on a red suite, without a success receipt.
     // An isolated flake rerun cannot turn the original suite into a release pass.
@@ -102,7 +108,7 @@ export async function qualify(args = process.argv.slice(2)) {
         throw new Error("release source or client changed during consumer qualification");
       copyFileSync(tarball, join(out, packed.filename));
       const evidence = { format: 1, mode: "consumer-only", source, version, route: runtime,
-        clientIntegrity, expoIntegrity, platform, binarySha256, elf, frontendProofs, proofs,
+        clientIntegrity, expoIntegrity, platform, binarySha256, elf, frontendProofs, starterProofs, proofs,
         suite: { status: "not-run" }, publicationQualified: false };
       save(join(out, "consumer.json"), evidence);
       console.log(JSON.stringify(evidence, null, 2));
@@ -110,7 +116,7 @@ export async function qualify(args = process.argv.slice(2)) {
     }
     if (!suitePassed) throw new Error(`Linux source suite failed: ${summary ?? result.error?.message ?? result.status}; see ${log}; consumer evidence in proofs.json (no qualification receipt)`);
     const cc = process.env.SNAPBACK4_MUSL_CC ?? join(process.env.HOME, ".local/share/snapback4-musl-1.2.5/bin/musl-gcc");
-    const receipt = { format: 1, route: runtime, source, target: linuxTarget, toolchain: { rustc: run("rustc", ["-Vv"]).trim(), cargo: run("cargo", ["-V"]).trim(), cc: run(cc, ["--version"]).trim(), linker: cc }, flags: { LIBSQLITE3_FLAGS: sqliteBuildFlags, RUSTFLAGS: linuxRustFlags }, suite: { status: "passed", exitCode: result.status, summary }, proofs, frontendProofs, elf, platform, binarySha256, clientIntegrity, expo: artifact(expo, "snapback4-expo", version) };
+    const receipt = { format: 1, route: runtime, source, target: linuxTarget, toolchain: { rustc: run("rustc", ["-Vv"]).trim(), cargo: run("cargo", ["-V"]).trim(), cc: run(cc, ["--version"]).trim(), linker: cc }, flags: { LIBSQLITE3_FLAGS: sqliteBuildFlags, RUSTFLAGS: linuxRustFlags }, suite: { status: "passed", exitCode: result.status, summary }, proofs, frontendProofs, starterProofs, elf, platform, binarySha256, clientIntegrity, expo: artifact(expo, "snapback4-expo", version) };
     if (cleanSource(root) !== source || sri(client) !== clientIntegrity || sri(expo) !== expoIntegrity) throw new Error("release source or client changed during Linux qualification");
     validateLinux(receipt, tarball, { version, integrity: clientIntegrity }, source);
     copyFileSync(tarball, join(out, packed.filename));

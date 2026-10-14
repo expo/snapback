@@ -70,7 +70,7 @@ export function prootProof(client, platform, version, cache = proofCache(), fetc
         test ! -e /host-rootfs; test ! -e /home/${basename(homedir())};
         printf '{"private":true,"type":"module"}' > package.json;
         npm install --ignore-scripts --no-audit --no-fund /proof/client.tgz /proof/platform.tgz;
-        cp /proof/roundtrip.mjs .; node roundtrip.mjs ${version}; node /proof/starters.mjs /proof/client.tgz /proof/platform.tgz /proof/expo.tgz`);
+        cp /proof/roundtrip.mjs .; node roundtrip.mjs ${version}; node /proof/starters.mjs /proof/client.tgz /proof/platform.tgz /proof/expo.tgz --build-only`);
       if (sri(join(inputs, "client.tgz")) !== sri(client) || sri(join(inputs, "platform.tgz")) !== sri(platform) || sri(join(inputs, "expo.tgz")) !== sri(expo))
         throw new Error("proot consumer changed its staged artifact inputs");
       proofs.push({ ...distribution, route: "proot", runtime: "proot", status: "passed", elapsedMs: Date.now() - started,
