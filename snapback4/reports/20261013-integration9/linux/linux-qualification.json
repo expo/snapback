@@ -1,0 +1,80 @@
+{
+  "rust": {
+    "source": "3d4730ca2467ad719140b2b87e6ea0b509dcace0",
+    "passed": 5961,
+    "failed": 0,
+    "ignored": 41,
+    "target_summaries": 382
+  },
+  "clients": {
+    "source": "e43bb5b35c18ed4174bfaf059e20851763435a39",
+    "files": 381,
+    "tests": 7438,
+    "passed": 7382,
+    "failed": 0,
+    "skipped": 56,
+    "models": {
+      "files": 2,
+      "tests": 81,
+      "passed": 81,
+      "failed": 0,
+      "sequences": [
+        5000,
+        3000
+      ]
+    },
+    "fixtures": {
+      "tests": 9,
+      "passed": 9,
+      "failed": 0
+    }
+  },
+  "root": {
+    "inventories": {
+      "exit": 0,
+      "package_tests": 365,
+      "script_tests": 35,
+      "demos": 31,
+      "publication_leaves": 487,
+      "guide_pages": 162,
+      "snippets": 1937
+    },
+    "guide": {
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "preconditions": 0,
+      "warnings": 121
+    },
+    "references": {
+      "documents": 545,
+      "refs": 11771,
+      "errors": 0,
+      "unchecked": 0
+    }
+  },
+  "snapback4_guide": {
+    "passed": 123,
+    "failed": 0
+  },
+  "lean_proofs": {
+    "examples": 71,
+    "theorem_axiom_audits": 58,
+    "oracle_fixture_cases": 7
+  },
+  "rust_source_after_test_only_commit": "e43bb5b35c18ed4174bfaf059e20851763435a39",
+  "rust_delta_explanation": "Only JOURNAL and the new JS upgrade witness changed after Rust began; every Rust source and build input stayed identical.",
+  "post_bump": {
+    "source": "82855e5ed56d6468abf0161e6f5909e7c4ff76be",
+    "rust_passed": 98,
+    "client_files": 13,
+    "client_passed": 185,
+    "client_skipped": 9,
+    "failed": 0,
+    "final_wasm_budget": 704678,
+    "extra_budget_check": {
+      "required_env_rerun_exit": 0,
+      "note": "One additional exploratory Node budget check inherited default Cargo debug/incremental settings. It was immediately repeated with all three required flags; its six unused incremental caches and guide binary were removed. Required qualification stages all used the requested flags."
+    }
+  }
+}
