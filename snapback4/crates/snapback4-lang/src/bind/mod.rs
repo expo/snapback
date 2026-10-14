@@ -992,10 +992,24 @@ fn equality_filter_index_rewrite(catalog: &Catalog, table: &snapback4_core::sche
     while table.indexes.contains_key(&name) {
         name = format!("by{stem}{suffix}"); suffix += 1;
     }
-    let declaration = declaration?;
-    let old = format!(" by {}", scan.index);
-    if !declaration.contains(&old) { return None; }
-    let rewritten = declaration.replacen(&old, &format!(" by {name}"), 1);
+    // Locate the authored read by its source-map span. A declaration can use
+    // the same old index more than once; replacing a text occurrence can edit
+    // an earlier, unrelated read and print a query that does not compile.
+    let read_site = read_site?;
+    let (mut read, text, grouped, start) = catalog.source.read(read_site)?;
+    if read.index.as_deref() != Some(scan.index.as_str()) { return None; }
+    read.index = Some(name.clone());
+    let fixed = crate::ast::Expr::Read(read);
+    let replacement = crate::print::with_source_at(&fixed, if grouped { 8 } else { 0 }, &|expr| catalog.source.get(expr));
+    let declaration = catalog.source.declarations.get(&declaration_site.to_string())?;
+    let line = start.line.checked_sub(declaration_site.line)? as usize;
+    let lines = declaration.split('\n').collect::<Vec<_>>();
+    let column = start.col.checked_sub(1)? as usize;
+    let byte = lines.get(line)?.char_indices().map(|(i, _)| i).chain([lines[line].len()]).nth(column)?;
+    let offset = lines[..line].iter().map(|line| line.len() + 1).sum::<usize>() + byte;
+    let span = offset..offset.checked_add(text.len())?;
+    if declaration.get(span.clone())? != text { return None; }
+    let rewritten = crate::parser::repairs::splice(declaration, vec![(span, replacement)])?;
     Some(format!("on table {} add `by {name}: {}`; use the same index in the rewritten query:\n```quarry\n{rewritten}\n```", scan.table, leading.join(", ")))
 }
 
