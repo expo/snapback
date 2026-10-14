@@ -1433,3 +1433,14 @@ fn distributed_negative_guard_overflow_is_excluded_even_with_only_two_top_level_
     let checked=lean::compare(&case,&source).unwrap();
     assert!(matches!(checked.verdict,Verdict::Unsupported(ref reason) if reason=="page-negative-grant-fallback"),"{:?}",checked.verdict);assert_eq!(checked.executed,0);
 }
+
+#[test]
+fn conjunction_root_negative_fallbacks_are_named_unsupported() {
+    for tail in ["return exists docs where .flag = true", "return docs where .flag = true and .at + 1 > 0 first 10 by .at"] {
+        let source=format!("table roles:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  owner: principal\n  flag: bool\n  at: int\n  read <- not exists roles[viewer] and (.owner = viewer or .flag = true)\n  online only\nquery run():\n  {tail}\n");
+        let mut case=lean::generate(1);case.rows.clear();case.args=json!({});case.program.prelude.clear();case.steps.clear();
+        case.program.body=snapback4_difftest::ast::Body::Scalar(snapback4_difftest::ast::Expr::Bool(true));
+        let checked=lean::compare(&case,&source).unwrap();
+        assert!(matches!(checked.verdict,Verdict::Unsupported(ref reason) if reason=="page-negative-grant-fallback"));assert_eq!(checked.executed,0);
+    }
+}

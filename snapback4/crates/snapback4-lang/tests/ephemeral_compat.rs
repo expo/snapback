@@ -153,6 +153,18 @@ fn durable_schema_and_types_keep_base_bytes() {
 // insert sites. Only that appended prose is new; the CLI snapshots bind it.
 fn strip_update_explanations(text: &str) -> String {
     let mut schema: snapback4_core::Schema = serde_json::from_str(text).unwrap();
+    // PAGE4 adds only a semantic capability for query Row-assertion cuts.
+    // Runtime behavior is covered separately; unrelated durable metadata,
+    // indexes and generated types stay frozen here.
+    for op in schema.operations.values_mut() { op.branch_pages_v3=false; }
+    for table in schema.tables.values_mut() {
+        table.constraints.retain_mut(|constraint| {
+            if let snapback4_core::schema::Constraint::Capabilities(names)=constraint {
+                names.retain(|name|name!="branch-pages-v3");return !names.is_empty();
+            }
+            true
+        });
+    }
     // @ref LLP 3000.022#14.3 — the versioned source prices are the only RP
     // wire addition here. Verify the complete price before comparing every
     // original durable byte; genuine old fixture files remain untouched.

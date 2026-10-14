@@ -860,9 +860,12 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                             (None, Some(d)) => format!("; `{}` is decided by the scan's pins, but its holders cannot read the row it probes, so it does not decide the page: `complete: false` for them too", d.quarry()),
                             (None, None) => String::new(),
                         };
-                        let mut admitted = grant.iter().map(|g| g.quarry()).chain(guarding.iter().map(|d| d.quarry())).collect::<Vec<_>>();
+                        let mut admitted = Vec::new();
+                        for guard in grant.iter().flat_map(|g| g.disjuncts()).chain(guarding.iter()) {
+                            let text=guard.quarry(); if !admitted.contains(&text) { admitted.push(text); }
+                        }
                         if conditional && let Some(guard) = snapback4_core::engine::rules::page_guard_decision(schema, scan) {
-                            let guard = guard.quarry(); if !admitted.contains(&guard) { admitted.push(guard); }
+                            for guard in guard.disjuncts() { let text=guard.quarry(); if !admitted.contains(&text) { admitted.push(text); } }
                         }
                         let admitted = (!admitted.is_empty()).then(|| admitted.join(" or "));
                         let declaration = catalog.source.declarations.get(&bound.site.to_string()).map(String::as_str);

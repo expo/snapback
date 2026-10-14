@@ -163,3 +163,9 @@ reads its row, so `m.body` on a `messages` reference binds as
 siblings `rowArg`, `refArg` and `both` keep their historical digests.
 `reference-field-admissions.sha256` pins only this new identity; no
 historical digest or census source changes.
+
+PAGE4 (LLP 3000.036.001 §17) adds the query-only `RequireUncapped` wrapper
+before a nullable Row assertion. Historical digests reverse only that
+one-argument wrapper; original digest files stay unchanged. Complete current
+IR, ownership-mode admission, executions and all meters still compare byte
+for byte. Parent read cuts and real absence have independent PAGE4 regressions.

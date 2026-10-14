@@ -179,8 +179,7 @@ pub(super) fn negative_grant_issue(module: &LeanModule, read: &ReadExpr) -> Opti
     }
     let table = module.surface_tables.iter().find(|table| table.name == read.table)?;
     let rule = &table.rules.iter().find(|rule| rule.effect == Effect::Read)?.value;
-    let mut leaves = Vec::new(); flatten_or(rule, &mut leaves);
-    if leaves.len() < 2 || !leaves.iter().any(|leaf| negative_probe(leaf)) { return None; }
+    if !negative_probe(rule) { return None; }
     fn total(expr: &Expr) -> bool {
         match expr {
             Expr::Name { .. } | Expr::Literal { .. } | Expr::Focal { .. } => true,
