@@ -19,10 +19,14 @@ const blocked = signal => new Promise((_, reject) => {
   else signal.addEventListener('abort', () => reject(Error('closed')), { once: true });
 });
 
-async function fixture(t, online = false) {
+async function fixture(t, online = false, ordinaryScan = false) {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-authority-'));
   mkdirSync(join(dir, 'snapback'));
-  writeFileSync(join(dir, 'snapback/schema.q'), readFileSync(new URL('./fixtures/page-authority.q', import.meta.url)));
+  let source = readFileSync(new URL('./fixtures/page-authority.q', import.meta.url), 'utf8');
+  // @ref LLP 3000.036.001#16 — keep this speculative-prefix control on an ordinary scan; PAGE3 membership discovery deliberately fences unknown pages empty.
+  if (ordinaryScan) source = source.replace(/(query serverPage\(\):[\s\S]*?)return secrets first 50/,
+    '$1return secrets first 50 by byId');
+  writeFileSync(join(dir, 'snapback/schema.q'), source);
   const host = spawn(binary, ['dev', '--port', '0', '--no-watch'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
   const readStdout = captureStdout(host);
   const exited = new Promise(resolve => host.once('exit', resolve));
@@ -67,7 +71,7 @@ async function fixture(t, online = false) {
 }
 
 test('a loading server reply retires memory before a speculative transport failure', async t => {
-  const f = await fixture(t);
+  const f = await fixture(t, false, true);
   assert.equal((await f.client.query(query('serverPage'), {})).data[0].body, 'private');
   // Change only the query response: no replica commit may clear the cache
   // for us, and no observer or background invalidation is needed.

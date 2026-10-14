@@ -95107,3 +95107,11 @@ variables. Independent review logs retain their actual commands; Codex's
 additional review-side test invocations used the default profile rather than
 the explicitly requested environment, a delegation-brief omission. Future
 review briefs must pass those Cargo constraints explicitly.
+
+Integration 10 client closeout: one complete pool of 381 files at 24 slots
+passes 7,394 ordinary tests with one initial stale authority-prefix control and
+56 skips. PAGE3's unknown membership discovery is intentionally fenced empty;
+that control now explicitly selects byId to exercise the original speculative
+scan. Every assertion remains, and the full repaired authority file passes
+13/13. The qualified ordinary count is 7,395. Both full-count models pass
+81/81 and fixtures 9/9. No cancellation/TODO or runtime/client relaxation.
