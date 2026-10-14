@@ -268,14 +268,14 @@ fn two_principal_status_scope_and_fixed_plus_per_row_grants_are_complete() {
     // Validator readability is about the generated residual point after page
     // pins are substituted: roles[viewer] is visible even though the authored
     // fixed guard is roles[.bucket].
-    let substituted = "table roles:\n  bucket: principal\n  unique bucket\n  read <- .bucket = viewer\n  online only\ntable access:\n  item: id\n  principal: principal\n  unique item, principal\n  read <- .principal = viewer\n  online only\ntable items:\n  bucket: principal\n  at: int\n  read <- exists roles[.bucket] and exists access[.id, viewer]\n  online only\nquery mine(c: cursor ?):\n  return items where .bucket = viewer first 10 by .at after c\n";
+    let substituted = "table roles:\n  bucket: principal\n  unique bucket\n  read <- .bucket = viewer\n  online only\ntable access:\n  item: id\n  bucket: principal\n  principal: principal\n  unique item, bucket, principal\n  read <- .principal = viewer\n  online only\ntable items:\n  bucket: principal\n  at: int\n  read <- exists roles[.bucket] and exists access[.id, .bucket, viewer]\n  online only\nquery mine(c: cursor ?):\n  return items where .bucket = viewer first 10 by .at after c\n";
     let b = compile(&[("schema.q".into(), substituted.into())]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     assert!(!b.notes.iter().any(|n| matches!(n.code.as_str(), "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE")), "{:?}", b.notes);
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     e.seed([
         ("roles".into(), object([("id", id("r")), ("bucket", id("alice"))])),
-        ("access".into(), object([("id", id("x")), ("item", id("a")), ("principal", id("alice"))])),
+        ("access".into(), object([("id", id("x")), ("item", id("a")), ("bucket", id("alice")), ("principal", id("alice"))])),
         ("items".into(), object([("id", id("a")), ("bucket", id("alice")), ("at", Value::Int(1))])),
         ("items".into(), object([("id", id("b")), ("bucket", id("alice")), ("at", Value::Int(2))])),
     ]).unwrap();

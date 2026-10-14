@@ -485,6 +485,12 @@ pub fn page5(seed: u64, shape: u64) -> Case {
             let access = case.program.tables.iter_mut().find(|table| table.name == "access").unwrap();
             access.rule = Rule::Member; access.effects = None; access.residency = Residency::Online;
             access.expire = None; access.not_before = None; access.caps.clear();
+            access.keys.iter_mut().find(|(name, _, _)| name == "byItem").unwrap().1 =
+                vec!["item".into(), "bucket".into(), "principal".into()];
+            access.keys.retain(|(name, _, _)| name != "byMember");
+            for (table, row) in &mut case.rows {
+                if table == "access" { row["bucket"] = json!(bucket); }
+            }
             let roles = Table { name: "roles".into(), columns: vec![column("bucket", Type::Int), column("principal", Type::Principal)],
                 keys: vec![("byBucketPrincipal".into(), vec!["bucket".into(), "principal".into()], true)], caps: vec![],
                 rule: Rule::Member, residency: Residency::Online, effects: None, expire: None, not_before: None };
@@ -522,10 +528,10 @@ pub(crate) fn page5_features(case: &Case) -> Vec<String> {
     family.map(|name| vec![format!("page5/{name}")]).unwrap_or_default()
 }
 
-/// A membership PAGE with two independent `or` filters stays on the ordinary
-/// incomplete scan. The native membership planner distributes at most one
-/// such filter; the independent model must not silently discard the second.
-// @ref LLP 3000.036.001#18 — undistributed query alternatives are outside the constructive PAGE fragment.
+/// A membership PAGE whose alternative product pins the membership's varying
+/// target stays on the ordinary incomplete scan. The independent model must
+/// classify every factor before applying the same pinned-target exclusion.
+// @ref LLP 3000.036.001#18 — a filter product cannot replace varying membership discovery.
 pub fn page_membership_filter_fallback(seed: u64) -> Case {
     let mut case = base(seed);
     case.program.tables[0].rule = Rule::OwnerOrWitness;
@@ -541,5 +547,36 @@ pub fn page_membership_filter_fallback(seed: u64) -> Case {
     case.program.order = Some(vec!["label".into(), "score".into()]);
     case.program.named_page_order = None; case.program.prelude.clear(); case.program.lets.clear();
     case.steps.clear(); case.rows.clear();
+    case
+}
+
+/// Two independent equality-alternative factors are a bounded Cartesian
+/// membership plan when no alternative pins the membership's varying field.
+/// This mirrors the native planner in the independent Lean classifier.
+// @ref LLP 3000.036.001#18 — bounded positive query products retain every factor in each lane.
+pub fn page_membership_filter_product(seed: u64) -> Case {
+    let mut case = base(seed);
+    let mut rng = Rng::new(seed ^ 0x5041_4745_355f_5052);
+    case.program.tables[0].rule = Rule::Witness;
+    case.program.tables[0].effects = None;
+    case.program.tables[0].residency = Residency::Online;
+    case.program.tables[0].columns.push(column("region", Type::Text));
+    case.program.tables[0].columns.push(column("status", Type::Text));
+    let access = case.program.tables.iter_mut().find(|table| table.name == "access").unwrap();
+    access.rule = Rule::Allow; access.effects = None; access.residency = Residency::Public;
+    access.expire = None; access.not_before = None;
+    case.program.body = Body::Read { kind: Read::Page, take: 1 + rng.pick(3) as u32,
+        descending: rng.pick(2) == 0, filter: false, owner: false, project: None };
+    case.program.domain = Some("(.region = 'north' or .region = 'south')".into());
+    case.program.residual = Some("(.status = 'open' or .status = 'held')".into());
+    case.program.order = Some(vec!["label".into(), "score".into()]);
+    case.program.named_page_order = None; case.program.prelude.clear(); case.program.lets.clear();
+    case.steps.clear();
+    for (table, row) in &mut case.rows {
+        if table == "items" {
+            row["region"] = json!(if rng.pick(3) == 0 { "other" } else if rng.pick(2) == 0 { "north" } else { "south" });
+            row["status"] = json!(if rng.pick(3) == 0 { "closed" } else if rng.pick(2) == 0 { "open" } else { "held" });
+        }
+    }
     case
 }

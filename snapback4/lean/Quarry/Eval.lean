@@ -615,11 +615,13 @@ def fixedPointGuard (sch : Schema) (outer : TableDecl)
 uses PAGE's existing readable, total membership witness. -/
 def varyingPointGrant (sch : Schema) (pins : List (String × Expr))
     (order : List String) : Rule → Bool
-  | .probe t point key => membershipEligible sch t point key
-      && (membershipColumns key).any fun pair =>
-        !pins.any (·.1 == pair.2)
-          && (!order.contains pair.2 || pair.2 == "id" && order == ["id"])
-          && laneFits order [(pair.2, .viewer)] pins
+  | r@(.probe ..) => match r.guardForm pins with
+    | .probe t point key => membershipEligible sch t point key
+        && (membershipColumns key).any fun pair =>
+          !pins.any (·.1 == pair.2)
+            && (!order.contains pair.2 || pair.2 == "id" && order == ["id"])
+            && laneFits order [(pair.2, .viewer)] pins
+    | _ => false
   | _ => false
 
 /-- Each positive alternative either has a prefix-decided rule, its own
@@ -698,6 +700,19 @@ def plannedPins (pins : List (String × Expr)) (filter : Option Expr) (order : L
   (pins ++ (fs.filter (!·.isOr)).filterMap Expr.eqPin).filter fun p =>
     p.1 != "id" && (order.head? == some p.1 || !order.contains p.1)
 
+/-- The native membership planner's bounded Cartesian product of positive
+query alternatives. Every resulting branch needs an eligible equality pin;
+the later case-specific descriptor check keeps the system lane plus all
+membership/party lanes within eight. -/
+def filterAlternatives (td : TableDecl) (fs : List Expr) : Option (List (List Expr)) :=
+  let factors := (fs.filter Expr.isOr).map fun e => e.disjuncts.map Expr.conjuncts
+  if factors.isEmpty then none else
+    let branches := factors.foldl (fun product factor =>
+      product.flatMap fun prior => factor.map fun alternative => prior ++ alternative) [[]]
+    if 2 ≤ branches.length && branches.length ≤ 8
+      && branches.all (fun branch => branch.any (eligiblePin td))
+    then some branches else none
+
 /-- The branch rule of LLP 3000.036.001 §2 (cases 1 and 2; a grant branch is
 complete for its holders as `granted` is, and empty for everyone else). -/
 def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
@@ -708,13 +723,7 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
     let fs := (filter.map Expr.conjuncts).getD []
     let total := pins.all (fun p => p.2.total) && fs.all (Expr.readablePredicate sch)
     let readFree := pins.all (fun p => p.2.total) && fs.all Expr.total
-    let alts : Option (List (List Expr)) :=
-      match fs.filter Expr.isOr with
-      | [o] =>
-        let as := o.disjuncts
-        if 2 ≤ as.length && as.length ≤ 8 && as.all (fun a => a.conjuncts.any (eligiblePin td))
-        then some (as.map Expr.conjuncts) else none
-      | _ => none
+    let alts := filterAlternatives td fs
     let filterAlternativesSupported := alts.isSome || !(fs.any Expr.isOr)
     -- The planner pins a bare boolean conjunct too (`where .flag`); the
     -- emitter leaves it in the filter.

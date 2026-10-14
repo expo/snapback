@@ -1000,13 +1000,19 @@ def page5FixedPerRow : Schema := { tables := [
     read := .eq (self "principal") .viewer },
   { name := "seats", cols := [c "bucket", c "principal"], uniques := [["bucket", "principal"]]
     read := .eq (self "principal") .viewer },
-  { name := "access", cols := [c "item", c "principal"], uniques := [["item", "principal"]]
+  { name := "access", cols := [c "item", c "bucket", c "principal"], uniques := [["item", "bucket", "principal"]]
     read := .eq (self "principal") .viewer },
   { name := "items", cols := [c "bucket", c "at"]
     read := .and
       (.and (.probe "roles" ["bucket", "principal"] [("bucket", self "bucket"), ("principal", .viewer)])
         (.probe "seats" ["bucket", "principal"] [("bucket", self "bucket"), ("principal", .viewer)]))
-      (.probe "access" ["item", "principal"] [("item", self "id"), ("principal", .viewer)]) }] }
+      (.probe "access" ["item", "bucket", "principal"] [("item", self "id"), ("bucket", self "bucket"), ("principal", .viewer)]) }] }
+
+def page5MembershipProduct : Schema := { tables := [
+  { name := "access", cols := [c "bucket", c "principal"], uniques := [["bucket", "principal"]]
+    read := .allow },
+  { name := "items", cols := [c "bucket", c "region", c "status", c "at"]
+    read := .probe "access" ["bucket", "principal"] [("bucket", self "bucket"), ("principal", .viewer)] }] }
 
 def page5Vacancy : Schema := { tables := [
   { name := "holds", cols := [c "design", c "owner"], uniques := [["design"]], read := .eq (self "owner") .viewer },
@@ -1033,8 +1039,8 @@ def page5VacancyExamples : List Example := [
       store := mkStore [
         ("roles", [mkRow "r" [("bucket", N 1), ("principal", I "alice")]]),
         ("seats", [mkRow "s" [("bucket", N 1), ("principal", I "alice")]]),
-        ("access", [mkRow "x" [("item", I "a"), ("principal", I "alice")],
-          mkRow "y" [("item", I "c"), ("principal", I "alice")]]),
+        ("access", [mkRow "x" [("item", I "a"), ("bucket", N 1), ("principal", I "alice")],
+          mkRow "y" [("item", I "c"), ("bucket", N 2), ("principal", I "alice")]]),
         ("items", [mkRow "a" [("bucket", N 1), ("at", N 1)],
           mkRow "b" [("bucket", N 1), ("at", N 2)],
           mkRow "c" [("bucket", N 2), ("at", N 3)]])]
@@ -1042,6 +1048,18 @@ def page5VacancyExamples : List Example := [
       program := query [.ret (.page "items" [("bucket", int 1)] none ["at"] false 10 none)] }
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"a","bucket":1,"at":1}],"complete":true,"next":null}"# },
+  { name := "page5-membership-filter-product"
+    source := "LLP 3000.036.001 §18: two equality-alternative filters form four bounded membership lanes"
+    case := {
+      schema := page5MembershipProduct
+      store := Store.empty
+      viewer := alice
+      program := query [.ret (.page "items" [] (some (.and
+        (.or (.bin .eq (.dot "region") (.lit (.s (T "north")))) (.bin .eq (.dot "region") (.lit (.s (T "south")))))
+        (.or (.bin .eq (.dot "status") (.lit (.s (T "open")))) (.bin .eq (.dot "status") (.lit (.s (T "held")))))))
+        ["at"] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[],"complete":true,"next":null}"# },
   { name := "page5-exact-vacancy"
     source := "LLP 3000.036.001 §18: explicit exact-point vacancy makes private server exhaustion observable"
     case := {
@@ -1083,7 +1101,7 @@ def page4FallbackExamples : List Example := [
     tables := []
     expected := r#"{"kind":"answer","data":[{"id":"a","owner":"alice","helper":null,"bucket":0,"maybe":null}],"complete":false,"next":null}"# },
   { name := "page-membership-two-filter-alternatives-fallback"
-    source := "LLP 3000.036.001 §18: membership PAGE does not discard a second undistributed where alternative"
+    source := "LLP 3000.036.001 §18: membership PAGE classifies every filter factor before declining a product that pins its varying target"
     case := { schema := pageMembershipFilterFallbackSchema, store := Store.empty, viewer := alice,
               program := query [.ret (.page "items" [] (some (.and
                 (.or (.bin .eq (.dot "bucket") (int 0)) (.bin .eq (.dot "bucket") (int 1)))

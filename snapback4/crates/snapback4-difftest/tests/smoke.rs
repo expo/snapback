@@ -777,3 +777,22 @@ fn membership_page_with_two_filter_alternatives_stays_incomplete_in_lean_and_nat
         }
     }
 }
+
+#[test]
+fn membership_page_with_two_equality_alternative_factors_is_complete_in_lean_and_native() {
+    let have_model = model_built();
+    for seed in 0..4 {
+        let case = snapback4_difftest::generate::page_membership_filter_product(seed);
+        let source = case.program.source();
+        execute::compile(&source).unwrap_or_else(|error| panic!("seed {seed}: {error}\n{source}"));
+        let mut engine = execute::engine(&case, &source).unwrap();
+        let outcome = execute::execute(&mut engine, &case, "run", &case.args);
+        assert_eq!(outcome.value["complete"], true, "seed {seed}: {outcome:?}\n{source}");
+        let mut report = Report::default(); campaign::check(&case, &mut report, |_| {});
+        assert!(!report.failed(), "seed {seed}: {report:?}\n{source}");
+        if have_model {
+            let checked = snapback4_difftest::lean::compare(&case, &source).unwrap();
+            assert!(matches!(checked.verdict, Verdict::Pass), "seed {seed}: {:?}\n{source}", checked.verdict);
+        }
+    }
+}

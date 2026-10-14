@@ -107,7 +107,7 @@ impl Rule {
             Self::NamedOld => "old.owner = viewer",
             Self::TwoParty => ".owner = viewer or .helper = viewer",
             Self::ProductScope => "(.owner = viewer or .helper = viewer) and (.status = 'open' or .status = 'active')",
-            Self::FixedPerRow => "(exists roles[.bucket, viewer] and exists seats[.bucket, viewer]) and exists access[.id, viewer]",
+            Self::FixedPerRow => "(exists roles[.bucket, viewer] and exists seats[.bucket, viewer]) and exists access[.id, .bucket, viewer]",
             Self::Vacancy => "not exists access[item = .id] or .owner = viewer",
         }
     }
