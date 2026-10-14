@@ -95341,3 +95341,17 @@ contains the before/after survey, remaining reasons, campaigns, exact executable
 digests and hashed qualification logs; the root workstream report records
 commits, review dispositions, scope boundaries and other-lane pointers. Both
 independent final reviewers are READY. No push or publication.
+
+## 2026-10-14 — Integration 12: PAGE4 in unpublished 0.4.28
+
+Merge sb4-w11-page4 with no-ff after Integration 11; version remains 0.4.28.
+Preserve QDIAG generator/diagnostics and Lean examples, NARR P9 advice and
+PAGE4's complete planner. Named-index speculative-prefix controls use PAGE4's
+lowercase predicate so they remain authored scans. Append-only journal and
+measurement records retain both sides; censuses and root projections regenerate.
+Locked merged Linux web device: 2,319,740 B raw / 707,674 B gzip / 534,479 B
+Brotli. Budget 708,174 B = measured gzip + exactly 500 B platform headroom.
+Whole artifact adds 5,338 raw / 1,786 gzip B against Integration 11, without
+per-feature attribution or runtime ceiling change. The first build correctly
+refused the isolated PAGE4 budget by 282 B; the measured merged budget replaces it.
+Linux qualification follows; no push, publication or Mac qualification claim.
