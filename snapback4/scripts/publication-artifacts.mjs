@@ -71,7 +71,7 @@ export function validateLinux(receipt, tarball, client, source) {
   const bases = proot ? ["ubuntu:24.04", "alpine"] : ["ubuntu:22.04", "alpine"];
   if (!Array.isArray(proofs) || proofs.length !== 2 || !bases.every(base => proofs.some(p =>
     p.base === base && p.status === "passed" && p.clientIntegrity === client.integrity && p.platformIntegrity === receipt.platform.integrity
-    && p.expoIntegrity === receipt.expo.integrity && p.starters?.web === "passed" && p.starters?.expo === "passed" && p.starters?.adapted === "passed"
+    && p.expoIntegrity === receipt.expo.integrity && p.starters?.web === "passed" && p.starters?.expo === "passed" && p.starters?.adapted === "passed" && p.starters?.templates === "passed"
     && (proot ? p.runtime === "proot" && p.route === "proot" && matchesPinnedProof(p)
       : p.node === nodeVersion && /^(docker|podman)$/.test(p.runtime) && p.image && (!receipt.route || receipt.route === p.runtime)))))
     throw new Error(`Linux receipt needs successful Ubuntu ${proot ? "24.04" : "22.04"} and Alpine proofs bound to both artifacts and pinned Node/runtimes/root filesystems`);

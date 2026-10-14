@@ -72,7 +72,7 @@ export function prootProof(client, platform, version, cache = proofCache(), fetc
       if (sri(join(inputs, "client.tgz")) !== sri(client) || sri(join(inputs, "platform.tgz")) !== sri(platform) || sri(join(inputs, "expo.tgz")) !== sri(expo))
         throw new Error("proot consumer changed its staged artifact inputs");
       proofs.push({ ...distribution, route: "proot", runtime: "proot", status: "passed", elapsedMs: Date.now() - started,
-        clientIntegrity: sri(client), platformIntegrity: sri(platform), expoIntegrity: sri(expo), starters: { web: "passed", expo: "passed", adapted: "passed" } });
+        clientIntegrity: sri(client), platformIntegrity: sri(platform), expoIntegrity: sri(expo), starters: { web: "passed", expo: "passed", adapted: "passed", templates: "passed" } });
     } finally { rmSync(work, { recursive: true, force: true }); }
   }
   return proofs;

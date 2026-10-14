@@ -94987,3 +94987,19 @@ that SRI against its retained preparation. Expo's native qualification and
 publication remain separate. npm registry dependency installation is required;
 Expo's own network checks/telemetry are off. EXPOFIX's worktree report retains
 checks, baseline failure and review disposition; no push or publication here.
+
+
+EXPOFIX's real template audit also exposed social's Router range selecting an
+unqualified new patch with an unavailable dependency in npm's install view.
+Pin Router 57.0.23, already in the workspace lock. The publication proof now
+includes web-chat, Expo-chat and social installs/typechecks/exports as well as
+the default/adapted starters. A symlinked workspace typecheck alone had missed
+this installation failure.
+
+
+The first clean Ubuntu run exposed another qualification-host hazard: generated
+build:web used Metro's unbounded CPU-derived worker pool, which is slow under
+proot. Bound generated Expo web export scripts to two workers, matching the
+direct qualification command. Historical stages lacking retained Expo proof
+bytes now fail explicitly and preserve all artifacts; the layout-compatibility
+test is separated from the genuine-old-stage refusal.

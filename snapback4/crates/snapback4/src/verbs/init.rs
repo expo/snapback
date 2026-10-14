@@ -579,7 +579,7 @@ fn expo_package() -> String {
     package["scripts"]["native:smoke"] = json!("snapback4 witness ios --build . --smoke");
     package["scripts"]["export:ios"] = json!("snapback4-export-ios");
     package["devDependencies"]["@expo/fingerprint"] = json!("0.20.13");
-    package["scripts"]["build:web"] = json!("expo export -p web && snapback4 web-shell dist");
+    package["scripts"]["build:web"] = json!("expo export -p web --max-workers 2 && snapback4 web-shell dist");
     package["dependencies"]["react-dom"] = json!("19.2.3");
     package["dependencies"]["react-native-web"] = json!("~0.21.0");
     // @ref LLP 3000.011.003.000#7.3 — Expo 57's config plugins pin xcode@3.0.1, whose uuid@7 is deprecated and advised against; uuid 11 keeps the CommonJS `v4` it calls.

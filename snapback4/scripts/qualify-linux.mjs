@@ -36,7 +36,7 @@ export function containerProof(runtime, client, platform, version, work, expo) {
       // home, npmrc, binary override or host credentials enter the container.
       run(runtime, ["run", "--rm", "--name", tag, "--platform", "linux/amd64", tag, "sh", "-ec",
         `test -z "\${SNAPBACK4_BIN+x}"; test "$(node -v)" = v${nodeVersion}; printf '{"private":true,"type":"module"}' > package.json; npm install --ignore-scripts --no-audit --no-fund /proof/client.tgz /proof/platform.tgz; cp /proof/roundtrip.mjs .; node roundtrip.mjs ${version}; node /proof/starters.mjs /proof/client.tgz /proof/platform.tgz /proof/expo.tgz`], { stdio: "inherit", timeout: 1_200_000 });
-      proofs.push({ base, image, runtime, route: runtime, elapsedMs: Date.now() - started, node: nodeVersion, status: "passed", clientIntegrity: sri(client), platformIntegrity: sri(platform), expoIntegrity: sri(expo), starters: { web: "passed", expo: "passed", adapted: "passed" } });
+      proofs.push({ base, image, runtime, route: runtime, elapsedMs: Date.now() - started, node: nodeVersion, status: "passed", clientIntegrity: sri(client), platformIntegrity: sri(platform), expoIntegrity: sri(expo), starters: { web: "passed", expo: "passed", adapted: "passed", templates: "passed" } });
     } finally {
       spawnSync(runtime, ["rm", "--force", tag], { stdio: "ignore", timeout: 30_000 });
       spawnSync(runtime, ["image", "rm", tag], { stdio: "ignore", timeout: 30_000 });

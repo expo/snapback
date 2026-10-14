@@ -35,11 +35,12 @@ const t0 = Date.now(), buildEnv = { ...process.env, LIBSQLITE3_FLAGS: sqliteBuil
 delete buildEnv.SNAPBACK4_BIN;
 function loadStage() {
   let r = json(receiptPath);
-  // Existing format-2 Darwin stages remain resumable, including partially published pairs.
+  // Format-2 layout is readable; every resumable stage must retain Expo proof bytes.
   const legacy = r.format === 2;
   if (legacy) r = { ...r, format: 3, platforms: [{ ...r.platformArtifact, binaryProfile: r.binaryProfile, binarySha256: r.binarySha256, binaryVersion: r.binaryVersion, binaryBytes: r.binaryBytes, signing: r.signing, cargoProfile: r.cargoProfile }] };
   if (r.format !== 3 || r.version !== version || r.client?.name !== "snapback4" || !Array.isArray(r.platforms) || ![1, 2].includes(r.platforms.length) || r.platforms.some((p, i) => p.name !== platforms[i])) throw new Error("publication resume does not describe the client and ordered platform artifact set");
   if (r.qualification?.suite !== "passed") throw new Error("publication resume does not carry a recorded successful source-suite qualification");
+  if (!r.expo) throw new Error("publication stage predates starter qualification and lacks its packed Expo proof input; artifacts are preserved, but prepare a new release version instead of reusing its old qualification");
   r.expo = verifyArtifact(r.expo, stateDirectory, version);
   manifest(r.expo.tarball, "snapback4-expo", version);
   r.client = verifyArtifact(r.client, stateDirectory, version);

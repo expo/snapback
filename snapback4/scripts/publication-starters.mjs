@@ -12,14 +12,14 @@ export function proveStarters(client, platform, expo, directory) {
   const run = (cmd, args, cwd) => execFileSync(cmd, args, { cwd, env, stdio: "inherit", timeout: 300_000 });
   const artifacts = [client, platform, expo].map(path => resolve(path));
   const results = [];
-  for (const kind of ["web", "expo"]) {
-    const cwd = join(directory, `starter-${kind}`); mkdirSync(cwd);
+  for (const [kind, template] of [["web", null], ["expo", null], ["web", "chat"], ["expo", "chat"], ["expo", "social"]]) {
+    const cwd = join(directory, `starter-${kind}${template ? `-${template}` : ""}`); mkdirSync(cwd);
     writeFileSync(join(cwd, "package.json"), '{"private":true}');
     // Install the CLI first so init and all later package scripts resolve the
     // packed binary. Pin native JS in init's manifest before dependency install.
     run("npm", ["install", "--no-save", "--ignore-scripts", "--no-audit", "--no-fund", ...artifacts.slice(0, 2)], cwd);
     const cli = join(cwd, "node_modules/.bin/snapback4");
-    run(cli, ["init", `--${kind}`], cwd);
+    run(cli, ["init", ...(template === "social" ? ["--template", "social"] : [`--${kind}`, ...(template ? ["--template", template] : [])])], cwd);
     const pkg = JSON.parse(readFileSync(join(cwd, "package.json")));
     pkg.dependencies.snapback4 = `file:${artifacts[0]}`;
     pkg.optionalDependencies = { [`snapback4-${process.platform}-${process.arch}`]: `file:${artifacts[1]}` };
@@ -35,6 +35,10 @@ export function proveStarters(client, platform, expo, directory) {
       assert.ok(existsSync(join(cwd, "dist/index.html")), `${kind} produced a web page`);
     };
     build();
+    if (template) {
+      results.push({ kind, template, status: "passed", typecheck: "passed", build: "passed" });
+      continue;
+    }
     // Exercise init-first adaptation with a different online-only schema: Home,
     // generated API, identity, README and the no-wasm journal must build together.
     writeFileSync(join(cwd, "snapback/schema.q"), `use identity guests\ntable notes:\n  owner: principal\n  title: text <=80\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nquery mine():\n  return notes where .owner = viewer first 20 by .id\nmutation add(title: text <=80):\n  return insert notes { owner: viewer, title }\n`);

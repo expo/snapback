@@ -18,7 +18,7 @@ function prepared(t) {
     proofs: ["ubuntu:22.04", "alpine"].map(base => ({ base, runtime: "docker", node: nodeVersion, image: "sha256:qualified-image", status: "passed", clientIntegrity: client.integrity, platformIntegrity: sri(tarball) })),
   };
   receipt.expo = json(join(root, "target/publication/client-0.0.0/prepare.json")).expo;
-  for (const proof of receipt.proofs) { proof.expoIntegrity = receipt.expo.integrity; proof.starters = { web: "passed", expo: "passed", adapted: "passed" }; }
+  for (const proof of receipt.proofs) { proof.expoIntegrity = receipt.expo.integrity; proof.starters = { web: "passed", expo: "passed", adapted: "passed", templates: "passed" }; }
   const path = join(root, "linux.json"); writeFileSync(path, JSON.stringify(receipt));
   return { root, path, tarball, receipt, prepared, args: ["--linux-receipt", path, "--linux-tarball", tarball] };
 }
@@ -134,6 +134,7 @@ for (const [name, change, message] of [
   ["Expo export", r => r.proofs[1].starters.expo = "failed", /Ubuntu 22.04 and Alpine/],
   ["web build", r => r.proofs[0].starters.web = "failed", /Ubuntu 22.04 and Alpine/],
   ["adapted build", r => r.proofs[1].starters.adapted = "failed", /Ubuntu 22.04 and Alpine/],
+  ["template builds", r => r.proofs[0].starters.templates = "failed", /Ubuntu 22.04 and Alpine/],
   ["proof Expo", r => r.proofs[0].expoIntegrity = "wrong", /Ubuntu 22.04 and Alpine/],
   ["proof client", r => r.proofs[1].clientIntegrity = "wrong", /bound to both artifacts/],
   ["proof platform", r => r.proofs[0].platformIntegrity = "wrong", /bound to both artifacts/],
@@ -179,10 +180,24 @@ test("new stage refuses dirty source and a prepared client from another commit",
   assert.notEqual(r.status, 0); assert.match(r.stderr, /prepared client source differs/);
 });
 
-test("format-2 Darwin-only stages still resume without a Linux receipt", t => {
+test("format-2 layout with retained Expo proof bytes resumes without a Linux receipt", t => {
   const first = publish(t); assert.equal(first.status, 0, first.stderr);
   const path = join(first.root, `target/publication/${darwin}-0.0.0/resume.json`), stage = json(path), platform = stage.platforms[0];
   writeFileSync(path, JSON.stringify({ ...stage, ...platform, version: stage.version, platform: darwin, format: 2, platformArtifact: platform }));
   const r = publish(t, { resume: true, deps: { [darwin]: "0.0.0" } }, first.root);
   assert.equal(r.status, 0, r.stderr);
+});
+
+
+test("historical stages without Expo proof bytes refuse without deleting artifacts or uploading", t => {
+  const first = publish(t); assert.equal(first.status, 0, first.stderr);
+  const directory = join(first.root, `target/publication/${darwin}-0.0.0`);
+  const path = join(directory, "resume.json"), stage = json(path), platform = stage.platforms[0];
+  delete stage.expo;
+  writeFileSync(path, JSON.stringify({ ...stage, ...platform, version: stage.version, platform: darwin, format: 2, platformArtifact: platform }));
+  const before = readFileSync(join(directory, "platform.tgz"));
+  const r = publish(t, { resume: true }, first.root);
+  assert.notEqual(r.status, 0); assert.match(r.stderr, /stage predates starter qualification/);
+  assert.equal(publications(r).length, 0);
+  assert.deepEqual(readFileSync(join(directory, "platform.tgz")), before);
 });

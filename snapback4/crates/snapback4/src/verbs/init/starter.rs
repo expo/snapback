@@ -298,7 +298,7 @@ fn html_text(text: &str) -> String {
 pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
     let mut package: Value = serde_json::from_str(&super::expo_package()).unwrap();
     package["name"] = json!("snapback4-expo-starter");
-    package["scripts"]["build:web"] = json!("expo export --platform web --clear && snapback4 web-shell dist");
+    package["scripts"]["build:web"] = json!("expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist");
     let mut config: Value = serde_json::from_str(include_str!("../../../../../apps/chat-expo/app.json")).unwrap();
     config["expo"]["name"] = json!(shape.title);
     // @ref LLP 3000.011.003.000#7.4 — wave 6 (067): ids named after the directory, never the todo starter's.
