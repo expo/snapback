@@ -407,7 +407,7 @@ test("W6b identity forms advertise and enforce the guest choice", { timeout: han
   for (const [form, guests, password] of [["use identity", true, true], ["use identity guests", true, false], ["use identity password", false, true]]) {
     const f = await fixture(t, true, `${form}\n`);
     const config = await (await fetch(f.url + "/auth/config")).json();
-    assert.deepEqual(config, { guests, password, generation: 1 });
+    assert.deepEqual(config, { development: false, guests, password, generation: 1 });
     const visitor = await guest(f.url);
     assert.equal(visitor.ok, guests, JSON.stringify(visitor));
     if (guests) assert.equal(visitor.session.kind, "guest");
