@@ -29,6 +29,60 @@ def storeHooks : Hooks Store where
   view cx s := visibleRowsAt cx.schema s cx.viewer cx.now
   apply := applyWrite
 
+-- @ref LLP 3000.036.003#6 — born-expired and updated-expired final images retire in the writer transaction.
+/-- Rows whose final images a mutation changed. Commit-end expiry retirement
+is scoped to this set; pre-existing expired backlog remains for the ordinary
+sweep. -/
+abbrev ChangedRows := List (String × List Nat)
+
+structure MutationWorld where
+  store : Store
+  changed : ChangedRows := []
+
+def RWrite.explicitId? : RWrite → Option (String × List Nat)
+  | .insert t fields _ => match fields.lookup "id" with
+    | some (.s (.id rid)) => some (t, rid)
+    | _ => none
+  | .upsert t key patch =>
+    match key.lookup "id" with
+    | some (.s (.id rid)) => some (t, rid)
+    | _ => match patch.lookup "id" with
+      | some (.s (.id rid)) => some (t, rid)
+      | _ => none
+  | _ => none
+
+def changedFinalRows (sch : Schema) (before after : Store) : ChangedRows :=
+  sch.tables.flatMap fun td => (after td.name).filterMap fun row =>
+    match (before td.name).find? fun old => old.id == row.id with
+    | none => some (td.name, row.id)
+    | some old => if old == row then none else some (td.name, row.id)
+
+def mutationHooks : Hooks MutationWorld where
+  view cx w := visibleRowsAt cx.schema w.store cx.viewer cx.now
+  apply cx w rw := match applyWrite cx w.store rw with
+    | .error e => .error e
+    | .ok (value, store) =>
+      let changed := w.changed ++ changedFinalRows cx.schema w.store store
+      let changed := match rw.explicitId? with | some address => changed ++ [address] | none => changed
+      .ok (value, { store, changed := changed.eraseDups })
+
+/-- Retire only rows written by this mutation whose final image is already
+expired. A restrict refusal aborts the mutation; cascade and set-null actions
+are in the same transition. -/
+def retireExpiredChanged (sch : Schema) (now : Int) : Store → ChangedRows → Except Stop Store
+  | s, [] => pure s
+  | s, (t, rid) :: rest =>
+    match sch.table? t with
+    | none => retireExpiredChanged sch now s rest
+    | some td =>
+      match findRow (s t) [("id", .id rid)] with
+      | none => retireExpiredChanged sch now s rest
+      | some row =>
+        if expired td now row then do
+          let s ← refDeleteFrom sch (unexpiredStore sch s now) s t row
+          retireExpiredChanged sch now s rest
+        else retireExpiredChanged sch now s rest
+
 def bindArgs (params : List Param) (args : List (String × Value)) : Except Stop Env :=
   params.mapM fun p => match args.lookup p.name with
     | some v => pure (p.name, (v, none))
@@ -72,8 +126,11 @@ def runMutation (c : Case) : Outcome :=
   | .error (.refuse code) => .refused code
   | .error .unavailable => .unavailable
   | .ok env =>
-    match (execStmts storeHooks defaultFuel c.ctx c.store env c.program.body).run {} with
-    | .ok ((fl, s', _), _) => .committed (flowValue fl).1 s'
+    match (execStmts mutationHooks defaultFuel c.ctx { store := c.store } env c.program.body).run {} with
+    | .ok ((fl, w, _), _) => match retireExpiredChanged c.schema c.now w.store w.changed with
+      | .ok s' => .committed (flowValue fl).1 s'
+      | .error (.refuse code) => .refused code
+      | .error .unavailable => .refused "E_BOUND"
     | .error (.refuse code) => .refused code
     | .error .unavailable => .refused "E_BOUND"
 

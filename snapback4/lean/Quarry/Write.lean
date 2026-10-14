@@ -111,9 +111,10 @@ def resultOfAt (sch : Schema) (s : Store) (v : List Nat) (now : Int)
 def guardE (b : Bool) (e : Stop) : Except Stop Unit := if b then .ok () else .error e
 
 def doInsertImage (sch : Schema) (s : Store) (v : List Nat) (now : Int) (t : String) (td : TableDecl)
-    (img : Row) (ifAbsent : Bool) (deny clashHidden : Stop) :
+    (img : Row) (ifAbsent : Bool) (clashHidden : Stop) :
     Except Stop (Value × Store) := do
-  guardE (td.insert.eval (openedStore sch s now) v { self := some img }) deny
+  -- Insert authority has already been checked. Remaining unique checks and
+  -- the physical insertion use the post-retirement store.
   match findClash (s t) (["id"] :: td.uniques) img none with
   | some (i, r) => do
     guardE (readableAt sch s v now t r) clashHidden
@@ -271,6 +272,7 @@ def sweepExpired (sch : Schema) (s : Store) (now : Int) : Store :=
       | .error _ => s
     else s) s) s
 
+-- @ref LLP 3000.036.003#6 — same-id replacement authorizes, retires with actions, then inserts.
 /-- Apply one write to the store. -/
 def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
   | .insert t fields ifAbsent =>
@@ -280,8 +282,11 @@ def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
       let fs ← scalarsE fields
       let rid ← insertId fs
       let img ← buildImage td rid fs eInput
+      -- Native refusal order authorizes the proposed image while the expired
+      -- predecessor is still present, then retires it and applies its actions.
+      guardE (td.insert.eval (openedStore cx.schema s cx.now) cx.viewer { self := some img }) eRule
       let s ← retireExpiredSameId cx.schema s cx.now t td rid
-      doInsertImage cx.schema s cx.viewer cx.now t td img ifAbsent eRule eRule
+      doInsertImage cx.schema s cx.viewer cx.now t td img ifAbsent eRule
   | .update t key patch cond =>
     match cx.schema.table? t with
     | none => throw eInput
@@ -304,8 +309,9 @@ def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
       | none => do
         let rid ← upsertId ks ps
         let img ← buildImage td rid (ks ++ ps) notFound
+        guardE (td.insert.eval (openedStore cx.schema s cx.now) cx.viewer { self := some img }) notFound
         let s ← retireExpiredSameId cx.schema s cx.now t td rid
-        doInsertImage cx.schema s cx.viewer cx.now t td img false notFound notFound
+        doInsertImage cx.schema s cx.viewer cx.now t td img false notFound
   | .delete t key =>
     match cx.schema.table? t with
     | none => throw eInput
@@ -318,6 +324,6 @@ def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
         guardE (td.delete.eval (openedStore cx.schema s cx.now) cx.viewer { self := some old })
           (if readableAt cx.schema s cx.viewer cx.now t old then eRule else notFound)
         guardE ((referencing cx.schema t).isEmpty || readableAt cx.schema s cx.viewer cx.now t old) notFound
-        pure (.null, ← refDelete cx.schema s t old)
+        pure (.null, ← refDeleteFrom cx.schema (unexpiredStore cx.schema s cx.now) s t old)
 
 end Quarry

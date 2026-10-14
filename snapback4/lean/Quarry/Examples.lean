@@ -853,6 +853,34 @@ def expiryWriteStore : Store := mkStore [
   ("items", [mkRow "r0" [("owner", I "alice"), ("until", N 10), ("tag", I "tag0")],
     mkRow "r1" [("owner", I "alice"), ("until", .null), ("tag", I "tag1")]])]
 
+def mutationExpirySchema (parentInsert : Rule := .allow) : Schema := { tables := [
+  { name := "parents", cols := [c "until"], expire := some "until", read := .allow,
+    insert := parentInsert, update := .allow, delete := .allow },
+  { name := "cascadeKids", cols := [refCol "parent" "parents" (some .cascade), c "until" true],
+    expire := some "until", read := .allow, insert := .allow },
+  { name := "nullableKids", cols := [refCol "parent" "parents" (some .setNull) (nullable := true), c "until" true],
+    expire := some "until", read := .allow, insert := .allow },
+  { name := "blockers", cols := [refCol "parent" "parents" (some .restrict), c "until" true],
+    expire := some "until", read := .allow, insert := .allow }] }
+
+def expiredActionWitnessStore : Store := mkStore [
+  ("parents", [mkRow "p" [("until", N 20)]]),
+  ("cascadeKids", [mkRow "c" [("parent", I "p"), ("until", N 10)]]),
+  ("nullableKids", [mkRow "n" [("parent", I "p"), ("until", N 10)]]),
+  ("blockers", [mkRow "b" [("parent", I "p"), ("until", N 10)]])]
+
+def liveActionStore : Store := mkStore [
+  ("parents", [mkRow "p" [("until", N 20)]]),
+  ("cascadeKids", [mkRow "c" [("parent", I "p"), ("until", .null)]]),
+  ("nullableKids", [mkRow "n" [("parent", I "p"), ("until", .null)]])]
+
+def sameIdAuthoritySchema : Schema := mutationExpirySchema
+  (.probe "cascadeKids" ["parent"] [("parent", self "id")])
+
+def sameIdAuthorityStore : Store := mkStore [
+  ("parents", [mkRow "p" [("until", N 10)]]),
+  ("cascadeKids", [mkRow "c" [("parent", I "p"), ("until", .null)]])]
+
 def refExamples : List Example := [
   { name := "delete-cascade"
     source := "LLP 3000.039 §3: a cascade deletes the referencing rows, hidden ones included; set null clears outside the closure; keep keeps"
@@ -896,7 +924,56 @@ def refExamples : List Example := [
               program := mutation [.write none (.upsert "items" [("id", idE "r0")]
                 [("owner", idE "alice"), ("until", int 20), ("tag", idE "tag1")])] }
     tables := []
-    expected := r#"{"kind":"refused","code":"E_UNIQUE"}"# }
+    expected := r#"{"kind":"refused","code":"E_UNIQUE"}"# },
+  { name := "ordinary-delete-ignores-expired-action-witnesses"
+    source := "LLP 3000.039 §3 and LLP 3000.036.003 §3: logically expired cascade, set-null and restrict children are not delete-action witnesses"
+    case := { schema := mutationExpirySchema, store := expiredActionWitnessStore, viewer := alice, now := 10,
+              program := mutation [.write none (.delete "parents" [("id", idE "p")])] }
+    tables := ["parents", "cascadeKids", "nullableKids", "blockers"]
+    expected := r#"{"kind":"committed","result":null,"store":{"parents":[],"cascadeKids":[{"id":"c","parent":"p","until":10}],"nullableKids":[{"id":"n","parent":"p","until":10}],"blockers":[{"id":"b","parent":"p","until":10}]}}"# },
+  { name := "born-expired-restrict-rolls-back"
+    source := "LLP 3000.036.003 §6: commit-end retirement applies restrict and rolls back the mutation"
+    case := { schema := mutationExpirySchema, store := mkStore [], viewer := alice, now := 10,
+              program := mutation [
+                .write none (.insert "parents" [("id", idE "p"), ("until", int 10)] false),
+                .write none (.insert "blockers" [("id", idE "b"), ("parent", idE "p"), ("until", lit .null)] false),
+                .ret (lit .null)] }
+    tables := []
+    expected := r#"{"kind":"refused","code":"E_REFERENCED"}"# },
+  { name := "born-expired-cascade-and-set-null"
+    source := "LLP 3000.036.003 §6: commit-end retirement applies cascade and set null in the mutation transaction"
+    case := { schema := mutationExpirySchema, store := mkStore [], viewer := alice, now := 10,
+              program := mutation [
+                .write none (.insert "parents" [("id", idE "p"), ("until", int 10)] false),
+                .write none (.insert "cascadeKids" [("id", idE "c"), ("parent", idE "p"), ("until", lit .null)] false),
+                .write none (.insert "nullableKids" [("id", idE "n"), ("parent", idE "p"), ("until", lit .null)] false),
+                .ret (lit .null)] }
+    tables := ["parents", "cascadeKids", "nullableKids"]
+    expected := r#"{"kind":"committed","result":null,"store":{"parents":[],"cascadeKids":[],"nullableKids":[{"id":"n","parent":null,"until":null}]}}"# },
+  { name := "updated-expired-cascade-and-set-null"
+    source := "LLP 3000.036.003 §6: a final image updated expired retires with its declared actions"
+    case := { schema := mutationExpirySchema, store := liveActionStore, viewer := alice, now := 10,
+              program := mutation [
+                .write none (.update "parents" [("id", idE "p")] [("until", int 10)] none),
+                .ret (lit .null)] }
+    tables := ["parents", "cascadeKids", "nullableKids"]
+    expected := r#"{"kind":"committed","result":null,"store":{"parents":[],"cascadeKids":[],"nullableKids":[{"id":"n","parent":null,"until":null}]}}"# },
+  { name := "same-id-insert-authorizes-before-cascade-retirement"
+    source := "LLP 3000.036.003 §6: insert authority sees the expired predecessor's child before retirement cascades it"
+    case := { schema := sameIdAuthoritySchema, store := sameIdAuthorityStore, viewer := alice, now := 10,
+              program := mutation [
+                .write none (.insert "parents" [("id", idE "p"), ("until", int 20)] false),
+                .ret (lit .null)] }
+    tables := ["parents", "cascadeKids"]
+    expected := r#"{"kind":"committed","result":null,"store":{"parents":[{"id":"p","until":20}],"cascadeKids":[]}}"# },
+  { name := "same-id-upsert-authorizes-before-cascade-retirement"
+    source := "LLP 3000.036.003 §6: upsert's insert arm has the same pre-retirement authority order"
+    case := { schema := sameIdAuthoritySchema, store := sameIdAuthorityStore, viewer := alice, now := 10,
+              program := mutation [
+                .write none (.upsert "parents" [("id", idE "p")] [("until", int 20)]),
+                .ret (lit .null)] }
+    tables := ["parents", "cascadeKids"]
+    expected := r#"{"kind":"committed","result":null,"store":{"parents":[{"id":"p","until":20}],"cascadeKids":[]}}"# }
 ]
 
 def page3Pure : Schema := { tables := membershipDocs.tables.map fun t =>
