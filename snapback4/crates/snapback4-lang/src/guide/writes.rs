@@ -245,7 +245,7 @@ If the product instead permits readable availability checks, an `exists` or
 audience. Pinning a private guest merely narrows the check; it cannot enforce
 a constraint across all guests.
 
-## On delete
+## On delete restrict
 
 References default to `restrict`; a live child causes E_REFERENCED. Alternatives:
 bounded `cascade`, optional `set null`, or `keep`. Cascades recurse under a

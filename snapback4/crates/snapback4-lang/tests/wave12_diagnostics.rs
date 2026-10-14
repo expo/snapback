@@ -5,9 +5,13 @@ fn project_builtins_are_reserved_for_parameters_locals_and_loop_bindings() {
     for (source, name) in [
         ("query q(now: time):\n  return now\n", "now"),
         ("mutation m():\n  now = 1\n  return now\n", "now"),
+        ("mutation m(commit: time):\n  return commit\n", "commit"),
         ("mutation m():\n  commit = now\n  return commit\n", "commit"),
+        ("mutation m(new: text):\n  return new\n", "new"),
+        ("mutation m():\n  new = 1\n  return new\n", "new"),
         ("mutation m():\n  for new in range(0, 1):\n    return new\n", "new"),
         ("query q(viewer: principal):\n  return viewer\n", "viewer"),
+        ("mutation m():\n  viewer = 'alice'\n  return viewer\n", "viewer"),
         ("fn helper(viewer: principal):\n  return viewer\n", "viewer"),
     ] {
         let bound = compile(&[("schema.q".into(), source.into())]);
@@ -73,9 +77,16 @@ fn sql_habits_name_quarry_order_and_emit_compiling_rewrites() {
     assert!(d.message.contains("aggregates take parentheses"), "{d}");
     replace_and_compile(count, "count logs where .kind = 'error'", &d.rewrite);
 
+    let ascending = "table logs:\n  at: time\n  public 'logs'\nquery recent():\n  return logs first 20 by .at desc\n";
+    let d = diagnostic(ascending, "E_QUARRY_SYNTAX");
+    assert!(d.message.contains("first 20 by .at") && d.message.contains("ascending"), "{d}");
+    assert!(d.rewrite.starts_with("logs last 20 by .at") && !d.rewrite.contains("desc"), "{d}");
+    replace_and_compile(ascending, "logs first 20 by .at desc", &d.rewrite);
+
     let descending = "table logs:\n  at: time\n  public 'logs'\nquery recent():\n  return logs last 20 by .at desc\n";
     let d = diagnostic(descending, "E_QUARRY_SYNTAX");
     assert!(d.message.contains("last 20 by .at") && d.message.contains("descending"), "{d}");
+    assert!(d.rewrite.starts_with("logs last 20 by .at") && !d.rewrite.contains("desc"), "{d}");
     replace_and_compile(descending, "logs last 20 by .at desc", &d.rewrite);
 
     let shaped = compile(&[
@@ -153,6 +164,9 @@ fn multiline_require_rewrite_preserves_the_authored_refusal_code() {
     let d = diagnostic(source, "E_QUARRY_SYNTAX");
     assert!(d.rewrite.contains("else NOPE"), "{d}");
     assert!(!d.rewrite.contains("NOT_ALLOWED"), "{d}");
+    let replacement = d.rewrite.split('`').skip(1).step_by(2)
+        .find(|part| part.starts_with("require ")).expect("the one-line require repair");
+    replace_and_compile(source, "require (a or\n    b)\n    else NOPE", replacement);
 }
 
 #[test]
@@ -213,4 +227,5 @@ fn delete_restrict_note_opens_the_matching_guide_section() {
     let note = bound.notes.iter().find(|note| note.code == "N_DELETE_RESTRICTED")
         .unwrap_or_else(|| panic!("{:#?}", bound.notes));
     assert!(note.rewrite.contains("guide writes --section \"On delete restrict\""), "{note}");
+    assert!(snapback4_lang::guide::card("writes").unwrap().contains("## On delete restrict"));
 }

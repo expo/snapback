@@ -258,6 +258,28 @@ impl Binder<'_> {
             A::Shape { base, fields, .. } => self.shape(base, fields, site, out),
             A::ShapeUse { base, name, .. } => {
                 let Some(shape) = self.catalog.shapes.get(name).cloned() else {
+                    // @ref LLP 3000.036.002#9 — diagnose SQL's trailing desc only after project-wide shape resolution.
+                    if name == "desc" && let A::Read(read) = base.as_ref() && let Some(range) = &read.range {
+                        let page = format!(
+                            "{} {} by {}",
+                            if range.order == ast::Order::Desc { "last" } else { "first" },
+                            range.take,
+                            if read.order_keys.is_empty() {
+                                read.index.clone().unwrap_or_else(|| "<index>".into())
+                            } else {
+                                read.order_keys.iter().map(|key| format!(".{key}")).collect::<Vec<_>>().join(", ")
+                            },
+                        );
+                        let mut repaired = read.clone();
+                        repaired.range.as_mut().expect("the diagnosed page has a range").order = ast::Order::Desc;
+                        return Err(Diagnostic::new(
+                            site,
+                            "E_QUARRY_SYNTAX",
+                            format!("`{page}` is already {}; Quarry has no trailing `desc`", if range.order == ast::Order::Desc { "descending" } else { "ascending" }),
+                            print::read_expr(&repaired),
+                        )
+                        .guide("from-sql"));
+                    }
                     return Err(unknown(site, format!("unknown shape {name}"), name_rewrite(name, self.catalog.shapes.keys().map(String::as_str), Some("declare `shape name = { fields }`"))));
                 };
                 self.shape(base, &shape.fields, site, out)
