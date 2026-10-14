@@ -30,7 +30,7 @@ table reactions:
 view reactionCounts: count reactions by .message, .emoji
 fn messageObject(m: messages):
   own = reactions[m.id, viewer]
-  return reactionCounts where .message = m.id { emoji, count: .value, mine: own != null and own.emoji = .emoji }
+  return reactionCounts where .message = m.id first 50 by .emoji { emoji, count: .value, mine: own != null and own.emoji = .emoji }
 query totals(message: messages):
   m = messages[message] ! else NOT_FOUND
   return messageObject(m)

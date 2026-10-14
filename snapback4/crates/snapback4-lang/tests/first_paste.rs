@@ -43,6 +43,8 @@ fn cal25_parent_pinned_first_attempt_already_works_and_count_shorthand_matches()
         reaction(&mut e, "r3", "carol", "laugh");
         let q = e.query("totals", message_context()).unwrap();
         assert!(q.complete, "{q:?}");
+        // Aggregate ids are opaque digests; the fixture asks for its visible
+        // emoji order instead of inheriting the internal byId order.
         assert_eq!(wire::to_json(&q.data), json!([
             {"emoji":"heart","count":2,"mine":true}, {"emoji":"laugh","count":1,"mine":false}
         ]));

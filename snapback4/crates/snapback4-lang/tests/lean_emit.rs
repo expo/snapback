@@ -200,7 +200,6 @@ fn every_construct_outside_the_fragment_is_named() {
         }
     }
     for (schema, expected) in [
-        ("table t:\n  n: int\n  expiresAt: time ?\n  expire at .expiresAt\n  read <- allow\n  online only\n", "table-expiry"),
         ("table t:\n  n: int default 3\n  read <- allow\n  online only\n", "column-default"),
         ("table t:\n  price: money USD\n  read <- allow\n  online only\n", "type-money"),
     ] {
@@ -210,6 +209,15 @@ fn every_construct_outside_the_fragment_is_named() {
         }
     }
     assert!(matches!(lean(&[("schema.q".into(), "table t:\n  read <- nonsense\n".into())]), Err(LeanError::Diagnostics(_))));
+}
+
+#[test]
+fn expiry_is_emitted_as_a_modeled_table_lifecycle() {
+    let source = "table t:\n  n: int\n  expiresAt: time ?\n  expire at .expiresAt\n  read <- allow\n  online only\nquery witness():\n  return 1\n";
+    let m = module(source);
+    assert_eq!(table(&m, "t")["expire"], "expiresAt");
+    let case = m.case_at_sweep("witness", m.store(&[]).unwrap(), "alice", Default::default(), None, 10, true).unwrap();
+    assert_eq!(case["sweep"], true);
 }
 
 #[test]

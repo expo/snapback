@@ -173,7 +173,8 @@ fn durable_schema_and_types_keep_base_bytes() {
     }
     let mut mismatches = Vec::new();
     for (name, (schema, types)) in actual {
-        if strip_update_explanations(&schema) != expected[&name].0 { mismatches.push(format!("schema bytes: {name}")); }
+        let normalized = strip_update_explanations(&schema);
+        if normalized != strip_maintained_identity_capability(expected[&name].0.clone()) { mismatches.push(format!("schema bytes: {name}")); }
         let types = strip_following(&strip_row_keys(&strip_hook_hints(&types)), &schema);
         if types != expected[&name].1 {
             let before: Vec<_> = expected[&name].1.lines().collect();
@@ -217,7 +218,22 @@ fn strip_update_explanations(text: &str) -> String {
                 && let Some(at) = site.reason.find("; held updates — ") { site.reason.truncate(at); }
         }
     }
-    serde_json::to_string(&schema).unwrap()
+    let wire = serde_json::to_string(&schema).unwrap();
+    // P2 derives this fence from ordinary maintains, so Schema serialization
+    // restores it even after typed normalization. Remove only that named flag
+    // from the final wire image for this pre-P2 compatibility corpus.
+    strip_maintained_identity_capability(wire)
+}
+
+fn strip_maintained_identity_capability(mut wire: String) -> String {
+    let capability = "maintained-id-sha256-v1";
+    wire = wire.replace(&format!("\"{capability}\","), "")
+        .replace(&format!(",\"{capability}\""), "")
+        .replace(&format!("[{{\"Capabilities\":[\"{capability}\"]}}]"), "[]")
+        .replace(&format!("{{\"Capabilities\":[\"{capability}\"]}},"), "")
+        .replace(&format!(",{{\"Capabilities\":[\"{capability}\"]}}"), "");
+    assert!(!wire.contains(capability));
+    wire
 }
 
 /// Wave 3 appends the React hook to each query's comment. Check that every
