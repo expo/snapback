@@ -1,0 +1,2497 @@
+{
+  "sites": 213,
+  "boundary": {
+    "acquisition.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "actions.ts": {
+      "count": 2,
+      "sha256": "a09b3d453c1f2eecd9eeb9b330a2c87e008a080bc6c4c17e4d84f690eb84d0b5"
+    },
+    "admission-authority.ts": {
+      "count": 2,
+      "sha256": "24071c33192591e291b2e34223d002a2f1783ce1eebcaa8b5488da6e348ddaf2"
+    },
+    "admission.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "app-client.ts": {
+      "count": 23,
+      "sha256": "383abdd9a4d84d4dafbdaab33ee81224cb0d9dcf414b259298cf9cff0ff822f2"
+    },
+    "app-global.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "app-journal.ts": {
+      "count": 3,
+      "sha256": "7b69513a6cbbd9fc7526d1205d3b02976cb52c3e9c95f6f03d7dc6329c93b4e1"
+    },
+    "app-online-arm.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "app-online.ts": {
+      "count": 38,
+      "sha256": "73b1eb3043804d156567b1ac3b3f715e0acbacbbe03743f373c54bcd7c75982f"
+    },
+    "app-persona.ts": {
+      "count": 19,
+      "sha256": "e6797d81892fb36c38e8d50e106cc73718e23e14b5fde956f450260bb3abab0a"
+    },
+    "app-revocations.ts": {
+      "count": 32,
+      "sha256": "9b9978b2c54c3233b56e3d530997764874f901664a70b95e3b41e8fec4240a06"
+    },
+    "app-storage.ts": {
+      "count": 2,
+      "sha256": "32a1eed42a561749fc32c3c9a94d656318730b40b909b710d6a6228f1797ddfe"
+    },
+    "app-uploads.ts": {
+      "count": 10,
+      "sha256": "0067c79281d0645c84c1aff71385484e31099169584d861bea3b85da750b9d53"
+    },
+    "app.ts": {
+      "count": 84,
+      "sha256": "0d86cb545cd12612b1285b34bd7c9b72f48a2f324fce7450396197cfe7b4ca13"
+    },
+    "asset-download.ts": {
+      "count": 10,
+      "sha256": "dcc3209a80d86f2272fe478dbb62186426d4f0ecc75b3e4eb8cb5603889cbddd"
+    },
+    "asset-progress.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "assets.ts": {
+      "count": 7,
+      "sha256": "9b7053ff962ff6552f058b1ff95c860f052f6182487cc092a85e4919dda20d44"
+    },
+    "auth.ts": {
+      "count": 13,
+      "sha256": "31a872d064e6cca5b0fca97d6499c882f4b1caa462699b62a8027698871ac364"
+    },
+    "backend.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "bin-path.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "change-evidence.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "changes.ts": {
+      "count": 4,
+      "sha256": "5ed4819e8e9d79eedb06bc2e2c687d8f3a82b14f9741897ad51484842aa78eca"
+    },
+    "client-start.ts": {
+      "count": 3,
+      "sha256": "e663f86e6be1814dc3f39bc65925f56630427b4e0cff9e6b084d50969c5b84b4"
+    },
+    "client.ts": {
+      "count": 67,
+      "sha256": "d2c590c657e60538c97df8993c64e01ac88cb5f8ac56c7a9b8787f62b156482d"
+    },
+    "clock.ts": {
+      "count": 7,
+      "sha256": "062cb811c76325409b0d4f3259f9d71891a4f0ebe97807bd0127a519834a4f16"
+    },
+    "closing-responses.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "contract.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "default-fetch.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "delivery-acceptance.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "delivery-state.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "delivery.ts": {
+      "count": 17,
+      "sha256": "fe177384382bb94b23f0dba5b3781e3b0feeedc79fa6546ae8168990917e7480"
+    },
+    "device-control.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "device-restore.ts": {
+      "count": 1,
+      "sha256": "43c653c4a364e5dfdd235051baa3b0763ce5ef7c52f2a2ad391d6740e3ebb1e8"
+    },
+    "device-version.ts": {
+      "count": 3,
+      "sha256": "fb5f3b34fb9ebd9cccc7d7d5c2f9427de3cec2d35a5348311b54326696ec3065"
+    },
+    "ephemeral-reads.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "ephemeral.ts": {
+      "count": 4,
+      "sha256": "f40c7e093c24eaa1b019878b879217c8dec3b238869f352e725174423b683d64"
+    },
+    "files.ts": {
+      "count": 1,
+      "sha256": "49443867bad6f6b8e6d5dcad0b997544cb9889744bb0b66b16d4c75033cde9c6"
+    },
+    "following-transport.ts": {
+      "count": 3,
+      "sha256": "622640e9ba2b6396be28d502458a0f2b88d83fd45515cc608912b26b6d361983"
+    },
+    "following.ts": {
+      "count": 6,
+      "sha256": "6beee6a7be0073dfb38b0d11a4e2f734787334b71930d17482992d1ad7c8b439"
+    },
+    "http-response.ts": {
+      "count": 6,
+      "sha256": "9f3ec1e7c2b70598362b8d181ed156ba8074448dbad50cb5ec06e3fda78e3c68"
+    },
+    "identity-admission.ts": {
+      "count": 5,
+      "sha256": "4366709f302ab752345a5af92b059a8a59d81cda24a9d88182b4d85067a617e8"
+    },
+    "identity-principal.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "identity-runtime.ts": {
+      "count": 5,
+      "sha256": "5e3351c64b9406fe9d69c26feeb95a7f6ac85037ac423ae844d6d15e934c8240"
+    },
+    "identity.ts": {
+      "count": 23,
+      "sha256": "ab01caa5cb87fb14e7aab424a342319594c4dbb262369cbaac5e0c853b51ea10"
+    },
+    "inspection.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "journal-changes.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "local-assets.ts": {
+      "count": 33,
+      "sha256": "e9c1fe6cf35f18a0946bc0b92d2b0076a61ef2c2d2a247252c93a7f8afcb3b0f"
+    },
+    "local-backend.ts": {
+      "count": 3,
+      "sha256": "b1358045302a2786e93bd9d3849bfb4e053e05f9258dfe28c908f0c16e506219"
+    },
+    "local-delivery.ts": {
+      "count": 23,
+      "sha256": "369b9d1350f8224b14832b4bc1b7b7aa8616cf029d87cae16c2039e13cac685a"
+    },
+    "local-device.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "local-exit-settlement.ts": {
+      "count": 2,
+      "sha256": "f46b0b6f99c8a601adfe2077cf8ffcc22d59c32263987d4656f7a7a45ee58bbe"
+    },
+    "local-exit.ts": {
+      "count": 3,
+      "sha256": "20bfb19c94cb1c29e283b0842c02267ba266c62b285449d61dfd5630da4d0f52"
+    },
+    "local-following.ts": {
+      "count": 5,
+      "sha256": "314181942696d807f2c9a40a67447afbcbcb63d09c39e54e304f1b012ecd97f4"
+    },
+    "local-native.ts": {
+      "count": 5,
+      "sha256": "d3a4d7a52d5e1659b18148b60132ab3cad4234b68e9f748b78719f8299214815"
+    },
+    "local-network.ts": {
+      "count": 1,
+      "sha256": "52326ae28f2371885ba0b1e30113b8af8d954416347dad743061822b0d427692"
+    },
+    "local-publication.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "local-query.ts": {
+      "count": 36,
+      "sha256": "6b451a2d2b6c4ca88276465601a36fec767fe46abf538b1ff9181e4e1f262cf0"
+    },
+    "local-read-deadlines.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "local-reads.ts": {
+      "count": 1,
+      "sha256": "de47abe7ed6ee282cbfc0c5213049dd0031f0b19322e9fe8ce3bf7dbf7b92a2c"
+    },
+    "local-receipts.ts": {
+      "count": 19,
+      "sha256": "98e81b56db8b6a790afbff4954478f5f413c6b0097222c66828250a2c36de554"
+    },
+    "local-search.ts": {
+      "count": 10,
+      "sha256": "2d56f70d07082c58803b3da4b0b4446ef1e0e2b0299c3a9f63ebd4272ff46b27"
+    },
+    "local-sync.ts": {
+      "count": 5,
+      "sha256": "cb8e11d2f7ce28d8ca6dbc6e81bb0da5a457b0eeb57df8c03b2c76bdf88fc49a"
+    },
+    "local-through.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "local-types.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "local-upload.ts": {
+      "count": 5,
+      "sha256": "323f28ced6d00a468c7ea24a7da419b0dc4ebb22e6314cae1ca87ffce1bbaf71"
+    },
+    "local.ts": {
+      "count": 167,
+      "sha256": "eb470e1ff73b98c7c8b05acdfc7c1af839356b783c605c418b8cdcc0c2fbce9a"
+    },
+    "mock-ephemeral.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "mock.ts": {
+      "count": 6,
+      "sha256": "cd31d210780e4dde9e1aeb744c38084f76e43877abec5a2763938f3b4eddcf6d"
+    },
+    "native.ts": {
+      "count": 14,
+      "sha256": "7cdd2b46d60fc49bfd9b16f61e5b281a35f8febec19505027e8b1c1d644bc54b"
+    },
+    "node-fetch.ts": {
+      "count": 2,
+      "sha256": "71d0a4b9faaca565a318a4089b47a811d185a82eb67872da9c2ec2c2ee723916"
+    },
+    "observation-work.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "observe-watch.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "online-arm-fence.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "online-capture.ts": {
+      "count": 1,
+      "sha256": "10ef8fdb40b18a20f534f657e64e170cea5ded6eee65a1bf0552b99fb9f56875"
+    },
+    "online-delivery.ts": {
+      "count": 4,
+      "sha256": "6c8304f2530c9c402efc35239278c27f952be03b80b77fbabc81400ee325f2e4"
+    },
+    "online-dispatch.ts": {
+      "count": 1,
+      "sha256": "e6c6828a456c1d93886e526a7bc13a0f9944a4aa461382f065656e32e42c8406"
+    },
+    "pending-items.ts": {
+      "count": 3,
+      "sha256": "b549ce4e8268976bea3ef5beb2fcbd3577244c5d0f5f52012aa81ae368d33691"
+    },
+    "pending-writes.ts": {
+      "count": 10,
+      "sha256": "c01d85a90728ad10a4f890f21aa1d169934271c988508773ff033abf9c5dfbc5"
+    },
+    "presence-refresh.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "proof-guard.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "proof-host.ts": {
+      "count": 7,
+      "sha256": "02eb293783956fc30045f3fa71c0ab786337ca2acdc355bb7edf6ef239efd24b"
+    },
+    "proof-process.ts": {
+      "count": 6,
+      "sha256": "5b7cdcfd62f5dcf4a6f41dc9d59fec7e5a7e364582c01189c4723b860518e93f"
+    },
+    "proof.ts": {
+      "count": 29,
+      "sha256": "23bfa84e4f70369084db6afa929a4f42634723b1ae2c74957ab09bad2c00c0a2"
+    },
+    "query-custody.ts": {
+      "count": 1,
+      "sha256": "c8a795b4cf3c5f622500bca28e008a254ab73ac03b924d8a0fbd3fd40a261946"
+    },
+    "query-dependencies.ts": {
+      "count": 2,
+      "sha256": "e1d590e6522d4b79844f0c56556e75da65d220016dbd311324710b6e45b19543"
+    },
+    "query-settlement.ts": {
+      "count": 5,
+      "sha256": "36acdda69cf8b7c339ea17beebe707093a360bd0322d6c396bfc33c8fa82f6d4"
+    },
+    "react-pages.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "react-pending-items.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "react-pending-writes.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "read-approval.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "read-decoration.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "read-episode.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "read-existence.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "read-expiry.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "read-key.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "read-notifications.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "read-observation.ts": {
+      "count": 3,
+      "sha256": "2b8542cc2c44eba20a1ba57d01ddfb2257ae6b799dc80aaf8d1b45faf46b4944"
+    },
+    "read-only.ts": {
+      "count": 2,
+      "sha256": "e4ae79b53eda509b55659ccf3f74d67c18aebb72ab5aaa4578f338a5167052ca"
+    },
+    "read-token.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "read-work.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "receipt-family.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "request-wait.ts": {
+      "count": 3,
+      "sha256": "21609adfe43ee6490b45bc325e5c24425b157a455054c90e3d6241c864598cdd"
+    },
+    "residency.ts": {
+      "count": 1,
+      "sha256": "1dbb50bed81ee96f5aa4307a742688c6c531e5d663add8b81c55ea974261a28f"
+    },
+    "resolve-binary.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "seen-progress.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "server-context.ts": {
+      "count": 5,
+      "sha256": "95acc6b00e6f42e810572a53bd3681c1259c36c987bef43ec4ac2a2291dd6deb"
+    },
+    "server-effect-context.ts": {
+      "count": 5,
+      "sha256": "869f405cca55335e733609073083d8f5ee5f7bed6525aab5baec58f6dddfca82"
+    },
+    "server-json.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "server-lifetime.ts": {
+      "count": 4,
+      "sha256": "0ec5b1ca40b7d10b05189c4e5f6cd011437f0ce154f453ae0e0511a6fdfb43ce"
+    },
+    "server-private.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "server-routes.ts": {
+      "count": 2,
+      "sha256": "bd246f4eccb439c35840c42b1fd206414ac23bf36b22c86d3721b746a4b0e54d"
+    },
+    "server-steps.ts": {
+      "count": 6,
+      "sha256": "be11818f8c39006292d9c98f30bdc797b0adcdff4a5129f22af810942cf23c49"
+    },
+    "server-verify.ts": {
+      "count": 8,
+      "sha256": "9e306976d5b251994d0ba7710419ddff4b405b20df51f6a9bdfb793c142fbf52"
+    },
+    "server.ts": {
+      "count": 5,
+      "sha256": "8cf239976c3ea04d0420956220e473d322e704db2a0a1c971665ce51bab5f297"
+    },
+    "session-authority.ts": {
+      "count": 10,
+      "sha256": "ce9b51a4b54dd5b465c2a96214ca5992e0bb411d61457a1a1b9d55314ea792d3"
+    },
+    "session-refusal.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "sha256.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "uploads.ts": {
+      "count": 27,
+      "sha256": "3b82c51ae2fa53e5d14e4856bbd4d018ca6136645db8d0d27ecaeefcb626aa0e"
+    },
+    "utf8-size.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "wasm/snapback4_device.d.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "wasm/snapback4_device_bg.wasm.d.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "web-drain.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "web-idb-buckets.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "web-idb-pages.ts": {
+      "count": 3,
+      "sha256": "e3b802d95b865fec2440760f59bf88802bfae0ada8f9cbbe6e065930fdb37fbe"
+    },
+    "web-idb.ts": {
+      "count": 16,
+      "sha256": "0a0da37553cc7a3cb65a6dcfb687d1155bc32381e38e74232b4346567b902e13"
+    },
+    "web-journal-execution.ts": {
+      "count": 1,
+      "sha256": "d627b3f698fc1aeb75cd501acad48ea1797f3d18bc6b34bc4b86df2c799b3a3b"
+    },
+    "web-journal.ts": {
+      "count": 12,
+      "sha256": "08b580d8a7b91fc5e534da233e5361364d87c34b77890caca8b03249ba9a6a20"
+    },
+    "web-ownership.ts": {
+      "count": 10,
+      "sha256": "9a8f15675ff83eb15e5a199d962a242d32aded0731bcd7256b8d4a6f6961092c"
+    },
+    "web-receipts.ts": {
+      "count": 8,
+      "sha256": "d2f9a61a39cda75498922695a3a15c167dbfe0f855de4a97c9300336545130c5"
+    },
+    "web-residency.ts": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "web-upload-admission.ts": {
+      "count": 8,
+      "sha256": "76455858ae3e67573d23d6158d81ae92c2f2617d6747602fe3a3ac0673d9eca6"
+    },
+    "web-wasm.ts": {
+      "count": 13,
+      "sha256": "c9a498d4db8b4a55ea890d900384c89b8a1abbe10894078cb9a6d50757d7c570"
+    },
+    "web-worker-device.ts": {
+      "count": 39,
+      "sha256": "44b582042c1eaebfee68d04cc8167ea07f45203e82d2a6d2f0656a5b88778eb0"
+    },
+    "web-worker-host.ts": {
+      "count": 28,
+      "sha256": "e7353205a3cb168e13b5dc7f56a7fe404a89ca948dc6ac7e38228d899ede368c"
+    },
+    "web-worker-orphans.ts": {
+      "count": 32,
+      "sha256": "89fc54f5e823c91bb17a8cec51af58cb5b4e72220392e685855c23405e84205f"
+    },
+    "web-worker-runtime.ts": {
+      "count": 7,
+      "sha256": "4fc467da31656923f53f38f33be58dc2fb83a899eb2fbd5a2431b2ad60145f79"
+    },
+    "web-worker-suspend.ts": {
+      "count": 6,
+      "sha256": "0aa6f12e35330fa59a4bc004c825ed193e76f0f80c166367f0a6e0bfbc46718f"
+    },
+    "web.ts": {
+      "count": 56,
+      "sha256": "9bb04329d983701a1907eeb3c0d2852716cfe7f5cdca39bfc347e63776b16af0"
+    },
+    "witness-web.ts": {
+      "count": 3,
+      "sha256": "b50ed1c62dc12414b8ddffbc3abfcddaa21212f951c56d62abfe4f878b8f8be6"
+    },
+    "worker-ledger.ts": {
+      "count": 6,
+      "sha256": "c7e2ab494bcb18a4d0f44dbd499bd18681baa53506d14b3c097818fe8c99769f"
+    },
+    "worker.ts": {
+      "count": 40,
+      "sha256": "a6eae732b03a25ae5889d80e2f30fd6bb79fe73039ec02034f43c81c1b1cf82a"
+    },
+    "write-settlement.ts": {
+      "count": 2,
+      "sha256": "84d1f76b664d14b82a626b86ab0023730cc64511afe0dfdec89fe86bd5a054c8"
+    },
+    "writes.ts": {
+      "count": 11,
+      "sha256": "142db680b19ca90aabbde76382cbca70a8465ea574762bd98bc070eb307c66ff"
+    }
+  },
+  "delivery": [
+    {
+      "id": "local.ts:read:call({ op: \"meta\", key: \"write-history\" })#1",
+      "file": "local.ts",
+      "owner": "read",
+      "expression": "call({ op: \"meta\", key: \"write-history\" })",
+      "line": 156,
+      "start": 11197,
+      "end": 11245
+    },
+    {
+      "id": "local.ts:lookup:call({ op: \"meta\", key: \"write-history\", lookup: true })#1",
+      "file": "local.ts",
+      "owner": "lookup",
+      "expression": "call({ op: \"meta\", key: \"write-history\", lookup: true })",
+      "line": 157,
+      "start": 11293,
+      "end": 11355
+    },
+    {
+      "id": "local.ts:save:terminalDeviceCall(committed => call({ op: \"keep_write\", value }, undefined, committed), () => {})#1",
+      "file": "local.ts",
+      "owner": "save",
+      "expression": "terminalDeviceCall(committed => call({ op: \"keep_write\", value }, undefined, committed), () => {})",
+      "line": 159,
+      "start": 11425,
+      "end": 11529
+    },
+    {
+      "id": "local.ts:refreshAcquired:call({ op: \"sync_state\", capture: false })#1",
+      "file": "local.ts",
+      "owner": "refreshAcquired",
+      "expression": "call({ op: \"sync_state\", capture: false })",
+      "line": 215,
+      "start": 15541,
+      "end": 15589
+    },
+    {
+      "id": "local.ts:captureStore:call({ op: \"sync_state\", capture: false })#1",
+      "file": "local.ts",
+      "owner": "captureStore",
+      "expression": "call({ op: \"sync_state\", capture: false })",
+      "line": 282,
+      "start": 19485,
+      "end": 19533
+    },
+    {
+      "id": "local.ts:call:history.persistPending()#1",
+      "file": "local.ts",
+      "owner": "call",
+      "expression": "history.persistPending()",
+      "line": 289,
+      "start": 20098,
+      "end": 20128
+    },
+    {
+      "id": "local.ts:call:work#1",
+      "file": "local.ts",
+      "owner": "call",
+      "expression": "work",
+      "line": 331,
+      "start": 24377,
+      "end": 24387
+    },
+    {
+      "id": "local.ts:call:media?.reconcile( [\"apply\", \"admit\", \"settle\"].includes(String(request.op)) ? (result.ok as { touched?: string[] } | undefined)?.touched : undefined)#1",
+      "file": "local.ts",
+      "owner": "call",
+      "expression": "media?.reconcile( [\"apply\", \"admit\", \"settle\"].includes(String(request.op)) ? (result.ok as { touched?: string[] } | undefined)?.touched : undefined)",
+      "line": 335,
+      "start": 24797,
+      "end": 24960
+    },
+    {
+      "id": "local.ts:sendPost:captureStore()#1",
+      "file": "local.ts",
+      "owner": "sendPost",
+      "expression": "captureStore()",
+      "line": 517,
+      "start": 34697,
+      "end": 34717
+    },
+    {
+      "id": "local.ts:sendPost:withReadSignal(path.startsWith(\"/q/\") ? version.signal : undefined, eph?.signal ?? aborter.signal, lifetime => withReadSignal(signal, lifetime, stopped => postForCaller(doFetch, base, path, request.headers, body, stopped, (json, status) => captured?.capture(json, status), decode, () => !versionBlocked())))#1",
+      "file": "local.ts",
+      "owner": "sendPost",
+      "expression": "withReadSignal(path.startsWith(\"/q/\") ? version.signal : undefined, eph?.signal ?? aborter.signal, lifetime => withReadSignal(signal, lifetime, stopped => postForCaller(doFetch, base, path, request.headers, body, stopped, (json, status) => captured?.capture(json, status), decode, () => !versionBlocked())))",
+      "line": 520,
+      "start": 34912,
+      "end": 35225
+    },
+    {
+      "id": "local.ts:sendPost:holds.record((body as { id: string }).id, why.code)#1",
+      "file": "local.ts",
+      "owner": "sendPost",
+      "expression": "holds.record((body as { id: string }).id, why.code)",
+      "line": 526,
+      "start": 35767,
+      "end": 35824
+    },
+    {
+      "id": "local.ts:sendPost:refusedSession(denied, request.revision)#1",
+      "file": "local.ts",
+      "owner": "sendPost",
+      "expression": "refusedSession(denied, request.revision)",
+      "line": 533,
+      "start": 36315,
+      "end": 36361
+    },
+    {
+      "id": "local.ts:sendPost:searchReplyIdentity(capture, json, generation, witnessRestore)#1",
+      "file": "local.ts",
+      "owner": "sendPost",
+      "expression": "searchReplyIdentity(capture, json, generation, witnessRestore)",
+      "line": 544,
+      "start": 37168,
+      "end": 37236
+    },
+    {
+      "id": "local.ts:syncRound:history.persistPending()#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "history.persistPending()",
+      "line": 566,
+      "start": 38305,
+      "end": 38335
+    },
+    {
+      "id": "local.ts:syncRound:call({ op: \"state\" })#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "call({ op: \"state\" })",
+      "line": 567,
+      "start": 38396,
+      "end": 38423
+    },
+    {
+      "id": "local.ts:syncRound:call({ op: \"sync_state\" })#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "call({ op: \"sync_state\" })",
+      "line": 585,
+      "start": 39203,
+      "end": 39235
+    },
+    {
+      "id": "local.ts:syncRound:withReadSignal(version.signal, aborter.signal, signal => readWithAdmissionRetry(() => fetchSync(`${base}/sync`, { method: \"POST\", headers: request.headers, signal }, { generation: capturedGeneration, from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}) }), () => !closed && !sessionDead && !versionBlocked() && request.revision === credentialRevision, signal))#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "withReadSignal(version.signal, aborter.signal, signal => readWithAdmissionRetry(() => fetchSync(`${base}/sync`, { method: \"POST\", headers: request.headers, signal }, { generation: capturedGeneration, from: watermark, limit: pageLimit, after: after ?? null, stream: !snapshotRequest && (catchingUp || (after === undefined && publicationOutstanding)), pending, ...(requestedStore ? { store_id: requestedStore } : {}) }), () => !closed && !sessionDead && !versionBlocked() && request.revision === credentialRevision, signal))",
+      "line": 600,
+      "start": 40865,
+      "end": 41393
+    },
+    {
+      "id": "local.ts:syncRound:refusePartition(denied, pageRevision)#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "refusePartition(denied, pageRevision)",
+      "line": 629,
+      "start": 43222,
+      "end": 43265
+    },
+    {
+      "id": "local.ts:syncRound:call({ op: \"observe_store\", page: denied ? { ...page, snapshot: false, events: [], more: true, ...(generationChanged ? { images_at: page.watermark } : {}) } : page })#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "call({ op: \"observe_store\", page: denied ? { ...page, snapshot: false, events: [], more: true, ...(generationChanged ? { images_at: page.watermark } : {}) } : page })",
+      "line": 641,
+      "start": 44086,
+      "end": 44270
+    },
+    {
+      "id": "local.ts:syncRound:call({ op: \"sync_state\", capture: false })#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "call({ op: \"sync_state\", capture: false })",
+      "line": 655,
+      "start": 45279,
+      "end": 45327
+    },
+    {
+      "id": "local.ts:syncRound:call({ op: \"set_meta\", key: \"syncedAt:wall:1\", value: \"0\" })#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "call({ op: \"set_meta\", key: \"syncedAt:wall:1\", value: \"0\" })",
+      "line": 660,
+      "start": 45692,
+      "end": 45758
+    },
+    {
+      "id": "local.ts:syncRound:withReadSignal(version.signal, aborter.signal, signal => loadBackend(doFetch, base, request.headers, signal))#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "withReadSignal(version.signal, aborter.signal, signal => loadBackend(doFetch, base, request.headers, signal))",
+      "line": 676,
+      "start": 46696,
+      "end": 46811
+    },
+    {
+      "id": "local.ts:syncRound:call({ op: \"adopt\", backend: nextBackend, store_id: publishedStore ?? null, send_revision: page.send_revision, adoption_capture: adoptionCapture })#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "call({ op: \"adopt\", backend: nextBackend, store_id: publishedStore ?? null, send_revision: page.send_revision, adoption_capture: adoptionCapture })",
+      "line": 678,
+      "start": 46980,
+      "end": 47133
+    },
+    {
+      "id": "local.ts:syncRound:refreshAcquired(true)#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "refreshAcquired(true)",
+      "line": 686,
+      "start": 47550,
+      "end": 47577
+    },
+    {
+      "id": "local.ts:syncRound:installNative(aborter.signal)#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "installNative(aborter.signal)",
+      "line": 687,
+      "start": 47605,
+      "end": 47640
+    },
+    {
+      "id": "local.ts:syncRound:refusedSession(error.denied, backendRevision)#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "refusedSession(error.denied, backendRevision)",
+      "line": 690,
+      "start": 47819,
+      "end": 47870
+    },
+    {
+      "id": "local.ts:syncRound:refusePartition(denied, pageRevision)#2",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "refusePartition(denied, pageRevision)",
+      "line": 707,
+      "start": 48569,
+      "end": 48612
+    },
+    {
+      "id": "local.ts:syncRound:call({ op: \"apply\", page, first: !catchingUp && after === undefined }, touched)#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "call({ op: \"apply\", page, first: !catchingUp && after === undefined }, touched)",
+      "line": 714,
+      "start": 48953,
+      "end": 49038
+    },
+    {
+      "id": "local.ts:syncRound:call({ op: \"sync_state\", capture: false })#2",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "call({ op: \"sync_state\", capture: false })",
+      "line": 722,
+      "start": 49558,
+      "end": 49606
+    },
+    {
+      "id": "local.ts:syncRound:refreshAcquired()#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "refreshAcquired()",
+      "line": 745,
+      "start": 50807,
+      "end": 50830
+    },
+    {
+      "id": "local.ts:syncRound:call({ op: \"set_meta\", key: \"syncedAt:wall:1\", value: String(lastSyncAt) })#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "call({ op: \"set_meta\", key: \"syncedAt:wall:1\", value: String(lastSyncAt) })",
+      "line": 747,
+      "start": 50886,
+      "end": 50967
+    },
+    {
+      "id": "local.ts:syncRound:queued()#1",
+      "file": "local.ts",
+      "owner": "syncRound",
+      "expression": "queued()",
+      "line": 748,
+      "start": 50975,
+      "end": 50989
+    },
+    {
+      "id": "local.ts:probe:captureStore()#1",
+      "file": "local.ts",
+      "owner": "probe",
+      "expression": "captureStore()",
+      "line": 774,
+      "start": 52537,
+      "end": 52557
+    },
+    {
+      "id": "local.ts:probe:doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal })#1",
+      "file": "local.ts",
+      "owner": "probe",
+      "expression": "doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal })",
+      "line": 776,
+      "start": 52630,
+      "end": 52714
+    },
+    {
+      "id": "local.ts:probe:readResponse(response)#1",
+      "file": "local.ts",
+      "owner": "probe",
+      "expression": "readResponse(response)",
+      "line": 777,
+      "start": 52735,
+      "end": 52763
+    },
+    {
+      "id": "local.ts:probe:refusedSession(json.denied ?? json.why, request.revision)#1",
+      "file": "local.ts",
+      "owner": "probe",
+      "expression": "refusedSession(json.denied ?? json.why, request.revision)",
+      "line": 779,
+      "start": 52817,
+      "end": 52880
+    },
+    {
+      "id": "local.ts:probe:pauseRefusal(response, { ...denied, retryable: true }, aborter.signal)#1",
+      "file": "local.ts",
+      "owner": "probe",
+      "expression": "pauseRefusal(response, { ...denied, retryable: true }, aborter.signal)",
+      "line": 783,
+      "start": 53126,
+      "end": 53202
+    },
+    {
+      "id": "local.ts:probe:witnessRestore(json.store_id, json.seq, capture)#1",
+      "file": "local.ts",
+      "owner": "probe",
+      "expression": "witnessRestore(json.store_id, json.seq, capture)",
+      "line": 787,
+      "start": 53507,
+      "end": 53561
+    },
+    {
+      "id": "local.ts:waitForChange:new Promise((r) => setTimeout(r, 1000))#1",
+      "file": "local.ts",
+      "owner": "waitForChange",
+      "expression": "new Promise((r) => setTimeout(r, 1000))",
+      "line": 798,
+      "start": 54296,
+      "end": 54341
+    },
+    {
+      "id": "local.ts:waitForChange:probe()#1",
+      "file": "local.ts",
+      "owner": "waitForChange",
+      "expression": "probe()",
+      "line": 799,
+      "start": 54378,
+      "end": 54391
+    },
+    {
+      "id": "local.ts:waitForChange:probe()#2",
+      "file": "local.ts",
+      "owner": "waitForChange",
+      "expression": "probe()",
+      "line": 802,
+      "start": 54447,
+      "end": 54460
+    },
+    {
+      "id": "local.ts:waitForChange:captureStore()#1",
+      "file": "local.ts",
+      "owner": "waitForChange",
+      "expression": "captureStore()",
+      "line": 807,
+      "start": 54649,
+      "end": 54669
+    },
+    {
+      "id": "local.ts:waitForChange:withReadSignal(version.signal, eph.signal, signal => changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, Object.values(backend!.schema.tables).some(table => table.ephemeral) ? ephemeralReads.parameters() : undefined, signal))#1",
+      "file": "local.ts",
+      "owner": "waitForChange",
+      "expression": "withReadSignal(version.signal, eph.signal, signal => changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, Object.values(backend!.schema.tables).some(table => table.ephemeral) ? ephemeralReads.parameters() : undefined, signal))",
+      "line": 809,
+      "start": 54758,
+      "end": 55009
+    },
+    {
+      "id": "local.ts:waitForChange:refusedSession(json.denied, request.revision)#1",
+      "file": "local.ts",
+      "owner": "waitForChange",
+      "expression": "refusedSession(json.denied, request.revision)",
+      "line": 813,
+      "start": 55222,
+      "end": 55273
+    },
+    {
+      "id": "local.ts:waitForChange:pauseRefusal(response, json.denied, aborter.signal)#1",
+      "file": "local.ts",
+      "owner": "waitForChange",
+      "expression": "pauseRefusal(response, json.denied, aborter.signal)",
+      "line": 815,
+      "start": 55371,
+      "end": 55428
+    },
+    {
+      "id": "local.ts:waitForChange:witnessRestore(json.store_id, json.seq, capture)#1",
+      "file": "local.ts",
+      "owner": "waitForChange",
+      "expression": "witnessRestore(json.store_id, json.seq, capture)",
+      "line": 823,
+      "start": 56044,
+      "end": 56098
+    },
+    {
+      "id": "local.ts:waitForChange:new Promise((r) => setTimeout(r, 1000))#2",
+      "file": "local.ts",
+      "owner": "waitForChange",
+      "expression": "new Promise((r) => setTimeout(r, 1000))",
+      "line": 841,
+      "start": 57340,
+      "end": 57385
+    },
+    {
+      "id": "local.ts:follow:waitForChange()#1",
+      "file": "local.ts",
+      "owner": "follow",
+      "expression": "waitForChange()",
+      "line": 850,
+      "start": 57695,
+      "end": 57716
+    },
+    {
+      "id": "local.ts:follow:network.once()#1",
+      "file": "local.ts",
+      "owner": "follow",
+      "expression": "network.once()",
+      "line": 853,
+      "start": 57781,
+      "end": 57801
+    },
+    {
+      "id": "local.ts:follow:new Promise((r) => setTimeout(r, 1000))#1",
+      "file": "local.ts",
+      "owner": "follow",
+      "expression": "new Promise((r) => setTimeout(r, 1000))",
+      "line": 858,
+      "start": 57904,
+      "end": 57949
+    },
+    {
+      "id": "local.ts:flush:flushOnce()#1",
+      "file": "local.ts",
+      "owner": "flush",
+      "expression": "flushOnce()",
+      "line": 1062,
+      "start": 73051,
+      "end": 73068
+    },
+    {
+      "id": "local.ts:flushOnce:exitDone#1",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "exitDone",
+      "line": 1080,
+      "start": 74038,
+      "end": 74052
+    },
+    {
+      "id": "local.ts:flushOnce:media?.reconcile()#1",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "media?.reconcile()",
+      "line": 1082,
+      "start": 74175,
+      "end": 74199
+    },
+    {
+      "id": "local.ts:flushOnce:exitDone#2",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "exitDone",
+      "line": 1084,
+      "start": 74322,
+      "end": 74336
+    },
+    {
+      "id": "local.ts:flushOnce:deliverAcknowledgedReceipt(history, receiptCall, entry, success, completeWrite)#1",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "deliverAcknowledgedReceipt(history, receiptCall, entry, success, completeWrite)",
+      "line": 1088,
+      "start": 74473,
+      "end": 74558
+    },
+    {
+      "id": "local.ts:flushOnce:queued().catch(() => { retryFlush(); return undefined; })#1",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "queued().catch(() => { retryFlush(); return undefined; })",
+      "line": 1090,
+      "start": 74758,
+      "end": 74821
+    },
+    {
+      "id": "local.ts:flushOnce:network.once()#1",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "network.once()",
+      "line": 1090,
+      "start": 74864,
+      "end": 74884
+    },
+    {
+      "id": "local.ts:flushOnce:network.run(async () => { await exitDone; if (closed || sessionDead) return { ok: false as const }; let current = (await queued()).find(current => current.id === entry.id); if (!current) return { ok: true as const, retired: true as const }; if (settling.has(entry.id)) return { ok: false as const }; settling.add(entry.id); ownsSettlement = true; const known = await recoverReceipt(history, receiptCall, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; const binding = entry.receipt_store?.id ?? entry.store_id ?? storeIdentity; if (!binding) return { ok: false as const }; try { const prepared = await uploads.prepare(current); if (!prepared) return { ok: false as const }; if (\"cancelled\" in prepared) { const why = { code: \"E_UPLOAD_CANCELLED\", family: \"asset\", message: \"upload-and-place intent cancelled before placement dispatch\" }; await settleReceipt(history, receiptCall, { state: \"failed\", id: entry.id, why }, undefined, binding); return { ok: true as const, json: { state: \"failed\", why }, obsoleteAuth: false }; } current = prepared.entry; const revision = credentialRevision; const started = await call({ op: \"begin_send\", id: entry.id }); if (started.denied) return { ok: false as const }; const receipt = (started.ok as { receipt?: Exclude<Write, { state: \"pending\" }>; qualified?: boolean } | undefined)?.receipt; if (receipt) { const known = await recoverReceipt(history, receiptCall, entry.id, receipt.state === \"sent\" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; } if (closed || sessionDead || versionBlocked() || rotating || revision !== credentialRevision) return { ok: false as const }; ordinarySending = entry.id; let response = await post(`/m/${entry.op}`, { id: entry.id, args: current.args, newIds: current.new_ids, store_id: binding }, settled.get(entry.id)?.response); if (response.ok && current.upload && !response.obsoleteAuth) { const why = (response.json.why ?? response.json.denied) as Refusal | undefined; if (why && !why.retryable) { const receipt = await uploads.finish(current, why); if (!receipt) return { ok: false as const }; response = { ...response, json: receipt }; } } if (response.ok) { const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined; if (!response.obsoleteAuth && !why?.retryable && (json.state === \"sent\" || why)) { try { await settleReceipt(history, receiptCall, json.state === \"sent\" ? { state: \"sent\", id: entry.id, seq: Number(json.seq ?? 0), replayed: true } : { state: \"failed\", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined, binding); } catch { return { ...response, persistencePending: true }; } } } return response; } finally { ordinarySending = undefined; } })#1",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "network.run(async () => { await exitDone; if (closed || sessionDead) return { ok: false as const }; let current = (await queued()).find(current => current.id === entry.id); if (!current) return { ok: true as const, retired: true as const }; if (settling.has(entry.id)) return { ok: false as const }; settling.add(entry.id); ownsSettlement = true; const known = await recoverReceipt(history, receiptCall, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; const binding = entry.receipt_store?.id ?? entry.store_id ?? storeIdentity; if (!binding) return { ok: false as const }; try { const prepared = await uploads.prepare(current); if (!prepared) return { ok: false as const }; if (\"cancelled\" in prepared) { const why = { code: \"E_UPLOAD_CANCELLED\", family: \"asset\", message: \"upload-and-place intent cancelled before placement dispatch\" }; await settleReceipt(history, receiptCall, { state: \"failed\", id: entry.id, why }, undefined, binding); return { ok: true as const, json: { state: \"failed\", why }, obsoleteAuth: false }; } current = prepared.entry; const revision = credentialRevision; const started = await call({ op: \"begin_send\", id: entry.id }); if (started.denied) return { ok: false as const }; const receipt = (started.ok as { receipt?: Exclude<Write, { state: \"pending\" }>; qualified?: boolean } | undefined)?.receipt; if (receipt) { const known = await recoverReceipt(history, receiptCall, entry.id, receipt.state === \"sent\" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true); if (known) return { ok: true as const, json: { ...known }, obsoleteAuth: false }; } if (closed || sessionDead || versionBlocked() || rotating || revision !== credentialRevision) return { ok: false as const }; ordinarySending = entry.id; let response = await post(`/m/${entry.op}`, { id: entry.id, args: current.args, newIds: current.new_ids, store_id: binding }, settled.get(entry.id)?.response); if (response.ok && current.upload && !response.obsoleteAuth) { const why = (response.json.why ?? response.json.denied) as Refusal | undefined; if (why && !why.retryable) { const receipt = await uploads.finish(current, why); if (!receipt) return { ok: false as const }; response = { ...response, json: receipt }; } } if (response.ok) { const json = response.json, why = (json.why ?? json.denied) as Refusal | undefined; if (!response.obsoleteAuth && !why?.retryable && (json.state === \"sent\" || why)) { try { await settleReceipt(history, receiptCall, json.state === \"sent\" ? { state: \"sent\", id: entry.id, seq: Number(json.seq ?? 0), replayed: true } : { state: \"failed\", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined, binding); } catch { return { ...response, persistencePending: true }; } } } return response; } finally { ordinarySending = undefined; } })",
+      "line": 1095,
+      "start": 74981,
+      "end": 78559
+    },
+    {
+      "id": "local.ts:flushOnce:exitDone#3",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "exitDone",
+      "line": 1096,
+      "start": 75023,
+      "end": 75037
+    },
+    {
+      "id": "local.ts:flushOnce:queued()#1",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "queued()",
+      "line": 1098,
+      "start": 75132,
+      "end": 75146
+    },
+    {
+      "id": "local.ts:flushOnce:recoverReceipt(history, receiptCall, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null)#1",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "recoverReceipt(history, receiptCall, entry.id, current.sent_seq ?? current.observed_seq, successSequence(current) != null)",
+      "line": 1103,
+      "start": 75428,
+      "end": 75556
+    },
+    {
+      "id": "local.ts:flushOnce:uploads.prepare(current)#1",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "uploads.prepare(current)",
+      "line": 1108,
+      "start": 75836,
+      "end": 75866
+    },
+    {
+      "id": "local.ts:flushOnce:settleReceipt(history, receiptCall, { state: \"failed\", id: entry.id, why }, undefined, binding)#1",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "settleReceipt(history, receiptCall, { state: \"failed\", id: entry.id, why }, undefined, binding)",
+      "line": 1112,
+      "start": 76130,
+      "end": 76231
+    },
+    {
+      "id": "local.ts:flushOnce:call({ op: \"begin_send\", id: entry.id })#1",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "call({ op: \"begin_send\", id: entry.id })",
+      "line": 1117,
+      "start": 76459,
+      "end": 76505
+    },
+    {
+      "id": "local.ts:flushOnce:recoverReceipt(history, receiptCall, entry.id, receipt.state === \"sent\" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true)#1",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "recoverReceipt(history, receiptCall, entry.id, receipt.state === \"sent\" ? receipt.seq : undefined, (started.ok as { qualified?: boolean }).qualified === true)",
+      "line": 1120,
+      "start": 76749,
+      "end": 76913
+    },
+    {
+      "id": "local.ts:flushOnce:post(`/m/${entry.op}`, { id: entry.id, args: current.args, newIds: current.new_ids, store_id: binding }, settled.get(entry.id)?.response)#1",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "post(`/m/${entry.op}`, { id: entry.id, args: current.args, newIds: current.new_ids, store_id: binding }, settled.get(entry.id)?.response)",
+      "line": 1123,
+      "start": 77203,
+      "end": 77346
+    },
+    {
+      "id": "local.ts:flushOnce:uploads.finish(current, why)#1",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "uploads.finish(current, why)",
+      "line": 1127,
+      "start": 77592,
+      "end": 77626
+    },
+    {
+      "id": "local.ts:flushOnce:settleReceipt(history, receiptCall, json.state === \"sent\" ? { state: \"sent\", id: entry.id, seq: Number(json.seq ?? 0), replayed: true } : { state: \"failed\", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined, binding)#1",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "settleReceipt(history, receiptCall, json.state === \"sent\" ? { state: \"sent\", id: entry.id, seq: Number(json.seq ?? 0), replayed: true } : { state: \"failed\", id: entry.id, why: why! }, json.replayed === true && json.store_id === binding ? binding : undefined, binding)",
+      "line": 1136,
+      "start": 78044,
+      "end": 78357
+    },
+    {
+      "id": "local.ts:flushOnce:syncUnobserved()#1",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "syncUnobserved()",
+      "line": 1145,
+      "start": 78587,
+      "end": 78609
+    },
+    {
+      "id": "local.ts:flushOnce:syncUnobserved()#2",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "syncUnobserved()",
+      "line": 1149,
+      "start": 78870,
+      "end": 78892
+    },
+    {
+      "id": "local.ts:flushOnce:syncUnobserved(outcome.state === \"sent\")#1",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "syncUnobserved(outcome.state === \"sent\")",
+      "line": 1161,
+      "start": 79781,
+      "end": 79827
+    },
+    {
+      "id": "local.ts:flushOnce:syncUnobserved()#3",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "syncUnobserved()",
+      "line": 1165,
+      "start": 79973,
+      "end": 79995
+    },
+    {
+      "id": "local.ts:flushOnce:syncUnobserved()#4",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "syncUnobserved()",
+      "line": 1166,
+      "start": 80037,
+      "end": 80059
+    },
+    {
+      "id": "local.ts:flushOnce:syncUnobserved()#5",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "syncUnobserved()",
+      "line": 1169,
+      "start": 80160,
+      "end": 80182
+    },
+    {
+      "id": "local.ts:replayOnOpen:captureStore()#1",
+      "file": "local.ts",
+      "owner": "replayOnOpen",
+      "expression": "captureStore()",
+      "line": 1173,
+      "start": 80411,
+      "end": 80431
+    },
+    {
+      "id": "local.ts:replayOnOpen:doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal })#1",
+      "file": "local.ts",
+      "owner": "replayOnOpen",
+      "expression": "doFetch(`${base}/probe`, { headers: request.headers, signal: aborter.signal })",
+      "line": 1178,
+      "start": 80650,
+      "end": 80734
+    },
+    {
+      "id": "local.ts:replayOnOpen:response.json()#1",
+      "file": "local.ts",
+      "owner": "replayOnOpen",
+      "expression": "response.json()",
+      "line": 1181,
+      "start": 80885,
+      "end": 80906
+    },
+    {
+      "id": "local.ts:replayOnOpen:refusedSession(head.denied ?? head.why, request.revision)#1",
+      "file": "local.ts",
+      "owner": "replayOnOpen",
+      "expression": "refusedSession(head.denied ?? head.why, request.revision)",
+      "line": 1182,
+      "start": 80914,
+      "end": 80977
+    },
+    {
+      "id": "local.ts:replayOnOpen:witnessRestore(head.store_id, head.seq, capture)#1",
+      "file": "local.ts",
+      "owner": "replayOnOpen",
+      "expression": "witnessRestore(head.store_id, head.seq, capture)",
+      "line": 1184,
+      "start": 81115,
+      "end": 81169
+    },
+    {
+      "id": "local.ts:commit:history.read(write.id, true)#1",
+      "file": "local.ts",
+      "owner": "commit",
+      "expression": "history.read(write.id, true)",
+      "line": 1431,
+      "start": 97353,
+      "end": 97387
+    },
+    {
+      "id": "local.ts:commit:receiptCall({ op: \"settle_exit\", write })#1",
+      "file": "local.ts",
+      "owner": "commit",
+      "expression": "receiptCall({ op: \"settle_exit\", write })",
+      "line": 1433,
+      "start": 97475,
+      "end": 97522
+    },
+    {
+      "id": "local.ts:listenForExit:holds.record(entry.id, why.code)#1",
+      "file": "local.ts",
+      "owner": "listenForExit",
+      "expression": "holds.record(entry.id, why.code)",
+      "line": 1442,
+      "start": 97869,
+      "end": 97907
+    },
+    {
+      "id": "local-receipts.ts:settleReceipt:history.keep(write, revalidatedStore, dispatchStore)#1",
+      "file": "local-receipts.ts",
+      "owner": "settleReceipt",
+      "expression": "history.keep(write, revalidatedStore, dispatchStore)",
+      "line": 18,
+      "start": 1111,
+      "end": 1169
+    },
+    {
+      "id": "local-receipts.ts:settleReceipt:call({ op: \"settle\", id: write.id, ...(dispatchStore ? { store_id: dispatchStore } : {}), ...(write.state === \"sent\" ? { seq: write.seq } : {}) })#1",
+      "file": "local-receipts.ts",
+      "owner": "settleReceipt",
+      "expression": "call({ op: \"settle\", id: write.id, ...(dispatchStore ? { store_id: dispatchStore } : {}), ...(write.state === \"sent\" ? { seq: write.seq } : {}) })",
+      "line": 19,
+      "start": 1189,
+      "end": 1341
+    },
+    {
+      "id": "local-receipts.ts:receiptBatch:queued()#1",
+      "file": "local-receipts.ts",
+      "owner": "receiptBatch",
+      "expression": "queued()",
+      "line": 37,
+      "start": 2137,
+      "end": 2151
+    },
+    {
+      "id": "local-receipts.ts:deliverAcknowledgedReceipt:history.acknowledged(entry.id, seq, true)#1",
+      "file": "local-receipts.ts",
+      "owner": "deliverAcknowledgedReceipt",
+      "expression": "history.acknowledged(entry.id, seq, true)",
+      "line": 50,
+      "start": 2850,
+      "end": 2897
+    },
+    {
+      "id": "local-receipts.ts:deliverAcknowledgedReceipt:settleReceipt(history, call, receipt)#1",
+      "file": "local-receipts.ts",
+      "owner": "deliverAcknowledgedReceipt",
+      "expression": "settleReceipt(history, call, receipt)",
+      "line": 51,
+      "start": 2933,
+      "end": 2976
+    },
+    {
+      "id": "local-receipts.ts:syncSettledWrites:queued()#1",
+      "file": "local-receipts.ts",
+      "owner": "syncSettledWrites",
+      "expression": "queued()",
+      "line": 72,
+      "start": 3955,
+      "end": 3969
+    },
+    {
+      "id": "local-receipts.ts:syncSettledWrites:sync()#1",
+      "file": "local-receipts.ts",
+      "owner": "syncSettledWrites",
+      "expression": "sync()",
+      "line": 73,
+      "start": 4100,
+      "end": 4112
+    },
+    {
+      "id": "local-receipts.ts:recoverReceipt:history.read(id, true)#1",
+      "file": "local-receipts.ts",
+      "owner": "recoverReceipt",
+      "expression": "history.read(id, true)",
+      "line": 77,
+      "start": 4320,
+      "end": 4348
+    },
+    {
+      "id": "local-receipts.ts:recoverReceipt:history.acknowledged(id, observedSeq, qualified)#1",
+      "file": "local-receipts.ts",
+      "owner": "recoverReceipt",
+      "expression": "history.acknowledged(id, observedSeq, qualified)",
+      "line": 77,
+      "start": 4351,
+      "end": 4405
+    },
+    {
+      "id": "local-receipts.ts:recoverReceipt:settleReceipt(history, call, known)#1",
+      "file": "local-receipts.ts",
+      "owner": "recoverReceipt",
+      "expression": "settleReceipt(history, call, known)",
+      "line": 81,
+      "start": 4621,
+      "end": 4662
+    },
+    {
+      "id": "local-receipts.ts:lookupWrite:queued()#1",
+      "file": "local-receipts.ts",
+      "owner": "lookupWrite",
+      "expression": "queued()",
+      "line": 89,
+      "start": 5065,
+      "end": 5079
+    },
+    {
+      "id": "local-receipts.ts:lookupWrite:history.lookup(id)#1",
+      "file": "local-receipts.ts",
+      "owner": "lookupWrite",
+      "expression": "history.lookup(id)",
+      "line": 93,
+      "start": 5206,
+      "end": 5230
+    },
+    {
+      "id": "local-receipts.ts:lookupWrite:queued()#2",
+      "file": "local-receipts.ts",
+      "owner": "lookupWrite",
+      "expression": "queued()",
+      "line": 95,
+      "start": 5284,
+      "end": 5298
+    },
+    {
+      "id": "local-receipts.ts:lookupWrite:history.read(id)#1",
+      "file": "local-receipts.ts",
+      "owner": "lookupWrite",
+      "expression": "history.read(id)",
+      "line": 101,
+      "start": 5483,
+      "end": 5505
+    },
+    {
+      "id": "local-receipts.ts:lookupWrite:history.acknowledged(id, seq, successSequence(entry) != null).catch(() => history.read(id))#1",
+      "file": "local-receipts.ts",
+      "owner": "lookupWrite",
+      "expression": "history.acknowledged(id, seq, successSequence(entry) != null).catch(() => history.read(id))",
+      "line": 101,
+      "start": 5508,
+      "end": 5605
+    },
+    {
+      "id": "local-receipts.ts:terminalDeviceCall:call(reply => { durable = reply; })#1",
+      "file": "local-receipts.ts",
+      "owner": "terminalDeviceCall",
+      "expression": "call(reply => { durable = reply; })",
+      "line": 115,
+      "start": 6465,
+      "end": 6506
+    },
+    {
+      "id": "local-receipts.ts:readQueued:call({ op: \"queued\" })#1",
+      "file": "local-receipts.ts",
+      "owner": "readQueued",
+      "expression": "call({ op: \"queued\" })",
+      "line": 124,
+      "start": 6846,
+      "end": 6874
+    },
+    {
+      "id": "local-receipts.ts:resolveClosingWrites:queued().catch(() => [])#1",
+      "file": "local-receipts.ts",
+      "owner": "resolveClosingWrites",
+      "expression": "queued().catch(() => [])",
+      "line": 139,
+      "start": 7759,
+      "end": 7789
+    },
+    {
+      "id": "local-receipts.ts:resolveClosingWrites:(seq === undefined ? history.read(id) : history.acknowledged(id, seq, true)).catch(() => undefined)#1",
+      "file": "local-receipts.ts",
+      "owner": "resolveClosingWrites",
+      "expression": "(seq === undefined ? history.read(id) : history.acknowledged(id, seq, true)).catch(() => undefined)",
+      "line": 142,
+      "start": 7942,
+      "end": 8047
+    },
+    {
+      "id": "writes.ts:keep:this.storage.save(JSON.stringify({ ...receipt(write), ...(proof ? { revalidated_store: proof } : {}) }))#1",
+      "file": "writes.ts",
+      "owner": "keep",
+      "expression": "this.storage.save(JSON.stringify({ ...receipt(write), ...(proof ? { revalidated_store: proof } : {}) }))",
+      "line": 164,
+      "start": 8814,
+      "end": 8924
+    },
+    {
+      "id": "writes.ts:acknowledged:this.read(id, true)#1",
+      "file": "writes.ts",
+      "owner": "acknowledged",
+      "expression": "this.read(id, true)",
+      "line": 202,
+      "start": 10888,
+      "end": 10913
+    },
+    {
+      "id": "writes.ts:acknowledged:this.keep(sent)#1",
+      "file": "writes.ts",
+      "owner": "acknowledged",
+      "expression": "this.keep(sent)",
+      "line": 208,
+      "start": 11458,
+      "end": 11479
+    },
+    {
+      "id": "writes.ts:persistPending:this.keep(write)#1",
+      "file": "writes.ts",
+      "owner": "persistPending",
+      "expression": "this.keep(write)",
+      "line": 215,
+      "start": 11755,
+      "end": 11777
+    },
+    {
+      "id": "writes.ts:read:this.keep(known)#1",
+      "file": "writes.ts",
+      "owner": "read",
+      "expression": "this.keep(known)",
+      "line": 221,
+      "start": 11934,
+      "end": 11956
+    },
+    {
+      "id": "writes.ts:read:this.storage?.read()#1",
+      "file": "writes.ts",
+      "owner": "read",
+      "expression": "this.storage?.read()",
+      "line": 224,
+      "start": 12074,
+      "end": 12100
+    },
+    {
+      "id": "writes.ts:lookup:this.read(id)#1",
+      "file": "writes.ts",
+      "owner": "lookup",
+      "expression": "this.read(id)",
+      "line": 236,
+      "start": 12859,
+      "end": 12878
+    },
+    {
+      "id": "writes.ts:lookup:this.storage.lookup()#1",
+      "file": "writes.ts",
+      "owner": "lookup",
+      "expression": "this.storage.lookup()",
+      "line": 238,
+      "start": 13045,
+      "end": 13072
+    },
+    {
+      "id": "local-exit.ts:exitTransport:response.json()#1",
+      "file": "local-exit.ts",
+      "owner": "exitTransport",
+      "expression": "response.json()",
+      "line": 38,
+      "start": 2158,
+      "end": 2179
+    },
+    {
+      "id": "local-exit.ts:exitTransport:held?.(entry, why)#1",
+      "file": "local-exit.ts",
+      "owner": "exitTransport",
+      "expression": "held?.(entry, why)",
+      "line": 41,
+      "start": 2400,
+      "end": 2424
+    },
+    {
+      "id": "local-exit.ts:exitTransport:refused?.(entry, why)#1",
+      "file": "local-exit.ts",
+      "owner": "exitTransport",
+      "expression": "refused?.(entry, why)",
+      "line": 42,
+      "start": 2492,
+      "end": 2519
+    },
+    {
+      "id": "local-exit-settlement.ts:exitRefusalSettlement:options.commit(write)#1",
+      "file": "local-exit-settlement.ts",
+      "owner": "exitRefusalSettlement",
+      "expression": "options.commit(write)",
+      "line": 22,
+      "start": 963,
+      "end": 990
+    },
+    {
+      "id": "local-exit-settlement.ts:exitRefusalSettlement:work#1",
+      "file": "local-exit-settlement.ts",
+      "owner": "exitRefusalSettlement",
+      "expression": "work",
+      "line": 25,
+      "start": 1066,
+      "end": 1076
+    },
+    {
+      "id": "local-assets.ts:call:this.core.call(request)#1",
+      "file": "local-assets.ts",
+      "owner": "call",
+      "expression": "this.core.call(request)",
+      "line": 52,
+      "start": 2923,
+      "end": 2952
+    },
+    {
+      "id": "local-assets.ts:home:this.call({ op: \"asset_home\", id, home, viewer: this.viewer, now: this.now() })#1",
+      "file": "local-assets.ts",
+      "owner": "home",
+      "expression": "this.call({ op: \"asset_home\", id, home, viewer: this.viewer, now: this.now() })",
+      "line": 70,
+      "start": 3689,
+      "end": 3774
+    },
+    {
+      "id": "local-assets.ts:save:this.call({ op: \"set_meta\", key: \"media:manifest\", value: JSON.stringify([...this.entries.values()]) })#1",
+      "file": "local-assets.ts",
+      "owner": "save",
+      "expression": "this.call({ op: \"set_meta\", key: \"media:manifest\", value: JSON.stringify([...this.entries.values()]) })",
+      "line": 73,
+      "start": 3824,
+      "end": 3933
+    },
+    {
+      "id": "local-assets.ts:drop:this.store.remove(id)#1",
+      "file": "local-assets.ts",
+      "owner": "drop",
+      "expression": "this.store.remove(id)",
+      "line": 79,
+      "start": 4125,
+      "end": 4152
+    },
+    {
+      "id": "local-assets.ts:check:this.home(entry.id, entry.home)#1",
+      "file": "local-assets.ts",
+      "owner": "check",
+      "expression": "this.home(entry.id, entry.home)",
+      "line": 103,
+      "start": 5504,
+      "end": 5541
+    },
+    {
+      "id": "local-assets.ts:check:this.drop(entry.id)#1",
+      "file": "local-assets.ts",
+      "owner": "check",
+      "expression": "this.drop(entry.id)",
+      "line": 105,
+      "start": 5680,
+      "end": 5705
+    },
+    {
+      "id": "local-assets.ts:check:this.drop(entry.id)#2",
+      "file": "local-assets.ts",
+      "owner": "check",
+      "expression": "this.drop(entry.id)",
+      "line": 112,
+      "start": 5995,
+      "end": 6020
+    },
+    {
+      "id": "local-assets.ts:check:this.save()#1",
+      "file": "local-assets.ts",
+      "owner": "check",
+      "expression": "this.save()",
+      "line": 116,
+      "start": 6095,
+      "end": 6112
+    },
+    {
+      "id": "request-wait.ts:postForCaller:readWithAdmissionRetry(send, () => !stopped.aborted && current(), stopped, decode)#1",
+      "file": "request-wait.ts",
+      "owner": "postForCaller",
+      "expression": "readWithAdmissionRetry(send, () => !stopped.aborted && current(), stopped, decode)",
+      "line": 20,
+      "start": 1474,
+      "end": 1562
+    },
+    {
+      "id": "request-wait.ts:postForCaller:send().then(async response => ({ response, json: await readResponse(response, decode) }))#1",
+      "file": "request-wait.ts",
+      "owner": "postForCaller",
+      "expression": "send().then(async response => ({ response, json: await readResponse(response, decode) }))",
+      "line": 21,
+      "start": 1571,
+      "end": 1666
+    },
+    {
+      "id": "request-wait.ts:postForCaller:readResponse(response, decode)#1",
+      "file": "request-wait.ts",
+      "owner": "postForCaller",
+      "expression": "readResponse(response, decode)",
+      "line": 21,
+      "start": 1626,
+      "end": 1662
+    },
+    {
+      "id": "local-sync.ts:legacyInput:response.clone().json().catch(() => null)#1",
+      "file": "local-sync.ts",
+      "owner": "legacyInput",
+      "expression": "response.clone().json().catch(() => null)",
+      "line": 51,
+      "start": 2349,
+      "end": 2396
+    },
+    {
+      "id": "local-sync.ts:syncTransport:doFetch(url, { ...init, body: JSON.stringify(attempt) })#1",
+      "file": "local-sync.ts",
+      "owner": "syncTransport",
+      "expression": "doFetch(url, { ...init, body: JSON.stringify(attempt) })",
+      "line": 68,
+      "start": 3337,
+      "end": 3399
+    },
+    {
+      "id": "local-sync.ts:syncTransport:legacyInput(response)#1",
+      "file": "local-sync.ts",
+      "owner": "syncTransport",
+      "expression": "legacyInput(response)",
+      "line": 69,
+      "start": 3454,
+      "end": 3481
+    },
+    {
+      "id": "local-sync.ts:syncTransport:doFetch(url, { ...init, body: JSON.stringify(withoutGeneration) })#1",
+      "file": "local-sync.ts",
+      "owner": "syncTransport",
+      "expression": "doFetch(url, { ...init, body: JSON.stringify(withoutGeneration) })",
+      "line": 70,
+      "start": 3505,
+      "end": 3577
+    },
+    {
+      "id": "device-restore.ts:restoreWitness:call(restoreObservation(storeId, Number(head), capture, generation()))#1",
+      "file": "device-restore.ts",
+      "owner": "restoreWitness",
+      "expression": "call(restoreObservation(storeId, Number(head), capture, generation()))",
+      "line": 57,
+      "start": 3364,
+      "end": 3440
+    },
+    {
+      "id": "local-backend.ts:loadBackend:readWithAdmissionRetry(() => doFetch(`${base}/schema`, { headers, ...(signal ? { signal } : {}) }), () => !signal?.aborted, signal) .catch(error => { throw new BackendRefusalError(transportRefusal(error)); })#1",
+      "file": "local-backend.ts",
+      "owner": "loadBackend",
+      "expression": "readWithAdmissionRetry(() => doFetch(`${base}/schema`, { headers, ...(signal ? { signal } : {}) }), () => !signal?.aborted, signal) .catch(error => { throw new BackendRefusalError(transportRefusal(error)); })",
+      "line": 26,
+      "start": 1459,
+      "end": 1677
+    },
+    {
+      "id": "local-native.ts:installNativeAttempt:call({ op: \"state\" })#1",
+      "file": "local-native.ts",
+      "owner": "installNativeAttempt",
+      "expression": "call({ op: \"state\" })",
+      "line": 16,
+      "start": 1028,
+      "end": 1055
+    },
+    {
+      "id": "local-native.ts:installNativeAttempt:loadBackend(doFetch, base, requestCredentials().headers, signal)#1",
+      "file": "local-native.ts",
+      "owner": "installNativeAttempt",
+      "expression": "loadBackend(doFetch, base, requestCredentials().headers, signal)",
+      "line": 28,
+      "start": 1699,
+      "end": 1769
+    },
+    {
+      "id": "local-native.ts:installNativeAttempt:doFetch(`${base}/native.wasm`, { headers: request.headers, ...(signal ? { signal } : {}) })#1",
+      "file": "local-native.ts",
+      "owner": "installNativeAttempt",
+      "expression": "doFetch(`${base}/native.wasm`, { headers: request.headers, ...(signal ? { signal } : {}) })",
+      "line": 41,
+      "start": 2184,
+      "end": 2281
+    },
+    {
+      "id": "local-native.ts:installNativeAttempt:response.arrayBuffer()#1",
+      "file": "local-native.ts",
+      "owner": "installNativeAttempt",
+      "expression": "response.arrayBuffer()",
+      "line": 43,
+      "start": 2356,
+      "end": 2384
+    },
+    {
+      "id": "local-native.ts:installNativeAttempt:call({ op: \"install_native\", wasm: hex, digest: wanted, generation: targetGeneration })#1",
+      "file": "local-native.ts",
+      "owner": "installNativeAttempt",
+      "expression": "call({ op: \"install_native\", wasm: hex, digest: wanted, generation: targetGeneration })",
+      "line": 46,
+      "start": 2506,
+      "end": 2599
+    },
+    {
+      "id": "pending-writes.ts:revision:call({ op: \"sync_state\", capture: false })#1",
+      "file": "pending-writes.ts",
+      "owner": "revision",
+      "expression": "call({ op: \"sync_state\", capture: false })",
+      "line": 52,
+      "start": 2684,
+      "end": 2732
+    },
+    {
+      "id": "pending-writes.ts:record:revision()#1",
+      "file": "pending-writes.ts",
+      "owner": "record",
+      "expression": "revision()",
+      "line": 59,
+      "start": 3012,
+      "end": 3028
+    },
+    {
+      "id": "pending-writes.ts:record:call({ op: \"hold_write\", id, reason })#1",
+      "file": "pending-writes.ts",
+      "owner": "record",
+      "expression": "call({ op: \"hold_write\", id, reason })",
+      "line": 62,
+      "start": 3107,
+      "end": 3151
+    },
+    {
+      "id": "clock.ts:wrapped:fetcher(input, init)#1",
+      "file": "clock.ts",
+      "owner": "wrapped",
+      "expression": "fetcher(input, init)",
+      "line": 89,
+      "start": 5499,
+      "end": 5525
+    },
+    {
+      "id": "clock.ts:save:core.call({ op: \"set_meta\", key: \"server-clock\", value })#1",
+      "file": "clock.ts",
+      "owner": "save",
+      "expression": "core.call({ op: \"set_meta\", key: \"server-clock\", value })",
+      "line": 135,
+      "start": 8328,
+      "end": 8391
+    },
+    {
+      "id": "changes.ts:changeFeed:doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? \"&heartbeat=1\" : \"\"}${storeIdentity === undefined ? \"\" : `&store_id=${encodeURIComponent(storeIdentity)}`}${parameters}`, { headers, signal: controller.signal })#1",
+      "file": "changes.ts",
+      "owner": "changeFeed",
+      "expression": "doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? \"&heartbeat=1\" : \"\"}${storeIdentity === undefined ? \"\" : `&store_id=${encodeURIComponent(storeIdentity)}`}${parameters}`, { headers, signal: controller.signal })",
+      "line": 79,
+      "start": 4523,
+      "end": 4757
+    },
+    {
+      "id": "changes.ts:changeFeed:reader.read()#1",
+      "file": "changes.ts",
+      "owner": "changeFeed",
+      "expression": "reader.read()",
+      "line": 88,
+      "start": 5084,
+      "end": 5103
+    },
+    {
+      "id": "changes.ts:changeFeed:response.json()#1",
+      "file": "changes.ts",
+      "owner": "changeFeed",
+      "expression": "response.json()",
+      "line": 97,
+      "start": 5586,
+      "end": 5607
+    },
+    {
+      "id": "changes.ts:changeFeed:Promise.race([work, aborted])#1",
+      "file": "changes.ts",
+      "owner": "changeFeed",
+      "expression": "Promise.race([work, aborted])",
+      "line": 105,
+      "start": 5948,
+      "end": 5983
+    },
+    {
+      "id": "local-search.ts:searchReplyIdentity:witness(json.store_id, json.head ?? json.seq, capture)#1",
+      "file": "local-search.ts",
+      "owner": "searchReplyIdentity",
+      "expression": "witness(json.store_id, json.head ?? json.seq, capture)",
+      "line": 16,
+      "start": 1031,
+      "end": 1091
+    },
+    {
+      "id": "local-search.ts:decode:reader.read()#1",
+      "file": "local-search.ts",
+      "owner": "decode",
+      "expression": "reader.read()",
+      "line": 70,
+      "start": 4166,
+      "end": 4185
+    },
+    {
+      "id": "local-search.ts:decode:reader.cancel().catch(() => {})#1",
+      "file": "local-search.ts",
+      "owner": "decode",
+      "expression": "reader.cancel().catch(() => {})",
+      "line": 79,
+      "start": 4625,
+      "end": 4662
+    },
+    {
+      "id": "local-search.ts:ordinarySearch:env.call({ op: \"search_state\", name })#1",
+      "file": "local-search.ts",
+      "owner": "ordinarySearch",
+      "expression": "env.call({ op: \"search_state\", name })",
+      "line": 168,
+      "start": 9735,
+      "end": 9779
+    },
+    {
+      "id": "local-search.ts:ordinarySearch:env.call({ op: \"query\", name, args: { ...args, [plan.cursor]: position.after }, viewer: env.principal, now: env.deviceNow(), search: true, spent: ledger.used })#1",
+      "file": "local-search.ts",
+      "owner": "ordinarySearch",
+      "expression": "env.call({ op: \"query\", name, args: { ...args, [plan.cursor]: position.after }, viewer: env.principal, now: env.deviceNow(), search: true, spent: ledger.used })",
+      "line": 202,
+      "start": 12187,
+      "end": 12361
+    },
+    {
+      "id": "local-search.ts:ordinarySearch:blocked()#1",
+      "file": "local-search.ts",
+      "owner": "ordinarySearch",
+      "expression": "blocked()",
+      "line": 209,
+      "start": 12665,
+      "end": 12680
+    },
+    {
+      "id": "local-search.ts:ordinarySearch:env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained, ...decorationSelection }, r => ledger.decode(r))#1",
+      "file": "local-search.ts",
+      "owner": "ordinarySearch",
+      "expression": "env.searchPost(`/q/${name}`, { args: { ...args, [plan.cursor]: position.after }, searchRetained: retained, ...decorationSelection }, r => ledger.decode(r))",
+      "line": 221,
+      "start": 13574,
+      "end": 13735
+    },
+    {
+      "id": "local-search.ts:ordinarySearch:blocked()#2",
+      "file": "local-search.ts",
+      "owner": "ordinarySearch",
+      "expression": "blocked()",
+      "line": 223,
+      "start": 13853,
+      "end": 13868
+    },
+    {
+      "id": "local-search.ts:ordinarySearch:env.call({ op: \"search_state\", name, spent: ledger.used, ...(decorationRows ? { decorationRows, viewer: env.principal, now: env.deviceNow() } : {}) })#1",
+      "file": "local-search.ts",
+      "owner": "ordinarySearch",
+      "expression": "env.call({ op: \"search_state\", name, spent: ledger.used, ...(decorationRows ? { decorationRows, viewer: env.principal, now: env.deviceNow() } : {}) })",
+      "line": 347,
+      "start": 21266,
+      "end": 21428
+    },
+    {
+      "id": "local-search.ts:ordinarySearch:env.call({ op: \"query\", name, viewer: env.principal, args: { ...args, [plan.cursor]: position.after }, now: env.deviceNow(), spent: ledger.used })#1",
+      "file": "local-search.ts",
+      "owner": "ordinarySearch",
+      "expression": "env.call({ op: \"query\", name, viewer: env.principal, args: { ...args, [plan.cursor]: position.after }, now: env.deviceNow(), spent: ledger.used })",
+      "line": 390,
+      "start": 24357,
+      "end": 24517
+    },
+    {
+      "id": "local-query.ts:route:env.installNative(env.signal)#1",
+      "file": "local-query.ts",
+      "owner": "route",
+      "expression": "env.installNative(env.signal)",
+      "line": 376,
+      "start": 28020,
+      "end": 28055
+    },
+    {
+      "id": "local-query.ts:route:server()#1",
+      "file": "local-query.ts",
+      "owner": "route",
+      "expression": "server()",
+      "line": 381,
+      "start": 28297,
+      "end": 28311
+    },
+    {
+      "id": "local-query.ts:route:blocked()#1",
+      "file": "local-query.ts",
+      "owner": "route",
+      "expression": "blocked()",
+      "line": 383,
+      "start": 28493,
+      "end": 28508
+    },
+    {
+      "id": "local-query.ts:route:ordinarySearch(env, op.name, args, search, checkpoint, blocked)#1",
+      "file": "local-query.ts",
+      "owner": "route",
+      "expression": "ordinarySearch(env, op.name, args, search, checkpoint, blocked)",
+      "line": 387,
+      "start": 28605,
+      "end": 28674
+    },
+    {
+      "id": "local-query.ts:route:local()#1",
+      "file": "local-query.ts",
+      "owner": "route",
+      "expression": "local()",
+      "line": 390,
+      "start": 28812,
+      "end": 28825
+    },
+    {
+      "id": "local-query.ts:route:routeLocal(first)#1",
+      "file": "local-query.ts",
+      "owner": "route",
+      "expression": "routeLocal(first)",
+      "line": 391,
+      "start": 28860,
+      "end": 28883
+    },
+    {
+      "id": "http-response.ts:readResponse:decode(response)#1",
+      "file": "http-response.ts",
+      "owner": "readResponse",
+      "expression": "decode(response)",
+      "line": 42,
+      "start": 2863,
+      "end": 2885
+    },
+    {
+      "id": "http-response.ts:readResponse:response.json()#1",
+      "file": "http-response.ts",
+      "owner": "readResponse",
+      "expression": "response.json()",
+      "line": 42,
+      "start": 2888,
+      "end": 2909
+    },
+    {
+      "id": "uploads.ts:change:this.env.call(request)#1",
+      "file": "uploads.ts",
+      "owner": "change",
+      "expression": "this.env.call(request)",
+      "line": 81,
+      "start": 4481,
+      "end": 4509
+    },
+    {
+      "id": "uploads.ts:uploadAndPlace:blobArrayBuffer(bytes)#1",
+      "file": "uploads.ts",
+      "owner": "uploadAndPlace",
+      "expression": "blobArrayBuffer(bytes)",
+      "line": 98,
+      "start": 5725,
+      "end": 5753
+    },
+    {
+      "id": "uploads.ts:uploadAndPlace:this.change({ op: \"admit_upload\", entry })#1",
+      "file": "uploads.ts",
+      "owner": "uploadAndPlace",
+      "expression": "this.change({ op: \"admit_upload\", entry })",
+      "line": 110,
+      "start": 6772,
+      "end": 6820
+    },
+    {
+      "id": "uploads.ts:uploads:this.env.queued()#1",
+      "file": "uploads.ts",
+      "owner": "uploads",
+      "expression": "this.env.queued()",
+      "line": 119,
+      "start": 7245,
+      "end": 7268
+    },
+    {
+      "id": "uploads.ts:uploadIntent:this.env.queued()#1",
+      "file": "uploads.ts",
+      "owner": "uploadIntent",
+      "expression": "this.env.queued()",
+      "line": 123,
+      "start": 7523,
+      "end": 7546
+    },
+    {
+      "id": "uploads.ts:uploadIntent:this.env.write(id)#1",
+      "file": "uploads.ts",
+      "owner": "uploadIntent",
+      "expression": "this.env.write(id)",
+      "line": 124,
+      "start": 7622,
+      "end": 7646
+    },
+    {
+      "id": "uploads.ts:retryUpload:this.change({ op: \"upload_state\", id, viewer: this.env.viewer, state: \"queued\" })#1",
+      "file": "uploads.ts",
+      "owner": "retryUpload",
+      "expression": "this.change({ op: \"upload_state\", id, viewer: this.env.viewer, state: \"queued\" })",
+      "line": 129,
+      "start": 7910,
+      "end": 7997
+    },
+    {
+      "id": "uploads.ts:discardUpload:this.change({ op: \"upload_state\", id, viewer: this.env.viewer, state: \"cancelling\" })#1",
+      "file": "uploads.ts",
+      "owner": "discardUpload",
+      "expression": "this.change({ op: \"upload_state\", id, viewer: this.env.viewer, state: \"cancelling\" })",
+      "line": 136,
+      "start": 8275,
+      "end": 8366
+    },
+    {
+      "id": "uploads.ts:serverUploads:this.env.capture()#1",
+      "file": "uploads.ts",
+      "owner": "serverUploads",
+      "expression": "this.env.capture()",
+      "line": 144,
+      "start": 8727,
+      "end": 8751
+    },
+    {
+      "id": "uploads.ts:serverUploads:this.request(`${this.env.base}/assets/intents?store_id=${encodeURIComponent(capture.store_id)}&after=${encodeURIComponent(after)}`,{headers:credentials.headers})#1",
+      "file": "uploads.ts",
+      "owner": "serverUploads",
+      "expression": "this.request(`${this.env.base}/assets/intents?store_id=${encodeURIComponent(capture.store_id)}&after=${encodeURIComponent(after)}`,{headers:credentials.headers})",
+      "line": 146,
+      "start": 8906,
+      "end": 9073
+    },
+    {
+      "id": "uploads.ts:cancelServerUpload:this.env.capture()#1",
+      "file": "uploads.ts",
+      "owner": "cancelServerUpload",
+      "expression": "this.env.capture()",
+      "line": 155,
+      "start": 9732,
+      "end": 9756
+    },
+    {
+      "id": "uploads.ts:cancelServerUpload:this.request(`${this.env.base}/assets/intent/${encodeURIComponent(id)}/cancel?store_id=${encodeURIComponent(capture.store_id)}`,{method:\"POST\",headers:credentials.headers},true)#1",
+      "file": "uploads.ts",
+      "owner": "cancelServerUpload",
+      "expression": "this.request(`${this.env.base}/assets/intent/${encodeURIComponent(id)}/cancel?store_id=${encodeURIComponent(capture.store_id)}`,{method:\"POST\",headers:credentials.headers},true)",
+      "line": 157,
+      "start": 9911,
+      "end": 10094
+    },
+    {
+      "id": "uploads.ts:request:response.json()#1",
+      "file": "uploads.ts",
+      "owner": "request",
+      "expression": "response.json()",
+      "line": 167,
+      "start": 10939,
+      "end": 10960
+    },
+    {
+      "id": "uploads.ts:request:work#1",
+      "file": "uploads.ts",
+      "owner": "request",
+      "expression": "work",
+      "line": 173,
+      "start": 11449,
+      "end": 11459
+    },
+    {
+      "id": "uploads.ts:request:waitForCaller(work, this.env.signal ?? new AbortController().signal,()=>acknowledged)#1",
+      "file": "uploads.ts",
+      "owner": "request",
+      "expression": "waitForCaller(work, this.env.signal ?? new AbortController().signal,()=>acknowledged)",
+      "line": 174,
+      "start": 11474,
+      "end": 11565
+    },
+    {
+      "id": "uploads.ts:finish:this.request(`${this.env.base}/assets/intent/${encodeURIComponent(entry.id)}/finish?store_id=${encodeURIComponent(entry.upload.store_id)}`, { method: \"POST\", headers: credentials.headers, body: JSON.stringify({ op: entry.op, args: entry.args, why: {code:why.code.slice(0,128),family:why.family.slice(0,128),message:why.message.slice(0,4096),retryable:false,...(why.guide?{guide:why.guide.slice(0,128)}:{})} }) })#1",
+      "file": "uploads.ts",
+      "owner": "finish",
+      "expression": "this.request(`${this.env.base}/assets/intent/${encodeURIComponent(entry.id)}/finish?store_id=${encodeURIComponent(entry.upload.store_id)}`, { method: \"POST\", headers: credentials.headers, body: JSON.stringify({ op: entry.op, args: entry.args, why: {code:why.code.slice(0,128),family:why.family.slice(0,128),message:why.message.slice(0,4096),retryable:false,...(why.guide?{guide:why.guide.slice(0,128)}:{})} }) })",
+      "line": 181,
+      "start": 11974,
+      "end": 12398
+    },
+    {
+      "id": "uploads.ts:prepare:this.env.capture()#1",
+      "file": "uploads.ts",
+      "owner": "prepare",
+      "expression": "this.env.capture()",
+      "line": 193,
+      "start": 12951,
+      "end": 12975
+    },
+    {
+      "id": "uploads.ts:prepare:this.change({ op: \"upload_state\", id: entry.id, viewer: this.env.viewer, state: \"blocked\", why: { code: \"E_STORE_REPLACED\", family: \"store\", message: \"upload belongs to its original viewer and backend store\" } })#1",
+      "file": "uploads.ts",
+      "owner": "prepare",
+      "expression": "this.change({ op: \"upload_state\", id: entry.id, viewer: this.env.viewer, state: \"blocked\", why: { code: \"E_STORE_REPLACED\", family: \"store\", message: \"upload belongs to its original viewer and backend store\" } })",
+      "line": 195,
+      "start": 13063,
+      "end": 13281
+    },
+    {
+      "id": "uploads.ts:prepare:this.request(`${this.env.base}/assets/intent/${encodeURIComponent(entry.id)}/cancel?store_id=${encodeURIComponent(u.store_id)}`, { method: \"POST\", headers: credentials.headers })#1",
+      "file": "uploads.ts",
+      "owner": "prepare",
+      "expression": "this.request(`${this.env.base}/assets/intent/${encodeURIComponent(entry.id)}/cancel?store_id=${encodeURIComponent(u.store_id)}`, { method: \"POST\", headers: credentials.headers })",
+      "line": 204,
+      "start": 13690,
+      "end": 13874
+    },
+    {
+      "id": "uploads.ts:prepare:this.change({op:\"upload_state\",id:entry.id,viewer:this.env.viewer,state:\"cancelling\",why:result.json.denied??storeError(\"cancellation acknowledgement is unknown\")})#1",
+      "file": "uploads.ts",
+      "owner": "prepare",
+      "expression": "this.change({op:\"upload_state\",id:entry.id,viewer:this.env.viewer,state:\"cancelling\",why:result.json.denied??storeError(\"cancellation acknowledgement is unknown\")})",
+      "line": 206,
+      "start": 14004,
+      "end": 14174
+    },
+    {
+      "id": "uploads.ts:prepare:this.change({ op: \"upload_state\", id: entry.id, viewer: this.env.viewer, state: \"uploading\" })#1",
+      "file": "uploads.ts",
+      "owner": "prepare",
+      "expression": "this.change({ op: \"upload_state\", id: entry.id, viewer: this.env.viewer, state: \"uploading\" })",
+      "line": 209,
+      "start": 14200,
+      "end": 14300
+    },
+    {
+      "id": "uploads.ts:prepare:this.request(`${this.env.base}/assets/intent/${encodeURIComponent(entry.id)}/declare?store_id=${encodeURIComponent(u.store_id)}`, { method:\"POST\", headers:credentials.headers, body:JSON.stringify({digest:hexBytes(sha256(bytes)),placement:{op:entry.op,args:u.original_args,argument:u.argument},...(u.file?{file:u.file}:{})})})#1",
+      "file": "uploads.ts",
+      "owner": "prepare",
+      "expression": "this.request(`${this.env.base}/assets/intent/${encodeURIComponent(entry.id)}/declare?store_id=${encodeURIComponent(u.store_id)}`, { method:\"POST\", headers:credentials.headers, body:JSON.stringify({digest:hexBytes(sha256(bytes)),placement:{op:entry.op,args:u.original_args,argument:u.argument},...(u.file?{file:u.file}:{})})})",
+      "line": 212,
+      "start": 14440,
+      "end": 14777
+    },
+    {
+      "id": "uploads.ts:prepare:this.change({op:\"upload_state\",id:entry.id,viewer:this.env.viewer,state:\"blocked\",why:declaration.json.denied??storeError(\"intent declaration was not accepted\")})#1",
+      "file": "uploads.ts",
+      "owner": "prepare",
+      "expression": "this.change({op:\"upload_state\",id:entry.id,viewer:this.env.viewer,state:\"blocked\",why:declaration.json.denied??storeError(\"intent declaration was not accepted\")})",
+      "line": 216,
+      "start": 14995,
+      "end": 15163
+    },
+    {
+      "id": "uploads.ts:prepare:waitForCaller(uploadAsset(this.env.base, credentials.headers, this.env.fetch, bytes, current, u.file ? { file: u.file } : undefined, { id: entry.id, store: u.store_id, signal: this.env.signal }), this.env.signal ?? new AbortController().signal)#1",
+      "file": "uploads.ts",
+      "owner": "prepare",
+      "expression": "waitForCaller(uploadAsset(this.env.base, credentials.headers, this.env.fetch, bytes, current, u.file ? { file: u.file } : undefined, { id: entry.id, store: u.store_id, signal: this.env.signal }), this.env.signal ?? new AbortController().signal)",
+      "line": 217,
+      "start": 15192,
+      "end": 15442
+    },
+    {
+      "id": "uploads.ts:prepare:this.change({ op: \"upload_state\", id: entry.id, viewer: this.env.viewer, state: \"blocked\", why: result.why })#1",
+      "file": "uploads.ts",
+      "owner": "prepare",
+      "expression": "this.change({ op: \"upload_state\", id: entry.id, viewer: this.env.viewer, state: \"blocked\", why: result.why })",
+      "line": 221,
+      "start": 15584,
+      "end": 15699
+    },
+    {
+      "id": "uploads.ts:prepare:this.change({ op: \"upload_ready\", id: entry.id, viewer: this.env.viewer, store_id: u.store_id, asset: result.asset })#1",
+      "file": "uploads.ts",
+      "owner": "prepare",
+      "expression": "this.change({ op: \"upload_ready\", id: entry.id, viewer: this.env.viewer, store_id: u.store_id, asset: result.asset })",
+      "line": 225,
+      "start": 15771,
+      "end": 15894
+    },
+    {
+      "id": "uploads.ts:prepare:this.change({op:\"upload_state\",id:entry.id,viewer:this.env.viewer,state:\"blocked\",why:error})#1",
+      "file": "uploads.ts",
+      "owner": "prepare",
+      "expression": "this.change({op:\"upload_state\",id:entry.id,viewer:this.env.viewer,state:\"blocked\",why:error})",
+      "line": 228,
+      "start": 15992,
+      "end": 16091
+    },
+    {
+      "id": "assets.ts:uploadAsset:doFetch(target, { method: \"POST\", headers: { ...auth, \"content-type\": contentType }, body, ...(intent?.signal ? { signal: intent.signal } : {}) })#1",
+      "file": "assets.ts",
+      "owner": "uploadAsset",
+      "expression": "doFetch(target, { method: \"POST\", headers: { ...auth, \"content-type\": contentType }, body, ...(intent?.signal ? { signal: intent.signal } : {}) })",
+      "line": 87,
+      "start": 5508,
+      "end": 5660
+    },
+    {
+      "id": "assets.ts:uploadAsset:response.json()#1",
+      "file": "assets.ts",
+      "owner": "uploadAsset",
+      "expression": "response.json()",
+      "line": 89,
+      "start": 5741,
+      "end": 5762
+    },
+    {
+      "id": "assets.ts:uploadAsset:new Promise(resolve => setTimeout(resolve, delay))#1",
+      "file": "assets.ts",
+      "owner": "uploadAsset",
+      "expression": "new Promise(resolve => setTimeout(resolve, delay))",
+      "line": 100,
+      "start": 6623,
+      "end": 6679
+    },
+    {
+      "id": "app-uploads.ts:uploadAndPlace:refusal()#1",
+      "file": "app-uploads.ts",
+      "owner": "uploadAndPlace",
+      "expression": "refusal()",
+      "line": 18,
+      "start": 1293,
+      "end": 1308
+    },
+    {
+      "id": "app-uploads.ts:uploads:refusal()#1",
+      "file": "app-uploads.ts",
+      "owner": "uploads",
+      "expression": "refusal()",
+      "line": 21,
+      "start": 1474,
+      "end": 1489
+    },
+    {
+      "id": "app-uploads.ts:uploads:uploads.uploads()#1",
+      "file": "app-uploads.ts",
+      "owner": "uploads",
+      "expression": "uploads.uploads()",
+      "line": 21,
+      "start": 1513,
+      "end": 1536
+    },
+    {
+      "id": "app-uploads.ts:uploadIntent:refusal()#1",
+      "file": "app-uploads.ts",
+      "owner": "uploadIntent",
+      "expression": "refusal()",
+      "line": 22,
+      "start": 1595,
+      "end": 1610
+    },
+    {
+      "id": "app-uploads.ts:uploadIntent:uploads.uploadIntent(id)#1",
+      "file": "app-uploads.ts",
+      "owner": "uploadIntent",
+      "expression": "uploads.uploadIntent(id)",
+      "line": 22,
+      "start": 1631,
+      "end": 1661
+    },
+    {
+      "id": "app-uploads.ts:retryUpload:refusal()#1",
+      "file": "app-uploads.ts",
+      "owner": "retryUpload",
+      "expression": "refusal()",
+      "line": 23,
+      "start": 1736,
+      "end": 1751
+    },
+    {
+      "id": "app-uploads.ts:discardUpload:refusal()#1",
+      "file": "app-uploads.ts",
+      "owner": "discardUpload",
+      "expression": "refusal()",
+      "line": 24,
+      "start": 1883,
+      "end": 1898
+    },
+    {
+      "id": "app-uploads.ts:serverUploads:refusal()#1",
+      "file": "app-uploads.ts",
+      "owner": "serverUploads",
+      "expression": "refusal()",
+      "line": 26,
+      "start": 2136,
+      "end": 2151
+    },
+    {
+      "id": "app-uploads.ts:serverUploads:uploads.serverUploads(after)#1",
+      "file": "app-uploads.ts",
+      "owner": "serverUploads",
+      "expression": "uploads.serverUploads(after)",
+      "line": 26,
+      "start": 2204,
+      "end": 2238
+    },
+    {
+      "id": "app-uploads.ts:cancelServerUpload:refusal()#1",
+      "file": "app-uploads.ts",
+      "owner": "cancelServerUpload",
+      "expression": "refusal()",
+      "line": 27,
+      "start": 2331,
+      "end": 2346
+    },
+    {
+      "id": "web-upload-admission.ts:authorizeUpload:storeLock(stamp.key, async () => { if (!await sameAdmissionAuthority(stamp, context, viewer)) { context.recheck(); return { denied: admissionAuthorityRefusal() }; } return await execute(); })#1",
+      "file": "web-upload-admission.ts",
+      "owner": "authorizeUpload",
+      "expression": "storeLock(stamp.key, async () => { if (!await sameAdmissionAuthority(stamp, context, viewer)) { context.recheck(); return { denied: admissionAuthorityRefusal() }; } return await execute(); })",
+      "line": 11,
+      "start": 884,
+      "end": 1091
+    },
+    {
+      "id": "web-upload-admission.ts:authorizeUpload:sameAdmissionAuthority(stamp, context, viewer)#1",
+      "file": "web-upload-admission.ts",
+      "owner": "authorizeUpload",
+      "expression": "sameAdmissionAuthority(stamp, context, viewer)",
+      "line": 12,
+      "start": 934,
+      "end": 986
+    },
+    {
+      "id": "web-upload-admission.ts:authorizeUpload:execute()#1",
+      "file": "web-upload-admission.ts",
+      "owner": "authorizeUpload",
+      "expression": "execute()",
+      "line": 13,
+      "start": 1070,
+      "end": 1085
+    },
+    {
+      "id": "web-upload-admission.ts:recoverUploadHistory:receiptHistory(persist, name)#1",
+      "file": "web-upload-admission.ts",
+      "owner": "recoverUploadHistory",
+      "expression": "receiptHistory(persist, name)",
+      "line": 17,
+      "start": 1378,
+      "end": 1413
+    },
+    {
+      "id": "web-upload-admission.ts:recoverUploadHistory:invoke({op:\"check_upload_receipt\",entry,write:known})#1",
+      "file": "web-upload-admission.ts",
+      "owner": "recoverUploadHistory",
+      "expression": "invoke({op:\"check_upload_receipt\",entry,write:known})",
+      "line": 21,
+      "start": 1605,
+      "end": 1664
+    },
+    {
+      "id": "web-upload-admission.ts:check:recoverUploadHistory(invoke,persist,name,entry)#1",
+      "file": "web-upload-admission.ts",
+      "owner": "check",
+      "expression": "recoverUploadHistory(invoke,persist,name,entry)",
+      "line": 31,
+      "start": 2191,
+      "end": 2244
+    },
+    {
+      "id": "web-upload-admission.ts:preflightUpload:authorizeUpload(stamp,context,String(entry.viewer??\"\"),check)#1",
+      "file": "web-upload-admission.ts",
+      "owner": "preflightUpload",
+      "expression": "authorizeUpload(stamp,context,String(entry.viewer??\"\"),check)",
+      "line": 32,
+      "start": 2294,
+      "end": 2361
+    },
+    {
+      "id": "web-upload-admission.ts:preflightUpload:check()#1",
+      "file": "web-upload-admission.ts",
+      "owner": "preflightUpload",
+      "expression": "check()",
+      "line": 32,
+      "start": 2362,
+      "end": 2375
+    },
+    {
+      "id": "local.ts:flushOnce:for await receiptBatch(queued, history)",
+      "file": "local.ts",
+      "owner": "flushOnce",
+      "expression": "receiptBatch(queued, history)",
+      "line": 1083,
+      "start": 74257,
+      "end": 80155,
+      "iterator": true
+    },
+    {
+      "id": "local-assets.ts:remove:this.call({ op: \"set_meta\", key: `media:bytes:${id}`, value: \"\" })#1",
+      "file": "local-assets.ts",
+      "owner": "remove",
+      "expression": "this.call({ op: \"set_meta\", key: `media:bytes:${id}`, value: \"\" })",
+      "line": 48,
+      "start": 2742,
+      "end": 2814
+    }
+  ]
+}

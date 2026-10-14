@@ -1,0 +1,97 @@
+{
+  "before_source": "498f8110f9",
+  "after_source": "c4c6ba43a9 plus qualifier/API documentation repairs (no compiler semantics changed)",
+  "schemas": 100,
+  "before_ok": 100,
+  "after_ok": 100,
+  "before_notes": 335,
+  "after_notes": 327,
+  "qdiag_before_matches_report": true,
+  "qdiag_after_matches_report": true,
+  "qdiag_after_notes": 326,
+  "other_lane_notes": {
+    "N_SYNC_EMPTY": 1
+  },
+  "counts": {
+    "N_CONDITIONAL_COMPLETE": {
+      "before": 6,
+      "after": 6
+    },
+    "N_DELETE_NEEDS_READ": {
+      "before": 2,
+      "after": 2
+    },
+    "N_DELETE_RESTRICTED": {
+      "before": 8,
+      "after": 8
+    },
+    "N_MAINTAINED_COLUMN_DISCLOSURE": {
+      "before": 2,
+      "after": 2
+    },
+    "N_MAINTAIN_AUTHORIZATION": {
+      "before": 5,
+      "after": 5
+    },
+    "N_MAINTAIN_DELTA": {
+      "before": 4,
+      "after": 4
+    },
+    "N_NEVER_COMPLETE": {
+      "before": 16,
+      "after": 16
+    },
+    "N_NO_CURSOR": {
+      "before": 165,
+      "after": 165
+    },
+    "N_NO_HORIZON": {
+      "before": 19,
+      "after": 19
+    },
+    "N_NO_PRODUCTION_WRITER": {
+      "before": 50,
+      "after": 50
+    },
+    "N_PATCH_CLEARS": {
+      "before": 2,
+      "after": 2
+    },
+    "N_PUBLIC_AGGREGATE_COPY": {
+      "before": 1,
+      "after": 1
+    },
+    "N_REFERENCE_UNCHECKED": {
+      "before": 10,
+      "after": 4
+    },
+    "N_SHAPE_METER": {
+      "before": 1,
+      "after": 1
+    },
+    "N_SPARSE_FILTER": {
+      "before": 10,
+      "after": 9
+    },
+    "N_SYNC_EMPTY": {
+      "before": 0,
+      "after": 1
+    },
+    "N_SYNC_ORDER": {
+      "before": 19,
+      "after": 19
+    },
+    "N_UNREADABLE_PROBE": {
+      "before": 11,
+      "after": 9
+    },
+    "N_VACUOUS_RULE": {
+      "before": 1,
+      "after": 1
+    },
+    "N_WIDE_MERGE": {
+      "before": 3,
+      "after": 3
+    }
+  }
+}
