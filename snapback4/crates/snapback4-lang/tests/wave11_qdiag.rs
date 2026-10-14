@@ -129,7 +129,7 @@ fn nested_cascade_has_one_consistent_recipe_for_the_authored_root(){
 fn owner_equality_does_not_survive_kept_parent_recreation_or_expiry(){
  let base="table parents:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  insert <- .owner = viewer\ntable kids:\n  parent: parents on delete keep\n  owner: principal\n  unique parent\n  immutable parent,owner\n  read <- .owner = viewer\n  insert <- .owner = viewer and .parent.owner = viewer\nmutation probe(parent: parents):\n  p = parents[parent] ! else NOT_FOUND\n  require not exists kids[parent = parent] else HAS_CHILD\n  return true\n";
  assert!(!checked(base).notes.iter().any(|n|n.code=="N_UNREADABLE_PROBE"));
- for source in [base.replace("  insert <- .owner = viewer\ntable kids:","  insert <- .owner = viewer\n  delete <- .owner = viewer\ntable kids:"),base.replace("  immutable owner\n","  immutable owner\n  until: time\n  index until\n  expire at .until\n"),base.replace("table parents:\n","table roots:\n  public\n  delete <- allow\ntable parents:\n  root: roots on delete cascade\n  cap 1 by root\n")] {
+ for source in [base.replace("  insert <- .owner = viewer\ntable kids:","  insert <- .owner = viewer\n  delete <- .owner = viewer\ntable kids:"),base.replace("  immutable owner\n","  immutable owner\n  until: time\n  by byUntil: until\n  expire at .until\n"),base.replace("table parents:\n","table roots:\n  public\n  delete <- allow\ntable parents:\n  root: roots on delete cascade\n  cap 1 by root\n")] {
   let b=checked(&source);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);assert!(b.notes.iter().any(|n|n.code=="N_UNREADABLE_PROBE"),"{:?}",b.notes);
  }
 }
