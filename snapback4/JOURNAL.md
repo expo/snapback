@@ -95061,3 +95061,20 @@ Locked merged Linux wasm measures 2,313,446 B raw / 705,305 B gzip. Set
 attribution or changed runtime ceilings. Retain 0.4.27: PAGE3 ships with wave-11
 in 0.4.28. Mac suite is deferred to that publication; no push. Linux full
 qualification and regenerated census evidence follow in a separate commit.
+
+Integration 10 qualification repairs: the native 20k campaign found nine
+opaque-cursor byte comparisons between PAGE3 direct and let-hoisted plans.
+The let oracle now follows each plan's own cursor, comparing every page and
+cursor presence. Its bound uses the post-prelude physical store population;
+three actual regressions cover the original seed, prelude-created rows and
+missing cursor/data/completeness/refusal/bad-resumption mutants. Codex round 1
+found the initial seeded-row bound; round 2 and Muse approve the corrected
+implementation and six-execution regression. Both verbatim rounds are retained
+under llp/reviews/3000.035-integration10-cursors.*. The final native campaign
+has 20k compiled cases, 1,135,558 executions and zero disagreements.
+
+The old sequence-disclosure scan expected eight probes. PAGE3's two owner
+ranges each reserve its two static probes once, totaling four independently
+of hidden witness lifetimes. Retain every paired-world outcome comparison,
+next-expiry assertion and the eight-probe write reservation. The repaired
+existing regression passes. No engine or runtime ceiling changed.

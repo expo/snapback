@@ -335,10 +335,54 @@ pub fn rewrite_against(
     }
     let b = execute::execute(&mut right, case, "run", &case.args);
     let mapped = crate::sites::corresponding(left, &right, &b);
-    if let Some(f) = field(a, &mapped, r.costs_for(&case.program, a)) {
+    // @ref LLP 3000.035#51-stage-1-a-generator-and-rust-against-rust-comparison — differing let-plan tokens compare through their own continuations.
+    let cursor_rewrite = matches!(r, Rewrite::Let) && a.next() != mapped.next()
+        && a.next().is_some() && mapped.next().is_some();
+    let compare = |a: &Outcome, b: &Outcome| {
+        if !cursor_rewrite { return field(a, b, r.costs_for(&case.program, a)); }
+        // A let can hoist a static point predicate and select a different
+        // proved page plan. Its cursor is opaque: compare presence here and
+        // consume each plan's own token below, preserving all other fields.
+        let mut a = a.clone();
+        let mut b = b.clone();
+        a.value["next"] = json!(a.next().is_some());
+        b.value["next"] = json!(b.next().is_some());
+        field(&a, &b, r.costs_for(&case.program, &a))
+    };
+    if let Some(f) = compare(a, &mapped) {
         return Ok((disagreement(&oracle, &f, a.clone(), b, vec![]), 1));
     }
     let mut executions = 1;
+    if cursor_rewrite {
+        let mut next = (a.next().map(str::to_owned), b.next().map(str::to_owned));
+        let mut trail = vec![a.clone(), b.clone()];
+        let mut left_args = case.args.clone();
+        let mut right_args = case.args.clone();
+        // Prelude mutations and maintained rows are part of the population.
+        // Each advancing token consumes a position; allow a terminal empty page.
+        let population = |engine: &snapback4_core::Engine| {
+            engine.schema().tables.keys().try_fold(0_u64, |n, table|
+                engine.store().count(table).map(|count| n.saturating_add(count)))
+                .map_err(|error| error.to_string())
+        };
+        let limit = population(left)?.max(population(&right)?);
+        for _ in 0..=limit {
+            let (Some(x), Some(y)) = next else { return Ok((Verdict::Pass, executions)); };
+            left_args["c"] = json!(x);
+            right_args["c"] = json!(y);
+            let x = execute::execute(left, case, "run", &left_args);
+            let y = execute::execute(&mut right, case, "run", &right_args);
+            executions += 2;
+            let mapped = crate::sites::corresponding(left, &right, &y);
+            if let Some(f) = compare(&x, &mapped) {
+                return Ok((disagreement(&oracle, &format!("continuation-{f}"), x, y, trail), executions));
+            }
+            next = (x.next().map(str::to_owned), y.next().map(str::to_owned));
+            trail.extend([x, y]);
+            if matches!(next, (None, None)) { return Ok((Verdict::Pass, executions)); }
+        }
+        return Err("let-rewrite continuation did not terminate".into());
+    }
     if case.program.mutation() {
         let x = execute::execute(left, case, "observe", &case.args);
         let y = execute::execute(&mut right, case, "observe", &case.args);

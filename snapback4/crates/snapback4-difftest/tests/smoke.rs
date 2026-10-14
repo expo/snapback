@@ -635,6 +635,57 @@ fn lean_id_membership_residuals_stay_in_the_admitted_fragment() {
 }
 
 #[test]
+fn let_rewrite_compares_static_predicate_pages_through_each_plans_cursor() {
+    let case = generate(17849);
+    let (verdict, executions) = oracle::rewrite(&case, &Rewrite::Let, &case.program.source()).unwrap();
+    assert!(matches!(verdict, Verdict::Pass), "{verdict:?}");
+    assert!(executions > 2, "the distinct plans must actually continue: {executions}");
+}
+
+#[test]
+fn let_rewrite_continuation_counts_rows_created_by_the_prelude() {
+    let mut case = generate(17849);
+    case.rows.clear();
+    case.steps.clear();
+    case.program.prelude.clear();
+    if let Body::Read { take, .. } = &mut case.program.body { *take = 1; }
+    for i in 0..3 {
+        case.program.prelude.push(Block {
+            stmts: vec![Stmt::Write { kind: Write::Upsert, target: Key::Key,
+                value: Expr::Int(0), tag: format!("t{i}"), ttl: None }],
+            ret: Expr::Bool(true),
+        });
+        let mut args = case.args.clone();
+        args["key"] = json!(format!("r{i}"));
+        args["k2"] = json!("unused");
+        args["a"] = json!(0);
+        args["b"] = json!(0);
+        case.steps.push(snapback4_difftest::generate::Step { args, at: case.clock, viewer: None, sweep: false });
+    }
+    case.args["k2"] = json!("unused");
+    let (verdict, executions) = oracle::rewrite(&case, &Rewrite::Let, &case.program.source()).unwrap();
+    assert!(matches!(verdict, Verdict::Pass), "{verdict:?}");
+    assert_eq!(executions, 6, "both plans must execute all three one-row pages");
+}
+
+#[test]
+fn let_rewrite_still_detects_missing_cursors_semantic_changes_and_bad_resumption() {
+    let case = generate(17849);
+    for changed in ["next", "data", "complete", "refusal", "bad-cursor"] {
+        let (mut engine, prelude) = execute::world(&case, &case.program.source()).unwrap();
+        let mut first = execute::execute(&mut engine, &case, "run", &case.args);
+        match changed {
+            "next" => { first.value.as_object_mut().unwrap().remove("next"); }
+            "bad-cursor" => first.value["next"] = json!("invalid-token"),
+            field => first.value[field] = json!("different"),
+        }
+        let (verdict, _) = oracle::rewrite_against(&case, &Rewrite::Let, &mut engine, &prelude, &first).unwrap();
+        let Verdict::Disagree(finding) = verdict else { panic!("{changed}: {verdict:?}"); };
+        assert_eq!(finding.field, if changed == "bad-cursor" { "continuation-data" } else { changed });
+    }
+}
+
+#[test]
 fn page3_generation_compares_every_new_family_natively_and_in_lean() {
     use snapback4_difftest::lean;
     let have_model = model_built();
