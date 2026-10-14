@@ -372,3 +372,17 @@ fn output_pricing_after_an_unproved_insert_queues_for_the_server() {
         assert!(matches!(converge, Verdict::Pass), "{converge:?}");
     }
 }
+
+// @ref LLP 3000.036.001#17 — a discovered parent snapshot lane pays its
+// admission once on both stores, including empty ranges and every meter cut.
+#[test]
+fn parent_snapshot_membership_lanes_keep_native_device_meter_parity() {
+    let mut files = devices::Files::new().unwrap();
+    for seed in [218, 1287, 1548] {
+        let case = generate(seed);
+        assert_eq!(case.program.domain.as_deref(), Some(".tag = parent.id"));
+        let mut report = snapback4_difftest::campaign::Report::default();
+        devices::check(&case, &mut report, &mut files, |_| {}).unwrap();
+        assert!(!report.failed(), "seed {seed}: {report:?}");
+    }
+}

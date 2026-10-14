@@ -150,7 +150,7 @@ fn the_emitter_covers_the_generated_corpus_with_named_exceptions() {
     }
     // Outside it: the unpaged aggregates, page projections (`shape`), the
     // loop of a prefetch-reachable fold, and expiry, which the model leaves out.
-    assert_eq!(reasons, ["call-max", "call-min", "call-sum", "index-computed-or-words", "loop", "page-static-key-expression", "shape", "table-expiry"].map(String::from).into());
+    assert_eq!(reasons, ["call-max", "call-min", "call-sum", "index-computed-or-words", "loop", "page-compound-where-branches", "page-static-key-expression", "shape", "table-expiry"].map(String::from).into());
     assert!(supported > 2000, "{supported}");
 }
 
@@ -1348,8 +1348,10 @@ fn page3_membership_and_compound_filters_keep_the_read_free_model_gate() {
 
 #[test]
 fn page4_negative_grant_scalar_and_fallible_fallbacks_are_named_not_oracle_passes() {
-    for tail in ["return exists docs where .at >= 0", "return docs where .at + 1 >= 0 first 10 by .at"] {
-        let source=format!("table roles:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  owner: principal\n  at: int\n  read <- .owner = viewer or not exists roles[viewer]\n  online only\nquery run():\n  {tail}\n");
+    for (rule, tail) in [(".owner = viewer or not exists roles[viewer]", "return exists docs where .at >= 0"),
+        (".owner = viewer or not exists roles[viewer]", "return docs where .at + 1 >= 0 first 10 by .at"),
+        (".owner = viewer or .at = 0 or .at = 1 or .at = 2 or .at = 3 or .at = 4 or .at = 5 or not exists roles[viewer]", "return docs first 10 by .at")] {
+        let source=format!("table roles:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  owner: principal\n  at: int\n  read <- {rule}\n  online only\nquery run():\n  {tail}\n");
         let mut case=lean::generate(1);case.rows.clear();case.args=json!({});case.program.prelude.clear();case.steps.clear();
         case.program.body=snapback4_difftest::ast::Body::Scalar(snapback4_difftest::ast::Expr::Bool(true));
         let checked=lean::compare(&case,&source).unwrap();assert!(matches!(checked.verdict,Verdict::Unsupported(ref reason) if reason=="page-negative-grant-fallback"),"{:?}",checked.verdict);assert_eq!(checked.executed,0);

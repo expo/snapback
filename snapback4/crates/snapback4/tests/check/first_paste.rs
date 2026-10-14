@@ -51,7 +51,7 @@ fn peers(chat: id):
         ("messages matching q where exists members[.conversation, viewer] last 20 by .at after c",
             vec!["N_SEARCH_WORDS", "N_SEARCH_OPEN"]),
         ("messages matching q last 20 by .at after c",
-            vec!["N_SEARCH_UNSCOPED", "N_SEARCH_WORDS"]),
+            vec!["N_SEARCH_OPEN", "N_SEARCH_WORDS"]),
         ("messages matching q where exists members[.conversation, viewer] last 20 by .at after c { *, peers: peers(.conversation) }",
             vec!["N_SEARCH_WORDS", "N_SEARCH_OPEN", "N_SEARCH_SHAPE"]),
         ("merge messages matching q after c last 20 by byWords:\n    [m.conversation] for m in members[principal = viewer] first 100 by .conversation",

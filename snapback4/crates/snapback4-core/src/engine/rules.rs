@@ -510,7 +510,7 @@ fn disclosing(schema: &Schema, grant: &RuleExpr, fields: bool) -> bool {
         // @ref LLP 3000.036.001#17 — negative evidence is admissible only on
         // a total, readable, lifetime-free point; hidden probes stay partial.
         RuleExpr::Not(inner) => if let RuleExpr::Exists { table, index, .. } = inner.as_ref() {
-            schema.table(table).is_some_and(|table| table.index(index).is_some_and(|index|
+            schema.maintain_for(table).is_none() && schema.table(table).is_some_and(|table| table.index(index).is_some_and(|index|
                 index.unique && index.is_plain() && index.components.iter().all(|part|
                     part.key_type(table).is_some_and(|kind| !kind.is_optional()))))
                 && disclosing(schema, inner, fields)

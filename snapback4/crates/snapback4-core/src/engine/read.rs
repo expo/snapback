@@ -251,6 +251,9 @@ impl<'r> Runner<'r> {
     // not the logical prefix verdict or its scratch admission.
     fn reserve_delivered_scan(&mut self, table: &Table, visibility: rules::Visibility, admitted: bool, query: bool) -> Result<bool, RuntimeError> {
         if self.device && (query || self.meter.cut == crate::meter::Cut::Abort) && !self.context.is_system()
+            // An admitted merge lane already paid its guard/discovery proof.
+            // Reserve exactly the native lane price, including an empty range.
+            && self.merge_grant.is_none()
             && admitted && visibility.uniform && !visibility.decided_true && !table.rules.read.is_uniformly_readable() {
             let allowance = [(MeterKind::RuleProbes, rules::rule_probes(&table.rules.read))];
             if self.meter.cut == crate::meter::Cut::Abort { self.authorized_scan(&allowance, |_, _| Ok(()))?; }

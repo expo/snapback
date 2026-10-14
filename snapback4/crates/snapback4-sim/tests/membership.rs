@@ -475,3 +475,8 @@ fn page4_mixed_audiences_revoke_between_pages_without_dropping_owned_rows() {
     let next=e.query("list",context("alice",&[("c",Value::String(token))])).unwrap();assert!(next.complete&&next.next.is_none());assert_eq!(next.data.as_array().unwrap()[0].field("id").unwrap(),&id("d"));
     let scoped=e.query("scoped",context("alice",&[("c",Value::Null)])).unwrap();assert!(scoped.complete&&scoped.data.as_array().unwrap().is_empty());
 }
+
+// Shared conformance cases run every PAGE4 family in the simulator test host.
+// The live revocation schedule above exercises changing audiences between pages.
+#[path = "../../snapback4-lang/tests/page4.rs"]
+mod page4_conformance;

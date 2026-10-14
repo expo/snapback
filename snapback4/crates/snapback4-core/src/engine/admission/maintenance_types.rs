@@ -11,7 +11,7 @@ fn builtin_inspection(builtin: &Builtin) -> Option<Inspection> {
     use Builtin::*;
     #[allow(unreachable_patterns)]
     match builtin {
-        OptionalField { .. } | Len | Count | CountCapped | First | Last | At | Slice | Concat => Some(Inspection::NonInspecting),
+        RequireUncapped | OptionalField { .. } | Len | Count | CountCapped | First | Last | At | Slice | Concat => Some(Inspection::NonInspecting),
         ProjectFields { .. } | ReceiptSettled { .. } | Calendar { .. } | Civil(_) | Lower | Trim | Sha256 | Join
         | Group { .. } | Min | Max | Extremum { .. } | ExtremumOf { .. } | Divmod { .. }
         | Sort { .. } | MentionTokens | SearchPresent | DeterministicShare | Sum | Connected => Some(Inspection::Inspecting),
@@ -230,6 +230,11 @@ impl Check<'_> {
                 Ok(Type::Scalar)
             },
             Expr::Builtin { builtin, args } => {
+                if matches!(builtin, Builtin::RequireUncapped) {
+                    // This compiler fence checks only the request meter. It
+                    // forwards the value and its exact type without inspection.
+                    return args.first().map_or(Ok(Type::Unknown), |value| self.expr(value, data));
+                }
                 #[cfg(feature = "sqlite")]
                 if let Builtin::JobQuery { program, all, .. } = builtin {
                     for arg in args { self.inspected(arg)?; }
@@ -451,7 +456,7 @@ mod tests {
         let builtins = vec![ProjectFields { table: "t".into() }, ReceiptSettled { table: "t".into() }, OptionalField { field: "id".into() },
             Calendar { millis: 1 }, Civil(crate::calendar::Civil::Month), Len, Slice, Concat, Lower, Trim, Sha256, Join, Group { field: "id".into(), optional: false },
             First, Last, At, Min, Max, Extremum { field: "id".into(), max: false, domain: false }, ExtremumOf { max: false, domain: false },
-            Divmod { remainder_sink: "r".into() }, Sort { keys: vec![] }, MentionTokens, SearchPresent, DeterministicShare, Count, Sum, CountCapped, Connected];
+            Divmod { remainder_sink: "r".into() }, Sort { keys: vec![] }, MentionTokens, SearchPresent, DeterministicShare, Count, Sum, CountCapped, Connected, RequireUncapped];
         #[cfg(feature = "sqlite")]
         let builtins = builtins.into_iter().chain([JobAs, JobQuery { program: Box::new(Program {
             name: "query".into(), kind: ProgramKind::Query, args: BTreeMap::new(), body: vec![],

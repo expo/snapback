@@ -253,7 +253,7 @@ fn r1_a_rule_with_a_party_no_pin_can_select_prints_no_form_and_says_so() {
     let query = "query everything(c: cursor ?):\n  return sightings where .seenAt + 1 > 0 last 50 by .seenAt after c\n";
     let n = note(&bound(&format!("{SIGHTINGS}{query}")), "N_NEVER_COMPLETE").unwrap().clone();
     assert!(!n.rewrite.contains("query everything"), "no code is printed: {n}");
-    assert!(n.rewrite.contains("no verified complete form for this read") && n.message.contains("no verified complete form for this read: keep the query and expect `capped`"), "{n}");
+    assert!(n.rewrite.contains("no verified complete form for this read") && n.message.contains("no verified complete form for this read (") && n.message.contains("keep the query and expect `capped`"), "{n}");
     // The two-disjunct shapes 0.4.21 printed correctly merge as written (LLP
     // 3000.036.001); with arithmetic in the predicate they print the same code.
     let owner = "table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable reqs:\n  author: principal\n  at: time\n  read <- .author = viewer or exists staff[viewer]\n  online only\nquery q(c: cursor ?):\n  return reqs last 50 by .at after c\n";

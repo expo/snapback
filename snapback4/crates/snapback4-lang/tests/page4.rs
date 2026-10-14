@@ -199,3 +199,20 @@ fn named_plain_page_and_pinned_membership_keep_every_party_complete() {
     e.seed([("docs".into(),object([("id",id("a")),("owner",id("alice")),("group",Value::Int(1)),("open",Value::Bool(false)),("at",Value::Int(1))]))]).unwrap();
     let r=e.query("list",Context::new("alice",BTreeMap::from([("g".into(),Value::Int(1)),("c".into(),Value::Null)]))).unwrap();assert!(r.complete&&r.data.as_array().unwrap().len()==1);
 }
+
+#[test]
+fn asserted_maintained_row_keeps_output_type_and_never_becomes_computation() {
+    let schema=include_str!("fixtures/row-keyed-view.q");
+    let good=format!("{schema}\nquery status():\n  row = first(unread first 1) ! else NOT_FOUND\n  return {{ value: row.value, recountPending: row.recountPending }}\n");
+    let b=compile(&[("schema.q".into(),good.clone())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);assert!(b.schema.required_capabilities().contains("branch-pages-v3"));
+    let bad=good.replace("return { value: row.value, recountPending: row.recountPending }", "return row.recountPending = true");
+    assert!(snapback4_lang::compile(&[("schema.q".into(),bad)]).diagnostics.iter().any(|d|d.code=="E_VIEW_KEY"));
+}
+
+#[test]
+fn compound_prefix_conditional_note_names_the_guard_for_its_admitted_callers() {
+    let source="table members:\n  group: int\n  principal: principal\n  unique group, principal\n  read <- .principal = viewer\n  online only\ntable seals:\n  question: int\n  unique question\n  read <- deny\n  online only\ntable docs:\n  group: int\n  principal: principal\n  question: int\n  read <- (exists members[.group, viewer] and .principal = viewer) or not exists seals[.question]\n  online only\nquery table(g: int):\n  return docs where .group = g and .principal = viewer first 10 by .id\n";
+    let b=compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    let note=b.notes.iter().find(|n|n.code=="N_CONDITIONAL_COMPLETE").unwrap();
+    assert!(note.message.contains("for callers `exists members[") && note.message.contains("and otherwise remains capped"),"{note:?}");
+}

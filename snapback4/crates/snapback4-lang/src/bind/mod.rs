@@ -860,7 +860,10 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                             (None, Some(d)) => format!("; `{}` is decided by the scan's pins, but its holders cannot read the row it probes, so it does not decide the page: `complete: false` for them too", d.quarry()),
                             (None, None) => String::new(),
                         };
-                        let admitted = grant.iter().map(|g| g.quarry()).chain(guarding.iter().map(|d| d.quarry())).collect::<Vec<_>>();
+                        let mut admitted = grant.iter().map(|g| g.quarry()).chain(guarding.iter().map(|d| d.quarry())).collect::<Vec<_>>();
+                        if conditional && let Some(guard) = snapback4_core::engine::rules::page_guard_decision(schema, scan) {
+                            let guard = guard.quarry(); if !admitted.contains(&guard) { admitted.push(guard); }
+                        }
                         let admitted = (!admitted.is_empty()).then(|| admitted.join(" or "));
                         let declaration = catalog.source.declarations.get(&bound.site.to_string()).map(String::as_str);
                         // @ref LLP 3000.036#16.1 — the phrase names the form `check` verified, or says there is none.
