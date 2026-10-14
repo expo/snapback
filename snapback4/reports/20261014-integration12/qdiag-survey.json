@@ -1,0 +1,34 @@
+{
+  "binary_sha256": "33a49ae257a44b57cc072d6d0056f2e530919d71686ed37981898ccb0314c15d",
+  "schemas": 100,
+  "notes": {
+    "N_DELETE_NEEDS_READ": 2,
+    "N_DELETE_RESTRICTED": 8,
+    "N_NO_PRODUCTION_WRITER": 50,
+    "N_NO_HORIZON": 19,
+    "N_NO_CURSOR": 171,
+    "N_MAINTAIN_DELTA": 4,
+    "N_CONDITIONAL_COMPLETE": 6,
+    "N_SYNC_ORDER": 19,
+    "N_SPARSE_FILTER": 7,
+    "N_SYNC_EMPTY": 1,
+    "N_PATCH_CLEARS": 2,
+    "N_REFERENCE_UNCHECKED": 4,
+    "N_SHAPE_METER": 1,
+    "N_NEVER_COMPLETE": 6,
+    "N_UNREADABLE_PROBE": 9,
+    "N_VACUOUS_RULE": 1,
+    "N_MAINTAINED_COLUMN_DISCLOSURE": 2,
+    "N_MAINTAIN_AUTHORIZATION": 5,
+    "N_WIDE_MERGE": 4,
+    "N_PUBLIC_AGGREGATE_COPY": 1
+  },
+  "total": 322,
+  "exact_composed_QDIAG_NARR_PAGE4_counts": true,
+  "PAGE4_delta": {
+    "N_NO_CURSOR": 6,
+    "N_SPARSE_FILTER": -2,
+    "N_NEVER_COMPLETE": -10,
+    "N_WIDE_MERGE": 1
+  }
+}

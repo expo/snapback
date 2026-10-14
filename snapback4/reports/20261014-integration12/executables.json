@@ -1,0 +1,14 @@
+{
+  "cli": {
+    "sha256": "33a49ae257a44b57cc072d6d0056f2e530919d71686ed37981898ccb0314c15d",
+    "bytes": 48562008
+  },
+  "difftest": {
+    "sha256": "1c2a6d075410b55d33720fb4fa82ac23e4cd0e8eda996830308cdde8a436e4e0",
+    "bytes": 33101120
+  },
+  "lean_oracle": {
+    "sha256": "b9f50fd2ecaab4e117c24673d47be783e3285ad94d993c40c779a7c510641dbc",
+    "bytes": 122547464
+  }
+}

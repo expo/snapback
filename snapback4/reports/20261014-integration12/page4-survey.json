@@ -1,0 +1,17 @@
+{
+  "wave11": {
+    "schemas": 100,
+    "never_before": 16,
+    "never_after": 6,
+    "conditional_before": 6,
+    "conditional_after": 6
+  },
+  "wave10": {
+    "schemas": 50,
+    "never_before": 2,
+    "never_after": 2,
+    "conditional_before": 0,
+    "conditional_after": 0
+  },
+  "all_source_hashes_match": true
+}

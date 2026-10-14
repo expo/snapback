@@ -1,0 +1,10 @@
+{
+  "baseline": "reports/20261014-integration11/lean-signatures.json",
+  "signatures": {
+    "lean--code--E_RULE~NOT_FOUND": 3,
+    "lean--continuation-next--next~no-next": 36,
+    "lean--next--next~no-next": 61,
+    "lean--prelude-code--E_RULE~NOT_FOUND": 26
+  },
+  "new_signatures": []
+}
