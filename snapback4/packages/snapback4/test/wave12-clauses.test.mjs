@@ -230,3 +230,18 @@ test('leading program equality stays total for nullable scalar arguments', {time
   writeFileSync(schema,source.replace("x = 'a' or x != 'a'","x != 'a' or x = 'a'"));
   assert.match(run('deploy',deployment,'--check').stdout,/note:.*keeps equivalent nullable.require/);
 });
+
+test('nested guards display changed enclosing bindings across control-flow scopes', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=initial.replace('  update notes[note]',"  allowed = body != 'blocked'\n  if true:\n    require allowed else BLOCKED\n  update notes[note]");
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);
+  const added=await host.post('/m/add',{body:'before'});
+  assert.equal((await host.post('/m/edit',{note:added.result.id,body:'blocked'})).why.code,'BLOCKED');
+  writeFileSync(schema,source.replace("allowed = body != 'blocked'",'allowed = true'));
+  const preview=run('deploy',deployment,'--check').stdout;
+  assert.match(preview,/WARNING.*implication unproved.*edit.require/);
+  assert.match(preview,/old:.*\/then\/0 with allowed = \(body != 'blocked'\).*new:.*\/then\/0 with allowed = true/);
+  run('deploy',deployment);
+  assert.equal((await host.post('/m/edit',{note:added.result.id,body:'blocked'})).state,'sent');
+});

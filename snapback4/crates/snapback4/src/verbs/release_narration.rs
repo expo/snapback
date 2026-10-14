@@ -208,20 +208,23 @@ fn authored_programs(project: &Project) -> Result<BTreeMap<String,snapback4_lang
 fn requirements(program: &snapback4_lang::ast::ProgramDecl) -> (Vec<String>,Option<super::clause_compare::Formula>) {
     use snapback4_lang::ast::Stmt;
     use super::clause_compare::{self as clauses,Formula};
-    fn collect(body: &[Stmt], path: &str, lines: &mut Vec<String>) {
-        let mut bindings=Vec::new();
+    fn collect(body: &[Stmt], path: &str, inherited: &[String], lines: &mut Vec<String>) -> Vec<String> {
+        let mut bindings=inherited.to_vec();
         for (i,stmt) in body.iter().enumerate() {
             let at = format!("{path}/{i}");
             match stmt {
                 Stmt::Require { condition,code,message,.. } => lines.push(format!("{at}{}: require {} else {code}{}",if bindings.is_empty() {String::new()} else {format!(" with {}",bindings.join("; "))},snapback4_lang::print::expression(condition),message.as_ref().map(|s|format!(" {}",snapback4_lang::print::quote(s))).unwrap_or_default())),
                 Stmt::Bind {names,value,..}=>bindings.push(format!("{} = {}",names.join(", "),snapback4_lang::print::expression(value))),
-                Stmt::If { condition,then_body,else_body,.. } => { let at=format!("{at} if {}",snapback4_lang::print::expression(condition)); collect(then_body,&format!("{at}/then"),lines);collect(else_body,&format!("{at}/else"),lines); },
-                Stmt::For { name,domain,body,.. } => collect(body,&format!("{at} for {name} in {}",snapback4_lang::print::expression(domain)),lines),
-                Stmt::As { principal,body,.. } => collect(body,&format!("{at} as {}",snapback4_lang::print::expression(principal)),lines), _ => (),
+                Stmt::If { condition,then_body,else_body,.. } => { let at=format!("{at} if {}",snapback4_lang::print::expression(condition)); collect(then_body,&format!("{at}/then"),&bindings,lines);collect(else_body,&format!("{at}/else"),&bindings,lines); },
+                Stmt::For { name,domain,body,.. } => {collect(body,&format!("{at} for {name} in {}",snapback4_lang::print::expression(domain)),&bindings,lines);},
+                Stmt::As { principal,body,.. } => {collect(body,&format!("{at} as {}",snapback4_lang::print::expression(principal)),&bindings,lines);}, _ => (),
             }
         }
+        bindings
     }
-    let mut lines=Vec::new(); collect(&program.prelude,"prelude",&mut lines);collect(&program.body,"body",&mut lines);
+    let mut lines=Vec::new();
+    let prelude=collect(&program.prelude,"prelude",&[],&mut lines);
+    collect(&program.body,"body",&prelude,&mut lines);
     let args = program.args.iter().map(|a|a.name.clone()).collect();
     let mut prefix=true; let mut formulas=Some(Vec::new());
     for stmt in program.prelude.iter().chain(&program.body) {
