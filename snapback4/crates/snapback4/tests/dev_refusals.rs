@@ -410,3 +410,22 @@ fn hidden_query_count_is_dev_console_only() {
  let until=Instant::now()+Duration::from_secs(5);
  loop {let logs=fs::read_to_string(&dev.stderr).unwrap();if logs.contains("dev query: page hidden: 1") {break;}assert!(Instant::now()<until,"{logs}");std::thread::sleep(Duration::from_millis(10));}
 }
+
+#[test]
+fn bare_persona_arguments_refuse_only_on_the_dev_door() {
+ let dev=Host::start(Project::new(),true,false);
+ let bare=dev.request("add","alice","x-snapback-persona: alice");assert_eq!(bare["why"]["code"],"E_INPUT","{bare}");assert!(bare["why"]["message"].as_str().unwrap().contains("dev:alice"));
+ assert_eq!(dev.request("add","dev:alice","x-snapback-persona: alice")["state"],"sent");
+ let prod=Host::start(Project::new(),false,false);
+ let minted=Command::new(BIN).current_dir(&prod.project.0).args(["token","--service","mp-test","--release","release"]).output().unwrap();assert!(minted.status.success());
+ let token=String::from_utf8(minted.stdout).unwrap();
+ let raw=prod.request("add","alice",&format!("Authorization: Bearer {}",token.trim()));assert_eq!(raw["why"]["code"],"E_RULE","production must apply its table rule, not dev persona validation: {raw}");
+}
+#[test]
+fn fixture_queries_print_hidden_counts_and_persona_arguments_have_the_same_guard() {
+ let project=Project::new();fs::write(project.0.join("snapback/schema.q"),format!("{SOURCE}query point(id: rows):\n  return rows[id]\n")).unwrap();
+ let fixture=project.0.join("fixture");fs::create_dir(&fixture).unwrap();
+ fs::write(fixture.join("rows.jsonl"),"{\"id\":\"hidden\",\"owner\":\"dev:bob\"}\n").unwrap();
+ fs::write(fixture.join("test.cases.jsonl"),"{\"as\":\"alice\",\"op\":\"point\",\"args\":{\"id\":\"hidden\"},\"expect\":\"complete\",\"data\":null}\n{\"as\":\"alice\",\"op\":\"add\",\"args\":{\"owner\":\"alice\"},\"expect\":\"E_INPUT\"}\n").unwrap();
+ let out=Command::new(BIN).current_dir(&project.0).args(["test","--fixture","fixture"]).output().unwrap();assert!(out.status.success(),"{out:?}");let text=String::from_utf8(out.stdout).unwrap();assert!(text.contains("hidden: 1"),"{text}");assert!(text.contains("E_INPUT"),"{text}");
+}

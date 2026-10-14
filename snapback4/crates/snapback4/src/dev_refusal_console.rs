@@ -49,14 +49,15 @@ impl Console {
         let table = r["table"].as_str().filter(|t| !t.is_empty()).map(|t| format!(" {t}")).unwrap_or_default();
         // A lookup refusal whose row the read rule hid: name that layer, since the author's later `require` never ran.
         let hidden = r["hiddenBy"]["table"].as_str().map(|t| format!("; the lookup's {t} row is hidden by its read rule at {} (a hidden row reads as absent at a lookup, before any later require)", r["hiddenBy"]["readRuleSite"].as_str().unwrap_or("<generated>"))).unwrap_or_default();
-        let line = if self.detail { format!("dev refusal: {}:{table} — {} at {}{hidden}; execution site {}; phase {}; generation {}; store {}; instance {}; code {}; count {}; window 1s; first request {}; first job {}; first time {}; first response {}; `snapback4 why recent --instance {}`\n",
+        let kind = if r["preflight"].as_bool() == Some(true) { "auth preflight probe" } else { "refusal" };
+        let line = if self.detail { format!("dev {kind}: {}:{table} — {} at {}{hidden}; execution site {}; phase {}; generation {}; store {}; instance {}; code {}; count {}; window 1s; first request {}; first job {}; first time {}; first response {}; `snapback4 why recent --instance {}`\n",
             r["operation"].as_str().unwrap_or(""), r["clause"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["executionSite"], r["phase"], r["generation"], identity["storeId"], identity["instance"], r["code"], entry.count, r["requestId"], r["jobId"], r["at"], r["responseSequence"], identity["instance"].as_str().unwrap_or("")) }
         else {
             // @ref LLP 3000.036#16.5 — wave 6 #19: the human signal first, one short line; the record stays in `why recent`.
             let on = r["table"].as_str().filter(|t| !t.is_empty()).map(|t| format!(" on {t}")).unwrap_or_default();
             let hidden = r["hiddenBy"]["table"].as_str().map(|t| format!("; the {t} row is hidden by its read rule at {} (hidden reads as absent)", r["hiddenBy"]["readRuleSite"].as_str().unwrap_or("<generated>"))).unwrap_or_default();
             let times = if entry.count > 1 { format!(" ×{}", entry.count) } else { String::new() };
-            format!("dev {}: {} {} at {} ({}{on}){hidden}{times} — snapback4 why recent\n", if r["preflight"].as_bool() == Some(true) { "auth preflight probe" } else { "refusal" }, r["operation"].as_str().unwrap_or(""), r["code"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["clause"].as_str().unwrap_or(""))
+            format!("dev {kind}: {} {} at {} ({}{on}){hidden}{times} — snapback4 why recent\n", r["operation"].as_str().unwrap_or(""), r["code"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["clause"].as_str().unwrap_or(""))
         };
         let _ = out.write_all(line.as_bytes());
     }
@@ -195,6 +196,20 @@ mod tests {
         let text = String::from_utf8(out).unwrap();
         assert_eq!(text, "dev refusal: acceptRide NOT_FOUND at schema.q:31:3 (lookup on rides); the rides row is hidden by its read rule at schema.q:12:3 (hidden reads as absent) ×3 — snapback4 why recent\n");
         assert!(text.len() < 200, "{text}");
+    }
+    #[test]
+    fn auth_preflight_probes_are_labelled_and_never_grouped_with_operation_failures() {
+        for detail in [false,true] {
+            let mut console = Console::with_detail(detail);
+            let mut out=Vec::new();let now=Instant::now();
+            let ordinary=json!({"operation":"page","code":"E_AUTH","clause":"authentication","requestId":1});
+            let mut preflight=ordinary.clone();preflight["preflight"]=json!(true);
+            console.push_at(ordinary,now,&Value::Null,&mut out);
+            console.push_at(preflight,now,&Value::Null,&mut out);
+            console.flush_all(&Value::Null,&mut out);
+            let text=String::from_utf8(out).unwrap();let lines=text.lines().collect::<Vec<_>>();
+            assert_eq!(lines.len(),2,"{text}");assert!(lines[0].starts_with("dev refusal:"),"{text}");assert!(lines[1].starts_with("dev auth preflight probe:"),"{text}");
+        }
     }
     #[test]
     fn distinct_causes_are_bounded_and_counts_flush_on_disconnect() {

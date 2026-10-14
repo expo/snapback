@@ -125,3 +125,24 @@ fn nested_cascade_has_one_consistent_recipe_for_the_authored_root(){
  let fixed=source.replace("  root: roots on delete cascade",&format!("  root: roots on delete cascade\n  {}",caps.iter().find(|c|c.ends_with("by root")).unwrap())).replace("  child: children on delete cascade",&format!("  child: children on delete cascade\n  {}",caps.iter().find(|c|c.ends_with("by child")).unwrap()));
  assert!(checked(&fixed).diagnostics.is_empty(),"{:?}",checked(&fixed).diagnostics);
 }
+#[test]
+fn owner_equality_does_not_survive_kept_parent_recreation_or_expiry(){
+ let base="table parents:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  insert <- .owner = viewer\ntable kids:\n  parent: parents on delete keep\n  owner: principal\n  unique parent\n  immutable parent,owner\n  read <- .owner = viewer\n  insert <- .owner = viewer and .parent.owner = viewer\nmutation probe(parent: parents):\n  p = parents[parent] ! else NOT_FOUND\n  require not exists kids[parent = parent] else HAS_CHILD\n  return true\n";
+ assert!(!checked(base).notes.iter().any(|n|n.code=="N_UNREADABLE_PROBE"));
+ for source in [base.replace("  insert <- .owner = viewer\ntable kids:","  insert <- .owner = viewer\n  delete <- .owner = viewer\ntable kids:"),base.replace("  immutable owner\n","  immutable owner\n  until: time\n  index until\n  expire at .until\n")] {
+  let b=checked(&source);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);assert!(b.notes.iter().any(|n|n.code=="N_UNREADABLE_PROBE"),"{:?}",b.notes);
+ }
+}
+#[test]
+fn nested_read_alternatives_can_reach_the_custom_require(){
+ let source="table rows:\n  owner: principal\n  read <- (.owner = viewer or viewer = 'service:ops') and viewer != 'blocked'\nmutation access(row: rows):\n  r = rows[row] ! else NOT_FOUND\n  require r.owner = viewer else NOT_OWNER\n  return r\n";
+ let b=checked(source);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);assert!(!b.notes.iter().any(|n|n.code=="N_REQUIRE_HIDDEN"),"{:?}",b.notes);
+ let owner=checked(&source.replace("(.owner = viewer or viewer = 'service:ops')", "(.owner = viewer or .owner = viewer)"));assert!(owner.notes.iter().any(|n|n.code=="N_REQUIRE_HIDDEN"));
+}
+#[test]
+fn required_row_expression_keys_keep_intrinsic_identity_precedence(){
+ let source="table parents:\n  sibling: parents ? on delete keep\n  unique sibling\n  public\nquery get(p: parents):\n  return parents[parents[p] ! else NOT_FOUND]\n";
+ let b=checked(source);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+ let explicit=checked(&source.replace("return parents[parents[p] ! else NOT_FOUND]","return parents[(parents[p] ! else NOT_FOUND).id]"));assert!(explicit.diagnostics.is_empty(),"{:?}",explicit.diagnostics);
+ let strip=|b:&snapback4_lang::Bound|{let mut v=serde_json::to_value(&b.programs[0].program).unwrap();fn erase(v:&mut serde_json::Value){match v{serde_json::Value::Object(o)=>{o.remove("site");for v in o.values_mut(){erase(v);}},serde_json::Value::Array(a)=>for v in a{erase(v);},_=>{}}}erase(&mut v);v};assert_eq!(strip(&b),strip(&explicit));
+}

@@ -860,9 +860,10 @@ impl Engine {
         if self.schema.operations.get(name).is_some_and(|f| f.ephemeral) {
             self.require_non_media_ephemeral(&context.viewer,op)?;
             self.schema.check_delivery(name, context.delivery_fingerprint.as_deref())?;
+            let viewer=context.viewer.clone();
             return match self.mutate_ephemeral(name, context) {
                 Ok(out) => Ok(MutationOutcome { receipt_only: false, state: WriteState::Sent { seq: out.seq, result: out.result }, metered: out.metered, tables: out.ephemeral.tables, events: 0, replayed: false }),
-                Err(error) if error.is_refusal() => Ok(MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }),
+                Err(error) if error.is_refusal() => Ok(MutationOutcome { receipt_only: false, state: WriteState::Failed { why: seat_refusal(&self.schema,&error,&viewer), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }),
                 Err(error) => Err(error),
             };
         }
@@ -971,12 +972,7 @@ impl Engine {
                     }
                     _ => None,
                 };
-                let mut why=error.refusal();
-                // @ref LLP 3000.036.002#8 — a seat gets the same static rule
-                // context for denial, hidden collision and authorization exhaustion.
-                if viewer.starts_with("service:") && let RuntimeError::Rule { table,effect }|RuntimeError::AuthorizationBudget { table,effect }=&error {
-                    why.message.push_str(&format!("; {table} rule clause: {effect} <- {}",self.schema.tables[table].rules.for_effect(*effect).quarry()));
-                }
+                let why=seat_refusal(&self.schema,&error,&viewer);
                 MutationOutcome { receipt_only: false, state: WriteState::Failed { why, current }, metered, tables: Vec::new(), events: 0, replayed: false }
             }
             Err(error) => {
@@ -1323,3 +1319,12 @@ pub(crate) fn seed_rows(schema: &Schema, tx: &crate::store::Tx<'_>, rows: impl I
     }
     Ok(count)
     }
+
+// @ref LLP 3000.036.002#8 — durable and ephemeral seats receive the same static clause for every private cause.
+fn seat_refusal(schema:&Schema,error:&RuntimeError,viewer:&str)->Refusal {
+    let mut why=error.refusal();
+    if viewer.starts_with("service:") && let RuntimeError::Rule {table,effect}|RuntimeError::AuthorizationBudget {table,effect}=error {
+        if let Some(def)=schema.table(table) {why.message.push_str(&format!("; {table} rule clause: {effect} <- {}",def.rules.for_effect(*effect).quarry()));}
+    }
+    why
+}

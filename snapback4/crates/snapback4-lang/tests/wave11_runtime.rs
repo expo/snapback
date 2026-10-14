@@ -42,3 +42,15 @@ fn hidden_counter_is_request_local_and_changes_no_query_envelope_or_meter(){
  assert_eq!(trace.hidden(),1);
  let next=RefusalTrace::default();e.query("page",Context::new(snapback4_core::SYSTEM_PRINCIPAL,args(&[("c",Value::Null)])).at(100).with_refusal_trace(next.clone())).unwrap();assert_eq!(next.hidden(),0);
 }
+#[test]
+fn ephemeral_seat_denials_have_the_same_static_clause(){
+ let mut e=engine("table typing:\n  owner: principal\n  unique owner\n  cap 50\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  ephemeral 4s\nmutation add(owner: principal):\n  return insert typing {owner}\n");
+ let denied=why(&mut e,"add","service:ops",&[("owner",id("alice"))]);assert_eq!(denied.code,"E_RULE");assert!(denied.message.ends_with("typing rule clause: insert <- .owner = viewer"),"{denied:?}");
+}
+#[test]
+fn hidden_point_images_are_counted_outside_the_query_envelope(){
+ let source=format!("{UNIQUE}query point(key: rows):\n  return rows[key]\n");let mut e=engine(&source);seed(&mut e,"hidden","bob","key",None);
+ let trace=RefusalTrace::default();let values=args(&[("key",id("hidden"))]);
+ let plain=e.query("point",Context::new("alice",values.clone()).at(100)).unwrap();
+ let traced=e.query("point",Context::new("alice",values).at(100).with_refusal_trace(trace.clone())).unwrap();assert_eq!(serde_json::to_value(plain).unwrap(),serde_json::to_value(traced).unwrap());assert_eq!(trace.hidden(),1);
+}

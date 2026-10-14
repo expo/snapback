@@ -306,7 +306,7 @@ impl<'r> Runner<'r> {
                 let allowed = if provisional && !runner.context.is_system() {
                     runner.authorize_read(&read.table, &row, prepaid)?
                 } else { trusted || runner.check_rule(&read.table, Effect::Read, None, &row)? };
-                if !allowed { return Ok(None); }
+                if !allowed { if !runner.read_capped() {runner.hidden_row();} return Ok(None); }
                 // @ref LLP 3000.001#proposed-composition-of-retained-and-authoritative-reads — a delivered left point hit marks only its component, never whole-query coverage or a miss.
                 if runner.device && runner.retained_row(&read.table, &row)? { runner.components.note(|frame| frame.retained = true); }
                 runner.note_expiry(table, &row);

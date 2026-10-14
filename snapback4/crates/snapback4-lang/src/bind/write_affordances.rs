@@ -19,11 +19,16 @@ fn fields(rule: &RuleExpr) -> Vec<String> {
     }
 }
 fn required_owners(rule:&RuleExpr)->Vec<String> {
-    let branches=rule.disjuncts();
-    let Some(first)=branches.first() else {return vec![]};
-    let mut common=fields(first);
-    for branch in &branches[1..] { let have=fields(branch);common.retain(|f|have.contains(f)); }
-    common
+    match rule {
+        RuleExpr::And(parts)=>parts.iter().flat_map(required_owners).collect(),
+        RuleExpr::Or(parts)=>{
+            let Some(first)=parts.first() else {return vec![]};
+            let mut common=required_owners(first);
+            for part in &parts[1..] {let have=required_owners(part);common.retain(|f|have.contains(f));}
+            common
+        }
+        other=>fields(other),
+    }
 }
 fn admits_seat(rule: &RuleExpr, seat: &str) -> bool {
     match rule {
@@ -89,7 +94,7 @@ fn body(catalog:&Catalog,schema:&Schema,program:&ProgramDecl,statements:&[Stmt],
                 let effect=match op { WriteOp::Insert=>"insert",WriteOp::Update=>"update", _=>return };
                 let rule=if effect=="insert" { &def.rules.insert } else { &def.rules.update };
                 if admits_seat(rule,seat) { return; }
-                let others=fields(rule).into_iter().filter(|owner| payload.iter().find(|f|&f.name==owner).map_or(effect=="update",|f| {
+                let others=required_owners(rule).into_iter().filter(|owner| payload.iter().find(|f|&f.name==owner).map_or(effect=="update",|f| {
                     let value=f.value.clone().unwrap_or_else(||Expr::Name { name:f.name.clone(),site:f.site.clone() });
                     !matches!(value,Expr::Name { ref name,.. } if name=="viewer") && !matches!(value,Expr::Literal { value:Literal::Str(ref s),.. } if s==seat)
                 })).collect::<Vec<_>>();

@@ -29,6 +29,9 @@ pub(super) fn readable(catalog: &Catalog, schema: &Schema, read: &ReadExpr, know
         let Some(reference) = &part.column else { continue; };
         let Some(ColumnType::Ref { table: parent_name }) = child.columns.get(reference) else { continue; };
         let Some(parent) = schema.table(parent_name) else { continue; };
+        // Immutable owner fields do not prevent a kept id being deleted and recreated.
+        if child.on_delete.get(reference).is_some_and(|a| *a==snapback4_core::schema::references::OnDelete::Keep)
+            && (!matches!(parent.rules.delete,RuleExpr::Deny) || parent.expire.is_some() || parent.ephemeral.is_some()) { continue; }
         if schema.maintain_for(parent_name).is_some() || system_writes(catalog,parent_name) { continue; }
         let input = crate::print::expression(&part.value);
         let known_parent = known.contains(&format!("exists {parent_name}[id = {input}]"));
