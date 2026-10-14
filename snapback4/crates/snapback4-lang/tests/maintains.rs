@@ -87,9 +87,21 @@ query totalPosts():
     let target = &bound.schema.tables["total"];
     assert_eq!(target.columns.get("$global"), Some(&snapback4_core::schema::ColumnType::Bool));
     assert_eq!(target.indexes["byGroup"].columns(), ["$global"]);
-    let encoded = serde_json::to_value(&bound.programs[0].program).unwrap();
-    assert_eq!(encoded["body"][0]["return"]["get"]["index"], "byGroup");
-    assert_eq!(encoded["body"][0]["return"]["get"]["key"], serde_json::json!([true]));
+    let snapback4_core::ir::Stmt::Let { value: snapback4_core::ir::Expr::Get(read), .. } = &bound.programs[0].program.body[0]
+        else { panic!("global scalar starts with its point read: {:#?}", bound.programs[0].program.body) };
+    assert_eq!(read.index, "byGroup");
+    assert_eq!(read.key, [snapback4_core::ir::Expr::Literal(snapback4_core::Value::Bool(true))]);
+
+    for domain in ["total", "total first 1 by .id"] {
+        let rejected = compile(&format!("view total: count posts\n  read <- allow\n  online only\nquery leak():\n  for row in {domain}:\n    return row\n  return null\n"));
+        assert!(rejected.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+            && diagnostic.message.contains("global maintained scalar")), "{domain}: {:#?}", rejected.diagnostics);
+    }
+    for expression in ["count(total)", "exists total"] {
+        let rejected = compile(&format!("view total: count posts\n  read <- allow\n  online only\nquery leak():\n  return {expression}\n"));
+        assert!(rejected.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"),
+            "{expression}: {:#?}", rejected.diagnostics);
+    }
 }
 
 #[test]

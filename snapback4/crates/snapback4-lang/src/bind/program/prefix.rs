@@ -183,6 +183,12 @@ impl Binder<'_> {
 
     // @ref LLP 3000.007#20.22 — ruling 25: program existence over a prefix is a top-1 scan below page ownership; rule probes retain their exact-key path.
     pub(super) fn exists_read(&mut self, read: &ReadExpr, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        if self.catalog.tables.get(&read.table).and_then(|table| table.maintained.as_ref())
+            .is_some_and(|maintain| maintain.by.is_empty())
+        {
+            return Err(type_error(&read.site, format!("{} is one global maintained scalar, not an existence probe", read.table),
+                format!("compare the bare scalar instead: `{} > 0`", read.table)).guide("maintains"));
+        }
         self.exists_probe(read, out).map_err(|error| super::super::bracket_ranges::refusal(read, false, error))
     }
 

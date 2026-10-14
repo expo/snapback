@@ -52,6 +52,16 @@ query privateEntries():
         assert!(bound.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
             && diagnostic.message.contains("global maintained scalar")), "{expression}: {:#?}", bound.diagnostics);
     }
+    for domain in ["total", "total first 1 by .id"] {
+        let bound = compile(&[("bad.q".into(), format!("{source}\nquery badLoop():\n  for row in {domain}:\n    return row\n  return null\n"))]);
+        assert!(bound.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+            && diagnostic.message.contains("global maintained scalar")), "{domain}: {:#?}", bound.diagnostics);
+    }
+    for expression in ["count(total)", "exists total"] {
+        let bound = compile(&[("bad.q".into(), format!("{source}\nquery badAggregate():\n  return {expression}\n"))]);
+        assert!(bound.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"),
+            "{expression}: {:#?}", bound.diagnostics);
+    }
     let mut engine = engine(source);
     let query = |engine: &mut Engine| engine.query("totalEntries", Context::new("alice", BTreeMap::new())).unwrap().data;
     let private = |engine: &mut Engine, viewer| engine.query("privateEntries", Context::new(viewer, BTreeMap::new())).unwrap().data;

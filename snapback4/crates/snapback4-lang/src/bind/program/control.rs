@@ -527,6 +527,16 @@ impl Binder<'_> {
     }
 
     pub(super) fn loop_domain(&mut self, domain: &A, out: &mut setup::Body) -> Fallible<(LoopDomain, Ty)> {
+        let global = match domain {
+            A::Name { name, site } if self.binding(name).is_none() => Some((name, site)),
+            A::Read(read) => Some((&read.table, &read.site)),
+            _ => None,
+        }.filter(|(name, _)| self.catalog.tables.get(*name).and_then(|table| table.maintained.as_ref())
+            .is_some_and(|maintain| maintain.by.is_empty()));
+        if let Some((name, site)) = global {
+            return Err(type_error(site, format!("{name} is one global maintained scalar, not a loop domain"),
+                format!("use `{name}` as a scalar value rather than iterating it")).guide("maintains"));
+        }
         if let A::Read(read) = domain && let Some(shaped) = self.page_shape(read) { return self.loop_domain(&shaped, out); }
         if let A::Name { name, site } = domain && self.binding(name).is_none() && self.catalog.tables.contains_key(name) {
             let read = ReadExpr { cursor_prefix: None, order_keys: Vec::new(), computed: Default::default(), table: name.clone(), keys: Vec::new(), index: Some("byId".into()), range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() };

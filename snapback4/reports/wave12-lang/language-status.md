@@ -23,8 +23,8 @@ planner.
   and capture-time count provenance with stale-proof invalidation.
 - Cross-runtime evidence landed in `4156cdf7e5`: generated rounded-division
   cases cover every mode/scale and compile into the Lean fragment; one drawn
-  representative executes through native, Lean and both device stores. Simulator and
-  device scenarios exercise all five surfaces; standalone Lean witnesses
+  representative executes through native, Lean and both device stores.
+  Simulator and device scenarios exercise all five surfaces; standalone Lean witnesses
   cover the semantic fragments outside the row evaluator.
 - The shared Lean lowering compile blocker reported in the coordination inbox
   is repaired; both Wave 12 language test executables compile again.
@@ -39,7 +39,13 @@ planner.
   added prose moves the corpus-wide reduction ratio. Wave 12's modified guide
   examples, compiled-block preservation, language execution and email
   expectation all pass in that same run.
-- Guide/spec commit and the two fresh blind READY reviews are in progress.
+- The first blind pair found stale count recapture, global page
+  misclassification and an email diagnostic-code mismatch; `108c2aeeab`
+  closes those counterexamples. The second pair found that the global scalar
+  still entered loop/aggregate domains and that one IR assertion was stale.
+  The fixes now reject loop, aggregate and `exists` use, assert the actual
+  point-read IR, and pass `maintains` 15/15 plus Wave 12 semantics 6/6. A fresh
+  same-revision review pair remains in progress.
 
 ## Concerns / decisions
 

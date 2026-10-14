@@ -8,8 +8,10 @@ impl Binder<'_> {
     /// names keep their lexical meaning and ordinary pages keep their bounds.
     pub(super) fn aggregate_domain(&self, value: &A) -> Option<ReadExpr> {
         match value {
-            A::Read(read) if read.range.is_none() && read.matching.is_none() => Some(read.clone()),
-            A::Name { name, site } if self.binding(name).is_none() && self.catalog.tables.contains_key(name) =>
+            A::Read(read) if read.range.is_none() && read.matching.is_none()
+                && !self.catalog.tables.get(&read.table).and_then(|table| table.maintained.as_ref()).is_some_and(|maintain| maintain.by.is_empty()) => Some(read.clone()),
+            A::Name { name, site } if self.binding(name).is_none() && self.catalog.tables.contains_key(name)
+                && !self.catalog.tables.get(name).and_then(|table| table.maintained.as_ref()).is_some_and(|maintain| maintain.by.is_empty()) =>
                 Some(ReadExpr { cursor_prefix: None, order_keys: Vec::new(), computed: Default::default(), table: name.clone(), keys: Vec::new(), index: Some("byId".into()), range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() }),
             _ => None,
         }
