@@ -140,8 +140,18 @@ pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, bef
             // Probes and typed references can change interpretation with their
             // dependencies. Suppress no warning unless all non-rule schema
             // inputs and every other table remain identical.
-            let mut stable = old.clone(); stable.rules = next.rules.clone();
-            let dependencies_stable = stable == *next && current.tables.iter().all(|(n,t)| n == name || target.table(n) == Some(t))
+            let mut stable = old.clone();
+            *match effect {
+                snapback4_core::schema::Effect::Read=>&mut stable.rules.read,
+                snapback4_core::schema::Effect::Insert=>&mut stable.rules.insert,
+                snapback4_core::schema::Effect::Update=>&mut stable.rules.update,
+                snapback4_core::schema::Effect::Delete=>&mut stable.rules.delete,
+            } = after.clone();
+            let mut probes=Vec::new();
+            snapback4_core::engine::rules::probe_sites(before,&mut probes);
+            snapback4_core::engine::rules::probe_sites(after,&mut probes);
+            let self_reference=probes.iter().any(|(table,_)|table==name);
+            let dependencies_stable = !self_reference && stable == *next && current.tables.iter().all(|(n,t)| n == name || target.table(n) == Some(t))
                 && current.auth == target.auth && current.maintains == target.maintains
                 && current.timelines == target.timelines && current.delivery == target.delivery
                 && current.receipts == target.receipts && current.receipt_dependencies == target.receipt_dependencies;
@@ -158,15 +168,25 @@ pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, bef
             if before.kind != snapback4_lang::ast::ProgramKind::Mutation { continue; }
             let (old_lines, old_formula) = requirements(&before);
             let (new_lines, new_formula) = requirements(after);
-            if old_lines == new_lines { continue; }
             let same_args = before.args.iter().map(|a|(&a.name,&a.type_)).eq(after.args.iter().map(|a|(&a.name,&a.type_)));
+            if old_lines.is_empty() && new_lines.is_empty() { continue; }
+            let pure = old_formula.is_some() && new_formula.is_some() && same_args && before.kind==after.kind && current.auth==target.auth;
+            let dependencies_unchanged = source_before.as_ref().and_then(|s|s.get(&name)).zip(source_after.get(&name)).is_some_and(|(a,b)|a==b)
+                && before_programs.get(&name)==after_programs.get(&name) && current==target;
+            if old_lines==new_lines && (pure || dependencies_unchanged) {continue;}
+            let dependency_change=old_lines==new_lines;
             let change = if same_args && before.kind == after.kind && current.auth == target.auth { old_formula.zip(new_formula).map(|(a,b)|clauses::compare(&a,&b)).unwrap_or(Change::Unknown) } else { Change::Unknown };
             // Refusal code/message changes are observable even for equivalent predicates.
-            let refusal_signature = |p: &snapback4_lang::ast::ProgramDecl| p.prelude.iter().chain(&p.body).filter_map(|s| match s {
-                snapback4_lang::ast::Stmt::Require {code,message,..}=>Some((code.clone(),message.clone())), _=>None
+            let guards = |p: &snapback4_lang::ast::ProgramDecl| p.prelude.iter().chain(&p.body).filter_map(|s| match s {
+                snapback4_lang::ast::Stmt::Require {condition,code,message,..}=>Some((condition.clone(),code.clone(),message.clone())), _=>None
             }).collect::<Vec<_>>();
-            let change = if change == Change::Same && refusal_signature(&before) != refusal_signature(after) { Change::Unknown } else { change };
-            let line = format!("{target_label} {} {name}.require; old: {} | new: {}", match change { Change::Tightens => "tightens", Change::Loosens => "loosens", Change::Same => "keeps equivalent", _ => "changes (implication unproved)" }, if old_lines.is_empty() { "allow".into() } else { old_lines.join("; ") }, if new_lines.is_empty() { "allow".into() } else { new_lines.join("; ") });
+            let old_guards=guards(&before);let new_guards=guards(after);
+            let args=before.args.iter().map(|a|a.name.clone()).collect();
+            let contract_same=old_guards.len()==new_guards.len() && old_guards.iter().zip(&new_guards).all(|((a,code,msg),(b,next_code,next_msg))| {
+                code==next_code && msg==next_msg && clauses::require(a,&args).zip(clauses::require(b,&args)).is_some_and(|(a,b)|clauses::compare(&a,&b)==Change::Same)
+            });
+            let change = if change==Change::Same && !contract_same {Change::Unknown} else {change};
+            let line = format!("{target_label} {} {name}.require; old: {} | new: {}", match change { Change::Tightens => "tightens", Change::Loosens => "loosens", Change::Same => "keeps equivalent", _ if dependency_change => "changes (guard dependencies changed; implication unproved)", _ => "changes (implication unproved)" }, if old_lines.is_empty() { "allow".into() } else { old_lines.join("; ") }, if new_lines.is_empty() { "allow".into() } else { new_lines.join("; ") });
             if matches!(change,Change::Same | Change::Tightens) { notes.push(line); } else { warnings.push(line); }
         }
     }
@@ -189,10 +209,12 @@ fn requirements(program: &snapback4_lang::ast::ProgramDecl) -> (Vec<String>,Opti
     use snapback4_lang::ast::Stmt;
     use super::clause_compare::{self as clauses,Formula};
     fn collect(body: &[Stmt], path: &str, lines: &mut Vec<String>) {
+        let mut bindings=Vec::new();
         for (i,stmt) in body.iter().enumerate() {
             let at = format!("{path}/{i}");
             match stmt {
-                Stmt::Require { condition,code,message,.. } => lines.push(format!("{at}: require {} else {code}{}",snapback4_lang::print::expression(condition),message.as_ref().map(|s|format!(" {}",snapback4_lang::print::quote(s))).unwrap_or_default())),
+                Stmt::Require { condition,code,message,.. } => lines.push(format!("{at}{}: require {} else {code}{}",if bindings.is_empty() {String::new()} else {format!(" with {}",bindings.join("; "))},snapback4_lang::print::expression(condition),message.as_ref().map(|s|format!(" {}",snapback4_lang::print::quote(s))).unwrap_or_default())),
+                Stmt::Bind {names,value,..}=>bindings.push(format!("{} = {}",names.join(", "),snapback4_lang::print::expression(value))),
                 Stmt::If { condition,then_body,else_body,.. } => { let at=format!("{at} if {}",snapback4_lang::print::expression(condition)); collect(then_body,&format!("{at}/then"),lines);collect(else_body,&format!("{at}/else"),lines); },
                 Stmt::For { name,domain,body,.. } => collect(body,&format!("{at} for {name} in {}",snapback4_lang::print::expression(domain)),lines),
                 Stmt::As { principal,body,.. } => collect(body,&format!("{at} as {}",snapback4_lang::print::expression(principal)),lines), _ => (),

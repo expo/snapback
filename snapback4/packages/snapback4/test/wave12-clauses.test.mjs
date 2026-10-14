@@ -35,7 +35,7 @@ async function serve(t, deployment) {
   const signIn = await (await fetch(url + '/auth/guest', { method: 'POST', body: '{}' })).json();
   const headers = { authorization: `Bearer ${signIn.session.token}`, 'content-type': 'application/json' };
   const post = async (path, args) => (await fetch(url + path, { method: 'POST', headers, body: JSON.stringify({ args }), signal: AbortSignal.timeout(hangBudget()) })).json();
-  return { url, stop, post, child, log: () => out() + err };
+  return { viewer:signIn.session.principal, url, stop, post, child, log: () => out() + err };
 }
 const initial = `use identity guests
 table notes:
@@ -161,4 +161,58 @@ test('identity changes retain warnings and equivalent requirements keep their re
   assert.match(run('deploy',deployment,'--check').stdout,/note:.*keeps equivalent edit.require/);
   writeFileSync(schema,guarded.replace('else NOT_OPERATOR','else OPERATOR_REQUIRED'));
   assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*implication unproved.*edit.require.*NOT_OPERATOR.*OPERATOR_REQUIRED/);
+});
+
+test('self-table read changes cannot certify a reference-rule tightening', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=`use identity guests
+table nodes:
+  owner: principal
+  parent: nodes ?
+  value: int default 0
+  read <- .owner = viewer
+  insert <- allow
+  update <- .parent.owner != viewer
+  online only
+mutation add(id: id, owner: principal, parent: nodes ?):
+  return insert nodes {id, owner, parent}
+mutation bump(node: nodes):
+  update nodes[node] {value: 1}
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);
+  assert.equal((await host.post('/m/add',{id:'parent',owner:'service:other',parent:null})).state,'sent');
+  assert.equal((await host.post('/m/add',{id:'child',owner:host.viewer,parent:'parent'})).state,'sent');
+  assert.equal((await host.post('/m/bump',{node:'child'})).why.code,'E_RULE');
+  const next=source.replace('read <- .owner = viewer','read <- allow').replace('update <- .parent.owner != viewer','update <- .parent.owner != viewer and .owner = viewer');
+  writeFileSync(schema,next);
+  const preview=run('deploy',deployment,'--check').stdout;
+  assert.match(preview,/WARNING.*implication unproved.*nodes.update/);
+  assert.doesNotMatch(preview,/note:.*tightens nodes.update/);
+  run('deploy',deployment);
+  assert.equal((await host.post('/m/bump',{node:'child'})).state,'sent');
+});
+
+test('equivalent conjunctions preserve first-failure association and local guard changes warn', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const guarded=initial.replace('  update notes[note]',"  require body != 'a' else FIRST\n  require body != 'b' else SECOND\n  update notes[note]");
+  writeFileSync(schema,guarded);run('deploy',deployment);
+  const host=await serve(t,deployment);
+  const added=await host.post('/m/add',{body:'before'});
+  const note=added.result.id;
+  assert.equal((await host.post('/m/edit',{note,body:'a'})).why.code,'FIRST');
+  const swapped=guarded.replace("body != 'a' else FIRST","body != 'b' else FIRST").replace("body != 'b' else SECOND","body != 'a' else SECOND");
+  writeFileSync(schema,swapped);
+  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*implication unproved.*edit.require/);
+  run('deploy',deployment);
+  assert.equal((await host.post('/m/edit',{note,body:'a'})).why.code,'SECOND');
+  const local=initial.replace('  update notes[note]',"  allowed = body != 'blocked'\n  require allowed else BLOCKED\n  update notes[note]");
+  writeFileSync(schema,local);run('deploy',deployment);
+  assert.equal((await host.post('/m/edit',{note,body:'blocked'})).why.code,'BLOCKED');
+  writeFileSync(schema,local.replace("allowed = body != 'blocked'",'allowed = true'));
+  const preview=run('deploy',deployment,'--check').stdout;
+  assert.match(preview,/WARNING.*implication unproved.*edit.require/);
+  assert.match(preview,/old:.*allowed = \(body != 'blocked'\).*new:.*allowed = true/);
+  run('deploy',deployment);
+  assert.equal((await host.post('/m/edit',{note,body:'blocked'})).state,'sent');
 });
