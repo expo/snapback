@@ -243,8 +243,8 @@ Attaches the active release; a running serve adopts deploy and rollback atomical
                 if inside && !trimmed.is_empty() { lines.push(line.to_owned()); }
             }
             if lines.is_empty() { return None; }
-            return Some(format!("{}\n\nsnapback4 --help lists every verb.", lines.join("\n")));
+            return Some(format!("{}\n\n{}\n\nsnapback4 --help lists every verb.", lines.join("\n"), crate::cli_flags::help(verb)));
         }
     };
-    Some(format!("{page}\n\nsnapback4 --help lists every verb."))
+    Some(format!("{page}\n\n{}\n\nsnapback4 --help lists every verb.", crate::cli_flags::help(verb)))
 }

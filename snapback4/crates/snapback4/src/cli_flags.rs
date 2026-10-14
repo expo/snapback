@@ -1,7 +1,7 @@
 //! Validate the complete command before any project, store or host work.
 const SWITCHES: &[&str] = &["list", "help", "initialize", "environment-skip", "background", "if-present", "check", "engine-info", "json", "json-objects", "trace-empty", "latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "resume-clock", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "restore-dormant", "allow-feed-adoption", "i-understand-cleartext", "skip-existing", "sections", "adapt", "dry-run", "apply", "full", "smoke", "prime", "relaunch", "restart", "wait"];
 
-fn allowed(verb: &str) -> &'static str {
+pub(crate) fn allowed(verb: &str) -> &'static str {
     match verb {
         "init" | "new" => "online expo web template recipe port port-range web-port skip-existing adapt dry-run apply prefix authors edges public-profiles public-posts public-follows public-reposts",
         "check" => "cost residency fix json verbose store fixture as emit-lean url release",
@@ -87,5 +87,39 @@ mod integration_tests {
         assert!(validate(&["upgrade".into(), "0.4.25".into()]).is_ok());
         assert!(validate(&["upgrade".into(), "--to".into(), "0.4.25".into(), "--json".into()]).is_ok());
         assert!(validate(&["witness".into(), "web".into(), "--password-env".into()]).is_err());
+    }
+}
+
+/// Generated from the same flag table used before dispatch and side effects.
+pub(crate) fn help(verb: &str) -> String {
+    let mut out = String::from("Flags (validated before any project or store work):\n");
+    for name in allowed(verb).split_whitespace().chain(["help"]) {
+        let value = match name {
+            "schema" | "source" => " file.q", "find" | "section" => " words",
+            _ if switch(name) => "", _ => " VALUE",
+        };
+        let description = match (verb, name) {
+            ("deploy", "schema") => " — deploy a saved complete source; keep it outside snapback/",
+            ("test", "source") => " — test a saved complete source; keep it outside snapback/",
+            (_, "help") => " — print this verb's help (-h also works)",
+            _ => "",
+        };
+        out.push_str(&format!("  --{name}{value}{description}\n"));
+    }
+    out.trim_end().to_owned()
+}
+
+#[cfg(test)]
+mod projection_tests {
+    #[test]
+    fn every_validated_flag_is_in_its_generated_help() {
+        for verb in ["init","new","check","device","types","dev","deploy","rollback","prune","releases","serve","run","clock","reset","test","why","guide","data","sql","token","doctor","upgrade","witness"] {
+            let page = super::help(verb);
+            for name in super::allowed(verb).split_whitespace() {
+                assert!(page.lines().any(|line|line.trim_start().starts_with(&format!("--{name}"))),"{verb}: {name}");
+                let args = if super::switch(name) { vec![verb.into(), format!("--{name}")] } else { vec![verb.into(), format!("--{name}"), "value".into()] };
+                assert!(super::validate(&args).is_ok(),"{args:?}");
+            }
+        }
     }
 }

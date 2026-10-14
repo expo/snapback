@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { checkVerbHelp } from "./check-verb-help.mjs";
 import { lintPackagedDocs } from "./packaged-docs.mjs";
 // @ref LLP 3000.021#3.3 — a publication is one client and a qualified artifact per platform
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, statSync, appendFileSync } from "node:fs";
@@ -83,6 +84,7 @@ if (existsSync(receiptPath)) {
     const stagePkg = join(work, platformName); mkdirSync(stagePkg);
     for (const name of ["package.json", "THIRD-PARTY-NOTICES"]) copyFileSync(join(platformPkg, name), join(stagePkg, name));
     const binary = join(stagePkg, "snapback4"); copyFileSync(cargo.executable, binary);
+  checkVerbHelp(binary);
     const signing = signForPublication(binary, version);
     const binaryVersion = run(binary, ["--version"]).trim();
     if (binaryVersion !== `snapback4 ${version}`) throw new Error(`built binary is ${binaryVersion}`);

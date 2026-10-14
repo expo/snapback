@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { checkVerbHelp } from "./check-verb-help.mjs";
 // @ref LLP 3000.021#3.3 — Linux qualifies bytes; it never packs the client or publishes
 import { spawnSync } from "node:child_process";
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync, openSync, closeSync } from "node:fs";
@@ -79,6 +80,7 @@ export async function qualify(args = process.argv.slice(2)) {
   const suitePassed = result.status === 0 && summary?.startsWith("== 0 ");
   run("bash", [join(root, "scripts/build-linux-musl.sh")], { cwd: root, env, stdio: "inherit" });
   const binary = join(root, `target/${linuxTarget}/production/snapback4`), binarySha256 = digest(binary), elf = checkElf(readFileSync(binary));
+  checkVerbHelp(binary);
   if (run(binary, ["--version"]).trim() !== `snapback4 ${version}`) throw new Error("Linux built binary version differs from client");
   const work = mkdtempSync(join(tmpdir(), "snapback4-linux-"));
   try {
