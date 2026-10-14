@@ -141,7 +141,7 @@ fn durable_schema_and_types_keep_base_bytes() {
     assert!(refused.diagnostics.iter().any(|d| d.code == "E_QUARRY_POINT_KEY"));
     assert!(expected.remove("repair-probe.q").is_some());
     assert_eq!(actual.keys().collect::<Vec<_>>(), expected.keys().collect::<Vec<_>>());
-    // @ref LLP 3000.013#6.5 — DX3 removes null only for these proved-stable
+    // @ref LLP 3000.013#2.2 — DX3 removes null only for these proved-stable
     // mutation returns. Keep the historical JSON captures and every other
     // schema/type byte unchanged, including nullable authority-loss controls.
     for (fixture, operation, table) in [
