@@ -79,17 +79,15 @@ theorem findRow_mem {rows : List Row} {ks} {r : Row} (h : findRow rows ks = some
   · exact List.mem_of_find?_eq_some h
 
 theorem doInsertImage_ok {sch : Schema} {s : Store} {v : List Nat} {now : Int}
-    {t : String} {td : TableDecl} {img : Row} {ifAbsent : Bool} {clashHidden : Stop}
+    {t : String} {td : TableDecl} {img : Row} {clashHidden : Stop}
     {val : Value} {s' : Store}
-    (h : doInsertImage sch s v now t td img ifAbsent clashHidden = .ok (val, s')) :
-    s' = s ∨ s' = s.insertRow t img := by
+    (h : doInsertImage sch s v now t td img clashHidden = .ok (val, s')) :
+    s' = s.insertRow t img := by
   unfold doInsertImage at h
   split at h
   · obtain ⟨_, -, h⟩ := bind_ok h
-    split at h
-    · cases h; exact .inl rfl
-    · cases h
-  · cases h; exact .inr rfl
+    cases h
+  · cases h; rfl
 
 theorem doUpdateRow_ok {sch s v now t td old patch cond val s'}
     (h : doUpdateRow sch s v now t td old patch cond = .ok (val, s')) :
@@ -127,6 +125,21 @@ theorem retireExpiredSameId_steps {sch s s' v now t td rid}
   · subst h; exact .refl _
   · exact .step (.retire ht hold hexp href) (.refl _)
 
+theorem retireThenInsert_authorized {sch : Schema} {s s0 s' : Store} {v : List Nat}
+    {now : Int} {t : String} {td : TableDecl} {rid : List Nat} {img : Row}
+    {clashHidden : Stop} {val : Value}
+    (ht : sch.table? t = some td)
+    (ha : td.insert.eval (openedStore sch s now) v { self := some img } = true)
+    (hr : retireExpiredSameId sch s now t td rid = .ok s0)
+    (hi : doInsertImage sch s0 v now t td img clashHidden = .ok (val, s')) :
+    Steps sch v now s s' := by
+  have hi := doInsertImage_ok hi
+  subst hi
+  rcases retireExpiredSameId_result hr with hs | ⟨old, hold, hexp, href⟩
+  · subst hs
+    exact .step (.insert ht ha) (.refl _)
+  · exact .step (.replaceExpired ht hold hexp ha href) (.refl _)
+
 /-- **Referential actions change nothing a schema does not declare**
 (LLP 3000.039 §1): a delete from a table no action-carrying reference names
 removes exactly that row, as every delete did before. -/
@@ -151,15 +164,23 @@ theorem applyWrite_authorized {cx : Ctx} {s s' : Store} {rw : RWrite} {val : Val
       obtain ⟨_, -, h⟩ := bind_ok h
       obtain ⟨img, -, h⟩ := bind_ok h
       obtain ⟨_, hg, h⟩ := bind_ok h
-      obtain ⟨s0, hr, h⟩ := bind_ok h
-      have hs0 := retireExpiredSameId_steps (v := cx.viewer) htd hr
-      rcases doInsertImage_ok h with h | h
-      · subst h; exact hs0
-      · subst h
-        rcases retireExpiredSameId_result hr with hs | ⟨old, hold, hexp, href⟩
-        · subst hs
-          exact .step (.insert htd (guardE_ok hg)) (.refl _)
-        · exact .step (.replaceExpired htd hold hexp (guardE_ok hg) href) (.refl _)
+      cases ifAbsent with
+      | false =>
+        simp only [Bool.false_eq_true, ite_false] at h
+        obtain ⟨s0, hr, h⟩ := bind_ok h
+        exact retireThenInsert_authorized htd (guardE_ok hg) hr h
+      | true =>
+        simp only [ite_true] at h
+        obtain ⟨clashes, -, h⟩ := bind_ok h
+        cases clashes with
+        | false =>
+          simp only [Bool.false_eq_true, ite_false] at h
+          obtain ⟨s0, hr, h⟩ := bind_ok h
+          exact retireThenInsert_authorized htd (guardE_ok hg) hr h
+        | true =>
+          simp only [ite_true] at h
+          cases h
+          exact .refl _
   | update t key patch cond =>
     simp only [applyWrite] at h
     split at h
@@ -189,14 +210,7 @@ theorem applyWrite_authorized {cx : Ctx} {s s' : Store} {rw : RWrite} {val : Val
         obtain ⟨img, -, h⟩ := bind_ok h
         obtain ⟨_, hg, h⟩ := bind_ok h
         obtain ⟨s0, hrs, h⟩ := bind_ok h
-        have hs0 := retireExpiredSameId_steps (v := cx.viewer) htd hrs
-        rcases doInsertImage_ok h with h | h
-        · subst h; exact hs0
-        · subst h
-          rcases retireExpiredSameId_result hrs with hs | ⟨old, hold, hexp, href⟩
-          · subst hs
-            exact .step (.insert htd (guardE_ok hg)) (.refl _)
-          · exact .step (.replaceExpired htd hold hexp (guardE_ok hg) href) (.refl _)
+        exact retireThenInsert_authorized htd (guardE_ok hg) hrs h
   | delete t key =>
     simp only [applyWrite] at h
     split at h
@@ -293,7 +307,9 @@ theorem mutationHooks_apply_authorized {cx : Ctx} {w w' : MutationWorld}
     | Except.error e => Except.error e
     | Except.ok (value, store) =>
       let changed := w.changed ++ changedFinalRows cx.schema w.store store
-      let changed := match rw.explicitId? with | some address => changed ++ [address] | none => changed
+      let changed := match rw.changedExplicitId? cx w.store with
+        | some address => changed ++ [address]
+        | none => changed
       Except.ok (value, { store, changed := changed.eraseDups })) = Except.ok (val, w') at h
   split at h
   · cases h

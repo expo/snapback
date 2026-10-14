@@ -853,6 +853,17 @@ def expiryWriteStore : Store := mkStore [
   ("items", [mkRow "r0" [("owner", I "alice"), ("until", N 10), ("tag", I "tag0")],
     mkRow "r1" [("owner", I "alice"), ("until", .null), ("tag", I "tag1")]])]
 
+def ifAbsentExpirySchema : Schema := { tables := [
+  { name := "parents", cols := [c "until", c "tag"], uniques := [["tag"]],
+    expire := some "until", read := .allow, insert := .allow, update := .allow, delete := .allow },
+  { name := "cascadeKids", cols := [refCol "parent" "parents" (some .cascade)],
+    read := .allow, insert := .allow }] }
+
+def ifAbsentExpiryStore : Store := mkStore [
+  ("parents", [mkRow "p" [("until", N 10), ("tag", I "old")],
+    mkRow "q" [("until", .null), ("tag", I "taken")]]),
+  ("cascadeKids", [mkRow "c" [("parent", I "p")]])]
+
 def mutationExpirySchema (parentInsert : Rule := .allow) : Schema := { tables := [
   { name := "parents", cols := [c "until"], expire := some "until", read := .allow,
     insert := parentInsert, update := .allow, delete := .allow },
@@ -925,6 +936,32 @@ def refExamples : List Example := [
                 [("owner", idE "alice"), ("until", int 20), ("tag", idE "tag1")])] }
     tables := []
     expected := r#"{"kind":"refused","code":"E_UNIQUE"}"# },
+  { name := "insert-ignores-expired-secondary-unique"
+    source := "LLP 3000.036.003 §7: expired secondary occupants release their logical unique keys"
+    case := { schema := expiryWriteSchema, store := expiryWriteStore, viewer := alice, now := 10,
+              program := mutation [
+                .write none (.insert "items" [("id", idE "r2"), ("owner", idE "alice"),
+                  ("until", int 20), ("tag", idE "tag0")] false),
+                .ret (lit .null)] }
+    tables := ["items"]
+    expected := r#"{"kind":"committed","result":null,"store":{"items":[{"id":"r0","owner":"alice","tag":"tag0","until":10},{"id":"r1","owner":"alice","tag":"tag1","until":null},{"id":"r2","owner":"alice","tag":"tag0","until":20}]}}"# },
+  { name := "update-ignores-expired-secondary-unique"
+    source := "LLP 3000.036.003 §7: update uniqueness also ignores expired secondary occupants"
+    case := { schema := expiryWriteSchema, store := expiryWriteStore, viewer := alice, now := 10,
+              program := mutation [
+                .write none (.update "items" [("id", idE "r1")] [("tag", idE "tag0")] none),
+                .ret (lit .null)] }
+    tables := ["items"]
+    expected := r#"{"kind":"committed","result":null,"store":{"items":[{"id":"r0","owner":"alice","tag":"tag0","until":10},{"id":"r1","owner":"alice","tag":"tag0","until":null}]}}"# },
+  { name := "insert-if-absent-clash-preserves-expired-predecessor"
+    source := "LLP 3000.036.003 §7: a live secondary clash makes if-absent a no-op before same-id retirement"
+    case := { schema := ifAbsentExpirySchema, store := ifAbsentExpiryStore, viewer := alice, now := 10,
+              program := mutation [
+                .write none (.insert "parents" [("id", idE "p"), ("until", int 20),
+                  ("tag", idE "taken")] true),
+                .ret (lit .null)] }
+    tables := ["parents", "cascadeKids"]
+    expected := r#"{"kind":"committed","result":null,"store":{"cascadeKids":[{"id":"c","parent":"p"}],"parents":[{"id":"p","tag":"old","until":10},{"id":"q","tag":"taken","until":null}]}}"# },
   { name := "ordinary-delete-ignores-expired-action-witnesses"
     source := "LLP 3000.039 §3 and LLP 3000.036.003 §3: logically expired cascade, set-null and restrict children are not delete-action witnesses"
     case := { schema := mutationExpirySchema, store := expiredActionWitnessStore, viewer := alice, now := 10,

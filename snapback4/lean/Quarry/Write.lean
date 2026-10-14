@@ -111,14 +111,14 @@ def resultOfAt (sch : Schema) (s : Store) (v : List Nat) (now : Int)
 def guardE (b : Bool) (e : Stop) : Except Stop Unit := if b then .ok () else .error e
 
 def doInsertImage (sch : Schema) (s : Store) (v : List Nat) (now : Int) (t : String) (td : TableDecl)
-    (img : Row) (ifAbsent : Bool) (clashHidden : Stop) :
+    (img : Row) (clashHidden : Stop) :
     Except Stop (Value × Store) := do
   -- Insert authority has already been checked. Remaining unique checks and
   -- the physical insertion use the post-retirement store.
-  match findClash (s t) (["id"] :: td.uniques) img none with
+  match findClash ((s t).filter (unexpired td now)) (["id"] :: td.uniques) img none with
   | some (i, r) => do
     guardE (readableAt sch s v now t r) clashHidden
-    if ifAbsent then pure (.null, s) else throw (clashCode td true i)
+    throw (clashCode td true i)
   | none =>
     let s' := s.insertRow t img
     pure (resultOfAt sch s' v now t img, s')
@@ -136,7 +136,7 @@ def condCheck (rd : Bool) (cond : Option (Row → Except Stop Bool)) (old : Row)
 /-- A secondary unique clash of an update's next image with another row. -/
 def clashCheck (sch : Schema) (s : Store) (v : List Nat) (now : Int) (t : String) (td : TableDecl)
     (rd : Bool) (old nw : Row) : Except Stop Unit :=
-  match findClash (s t) td.uniques nw (some old.id) with
+  match findClash ((s t).filter (unexpired td now)) td.uniques nw (some old.id) with
   | some (i, r) =>
     throw (if !rd then notFound else if !(readableAt sch s v now t r) then eRule else clashCode td false i)
   | none => pure ()
@@ -259,6 +259,17 @@ def retireExpiredSameId (sch : Schema) (s : Store) (now : Int) (t : String)
     else pure s
   | none => pure s
 
+/-- Whether `insert if absent` has a live unique-key occupant. Native checks
+all live unique collisions before retiring an expired same-id predecessor, so
+a no-op leaves the physical store and its action children unchanged. -/
+def insertIfAbsentClash (sch : Schema) (s : Store) (v : List Nat) (now : Int)
+    (t : String) (td : TableDecl) (img : Row) : Except Stop Bool :=
+  match findClash ((s t).filter (unexpired td now)) (["id"] :: td.uniques) img none with
+  | some (_, r) => do
+    guardE (readableAt sch s v now t r) eRule
+    pure true
+  | none => pure false
+
 /-- Retire every due physical row. `restrict` retains that root but never
 stops later due keys; cascade and set-null are committed with the root. The
 model has no read-through retained-history rows, so every non-restricted due
@@ -285,8 +296,15 @@ def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
       -- Native refusal order authorizes the proposed image while the expired
       -- predecessor is still present, then retires it and applies its actions.
       guardE (td.insert.eval (openedStore cx.schema s cx.now) cx.viewer { self := some img }) eRule
-      let s ← retireExpiredSameId cx.schema s cx.now t td rid
-      doInsertImage cx.schema s cx.viewer cx.now t td img ifAbsent eRule
+      if ifAbsent then
+        let clashes ← insertIfAbsentClash cx.schema s cx.viewer cx.now t td img
+        if clashes then pure (.null, s)
+        else
+          let s ← retireExpiredSameId cx.schema s cx.now t td rid
+          doInsertImage cx.schema s cx.viewer cx.now t td img eRule
+      else
+        let s ← retireExpiredSameId cx.schema s cx.now t td rid
+        doInsertImage cx.schema s cx.viewer cx.now t td img eRule
   | .update t key patch cond =>
     match cx.schema.table? t with
     | none => throw eInput
@@ -311,7 +329,7 @@ def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
         let img ← buildImage td rid (ks ++ ps) notFound
         guardE (td.insert.eval (openedStore cx.schema s cx.now) cx.viewer { self := some img }) notFound
         let s ← retireExpiredSameId cx.schema s cx.now t td rid
-        doInsertImage cx.schema s cx.viewer cx.now t td img false notFound
+        doInsertImage cx.schema s cx.viewer cx.now t td img notFound
   | .delete t key =>
     match cx.schema.table? t with
     | none => throw eInput

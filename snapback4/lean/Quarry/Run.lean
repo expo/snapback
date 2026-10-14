@@ -39,10 +39,19 @@ structure MutationWorld where
   store : Store
   changed : ChangedRows := []
 
-def RWrite.explicitId? : RWrite → Option (String × List Nat)
-  | .insert t fields _ => match fields.lookup "id" with
-    | some (.s (.id rid)) => some (t, rid)
-    | _ => none
+/-- The explicit address of an insert-like write that reached its write arm.
+This retains a structurally identical expired replacement for commit-end
+retirement, while excluding `insert if absent` live-clash no-ops. -/
+def RWrite.changedExplicitId? (cx : Ctx) (s : Store) : RWrite → Option (String × List Nat)
+  | .insert t fields ifAbsent => do
+    let td ← cx.schema.table? t
+    let fs ← (scalarsE fields).toOption
+    let rid ← (insertId fs).toOption
+    let img ← (buildImage td rid fs eInput).toOption
+    if ifAbsent && (findClash ((s t).filter (unexpired td cx.now))
+        (["id"] :: td.uniques) img none).isSome
+    then none
+    else some (t, rid)
   | .upsert t key patch =>
     match key.lookup "id" with
     | some (.s (.id rid)) => some (t, rid)
@@ -63,7 +72,9 @@ def mutationHooks : Hooks MutationWorld where
     | .error e => .error e
     | .ok (value, store) =>
       let changed := w.changed ++ changedFinalRows cx.schema w.store store
-      let changed := match rw.explicitId? with | some address => changed ++ [address] | none => changed
+      let changed := match rw.changedExplicitId? cx w.store with
+        | some address => changed ++ [address]
+        | none => changed
       .ok (value, { store, changed := changed.eraseDups })
 
 /-- Retire only rows written by this mutation whose final image is already
