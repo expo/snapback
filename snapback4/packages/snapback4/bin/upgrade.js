@@ -112,7 +112,7 @@ try {
     else if (checked.stdout) process.stdout.write(checked.stdout);
     if (checked.error || checked.status !== 0) { const error = Error(`E_UPGRADE: packages pinned to ${version}; post-upgrade check refused. Repair the reported schema/device issues and run check again.`); error.check = checkedFacts; throw error; }
   }
-  if (json) console.log(JSON.stringify({ ok: true, version, targets, packageManager: pm, check: checkedFacts, runtimeChanges: history }));
+  if (json) console.log(JSON.stringify({ ok: true, version, targets, packageManager: pm, check: checkedFacts }));
   log(`upgrade: ${targets.join(', ')} pinned to ${version} with ${pm}; commit the lockfile, run check and acceptance tests${targets.includes('snapback4-expo') ? ', and rebuild the native app' : ''}`);
 }
 try { run(); } catch (error) { if (process.argv.includes('--json')) console.log(JSON.stringify({ ok: false, error: error.message, ...(error.check ? { check: error.check } : {}) })); console.error(error.message); process.exitCode = 1; }

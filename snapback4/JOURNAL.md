@@ -95414,3 +95414,11 @@ through its rendered tab passes twice with occupied-port/CPU load. Emit that
 step only for --template social; retain generic defaults/other templates. The
 all-template regression checks its selection, and final packed matrices execute
 it. The second qualifier was interrupted before completing and claims no pass.
+
+FIX28 schema-less JSON control: its history was present both in a JSON field
+and on stderr. Remove the redundant JSON history field; every upgrade/check
+JSON path keeps history exclusively on stderr. An actual helper regression
+first fails for duplicate output, then verifies one emission and silent repeat.
+This is output custody only; no package/version/history interval change.
+The prior qualification attempt was interrupted before completing; a fresh
+exact packed-client run follows this final helper change.

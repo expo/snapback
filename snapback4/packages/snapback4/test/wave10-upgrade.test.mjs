@@ -184,3 +184,14 @@ test('registry latest cannot silently downgrade; only --to authorizes it', t => 
   success(invoke(['upgrade', '--to', '0.4.26'], dir, env));
   assert.equal(JSON.parse(readFileSync(join(dir, 'package.json'))).dependencies.snapback4, '0.4.26');
 });
+
+test('schema-less JSON upgrade emits runtime history on stderr exactly once', t => {
+  const { dir, env } = upgradeFixture(t);
+  rmSync(join(dir, 'snapback/schema.q'));
+  const result = invoke(['upgrade', '--json'], dir, env); success(result);
+  assert.equal(JSON.parse(result.stdout).ok, true);
+  assert.doesNotMatch(result.stdout, /runtime changes:/);
+  assert.equal((result.stderr.match(/runtime changes: 0\.4\.27 →/g) ?? []).length, 1, result.stderr);
+  const again = invoke(['upgrade', '--json'], dir, env); success(again);
+  assert.doesNotMatch(again.stdout + again.stderr, /runtime changes:/);
+});
