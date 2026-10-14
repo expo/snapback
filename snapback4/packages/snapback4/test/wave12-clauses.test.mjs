@@ -35,7 +35,7 @@ async function serve(t, deployment) {
   const signIn = await (await fetch(url + '/auth/guest', { method: 'POST', body: '{}' })).json();
   const headers = { authorization: `Bearer ${signIn.session.token}`, 'content-type': 'application/json' };
   const post = async (path, args) => (await fetch(url + path, { method: 'POST', headers, body: JSON.stringify({ args }), signal: AbortSignal.timeout(hangBudget()) })).json();
-  return { stop, post, child, log: () => out() + err };
+  return { url, stop, post, child, log: () => out() + err };
 }
 const initial = `use identity guests
 table notes:
@@ -59,6 +59,22 @@ test('guide and probe agree on widen, tighten, require, SIGTERM, rollback and fo
   writeFileSync(schema,initial);run('deploy',deployment);
   const host=await serve(t,deployment);
   const added=await host.post('/m/add',{body:'first'});assert.equal(added.state,'sent');
+  // Exercise the table in guide testing with the same served bearer.
+  const guest=await (await fetch(host.url+'/auth/guest',{method:'POST',body:'{}'})).json();
+  const headers={authorization:'Bearer '+guest.session.token,'content-type':'application/json'};
+  for (const [path,payload,status,code,state] of [
+    ['/q/list', {args:{c:null}},200,null,null],
+    ['/q/unknown', {args:{}},404,'E_OP',null],
+    ['/m/list', {args:{c:null}},400,'E_OP',null],
+    ['/m/add', '{broken',400,'E_INPUT',null],
+    ['/m/add', {args:{body:42}},200,'E_INPUT','failed'],
+    ['/q/list', {args:{c:42}},400,'E_INPUT',null],
+  ]) {
+    const response=await fetch(host.url+path,{method:'POST',headers,body:typeof payload==='string'?payload:JSON.stringify(payload)});
+    const reply=await response.json();assert.equal(response.status,status,JSON.stringify(reply));
+    if (code) assert.equal((reply.why??reply.denied).code,code);else assert.ok(Array.isArray(reply.data));
+    if (state) assert.equal(reply.state,state);
+  }
   const wide=initial.replace("enum('draft')","enum('draft', 'live')");
   writeFileSync(schema,wide);
   assert.match(run('deploy',deployment).stderr,/notes.status admits 'live'/);

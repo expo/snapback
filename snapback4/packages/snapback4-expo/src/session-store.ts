@@ -8,7 +8,7 @@ export interface SecureStoreLike {
 }
 
 // Fixed-width UTF-16 units preserve every JS key, including lone surrogates.
-// @ref LLP 3000.013#6.9-wave-12-client-recipes — backend and read/full session keys must never collide.
+// @ref LLP 3000.013#6.9 — backend and read/full session keys must never collide.
 export function secureStoreSessionStore(secureStore: SecureStoreLike): SessionStore {
   const key = (value: string) => "snapback4.session." + Array.from({ length: value.length }, (_, i) => value.charCodeAt(i).toString(16).padStart(4, "0")).join("");
   return {
