@@ -1,0 +1,74 @@
+[
+  {
+    "kind": "web",
+    "attempt": 1,
+    "status": "passed",
+    "elapsedMs": 1832,
+    "range": [
+      40361,
+      40381
+    ],
+    "occupied": 40361,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      3.78,
+      8.33,
+      13.42
+    ],
+    "logs": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integration11-linux-final/frontend-web/logs"
+  },
+  {
+    "kind": "web",
+    "attempt": 2,
+    "status": "passed",
+    "elapsedMs": 1923,
+    "range": [
+      39167,
+      39187
+    ],
+    "occupied": 39167,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      3.78,
+      8.33,
+      13.42
+    ],
+    "logs": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integration11-linux-final/frontend-web/logs"
+  },
+  {
+    "kind": "expo",
+    "attempt": 1,
+    "status": "passed",
+    "elapsedMs": 2024,
+    "range": [
+      34361,
+      34381
+    ],
+    "occupied": 34361,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      4.14,
+      8.12,
+      13.24
+    ],
+    "logs": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integration11-linux-final/frontend-expo/logs"
+  },
+  {
+    "kind": "expo",
+    "attempt": 2,
+    "status": "passed",
+    "elapsedMs": 1922,
+    "range": [
+      44515,
+      44535
+    ],
+    "occupied": 44515,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      4.14,
+      8.12,
+      13.24
+    ],
+    "logs": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integration11-linux-final/frontend-expo/logs"
+  }
+]

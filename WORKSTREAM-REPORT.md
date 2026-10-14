@@ -1,51 +1,138 @@
-# Integration 10: PAGE3 after 0.4.27
+# Integration 11 — 0.4.28
 
-Complete locally on sb4-loop. No push. Version remains 0.4.27; PAGE3 ships in
-0.4.28 with wave-11 fixes. Mac suite deferred to that publication, host offline.
+Worktree: /home/ccheever/projects/snapback-sb4loop, branch sb4-loop.
+Started clean at 9ced70da2f; git log sb4-loop..HEAD was empty. No push or
+publication. Other worktrees were read only for the requested lane reports.
+PAGE4 was not merged. Mac qualification remains the publication owner's step.
 
-- Merge **9131f31d18** (--no-ff), parents ce229488de and c0e67969a1. Preserve
-  Integration 9 fixes and both smoke suites; retain both journal/wasm histories.
-- **b4da2e6fc2**: let-rewrite oracle follows each opaque cursor and compares all
-  subsequent pages; post-prelude bound and negative controls. Align PAGE3's
-  four-probe read expectation without changing eight-probe writes or disclosure.
-  Final Muse and fresh Codex reviews approve the corrected code.
-- **4ebe56f4f1**: intermediate native word-fixture regeneration.
-- **498f8110f9**: preserve optimized nonempty search and original pure-member
-  browse scans beside PAGE3 list merges. Restore original fixture bytes through
-  the generator. Both fresh reviews READY; unchanged 99,090-row simulator passes.
-- **0c1da19d09**: retain the ordinary speculative authority-prefix test control
-  explicitly by primary index; every assertion remains, repaired file 13/13.
+## Ordered no-ff merges
 
-Linux verification:
+| Lane | Merge | Lane tip |
+|---|---|---|
+| NARR | d532904cba | 65b520cdf3 |
+| QDIAG | 954a305132 | b6cf3e36bb |
+| DX3 | 0c3ee53abb | ffdd126fe7 |
+| PROOF | fb9ce49583 | 1d27a0a032 |
+
+Read every WORKSTREAM-REPORT.md before merging. Preserve both append-only
+journal sides, every registered diagnostic fact, Integration 10's ordinary
+word-search/compiler fix and speculative byId authority control. The starter
+LLP has NARR §11, DX3 §12 and PROOF §13, with distinct anchors. Saved-source
+deployment retains NARR's reclaim/narration and PROOF's compilation/staging.
+No generated file was hand-merged.
+
+## Items and commits
+
+- NARR: directional compatibility and separate storage counts, lexical schedule
+  narration, owned lock cleanup, runtime history and development offline-run
+  advice. Merged in d532904cba; compatibility/lock/privacy controls remain.
+- QDIAG: row-reference spelling, joint cascade repairs, decimal media units,
+  nullable/owner lint proofs, dev principal checks/counters and uniform seat
+  clauses. Merged in 954a305132; E_UNIQUE updates retain intrinsic-id/cap
+  E_CONSTRAINT, hidden E_RULE and authored codes.
+- DX3: production/authorization/client recipes, stable result types, explicit
+  online web tier, safe adaptation and release inspection. Merged 0c3ee53abb.
+- PROOF: packaged backend/frontend/browser hosts, private logs/identity/cleanup,
+  saved sources and portable proof starters. Merged fb9ce49583.
+- Complete changelog and research §§14–15: 759d604d6b; revised header and guide
+  structure in b3b8489d17; release-facing membership narration in 291613dfa3.
+- Exact ten-file version surface of 82855e5ed5: **c4c6ba43a9**, own commit
+  `snapback4 0.4.28: packaged proofs, release narration, production recipes and precise diagnostics`.
+- Consumer-only qualifier, with no publication receipt: ba12f29083. Both route
+  tests and failure controls pass. This resolves the explicit ban on full
+  scripts/test.sh while executing the requested installed-consumer steps.
+- Integration fixes: f3e011b767, e2b896db9d, 7e47445a81, 840e430c6c,
+  c2c9beb94d, 334f90461d and 7df01679fc. Regenerated authoring/await censuses;
+  restored full wire/cap facts; indexed/typed proof exports; loaded actual lint
+  inputs in publication fixtures; kept receipt/privacy comparisons. Shared
+  adaptation plans include proof additions before nonmutating preview and
+  selective apply. Malformed stopChild exit/signal fields refuse.
+- Seven exact mutation-type overlays preserve historical compatibility JSON
+  and every unrelated schema/type byte; nullable repair controls remain beside
+  newly admitted required/public results. Direct Engine Bob rejoin preserves
+  its audience and verifies the new persona advisory. Recipe prose folds to
+  400 lines without changing Quarry blocks; deploy is 150, README 320.
+
+## Completed Linux evidence
 
 | Check | Result |
 |---|---|
-| Full requested Rust run | 5,979 pass, four initial failures, 41 ignores; all four repaired scopes pass |
-| Full final language package | 1,895 pass, zero failures, 14 ignores |
-| Difftest tests | 70 pass |
-| Native run, seed 0, 20k | 20k compiled, 1,135,558 executions, zero errors/disagreements |
-| Devices, seeds 0–999 | 1k compiled, 30,154 executions, zero errors/disagreements |
-| Lean run, seed 0, 20k | 53,008 executions; four baseline signatures only, zero new signatures |
-| Lean check.sh | 59 theorem audits, 74 examples, seven fixtures |
-| Full client pool | One complete 381-file/24-slot pass; after one scoped repair, 7,395 ordinary passes, 56 skips |
-| Full-count models / fixtures | 81 / 9 pass |
-| Docs budget / references | 320/320 lines; 545 LLPs, 11,784 refs, zero errors |
-| Root inventories / guide | Pass / all 22 checks pass |
-| 50-schema farm | Original: 50 compile, two notes in one; exact repaired copies: 50 compile, zero notes |
+| Requested five-package cargo test --no-fail-fast | Full run: 6,030 pass, 22 initial failures, 41 intentional ignores; all 22 repaired in passing affected files/scopes below (one additional shared-adaptation test also passes) |
+| Init + shared adaptation | 50 + 5 pass |
+| Owned-address refusal setup | 1 affected pass; original symlink/hardlink/FIFO/no-truncation assertions retained |
+| Ephemeral rollback | 1 affected pass; cap/rule/require rollback controls retained |
+| Device authoring census | 1 pass; generated from CENSUS_ITEM output |
+| Device uniqueness | 1 dual-store hook case + all 17 named-key tests pass |
+| Final guide/recipe/repair files | 123 + 5 + 11 + 13 + 8 pass |
+| Strict durable type compatibility + maintained/result inference | 1 + 14 + 3 pass |
+| Full affected simulator files | clique 254/1 ignored, native 12/1 ignored, security 12, write_authority 35; zero failures |
+| Complete client pool | 388 files, one 24-slot pool with 17 isolated timer files: 7,433 pass, 56 intentional skips, zero failures/cancellations/TODOs |
+| Full-count client models | 81 pass, zero failures/skips |
+| Fixture wrapper | 9 pass |
+| Lean check | 59 standard-axiom audits, 76 examples, seven fixtures |
+| Native difftest run, seed 0 / 20k | 20k compiled, 1,135,558 executions, zero disagreements/errors/unexpected refusals |
+| Device difftest, seeds 0–999 | 1k compiled; zero disagreements/errors/unexpected refusals |
+| Lean difftest, seed 0 / 20k | 15,490 pass, 4,342 named unsupported, 168 occurrences in exactly four historical signatures; no new signatures |
+| Root dependency/artifact bootstrap | Frozen install and scripts/check-generated-artifacts pass; 35 review projections current; no tracked generated output changed |
+| Root inventory and guide | Pass; 365 package tests, 35 script tests, 31 demos/catalog entries, 487 publication leaves, 162 pages/1,937 snippets; 22 guide checks, zero failures/skips/preconditions |
+| Wasm | 2,314,402 raw / 705,888 gzip / 533,026 Brotli B; family/absence audits pass |
+| Wasm budget | 706,388 B = measurement + exactly 500 B platform headroom; whole-artifact +956 raw/+583 gzip against Integration 10, no per-feature attribution or runtime ceiling change |
+| QDIAG 100-schema rerun | Separately rebuilt 498f8110f9 before and merged after: 100/100 both; every QDIAG count matches 335→326. NARR adds one intended N_SYNC_EMPTY, so merged total is 327 |
 
-Censuses, diagnostics and guide/inventory projections regenerated, never
-hand-merged. Farm sources and reproduction script are archived with hashes.
+Original red runs remain red in the evidence. The initial client pool had 94
+failed tests across 11 files; its entire final pool is green, not a sum of
+isolated repairs. Worker restart recovered against a private immutable binary:
+relinking a live debug executable during the first pass made its current_exe
+path unavailable. The final client pass uses the frozen copy; the later shared
+adaptation path has actual current-binary Rust coverage and packed proof.
+Every directly orchestrated Cargo invocation carries disabled incremental,
+dev debug and test debug settings. No full scripts/test.sh was executed.
 
-Clean locked Linux wasm: **2,313,446 raw / 705,305 gzip / 532,895 brotli B**.
-Budget **705,805 B = measurement + exactly 500 B**, with integration rationale
-in metrics/wasm-budget.json and the journal. Family/absence audits and final
-build pass. No runtime ceiling changed; all ten release-bump files are unchanged.
+## Qualification closeout
 
-Lean's exit 1 honestly retains 168 disagreements in the four recorded baseline
-signatures; no new signatures. The Mac is the only deferred requested host.
-All introduced Linux reds are resolved. No complete green Lean-campaign claim.
-One independent review used default Cargo profiles because its brief omitted
-the explicit constraints; official qualification commands use all three flags.
+Fresh publish.mjs --prepare-client packs the common client and Expo bytes.
+qualify-linux.mjs --consumer-only executes four loaded-host frontend attempts
+(web and Expo twice, occupied first port and CPU load) and both Ubuntu/Alpine
+installed-consumer/starter-toolchain steps. It writes consumer.json, never the
+suite receipt publication imports. No Mac suite or publication claim follows.
 
-Full provenance, source/binary hashes, paired reviews and compressed logs:
-[snapback4/reports/20261014-integration10/REPORT.md](snapback4/reports/20261014-integration10/REPORT.md).
+The first consumer attempt on 291613dfa3 passed all four UI attempts and both
+OS toolchain proofs, then correctly rejected the source change made while
+finishing Rust controls. Its bytes/proofs are preserved under the old preparation
+and target/integration11-linux. The fresh frozen-source rerun at
+7df01679fc passes all four UI attempts and both complete OS toolchain proofs.
+Its consumer.json binds exact client, Expo and static Linux bytes; publicationQualified
+is false and the suite status is not-run. Prepared common client SRI is unchanged
+from the earlier preparation, while the platform source is freshly qualified.
+
+Final docs budget passes (320/320 and its named test). Reference validation passes
+546 LLPs / 11,817 references / zero errors and unchecked references. The final
+affected client set also passes. A repeated root closeout encountered a missing
+node_modules tree; restoring the frozen root install exposed Bun 1.3 workspace
+linking. The existing node scripts/ensure-workspace-hoist.mjs provides those
+root @expo links; no Snapback 1 source or dependency manifest was changed.
+After that helper, root registry/symbol/manifest regeneration succeeds, inventories
+pass, and all 22 guide checks pass with zero errors/skips/preconditions. Inherited
+121 warnings remain warnings. No Snapback 1 content red or source fix remains.
+No remaining product item is intentionally deferred. Mac suite/measurement,
+full publication qualification/receipt, and npm/GitHub publication are not run
+here. The root checks have no remaining red, so no origin/main counterexample
+checkout was needed.
+
+## Governing context (llp-orient)
+
+Scope: Snapback 4 integration, version/publication tooling, runtime/compiler
+diagnostics, proof/starter and release docs. Governing current LLPs: LLP 3000
+§7 (fence and qualified tooling); LLP 3000.000.000 §11 (factual narration);
+LLP 3000.011.003.000 §§11–13 and its packaged-proof child §§1–3; LLP
+3000.036.002 §§7–8 (proof/privacy/dev boundaries); LLP 3000.013 §2.2 (stable
+point/mutation results); LLP 3000.021 §3.3 (artifact qualification). These are
+in the working set, with no Snapback 4 foundation entry. The user supplies
+merge order, measurement+500 B, no-push/Mac deferral and no-test.sh constraints.
+
+Rationale: retain authorization/settlement semantics while integrating precise
+interfaces and proof custody; publication receipts still require their original
+suite evidence. Risks retained: four historical Lean signatures, PAGE4 reach
+and platform qualification beyond Linux. Changelog, research, journal and
+affected card/fact updates land with the integration. Hand-off: none for this
+committed integration; the explicitly deferred publication belongs to its owner.

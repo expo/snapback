@@ -1,0 +1,105 @@
+{
+  "source_commit": "7df01679fcc3a8bf2451b0ed351c1530709b13ee",
+  "bump_commit": "c4c6ba43a9",
+  "merges": [
+    "d532904cba",
+    "954a305132",
+    "0c3ee53abb",
+    "fb9ce49583"
+  ],
+  "rust_initial": {
+    "pass": 6030,
+    "fail": 22,
+    "ignored": 41,
+    "failures": [
+      "adapt_never_touches_a_file_the_project_changed",
+      "identity::address_symlinks_and_nonregular_files_are_refused_without_truncation",
+      "failures_after_a_write_undo_every_row_and_epoch",
+      "papercuts::w9c_unique_hook_and_legacy_refusals_on_both_stores",
+      "nullable_unique_writes_memory",
+      "nullable_unique_writes_sqlite",
+      "census::authoring_census",
+      "durable_schema_and_types_keep_base_bytes",
+      "deploy::deploy_recipe_bootstraps_an_admin_without_a_public_privilege_race",
+      "familiar::cards_meet_word_targets_and_preserve_every_original_compiled_block",
+      "every_card_compiles_clean",
+      "timed_disclosure_is_discoverable_from_language_time_and_expiry",
+      "event_reveal",
+      "clean_recipes",
+      "a_full_cap_over_hidden_rows_refuses_e_constraint_as_the_testing_guide_says",
+      "wave10_mixed_extra_tests_and_nullable_upsert_rewrites_compile",
+      "digest::each_recipient_rechecks_live_state_after_earlier_chunks",
+      "papercuts::w9c_unique_hook_and_legacy_refusals_on_server",
+      "a_refused_write_parks_a_native_job_and_rolls_the_chunk_back",
+      "hidden_unique_and_id_collisions_have_only_a_generic_rule_refusal",
+      "s05_a_readable_clash_still_names_the_index",
+      "w2_receipts_store_the_replay_body_before_revocation_including_diagnostics"
+    ]
+  },
+  "rust_repairs": "all 22 failures have passing affected file/scope runs, retained separately",
+  "clients_final": {
+    "files": 388,
+    "pool": 24,
+    "pass": 7433,
+    "fail": 0,
+    "skip": 56,
+    "models_pass": 81,
+    "fixtures_pass": 9
+  },
+  "consumer": {
+    "status": "passed",
+    "mode": "consumer-only",
+    "publicationQualified": false,
+    "frontend_attempts": 4,
+    "distributions": [
+      "ubuntu:24.04",
+      "alpine"
+    ]
+  },
+  "mac": "not run; deferred to 0.4.28 publication",
+  "full_test_sh": "not run, explicitly prohibited",
+  "push_or_publish": false,
+  "root": {
+    "install": "bun install --frozen-lockfile; node scripts/ensure-workspace-hoist.mjs",
+    "generated_artifacts": "scripts/check-generated-artifacts passed; tracked outputs unchanged",
+    "registry_manifest": "regenerated from source, no tracked drift",
+    "inventories": "passed",
+    "guide": {
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "preconditions": 0,
+      "warnings": 121
+    }
+  },
+  "docs": {
+    "readme": 320,
+    "readme_budget": 320,
+    "deploy_lines": 150,
+    "rule_recipe_lines": 400,
+    "guide_tests_pass": 123
+  },
+  "ref_check": {
+    "docs": 546,
+    "refs": 11817,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "wasm": {
+    "raw": 2314402,
+    "gzip": 705888,
+    "brotli": 533026,
+    "budget": 706388
+  },
+  "schema_survey": {
+    "binary_sha256": "f9d8cc34738b799d0340c00d7e3cf004a60d50e16fe27f5f36c292b722612316",
+    "schemas": 100,
+    "ok": 100,
+    "qdiag_counts_match": true,
+    "qdiag_total": 326,
+    "merged_total": 327,
+    "other_lane_notes": {
+      "N_SYNC_EMPTY": 1
+    }
+  }
+}

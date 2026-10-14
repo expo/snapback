@@ -1,0 +1,15 @@
+{
+  "before_source": "498f8110f9",
+  "client_binary_source": "840e430c6c (frozen before shared adaptation plan; that later path has separate actual-binary Rust tests and packed-consumer qualification)",
+  "sha256": {
+    "before_binary": "cb66638d4199a4437e068bc47ebdf0fbd685b45dfbeb285c841438f254dc4891",
+    "client_binary": "dc3b9784b782b90f32c6477d2318ff8c123d5e0ca4635c187f174ad7b5c0cee3",
+    "difftest_binary": "6d8872ee77355110cb0db7367e9437af6e1112f69339f83e0e9cc47011f05ba4",
+    "wasm": "69bc8853e5c8496e6297529919a38db4b0240768b55949fc24985444b281fee8"
+  },
+  "semantic_source_files": {
+    "snapback4/crates/snapback4-lang/src/bind/program/expr.rs": "f3a886064614adbf4c3a773e714f7ab79dae87a4487f18aad83805c9223b58af",
+    "snapback4/crates/snapback4-core/src/engine/write.rs": "1b8e2333a8678e81c66f7a7ff0a12e521e09ddb95238c112945fd69572dfdff2",
+    "snapback4/crates/snapback4-difftest/src/oracle.rs": "9ddc386f5de2d10a9709dc486e4f0bb8e881e1dceea121b4ba93f3309e5db4e9"
+  }
+}

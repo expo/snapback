@@ -2,7 +2,7 @@
 
 Four ordered no-ff merges: NARR d532904cba, QDIAG 954a305132, DX3
 0c3ee53abb, PROOF fb9ce49583. Separate version bump: c4c6ba43a9.
-PAGE4 is excluded. No push/publication. The final report follows qualification.
+PAGE4 is excluded. No push/publication. Final qualification and deferrals: REPORT.md.
 
 The native seed-0 20k campaign and device seeds 0–999 have no disagreements
 or generator errors. Lean 20k has 168 occurrences of exactly the same four
