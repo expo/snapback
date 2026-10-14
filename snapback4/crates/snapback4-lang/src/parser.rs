@@ -629,6 +629,12 @@ impl Parser {
         }
         // @ref LLP 3000.039#2 — `on delete` follows the type and its `?`.
         let on_delete = if self.at("on") && self.peek_at(1).value == "delete" { Some(self.parse_on_delete(&name.value)?) } else { None };
+        if on_delete.is_some() && self.at("?") {
+            let mut optional = type_.clone(); optional.optional = true;
+            let action = match on_delete.as_ref().unwrap().0 { OnDelete::Keep => "keep", OnDelete::Cascade => "cascade", OnDelete::Restrict => "restrict", OnDelete::SetNull => "set null" };
+            return Err(syntax_with(&self.peek().site, "the optional marker belongs on the reference type before its delete action",
+                format!("{}: {} on delete {action}", name.value, print::scalar_type(&optional))).guide("writes"));
+        }
         let default = if self.maybe("default") { Some(self.expression(0, &["written", "readable"])?) } else { None };
         let mut written_by = None;
         let mut readable_by_audience = false;
@@ -1028,6 +1034,14 @@ impl Parser {
                 }
                 d
             })?;
+            if self.at("=") || self.at("default") {
+                let at = self.peek().site.clone();
+                self.position += 1;
+                let fallback = self.expression(0, &[",", ")"])?;
+                let mut optional = type_.clone(); optional.optional = true;
+                return Err(syntax_with(&at, "operation parameters have no literal defaults; omission is null for an optional parameter",
+                    format!("declare `{binding}: {}` and bind `{binding}Value = {binding} ?? {}` at the start of the body", print::scalar_type(&optional), print::expression(&fallback))).guide("types"));
+            }
             args.push(ArgDecl { name: binding, type_, site: name.site });
             if !self.maybe(",") {
                 break;
@@ -1400,6 +1414,11 @@ impl Parser {
         if let Some((word, operand, at)) = pattern {
             return Err(syntax_with(&at, format!("Quarry has no `{word}` operator; `{operand} {word} …` is not a condition"),
                 format!("compare whole text with `=` or `!=`; bound its length in the type (`{operand}: text 3..80`); declare a link `text <=200 format url` (http or https; anything else refuses E_INPUT before the program runs) or a handle `format handle`; or check the pattern in the client")).guide("types"));
+        }
+        if self.at_kind(Kind::Newline) && self.peek_at(1).value == "else" {
+            let code = self.peek_at(2).value.clone();
+            return Err(syntax_with(&site, "a require's else must be on the condition's closing line",
+                format!("put `else {code}` on the closing line: `require {} else {code}`", print::expression(&condition))).guide("programs"));
         }
         if !self.at("else") {
             return Err(syntax_with(&site, "require needs a refusal code: require <condition> else CODE", format!("require {} else NOT_ALLOWED", print::expression(&condition))));

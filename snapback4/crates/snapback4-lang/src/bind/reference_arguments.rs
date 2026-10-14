@@ -389,6 +389,24 @@ fn flow_condition(
                 right_no,
             )
         }
+        // @ref LLP 3000.036.002#7 — storing null needs no target lookup;
+        // intersect that edge with the checked non-null edge after the if.
+        Expr::Binary { op, left, right, .. } if op == "=" || op == "!=" => {
+            let mut evaluated = flow;
+            flow_expression(catalog, schema, arguments, expression, &mut evaluated, candidates);
+            let mut yes = evaluated.clone();
+            let mut no = evaluated;
+            let name = match (left.as_ref(), right.as_ref()) {
+                (Expr::Name { name, .. }, Expr::Literal { value: crate::ast::Literal::Null, .. })
+                | (Expr::Literal { value: crate::ast::Literal::Null, .. }, Expr::Name { name, .. }) => Some(name),
+                _ => None,
+            };
+            if let Some(name) = name.filter(|name| yes.inputs.contains(*name)) {
+                if op == "=" { yes.checked.insert(name.clone()); }
+                else { no.checked.insert(name.clone()); }
+            }
+            (yes, no)
+        }
         _ => {
             let mut evaluated = flow;
             flow_expression(
