@@ -210,3 +210,59 @@ fn a_program_parameter_named_allow_is_not_the_table_rule_constant() {
         b.notes
     );
 }
+
+#[test]
+fn named_shapes_and_spreads_are_opaque_effect_boundaries() {
+    use snapback4_core::{Context, Engine, Value, WriteState};
+    for expression in [
+        "r taking",
+        "r { ...taking }",
+        "r taking.changed",
+        "condition",
+    ] {
+        let body = if expression == "condition" {
+            "  if r taking.changed:\n    update rows[row] { body: 'changed' }".to_owned()
+        } else {
+            format!("  applied = {expression}\n  update rows[row] {{ body: 'changed' }}")
+        };
+        let source = format!(
+            "{}fn claim(row: rows):\n  update rows[row] {{ owner: viewer }}\n  return true\nshape taking = {{ changed: claim(.id) }}\nmutation change(row: rows):\n  r = rows[row] ! else NOT_FOUND\n  require r.owner != viewer else SELF\n{body}\n  return null\n",
+            TABLE
+                .replace("read <- .owner = viewer", "read <- allow")
+                .replace(
+                    "update <- .owner = viewer",
+                    "update (old, next) <- next.owner = viewer"
+                )
+        );
+        let b = compile(&[("schema.q".into(), source)]);
+        assert!(
+            b.diagnostics.is_empty(),
+            "{expression}: {:?}",
+            b.diagnostics
+        );
+        assert!(
+            b.notes.iter().all(|n| n.code != "N_WRITE_DENIED"),
+            "{expression}: {:?}",
+            b.notes
+        );
+        let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        e.seed(vec![(
+            "rows".into(),
+            snapback4_core::value::object([
+                ("id", Value::Id("r".into())),
+                ("owner", Value::Id("alice".into())),
+                ("body", Value::String("original".into())),
+            ]),
+        )])
+        .unwrap();
+        let c = Context::new("bob", [("row".into(), Value::Id("r".into()))].into()).at(1000);
+        assert!(matches!(
+            e.mutate("change", None, c).unwrap().state,
+            WriteState::Sent { .. }
+        ));
+        assert_eq!(
+            e.store().rows("rows").unwrap()[0].field("body").unwrap(),
+            &Value::String("changed".into())
+        );
+    }
+}

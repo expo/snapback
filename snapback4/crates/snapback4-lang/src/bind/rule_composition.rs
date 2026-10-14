@@ -206,6 +206,16 @@ fn row(
             .collect(),
     )
 }
+fn opaque_effect(expr: &Expr) -> bool {
+    matches!(
+        expr,
+        Expr::Write { .. }
+            | Expr::Call { .. }
+            | Expr::ShapeUse { .. }
+            | Expr::Shape { .. }
+            | Expr::Merge(_)
+    ) || matches!(expr, Expr::Object { fields, .. } if fields.iter().any(|f| f.spread))
+}
 fn expressions(statement: &Stmt) -> Vec<Expr> {
     let mut body = vec![statement.clone()];
     let mut result = vec![];
@@ -255,10 +265,7 @@ fn visit(
                     value: condition.clone(),
                     site: condition.site().clone(),
                 };
-                if expressions(&condition_stmt)
-                    .iter()
-                    .any(|e| matches!(e, Expr::Write { .. } | Expr::Call { .. }))
-                {
+                if expressions(&condition_stmt).iter().any(opaque_effect) {
                     env = Env::default();
                     facts = unknown();
                 }
@@ -308,10 +315,7 @@ fn visit(
         let es = expressions(s);
         // Calls and compound effects are opaque; drop stale facts before any
         // expression that could change a witnessed row, including helper calls.
-        let effects = es
-            .iter()
-            .filter(|e| matches!(e, Expr::Write { .. } | Expr::Call { .. }))
-            .count();
+        let effects = es.iter().filter(|e| opaque_effect(e)).count();
         if effects > 0
             && !(effects == 1
                 && matches!(
