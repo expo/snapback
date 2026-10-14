@@ -38,7 +38,7 @@ table staff:                              -- a role: one row per staff member (g
   unique principal                        -- one roster row holds either staff role
   read <- .principal = viewer
   online only
-table requests:                           -- owner or clerk/officer: one roster, one group arm (guide sharing) (guide sharing)
+table requests:                           -- owner or clerk/officer: one roster, one group arm (guide sharing)
   author: principal
   title: text 1..200
   read <- .author = viewer or exists staff[viewer]

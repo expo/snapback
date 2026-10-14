@@ -95456,3 +95456,18 @@ sync, windowed unions and changed-only sugar. No runtime authority, sync,
 protocol, expiry, planner or adoption behavior changes. A uniformly denied
 hidden-only page is complete/empty; a nonuniform empty page may remain partial,
 which the testing pointer now says explicitly.
+
+### 2026-10-15 — RULES2 independent review closeout
+
+Both fresh, mutually blind reviewers (Muse spark 1.3 contributor and Codex
+GPT-6.1-sol, high) mark the amendments and implementation at `45c2936e64` READY.
+The prior Codex rounds caught two kinds of stale snapshot evidence (if-condition
+helpers and opaque shape/spread evaluation) and distinct spellings of equal
+numeric literals; each has an admitted-runtime regression witness. Eleven
+composition tests and thirteen recipe tests pass. The 100 final-schema census
+still passes with exactly 324 notes before and after, no new notes/refusals.
+The device authoring census adds 27 new never-predicting guide mutations and
+preserves every existing occurrence/private write site; all 88 read-authority
+tests pass after that reviewed census update. Root inventory/guide, references,
+docs budget and all 41 affected client tests pass. Full Rust closeout is recorded
+in the lane's WORKSTREAM-REPORT.md and reports/wave12-rules2 evidence.

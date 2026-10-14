@@ -863,7 +863,7 @@ the table read rule, so a non-null branch cannot run. Authorize the read or
 write by key under the table rule; Enrolment into hidden things shows the latter.
 Unknown relationships and role overlap do not trigger this proof.
 
-### Self-join through a public catalogue
+## Self-join through a public catalogue
 
 The public catalogue is the root metadata; the private payload has a separate
 row rule. Open entries permit self-join without an invitation. Closed entries

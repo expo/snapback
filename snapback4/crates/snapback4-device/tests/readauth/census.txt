@@ -479,7 +479,34 @@ card/routes/1:sendBrief | eligible
 card/routes/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/routes/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/routes/1:split | never
+card/rule-recipes/11:assignDay | never
+card/rule-recipes/11:publishDay | never
+card/rule-recipes/12:createIdentity | never
+card/rule-recipes/13:ticket | never
+card/rule-recipes/14:liveFile | never
+card/rule-recipes/14:newMovableFolder | never
+card/rule-recipes/14:transferFolder | never
+card/rule-recipes/15:approve | never
+card/rule-recipes/15:petition | never
+card/rule-recipes/15:publishPetition | never
+card/rule-recipes/16:closePoll | never
+card/rule-recipes/16:poll | never
+card/rule-recipes/16:vote | never
+card/rule-recipes/17:leaveSpace | never
+card/rule-recipes/17:pulse | never
+card/rule-recipes/18:secretScore | never
+card/rule-recipes/19:acceptClub | never
+card/rule-recipes/19:club | never
+card/rule-recipes/19:inviteClub | never
 card/rule-recipes/1:grant | never
+card/rule-recipes/20:claimMedia | never
+card/rule-recipes/20:mediaDocument | never
+card/rule-recipes/20:mediaLink | never
+card/rule-recipes/20:placeMedia | never
+card/rule-recipes/20:revokeMediaLink | never
+card/rule-recipes/20:revokeMediaReader | never
+card/rule-recipes/21:catalogueClub | never
+card/rule-recipes/21:selfJoinClub | never
 card/rule-recipes/2:submit | eligible
 card/rule-recipes/3:addLetter | never
 card/rule-recipes/4:addFile | eligible

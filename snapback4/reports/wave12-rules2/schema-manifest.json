@@ -1,0 +1,902 @@
+[
+  {
+    "lane": "001-kite-flight-lanes",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/001-kite-flight-lanes/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/001-kite-flight-lanes/snapback/schema.q": "f983fd1901061635df9cd506e3e85c05e5fe46c3a8bd9029b13c932cca39999a"
+    }
+  },
+  {
+    "lane": "002-day2-family-tree-sources",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/002-day2-family-tree-sources/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/002-day2-family-tree-sources/snapback/schema.q": "6446083330471ebdedcb921ec7a741d5e8a27732358b1985146583c810c73151"
+    }
+  },
+  {
+    "lane": "003-lecture-note-relay",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/003-lecture-note-relay/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/003-lecture-note-relay/snapback/schema.q": "b8fed3a496d96b4b43f8d333cf1e52d45440e001da2a235d9795bbdfa05697d3"
+    }
+  },
+  {
+    "lane": "004-day2-timber-cruise-plots",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/004-day2-timber-cruise-plots/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/004-day2-timber-cruise-plots/snapback/schema.q": "ad7627c706f98c6256c7d16366a17d084122ca427bec6a70ada6a14c5e84199e"
+    }
+  },
+  {
+    "lane": "005-map-veto-rooms",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/005-map-veto-rooms/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/005-map-veto-rooms/snapback/schema.q": "525a3c09aa4abe3eec6aa1f2c5fe5a775b0105ccb87647e164c75f982b992216"
+    }
+  },
+  {
+    "lane": "006-day2-deposition-exhibit-room",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/006-day2-deposition-exhibit-room/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/006-day2-deposition-exhibit-room/snapback/schema.q": "f22ac940501e077869ff74aeef861b2c006411e2fdad1a513355b6752dff60d9"
+    }
+  },
+  {
+    "lane": "007-drawing-telephone",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/007-drawing-telephone/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/007-drawing-telephone/snapback/schema.q": "53b704ab1865ec066bd615bc2c106f3dcf8876d2a4ea199e187731148067a073"
+    }
+  },
+  {
+    "lane": "008-day2-storm-spotter-reports",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/008-day2-storm-spotter-reports/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/008-day2-storm-spotter-reports/snapback/schema.q": "b6a70616763ee72be4473f15b3a60647172c2b9c0e2da06afe741bd6d793ec9e"
+    }
+  },
+  {
+    "lane": "009-courtside-stat-crew",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/009-courtside-stat-crew/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/009-courtside-stat-crew/snapback/schema.q": "7173e6bea547983d5d10e8b5fe51829da4c9e1965e241add79af8b2e08f3e46e"
+    }
+  },
+  {
+    "lane": "010-day2-subtitle-timing-room",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/010-day2-subtitle-timing-room/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/010-day2-subtitle-timing-room/snapback/schema.q": "6f128a0d7635c8d5275a2697c902acf69c0a7d9148b1c4bbeadb1d78ce2d3a2a"
+    }
+  },
+  {
+    "lane": "011-build-day-board",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/011-build-day-board/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/011-build-day-board/snapback/schema.q": "bd94be266a695a8eb14347ae22d9c17052360ee67b672cbcdda2284305062aa4"
+    }
+  },
+  {
+    "lane": "012-day2-mobile-notary-bookings",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/012-day2-mobile-notary-bookings/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/012-day2-mobile-notary-bookings/snapback/schema.q": "94952cf353c5159f70b8084cecbdd620b4bcd82d41fac87323288d50d6fa4e07"
+    }
+  },
+  {
+    "lane": "013-overnight-relay-vans",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/013-overnight-relay-vans/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/013-overnight-relay-vans/snapback/schema.q": "3b16744035a3a290a789d25eead5fbd18cfbff11f09e7e8c680137ade15039c7"
+    }
+  },
+  {
+    "lane": "014-day2-drill-core-logging",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/014-day2-drill-core-logging/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/014-day2-drill-core-logging/snapback/schema.q": "eab76cd2b058ffa595ef9dd3f2b818cf93f8c4abd24f3ed08c684e223773c8bf"
+    }
+  },
+  {
+    "lane": "015-paint-by-number-wall",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/015-paint-by-number-wall/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/015-paint-by-number-wall/snapback/schema.q": "981fa864c693c9b9e221d71516d366f04b9f294c3ce650c35efb5d920d673ba9"
+    }
+  },
+  {
+    "lane": "016-day2-storyboard-panels",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/016-day2-storyboard-panels/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/016-day2-storyboard-panels/snapback/schema.q": "2c0aecc37895d2840b2cd030458b5dac7c920065b034c0160e9f67642a512e4b"
+    }
+  },
+  {
+    "lane": "017-safe-walk-escorts",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/017-safe-walk-escorts/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/017-safe-walk-escorts/snapback/schema.q": "7a4c53476b508edc5af9fe65ea0ddd17a78a8a81a7cdc6d5c90c70b6cfc9baa9"
+    }
+  },
+  {
+    "lane": "018-day2-film-location-releases",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/018-day2-film-location-releases/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/018-day2-film-location-releases/snapback/schema.q": "6215885c0ffac502bb5693213fe2f193095e80aaf79fe5b6be21635d42de8878"
+    }
+  },
+  {
+    "lane": "019-cost-estimate-delphi",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/019-cost-estimate-delphi/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/019-cost-estimate-delphi/snapback/schema.q": "4862a66cd349eed39f80f8722457a8f17287664924ba565e9c3b314a89274bbe"
+    }
+  },
+  {
+    "lane": "020-day2-exquisite-corpse-stories",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/020-day2-exquisite-corpse-stories/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/020-day2-exquisite-corpse-stories/snapback/schema.q": "6dea0fe74ec81013c1751d356862ab194ffb66f17476ce40b7a177e08d53afd2"
+    }
+  },
+  {
+    "lane": "021-wedding-toast-order",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/021-wedding-toast-order/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/021-wedding-toast-order/snapback/schema.q": "f98f8f65f83aace931277e02858508fda1d79c19892a71503b36a37c1526a303"
+    }
+  },
+  {
+    "lane": "022-day2-photo-place-guessing",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/022-day2-photo-place-guessing/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/022-day2-photo-place-guessing/snapback/schema.q": "e6bd88bd9d19b95fee470dee91c22a97e1983b41a3770a300bb99e15badc4f15"
+    }
+  },
+  {
+    "lane": "023-anonymous-exit-interviews",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/023-anonymous-exit-interviews/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/023-anonymous-exit-interviews/snapback/schema.q": "d21e1f43c7ac39e5b202478da202fe2c276e2c7ac21f806c4bf0bb1d2f55bf20"
+    }
+  },
+  {
+    "lane": "024-day2-forecast-league",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/024-day2-forecast-league/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/024-day2-forecast-league/snapback/schema.q": "b16a253e3031490d3412a4148caebde80f633e5f99fb7a676e9efbefc616d2f7"
+    }
+  },
+  {
+    "lane": "025-benefits-open-enrollment",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/025-benefits-open-enrollment/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/025-benefits-open-enrollment/snapback/schema.q": "cf813b524b3a1906a0d17e47fbd3133f63f976bd15174c693a82aa91ecdacf10"
+    }
+  },
+  {
+    "lane": "026-day2-camera-trap-tagging",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/026-day2-camera-trap-tagging/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/026-day2-camera-trap-tagging/snapback/schema.q": "ae0c5a9cabf4b212d621fa8c0cb2b4f30346e8b5c2e16a55334086da5663b3e6"
+    }
+  },
+  {
+    "lane": "027-reference-check-requests",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/027-reference-check-requests/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/027-reference-check-requests/snapback/schema.q": "67bf53962bfabaca1dbe6ba9c137adf3b0587574eccd4b27370197ec2523c793"
+    }
+  },
+  {
+    "lane": "028-day2-home-energy-audits",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/028-day2-home-energy-audits/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/028-day2-home-energy-audits/snapback/schema.q": "a39ecf353b18135804f74641c68a11aabb369fd630d8ab34a8c33f691384b230"
+    }
+  },
+  {
+    "lane": "029-worldbuilding-atlas",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/029-worldbuilding-atlas/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/029-worldbuilding-atlas/snapback/schema.q": "034a3213450463a9efe01d66fe272dd9a44a46178750c7e0eaeda6442a19606d"
+    }
+  },
+  {
+    "lane": "030-day2-search-grid-assignments",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/030-day2-search-grid-assignments/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/030-day2-search-grid-assignments/snapback/schema.q": "fc5750148fc483cb9f73e4754d97a50eed5d1e29a70604d79fc01ef5684ed3da"
+    }
+  },
+  {
+    "lane": "031-community-mediation",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/031-community-mediation/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/031-community-mediation/snapback/schema.q": "d23277abada127902b2463c1a5d403221ae7906b7e8562bc7067306b795e7f61"
+    }
+  },
+  {
+    "lane": "032-day2-sticker-pack-submissions",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/032-day2-sticker-pack-submissions/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/032-day2-sticker-pack-submissions/snapback/schema.q": "8e791a0e869acc06d38a05e48910ae47c1f21c6d469d25ae9086bf2a132efee6"
+    }
+  },
+  {
+    "lane": "033-thesis-draft-circle",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/033-thesis-draft-circle/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/033-thesis-draft-circle/snapback/schema.q": "295fd687de9d73440ff6e6386d1d1b99eec54abf2bdad2f09676f8f7fe3f7469"
+    }
+  },
+  {
+    "lane": "034-day2-sign-video-dictionary",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/034-day2-sign-video-dictionary/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/034-day2-sign-video-dictionary/snapback/schema.q": "13b1c6001f06e4c0837ce928eb164b48d39b0884cd69374c2c63bc7187285757"
+    }
+  },
+  {
+    "lane": "035-allergy-passport-links",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/035-allergy-passport-links/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/035-allergy-passport-links/snapback/schema.q": "e21a72fdaf526a8304c3becb395e7b3ae38f855a3ca0d7b5a9cad116ba838bd4"
+    }
+  },
+  {
+    "lane": "036-day2-answer-key-release",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/036-day2-answer-key-release/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/036-day2-answer-key-release/snapback/schema.q": "8331924e155ece685bfe3d8c4051b46cf0655f95af620d63c746c5ca08dc3f93"
+    }
+  },
+  {
+    "lane": "037-home-vitals-circle",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/037-home-vitals-circle/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/037-home-vitals-circle/snapback/schema.q": "4b67e25fd31b9ac91ce6a32d19315fdece8f57011a49988d8884eebed3516e5f"
+    }
+  },
+  {
+    "lane": "038-day2-context-notes-board",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/038-day2-context-notes-board/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/038-day2-context-notes-board/snapback/schema.q": "1f46c1b4694d691df1c09383e035ad854b5955bc944bb981d75e7b0edc282393"
+    }
+  },
+  {
+    "lane": "039-murder-mystery-host",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/039-murder-mystery-host/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/039-murder-mystery-host/snapback/schema.q": "1725bb4df7896958b715d288cb73334ebac95c8227d159bba3ee805d537ecb68"
+    }
+  },
+  {
+    "lane": "040-day2-outage-report-map",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/040-day2-outage-report-map/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/040-day2-outage-report-map/snapback/schema.q": "bdffbf352937ef4babbd4e446fb9b6fd754ff2fdac6f2857bd9feb99c0db25b7"
+    }
+  },
+  {
+    "lane": "041-heirloom-division-picks",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/041-heirloom-division-picks/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/041-heirloom-division-picks/snapback/schema.q": "d3a7f3862b6945dd365946713ea5942fe42a24d53f5cc0a6decc188838edd5a2"
+    }
+  },
+  {
+    "lane": "042-day2-appliance-part-crossref",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/042-day2-appliance-part-crossref/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/042-day2-appliance-part-crossref/snapback/schema.q": "1fa97994a07020bdd2bdaadc7170ac1331a5f870bf79674f9f5994a94ec7d753"
+    }
+  },
+  {
+    "lane": "043-house-sitter-briefing",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/043-house-sitter-briefing/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/043-house-sitter-briefing/snapback/schema.q": "e80a2740f431268313abc6e54ba1d47b809ee5f32cf770ec542802618363b53f"
+    }
+  },
+  {
+    "lane": "044-day2-cash-drawer-counts",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/044-day2-cash-drawer-counts/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/044-day2-cash-drawer-counts/snapback/schema.q": "cb5e2c4c79fdcc6796d9b94d083fb583d81f1e269185708703ee3b2bab3736c3"
+    }
+  },
+  {
+    "lane": "045-dataset-embargo-ledger",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/045-dataset-embargo-ledger/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/045-dataset-embargo-ledger/snapback/schema.q": "a04b014515cd2587a85160d0441801cf94168ec64f3293b03c4a7064cb4bab93"
+    }
+  },
+  {
+    "lane": "046-day2-tax-document-requests",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/046-day2-tax-document-requests/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/046-day2-tax-document-requests/snapback/schema.q": "2103a64dcbbdd7668a4f87698da4146709d4dcceb3c2b0924f9ce462dcb64c1a"
+    }
+  },
+  {
+    "lane": "047-blind-cycle-counts",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/047-blind-cycle-counts/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/047-blind-cycle-counts/snapback/schema.q": "027a304d4e6cc8236345dfd0b76af10118a5fd768e175ee33121d45e09b136cf"
+    }
+  },
+  {
+    "lane": "048-day2-shared-cabin-calendar",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/048-day2-shared-cabin-calendar/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/048-day2-shared-cabin-calendar/snapback/schema.q": "3a608cf3a55df15e7c70012f83c23c3bfdd1e9fc64a46dc8f7d2eb2b022f7999"
+    }
+  },
+  {
+    "lane": "049-venue-tech-riders",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/049-venue-tech-riders/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/049-venue-tech-riders/snapback/schema.q": "c1d7a490a1624f683516f92a67827ae78718f5273d5e10e76b62bf981eddffc0"
+    }
+  },
+  {
+    "lane": "050-day2-renovation-selections",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/050-day2-renovation-selections/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/050-day2-renovation-selections/snapback/schema.q": "87f23b765a3ae663dad0a1faec46290ddb73b628ce2008a4cee265695f1de569"
+    }
+  },
+  {
+    "lane": "051-portfolio-review-links",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/051-portfolio-review-links/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/051-portfolio-review-links/snapback/schema.q": "a535fc5a368d2d4a3f1161b409977da86cbca289770402ce413dbeba2e4bb0d4"
+    }
+  },
+  {
+    "lane": "052-day2-wardrobe-stylist-lookbook",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/052-day2-wardrobe-stylist-lookbook/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/052-day2-wardrobe-stylist-lookbook/snapback/schema.q": "410399086c2b21c51d6ee4842c313a2a41923e7bb925873a1a19e915f062dd6e"
+    }
+  },
+  {
+    "lane": "053-street-naming-proposals",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/053-street-naming-proposals/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/053-street-naming-proposals/snapback/schema.q": "134d2a16c153647563b294076005066ab7e937a587666ae11ae5bb1db9f105cb"
+    }
+  },
+  {
+    "lane": "054-day2-petition-signature-drive",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/054-day2-petition-signature-drive/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/054-day2-petition-signature-drive/snapback/schema.q": "4ed2b1d8b0e1e8df9404e592258cbc3beaaa01af430fda0e00ea530f31965fc2"
+    }
+  },
+  {
+    "lane": "055-secret-dice-log",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/055-secret-dice-log/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/055-secret-dice-log/snapback/schema.q": "960eafeb6a4602b3459c54ccf31c3c44b599bedb447aefa89ceb3c51a80a4ac6"
+    }
+  },
+  {
+    "lane": "056-day2-fishing-quota-ledger",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/056-day2-fishing-quota-ledger/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/056-day2-fishing-quota-ledger/snapback/schema.q": "c7be4834889bfb8e144a7aba4b8711bd02b7208f0a8c8901cc8575f3577b83a1"
+    }
+  },
+  {
+    "lane": "057-lien-waiver-collection",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/057-lien-waiver-collection/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/057-lien-waiver-collection/snapback/schema.q": "9cda1c3db550e03e93cb50df91ebe3e28d8d199b9a623b7a5b337eec650a2898"
+    }
+  },
+  {
+    "lane": "058-day2-service-status-page",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/058-day2-service-status-page/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/058-day2-service-status-page/snapback/schema.q": "48667bbdbe999ce08193fde3ac0abff1f9da4491ccd9e707994879181afed98e"
+    }
+  },
+  {
+    "lane": "059-court-watch-notes",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/059-court-watch-notes/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/059-court-watch-notes/snapback/schema.q": "a0fd2d0f4dfdfc01e132b9b65ebed661f384f7ff64237e4b4c04b91bb7b1be20"
+    }
+  },
+  {
+    "lane": "060-day2-office-visitor-log",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/060-day2-office-visitor-log/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/060-day2-office-visitor-log/snapback/schema.q": "5bb609ce3053a1162897122a8fd1d84e56e452ab1b8ae70e5545e49cbf8953bb"
+    }
+  },
+  {
+    "lane": "061-cave-survey-notebook",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/061-cave-survey-notebook/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/061-cave-survey-notebook/snapback/schema.q": "fb96192c53b7b90ff55097ad4b42bb81e80c7cb2381ebe6794adb903d938217a"
+    }
+  },
+  {
+    "lane": "062-day2-one-on-one-notes",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/062-day2-one-on-one-notes/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/062-day2-one-on-one-notes/snapback/schema.q": "619762ac990b296e8847b02858c40d60a2ef4104bf2ac75727f28e2300d94697"
+    }
+  },
+  {
+    "lane": "063-passage-watch-bill",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/063-passage-watch-bill/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/063-passage-watch-bill/snapback/schema.q": "48ef6c6f71726b1cd6830a7b29a79cce20ab595db9c2b29e8a83441a49720118"
+    }
+  },
+  {
+    "lane": "064-day2-brick-parts-exchange",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/064-day2-brick-parts-exchange/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/064-day2-brick-parts-exchange/snapback/schema.q": "9a35d0cdfa67b88ef9d1ba001fe280146c698964ac37bc7b6057e086dc2402c9"
+    }
+  },
+  {
+    "lane": "065-fossil-dig-grid",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/065-fossil-dig-grid/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/065-fossil-dig-grid/snapback/schema.q": "13941ddd8fb61c7dcb2b735bbdbc716aa3a715d039de212f1261b293455983e3"
+    }
+  },
+  {
+    "lane": "066-day2-ink-sample-circuit",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/066-day2-ink-sample-circuit/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/066-day2-ink-sample-circuit/snapback/schema.q": "e1c85dc37af1563462465d2fd5b401a860eba2158f410ea4a56d99772ff5e674"
+    }
+  },
+  {
+    "lane": "067-damage-assessment-walks",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/067-damage-assessment-walks/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/067-damage-assessment-walks/snapback/schema.q": "0adbae05151b00e7aa910ceb9e13c7bfb5d4dd84adfd45c2080db743ed94098b"
+    }
+  },
+  {
+    "lane": "068-day2-preschool-daily-reports",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/068-day2-preschool-daily-reports/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/068-day2-preschool-daily-reports/snapback/schema.q": "3dee86347e0093bf06e7070efcc0439ddc13c3a7498232c64b084d0b1c4e2687"
+    }
+  },
+  {
+    "lane": "069-rural-route-notes",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/069-rural-route-notes/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/069-rural-route-notes/snapback/schema.q": "55b1710c3efcdfbbc39688e0ac03252259a3fa53473e9fca042f720520099ba8"
+    }
+  },
+  {
+    "lane": "070-day2-dietitian-meal-photos",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/070-day2-dietitian-meal-photos/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/070-day2-dietitian-meal-photos/snapback/schema.q": "4a4beada79beb5fff16d26693e5857c3fba48abfd5685d06cdf5a4b74cf513a5"
+    }
+  },
+  {
+    "lane": "071-bedtime-story-recordings",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/071-bedtime-story-recordings/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/071-bedtime-story-recordings/snapback/schema.q": "7b82281ec2cbb63ee4d2066fd35fe8c2170754f142790b77294fb60aa1684782"
+    }
+  },
+  {
+    "lane": "072-day2-polling-wait-times",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/072-day2-polling-wait-times/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/072-day2-polling-wait-times/snapback/schema.q": "177fa304fa620a9ae1e195ea6eddc53ec535bdefb8c84a3fa3d1133ff619a92f"
+    }
+  },
+  {
+    "lane": "073-tattoo-flash-claims",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/073-tattoo-flash-claims/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/073-tattoo-flash-claims/snapback/schema.q": "20b49ff0949180438a8d955acc9de817714c7c0ec0f42bce0b2cfe8389d63397"
+    }
+  },
+  {
+    "lane": "074-day2-tip-pool-distribution",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/074-day2-tip-pool-distribution/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/074-day2-tip-pool-distribution/snapback/schema.q": "5fab5427c137a2aeb964a6ad0e7282a29f991f44404e3fc7845c5257076a4bbb"
+    }
+  },
+  {
+    "lane": "075-layaway-ledger",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/075-layaway-ledger/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/075-layaway-ledger/snapback/schema.q": "08ae713d043924bc61d505896bdcae97bc5d3fbfb2bb53ab96788e7b8dc75d37"
+    }
+  },
+  {
+    "lane": "076-day2-song-stem-collab",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/076-day2-song-stem-collab/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/076-day2-song-stem-collab/snapback/schema.q": "598cded5fb7d0fef26c8230a5fce4d5d7c3431ec6953cc14554d8bdf412fb1ba"
+    }
+  },
+  {
+    "lane": "077-dog-license-renewals",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/077-dog-license-renewals/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/077-dog-license-renewals/snapback/schema.q": "317bd844588cb4ce9aefc5f69645588d1b6e95c1824e1ded757953e53f253f6d"
+    }
+  },
+  {
+    "lane": "078-day2-belt-promotion-testing",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/078-day2-belt-promotion-testing/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/078-day2-belt-promotion-testing/snapback/schema.q": "156527ca6d323458a499a95bda2243dbfc4f1decec6da32b5ab765e8c2d2620d"
+    }
+  },
+  {
+    "lane": "079-class-pet-weekends",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/079-class-pet-weekends/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/079-class-pet-weekends/snapback/schema.q": "61d8895231b6c304ec04006f1ec920623f667b903b57dca66437f2f772153145"
+    }
+  },
+  {
+    "lane": "080-day2-lab-protocol-forks",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/080-day2-lab-protocol-forks/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/080-day2-lab-protocol-forks/snapback/schema.q": "a4ee692ea3ee1044f476165bd7c66627d5ce0eadf2de5e8eec547eadcb8c14d0"
+    }
+  },
+  {
+    "lane": "081-open-water-swim-tags",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/081-open-water-swim-tags/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/081-open-water-swim-tags/snapback/schema.q": "f60dd63f26595caf6d2789c01df4557aebbdfd8e7709469f96a335b155c9959b"
+    }
+  },
+  {
+    "lane": "082-day2-group-card-signing",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/082-day2-group-card-signing/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/082-day2-group-card-signing/snapback/schema.q": "84f6133f4452b8447dcc23529ac1fe4ba93d9627042f0ca7fcf9a0a078b5b598"
+    }
+  },
+  {
+    "lane": "083-neighborhood-business-directory",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/083-neighborhood-business-directory/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/083-neighborhood-business-directory/snapback/schema.q": "f8875b4cb74af819fee97791c3c6fe14d964a28abb6c72a688ee62a23bd59615"
+    }
+  },
+  {
+    "lane": "084-day2-campus-confessions",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/084-day2-campus-confessions/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/084-day2-campus-confessions/snapback/schema.q": "66a3d2430eabd5c580d460c6f79a97ba86d001859683eebbabd4ad41e11fc303"
+    }
+  },
+  {
+    "lane": "085-bottle-split-shares",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/085-bottle-split-shares/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/085-bottle-split-shares/snapback/schema.q": "44c8dc8ff959cb871769920cd6ba75ae4c4af90564dbdbc972a35e5ed2441765"
+    }
+  },
+  {
+    "lane": "086-day2-flying-club-aircraft",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/086-day2-flying-club-aircraft/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/086-day2-flying-club-aircraft/snapback/schema.q": "4577b2fc146c5eb4afc8aa999d97ed3339108474a0c6b000497350736b022544"
+    }
+  },
+  {
+    "lane": "087-hotel-linen-counts",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/087-hotel-linen-counts/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/087-hotel-linen-counts/snapback/schema.q": "19f9b2117b999a1d0ecbb7a73f5100ca25bb3f1310a1ab391fb5c66ffb8f1d24"
+    }
+  },
+  {
+    "lane": "088-day2-lifeguard-rotation",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/088-day2-lifeguard-rotation/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/088-day2-lifeguard-rotation/snapback/schema.q": "878e30994f480e33bd91671ff841346d431d37f1c88737ea33c90e29fc79b0df"
+    }
+  },
+  {
+    "lane": "089-communities-of-interest-maps",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/089-communities-of-interest-maps/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/089-communities-of-interest-maps/snapback/schema.q": "b847d86fe1a20b384ca6820914bf3458e76036d32405d5b787850196f769888b"
+    }
+  },
+  {
+    "lane": "090-day2-film-lab-orders",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/090-day2-film-lab-orders/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/090-day2-film-lab-orders/snapback/schema.q": "1c31a9a4529d1cc777cfca763f362672129e9a173562e265e40315799ca21c0d"
+    }
+  },
+  {
+    "lane": "091-reef-bleaching-surveys",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/091-reef-bleaching-surveys/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/091-reef-bleaching-surveys/snapback/schema.q": "4338cbf1e5ac7b9cbf4d9ed65d3e52b829b7ee05f2d2972c8d9b16a62454b2e4"
+    }
+  },
+  {
+    "lane": "092-day2-near-miss-reports",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/092-day2-near-miss-reports/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/092-day2-near-miss-reports/snapback/schema.q": "6bd5df1ab7c98b03aef5418a4cc0c3c7959cf0caa96c81de5b53345600b90a3d"
+    }
+  },
+  {
+    "lane": "093-maintainer-funding-splits",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/093-maintainer-funding-splits/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/093-maintainer-funding-splits/snapback/schema.q": "a457ae682cfcdbce2c898e3f1dc74176d2b5b73a1698d0e050b6a19c577371d3"
+    }
+  },
+  {
+    "lane": "094-day2-rehearsal-conflict-calendar",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/094-day2-rehearsal-conflict-calendar/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/094-day2-rehearsal-conflict-calendar/snapback/schema.q": "dd35efa579d378e75cd2776e8f4950fcbd8b2f732d95baab4aa51b52a2b787a6"
+    }
+  },
+  {
+    "lane": "095-award-nomination-committee",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/095-award-nomination-committee/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/095-award-nomination-committee/snapback/schema.q": "c7c2c58a919744040b4b997a671f30692ebe4f6f2fe42da46d627ea963bc2290"
+    }
+  },
+  {
+    "lane": "096-day2-sailing-crew-finder",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/096-day2-sailing-crew-finder/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/096-day2-sailing-crew-finder/snapback/schema.q": "720b396d25c529a23960ee5bde861b270d5648344dab574ea929dcd67f3730d6"
+    }
+  },
+  {
+    "lane": "097-stream-overlay-controls",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/097-stream-overlay-controls/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/097-stream-overlay-controls/snapback/schema.q": "c106700d8c52679c1737d9d903f7963c462767dc2dcf1d6a236a97f7b80aa249"
+    }
+  },
+  {
+    "lane": "098-day2-darkroom-enlarger-booking",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/098-day2-darkroom-enlarger-booking/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/098-day2-darkroom-enlarger-booking/snapback/schema.q": "05c41874fc9473b8d395d4c52cfe2e17cd3e786eb85b769b95650e3d0db88ae8"
+    }
+  },
+  {
+    "lane": "099-derby-bout-lineups",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/099-derby-bout-lineups/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/099-derby-bout-lineups/snapback/schema.q": "edbe4eb1f9f44ebfe551a48d57e1d23780c323401a9d8814fb9cac040b96e46b"
+    }
+  },
+  {
+    "lane": "100-day2-hot-shop-glass-sessions",
+    "sources": [
+      "/home/ccheever/sb4-loop/wave12/apps/100-day2-hot-shop-glass-sessions/snapback/schema.q"
+    ],
+    "sha256": {
+      "/home/ccheever/sb4-loop/wave12/apps/100-day2-hot-shop-glass-sessions/snapback/schema.q": "ffdb6164d5b1f6f7d51e94c50bea1a9af6120be9dc35df59150613e239042704"
+    }
+  }
+]
