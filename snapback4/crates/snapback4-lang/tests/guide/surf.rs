@@ -12,3 +12,13 @@ fn surf_cards_match_current_auth_rules_assets_and_protocol() {
     let testing=card("testing").unwrap();for text in ["Raw HTTP proof across releases","404","E_OP","state:\"failed\", why","SDK, not raw HTTP"] {assert!(testing.contains(text),"{text}");}
     assert_eq!(guide::resolve("produc"),Some("production"));assert_eq!(guide::resolve("pr"),None);
 }
+
+
+#[test]
+fn farm_conceptual_section_words_land_without_a_miss() {
+    for (name,word,heading) in [("rules","Cross-row","Hops, operators and read through"),("testing","Fixture tests","Fixtures and cases")] {
+        let text=guide::section(name,card(name).unwrap(),word).unwrap();
+        assert!(text.contains(heading),"{text}");
+        assert!(!text.contains("No heading")&&!text.contains("no section"),"{text}");
+    }
+}

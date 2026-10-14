@@ -129,6 +129,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("push", "effects"), ("notification", "effects"), ("notify", "effects"), ("worker", "effects"), ("workers", "effects"), ("background", "effects"), ("idempotency", "effects"),
     ("route", "routes"), ("webhook", "routes"), ("webhooks", "routes"),
     ("auth", "personas"), ("signin", "deploy"), ("login", "deploy"), ("session", "personas"),
+    ("fixture test", "testing"), ("fixture tests", "testing"), ("cross row", "rules"),
     ("headless", "personas"), ("signup", "deploy"), ("sign-up", "deploy"), ("register", "deploy"),
     ("upload", "assets"), ("timeline", "feeds"), ("timelines", "feeds"),
     ("media", "assets"), ("image", "assets"), ("video", "assets"),
@@ -168,6 +169,8 @@ pub const ALIAS_SECTIONS: &[(&str, &str)] = &[
     ("sealed", "Sealed"), ("sealed bid", "Sealed"), ("sealed bids", "Sealed"), ("blind", "Sealed"), ("reveal", "Sealed"),
     ("not before", "Timed disclosure and timed writes"), ("timed disclosure", "Timed disclosure and timed writes"),
     ("roster", "Roles and rosters"), ("rosters", "Roles and rosters"), ("probe", "Roles and rosters"), ("positional", "Roles and rosters"),
+    ("fixture test", "Fixtures and cases"), ("fixture tests", "Fixtures and cases"),
+    ("cross row", "Hops, operators and read through"),
 ];
 
 /// The section an alias names in its card, if it names one: (card, heading words).

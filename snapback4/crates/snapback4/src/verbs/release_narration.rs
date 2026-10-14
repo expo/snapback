@@ -1,5 +1,6 @@
 //! Facts about the current store and a directional release pair.
 // @ref LLP 3000.000.000#11-wave-11-factual-release-narration — source changes, dependency changes and absent behavior are separate facts.
+// @ref LLP 3000.000.000#12-wave-12-clause-comparison — effective image rules and lexical guard context govern directional narration.
 use crate::project::Project;
 use snapback4_core::{Schema, Store, successor::{self, Change}};
 use snapback4_lang::lexer::{self, Kind};
