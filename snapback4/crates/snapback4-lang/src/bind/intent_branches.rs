@@ -153,7 +153,15 @@ pub(super) fn membership(tables: &Tables, synthesized: &std::collections::BTreeS
     }
     if memberships.is_empty() { return None; }
     let conjuncts = read.filter.as_ref().map(|filter| { let mut out = Vec::new(); intent::split(*filter.clone(), &mut out); out }).unwrap_or_default();
-    let base = where_branches(table, &conjuncts).unwrap_or_else(|| vec![conjuncts.clone()]);
+    // @ref LLP 3000.036.001#18 — an invalid or overflowing product is a
+    // declined PAGE candidate, never an undistributed complete membership lane.
+    let has_alternatives = conjuncts.iter().any(|conjunct|
+        matches!(conjunct, Expr::Binary { op, .. } if op == "or"));
+    let base = match where_branches(table, &conjuncts) {
+        Some(branches) => branches,
+        None if has_alternatives => return None,
+        None => vec![conjuncts.clone()],
+    };
     // These are structural PAGE exclusions, not late core fallbacks: decline
     // before the candidate can retain party/source indexes the original scan
     // does not use.

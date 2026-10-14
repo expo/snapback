@@ -583,6 +583,9 @@ def eligiblePin (td : TableDecl) (e : Expr) : Bool :=
   | some (c, v) => c != "id" && (td.cols.any fun d => d.name == c && (!d.nullable || v.isViewer))
   | none => false
 
+def eligiblePinned (td : TableDecl) (p : String × Expr) : Bool :=
+  p.1 != "id" && (td.cols.any fun d => d.name == p.1 && (!d.nullable || p.2.isViewer))
+
 /-- A branch's prefix: its own equalities first, then the page's pins, each
 column once, never `id` or an order column (a merge lane keeps those as
 seeks), within an index's 8 components. -/
@@ -688,8 +691,8 @@ def vacancyDecided (sch : Schema) (td : TableDecl) : Bool :=
   td.read.disjuncts.any fun r => match r with
     | .not (.probe t [point] [(key, .col .self "id")]) =>
         point == key && (sch.table? t).any fun source =>
-          source.uniques.contains [point]
-            && source.cols.any (fun col => col.name == point && !col.nullable)
+          (point == "id" || source.uniques.contains [point])
+            && (point == "id" || source.cols.any (fun col => col.name == point && !col.nullable))
     | _ => false
 
 /-- The pins the single-index planner keeps: the page's equalities and bare
@@ -704,13 +707,16 @@ def plannedPins (pins : List (String × Expr)) (filter : Option Expr) (order : L
 query alternatives. Every resulting branch needs an eligible equality pin;
 the later case-specific descriptor check keeps the system lane plus all
 membership/party lanes within eight. -/
-def filterAlternatives (td : TableDecl) (fs : List Expr) : Option (List (List Expr)) :=
+def filterAlternatives (td : TableDecl) (pins : List (String × Expr))
+    (fs : List Expr) : Option (List (List Expr)) :=
+  let common := fs.filter (!·.isOr)
   let factors := (fs.filter Expr.isOr).map fun e => e.disjuncts.map Expr.conjuncts
   if factors.isEmpty then none else
     let branches := factors.foldl (fun product factor =>
       product.flatMap fun prior => factor.map fun alternative => prior ++ alternative) [[]]
     if 2 ≤ branches.length && branches.length ≤ 8
-      && branches.all (fun branch => branch.any (eligiblePin td))
+      && branches.all (fun branch => pins.any (eligiblePinned td)
+        || (common ++ branch).any (eligiblePin td))
     then some branches else none
 
 /-- The branch rule of LLP 3000.036.001 §2 (cases 1 and 2; a grant branch is
@@ -723,11 +729,12 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
     let fs := (filter.map Expr.conjuncts).getD []
     let total := pins.all (fun p => p.2.total) && fs.all (Expr.readablePredicate sch)
     let readFree := pins.all (fun p => p.2.total) && fs.all Expr.total
-    let alts := filterAlternatives td fs
+    let filterPins := pins ++ (fs.filter (!·.isOr)).filterMap Expr.eqPin
+    let alts := filterAlternatives td filterPins fs
     let filterAlternativesSupported := alts.isSome || !(fs.any Expr.isOr)
     -- The planner pins a bare boolean conjunct too (`where .flag`); the
     -- emitter leaves it in the filter.
-    let pins := pins ++ (fs.filter (!·.isOr)).filterMap Expr.eqPin
+    let pins := filterPins
     let reservedMembership := td.read.ownerMembershipReserved sch
     let case1Candidate := alts.any fun as => as.all fun a => laneDecided td order (a.filterMap Expr.eqPin) pins
     -- The grant lane is the read as written, planned as the single-index page

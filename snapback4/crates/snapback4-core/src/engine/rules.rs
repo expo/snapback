@@ -805,17 +805,31 @@ fn fixed_filter_requires_rule(schema: &Schema, filter: &Expr, rule: &RuleExpr,
         return fixed_filter_requires_rule(schema, left, rule, pins)
             || fixed_filter_requires_rule(schema, right, rule, pins);
     }
-    // The IR preserves short-circuit `a and b` as a tiny Boolean block.
-    // Accept only that exact lowering: both operands are necessary, while an
-    // `or` block assigns on the false branch and cannot establish either one.
-    if let Expr::Block { body, value } = filter
-        && let [crate::ir::Stmt::Let { name, value: left }, crate::ir::Stmt::If {
-            condition: Expr::Variable(condition), then_body, else_body }] = body.as_slice()
-        && let [crate::ir::Stmt::Assign { name: assigned, value: right }] = then_body.as_slice()
-        && else_body.is_empty() && condition == name && assigned == name
-        && matches!(value.as_ref(), Expr::Variable(result) if result == name) {
-        return fixed_filter_requires_rule(schema, left, rule, pins)
-            || fixed_filter_requires_rule(schema, right, rule, pins);
+    // The compiler lowers a left-associated `a and b and c` into successive
+    // Let/If pairs. Accept only that exact dataflow chain: every right operand
+    // assigns the current result on its true branch, while `or` assigns on the
+    // false branch and any extra statement or mismatched name is rejected.
+    if let Expr::Block { body, value } = filter {
+        if body.is_empty() || body.len() % 2 != 0 { return false; }
+        let mut previous: Option<&String> = None;
+        let mut matched = false;
+        let mut at = 0;
+        while at < body.len() {
+            let [crate::ir::Stmt::Let { name, value: left }, crate::ir::Stmt::If {
+                condition: Expr::Variable(condition), then_body, else_body }] = &body[at..at + 2] else { return false };
+            let [crate::ir::Stmt::Assign { name: assigned, value: right }] = then_body.as_slice() else { return false };
+            if !else_body.is_empty() || condition != name || assigned != name { return false; }
+            if let Some(previous) = previous {
+                if !matches!(left, Expr::Variable(input) if input == previous) { return false; }
+            } else {
+                matched |= fixed_filter_requires_rule(schema, left, rule, pins);
+            }
+            matched |= fixed_filter_requires_rule(schema, right, rule, pins);
+            previous = Some(name);
+            at += 2;
+        }
+        if !matches!((value.as_ref(), previous), (Expr::Variable(result), Some(previous)) if result == previous) { return false; }
+        return matched;
     }
     let (Expr::Exists(read), RuleExpr::Exists { table, index, key, equalities, .. }) = (filter, rule) else { return false };
     let Some(target) = schema.table(table) else { return false };

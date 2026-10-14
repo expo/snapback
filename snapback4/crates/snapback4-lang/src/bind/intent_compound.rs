@@ -64,7 +64,9 @@ pub(super) fn expand(tables: &Tables, synthesized: &BTreeSet<(String, String)>, 
         let mut pins = Vec::new();
         let mut probes = Vec::new();
         for atom in &leaf {
-            if let Expr::Exists { .. } = atom && !branches::columns_within(atom, &[]) {
+            if let Expr::Exists { .. } = atom {
+                // Static points are fixed guards too; omitting them from the
+                // retained residual would weaken the authored conjunction.
                 probes.push(atom.clone());
             } else if intent::equality(atom, table).is_some() {
                 pins.push(atom.clone());
@@ -92,7 +94,9 @@ pub(super) fn expand(tables: &Tables, synthesized: &BTreeSet<(String, String)>, 
         let mut fixed_guards = Vec::new();
         for mut probe in probes {
             let fields: Vec<_> = match &probe { Expr::Exists { read, .. } => read.keys.iter().filter_map(|key| intent::column(&key.value)).collect(), _ => Vec::new() };
-            if !fields.is_empty() && fields.iter().all(|field| pinned.contains_key(*field)) {
+            // A point with no outer fields is already fixed; a point with
+            // outer fields becomes fixed only after every field is pinned.
+            if fields.iter().all(|field| pinned.contains_key(*field)) {
                 super::intent_walk::expression(&mut probe, &mut |value| {
                     if let Some(replacement) = intent::column(value).and_then(|column| pinned.get(column)) { *value = replacement.clone(); }
                 });

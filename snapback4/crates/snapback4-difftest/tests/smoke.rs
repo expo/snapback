@@ -796,3 +796,33 @@ fn membership_page_with_two_equality_alternative_factors_is_complete_in_lean_and
         }
     }
 }
+
+#[test]
+fn page5_review_boundaries_agree_in_generated_native_and_lean_cases() {
+    let have_model = model_built();
+    for seed in 0..4 {
+        for (case, complete, model_boundary) in [
+            (snapback4_difftest::generate::page_membership_filter_overflow(seed), false, Some("page-membership-filter-product")),
+            (snapback4_difftest::generate::page_membership_shared_filter_product(seed), true, None),
+            (snapback4_difftest::generate::page5_implicit_id_vacancy(seed), true, None),
+        ] {
+            let source = case.program.source();
+            execute::compile(&source).unwrap_or_else(|error| panic!("seed {seed}: {error}\n{source}"));
+            let mut engine = execute::engine(&case, &source).unwrap();
+            let outcome = execute::execute(&mut engine, &case, "run", &case.args);
+            assert_eq!(outcome.value["complete"], complete, "seed {seed}: {outcome:?}\n{source}");
+            let mut report = Report::default(); campaign::check(&case, &mut report, |_| {});
+            assert!(!report.failed(), "seed {seed}: {report:?}\n{source}");
+            if have_model {
+                let checked = snapback4_difftest::lean::compare(&case, &source).unwrap();
+                if let Some(reason) = model_boundary {
+                    assert!(matches!(&checked.verdict, Verdict::Unsupported(actual) if actual == reason),
+                        "seed {seed}: {:?}\n{source}", checked.verdict);
+                    assert_eq!(checked.executed, 0, "seed {seed}: model boundary executed\n{source}");
+                } else {
+                    assert!(matches!(checked.verdict, Verdict::Pass), "seed {seed}: {:?}\n{source}", checked.verdict);
+                }
+            }
+        }
+    }
+}

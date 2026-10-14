@@ -1232,30 +1232,6 @@ fn model_lane_columns(mut pins: Vec<String>, order: &[String]) -> Vec<String> {
     pins
 }
 
-/// Equality prefixes for the original system scan and for each PAGE filter
-/// alternative. Pins are sorted like the planner's `BTreeMap`, then the
-/// shared order and id suffix are appended separately by the caller.
-fn model_page_pins(table: &Table, read: &ReadExpr) -> (Vec<String>, Vec<Vec<String>>) {
-    let Some(filter) = read.filter.as_deref() else { return (Vec::new(), vec![Vec::new()]) };
-    let mut conjuncts = Vec::new();
-    flatten_and(filter, &mut conjuncts);
-    let system = model_pin_columns(table, &conjuncts, &read.order_keys);
-    let ors: Vec<_> = conjuncts.iter().enumerate().filter(|(_, expression)| matches!(expression, Expr::Binary { op, .. } if op == "or")).collect();
-    let [(position, expression)] = ors.as_slice() else { return (system.clone(), vec![system]) };
-    let mut alternatives = Vec::new();
-    flatten_or(expression, &mut alternatives);
-    let rest: Vec<_> = conjuncts.iter().enumerate().filter_map(|(at, expression)| (at != *position).then_some(*expression)).collect();
-    let branches: Option<Vec<Vec<String>>> = alternatives.into_iter().map(|alternative| {
-        let mut parts = Vec::new();
-        flatten_and(alternative, &mut parts);
-        let alternative_pins = model_pin_columns(table, &parts, &read.order_keys);
-        if alternative_pins.is_empty() { return None }
-        parts.extend(rest.iter().copied());
-        Some(model_pin_columns(table, &parts, &read.order_keys))
-    }).collect();
-    (system.clone(), branches.filter(|branches| branches.len() >= 2).unwrap_or_else(|| vec![system]))
-}
-
 fn party_column<'a>(table: &Table, expression: &'a Expr) -> Option<&'a str> {
     let Expr::Binary { op, left, right, .. } = expression else { return None };
     if op != "=" { return None }

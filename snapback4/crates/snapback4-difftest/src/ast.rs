@@ -82,6 +82,8 @@ pub enum Rule {
     FixedPerRow,
     /// An owner alternative beside an exact missing-point predicate (PAGE5).
     Vacancy,
+    /// The same vacancy predicate through the target's implicit unique id.
+    VacancyImplicitId,
 }
 impl Rule {
     fn source(&self) -> &'static str {
@@ -107,8 +109,9 @@ impl Rule {
             Self::NamedOld => "old.owner = viewer",
             Self::TwoParty => ".owner = viewer or .helper = viewer",
             Self::ProductScope => "(.owner = viewer or .helper = viewer) and (.status = 'open' or .status = 'active')",
-            Self::FixedPerRow => "(exists roles[.bucket, viewer] and exists seats[.bucket, viewer]) and exists access[.id, .bucket, viewer]",
+            Self::FixedPerRow => "((exists roles[.bucket, viewer] and exists seats[.bucket, viewer]) and exists permits[viewer]) and exists access[.id, .bucket, viewer]",
             Self::Vacancy => "not exists access[item = .id] or .owner = viewer",
+            Self::VacancyImplicitId => "not exists items[id = .id] or .owner = viewer",
         }
     }
     /// Whether the rule names the update's two images (`update (old, next)`).
@@ -520,6 +523,9 @@ pub struct Program {
     /// A further domain conjunct, as source (Lean variants).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub residual: Option<String>,
+    /// Emit a whole-table read with no generated `where` domain.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub unfiltered: bool,
     /// The domain's first clause in place of `.bucket = bucket`, as source:
     /// a disjunction of pinned branches (LLP 3000.036.001).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -667,7 +673,7 @@ impl Program {
                 owner,
                 project,
             } => {
-                let mut predicates = if self.search_term.is_some() {
+                let mut predicates = if self.search_term.is_some() || self.unfiltered {
                     Vec::new()
                 } else {
                     vec![self.domain.as_deref().unwrap_or(".bucket = bucket").to_owned()]

@@ -294,6 +294,7 @@ pub fn base(seed: u64) -> Case {
             named_page_order: None,
             principal_arg: None,
             residual: None,
+            unfiltered: false,
             domain: None,
             guard: None,
             membership_named_reordered: false,
@@ -499,12 +500,17 @@ pub fn page5(seed: u64, shape: u64) -> Case {
                 keys: vec![("byBucketPrincipal".into(), vec!["bucket".into(), "principal".into()], true)], caps: vec![],
                 rule: Rule::Member, residency: Residency::Online, effects: None, expire: None, not_before: None };
             case.program.tables.push(seats);
+            let permits = Table { name: "permits".into(), columns: vec![column("principal", Type::Principal)],
+                keys: vec![("byPrincipal".into(), vec!["principal".into()], true)], caps: vec![],
+                rule: Rule::Member, residency: Residency::Online, effects: None, expire: None, not_before: None };
+            case.program.tables.push(permits);
             if rng.pick(4) != 0 { case.rows.push(("roles".into(), json!({"id":format!("role-{seed}"), "bucket":bucket, "principal":case.principal}))); }
             if rng.pick(4) != 0 { case.rows.push(("seats".into(), json!({"id":format!("seat-{seed}"), "bucket":bucket, "principal":case.principal}))); }
+            if rng.pick(4) != 0 { case.rows.push(("permits".into(), json!({"id":format!("permit-{seed}"), "principal":case.principal}))); }
         }
         _ => {
             case.program.tables[0].rule = Rule::Vacancy;
-            case.program.domain = Some("true".into());
+            case.program.domain = None; case.program.unfiltered = true;
             id_membership(&mut case);
             let access = case.program.tables.iter_mut().find(|table| table.name == "access").unwrap();
             access.rule = Rule::Member; access.effects = None; access.residency = Residency::Online;
@@ -578,5 +584,63 @@ pub fn page_membership_filter_product(seed: u64) -> Case {
             row["status"] = json!(if rng.pick(3) == 0 { "closed" } else if rng.pick(2) == 0 { "open" } else { "held" });
         }
     }
+    case
+}
+
+/// Four binary equality factors require sixteen membership lanes and must not
+/// collapse into one undistributed complete descriptor after product overflow.
+// @ref LLP 3000.036.001#18 — alternative overflow retains the ordinary incomplete scan.
+pub fn page_membership_filter_overflow(seed: u64) -> Case {
+    let mut case = base(seed);
+    case.program.tables[0].rule = Rule::Witness;
+    case.program.tables[0].effects = None;
+    case.program.tables[0].residency = Residency::Online;
+    for name in ["p", "q", "r", "s"] { case.program.tables[0].columns.push(column(name, Type::Int)); }
+    let access = case.program.tables.iter_mut().find(|table| table.name == "access").unwrap();
+    access.rule = Rule::Allow; access.effects = None; access.residency = Residency::Public;
+    access.expire = None; access.not_before = None;
+    case.program.body = Body::Read { kind: Read::Page, take: 1, descending: seed % 2 == 0,
+        filter: false, owner: false, project: None };
+    case.program.domain = Some("(.p = 0 or .p = 1) and (.q = 0 or .q = 1) and (.r = 0 or .r = 1) and (.s = 0 or .s = 1)".into());
+    case.program.residual = None; case.program.order = Some(vec!["label".into(), "score".into()]);
+    case.program.named_page_order = None; case.program.prelude.clear(); case.program.lets.clear(); case.steps.clear();
+    for (table, row) in &mut case.rows { if table == "items" {
+        for (at, name) in ["p", "q", "r", "s"].into_iter().enumerate() { row[name] = json!(((seed as usize + at) % 3) as i64); }
+    }}
+    case
+}
+
+/// A shared equality supplies the physical prefix for every Cartesian lane;
+/// the alternative factors themselves may remain total residual comparisons.
+// @ref LLP 3000.036.001#18 — common positive pins count in every product branch.
+pub fn page_membership_shared_filter_product(seed: u64) -> Case {
+    let mut case = base(seed);
+    case.program.tables[0].rule = Rule::Witness;
+    case.program.tables[0].effects = None;
+    case.program.tables[0].residency = Residency::Online;
+    case.program.tables[0].columns.push(column("region", Type::Text));
+    case.program.tables[0].columns.push(column("rank", Type::Int));
+    let access = case.program.tables.iter_mut().find(|table| table.name == "access").unwrap();
+    access.rule = Rule::Allow; access.effects = None; access.residency = Residency::Public;
+    access.expire = None; access.not_before = None;
+    case.program.body = Body::Read { kind: Read::Page, take: 1, descending: seed % 2 == 0,
+        filter: false, owner: false, project: None };
+    case.program.domain = Some(".region = 'north'".into());
+    case.program.residual = Some("(.score > 0 or .score > 10) and (.rank > 0 or .rank > 10)".into());
+    case.program.order = Some(vec!["label".into(), "score".into()]);
+    case.program.named_page_order = None; case.program.prelude.clear(); case.program.lets.clear(); case.steps.clear();
+    for (table, row) in &mut case.rows { if table == "items" {
+        row["region"] = json!(if seed % 3 == 0 { "south" } else { "north" });
+        row["rank"] = json!((seed % 15) as i64);
+    }}
+    case
+}
+
+/// Vacancy may use the target table's always-present required unique id even
+/// though the explicit column/unique lists omit that intrinsic point.
+// @ref LLP 3000.036.001#18 — implicit id is a required exact vacancy point.
+pub fn page5_implicit_id_vacancy(seed: u64) -> Case {
+    let mut case = page5(seed, 2);
+    case.program.tables[0].rule = Rule::VacancyImplicitId;
     case
 }

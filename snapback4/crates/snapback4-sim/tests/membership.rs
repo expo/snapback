@@ -290,6 +290,11 @@ table seats:
   unique bucket, principal
   read <- .principal = viewer
   online only
+table permits:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  online only
 table access:
   item: items
   bucket: int
@@ -300,7 +305,7 @@ table access:
 table items:
   bucket: int
   at: int
-  read <- (exists chapters[.bucket, viewer] and exists seats[.bucket, viewer]) and exists access[.id, .bucket, viewer]
+  read <- ((exists chapters[.bucket, viewer] and exists seats[.bucket, viewer]) and exists permits[viewer]) and exists access[.id, .bucket, viewer]
   online only
 query page(bucket: int, c: cursor ?):
   return items where .bucket = bucket first 1 by .at after c
@@ -310,6 +315,7 @@ query page(bucket: int, c: cursor ?):
     engine.seed([
         ("chapters".into(), snapback4_core::value::object([("id", id("chapter")), ("bucket", Value::Int(1)), ("principal", id("alice"))])),
         ("seats".into(), snapback4_core::value::object([("id", id("seat")), ("bucket", Value::Int(1)), ("principal", id("alice"))])),
+        ("permits".into(), snapback4_core::value::object([("id", id("permit")), ("principal", id("alice"))])),
         ("access".into(), snapback4_core::value::object([("id", id("access")), ("item", id("visible")), ("bucket", Value::Int(1)), ("principal", id("alice"))])),
         ("items".into(), snapback4_core::value::object([("id", id("visible")), ("bucket", Value::Int(1)), ("at", Value::Int(1))])),
         ("items".into(), snapback4_core::value::object([("id", id("hidden")), ("bucket", Value::Int(1)), ("at", Value::Int(2))])),

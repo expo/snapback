@@ -1077,12 +1077,15 @@ def page5FixedPerRow : Schema := { tables := [
     read := .eq (self "principal") .viewer },
   { name := "seats", cols := [c "bucket", c "principal"], uniques := [["bucket", "principal"]]
     read := .eq (self "principal") .viewer },
+  { name := "permits", cols := [c "principal"], uniques := [["principal"]]
+    read := .eq (self "principal") .viewer },
   { name := "access", cols := [c "item", c "bucket", c "principal"], uniques := [["item", "bucket", "principal"]]
     read := .eq (self "principal") .viewer },
   { name := "items", cols := [c "bucket", c "at"]
-    read := .and
+    read := .and (.and
       (.and (.probe "roles" ["bucket", "principal"] [("bucket", self "bucket"), ("principal", .viewer)])
         (.probe "seats" ["bucket", "principal"] [("bucket", self "bucket"), ("principal", .viewer)]))
+      (.probe "permits" ["principal"] [("principal", .viewer)]))
       (.probe "access" ["item", "bucket", "principal"] [("item", self "id"), ("bucket", self "bucket"), ("principal", .viewer)]) }] }
 
 def page5MembershipProduct : Schema := { tables := [
@@ -1091,10 +1094,19 @@ def page5MembershipProduct : Schema := { tables := [
   { name := "items", cols := [c "bucket", c "region", c "status", c "at"]
     read := .probe "access" ["bucket", "principal"] [("bucket", self "bucket"), ("principal", .viewer)] }] }
 
+def page5MembershipProductBoundaries : Schema := { tables := [
+  { name := "access", cols := [c "bucket", c "principal"], uniques := [["bucket", "principal"]]
+    read := .allow },
+  { name := "items", cols := [c "bucket", c "region", c "score", c "rank", c "p", c "q", c "r", c "s", c "at"]
+    read := .probe "access" ["bucket", "principal"] [("bucket", self "bucket"), ("principal", .viewer)] }] }
+
 def page5Vacancy : Schema := { tables := [
   { name := "holds", cols := [c "design", c "owner"], uniques := [["design"]], read := .eq (self "owner") .viewer },
   { name := "designs", cols := [c "owner", c "at"],
     read := .or (.not (.probe "holds" ["design"] [("design", self "id")])) (.eq (self "owner") .viewer) }] }
+def page5ImplicitIdVacancy : Schema := { tables := [
+  { name := "designs", cols := [c "owner", c "at"],
+    read := .or (.not (.probe "designs" ["id"] [("id", self "id")])) (.eq (self "owner") .viewer) }] }
 def page5VacancyExamples : List Example := [
   { name := "page5-bounded-product"
     source := "LLP 3000.036.001 §18: two principal pins times two status pins retain both predicates in four complete lanes"
@@ -1116,6 +1128,7 @@ def page5VacancyExamples : List Example := [
       store := mkStore [
         ("roles", [mkRow "r" [("bucket", N 1), ("principal", I "alice")]]),
         ("seats", [mkRow "s" [("bucket", N 1), ("principal", I "alice")]]),
+        ("permits", [mkRow "p" [("principal", I "alice")]]),
         ("access", [mkRow "x" [("item", I "a"), ("bucket", N 1), ("principal", I "alice")],
           mkRow "y" [("item", I "c"), ("bucket", N 2), ("principal", I "alice")]]),
         ("items", [mkRow "a" [("bucket", N 1), ("at", N 1)],
@@ -1137,6 +1150,30 @@ def page5VacancyExamples : List Example := [
         ["at"] false 10 none)] }
     tables := []
     expected := r#"{"kind":"answer","data":[],"complete":true,"next":null}"# },
+  { name := "page5-membership-shared-pin-product"
+    source := "LLP 3000.036.001 §18: one common equality pins all four residual-comparison lanes"
+    case := {
+      schema := page5MembershipProductBoundaries
+      store := Store.empty
+      viewer := alice
+      program := query [.ret (.page "items" [("region", .lit (.s (T "north")))] (some (.and
+        (.or (.bin .gt (.dot "score") (int 0)) (.bin .gt (.dot "score") (int 10)))
+        (.or (.bin .gt (.dot "rank") (int 0)) (.bin .gt (.dot "rank") (int 10))))) ["at"] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[],"complete":true,"next":null}"# },
+  { name := "page5-membership-product-overflow"
+    source := "LLP 3000.036.001 §18: sixteen product lanes retain the ordinary incomplete scan"
+    case := {
+      schema := page5MembershipProductBoundaries
+      store := Store.empty
+      viewer := alice
+      program := query [.ret (.page "items" [] (some (.and
+        (.and (.or (.bin .eq (.dot "p") (int 0)) (.bin .eq (.dot "p") (int 1)))
+          (.or (.bin .eq (.dot "q") (int 0)) (.bin .eq (.dot "q") (int 1))))
+        (.and (.or (.bin .eq (.dot "r") (int 0)) (.bin .eq (.dot "r") (int 1)))
+          (.or (.bin .eq (.dot "s") (int 0)) (.bin .eq (.dot "s") (int 1)))))) ["at"] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[],"complete":false,"next":null}"# },
   { name := "page5-exact-vacancy"
     source := "LLP 3000.036.001 §18: explicit exact-point vacancy makes private server exhaustion observable"
     case := {
@@ -1147,7 +1184,17 @@ def page5VacancyExamples : List Example := [
       viewer := bob
       program := query [.ret (.page "designs" [] none ["at"] false 10 none)] }
     tables := []
-    expected := r#"{"kind":"answer","data":[{"id":"free","owner":"alice","at":1}],"complete":true,"next":null}"# }
+    expected := r#"{"kind":"answer","data":[{"id":"free","owner":"alice","at":1}],"complete":true,"next":null}"# },
+  { name := "page5-implicit-id-vacancy"
+    source := "LLP 3000.036.001 §18: intrinsic id is a required unique vacancy point"
+    case := {
+      schema := page5ImplicitIdVacancy
+      store := mkStore [("designs", [mkRow "free" [("owner", I "alice"), ("at", N 1)],
+          mkRow "held" [("owner", I "alice"), ("at", N 2)]])]
+      viewer := bob
+      program := query [.ret (.page "designs" [] none ["at"] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[],"complete":true,"next":null}"# }
 ]
 
 -- Integration 12's seed 10282, plus its nullable-order companion.

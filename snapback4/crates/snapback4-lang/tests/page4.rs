@@ -267,14 +267,17 @@ fn two_principal_status_scope_and_fixed_plus_per_row_grants_are_complete() {
 
     // Validator readability is about the generated residual point after page
     // pins are substituted: roles[viewer] is visible even though the authored
-    // fixed guard is roles[.bucket].
-    let substituted = "table roles:\n  bucket: principal\n  unique bucket\n  read <- .bucket = viewer\n  online only\ntable access:\n  item: id\n  bucket: principal\n  principal: principal\n  unique item, bucket, principal\n  read <- .principal = viewer\n  online only\ntable items:\n  bucket: principal\n  at: int\n  read <- exists roles[.bucket] and exists access[.id, .bucket, viewer]\n  online only\nquery mine(c: cursor ?):\n  return items where .bucket = viewer first 10 by .at after c\n";
+    // fixed guard is roles[.bucket]. Two already-static siblings also prove
+    // the full left-associated residual conjunction rather than disappearing.
+    let substituted = "table roles:\n  bucket: principal\n  unique bucket\n  read <- .bucket = viewer\n  online only\ntable seats:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable permits:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable access:\n  item: id\n  bucket: principal\n  principal: principal\n  unique item, bucket, principal\n  read <- .principal = viewer\n  online only\ntable items:\n  bucket: principal\n  at: int\n  read <- ((exists roles[.bucket] and exists seats[viewer]) and exists permits[viewer]) and exists access[.id, .bucket, viewer]\n  online only\nquery mine(c: cursor ?):\n  return items where .bucket = viewer first 10 by .at after c\n";
     let b = compile(&[("schema.q".into(), substituted.into())]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     assert!(!b.notes.iter().any(|n| matches!(n.code.as_str(), "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE")), "{:?}", b.notes);
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     e.seed([
         ("roles".into(), object([("id", id("r")), ("bucket", id("alice"))])),
+        ("seats".into(), object([("id", id("s")), ("principal", id("alice"))])),
+        ("permits".into(), object([("id", id("p")), ("principal", id("alice"))])),
         ("access".into(), object([("id", id("x")), ("item", id("a")), ("bucket", id("alice")), ("principal", id("alice"))])),
         ("items".into(), object([("id", id("a")), ("bucket", id("alice")), ("at", Value::Int(1))])),
         ("items".into(), object([("id", id("b")), ("bucket", id("alice")), ("at", Value::Int(2))])),
@@ -282,6 +285,17 @@ fn two_principal_status_scope_and_fixed_plus_per_row_grants_are_complete() {
     let r = e.query("mine", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
     assert!(r.complete, "{r:?}");
     assert_eq!(r.data.as_array().unwrap().iter().map(|row| row.field("id").unwrap().as_str().unwrap()).collect::<Vec<_>>(), ["a"]);
+}
+
+#[test]
+fn lean_gate_prices_every_filter_product_pin_before_comparison() {
+    let source = "table access:\n  bucket: text <=40\n  principal: principal\n  unique bucket, principal\n  read <- .principal = viewer\n  online only\ntable items:\n  bucket: text <=40\n  region: text <=435\n  status: text <=435\n  at: int\n  read <- exists access[.bucket, viewer]\n  online only\nquery mine(c: cursor ?):\n  return items where (.region = 'north' or .region = 'south') and (.status = 'open' or .status = 'held') first 10 by .at after c\n";
+    let bound = compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+        .iter().all(|merge| !merge.branches()), "{:?}", bound.programs);
+    let module = snapback4_lang::emit::lean::lean(&[("schema.q".into(), source.into())]).unwrap();
+    assert_eq!(module.program("mine").unwrap_err().reason, "page-membership-key-bound");
 }
 
 #[test]
