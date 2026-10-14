@@ -1,0 +1,26 @@
+{
+  "implementation": "26ee2cbad0",
+  "reviewed_semantic_implementation": "41ad0a2a5e",
+  "seed": 0,
+  "cases": 1000,
+  "baseline": "snapback4/reports/20261013-integration9/lean-signature-baseline.json",
+  "oracles": {
+    "native": {
+      "signatures": {},
+      "new_signatures": [],
+      "unexpected_binder_refusals": 0,
+      "unexpected_runtime_refusals": {}
+    },
+    "lean": {
+      "signatures": {
+        "lean--continuation-next--next~no-next": 3,
+        "lean--next--next~no-next": 7
+      },
+      "new_signatures": [],
+      "unexpected_binder_refusals": 0,
+      "unexpected_runtime_refusals": {}
+    }
+  },
+  "diagnostic_followup": "e9544ba528",
+  "diagnostic_followup_note": "Query/System-job note precision and finite-unique silence witnesses; no language admission, reservation or wire change."
+}
