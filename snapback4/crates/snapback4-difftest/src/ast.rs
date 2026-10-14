@@ -76,6 +76,12 @@ pub enum Rule {
     NamedOld,
     /// `.owner = viewer or .helper = viewer`: two parties (LLP 3000.036.001).
     TwoParty,
+    /// Two independently distributed positive alternatives (PAGE5).
+    ProductScope,
+    /// One readable fixed point guard beside one per-row membership (PAGE5).
+    FixedPerRow,
+    /// An owner alternative beside an exact missing-point predicate (PAGE5).
+    Vacancy,
 }
 impl Rule {
     fn source(&self) -> &'static str {
@@ -100,6 +106,9 @@ impl Rule {
             Self::NamedNext => "next.owner = viewer",
             Self::NamedOld => "old.owner = viewer",
             Self::TwoParty => ".owner = viewer or .helper = viewer",
+            Self::ProductScope => "(.owner = viewer or .helper = viewer) and (.status = 'open' or .status = 'active')",
+            Self::FixedPerRow => "exists roles[.bucket, viewer] and exists access[.id, viewer]",
+            Self::Vacancy => "not exists access[item = .id] or .owner = viewer",
         }
     }
     /// Whether the rule names the update's two images (`update (old, next)`).

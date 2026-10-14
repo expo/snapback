@@ -931,6 +931,68 @@ def page4Examples : List Example := [
     expected := r#"{"kind":"answer","data":[],"complete":true,"next":null}"# }
 ]
 
+def page5Product : Schema := { tables := [
+  { name := "items", cols := [c "owner", c "helper", c "status", c "at"]
+    read := .and
+      (.or (.eq (self "owner") .viewer) (.eq (self "helper") .viewer))
+      (.or (.eq (self "status") (.lit (T "open"))) (.eq (self "status") (.lit (T "active")))) }] }
+
+def page5FixedPerRow : Schema := { tables := [
+  { name := "roles", cols := [c "bucket", c "principal"], uniques := [["bucket", "principal"]]
+    read := .eq (self "principal") .viewer },
+  { name := "access", cols := [c "item", c "principal"], uniques := [["item", "principal"]]
+    read := .eq (self "principal") .viewer },
+  { name := "items", cols := [c "bucket", c "at"]
+    read := .and
+      (.probe "roles" ["bucket", "principal"] [("bucket", self "bucket"), ("principal", .viewer)])
+      (.probe "access" ["item", "principal"] [("item", self "id"), ("principal", .viewer)]) }] }
+
+def page5Vacancy : Schema := { tables := [
+  { name := "holds", cols := [c "design", c "owner"], uniques := [["design"]], read := .eq (self "owner") .viewer },
+  { name := "designs", cols := [c "owner", c "at"],
+    read := .or (.not (.probe "holds" ["design"] [("design", self "id")])) (.eq (self "owner") .viewer) }] }
+def page5VacancyExamples : List Example := [
+  { name := "page5-bounded-product"
+    source := "LLP 3000.036.001 §18: two principal pins times two status pins retain both predicates in four complete lanes"
+    case := {
+      schema := page5Product
+      store := mkStore [("items", [
+        mkRow "a" [("owner", I "alice"), ("helper", I "bob"), ("status", T "open"), ("at", N 1)],
+        mkRow "b" [("owner", I "bob"), ("helper", I "alice"), ("status", T "active"), ("at", N 2)],
+        mkRow "c" [("owner", I "alice"), ("helper", I "bob"), ("status", T "closed"), ("at", N 3)],
+        mkRow "d" [("owner", I "bob"), ("helper", I "bob"), ("status", T "open"), ("at", N 4)]])]
+      viewer := alice
+      program := query [.ret (.page "items" [] none ["at"] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"a","owner":"alice","helper":"bob","status":"open","at":1},{"id":"b","owner":"bob","helper":"alice","status":"active","at":2}],"complete":true,"next":null}"# },
+  { name := "page5-fixed-plus-per-row"
+    source := "LLP 3000.036.001 §18: one readable fixed point may guard one varying per-row membership lane"
+    case := {
+      schema := page5FixedPerRow
+      store := mkStore [
+        ("roles", [mkRow "r" [("bucket", N 1), ("principal", I "alice")]]),
+        ("access", [mkRow "x" [("item", I "a"), ("principal", I "alice")],
+          mkRow "y" [("item", I "c"), ("principal", I "alice")]]),
+        ("items", [mkRow "a" [("bucket", N 1), ("at", N 1)],
+          mkRow "b" [("bucket", N 1), ("at", N 2)],
+          mkRow "c" [("bucket", N 2), ("at", N 3)]])]
+      viewer := alice
+      program := query [.ret (.page "items" [("bucket", int 1)] none ["at"] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"a","bucket":1,"at":1}],"complete":true,"next":null}"# },
+  { name := "page5-exact-vacancy"
+    source := "LLP 3000.036.001 §18: explicit exact-point vacancy makes private server exhaustion observable"
+    case := {
+      schema := page5Vacancy
+      store := mkStore [("holds", [mkRow "h" [("design", I "held"), ("owner", I "alice")]]),
+        ("designs", [mkRow "free" [("owner", I "alice"), ("at", N 1)],
+          mkRow "held" [("owner", I "alice"), ("at", N 2)]])]
+      viewer := bob
+      program := query [.ret (.page "designs" [] none ["at"] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"free","owner":"alice","at":1}],"complete":true,"next":null}"# }
+]
+
 -- Integration 12's seed 10282, plus its nullable-order companion.
 -- These ordinary scans are supported model cases, never excluded as Unsupported.
 def page4FallbackSchema : Schema := { tables := [
@@ -954,7 +1016,7 @@ def page4FallbackExamples : List Example := [
 ]
 
 /-- Every example: the guide cards' and the referential actions'. -/
-def all : List Example := examples ++ merged ++ refExamples ++ page3Examples ++ qdiagExamples ++ page4Examples ++ page4FallbackExamples
+def all : List Example := examples ++ merged ++ refExamples ++ page3Examples ++ qdiagExamples ++ page4Examples ++ page5VacancyExamples ++ page4FallbackExamples
 
 /-- Run every example; returns the failures. -/
 def check : List (String × String × String) :=

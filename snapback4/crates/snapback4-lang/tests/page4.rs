@@ -283,7 +283,7 @@ fn equality_filter_note_prints_one_matching_index_and_query() {
 
 #[test]
 fn exact_vacancy_pages_publish_only_rule_visible_exhaustion() {
-    let source = "table artists:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable designs:\n  oneOfKind: bool\n  at: int\n  read <- exists artists[viewer] or not .oneOfKind or not exists holds[design = .id] or exists holds[design = .id, owner = viewer]\n  online only\ntable holds:\n  design: designs\n  owner: principal\n  expiresAt: time ?\n  unique design\n  read <- .owner = viewer or exists artists[viewer]\n  expire at .expiresAt\n  online only\nquery available(c: cursor ?):\n  return designs first 1 by .at after c\n";
+    let source = "table artists:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable designs:\n  oneOfKind: bool\n  at: int\n  read <- exists artists[viewer] or not .oneOfKind or not exists holds[design = .id] or exists holds[design = .id, owner = viewer]\n  online only\ntable holds:\n  design: designs\n  owner: principal\n  expiresAt: time ?\n  unique design\n  read <- .owner = viewer or exists artists[viewer]\n  expire at .expiresAt\n  online only\nquery available(c: cursor ?):\n  return designs first 1 by .at after c\nquery availableAssigned(c: cursor ?):\n  page = designs first 1 by .at after c\n  return page\n";
     let b = compile(&[("schema.q".into(), source.into())]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     assert!(!b.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"), "{:?}", b.notes);
@@ -296,7 +296,17 @@ fn exact_vacancy_pages_publish_only_rule_visible_exhaustion() {
         ("designs".into(), object([("id", id("c")), ("oneOfKind", Value::Bool(true)), ("at", Value::Int(3))])),
         ("holds".into(), object([("id", id("h")), ("design", id("c")), ("owner", id("alice")), ("expiresAt", Value::Null)])),
     ]).unwrap();
+    for ceilings in [
+        snapback4_core::Ceilings { examined: 0, ..Default::default() },
+        snapback4_core::Ceilings { rule_probes: 0, ..Default::default() },
+    ] {
+        e.set_ceilings(ceilings);
+        let cut = e.query("available", Context::new("bob", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
+        assert!(!cut.complete, "a cut before private vacancy exhaustion must stay incomplete: {cut:?}");
+    }
+    e.set_ceilings(Default::default());
     assert_eq!(walk(&mut e, "available", "bob"), ["a", "b"]);
+    assert_eq!(walk(&mut e, "availableAssigned", "bob"), ["a", "b"]);
     assert_eq!(walk(&mut e, "available", "alice"), ["a", "b", "c"]);
     assert_eq!(walk(&mut e, "available", "art"), ["a", "b", "c"]);
 

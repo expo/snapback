@@ -473,6 +473,7 @@ pub fn features(case: &Case) -> Vec<String> {
     use crate::ast::{Read, Rule, Write};
     let mut out = Vec::new();
     out.extend(crate::generate::page4_features(case));
+    out.extend(crate::generate::page5_features(case));
     let items = &case.program.tables[0];
     let rules: Vec<Rule> = items.effects.clone().unwrap_or_else(|| vec![items.rule.clone(); 4]);
     let access_hidden = case.program.tables.get(1).and_then(|t| t.effects.as_ref()).is_some_and(|e| e[0] == Rule::Deny);

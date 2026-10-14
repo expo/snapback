@@ -568,6 +568,35 @@ def laneFits (order : List String) (eqs pins : List (String × Expr)) : Bool :=
 def laneDecided (td : TableDecl) (order : List String) (eqs pins : List (String × Expr)) : Bool :=
   laneFits order eqs pins && decidedPins td ((eqs ++ pins).filter fun p => p.1 != "id" && !order.contains p.1)
 
+/-- PAGE5's fixed half of a fixed-plus-varying grant: after substituting the
+page pins, this is one timeless, required exact point whose ordinary read
+rule discloses the same answer to the caller. -/
+def fixedPointGuard (sch : Schema) (outer : TableDecl)
+    (pins : List (String × Expr)) : Rule → Bool
+  | r@(.probe t point key) => match sch.table? t with
+    | some source =>
+      let columns := key.map (·.1)
+      key.length == point.length
+        && point.eraseDups.length == point.length
+        && point.all columns.contains
+        && (point == ["id"] || source.uniques.contains point)
+        && point.all (fun name => name == "id" || source.cols.any (fun col => col.name == name && !col.nullable))
+        && source.notBefore.isNone && source.expire.isNone
+        && r.usableGuard sch outer pins
+    | none => false
+  | _ => false
+
+/-- PAGE5's varying half has exactly one outer-row key component and otherwise
+uses PAGE's existing readable, total membership witness. -/
+def varyingPointGrant (sch : Schema) (pins : List (String × Expr))
+    (order : List String) : Rule → Bool
+  | .probe t point key => membershipEligible sch t point key
+      && (membershipColumns key).any fun pair =>
+        !pins.any (·.1 == pair.2)
+          && (!order.contains pair.2 || pair.2 == "id" && order == ["id"])
+          && laneFits order [(pair.2, .viewer)] pins
+  | _ => false
+
 /-- Each positive alternative either has a prefix-decided rule, its own
 readable guard, or one exact membership witness with every remaining
 conjunct true by its pins. -/
@@ -593,6 +622,9 @@ def compoundDecided (sch : Schema) (td : TableDecl) (pins : List (String × Expr
                   !ps.any (·.1 == pair.2) && (!order.contains pair.2 || pair.2 == "id" && order == ["id"])
                   && laneFits order ((pair.2, .viewer) :: extra) pins
               | _ => false
+            | [a, b] =>
+                (fixedPointGuard sch td ps a && varyingPointGrant sch ps order b)
+                  || (fixedPointGuard sch td ps b && varyingPointGrant sch ps order a)
             | _ => false)
 
 
@@ -619,6 +651,17 @@ def scopedWitnessDecided (sch : Schema) (td : TableDecl)
             !pins.any (·.1 == pair.2)
               && (!order.contains pair.2 || pair.2 == "id" && order == ["id"])
               && laneFits order [(pair.2, .viewer)] pins
+    | _ => false
+
+/-- PAGE5's explicit vacancy: a top-level negated probe of one required
+exact point by the focal row's intrinsic id. The native lane still checks the
+whole read rule per row; this predicate governs only its exhaustion verdict. -/
+def vacancyDecided (sch : Schema) (td : TableDecl) : Bool :=
+  td.read.disjuncts.any fun r => match r with
+    | .not (.probe t [point] [(key, .col .self "id")]) =>
+        point == key && (sch.table? t).any fun source =>
+          source.uniques.contains [point]
+            && (source.cols.find? (·.name == point)).all (!·.nullable)
     | _ => false
 
 /-- The pins the single-index planner keeps: the page's equalities and bare
@@ -705,7 +748,8 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
       | none => false
     let case4 := guards && !reservedMembership && !pinnedMembership && alts.isNone && compoundDecided sch td pins order
     let witnessScope := guards && pins.all (fun p => p.2.total) && scopedWitnessDecided sch td pins fs order
-    (total && (case1 || case2)) || (readFree && (case3 || case4)) || witnessScope
+    let vacancy := guards && pins.isEmpty && fs.isEmpty && vacancyDecided sch td
+    (total && (case1 || case2)) || (readFree && (case3 || case4)) || witnessScope || vacancy
 
 def keyValue (k : Key) : Value := .arr (k.map .s)
 

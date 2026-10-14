@@ -251,6 +251,89 @@ query page_docs(c: cursor ?):
     assert_eq!(second.data.as_array().unwrap()[0].field("id").unwrap(), &id("new-member"));
     assert!(second.complete && second.next.is_none());
 }
+
+// @ref LLP 3000.036.001#18 — simulator execution covers the PAGE5 fixed
+// point guard beside a per-row membership and exact vacancy exhaustion.
+#[test]
+fn page5_product_fixed_membership_and_vacancy_publish_complete_pages() {
+    let product = bound("table items:
+  owner: principal
+  helper: principal
+  status: text <=10
+  at: int
+  read <- (.owner = viewer or .helper = viewer) and (.status = 'open' or .status = 'active')
+  online only
+query page():
+  return items first 10 by .at
+");
+    assert!(!product.schema.required_capabilities().contains("branch-pages-v4"));
+    let mut engine = Engine::memory(product.schema, product.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed([
+        ("items".into(), snapback4_core::value::object([("id", id("a")), ("owner", id("alice")), ("helper", id("bob")), ("status", Value::String("open".into())), ("at", Value::Int(1))])),
+        ("items".into(), snapback4_core::value::object([("id", id("b")), ("owner", id("bob")), ("helper", id("alice")), ("status", Value::String("active".into())), ("at", Value::Int(2))])),
+        ("items".into(), snapback4_core::value::object([("id", id("c")), ("owner", id("alice")), ("helper", id("bob")), ("status", Value::String("closed".into())), ("at", Value::Int(3))])),
+    ]).unwrap();
+    let result = engine.query("page", context("alice", &[])).unwrap();
+    assert!(result.complete && result.next.is_none(), "{result:?}");
+    let ids: Vec<_> = result.data.as_array().unwrap().iter().map(|row| row.field("id").unwrap().clone()).collect();
+    assert_eq!(ids, [id("a"), id("b")]);
+
+    let fixed = bound("table chapters:
+  bucket: int
+  principal: principal
+  unique bucket, principal
+  read <- .principal = viewer
+  online only
+table access:
+  item: items
+  principal: principal
+  unique item, principal
+  read <- .principal = viewer
+  online only
+table items:
+  bucket: int
+  at: int
+  read <- exists chapters[.bucket, viewer] and exists access[.id, viewer]
+  online only
+query page(bucket: int, c: cursor ?):
+  return items where .bucket = bucket first 1 by .at after c
+");
+    assert!(fixed.schema.required_capabilities().contains("branch-pages-v4"));
+    let mut engine = Engine::memory(fixed.schema, fixed.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed([
+        ("chapters".into(), snapback4_core::value::object([("id", id("chapter")), ("bucket", Value::Int(1)), ("principal", id("alice"))])),
+        ("access".into(), snapback4_core::value::object([("id", id("access")), ("item", id("visible")), ("principal", id("alice"))])),
+        ("items".into(), snapback4_core::value::object([("id", id("visible")), ("bucket", Value::Int(1)), ("at", Value::Int(1))])),
+        ("items".into(), snapback4_core::value::object([("id", id("hidden")), ("bucket", Value::Int(1)), ("at", Value::Int(2))])),
+    ]).unwrap();
+    let result = engine.query("page", context("alice", &[("bucket", Value::Int(1)), ("c", Value::Null)])).unwrap();
+    assert!(result.complete && result.next.is_none(), "{result:?}");
+    assert_eq!(result.data.as_array().unwrap()[0].field("id").unwrap(), &id("visible"));
+
+    let vacancy = bound("table holds:
+  item: designs
+  owner: principal
+  unique item
+  read <- .owner = viewer
+  online only
+table designs:
+  owner: principal
+  read <- not exists holds[item = .id] or .owner = viewer
+  online only
+query available(c: cursor ?):
+  return designs first 1 by .id after c
+");
+    assert!(vacancy.schema.required_capabilities().contains("branch-pages-v4"));
+    let mut engine = Engine::memory(vacancy.schema, vacancy.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed([
+        ("holds".into(), snapback4_core::value::object([("id", id("hold")), ("item", id("held")), ("owner", id("alice"))])),
+        ("designs".into(), snapback4_core::value::object([("id", id("free")), ("owner", id("alice"))])),
+        ("designs".into(), snapback4_core::value::object([("id", id("held")), ("owner", id("alice"))])),
+    ]).unwrap();
+    let result = engine.query("available", context("bob", &[("c", Value::Null)])).unwrap();
+    assert!(result.complete && result.next.is_none(), "{result:?}");
+    assert_eq!(result.data.as_array().unwrap()[0].field("id").unwrap(), &id("free"));
+}
 // @ref LLP 3000.036.001#14 — only live memberships may synthesize PAGE target lanes.
 #[test]
 fn owner_or_membership_page_ignores_an_expired_unswept_witness() {

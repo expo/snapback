@@ -741,3 +741,20 @@ fn page4_generated_families_compare_and_search_is_explicitly_unsupported_in_lean
     }
     assert_eq!(seen.len(),10,"{seen:?}");
 }
+
+#[test]
+fn page5_generated_families_compile_and_compare_natively() {
+    let mut seen = std::collections::BTreeSet::new();
+    for shape in 0..3 {
+        for seed in 0..8 {
+            let case = snapback4_difftest::generate::page5(seed, shape);
+            seen.extend(snapback4_difftest::coverage::features(&case).into_iter().filter(|f| f.starts_with("page5/")));
+            let source = case.program.source();
+            execute::compile(&source).unwrap_or_else(|error| panic!("shape {shape} seed {seed}: {error}\n{source}"));
+            let (verdict, executions) = oracle::repeat(&case, &source).unwrap();
+            assert!(matches!(verdict, Verdict::Pass) && executions >= 2,
+                "shape {shape} seed {seed}: {verdict:?}\n{source}");
+        }
+    }
+    assert_eq!(seen, ["page5/fixed-per-row", "page5/product-scope", "page5/vacancy"].map(String::from).into());
+}

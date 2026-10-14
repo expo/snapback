@@ -449,3 +449,70 @@ pub(crate) fn page4_features(case: &Case) -> Vec<String> {
     };
     family.map(|name|vec![format!("page4/{name}")]).unwrap_or_default()
 }
+
+/// PAGE5's three new planner families are generated independently so their
+/// evidence does not depend on the broader widening stream selecting a page.
+// @ref LLP 3000.036.001#18 — bounded products, fixed+varying grants and exact vacancy all receive generated cases.
+pub fn page5(seed: u64, shape: u64) -> Case {
+    let mut case = base(seed);
+    let mut rng = Rng::new(seed ^ 0x5041_4745_355f_454e ^ shape);
+    case.program.body = Body::Read { kind: Read::Page, take: 1 + rng.pick(3) as u32,
+        descending: rng.pick(2) == 0, filter: false, owner: false, project: None };
+    case.program.prelude.clear(); case.steps.clear(); case.program.lets.clear();
+    case.program.order = Some(vec!["id".into()]); case.program.named_page_order = None;
+    case.program.principal_arg = None; case.program.residual = None; case.program.guard = None;
+    case.program.search_term = None; case.program.membership_named_reordered = false;
+    case.program.boolean_grant_normalized = false; case.program.kids = None;
+    case.program.tables[0].effects = None; case.program.tables[0].residency = Residency::Online;
+    let bucket = case.args["bucket"].as_u64().unwrap_or(0);
+    match shape % 3 {
+        0 => {
+            case.program.tables[0].rule = Rule::ProductScope;
+            case.program.domain = Some("(.owner = viewer or .helper = viewer) and (.status = 'open' or .status = 'active')".into());
+            let items = &mut case.program.tables[0];
+            if !items.columns.iter().any(|column| column.name == "helper") { items.columns.push(column("helper", Type::Principal)); }
+            if !items.columns.iter().any(|column| column.name == "status") { items.columns.push(column("status", Type::Text)); }
+            for (table, row) in &mut case.rows { if table == "items" {
+                row["helper"] = json!(if rng.pick(2) == 0 { "alice" } else { "bob" });
+                row["status"] = json!(["open", "active", "closed"][rng.pick(3) as usize]);
+            }}
+        }
+        1 => {
+            case.program.tables[0].rule = Rule::FixedPerRow;
+            case.program.domain = Some(".bucket = bucket".into());
+            case.program.order = Some(vec!["score".into()]);
+            id_membership(&mut case);
+            let access = case.program.tables.iter_mut().find(|table| table.name == "access").unwrap();
+            access.rule = Rule::Member; access.effects = None; access.residency = Residency::Online;
+            access.expire = None; access.not_before = None; access.caps.clear();
+            let roles = Table { name: "roles".into(), columns: vec![column("bucket", Type::Int), column("principal", Type::Principal)],
+                keys: vec![("byBucketPrincipal".into(), vec!["bucket".into(), "principal".into()], true)], caps: vec![],
+                rule: Rule::Member, residency: Residency::Online, effects: None, expire: None, not_before: None };
+            case.program.tables.push(roles);
+            if rng.pick(4) != 0 { case.rows.push(("roles".into(), json!({"id":format!("role-{seed}"), "bucket":bucket, "principal":case.principal}))); }
+        }
+        _ => {
+            case.program.tables[0].rule = Rule::Vacancy;
+            case.program.domain = Some("true".into());
+            id_membership(&mut case);
+            let access = case.program.tables.iter_mut().find(|table| table.name == "access").unwrap();
+            access.rule = Rule::Member; access.effects = None; access.residency = Residency::Online;
+            access.expire = None; access.not_before = None; access.caps.clear();
+            access.keys.retain(|(name, _, _)| name == "byItem");
+            access.keys.iter_mut().for_each(|(_, columns, unique)| { *columns = vec!["item".into()]; *unique = true; });
+            let mut items = std::collections::BTreeSet::new();
+            case.rows.retain(|(table, row)| table != "access" || items.insert(row["item"].to_string()));
+        }
+    }
+    case
+}
+
+pub(crate) fn page5_features(case: &Case) -> Vec<String> {
+    let family = match case.program.tables[0].rule {
+        Rule::ProductScope => Some("product-scope"),
+        Rule::FixedPerRow => Some("fixed-per-row"),
+        Rule::Vacancy => Some("vacancy"),
+        _ => None,
+    };
+    family.map(|name| vec![format!("page5/{name}")]).unwrap_or_default()
+}
