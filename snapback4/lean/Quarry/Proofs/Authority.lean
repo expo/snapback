@@ -78,6 +78,10 @@ theorem findRow_mem {rows : List Row} {ks} {r : Row} (h : findRow rows ks = some
   · cases h
   · exact List.mem_of_find?_eq_some h
 
+theorem findLiveRow_mem {td : TableDecl} {now : Int} {rows : List Row} {ks} {r : Row}
+    (h : findLiveRow td now rows ks = some r) : r ∈ rows := by
+  exact (List.mem_filter.1 (findRow_mem (by simpa [findLiveRow] using h))).1
+
 theorem doInsertImage_ok {sch : Schema} {s : Store} {v : List Nat} {now : Int}
     {t : String} {td : TableDecl} {img : Row} {clashHidden : Stop}
     {val : Value} {s' : Store}
@@ -191,9 +195,8 @@ theorem applyWrite_authorized {cx : Ctx} {s s' : Store} {rw : RWrite} {val : Val
       split at h
       · cases h
       · rename_i old hold
-        obtain ⟨_, -, h⟩ := bind_ok h
         obtain ⟨nw, hr, h⟩ := doUpdateRow_ok h
-        subst h; exact .step (.update htd (findRow_mem hold) hr) (.refl _)
+        subst h; exact .step (.update htd (findLiveRow_mem hold) hr) (.refl _)
   | upsert t key patch =>
     simp only [applyWrite] at h
     split at h
@@ -205,7 +208,7 @@ theorem applyWrite_authorized {cx : Ctx} {s s' : Store} {rw : RWrite} {val : Val
       · rename_i old hold
         obtain ⟨nw, hr, h⟩ := doUpdateRow_ok h
         subst h
-        exact .step (.update htd (List.mem_filter.1 (findRow_mem hold)).1 hr) (.refl _)
+        exact .step (.update htd (findLiveRow_mem hold) hr) (.refl _)
       · obtain ⟨_, -, h⟩ := bind_ok h
         obtain ⟨img, -, h⟩ := bind_ok h
         obtain ⟨_, hg, h⟩ := bind_ok h
@@ -220,12 +223,11 @@ theorem applyWrite_authorized {cx : Ctx} {s s' : Store} {rw : RWrite} {val : Val
       split at h
       · cases h
       · rename_i old hold
-        obtain ⟨_, -, h⟩ := bind_ok h
         obtain ⟨_, hg, h⟩ := bind_ok h
         obtain ⟨_, -, h⟩ := bind_ok h
         obtain ⟨s2, hd, h⟩ := bind_ok h
         cases h
-        exact .step (.delete htd (findRow_mem hold) (guardE_ok hg) hd) (.refl _)
+        exact .step (.delete htd (findLiveRow_mem hold) (guardE_ok hg) hd) (.refl _)
 
 end Quarry
 

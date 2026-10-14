@@ -853,6 +853,10 @@ def expiryWriteStore : Store := mkStore [
   ("items", [mkRow "r0" [("owner", I "alice"), ("until", N 10), ("tag", I "tag0")],
     mkRow "r1" [("owner", I "alice"), ("until", .null), ("tag", I "tag1")]])]
 
+def expirySecondaryTargetStore : Store := mkStore [
+  ("items", [mkRow "r0" [("owner", I "alice"), ("until", N 10), ("tag", I "tag0")],
+    mkRow "r1" [("owner", I "alice"), ("until", .null), ("tag", I "tag0")]])]
+
 def ifAbsentExpirySchema : Schema := { tables := [
   { name := "parents", cols := [c "until", c "tag"], uniques := [["tag"]],
     expire := some "until", read := .allow, insert := .allow, update := .allow, delete := .allow },
@@ -929,6 +933,22 @@ def refExamples : List Example := [
               program := mutation [.write none (.delete "items" [("id", idE "r0")])] }
     tables := []
     expected := r#"{"kind":"refused","code":"NOT_FOUND"}"# },
+  { name := "update-secondary-key-skips-expired-predecessor"
+    source := "LLP 3000.036.003 §7: update target lookup skips an expired physical row before selecting a live row with the released secondary key"
+    case := { schema := expiryWriteSchema, store := expirySecondaryTargetStore, viewer := alice, now := 10,
+              program := mutation [
+                .write none (.update "items" [("tag", idE "tag0")] [("owner", idE "bob")] none),
+                .ret (lit .null)] }
+    tables := ["items"]
+    expected := r#"{"kind":"committed","result":null,"store":{"items":[{"id":"r0","owner":"alice","tag":"tag0","until":10},{"id":"r1","owner":"bob","tag":"tag0","until":null}]}}"# },
+  { name := "delete-secondary-key-skips-expired-predecessor"
+    source := "LLP 3000.036.003 §7: delete target lookup skips an expired physical row before selecting a live row with the released secondary key"
+    case := { schema := expiryWriteSchema, store := expirySecondaryTargetStore, viewer := alice, now := 10,
+              program := mutation [
+                .write none (.delete "items" [("tag", idE "tag0")]),
+                .ret (lit .null)] }
+    tables := ["items"]
+    expected := r#"{"kind":"committed","result":null,"store":{"items":[{"id":"r0","owner":"alice","tag":"tag0","until":10}]}}"# },
   { name := "upsert-retires-expired-id-before-secondary-unique"
     source := "LLP 3000.036.003 §6: an expired same-id row retires before an upsert checks the new image's other unique keys"
     case := { schema := expiryWriteSchema, store := expiryWriteStore, viewer := alice, now := 10,

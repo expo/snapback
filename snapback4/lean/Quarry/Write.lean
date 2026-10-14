@@ -98,6 +98,13 @@ def clashCode (td : TableDecl) (withId : Bool) (i : Nat) : Stop :=
 def findRow (rows : List Row) (ks : List (String × Scalar)) : Option Row :=
   if ks.any (·.2 == .null) then none else rows.find? (keyMatch ks)
 
+-- @ref LLP 3000.036.003#7 — expired rows release every logical lookup key.
+/-- A write target lookup selects among live rows, rather than selecting a
+physical predecessor and rejecting it after it has hidden a live match. -/
+def findLiveRow (td : TableDecl) (now : Int) (rows : List Row)
+    (ks : List (String × Scalar)) : Option Row :=
+  findRow (rows.filter (unexpired td now)) ks
+
 /-- The result of a write: the row if the viewer can read it afterwards,
 else null (`why E_CONFLICT`: results are read-rule gets; OPEN W4 for insert). -/
 def resultOf (sch : Schema) (s : Store) (v : List Nat) (t : String) (r : Row) : Value :=
@@ -311,18 +318,16 @@ def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
     | some td => do
       let ks ← scalarsE key
       let ps ← scalarsE patch
-      match findRow (s t) ks with
+      match findLiveRow td cx.now (s t) ks with
       | none => throw notFound
-      | some old => do
-        guardE (unexpired td cx.now old) notFound
-        doUpdateRow cx.schema s cx.viewer cx.now t td old ps cond
+      | some old => doUpdateRow cx.schema s cx.viewer cx.now t td old ps cond
   | .upsert t key patch =>
     match cx.schema.table? t with
     | none => throw eInput
     | some td => do
       let ks ← scalarsE key
       let ps ← scalarsE patch
-      match findRow ((s t).filter (unexpired td cx.now)) ks with
+      match findLiveRow td cx.now (s t) ks with
       | some old => doUpdateRow cx.schema s cx.viewer cx.now t td old ps none
       | none => do
         let rid ← upsertId ks ps
@@ -335,10 +340,9 @@ def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
     | none => throw eInput
     | some td => do
       let ks ← scalarsE key
-      match findRow (s t) ks with
+      match findLiveRow td cx.now (s t) ks with
       | none => throw notFound
       | some old => do
-        guardE (unexpired td cx.now old) notFound
         guardE (td.delete.eval (openedStore cx.schema s cx.now) cx.viewer { self := some old })
           (if readableAt cx.schema s cx.viewer cx.now t old then eRule else notFound)
         guardE ((referencing cx.schema t).isEmpty || readableAt cx.schema s cx.viewer cx.now t old) notFound
