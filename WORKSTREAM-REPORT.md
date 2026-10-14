@@ -1,7 +1,79 @@
 # Integration 12 — PAGE4 in unpublished 0.4.28
 
 Started clean at d9f0160e31 on sb4-loop; no version bump, push or publication.
-Merge and qualification in progress.
+
+## Integration 12 changes and governing context
+
+- No-ff merge `dc645122c2` integrates PAGE4 tip `c2077bdf34` onto Integration 11
+  `d9f0160e31`; version stays 0.4.28, with no push or publication.
+- Conflict resolutions keep QDIAG and PAGE4 generators and every Lean example,
+  append both journals/measurement records, and preserve NARR P9 notes. PAGE4's
+  ordinary-scan test predicate is necessary because named plain indexes now
+  normalize speculatively. No read authority, runtime ceiling or sync audience
+  changes beyond the independently reviewed lane.
+- `41b9dea1f2` adds PAGE4 to guide changes (the packaged CHANGELOG) and LLP
+  3000.037 §15. `6aff5674e7` sets the merged wasm budget to measurement + 500 B.
+- `379792e23a` fixes a new independent-model completeness mismatch: leading-order
+  equality pins cause system/party lane order mismatch, so the compound model
+  must preserve the supported incomplete scan. Two empty/populated regressions
+  cover boolean and nullable order keys; no new Unsupported category hides them.
+- `9bef0cd003` retains merged binary digests, raw farm surveys, native/device/Lean
+  campaigns, the initial new counterexample and the clean measured wasm receipt.
+- llp-orient scope: the Snapback 4 fence; LLP 3000 §§3–7, LLP 2000.000 §§5–7,
+  LLP 3000.036.001 §§14–17, LLP 3000.015 §3, LLP 3000.028 §3.3, and LLP
+  3000.035 §5. Guide indexes/reads/search and PAGE4's saved context were read.
+  Constraints: original W and read rules remain; no hidden/timed absence proof;
+  rejected speculative plans retain authored scans; acquired history retains
+  existing authority; runtime budgets stay fixed; unsupported model cases never
+  count as passes. Root foundation/current inspected; Snapback 4 has its own
+  fence and working set. Hand-off: none; Linux qualification still in progress.
+
+## Completed merged evidence (remaining checks in progress)
+
+- Wasm: **2,319,740 raw / 707,674 gzip / 534,854 Brotli B**; glue 16,053 /
+  3,695 / 3,260 B. Budget **708,174 B**, exactly gzip + 500 B platform headroom.
+  Strict family/absence audits pass. Whole artifact versus Integration 11:
+  +5,338 raw / +1,786 gzip B. No per-feature attribution or Mac measurement.
+- First wasm build refused isolated PAGE4's budget by 282 B; the merged measured
+  budget resolves it. One measurement attempt lacked `brotli`, and its append-only
+  receipt records zero Brotli: that receipt is invalid for Brotli qualification.
+  Re-run with the existing brotli 1.1.0 tool produces the clean authoritative
+  receipt at `379792e23a`; Node's quality-11 compressor independently agrees.
+- Native difftest: seed 0 / 20k, 20k compiled, 1,225,497 executions, no disagreements,
+  unexpected binder refusals or generator errors. Device seeds 0–999: 1k compiled,
+  28,462 executions, no disagreements/errors on either memory or SQLite.
+- Lean initial 20k campaign has 3 new completeness-signature occurrences;
+  retain it as failed evidence. After model repair the full 20k rerun has 15,565
+  passes, 4,309 named unsupported and 126 occurrences in exactly the four
+  Integration 11 historical signatures. **Zero new signatures**. Lean check:
+  60 standard-axiom theorem audits, 81/81 examples and seven fixtures agree.
+- PAGE4 surveys on merged release binary: wave 11 **16→6** never-complete notes,
+  **6→6** conditional; wave 10 odd-numbered 50 **2→2**, conditional **0→0**.
+  All 150 schemas compile and before/after source hashes agree.
+- QDIAG 100-schema merged release survey: all compile. Counts exactly compose
+  Integration 11 plus PAGE4's independently recorded delta: 322 total notes;
+  reference unchecked 4, sparse filter 7, unreadable probe 9, never complete 6,
+  cursor 171, wide merge 4. The one NARR N_SYNC_EMPTY advisory remains. QDIAG's
+  improvements are preserved; PAGE4 itself removes two sparse-filter notes and
+  adds six cursor notes plus one wide-merge note. No diagnostic is suppressed to
+  force an obsolete whole-release total.
+- Authoring census regenerated from the merged test binary: 741 entries, no
+  tracked drift; direct and Cargo census tests pass. Delivery/await census rebuilt
+  from the actual client sources. Root dependency bootstrap, diagnostics/symbol
+  registry and guide manifest regeneration pass without tracked drift; root
+  inventories pass (365 package tests, 35 script tests, 31 demos, 487 publication
+  leaves, 162 pages / 1,937 snippets). Docs budget passes README 320/320 and its
+  exact named self-containment test. Reference check passes 546 LLPs / 11,830 refs.
+- Fresh Codex gpt-6.1-sol/high semantic integration review is READY at
+  379792e23a, with no material finding. Muse attempt 1 exhausted both plan/API
+  quotas; a later identical fresh invocation succeeded with READY. Both bodies
+  and attempt diagnostics are saved verbatim with provenance under llp/reviews/.
+  Non-blocking follow-up: two corrected completeness cases exhibit the existing
+  historical next signature (59→61); supported/unsupported counts are unchanged
+  and this known cursor limitation remains visible. PAGE4's six original paired review rounds
+  remain intact. Full Rust, full client pool, packed consumer proof
+  are not yet complete. Root guide passes all 22 checks with 121 inherited warnings.
+
 
 ## Preserved Integration 11 report
 
@@ -212,3 +284,12 @@ Wasm measured clean semantic revision `193f94ea9d`: raw 2,318,792 B, gzip **706,
 NARR owns P9 unbounded-sync/empty-partition narration; left alone. PAGE4's delivered-history compatibility correction arose from named-index planning and is explicitly recorded here and in §17. DX3 owns broad authorization/client recipes; QDIAG owns generic note presentation. Other worktrees and source farms were not modified. No public union sync or broader replication predicate was added. No publisher/macOS qualification claim is made; integration/publication is the coordinator's lane.
 
 There is no deferred implementation for fix11 within the sound admitted page fragment. Remaining authority-dependent/streaming shapes and independent-model exclusions are explicitly identified rather than presented as complete. [Qualification manifest and hashed command logs](snapback4/reports/20261014-page4/qualification.json) record executable digests and final results.
+
+## Integration 12 orchestration note
+
+The first five-crate Cargo command was interrupted during compilation (exit 130)
+to release its lock for the client horizon fixture's queued Cargo build. It did
+not complete a test battery. The fixture and all pooled client files passed;
+17 isolated timer files follow in that same pool invocation. A fresh complete
+five-crate command is running against the cached artifacts, followed by the
+difftest crate suite. No test timeout or product budget was increased.
