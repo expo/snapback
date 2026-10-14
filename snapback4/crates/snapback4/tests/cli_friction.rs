@@ -1073,3 +1073,13 @@ fn surf_unreferenced_smoke_helper_is_info_without_a_schema_mismatch_claim() {
     assert!(output.contains("info: src/native-smoke.ts"),"{output}");
     assert!(!output.contains("a screen") && !output.contains("WARNING"),"{output}");
 }
+
+#[test]
+fn surf_custom_entry_reference_is_not_labelled_an_unused_smoke_helper() {
+    let project=Project::new("use identity password\n");
+    project.write("src/native-smoke.ts","export function smokeSegment() {}\n");
+    project.write("custom/entry.mjs","import '../src/native-smoke';\n");
+    let output=project.run(&["check"]);
+    assert!(output.status.success(),"{}",text(&output));
+    assert!(!text(&output).contains("info: src/native-smoke.ts"),"{}",text(&output));
+}
