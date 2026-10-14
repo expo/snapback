@@ -95078,3 +95078,10 @@ ranges each reserve its two static probes once, totaling four independently
 of hidden witness lifetimes. Retain every paired-world outcome comparison,
 next-expiry assertion and the eight-probe write reservation. The repaired
 existing regression passes. No engine or runtime ceiling changed.
+
+Integration 10 also regenerates word-expansion.json via
+WORD_EXPANSION_UPDATE_FIXTURE: PAGE3's pure-membership planner now merges the
+blank-search browse arm, with its existing capability facts and inferred unique
+source constraint. All thirteen fixture populations retain identical authorized
+pages and seeded row bytes; only compiled backends change. The native generator
+and no-update comparison pass. No fixture was hand-merged.
