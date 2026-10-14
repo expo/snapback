@@ -11,6 +11,7 @@ pub(crate) const TABLE_WORDS: &[&str] = &[
 
 /// Words a statement or expression reads as syntax, so a parameter, local or
 /// loop variable of that name cannot be used (or silently means the keyword).
+// @ref LLP 3000.036.002#9 — commit/new/now/viewer are contextual builtins, so declarations cannot shadow them.
 pub(crate) const BINDING_WORDS: &[&str] = &[
     "and", "as", "break", "commit", "continue", "created", "delete", "device", "elif", "else", "emit",
     "exists", "false", "for", "if", "insert", "merge", "new", "not", "now", "null", "oblivious", "or",
@@ -58,6 +59,28 @@ pub(crate) fn binding(site: &Site, word: &str) -> Diagnostic {
     Diagnostic::new(site, "E_QUARRY_RESERVED",
         format!("`{word}` is a reserved word, so it cannot name a parameter, local or loop variable"),
         format!("rename it, for example `{name}`, at this declaration and at each use (reserved words: snapback4 why E_QUARRY_RESERVED)"))
+}
+
+pub(crate) fn repeated_identity(
+    site: &Site,
+    first: (bool, bool),
+    first_site: &Site,
+    repeated: (bool, bool),
+) -> Diagnostic {
+    // @ref LLP 3000.036.002#9 — identity is project-wide and repeated declarations must name both method sets.
+    let methods = |(password, guests)| match (password, guests) {
+        (true, true) => "password and guests",
+        (true, false) => "password",
+        (false, true) => "guests",
+        (false, false) => "no methods",
+    };
+    Diagnostic::new(
+        site,
+        "E_QUARRY_SYNTAX",
+        format!("`use identity` is project-wide: {} already declared at {first_site}; this repeated declaration names {}", methods(first), methods(repeated)),
+        "keep one declaration: `use identity` (password and guests), `use identity password`, or `use identity guests`",
+    )
+    .guide("production")
 }
 
 fn usage(word: &str) -> &'static str {

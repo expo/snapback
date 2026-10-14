@@ -594,7 +594,7 @@ pub fn bind_rule(catalog: &Catalog, info: &TableInfo, rule: &RuleDecl) -> Fallib
         let mut error = super::first_paste::inherited_rule(catalog, info, rule).unwrap_or(error);
         if error.code == "E_QUARRY_RULE_OPERATOR" && rule.effect == Effect::Update && rule.bindings.is_empty()
             && error.rewrite == "write this as a named transition" {
-            let source = format!("update (old, next) <- {}", crate::print::expression(&rule.value));
+            let source = super::rule_operator::named_update_source(&rule.value);
             error.rewrite = format!("name both row images: `{source}`");
             error.source_rewrite = Some(source);
             error.source_rewrite_kind = Some(crate::diag::SourceRewriteKind::NamedUpdate);
@@ -947,7 +947,7 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
         let typed = types.iter().cloned().zip(terms.iter().map(|(_, term)| matches!(term, RuleTerm::Literal(Value::String(_))))).collect::<Vec<_>>();
         let declared = super::positional_keys::candidates(target, read, &typed, &catalog.synthesized);
         if declared.len() != 1 {
-            return Err(super::positional_keys::refusal(target, read, &declared, catalog));
+            return Err(super::positional_keys::refusal(target, read, &typed, &declared, catalog));
         }
         if read.index.is_none() {
             let mut selected = read.clone();

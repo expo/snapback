@@ -220,9 +220,10 @@ pub(super) fn sites(catalog: &Catalog, schema: &core::Schema, diagnostics: &mut 
                 let named = kept.iter().map(|(_, child, column)| format!("{child}.{column}")).collect::<Vec<_>>().join(", ");
                 let through = if target == parent { String::new() } else { format!(" (through its cascade to {target})") };
                 let sum = summed.iter().find(|(_, c, by, _)| target == parent && c == child && by == column).map(|(view, _, _, summed)| guards.sum_reason(view, child, column, summed)).unwrap_or_default();
+                // @ref LLP 3000.036.002#9 — route multi-level keep/cascade choices to the focused guide section.
                 notes.push(Diagnostic::new(&site, "N_DELETE_RESTRICTED",
                     format!("{word} {}: `delete {parent}[…]`{through} now refuses E_REFERENCED while a live row references it ({named}): an undeclared reference is `on delete restrict`; before 0.4.24 the referencing rows stayed and named a deleted row{sum}", program.name),
-                    format!("declare what deleting a {target} row does to each: `{column}: {target} on delete cascade` deletes the {child} rows (with `cap N by {column}`), `{column}: {target} ? on delete set null` clears an optional reference, `on delete keep` keeps them as before, and `on delete restrict` preserves intended audit history and keeps this refusal; any declaration silences this note. Anyone whose insert rule admits a {child} row naming a {target} can hold it under restrict")).guide("writes"));
+                    format!("declare what deleting a {target} row does to each: `{column}: {target} on delete cascade` deletes the {child} rows (with `cap N by {column}`), `{column}: {target} ? on delete set null` clears an optional reference, `on delete keep` keeps them as before, and `on delete restrict` preserves intended audit history and keeps this refusal; any declaration silences this note. Anyone whose insert rule admits a {child} row naming a {target} can hold it under restrict. Open `snapback4 guide writes --section \"On delete restrict\"` for keep-versus-cascade across multi-level chains")).guide("writes"));
             }
         }
     }

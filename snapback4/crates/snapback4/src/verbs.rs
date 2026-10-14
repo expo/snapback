@@ -1336,7 +1336,8 @@ pub fn test(options: &Options) -> i32 {
     // One line a script or an agent can read: derived refusals and unrun
     // queries are not failures, but they are not coverage either.
     let verdict = if failures > 0 || failed_cases > 0 { "FAIL" } else if !skipped.is_empty() || held_not_run > 0 { "incomplete" } else { "pass" };
-    println!("test: {complete} complete, {capped} capped, {expected} refused as your cases expect, {refused_derived} refused by their own require (on derived or no arguments), {} not run, {failures} denied{} — {verdict}",
+    // @ref LLP 3000.036.002#9 — derived probe refusals are expected exploration, not failed cases.
+    println!("test: {complete} complete, {capped} capped, {expected} refused as your cases expect, {refused_derived} probe refusals on derived arguments (expected), {} not run, {failures} denied{} — {verdict}",
         skipped.len() + held_not_run, if passed + failed_cases > 0 { format!("; cases: {passed} passed, {failed_cases} failed") } else if options.flags.contains_key("fixture") { format!("; no {} (see snapback4 guide testing)", test_cases::FILE) } else { String::new() });
     if failures > 0 || failed_cases > 0 { 1 } else { 0 }
 }

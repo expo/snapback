@@ -138,6 +138,8 @@ fn reserved_words_are_named_at_their_declaration() {
         ("query q(x: int):\n  walk = x + 1\n  return walk\n", "walk", "outing"),
         ("query q(x: int):\n  for viewer in range(0, x):\n    return viewer\n", "viewer", "who"),
         ("query q(now: time):\n  return now\n", "now", "at"),
+        ("query q():\n  now = 0\n  return now\n", "now", "at"),
+        ("fn atTime(now: time): now\nquery q():\n  return atTime(0)\n", "now", "at"),
         ("mutation m():\n  commit = now\n  return commit\n", "commit", "committedAt"),
         ("mutation m(x: int):\n  for new in range(0, x):\n    return new\n", "new", "newId"),
     ] {

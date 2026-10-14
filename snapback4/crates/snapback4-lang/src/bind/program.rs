@@ -565,26 +565,46 @@ impl<'a> Binder<'a> {
         let read = normalized.as_ref();
         super::validate_key_names(read)?;
         let mut positional_reason = None;
+        let mut positional_scan_repair = None;
         if !read.keys.is_empty() && read.keys.iter().all(|key| key.column.is_none()) {
             let declared = |index: &&ast::IndexDecl| !self.catalog.synthesized.contains(&(read.table.clone(), index.name.clone()));
             let mut candidates = info.indexes.iter().filter(declared).filter(|index| match &read.index {
                 Some(name) => &index.name == name,
                 None => index.unique && index.columns.len() == read.keys.len(),
             }).collect::<Vec<_>>();
+            let mut diagnostic_types = None;
             if read.index.is_none() && candidates.len() > 1 {
                 self.bind_key_parts(info, read, read.keys.len(), &mut keys, out)?;
                 let types = keys.iter().map(|(_, expr, ty)| (ty.clone(), matches!(expr, Expr::Literal(Value::String(_))))).collect::<Vec<_>>();
                 candidates = super::positional_keys::candidates(info, read, &types, &self.catalog.synthesized);
+                diagnostic_types = Some(types);
+            }
+            // A failed lookup may need operand types to identify a reference
+            // from the wrong table. Infer those on a discarded binder/body:
+            // successful reads retain the legacy contextual binding path and
+            // authored operands are still evaluated exactly once.
+            if candidates.is_empty() && diagnostic_types.is_none() {
+                let mut probe = self.clone();
+                let mut probe_keys = Vec::new();
+                let mut probe_out = setup::Body::default();
+                if probe.bind_key_parts(info, read, read.keys.len(), &mut probe_keys, &mut probe_out).is_ok() {
+                    diagnostic_types = Some(probe_keys.iter().map(|(_, expr, ty)| (ty.clone(), matches!(expr, Expr::Literal(Value::String(_))))).collect());
+                }
+            }
+            if candidates.len() == 1 && !keys.is_empty() {
+                let mut selected = read.clone();
+                selected.index = Some(candidates[0].name.clone());
+                self.contextualize_bound_keys(info, &selected, &mut keys)?;
             }
             if read.index.is_none() && mode == ReadMode::Range && read.order_keys.is_empty() && candidates.len() == 1 {
                 let scan = info.indexes.iter().filter(declared).find(|index| !index.unique && index.is_plain() && index.columns.len() > read.keys.len());
                 let columns = scan.map(|index| index.columns.as_slice()).unwrap_or(&candidates[0].columns);
                 let predicate = read.keys.iter().zip(columns).map(|(key, column)| format!(".{column} = {}", self.catalog.source.operand(&key.value))).collect::<Vec<_>>().join(" and ");
-                return Err(Diagnostic::new(&read.site, "E_QUARRY_POSITIONAL_SCAN", "a positional key selects one declared unique row, not a scan prefix",
+                positional_scan_repair = Some(Diagnostic::new(&read.site, "E_QUARRY_POSITIONAL_SCAN", "a positional key selects one declared unique row, not a scan prefix",
                     format!("{} where {predicate} first 20 by .id", read.table)).guide("reads"));
             }
             if candidates.len() != 1 {
-                return Err(super::positional_keys::refusal(info, read, &candidates, self.catalog));
+                return Err(super::positional_keys::refusal(info, read, diagnostic_types.as_deref().unwrap_or(&[]), &candidates, self.catalog));
             }
             if read.index.is_none() {
                 positional_reason = Some(if info.indexes.iter().filter(declared).filter(|index| index.unique && index.columns.len() == read.keys.len()).count() == 1 {
@@ -665,6 +685,21 @@ impl<'a> Binder<'a> {
                     candidates = unique;
                     if read.index.is_none() { selection = "only compatible full unique key"; }
                 }
+            }
+        }
+        // A single arity candidate follows the legacy bind-once path above.
+        // Only after that real binding proves the selected read impossible do
+        // its retained operand types refine the refusal's cause.
+        if candidates.is_empty() && positional_reason.is_some() && !named {
+            let types = keys.iter().map(|(_, expr, ty)| (ty.clone(), matches!(expr, Expr::Literal(Value::String(_))))).collect::<Vec<_>>();
+            let mut implicit = read.clone();
+            implicit.index = None;
+            let compatible = super::positional_keys::candidates(info, &implicit, &types, &self.catalog.synthesized);
+            if compatible.is_empty() {
+                return Err(super::positional_keys::refusal(info, &implicit, &types, &compatible, self.catalog));
+            }
+            if let Some(repair) = positional_scan_repair {
+                return Err(repair);
             }
         }
         if let Some(explicit) = &read.index

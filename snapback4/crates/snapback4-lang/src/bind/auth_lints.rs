@@ -630,6 +630,18 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
         if let Expr::Binary { op, left, right, .. } = condition && op == "and" { facts(left, out); facts(right, out); }
         else { out.insert(fact_text(condition)); }
     }
+    fn read_dependencies(rule: &RuleExpr, out: &mut BTreeSet<String>) {
+        match rule {
+            RuleExpr::Exists { table, .. } | RuleExpr::Created { table, .. } => {
+                out.insert(table.clone());
+            }
+            RuleExpr::And(items) | RuleExpr::Or(items) => {
+                for item in items { read_dependencies(item, out); }
+            }
+            RuleExpr::Not(rule) => read_dependencies(rule, out),
+            _ => {}
+        }
+    }
     fn readable(catalog: &Catalog, schema: &Schema, read: &ReadExpr, known: &BTreeSet<String>) -> bool {
         let Some(table) = schema.table(&read.table) else { return true };
         if super::owner_equality::readable(catalog, schema, read, known) { return true; }
@@ -725,8 +737,19 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
             if readable(catalog, schema, &read, known) { continue; }
             if notes.iter().any(|note| note.site == read.site && note.code == "N_REQUIRE_HIDDEN" || note.site.file == read.site.file && note.site.line == read.site.line && note.code == "N_UNREADABLE_PROBE" && note.message.starts_with(&format!("{program}: this probe reads {} under", read.table))) { continue; }
             let rule_site = rule_site(catalog, &read.table, Effect::Read).map(|site| format!(" ({site})")).unwrap_or_default();
+            // @ref LLP 3000.036.002#9 — acknowledge an existing readable path while retaining conservative probe advice.
+            let mut rule_dependencies = BTreeSet::new();
+            read_dependencies(&table.rules.read, &mut rule_dependencies);
+            let established: Vec<_> = rule_dependencies.into_iter().filter(|dependency| {
+                known.iter().any(|fact| fact.starts_with(&format!("exists {dependency}[")))
+            }).collect();
+            let path = if established.is_empty() {
+                String::new()
+            } else {
+                format!(" This require/read path already established a readable {} row; the note remains because the compiler cannot prove that fact admits every {} row this negative probe must observe.", established.join(" or "), read.table)
+            };
             notes.push(Diagnostic::new(&read.site, "N_UNREADABLE_PROBE",
-                format!("{program}: this probe reads {} under its read rule `{}`{rule_site}; rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows)", read.table, table.rules.read.quarry()),
+                format!("{program}: this probe reads {} under its read rule `{}`{rule_site}; rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows).{path}", read.table, table.rules.read.quarry()),
                 "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended").guide("rules"));
         }
     }

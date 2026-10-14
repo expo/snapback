@@ -6,8 +6,65 @@ use super::Parser;
 use crate::ast::*;
 use crate::diag::{Diagnostic, Fallible, syntax, syntax_with, unsupported};
 use crate::lexer::Kind;
+use crate::print;
 
 impl Parser {
+    pub(super) fn parse_require(&mut self) -> Fallible<Stmt> {
+        let site = self.take("require")?.site;
+        let condition = self.expression(0, &["else"])?;
+        // @ref LLP 3000.036#14.5 — name an unsupported text-pattern
+        // operator before diagnosing a refusal code the author already wrote.
+        let pattern = match &condition {
+            Expr::ShapeUse { base, name, site }
+                if super::TEXT_PATTERN_WORDS.contains(&name.to_ascii_lowercase().as_str()) =>
+            {
+                Some((name.clone(), print::expression(base), site.clone()))
+            }
+            _ => {
+                let next = self.peek();
+                (next.kind == Kind::Word
+                    && super::TEXT_PATTERN_WORDS.contains(&next.value.to_ascii_lowercase().as_str()))
+                .then(|| (next.value.clone(), print::expression(&condition), next.site.clone()))
+            }
+        };
+        if let Some((word, operand, at)) = pattern {
+            return Err(syntax_with(
+                &at,
+                format!("Quarry has no `{word}` operator; `{operand} {word} …` is not a condition"),
+                format!("compare whole text with `=` or `!=`; bound its length in the type (`{operand}: text 3..80`); declare a link `text <=200 format url` (http or https; anything else refuses E_INPUT before the program runs) or a handle `format handle`; or check the pattern in the client"),
+            )
+            .guide("types"));
+        }
+        // @ref LLP 3000.036.002#9 — a multiline require refusal preserves the author's code in its repair.
+        if self.at_kind(Kind::Newline) {
+            let mut at = 1;
+            while matches!(self.peek_at(at).kind, Kind::Newline | Kind::Indent | Kind::Dedent) {
+                at += 1;
+            }
+            if self.peek_at(at).value == "else" {
+                let code = self.peek_at(at + 1).value.clone();
+                return Err(syntax_with(
+                    &site,
+                    "a require's else must be on the condition's closing line",
+                    format!("put `else {code}` on the closing line: `require {} else {code}`", print::expression(&condition)),
+                )
+                .guide("programs"));
+            }
+        }
+        if !self.at("else") {
+            return Err(syntax_with(
+                &site,
+                "require needs a refusal code: require <condition> else CODE",
+                format!("require {} else NOT_ALLOWED", print::expression(&condition)),
+            ));
+        }
+        self.take("else")?;
+        let code = self.word()?.value;
+        let message = if self.at_kind(Kind::Str) { Some(self.take_kind(Kind::Str)?.value) } else { None };
+        self.newline()?;
+        Ok(Stmt::Require { condition, code, message, site })
+    }
+
     /// `schedule name every <duration> [at HH:MM]: job`, at least one minute,
     /// or `every N month[s]|year[s] [at [day D] HH:MM]`.
     pub(super) fn parse_schedule(&mut self) -> Fallible<ScheduleDecl> {

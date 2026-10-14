@@ -551,10 +551,10 @@ query reportPage(c: cursor ?):\n  require exists staff[viewer] else NOT_STAFF\n 
     assert_eq!(output.status.code(), Some(0), "the program's own gate is not a failure:\n{out}");
     assert!(out.contains("report (bob)") && out.contains("refused NOT_STAFF by its own require") && out.contains("\"expect\":\"NOT_STAFF\""), "{out}");
     assert!(out.contains("reportPage (bob)") && out.contains("refused NOT_STAFF on derived arguments"), "{out}");
-    assert!(out.contains("2 refused by their own require") && out.contains("0 denied"), "{out}");
+    assert!(out.contains("2 probe refusals on derived arguments (expected)") && out.contains("0 denied"), "{out}");
     let output = project.run(&["test", "--fixture", "fx", "--as", "alice"]);
     assert_eq!(output.status.code(), Some(0), "{}", text(&output));
-    assert!(text(&output).contains("0 refused by their own require"), "{}", text(&output));
+    assert!(text(&output).contains("0 probe refusals on derived arguments (expected)"), "{}", text(&output));
 
     project.write("fx/test.cases.jsonl", concat!(
         "{\"as\":\"bob\",\"op\":\"report\",\"expect\":\"NOT_STAFF\"}\n",
@@ -628,7 +628,7 @@ query staffNotes(c: cursor ?):\n  require exists staff[viewer] else NOT_STAFF\n 
     let expected = out.lines().find(|line| line.contains("staffNotes (alice)")).unwrap();
     assert!(expected.contains("refused NOT_STAFF as expected (test.cases.jsonl:1)") && !expected.contains("give it yours") && !expected.contains("(from "), "{out}");
     assert!(out.lines().any(|line| line.contains("staffNotes (bob)") && line.contains("refused NOT_STAFF on derived arguments")), "{out}");
-    assert!(out.contains("1 refused as your cases expect, 1 refused by their own require") && out.contains("cases: 3 passed, 0 failed — pass"), "{out}");
+    assert!(out.contains("1 refused as your cases expect, 1 probe refusals on derived arguments (expected)") && out.contains("cases: 3 passed, 0 failed — pass"), "{out}");
     // A failing case makes the summary say FAIL beside exit 1.
     project.write("fx/test.cases.jsonl", "{\"as\":\"carol\",\"op\":\"staffNotes\",\"count\":5}\n");
     let output = project.run(&["test", "--fixture", "fx"]);

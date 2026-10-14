@@ -445,6 +445,9 @@ pub struct MaintainDecl {
     pub column: Option<String>,
     pub by: Vec<String>,
     pub read: Option<RuleDecl>,
+    /// Author-reviewed acknowledgement that the readable aggregate exposes
+    /// source-row deltas. This changes no read or write authority.
+    pub reviewed_disclosure: Option<String>,
     pub online_only: bool,
     pub site: Site,
 }

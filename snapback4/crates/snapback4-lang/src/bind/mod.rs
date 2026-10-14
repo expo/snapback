@@ -278,8 +278,13 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
                 }
                 let source = bound.sources.get(&error.site).or_else(|| error.page_site.as_ref().and_then(|site| bound.sources.get(site)));
                 let site = source.map_or(&bound.site, |(site, _)| site);
+                // @ref LLP 3000.036.002#9 — the direct viewer predicate is the smallest structural-fanout repair.
+                let direct_viewer_repair = bound.direct_viewer_repair(&schema, &error);
                 let message = if error.site.starts_with("for/") && let Some((_, name)) = source { format!("loop over {name}: {}", error.message) } else { error.message };
                 let mut rewrite = error.rewrite;
+                if let Some(direct) = direct_viewer_repair {
+                    rewrite = format!("{direct}{rewrite}");
+                }
                 if rewrite.starts_with("iterate the original group:") && let Some(page) = error.page_site.as_ref().and_then(|site| bound.sources.get(site))
                     && let Some(scan) = snapback4_core::ir::scans(&bound.program).into_iter().find(|scan| Some(&scan.site) == error.page_site.as_ref()) {
                     let group = whole_group_rewrite(&catalog, &page.1, scan);

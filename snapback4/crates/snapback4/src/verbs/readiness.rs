@@ -126,8 +126,13 @@ fn fixture_notes(project: &Project, bound: &Bound, fixture: Option<&String>) -> 
         // Shared cases may include operations added after the schema being checked.
         if case.as_ref().ok().and_then(|case| case["op"].as_str())
             .is_some_and(|op| !bound.programs.iter().any(|p| p.program.name == op)) { continue; }
-        let expects_input = case.as_ref().ok().is_some_and(|case| case["expect"] == "E_INPUT"
-            && case["op"].as_str().is_some_and(|op| bound.programs.iter().any(|p| p.program.name == op)));
+        // @ref LLP 3000.036.002#9 — any authored refusal case owns its deliberately invalid arguments.
+        let expects_refusal = case.as_ref().ok().is_some_and(|case| {
+            super::test_cases::validate(case).is_ok() && case["expect"].as_str().is_some_and(|expect| {
+                !matches!(expect, "ok" | "complete" | "capped" | "sent")
+                    && case["op"].as_str().is_some_and(|op| bound.programs.iter().any(|p| p.program.name == op))
+            })
+        });
         let check = || -> Result<(), String> {
             let case = case.as_ref().map_err(|e| e.to_string())?;
             let op = case["op"].as_str().ok_or("case needs op")?;
@@ -147,8 +152,9 @@ fn fixture_notes(project: &Project, bound: &Bound, fixture: Option<&String>) -> 
             Ok(())
         };
         if let Err(reason) = check() {
-            // Only argument refusals satisfy E_INPUT; malformed case JSON/metadata does not.
-            if expects_input { continue; }
+            // An authored refusal expectation may deliberately supply values
+            // outside the operation's accepted input domain.
+            if expects_refusal { continue; }
             notes.push(Diagnostic::new(&Site::new(&path.to_string_lossy(), index as u32 + 1, 1), "N_FIXTURE_ARGUMENT_DRIFT", reason,
                 "update this case's arguments to the operation's current signature; run snapback4 test").guide("testing"));
         }

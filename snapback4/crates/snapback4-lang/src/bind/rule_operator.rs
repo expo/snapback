@@ -66,6 +66,18 @@ pub(crate) fn named_update(table: &str, rule: &Expr, comparison: &str) -> String
     format!("name both images; an unnamed update rule holds before and after the write, so the named form keeps both: `update (old, next) <- {old} and {next}`; or drop `{comparison}` from the rule and check the new value in the mutation: `require {} else INVALID_{}`", map_fields(comparison, &|_, name| name.to_owned()), screaming(&field))
 }
 
+/// Pasteable named form for a rule that already names one image. Bare focal
+/// fields in a named transition refer to the new image.
+pub(crate) fn named_update_source(rule: &Expr) -> String {
+    // @ref LLP 3000.036.002#9 — preserve authored old/next images and map bare fields to next in named transitions.
+    let text = crate::print::expression(rule);
+    let body = map_fields(&text, &|image, name| match image {
+        Some(image) => format!("{image}.{name}"),
+        None => format!("next.{name}"),
+    });
+    format!("update (old, next) <- {body}")
+}
+
 /// A named transition's comparison the rule language cannot type, as the
 /// mutation check that states the same condition.
 pub(crate) fn transition_require(table: &str, cmp: &Expr) -> String {
@@ -105,12 +117,13 @@ fn strip_parens(text: &str) -> String {
 }
 
 fn ident(c: char) -> bool { c.is_ascii_alphanumeric() || c == '_' }
+fn ident_start(c: char) -> bool { c.is_ascii_alphabetic() || c == '_' }
 
 /// The first column the comparison names: `.stars`, `old.highBid` or `next.at`.
 fn first_field(text: &str) -> Option<String> {
     let chars: Vec<char> = text.chars().collect();
     for (i, c) in chars.iter().enumerate() {
-        if *c == '.' && chars.get(i + 1).is_some_and(|c| c.is_ascii_alphabetic()) {
+        if *c == '.' && chars.get(i + 1).is_some_and(|c| ident_start(*c)) {
             return Some(chars[i + 1..].iter().take_while(|c| ident(**c)).collect());
         }
     }
@@ -137,8 +150,28 @@ fn map_fields(text: &str, map: &dyn Fn(Option<&str>, &str) -> String) -> String 
     let name_at = |at: usize| -> String { chars[at..].iter().take_while(|c| ident(**c)).collect() };
     while i < chars.len() {
         let c = chars[i];
+        // @ref LLP 3000.036.002#9 — field-looking text inside a literal is data, not a row-image reference.
+        // Field-looking text inside a literal is data, not syntax. Preserve
+        // the original spelling, including escaped quote characters.
+        if matches!(c, '\'' | '"') {
+            let quote = c;
+            out.push(c);
+            i += 1;
+            while i < chars.len() {
+                let literal = chars[i];
+                out.push(literal);
+                i += 1;
+                if literal == '\\' && i < chars.len() {
+                    out.push(chars[i]);
+                    i += 1;
+                } else if literal == quote {
+                    break;
+                }
+            }
+            continue;
+        }
         let previous = if i == 0 { None } else { Some(chars[i - 1]) };
-        if c == '.' && previous.is_none_or(|p| !ident(p) && p != ')' && p != ']') && chars.get(i + 1).is_some_and(|c| c.is_ascii_alphabetic()) {
+        if c == '.' && previous.is_none_or(|p| !ident(p) && p != ')' && p != ']') && chars.get(i + 1).is_some_and(|c| ident_start(*c)) {
             let name = name_at(i + 1);
             out.push_str(&map(None, &name));
             i += 1 + name.chars().count();
@@ -147,7 +180,7 @@ fn map_fields(text: &str, map: &dyn Fn(Option<&str>, &str) -> String) -> String 
         if ident(c) && previous.is_none_or(|p| !ident(p) && p != '.') {
             let word = name_at(i);
             let after = i + word.chars().count();
-            if matches!(word.as_str(), "old" | "next") && chars.get(after) == Some(&'.') && chars.get(after + 1).is_some_and(|c| c.is_ascii_alphabetic()) {
+            if matches!(word.as_str(), "old" | "next") && chars.get(after) == Some(&'.') && chars.get(after + 1).is_some_and(|c| ident_start(*c)) {
                 let name = name_at(after + 1);
                 out.push_str(&map(Some(&word), &name));
                 i = after + 1 + name.chars().count();

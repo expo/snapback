@@ -5,28 +5,34 @@ fn intentional_input_cases_and_later_operations_are_not_fixture_drift() {
     let p = Project::new();
     p.source("use personas alice\nquery answer(n: int 1..5):\n  return n\n");
     fs::create_dir(p.0.join("fixtures")).unwrap();
-    let cases = [
+    let check_cases = [
         r#"{"op":"answer","args":{"n":6},"expect":"E_INPUT"}"#,
         r#"{"op":"answer","args":{},"expect":"E_INPUT"}"#,
         r#"{"op":"answer","args":{"n":"wrong"},"expect":"E_INPUT"}"#,
         r#"{"op":"answer","args":{"n":2,"extra":1},"expect":"E_INPUT"}"#,
         r#"{"op":"answer","args":false,"expect":"E_INPUT"}"#,
+        r#"{"op":"answer","args":{"n":6},"expect":"denied"}"#,
+        r#"{"op":"answer","args":{"n":6},"expect":"refused"}"#,
+        r#"{"op":"answer","args":{"n":6},"expect":"failed"}"#,
+        r#"{"op":"answer","args":{"n":6},"expect":"NOT_ALLOWED"}"#,
     ].join("\n");
-    fs::write(p.0.join("fixtures/test.cases.jsonl"), &cases).unwrap();
+    fs::write(p.0.join("fixtures/test.cases.jsonl"), &check_cases).unwrap();
     let out = p.run(&["check", "--json"]);
     assert!(out.status.success(), "{out:?}");
     assert!(!parsed(&out)["notes"].as_array().unwrap().iter().any(|n| n["code"] == "N_FIXTURE_ARGUMENT_DRIFT"));
+    let runnable_cases = check_cases.lines().filter(|line| !line.contains("NOT_ALLOWED")).collect::<Vec<_>>().join("\n");
+    fs::write(p.0.join("fixtures/test.cases.jsonl"), &runnable_cases).unwrap();
     let test = p.run(&["test", "--fixture", "fixtures"]);
     assert!(test.status.success(), "{test:?}");
-    fs::write(p.0.join("fixtures/test.cases.jsonl"), format!("{cases}\n{{\"op\":\"later\",\"args\":{{}}}}\n{{\"op\":\"answer\",\"args\":{{\"n\":6}},\"expect\":\"sent\"}}\n")).unwrap();
+    fs::write(p.0.join("fixtures/test.cases.jsonl"), format!("{check_cases}\n{{\"op\":\"later\",\"args\":{{}}}}\n{{\"op\":\"answer\",\"args\":{{\"n\":6}},\"expect\":\"sent\"}}\n{{\"op\":\"answer\",\"args\":false,\"expect\":\"denied\"}}\n")).unwrap();
     let out = p.run(&["check", "--json"]);
     let json = parsed(&out);
     let notes: Vec<_> = json["notes"].as_array().unwrap().iter().filter(|n| n["code"] == "N_FIXTURE_ARGUMENT_DRIFT").collect();
-    assert_eq!(notes.len(), 1, "{json}");
+    assert_eq!(notes.len(), 2, "{json}");
     let test = p.run(&["test", "--fixture", "fixtures"]);
     assert!(!test.status.success());
     let text = String::from_utf8_lossy(&test.stderr);
-    assert!(text.contains("unknown operation later"), "{test:?}");
+    assert!(text.contains("\"args\" is an object"), "{test:?}");
     assert!(!p.store().exists());
 }
 

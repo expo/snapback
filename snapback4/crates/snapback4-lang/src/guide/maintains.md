@@ -279,6 +279,17 @@ Filtered counts disclose predicate membership, calendar groups disclose bucket
 membership, and rank discloses relative values to the aggregate's read audience.
 The filter grants no source-row read. N_MAINTAIN_DELTA names dependencies;
 restrict the aggregate read rule when the delta is private (guide rules).
+When that delta is an intended, reviewed product disclosure, record the review
+without changing authority:
+
+```quarry
+maintain monthlyCounts: count escorts by zone, month(.at)
+  read <- exists staff[viewer]
+  disclosure reviewed 'staff intentionally see monthly zone totals'
+```
+
+The rationale silences N_MAINTAIN_DELTA for this maintain. It does not make the
+source or aggregate public and does not weaken either table's write rules.
 
 Even a hidden aggregate can disclose a constraint outcome: near an integer
 endpoint, a hidden selected contribution can make a write fail with

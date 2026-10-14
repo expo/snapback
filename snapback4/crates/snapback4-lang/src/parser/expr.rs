@@ -257,6 +257,37 @@ impl Parser {
                 }
                 break;
             }
+            // @ref LLP 3000.036.002#9 — SQL-habit refusals carry pasteable Quarry rewrites.
+            // SQL writes `count table where …`; Quarry makes the counted
+            // domain an ordinary parenthesized expression.
+            if matches!(&value, Expr::Name { name, .. } if name == "count")
+                && self.at_kind(Kind::Word)
+                && self.peek_at(1).value == "where"
+            {
+                let Expr::Name { site, .. } = &value else { unreachable!() };
+                let site = site.clone();
+                let table = self.word()?.value;
+                let read = ReadExpr {
+                    cursor_prefix: None,
+                    computed: Default::default(),
+                    order_keys: Vec::new(),
+                    table,
+                    keys: Vec::new(),
+                    index: None,
+                    range: None,
+                    matching: None,
+                    filter: None,
+                    seeks: Vec::new(),
+                    site: site.clone(),
+                };
+                let read = self.parse_range(read, self.position - 1, false)?;
+                return Err(syntax_with(
+                    &site,
+                    "aggregates take parentheses: `count(table where …)`",
+                    format!("count({})", print::read_expr(&read)),
+                )
+                .guide("from-sql"));
+            }
             if self.at("?") && self.peek_at(1).value == "." {
                 let site = self.take("?")?.site;
                 self.take(".")?;
@@ -308,7 +339,8 @@ impl Parser {
                 return Err(unsupported(&self.peek().site.clone(), "before", "use after c; reverse display order in the client when needed"));
             } else if matches!(value, Expr::Read(_)) && matches!(self.peek().value.as_str(), "matching" | "after" | "first" | "last" | "by" | "where") {
                 let Expr::Read(read) = value else { unreachable!() };
-                value = Expr::Read(self.parse_range(read, start, stops.contains(&"<probe-shape>"))?);
+                let read = self.parse_range(read, start, stops.contains(&"<probe-shape>"))?;
+                value = Expr::Read(read);
             } else if self.maybe("!") {
                 let assertion = self.tokens[self.position - 1].site.clone();
                 if !self.maybe("else") {

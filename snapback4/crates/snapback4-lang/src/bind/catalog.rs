@@ -87,7 +87,6 @@ impl Catalog {
                 for field in &table.search {
                     if !matches!(columns.get(field), Some(ScalarType { kind: TypeKind::Text { .. } | TypeKind::Enum { .. }, .. })) {
                         diagnostics.push(crate::diag::type_error(&table.site, format!("search {} requires a text or enum column on {}", field, table.name), format!("declare `{field}: text <=2000` or `{field}: enum('one', 'two')` before `search {field}`")).guide("search"));
-                        ok = false;
                     }
                 }
                 let mut indexes = vec![IndexDecl { name: "byId".into(), columns: vec!["id".into()], unique: true, refusal: None, words: None, computed: BTreeMap::new(), site: table.site.clone() }];
@@ -130,6 +129,12 @@ impl Catalog {
                 }
                 if ok {
                     let mut decl = table.clone();
+                    // @ref LLP 3000.036.002#9 — rejected search metadata must not erase the usable table symbol.
+                    // An invalid search field is a fault of that search line,
+                    // not evidence that every later reference names an
+                    // unknown table. Keep the usable table symbol and omit
+                    // only search fields that could not be indexed.
+                    decl.search.retain(|field| matches!(columns.get(field), Some(ScalarType { kind: TypeKind::Text { .. } | TypeKind::Enum { .. }, .. })));
                     // @ref LLP 3000.015#2 — catalog consumers see the same
                     // implicit immutability as runtime schema consumers.
                     for column in &table.columns {
