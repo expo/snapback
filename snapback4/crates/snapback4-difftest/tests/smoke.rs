@@ -313,7 +313,7 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         if matches!(case.program.tables[0].residency, Residency::Group) {
             dims.push("group-pages");
         }
-        if dims.is_empty() {
+        if dims.is_empty() && !snapback4_difftest::lean::features(&case).iter().any(|f| f.starts_with("page4/")) {
             assert_eq!(serde_json::to_value(&case).unwrap(), serde_json::to_value(&plain).unwrap(), "seed {seed}");
         }
         seen.extend(dims);
@@ -380,7 +380,7 @@ fn timed_disclosure_generation_covers_edges_reads_and_writes() {
 
 #[test]
 fn timed_search_generation_compares_future_word_heads_natively() {
-    let cases = (0..400).map(generate).filter(|case| case.program.search_term.is_some()).collect::<Vec<_>>();
+    let cases = (0..400).map(generate).filter(|case| case.program.search_term.is_some() && !snapback4_difftest::lean::features(case).iter().any(|f| f.starts_with("page4/"))).collect::<Vec<_>>();
     assert!(!cases.is_empty(), "the standard 400-case campaign must reach timed search");
     for case in cases {
         let source = case.program.source();
@@ -716,4 +716,28 @@ fn page3_generation_compares_every_new_family_natively_and_in_lean() {
         if seen.len() == 6 { break; }
     }
     assert_eq!(seen.len(), 6, "{seen:?}");
+}
+
+#[test]
+fn page4_generated_families_compare_and_search_is_explicitly_unsupported_in_lean() {
+    use snapback4_difftest::lean;
+    let have_model=model_built();let mut seen=std::collections::BTreeSet::new();
+    for seed in 0..20_000 {
+        let case=lean::generate(seed);
+        let family=lean::features(&case).into_iter().find(|f|f.starts_with("page4/"));
+        let Some(family)=family else {continue}; if seen.contains(&family) {continue;}
+        let source=case.program.source();
+        if have_model {
+            let checked=lean::compare(&case,&source).unwrap();
+            if family.ends_with("search") {assert!(matches!(checked.verdict,Verdict::Unsupported(_)));assert_eq!(checked.executed,0);}
+            else {
+                if matches!(checked.verdict,Verdict::Unsupported(_)) {continue;}
+                assert!(matches!(checked.verdict,Verdict::Pass),"{family} seed {seed}: {:?}\n{source}",checked.verdict);
+            }
+        }
+        let mut report=Report::default();campaign::check(&case,&mut report, |_| {});
+        assert!(!report.failed(),"{family} seed {seed}: {report:?}\n{source}");
+        seen.insert(family);if seen.len()==10 {break;}
+    }
+    assert_eq!(seen.len(),10,"{seen:?}");
 }

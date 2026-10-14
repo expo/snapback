@@ -199,6 +199,12 @@ pub fn programs(
             || schema.table(&lane.scan.table).is_some_and(|table|
                 lane.grant() && table.sync.as_ref().is_some_and(snapback4_core::schema::Sync::is_union)
                 || !snapback4_core::engine::rules::membership_point_id(schema, lane) && table.index(&lane.scan.index).is_some_and(|index| lane.scan.prefix.len() == index.components.len()))));
+        // @ref LLP 3000.036.001#17 — older validators cannot prove a fixed second witness field.
+        fact.branch_pages_v3 = merges.iter().flat_map(|merge| &merge.lanes).any(|lane| schema.table(&lane.scan.table).is_some_and(|table| lane.membership() && (multi_field_probe(&table.rules.read) || table.leave == snapback4_core::schema::LeavePolicy::DeliveredHistory)
+                || (lane.guarded() || lane.grant()) && negative_probe(&table.rules.read)));
+        fact.branch_pages_v3 |= snapback4_core::ir::scans(&bound.program).iter().any(|scan|
+            snapback4_core::engine::rules::page_guard_decision(schema, scan).as_ref().is_some_and(negative_probe));
+        fact.branch_pages_v3 |= bound.program.body.iter().any(uncapped_statement);
         fact.branch_membership = merges.iter().any(|merge| merge.lanes.iter().any(|lane| lane.membership()));
         fact.branch_membership_v2 = merges.iter().flat_map(|merge| &merge.lanes)
             .any(|lane| membership_v2(schema, lane));
@@ -241,4 +247,60 @@ pub fn notes(schema: &Schema, programs: &[BoundProgram]) -> Vec<Diagnostic> {
         (!fact.ephemeral_reads.is_empty() && fact.sites.iter().filter(|s| s.class == SiteClass::Server).all(|s| schema.table(&s.table).is_some_and(|t| t.ephemeral.is_some())))
             .then(|| Diagnostic::new(&bound.site, "N_EPHEMERAL_SERVER", format!("{} runs on the server because it reads an ephemeral table", bound.program.name), "split the ephemeral read into its own query and render it next to the device-held one").guide("ephemeral"))
     }).collect()
+}
+
+fn multi_field_probe(rule: &snapback4_core::schema::RuleExpr) -> bool {
+    use snapback4_core::schema::{RuleExpr, RuleTerm};
+    match rule {
+        RuleExpr::Exists { key, equalities, .. } => key.iter().chain(equalities.iter().map(|(_, term)| term))
+            .filter_map(|term| if let RuleTerm::Field(field) = term { Some(field) } else { None }).collect::<std::collections::BTreeSet<_>>().len() > 1,
+        RuleExpr::And(terms) | RuleExpr::Or(terms) => terms.iter().any(multi_field_probe),
+        _ => false,
+    }
+}
+
+fn negative_probe(rule: &snapback4_core::schema::RuleExpr) -> bool {
+    use snapback4_core::schema::RuleExpr;
+    match rule { RuleExpr::Not(inner) => matches!(inner.as_ref(), RuleExpr::Exists { .. }),
+        RuleExpr::And(terms) | RuleExpr::Or(terms) => terms.iter().any(negative_probe), _ => false }
+}
+
+fn uncapped_expr(expr: &snapback4_core::ir::Expr) -> bool {
+    use snapback4_core::ir::{Builtin, Expr};
+    match expr {
+        Expr::Builtin { builtin: Builtin::RequireUncapped, .. } => true,
+        Expr::Builtin { builtin: Builtin::JobQuery { program, .. }, args } =>
+            program.body.iter().any(uncapped_statement) || args.iter().any(uncapped_expr),
+        Expr::Builtin { args, .. } | Expr::Array(args) => args.iter().any(uncapped_expr),
+        Expr::Binary { left, right, .. } => uncapped_expr(left) || uncapped_expr(right),
+        Expr::Unary { value, .. } | Expr::Field { base: value, .. } => uncapped_expr(value),
+        Expr::Block { body, value } => body.iter().any(uncapped_statement) || uncapped_expr(value),
+        Expr::Object(fields) => fields.values().any(uncapped_expr),
+        Expr::Shape { base, fields } => uncapped_expr(base) || fields.values().any(uncapped_expr),
+        Expr::Get(read) | Expr::Exists(read) => read.key.iter().any(uncapped_expr),
+        Expr::Scan(scan) => uncapped_scan(scan),
+        Expr::Merge(merge) => merge.lanes.iter().any(|lane|
+            uncapped_scan(&lane.scan) || lane.setup.iter().any(uncapped_statement)
+            || lane.guard.as_ref().is_some_and(uncapped_expr) || lane.project.as_ref().is_some_and(uncapped_expr)
+            || lane.source.as_ref().is_some_and(|source| source.scan().is_some_and(uncapped_scan) || source.expressions().into_iter().any(uncapped_expr))),
+        _ => false,
+    }
+}
+fn uncapped_statement(stmt: &snapback4_core::ir::Stmt) -> bool {
+    use snapback4_core::ir::{Stmt, LoopDomain};
+    match stmt {
+        Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } | Stmt::Push { value, .. }
+        | Stmt::Return(value) | Stmt::Require { condition: value, .. } => uncapped_expr(value),
+        Stmt::If { condition, then_body, else_body } => uncapped_expr(condition)
+            || then_body.iter().any(uncapped_statement) || else_body.iter().any(uncapped_statement),
+        Stmt::For { domain, body, .. } => body.iter().any(uncapped_statement)
+            || match domain { LoopDomain::DerivedArray { value, .. } => uncapped_expr(value), LoopDomain::Page(scan) => uncapped_scan(scan), _ => false },
+        _ => false,
+    }
+}
+
+fn uncapped_scan(scan: &snapback4_core::ir::Scan) -> bool {
+    scan.filter.as_deref().is_some_and(uncapped_expr) || scan.after.as_deref().is_some_and(uncapped_expr)
+        || scan.before.as_deref().is_some_and(uncapped_expr)
+        || scan.prefix.iter().filter_map(|key| key.scalar()).any(uncapped_expr)
 }

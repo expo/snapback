@@ -334,6 +334,8 @@ table tasks:
   online only
 query full():
   return tasks first 5000 by .id
+query originalWalk():
+  return tasks where .ticket + 0 >= 0 first 5000 by byId
 ";
     let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
@@ -367,8 +369,18 @@ query full():
         engine.query("full", Context::new("alice", Default::default()).at(now)).unwrap()
     });
     assert_eq!(observations[0], observations[1]);
-    assert_eq!(observations[0].data, Value::Array(Vec::new()));
-    assert!(!observations[0].complete);
+    // PAGE4's complete public/witness union reaches the known visible row
+    // without walking the hidden population. Private opening still changes
+    // neither answers nor meters for a witness that can never become live.
+    assert!(observations[0].complete);
+    assert_eq!(observations[0].data.as_array().unwrap()[0].field("id").unwrap(), &Value::Id("z".into()));
+    let walks = [90,100].map(|now| {
+        let mut engine=snapback4_core::Engine::new_at(snapback4_core::Store::memory().unwrap(),bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone()),2).unwrap();
+        engine.seed_at(rows.clone(),2).unwrap();
+        engine.query("originalWalk",Context::new("alice",Default::default()).at(now)).unwrap()
+    });
+    assert_eq!(walks[0],walks[1]);
+    assert_eq!(walks[0].data,Value::Array(Vec::new()));assert!(!walks[0].complete);
 }
 
 #[test]

@@ -1186,6 +1186,11 @@ impl<'a> Runner<'a> {
                 });
                 Ok(Value::Array(values))
             }
+            // @ref LLP 3000.036.001#17 — a cut parent lookup is unknown, not the author's absence refusal.
+            Builtin::RequireUncapped => {
+                self.meter.require_uncapped()?;
+                Ok(args.remove(0))
+            }
             Builtin::SearchPresent => {
                 let text = args[0].as_str()?;
                 let mark = self.meter.mark();

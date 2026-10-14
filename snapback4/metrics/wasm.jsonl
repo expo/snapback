@@ -57,3 +57,12 @@
 {"at":"2026-10-14T12:45:05Z","sha":"f32eea9800","dirty":true,"wasm":{"raw":2314380,"gzip":705408,"brotli":533127},"glue":{"raw":16053,"gzip":3695,"brotli":3259},"wasmOpt":true,"budget":705908,"over":0}
 {"at":"2026-10-14T13:04:05Z","sha":"376507fd76","dirty":true,"wasm":{"raw":2314386,"gzip":705417,"brotli":532923},"glue":{"raw":16053,"gzip":3695,"brotli":3259},"wasmOpt":true,"budget":705908,"over":0}
 {"at":"2026-10-14T13:45:06Z","sha":"26ee2cbad0","dirty":true,"wasm":{"raw":2314386,"gzip":705417,"brotli":532923},"glue":{"raw":16053,"gzip":3695,"brotli":3259},"wasmOpt":true,"budget":705917,"over":0}
+{"at":"2026-10-14T13:01:17Z","sha":"8c70a8427b","dirty":true,"wasm":{"raw":2318599,"gzip":706848,"brotli":534570},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":705805,"over":1043}
+{"at":"2026-10-14T13:04:28Z","sha":"fb213501c0","dirty":false,"wasm":{"raw":2318599,"gzip":706848,"brotli":534570},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":707348,"over":0}
+{"at":"2026-10-14T13:13:47Z","sha":"fb213501c0","dirty":true,"wasm":{"raw":2318610,"gzip":706927,"brotli":534181},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":707348,"over":0}
+{"at":"2026-10-14T13:19:16Z","sha":"fb213501c0","dirty":true,"wasm":{"raw":2318625,"gzip":706921,"brotli":534831},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":707348,"over":0}
+{"at":"2026-10-14T13:20:55Z","sha":"6c3151173e","dirty":false,"wasm":{"raw":2318625,"gzip":706921,"brotli":534831},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":707421,"over":0}
+{"at":"2026-10-14T13:52:46Z","sha":"fc410e84bc","dirty":false,"wasm":{"raw":2318625,"gzip":706921,"brotli":534831},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":707421,"over":0}
+{"at":"2026-10-14T14:29:29Z","sha":"fc410e84bc","dirty":true,"wasm":{"raw":2318792,"gzip":706892,"brotli":534371},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":707421,"over":0}
+{"at":"2026-10-14T14:32:55Z","sha":"c50dbbcbf7","dirty":false,"wasm":{"raw":2318792,"gzip":706892,"brotli":534371},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":707392,"over":0}
+{"at":"2026-10-14T15:06:24Z","sha":"193f94ea9d","dirty":false,"wasm":{"raw":2318792,"gzip":706892,"brotli":534371},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":707392,"over":0}

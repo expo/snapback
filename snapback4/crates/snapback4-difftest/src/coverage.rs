@@ -3,6 +3,7 @@ use crate::{ast::*, generate::Case};
 use std::collections::BTreeSet;
 pub fn features(case: &Case) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
+    for feature in crate::generate::page4_features(case) { out.insert(feature); }
     for table in &case.program.tables {
         out.insert(format!("rule/{:?}", table.rule));
         out.insert(format!("residency/{:?}", table.residency));
@@ -212,7 +213,7 @@ fn expr(e: &Expr, out: &mut BTreeSet<String>) {
         Expr::Var(..) => {
             out.insert("expr/local".into());
         }
-        Expr::Score(_) | Expr::Present(_) => {
+        Expr::Score(_) | Expr::Present(_) | Expr::Point(..) => {
             out.insert("expr/read-in-mutation".into());
         }
         Expr::Calendar(f, e) => {

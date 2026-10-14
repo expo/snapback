@@ -245,7 +245,6 @@ fn guards_explicit_predicates_held_and_nonmembers_keep_their_meaning() {
 #[test]
 fn unsupported_audiences_and_authored_guards_do_not_infer() {
     let sources = [
-        SOURCE.replace("  sync to members[.room] last 2 by .at", "  online only"),
         SOURCE.replacen("  principal: principal", "  principal: principal\n  until: time ?\n  expire at .until", 1),
         SOURCE.replace("query ordinary(q: text <=100, c: cursor ?):", "query ordinary(q: text <=100, c: cursor ?):\n  require q != 'blocked' else BLOCKED"),
         SOURCE.replace("return messages matching q where not .tombstone last 2", "return messages matching q where not .tombstone and exists members[.room, viewer] last 2"),

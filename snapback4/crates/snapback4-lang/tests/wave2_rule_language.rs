@@ -414,9 +414,11 @@ fn a_grant_the_caller_cannot_read_is_not_used() {
     assert!(page(&mut managers, "everything", "tess").complete);
     let intern = page(&mut managers, "everything", "ian");
     assert!(intern.complete && intern.data.as_array().unwrap().is_empty(), "the owner's branch, empty");
-    // A negated probe is never a grant.
+    // A readable total static absence is now a complete page guard.
     let mut negated = seeded(&tickets("read <- .principal = viewer", "not exists staff[viewer]"));
-    assert!(!page(&mut negated, "everything", "alice").complete);
+    assert!(page(&mut negated, "everything", "alice").complete);
+    let mut hidden_negative = seeded(&tickets("read <- deny", "not exists staff[viewer]"));
+    assert!(!page(&mut hidden_negative, "everything", "alice").complete);
 }
 
 #[test]

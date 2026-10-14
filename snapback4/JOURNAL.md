@@ -95308,3 +95308,36 @@ than changing that audience. The testing card retains cap-count semantics.
 Rule-recipes folds wrapped prose to 400 lines, preserving every Quarry block;
 no documentation cap is raised. Original red logs and scoped green runs remain
 separate evidence; there is no fabricated green exit for the original full run.
+### 2026-10-14 — PAGE4 completeness reach, semantic checkpoint
+
+Wave-11 fix #11 extends PAGE3's bounded positive ranges to mixed
+owner/public/member pages, exact where witnesses, a pinned component of a
+multi-column witness, and fixed scalar keys selected from required parent
+snapshots. It extends the existing compact server search to online-only exact
+membership audiences. Readable lifetime-free total negative static points and
+finite required enum complements admit complete status lists. Parent snapshots
+never establish copied-child equality; hidden sources and compound publication
+pointers retain explicit limitations. LLP 3000.036.001 §17 records the contract.
+The semantic capability is branch-pages-v3. Six independent paired review rounds
+ended with both reviewers READY on semantic revision `193f94ea9d`; verbatim
+reviews and provenance are under `llp/reviews/3000.036-page4.*`. Final
+qualification is recorded in the workstream report; no publication or push is claimed. DX3 owns the broader authorization
+recipe book; NARR owns P9's unbounded-device/empty-partition note.
+
+### 2026-10-14 — PAGE4 final qualification
+
+Semantic source `193f94ea9d` passes the full core/lang/device/sim/CLI Cargo
+suites, the difftest crate, 113 affected client tests, Lean's 60 theorem audits,
+77 examples and 7 oracle fixtures, and the required root reference/inventory/guide
+and documentation-budget checks. Native/device 2,000-case campaigns have no
+disagreements; Lean has only its three existing classified signatures. Explicit
+unsupported fragments execute zero model oracle cases. The 100-schema wave-11
+survey drops never-complete notes 16→6 (conditional 6→6); PAGE3's 50-schema
+wave-10 survey remains 2→2. All 150 read-only source hashes match.
+
+Clean wasm is 706,892 gzip bytes; the recorded budget is measurement + 500 =
+707,392 bytes, with the whole-artifact growth reason. `reports/20261014-page4/`
+contains the before/after survey, remaining reasons, campaigns, exact executable
+digests and hashed qualification logs; the root workstream report records
+commits, review dispositions, scope boundaries and other-lane pointers. Both
+independent final reviewers are READY. No push or publication.

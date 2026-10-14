@@ -177,6 +177,7 @@ theorem Term.eval_self_free {v : List Nat} {x y : Option Row} :
   | .col .old _, _ => rfl
   | .col .next _, _ => rfl
   | .viewer, _ => rfl
+  | .param _, _ => rfl
   | .lit _, _ => rfl
 
 /-- A rule that reads no row column has the same verdict for every row. -/
@@ -200,6 +201,7 @@ theorem Rule.eval_self_congr {s : Store} {v : List Nat} {r1 r2 : Row} (r : Rule)
   | .col .old _, _ => rfl
   | .col .next _, _ => rfl
   | .viewer, _ => rfl
+  | .param _, _ => rfl
   | .lit _, _ => rfl
 
 theorem keyMatch_get {ps : List (String × Scalar)} {r : Row} (h : keyMatch ps r = true)
@@ -258,6 +260,7 @@ theorem Rule.eval_pin_row {s : Store} {v : List Nat} {ps : List (String × Scala
   | .col .old _ => rfl
   | .col .next _ => rfl
   | .viewer => rfl
+  | .param _ => rfl
   | .lit _ => rfl
 
 theorem List.lookup_none {ps : List (String × Scalar)} {c : String} :
@@ -303,6 +306,7 @@ theorem Rule.eval_pin {s : Store} {v : List Nat} {ps : List (String × Scalar)} 
   | .col .old _, _ => rfl
   | .col .next _, _ => rfl
   | .viewer, _ => rfl
+  | .param _, _ => rfl
   | .lit _, _ => rfl
 
 /-- **A page guard decides every row it selects**: a guard that holds over

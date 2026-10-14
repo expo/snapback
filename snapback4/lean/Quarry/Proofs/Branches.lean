@@ -38,6 +38,7 @@ theorem partyLeaves_cover (r : Rule) : ∀ {ps : List String}, r.partyLeaves = s
         revert he
         cases (Imgs.get im .self).map (·.get c) <;> simp [eq_comm]
       | _ => simp [Rule.partyLeaves] at hp
+    | param _ => simp [Rule.partyLeaves] at hp
     | lit _ => simp [Rule.partyLeaves] at hp
   | or a b iha ihb =>
     intro ps hp s v im he
@@ -110,6 +111,7 @@ theorem accessLeaves_sound (rule : Rule) : ∀ {leaves branch s v r},
         have hrow : r.get c = .id v := by simpa [AccessBranch.holds] using hh
         simpa [Rule.eval, Term.eval, Imgs.get] using hrow.symm
       | _ => simp [Rule.accessLeaves] at hl
+    | param _ => simp [Rule.accessLeaves] at hl
     | lit _ => simp [Rule.accessLeaves] at hl
   | probe t point key =>
     intro leaves branch s v r hl hb hh
@@ -160,6 +162,7 @@ theorem accessLeaves_cover (rule : Rule) : ∀ {leaves s v r},
         have hrow : Scalar.id v = r.get c := by simpa [Rule.eval, Term.eval, Imgs.get] using he
         exact ⟨.party c, List.mem_singleton_self _, by simpa [AccessBranch.holds] using hrow.symm⟩
       | _ => simp [Rule.accessLeaves] at hl
+    | param _ => simp [Rule.accessLeaves] at hl
     | lit _ => simp [Rule.accessLeaves] at hl
   | probe t point key =>
     intro leaves s v r hl he
@@ -263,6 +266,31 @@ theorem positiveRanges_eval {rule : Rule} {ranges : List (List Rule)}
   | allow => simp [Rule.positiveRanges] at h
   | deny => simp [Rule.positiveRanges] at h
   | ne _ _ => simp [Rule.positiveRanges] at h
-  | not _ _ => simp [Rule.positiveRanges] at h
+  | not a _ =>
+    cases a <;> simp [Rule.positiveRanges] at h
+    subst ranges
+    simp
+
+/-- PAGE4's fixed viewer component preserves the original point verdict,
+including all additional key equalities and compound conditions. -/
+theorem Rule.eval_viewer_component {s : Store} {v : List Nat} {row : Row} {c : String}
+    (h : row.get c = .id v) (rule : Rule) :
+    rule.eval s v { self := some row } =
+      (rule.mapTerms (fun term => match term with
+        | .col .self name => if name == c then .viewer else term
+        | _ => term)).eval s v { self := some row } := by
+  refine Rule.eval_mapTerms rule fun term _ => ?_
+  cases term with
+  | col image name =>
+      cases image with
+      | self =>
+          by_cases same : name = c
+          · subst name; simp [Term.eval, Imgs.get, h]
+          · simp [same]
+      | old => rfl
+      | next => rfl
+  | viewer => rfl
+  | param _ => rfl
+  | lit _ => rfl
 
 end Quarry

@@ -1,0 +1,197 @@
+{
+  "semantic_commit": "193f94ea9da7a046f4ce6fe76d7b527e1686ef90",
+  "base_commit": "498f8110f9",
+  "status": "qualified; all requested checks passed; no push/publication",
+  "review_provenance": "../../../llp/reviews/3000.036-page4.provenance.md",
+  "executables": {
+    "cli": {
+      "sha256": "efda266fbbe58ee2e3c1892800e25c7fa686d0768dacd7fdbb13cbb5cd40c7c3",
+      "bytes": 47597472
+    },
+    "difftest": {
+      "sha256": "47da918d9dec935388e8dba01541fe58bba3902ca935b72037edda74eaf67a76",
+      "bytes": 32997672
+    },
+    "lean_oracle": {
+      "sha256": "dcee2e7035cc2f31674845e330b38bc0b3ff9ebbd9aa0bd603a5082ca3a0eefb",
+      "bytes": 122546424
+    },
+    "before_cli": {
+      "sha256": "93a42a501952ed98c7714b8576edf97d82dcf0e3d28ef02a47c8023b3965aa70",
+      "bytes": 110474136,
+      "semantic_source": "498f8110f9"
+    }
+  },
+  "logs": {
+    "difftest": {
+      "path": "logs/difftest.log.gz",
+      "uncompressed_sha256": "e7924677991828700736fd0c6744cc0d3e99702d5b36d7e2a12e42be7b808d1e",
+      "uncompressed_bytes": 11194
+    },
+    "lean-check": {
+      "path": "logs/lean-check.log.gz",
+      "uncompressed_sha256": "9e96e232bd987afb8727073335c6dd4bae6e51a478619854102b3cf996c5daa3",
+      "uncompressed_bytes": 141
+    },
+    "clients": {
+      "path": "logs/clients.log.gz",
+      "uncompressed_sha256": "53d0473fd17d83a432eabccce430e01894830d9506a40617bbfc34dd4ed64d9a",
+      "uncompressed_bytes": 10580
+    },
+    "native-campaign": {
+      "path": "logs/native-campaign.log.gz",
+      "uncompressed_sha256": "d953f2c462cee293909114a700845cb7403f7a8c5349b343e8eb9af471bc9ecf",
+      "uncompressed_bytes": 16151
+    },
+    "devices-campaign": {
+      "path": "logs/devices-campaign.log.gz",
+      "uncompressed_sha256": "4496626a02850451f94071581a196fa731397ae1a660c44c3d57d4f18e788e83",
+      "uncompressed_bytes": 13774
+    },
+    "lean-campaign": {
+      "path": "logs/lean-campaign.log.gz",
+      "uncompressed_sha256": "7c771e380d8982ce83836c4e7a46648710a330109516e45b466162ffe6d95935",
+      "uncompressed_bytes": 15617
+    },
+    "wasm": {
+      "path": "logs/wasm.log.gz",
+      "uncompressed_sha256": "f42493272547656cb6a8ccb56b1af4c389bd3dc2597b54196e6a90d8007afd10",
+      "uncompressed_bytes": 63885
+    },
+    "build-wasm": {
+      "path": "logs/build-wasm.log.gz",
+      "uncompressed_sha256": "f7631f9d3445d8c16517c66d5e84f2c770a11008f8b32aaf039cfcc3bac69d4f",
+      "uncompressed_bytes": 8339
+    },
+    "build-client": {
+      "path": "logs/build-client.log.gz",
+      "uncompressed_sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+      "uncompressed_bytes": 201
+    },
+    "farm-survey": {
+      "path": "logs/farm-survey.log.gz",
+      "uncompressed_sha256": "67e8969de7f9b0a0ca3958843e8aaba3d305573990a2f86b868306c36ec7d240",
+      "uncompressed_bytes": 3199
+    },
+    "ref-check": {
+      "path": "logs/ref-check.log.gz",
+      "uncompressed_sha256": "fe4a5f6955973d2cf6ffe475e1aaf9e242aabdba28692445901f395875d5b1a6",
+      "uncompressed_bytes": 81
+    },
+    "docs-budget": {
+      "path": "logs/docs-budget.log.gz",
+      "uncompressed_sha256": "8b132a346500cf30fc78a698f4aa8e10968f08ccfbeb294aa276339359c001cc",
+      "uncompressed_bytes": 3708
+    },
+    "inventories": {
+      "path": "logs/inventories.log.gz",
+      "uncompressed_sha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813",
+      "uncompressed_bytes": 3499
+    },
+    "root-guide": {
+      "path": "logs/root-guide.log.gz",
+      "uncompressed_sha256": "d62ed70274abd318ee262e7995bcfbd000425b050f7b6cba9b28582c0c074559",
+      "uncompressed_bytes": 19451
+    },
+    "guide-cards": {
+      "path": "logs/guide-cards.log.gz",
+      "uncompressed_sha256": "22435723e7ac830835a869b8f6cd8873e0a0980143a2acf4749a11bfc92d7ee8",
+      "uncompressed_bytes": 12163
+    },
+    "lowering": {
+      "path": "logs/lowering.log.gz",
+      "uncompressed_sha256": "f73f61bda30b8ff3ff3536e49aef92665e7cbeceef92661108f99381a5092231",
+      "uncompressed_bytes": 4891
+    },
+    "reservation-calibrations": {
+      "path": "logs/reservation-calibrations.log.gz",
+      "uncompressed_sha256": "7fd5bb5b1725ddbd0a4b473d4f52ec4edd042d9cebcbedd5cbec788988dc9abf",
+      "uncompressed_bytes": 3844
+    },
+    "clients-oracle": {
+      "path": "logs/clients-oracle.log.gz",
+      "uncompressed_sha256": "95a657d3e8a0a0e6a2cbd3f37ecb16b578c2bda45a089aa19c42d8b2112eeaec",
+      "uncompressed_bytes": 21019
+    },
+    "full-cargo": {
+      "path": "logs/full-cargo.log.gz",
+      "uncompressed_sha256": "1253d2d922258dac44a421d5d52f5c165d36c660e7ff560b5c9cee84e185ff50",
+      "uncompressed_bytes": 742964
+    }
+  },
+  "reproduction": {
+    "cargo_env": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0",
+    "full_cargo": "cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast",
+    "difftest": "cargo test -p snapback4-difftest --no-fail-fast",
+    "campaigns": "target/release/snapback4-difftest run|run-devices|run-lean --seed 0 --cases 2000 --out <directory>; see saved report totals and exclusions",
+    "lean": "bash lean/check.sh",
+    "survey": "python3 reports/20261014-page4/survey.py target/release/snapback4 reports/20261014-page4/after.json",
+    "checks": [
+      "./ref-check --verbose",
+      "node scripts/docs-budget.mjs (snapback4 cwd)",
+      "node scripts/check-inventories.mjs (root cwd)",
+      "node scripts/check-guide.mjs (root cwd)"
+    ]
+  },
+  "wasm": {
+    "at": "2026-10-14T15:06:24Z",
+    "sha": "193f94ea9d",
+    "dirty": false,
+    "wasm": {
+      "raw": 2318792,
+      "gzip": 706892,
+      "brotli": 534371
+    },
+    "glue": {
+      "raw": 16053,
+      "gzip": 3695,
+      "brotli": 3260
+    },
+    "wasmOpt": true,
+    "budget": 707392,
+    "over": 0
+  },
+  "farm": {
+    "wave11": {
+      "schemas": 100,
+      "never_before": 16,
+      "never_after": 6,
+      "conditional_before": 6,
+      "conditional_after": 6
+    },
+    "wave10": {
+      "schemas": 50,
+      "never_before": 2,
+      "never_after": 2,
+      "conditional_before": 0,
+      "conditional_after": 0
+    },
+    "source_hashes_all_match": true,
+    "all_checks_exit_zero": true
+  },
+  "client_tests": {
+    "ordinary_affected": 105,
+    "ordinary_search_oracle": 8,
+    "failed": 0,
+    "skipped": 0
+  },
+  "full_cargo": {
+    "exit": 0,
+    "top_level_result_groups": 370,
+    "passed": 6003,
+    "failed": 0,
+    "ignored": 41,
+    "result_table": "full-cargo-results.json",
+    "note": "Existing opt-in measurement tests remain ignored; nested test-process result lines are not double counted."
+  },
+  "checks": {
+    "ref_check": "pass",
+    "docs_budget": "pass",
+    "inventories": "pass",
+    "root_guide": "pass",
+    "lean_check": "pass",
+    "difftest_tests": "78 passed, 0 failed",
+    "guide_cards": "123 passed, 0 failed"
+  },
+  "documentation_tip_before_qualification": "bfa91ffc9d"
+}

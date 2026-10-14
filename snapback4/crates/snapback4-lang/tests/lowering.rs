@@ -56,10 +56,10 @@ fn baseline_golden_and_ownership_switch_agree_byte_for_byte(part: usize, count: 
         // Keep the historical statement bytes under the original golden, and
         // still compare the entire marked IR between ownership-on/off below.
         let mut program: snapback4_core::ir::Program = serde_json::from_str(&record.ir).unwrap();
-        let baseline_ir = if program.returned_shapes.is_empty() { record.ir.clone() } else {
-            program.returned_shapes.clear();
-            serde_json::to_string(&program).unwrap()
-        };
+        program.returned_shapes.clear();
+        let mut historical=serde_json::to_value(&program).unwrap();
+        strip_page4_assertion_fence(&mut historical);
+        let baseline_ir=serde_json::to_string(&serde_json::from_value::<snapback4_core::ir::Program>(historical).unwrap()).unwrap();
         if digest(&baseline_ir) != golden[name] { differences.push(format!("{name}: baseline IR")); }
         let control = &disabled[name];
         if record.ir.as_bytes() != control.ir.as_bytes() { differences.push(format!("{name}: disabled IR")); }
@@ -111,5 +111,20 @@ fn golden_and_r1p_catalogs_keep_the_complete_source_census_pinned() {
     for name in include_str!("lowering/r1p-programs.txt").lines() {
         assert!(golden.contains(name), "missing R1p golden program {name}");
         assert!(prefixes.iter().any(|prefix| name.starts_with(prefix)), "missing R1p census source bundle for {name}");
+    }
+}
+
+// @ref LLP 3000.036.001#17 — inverse of the compiler-owned query meter fence.
+// Full current IR, admissions, execution and meters still compare between
+// ownership modes; only this query-cut wrapper differs from historical bytes.
+fn strip_page4_assertion_fence(value: &mut serde_json::Value) {
+    if let Some(builtin)=value.get("Builtin") && builtin["builtin"]=="RequireUncapped" {
+        let args=builtin["args"].as_array().unwrap();assert_eq!(args.len(),1);
+        *value=args[0].clone();
+    }
+    match value {
+        serde_json::Value::Array(values)=>for value in values {strip_page4_assertion_fence(value);},
+        serde_json::Value::Object(fields)=>for value in fields.values_mut() {strip_page4_assertion_fence(value);},
+        _=>{}
     }
 }

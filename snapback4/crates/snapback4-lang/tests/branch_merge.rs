@@ -575,7 +575,7 @@ query watched(c: cursor ?):
 }
 
 #[test]
-fn more_than_eight_branches_keep_the_single_read() {
+fn residual_alternatives_do_not_multiply_party_ranges() {
     let source = "table jobs:
   a: principal
   b: principal
@@ -590,8 +590,8 @@ query q(c: cursor ?):
   return jobs where .kind = 1 or .kind = 2 or .kind = 3 last 2 by .at after c
 ";
     let b = clean(source);
-    assert!(has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
-    assert_eq!(branch_merges(&b, "q"), vec![]);
+    assert!(!has_note(&b, "N_NEVER_COMPLETE"), "{:#?}", b.notes);
+    assert_eq!(branch_merges(&b, "q")[0].0, 4);
 }
 
 #[test]
@@ -1218,7 +1218,7 @@ fn same_typed_positional_membership_keys_remain_ambiguous() {
 }
 
 #[test]
-fn membership_page_with_its_parent_already_pinned_keeps_the_original_scan() {
+fn membership_page_with_its_parent_already_pinned_completes_without_discovery() {
     let source = "table access:
   bucket: int
   principal: principal
@@ -1238,12 +1238,12 @@ query items(bucket: int, c: cursor ?):
   return items where .bucket = bucket first 1 by .tag after c
 ";
     let b = clean(source);
-    assert!(snapback4_core::ir::body_merges(&b.programs[0].program.body).into_iter().all(|merge| !merge.branches()));
-    assert!(!b.schema.tables["items"].indexes.values().any(|index| index.columns() == ["bucket", "owner", "tag", "id"]));
+    assert!(snapback4_core::ir::body_merges(&b.programs[0].program.body).into_iter().any(|merge| merge.branches()));
+    assert!(b.schema.tables["items"].indexes.values().any(|index| index.columns() == ["bucket", "owner", "tag", "id"]));
     assert!(!b.schema.tables["access"].indexes.values().any(|index| index.columns() == ["principal", "bucket", "id"]));
     let mut e = engine(source, vec![]);
     let page = e.query("items", Context::new("alice", BTreeMap::from([("bucket".into(), Value::Int(0)), ("c".into(), Value::Null)]))).unwrap();
-    assert!(!page.complete && page.data.as_array().is_ok_and(|rows| rows.is_empty()) && page.next.is_none(), "{page:?}");
+    assert!(page.complete && page.data.as_array().is_ok_and(|rows| rows.is_empty()) && page.next.is_none(), "{page:?}");
 }
 
 #[test]

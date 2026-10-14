@@ -23,9 +23,9 @@ async function fixture(t, online = false, ordinaryScan = false) {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-authority-'));
   mkdirSync(join(dir, 'snapback'));
   let source = readFileSync(new URL('./fixtures/page-authority.q', import.meta.url), 'utf8');
-  // @ref LLP 3000.036.001#16 — keep this speculative-prefix control on an ordinary scan; PAGE3 membership discovery deliberately fences unknown pages empty.
+  // @ref LLP 3000.036.001#17 — keep the speculative-prefix control outside the complete planner. PAGE4 normalizes named plain orders too; this lowercase predicate keeps the authored fixed scan.
   if (ordinaryScan) source = source.replace(/(query serverPage\(\):[\s\S]*?)return secrets first 50/,
-    '$1return secrets first 50 by byId');
+    '$1return secrets where lower(.body) = .body first 50 by byId');
   writeFileSync(join(dir, 'snapback/schema.q'), source);
   const host = spawn(binary, ['dev', '--port', '0', '--no-watch'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
   const readStdout = captureStdout(host);

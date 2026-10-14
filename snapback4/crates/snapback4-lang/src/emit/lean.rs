@@ -861,6 +861,7 @@ impl<'a> Scope<'a> {
     /// A `where` domain as pins and a residual filter (`Syntax.lean`): each
     /// `.col = e` conjunct whose `e` does not read the row is a pin.
     fn domain(&self, read: &ReadExpr, keyed: bool) -> R<(Vec<Json>, Json)> {
+        if let Some(reason) = pages::negative_grant_issue(self.module, read) { return no(reason, crate::print::read_expr(read)); }
         if read.index.is_some() || !read.seeks.is_empty() || read.matching.is_some() || !read.computed.is_empty() || read.cursor_prefix.is_some() {
             return no("read-form", crate::print::read_expr(read));
         }
@@ -901,7 +902,15 @@ impl<'a> Scope<'a> {
 
     fn read(&self, read: &ReadExpr) -> R<Json> {
         let print = || crate::print::read_expr(read);
+        if read.range.is_some() && read.keys.is_empty() && read.matching.is_none() && read.computed.is_empty()
+            && let Some(index) = read.index.as_ref().and_then(|name| self.module.surface_tables.iter().find(|table|table.name==read.table)?.indexes.iter().find(|index|&index.name==name))
+            && index.is_plain() {
+            let mut normalized=read.clone();normalized.index=None;normalized.order_keys=index.columns.clone();
+            if !pages::named_merge_fragment(self.module, &normalized) { return no("page-named-index-fallback", print()); }
+            return self.read(&normalized);
+        }
         if let Some(page) = pages::implicit_page(self.module, read) { return self.read(&page); }
+        if let Some(reason) = pages::negative_grant_issue(self.module, read) { return no(reason, print()); }
         if let Some(reason) = pages::static_key_issue(read) { return no(reason, print()); }
         if let Some(reason) = pages::membership_physical_issue(self.module, read) {
             return no(reason, print());
@@ -1379,6 +1388,11 @@ fn program(module: &LeanModule, helpers: &[String], p: &ast::ProgramDecl, args: 
         return no("where-guard-presence", p.name.clone());
     }
     crate::bind::where_guards::lower_program(&mut lowered);
+    let stable_fields = module.surface_tables.iter().map(|table| {
+        let mut fields: BTreeSet<String> = table.columns.iter().filter(|column| column.written_by.is_none() && column.maintained.is_none())
+            .map(|column| column.name.clone()).collect(); fields.insert("id".into()); (table.name.clone(), fields)
+    }).collect();
+    crate::bind::stable_page_keys::lower_program(&mut lowered, &stable_fields);
     let mut scope = Scope::new(module, helpers);
     for (name, k, _) in args {
         scope.vars.insert(name.clone(), Ty::Scalar(k.clone()));

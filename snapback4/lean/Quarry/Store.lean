@@ -52,6 +52,7 @@ def Imgs.get (im : Imgs) : Img → Option Row
 def Term.eval (v : List Nat) (im : Imgs) : Term → Option Scalar
   | .col i c => (im.get i).map (·.get c)
   | .viewer => some (.id v)
+  | .param _ => none
   | .lit x => some x
 
 /-- Evaluate every component of a key probe. -/

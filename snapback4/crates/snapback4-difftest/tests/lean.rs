@@ -150,7 +150,7 @@ fn the_emitter_covers_the_generated_corpus_with_named_exceptions() {
     }
     // Outside it: the unpaged aggregates, page projections (`shape`), the
     // loop of a prefetch-reachable fold, and expiry, which the model leaves out.
-    assert_eq!(reasons, ["call-max", "call-min", "call-sum", "index-computed-or-words", "loop", "page-static-key-expression", "shape", "table-expiry"].map(String::from).into());
+    assert_eq!(reasons, ["call-max", "call-min", "call-sum", "index-computed-or-words", "loop", "page-compound-where-branches", "page-static-key-expression", "shape", "table-expiry"].map(String::from).into());
     assert!(supported > 2000, "{supported}");
 }
 
@@ -554,7 +554,7 @@ fn fixed_id_points_need_no_discovery_cap_and_agree_with_the_model() {
         assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
         let merged = snapback4_core::ir::body_merges(&bound.programs[0].program.body)
             .into_iter().any(|merge| merge.branches());
-        assert_eq!(merged, filter.is_empty(), "{:#?}\n{source}", bound.notes);
+        assert!(merged, "{:#?}\n{source}", bound.notes);
         let mut engine = snapback4_core::Engine::memory(
             bound.schema,
             bound.programs.into_iter().map(|program| program.program),
@@ -1343,5 +1343,104 @@ fn page3_membership_and_compound_filters_keep_the_read_free_model_gate() {
         let modeled = lean::ask(&model.case("run", model.store(&rows).unwrap(), "alice", model.tag_args("run", &json!({"c":null})).unwrap(), None).unwrap()).unwrap();
         assert_eq!(modeled["complete"], actual.complete, "compound={compound}");
         assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&actual.data));
+    }
+}
+
+#[test]
+fn page4_negative_grant_scalar_and_fallible_fallbacks_are_named_not_oracle_passes() {
+    for (rule, tail) in [(".owner = viewer or not exists roles[viewer]", "return exists docs where .at >= 0"),
+        (".owner = viewer or not exists roles[viewer]", "return docs where .at + 1 >= 0 first 10 by .at"),
+        (".owner = viewer or .at = 0 or .at = 1 or .at = 2 or .at = 3 or .at = 4 or .at = 5 or not exists roles[viewer]", "return docs first 10 by .at")] {
+        let source=format!("table roles:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  owner: principal\n  at: int\n  read <- {rule}\n  online only\nquery run():\n  {tail}\n");
+        let mut case=lean::generate(1);case.rows.clear();case.args=json!({});case.program.prelude.clear();case.steps.clear();
+        case.program.body=snapback4_difftest::ast::Body::Scalar(snapback4_difftest::ast::Expr::Bool(true));
+        let checked=lean::compare(&case,&source).unwrap();assert!(matches!(checked.verdict,Verdict::Unsupported(ref reason) if reason=="page-negative-grant-fallback"),"{:?}",checked.verdict);assert_eq!(checked.executed,0);
+    }
+}
+
+#[test]
+fn lexical_witness_pins_preserve_identity_and_match_native_without_literal_laundering() {
+    if !model_built() { return; }
+    for source_read in ["allow", ".manager = 1"] {
+        let manager_kind=if source_read=="allow" {"principal"}else{"int"};
+        let manager=if source_read=="allow" {json!("bob")}else{json!(1)};
+        let other_manager=if source_read=="allow" {json!("mallory")}else{json!(2)};
+        let source=format!("table reporting:\n  manager: {manager_kind}\n  report: principal\n  unique report\n  read <- {source_read}\n  online only\ntable agendas:\n  owner: principal\n  manager: {manager_kind}\n  report: principal\n  read <- .owner = viewer or exists reporting[report = .report, manager = .manager]\n  online only\nquery run(m: {manager_kind}):\n  return agendas where .manager = m first 20 by .id\n");
+        for populated in [false, true] {
+            let b=snapback4_lang::compile(&[("schema.q".into(),source.clone())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+            let mut e=snapback4_core::Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+            let rows: Vec<(String,serde_json::Value)>=if populated {vec![
+                ("reporting".into(),json!({"id":"r","manager":manager.clone(),"report":"erin"})),
+                ("agendas".into(),json!({"id":"a","owner":"alice","manager":manager.clone(),"report":"nobody"})),
+                ("agendas".into(),json!({"id":"b","owner":"charlie","manager":manager.clone(),"report":"erin"})),
+                ("agendas".into(),json!({"id":"c","owner":"charlie","manager":other_manager.clone(),"report":"erin"})),
+            ]}else{vec![]};
+            e.seed(rows.iter().map(|(table,row)|(table.clone(),snapback4_core::wire::row_from_json(&e.schema().tables[table],row).unwrap())).collect::<Vec<_>>()).unwrap();
+            let module=lean::module(&source).unwrap();
+            for m in [manager.clone(),other_manager.clone()] {
+                let value=if let Some(n)=m.as_i64() {snapback4_core::Value::Int(n)}else{snapback4_core::Value::Id(m.as_str().unwrap().into())};
+                let actual=e.query("run",snapback4_core::Context::new("alice",[("m".into(),value)].into())).unwrap();
+                let case=module.case("run",module.store(&rows).unwrap(),"alice",module.tag_args("run",&json!({"m":m})).unwrap(),None).unwrap();
+                let modeled=lean::ask(&case).unwrap();
+                assert_eq!(modeled["kind"],"answer","{modeled}");
+                assert_eq!(lean::model_value(&modeled["data"]),lean::engine_value(&actual.data),"{source_read} {populated} {m}");
+                assert_eq!(modeled["complete"],actual.complete,"{source_read} {populated} {m}: {modeled} / {actual:?}");
+                assert_eq!(actual.complete,source_read=="allow");
+            }
+        }
+    }
+}
+
+#[test]
+fn declined_named_index_candidate_is_named_unsupported_and_never_an_oracle_pass() {
+    let source="table docs:\n  owner: principal\n  at: int\n  by byAt: at, id\n  read <- .owner = viewer\n  online only\nquery run():\n  return docs where .owner = viewer first 10 by byAt\n";
+    let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty());
+    let mut e=snapback4_core::Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    assert!(!e.query("run",snapback4_core::Context::new("alice",Default::default())).unwrap().complete);
+    let mut case=lean::generate(1);case.rows.clear();case.args=json!({});case.program.prelude.clear();case.steps.clear();
+    case.program.body=snapback4_difftest::ast::Body::Scalar(snapback4_difftest::ast::Expr::Bool(true));
+    let checked=lean::compare(&case,source).unwrap();
+    assert!(matches!(checked.verdict,Verdict::Unsupported(ref reason) if reason=="page-named-index-fallback"),"{:?}",checked.verdict);
+    assert_eq!(checked.executed,0);
+}
+
+#[test]
+fn conjunctive_and_prefix_pinned_negative_grants_cannot_escape_the_fallback_boundary() {
+    for (roles, guard, tail) in [
+        ("", "not exists roles[viewer] and .flag = true", "return exists docs where .flag = true"),
+        ("", "not exists roles[viewer] and .flag = true", "return docs where .flag = true and .at + 1 > 0 first 10 by .at"),
+        ("  group: int\n", "not exists roles[group = .group, principal = viewer]", "return exists docs where .group = 1"),
+    ] {
+        let unique=if roles.is_empty(){"principal"}else{"group, principal"};
+        let source=format!("table roles:\n{roles}  principal: principal\n  unique {unique}\n  read <- .principal = viewer\n  online only\ntable docs:\n  owner: principal\n  group: int\n  flag: bool\n  at: int\n  read <- .owner = viewer or ({guard})\n  online only\nquery run():\n  {tail}\n");
+        let b=snapback4_lang::compile(&[("schema.q".into(),source.clone())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        let mut e=snapback4_core::Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+        assert!(e.query("run",snapback4_core::Context::new("alice",Default::default())).unwrap().complete);
+        let mut case=lean::generate(1);case.rows.clear();case.args=json!({});case.program.prelude.clear();case.steps.clear();
+        case.program.body=snapback4_difftest::ast::Body::Scalar(snapback4_difftest::ast::Expr::Bool(true));
+        let checked=lean::compare(&case,&source).unwrap();
+        assert!(matches!(checked.verdict,Verdict::Unsupported(ref reason) if reason=="page-negative-grant-fallback"),"{:?}",checked.verdict);assert_eq!(checked.executed,0);
+    }
+}
+
+#[test]
+fn distributed_negative_guard_overflow_is_excluded_even_with_only_two_top_level_disjuncts() {
+    let fields=(0..8).map(|n|format!("  b{n}: bool\n")).collect::<String>();
+    let alternatives=(0..8).map(|n|format!(".b{n} = true")).collect::<Vec<_>>().join(" or ");
+    let source=format!("table roles:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  owner: principal\n{fields}  read <- .owner = viewer or (not exists roles[viewer] and ({alternatives}))\n  online only\nquery run():\n  return docs where .b0 = true first 10 by .id\n");
+    let mut case=lean::generate(1);case.rows.clear();case.args=json!({});case.program.prelude.clear();case.steps.clear();
+    case.program.body=snapback4_difftest::ast::Body::Scalar(snapback4_difftest::ast::Expr::Bool(true));
+    let checked=lean::compare(&case,&source).unwrap();
+    assert!(matches!(checked.verdict,Verdict::Unsupported(ref reason) if reason=="page-negative-grant-fallback"),"{:?}",checked.verdict);assert_eq!(checked.executed,0);
+}
+
+#[test]
+fn conjunction_root_negative_fallbacks_are_named_unsupported() {
+    for tail in ["return exists docs where .flag = true", "return docs where .flag = true and .at + 1 > 0 first 10 by .at"] {
+        let source=format!("table roles:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  owner: principal\n  flag: bool\n  at: int\n  read <- not exists roles[viewer] and (.owner = viewer or .flag = true)\n  online only\nquery run():\n  {tail}\n");
+        let mut case=lean::generate(1);case.rows.clear();case.args=json!({});case.program.prelude.clear();case.steps.clear();
+        case.program.body=snapback4_difftest::ast::Body::Scalar(snapback4_difftest::ast::Expr::Bool(true));
+        let checked=lean::compare(&case,&source).unwrap();
+        assert!(matches!(checked.verdict,Verdict::Unsupported(ref reason) if reason=="page-negative-grant-fallback"));assert_eq!(checked.executed,0);
     }
 }

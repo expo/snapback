@@ -460,3 +460,23 @@ mutation revoke(principal: principal):
     let outsider = engine.query("documents", context("erin", &[("c", Value::Null)])).unwrap();
     assert!(outsider.complete && outsider.data.as_array().unwrap().is_empty());
 }
+
+// @ref LLP 3000.036.001#17 — each live continuation re-evaluates all
+// audiences; membership revocation and closing public status remove rows.
+#[test]
+fn page4_mixed_audiences_revoke_between_pages_without_dropping_owned_rows() {
+    let source=format!("{}\nmutation revoke(group: int, principal: principal):\n  delete members[group, principal]\nmutation close(doc: docs):\n  update docs[doc] {{ open: false }}\n",include_str!("../../snapback4-lang/tests/fixtures/page4-union.q").replace("  online only","  delete <- allow\n  update <- allow\n  online only"));
+    let b=bound(&source);let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let row=|name:&str,owner:&str,group,open| ("docs".into(),snapback4_core::value::object([("id",id(name)),("owner",id(owner)),("group",Value::Int(group)),("open",Value::Bool(open)),("at",Value::Int(if name=="a" {1}else if name=="b" {2}else if name=="c" {3}else{4}))]));
+    e.seed([("members".into(),snapback4_core::value::object([("id",id("m")),("group",Value::Int(2)),("principal",id("alice"))])),row("a","alice",1,false),row("b","bob",2,false),row("c","bob",3,true),row("d","alice",2,true)]).unwrap();
+    let first=e.query("list",context("alice",&[("c",Value::Null)])).unwrap();assert!(first.complete);
+    let token=first.next.unwrap();let mut cx=Context::system();cx.args=context("alice", &[("group",Value::Int(2)),("principal",id("alice"))]).args;
+    e.mutate("revoke",None,cx).unwrap();let mut cx=Context::system();cx.args=context("alice", &[("doc",id("c"))]).args;e.mutate("close",None,cx).unwrap();
+    let next=e.query("list",context("alice",&[("c",Value::String(token))])).unwrap();assert!(next.complete&&next.next.is_none());assert_eq!(next.data.as_array().unwrap()[0].field("id").unwrap(),&id("d"));
+    let scoped=e.query("scoped",context("alice",&[("c",Value::Null)])).unwrap();assert!(scoped.complete&&scoped.data.as_array().unwrap().is_empty());
+}
+
+// Shared conformance cases run every PAGE4 family in the simulator test host.
+// The live revocation schedule above exercises changing audiences between pages.
+#[path = "../../snapback4-lang/tests/page4.rs"]
+mod page4_conformance;

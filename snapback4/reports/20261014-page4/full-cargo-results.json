@@ -1,0 +1,2592 @@
+[
+  {
+    "target": "Running unittests src/main.rs (target/debug/deps/snapback4-8b3d6b7d39ef5707)",
+    "status": "ok",
+    "passed": 419,
+    "failed": 0,
+    "ignored": 5
+  },
+  {
+    "target": "Running tests/check.rs (target/debug/deps/check-8226e6b0bf3cf179)",
+    "status": "ok",
+    "passed": 101,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/check_cost_source.rs (target/debug/deps/check_cost_source-23fce4d18a921a60)",
+    "status": "ok",
+    "passed": 10,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/check_notes.rs (target/debug/deps/check_notes-2aabd8827ad330d4)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/cli_friction.rs (target/debug/deps/cli_friction-668bbec496bfd890)",
+    "status": "ok",
+    "passed": 28,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/clock.rs (target/debug/deps/clock-28da6d196a64566c)",
+    "status": "ok",
+    "passed": 27,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/column_commit.rs (target/debug/deps/column_commit-115ffc47c4e5b9c8)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/delivery_page.rs (target/debug/deps/delivery_page-ecfdf56b153b28c3)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/dev_refusals.rs (target/debug/deps/dev_refusals-9389443bd5cb614f)",
+    "status": "ok",
+    "passed": 22,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/dev_reset.rs (target/debug/deps/dev_reset-fe82a7d33f5b1d07)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/expiry_writes.rs (target/debug/deps/expiry_writes-87d3d5cb38021cbf)",
+    "status": "ok",
+    "passed": 41,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/familiar.rs (target/debug/deps/familiar-53f5bc622e722020)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/feed_bridge.rs (target/debug/deps/feed_bridge-4909b028b7ecf03e)",
+    "status": "ok",
+    "passed": 13,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/fix.rs (target/debug/deps/fix-e6ae74059e598966)",
+    "status": "ok",
+    "passed": 27,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/following_view.rs (target/debug/deps/following_view-99279953fbe5e579)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/http.rs (target/debug/deps/http-f4a4f3f0e5115af3)",
+    "status": "ok",
+    "passed": 11,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/http_emfile.rs (target/debug/deps/http_emfile-b8b3a592ea38eac7)",
+    "status": "ok",
+    "passed": 12,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/init.rs (target/debug/deps/init-9c4a9180ebf095d6)",
+    "status": "ok",
+    "passed": 48,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/intent_issue_tracker.rs (target/debug/deps/intent_issue_tracker-df714ab283792781)",
+    "status": "ok",
+    "passed": 13,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/latency.rs (target/debug/deps/latency-c8609d24c6d6123c)",
+    "status": "ok",
+    "passed": 21,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/lifecycle.rs (target/debug/deps/lifecycle-8f19e8d681c961c7)",
+    "status": "ok",
+    "passed": 28,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/maintenance_chunks.rs (target/debug/deps/maintenance_chunks-5c22758b6d0d6223)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/maintenance_latency.rs (target/debug/deps/maintenance_latency-13f477de2ed106bc)",
+    "status": "ok",
+    "passed": 0,
+    "failed": 0,
+    "ignored": 4
+  },
+  {
+    "target": "Running tests/overload.rs (target/debug/deps/overload-ebf7d57e5a3d6fd4)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/read_latency.rs (target/debug/deps/read_latency-fd47a2bde944dbf7)",
+    "status": "ok",
+    "passed": 0,
+    "failed": 0,
+    "ignored": 2
+  },
+  {
+    "target": "Running tests/replay.rs (target/debug/deps/replay-e2f59de4ae15342a)",
+    "status": "ok",
+    "passed": 24,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/run_admission.rs (target/debug/deps/run_admission-1e650b46167d9310)",
+    "status": "ok",
+    "passed": 28,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/scale.rs (target/debug/deps/scale-9fc97f55259403d3)",
+    "status": "ok",
+    "passed": 29,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/scale_curves.rs (target/debug/deps/scale_curves-3461c6632e540bc5)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/scale_extremum_expressions.rs (target/debug/deps/scale_extremum_expressions-00ee594da2f4a689)",
+    "status": "ok",
+    "passed": 22,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/scale_intent.rs (target/debug/deps/scale_intent-0c5274e7a2a2190e)",
+    "status": "ok",
+    "passed": 17,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/scale_row_ranges.rs (target/debug/deps/scale_row_ranges-7621d2a234219c85)",
+    "status": "ok",
+    "passed": 14,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/scale_variants.rs (target/debug/deps/scale_variants-930938fc6780b79f)",
+    "status": "ok",
+    "passed": 36,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/scale_windows_expiry.rs (target/debug/deps/scale_windows_expiry-d101072b1ab2823b)",
+    "status": "ok",
+    "passed": 16,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/timeline.rs (target/debug/deps/timeline-f21a7d5578115973)",
+    "status": "ok",
+    "passed": 23,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/timeline_adoption.rs (target/debug/deps/timeline_adoption-7b8c68c1b4f29c88)",
+    "status": "ok",
+    "passed": 15,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/timeline_delivery.rs (target/debug/deps/timeline_delivery-35b2c21b7ad93abd)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/timeline_delivery_counterexample.rs (target/debug/deps/timeline_delivery_counterexample-29bdd29ea3b76c72)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/timeline_design.rs (target/debug/deps/timeline_design-6ae39b71bd11a084)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/token_live.rs (target/debug/deps/token_live-ab8b5f4dc31cce6b)",
+    "status": "ok",
+    "passed": 22,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/witness.rs (target/debug/deps/witness-486d7f54750fbdbd)",
+    "status": "ok",
+    "passed": 34,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/witness_web.rs (target/debug/deps/witness_web-ff42b8b5ef781558)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/work_records.rs (target/debug/deps/work_records-f781ced5d687ede2)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/written_by.rs (target/debug/deps/written_by-a0f3ee78a35e9720)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running unittests src/lib.rs (target/debug/deps/snapback4_core-64db09d71caf74d4)",
+    "status": "ok",
+    "passed": 334,
+    "failed": 0,
+    "ignored": 3
+  },
+  {
+    "target": "Running tests/action_context.rs (target/debug/deps/action_context-90dde93ed07e7069)",
+    "status": "ok",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/adoption_scale.rs (target/debug/deps/adoption_scale-d95a08b7ed64a445)",
+    "status": "ok",
+    "passed": 0,
+    "failed": 0,
+    "ignored": 1
+  },
+  {
+    "target": "Running tests/asset_lists.rs (target/debug/deps/asset_lists-4dde063b1bf798dd)",
+    "status": "ok",
+    "passed": 28,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/born_perf.rs (target/debug/deps/born_perf-26d35dc1daa4351e)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/bound_session.rs (target/debug/deps/bound_session-04ff206fd6bd49fa)",
+    "status": "ok",
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/corpus.rs (target/debug/deps/corpus-dcbcfdaef7e27bfc)",
+    "status": "ok",
+    "passed": 19,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/delivery_bounds.rs (target/debug/deps/delivery_bounds-f62b859837e3fa0c)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/dev_reset.rs (target/debug/deps/dev_reset-9c1974ee3a04bfd4)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/disclosure.rs (target/debug/deps/disclosure-07c3b3e1ff286147)",
+    "status": "ok",
+    "passed": 32,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/effect_policy.rs (target/debug/deps/effect_policy-0e3c91cfbd1b6692)",
+    "status": "ok",
+    "passed": 14,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/ephemeral.rs (target/debug/deps/ephemeral-a045a6c08e28506b)",
+    "status": "ok",
+    "passed": 16,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/event_slot_snapshot.rs (target/debug/deps/event_slot_snapshot-36a0787c74ebfb14)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/expiring_adoption.rs (target/debug/deps/expiring_adoption-de8f19b97e4d661e)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/file_assets.rs (target/debug/deps/file_assets-70bed017377b0073)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/identity.rs (target/debug/deps/identity-d4aec382f7f6efe2)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/job_time_audiences.rs (target/debug/deps/job_time_audiences-fd599461e048c5be)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/lane_source.rs (target/debug/deps/lane_source-d95dbb1d56d04dea)",
+    "status": "ok",
+    "passed": 10,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/maintained_columns_review.rs (target/debug/deps/maintained_columns_review-6cd73a3357114dcd)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/membership_discovery_steps.rs (target/debug/deps/membership_discovery_steps-dc536acc33546ba2)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/meter.rs (target/debug/deps/meter-5ec6e4087910ad8c)",
+    "status": "ok",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/pending_metadata_heap.rs (target/debug/deps/pending_metadata_heap-918c206e53b71edf)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/read_sessions.rs (target/debug/deps/read_sessions-c6f5da67346e320b)",
+    "status": "ok",
+    "passed": 7,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/refused_open.rs (target/debug/deps/refused_open-38d7917495cb2b2d)",
+    "status": "ok",
+    "passed": 7,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/review_walk.rs (target/debug/deps/review_walk-98ff35af9d6584c5)",
+    "status": "ok",
+    "passed": 16,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/revocation_history.rs (target/debug/deps/revocation_history-e0e805d42f98b12b)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 1
+  },
+  {
+    "target": "Running tests/routes.rs (target/debug/deps/routes-dbe5ef48a39aa6a4)",
+    "status": "ok",
+    "passed": 14,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/row_view_accounting.rs (target/debug/deps/row_view_accounting-430c19cc512f7948)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/row_view_disclosure.rs (target/debug/deps/row_view_disclosure-fca6535d9ed87114)",
+    "status": "ok",
+    "passed": 18,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/row_view_legacy.rs (target/debug/deps/row_view_legacy-38672bce4bc5564e)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/row_view_witness.rs (target/debug/deps/row_view_witness-27c0cc13247972b9)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/rows.rs (target/debug/deps/rows-7e43cf353edd7fd5)",
+    "status": "ok",
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/schema_capabilities.rs (target/debug/deps/schema_capabilities-cd3b85712110b455)",
+    "status": "ok",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/schema_capabilities_legacy.rs (target/debug/deps/schema_capabilities_legacy-a4bf1b2d63662c05)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/sequence_by.rs (target/debug/deps/sequence_by-e208ab940bcc8395)",
+    "status": "ok",
+    "passed": 17,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/sequence_disclosure.rs (target/debug/deps/sequence_disclosure-302b655f372e01b4)",
+    "status": "ok",
+    "passed": 29,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/stream_receipts.rs (target/debug/deps/stream_receipts-fe542a7ec1c21382)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/sync_count_batch.rs (target/debug/deps/sync_count_batch-da0bbe56e4af6fe9)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/time_audiences.rs (target/debug/deps/time_audiences-5f08d28535ef639a)",
+    "status": "ok",
+    "passed": 21,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/unicode_fold.rs (target/debug/deps/unicode_fold-e3920392b751644f)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/update_rule_images.rs (target/debug/deps/update_rule_images-6f9780ec7ae0b8ff)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/upload_intents.rs (target/debug/deps/upload_intents-34c267d11560c60f)",
+    "status": "ok",
+    "passed": 7,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/work_records.rs (target/debug/deps/work_records-7f216d0cdf59999c)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running unittests src/lib.rs (target/debug/deps/snapback4_device-59096345d2482663)",
+    "status": "ok",
+    "passed": 64,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/acquisition_crash.rs (target/debug/deps/acquisition_crash-af334b3c3fa5e2fa)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/adoption.rs (target/debug/deps/adoption-bd15a47739f8c52a)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/asset_lists.rs (target/debug/deps/asset_lists-44c400ecfce2fa0f)",
+    "status": "ok",
+    "passed": 22,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/background_durability.rs (target/debug/deps/background_durability-6ca27eff0afe3b04)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/bounded_calendar_caps.rs (target/debug/deps/bounded_calendar_caps-531f19d9a5aa0a66)",
+    "status": "ok",
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/bounded_following.rs (target/debug/deps/bounded_following-6df896422e3c15ed)",
+    "status": "ok",
+    "passed": 11,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/branch_merge.rs (target/debug/deps/branch_merge-629d9d21d361ebec)",
+    "status": "ok",
+    "passed": 21,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/codec.rs (target/debug/deps/codec-462b0c3e506d3d4e)",
+    "status": "ok",
+    "passed": 12,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/column_activation.rs (target/debug/deps/column_activation-ac5b1adda9a9d132)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/components.rs (target/debug/deps/components-6fbc0622aa78b2f4)",
+    "status": "ok",
+    "passed": 10,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/cut.rs (target/debug/deps/cut-4052e155c490a8cb)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/delivery.rs (target/debug/deps/delivery-db342e5ccefe8f08)",
+    "status": "ok",
+    "passed": 30,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/device.rs (target/debug/deps/device-a709241913690e0c)",
+    "status": "ok",
+    "passed": 439,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/device_diet.rs (target/debug/deps/device_diet-9f9db46bbe790238)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/diet_timing.rs (target/debug/deps/diet_timing-0ceb4ea2b304fd2d)",
+    "status": "ok",
+    "passed": 0,
+    "failed": 0,
+    "ignored": 1
+  },
+  {
+    "target": "Running tests/disclosure.rs (target/debug/deps/disclosure-d6ea611992daa895)",
+    "status": "ok",
+    "passed": 21,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/ephemeral.rs (target/debug/deps/ephemeral-b67d11594fd5e734)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/event_slots.rs (target/debug/deps/event_slots-8e158a46dbcd4fc4)",
+    "status": "ok",
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/event_slots_trace.rs (target/debug/deps/event_slots_trace-5fdb28c6da5fc3a0)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/expiring_counts.rs (target/debug/deps/expiring_counts-b4f1068bc9ca27ef)",
+    "status": "ok",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 1
+  },
+  {
+    "target": "Running tests/expiring_counts_probe.rs (target/debug/deps/expiring_counts_probe-5de28160d1f2f7bf)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/expiring_counts_upgrade.rs (target/debug/deps/expiring_counts_upgrade-3de784d0e1eb5ef6)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/expiring_mutations.rs (target/debug/deps/expiring_mutations-7c36994b475f17f8)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/extrema.rs (target/debug/deps/extrema-e449c63091605bbd)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/extremum_expressions.rs (target/debug/deps/extremum_expressions-09f2eb7706abc525)",
+    "status": "ok",
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/file_assets.rs (target/debug/deps/file_assets-d9dff66300b0fd93)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/first_instinct.rs (target/debug/deps/first_instinct-5e93c4b2dc354f36)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/first_paste.rs (target/debug/deps/first_paste-5ce8868682a415cb)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/following_meters.rs (target/debug/deps/following_meters-279e4eb35d140915)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/following_model.rs (target/debug/deps/following_model-b0d0d25061be592e)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/following_view.rs (target/debug/deps/following_view-857e9de107b24927)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/heavy_acquisition.rs (target/debug/deps/heavy_acquisition-ce101badf4026df1)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/helper_pages.rs (target/debug/deps/helper_pages-548746a53b1e1981)",
+    "status": "ok",
+    "passed": 90,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/index_key_bound.rs (target/debug/deps/index_key_bound-2215772fcc1982b5)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/intent_variants.rs (target/debug/deps/intent_variants-6d295858f6d25a0b)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/intent_views.rs (target/debug/deps/intent_views-56ea25d1fb2d4c99)",
+    "status": "ok",
+    "passed": 16,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/list_lower_bounds.rs (target/debug/deps/list_lower_bounds-6ebe7d9ffcc6b32a)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/matching_order.rs (target/debug/deps/matching_order-62a6d22b4d14831c)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/mixed_keys.rs (target/debug/deps/mixed_keys-c2a7c42555afbc73)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/mp_builder.rs (target/debug/deps/mp_builder-84f9190e62e55b29)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/named_key_lookup.rs (target/debug/deps/named_key_lookup-b76c28e1163052c5)",
+    "status": "ok",
+    "passed": 17,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/native.rs (target/debug/deps/native-17d4c9173d5ccdfa)",
+    "status": "ok",
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/native_following.rs (target/debug/deps/native_following-7612592cd7d4cfba)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/native_reads.rs (target/debug/deps/native_reads-4343293f61488c1a)",
+    "status": "ok",
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/natural_forms.rs (target/debug/deps/natural_forms-872b65eaaa717060)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/nl_qe2_integration.rs (target/debug/deps/nl_qe2_integration-852918d11e5a64c9)",
+    "status": "ok",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/own_keys.rs (target/debug/deps/own_keys-fec019eb1aed52c9)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/own_keys_cost.rs (target/debug/deps/own_keys_cost-e07bd571cb483fcf)",
+    "status": "ok",
+    "passed": 0,
+    "failed": 0,
+    "ignored": 2
+  },
+  {
+    "target": "Running tests/point_probe_admission.rs (target/debug/deps/point_probe_admission-93b758056a736805)",
+    "status": "ok",
+    "passed": 11,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/prediction_write_set.rs (target/debug/deps/prediction_write_set-f563276fc2639d03)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/qe2_allocations.rs (target/debug/deps/qe2_allocations-f669f69e65c80a76)",
+    "status": "ok",
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/qe2_ergonomics.rs (target/debug/deps/qe2_ergonomics-3e1aa598c3cb5846)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/query_unavailable.rs (target/debug/deps/query_unavailable-e372314490234bad)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/read_through.rs (target/debug/deps/read_through-0a644fd895feb062)",
+    "status": "ok",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/read_through_review.rs (target/debug/deps/read_through_review-1ca508f9b55cd829)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/readauth.rs (target/debug/deps/readauth-2211a284ed5ff630)",
+    "status": "ok",
+    "passed": 88,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/recorded_coverage.rs (target/debug/deps/recorded_coverage-6e7f9e513846be52)",
+    "status": "ok",
+    "passed": 24,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/reference_actions.rs (target/debug/deps/reference_actions-6c0bc3357c5cc3e8)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/repair_b.rs (target/debug/deps/repair_b-de7495b3bf861835)",
+    "status": "ok",
+    "passed": 110,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/repair_b_boundaries.rs (target/debug/deps/repair_b_boundaries-1bd7d4780a7e111e)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/repair_b_counterexample.rs (target/debug/deps/repair_b_counterexample-126e13252b26206d)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/repair_b_legacy_r6.rs (target/debug/deps/repair_b_legacy_r6-43c39abc85dc38af)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/repair_b_round2_counterexample.rs (target/debug/deps/repair_b_round2_counterexample-24f1159a500f31c5)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/repair_b_round3_counterexample.rs (target/debug/deps/repair_b_round3_counterexample-f51a842d7e917547)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/residency.rs (target/debug/deps/residency-65b42de2cfec1758)",
+    "status": "ok",
+    "passed": 7,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/retained_history.rs (target/debug/deps/retained_history-bb4db773d69a62c7)",
+    "status": "ok",
+    "passed": 20,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/retained_release.rs (target/debug/deps/retained_release-88b370337e77d653)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/review_parent_floor.rs (target/debug/deps/review_parent_floor-686a7d15206937a6)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/row_keyed_views.rs (target/debug/deps/row_keyed_views-d7b5044aaa586011)",
+    "status": "ok",
+    "passed": 24,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/row_view_disclosure.rs (target/debug/deps/row_view_disclosure-f9b598f93238b14a)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/row_view_expiry.rs (target/debug/deps/row_view_expiry-26827c79ddd42d3e)",
+    "status": "ok",
+    "passed": 14,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/rx_rule_hops.rs (target/debug/deps/rx_rule_hops-9afffa4f53130cd7)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/schema_capabilities.rs (target/debug/deps/schema_capabilities-b5e5da80e4d4655b)",
+    "status": "ok",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/schema_capabilities_legacy.rs (target/debug/deps/schema_capabilities_legacy-c1e796c39186af02)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/search_exists.rs (target/debug/deps/search_exists-9dccf2a91560a602)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/sequence_by.rs (target/debug/deps/sequence_by-84ed055b9ef0b812)",
+    "status": "ok",
+    "passed": 12,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/sequence_disclosure.rs (target/debug/deps/sequence_disclosure-c070181be854276e)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/server_clock.rs (target/debug/deps/server_clock-88e35721c3809d06)",
+    "status": "ok",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/shape_overrides.rs (target/debug/deps/shape_overrides-5f8d5ef2dc0345c2)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/spread_metadata.rs (target/debug/deps/spread_metadata-19baa9ee110239f4)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/spread_pending_union.rs (target/debug/deps/spread_pending_union-caa6934f25218cd6)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/sqlite_bulk.rs (target/debug/deps/sqlite_bulk-b4e28570b905d1a4)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/sync_windows.rs (target/debug/deps/sync_windows-9da45c67c981f53c)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/time_audiences.rs (target/debug/deps/time_audiences-1c3f26ed52083ef2)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/timed_search.rs (target/debug/deps/timed_search-88c93c9ac8b9a988)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/timeline.rs (target/debug/deps/timeline-11618be9ac65590c)",
+    "status": "ok",
+    "passed": 26,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/topn_complete.rs (target/debug/deps/topn_complete-e0085bdd26eeff9f)",
+    "status": "ok",
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/unicode.rs (target/debug/deps/unicode-1e08fb2e2099d249)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/unread_range.rs (target/debug/deps/unread_range-adc4beb0c67e775f)",
+    "status": "ok",
+    "passed": 7,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/upload_intents.rs (target/debug/deps/upload_intents-e9bb48118dd4a4fa)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/upload_receipts.rs (target/debug/deps/upload_receipts-2bae2ef094a17a65)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/upsert_constraints.rs (target/debug/deps/upsert_constraints-8df657b051324201)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/w13g_probe.rs (target/debug/deps/w13g_probe-c4fa3b4d5d3d886a)",
+    "status": "ok",
+    "passed": 142,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/write_authority.rs (target/debug/deps/write_authority-2491eba5874d1232)",
+    "status": "ok",
+    "passed": 10,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/written_by.rs (target/debug/deps/written_by-458d5537ab2e35fc)",
+    "status": "ok",
+    "passed": 17,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running unittests src/lib.rs (target/debug/deps/snapback4_lang-148eedae777f4e0a)",
+    "status": "ok",
+    "passed": 31,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/actions.rs (target/debug/deps/actions-945a4f7b1119c718)",
+    "status": "ok",
+    "passed": 11,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/aggregate_copies.rs (target/debug/deps/aggregate_copies-2542bd4d339dc500)",
+    "status": "ok",
+    "passed": 64,
+    "failed": 0,
+    "ignored": 4
+  },
+  {
+    "target": "Running tests/attribution_guide.rs (target/debug/deps/attribution_guide-aa486333985f16aa)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/audience_bounds.rs (target/debug/deps/audience_bounds-f396384d4d0573af)",
+    "status": "ok",
+    "passed": 10,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/audience_bounds_runtime.rs (target/debug/deps/audience_bounds_runtime-9c2657372557aee7)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 1
+  },
+  {
+    "target": "Running tests/bounded_calendar_caps.rs (target/debug/deps/bounded_calendar_caps-0796eb61c4e573b2)",
+    "status": "ok",
+    "passed": 11,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/bounded_following.rs (target/debug/deps/bounded_following-b975be5b3915eded)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/branch_merge.rs (target/debug/deps/branch_merge-8fce7b8172c9c0d0)",
+    "status": "ok",
+    "passed": 57,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/builder_guidance.rs (target/debug/deps/builder_guidance-22b9cfec428dec73)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/chat.rs (target/debug/deps/chat-1fc8b6bc425fe332)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/clique_03.rs (target/debug/deps/clique_03-8c4dbe310b61fdbb)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/components.rs (target/debug/deps/components-0d53a7dd13c0d34f)",
+    "status": "ok",
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/constraint_diagnostics.rs (target/debug/deps/constraint_diagnostics-c437a4bff0c4c4de)",
+    "status": "ok",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/control_flow.rs (target/debug/deps/control_flow-5b8bf2d72b675146)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/cursor_advice.rs (target/debug/deps/cursor_advice-a5cb2ccb8bc654ef)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/declarative_receipts.rs (target/debug/deps/declarative_receipts-f05ebbe996bad46f)",
+    "status": "ok",
+    "passed": 211,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/delivery.rs (target/debug/deps/delivery-23d2e9328fa380f0)",
+    "status": "ok",
+    "passed": 16,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/delivery_clause.rs (target/debug/deps/delivery_clause-9eb8e7815dddf111)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/delivery_integration.rs (target/debug/deps/delivery_integration-47eb6564e38df083)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/delivery_replay_conversion.rs (target/debug/deps/delivery_replay_conversion-d1f41c87e47d77ba)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 1
+  },
+  {
+    "target": "Running tests/denied_writes.rs (target/debug/deps/denied_writes-5e01cb498895db70)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/derived_maintains.rs (target/debug/deps/derived_maintains-eb870a620f23bfcd)",
+    "status": "ok",
+    "passed": 14,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/effect_reads.rs (target/debug/deps/effect_reads-0e92427262818ea9)",
+    "status": "ok",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/ephemeral.rs (target/debug/deps/ephemeral-e82f5d4017999b75)",
+    "status": "ok",
+    "passed": 15,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/ephemeral_compat.rs (target/debug/deps/ephemeral_compat-932d10f3234137ce)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/ergonomics.rs (target/debug/deps/ergonomics-ce2d0a7f406828b6)",
+    "status": "ok",
+    "passed": 25,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/expiring_mutations.rs (target/debug/deps/expiring_mutations-d63ad248457b4bde)",
+    "status": "ok",
+    "passed": 19,
+    "failed": 0,
+    "ignored": 1
+  },
+  {
+    "target": "Running tests/extrema.rs (target/debug/deps/extrema-5e75586c11e96e2d)",
+    "status": "ok",
+    "passed": 21,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/extremum_expressions.rs (target/debug/deps/extremum_expressions-5f29773da4300e95)",
+    "status": "ok",
+    "passed": 12,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/familiar_guesses.rs (target/debug/deps/familiar_guesses-9f071d0f4cc621f3)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/familiar_predicates.rs (target/debug/deps/familiar_predicates-efa0dbe9d15cb5d8)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/familiar_repairs.rs (target/debug/deps/familiar_repairs-dc9f4146d0a6f176)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/familiar_source_repairs.rs (target/debug/deps/familiar_source_repairs-934a29f2130373a9)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/familiar_verified_repairs.rs (target/debug/deps/familiar_verified_repairs-0645dbf97ca870a8)",
+    "status": "ok",
+    "passed": 14,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/feed_forms.rs (target/debug/deps/feed_forms-e63b7034d710140a)",
+    "status": "ok",
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/file_assets.rs (target/debug/deps/file_assets-a2bfb5c58ca4b8ea)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/first_paste.rs (target/debug/deps/first_paste-9be6891b48618b41)",
+    "status": "ok",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/following_adoption_research.rs (target/debug/deps/following_adoption_research-2cd7a248dcb4788b)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 2
+  },
+  {
+    "target": "Running tests/following_atomic_launch.rs (target/debug/deps/following_atomic_launch-9a542418645f6b18)",
+    "status": "ok",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 2
+  },
+  {
+    "target": "Running tests/following_history.rs (target/debug/deps/following_history-efc3c1ccc5dc5e1d)",
+    "status": "ok",
+    "passed": 10,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/following_history_research.rs (target/debug/deps/following_history_research-cc1b3e8476f09c32)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 2
+  },
+  {
+    "target": "Running tests/following_view.rs (target/debug/deps/following_view-b5d6c21aca2ac0ab)",
+    "status": "ok",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/frontend_regressions.rs (target/debug/deps/frontend_regressions-0e088751fb172b79)",
+    "status": "ok",
+    "passed": 40,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/guide.rs (target/debug/deps/guide-5b567d68a7621887)",
+    "status": "ok",
+    "passed": 123,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/held_unknown.rs (target/debug/deps/held_unknown-01ec6928d0ae4690)",
+    "status": "ok",
+    "passed": 14,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/helper_placement.rs (target/debug/deps/helper_placement-fa99ef5b17abaca2)",
+    "status": "ok",
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/intent_aggregate_safety.rs (target/debug/deps/intent_aggregate_safety-5d864a256f51cb46)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/intent_delta10.rs (target/debug/deps/intent_delta10-2e0276cda8de0d16)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/intent_followup.rs (target/debug/deps/intent_followup-24f0379390ae760b)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/intent_nulls.rs (target/debug/deps/intent_nulls-9bfa39ebddff93dc)",
+    "status": "ok",
+    "passed": 7,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/intent_order.rs (target/debug/deps/intent_order-af601ce0d2e2e1e5)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/intent_predicates.rs (target/debug/deps/intent_predicates-da2d67cb3d8468e7)",
+    "status": "ok",
+    "passed": 7,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/intent_review.rs (target/debug/deps/intent_review-1fa36f65441fbacf)",
+    "status": "ok",
+    "passed": 7,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/intent_target.rs (target/debug/deps/intent_target-1caf6476fee30173)",
+    "status": "ok",
+    "passed": 21,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/intent_variants.rs (target/debug/deps/intent_variants-0e4c354b026fcf3b)",
+    "status": "ok",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/intent_variants_review.rs (target/debug/deps/intent_variants_review-054a1a4bd7630a91)",
+    "status": "ok",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/job_viewer.rs (target/debug/deps/job_viewer-b8f083b0b4603833)",
+    "status": "ok",
+    "passed": 18,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/joined_shapes.rs (target/debug/deps/joined_shapes-3a40344f8e78592c)",
+    "status": "ok",
+    "passed": 17,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/lane_domains.rs (target/debug/deps/lane_domains-91f3c25250829c16)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/lean_emit.rs (target/debug/deps/lean_emit-abe11fec475885e4)",
+    "status": "ok",
+    "passed": 15,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/list_expressions.rs (target/debug/deps/list_expressions-fc491688e3f797ee)",
+    "status": "ok",
+    "passed": 14,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/list_lower_bounds.rs (target/debug/deps/list_lower_bounds-d837505831088cd8)",
+    "status": "ok",
+    "passed": 14,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/list_reference_repair.rs (target/debug/deps/list_reference_repair-d1d96389bc3ba78b)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/list_widening.rs (target/debug/deps/list_widening-49ba0339407cdd48)",
+    "status": "ok",
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/lookup_selection.rs (target/debug/deps/lookup_selection-41d81cc3c8c3dbfa)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/lowering.rs (target/debug/deps/lowering-0101eb9b717e9a33)",
+    "status": "ok",
+    "passed": 11,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/maintained_columns.rs (target/debug/deps/maintained_columns-53f1ded1b4bef160)",
+    "status": "ok",
+    "passed": 42,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/maintained_result_types.rs (target/debug/deps/maintained_result_types-f1d5ba96f82d3056)",
+    "status": "ok",
+    "passed": 14,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/maintains.rs (target/debug/deps/maintains-448cfcad9227a5eb)",
+    "status": "ok",
+    "passed": 14,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/matching_order.rs (target/debug/deps/matching_order-42f050f68aace89a)",
+    "status": "ok",
+    "passed": 13,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/membership_nullable_authorization.rs (target/debug/deps/membership_nullable_authorization-a144ebac902cca0a)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/membership_paths.rs (target/debug/deps/membership_paths-4a30245ec29403f0)",
+    "status": "ok",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/mixed_keys.rs (target/debug/deps/mixed_keys-4bd846d8236d844d)",
+    "status": "ok",
+    "passed": 11,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/mp_reproduction.rs (target/debug/deps/mp_reproduction-5cb56840261e53f6)",
+    "status": "ok",
+    "passed": 18,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/natural_forms.rs (target/debug/deps/natural_forms-e215154b862603c1)",
+    "status": "ok",
+    "passed": 16,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/own_keys.rs (target/debug/deps/own_keys-89607c62aae9cb17)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/page2_membership.rs (target/debug/deps/page2_membership-80c75637922ae25d)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/page3.rs (target/debug/deps/page3-120974f34bb0e761)",
+    "status": "ok",
+    "passed": 15,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/page4.rs (target/debug/deps/page4-077381e5e3f5bf2d)",
+    "status": "ok",
+    "passed": 13,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/papercuts.rs (target/debug/deps/papercuts-4b7b8d160c683ddd)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/prefix_reads.rs (target/debug/deps/prefix_reads-d4ca2f36eaf2e451)",
+    "status": "ok",
+    "passed": 10,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/presence.rs (target/debug/deps/presence-a61d23317f346b3b)",
+    "status": "ok",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/printed_rewrites.rs (target/debug/deps/printed_rewrites-1a85ce2a217fd13b)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/pure_call_narrowing.rs (target/debug/deps/pure_call_narrowing-59a5585d76fc23a1)",
+    "status": "ok",
+    "passed": 11,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/qe2_ergonomics.rs (target/debug/deps/qe2_ergonomics-0dbadeeb5ca99ac4)",
+    "status": "ok",
+    "passed": 17,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/query_settlement.rs (target/debug/deps/query_settlement-3d88e4391ad3f38f)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/read_through.rs (target/debug/deps/read_through-549509896676ab47)",
+    "status": "ok",
+    "passed": 10,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/read_through_provenance.rs (target/debug/deps/read_through_provenance-2feb60d640c77182)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/read_through_review.rs (target/debug/deps/read_through_review-363737df91799cc2)",
+    "status": "ok",
+    "passed": 35,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/read_through_sync.rs (target/debug/deps/read_through_sync-7846ab4a59170c89)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/read_through_transactions.rs (target/debug/deps/read_through_transactions-9bc6b047f6ba1230)",
+    "status": "ok",
+    "passed": 14,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/receipt_gaps.rs (target/debug/deps/receipt_gaps-6ad1304e717d5149)",
+    "status": "ok",
+    "passed": 16,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/recorded_round1.rs (target/debug/deps/recorded_round1-495aa392ccca92e3)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/reference_actions.rs (target/debug/deps/reference_actions-c9bd9f60d5fe21b8)",
+    "status": "ok",
+    "passed": 28,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/repairs.rs (target/debug/deps/repairs-0a29e4a69a99e9f5)",
+    "status": "ok",
+    "passed": 11,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/reservation_app_headroom.rs (target/debug/deps/reservation_app_headroom-6143a904f56b5358)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/residency_notes.rs (target/debug/deps/residency_notes-0853d7d7a6ef9e57)",
+    "status": "ok",
+    "passed": 43,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/revocation_soundness.rs (target/debug/deps/revocation_soundness-c67ecc216576db99)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/routes.rs (target/debug/deps/routes-6d664db7dc431fc4)",
+    "status": "ok",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/row_keyed_views.rs (target/debug/deps/row_keyed_views-b257de3b9115d5fb)",
+    "status": "ok",
+    "passed": 46,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/rx_legacy_identity.rs (target/debug/deps/rx_legacy_identity-bbd7989254889319)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/rx_rule_enforcement.rs (target/debug/deps/rx_rule_enforcement-72720e3ae9adffe5)",
+    "status": "ok",
+    "passed": 7,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/rx_rule_hops.rs (target/debug/deps/rx_rule_hops-8c7df76fd3ab6825)",
+    "status": "ok",
+    "passed": 10,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/schedule_durations.rs (target/debug/deps/schedule_durations-a07d839d988bdc79)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/search_guidance.rs (target/debug/deps/search_guidance-1b0f0fb888549bb6)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/selected_prefix.rs (target/debug/deps/selected_prefix-9d9f4aa3ee82d4c4)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/selected_prefix_cursors.rs (target/debug/deps/selected_prefix_cursors-43ec27f2d320c015)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/selected_prefix_regressions.rs (target/debug/deps/selected_prefix_regressions-97fc1c16642c1ca6)",
+    "status": "ok",
+    "passed": 7,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/sequence_by.rs (target/debug/deps/sequence_by-53ca1f44ad67faaf)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/server_opt_in.rs (target/debug/deps/server_opt_in-2f00c16553377a7c)",
+    "status": "ok",
+    "passed": 7,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/shape_meter.rs (target/debug/deps/shape_meter-9770088324e2edc6)",
+    "status": "ok",
+    "passed": 11,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/shape_overrides.rs (target/debug/deps/shape_overrides-9abf918fb859fe1e)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/sparse_filter.rs (target/debug/deps/sparse_filter-0c154f5637ccb77b)",
+    "status": "ok",
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/spelling.rs (target/debug/deps/spelling-510e33d117c7a60a)",
+    "status": "ok",
+    "passed": 19,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/sync_audiences.rs (target/debug/deps/sync_audiences-25b446bd0f605e13)",
+    "status": "ok",
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/sync_windows.rs (target/debug/deps/sync_windows-305953e6b6d5496f)",
+    "status": "ok",
+    "passed": 40,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/system_principal.rs (target/debug/deps/system_principal-ffbb95116a2f5568)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/time_audiences.rs (target/debug/deps/time_audiences-578aa36d8c479646)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/time_indexes.rs (target/debug/deps/time_indexes-a87f66ef0455d1a5)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/timeline_background.rs (target/debug/deps/timeline_background-dbe36802fec672ac)",
+    "status": "ok",
+    "passed": 17,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/timeline_epoch_counterexample.rs (target/debug/deps/timeline_epoch_counterexample-405073ef6478ce36)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/timeline_fairness.rs (target/debug/deps/timeline_fairness-3c184bd01d275d94)",
+    "status": "ok",
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/timeline_guide.rs (target/debug/deps/timeline_guide-5e5109821f3c938a)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/timeline_live_latency.rs (target/debug/deps/timeline_live_latency-bbfaecd74df91764)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/typed_positional_keys.rs (target/debug/deps/typed_positional_keys-575276a8f1765353)",
+    "status": "ok",
+    "passed": 10,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/typed_positional_sync.rs (target/debug/deps/typed_positional_sync-df90cd5c40b65350)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/union_limits.rs (target/debug/deps/union_limits-8adb7b57ea3ae33f)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/verified_index_repairs.rs (target/debug/deps/verified_index_repairs-b59c248a0c8d8ec6)",
+    "status": "ok",
+    "passed": 21,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/wave10_guard_notes.rs (target/debug/deps/wave10_guard_notes-10dddf0f5e0d22f0)",
+    "status": "ok",
+    "passed": 23,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/wave10_rules_expressiveness.rs (target/debug/deps/wave10_rules_expressiveness-4c6f9850317b8bfd)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/wave10_runtime_diagnostics.rs (target/debug/deps/wave10_runtime_diagnostics-1a8270f366da70c7)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/wave1_rule_language.rs (target/debug/deps/wave1_rule_language-bfeecf2a7fb5271a)",
+    "status": "ok",
+    "passed": 16,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/wave2_rule_language.rs (target/debug/deps/wave2_rule_language-a368293eea5e9dd0)",
+    "status": "ok",
+    "passed": 17,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/wave3_rule_language.rs (target/debug/deps/wave3_rule_language-b2374d1662f8136a)",
+    "status": "ok",
+    "passed": 15,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/wave4_rule_language.rs (target/debug/deps/wave4_rule_language-f64121eb083fad66)",
+    "status": "ok",
+    "passed": 13,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/wave5_rule_language.rs (target/debug/deps/wave5_rule_language-fcd3e38e30078fcc)",
+    "status": "ok",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/wave6_rule_language.rs (target/debug/deps/wave6_rule_language-622115cfeaee1af3)",
+    "status": "ok",
+    "passed": 12,
+    "failed": 0,
+    "ignored": 1
+  },
+  {
+    "target": "Running tests/wave7_rule_language.rs (target/debug/deps/wave7_rule_language-a9acbdbf4d63b5a0)",
+    "status": "ok",
+    "passed": 16,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/wave8_rule_language.rs (target/debug/deps/wave8_rule_language-100fc1bbd0a877f6)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/wave9_completeness_notes.rs (target/debug/deps/wave9_completeness_notes-d0ebdbf49a772684)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/wave9_rule_diagnostic_rewrites.rs (target/debug/deps/wave9_rule_diagnostic_rewrites-ed5e0c7f28682cea)",
+    "status": "ok",
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/written_by.rs (target/debug/deps/written_by-1a6ab363bb7222d0)",
+    "status": "ok",
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running unittests src/lib.rs (target/debug/deps/snapback4_sim-aaf511c9d02801d0)",
+    "status": "ok",
+    "passed": 17,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/adoption.rs (target/debug/deps/adoption-d9cbadc3372bc50c)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/clique.rs (target/debug/deps/clique-3409c0b07698c67d)",
+    "status": "ok",
+    "passed": 254,
+    "failed": 0,
+    "ignored": 1
+  },
+  {
+    "target": "Running tests/condition_authority.rs (target/debug/deps/condition_authority-7c53be2a560727dd)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/decorated_search.rs (target/debug/deps/decorated_search-d7b4fa08415a3541)",
+    "status": "ok",
+    "passed": 11,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/device.rs (target/debug/deps/device-e3a197995c5e4ad6)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/digest_count.rs (target/debug/deps/digest_count-26d1446c8f0c0e30)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/exhaustive.rs (target/debug/deps/exhaustive-232f39d0236ad7e6)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 1
+  },
+  {
+    "target": "Running tests/filters.rs (target/debug/deps/filters-bdf78501c598d4f2)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/helper_pages.rs (target/debug/deps/helper_pages-bf651d26add50758)",
+    "status": "ok",
+    "passed": 43,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/helper_sweep.rs (target/debug/deps/helper_sweep-d37b22eff82607ae)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/intent_integration.rs (target/debug/deps/intent_integration-8397b322e496e45c)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/loopbar.rs (target/debug/deps/loopbar-dcb53bfabf1f6955)",
+    "status": "ok",
+    "passed": 6,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/maintain_measurement.rs (target/debug/deps/maintain_measurement-12db05cecf337d1d)",
+    "status": "ok",
+    "passed": 0,
+    "failed": 0,
+    "ignored": 2
+  },
+  {
+    "target": "Running tests/maintains.rs (target/debug/deps/maintains-19560c083ca7b00a)",
+    "status": "ok",
+    "passed": 15,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/maintains_recorded.rs (target/debug/deps/maintains_recorded-b7ffba64f54acb8a)",
+    "status": "ok",
+    "passed": 19,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/maintains_review.rs (target/debug/deps/maintains_review-b6edb0030213a092)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/membership.rs (target/debug/deps/membership-1318e9006707d2e0)",
+    "status": "ok",
+    "passed": 23,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/membership_search.rs (target/debug/deps/membership_search-752fd0801abbb8d8)",
+    "status": "ok",
+    "passed": 24,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/native.rs (target/debug/deps/native-06a1fcc5cb2ed710)",
+    "status": "ok",
+    "passed": 12,
+    "failed": 0,
+    "ignored": 1
+  },
+  {
+    "target": "Running tests/ordinary_search.rs (target/debug/deps/ordinary_search-78d995f501b630b9)",
+    "status": "ok",
+    "passed": 19,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/page_admission.rs (target/debug/deps/page_admission-eccf971bc14a9cfc)",
+    "status": "ok",
+    "passed": 15,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/reference_exhaustive.rs (target/debug/deps/reference_exhaustive-25e1470f5e5e90d9)",
+    "status": "ok",
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/residency.rs (target/debug/deps/residency-b6ebb736ad479120)",
+    "status": "ok",
+    "passed": 17,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/retained_release.rs (target/debug/deps/retained_release-41dcddbbd613f2bb)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/review_corrections.rs (target/debug/deps/review_corrections-6cbccb9db33a4d8e)",
+    "status": "ok",
+    "passed": 32,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/reviews.rs (target/debug/deps/reviews-45e64725d988b4eb)",
+    "status": "ok",
+    "passed": 30,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/roster.rs (target/debug/deps/roster-0593e64ed54ba985)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/search_merge.rs (target/debug/deps/search_merge-88d2f69603110507)",
+    "status": "ok",
+    "passed": 11,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/security.rs (target/debug/deps/security-8d19f488f2ee5d9b)",
+    "status": "ok",
+    "passed": 12,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/time_audiences.rs (target/debug/deps/time_audiences-166cb920352c0d36)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/timed_search.rs (target/debug/deps/timed_search-388dd839064f2789)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/topn_complete.rs (target/debug/deps/topn_complete-7b89b61864d78647)",
+    "status": "ok",
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/union.rs (target/debug/deps/union-b160260c870b4c3c)",
+    "status": "ok",
+    "passed": 29,
+    "failed": 0,
+    "ignored": 2
+  },
+  {
+    "target": "Running tests/work_intent.rs (target/debug/deps/work_intent-e930370c2e4a4c34)",
+    "status": "ok",
+    "passed": 12,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/work_intent_review.rs (target/debug/deps/work_intent_review-4472d25cccfc3838)",
+    "status": "ok",
+    "passed": 5,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/work_intent_review2.rs (target/debug/deps/work_intent_review2-6a9caa83915c64f6)",
+    "status": "ok",
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/work_intent_review3.rs (target/debug/deps/work_intent_review3-fe4f7d881c901918)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/work_intent_review4.rs (target/debug/deps/work_intent_review4-dbe3b38f911e1993)",
+    "status": "ok",
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Running tests/write_authority.rs (target/debug/deps/write_authority-3aa481fb1e99ce72)",
+    "status": "ok",
+    "passed": 35,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Doc-tests snapback4_core",
+    "status": "ok",
+    "passed": 17,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Doc-tests snapback4_device",
+    "status": "ok",
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Doc-tests snapback4_lang",
+    "status": "ok",
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  {
+    "target": "Doc-tests snapback4_sim",
+    "status": "ok",
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  }
+]

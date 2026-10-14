@@ -495,3 +495,60 @@ fn memory_page3_pure_membership_keeps_source_acquisition_fence() {
     for (n, page) in snapshot_pages(&mut engine, "ann", 2).iter().enumerate() { device.apply(page, n == 0).unwrap(); }
     assert_eq!(walk_device(&mut device, "documents", "ann", json!({})), (vec!["d".into()], true, false));
 }
+
+// @ref LLP 3000.036.001#17 — exact W narrows a union to its membership
+// audience; acquired sources/targets and both stores keep the shared cursor.
+fn page4_scoped<H: Host>(host: &mut H) {
+    let source=include_str!("../../snapback4-lang/tests/fixtures/page4-union.q")
+        .replace("  online only\ntable docs:","  sync to .principal\ntable docs:")
+        .replace(".owner = viewer or .open = true or exists members[.group, viewer]", ".owner = viewer or exists members[.group, viewer]")
+        .replace("  online only\nquery list", "  sync to .owner or members[.group]\nquery list");
+    for viewer in ["ann","bob","erin"] {
+        let (mut engine,backend)=compile(&source);
+        engine.seed(vec![row("members",vec![("id",id("m")),("group",Value::Int(2)),("principal",id("ann"))]),
+            row("docs",vec![("id",id("a")),("group",Value::Int(1)),("owner",id("ann")),("open",Value::Bool(false)),("at",Value::Int(1))]),
+            row("docs",vec![("id",id("b")),("group",Value::Int(2)),("owner",id("bob")),("open",Value::Bool(false)),("at",Value::Int(2))]),
+            row("docs",vec![("id",id("c")),("group",Value::Int(2)),("owner",id("ann")),("open",Value::Bool(false)),("at",Value::Int(3))])]).unwrap();
+        let key=format!("page4-{viewer}");let mut device=host.open(&key,Some(backend)).unwrap();
+        let (_,missing,_)=device.query_with_coverage("scoped",viewer,&json!({"c":null}),1000);assert!(missing);
+        for (n,page) in snapshot_pages(&mut engine,viewer,2).iter().enumerate() {device.apply(page,n==0).unwrap();}
+        let expected=walk_server(&mut engine,"scoped",viewer,&[]);
+        let actual=walk_device(&mut device,"scoped",viewer,json!({}));
+        assert_eq!(actual,(expected.0.clone(),true,false),"{} {viewer}",host.label());
+        let first=engine.query("scoped",context(viewer,&[("c",Value::Null)])).unwrap();
+        if let Some(cursor)=first.next {let (page,missing,_)=device.query_with_coverage("scoped",viewer,&json!({"c":cursor}),1000);assert!(!missing&&page.unwrap().complete);}
+        host.close(&key,device);let mut device=host.open(&key,None).unwrap();
+        assert_eq!(walk_device(&mut device,"scoped",viewer,json!({})),(expected.0,true,false));host.close(&key,device);
+    }
+}
+#[test]
+fn memory_page4_exact_scope_uses_complete_acquired_discovery() {page4_scoped(&mut Memory::new());}
+#[test]
+fn sqlite_page4_exact_scope_uses_complete_acquired_discovery() {page4_scoped(&mut Sqlite::new("page4-scoped"));}
+
+fn page4_online<H: Host>(host: &mut H) {
+    let source=include_str!("../../snapback4-lang/tests/fixtures/page4-union.q");
+    let (_,backend)=compile(source);let mut device=host.open("page4-online",Some(backend)).unwrap();
+    for query in ["list","scoped"] {let (out,unknown,_)=device.query_with_coverage(query,"ann",&json!({"c":null}),1000);
+        let out=out.unwrap();assert!(unknown&&!out.complete&&out.next.is_none(),"{} {query}: {out:?}",host.label());}
+}
+#[test]
+fn memory_page4_public_member_union_does_not_invent_offline_coverage() {page4_online(&mut Memory::new());}
+#[test]
+fn sqlite_page4_public_member_union_does_not_invent_offline_coverage() {page4_online(&mut Sqlite::new("page4-online"));}
+
+fn page4_online_word_search<H: Host>(host: &mut H) {
+    let source=format!("{}\nquery search(q: text <=100, c: cursor ?):\n  return docs matching q first 1 by .at after c\n",
+        include_str!("../../snapback4-lang/tests/fixtures/page4-union.q")
+            .replace(".owner = viewer or .open = true or exists members[.group, viewer]", "exists members[.group, viewer]")
+            .replace("  at: int", "  at: int\n  body: text <=100\n  by wordsByAt: words(body), at, id"));
+    let (_, backend)=compile(&source);
+    let mut device=host.open("page4-online-search",Some(backend)).unwrap();
+    let (out, unknown, _)=device.query_with_coverage("search","ann",&json!({"q":"granite","c":null}),1000);
+    let out=out.unwrap();
+    assert!(unknown && !out.complete && out.next.is_none(),"{}: {out:?}",host.label());
+}
+#[test]
+fn memory_page4_online_word_search_keeps_missing_holdings_unknown() {page4_online_word_search(&mut Memory::new());}
+#[test]
+fn sqlite_page4_online_word_search_keeps_missing_holdings_unknown() {page4_online_word_search(&mut Sqlite::new("page4-online-search"));}

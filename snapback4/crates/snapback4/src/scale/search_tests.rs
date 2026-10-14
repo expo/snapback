@@ -45,8 +45,8 @@ query decorated(q: text <=100, c: cursor ?):
             let c = classify(&b.schema,&p.program);
             let codes: BTreeSet<_> = c.iter().map(|s|s.code).collect();
             assert!(codes.contains("N_SEARCH_WORDS"));
-            assert_eq!(codes.contains("N_SEARCH_UNSCOPED"),p.program.name == "original");
-            assert_eq!(codes.contains("N_SEARCH_OPEN"),p.program.name != "original");
+            assert!(!codes.contains("N_SEARCH_UNSCOPED"));
+            assert!(codes.contains("N_SEARCH_OPEN"));
             assert_eq!(codes.contains("N_SEARCH_SHAPE"),p.program.name == "decorated", "{}", serde_json::to_string_pretty(&p.program).unwrap());
             assert!(c.iter().all(|s|!s.site.is_empty() && !s.rewrite.is_empty()));
         }
@@ -111,7 +111,8 @@ fn unscoped_repair_keeps_filter_direction_order_take_and_argument_names() {
         let b=snapback4_lang::compile(&[("schema.q".into(),format!("{SCHEMA}\nquery original(needle: text <=100, position: cursor ?):\n  return posts matching needle where not .tombstone and .sender = viewer {direction} 7 by .sent after position\n"))]);
         assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
         let notes=classify(&b.schema,&b.programs[0].program);
-        assert!(notes.iter().any(|n|n.code=="N_SEARCH_UNSCOPED"),"{notes:?}");
+        assert!(!notes.iter().any(|n|n.code=="N_SEARCH_UNSCOPED"),"{notes:?}");
+        assert!(notes.iter().any(|n|n.code=="N_SEARCH_OPEN"),"{notes:?}");
         for note in notes {
             let fixed=compile(&format!("{SCHEMA}\nquery fixed(needle: text <=100, position: cursor ?):\n  {}\n",note.rewrite));
             if note.code=="N_SEARCH_UNSCOPED" {

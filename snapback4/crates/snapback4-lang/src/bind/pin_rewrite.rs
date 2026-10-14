@@ -50,7 +50,7 @@ pub(super) fn pin_rewrite(schema: &Schema, program: &Program, scan: &Scan, table
         out.push(format!("{first}add `and {}` to the page's where (keeping its current pins); this narrows the answer to that scope{others}", pins.join(" and ")));
     }
     if let super::complete_form::Outcome::None(why) = &form {
-        out.push(format!("no verified complete form for this read: {why}; keep the query as written and expect `complete: false` (`capped`; test.cases.jsonl's default passes it). This does not rule out an author-written branched query"));
+        out.push(format!("analyzer limitation: no verified complete form for this read: {why}; keep the query as written and expect `complete: false` (`capped`; test.cases.jsonl's default passes it). This does not rule out an author-written branched query"));
     }
     // @ref LLP 3000.036#12 — the engine decides a page once for a caller whose readable grant holds.
     if let Some(used) = &grant {
@@ -147,9 +147,24 @@ fn row_independent(rule: &RuleExpr) -> bool {
 }
 
 fn pin_for(schema: &Schema, program: &Program, scan: &Scan, table: &Table, column: &str) -> (String, Option<String>) {
+    if let RuleExpr::Not(inner) = &table.rules.read
+        && matches!(table.columns.get(column), Some(ColumnType::Bool))
+        && let RuleExpr::Eq(RuleTerm::Field(field), RuleTerm::Literal(snapback4_core::Value::Bool(expected))) = inner.as_ref()
+        && field == column { return (format!(".{column} = {}", !expected), None); }
     let viewer = matches!(&table.rules.read, rule if contains_viewer_eq(rule, column));
     if viewer { return (format!(".{column} = viewer"), None); }
     let kind = table.columns.get(column).map(ColumnType::required);
+    // A reference argument's readable row may supply the exact extra pin.
+    // This is source advice, not a proof that copied child fields equal it.
+    for (argument, ty) in &program.args {
+        let ArgType::Ref { table: parent } = ty else { continue };
+        let Some(parent_table) = schema.table(parent) else { continue };
+        if column != "id" && parent_table.columns.get(column).map(ColumnType::required) == kind && kind.is_some()
+            && table.columns.values().any(|ty| matches!(ty.required(), ColumnType::Ref { table } if table == parent)) {
+            let local = format!("{argument}Scope");
+            return (format!(".{column} = {local}.{column}"), Some(format!("`{local} = {parent}[{argument}] ! else NOT_FOUND`")));
+        }
+    }
     // A pinned reference whose row carries the same parent: `.board = c.board`.
     if let Some(ColumnType::Ref { table: parent }) = kind
         && let Some(index) = table.index(&scan.index) {
@@ -167,6 +182,8 @@ fn pin_for(schema: &Schema, program: &Program, scan: &Scan, table: &Table, colum
     // An argument of the column's type.
     let wanted = match kind {
         Some(ColumnType::Ref { table }) => Some(ArgType::Ref { table: table.clone() }),
+        Some(ColumnType::Id) => Some(ArgType::Id),
+        Some(ColumnType::Enum { variants }) => Some(ArgType::Enum { variants: variants.clone() }),
         Some(ColumnType::Principal) => Some(ArgType::Principal),
         Some(ColumnType::Int) => Some(ArgType::Int),
         Some(ColumnType::IntRange { min, max }) => Some(ArgType::IntRange { min: *min, max: *max }),
@@ -182,6 +199,7 @@ fn pin_for(schema: &Schema, program: &Program, scan: &Scan, table: &Table, colum
         Some(ColumnType::Int) => "int".into(),
         Some(kind @ ColumnType::IntRange { .. }) => kind.to_string(),
         Some(ColumnType::Time) => "time".into(),
+        Some(kind) => kind.to_string(),
         _ => "…".into(),
     };
     (format!(".{column} = {column}"), Some(format!("declare `{column}: {declared}` among {}'s arguments", program.name)))
