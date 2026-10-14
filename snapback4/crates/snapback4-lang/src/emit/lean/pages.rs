@@ -94,7 +94,7 @@ pub(super) fn compound_physical_issue(module: &LeanModule, read: &ReadExpr) -> O
             _ => false,
         }
     }
-    if !compound(&rule) { return None; }
+    if !compound(&rule) && !matches!(&rule, Expr::Binary { op, .. } if op == "or") { return None; }
     fn ranges(e: &Expr) -> Option<Vec<Vec<&Expr>>> {
         let out = match e {
             Expr::Binary { op, left, right, .. } if op == "or" => {
@@ -117,12 +117,29 @@ pub(super) fn compound_physical_issue(module: &LeanModule, read: &ReadExpr) -> O
     let mut fits = vec![model_plain_index_fit(module, target, &model_lane_columns(system.clone(), &read.order_keys), true)];
     for leaf in leaves {
         let mut pins = system.clone();
-        for atom in leaf {
+        let mut predicates = Vec::new();
+        if let Some(filter) = &read.filter { flatten_and(filter, &mut predicates); }
+        predicates.extend(leaf.iter().copied());
+        let fixed: BTreeMap<_, _> = predicates.iter().filter_map(|atom| {
+            let Expr::Binary { op, left, right, .. } = atom else { return None };
+            if op != "=" { return None; }
+            let (column, value) = if let Some(column) = column_of(left) { (column, right.as_ref()) }
+                else { (column_of(right)?, left.as_ref()) };
+            matches!(value, Expr::Name { .. } | Expr::Literal { .. }).then(|| (column.to_owned(), value.clone()))
+        }).collect();
+        for atom in &leaf {
             if let Some(column) = model_equality_column(target, atom) {
                 if target.cols.iter().any(|col| col.name == column && col.nullable)
                     && party_column(target, atom).is_none() { return Some("page-compound-nullable-pin"); }
                 pins.push(column);
-            } else if let Some(membership) = membership_physical(module, target, atom) {
+            }
+        }
+        for atom in leaf {
+            let mut substituted = atom.clone();
+            crate::bind::intent_walk::expression(&mut substituted, &mut |e| {
+                if let Some(value) = column_of(e).and_then(|column| fixed.get(column)) { *e = value.clone(); }
+            });
+            if let Some(membership) = membership_physical(module, target, &substituted) {
                 if !pins.contains(&membership.target_parent) && !system.contains(&membership.target_parent) {
                     if !membership.source_admissible { return Some("page-membership-source-unique"); }
                     pins.push(membership.target_parent);

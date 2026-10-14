@@ -120,6 +120,9 @@ pub struct Execution {
     /// PAGE3 guarded ranges and held-union merge execution.
     #[serde(default, rename = "branchPagesV2", skip_serializing_if = "std::ops::Not::not")]
     pub branch_pages_v2: bool,
+    /// PAGE4 fixes a second rule-witness component from an exact target pin.
+    #[serde(default, rename = "branchPagesV3", skip_serializing_if = "std::ops::Not::not")]
+    pub branch_pages_v3: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub renews: bool,
     #[serde(default, rename = "renewMs", skip_serializing_if = "Option::is_none")]

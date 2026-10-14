@@ -507,6 +507,14 @@ fn disclosing(schema: &Schema, grant: &RuleExpr, fields: bool) -> bool {
         RuleExpr::Allow | RuleExpr::Public { .. } => true,
         RuleExpr::Eq(a, b) | RuleExpr::Ne(a, b) => [a, b].iter().all(|term| matches!(term, RuleTerm::Viewer | RuleTerm::Literal(_)) || fields && matches!(term, RuleTerm::Field(_))),
         RuleExpr::And(items) => items.iter().all(|item| disclosing(schema, item, fields)),
+        // @ref LLP 3000.036.001#17 — negative evidence is admissible only on
+        // a total, readable, lifetime-free point; hidden probes stay partial.
+        RuleExpr::Not(inner) => if let RuleExpr::Exists { table, index, .. } = inner.as_ref() {
+            schema.table(table).is_some_and(|table| table.index(index).is_some_and(|index|
+                index.unique && index.is_plain() && index.components.iter().all(|part|
+                    part.key_type(table).is_some_and(|kind| !kind.is_optional()))))
+                && disclosing(schema, inner, fields)
+        } else { false },
         RuleExpr::Exists { table: target, index, key, equalities, .. } => {
             let Some(target_table) = schema.table(target) else { return false };
             let Some(target_index) = target_table.index(index) else { return false };
@@ -736,7 +744,11 @@ fn membership_witness(schema: &Schema, lane: &crate::ir::MergeLane, null_distinc
             .and_then(|column| source_table.columns.get(column)).is_some_and(|kind| !kind.is_optional()));
         if !one_row_source && !capped_source_group && !total_point { return false; }
         let matches = |column: &String, term: &RuleTerm| if column == source_column { matches!(term, RuleTerm::Field(field) if field == outer_column) }
-            else { fixed(column).is_some_and(|expr| term_matches_expr(term, expr)) };
+            else { fixed(column).is_some_and(|expr| match term {
+                // @ref LLP 3000.036.001#17 — an exact target pin fixes one component of a multi-column point witness.
+                RuleTerm::Field(field) => pinned(field).is_some_and(|pin| pin == expr),
+                _ => term_matches_expr(term, expr),
+            }) };
         if !probe_index.components.iter().zip(key).all(|(part, term)| part.column().is_some_and(|column| matches(column, term)))
             || !equalities.iter().all(|(column, term)| matches(column, term)) { return false; }
         !null_distinct || probe_index.components.iter().all(|part| part.column().is_some_and(|column| column != source_column

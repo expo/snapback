@@ -1371,6 +1371,11 @@ fn program(module: &LeanModule, helpers: &[String], p: &ast::ProgramDecl, args: 
         return no("where-guard-presence", p.name.clone());
     }
     crate::bind::where_guards::lower_program(&mut lowered);
+    let stable_fields = module.surface_tables.iter().map(|table| {
+        let mut fields: BTreeSet<String> = table.columns.iter().filter(|column| column.written_by.is_none() && column.maintained.is_none())
+            .map(|column| column.name.clone()).collect(); fields.insert("id".into()); (table.name.clone(), fields)
+    }).collect();
+    crate::bind::stable_page_keys::lower_program(&mut lowered, &stable_fields);
     let mut scope = Scope::new(module, helpers);
     for (name, k, _) in args {
         scope.vars.insert(name.clone(), Ty::Scalar(k.clone()));

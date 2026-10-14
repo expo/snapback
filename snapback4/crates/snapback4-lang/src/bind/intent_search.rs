@@ -42,7 +42,7 @@ pub(super) fn capture(catalog: &mut Catalog) {
                 || read.range.is_none() || read.order_keys.is_empty()
                 || read.filter.as_deref().is_some_and(|value| !scalar(value)) { continue; }
             let Some(table) = catalog.tables.get(&read.table) else { continue };
-            if table.maintained.is_some() || table.decl.sync.is_none() { continue; }
+            if table.maintained.is_some() { continue; }
             let Some(rule) = table.decl.rules.iter().find(|r| r.effect == Effect::Read) else { continue };
             let Expr::Exists { read: probe, .. } = &rule.value else { continue };
             let Some(members) = catalog.tables.get(&probe.table) else { continue };
@@ -62,8 +62,8 @@ pub(super) fn provision(catalog: &mut Catalog, schema: &mut snapback4_core::sche
         if !catalog.ordinary_searches.contains(&bound.program.name) { continue; }
         let Some(scan) = ir::scans(&bound.program).into_iter().find(|scan|
             matches!(scan.prefix.last(), Some(ir::IndexKeyExpr::WordPrefix(_)))) else { continue };
-        let table = &schema.tables[&scan.table];
-        let RuleExpr::Exists { key, .. } = &table.rules.read else { continue };
+        let table = schema.tables[&scan.table].clone();
+        let RuleExpr::Exists { table: members, index: point, key, .. } = &table.rules.read else { continue };
         let [RuleTerm::Field(scope), RuleTerm::Viewer] = key.as_slice() else { continue };
         let mut index = table.indexes[&scan.index].clone();
         // Prefix exactly the bound ordinary index. Its equality pins, word
@@ -79,10 +79,33 @@ pub(super) fn provision(catalog: &mut Catalog, schema: &mut snapback4_core::sche
         declaration.name = super::intent::index_name(info, &declaration);
         let mut candidate = schema.clone();
         candidate.tables.get_mut(&scan.table).unwrap().indexes.insert(declaration.name.clone(), index.clone());
+        // Online-only memberships do not get sync's reverse audience index.
+        // Provision it in the same speculative candidate as the target words
+        // index; neither is retained when admission or portable bounds fail.
+        let source_info = &catalog.tables[members];
+        let source_table = &schema.tables[members];
+        let columns = source_table.index(point).map(|index| index.columns()).unwrap_or_default();
+        let [parent, principal] = columns.as_slice() else { continue };
+        let source_columns = vec![principal.clone(), parent.clone(), "id".into()];
+        let source_decl = if source_table.indexes.values().any(|index| index.is_plain() && index.columns().starts_with(&source_columns[..2])) { None }
+            else {
+                let mut source = source_info.indexes.iter().find(|index| index.is_plain()).cloned().unwrap();
+                source.columns = source_columns.clone(); source.unique = false; source.words = None;
+                source.site = bound.site.clone(); source.name = super::intent::index_name(source_info, &source);
+                candidate.tables.get_mut(members).unwrap().indexes.insert(source.name.clone(), snapback4_core::schema::Index {
+                    components: source_columns.into_iter().map(IndexComponent::Column).collect(), unique: false,
+                });
+                Some(source)
+            };
         if ordinary::plan(&candidate, &bound.program).is_none() { continue; }
         let mut errors = Vec::new();
         super::key_bound::check(catalog, &candidate, &mut errors);
         if !errors.is_empty() || !snapback4_core::schema::validate(&candidate).is_empty() { continue; }
+        if let Some(source) = source_decl {
+            schema.tables.get_mut(members).unwrap().indexes.insert(source.name.clone(), candidate.tables[members].indexes[&source.name].clone());
+            catalog.synthesized.insert((members.clone(), source.name.clone()));
+            catalog.tables.get_mut(members).unwrap().indexes.push(source);
+        }
         schema.tables.get_mut(&scan.table).unwrap().indexes.insert(declaration.name.clone(), index);
         catalog.synthesized.insert((scan.table.clone(), declaration.name.clone()));
         catalog.tables.get_mut(&scan.table).unwrap().indexes.push(declaration);

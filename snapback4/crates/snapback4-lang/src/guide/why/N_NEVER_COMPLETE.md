@@ -1,5 +1,13 @@
 # Reads — N_NEVER_COMPLETE
 
+An **analyzer limitation** means the admitted ranges cannot certify this shape;
+it does not assert that rows are missing. **Truly partial absence evidence**
+means the declared authority leaves an access source unobservable, so absence
+cannot be proved through that source. The note prints the verified complete
+form, or exact scope pins with their narrowing consequence. A copied parent
+repair includes its write check and backfill; an index alone does not repair
+a hidden witness.
+
 The first read examples use the language card's tables. A page's read rule is checked
 once when the prefix decides it, else per row, and a page whose rule still depends
 on a column the scan does not pin is never `complete` (N_NEVER_COMPLETE names

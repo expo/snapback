@@ -1,0 +1,154 @@
+use snapback4_core::{Context, Engine, Value, value::object};
+use snapback4_lang::compile;
+use std::collections::BTreeMap;
+
+const UNION: &str = include_str!("fixtures/page4-union.q");
+fn id(s: &str) -> Value { Value::Id(s.into()) }
+fn setup() -> Engine {
+    let b = compile(&[("schema.q".into(), UNION.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert!(!b.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE"), "{:?}", b.notes);
+    assert!(b.programs.iter().all(|p| snapback4_core::ir::body_merges(&p.program.body).iter().any(|m| m.branches())), "{:?}", b.programs);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    let mut rows = vec![("members".into(), object([("id",id("m")), ("group",Value::Int(2)), ("principal",id("alice"))]))];
+    for (at,(name,owner,group,open)) in [("a", "alice", 1, false), ("b", "bob", 2, false), ("c", "alice", 2, true), ("d", "bob", 3, true), ("e", "bob", 3, false)].into_iter().enumerate() {
+        rows.push(("docs".into(),object([("id",id(name)),("owner",id(owner)),("group",Value::Int(group)),("open",Value::Bool(open)),("at",Value::Int(at as i64))])));
+    }
+    e.seed(rows).unwrap();
+    e
+}
+fn walk(e: &mut Engine, query: &str, viewer: &str) -> Vec<String> {
+    let mut cursor=Value::Null; let mut out=Vec::new();
+    for _ in 0..20 {
+        let r=e.query(query,Context::new(viewer,BTreeMap::from([("c".into(),cursor)]))).unwrap();
+        assert!(r.complete,"{r:?}");
+        out.extend(r.data.as_array().unwrap().iter().map(|r| match r.field("id").unwrap() { Value::Id(s)=>s.clone(), _=>panic!() }));
+        match r.next {Some(c)=>cursor=Value::String(c), None=>return out}
+    }
+    panic!("cursor did not terminate")
+}
+#[test]
+fn owner_public_member_union_orders_and_deduplicates_every_audience() {
+    let mut e=setup();
+    assert_eq!(walk(&mut e,"list","alice"),["a","b","c","d"]);
+    assert_eq!(walk(&mut e,"list","bob"),["b","c","d","e"]);
+    assert_eq!(walk(&mut e,"list","outsider"),["c","d"]);
+}
+#[test]
+fn exact_where_witness_keeps_only_its_scope_even_for_the_system() {
+    let mut e=setup();
+    assert_eq!(walk(&mut e,"scoped","alice"),["b","c"]);
+    assert!(walk(&mut e,"scoped","outsider").is_empty());
+    let mut cx=Context::system();cx.args.insert("c".into(),Value::Null);
+    let r=e.query("scoped",cx).unwrap(); assert!(r.complete);assert_eq!(r.data,Value::Array(vec![]));
+}
+
+#[test]
+fn two_party_exact_parent_witness_fixes_one_component_per_lane() {
+    let source = "table reporting:
+  manager: principal
+  report: principal
+  unique report
+  read <- .manager = viewer or .report = viewer
+  online only
+table agendas:
+  manager: principal
+  report: principal
+  at: int
+  read <- (.manager = viewer or .report = viewer) and exists reporting[report = .report, manager = .manager]
+  online only
+query list(c: cursor ?):
+  return agendas first 1 by .at after c
+";
+    let b=compile(&[("schema.q".into(),source.into())]);
+    assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    assert!(!b.notes.iter().any(|n|n.code=="N_NEVER_COMPLETE"),"{:?}",b.notes);
+    let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    e.seed([("reporting", "r1", "alice", "bob", 0), ("reporting", "r2", "carol", "alice", 0),
+            ("agendas", "a", "alice", "bob", 1), ("agendas", "b", "carol", "alice", 2),
+            ("agendas", "hidden", "alice", "erin", 3)].into_iter().map(|(table,name,manager,report,at)| {
+        let mut fields=vec![("id",id(name)),("manager",id(manager)),("report",id(report))];
+        if table=="agendas" {fields.push(("at",Value::Int(at)));}
+        (table.into(),object(fields))
+    })).unwrap();
+    assert_eq!(walk(&mut e,"list","alice"),["a","b"]);
+    assert_eq!(walk(&mut e,"list","bob"),["a"]);
+    assert!(walk(&mut e,"list","erin").is_empty());
+}
+
+#[test]
+fn online_membership_word_search_uses_exact_discovery_without_replication() {
+    let source=UNION.replace("  read <- .owner = viewer or .open = true or exists members[.group, viewer]", "  body: text <=100\n  search body\n  read <- exists members[.group, viewer]").replace("query list(c: cursor ?):\n  return docs first 1 by .at after c\nquery scoped(c: cursor ?):\n  return docs where exists members[.group, viewer] first 1 by .at after c", "query search(q: text <=100, c: cursor ?):\n  return docs matching q first 1 by .at after c");
+    let b=compile(&[("schema.q".into(),source)]);
+    assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    let p=&b.programs[0].program;
+    assert!(snapback4_core::search_plan::ordinary::plan(&b.schema,p).is_some(),"{p:?}");
+    assert!(b.schema.tables.values().all(|t|t.sync.is_none()));
+    let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    e.seed([("members".into(),object([("id",id("m")),("group",Value::Int(2)),("principal",id("alice"))])),
+            ("docs".into(),object([("id",id("a")),("group",Value::Int(2)),("owner",id("bob")),("open",Value::Bool(false)),("at",Value::Int(1)),("body",Value::String("granite core".into()))])),
+            ("docs".into(),object([("id",id("hidden")),("group",Value::Int(3)),("owner",id("bob")),("open",Value::Bool(false)),("at",Value::Int(2)),("body",Value::String("granite core".into()))]))]).unwrap();
+    for (who, count) in [("alice",1),("bob",0)] {
+        let r=e.query("search",Context::new(who,BTreeMap::from([("q".into(),Value::String("gran".into())),("c".into(),Value::Null)]))).unwrap();
+        assert!(r.complete,"{r:?}");assert_eq!(r.data.as_array().unwrap().len(),count);
+    }
+}
+
+#[test]
+fn required_parent_snapshot_key_is_total_but_never_proves_a_copied_audience() {
+    let source="table parents:
+  band: int
+  public 'readable parent'
+  sync public
+table members:
+  group: int
+  principal: principal
+  unique group, principal
+  read <- .principal = viewer
+  sync to .principal
+table children:
+  parent: parents
+  band: int
+  read <- exists members[.band, viewer]
+  sync to members[.band]
+query list(parent: parents, c: cursor ?):
+  p = parents[parent] ! else NOT_FOUND
+  return children where .parent = p.id first 1 by .id after c
+";
+    let b=compile(&[("schema.q".into(),source.into())]);
+    assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    assert!(!b.notes.iter().any(|n|n.code=="N_NEVER_COMPLETE"),"{:?}",b.notes);
+    let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    e.seed([("parents".into(),object([("id",id("p")),("band",Value::Int(9))])),
+            ("members".into(),object([("id",id("m")),("group",Value::Int(1)),("principal",id("alice"))])),
+            ("children".into(),object([("id",id("a")),("parent",id("p")),("band",Value::Int(1))])),
+            ("children".into(),object([("id",id("b")),("parent",id("p")),("band",Value::Int(9))]))]).unwrap();
+    let r=e.query("list",Context::new("alice",BTreeMap::from([("parent".into(),id("p")),("c".into(),Value::Null)]))).unwrap();
+    assert!(r.complete); assert_eq!(r.data.as_array().unwrap().len(),1);
+    assert_eq!(r.data.as_array().unwrap()[0].field("id").unwrap(),&id("a"));
+}
+
+#[test]
+fn negative_readable_static_grant_and_finite_status_ranges_are_complete() {
+    let source="table roles:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  status: enum('proposed', 'approved', 'ordered')\n  read <- not exists roles[viewer] or .status != 'proposed'\n  online only\nquery list(c: cursor ?):\n  return docs first 1 by .id after c\n";
+    let b=compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    assert!(!b.notes.iter().any(|n|n.code=="N_NEVER_COMPLETE"),"{:?}",b.notes);
+    let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    e.seed([("roles".into(),object([("id",id("role")),("principal",id("alice"))])),("docs".into(),object([("id",id("a")),("status",Value::String("proposed".into()))])),("docs".into(),object([("id",id("b")),("status",Value::String("approved".into()))]))]).unwrap();
+    assert_eq!(walk(&mut e,"list","alice"),["b"]);assert_eq!(walk(&mut e,"list","bob"),["a","b"]);
+    let hidden=compile(&[("schema.q".into(),source.replace("read <- .principal = viewer","read <- deny"))]);
+    assert!(hidden.notes.iter().any(|n|n.code=="N_NEVER_COMPLETE"));
+}
+
+#[test]
+fn author_id_scope_is_complete_and_discovery_cut_publishes_nothing() {
+    let source="table authors:\n  post: posts\n  principal: principal\n  unique post, principal\n  read <- .principal = viewer\n  online only\ntable posts:\n  open: bool\n  at: int\n  read <- .open = true or exists authors[.id, viewer]\n  online only\nquery mine(c: cursor ?):\n  return posts where exists authors[.id, viewer] first 1 by .at after c\n";
+    let b=compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    assert!(!b.notes.iter().any(|n|n.code=="N_NEVER_COMPLETE"),"{:?}",b.notes);
+    let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    e.seed([("authors".into(),object([("id",id("s1")),("post",id("a")),("principal",id("alice"))])),("authors".into(),object([("id",id("s2")),("post",id("b")),("principal",id("alice"))])),("posts".into(),object([("id",id("a")),("open",Value::Bool(false)),("at",Value::Int(1))])),("posts".into(),object([("id",id("b")),("open",Value::Bool(true)),("at",Value::Int(2))])),("posts".into(),object([("id",id("public")),("open",Value::Bool(true)),("at",Value::Int(3))]))]).unwrap();
+    assert_eq!(walk(&mut e,"mine","alice"),["a","b"]);assert!(walk(&mut e,"mine","bob").is_empty());
+    e.set_ceilings(snapback4_core::Ceilings{examined:1,..Default::default()});
+    let r=e.query("mine",Context::new("alice",BTreeMap::from([("c".into(),Value::Null)]))).unwrap();
+    assert!(!r.complete&&r.next.is_none()&&r.data.as_array().unwrap().is_empty(),"{r:?}");
+}

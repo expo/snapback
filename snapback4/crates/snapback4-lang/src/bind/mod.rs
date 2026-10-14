@@ -28,6 +28,7 @@ mod point_key;
 mod index_diagnostics;
 mod mixed_keys;
 mod page_shapes;
+pub(crate) mod stable_page_keys;
 pub(crate) mod where_guards;
 mod bracket_ranges;
 mod reference_actions;
@@ -119,6 +120,12 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     intent_views::expand(&mut catalog, &mut diagnostics);
     // After argument-presence variants: `x = null or …` stays theirs (cursor validation across variants).
     where_guards::lower(&mut catalog);
+    let stable_fields = catalog.tables.iter().map(|(name, table)| {
+        let mut fields: std::collections::BTreeSet<String> = table.decl.columns.iter()
+            .filter(|column| column.written_by.is_none() && column.maintained.is_none()).map(|column| column.name.clone()).collect();
+        fields.insert("id".into()); (name.clone(), fields)
+    }).collect();
+    for doc in &mut catalog.documents { for program in &mut doc.programs { stable_page_keys::lower_program(program, &stable_fields); } }
     intent::plan(&mut catalog, &mut diagnostics);
     reference_actions::indexes(&mut catalog);
     let mut schema = schema::bind_schema(&catalog, &mut diagnostics);
@@ -860,10 +867,10 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                         // @ref LLP 3000.036#17.1 — the phrase carries its own lead ("the complete form …", "the closest form …", "no verified complete form …"); the sentence around it never repeats it (wave 7 R1).
                         let lead = if grant.is_some() { "the complete form for everyone is" } else { "the complete form is" };
                         let hidden_repair = pin_rewrite::hidden_parent_repair(schema, &scan.table, table);
-                        let complete_form = hidden_repair.map(|repair| format!("the complete form requires the checked immutable copy: {repair}")).or_else(|| cap_repair.as_ref().map(|repair| format!("the complete form is to {repair}")))
+                        let complete_form = hidden_repair.map(|repair| format!("truly partial absence evidence under this authority: the hidden parent witness cannot be discovered completely; the complete form requires the checked immutable copy: {repair}")).or_else(|| cap_repair.as_ref().map(|repair| format!("the complete form is to {repair}")))
                             .unwrap_or_else(|| match complete_form::complete_form(schema, &bound.program, scan, table, declaration) {
                                 complete_form::Outcome::Form(form) => format!("the complete form for everyone is {}", form.phrase),
-                                complete_form::Outcome::None(_) => "no verified complete form for this read: keep the query and expect `capped`".to_owned(),
+                                complete_form::Outcome::None(reason) => format!("analyzer limitation: no verified complete form for this read ({reason}); keep the query and expect `capped`"),
                                 complete_form::Outcome::NotApplicable if parties >= 2 => format!("{lead} one query per party"),
                                 complete_form::Outcome::NotApplicable => format!("{lead} the pin"),
                             });
@@ -875,8 +882,12 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                             Some(grant) => format!("; test.cases.jsonl: run it as a caller `{grant}` admits to expect `complete`, and expect `capped` (the default passes either) for the rest; a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; {complete_form} (check --verbose)"),
                             None => format!("; it answers `complete: false` even when every row the caller may read is there — test.cases.jsonl: the default passes it (or write `\"expect\": \"capped\"`); a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; {complete_form} (check --verbose)"),
                         } };
+                        let limitation = if conditional { "analyzer limitation for other callers: " }
+                            else if table.rules.read.disjuncts().iter().any(|rule| !snapback4_core::engine::rules::pinned_probe_readable(schema, rule)) {
+                                "truly partial absence evidence: "
+                            } else { "analyzer limitation: " };
                         let verdict = if conditional { "is `complete`" } else { "is never `complete`" };
-                        format!("{} {}: {}the {} over {}[..] by {} {verdict}{} — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"{decided_clause}{treatment}", bound.program.kind.word(), bound.program.name, if inferred_search.is_some() { "when the search text folds to no words, " } else { "" }, if scan.existence { "`exists`" } else { "page" }, scan.table, scan.index,
+                        format!("{} {}: {limitation}{}the {} over {}[..] by {} {verdict}{} — the read rule `{}` reads {}, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"{decided_clause}{treatment}", bound.program.kind.word(), bound.program.name, if inferred_search.is_some() { "when the search text folds to no words, " } else { "" }, if scan.existence { "`exists`" } else { "page" }, scan.table, scan.index,
                         admitted.as_ref().map_or_else(String::new, |grant| if conditional { format!(" for callers `{grant}` admits, and otherwise remains capped") } else { format!(" except for callers `{grant}` admits") }),
                         table.rules.read.quarry(), unpinned.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")) },
                     cap_repair.or(held_rewrite).or(search_rewrite.clone()).unwrap_or_else(|| {

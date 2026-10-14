@@ -449,6 +449,7 @@ pub fn compare(case: &Case, source: &str) -> Result<Checked, String> {
 pub fn features(case: &Case) -> Vec<String> {
     use crate::ast::{Read, Rule, Write};
     let mut out = Vec::new();
+    out.extend(crate::generate::page4_features(case));
     let items = &case.program.tables[0];
     let rules: Vec<Rule> = items.effects.clone().unwrap_or_else(|| vec![items.rule.clone(); 4]);
     let access_hidden = case.program.tables.get(1).and_then(|t| t.effects.as_ref()).is_some_and(|e| e[0] == Rule::Deny);
@@ -709,6 +710,7 @@ pub fn generate(seed: u64) -> Case {
     membership_page(&mut case, seed);
     boolean_grant_page(&mut case, seed);
     crate::generate::page3(&mut case);
+    crate::generate::page4(&mut case);
     case
 }
 

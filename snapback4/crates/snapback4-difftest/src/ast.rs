@@ -56,6 +56,10 @@ pub enum Rule {
     /// its required `item` reference to the target row's intrinsic id.
     OwnerOrIdWitness,
     PureIdWitness,
+    OwnerPublicMember,
+    OwnerPublicIdMember,
+    PairWitness,
+    NegativeGrant,
     CompoundGrant,
     CompoundMembership,
     RoleGrant,
@@ -81,6 +85,10 @@ impl Rule {
             Self::Owner => ".owner = viewer",
             Self::Witness => "exists access[.bucket, viewer]",
             Self::OwnerOrWitness => ".owner = viewer or exists access[.bucket, viewer]",
+            Self::OwnerPublicMember => ".owner = viewer or .flag = true or exists access[.bucket, viewer]",
+            Self::OwnerPublicIdMember => ".owner = viewer or .flag = true or exists access[.id, viewer]",
+            Self::NegativeGrant => "not exists access[0, viewer] or .flag = true",
+            Self::PairWitness => "(.owner = viewer or .helper = viewer) and exists access[principal = .helper, helper = .owner]",
             Self::PureIdWitness => "exists access[.id, viewer]",
             Self::CompoundGrant => ".owner = viewer or (exists access[0, viewer] and .flag = true)",
             Self::CompoundMembership => ".owner = viewer or (exists access[.bucket, viewer] and .flag = true)",
@@ -203,6 +211,7 @@ pub enum Expr {
     Score(Key),
     /// `(exists items[key])`.
     Present(Key),
+    Point(String, Key),
     /// A calendar builtin over one int (LLP 3000.040 §2): `month(t)`, ..
     Calendar(Cal, Box<Expr>),
 }
@@ -240,6 +249,7 @@ impl Expr {
             Self::Arg(_, t) | Self::Var(_, t) => t.clone(),
             Self::Score(_) => Type::Int,
             Self::Present(_) => Type::Bool,
+            Self::Point(table, _) => Type::Reference(table.clone()),
             Self::Calendar(Cal::MonthStart | Cal::YearStart, _) => Type::Time,
             Self::Calendar(..) => Type::Int,
             Self::Identity(e) => e.ty(),
@@ -260,6 +270,7 @@ impl Expr {
             Self::Bool(b) => b.to_string(),
             Self::Arg(n, _) | Self::Var(n, _) => n.clone(),
             Self::Score(k) => format!("(items[{}].score ?? 0)", k.source()),
+            Self::Point(table, key) => format!("{table}[{}]", key.source()),
             Self::Present(k) => format!("(exists items[{}])", k.source()),
             Self::Binary(op, a, b) => format!("({} {} {})", a.source(), op.source(), b.source()),
             Self::Identity(e) => format!("identity({})", e.source()),
@@ -633,7 +644,7 @@ impl Program {
                 if !predicates.is_empty() {
                     domain += &format!(" where {}", predicates.join(" and "));
                 }
-                let order = if self.search_term.is_some() {
+                let order = if self.search_term.is_some() && self.order.is_none() {
                     "byWords".to_owned()
                 } else {
                     self.order.as_ref().map_or(".label, .score".to_string(), |o| o.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", "))

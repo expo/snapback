@@ -346,3 +346,69 @@ pub(crate) fn page3(case: &mut Case) {
         for (name, row) in &mut case.rows { if name == "access" { row["role"] = json!(if rng.pick(2) == 0 { "admin" } else { "staff" }); } }
     }
 }
+
+// @ref LLP 3000.036.001#17 — independent surface generation of mixed,
+// exact-scope, pinned-pair, parent-snapshot and online search families.
+pub(crate) fn page4(case: &mut Case) {
+    let mut rng=Rng::new(case.seed ^ 0x5041_4745_345f_454e);
+    if rng.pick(6)!=0 {return;}
+    let Body::Read {kind: kind @ (Read::Page | Read::Bounded),filter,owner,project,..}=&mut case.program.body else {return};
+    *kind=Read::Page;*filter=false;*owner=false;*project=None;
+    let shape=rng.pick(7);
+    // These are read families; old widened writes must not omit a newly
+    // introduced schema column or mutate this family's seeded authority.
+    case.program.prelude.clear();case.steps.clear();
+    case.program.domain=Some("true".into());case.program.order=Some(vec!["id".into()]);
+    case.program.residual=None;case.program.guard=None;case.program.search_term=None;
+    case.program.membership_named_reordered=false;case.program.boolean_grant_normalized=false;
+    case.program.tables[0].effects=None;case.program.tables[0].residency=Residency::Online;
+    let access=case.program.tables.iter_mut().find(|t|t.name=="access").unwrap();
+    access.effects=Some(vec![Rule::Member,Rule::Deny,Rule::Deny,Rule::Deny]);access.rule=Rule::Member;access.residency=Residency::Member;
+    access.expire=None;access.not_before=None;access.caps.clear();
+    case.program.tables[0].rule=match shape {0=>Rule::OwnerPublicMember,1=>Rule::OwnerPublicIdMember,2=>Rule::OwnerOrWitness,3=>Rule::PairWitness,6=>Rule::NegativeGrant,_=>Rule::Witness};
+    if shape==1 && !case.program.tables.iter().find(|t|t.name=="access").unwrap().columns.iter().any(|c|c.name=="item") {id_membership(case);}
+    if shape==2 {case.program.domain=Some("exists access[.bucket, viewer]".into());}
+    if shape==3 {
+        let items=&mut case.program.tables[0];
+        if !items.columns.iter().any(|c|c.name=="helper") {items.columns.push(column("helper",Type::Principal));}
+        let access=case.program.tables.iter_mut().find(|t|t.name=="access").unwrap();
+        if !access.columns.iter().any(|c|c.name=="helper") {access.columns.push(column("helper",Type::Principal));}
+        access.keys.retain(|(name,_,_)|name!="byPairPrincipal");
+        access.keys.push(("byPairPrincipal".into(),vec!["principal".into()],true));
+        access.rule=Rule::Allow;access.effects=Some(vec![Rule::Allow,Rule::Deny,Rule::Deny,Rule::Deny]);access.residency=Residency::Public;
+        let mut principals=std::collections::BTreeSet::new();
+        case.rows.retain(|(table,row)| table!="access" || principals.insert(row["principal"].as_str().unwrap().to_owned()));
+        for (table,row) in &mut case.rows {if table=="access" {row["helper"]=json!(if row["principal"]=="alice" {"bob"} else {"alice"});}}
+        for (t,row) in &mut case.rows {if t=="items" {row["helper"]=json!(if rng.pick(2)==0 {"alice"}else{"bob"});}}
+    }
+    if shape==4 {
+        if !case.program.tables.iter().any(|t|t.name=="parents") {
+            case.program.tables.push(Table {name:"parents".into(),columns:vec![],keys:vec![],caps:vec![],rule:Rule::Allow,residency:Residency::Public,effects:None,expire:None,not_before:None});
+        }
+        case.rows.retain(|(table,row)|table!="parents" || row["id"]!="parent");
+        case.program.lets.retain(|(name,_)|name!="parent");
+        case.rows.push(("parents".into(),json!({"id":"parent"})));
+        case.args["key"]=json!("parent");
+        case.program.lets.push(("parent".into(),Expr::Assert(Box::new(Expr::Point("parents".into(),Key::Key)))));
+        case.program.domain=Some(".tag = parent.id".into());
+        case.program.tables[0].residency=Residency::Group;
+        for (t,row) in &mut case.rows {if t=="items" && rng.pick(2)==0 {row["tag"]=json!("parent");}}
+    }
+    if shape==5 {
+        let items=&mut case.program.tables[0];
+        items.keys.retain(|(name,_,_)|name!="byWords");
+        items.keys.push(("byWords".into(),vec!["words(label)".into(),"score".into(),"id".into()],false));
+        case.program.search_term=Some(if rng.pick(2)==0 {"a"}else{""}.into());case.program.order=Some(vec!["score".into()]);
+    }
+}
+
+pub(crate) fn page4_features(case: &Case) -> Vec<String> {
+    let family=match case.program.tables[0].rule {
+        Rule::OwnerPublicMember=>Some("mixed-public-member"),Rule::OwnerPublicIdMember=>Some("mixed-public-id"),Rule::PairWitness=>Some("pinned-pair"),Rule::NegativeGrant=>Some("negative-readable-grant"),
+        Rule::OwnerOrWitness if case.program.domain.as_deref()==Some("exists access[.bucket, viewer]")=>Some("exact-where-scope"),
+        Rule::Witness if case.program.domain.as_deref()==Some(".tag = parent.id")=>Some("parent-snapshot"),
+        Rule::Witness if case.program.search_term.is_some() && case.program.order.as_ref().is_some_and(|order|order==&["score"])=>Some("online-membership-search"),
+        _=>None,
+    };
+    family.map(|name|vec![format!("page4/{name}")]).unwrap_or_default()
+}

@@ -717,3 +717,27 @@ fn page3_generation_compares_every_new_family_natively_and_in_lean() {
     }
     assert_eq!(seen.len(), 6, "{seen:?}");
 }
+
+#[test]
+fn page4_generated_families_compare_and_search_is_explicitly_unsupported_in_lean() {
+    use snapback4_difftest::lean;
+    let have_model=model_built();let mut seen=std::collections::BTreeSet::new();
+    for seed in 0..20_000 {
+        let case=lean::generate(seed);
+        let family=lean::features(&case).into_iter().find(|f|f.starts_with("page4/"));
+        let Some(family)=family else {continue}; if seen.contains(&family) {continue;}
+        let source=case.program.source();
+        if have_model {
+            let checked=lean::compare(&case,&source).unwrap();
+            if family.ends_with("search") {assert!(matches!(checked.verdict,Verdict::Unsupported(_)));assert_eq!(checked.executed,0);}
+            else {
+                if matches!(checked.verdict,Verdict::Unsupported(_)) {continue;}
+                assert!(matches!(checked.verdict,Verdict::Pass),"{family} seed {seed}: {:?}\n{source}",checked.verdict);
+            }
+        }
+        let mut report=Report::default();campaign::check(&case,&mut report, |_| {});
+        assert!(!report.failed(),"{family} seed {seed}: {report:?}\n{source}");
+        seen.insert(family);if seen.len()==7 {break;}
+    }
+    assert_eq!(seen.len(),7,"{seen:?}");
+}

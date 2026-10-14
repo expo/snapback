@@ -199,6 +199,9 @@ pub fn programs(
             || schema.table(&lane.scan.table).is_some_and(|table|
                 lane.grant() && table.sync.as_ref().is_some_and(snapback4_core::schema::Sync::is_union)
                 || !snapback4_core::engine::rules::membership_point_id(schema, lane) && table.index(&lane.scan.index).is_some_and(|index| lane.scan.prefix.len() == index.components.len()))));
+        // @ref LLP 3000.036.001#17 — older validators cannot prove a fixed second witness field.
+        fact.branch_pages_v3 = merges.iter().flat_map(|merge| &merge.lanes).any(|lane| schema.table(&lane.scan.table).is_some_and(|table| lane.membership() && multi_field_probe(&table.rules.read)
+                || lane.guarded() && negative_probe(&table.rules.read)));
         fact.branch_membership = merges.iter().any(|merge| merge.lanes.iter().any(|lane| lane.membership()));
         fact.branch_membership_v2 = merges.iter().flat_map(|merge| &merge.lanes)
             .any(|lane| membership_v2(schema, lane));
@@ -241,4 +244,20 @@ pub fn notes(schema: &Schema, programs: &[BoundProgram]) -> Vec<Diagnostic> {
         (!fact.ephemeral_reads.is_empty() && fact.sites.iter().filter(|s| s.class == SiteClass::Server).all(|s| schema.table(&s.table).is_some_and(|t| t.ephemeral.is_some())))
             .then(|| Diagnostic::new(&bound.site, "N_EPHEMERAL_SERVER", format!("{} runs on the server because it reads an ephemeral table", bound.program.name), "split the ephemeral read into its own query and render it next to the device-held one").guide("ephemeral"))
     }).collect()
+}
+
+fn multi_field_probe(rule: &snapback4_core::schema::RuleExpr) -> bool {
+    use snapback4_core::schema::{RuleExpr, RuleTerm};
+    match rule {
+        RuleExpr::Exists { key, equalities, .. } => key.iter().chain(equalities.iter().map(|(_, term)| term))
+            .filter_map(|term| if let RuleTerm::Field(field) = term { Some(field) } else { None }).collect::<std::collections::BTreeSet<_>>().len() > 1,
+        RuleExpr::And(terms) | RuleExpr::Or(terms) => terms.iter().any(multi_field_probe),
+        _ => false,
+    }
+}
+
+fn negative_probe(rule: &snapback4_core::schema::RuleExpr) -> bool {
+    use snapback4_core::schema::RuleExpr;
+    match rule { RuleExpr::Not(inner) => matches!(inner.as_ref(), RuleExpr::Exists { .. }),
+        RuleExpr::And(terms) | RuleExpr::Or(terms) => terms.iter().any(negative_probe), _ => false }
 }

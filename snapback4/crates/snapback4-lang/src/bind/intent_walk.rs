@@ -1,7 +1,7 @@
 //! Mutable syntax traversal shared by planning and final index-name resolution.
 use crate::ast::*;
 
-pub(super) fn expression(value: &mut Expr, visit: &mut impl FnMut(&mut Expr)) {
+pub(crate) fn expression(value: &mut Expr, visit: &mut impl FnMut(&mut Expr)) {
     match value {
         Expr::Read(read) | Expr::Exists { read, .. } | Expr::Created { read, .. } => read_children(read, visit),
         Expr::Unary { value, .. } | Expr::Member { base: value, .. } | Expr::Assert { value, .. } | Expr::ShapeUse { base: value, .. } => expression(value, visit),

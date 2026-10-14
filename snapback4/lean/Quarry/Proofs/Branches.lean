@@ -263,6 +263,9 @@ theorem positiveRanges_eval {rule : Rule} {ranges : List (List Rule)}
   | allow => simp [Rule.positiveRanges] at h
   | deny => simp [Rule.positiveRanges] at h
   | ne _ _ => simp [Rule.positiveRanges] at h
-  | not _ _ => simp [Rule.positiveRanges] at h
+  | not a _ =>
+    cases a <;> simp [Rule.positiveRanges] at h
+    subst ranges
+    simp
 
 end Quarry

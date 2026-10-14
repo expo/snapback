@@ -95107,3 +95107,17 @@ variables. Independent review logs retain their actual commands; Codex's
 additional review-side test invocations used the default profile rather than
 the explicitly requested environment, a delegation-brief omission. Future
 review briefs must pass those Cargo constraints explicitly.
+
+### 2026-10-14 — PAGE4 completeness reach, semantic checkpoint
+
+Wave-11 fix #11 extends PAGE3's bounded positive ranges to mixed
+owner/public/member pages, exact where witnesses, a pinned component of a
+multi-column witness, and fixed scalar keys selected from required parent
+snapshots. It extends the existing compact server search to online-only exact
+membership audiences. Readable lifetime-free total negative static points and
+finite required enum complements admit complete status lists. Parent snapshots
+never establish copied-child equality; hidden sources and compound publication
+pointers retain explicit limitations. LLP 3000.036.001 §17 records the contract.
+The semantic capability is branch-pages-v3. Paired reviews and final qualification
+are pending; no publication or push is claimed. DX3 owns the broader authorization
+recipe book; NARR owns P9's unbounded-device/empty-partition note.

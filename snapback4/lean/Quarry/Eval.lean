@@ -415,6 +415,18 @@ def Rule.disclosing (sch : Schema) : Rule → Bool
     | none => false
   | _ => false
 
+/-- A negated static probe can certify absence only at a total readable
+point without a lifetime. This does not admit negative row-source discovery. -/
+def Rule.negativePoint (sch : Schema) (r : Rule) : Bool :=
+  match r with
+  | .probe t point key => match sch.table? t with
+    | some td => td.notBefore.isNone && r.disclosing sch
+        && key.all (fun p => p.2.fixedExpr.isSome)
+        && (point == ["id"] || td.uniques.any fun unique => unique == point
+          && unique.all fun c => td.cols.any (fun col => col.name == c && !col.nullable))
+    | none => false
+  | _ => false
+
 /-- A Boolean test whose only unknown is a row field. `usableGuard` separately
 requires that field to be a page pin; a literal pin is folded before this test.
 Keeping this shape narrow avoids admitting arbitrary negated expressions. -/
@@ -430,14 +442,14 @@ depend on the runtime value of its page pin, but never on a probe. Runtime
 `granted` still uses the stricter `Rule.positive` after substituting the actual
 scalar pins. -/
 def Rule.guardPositive (td : TableDecl) : Rule → Bool
-  | .not a => a.pinnedBoolTest td
+  | .not a => a.pinnedBoolTest td || match a with | .probe .. => true | _ => false
   | .and a b | .or a b => a.guardPositive td && b.guardPositive td
   | .allow | .deny | .eq .. | .ne .. | .probe .. => true
 
 /-- Disclosure for a planned guard treats a negated pinned-Boolean test as a
 local condition on the page prefix. Negated probes remain inadmissible. -/
 def Rule.guardDisclosing (sch : Schema) (td : TableDecl) : Rule → Bool
-  | .not a => a.pinnedBoolTest td
+  | .not a => a.pinnedBoolTest td || a.negativePoint sch
   | .and a b => a.guardDisclosing sch td && b.guardDisclosing sch td
   | r => r.disclosing sch
 
@@ -490,7 +502,7 @@ def Rule.positiveRanges : Rule → Option (List (List Rule))
       if as.length * bs.length < 8 then
         some (as.flatMap fun a => bs.map fun b => a ++ b)
       else none
-  | r@(.eq ..) | r@(.probe ..) => some [[r]]
+  | r@(.eq ..) | r@(.probe ..) | r@(.not (.probe ..)) => some [[r]]
   | _ => none
 
 def Rule.rangePin : Rule → Option (String × Expr)
@@ -499,7 +511,7 @@ def Rule.rangePin : Rule → Option (String × Expr)
 
 def Rule.hasCompound : Rule → Bool
   | .and .. => true
-  | .or a b => a.hasCompound || b.hasCompound
+  | .or .. => true
   | _ => false
 
 /-- A page guard (LLP 3000.036 §12.1, §16.3): a disjunct whose expression
@@ -556,12 +568,39 @@ def compoundDecided (sch : Schema) (td : TableDecl) (pins : List (String × Expr
         && laneFits order extra pins
         && (own.isEmpty || own.all (fun r => r.usableGuard sch td ps)
           || match own with
-            | [.probe t point key] => membershipEligible sch t point key
+            | [r@(.probe ..)] => match r.guardForm ps with
+              | .probe t point key => membershipEligible sch t point key
                 && (membershipColumns key).any fun pair =>
                   !ps.any (·.1 == pair.2) && (!order.contains pair.2 || pair.2 == "id" && order == ["id"])
                   && laneFits order ((pair.2, .viewer) :: extra) pins
+              | _ => false
             | _ => false)
 
+
+/-- The exact positive where witness of PAGE4. Other audiences cannot
+contribute to W; its readable source may certify the narrower page. -/
+def Expr.isWhereWitness (r : Rule) (e : Expr) : Bool :=
+  match r, e with
+  | .probe rt _ rkeys, .bin .ne (.point et ekeys) (.lit (.s .null)) =>
+      rt == et && rkeys.length == ekeys.length && rkeys.all fun rk =>
+        ekeys.any fun ek => rk.1 == ek.1 && match rk.2, ek.2 with
+          | .col .self c, .dot d => c == d
+          | .viewer, .viewer => true
+          | .lit a, .lit (.s b) => a == b
+          | _, _ => false
+  | _, _ => false
+
+def scopedWitnessDecided (sch : Schema) (td : TableDecl)
+    (pins : List (String × Expr)) (fs : List Expr) (order : List String) : Bool :=
+  td.read.disjuncts.any fun r => match r with
+    | .probe t point key =>
+        fs.any (Expr.isWhereWitness r) && (fs.filter (!·.isWhereWitness r)).all Expr.total
+          && membershipEligible sch t point key
+          && (membershipColumns key).any fun pair =>
+            !pins.any (·.1 == pair.2)
+              && (!order.contains pair.2 || pair.2 == "id" && order == ["id"])
+              && laneFits order [(pair.2, .viewer)] pins
+    | _ => false
 
 /-- The pins the single-index planner keeps: the page's equalities and bare
 boolean conjuncts, except `id` and an order column other than the first,
@@ -640,7 +679,8 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
                   && laneFits order ((pair.2, .viewer) :: a.filterMap Expr.eqPin) pins
       | none => false
     let case4 := guards && alts.isNone && compoundDecided sch td pins order
-    (total && (case1 || case2)) || (readFree && (case3 || case4))
+    let witnessScope := guards && pins.all (fun p => p.2.total) && scopedWitnessDecided sch td pins fs order
+    (total && (case1 || case2)) || (readFree && (case3 || case4)) || witnessScope
 
 def keyValue (k : Key) : Value := .arr (k.map .s)
 

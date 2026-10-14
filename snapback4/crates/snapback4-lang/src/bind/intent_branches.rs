@@ -46,6 +46,7 @@ pub(super) fn expand(tables: &Tables, synthesized: &std::collections::BTreeSet<(
     // @ref LLP 3000.036.001#16 — implicit whole-group reads retain their proven schema bound.
     let normalized = bounded_page(tables, requests, read)?;
     let read = &normalized;
+    if let Some(merge) = scoped_membership(tables, synthesized, requests, read) { return Some(merge); }
     if let Some(merge) = membership(tables, synthesized, requests, read) { return Some(merge); }
     // An exact owner-or-membership rule belongs wholly to PAGE. If one of its
     // stricter eligibility checks declines, keep the original scan instead of
@@ -81,6 +82,42 @@ pub(super) fn expand(tables: &Tables, synthesized: &std::collections::BTreeSet<(
     *requests = candidate;
     Some(MergeExpr { view_order: Vec::new(), table: read.table.clone(), matching: None, filter: None, index: String::new(), order: range.order, take: range.take,
         cursor: range.cursor.clone(), lanes, site: read.site.clone() })
+}
+
+/// An exact positive where witness that is itself a whole read-rule disjunct
+/// restricts W to that audience. Enumerate it directly; other audiences cannot
+/// contribute rows to W, including the system's rule bypass.
+// @ref LLP 3000.036.001#17 — author-scoped pages retain their exact witness.
+fn scoped_membership(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, String)>, requests: &mut Requests, read: &ReadExpr) -> Option<MergeExpr> {
+    let table = tables.get(&read.table)?;
+    let rule = read_rule(table)?;
+    let mut leaves = Vec::new(); disjuncts(rule, &mut leaves);
+    let mut predicates = Vec::new(); intent::split(*read.filter.clone()?, &mut predicates);
+    for (at, predicate) in predicates.iter().enumerate() {
+        if !matches!(predicate, Expr::Exists { .. }) || !leaves.iter().any(|leaf|
+            crate::print::expression(leaf) == crate::print::expression(predicate)) { continue; }
+        let rest: Vec<_> = predicates.iter().enumerate().filter(|(n, _)| *n != at).map(|(_, p)| p.clone()).collect();
+        if !rest.iter().all(total) { continue; }
+        let mut narrowed = read.clone(); narrowed.filter = intent::conjunction(rest);
+        let mut local = tables.clone();
+        local.get_mut(&read.table)?.decl.rules.iter_mut().find(|rule| rule.effect == Effect::Read)?.value = predicate.clone();
+        let mut candidate = requests.clone();
+        let mut merge = membership(&local, synthesized, &mut candidate, &narrowed)?;
+        // The system bypasses R, never W. Its whole-range descriptor retains
+        // the authored witness, and also binds all static target pins into
+        // the shared cursor scope. Other callers use exact discovery only.
+        for lane in &mut merge.lanes {
+            if lane.branch.as_deref() == Some(SYSTEM_LANE) {
+                let planned = lane.planned.as_mut()?;
+                let mut residual = planned.filter.take().map(|p| vec![*p]).unwrap_or_default();
+                residual.push(predicate.clone()); planned.filter = intent::conjunction(residual);
+            }
+            lane.admission = read.filter.clone();
+        }
+        *requests = candidate;
+        return Some(merge);
+    }
+    None
 }
 
 // @ref LLP 3000.036.001#14 — enumerate the decided membership source before merging its parent ranges.

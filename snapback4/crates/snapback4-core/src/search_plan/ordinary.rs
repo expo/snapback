@@ -29,8 +29,13 @@ pub fn plan(schema: &Schema, program: &Program) -> Option<Plan> {
     let RuleExpr::Exists { table: members, index: membership, key, equalities, .. } = &table.rules.read else { return None };
     let [RuleTerm::Field(scope), RuleTerm::Viewer] = key.as_slice() else { return None };
     if !equalities.is_empty() { return None; }
-    let Audience::Target { table: audience, prefix, principal } = &table.sync.as_ref()?.audience else { return None };
-    if audience != members || prefix != &[scope.clone()] { return None; }
+    // @ref LLP 3000.036.001#17 — online-only searches derive their audience
+    // from the exact read rule too. Synced searches retain the same audience
+    // contract; this changes neither holdings nor device evaluation.
+    if let Some(sync) = &table.sync {
+        let Audience::Target { table: audience, prefix, .. } = &sync.audience else { return None };
+        if audience != members || prefix != &[scope.clone()] { return None; }
+    }
     let member = schema.table(members)?;
     if member.is_expiring() || member.through.is_some() || schema.maintain_for(members).is_some() { return None; }
     let member_key = member.index(membership)?;
@@ -38,7 +43,8 @@ pub fn plan(schema: &Schema, program: &Program) -> Option<Plan> {
         || !member_key.components.iter().all(|part| part.key_type(member).is_some_and(|kind| !kind.is_optional())) { return None; }
     let member_columns = member_key.columns();
     let [member_scope, member_principal] = member_columns.as_slice() else { return None };
-    if member_principal != principal { return None; }
+    let principal = member_principal;
+    if table.sync.as_ref().is_some_and(|sync| !matches!(&sync.audience, Audience::Target { principal: synced, .. } if synced == principal)) { return None; }
     let (source_index, _) = member.indexes.iter().find(|(_, i)| i.is_plain()
         && i.columns().starts_with(&[principal.clone(), member_scope.clone()]))?;
     let original = table.index(&scan.index)?;

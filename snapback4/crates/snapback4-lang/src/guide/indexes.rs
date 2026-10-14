@@ -84,7 +84,12 @@ A table that can grow pages with `first N` and a cursor instead.
 
 A private page is complete when its planned ranges decide the read rule.
 `N_NEVER_COMPLETE` prints the missing source edit for unsupported shapes.
-The planner supplies party, membership and positive compound ranges. A two-party row (buyer/seller, follower/followed, requester/owner) is
+The planner supplies party, membership and positive compound ranges, including
+owner/public/member lists. An exact positive `where exists authors[.id, viewer]`
+that repeats a read-rule disjunct supplies its own complete audience. Known
+parent row images supply stored scalar pins; they do not prove copied child
+fields equal their parents. A readable total static negative role probe may
+also decide a range; hidden or lifetime-sensitive negative probes do not. A two-party row (buyer/seller, follower/followed, requester/owner) is
 one query: under `.requester = viewer or .owner = viewer`, `swaps first 20 by
 .id after c` (or `where .requester = viewer or .owner = viewer`) reads the
 merge of the two pinned ranges, a row in both once, with one cursor, and is

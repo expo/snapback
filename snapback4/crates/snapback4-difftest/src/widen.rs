@@ -316,6 +316,7 @@ pub fn widen(mut case: Case) -> Case {
     membership_page(&mut case);
     timed_search(&mut case);
     crate::generate::page3(&mut case);
+    crate::generate::page4(&mut case);
     case
 }
 
