@@ -1001,6 +1001,10 @@ fn equality_filter_index_rewrite(catalog: &Catalog, table: &snapback4_core::sche
     // an earlier, unrelated read and print a query that does not compile.
     let read_site = read_site?;
     let (mut read, text, grouped, start) = catalog.source.read(read_site)?;
+    // Positional/named bracket keys address the old index's columns. Merely
+    // prepending authorization components would retarget those values, so a
+    // coherent repair needs authored key expressions for the new prefix.
+    if !read.keys.is_empty() { return None; }
     if read.index.as_deref() != Some(scan.index.as_str()) { return None; }
     read.index = Some(name.clone());
     let fixed = crate::ast::Expr::Read(read);

@@ -324,6 +324,16 @@ fn equality_filter_note_prints_one_matching_index_and_query() {
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     let note = b.notes.iter().find(|note| note.code == "N_NEVER_COMPLETE").unwrap();
     assert!(!note.rewrite.contains("by byCrewStarts: crew, starts, id"), "{note}");
+
+    // An authored bracket value addresses `starts` in the old index. Changing
+    // only the index would reinterpret it as `crew`, so omit that repair too.
+    let keyed = source.replace("query myWatches():", "query myWatches(s: time):")
+        .replace("return watches where .crew = viewer first 240 by byStart",
+            "return watches[s] first 240 by byStart where .crew = viewer");
+    let b = compile(&[("schema.q".into(), keyed)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let note = b.notes.iter().find(|note| note.code == "N_NEVER_COMPLETE").unwrap();
+    assert!(!note.rewrite.contains("by byCrewStarts: crew, starts, id"), "{note}");
 }
 
 #[test]
