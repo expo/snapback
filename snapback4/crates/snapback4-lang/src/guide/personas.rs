@@ -67,7 +67,7 @@ See `guide services` for diagnostic limits and `guide jobs` for isolated time-tr
 persona is alice) and the `x-snapback-persona: alice` header in development act as `dev:alice`; `persona: "alice"` on the client sends the header. A React/Expo dev UI keeps `AppProvider` and `useAuth` with
 `createApp({ url, persona: "alice", device })`, one app per persona (`usePersonaApp(persona, openApp)` opens it and closes it on switch; web `?as=` and React Native pickers: "Personas in a React UI" in CLIENT-AND-OPERATIONS.md;
 `init --web`/`--expo` writes one beside a schema without `use identity`, and `init --adapt` rewrites an unmodified guest starter screen into one). No session: `app.auth` sign-in, `auth.guest()` too, refuses `E_AUTH`.
-N_PERSONA_PRINCIPAL: bare principals need dev:NAME. The declaration is the cast: dev refuses a persona it does not name with 401 E_AUTH, naming the line to extend, so
+N_PERSONA_PRINCIPAL: declared personas use dev:NAME. The declaration is the cast: dev refuses a persona it does not name with 401 E_AUTH, naming the line to extend, so
 an acceptance test can expect an outsider to be refused (a schema without `use personas` admits any name). Personas are a development door: the socket peer, `Host`, and optional
 browser `Origin` must all be literal loopback/local http(s) values. Foreign, opaque, malformed and duplicate
 Origins are refused before routing, and CORS reflects only an admitted local Origin. `snapback4 dev` is

@@ -51,7 +51,7 @@ pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
             }
         }
         for program in &doc.programs {
-            if program.kind == ProgramKind::Query || program.native { continue; }
+            if program.native { continue; }
             body(catalog,schema,program,&program.body,None,&mut out);
         }
     }
@@ -61,7 +61,7 @@ fn body(catalog:&Catalog,schema:&Schema,program:&ProgramDecl,statements:&[Stmt],
     let mut lookups: BTreeMap<String,(String,Vec<String>)>=BTreeMap::new();
     for statement in statements {
         if let Stmt::Require { condition,code,site,.. }=statement {
-            if let Some(seat)=seat(condition) { gate=Some(seat.into()); }
+            if program.kind==ProgramKind::Mutation && let Some(seat)=seat(condition) { gate=Some(seat.into()); }
             for (alias,(table,owners)) in &lookups {
                 let mut uses_owner=false; let mut copy=condition.clone();
                 super::intent_walk::expression(&mut copy,&mut |e| if let Expr::Member { base,name,.. }=e && matches!(base.as_ref(),Expr::Name { name,.. } if name==alias) && owners.contains(name) { uses_owner=true; });
@@ -71,7 +71,8 @@ fn body(catalog:&Catalog,schema:&Schema,program:&ProgramDecl,statements:&[Stmt],
                 }
             }
         }
-        if let Stmt::Bind { names,value:Expr::Assert { value,code,.. },.. }=statement && code=="NOT_FOUND" && let Expr::Read(read)=value.as_ref() {
+        if let Stmt::Bind {names,..}=statement {for name in names {lookups.remove(name);}}
+        if program.kind!=ProgramKind::Job && let Stmt::Bind { names,value:Expr::Assert { value,code,.. },.. }=statement && code=="NOT_FOUND" && let Expr::Read(read)=value.as_ref() {
             if let [name]=names.as_slice() && let Some(table)=schema.table(&read.table) {
                 let owners=required_owners(&table.rules.read);
                 if !owners.is_empty() { lookups.insert(name.clone(),(read.table.clone(),owners)); }
@@ -90,6 +91,7 @@ fn body(catalog:&Catalog,schema:&Schema,program:&ProgramDecl,statements:&[Stmt],
                         out.push(Diagnostic::new(&field.site,"N_PERSONA_PRINCIPAL",format!("{table}.{} stores bare persona '{value}', but its dev viewer is 'dev:{value}'",field.name),format!("write 'dev:{value}' for development, or an authenticated account principal in production; personas are names, not principals")).guide("personas"));
                     }
                 }
+                if program.kind!=ProgramKind::Mutation { return; }
                 let Some(seat)=gate.as_deref() else { return; };
                 let effect=match op { WriteOp::Insert=>"insert",WriteOp::Update=>"update", _=>return };
                 let rule=if effect=="insert" { &def.rules.insert } else { &def.rules.update };
