@@ -1,0 +1,92 @@
+{
+  "summary": {
+    "exit": 0,
+    "groups": 9,
+    "passed": 79,
+    "failed": 0,
+    "ignored": 0
+  },
+  "groups": [
+    {
+      "group": "Running unittests src/lib.rs (target/debug/deps/snapback4_difftest-d7760e7cf9384075)",
+      "result": {
+        "status": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "group": "Running unittests src/main.rs (target/debug/deps/snapback4_difftest-37bce157e4d2f4ab)",
+      "result": {
+        "status": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "group": "Running tests/devices.rs (target/debug/deps/devices-5461ee6dea4086c3)",
+      "result": {
+        "status": "ok",
+        "passed": 12,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "group": "Running tests/lang2.rs (target/debug/deps/lang2-a54f90027f44258e)",
+      "result": {
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "group": "Running tests/lean.rs (target/debug/deps/lean-225da4c9836cbd6d)",
+      "result": {
+        "status": "ok",
+        "passed": 41,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "group": "Running tests/smoke.rs (target/debug/deps/smoke-a2e9a4522987fcdc)",
+      "result": {
+        "status": "ok",
+        "passed": 24,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "group": "Running tests/stores.rs (target/debug/deps/stores-ca64e51939459905)",
+      "result": {
+        "status": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "group": "Running tests/wave11_qdiag.rs (target/debug/deps/wave11_qdiag-78ae1ee445b7537c)",
+      "result": {
+        "status": "ok",
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    },
+    {
+      "group": "Doc-tests snapback4_difftest",
+      "result": {
+        "status": "ok",
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      }
+    }
+  ]
+}

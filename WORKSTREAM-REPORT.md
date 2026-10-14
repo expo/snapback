@@ -26,9 +26,9 @@ Started clean at d9f0160e31 on sb4-loop; no version bump, push or publication.
   rejected speculative plans retain authored scans; acquired history retains
   existing authority; runtime budgets stay fixed; unsupported model cases never
   count as passes. Root foundation/current inspected; Snapback 4 has its own
-  fence and working set. Hand-off: none; Linux qualification still in progress.
+  fence and working set. Hand-off: none; all requested Linux qualification is complete.
 
-## Completed merged evidence (full Rust still in progress)
+## Completed merged Linux evidence
 
 - Wasm: **2,319,740 raw / 707,674 gzip / 534,854 Brotli B**; glue 16,053 /
   3,695 / 3,260 B. Budget **708,174 B**, exactly gzip + 500 B platform headroom.
@@ -71,8 +71,26 @@ Started clean at d9f0160e31 on sb4-loop; no version bump, push or publication.
   Non-blocking follow-up: two corrected completeness cases exhibit the existing
   historical next signature (59→61); supported/unsupported counts are unchanged
   and this known cursor limitation remains visible. PAGE4's six original paired review rounds
-  remain intact. Full Rust is not yet complete. Root guide passes all 22 checks with 121 inherited warnings.
+  remain intact. Full Rust passes 6,072 tests with zero failures and 41 existing opt-in ignores;
+  root guide passes all 22 checks with 121 inherited warnings.
 
+
+## Complete Rust closeout
+
+Full cargo test for snapback4-core, snapback4-lang, snapback4-device,
+snapback4-sim and snapback4 --no-fail-fast passes exit 0: **6,072 passed,
+zero failures, 41 existing opt-in ignores**, 377 top-level result groups.
+The complete difftest crate suite also passes: **79 passed, zero failures/ignores**.
+Counts use the last result per top-level Cargo group, excluding nested process
+results. The interrupted compilation is retained separately and supplies no
+passing-suite claim. All requested checks now have complete final evidence;
+no remaining introduced red is deferred. Qualified inputs retain all QDIAG
+privacy/diagnostic controls, NARR P9 advice and PAGE4 planning/cut/history controls.
+
+See reports/20261014-integration12/qualification.json for the source/binary
+bindings, result tables, review provenance and uncompressed log hashes. The
+prepared 0.4.28 pack and static Linux package remain local; no push/publication.
+Final changes after reviewed 379792e23a are evidence/documentation only.
 
 ## Preserved Integration 11 report
 
@@ -289,9 +307,9 @@ There is no deferred implementation for fix11 within the sound admitted page fra
 The first five-crate Cargo command was interrupted during compilation (exit 130)
 to release its lock for the client horizon fixture's queued Cargo build. It did
 not complete a test battery. The fixture and all pooled client files passed;
-17 isolated timer files follow in that same pool invocation. A fresh complete
-five-crate command is running against the cached artifacts, followed by the
-difftest crate suite. No test timeout or product budget was increased.
+17 isolated timer files follow in that same pool invocation. The fresh complete
+five-crate command passes (exit 0), followed by the complete difftest crate suite
+(exit 0). No test timeout or product budget was increased.
 
 ## Final client and Linux consumer evidence
 

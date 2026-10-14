@@ -1,0 +1,397 @@
+{
+  "status": "all requested Linux checks passed; no version bump, push or publication",
+  "merge_commit": "dc645122c2de22f754baca908ce8275cf10d497b",
+  "lane_tip": "c2077bdf3403b537ade3dcde0fb8f522b6cca82f",
+  "integration11_base": "d9f0160e31",
+  "version": "0.4.28",
+  "semantic_review_commit": "379792e23ac886a7ed6104c8a3b8ba994e33218b",
+  "consumer_source_commit": "ff1255a681f71e7a790ec3a48cd6cd693c4c6ba6",
+  "reviews": {
+    "codex": "READY",
+    "muse": "READY after later retry",
+    "provenance": "../../../llp/reviews/3000.036-page4-integration12.provenance.md"
+  },
+  "rust": {
+    "exit": 0,
+    "groups": 377,
+    "passed": 6072,
+    "failed": 0,
+    "ignored": 41
+  },
+  "difftest_suite": {
+    "exit": 0,
+    "groups": 9,
+    "passed": 79,
+    "failed": 0,
+    "ignored": 0
+  },
+  "clients": {
+    "files": 388,
+    "pool": 24,
+    "passed": 7433,
+    "failed": 0,
+    "skipped": 56,
+    "model_passed": 81,
+    "fixture_passed": 9,
+    "one_complete_pool_invocation": true
+  },
+  "native_campaign": {
+    "cases": 20000,
+    "compiled": 20000,
+    "executions": 1225497,
+    "disagreements": 0,
+    "generator_errors": 0
+  },
+  "device_campaign": {
+    "seeds": "0\u2013999",
+    "compiled": 1000,
+    "executions": 28462,
+    "disagreements": 0,
+    "generator_errors": 0
+  },
+  "lean": {
+    "cases": 20000,
+    "passed": 15565,
+    "unsupported": 4309,
+    "historical_disagreements": 126,
+    "historical_signature_classes": 4,
+    "new_signatures": 0,
+    "initial_new_signature_occurrences": 3,
+    "fixed_by": "379792e23a",
+    "standard_axiom_audits": 60,
+    "examples": 81,
+    "oracle_fixtures": 7
+  },
+  "page4_surveys": {
+    "wave11": {
+      "schemas": 100,
+      "never_before": 16,
+      "never_after": 6,
+      "conditional_before": 6,
+      "conditional_after": 6
+    },
+    "wave10": {
+      "schemas": 50,
+      "never_before": 2,
+      "never_after": 2,
+      "conditional_before": 0,
+      "conditional_after": 0
+    },
+    "all_source_hashes_match": true
+  },
+  "qdiag_survey": {
+    "binary_sha256": "33a49ae257a44b57cc072d6d0056f2e530919d71686ed37981898ccb0314c15d",
+    "schemas": 100,
+    "notes": {
+      "N_DELETE_NEEDS_READ": 2,
+      "N_DELETE_RESTRICTED": 8,
+      "N_NO_PRODUCTION_WRITER": 50,
+      "N_NO_HORIZON": 19,
+      "N_NO_CURSOR": 171,
+      "N_MAINTAIN_DELTA": 4,
+      "N_CONDITIONAL_COMPLETE": 6,
+      "N_SYNC_ORDER": 19,
+      "N_SPARSE_FILTER": 7,
+      "N_SYNC_EMPTY": 1,
+      "N_PATCH_CLEARS": 2,
+      "N_REFERENCE_UNCHECKED": 4,
+      "N_SHAPE_METER": 1,
+      "N_NEVER_COMPLETE": 6,
+      "N_UNREADABLE_PROBE": 9,
+      "N_VACUOUS_RULE": 1,
+      "N_MAINTAINED_COLUMN_DISCLOSURE": 2,
+      "N_MAINTAIN_AUTHORIZATION": 5,
+      "N_WIDE_MERGE": 4,
+      "N_PUBLIC_AGGREGATE_COPY": 1
+    },
+    "total": 322,
+    "exact_composed_QDIAG_NARR_PAGE4_counts": true,
+    "PAGE4_delta": {
+      "N_NO_CURSOR": 6,
+      "N_SPARSE_FILTER": -2,
+      "N_NEVER_COMPLETE": -10,
+      "N_WIDE_MERGE": 1
+    }
+  },
+  "authoring_census": {
+    "entries": 741,
+    "regenerated_from_compiled_binary": true,
+    "tracked_drift": false
+  },
+  "delivery_census": "delivery-census.json",
+  "root": {
+    "diagnostics_symbol_manifest": "regenerated, no tracked drift",
+    "inventories": "passed",
+    "guide": {
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "preconditions": 0,
+      "inherited_warnings": 121
+    }
+  },
+  "docs_budget": {
+    "readme": 320,
+    "budget": 320,
+    "named_self_containment_test": "passed"
+  },
+  "ref_check": {
+    "documents": 546,
+    "references": 11830,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "wasm": {
+    "raw": 2319740,
+    "gzip": 707674,
+    "brotli": 534854,
+    "budget": 708174
+  },
+  "clean_wasm_receipt": "wasm-receipt.json",
+  "consumer": {
+    "mode": "consumer-only",
+    "frontend_attempts": 4,
+    "distributions": [
+      "ubuntu:24.04",
+      "alpine"
+    ],
+    "all_passed": true,
+    "publicationQualified": false,
+    "publication_receipt_issued": false
+  },
+  "executables": {
+    "cli": {
+      "sha256": "33a49ae257a44b57cc072d6d0056f2e530919d71686ed37981898ccb0314c15d",
+      "bytes": 48562008
+    },
+    "difftest": {
+      "sha256": "1c2a6d075410b55d33720fb4fa82ac23e4cd0e8eda996830308cdde8a436e4e0",
+      "bytes": 33101120
+    },
+    "lean_oracle": {
+      "sha256": "b9f50fd2ecaab4e117c24673d47be783e3285ad94d993c40c779a7c510641dbc",
+      "bytes": 122547464
+    }
+  },
+  "logs": {
+    "authoring-census.log.gz": {
+      "path": "logs/authoring-census.log.gz",
+      "uncompressed_sha256": "b5ab43cea847a9bc296a2fe6e326ec12fa8d42ee4485d48e2b95baedaf1ee111",
+      "uncompressed_bytes": 105847
+    },
+    "authoring-direct.log.gz": {
+      "path": "logs/authoring-direct.log.gz",
+      "uncompressed_sha256": "5b6b3954877ced2883788b7b20b20f296c423aaed2f9eb550f2cb75d6c49a53e",
+      "uncompressed_bytes": 77151
+    },
+    "build.log.gz": {
+      "path": "logs/build.log.gz",
+      "uncompressed_sha256": "7031c64da0a4f676387820e37486b8038890da87847a366f44682f08eef010db",
+      "uncompressed_bytes": 5717
+    },
+    "client-build.log.gz": {
+      "path": "logs/client-build.log.gz",
+      "uncompressed_sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa",
+      "uncompressed_bytes": 201
+    },
+    "clients.log.gz": {
+      "path": "logs/clients.log.gz",
+      "uncompressed_sha256": "88b666803afd57a85782d6b8c5eeced0ea856a4974663597cd0835475bd864af",
+      "uncompressed_bytes": 2009235
+    },
+    "consumer.log.gz": {
+      "path": "logs/consumer.log.gz",
+      "uncompressed_sha256": "ed264c52fdec985bbec634fb123548f15c6adb4a102720678c68f42c0d30a6a2",
+      "uncompressed_bytes": 79914
+    },
+    "devices.log.gz": {
+      "path": "logs/devices.log.gz",
+      "uncompressed_sha256": "4bbe41daf2de3bc15212162ea2e03168e2fd2a0b50da7984f1a14b5497c8a1ae",
+      "uncompressed_bytes": 13268
+    },
+    "diff-check.log.gz": {
+      "path": "logs/diff-check.log.gz",
+      "uncompressed_sha256": "3b7cd99cc6d483e43f8c412b1937f71dcbaf0e47b3a811a43f12a8c59bef2ba5",
+      "uncompressed_bytes": 195
+    },
+    "difftest-tests-final.log.gz": {
+      "path": "logs/difftest-tests-final.log.gz",
+      "uncompressed_sha256": "072c32b541c64e8ae498f797e7c6da372064218a6afec8b58bc1d4c708e04385",
+      "uncompressed_bytes": 11914
+    },
+    "docs-budget.log.gz": {
+      "path": "logs/docs-budget.log.gz",
+      "uncompressed_sha256": "d8f400e7f1ef2ac31c42c43114523469c56cfc10bcebd754084091286daad31e",
+      "uncompressed_bytes": 4721
+    },
+    "fixtures.log.gz": {
+      "path": "logs/fixtures.log.gz",
+      "uncompressed_sha256": "1c10066ddf60c59680c186ba4f7b95cff8ba24449c163757ac9318b1f91c586f",
+      "uncompressed_bytes": 2362
+    },
+    "generated.log.gz": {
+      "path": "logs/generated.log.gz",
+      "uncompressed_sha256": "4dc0b40d6f1862909ad1b665a9548f839b927ee6edd7372e22e783699f0e5fe7",
+      "uncompressed_bytes": 60771
+    },
+    "guide-budget-direct.log.gz": {
+      "path": "logs/guide-budget-direct.log.gz",
+      "uncompressed_sha256": "6de77f846aadc7c95753941fc080d19de553eca3337740e8ffe89dd00f9e6348",
+      "uncompressed_bytes": 203
+    },
+    "guide.log.gz": {
+      "path": "logs/guide.log.gz",
+      "uncompressed_sha256": "d62ed70274abd318ee262e7995bcfbd000425b050f7b6cba9b28582c0c074559",
+      "uncompressed_bytes": 19451
+    },
+    "hoist.log.gz": {
+      "path": "logs/hoist.log.gz",
+      "uncompressed_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "uncompressed_bytes": 0
+    },
+    "install.log.gz": {
+      "path": "logs/install.log.gz",
+      "uncompressed_sha256": "e942bad19cf242e8573b2f2cc8c6546795514506fd35afb65cdd581ad7f9286d",
+      "uncompressed_bytes": 63
+    },
+    "inventories.log.gz": {
+      "path": "logs/inventories.log.gz",
+      "uncompressed_sha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813",
+      "uncompressed_bytes": 3499
+    },
+    "lean-check-fixed.log.gz": {
+      "path": "logs/lean-check-fixed.log.gz",
+      "uncompressed_sha256": "4de97ddbb29ecb064b8a179ef890332ede7cd593dc5be3a90d972102a5c7a8c6",
+      "uncompressed_bytes": 1638
+    },
+    "lean-check-fixed2.log.gz": {
+      "path": "logs/lean-check-fixed2.log.gz",
+      "uncompressed_sha256": "ef8b9af3fa90b0460ae6ca3b8e570c3089657dd6de3cdc7e5f601f4ffe30687e",
+      "uncompressed_bytes": 306
+    },
+    "lean-check.log.gz": {
+      "path": "logs/lean-check.log.gz",
+      "uncompressed_sha256": "165a76c1ba174797fa7cff49f39982d4f03af659f74b8e9fbf9f0522abf33a39",
+      "uncompressed_bytes": 1409
+    },
+    "lean-fixed.log.gz": {
+      "path": "logs/lean-fixed.log.gz",
+      "uncompressed_sha256": "588e798737178d431210e9e123dedb6afcbb12c605a9ae12db547ca65b908caa",
+      "uncompressed_bytes": 17218
+    },
+    "lean-replay-fixed.log.gz": {
+      "path": "logs/lean-replay-fixed.log.gz",
+      "uncompressed_sha256": "9f56e761d79bfdb34304a012586cb04d16b435ef6130091a97702e559260a2f2",
+      "uncompressed_bytes": 5
+    },
+    "lean-replay.log.gz": {
+      "path": "logs/lean-replay.log.gz",
+      "uncompressed_sha256": "59efd762feaf9532a1db459b6ff6a8a3b91fa9baf013e9ed7ebe85877c02643e",
+      "uncompressed_bytes": 1173
+    },
+    "lean.log.gz": {
+      "path": "logs/lean.log.gz",
+      "uncompressed_sha256": "56fa07cda0270bcddea915608b28435681290777bb071cf49c3853224ca46ff9",
+      "uncompressed_bytes": 17268
+    },
+    "manifest.log.gz": {
+      "path": "logs/manifest.log.gz",
+      "uncompressed_sha256": "6213da3e2933250b7b5a084ef376581acc2a4822f8a02b5435478b1e764c1bf9",
+      "uncompressed_bytes": 1613
+    },
+    "models.log.gz": {
+      "path": "logs/models.log.gz",
+      "uncompressed_sha256": "9050ad8306590c22a6ca8a013ce6cbdffd69a9504f572d068103f2d091ff4d14",
+      "uncompressed_bytes": 32668
+    },
+    "native.log.gz": {
+      "path": "logs/native.log.gz",
+      "uncompressed_sha256": "f31a752b18b56504d8a3c5c58405082bb128e53f6e2f4b2f13a5bbc57c1238e7",
+      "uncompressed_bytes": 16709
+    },
+    "page4-survey.log.gz": {
+      "path": "logs/page4-survey.log.gz",
+      "uncompressed_sha256": "d10da4494bbc37520110e4efc6bd850053926cb73632a9e796eaad3e93c97c47",
+      "uncompressed_bytes": 3199
+    },
+    "prepare.log.gz": {
+      "path": "logs/prepare.log.gz",
+      "uncompressed_sha256": "73033d4bc697b77fa09582ab73d5a0365a6deee52104f7b5d4bbaa97ae4a3af0",
+      "uncompressed_bytes": 9381
+    },
+    "ref-final.log.gz": {
+      "path": "logs/ref-final.log.gz",
+      "uncompressed_sha256": "56031cc53375d3b42d92dad0ad49d456ff2fbf9568af4cd337a9383d55160924",
+      "uncompressed_bytes": 81
+    },
+    "ref.log.gz": {
+      "path": "logs/ref.log.gz",
+      "uncompressed_sha256": "6a2a689b21660ec732e0bd2d87dfa9eeab0dfb561be44108b133a608ef2c44e4",
+      "uncompressed_bytes": 81
+    },
+    "registry.log.gz": {
+      "path": "logs/registry.log.gz",
+      "uncompressed_sha256": "159df982ad3783b1989776e45232b0586b6a0204a934a2df21d12082daea4c62",
+      "uncompressed_bytes": 176
+    },
+    "release.log.gz": {
+      "path": "logs/release.log.gz",
+      "uncompressed_sha256": "8345d0659842c201f407865725755c3c7055cbaff1ef745d8d7df808c782ade8",
+      "uncompressed_bytes": 6392
+    },
+    "root-install.log.gz": {
+      "path": "logs/root-install.log.gz",
+      "uncompressed_sha256": "bede1f127fc98b7b67ff1fde1986a3d58da3be8c9bcbb640773d2b509566a1bf",
+      "uncompressed_bytes": 207
+    },
+    "rust-interrupted.log.gz": {
+      "path": "logs/rust-interrupted.log.gz",
+      "uncompressed_sha256": "48a28fa30c13ab5fc09e5f6737eda50855e7cf8c98bf953827fdcea7d96c1afd",
+      "uncompressed_bytes": 14221
+    },
+    "rust.log.gz": {
+      "path": "logs/rust.log.gz",
+      "uncompressed_sha256": "e84b95a3c1038af99643fc31aae6b9a59122d86a1d45dd5159595e9307ec5734",
+      "uncompressed_bytes": 746673
+    },
+    "symbol.log.gz": {
+      "path": "logs/symbol.log.gz",
+      "uncompressed_sha256": "ad52e4165d285e1e06676bac3530ed8adfff3a97b45f011a13e4de1ad476704d",
+      "uncompressed_bytes": 104
+    },
+    "wasm-build.log.gz": {
+      "path": "logs/wasm-build.log.gz",
+      "uncompressed_sha256": "056075e9706d0418a0cbcb351cf9b33c895c82ad621f297f908de6ae36f1d021",
+      "uncompressed_bytes": 8657
+    },
+    "wasm-measure-final.log.gz": {
+      "path": "logs/wasm-measure-final.log.gz",
+      "uncompressed_sha256": "30edea40933e37c5defb1275076f795ced571f8708bb7dcdf463969a368143ac",
+      "uncompressed_bytes": 63885
+    },
+    "wasm-measure.log.gz": {
+      "path": "logs/wasm-measure.log.gz",
+      "uncompressed_sha256": "31dcbabdb3c4439d1f83edd124a194e8aa01d73c520ebe28a01dc55035dacdf9",
+      "uncompressed_bytes": 64160
+    },
+    "ref-closeout.log.gz": {
+      "path": "logs/ref-closeout.log.gz",
+      "uncompressed_sha256": "12217f0329ea02c1f36e4e659d4378e49fa9657aecf7860f746c7ddb471af6e3",
+      "uncompressed_bytes": 81
+    }
+  },
+  "non_runs": [
+    "Mac suite/measurement",
+    "full publication suite/receipt",
+    "full scripts/test.sh (explicitly prohibited)",
+    "npm/GitHub publication",
+    "git push"
+  ],
+  "interrupted_attempt": {
+    "exit": 130,
+    "phase": "compilation",
+    "reason": "release build lock for the client fixture; complete five-crate rerun passes"
+  },
+  "initial_wasm_attempt": "isolated budget overrun and one missing-brotli receipt retained as non-authoritative evidence; final clean measurement passes",
+  "diff_check": "source/docs clean; three blank EOF warnings retained in original verbatim Muse reviews"
+}
