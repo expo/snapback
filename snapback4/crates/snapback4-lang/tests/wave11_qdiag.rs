@@ -163,3 +163,8 @@ fn required_rows_project_into_nullable_reference_keys(){
   let optional=source.replace("parents[parent] ! else NOT_FOUND","parents[parent]");assert!(!checked(&optional).diagnostics.is_empty(),"optional source row accepted: {key}");
  }
 }
+
+#[test]
+fn cascade_repair_includes_the_root_deleted_through_a_helper(){
+ let source="table roots:\n  public\n  delete <- allow\ntable children:\n  root: roots on delete cascade\n  cap 2 by root\n  public\ntable leaves:\n  child: children on delete cascade\n  public\nfn remove(root: roots):\n  delete roots[root]\nmutation erase(root: roots):\n  return remove(root)\n";let b=checked(source);let d=b.diagnostics.iter().find(|d|d.code=="E_CASCADE_BOUND").unwrap();assert!(d.message.contains("delete roots"),"{d:?}");let cap=d.rewrite.split('`').find(|s|s.starts_with("cap ")&&s.ends_with("by child")).unwrap();let fixed=source.replace("  child: children on delete cascade",&format!("  child: children on delete cascade\n  {cap}"));let b=checked(&fixed);assert!(b.diagnostics.is_empty(),"{cap}: {:?}",b.diagnostics);
+}

@@ -112,6 +112,13 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &m
         let mut body=program.prelude.clone();body.extend(program.body.clone());
         walk::statements(&mut body,&mut |expr| if let Expr::Write {op:WriteOp::Delete,table,..}=expr && schema.tables.contains_key(table) {authored.insert(table.clone());});
     }}
+    for doc in &catalog.documents {for helper in &doc.functions {
+        let collect=&mut |expr:&mut Expr| if let Expr::Write {op:WriteOp::Delete,table,..}=expr && schema.tables.contains_key(table) {authored.insert(table.clone());};
+        match &helper.body {
+            FunctionBody::Block(body)=>walk::statements(&mut body.clone(),collect),
+            FunctionBody::Expression(expr)=>walk::expression(&mut expr.clone(),collect),
+        }
+    }}
     let mut roots=BTreeMap::new();
     for (parent,site) in &unbounded {
         let found=authored.iter().filter(|root|super::cascade_repair::reaches(schema,root,parent)).collect::<Vec<_>>();

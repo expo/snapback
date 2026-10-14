@@ -95107,3 +95107,25 @@ variables. Independent review logs retain their actual commands; Codex's
 additional review-side test invocations used the default profile rather than
 the explicitly requested environment, a delegation-brief omission. Future
 review briefs must pass those Cargo constraints explicitly.
+
+
+## 2026-10-14 — Wave 11 QDIAG
+
+From 0.4.27+PAGE3 `498f8110f9`, implemented joint cascade repairs, contextual
+required row ids and decimal media bound spellings; readable E_UNIQUE names
+declared keys while hidden conflicts preserve E_RULE ambiguity. Refined
+nullable-reference and child-owner proofs (including identity recreation and
+expiry), late hidden requires, sparse/prediction/bootstrap notes and direct why
+links. Developer queries/cases count encountered filtered images outside the
+wire; principal arguments distinguish persona names from dev principals on all
+dev operation doors, with production exemption and replay precedence intact.
+Seat refusals share the static authored clause across durable and actual
+ephemeral HTTP paths, for every private cause. Governing amendments: LLP
+3000.036.002 §§7–8 and LLP 3000.039 §12. Six fresh dual-family rounds converged
+to both READY at `41ad0a2a5e`; artifacts under llp/reviews. Added independent
+Lean/native generated witnesses, Memory/SQLite devices, simulator observations,
+repair goldens and dev/production HTTP regressions. Native/Lean campaigns add
+no new signatures; inherited Lean next/no-next disagreements remain classified.
+The final-schema census stays 100/100 with no new refusals. No push/publication
+from this lane; 0.4.28 integration belongs to the coordinator. Detailed evidence,
+measured wasm+500 B budget and root gate preconditions: WORKSTREAM-REPORT.md.
