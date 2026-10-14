@@ -1,0 +1,180 @@
+{
+  "version": 1,
+  "case": {
+    "seed": 17849,
+    "program": {
+      "tables": [
+        {
+          "name": "items",
+          "columns": [
+            {
+              "name": "owner",
+              "ty": "Principal"
+            }
+          ],
+          "keys": [],
+          "rule": "OwnerOrGrant",
+          "residency": "Online"
+        },
+        {
+          "name": "access",
+          "columns": [
+            {
+              "name": "bucket",
+              "ty": "Int"
+            },
+            {
+              "name": "principal",
+              "ty": "Principal"
+            }
+          ],
+          "keys": [
+            [
+              "byMember",
+              [
+                "bucket",
+                "principal"
+              ],
+              true
+            ]
+          ],
+          "rule": "Member",
+          "residency": "Member"
+        }
+      ],
+      "body": {
+        "Read": {
+          "kind": "Page",
+          "take": 1,
+          "descending": true,
+          "filter": false,
+          "owner": false
+        }
+      },
+      "lets": [],
+      "bind_return": false,
+      "reverse": false,
+      "helper": false,
+      "order": [
+        "id"
+      ],
+      "domain": ".owner = viewer or exists access[0, viewer]"
+    },
+    "rows": [
+      [
+        "items",
+        {
+          "id": "r7",
+          "owner": "alice"
+        }
+      ],
+      [
+        "items",
+        {
+          "id": "r8",
+          "owner": "alice"
+        }
+      ]
+    ],
+    "principal": "alice",
+    "args": {
+      "a": 0,
+      "b": 0,
+      "bucket": 0,
+      "c": null,
+      "key": "missing",
+      "n": null
+    },
+    "clock": 23887,
+    "budget": {
+      "examined": 8192,
+      "index_entries": 16384,
+      "rule_probes": 8192,
+      "steps": 11093,
+      "heap_bytes": 16777216,
+      "output_bytes": 1048576,
+      "rows_written": 1024
+    }
+  },
+  "finding": {
+    "signature": "rewrite-let--next--array",
+    "oracle": {
+      "Rewrite": "Let"
+    },
+    "field": "next",
+    "left": {
+      "kind": "query",
+      "value": {
+        "complete": true,
+        "cut": null,
+        "data": {
+          "Array": [
+            {
+              "Row": {
+                "id": {
+                  "Id": "r8"
+                },
+                "owner": {
+                  "Id": "alice"
+                }
+              }
+            }
+          ]
+        },
+        "metered": {
+          "examined": 3,
+          "heap_bytes": 231,
+          "index_entries": 0,
+          "output_bytes": 61,
+          "rows_written": 0,
+          "rule_probes": 0,
+          "steps": 8
+        },
+        "next": "WzIsIml0ZW1zIiwiJGludGVudDpieU93bmVyOmVmYWZiZmQ0ZTI5ZDAzYjIiLCJEZXNjIixbeyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSWQiOiJyOCJ9XSx7ImdlbmVyYXRpb24iOjEsInByZWZpeCI6W3siSWQiOiJhbGljZSJ9XX1d",
+        "seq": 1,
+        "tables": [
+          "access",
+          "items"
+        ]
+      }
+    },
+    "right": {
+      "kind": "query",
+      "value": {
+        "complete": true,
+        "cut": null,
+        "data": {
+          "Array": [
+            {
+              "Row": {
+                "id": {
+                  "Id": "r8"
+                },
+                "owner": {
+                  "Id": "alice"
+                }
+              }
+            }
+          ]
+        },
+        "metered": {
+          "examined": 2,
+          "heap_bytes": 620,
+          "index_entries": 0,
+          "output_bytes": 61,
+          "rows_written": 0,
+          "rule_probes": 1,
+          "steps": 27
+        },
+        "next": "WzQsIml0ZW1zIiwiJG9yOmRlYjM4M2M3NTE4YTFiZTc4MmZiNjIzZDljMWU2MGRmNDFjNThhYmI1NTRkMjg3ZmM1OWJhNzY5MjRiMzViZTciLCJEZXNjIixbeyJuYW1lIjoiaWQiLCJraW5kIjoiSWQifV0sW3siSWQiOiJyOCJ9XSx7ImdlbmVyYXRpb24iOjEsInByZWZpeCI6W3siU3RyaW5nIjoiYWU0OTBmY2E1MzAyOGNkM2NhODQ2MjNiMGEzYmY2MTRkOTk1ZmNmMjZjYmYxZjc5OTdlMzNlMDg1MjNkNDQ2NCJ9XX1d",
+        "seq": 1,
+        "tables": [
+          "access",
+          "items"
+        ]
+      }
+    },
+    "continuation": []
+  },
+  "shrink_attempts": 136
+}

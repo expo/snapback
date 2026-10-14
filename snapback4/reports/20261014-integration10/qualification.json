@@ -1,0 +1,107 @@
+{
+  "merge_commit": "9131f31d18",
+  "qualified_code_commit": "0c1da19d0994a962f6319bf5e727d034e0cce867",
+  "version": "0.4.27",
+  "pushed": false,
+  "mac": "deferred to 0.4.28 publication, host offline",
+  "source_sha256": {
+    "snapback4/crates/snapback4-lang/src/bind/intent.rs": "f75ac24da1fa2bfa65bc457be58dd2223e66b97905d1854e39dd7a229fd2e63d",
+    "snapback4/crates/snapback4-difftest/src/oracle.rs": "9ddc386f5de2d10a9709dc486e4f0bb8e881e1dceea121b4ba93f3309e5db4e9",
+    "snapback4/packages/snapback4/test/page-authority.test.mjs": "00fb6842fef4fc41873dcebccfa35b9cc70d43e85e18fbdca30a775a66304e13"
+  },
+  "binary_sha256": {
+    "snapback4/target/debug/snapback4": "47fd30e5839d838068fba572f9b37b798c5a34087f9ec6ad801cc16688c46023",
+    "snapback4/target/release/snapback4-difftest": "1b9f7d05997e6e80e5001717df213d5cfdcab19fcd100bb576d4658c440956a0",
+    "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm": "c6c6fe29051978e91fce4122d86c021bba523c6dec03a04cdf3235fb23da2508"
+  },
+  "rust_initial": {
+    "passed": 5979,
+    "failed": 4,
+    "ignored": 41,
+    "failures": [
+      "landing::redundant_witness_lifetimes_do_not_change_scan_or_write_probe_reservations",
+      "uniform_word_expansion::search_wasm_fixtures_match_compiled_programs_and_authorized_snapshots",
+      "never_complete_names_the_missing_pin_as_code",
+      "read_cut::calibration_uniform_words_continue_and_hidden_prefix_has_a_walk_bound"
+    ]
+  },
+  "rust_repaired_scopes": {
+    "sequence_disclosure": 0,
+    "word_expansion": 0,
+    "wave1_rule_language": 0,
+    "sim_read_cut": 0,
+    "full_lang": 0
+  },
+  "client_initial": {
+    "files": 381,
+    "pool_slots": 24,
+    "tests": 7451,
+    "pass": 7394,
+    "fail": 1,
+    "skipped": 56,
+    "cancelled": 0,
+    "todo": 0
+  },
+  "client_repaired_authority_file": {
+    "pass": 13,
+    "fail": 0
+  },
+  "client_qualified": {
+    "pass": 7395,
+    "skipped": 56,
+    "models": 81,
+    "fixtures": 9,
+    "introduced_unresolved_failures": 0
+  },
+  "wasm": {
+    "raw": 2313446,
+    "gzip": 705305,
+    "brotli": 532895,
+    "budget": 705805,
+    "headroom": 500
+  },
+  "farm": {
+    "original_compiled": 50,
+    "original_notes": 2,
+    "original_schemas_with_notes": 1,
+    "repaired_compiled": 50,
+    "repaired_notes": 0
+  },
+  "root": {
+    "inventories": 0,
+    "guide": {
+      "passed": 22,
+      "failed": 0,
+      "skipped": 0,
+      "preconditions": 0,
+      "warnings": 121
+    },
+    "ref_check": {
+      "llp_docs": 545,
+      "refs": 11784,
+      "errors": 0,
+      "unchecked": 0
+    },
+    "regeneration": 0,
+    "environment_repair": "frozen root Bun install and ensure-workspace-hoist after node_modules was absent during closeout"
+  },
+  "lang_final": {
+    "passed": 1895,
+    "failed": 0,
+    "ignored": 14
+  },
+  "lean": {
+    "generated": 20000,
+    "compiled": 20000,
+    "executed": 53008,
+    "new_signatures": [],
+    "baseline_disagreements": 168
+  },
+  "censuses": {
+    "delivery_sites": 213,
+    "whole_source_awaits": 1149,
+    "native_entries": 722,
+    "mutation_occurrences": 412,
+    "private_write_sites": 90
+  }
+}

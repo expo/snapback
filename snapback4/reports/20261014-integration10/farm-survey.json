@@ -1,0 +1,645 @@
+{
+  "binary_sha256": "47fd30e5839d838068fba572f9b37b798c5a34087f9ec6ad801cc16688c46023",
+  "source_digest": "8a1d83af88b93b44aa41aa7aea8b5ce15fd1424bdebdd1351831b7556967f99f",
+  "results": {
+    "original": {
+      "schemas": 50,
+      "notes": 2,
+      "schemas_with_notes": 1,
+      "cases": [
+        {
+          "app": "001-sourdough-starter-share",
+          "notes": [],
+          "source_sha256": "259f4b8f4f36f70df7e2781a6667cf50ec47b1c80e896d3262923b11114d14e2",
+          "output_sha256": "4542f9f696f2176907df5fd73729adf35d557788fff1a2858afe22aa68c8753d"
+        },
+        {
+          "app": "003-mushroom-forage-permits",
+          "notes": [],
+          "source_sha256": "5527d1a69885504e538d7a1b795e4c3e77ed671302a7236b760354a0546da32e",
+          "output_sha256": "ce89a400e682931dc754a7d30b58d7f5af79c8e898f96193bb47af3cb47298eb"
+        },
+        {
+          "app": "005-tide-pool-survey",
+          "notes": [],
+          "source_sha256": "437d1471a271fd15947ea1cffa9f938210df114f36d1976b0520cd1593a98f1f",
+          "output_sha256": "d66bde51de4b580655c3aa0b4a6bd797e891c2c5e9de8eba1bfd0c8cfbd3702f"
+        },
+        {
+          "app": "007-meteorite-finds-registry",
+          "notes": [],
+          "source_sha256": "9d2cb3498b66a655c7216b3bad5a42c7cc533d7124b758429df6603b217580a2",
+          "output_sha256": "ec04b91986381dc204550c6642bae885a41449a6a3cd21004e6701db8aea2c9d"
+        },
+        {
+          "app": "009-cryo-freezer-map",
+          "notes": [],
+          "source_sha256": "c0977de7dcc81b2fcca88de6f03564f1931b521cfba8e253059ee42abb54b524",
+          "output_sha256": "ad05b9a0ea491e897678de9b46d05f012bac600754329e986042b1a7426e729b"
+        },
+        {
+          "app": "011-sample-shipping-manifests",
+          "notes": [],
+          "source_sha256": "db547f1bacbabae470693d7598fa5ef0f9187176879f65133011b20e172760eb",
+          "output_sha256": "d768f8a6dea51969228bb36b4963d67518c5f85fb9f98b76652de63c41c63a36"
+        },
+        {
+          "app": "013-birdsong-recording-review",
+          "notes": [],
+          "source_sha256": "cf5cfe238834ceff99468ffa8541886fb866f94b444099d6523ffbe9dced773c",
+          "output_sha256": "7a6c64c8cdb7653b5e58dd980154607964c84ed62f91c7f10a1983df97ff4de1"
+        },
+        {
+          "app": "015-robotics-league-scouting",
+          "notes": [],
+          "source_sha256": "ef6aa427b0c321e88771129a317f71ecddf4ccf81ba8fe59e7dab3930155b895",
+          "output_sha256": "26e9370a411a7fde6697468b2bdcd9f05d601efb6d9522afbc730e175a00eca5"
+        },
+        {
+          "app": "017-cross-country-team-splits",
+          "notes": [],
+          "source_sha256": "654db5fcf3725a0986f377689a6677d8752a41617d60410ea77c4c417f621e8c",
+          "output_sha256": "a7c28489fa411bae4daacd643f09cb242f9ad0ab9f24fb0254ad6470f556b08b"
+        },
+        {
+          "app": "019-golf-tee-time-lottery",
+          "notes": [],
+          "source_sha256": "e1462e7698f1e67c7f86fecbacde212dd42c10834016c0a4780acfc2fbf5a9fe",
+          "output_sha256": "f2cb9563da0e87cbbb00e43517bd64369361736901253538797065d26e83ca92"
+        },
+        {
+          "app": "021-ultramarathon-aid-stations",
+          "notes": [],
+          "source_sha256": "395808677b1965604909888fd9baebdabdd7951b6bf1d99c4640df916d714960",
+          "output_sha256": "0b3d8d5ce201042c204e7df2d2ff176d3815c5fe1b8272bebd790cbc20dcf342"
+        },
+        {
+          "app": "023-horse-stable-boarding",
+          "notes": [],
+          "source_sha256": "fc8e37b022d190fa453c401d85b22752c89155161437ff1b1c1c5bb41629e73c",
+          "output_sha256": "cfd9ac1b1d6e0264f6e4ebacb84855d92a0f22395fb690eb75c1f5be26b24ff3"
+        },
+        {
+          "app": "025-ski-resort-lift-shift",
+          "notes": [],
+          "source_sha256": "8a2f317ddfe9a0ddb55053f049ca6879d8e4dd25f6c0a2a4424dfcedb8ed9aff",
+          "output_sha256": "b566004cdc76fe2693c72105c8420ad902ee48c81f92386678b0e8fb61cf6dc2"
+        },
+        {
+          "app": "027-backcountry-permit-checkin",
+          "notes": [],
+          "source_sha256": "ae6beca2d6f1111fec307d5723edc5e6fac1cc209ead9ba6c231297ee23f2148",
+          "output_sha256": "9b0fe12f4a3ea08bf2a3160ade2cc6abc88775524a01981546fb95fa77cda268"
+        },
+        {
+          "app": "029-ferry-vehicle-reservations",
+          "notes": [],
+          "source_sha256": "f2ab49b3f470112fda6b460c759a1b1cd3bdb3a6d0d25d19e28b6b97169f8d0b",
+          "output_sha256": "a1dcddacdc00340fa6d719eaa1701291dc4dc71dbaa9bed18c3d6d61ed2b6421"
+        },
+        {
+          "app": "031-group-tour-guide-roster",
+          "notes": [],
+          "source_sha256": "557d6a9d7abadf464675356f3fc37c2b8cd54ed351bf1f46b64cbed1b67ca962",
+          "output_sha256": "d245c93b50aec5c9349fdfaba9e03b2e02dd340d139f019d8741f4343d3e5433"
+        },
+        {
+          "app": "033-airline-miles-pooling",
+          "notes": [
+            {
+              "code": "N_NEVER_COMPLETE",
+              "guide": "reads",
+              "mechanical": false,
+              "message": "query poolProposals: the page over proposals[..] by read or declaration on proposals (pool, at, id) at schema.q:64:12 is never `complete` \u2014 the read rule `.author = viewer or exists pools[.pool, owner = viewer]` reads .author, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"; `exists pools[.pool, owner = viewer]` is decided by the scan's pins, but its holders cannot read the row it probes, so it does not decide the page: `complete: false` for them too; it answers `complete: false` even when every row the caller may read is there \u2014 test.cases.jsonl: the default passes it (or write `\"expect\": \"capped\"`); a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; the complete form requires the checked immutable copy: on table proposals declare `pool: pools on delete restrict`, add `poolOwner: principal` and `immutable pool, poolOwner`; replace its read declaration with `read <- .author = viewer or .poolOwner = viewer`; replace its insert declaration with `insert <- (.author = viewer and exists members[.pool, viewer] and .status = 'pending') and exists pools[.pool, owner = .poolOwner]`; in every `insert proposals { \u2026 }` payload add `poolOwner: poolOwnerSource.owner` after inserting `poolOwnerSource = pools[pool] ! else NOT_FOUND` immediately before that insert (using the same reference value supplied in its payload), and backfill that field from pools.owner in existing rows and trusted seeds before adoption. The parent declares `immutable owner`, so this preserves the original readers; a mutable parent owner instead requires transactional copy propagation (check --verbose)",
+              "rewrite": "on table proposals declare `pool: pools on delete restrict`, add `poolOwner: principal` and `immutable pool, poolOwner`; replace its read declaration with `read <- .author = viewer or .poolOwner = viewer`; replace its insert declaration with `insert <- (.author = viewer and exists members[.pool, viewer] and .status = 'pending') and exists pools[.pool, owner = .poolOwner]`; in every `insert proposals { \u2026 }` payload add `poolOwner: poolOwnerSource.owner` after inserting `poolOwnerSource = pools[pool] ! else NOT_FOUND` immediately before that insert (using the same reference value supplied in its payload), and backfill that field from pools.owner in existing rows and trusted seeds before adoption. The parent declares `immutable owner`, so this preserves the original readers; a mutable parent owner instead requires transactional copy propagation\n\nOtherwise: pin .author with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); the existing index `read or declaration on proposals (author, pool, at, id) at schema.q:64:12: author, pool, at, id` supports it; or read the page on the device. As code: the parent-owner witness is not readable to every owner, so discovery cannot certify absence; on table proposals declare `pool: pools on delete restrict`, add `poolOwner: principal` and `immutable pool, poolOwner`; replace its read declaration with `read <- .author = viewer or .poolOwner = viewer`; replace its insert declaration with `insert <- (.author = viewer and exists members[.pool, viewer] and .status = 'pending') and exists pools[.pool, owner = .poolOwner]`; in every `insert proposals { \u2026 }` payload add `poolOwner: poolOwnerSource.owner` after inserting `poolOwnerSource = pools[pool] ! else NOT_FOUND` immediately before that insert (using the same reference value supplied in its payload), and backfill that field from pools.owner in existing rows and trusted seeds before adoption. The parent declares `immutable owner`, so this preserves the original readers; a mutable parent owner instead requires transactional copy propagation",
+              "site": {
+                "col": 1,
+                "file": "schema.q",
+                "line": 61
+              }
+            },
+            {
+              "code": "N_NEVER_COMPLETE",
+              "guide": "reads",
+              "mechanical": false,
+              "message": "query poolMembers: the page over members[..] by read or declaration on members (pool, id) at schema.q:73:10 is never `complete` \u2014 the read rule `.principal = viewer or exists pools[.pool, owner = viewer]` reads .principal, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"; `exists pools[.pool, owner = viewer]` is decided by the scan's pins, but its holders cannot read the row it probes, so it does not decide the page: `complete: false` for them too; it answers `complete: false` even when every row the caller may read is there \u2014 test.cases.jsonl: the default passes it (or write `\"expect\": \"capped\"`); a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; the complete form requires the checked immutable copy: on table members declare `pool: pools on delete restrict`, add `poolOwner: principal` and `immutable pool, poolOwner`; replace its read declaration with `read <- .principal = viewer or .poolOwner = viewer`; replace its insert declaration with `insert <- (deny) and exists pools[.pool, owner = .poolOwner]`; in every `insert members { \u2026 }` payload add `poolOwner: poolOwnerSource.owner` after inserting `poolOwnerSource = pools[pool] ! else NOT_FOUND` immediately before that insert (using the same reference value supplied in its payload), and backfill that field from pools.owner in existing rows and trusted seeds before adoption. The parent declares `immutable owner`, so this preserves the original readers; a mutable parent owner instead requires transactional copy propagation (check --verbose)",
+              "rewrite": "on table members declare `pool: pools on delete restrict`, add `poolOwner: principal` and `immutable pool, poolOwner`; replace its read declaration with `read <- .principal = viewer or .poolOwner = viewer`; replace its insert declaration with `insert <- (deny) and exists pools[.pool, owner = .poolOwner]`; in every `insert members { \u2026 }` payload add `poolOwner: poolOwnerSource.owner` after inserting `poolOwnerSource = pools[pool] ! else NOT_FOUND` immediately before that insert (using the same reference value supplied in its payload), and backfill that field from pools.owner in existing rows and trusted seeds before adoption. The parent declares `immutable owner`, so this preserves the original readers; a mutable parent owner instead requires transactional copy propagation\n\nOtherwise: pin .principal with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); the existing index `read or declaration on members (principal, pool, id) at schema.q:8:18: principal, pool, id` supports it; or read the page on the device. As code: the parent-owner witness is not readable to every owner, so discovery cannot certify absence; on table members declare `pool: pools on delete restrict`, add `poolOwner: principal` and `immutable pool, poolOwner`; replace its read declaration with `read <- .principal = viewer or .poolOwner = viewer`; replace its insert declaration with `insert <- (deny) and exists pools[.pool, owner = .poolOwner]`; in every `insert members { \u2026 }` payload add `poolOwner: poolOwnerSource.owner` after inserting `poolOwnerSource = pools[pool] ! else NOT_FOUND` immediately before that insert (using the same reference value supplied in its payload), and backfill that field from pools.owner in existing rows and trusted seeds before adoption. The parent declares `immutable owner`, so this preserves the original readers; a mutable parent owner instead requires transactional copy propagation",
+              "site": {
+                "col": 1,
+                "file": "schema.q",
+                "line": 70
+              }
+            }
+          ],
+          "source_sha256": "7126b4b8a11215633d5d374e8cf941e432416b7445ea3d4a82982c5abe47c5eb",
+          "output_sha256": "606c4b628a0e117c9e19118d96e1807043ee1a1d4a7625819c010424b632aa30"
+        },
+        {
+          "app": "035-exchange-student-hosts",
+          "notes": [],
+          "source_sha256": "aaf5c24e921eddff8f968bbb305935e02d1d0eae4d2a2406a004c9cdb122cbc6",
+          "output_sha256": "6017d5bada5c13bc9910bfa42feaf109657da2f7c18c35fdd31aea99dc16c2c8"
+        },
+        {
+          "app": "037-school-pickup-authorizations",
+          "notes": [],
+          "source_sha256": "54c8100392a72129eef25a353f5ff9443aebdcec64296d6d5e13e9424c607552",
+          "output_sha256": "0743c9fd032f4342956c4aa3a1c67895177f122bbd6a79d57c340427ad000850"
+        },
+        {
+          "app": "039-science-fair-judging",
+          "notes": [],
+          "source_sha256": "6ec33a96106ed1ac88699105b65108586e2850a7ce7ec6b2339e802e56206b3b",
+          "output_sha256": "68e8a9aba5c1e62634f7b591ff3f3f5623aae7475005e727fcc5a15b2c9a5e1f"
+        },
+        {
+          "app": "041-college-application-checklist",
+          "notes": [],
+          "source_sha256": "2b02612be6ba19a1663a70705eb02ae5429c17400ce3fffafe5bbef477dd405f",
+          "output_sha256": "68f8c224eec1f04d9349b884ab4302ffd89bd942885475f56ab3a53de9eedd4f"
+        },
+        {
+          "app": "043-tailor-alteration-orders",
+          "notes": [],
+          "source_sha256": "5c8698996da06433472ae2780780ead2a2eee51be5eb3b15319d71751314c7fb",
+          "output_sha256": "0ae3acdaa88be99dcfffc5d925db250f3b70b09a4054c5c7e61707bf20376890"
+        },
+        {
+          "app": "045-print-shop-proofing",
+          "notes": [],
+          "source_sha256": "9703d7585325e86ae6708a6c64fc7bf9b0cbfa2ba05afe4a5d5402644068a6d1",
+          "output_sha256": "4441cde9eebc0cf781373bea3380f2002a0c761b7a7bf907f4276d2ce49c810c"
+        },
+        {
+          "app": "047-florist-event-orders",
+          "notes": [],
+          "source_sha256": "61b9e2803c85df2df93352b63e6938f84a32588b944eba698ac07bb182daf285",
+          "output_sha256": "803493f5f10c56e05777bdb0d2773692cb391556a5192617531b1194d67433a0"
+        },
+        {
+          "app": "049-food-hall-vendor-settlements",
+          "notes": [],
+          "source_sha256": "bbe937ae85ef01fdae3818448ff1d33c69370ef6506a4698da4fddfc14c20786",
+          "output_sha256": "32e955f6fdfcd818bb808e574ff224b8f4c777212abe6bc6635aa4568a2fa6a9"
+        },
+        {
+          "app": "051-hunting-lease-calendar",
+          "notes": [],
+          "source_sha256": "85dcbd380536ec975355f57a83b73274cd47d077ed0b27b37fecdd8c83d40409",
+          "output_sha256": "5e116b01e894d36fb27e06e13c2421dc0df41124d7fe79d7cd78c6ffb45af814"
+        },
+        {
+          "app": "053-campus-dining-dollars",
+          "notes": [],
+          "source_sha256": "7b65bb9d05a6bd3377c8efd2d3a09c7b879a9525c1685bf1907b195396f6981f",
+          "output_sha256": "2249e28517fbe8ec47f930bd6e82554256d64f8f7527cd195e0c0632a79ecd0f"
+        },
+        {
+          "app": "055-elevator-inspection-calendar",
+          "notes": [],
+          "source_sha256": "8e47faa29cb7c7add916a8cfde8bab526610cc874e40fa5fe798df15473c2fff",
+          "output_sha256": "8cee60e02a747745c81e7b253f938a312cabe5c8a1e3130719bd446561d473eb"
+        },
+        {
+          "app": "057-snow-plow-contractor-bids",
+          "notes": [],
+          "source_sha256": "42497555f25d86e02426091fc179f34634091c1f5fd8f43d499ab1d88d458532",
+          "output_sha256": "ac17afe0f3c4527786c7fb7dc579d9114c67829b541d9c3326fb7c94fdfd7ab0"
+        },
+        {
+          "app": "059-solar-panel-cleaning-routes",
+          "notes": [],
+          "source_sha256": "cea1ba28e92e284b0e8411ea84c0e65efbfc3d60ce8b0d259dff3a452a7185d8",
+          "output_sha256": "f0014439e8aa1ba9cf949326f599da81a2ab9eb4559b050e58510928025b92df"
+        },
+        {
+          "app": "061-locksmith-dispatch-verification",
+          "notes": [],
+          "source_sha256": "13248bc90a86f99357732550ffa8d68fcf844a43b8fa6a099d42e42bd503e34b",
+          "output_sha256": "1d875e756c611c7723703ce75baeabf19b2e80abf0ec173df52b4bbadb7b38be"
+        },
+        {
+          "app": "063-youth-court-diversion",
+          "notes": [],
+          "source_sha256": "2cdb664eed49c380bde601846a02af66f87bf4740e7589cefc6285519b1d761c",
+          "output_sha256": "aab842175d50a08055dbac0746179ecd2ab89591dc927cff8b06c25e2feccc56"
+        },
+        {
+          "app": "065-legal-clinic-volunteer-attorneys",
+          "notes": [],
+          "source_sha256": "5993b22277c09881a6ce29f0e552b8163a51b3b1244a68851ab860bb316a414a",
+          "output_sha256": "ba35ebb7101509c836d17cedda1173fbe13b0635bb45df7c12714ea3c1985a82"
+        },
+        {
+          "app": "067-library-micro-grant-fund",
+          "notes": [],
+          "source_sha256": "cb294f886566215243c8123defe1e52a66b601cbae5cded57dfddd59ca6cade4",
+          "output_sha256": "bf90612781d82b9f7c5f5ab5f3b863fc5ce27e71e22f85182e7c026f4cd371ef"
+        },
+        {
+          "app": "069-school-board-public-comment",
+          "notes": [],
+          "source_sha256": "4a7ba277f893cf5db7109ba7062b0f053e379a78510cdeabed5923cb79298fa2",
+          "output_sha256": "dd94c10009c70788d5cd2d084067f157383e77c0ab9b1925758fbad5f9716e02"
+        },
+        {
+          "app": "071-emergency-volunteer-badges",
+          "notes": [],
+          "source_sha256": "fbc514024c69e2a4ce23dc9d504ab4f07028f41a7106c6a133200c42946d31e1",
+          "output_sha256": "1549e0dda00311894911da8ba27b5a903f3b32a4fb8d0dc90b9858ac6278cf79"
+        },
+        {
+          "app": "073-free-clinic-intake-lottery",
+          "notes": [],
+          "source_sha256": "385e0a9638a058e7b5133e21dfa0a4472113cd39bd14c724b16fed67f868f4b7",
+          "output_sha256": "1940ae1f0608ba238f869ecf357e75fb65493514a9ef406d7a709bc63beb8c9f"
+        },
+        {
+          "app": "075-sleep-study-diary",
+          "notes": [],
+          "source_sha256": "90e234bc7477b8e1f04b7df2d6c12b4f1490d1bab01bc84a910fa1511fe31fb6",
+          "output_sha256": "bdffb2155f6b9ab03649992bfce26837eba4e9480d242843ccc935192a7c3304"
+        },
+        {
+          "app": "077-caregiver-respite-credits",
+          "notes": [],
+          "source_sha256": "9ddf1c54f0914a0464aa21d48f9e151929b9148c15af92ff267f70667e3d56bb",
+          "output_sha256": "9acf30e28763bf5984b19f762cbad3bef3f49dd41484074b86991be0619f7525"
+        },
+        {
+          "app": "079-hospice-volunteer-visits",
+          "notes": [],
+          "source_sha256": "0a2e3aab5bc06f78836c63445a29fc5182ae733b83afd861ba8570e78bae3919",
+          "output_sha256": "86fcf19907edaf979a78aeedd008fcf4b1e8c8629062a0d675d6f040f737e2e2"
+        },
+        {
+          "app": "081-adaptive-sports-equipment",
+          "notes": [],
+          "source_sha256": "d55532ea1d6824cb18441540327ce319bacc45aab8491205bb4941b339b92dad",
+          "output_sha256": "812b2dcb9875e70934d793bb192b7cd5d7833b0c0af0e9bee60d2dbf94c9fce2"
+        },
+        {
+          "app": "083-sports-card-trade-escrow",
+          "notes": [],
+          "source_sha256": "05b9e188e2e27ba3627d8f0849ce9b7d1bf0e9fab9465d26c8e4415e1b1892ea",
+          "output_sha256": "5aa60a1452d59e09798806bbdebe629d4fe79c235c6f27a1887d1d71a7246ce5"
+        },
+        {
+          "app": "085-pen-pal-exchange-program",
+          "notes": [],
+          "source_sha256": "c93bf944f64c976f61666da1b4f8737017f4ad4e4c534527158780f5ec5423ed",
+          "output_sha256": "ec2054ae8792ddf34156ddd15fe6af699f5f63325132739ee2fa0d29a19dd4b2"
+        },
+        {
+          "app": "087-tabletop-miniature-commissions",
+          "notes": [],
+          "source_sha256": "2943ea2d7331e63d2b51092fc6bb9fd9298f9d4c00a0101fef4dc188c5809d7e",
+          "output_sha256": "19740aee2f092f634df0401df62d69b81b7d715d95ab7d47c41f75cfa8d6c42d"
+        },
+        {
+          "app": "089-larp-event-casting",
+          "notes": [],
+          "source_sha256": "38e2e339baafd467de71dfe478a8e04f0591a43e6e0cd0dbb2bfc038bc23b222",
+          "output_sha256": "430ba04a27fccad31b226e6f50377c38e5bee653cd8dedaa513519cdfa898cc1"
+        },
+        {
+          "app": "091-speedrun-verification-board",
+          "notes": [],
+          "source_sha256": "6186707bca81631011b05375a56f1bf5de2abff5786fe8e526fa6f5afa58d8e4",
+          "output_sha256": "7361b033a9e71b4e8488e177e08a9a6b5b22dacc3798b3171dddee5d80d79df0"
+        },
+        {
+          "app": "093-orchard-gleaning-network",
+          "notes": [],
+          "source_sha256": "675cf0b791d7df6f16e97ddc167545b919f29e92a496728b9358d005ec068a65",
+          "output_sha256": "90250f5ce6904a560dc34c549581ffa54b614f345f6f6e1db2032313432c1906"
+        },
+        {
+          "app": "095-rental-return-inspection",
+          "notes": [],
+          "source_sha256": "4a899643a51bed7b8f36c2955f0934bd1281bc92f62681da92ac28dc32438db9",
+          "output_sha256": "1377c2c09026f853d5ecb90e776df2f375565a3841261ef2e44b7a22a0ee87af"
+        },
+        {
+          "app": "097-tidal-mooring-waitlist",
+          "notes": [],
+          "source_sha256": "62e89d4ef3408edf4f5b6d8085210a04bcdcecf078fbd49eb19b10926f8ddff4",
+          "output_sha256": "3b98e8682d6f2c0dd14b56b002ed5c6db4826a7403ef1d8d817b958d15eb1475"
+        },
+        {
+          "app": "099-orchestra-substitute-callout",
+          "notes": [],
+          "source_sha256": "88d838feabbf1bfde3fd009ce129c9e037b82d591298f030a57646345a1a0bb0",
+          "output_sha256": "0df76b639bca4b073bd8c20b4574ce946554273f83f02fa3a30431eede18a655"
+        }
+      ]
+    },
+    "repaired": {
+      "schemas": 50,
+      "notes": 0,
+      "schemas_with_notes": 0,
+      "cases": [
+        {
+          "app": "001-sourdough-starter-share",
+          "notes": [],
+          "source_sha256": "259f4b8f4f36f70df7e2781a6667cf50ec47b1c80e896d3262923b11114d14e2",
+          "output_sha256": "1306d186496084fd3650906c69da820de543073a2a2e39458a53507294dd63c5"
+        },
+        {
+          "app": "003-mushroom-forage-permits",
+          "notes": [],
+          "source_sha256": "5527d1a69885504e538d7a1b795e4c3e77ed671302a7236b760354a0546da32e",
+          "output_sha256": "90d86e7e0640d7dc9ee4de32720fddb9949339f23cae6a02a3e6e766c110c73d"
+        },
+        {
+          "app": "005-tide-pool-survey",
+          "notes": [],
+          "source_sha256": "437d1471a271fd15947ea1cffa9f938210df114f36d1976b0520cd1593a98f1f",
+          "output_sha256": "0cf1c3d3306099377715e9e8ca4c0f578f87685ac3db10e65803b88112a0ab49"
+        },
+        {
+          "app": "007-meteorite-finds-registry",
+          "notes": [],
+          "source_sha256": "9d2cb3498b66a655c7216b3bad5a42c7cc533d7124b758429df6603b217580a2",
+          "output_sha256": "c1dcddd002d755115d70d56c44f0e0c9b6a2739ae6be187e96ef4e5cdb5405ff"
+        },
+        {
+          "app": "009-cryo-freezer-map",
+          "notes": [],
+          "source_sha256": "c0977de7dcc81b2fcca88de6f03564f1931b521cfba8e253059ee42abb54b524",
+          "output_sha256": "da0ad0807d8119b9c011172c38a2f0731656a38db85a5dc310afb60af3dab2d6"
+        },
+        {
+          "app": "011-sample-shipping-manifests",
+          "notes": [],
+          "source_sha256": "db547f1bacbabae470693d7598fa5ef0f9187176879f65133011b20e172760eb",
+          "output_sha256": "e11c0a881e68c2464c4c0d540bb3797379389e74230d2a5526a1434c8517bbf9"
+        },
+        {
+          "app": "013-birdsong-recording-review",
+          "notes": [],
+          "source_sha256": "cf5cfe238834ceff99468ffa8541886fb866f94b444099d6523ffbe9dced773c",
+          "output_sha256": "ee601e2a3f0ff577d4f0ea50501a4ef90817a96efce8024015794944ae9eae8b"
+        },
+        {
+          "app": "015-robotics-league-scouting",
+          "notes": [],
+          "source_sha256": "ef6aa427b0c321e88771129a317f71ecddf4ccf81ba8fe59e7dab3930155b895",
+          "output_sha256": "ce85e44a620422a92904713bcd78ab762304f55cb01ea40f080aa59b94d382e1"
+        },
+        {
+          "app": "017-cross-country-team-splits",
+          "notes": [],
+          "source_sha256": "654db5fcf3725a0986f377689a6677d8752a41617d60410ea77c4c417f621e8c",
+          "output_sha256": "09927301a86662f5d3901ee65b6bd7335065bea65178ee73354fdff9de9f2a76"
+        },
+        {
+          "app": "019-golf-tee-time-lottery",
+          "notes": [],
+          "source_sha256": "e1462e7698f1e67c7f86fecbacde212dd42c10834016c0a4780acfc2fbf5a9fe",
+          "output_sha256": "d3dd703b6fa275da2259d48985c5614892fbe16a242c4add406183a2160aa4e6"
+        },
+        {
+          "app": "021-ultramarathon-aid-stations",
+          "notes": [],
+          "source_sha256": "395808677b1965604909888fd9baebdabdd7951b6bf1d99c4640df916d714960",
+          "output_sha256": "d07fa07945ac11b36f3a6452c37c6a96e1134d97f75c27cd9380f7b20fc6d780"
+        },
+        {
+          "app": "023-horse-stable-boarding",
+          "notes": [],
+          "source_sha256": "fc8e37b022d190fa453c401d85b22752c89155161437ff1b1c1c5bb41629e73c",
+          "output_sha256": "ebb988298e128d908ca53fa7220e1a8a7d32019ee67f32ec73feea0a7153a06f"
+        },
+        {
+          "app": "025-ski-resort-lift-shift",
+          "notes": [],
+          "source_sha256": "8a2f317ddfe9a0ddb55053f049ca6879d8e4dd25f6c0a2a4424dfcedb8ed9aff",
+          "output_sha256": "1aa179b44901d892293128642e9e34d8378b1da2ff2859fea940705c93690599"
+        },
+        {
+          "app": "027-backcountry-permit-checkin",
+          "notes": [],
+          "source_sha256": "ae6beca2d6f1111fec307d5723edc5e6fac1cc209ead9ba6c231297ee23f2148",
+          "output_sha256": "d77f2fe01729d921996d2f294714791828ef3500c31e03da485d8e70cef78796"
+        },
+        {
+          "app": "029-ferry-vehicle-reservations",
+          "notes": [],
+          "source_sha256": "f2ab49b3f470112fda6b460c759a1b1cd3bdb3a6d0d25d19e28b6b97169f8d0b",
+          "output_sha256": "99765ccc31f92c87ad76a608e2fa00e2fc551b585f4f2d8734932fb069d35cc3"
+        },
+        {
+          "app": "031-group-tour-guide-roster",
+          "notes": [],
+          "source_sha256": "557d6a9d7abadf464675356f3fc37c2b8cd54ed351bf1f46b64cbed1b67ca962",
+          "output_sha256": "1b264c3e3e640cb0ae21ab2fa8f3e0f5b44a8c2b1a0f70d91f46d06fb089de9f"
+        },
+        {
+          "app": "033-airline-miles-pooling",
+          "notes": [],
+          "source_sha256": "33ab5874eb91b01beaaebb783a5e84188ade13e72bec551ce4342b5f56c1c551",
+          "output_sha256": "7c9bb7e61e06b966407413698f04d96d776326660d7bf5a45c5fa0faf0c970ad"
+        },
+        {
+          "app": "035-exchange-student-hosts",
+          "notes": [],
+          "source_sha256": "aaf5c24e921eddff8f968bbb305935e02d1d0eae4d2a2406a004c9cdb122cbc6",
+          "output_sha256": "586e70727f8eb01bafb4e79bc38437fec3dff3e24f07a6463b39ba3bba4f20d5"
+        },
+        {
+          "app": "037-school-pickup-authorizations",
+          "notes": [],
+          "source_sha256": "54c8100392a72129eef25a353f5ff9443aebdcec64296d6d5e13e9424c607552",
+          "output_sha256": "3faa97be5b35678d187c9f70e84b8999282ecf812b4f55664ee0208aa6b528c5"
+        },
+        {
+          "app": "039-science-fair-judging",
+          "notes": [],
+          "source_sha256": "6ec33a96106ed1ac88699105b65108586e2850a7ce7ec6b2339e802e56206b3b",
+          "output_sha256": "b503fdd1a862a3f500d79c666255600fe7e861d4735d83f9e1d72ee9ff9ffe58"
+        },
+        {
+          "app": "041-college-application-checklist",
+          "notes": [],
+          "source_sha256": "2b02612be6ba19a1663a70705eb02ae5429c17400ce3fffafe5bbef477dd405f",
+          "output_sha256": "af410761a62716a407932baeac6dc635d199ce5819760c4641f321f100541a67"
+        },
+        {
+          "app": "043-tailor-alteration-orders",
+          "notes": [],
+          "source_sha256": "5c8698996da06433472ae2780780ead2a2eee51be5eb3b15319d71751314c7fb",
+          "output_sha256": "b31a83d41c2c0c0af9b284e7d3f21ee0438bdb1dd8a7f8142d691ddcecd6d026"
+        },
+        {
+          "app": "045-print-shop-proofing",
+          "notes": [],
+          "source_sha256": "9703d7585325e86ae6708a6c64fc7bf9b0cbfa2ba05afe4a5d5402644068a6d1",
+          "output_sha256": "efb9ed18855801bc5e13b7af06e7e99401883d724d8b0ac988b11e27a99e127a"
+        },
+        {
+          "app": "047-florist-event-orders",
+          "notes": [],
+          "source_sha256": "61b9e2803c85df2df93352b63e6938f84a32588b944eba698ac07bb182daf285",
+          "output_sha256": "2794b16a104d9080ef396a555262d8a9ba1935b2438c86a62da5f3e0b41a2fa1"
+        },
+        {
+          "app": "049-food-hall-vendor-settlements",
+          "notes": [],
+          "source_sha256": "bbe937ae85ef01fdae3818448ff1d33c69370ef6506a4698da4fddfc14c20786",
+          "output_sha256": "82319dd10cf8eaafe6fa289a1dc37812dfd217fc3a31cb1f330f251b06084430"
+        },
+        {
+          "app": "051-hunting-lease-calendar",
+          "notes": [],
+          "source_sha256": "85dcbd380536ec975355f57a83b73274cd47d077ed0b27b37fecdd8c83d40409",
+          "output_sha256": "48e5b6595c7d7518f29c8f263de582382c2c6128244e4a3cbc16bcb070bfcafb"
+        },
+        {
+          "app": "053-campus-dining-dollars",
+          "notes": [],
+          "source_sha256": "7b65bb9d05a6bd3377c8efd2d3a09c7b879a9525c1685bf1907b195396f6981f",
+          "output_sha256": "662f8932d273d4367913bd2bd896e4bc4f822b0b06fd6b78a69d6db91ee85083"
+        },
+        {
+          "app": "055-elevator-inspection-calendar",
+          "notes": [],
+          "source_sha256": "8e47faa29cb7c7add916a8cfde8bab526610cc874e40fa5fe798df15473c2fff",
+          "output_sha256": "85dd90cc21c0f805d43003af7379e781c5d1dc727546df50f7a2bb7921bca547"
+        },
+        {
+          "app": "057-snow-plow-contractor-bids",
+          "notes": [],
+          "source_sha256": "42497555f25d86e02426091fc179f34634091c1f5fd8f43d499ab1d88d458532",
+          "output_sha256": "05b8359f99ae100f5240bef4aeb84b6a9646c3588132e4af4ba3d86c92013283"
+        },
+        {
+          "app": "059-solar-panel-cleaning-routes",
+          "notes": [],
+          "source_sha256": "cea1ba28e92e284b0e8411ea84c0e65efbfc3d60ce8b0d259dff3a452a7185d8",
+          "output_sha256": "69797006abf6e5acd2893b0ef9828c3adcc87524f6568eca7de33cacea895a55"
+        },
+        {
+          "app": "061-locksmith-dispatch-verification",
+          "notes": [],
+          "source_sha256": "13248bc90a86f99357732550ffa8d68fcf844a43b8fa6a099d42e42bd503e34b",
+          "output_sha256": "95e687bdbef94296539ca192bc2b7f343c03d3f1d0991c06b518a9c0cc764472"
+        },
+        {
+          "app": "063-youth-court-diversion",
+          "notes": [],
+          "source_sha256": "2cdb664eed49c380bde601846a02af66f87bf4740e7589cefc6285519b1d761c",
+          "output_sha256": "36ce39da8ca73c1d84665c5c7b3dbb31d26c4fec956ead4745e1245e2576339d"
+        },
+        {
+          "app": "065-legal-clinic-volunteer-attorneys",
+          "notes": [],
+          "source_sha256": "5993b22277c09881a6ce29f0e552b8163a51b3b1244a68851ab860bb316a414a",
+          "output_sha256": "77965eac7cb0d50ccc33d9e2cf511262428859b724a6694cc5529faa6b7a780d"
+        },
+        {
+          "app": "067-library-micro-grant-fund",
+          "notes": [],
+          "source_sha256": "cb294f886566215243c8123defe1e52a66b601cbae5cded57dfddd59ca6cade4",
+          "output_sha256": "ac2f5778e55cd3164751d78610b4e42e83edcfc63c7a7cb9ebc621db9b82bcf9"
+        },
+        {
+          "app": "069-school-board-public-comment",
+          "notes": [],
+          "source_sha256": "4a7ba277f893cf5db7109ba7062b0f053e379a78510cdeabed5923cb79298fa2",
+          "output_sha256": "5c2146e466390baa1f65c910c21d7e3e542767024d672491f53159947a611c2e"
+        },
+        {
+          "app": "071-emergency-volunteer-badges",
+          "notes": [],
+          "source_sha256": "fbc514024c69e2a4ce23dc9d504ab4f07028f41a7106c6a133200c42946d31e1",
+          "output_sha256": "0b140b113ee3243d05df3b87495ef0cf506a7b7bb77434528c77c67886146733"
+        },
+        {
+          "app": "073-free-clinic-intake-lottery",
+          "notes": [],
+          "source_sha256": "385e0a9638a058e7b5133e21dfa0a4472113cd39bd14c724b16fed67f868f4b7",
+          "output_sha256": "5c894e022d79392a7edb19fd33978bd95341fa6934fc7716cc4520159d7eb634"
+        },
+        {
+          "app": "075-sleep-study-diary",
+          "notes": [],
+          "source_sha256": "90e234bc7477b8e1f04b7df2d6c12b4f1490d1bab01bc84a910fa1511fe31fb6",
+          "output_sha256": "39a36d2da78149b70b2c6323af33ffb05b6e47d5f27ddca38599f1ebdf759766"
+        },
+        {
+          "app": "077-caregiver-respite-credits",
+          "notes": [],
+          "source_sha256": "9ddf1c54f0914a0464aa21d48f9e151929b9148c15af92ff267f70667e3d56bb",
+          "output_sha256": "61ddef8f9efead6e7a4b3159accd1d64b53f3e740f643ac81f8bedf7c5b2caa1"
+        },
+        {
+          "app": "079-hospice-volunteer-visits",
+          "notes": [],
+          "source_sha256": "0a2e3aab5bc06f78836c63445a29fc5182ae733b83afd861ba8570e78bae3919",
+          "output_sha256": "9f048bff62c06d44cf1d7cba9e365ae14757488324982aeb83c48236ecc85699"
+        },
+        {
+          "app": "081-adaptive-sports-equipment",
+          "notes": [],
+          "source_sha256": "d55532ea1d6824cb18441540327ce319bacc45aab8491205bb4941b339b92dad",
+          "output_sha256": "e64fb4218d753ce8703efc74ef2b57390c0905e4d65fa089c47446b9d528f315"
+        },
+        {
+          "app": "083-sports-card-trade-escrow",
+          "notes": [],
+          "source_sha256": "05b9e188e2e27ba3627d8f0849ce9b7d1bf0e9fab9465d26c8e4415e1b1892ea",
+          "output_sha256": "c3a09ba7891b54d5b8d3c7d565746a8c381f6cf2f8c58c69e100972083065a52"
+        },
+        {
+          "app": "085-pen-pal-exchange-program",
+          "notes": [],
+          "source_sha256": "c93bf944f64c976f61666da1b4f8737017f4ad4e4c534527158780f5ec5423ed",
+          "output_sha256": "b520583bfca85a219ae8febe0d967c869ab747705b289749c21c2560eb3d34a9"
+        },
+        {
+          "app": "087-tabletop-miniature-commissions",
+          "notes": [],
+          "source_sha256": "2943ea2d7331e63d2b51092fc6bb9fd9298f9d4c00a0101fef4dc188c5809d7e",
+          "output_sha256": "ed68a56670d4f8f09068ff2d152b2c0481f86cf03495af03bc6e5ef9042b0c77"
+        },
+        {
+          "app": "089-larp-event-casting",
+          "notes": [],
+          "source_sha256": "38e2e339baafd467de71dfe478a8e04f0591a43e6e0cd0dbb2bfc038bc23b222",
+          "output_sha256": "5113bb3ed8b47c0690ef19c1953e2349f53eaa56c8a794ad8d3ecee255fec566"
+        },
+        {
+          "app": "091-speedrun-verification-board",
+          "notes": [],
+          "source_sha256": "6186707bca81631011b05375a56f1bf5de2abff5786fe8e526fa6f5afa58d8e4",
+          "output_sha256": "bab8f5b58b8c9b32c5942cda0475922b2ca28c36247f890a5b2133ebfc3790ad"
+        },
+        {
+          "app": "093-orchard-gleaning-network",
+          "notes": [],
+          "source_sha256": "675cf0b791d7df6f16e97ddc167545b919f29e92a496728b9358d005ec068a65",
+          "output_sha256": "92a0b841ab7bf70d9a735013d4e602536c495db1110e38fbb8cb8d2be81068d1"
+        },
+        {
+          "app": "095-rental-return-inspection",
+          "notes": [],
+          "source_sha256": "4a899643a51bed7b8f36c2955f0934bd1281bc92f62681da92ac28dc32438db9",
+          "output_sha256": "fbedd8193f8c730d0d2f78152686f6564d008088da00645abea3c68a33e25c07"
+        },
+        {
+          "app": "097-tidal-mooring-waitlist",
+          "notes": [],
+          "source_sha256": "62e89d4ef3408edf4f5b6d8085210a04bcdcecf078fbd49eb19b10926f8ddff4",
+          "output_sha256": "1fc17e15c49754f61e3ddf43f076b0093b52bdf6b9e60836ba63907183cb754e"
+        },
+        {
+          "app": "099-orchestra-substitute-callout",
+          "notes": [],
+          "source_sha256": "88d838feabbf1bfde3fd009ce129c9e037b82d591298f030a57646345a1a0bb0",
+          "output_sha256": "e1e9d88be34d94feedcffbb90fae1505198d3cb7a5efb81523305d924eaca7f3"
+        }
+      ]
+    }
+  }
+}
