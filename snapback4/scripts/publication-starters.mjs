@@ -9,7 +9,12 @@ import { resolve, join } from "node:path";
 export function proveStarters(client, platform, expo, directory) {
   const env = { ...process.env, CI: "1", EXPO_NO_TELEMETRY: "1", EXPO_OFFLINE: "1", npm_config_audit: "false", npm_config_fund: "false" };
   delete env.SNAPBACK4_BIN;
-  const run = (cmd, args, cwd) => execFileSync(cmd, args, { cwd, env, stdio: "inherit", timeout: 300_000 });
+  const deadline = performance.now() + 1_200_000;
+  const run = (cmd, args, cwd) => {
+    const remaining = Math.ceil(deadline - performance.now());
+    if (remaining <= 0) throw Error("starter qualification exceeded its twenty-minute guard");
+    return execFileSync(cmd, args, { cwd, env, stdio: "inherit", timeout: Math.min(300_000, remaining) });
+  };
   const artifacts = [client, platform, expo].map(path => resolve(path));
   const results = [];
   for (const [kind, template] of [["web", null], ["expo", null], ["web", "chat"], ["expo", "chat"], ["expo", "social"]]) {
