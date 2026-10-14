@@ -95436,3 +95436,15 @@ qualifiers remain distinct from final success. `reports/20261014-fix28/` retains
 exact-byte/source bindings, complete proof matrices and hashed command logs.
 Consumer evidence has publicationQualified false and suite not-run. No full
 scripts/test.sh, native iOS/Mac publication qualification, upload or push.
+
+
+### 2026-10-15 — Wave 12 LANG device budget
+
+The locked Linux whole device at the LANG expiry/digest/language-runtime
+revision measures 2,336,386 B raw, 712,744 B gzip and 538,230 B Brotli.
+Strict wasm family and absence audits pass. The budget is 713,244 B:
+measured gzip plus exactly 500 B, as requested for this workstream.
+The 5,070 B gzip growth is measured against the qualified 0.4.28 device;
+this whole-artifact measurement covers the shared runtime changes.
+Final review, test and census evidence belongs in `reports/wave12-lang/`
+and the worktree's `WORKSTREAM-REPORT.md`; qualification remains in progress.
