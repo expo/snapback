@@ -8,6 +8,30 @@ use crate::{
 };
 use std::collections::BTreeMap;
 
+const EXPIRY_TABLE_CURSOR: &str = "$expiry-table";
+
+/// Rotate a sweep's table order after the last table that consumed a bounded
+/// visit. Per-table row cursors alone can starve every later table when an
+/// earlier table contains a permanently restricted due row.
+pub(crate) fn resume_expiry_tables(
+    mut tables: Vec<String>,
+    cursors: &BTreeMap<String, Vec<Value>>,
+) -> Vec<String> {
+    let after = cursors
+        .get(EXPIRY_TABLE_CURSOR)
+        .and_then(|cursor| cursor.first())
+        .and_then(|value| value.as_str().ok());
+    if let Some(index) = after.and_then(|after| tables.iter().position(|table| table == after)) {
+        let next = (index + 1) % tables.len().max(1);
+        tables.rotate_left(next);
+    }
+    tables
+}
+
+pub(crate) fn mark_expiry_table(cursors: &mut BTreeMap<String, Vec<Value>>, table: &str) {
+    cursors.insert(EXPIRY_TABLE_CURSOR.into(), vec![Value::String(table.into())]);
+}
+
 /// Only inherited batches need staging. Preserve the streaming path for
 /// existing schemas, including large fixture imports.
 pub(crate) fn ancestor_order<'a, I>(
@@ -450,7 +474,8 @@ impl super::runner::Runner<'_> {
             .ok_or_else(|| RuntimeError::Input("sweep clock is not pinned".into()))?;
         let mut count = 0;
         let mut visited = 0;
-        for name in self.schema.through_order().into_iter().rev() {
+        let tables = resume_expiry_tables(self.schema.through_order().into_iter().rev().collect(), expiry_after);
+        for name in tables {
             let Some((index, _)) = self.schema.tables[&name].expiry_index() else {
                 continue;
             };
@@ -479,10 +504,11 @@ impl super::runner::Runner<'_> {
                     bounds.after = crate::key::decode(&key);
                     if let Some(after) = &bounds.after { expiry_after.insert(name.clone(), after.clone()); }
                     visited += 1;
+                    mark_expiry_table(expiry_after, &name);
                     match self.retire_expired_row(&name, &row) {
                         Ok(true) => count += 1,
                         Ok(false) => {},
-                        Err(RuntimeError::Structural { code: "E_REFERENCED", .. }) => {},
+                        Err(RuntimeError::Structural { code: "E_REFERENCED" | "E_PARENT_HAS_CHILDREN", .. }) => {},
                         Err(error) => return Err(error),
                     }
                 }

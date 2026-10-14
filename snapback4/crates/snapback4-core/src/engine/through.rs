@@ -154,7 +154,7 @@ impl Runner<'_> {
         })
     }
 
-    fn parent_has_children(&self, parent: &str) -> RuntimeError {
+    pub(super) fn parent_has_children(&self, parent: &str) -> RuntimeError {
         RuntimeError::Structural {
             code: "E_PARENT_HAS_CHILDREN",
             message: format!("{parent} at {} has stored children; delete its live read-through children and sweep expired children, then retry `delete {parent}[id]` (guide rules)", self.statement_site),

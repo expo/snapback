@@ -50,6 +50,48 @@ fn postgres_evaluation_currently_admits_recorded_fields() {
     }
 }
 
+#[test]
+#[ignore = "requires isolated local Postgres; scripts/test-postgres.sh"]
+fn reopening_legacy_maintained_ids_rebuilds_before_publishing_the_generation() {
+    let bound = snapback4_lang::compile(&[("schema.q".into(), r#"
+table entries:
+  bucket: int
+  public
+view totals: count entries by .bucket
+  public
+"#.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let schema: Schema = serde_json::from_str(&serde_json::to_string(&bound.schema).unwrap()).unwrap();
+    let programs = bound.programs.into_iter().map(|p| p.program).collect::<Vec<_>>();
+    let url = std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private test-postgres.sh database");
+    let name = format!("sb4_eval_maintained_id_{:x}", crate::ids::seed());
+    let mut engine = PostgresEngine::create(Client::connect(&url, postgres::NoTls).unwrap(), &name, schema, programs).unwrap();
+    engine.load([("entries".into(), object([("id", Value::Id("entry".into())), ("bucket", Value::Int(7))]))]).unwrap();
+    let digest = crate::schema::maintained_id(&[Value::Int(7)]);
+    let legacy = crate::value::canonical_json(&[Value::Int(7)]);
+    let target = engine.schema.tables["totals"].clone();
+    let generation = engine.generation();
+    let tx = engine.store.transaction(Some(WriteMode::Serialized)).unwrap();
+    let old = tx.get("totals", &digest).unwrap().expect("current aggregate");
+    tx.delete("totals", &target, &old).unwrap();
+    let mut old = old;
+    if let Value::Row(fields) | Value::Map(fields) = &mut old {
+        fields.insert("id".into(), Value::Id(legacy.clone()));
+    }
+    tx.put("totals", &target, &old, None).unwrap();
+    tx.execute("UPDATE _backend SET maintained_identity_version=NULL WHERE singleton", &[]).unwrap();
+    tx.commit().unwrap();
+    drop(engine);
+
+    let mut reopened = PostgresEngine::open(Client::connect(&url, postgres::NoTls).unwrap(), &name).unwrap();
+    assert_eq!(reopened.generation(), generation + 1);
+    let tx = reopened.store.transaction(None).unwrap();
+    assert!(tx.get("totals", &legacy).unwrap().is_none());
+    let rebuilt = tx.get("totals", &digest).unwrap().expect("digest aggregate");
+    assert_eq!(rebuilt.field("value").unwrap(), &Value::Int(1));
+    tx.rollback().unwrap();
+}
+
 fn engine() -> PostgresEngine {
     let schema: Schema = serde_json::from_value(serde_json::json!({"tables": {
         "items": {"columns": {"id": "Id", "key": {"Optional": {"Text": {"max": 100}}}},

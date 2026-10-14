@@ -177,7 +177,10 @@ impl PostgresEngine {
         )?;
         drop(runner);
         super::super::through_activation::validate_indexes(&tx, &schema)?;
-        tx.execute("UPDATE _backend SET schema=$1, programs=$2, generation=$3, through_shortened=$4 WHERE singleton",&[&canonical_json(&schema),&canonical_json(&programs),&(generation as i64),&canonical_json(&shortened)])?;
+        tx.execute("UPDATE _backend SET schema=$1, programs=$2, generation=$3, through_shortened=$4, maintained_identity_version=$5 WHERE singleton",&[
+            &canonical_json(&schema), &canonical_json(&programs), &(generation as i64),
+            &canonical_json(&shortened), &crate::schema::MAINTAINED_ID_VERSION,
+        ])?;
         tx.commit()?;
         self.schema = schema;
         self.programs = programs;

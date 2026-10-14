@@ -6,6 +6,7 @@ mod log;
 mod store;
 mod caps;
 mod contribution_upgrade;
+mod maintained_identity_upgrade;
 mod authority;
 mod prefetch;
 mod tail;
@@ -123,6 +124,7 @@ impl PostgresEngine {
         for (column, ddl) in [
             ("generation", "ALTER TABLE _backend ADD COLUMN generation BIGINT NOT NULL DEFAULT 1"),
             ("through_shortened", "ALTER TABLE _backend ADD COLUMN through_shortened TEXT NOT NULL DEFAULT '{}'"),
+            ("maintained_identity_version", "ALTER TABLE _backend ADD COLUMN maintained_identity_version TEXT"),
         ] {
             let exists: bool = tx.query("SELECT EXISTS(SELECT 1 FROM pg_attribute WHERE attrelid = '_backend'::regclass AND attname = $1 AND NOT attisdropped)", &[&column])?[0].get(0);
             if !exists { tx.batch(ddl)?; }
@@ -139,6 +141,7 @@ impl PostgresEngine {
         tx.batch("DROP INDEX IF EXISTS _log_row_seq; DROP INDEX IF EXISTS _log_row_seq_kind;")?;
         caps::install(&tx, &schema)?;
         let generation = contribution_upgrade::install(&tx, &mut schema)?;
+        let generation = maintained_identity_upgrade::install(&tx, &schema, create.is_some(), generation)?;
         // Retain the adapter's ordinary connection limits on successful open.
         tx.batch("SET statement_timeout = '5s'; SET lock_timeout = '5s';")?;
         tx.commit()?;

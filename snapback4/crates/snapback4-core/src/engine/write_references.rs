@@ -98,6 +98,15 @@ impl Runner<'_> {
             let via = if parent == root_table { String::new() } else { format!(", through a {parent} row this delete cascades to") };
             return Err(RuntimeError::Structural { code: "E_REFERENCED", message: format!("{root_table} at {} is still referenced through {child}.{column} (on delete restrict){via}; delete or retarget those rows first, or declare the reference's action (guide writes)", self.statement_site) });
         }
+        // A cascaded row can itself have a physically retained read-through
+        // child. Decide that blocker before set-null writes begin, so expiry
+        // can retain this root and continue without relying on transaction
+        // rollback to undo a partial closure.
+        for (table, id) in visits.iter().skip(1) {
+            if self.physical_children(table, id)? {
+                return Err(self.parent_has_children(table));
+            }
+        }
         // 5. Set null outside the closure. Each group is gathered whole before
         // any of it is cleared: a clear can recount a sibling that shares the
         // reference's index and move it behind a page cursor. Each row is then

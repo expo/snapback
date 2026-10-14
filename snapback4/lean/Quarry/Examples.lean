@@ -804,6 +804,8 @@ def expiryRefSchema : Schema := { tables := [
   { name := "parents", cols := [c "until"], expire := some "until", read := .allow },
   { name := "cascadeKids", cols := [refCol "parent" "parents" (some .cascade)], read := .allow },
   { name := "nullableKids", cols := [refCol "parent" "parents" (some .setNull) (nullable := true)], read := .allow },
+  { name := "dualNullableKids", cols := [refCol "left" "parents" (some .setNull) (nullable := true),
+      refCol "right" "parents" (some .setNull) (nullable := true)], read := .allow },
   { name := "blockers", cols := [refCol "parent" "parents" (some .restrict), c "until"],
     expire := some "until", read := .allow }] }
 
@@ -811,6 +813,7 @@ def expiryRefStore : Store := mkStore [
   ("parents", [mkRow "a" [("until", .int 10)], mkRow "e" [("until", .int 10)], mkRow "z" [("until", .int 10)]]),
   ("cascadeKids", [mkRow "ca" [("parent", I "a")], mkRow "cz" [("parent", I "z")]]),
   ("nullableKids", [mkRow "nz" [("parent", I "z")]]),
+  ("dualNullableKids", [mkRow "dn" [("left", I "e"), ("right", I "z")]]),
   ("blockers", [mkRow "ba" [("parent", I "a"), ("until", .int 20)],
     mkRow "be" [("parent", I "e"), ("until", .int 10)]])]
 
@@ -837,8 +840,8 @@ def refExamples : List Example := [
     source := "LLP 3000.039 §3: expiry retains a restricted root, then advances to apply cascade and set null to later due roots"
     case := { schema := expiryRefSchema, store := expiryRefStore, viewer := alice,
               program := query [.ret (lit .null)], now := 10, sweepOnly := true }
-    tables := ["parents", "cascadeKids", "nullableKids", "blockers"]
-    expected := r#"{"kind":"committed","result":null,"store":{"parents":[{"id":"a","until":10}],"cascadeKids":[{"id":"ca","parent":"a"}],"nullableKids":[{"id":"nz","parent":null}],"blockers":[{"id":"ba","parent":"a","until":20}]}}"# }
+    tables := ["parents", "cascadeKids", "nullableKids", "dualNullableKids", "blockers"]
+    expected := r#"{"kind":"committed","result":null,"store":{"parents":[{"id":"a","until":10}],"cascadeKids":[{"id":"ca","parent":"a"}],"nullableKids":[{"id":"nz","parent":null}],"dualNullableKids":[{"id":"dn","left":null,"right":null}],"blockers":[{"id":"ba","parent":"a","until":20}]}}"# }
 ]
 
 def page3Pure : Schema := { tables := membershipDocs.tables.map fun t =>

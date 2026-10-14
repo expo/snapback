@@ -228,7 +228,10 @@ def refDeleteFrom (sch : Schema) (witnesses physical : Store) (t : String) (old 
     let physical := cl.foldl (fun s (parent, row) => (referencing sch parent).foldl (fun s (child, col, action) =>
       if action == .setNull then
         ((witnesses child).filter fun k => names k col row.id && !inClosure cl child k).foldl
-          (fun s k => s.replaceRow child k (clearCol k col)) s
+          (fun s witness => match (s child).find? fun current => current.id == witness.id with
+            | some current =>
+              if names current col row.id then s.replaceRow child current (clearCol current col) else s
+            | none => s) s
       else s) s) physical
     pure (cl.foldl (fun s p => s.removeRow p.1 p.2) physical)
 

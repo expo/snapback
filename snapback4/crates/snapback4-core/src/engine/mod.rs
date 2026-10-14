@@ -615,6 +615,12 @@ impl Engine {
         let mut visited = 0_usize;
         let mut expiry_after = self.expiry_after.clone();
         let due = crate::store::Bounds { gte: Some(Value::Int(i64::MIN)), lte: Some(Value::Int(now)), ..Default::default() };
+        let expiring = through_activation::resume_expiry_tables(
+            expiring.into_iter().map(|(name, _)| name).collect(), &expiry_after,
+        ).into_iter().map(|name| {
+            let index = self.schema.tables[&name].expiry_index().expect("expiring table").0.to_owned();
+            (name, index)
+        }).collect::<Vec<_>>();
         'tables: for (table_name, index) in &expiring {
             let mut bounds = due.clone();
             bounds.after = expiry_after.get(table_name).cloned();
@@ -630,14 +636,15 @@ impl Engine {
                     bounds.after = crate::key::decode(&key);
                     if let Some(after) = &bounds.after { expiry_after.insert(table_name.clone(), after.clone()); }
                     visited += 1;
+                    through_activation::mark_expiry_table(&mut expiry_after, table_name);
                     if removed > 0 && started.elapsed() >= budget { break 'tables; }
                     match runner.retire_expired_row(table_name, &row) {
                         Ok(true) => removed += 1,
                         Ok(false) => {},
-                        // A restricted root stays physically present and
-                        // logically expired. Continue by key so it cannot
-                        // wedge cleanup of unrelated due rows.
-                        Err(RuntimeError::Structural { code: "E_REFERENCED", .. }) => {},
+                        // An expected reference/read-through blocker retains
+                        // the logically expired root. Continue by key so it
+                        // cannot wedge cleanup of unrelated due rows.
+                        Err(RuntimeError::Structural { code: "E_REFERENCED" | "E_PARENT_HAS_CHILDREN", .. }) => {},
                         Err(error) => return Err(error),
                     }
                 }

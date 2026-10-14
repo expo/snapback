@@ -32,6 +32,14 @@ table nullableKids:
   public 'nullable kids'
   insert <- allow
   sync public
+table dualNullableKids:
+  left: roots ? on delete set null
+  right: roots ? on delete set null
+  cap 4 by left
+  cap 4 by right
+  public 'dual nullable kids'
+  insert <- allow
+  sync public
 table blockers:
   root: roots
   public 'blockers'
@@ -50,6 +58,7 @@ fn sweep_applies_every_action_and_advances_past_a_restricted_root() {
         ("cascadeKids".into(), object([("id", id("ca")), ("root", id("a-blocked"))])),
         ("cascadeKids".into(), object([("id", id("cz")), ("root", id("z-free"))])),
         ("nullableKids".into(), object([("id", id("nz")), ("root", id("z-free"))])),
+        ("dualNullableKids".into(), object([("id", id("dn")), ("left", id("z-free")), ("right", id("z-free"))])),
         ("blockers".into(), object([("id", id("ba")), ("root", id("a-blocked"))])),
         ("blockers".into(), object([("id", id("bb")), ("root", id("b-blocked"))])),
         ("blockers".into(), object([("id", id("bc")), ("root", id("c-blocked"))])),
@@ -61,6 +70,9 @@ fn sweep_applies_every_action_and_advances_past_a_restricted_root() {
     assert_eq!(e.store().rows("roots").unwrap().iter().map(|r| r.field("id").unwrap().as_str().unwrap()).collect::<Vec<_>>(), vec!["a-blocked", "b-blocked", "c-blocked"]);
     assert_eq!(e.store().rows("cascadeKids").unwrap().iter().map(|r| r.field("id").unwrap().as_str().unwrap()).collect::<Vec<_>>(), vec!["ca"]);
     assert_eq!(e.store().rows("nullableKids").unwrap()[0].field("root").unwrap(), &Value::Null);
+    let dual = &e.store().rows("dualNullableKids").unwrap()[0];
+    assert_eq!(dual.field("left").unwrap(), &Value::Null);
+    assert_eq!(dual.field("right").unwrap(), &Value::Null, "each set-null uses the child's current image");
 
     for blocker in ["ba", "bb", "bc"] { e.seed_delete("blockers", blocker).unwrap(); }
     assert_eq!(e.sweep_expired(10, 10).unwrap(), 3);
@@ -69,7 +81,7 @@ fn sweep_applies_every_action_and_advances_past_a_restricted_root() {
 }
 
 #[test]
-fn a_late_cascade_refusal_rolls_back_earlier_set_null_writes() {
+fn a_read_through_blocker_below_a_cascade_is_preflighted_and_does_not_starve_later_roots() {
     let source = r#"
 table roots:
   expiresAt: time ?
@@ -92,14 +104,15 @@ table grandchildren:
     let mut e = engine(source);
     e.seed_at([
         ("roots".into(), object([("id", id("p")), ("expiresAt", Value::Int(10))])),
+        ("roots".into(), object([("id", id("z-free")), ("expiresAt", Value::Int(10))])),
         ("nullableKids".into(), object([("id", id("n")), ("root", id("p"))])),
         ("children".into(), object([("id", id("c")), ("root", id("p"))])),
         ("grandchildren".into(), object([("id", id("g")), ("child", id("c"))])),
     ], 0).unwrap();
 
-    let error = e.sweep_expired(10, 10).unwrap_err();
-    assert_eq!(error.code(), "E_PARENT_HAS_CHILDREN", "{error:?}");
-    assert_eq!(e.store().rows("nullableKids").unwrap()[0].field("root").unwrap(), &id("p"), "the prior set-null write rolled back");
+    assert_eq!(e.sweep_expired(10, 10).unwrap(), 1, "the physically retained closure yields to a later due root");
+    assert_eq!(e.store().rows("nullableKids").unwrap()[0].field("root").unwrap(), &id("p"), "preflight runs before set-null writes");
+    assert!(!e.store().rows("roots").unwrap().iter().any(|row| row.field("id").unwrap() == &id("z-free")));
     for table in ["roots", "children", "grandchildren"] {
         assert_eq!(e.store().rows(table).unwrap().len(), 1, "{table}");
     }
@@ -142,4 +155,30 @@ mutation replaceExpired():
     assert_eq!(e.store().rows("roots").unwrap().len(), 1);
     assert_eq!(e.store().rows("roots").unwrap()[0].field("expiresAt").unwrap(), &Value::Null);
     assert!(e.store().rows("cascadeKids").unwrap().is_empty(), "same-id cleanup cannot orphan the expired predecessor's child");
+}
+
+#[test]
+fn a_blocked_expiry_table_yields_to_later_tables_at_limit_one() {
+    let source = r#"
+table aFree:
+  expiresAt: time
+  expire at .expiresAt
+  public
+table zBlocked:
+  expiresAt: time
+  expire at .expiresAt
+  public
+table zReferences:
+  root: zBlocked on delete restrict
+  public
+"#;
+    let mut e = engine(source);
+    e.seed_at([
+        ("zBlocked".into(), object([("id", id("blocked")), ("expiresAt", Value::Int(10))])),
+        ("zReferences".into(), object([("id", id("witness")), ("root", id("blocked"))])),
+        ("aFree".into(), object([("id", id("free")), ("expiresAt", Value::Int(10))])),
+    ], 0).unwrap();
+    assert_eq!(e.sweep_expired(10, 1).unwrap(), 0);
+    assert_eq!(e.sweep_expired(10, 1).unwrap(), 1, "the table cursor advances past a blocked expiry table");
+    assert!(e.store().rows("aFree").unwrap().is_empty());
 }

@@ -136,12 +136,20 @@ table nullableChildren:
   cap 1 by parent
   public 'nullableChildren'
   sync public
+table dualNullableChildren:
+  left: parents ? on delete set null
+  right: parents ? on delete set null
+  cap 1 by left
+  cap 1 by right
+  public 'dualNullableChildren'
+  sync public
 "#;
     let (mut e, b) = compile(expiring);
     e.seed_at([
         ("parents".into(), snapback4_core::value::object([("id", id("p")), ("until", snapback4_core::Value::Int(10))])),
         ("cascadeChildren".into(), snapback4_core::value::object([("id", id("c")), ("parent", id("p"))])),
         ("nullableChildren".into(), snapback4_core::value::object([("id", id("n")), ("parent", id("p"))])),
+        ("dualNullableChildren".into(), snapback4_core::value::object([("id", id("dn")), ("left", id("p")), ("right", id("p"))])),
     ], 0).unwrap();
     let mut d = host.open("expiry-actions", Some(b)).unwrap();
     acquire(&mut e, &mut d, "alice", 0);
@@ -153,7 +161,52 @@ table nullableChildren:
     let nullable = d.store().raw_rows("nullableChildren");
     assert_eq!(nullable.len(), 1);
     assert_eq!(nullable[0].field("parent").unwrap(), &snapback4_core::Value::Null);
+    let dual = d.store().raw_rows("dualNullableChildren");
+    assert_eq!(dual[0].field("left").unwrap(), &snapback4_core::Value::Null);
+    assert_eq!(dual[0].field("right").unwrap(), &snapback4_core::Value::Null);
     host.close("expiry-actions", d);
+
+    // A read-through child below a cascade is a physical-retention blocker.
+    // The server preflights it before set-null writes and continues to a later
+    // due root; devices receive only that committed result.
+    let retained_expiry = r#"
+table roots:
+  until: time
+  expire at .until
+  public
+  sync public
+table nullableKids:
+  root: roots ? on delete set null
+  cap 1 by root
+  public
+  sync public
+table children:
+  root: roots on delete cascade
+  cap 1 by root
+  public
+  sync public
+table grandchildren:
+  child: children
+  immutable child
+  read through .child
+"#;
+    let (mut e, b) = compile(retained_expiry);
+    e.seed_at([
+        ("roots".into(), snapback4_core::value::object([("id", id("p")), ("until", snapback4_core::Value::Int(10))])),
+        ("roots".into(), snapback4_core::value::object([("id", id("z")), ("until", snapback4_core::Value::Int(10))])),
+        ("nullableKids".into(), snapback4_core::value::object([("id", id("n")), ("root", id("p"))])),
+        ("children".into(), snapback4_core::value::object([("id", id("c")), ("root", id("p"))])),
+        ("grandchildren".into(), snapback4_core::value::object([("id", id("g")), ("child", id("c"))])),
+    ], 0).unwrap();
+    let mut d = host.open("expiry-retained-cascade", Some(b)).unwrap();
+    acquire(&mut e, &mut d, "alice", 0);
+    let from = d.state().unwrap().0;
+    assert_eq!(e.sweep_expired(10, 10).unwrap(), 1);
+    d.apply(&stream_page(&mut e, "alice", from), false).unwrap();
+    assert_eq!(d.store().raw_rows("roots").len(), 1);
+    assert_eq!(d.store().raw_rows("nullableKids")[0].field("root").unwrap(), &id("p"));
+    assert_eq!(d.store().raw_rows("children").len(), 1);
+    host.close("expiry-retained-cascade", d);
 
     // Every referencing group is public and held: the cascade predicts, deleting the held tasks.
     let (mut e, b) = compile(PUBLIC);
@@ -298,6 +351,34 @@ table blockers:
     let wrapped_removed: u64 = (0..4).map(|_| store.sweep_server_at(10, 1).unwrap()).sum();
     assert_eq!(wrapped_removed, 1, "a wrapped scan reaches the new lower key within one bounded turn per due root");
     assert!(!store.raw_rows("roots").iter().any(|row| row.field("id").unwrap() == &id("aa-free")));
+
+    // Row continuation is insufficient on its own: a permanently blocked
+    // table must yield the next bounded call to later expiry tables.
+    let source = r#"
+table aFree:
+  expiresAt: time
+  expire at .expiresAt
+  public
+table zBlocked:
+  expiresAt: time
+  expire at .expiresAt
+  public
+table zReferences:
+  root: zBlocked on delete restrict
+  public
+"#;
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut store = snapback4_device::memory::MemoryStore::new();
+    store.activate_server_at(bound.schema, 0).unwrap();
+    store.seed_server_at([
+        ("zBlocked".into(), snapback4_core::value::object([("id", id("blocked")), ("expiresAt", snapback4_core::Value::Int(10))])),
+        ("zReferences".into(), snapback4_core::value::object([("id", id("witness")), ("root", id("blocked"))])),
+        ("aFree".into(), snapback4_core::value::object([("id", id("free")), ("expiresAt", snapback4_core::Value::Int(10))])),
+    ], 0).unwrap();
+    assert_eq!(store.sweep_server_at(10, 1).unwrap(), 0);
+    assert_eq!(store.sweep_server_at(10, 1).unwrap(), 1, "the table cursor advances past a blocked expiry table");
+    assert!(store.raw_rows("aFree").is_empty());
 }
 
 #[test] fn reference_actions_memory() { run(&mut Memory::new()); }
