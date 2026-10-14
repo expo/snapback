@@ -201,6 +201,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
     };
     let empty = json!({});
     let args_json = payload.get("args").unwrap_or(&empty);
+    if let Some(why)=super::dev_doors::persona_argument(shared,&signature,args_json) {return failed(request,why);}
     let Some(fields) = args_json.as_object() else {
         return failed(
             request,
@@ -247,7 +248,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
                 reader.require_non_media_ephemeral(&principal,id.as_deref()).map_err(|e|e.refusal())?;
                 reader
                     .mutate_ephemeral(op, context)
-                    .map_err(|e| e.refusal())
+                    .map_err(|e| snapback4_core::engine::seat_refusal(reader.schema(),&e,&principal))
             });
             let store_id = reader.store().meta("store_id").ok().flatten();
             if result.is_ok() {
@@ -267,7 +268,7 @@ pub(super) fn serve(request: Request, shared: &Shared, op: &str, body: &str) {
                     engine.require_non_media_ephemeral(&principal,id.as_deref()).map_err(|e|e.refusal())?;
                     engine
                         .mutate_ephemeral(op, context)
-                        .map_err(|e| e.refusal())
+                        .map_err(|e| snapback4_core::engine::seat_refusal(engine.schema(),&e,&principal))
                 })
                 .map(|out| (out, engine.store().meta("store_id").ok().flatten()))
         }

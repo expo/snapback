@@ -1322,7 +1322,7 @@ pub(crate) fn seed_rows(schema: &Schema, tx: &crate::store::Tx<'_>, rows: impl I
 
 // @ref LLP 3000.036.002#8 — durable and ephemeral seats receive the same static clause for every private cause.
 #[cfg(feature = "sqlite")]
-fn seat_refusal(schema:&Schema,error:&RuntimeError,viewer:&str)->Refusal {
+pub fn seat_refusal(schema:&Schema,error:&RuntimeError,viewer:&str)->Refusal {
     let mut why=error.refusal();
     if viewer.starts_with("service:") && let RuntimeError::Rule {table,effect}|RuntimeError::AuthorizationBudget {table,effect}=error {
         if let Some(def)=schema.table(table) {why.message.push_str(&format!("; {table} rule clause: {effect} <- {}",def.rules.for_effect(*effect).quarry()));}

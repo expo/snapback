@@ -416,6 +416,7 @@ pub(super) fn run_job(request: Request, shared: &Shared, name: &str, body: &str)
         Some(other) => return refuse(request, 404, Refusal::new("E_OP", "op", format!("{name} is a {}, not a job; queries are POST /q/<op>, mutations POST /m/<op>", other.kind.word()))),
         None => return respond(request, 404, json!({"denied":refusal_json(&super::dev_doors::stale(shared, Refusal::new("E_OP", "op", format!("unknown job {name}")).guide("jobs")))})),
     };
+    if let Some(raw)=payload.get("args") && let Some(why)=super::dev_doors::persona_argument(shared,&program.args,raw) {return refuse(request,400,why);}
     let mut args = std::collections::BTreeMap::new();
     if let Some(fields) = payload.get("args").and_then(serde_json::Value::as_object) {
         for (field, value) in fields {

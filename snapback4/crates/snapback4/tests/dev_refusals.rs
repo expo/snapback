@@ -429,3 +429,21 @@ fn fixture_queries_print_hidden_counts_and_persona_arguments_have_the_same_guard
  fs::write(fixture.join("test.cases.jsonl"),"{\"as\":\"alice\",\"op\":\"point\",\"args\":{\"id\":\"hidden\"},\"expect\":\"complete\",\"data\":null}\n{\"as\":\"alice\",\"op\":\"add\",\"args\":{\"owner\":\"alice\"},\"expect\":\"E_INPUT\"}\n").unwrap();
  let out=Command::new(BIN).current_dir(&project.0).args(["test","--fixture","fixture"]).output().unwrap();assert!(out.status.success(),"{out:?}");let text=String::from_utf8(out.stdout).unwrap();assert!(text.contains("hidden: 1"),"{text}");assert!(text.contains("E_INPUT"),"{text}");
 }
+impl Host {
+ fn post_authenticated(&self,path:&str,payload:Value,auth:&str)->Value {
+  let body=payload.to_string();let mut socket=TcpStream::connect(&self.address).unwrap();socket.set_read_timeout(Some(Duration::from_secs(15))).unwrap();
+  write!(socket,"POST {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n{auth}\r\nContent-Length: {}\r\n\r\n{body}",body.len()).unwrap();let mut reply=String::new();socket.read_to_string(&mut reply).unwrap();serde_json::from_str(reply.split_once("\r\n\r\n").unwrap().1).unwrap()
+ }
+}
+#[test]
+fn ephemeral_and_action_http_doors_apply_dev_principal_guards_and_seat_clauses() {
+ const SOURCE:&str="use server\nuse personas alice\ntable typing:\n  owner: principal\n  unique owner\n  cap 50\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  ephemeral 4s\nmutation add(owner: principal):\n  return insert typing {owner}\naction notify(owner: principal)\n";
+ let project=Project::new();fs::write(project.0.join("snapback/schema.q"),SOURCE).unwrap();let dev=Host::start(project,true,false);
+ let bare=dev.request("add","alice","x-snapback-persona: alice");assert_eq!(bare["why"]["code"],"E_INPUT","{bare}");assert!(bare["why"]["message"].as_str().unwrap().contains("dev:alice"));
+ let bare_action=dev.post_authenticated("/a/notify?wait=0",json!({"id":"bare-action","args":{"owner":"alice"}}),"x-snapback-persona: alice");assert_eq!(bare_action["denied"]["code"],"E_INPUT","{bare_action}");
+ let valid=dev.post_authenticated("/a/notify?wait=0",json!({"id":"valid-action","args":{"owner":"dev:alice"}}),"x-snapback-persona: alice");assert_eq!(valid["state"],"pending","{valid}");
+ let project=Project::new();fs::write(project.0.join("snapback/schema.q"),SOURCE).unwrap();let prod=Host::start(project,false,false);
+ let minted=Command::new(BIN).current_dir(&prod.project.0).args(["token","--service","mp-test","--release","release"]).output().unwrap();assert!(minted.status.success());let token=String::from_utf8(minted.stdout).unwrap();let auth=format!("Authorization: Bearer {}",token.trim());
+ let denied=prod.request("add","alice",&auth);assert_eq!(denied["why"]["code"],"E_RULE","{denied}");assert!(denied["why"]["message"].as_str().unwrap().ends_with("typing rule clause: insert <- .owner = viewer"),"{denied}");
+ let action=prod.post_authenticated("/a/notify?wait=0",json!({"id":"prod-action","args":{"owner":"alice"}}),&auth);assert_eq!(action["state"],"pending","{action}");
+}

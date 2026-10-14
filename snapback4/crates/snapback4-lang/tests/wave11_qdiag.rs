@@ -89,6 +89,10 @@ fn small_population_filter_and_verified_child_ownership_are_quiet(){
 #[test]
 fn every_prescribed_syntax_rewrite_compiles() {
  for source in [
+  "table media:\n  photo: image <=5MB\n  public\n",
+  "table names:\n  name: text <=30\n  public\n  insert <- allow\nmutation add(name: text <=10):\n  insert names {name: lower(name)}\n",
+  "fn twice(n: int):\n  return n + n\nquery calc():\n  return twice(2)\n",
+  "table events:\n  owner: principal\n  read <- .owner = viewer\nview totals: count events by .owner\n  read <- .owner = viewer\n",
   "mutation add(body: text <=20 ?):\n  bodyValue = body ?? 'hi'\n  return bodyValue\n",
   "mutation add(a: bool,b: bool):\n  require (a or\n    b) else NOPE\n  return true\n",
   "table parents:\n  public\ntable kids:\n  parent: parents ? on delete keep\n",
@@ -132,6 +136,9 @@ fn owner_equality_does_not_survive_kept_parent_recreation_or_expiry(){
  for source in [base.replace("  insert <- .owner = viewer\ntable kids:","  insert <- .owner = viewer\n  delete <- .owner = viewer\ntable kids:"),base.replace("  immutable owner\n","  immutable owner\n  until: time\n  by byUntil: until\n  expire at .until\n"),base.replace("table parents:\n","table roots:\n  public\n  delete <- allow\ntable parents:\n  root: roots on delete cascade\n  cap 1 by root\n")] {
   let b=checked(&source);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);assert!(b.notes.iter().any(|n|n.code=="N_UNREADABLE_PROBE"),"{:?}",b.notes);
  }
+ let expires=base.replace("  immutable owner\n","  immutable owner\n  until: time\n  by byUntil: until\n  expire at .until\n");
+ for action in ["on delete restrict","on delete cascade",""] {let b=checked(&expires.replace("on delete keep",action));assert!(b.diagnostics.is_empty(),"{action}: {:?}",b.diagnostics);assert!(b.notes.iter().any(|n|n.code=="N_UNREADABLE_PROBE"),"{action}: {:?}",b.notes);}
+
 }
 #[test]
 fn nested_read_alternatives_can_reach_the_custom_require(){

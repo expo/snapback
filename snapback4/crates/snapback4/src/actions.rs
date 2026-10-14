@@ -74,7 +74,10 @@ pub(super) fn call(request: Request, shared: &Shared, name: &str, body: &str) {
             Err(error) => Err(error),
             Ok(None) => {
                 let args = engine.program(name).filter(|p| p.kind == ProgramKind::Action).ok_or_else(|| snapback4_core::RuntimeError::Structural { code: "E_ACTION_UNKNOWN", message: format!("no action {name} is declared") })
-                    .and_then(|p| arguments(p, &raw_args));
+                    .and_then(|p| {
+                        if let Some(why)=super::dev_doors::persona_argument(shared,&p.args,&raw_args) {Err(snapback4_core::RuntimeError::Input(why.message))}
+                        else {arguments(p, &raw_args)}
+                    });
                 args.and_then(|args| {
                     let mut context = Context::new(&principal, args).with_wire_args(raw_args).at(shared.now());
                     if let Ok(token) = crate::auth::bearer_token(&request) { context = context.with_session(token); }

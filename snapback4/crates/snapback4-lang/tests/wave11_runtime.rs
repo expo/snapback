@@ -54,3 +54,10 @@ fn hidden_point_images_are_counted_outside_the_query_envelope(){
  let plain=e.query("point",Context::new("alice",values.clone()).at(100)).unwrap();
  let traced=e.query("point",Context::new("alice",values).at(100).with_refusal_trace(trace.clone())).unwrap();assert_eq!(serde_json::to_value(plain).unwrap(),serde_json::to_value(traced).unwrap());assert_eq!(trace.hidden(),1);
 }
+
+#[test]
+fn calendar_unique_conflict_names_the_declared_expression(){
+ let mut e=engine("table visits:\n  at: time\n  unique day(at)\n  public\n  insert <- allow\nmutation add(id: id, at: time):\n  return insert visits {id, at}\n");
+ assert!(matches!(e.mutate("add",None,Context::new("alice",args(&[("id",id("a")),("at",Value::Int(0))])).at(100)).unwrap().state,WriteState::Sent {..}));
+ let conflict=why(&mut e,"add","alice",&[("id",id("b")),("at",Value::Int(1000))]);assert_eq!(conflict.code,"E_UNIQUE");assert!(conflict.message.contains("unique day(at)"),"{conflict:?}");
+}
