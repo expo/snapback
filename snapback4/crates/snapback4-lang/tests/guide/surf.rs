@@ -16,6 +16,7 @@ fn surf_cards_match_current_auth_rules_assets_and_protocol() {
 
 #[test]
 fn farm_conceptual_section_words_land_without_a_miss() {
+    assert!(guide::listing().contains("pipes print whole cards"));
     for (name,word,heading) in [("rules","Cross-row","Hops, operators and read through"),("testing","Fixture tests","Fixtures and cases")] {
         let text=guide::section(name,card(name).unwrap(),word).unwrap();
         assert!(text.contains(heading),"{text}");
