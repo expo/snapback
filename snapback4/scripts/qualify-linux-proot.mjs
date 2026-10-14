@@ -35,7 +35,7 @@ export function prootEnvironment(temporary) {
     NPM_CONFIG_USERCONFIG: "/tmp/empty-user.npmrc", NPM_CONFIG_GLOBALCONFIG: "/tmp/empty-global.npmrc",
     NPM_CONFIG_CACHE: "/tmp/npm-cache", NPM_CONFIG_REGISTRY: "https://registry.npmjs.org/" };
 }
-export function prootProof(client, platform, version, cache = proofCache(), fetchInput = fetchPinned) {
+export function prootProof(client, platform, version, cache = proofCache(), fetchInput = fetchPinned, expo) {
   const proot = fetchInput(prootInput, cache); chmodSync(proot, 0o700);
   const proofs = [];
   for (const distribution of prootDistributions) {
@@ -49,6 +49,8 @@ export function prootProof(client, platform, version, cache = proofCache(), fetc
       rmSync(join(root, "etc/resolv.conf"), { force: true });
       writeFileSync(join(root, "etc/resolv.conf"), readFileSync("/etc/resolv.conf"));
       writeFileSync(join(root, "etc/hosts"), "127.0.0.1 localhost\n::1 localhost\n");
+      copyFileSync(expo, join(inputs, "expo.tgz"));
+      copyFileSync(new URL("./publication-starters.mjs", import.meta.url), join(inputs, "starters.mjs"));
       copyFileSync(client, join(inputs, "client.tgz")); copyFileSync(platform, join(inputs, "platform.tgz"));
       copyFileSync(new URL("./publication-roundtrip.mjs", import.meta.url), join(inputs, "roundtrip.mjs"));
       for (const tool of distribution.tools.slice(1)) {
@@ -57,7 +59,7 @@ export function prootProof(client, platform, version, cache = proofCache(), fetc
         else run("tar", ["--extract", "--file", file, "--directory", join(root, "usr/local"), "--strip-components=1", "--no-same-owner"]);
       }
       const invoke = script => run(proot, [...prootCommand(root, scratch, inputs), "/bin/sh", "-ec", script],
-        { cwd: work, env: prootEnvironment(temporary), stdio: "inherit", timeout: 300_000 });
+        { cwd: work, env: prootEnvironment(temporary), stdio: "inherit", timeout: 1_200_000 });
       if (distribution.base === "alpine") {
         writeFileSync(join(root, "etc/apk/repositories"), "");
         invoke("apk add --no-network --no-cache /proof/*.apk");
@@ -66,11 +68,11 @@ export function prootProof(client, platform, version, cache = proofCache(), fetc
         test ! -e /host-rootfs; test ! -e /home/${basename(homedir())};
         printf '{"private":true,"type":"module"}' > package.json;
         npm install --ignore-scripts --no-audit --no-fund /proof/client.tgz /proof/platform.tgz;
-        cp /proof/roundtrip.mjs .; node roundtrip.mjs ${version}`);
-      if (sri(join(inputs, "client.tgz")) !== sri(client) || sri(join(inputs, "platform.tgz")) !== sri(platform))
+        cp /proof/roundtrip.mjs .; node roundtrip.mjs ${version}; node /proof/starters.mjs /proof/client.tgz /proof/platform.tgz /proof/expo.tgz`);
+      if (sri(join(inputs, "client.tgz")) !== sri(client) || sri(join(inputs, "platform.tgz")) !== sri(platform) || sri(join(inputs, "expo.tgz")) !== sri(expo))
         throw new Error("proot consumer changed its staged artifact inputs");
       proofs.push({ ...distribution, route: "proot", runtime: "proot", status: "passed", elapsedMs: Date.now() - started,
-        clientIntegrity: sri(client), platformIntegrity: sri(platform) });
+        clientIntegrity: sri(client), platformIntegrity: sri(platform), expoIntegrity: sri(expo), starters: { web: "passed", expo: "passed", adapted: "passed" } });
     } finally { rmSync(work, { recursive: true, force: true }); }
   }
   return proofs;

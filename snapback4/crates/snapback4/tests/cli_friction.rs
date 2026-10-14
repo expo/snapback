@@ -811,10 +811,13 @@ fn check_and_doctor_refuse_a_mounted_exact_device_before_generated_output() {
     project.write("app/app.json", r#"{"typescript":{"sources":{"snapback4":"../../exact2/snapback4/ts","backend":"../snapback/generated"}}}"#);
     let missing = project.run(&["check"]);
     assert!(!missing.status.success() && text(&missing).contains("E_DEVICE_VERSION"), "{}", text(&missing));
+    assert!(text(&missing).contains("file is missing") && text(&missing).contains("bun exact.mjs snapback --rebuild"), "{}", text(&missing));
+    assert!(!text(&missing).contains("unstamped"));
     project.write("app/assets/snapback4.wasm", "old unstamped bytes");
     let output = project.run(&["check"]);
     assert!(!output.status.success(), "{}", text(&output));
     assert!(text(&output).contains("E_DEVICE_VERSION"), "{}", text(&output));
+    assert!(text(&output).contains("unknown (unstamped)"), "{}", text(&output));
     assert!(!project.0.join("snapback/generated").exists());
     let output = project.run(&["doctor"]);
     assert!(!output.status.success() && text(&output).contains("E_DEVICE_VERSION"), "{}", text(&output));

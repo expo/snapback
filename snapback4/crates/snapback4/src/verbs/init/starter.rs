@@ -307,7 +307,6 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
     config["expo"]["scheme"] = json!(scheme);
     config["expo"]["ios"]["bundleIdentifier"] = json!(bundle);
     config["expo"]["android"]["package"] = json!(bundle);
-    config["expo"]["web"]["favicon"] = json!("./assets/favicon.svg");
     let (app, client) = identity_screens(Platform::Expo, shape.personas.as_deref(), &shape.body, shape.password);
     let client = web_client(client, &shape.offline);
     vec![
@@ -319,7 +318,6 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
         ("index.js", include_str!("../../../../../apps/chat-expo/index.js").to_owned()),
         ("tsconfig.json", include_str!("../../../../../apps/chat-expo/tsconfig.json").to_owned()),
         ("expo-env.d.ts", include_str!("starter/expo-env.d.ts").to_owned()),
-        ("assets/favicon.svg", include_str!("starter/favicon.svg").to_owned()),
         ("App.tsx", app),
         ("src/client.ts", client),
         ("src/native-smoke.ts", native_smoke(shape.password)),

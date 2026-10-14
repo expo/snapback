@@ -1351,3 +1351,40 @@ fn untouched_previous_release_clients_adapt_to_password_but_edits_stay_owned() {
         assert!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap().ends_with("// An application edit.\n"));
     }
 }
+
+#[test]
+fn untouched_starters_have_no_adaptation_advice() {
+    for flags in [vec![], vec!["--online"], vec!["--web"], vec!["--expo"], vec!["--web", "--template", "chat"], vec!["--expo", "--template", "chat"], vec!["--template", "social"]] {
+        let dir = Dir::new();
+        assert!(dir.init(&flags).status.success());
+        let output = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
+        let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        assert!(output.status.success(), "{flags:?}: {text}");
+        assert!(!text.contains("init --adapt") && !text.contains("starter:"), "{flags:?}: {text}");
+        if flags.contains(&"--expo") || flags.contains(&"social") {
+            let config: Value = serde_json::from_slice(&fs::read(dir.0.join("app.json")).unwrap()).unwrap();
+            assert!(config.pointer("/expo/web/favicon").is_none());
+            assert!(!dir.0.join("assets/favicon.svg").exists());
+        }
+    }
+}
+
+#[test]
+fn adapt_repairs_only_the_owned_0_4_26_expo_favicon() {
+    for edited in [false, true] {
+        let dir = Dir::new(); assert!(dir.init(&["--expo"]).status.success());
+        fs::create_dir_all(dir.0.join("assets")).unwrap();
+        let asset = include_str!("../src/verbs/init/starter/favicon.svg");
+        fs::write(dir.0.join("assets/favicon.svg"), if edited { format!("{asset}<!-- mine -->") } else { asset.into() }).unwrap();
+        let path = dir.0.join("app.json");
+        let mut config: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        config["expo"]["web"]["favicon"] = json!("./assets/favicon.svg");
+        config["expo"]["description"] = json!("keep this");
+        fs::write(&path, config.to_string()).unwrap();
+        assert!(dir.init(&["--adapt"]).status.success());
+        let after: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        assert_eq!(after["expo"]["description"], "keep this");
+        assert_eq!(after.pointer("/expo/web/favicon").is_some(), edited);
+        assert_eq!(dir.0.join("assets/favicon.svg").exists(), edited);
+    }
+}

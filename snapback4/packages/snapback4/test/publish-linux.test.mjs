@@ -17,6 +17,8 @@ function prepared(t) {
     elf: { status: "passed", machine: "x86_64", interpreter: null, needed: [] }, platform: artifact(tarball, linux, "0.0.0"), binarySha256: digest(tarball), clientIntegrity: client.integrity,
     proofs: ["ubuntu:22.04", "alpine"].map(base => ({ base, runtime: "docker", node: nodeVersion, image: "sha256:qualified-image", status: "passed", clientIntegrity: client.integrity, platformIntegrity: sri(tarball) })),
   };
+  receipt.expo = json(join(root, "target/publication/client-0.0.0/prepare.json")).expo;
+  for (const proof of receipt.proofs) { proof.expoIntegrity = receipt.expo.integrity; proof.starters = { web: "passed", expo: "passed", adapted: "passed" }; }
   const path = join(root, "linux.json"); writeFileSync(path, JSON.stringify(receipt));
   return { root, path, tarball, receipt, prepared, args: ["--linux-receipt", path, "--linux-tarball", tarball] };
 }
@@ -52,7 +54,7 @@ test("prepare rebuilds wasm then clean client and packs it once, without signing
   const wasm = r.commands.findIndex(c => c.cmd === "bash" && c.args[0].endsWith("build-wasm.sh"));
   const build = r.commands.findIndex(c => c.cmd === "bun"), pack = r.commands.findIndex(c => c.cmd === "npm" && c.args[0] === "pack");
   assert.ok(wasm >= 0 && wasm < build && build < pack);
-  assert.equal(r.commands.filter(c => c.cmd === "npm" && c.args[0] === "pack").length, 1);
+  assert.equal(r.commands.filter(c => c.cmd === "npm" && c.args[0] === "pack").length, 2);
   assert.ok(!r.commands.some(c => ["codesign", "security", "xcrun"].includes(c.cmd))); assert.equal(publications(r).length, 0);
 });
 
@@ -126,6 +128,13 @@ for (const [name, change, message] of [
   ["Ubuntu proof", r => r.proofs[0].status = "failed", /Ubuntu 22.04 and Alpine/],
   ["Alpine proof", r => r.proofs.pop(), /Ubuntu 22.04 and Alpine/],
   ["Node pin", r => r.proofs[1].node = "latest", /pinned Node/],
+  ["missing Expo artifact", r => delete r.expo, /packed Expo proof artifact/],
+  ["Expo SRI", r => r.expo.integrity = "sha512-" + "A".repeat(86) + "==", /different Expo SRI/],
+  ["missing starter proof", r => delete r.proofs[0].starters, /Ubuntu 22.04 and Alpine/],
+  ["Expo export", r => r.proofs[1].starters.expo = "failed", /Ubuntu 22.04 and Alpine/],
+  ["web build", r => r.proofs[0].starters.web = "failed", /Ubuntu 22.04 and Alpine/],
+  ["adapted build", r => r.proofs[1].starters.adapted = "failed", /Ubuntu 22.04 and Alpine/],
+  ["proof Expo", r => r.proofs[0].expoIntegrity = "wrong", /Ubuntu 22.04 and Alpine/],
   ["proof client", r => r.proofs[1].clientIntegrity = "wrong", /bound to both artifacts/],
   ["proof platform", r => r.proofs[0].platformIntegrity = "wrong", /bound to both artifacts/],
   ["ELF interpreter", r => r.elf.interpreter = "/lib/ld.so", /no interpreter/],

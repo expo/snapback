@@ -16,9 +16,10 @@ export function publish(t, scenario = {}, previousRoot) {
   const root = previousRoot ?? mkdtempSync(join(tmpdir(), "snapback4-signing-test-"));
   if (!previousRoot) {
     t.after(() => rmSync(root, { recursive: true, force: true }));
-    for (const dir of ["scripts", "packages/snapback4", `packages/${platform}`, "target/production"]) mkdirSync(join(root, dir), { recursive: true });
-    for (const file of ["publish.mjs", "signing.mjs", "publication-artifacts.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-consumer.mjs", "publication-roundtrip.mjs", "publication-registry.mjs", "prepare-client.mjs"]) if (existsSync(new URL(file, scripts))) copyFileSync(new URL(file, scripts), join(root, "scripts", file));
-    for (const dir of ["snapback4", platform]) writeFileSync(join(root, "packages", dir, "package.json"), JSON.stringify({ name: dir, version: "0.0.0", ...(dir === "snapback4" ? { optionalDependencies: { "snapback4-darwin-arm64": "0.0.0", "snapback4-linux-x64": "0.0.0" } } : {}) }));
+    for (const dir of ["scripts", "packages/snapback4", "packages/snapback4-expo", `packages/${platform}`, "target/production"]) mkdirSync(join(root, dir), { recursive: true });
+    for (const file of ["publish.mjs", "signing.mjs", "publication-artifacts.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-consumer.mjs", "publication-starters.mjs", "publication-roundtrip.mjs", "publication-registry.mjs", "prepare-client.mjs"]) if (existsSync(new URL(file, scripts))) copyFileSync(new URL(file, scripts), join(root, "scripts", file));
+    for (const dir of ["snapback4", "snapback4-expo", platform]) writeFileSync(join(root, "packages", dir, "package.json"), JSON.stringify({ name: dir, version: "0.0.0", ...(dir === "snapback4" ? { optionalDependencies: { "snapback4-darwin-arm64": "0.0.0", "snapback4-linux-x64": "0.0.0" } } : {}) }));
+    writeFileSync(join(root, "scripts/publication-starters.mjs"), `export function proveStarters() { if (process.env.PUBLICATION_STARTERS_FAIL === '1') throw Error('starter export failed'); return [{kind:'expo', status:'passed'}, {kind:'web', status:'passed'}]; }`);
     writeFileSync(join(root, "target/production/snapback4"), "unsigned");
     writeFileSync(join(root, "packages", platform, "THIRD-PARTY-NOTICES"), "notices");
   }
@@ -46,7 +47,7 @@ cp.execFileSync = (cmd, args, opts = {}) => {
   if (cmd === "git") return args[0] === "status" ? (scenario.dirty ? " M changed" : "") : (scenario.source ?? "a".repeat(40));
   if (cmd === "tar") {
     if (args[2] === "package/snapback4") return readFileSync(args[1]);
-    const name = args[1].includes("client.tgz") ? "snapback4" : args[1].includes("linux") ? "snapback4-linux-x64" : platform;
+    const name = args[1].includes("expo.tgz") ? "snapback4-expo" : args[1].includes("client.tgz") ? "snapback4" : args[1].includes("linux") ? "snapback4-linux-x64" : platform;
     if (name === "snapback4") return JSON.stringify({ ...JSON.parse(readFileSync(args[1], "utf8")), ...(scenario.deps ? { optionalDependencies: scenario.deps } : {}) });
     return JSON.stringify({ name, version: "0.0.0", ...(name.endsWith("linux-x64") ? { os: ["linux"], cpu: ["x64"] } : {}) });
   }
@@ -73,7 +74,7 @@ cp.execFileSync = (cmd, args, opts = {}) => {
     return scenario.notaryOutput ?? result;
   }
   if (cmd === "npm" && args[0] === "pack") {
-    const filename = opts.cwd.includes(platform) ? "platform.tgz" : "client.tgz";
+    const filename = opts.cwd.includes(platform) ? "platform.tgz" : opts.cwd.includes("snapback4-expo") ? "expo.tgz" : "client.tgz";
     writeFileSync(join(args.at(-1), filename), readFileSync(join(opts.cwd, filename === "platform.tgz" ? "snapback4" : "package.json")));
     return JSON.stringify([{ filename, entryCount: 1 }]);
   }

@@ -54,7 +54,7 @@ bash scripts/measure-wasm.sh         # the device core as wasm (crates/snapback4
 bash scripts/build-xcframework.sh    # the device as an iOS xcframework for packages/snapback4-expo (staticlib alone, stripped; 13.2 MB with native reads)
 node loopbar/run.mjs --n 3           # the loop bar: fresh agents on the published pin build reduced Clique M1–M3 → metrics/loopbar.jsonl
 node scripts/publish.mjs --prepare-client # rebuild wasm + clean client, pack once for cross-host qualification
-node scripts/qualify-linux.mjs --client /path/client.tgz --out /path/qualification # Linux suite + Ubuntu/Alpine proof, no publish
+node scripts/qualify-linux.mjs --client /path/client.tgz --expo /path/expo.tgz --out /path/qualification # Linux suite + Ubuntu/Alpine proof, no publish
 node scripts/publish.mjs             # Mac: qualify/sign Darwin; optional --linux-receipt + --linux-tarball import; platforms before client
 ```
 

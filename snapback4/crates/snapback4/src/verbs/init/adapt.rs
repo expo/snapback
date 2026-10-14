@@ -52,6 +52,7 @@ pub(crate) fn leftovers(dir: &Path) -> (Vec<Leftover>, Vec<String>) {
     }
     readme(dir, &own, todos, &mut found);
     app_json(dir, &mut found);
+    expo_favicon(dir, &mut found);
     (found, advice)
 }
 
@@ -106,6 +107,27 @@ fn app_json(dir: &Path, found: &mut Vec<Leftover>) {
     let quoted = |value: &str| format!("\"{value}\"");
     let rewrite = text.replace(&quoted(bundle), &quoted(&new_bundle)).replace(&quoted(slug), &quoted(&new_slug)).replace(&quoted(scheme), &quoted(&new_scheme));
     found.push(Leftover { path: "app.json", why: format!("the todo starter's ids (slug {slug}, scheme {scheme}, bundle id {bundle}); adapt names them after this directory ({new_slug}, {new_scheme}, {new_bundle})"), rewrite: Some(rewrite) });
+}
+
+// Repair only the exact SVG asset and setting emitted by 0.4.26. Custom
+// images/settings remain owned by the app, including other SVG paths.
+fn expo_favicon(dir: &Path, found: &mut Vec<Leftover>) {
+    if read(dir, "assets/favicon.svg").as_deref() != Some(include_str!("starter/favicon.svg")) { return; }
+    let Some(text) = read(dir, "app.json") else { return };
+    let Ok(config) = serde_json::from_str::<serde_json::Value>(&text) else { return };
+    if config.pointer("/expo/web/favicon").and_then(|value| value.as_str()) != Some("./assets/favicon.svg") { return; }
+    let why = "the unmodified Expo favicon is SVG, which Expo's web export requires to be raster".to_owned();
+    if let Some(existing) = found.iter_mut().find(|change| change.path == "app.json") {
+        let mut config: serde_json::Value = serde_json::from_str(existing.rewrite.as_ref().unwrap()).unwrap();
+        config["expo"]["web"].as_object_mut().unwrap().remove("favicon");
+        existing.rewrite = Some(super::pretty(&config));
+        existing.why.push_str("; Expo's web export also requires a raster favicon");
+    } else {
+        let mut config = config;
+        config["expo"]["web"].as_object_mut().unwrap().remove("favicon");
+        found.push(Leftover { path: "app.json", why: why.clone(), rewrite: Some(super::pretty(&config)) });
+    }
+    found.push(Leftover { path: "assets/favicon.svg", why, rewrite: None });
 }
 
 fn number_after(text: &str, prefix: &str) -> Option<u16> {
@@ -286,7 +308,7 @@ pub(super) fn adapt(dir: &Path) -> i32 {
     if found.is_empty() { println!("init --adapt: nothing to adapt — no unmodified starter file conflicts with your snapback/*.q"); }
     if !removed.is_empty() {
         let kept = if removed.iter().any(|path| path.starts_with("fixtures/")) { "; fixtures/ stays for your own rows" } else { "" };
-        println!("init --adapt: removed {} (the todo starter's samples{kept}; write your own as fixtures/<table>.jsonl and fixtures/test.cases.jsonl, `snapback4 guide testing`)", removed.join(" and "));
+        println!("init --adapt: removed {} (unmodified starter files{kept}; write your own as fixtures/<table>.jsonl and fixtures/test.cases.jsonl, `snapback4 guide testing`)", removed.join(" and "));
     }
     if !rewritten.is_empty() {
         let why = found.iter().find(|leftover| leftover.rewrite.is_some()).map(|leftover| leftover.why.as_str()).unwrap_or_default();

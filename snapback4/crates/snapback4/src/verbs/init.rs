@@ -101,7 +101,7 @@ pub fn init(options: &Options) -> i32 {
         password: own.as_ref().is_some_and(|own| own.identity.is_some_and(|(password, guests)| password && !guests)),
         personas: own.as_ref().filter(|own| own.identity.is_none() && !own.personas.is_empty()).map(|own| own.personas.clone()),
         body: match own.as_ref() { Some(own) if !adapt::fits_todos(own) => starter::Body::Home(own.reads.first().cloned()), _ => starter::Body::Todos },
-        offline: own.as_ref().map(|own| own.offline.clone()).unwrap_or(starter::Offline::Unknown),
+        offline: own.as_ref().map(|own| own.offline.clone()).unwrap_or_else(|| starter::Offline::Tables { synced: vec!["todos".into()], total: 1 }),
     };
     let home = matches!(shape.body, starter::Body::Home(_));
     let mut files = if social { social::files() }
@@ -111,12 +111,6 @@ pub fn init(options: &Options) -> i32 {
     if web && !files.iter().any(|(name, _)| *name == "public/favicon.svg") {
         files.push(("public/favicon.svg", include_str!("init/starter/favicon.svg").to_owned()));
         for (name, text) in &mut files { if *name == "index.html" { *text = text.replace("<head>", "<head>\n<link rel=\"icon\" href=\"/favicon.svg\" type=\"image/svg+xml\" />"); } }
-    }
-    if expo && !files.iter().any(|(name, _)| *name == "assets/favicon.svg") {
-        files.push(("assets/favicon.svg", include_str!("init/starter/favicon.svg").to_owned()));
-        for (name, text) in &mut files {
-            if *name == "app.json" { let mut config: Value = serde_json::from_str(text).unwrap(); config["expo"]["web"]["favicon"] = json!("./assets/favicon.svg"); *text = pretty(&config); }
-        }
     }
     // The starter's rows and cases test its own todos schema; beside a
     // project's schema they name a table it lacks and fail `snapback4 test`.

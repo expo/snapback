@@ -384,7 +384,11 @@ pub fn inspect(root: &Path, schema: &Schema) -> Vec<Result<String, String>> {
                     device_artifacts(&app, &config)
                         .into_iter()
                         .map(|wasm| {
-                            let device = fs::read(&wasm).ok().and_then(|bytes| stamp(&bytes));
+                            let bytes = fs::read(&wasm).map_err(|error| {
+                                let state = if error.kind() == std::io::ErrorKind::NotFound { "missing".to_owned() } else { format!("unreadable ({error})") };
+                                format!("E_DEVICE_VERSION: device engine file is {state} [{}]; build it from the Exact app directory with `bun exact.mjs snapback --rebuild` before running check", wasm.display())
+                            })?;
+                            let device = stamp(&bytes);
                             device_protocol::check(device.as_ref(), &required)
                                 .map(|_| {
                                     format!(

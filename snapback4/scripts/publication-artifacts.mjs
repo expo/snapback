@@ -64,11 +64,14 @@ export function validateLinux(receipt, tarball, client, source) {
     throw new Error("Linux receipt does not carry a successful suite result");
   if (receipt.clientIntegrity !== client.integrity) throw new Error("Linux receipt proved a different client SRI");
   if (sri(tarball) !== receipt.platform.integrity) throw new Error("Linux tarball does not match receipt SRI");
+  if (receipt.expo?.name !== "snapback4-expo" || receipt.expo.version !== client.version || !/^sha512-[A-Za-z0-9+/]{86}==$/.test(receipt.expo.integrity ?? "")) throw new Error("Linux receipt needs the packed Expo proof artifact");
+  if (client.expoIntegrity && receipt.expo.integrity !== client.expoIntegrity) throw new Error("Linux receipt proved a different Expo SRI");
   const proofs = receipt.proofs;
   const proot = receipt.route === "proot";
   const bases = proot ? ["ubuntu:24.04", "alpine"] : ["ubuntu:22.04", "alpine"];
   if (!Array.isArray(proofs) || proofs.length !== 2 || !bases.every(base => proofs.some(p =>
     p.base === base && p.status === "passed" && p.clientIntegrity === client.integrity && p.platformIntegrity === receipt.platform.integrity
+    && p.expoIntegrity === receipt.expo.integrity && p.starters?.web === "passed" && p.starters?.expo === "passed" && p.starters?.adapted === "passed"
     && (proot ? p.runtime === "proot" && p.route === "proot" && matchesPinnedProof(p)
       : p.node === nodeVersion && /^(docker|podman)$/.test(p.runtime) && p.image && (!receipt.route || receipt.route === p.runtime)))))
     throw new Error(`Linux receipt needs successful Ubuntu ${proot ? "24.04" : "22.04"} and Alpine proofs bound to both artifacts and pinned Node/runtimes/root filesystems`);

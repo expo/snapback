@@ -24,7 +24,11 @@ export function prepareClient(root, version, directory, selectedPlatforms = plat
     if (cleanSource(root) !== source) throw new Error("release source changed during client preparation");
     mkdirSync(directory, { recursive: true });
     copyFileSync(tarball, join(directory, packed.filename));
-    save(receiptPath, { format: 1, source, client: artifact(tarball, "snapback4", version, { files: packed.entryCount }) });
+    const [expoPacked] = JSON.parse(run("npm", ["pack", "--ignore-scripts", "--json", "--pack-destination", work], { cwd: join(root, "packages/snapback4-expo") }));
+    const expoTarball = join(work, expoPacked.filename);
+    copyFileSync(expoTarball, join(directory, expoPacked.filename));
+    if (cleanSource(root) !== source) throw new Error("release source changed during Expo packing");
+    save(receiptPath, { format: 1, source, expo: artifact(expoTarball, "snapback4-expo", version), client: artifact(tarball, "snapback4", version, { files: packed.entryCount }) });
   } finally { rmSync(work, { recursive: true, force: true }); }
   return loadPrepared(directory, version, selectedPlatforms);
 }
@@ -32,6 +36,8 @@ export function loadPrepared(directory, version, selectedPlatforms = platforms) 
   const receipt = json(join(directory, "prepare.json"));
   if (receipt.format !== 1 || !/^[a-f0-9]{40}$/.test(receipt.source ?? "") || receipt.client?.name !== "snapback4") throw new Error("invalid prepared client receipt");
   receipt.client = verifyArtifact(receipt.client, directory, version);
+  receipt.expo = verifyArtifact(receipt.expo, directory, version);
+  if (receipt.expo.name !== "snapback4-expo") throw new Error("prepared Expo artifact must name snapback4-expo");
   clientManifest(receipt.client.tarball, version, selectedPlatforms);
   return receipt;
 }

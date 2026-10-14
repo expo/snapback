@@ -94968,3 +94968,22 @@ down) and the dry run passed `== 0 failure(s) in 8579 s` under the default
 platforms, then the client; the Expo adapter followed. Clean installs on Linux
 and the Mac print `snapback4 0.4.26` and pass `init` + `check`. Hashes,
 timings and logs: `reports/20261014-publication-0.4.26/REPORT.md`.
+
+
+## 2026-10-14 — EXPOFIX: exported starters enter publication qualification
+
+0.4.26 emitted an SVG favicon in every Expo app.json; Expo's real web image
+pipeline refused it. Remove that optional key and asset (Vite's browser-facing
+SVG stays). Adapt repairs the exact old asset/setting and preserves custom
+ones. A fresh Todos README now describes its actual synced schema, so check
+prints no adaptation warning. Missing mounted Exact wasm gets a file/build
+message; existing unstamped bytes keep the compatibility refusal.
+
+Prepare packs Expo alongside the common client for web-toolchain proof. Both
+Linux consumers and Darwin publication/resume install the packed starters,
+typecheck, export/build, adapt to an online-only Home and build again. Linux
+receipts bind the Expo SRI and explicit starter successes; the publisher checks
+that SRI against its retained preparation. Expo's native qualification and
+publication remain separate. npm registry dependency installation is required;
+Expo's own network checks/telemetry are off. EXPOFIX's worktree report retains
+checks, baseline failure and review disposition; no push or publication here.

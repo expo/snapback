@@ -12,15 +12,20 @@ import { proofEntrypoint } from "./helpers/linux-proof-harness.mjs";
 function qualify(t, scenario = {}) {
   const root = mkdtempSync(join(tmpdir(), "snapback4-linux-test-")); t.after(() => rmSync(root, { recursive: true, force: true }));
   for (const dir of ["scripts", "packages/snapback4", "packages/snapback4-linux-x64", "target/x86_64-unknown-linux-musl/production"]) mkdirSync(join(root, dir), { recursive: true });
-  for (const file of ["qualify-linux.mjs", "qualify-linux-proot.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-artifacts.mjs", "publication-roundtrip.mjs", "build-linux-musl.sh"]) copyFileSync(new URL(`../../../scripts/${file}`, import.meta.url), join(root, "scripts", file));
+  for (const file of ["qualify-linux.mjs", "qualify-linux-proot.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-artifacts.mjs", "publication-roundtrip.mjs", "publication-starters.mjs", "build-linux-musl.sh"]) copyFileSync(new URL(`../../../scripts/${file}`, import.meta.url), join(root, "scripts", file));
   writeFileSync(join(root, "scripts/publication-roundtrip.mjs"), proofEntrypoint);
+  writeFileSync(join(root, "scripts/publication-starters.mjs"), `
+    import { appendFileSync } from 'node:fs';
+    appendFileSync(process.env.PROOF_EVENTS, JSON.stringify({ event: 'starters' }) + '\\n');
+    if (process.env.STARTERS_FAIL === '1') throw Error('deliberately failing starter toolchain');
+  `);
   if (scenario.proot) {
     copyFileSync(join(root, "scripts/qualify-linux-proot.mjs"), join(root, "scripts/qualify-linux-proot-real.mjs"));
     writeFileSync(join(root, "scripts/qualify-linux-proot.mjs"), `
       import { prootProof as realProof } from './qualify-linux-proot-real.mjs';
       import { mkdirSync, writeFileSync } from 'node:fs';
       import { basename, join } from 'node:path';
-      export function prootProof(client, platform, version) {
+      export function prootProof(client, platform, version, _cache, _fetch, expo) {
         // Set these after Node starts: they must be observed as host environment,
         // never interpreted by the test runner's loader or Node startup.
         const sentinels = {
@@ -35,7 +40,7 @@ function qualify(t, scenario = {}) {
         try {
           return realProof(client, platform, version, cache, input => {
             const path = join(cache, basename(new URL(input.url).pathname)); writeFileSync(path, 'fixture download'); return path;
-          });
+          }, expo);
         } finally {
           for (const [key, value] of Object.entries(saved)) {
             if (value === undefined) delete process.env[key]; else process.env[key] = value;
@@ -48,6 +53,7 @@ function qualify(t, scenario = {}) {
   const manifest = { name: "snapback4", version, optionalDependencies: { "snapback4-darwin-arm64": version, "snapback4-linux-x64": version } };
   writeFileSync(join(root, "packages/snapback4/package.json"), JSON.stringify(manifest));
   writeFileSync(client, "common client");
+  writeFileSync(join(root, "expo.tgz"), "packed Expo");
   writeFileSync(join(root, "packages/snapback4-linux-x64/package.json"), JSON.stringify({ name: "snapback4-linux-x64", version, os: ["linux"], cpu: ["x64"] }));
   writeFileSync(join(root, "packages/snapback4-linux-x64/THIRD-PARTY-NOTICES"), "notices");
   const binary = join(root, "target/x86_64-unknown-linux-musl/production/snapback4"), b = Buffer.alloc(120);
@@ -100,6 +106,7 @@ cp.execFileSync = (cmd,args,opts={}) => {
   if(cmd === "tar" && args[0] === "--extract") {
     mkdirSync(join(args[args.indexOf("--directory") + 1], "etc/apk"), {recursive:true}); return "";
   }
+  if(cmd === "tar" && args[1] === join(root, "expo.tgz")) return JSON.stringify({ name: "snapback4-expo", version: "0.0.0" });
   if(cmd === "tar") return original(cmd,args,opts);
   if(cmd === "bash") return scenario.redirectedTarget ? original(cmd,args,{...opts, env: {...opts.env, HOME: root, CARGO_TARGET_DIR: join(root,"redirected"), SNAPBACK4_MUSL_CC: join(root,".local/bin/musl-gcc")}}) : "";
   if(cmd === "curl") { writeFileSync(args[args.indexOf("--output") + 1], "wrong pinned bytes"); return ""; }
@@ -155,7 +162,7 @@ syncBuiltinESMExports();
   // Exercise that entrypoint distinction on every host, with the real CLI guard.
   const entry = join(root, "qualify-link.mjs");
   symlinkSync(join(root, "scripts/qualify-linux.mjs"), entry);
-  const result = spawnSync(process.execPath, ["--import", join(root, "mock.mjs"), entry, "--client", client, "--out", join(root, "out")], { encoding: "utf8", env });
+  const result = spawnSync(process.execPath, ["--import", join(root, "mock.mjs"), entry, "--client", client, "--expo", join(root, "expo.tgz"), "--out", join(root, "out")], { encoding: "utf8", env });
   const receiptPath = join(root, "out/receipt.json");
   return { ...result, root, client, binary, receipt: existsSync(receiptPath) ? json(receiptPath) : null, commands: existsSync(join(root, "commands.jsonl")) ? readFileSync(join(root, "commands.jsonl"), "utf8").trim().split("\n").map(JSON.parse) : [] };
 }
@@ -187,7 +194,7 @@ function assertProofsExecuted(r) {
   const executions = readFileSync(join(r.root, "executed-proofs.jsonl"), "utf8").trim().split("\n").map(JSON.parse);
   assert.equal(executions.length, 2);
   for (const events of executions) {
-    assert.deepEqual(events.map(e => e.event), ["node-version", "install", "roundtrip"]);
+    assert.deepEqual(events.map(e => e.event), ["node-version", "install", "roundtrip", "starters"]);
     assert.deepEqual(events[1].args, ["install", "--ignore-scripts", "--no-audit", "--no-fund", "/proof/client.tgz", "/proof/platform.tgz"]);
     assert.equal(events[1].clientIntegrity, r.receipt.clientIntegrity);
     assert.equal(events[1].platformIntegrity, r.receipt.platform.integrity);
@@ -210,10 +217,11 @@ for (const scenario of [{ suiteFail: true }, { proofFail: true }, { interpreter:
     assert.ok(!r.commands.some(c => c.cmd === "npm" && c.args[0] === "publish"));
   });
 
-for (const proot of [false, true]) for (const refusal of ["proofFail", "overridePresent", "wrongNode"])
+for (const proot of [false, true]) for (const refusal of ["proofFail", "startersFail", "overridePresent", "wrongNode"])
   test(`${proot ? "proot" : "container"} executes the proof guard and propagates ${refusal} without a receipt`, t => {
     const r = qualify(t, { proot, [refusal]: true });
     assert.notEqual(r.status, 0); assert.equal(r.receipt, null);
+    if (refusal === "startersFail") assert.match(r.stderr, /deliberately failing starter toolchain/);
     if (refusal === "proofFail") assert.match(r.stderr, /deliberately failing consumer entrypoint/);
   });
 

@@ -40,6 +40,8 @@ function loadStage() {
   if (legacy) r = { ...r, format: 3, platforms: [{ ...r.platformArtifact, binaryProfile: r.binaryProfile, binarySha256: r.binarySha256, binaryVersion: r.binaryVersion, binaryBytes: r.binaryBytes, signing: r.signing, cargoProfile: r.cargoProfile }] };
   if (r.format !== 3 || r.version !== version || r.client?.name !== "snapback4" || !Array.isArray(r.platforms) || ![1, 2].includes(r.platforms.length) || r.platforms.some((p, i) => p.name !== platforms[i])) throw new Error("publication resume does not describe the client and ordered platform artifact set");
   if (r.qualification?.suite !== "passed") throw new Error("publication resume does not carry a recorded successful source-suite qualification");
+  r.expo = verifyArtifact(r.expo, stateDirectory, version);
+  manifest(r.expo.tarball, "snapback4-expo", version);
   r.client = verifyArtifact(r.client, stateDirectory, version);
   r.platforms = r.platforms.map(p => verifyArtifact(p, stateDirectory, version));
   clientManifest(r.client.tarball, version, r.platforms.map(p => p.name));
@@ -49,7 +51,7 @@ function loadStage() {
   const linux = r.platforms[1];
   if (linux) {
     if (linux.receiptFile !== "linux-receipt.json" || sri(join(stateDirectory, linux.receiptFile)) !== linux.receiptIntegrity) throw new Error("imported Linux receipt does not match durable integrity");
-    const receipt = validateLinux(json(join(stateDirectory, linux.receiptFile)), linux.tarball, r.client, r.source);
+    const receipt = validateLinux(json(join(stateDirectory, linux.receiptFile)), linux.tarball, { ...r.client, expoIntegrity: r.expo.integrity }, r.source);
     if (linux.binarySha256 !== receipt.binarySha256) throw new Error("Linux artifact binary sha256 differs from its receipt");
   }
   return r;
@@ -69,7 +71,7 @@ if (existsSync(receiptPath)) {
   const prepared = existsSync(join(preparedDirectory, "prepare.json")) ? loadPrepared(preparedDirectory, version, selectedPlatforms) : prepareClient(root, version, preparedDirectory, selectedPlatforms);
   if (prepared.source !== source) throw new Error("prepared client source differs from release source; prepare at the same commit");
   let linuxReceipt;
-  if (values.has("--linux-receipt")) linuxReceipt = validateLinux(json(values.get("--linux-receipt")), values.get("--linux-tarball"), prepared.client, source);
+  if (values.has("--linux-receipt")) linuxReceipt = validateLinux(json(values.get("--linux-receipt")), values.get("--linux-tarball"), { ...prepared.client, expoIntegrity: prepared.expo.integrity }, source);
   const work = mkdtempSync(join(tmpdir(), "snapback4-publish-"));
   try {
     const built = run("cargo", ["build", "--locked", "--profile", "production", "--quiet", "--message-format=json-render-diagnostics", "-p", "snapback4"], { cwd: root, env: buildEnv });
@@ -85,10 +87,12 @@ if (existsSync(receiptPath)) {
     const tarball = join(work, packed.filename);
     if (cleanSource(root) !== source) throw new Error("release source changed during staging");
     mkdirSync(stateDirectory, { recursive: true });
+    copyFileSync(prepared.expo.tarball, join(stateDirectory, prepared.expo.filename));
     copyFileSync(prepared.client.tarball, join(stateDirectory, prepared.client.filename));
     copyFileSync(tarball, join(stateDirectory, packed.filename));
     const { tarball: _, ...client } = prepared.client;
-    staged = { format: 3, source, version, qualification: { suite: "passed" }, client, platforms: [artifact(tarball, platformName, version, { binaryProfile: "production", binarySha256: digest(binary), binaryVersion, binaryBytes: statSync(binary).size, cargoProfile: cargo.profile, sqliteBuildFlags, signing })] };
+    const { tarball: _expo, ...expo } = prepared.expo;
+    staged = { format: 3, source, version, qualification: { suite: "passed" }, client, expo, platforms: [artifact(tarball, platformName, version, { binaryProfile: "production", binarySha256: digest(binary), binaryVersion, binaryBytes: statSync(binary).size, cargoProfile: cargo.profile, sqliteBuildFlags, signing })] };
     if (linuxReceipt) {
       const linuxFile = `snapback4-linux-x64-${version}.tgz`, receiptFile = "linux-receipt.json";
       copyFileSync(values.get("--linux-tarball"), join(stateDirectory, linuxFile));

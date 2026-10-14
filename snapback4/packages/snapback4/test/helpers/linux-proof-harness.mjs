@@ -26,16 +26,17 @@ if (name === 'npm') {
 if (name === 'node' && args[0] === '-v') {
   record({ event: 'node-version' }); console.log('v${scenario.wrongNode ? "0.0.0" : node}');
 } else if (name === 'node') {
+  if (args[0] === "/proof/starters.mjs") args[0] = join(inputs, "starters.mjs");
   execFileSync(${JSON.stringify(process.execPath)}, args, { stdio: 'inherit' });
 }
 `);
     chmodSync(path, 0o755);
   }
-  const env = { PATH: bin, PROOF_EVENTS: events, PROOF_FAIL: scenario.proofFail ? "1" : "0" };
+  const env = { PATH: bin, PROOF_EVENTS: events, PROOF_FAIL: scenario.proofFail ? "1" : "0", STARTERS_FAIL: scenario.startersFail ? "1" : "0" };
   if (scenario.overridePresent) env.SNAPBACK4_BIN = "/forbidden/host-binary";
   exec("/bin/sh", ["-ec", script], { cwd, env, stdio: "pipe" });
   const observed = readFileSync(events, "utf8").trim().split("\n").map(JSON.parse);
-  assert.deepEqual(observed.map(e => e.event), ["node-version", "install", "roundtrip"], "the proof entrypoint must execute after the Node check and installation");
+  assert.deepEqual(observed.map(e => e.event), ["node-version", "install", "roundtrip", "starters"], "the proof entrypoint must execute after the Node check and installation");
   assert.deepEqual(observed[1].args, ["install", "--ignore-scripts", "--no-audit", "--no-fund", "/proof/client.tgz", "/proof/platform.tgz"], "npm must install both qualified tarballs");
   assert.equal(observed[2].override, false);
   const path = join(root, "executed-proofs.jsonl");
