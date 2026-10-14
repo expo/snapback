@@ -1152,7 +1152,7 @@ test('NARR populated widening describes future risk without miscounting compatib
   await serve(deployment,async(url,headers)=>{
     await releasePost(url,headers,'/m/add',{},'rel2-warning-row');
     writeFileSync(schema,source);
-    const r=invoke('deploy',deployment);assert.equal(r.status,0,r.stderr);assert.doesNotMatch(r.stderr,/WARNING|existing rows/);assert.match(r.stderr,/note: items.body admits values outside release 1/);
+    const r=invoke('deploy',deployment);assert.equal(r.status,0,r.stderr);assert.doesNotMatch(r.stderr,/WARNING|existing rows/);assert.match(r.stderr,/note: items.body admits values outside release 1's column declaration/);
   });
 });
 

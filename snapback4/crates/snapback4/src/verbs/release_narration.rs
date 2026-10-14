@@ -51,7 +51,7 @@ pub(super) fn compatibility(store: &Store, current: &Schema, target: &Schema, cu
         let admission = match (wide, narrow) {
             (snapback4_core::schema::ColumnType::Enum { variants }, snapback4_core::schema::ColumnType::Enum { variants: old }) =>
                 variants.iter().filter(|v| !old.contains(v)).map(|v| snapback4_lang::print::quote(v)).collect::<Vec<_>>().join(", "),
-            _ => format!("values outside release {current_release}'s {narrow}"),
+            _ => format!("values outside release {current_release}'s column declaration"),
         };
         lines.push(format!("note: {path} admits {admission}; rows that later use {} become dormant on rollback to release {current_release}", if admission.starts_with('\'') { "them" } else { "those values" }));
     }
