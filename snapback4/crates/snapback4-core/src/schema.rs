@@ -965,6 +965,7 @@ pub enum Constraint {
 pub enum TextFormat {
     Handle,
     Url,
+    Email,
 }
 
 impl TextFormat {
@@ -975,6 +976,24 @@ impl TextFormat {
                 .strip_prefix("https://")
                 .or_else(|| text.strip_prefix("http://"))
                 .is_some_and(|rest| !rest.is_empty() && rest.chars().all(|c| !c.is_whitespace() && !c.is_control())),
+            // @ref LLP 3000.013.001#1-decision — one deterministic ASCII mailbox grammar is shared by arguments, writes and devices.
+            Self::Email => {
+                if text.len() > 254 { return false; }
+                let Some((local, domain)) = text.split_once('@') else { return false };
+                if domain.contains('@') || local.is_empty() || local.len() > 64
+                    || domain.is_empty() || domain.len() > 253
+                    || local.starts_with('.') || local.ends_with('.') || local.contains("..")
+                {
+                    return false;
+                }
+                let local_ok = local.bytes().all(|b| b.is_ascii_alphanumeric()
+                    || matches!(b, b'.' | b'!' | b'#' | b'$' | b'%' | b'&' | b'\'' | b'*'
+                        | b'+' | b'/' | b'=' | b'?' | b'^' | b'_' | b'`' | b'{' | b'|'
+                        | b'}' | b'~' | b'-'));
+                local_ok && domain.split('.').all(|label| !label.is_empty() && label.len() <= 63
+                    && !label.starts_with('-') && !label.ends_with('-')
+                    && label.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-'))
+            }
         }
     }
 }

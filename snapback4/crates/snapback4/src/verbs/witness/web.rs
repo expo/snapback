@@ -43,6 +43,7 @@ fn sample(kind: &snapback4_core::ir::ArgType) -> serde_json::Value {
         ArgType::Text { min, max, format } => json!(match format {
             Some(snapback4_core::schema::TextFormat::Url) => "https://example.test/".to_owned(),
             Some(snapback4_core::schema::TextFormat::Handle) => "a".repeat((*min).max(3).min(*max) as usize),
+            Some(snapback4_core::schema::TextFormat::Email) => "a@example.test".to_owned(),
             None => "a".repeat((*min).max(1).min(*max) as usize),
         }),
         ArgType::Bool => json!(false),

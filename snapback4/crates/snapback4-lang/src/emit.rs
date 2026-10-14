@@ -166,7 +166,7 @@ fn arg_bound(ty: &snapback4_core::ir::ArgType) -> String {
         ArgType::ListRange { of, min, max } => format!("[{}] {min}..{max}", item(of)),
         ArgType::Text { min, max, format } => {
             let bound = if *min == 0 { format!("<={max}") } else { format!("{min}..{max}") };
-            let format = match format { Some(TextFormat::Handle) => " format handle", Some(TextFormat::Url) => " format url", None => "" };
+            let format = match format { Some(TextFormat::Handle) => " format handle", Some(TextFormat::Url) => " format url", Some(TextFormat::Email) => " format email", None => "" };
             format!("text {bound}{format}")
         }
         ArgType::Cursor => "cursor".into(),

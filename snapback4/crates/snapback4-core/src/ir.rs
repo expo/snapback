@@ -598,7 +598,8 @@ fn deserialize_text_format<'de, D: serde::Deserializer<'de>>(deserializer: D) ->
     match String::deserialize(deserializer)?.as_str() {
         "handle" => Ok(Some(crate::schema::TextFormat::Handle)),
         "url" => Ok(Some(crate::schema::TextFormat::Url)),
-        _ => Err(serde::de::Error::custom("text format must be handle or url")),
+        "email" => Ok(Some(crate::schema::TextFormat::Email)),
+        _ => Err(serde::de::Error::custom("text format must be handle, url, or email")),
     }
 }
 

@@ -225,7 +225,7 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
         if let TypeKind::Text { min, format, .. } = &column.type_.kind
             && (min.is_some() || format.is_some())
         {
-            constraints.push(Constraint::Text { field: column.name.clone(), min: min.unwrap_or(0), format: format.as_deref().map(|f| if f == "handle" { core::TextFormat::Handle } else { core::TextFormat::Url }) });
+            constraints.push(Constraint::Text { field: column.name.clone(), min: min.unwrap_or(0), format: format.as_deref().map(|f| match f { "handle" => core::TextFormat::Handle, "url" => core::TextFormat::Url, "email" => core::TextFormat::Email, _ => unreachable!("parser text format") }) });
         }
     }
     for (value, site) in &decl.final_exists {

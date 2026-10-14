@@ -139,6 +139,7 @@ pub fn validate_text(label: &str, text: &str, min: u32, format: Option<TextForma
         return Err(RuntimeError::Input(match format {
             TextFormat::Handle => format!("{label} must be a handle: lowercase letters, digits and underscores"),
             TextFormat::Url => format!("{label} must be an http or https URL"),
+            TextFormat::Email => format!("{label} must be an ASCII email address with one @, a dot-safe local part, and valid domain labels"),
         }));
     }
     Ok(())

@@ -1372,6 +1372,7 @@ fn sample_arg(engine: &snapback4_core::Engine, kind: &ir::ArgType, principal: &s
         ir::ArgType::Text { min, format, .. } => Value::String(match format {
             Some(snapback4_core::schema::TextFormat::Url) => "https://example.com/".to_owned(),
             Some(snapback4_core::schema::TextFormat::Handle) => "a".repeat((*min).max(3) as usize),
+            Some(snapback4_core::schema::TextFormat::Email) => "a@example.com".to_owned(),
             None => "a".repeat((*min).max(1) as usize),
         }),
         ir::ArgType::Int => Value::Int(0),
