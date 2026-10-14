@@ -512,6 +512,7 @@ export function matchReadList<T extends readonly unknown[], H extends NoInfer<Re
 ): ReturnType<Extract<H[keyof H], (...args: never[]) => unknown>>;
 export function matchReadList<T extends readonly unknown[], R>(input: Matchable<T>, handlers: ReadMatchListHandlers<T, R>): R {
   const read: Read<T> = "loadMore" in input && "read" in input ? input.read : input as Read<T>;
+  if ("denied" in read && typeof handlers.denied !== "function") throw new TypeError("matchReadList: denial is mandatory; add denied: why => …");
   return matchRead(read, { ...handlers, partial: handlers.partial ?? ((_data, current) => handlers.otherwise(current)) });
 }
 

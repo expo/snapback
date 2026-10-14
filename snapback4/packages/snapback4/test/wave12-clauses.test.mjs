@@ -149,3 +149,16 @@ mutation edit(note: notes):
   run('deploy',deployment);
   assert.equal((await host.post('/m/edit',{note:added.result.id})).state,'sent');
 });
+
+test('identity changes retain warnings and equivalent requirements keep their refusal contract', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  writeFileSync(schema,initial);run('deploy',deployment);
+  writeFileSync(schema,initial.replace('identity guests','identity password').replace('update <- allow','update <- .owner = viewer'));
+  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*implication unproved.*notes.update/);
+  const guarded=initial.replace('  update notes[note]',"  require viewer = 'service:ops' else NOT_OPERATOR\n  update notes[note]");
+  writeFileSync(schema,guarded);run('deploy',deployment);
+  writeFileSync(schema,guarded.replace("viewer = 'service:ops'","'service:ops' = viewer"));
+  assert.match(run('deploy',deployment,'--check').stdout,/note:.*keeps equivalent edit.require/);
+  writeFileSync(schema,guarded.replace('else NOT_OPERATOR','else OPERATOR_REQUIRED'));
+  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*implication unproved.*edit.require.*NOT_OPERATOR.*OPERATOR_REQUIRED/);
+});

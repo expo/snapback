@@ -141,7 +141,10 @@ pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, bef
             // dependencies. Suppress no warning unless all non-rule schema
             // inputs and every other table remain identical.
             let mut stable = old.clone(); stable.rules = next.rules.clone();
-            let dependencies_stable = stable == *next && current.tables.iter().all(|(n,t)| n == name || target.table(n) == Some(t));
+            let dependencies_stable = stable == *next && current.tables.iter().all(|(n,t)| n == name || target.table(n) == Some(t))
+                && current.auth == target.auth && current.maintains == target.maintains
+                && current.timelines == target.timelines && current.delivery == target.delivery
+                && current.receipts == target.receipts && current.receipt_dependencies == target.receipt_dependencies;
             let change = if dependencies_stable { clauses::compare(&clauses::rule(before), &clauses::rule(after)) } else { Change::Unknown };
             let line = format!("{target_label} {} {name}.{effect}; old: {} | new: {}", match change { Change::Tightens => "tightens", Change::Loosens => "loosens", Change::Same => "keeps equivalent", Change::Unknown => "changes (implication unproved)" }, before.quarry(), after.quarry());
             if matches!(change,Change::Same | Change::Tightens) { notes.push(line); } else { warnings.push(line); }
@@ -157,11 +160,14 @@ pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, bef
             let (new_lines, new_formula) = requirements(after);
             if old_lines == new_lines { continue; }
             let same_args = before.args.iter().map(|a|(&a.name,&a.type_)).eq(after.args.iter().map(|a|(&a.name,&a.type_)));
-            let change = if same_args { old_formula.zip(new_formula).map(|(a,b)|clauses::compare(&a,&b)).unwrap_or(Change::Unknown) } else { Change::Unknown };
+            let change = if same_args && before.kind == after.kind && current.auth == target.auth { old_formula.zip(new_formula).map(|(a,b)|clauses::compare(&a,&b)).unwrap_or(Change::Unknown) } else { Change::Unknown };
             // Refusal code/message changes are observable even for equivalent predicates.
-            let change = if change == Change::Same { Change::Unknown } else { change };
-            let line = format!("{target_label} {} {name}.require; old: {} | new: {}", match change { Change::Tightens => "tightens", Change::Loosens => "loosens", _ => "changes (implication unproved)" }, if old_lines.is_empty() { "allow".into() } else { old_lines.join("; ") }, if new_lines.is_empty() { "allow".into() } else { new_lines.join("; ") });
-            if change == Change::Tightens { notes.push(line); } else { warnings.push(line); }
+            let refusal_signature = |p: &snapback4_lang::ast::ProgramDecl| p.prelude.iter().chain(&p.body).filter_map(|s| match s {
+                snapback4_lang::ast::Stmt::Require {code,message,..}=>Some((code.clone(),message.clone())), _=>None
+            }).collect::<Vec<_>>();
+            let change = if change == Change::Same && refusal_signature(&before) != refusal_signature(after) { Change::Unknown } else { change };
+            let line = format!("{target_label} {} {name}.require; old: {} | new: {}", match change { Change::Tightens => "tightens", Change::Loosens => "loosens", Change::Same => "keeps equivalent", _ => "changes (implication unproved)" }, if old_lines.is_empty() { "allow".into() } else { old_lines.join("; ") }, if new_lines.is_empty() { "allow".into() } else { new_lines.join("; ") });
+            if matches!(change,Change::Same | Change::Tightens) { notes.push(line); } else { warnings.push(line); }
         }
     }
     warnings.sort(); warnings.dedup(); notes.sort(); notes.dedup();

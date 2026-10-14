@@ -97,3 +97,8 @@ test('matchReadList explicitly routes partial lists to otherwise and preserves n
   const absent = {...partial, existence:'absent', complete:true, cut:null};
   assert.equal(matchReadList(absent, handlers), absent);
 });
+
+test('list denial stays mandatory for JavaScript callers with a list-specific repair', async () => {
+  const {matchReadList}=await import('../dist/contract.js');
+  assert.throws(()=>matchReadList({denied:why},{otherwise:()=>null}),/matchReadList: denial is mandatory; add denied/);
+});

@@ -1,0 +1,5 @@
+snapback4 deploy <dir> [--check] [--restore-dormant] [--allow-feed-adoption] [--verbose|--json] [--allow-destructive]
+
+Packages immutable source and activates it on the durable store. A running serve adopts the release before this command completes. --check previews exact deploy adoption without activating; --restore-dormant explicitly restores retired names. --allow-destructive never prunes; use prune <dir> --allow-destructive. Exit 1 on refusal.
+
+snapback4 --help lists every verb.
