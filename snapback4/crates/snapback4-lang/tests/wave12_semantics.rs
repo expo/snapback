@@ -204,6 +204,30 @@ query pureDomain(owner: principal):
 "#));
     assert_eq!(pure_domain.programs.iter().find(|program| program.program.name == "pureDomain").unwrap().result, Ty::Int);
 
+    let builtin_domains = checked(r#"
+table labels:
+  label: text <= 30
+  score: int
+  by byLabel: label, id
+  public
+  online only
+table dates:
+  day: int
+  score: int
+  by byDay: day, id
+  public
+  online only
+query folded(label: text <= 10):
+  require count(labels[lower(label)] by byLabel) > 0 else EMPTY
+  return min(labels[lower(label)] by byLabel, .score) + 1
+query currentDay():
+  require count(dates[day(now)] by byDay) > 0 else EMPTY
+  return min(dates[day(now)] by byDay, .score) + 1
+"#);
+    for name in ["folded", "currentDay"] {
+        assert_eq!(builtin_domains.programs.iter().find(|program| program.program.name == name).unwrap().result, Ty::Int);
+    }
+
     let impure_domain = compile(&[("schema.q".into(), format!(r#"{schema}
 fn changingOwner(owner: principal, victim: entries):
   delete entries[victim]

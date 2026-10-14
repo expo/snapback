@@ -158,16 +158,40 @@ impl Binder<'_> {
         match value {
             A::Focal { .. } => Some("focal".into()),
             A::Member { base, name, .. } if matches!(base.as_ref(), A::Focal { .. }) => Some(format!("focal.{name}")),
+            // The operation clock is one immutable input. `new` is excluded:
+            // evaluating the same source again would mint a different id.
+            A::Name { name, .. } if matches!(name.as_str(), "now" | "commit") => Some(format!("clock:{name}")),
             A::Literal { .. } | A::Name { .. } | A::Member { .. } => self.stable_value(value, roots).map(|value| value.key()),
             A::Unary { op, value, .. } => Some(format!("unary:{op}:{}", self.aggregate_value(value, roots)?)),
             A::Binary { op, left, right, .. } => Some(format!("binary:{op}:{}:{}", self.aggregate_value(left, roots)?, self.aggregate_value(right, roots)?)),
             A::Call { name, args, .. } => {
-                let function = self.catalog.functions.get(name)?;
-                if self.pure_functions.get(&function.name) != Some(&true) { return None; }
-                Some(format!("call:{name}:{:?}", args.iter().map(|arg| self.aggregate_value(arg, roots)).collect::<Option<Vec<_>>>()?))
+                if let Some(function) = self.catalog.functions.get(name) {
+                    if self.pure_functions.get(&function.name) != Some(&true) { return None; }
+                    return Some(format!("call:{name}:{:?}", args.iter().map(|arg| self.aggregate_value(arg, roots)).collect::<Option<Vec<_>>>()?));
+                }
+                if !stable_builtin(name, args.len()) { return None; }
+                Some(format!("builtin:{name}:{:?}", args.iter().map(|arg| self.aggregate_value(arg, roots)).collect::<Option<Vec<_>>>()?))
             }
             A::Array { items, .. } => Some(format!("array:{:?}", items.iter().map(|item| self.aggregate_value(item, roots)).collect::<Option<Vec<_>>>()?)),
             _ => None,
         }
+    }
+}
+
+/// Source-level builtins whose result is a deterministic function of stable
+/// arguments. State-reading operations and allocation never enter this list;
+/// malformed calls still receive their ordinary binding error.
+fn stable_builtin(name: &str, arity: usize) -> bool {
+    match name {
+        "count" | "first" | "last" | "lower" | "trim" | "sha256" | "tokens"
+        | "month" | "year" | "monthStart" | "yearStart" => arity == 1,
+        "at" | "group" | "join" | "min" | "max" => arity == 2,
+        "slice" | "share" => arity == 3,
+        "sum" => matches!(arity, 1 | 2),
+        "day" | "hour" => matches!(arity, 1 | 2),
+        "bucket" => matches!(arity, 2 | 3),
+        "divide" => matches!(arity, 3 | 4),
+        "sort" => arity >= 2,
+        _ => false,
     }
 }
