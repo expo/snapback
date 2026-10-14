@@ -661,7 +661,7 @@ def vacancyDecided (sch : Schema) (td : TableDecl) : Bool :=
     | .not (.probe t [point] [(key, .col .self "id")]) =>
         point == key && (sch.table? t).any fun source =>
           source.uniques.contains [point]
-            && (source.cols.find? (·.name == point)).all (!·.nullable)
+            && source.cols.any (fun col => col.name == point && !col.nullable)
     | _ => false
 
 /-- The pins the single-index planner keeps: the page's equalities and bare
