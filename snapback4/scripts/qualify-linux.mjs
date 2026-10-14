@@ -54,10 +54,10 @@ export async function qualify(args = process.argv.slice(2)) {
   args = args.filter(arg => arg !== "--consumer-only");
   const options = {};
   for (let i = 0; i < args.length; i += 2) {
-    if (!["--client", "--expo", "--out"].includes(args[i]) || !args[i + 1] || args[i + 1].startsWith("--")) throw new Error("usage: qualify-linux.mjs --client /path/client.tgz --expo /path/expo.tgz --out /path/new-directory");
+    if (!["--client", "--expo", "--out"].includes(args[i]) || !args[i + 1] || args[i + 1].startsWith("--")) throw new Error("usage: qualify-linux.mjs --client /path/client.tgz --expo /path/expo.tgz --out /path/new-directory [--consumer-only]");
     options[args[i]] = resolve(args[i + 1]);
   }
-  if (!options["--client"] || !options["--expo"] || !options["--out"]) throw new Error("usage: qualify-linux.mjs --client /path/client.tgz --expo /path/expo.tgz --out /path/new-directory");
+  if (!options["--client"] || !options["--expo"] || !options["--out"]) throw new Error("usage: qualify-linux.mjs --client /path/client.tgz --expo /path/expo.tgz --out /path/new-directory [--consumer-only]");
   const root = resolve(dirname(fileURLToPath(import.meta.url)), ".."), out = options["--out"], client = options["--client"], expo = options["--expo"];
   if (existsSync(join(out, "receipt.json"))) throw new Error("qualification receipt already exists; choose a new --out directory");
   const source = cleanSource(root), version = json(join(root, "packages/snapback4/package.json")).version;
