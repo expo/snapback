@@ -971,7 +971,13 @@ impl Engine {
                     }
                     _ => None,
                 };
-                MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current }, metered, tables: Vec::new(), events: 0, replayed: false }
+                let mut why=error.refusal();
+                // @ref LLP 3000.036.002#8 — a seat gets the same static rule
+                // context for denial, hidden collision and authorization exhaustion.
+                if viewer.starts_with("service:") && let RuntimeError::Rule { table,effect }|RuntimeError::AuthorizationBudget { table,effect }=&error {
+                    why.message.push_str(&format!("; {table} rule clause: {effect} <- {}",self.schema.tables[table].rules.for_effect(*effect).quarry()));
+                }
+                MutationOutcome { receipt_only: false, state: WriteState::Failed { why, current }, metered, tables: Vec::new(), events: 0, replayed: false }
             }
             Err(error) => {
                 tx.rollback()?;

@@ -80,7 +80,9 @@ impl<'r> Runner<'r> {
         let table = &self.schema.tables[name];
         // @ref LLP 3000.014#5-what-derives-from-the-capture — a denied or expired candidate's witness deadlines are discarded with its scope.
         let expiry = self.next_expiry.scope();
-        if self.inactive(name, &row)? || !self.check_rule(name, Effect::Read, None, &row)? {
+        if self.inactive(name, &row)? { return Ok(None); }
+        if !self.check_rule(name, Effect::Read, None, &row)? {
+            self.hidden_row();
             return Ok(None);
         }
         // Memory deadlines are hidden by Disclosed itself; transfer the live

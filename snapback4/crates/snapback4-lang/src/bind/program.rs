@@ -348,6 +348,10 @@ impl<'a> Binder<'a> {
     // ----- reads -----
 
     fn read(&mut self, read: &ReadExpr, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        if read.matching.is_some() && self.binding(&read.table).is_some_and(|b| matches!(b.ty.required(), Ty::Text(_) | Ty::Enum(_))) {
+            return Err(type_error(&read.site, format!("`{}` is text; `matching` searches a table's word index", read.table),
+                format!("for text compare `{0} = q` or `{0} != q`; for whole-token membership use `q in tokens({0})`; for word-prefix row search write `<table> matching q first 50 by .id`", read.table)).guide("types"));
+        }
         if let Some(timeline) = self.schema.timelines.iter().find(|timeline| timeline.name == read.table) {
             let expanded = if let Some(plan) = self.catalog.feed_views.get(&read.table) {
                 super::feed_view::read(timeline, plan, read)?
@@ -754,7 +758,7 @@ impl<'a> Binder<'a> {
         if depth == 0 || depth > 64 {
             return Err(unbound_loop(site, "walk depth is between 1 and 64", format!("walk {table}[seed] up .{column} depth 8")));
         }
-        let (seed_expr, _) = self.expr_as_identity(seed, out, &Ty::Ref(table.to_owned()))?;
+        let (seed_expr, _) = self.expr_as_reference(seed, out, &Ty::Ref(table.to_owned()))?;
         Ok((Recurse { site: self.site(), table: table.to_owned(), index: "byId".into(), seed: Box::new(seed_expr), next_field: column.to_owned(), depth, fanout: 1, provenance: KeyProvenance::Computed }, Ty::Row(table.to_owned())))
     }
 
@@ -1174,7 +1178,8 @@ impl<'a> Binder<'a> {
         match current {
             None => {
                 if fields.iter().any(|f| f.name == "id") {
-                    let (given, _) = fields.iter().find(|f| f.name == "id").map(|f| f.value.as_ref().map(|v| self.expr_as_identity(v, out, &Ty::Id)).unwrap_or_else(|| self.name("id", site))).unwrap()?;
+                    let (given, ty) = fields.iter().find(|f| f.name == "id").map(|f| f.value.as_ref().map(|v| self.expr_as_reference(v, out, &Ty::Id)).unwrap_or_else(|| self.name("id", site))).unwrap()?;
+                    if !ty.assignable_to(&Ty::Id) { return Err(type_error(site,format!("an inserted id must be an id, got {}",ty.name()),"use row.id for a row snapshot; reference columns accept a required same-table row")); }
                     return self.write_row_with_id(info, &fields.iter().filter(|f| f.name != "id").cloned().collect::<Vec<_>>(), given, site, out);
                 }
                 self.write_row_with_id(info, fields, Expr::Input(Input::NewId), site, out)
@@ -1283,7 +1288,7 @@ impl<'a> Binder<'a> {
                 "store the period number in an int field, or use day(now) * 1d for a UTC midnight time (hour(now) * 1h for an hour)"));
         }
         match &field.value {
-            Some(value) if expected.required().is_identity() => self.expr_as_identity(value, out, expected),
+            Some(value) if expected.required().is_identity() => self.expr_as_reference(value, out, expected),
             Some(value) => {
                 let (e, t) = self.expr(value, out)?;
                 // A text literal in an enum position is that variant.
@@ -1295,7 +1300,10 @@ impl<'a> Binder<'a> {
                 }
                 Ok((e, t))
             }
-            None => self.name(&field.name, &field.site),
+            None => {
+                let (value, ty) = self.name(&field.name, &field.site)?;
+                Ok(self.row_identity(value, ty, expected))
+            },
         }
     }
 }

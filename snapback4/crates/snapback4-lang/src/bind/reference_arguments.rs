@@ -662,6 +662,17 @@ fn helper_condition(catalog: &Catalog, schema: &Schema, expression: &Expr, state
             let (right_yes, right_no) = helper_condition(catalog, schema, right, left_no, target, stack);
             (join_helper_states(Some(left_yes), Some(right_yes)).unwrap(), right_no)
         }
+        Expr::Binary { op,left,right,.. } if op=="=" || op=="!=" => {
+            let mut evaluated=state;
+            helper_expression(catalog,schema,expression,&mut evaluated,target,stack);
+            let mut yes=evaluated.clone();let mut no=evaluated;
+            let alias=match (left.as_ref(),right.as_ref()) {
+                (Expr::Name {name,..},Expr::Literal {value:crate::ast::Literal::Null,..})|
+                (Expr::Literal {value:crate::ast::Literal::Null,..},Expr::Name {name,..})=>Some(name),_=>None,
+            };
+            if alias.is_some_and(|name|yes.aliases.contains(name)) {if op=="=" {yes.checked=true;} else {no.checked=true;}}
+            (yes,no)
+        }
         _ => {
             let mut evaluated = state;
             helper_expression(catalog, schema, expression, &mut evaluated, target, stack);

@@ -1,8 +1,8 @@
 reference terminal:
 schema.q:11:18 — E_QUARRY_TYPE: deliver's event is a events reference; got a posts row
-  rewrite: pass a events reference for event
+  rewrite: pass a events reference for event; a table parameter receives an id when called with a reference, or the same-table row snapshot when called with a row. To read fields from an id, bind `events[event] ! else NOT_FOUND` in the helper; multiline fn bodies need `return value`
   guide: types
-reference JSON: [{"site":{"file":"schema.q","line":11,"col":18},"code":"E_QUARRY_TYPE","message":"deliver's event is a events reference; got a posts row","rewrite":"pass a events reference for event","guide":"types","mechanical":false}]
+reference JSON: [{"site":{"file":"schema.q","line":11,"col":18},"code":"E_QUARRY_TYPE","message":"deliver's event is a events reference; got a posts row","rewrite":"pass a events reference for event; a table parameter receives an id when called with a reference, or the same-table row snapshot when called with a row. To read fields from an id, bind `events[event] ! else NOT_FOUND` in the helper; multiline fn bodies need `return value`","guide":"types","mechanical":false}]
 membership terminal:
 schema.q:14:1 — N_NEVER_COMPLETE: query reactionsForMessage: the page over reactions[..] by byMessage is never `complete` — the read rule `exists members[.conversationId, viewer]` reads .conversationId, which the scan does not pin, so the server cannot tell "no more" from "more you may not read"
   rewrite: scan by an index leading with conversationId, id (`by byConversationId: conversationId, id`), or read the page on the device, where the partition holds exactly what the viewer may read

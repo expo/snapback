@@ -214,6 +214,7 @@ impl RuntimeError {
             #[cfg(feature = "sqlite")]
             Self::Structural { code, .. } if code.starts_with(concat!("E_", "ROUTE_")) => "route",
             Self::Structural { code: "E_STORE_RESTORE" | "E_STORE_MEMORY", .. } => "store",
+            Self::Structural { code: "E_RULE", .. } => "auth",
             Self::Schema(_) | Self::Structural { .. } => "schema",
             Self::Rule { .. } | Self::AuthorizationBudget { .. } | Self::Auth(_) => "auth",
             Self::Require { .. } => "rule",
@@ -353,9 +354,10 @@ impl RuntimeError {
                 });
                 refusal.guide = Some("bounds".into());
             }
+            Self::Structural { code: "E_RULE", message } => { refusal.message = message.clone(); refusal.guide = Some("rules".into()); }
             Self::Rule { table, effect } | Self::AuthorizationBudget { table, effect } => {
                 // @ref LLP 3000.007#8 — explain the hidden-collision idiom without disclosing a row
-                refusal.message = format!("{table}'s {effect} rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a unique key or cap group contains a row you cannot read, or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count");
+                refusal.message = format!("{table}'s {effect} rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a row you cannot read holds this key (a unique key or cap group), or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count");
                 refusal.guide = Some("rules".into());
             }
             Self::Constraint(message) => {

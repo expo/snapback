@@ -357,3 +357,13 @@ fn page3_null_exempt_cap_cannot_supply_an_implicit_model_page() {
     let unchecked = snapback4_lang::emit::lean::from_documents(&[document]).unwrap();
     assert_eq!(unchecked.program("docs").unwrap_err().reason, "read-unbounded");
 }
+
+#[test]
+fn contextual_reference_projection_is_independent_and_unresolved_helpers_are_named(){
+ let source="table parents:\n  name: text <=20\n  public\n  insert <- allow\ntable kids:\n  parent: parents on delete keep\n  public\n  insert <- allow\nmutation add(id: id):\n  parent = insert parents {id,name:'parent'}\n  insert kids {id:'child',parent}\n  return parent.id\n";
+ let implicit=body(&module(source),"add");
+ let explicit=body(&module(&source.replace("id:'child',parent}","id:'child',parent:parent.id}")),"add");
+ assert_eq!(implicit,explicit);
+ let helper=source.replace("mutation add(id: id):","fn same(p: parents): p\nmutation add(id: id):").replace("id:'child',parent}","id:'child',parent:same(parent)}");
+ assert_eq!(reason(&module(&helper),"add"),"reference-expression-type");
+}

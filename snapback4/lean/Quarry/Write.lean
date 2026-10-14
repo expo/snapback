@@ -93,7 +93,7 @@ def clashCode (td : TableDecl) (withId : Bool) (i : Nat) : Stop :=
   if withId && i = 0 then .refuse "E_CONSTRAINT"
   else match td.uniqueCodes[j]? with
     | some (some code) => .refuse code
-    | _ => .refuse "E_CONSTRAINT"
+    | _ => .refuse "E_UNIQUE"
 
 def findRow (rows : List Row) (ks : List (String × Scalar)) : Option Row :=
   if ks.any (·.2 == .null) then none else rows.find? (keyMatch ks)

@@ -42,13 +42,13 @@ fn why_rule_carries_the_target_visibility_contract() {
         // [rules::insert_collision_visibility](rules.rs)
         "A unique clash with a hidden row returns E_RULE for either insert form.",
         // [rules::insert_collision_visibility](rules.rs)
-        "For a readable secondary unique clash without a custom refusal, ordinary insert returns E_CONSTRAINT naming the index, while `insert ... if absent` succeeds with null.",
+        "For a readable secondary unique clash without a custom refusal, ordinary insert returns E_UNIQUE naming the declared key, while `insert ... if absent` succeeds with null.",
         // [rules::update_rule_refusals](rules.rs)
         "If the update rule denies an update or upsert-patch, it returns E_RULE for a readable target and NOT_FOUND for an unreadable target.",
         // [rules::admitted_hidden_updates](rules.rs)
         "A valid update or upsert-patch admitted by the update rule can change a hidden row; if the resulting row remains hidden, it returns null.",
         // [rules::update_collision_visibility](rules.rs)
-        "Without a custom unique refusal, an update or upsert-patch with a secondary unique clash returns NOT_FOUND if its target is unreadable, E_RULE if only the colliding row is unreadable, and E_CONSTRAINT naming the index if both are readable.",
+        "Without a custom unique refusal, an update or upsert-patch with a secondary unique clash returns NOT_FOUND if its target is unreadable, E_RULE if only the colliding row is unreadable, and E_UNIQUE naming the declared key if both are readable.",
         // [rules::update_rule_refusals / update_conditions / update_collision_visibility](rules.rs)
         "For rule denial, an update condition or a secondary unique clash on an unreadable target, NOT_FOUND carries no row, index, column or branch detail.",
         // [rules::missing_update_and_incomplete_upsert](rules.rs)
@@ -137,6 +137,8 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_UNIQUE", "E_UNIQUE means a caller-readable row already holds this declared secondary unique key."),
+    ("N_PERSONA_PRINCIPAL", "N_PERSONA_PRINCIPAL means a principal column literal is a bare declared persona name."),
     ("E_ASSET_INTENT_REUSE", "A declaration cannot be changed or reused for another row"),
     ("E_ASSET_INTENT_EXPIRED", "the original asset was collected after settlement"),
     ("E_CANCELLED", "the save/share sheet was cancelled"),

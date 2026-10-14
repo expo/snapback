@@ -77,7 +77,7 @@ impl Binder<'_> {
             if args.len() != query.args.len() { return Err(type_error(site, format!("{name} takes {} arguments", query.args.len()), "pass the same positional arguments as the declared query, including its cursor")); }
             let mut fields = BTreeMap::new();
             for ((name, expected), given) in query.args.iter().zip(args) {
-                let (value, ty) = if expected.required().is_identity() { self.expr_as_identity(given, out, expected)? } else { self.expr(given, out)? };
+                let (value, ty) = if expected.required().is_identity() { self.expr_as_reference(given, out, expected)? } else { self.expr(given, out)? };
                 if !ty.assignable_to(expected) { return Err(type_error(given.site(), format!("{name} requires {}, got {}", expected.name(), ty.name()), "pass the query's declared argument type")); }
                 fields.insert(name.clone(), value);
             }

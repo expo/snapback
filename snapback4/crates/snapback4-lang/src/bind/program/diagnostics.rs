@@ -132,7 +132,15 @@ pub(super) fn write_rewrite(field: &ObjectField, expected: &Ty, got: &Ty) -> Str
             if let Some(value) = &field.value { return format!("{}: {} ?? 0 (only if your application treats a hidden/missing value as zero)", field.name, print::expression(value)); }
         }
     }
-    format!("write {} into {}", expected.name(), field.name)
+    let mut rewrite = format!("write {} into {}", expected.name(), field.name);
+    if let Some(A::Call { name, .. }) = &field.value {
+        if name == "lower" {
+            rewrite.push_str("; lower() can expand Unicode (for example İ becomes i plus a combining dot), so its conservative text bound is 3 × the input bound; bound the input accordingly or widen this output column");
+        } else if *got == Ty::Null {
+            rewrite.push_str("; a multiline fn block needs an explicit `return value` — its final expression is not an implicit return");
+        }
+    }
+    rewrite
 }
 
 // @ref LLP 3000.036.002#5 — a successful upsert may return no readable row.

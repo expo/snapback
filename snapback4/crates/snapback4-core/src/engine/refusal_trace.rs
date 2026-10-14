@@ -17,9 +17,11 @@ pub struct RefusingClause {
 }
 #[cfg(feature = "sqlite")]
 #[derive(Clone, Debug, Default)]
-pub struct RefusalTrace(std::sync::Arc<std::sync::Mutex<Option<RefusingClause>>>);
+pub struct RefusalTrace(std::sync::Arc<std::sync::Mutex<Option<RefusingClause>>>, std::sync::Arc<std::sync::atomic::AtomicU64>);
 #[cfg(feature = "sqlite")]
 impl RefusalTrace {
+    /// Physical row images encountered and filtered by read authority in this request.
+    pub fn hidden(&self) -> u64 { self.1.load(std::sync::atomic::Ordering::Relaxed) }
     pub fn take(&self) -> Option<RefusingClause> { self.0.lock().unwrap_or_else(|e| e.into_inner()).take() }
 }
 impl Runner<'_> {
@@ -81,6 +83,10 @@ impl Runner<'_> {
         }
         #[cfg(not(feature = "sqlite"))]
         let _ = (table, effect);
+    }
+    pub(super) fn hidden_row(&self) {
+        #[cfg(feature = "sqlite")]
+        if let Some(trace) = &self.context.refusal_trace { trace.1.fetch_add(1, std::sync::atomic::Ordering::Relaxed); }
     }
     pub(super) fn rule_refusal(&self, table: &str, effect: Effect, clause: &str) -> RuntimeError {
         self.refusing_clause(table, clause);

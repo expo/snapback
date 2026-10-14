@@ -139,7 +139,7 @@ fn developer_gets_each_cause_without_changing_one_byte_of_the_refusal() {
         assert_eq!(pair[0],pair[1],"collector cannot alter wire bytes or meters");
         envelopes.push(pair[0].0.clone());
     }
-    assert_eq!(envelopes[0],include_str!("../../../reports/20260928-mp-modeling-papercuts/baseline-rule.json").trim().as_bytes());
+    assert_eq!(envelopes[0],include_str!("../../../reports/wave11-qdiag/public-rule.json").trim().as_bytes());
     assert!(envelopes.windows(2).all(|p|p[0]==p[1]),"every private cause keeps the identical caller envelope");
 }
 

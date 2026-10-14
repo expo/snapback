@@ -691,9 +691,16 @@ impl<'a> Scope<'a> {
 
     /// `e` as a value of kind `want`: a text literal for an id is an id.
     fn expr_as(&self, e: &Expr, want: Option<&Kind>) -> R<Json> {
+        if matches!(want,Some(Kind::Id(IdSort::Ref(_)))) && self.ty(e)==Ty::Unknown {
+            return no("reference-expression-type",crate::print::expression(e));
+        }
         let mut j = self.expr(e)?;
         if want.is_some_and(Kind::is_id) {
             id_literal(&mut j);
+        }
+        // Independent surface typing, never the binder's lowered expression.
+        if let (Some(Kind::Id(IdSort::Ref(target))),Ty::Row(source))=(want,self.ty(e)) {
+            if target == &source { j=json!({"field":[j,"id"]}); }
         }
         Ok(j)
     }
@@ -759,6 +766,7 @@ impl<'a> Scope<'a> {
             },
             Expr::Call { name, args, .. } => {
                 if self.helpers.contains(name) {
+                    if args.iter().any(|arg| matches!(self.ty(arg),Ty::Row(_))) { return no("row-helper-snapshot",print()); }
                     return Ok(json!({"call": [name, args.iter().map(|a| self.expr(a)).collect::<R<Vec<_>>>()?]}));
                 }
                 match (name.as_str(), args.as_slice()) {
@@ -831,7 +839,7 @@ impl<'a> Scope<'a> {
                     if !self.vars.contains_key(&f.name) {
                         return no("name", f.name.clone());
                     }
-                    json!({"var": f.name})
+                    self.expr_as(&Expr::Name { name:f.name.clone(),site:f.site.clone() },kind.as_ref())?
                 }
             };
             out.push(json!([f.name, value]));

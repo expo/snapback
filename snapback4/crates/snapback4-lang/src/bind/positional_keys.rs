@@ -17,7 +17,7 @@ pub(super) fn candidates<'a>(info: &'a TableInfo, read: &ReadExpr, types: &[(Ty,
             let expected = if index.computed.contains_key(column) { Ty::Int }
                 else if column == "id" { Ty::Ref(read.table.clone()) }
                 else { info.columns.get(column).map(Ty::from_scalar).unwrap_or(Ty::Unknown) };
-            ty.comparable(&expected) || (*literal && expected.is_identity())
+            ty.comparable(&expected) || (!ty.is_optional() && matches!((ty.required(),expected.required()),(Ty::Row(a)|Ty::WriteRow(a),Ty::Ref(b)) if a==b)) || (*literal && expected.is_identity())
         })).collect()
 }
 

@@ -424,10 +424,10 @@ fn prediction_report(bound: &Bound, detailed: bool) -> Option<String> {
     }
     let mut parts = Vec::new();
     // @ref LLP 3000.036#12 — wave 2 (075): the summary is information, not a warning.
-    if !never.is_empty() { parts.push(format!("{} never {}: {} (they run on the server when called; no action needed for an online app)", if never.len() == 1 { "1 mutation".to_owned() } else { format!("{} mutations", never.len()) }, if never.len() == 1 { "predicts" } else { "predict" }, never.join(", "))); }
+    if !never.is_empty() { parts.push(format!("{} {} server-run (online app: no action): {}", if never.len() == 1 { "1 mutation".to_owned() } else { format!("{} mutations", never.len()) }, if never.len() == 1 { "is" } else { "are" }, never.join(", "))); }
     if !inserts.is_empty() { parts.push(if detailed { format!("{} {} insert arms that never predict: {}", inserts.len(), if inserts.len() == 1 { "mutation has" } else { "mutations have" }, inserts.join(", ")) } else { format!("{} mutations have insert arms that may queue", inserts.len()) }); }
     if !horizons.is_empty() { parts.push(if detailed { format!("{} {} eligible, but these reads queue without a row past a horizon: {}", horizons.len(), if horizons.len() == 1 { "mutation" } else { "mutations" }, horizons.join(", ")) } else { format!("{} eligible mutations may queue past a horizon", horizons.len()) }); }
-    (!parts.is_empty()).then(|| format!("{} — snapback4 why <op>", parts.join("; ")))
+    (!parts.is_empty()).then(|| format!("{}{} — snapback4 why <op>", if bound.diagnostics.iter().any(|d| d.code == "E_SYNC") { "provisional while E_SYNC is unresolved: " } else { "" }, parts.join("; ")))
 }
 
 pub(super) fn maintain_notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {

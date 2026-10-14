@@ -99,8 +99,8 @@ fn insert_collision_visibility() {
                 assert!(!body["why"]["message"].as_str().unwrap().contains("PRIVATE"));
             } else if op == "quiet" { null(out); }
             else {
-                let body = denied(&out, "E_CONSTRAINT");
-                assert!(body["why"]["message"].as_str().unwrap().contains(&format!("records.{}", index(&e, "key"))));
+                let body = denied(&out, "E_UNIQUE");
+                assert!(body["why"]["message"].as_str().unwrap().contains(&"records: unique key".to_owned()));
             }
             assert_eq!(e.store().rows("records").unwrap(), before);
         }
@@ -150,8 +150,8 @@ fn update_collision_visibility() {
                 if owner == "alice" { private(&out); }
                 else if other == "alice" { denied(&out, "E_RULE"); }
                 else {
-                    let body = denied(&out, "E_CONSTRAINT");
-                    assert!(body["why"]["message"].as_str().unwrap().contains(&format!("records.{}", index(&e, "amount"))));
+                    let body = denied(&out, "E_UNIQUE");
+                    assert!(body["why"]["message"].as_str().unwrap().contains(&"records: unique amount".to_owned()));
                 }
                 assert_eq!(e.store().rows("records").unwrap(), before);
             }
@@ -182,7 +182,7 @@ fn declared_unique_refusal_does_not_disclose_hidden_collision() {
             } else {
                 let body = denied(&out, "AMOUNT_TAKEN");
                 let detail = body["why"]["detail"].as_str().unwrap();
-                assert!(detail.contains(&format!("records.{}", index(&e, "amount"))), "{body}");
+                assert!(detail.contains(&"records: unique amount".to_owned()), "{body}");
                 assert!(detail.contains("amount = {\"Int\":42}"), "{body}");
             }
             assert_eq!(e.store().rows("records").unwrap(), before);
