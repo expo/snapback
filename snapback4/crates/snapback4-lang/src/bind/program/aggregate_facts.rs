@@ -144,11 +144,11 @@ impl Binder<'_> {
         if read.range.is_some() || read.matching.is_some() { return None; }
         let mut roots = BTreeSet::new();
         let keys = read.keys.iter().map(|key| Some(format!("{:?}:{}", key.column,
-            self.aggregate_value(&key.value, &mut roots)?))).collect::<Option<Vec<_>>>()?;
+            self.aggregate_value(&key.value, &mut roots, false)?))).collect::<Option<Vec<_>>>()?;
         let seeks = read.seeks.iter().map(|seek| Some(format!("{}:{}:{}", seek.column, seek.op,
-            self.aggregate_value(&seek.value, &mut roots)?))).collect::<Option<Vec<_>>>()?;
+            self.aggregate_value(&seek.value, &mut roots, false)?))).collect::<Option<Vec<_>>>()?;
         let filter = match read.filter.as_deref() {
-            Some(value) => Some(self.aggregate_value(value, &mut roots)?),
+            Some(value) => Some(self.aggregate_value(value, &mut roots, true)?),
             None => None,
         };
         if roots.is_empty() { roots.insert(pure_calls::CONSTANTS.into()); }
@@ -156,32 +156,35 @@ impl Binder<'_> {
         Some((vec![NONEMPTY.into(), identity], roots))
     }
 
-    fn aggregate_value(&self, value: &A, roots: &mut BTreeSet<String>) -> Option<String> {
+    fn aggregate_value(&self, value: &A, roots: &mut BTreeSet<String>, domain_focal: bool) -> Option<String> {
         match value {
-            A::Focal { .. } => Some("focal".into()),
-            A::Member { base, name, .. } if matches!(base.as_ref(), A::Focal { .. }) => Some(format!("focal.{name}")),
+            // A dot in the read's filter is its candidate source row. Dots in
+            // keys/seeks are the enclosing lexical shape row and must retain
+            // that row variable's unique snapshot identity.
+            A::Focal { .. } if domain_focal => Some("domain-focal".into()),
+            A::Member { base, name, .. } if domain_focal && matches!(base.as_ref(), A::Focal { .. }) => Some(format!("domain-focal.{name}")),
             // The operation clock is one immutable input. `new` is excluded:
             // evaluating the same source again would mint a different id.
             A::Name { name, .. } if matches!(name.as_str(), "now" | "commit") => Some(format!("clock:{name}")),
-            A::Literal { .. } | A::Name { .. } | A::Member { .. } => self.stable_value(value, roots).map(|value| value.key()),
-            A::Unary { op, value, .. } => Some(format!("unary:{op}:{}", self.aggregate_value(value, roots)?)),
-            A::Binary { op, left, right, .. } => Some(format!("binary:{op}:{}:{}", self.aggregate_value(left, roots)?, self.aggregate_value(right, roots)?)),
+            A::Literal { .. } | A::Name { .. } | A::Member { .. } | A::Focal { .. } => self.stable_value(value, roots).map(|value| value.key()),
+            A::Unary { op, value, .. } => Some(format!("unary:{op}:{}", self.aggregate_value(value, roots, domain_focal)?)),
+            A::Binary { op, left, right, .. } => Some(format!("binary:{op}:{}:{}", self.aggregate_value(left, roots, domain_focal)?, self.aggregate_value(right, roots, domain_focal)?)),
             A::Call { name, args, .. } => {
                 if let Some(function) = self.catalog.functions.get(name) {
                     if self.pure_functions.get(&function.name) != Some(&true) { return None; }
-                    return Some(format!("call:{name}:{:?}", args.iter().map(|arg| self.aggregate_value(arg, roots)).collect::<Option<Vec<_>>>()?));
+                    return Some(format!("call:{name}:{:?}", args.iter().map(|arg| self.aggregate_value(arg, roots, domain_focal)).collect::<Option<Vec<_>>>()?));
                 }
                 if !stable_builtin(name, args.len()) { return None; }
-                Some(format!("builtin:{name}:{:?}", args.iter().map(|arg| self.aggregate_value(arg, roots)).collect::<Option<Vec<_>>>()?))
+                Some(format!("builtin:{name}:{:?}", args.iter().map(|arg| self.aggregate_value(arg, roots, domain_focal)).collect::<Option<Vec<_>>>()?))
             }
-            A::Array { items, .. } => Some(format!("array:{:?}", items.iter().map(|item| self.aggregate_value(item, roots)).collect::<Option<Vec<_>>>()?)),
+            A::Array { items, .. } => Some(format!("array:{:?}", items.iter().map(|item| self.aggregate_value(item, roots, domain_focal)).collect::<Option<Vec<_>>>()?)),
             _ => None,
         }
     }
 }
 
 /// Source-level builtins whose result is a deterministic function of stable
-/// arguments. State-reading operations and allocation never enter this list;
+/// arguments. Arguments containing reads or allocation do not canonicalize;
 /// malformed calls still receive their ordinary binding error.
 fn stable_builtin(name: &str, arity: usize) -> bool {
     match name {

@@ -229,6 +229,31 @@ query currentDay():
         assert_eq!(builtin_domains.programs.iter().find(|program| program.program.name == name).unwrap().result, Ty::Int);
     }
 
+    let focal_schema = format!(r#"{schema}
+table owners:
+  owner: principal
+  public
+  online only
+"#);
+    let same_focal = checked(&format!(r#"{focal_schema}
+query sameFocal():
+  return owners first 2 by .id {{
+    low: min(entries[.owner] by byOwner, .score) + 1 if count(entries[.owner] by byOwner) > 0 else 0
+  }}
+"#));
+    assert!(matches!(same_focal.programs.iter().find(|program| program.program.name == "sameFocal").unwrap().result,
+        Ty::Collection(_, 2)));
+    let nested_focal = compile(&[("schema.q".into(), format!(r#"{focal_schema}
+query nestedFocal():
+  return owners first 2 by .id {{
+    nested: (owners first 2 by .id {{
+      low: min(entries[.owner] by byOwner, .score) + 1
+    }}) if count(entries[.owner] by byOwner) > 0 else []
+  }}
+"#))]);
+    assert!(nested_focal.diagnostics.iter().any(|d| d.code == "E_QUARRY_TYPE" && d.message.contains("int ?")),
+        "an outer focal-row count must not narrow an inner focal-row extremum: {:#?}", nested_focal.diagnostics);
+
     let impure_domain = compile(&[("schema.q".into(), format!(r#"{schema}
 fn changingOwner(owner: principal, victim: entries):
   delete entries[victim]
