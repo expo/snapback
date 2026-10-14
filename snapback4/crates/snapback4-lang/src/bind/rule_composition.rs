@@ -77,6 +77,13 @@ fn term(expr: &Expr, env: &Env, row: Option<&BTreeMap<String, String>>) -> Optio
             .get(name)
             .cloned()
             .or_else(|| env.rows.get(name)?.1.get("id").cloned()),
+        Expr::Literal {
+            value: Literal::Number(text),
+            site,
+        } => Some(format!(
+            "literal:Number({})",
+            super::integer_literal(text, site).ok()?
+        )),
         Expr::Literal { value, .. } => Some(format!("literal:{value:?}")),
         Expr::Member { base, name, .. } => match base.as_ref() {
             Expr::Focal { .. } => row?.get(name).cloned(),
@@ -91,9 +98,13 @@ fn predicate(
     env: &Env,
     row: Option<&BTreeMap<String, String>>,
     positive: bool,
+    table_rule: bool,
 ) -> Facts {
     match expr {
-        Expr::Name { name, .. } if ["allow", "true", "deny", "false"].contains(&name.as_str()) => {
+        Expr::Name { name, .. }
+            if ["true", "false"].contains(&name.as_str())
+                || table_rule && ["allow", "deny"].contains(&name.as_str()) =>
+        {
             if (["allow", "true"].contains(&name.as_str())) == positive {
                 unknown()
             } else {
@@ -110,12 +121,14 @@ fn predicate(
                 vec![]
             }
         }
-        Expr::Unary { op, value, .. } if op == "not" => predicate(value, env, row, !positive),
+        Expr::Unary { op, value, .. } if op == "not" => {
+            predicate(value, env, row, !positive, table_rule)
+        }
         Expr::Binary {
             op, left, right, ..
         } if op == "and" || op == "or" => combine(
-            predicate(left, env, row, positive),
-            predicate(right, env, row, positive),
+            predicate(left, env, row, positive, table_rule),
+            predicate(right, env, row, positive, table_rule),
             (op == "and") == positive,
         ),
         Expr::Binary {
@@ -236,12 +249,29 @@ fn visit(
                 else_body,
                 ..
             } => {
+                // A condition helper can write before either branch. Analyze
+                // just the condition, not the branch bodies, for entry effects.
+                let condition_stmt = Stmt::Expr {
+                    value: condition.clone(),
+                    site: condition.site().clone(),
+                };
+                if expressions(&condition_stmt)
+                    .iter()
+                    .any(|e| matches!(e, Expr::Write { .. } | Expr::Call { .. }))
+                {
+                    env = Env::default();
+                    facts = unknown();
+                }
                 visit(
                     catalog,
                     p,
                     then_body,
                     env.clone(),
-                    combine(facts.clone(), predicate(condition, &env, None, true), true),
+                    combine(
+                        facts.clone(),
+                        predicate(condition, &env, None, true, false),
+                        true,
+                    ),
                     out,
                 );
                 visit(
@@ -249,7 +279,11 @@ fn visit(
                     p,
                     else_body,
                     env.clone(),
-                    combine(facts.clone(), predicate(condition, &env, None, false), true),
+                    combine(
+                        facts.clone(),
+                        predicate(condition, &env, None, false, false),
+                        true,
+                    ),
                     out,
                 );
                 // Branch writes/rebindings may invalidate every entry fact.
@@ -341,11 +375,11 @@ fn visit(
                     images
                         .rows
                         .insert(next_alias.clone(), (table.clone(), next));
-                    predicate(&rule.value, &images, None, true)
+                    predicate(&rule.value, &images, None, true, true)
                 } else if rule.bindings.is_empty() {
                     combine(
-                        predicate(&rule.value, &env, Some(&image), true),
-                        predicate(&rule.value, &env, Some(&next), true),
+                        predicate(&rule.value, &env, Some(&image), true, true),
+                        predicate(&rule.value, &env, Some(&next), true, true),
                         true,
                     )
                 } else {
@@ -409,7 +443,7 @@ fn visit(
                         && let Some(rule) =
                             info.decl.rules.iter().find(|r| r.effect == Effect::Read)
                     {
-                        let authority = predicate(&rule.value, &env, Some(image), true);
+                        let authority = predicate(&rule.value, &env, Some(image), true, true);
                         if possible(&facts) && !possible(&combine(facts.clone(), authority, true)) {
                             out.push(Diagnostic::new(&read.site, "N_LOOKUP_NEVER_VISIBLE", format!("{}: this nullable {} point lookup is always null for callers satisfying the preceding require/branch conditions under the read rule at {}; an `{alias} != null` branch cannot run", p.name, read.table, rule.site), "authorize these callers to read the row, or write by key under the table rule without a preliminary lookup; guide rule-recipes, enrolment into hidden things").guide("rule-recipes"));
                         }
@@ -428,6 +462,11 @@ fn visit(
                 }
                 if matches!(value, Expr::Assert { .. })
                     && let Some((read, image)) = lookup
+                    && !catalog.tables[&read.table]
+                        .decl
+                        .columns
+                        .iter()
+                        .any(|c| c.written_by.is_some())
                 {
                     env.rows.insert(alias.clone(), (read.table.clone(), image));
                 }
@@ -437,7 +476,7 @@ fn visit(
             }
         }
         if let Stmt::Require { condition, .. } = s {
-            facts = combine(facts, predicate(condition, &env, None, true), true);
+            facts = combine(facts, predicate(condition, &env, None, true, false), true);
         }
         if effects > 0 {
             facts = unknown();

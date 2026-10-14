@@ -116,3 +116,97 @@ fn notes_predict_the_actual_failed_update_and_null_lookup() {
         &Value::String("original".into())
     );
 }
+
+#[test]
+fn effectful_if_conditions_drop_stale_snapshot_facts_before_both_branches() {
+    use snapback4_core::{Context, Engine, Value, WriteState};
+    let source = format!(
+        "{}fn claim(row: rows):\n  update rows[row] {{ owner: viewer }}\n  return true\nmutation change(row: rows):\n  r = rows[row] ! else NOT_FOUND\n  require r.owner != viewer else SELF\n  if claim(row):\n    update rows[row] {{ body: 'changed' }}\n  return null\n",
+        TABLE
+            .replace("read <- .owner = viewer", "read <- allow")
+            .replace(
+                "update <- .owner = viewer",
+                "update (old, next) <- next.owner = viewer"
+            )
+    );
+    let b = compile(&[("schema.q".into(), source)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert!(
+        b.notes.iter().all(|n| n.code != "N_WRITE_DENIED"),
+        "{:?}",
+        b.notes
+    );
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    e.seed(vec![(
+        "rows".into(),
+        snapback4_core::value::object([
+            ("id", Value::Id("r".into())),
+            ("owner", Value::Id("alice".into())),
+            ("body", Value::String("original".into())),
+        ]),
+    )])
+    .unwrap();
+    let c = Context::new("bob", [("row".into(), Value::Id("r".into()))].into()).at(1000);
+    assert!(matches!(
+        e.mutate("change", None, c).unwrap().state,
+        WriteState::Sent { .. }
+    ));
+    let rows = e.store().rows("rows").unwrap();
+    assert_eq!(rows[0].field("owner").unwrap(), &Value::Id("bob".into()));
+    assert_eq!(
+        rows[0].field("body").unwrap(),
+        &Value::String("changed".into())
+    );
+}
+
+#[test]
+fn numeric_literal_spellings_share_the_binders_integer_identity() {
+    use snapback4_core::{Context, Engine, Value, WriteState};
+    for spelling in ["01", "0001", "1"] {
+        let source = format!(
+            "{}mutation change(row: rows):\n  r = rows[row] ! else NOT_FOUND\n  require r.level = {spelling} else LEVEL\n  update rows[row] {{ body: 'changed' }}\n  return null\n",
+            TABLE
+                .replace("  body: text <=80", "  level: int\n  body: text <=80")
+                .replace("read <- .owner = viewer", "read <- allow")
+                .replace("update <- .owner = viewer", "update <- .level = 1")
+        );
+        let b = compile(&[("schema.q".into(), source)]);
+        assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+        assert!(
+            b.notes.iter().all(|n| n.code != "N_WRITE_DENIED"),
+            "{spelling}: {:?}",
+            b.notes
+        );
+        let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+        e.seed(vec![(
+            "rows".into(),
+            snapback4_core::value::object([
+                ("id", Value::Id("r".into())),
+                ("owner", Value::Id("alice".into())),
+                ("body", Value::String("original".into())),
+                ("level", Value::Int(1)),
+            ]),
+        )])
+        .unwrap();
+        let c = Context::new("bob", [("row".into(), Value::Id("r".into()))].into()).at(1000);
+        assert!(matches!(
+            e.mutate("change", None, c).unwrap().state,
+            WriteState::Sent { .. }
+        ));
+    }
+}
+
+#[test]
+fn a_program_parameter_named_allow_is_not_the_table_rule_constant() {
+    let source = format!(
+        "{}mutation change(row: rows, allow: bool):\n  r = rows[row] ! else NOT_FOUND\n  require not allow or r.owner != viewer else SELF\n  update rows[row] {{ body: 'changed' }}\n",
+        TABLE.replace("read <- .owner = viewer", "read <- allow")
+    );
+    let b = compile(&[("schema.q".into(), source)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert!(
+        b.notes.iter().all(|n| n.code != "N_WRITE_DENIED"),
+        "{:?}",
+        b.notes
+    );
+}
