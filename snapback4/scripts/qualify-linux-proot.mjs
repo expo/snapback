@@ -49,6 +49,8 @@ export function prootProof(client, platform, version, cache = proofCache(), fetc
       rmSync(join(root, "etc/resolv.conf"), { force: true });
       writeFileSync(join(root, "etc/resolv.conf"), readFileSync("/etc/resolv.conf"));
       writeFileSync(join(root, "etc/hosts"), "127.0.0.1 localhost\n::1 localhost\n");
+      for (const file of ["test-command-owner.mjs", "test-owned-command.mjs", "test-command-group.mjs"])
+        copyFileSync(new URL(`./${file}`, import.meta.url), join(inputs, file));
       copyFileSync(expo, join(inputs, "expo.tgz"));
       copyFileSync(new URL("./publication-starters.mjs", import.meta.url), join(inputs, "starters.mjs"));
       copyFileSync(client, join(inputs, "client.tgz")); copyFileSync(platform, join(inputs, "platform.tgz"));

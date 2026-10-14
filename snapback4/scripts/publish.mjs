@@ -105,7 +105,7 @@ if (existsSync(receiptPath)) {
   } finally { rmSync(work, { recursive: true, force: true }); }
 }
 const work = mkdtempSync(join(tmpdir(), "snapback4-publish-consumer-"));
-try { staged.platforms[0].proof = proveDarwin(staged, work); }
+try { staged.platforms[0].proof = await proveDarwin(staged, work); }
 finally { rmSync(work, { recursive: true, force: true }); }
 // Verify every registry artifact before the first upload, even if a later one conflicts.
 const artifacts = [...staged.platforms, staged.client];

@@ -5,6 +5,7 @@ import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSy
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { digest, json, member, sqliteBuildFlags, sri, validateLinux } from "../../../scripts/publication-artifacts.mjs";
+import { runToolchainCommand } from "../../../scripts/publication-starters.mjs";
 import { containerRuntime } from "../../../scripts/qualify-linux.mjs";
 import { fetchPinned, prootCommand, prootEnvironment } from "../../../scripts/qualify-linux-proot.mjs";
 import { prootDistributions } from "../../../scripts/linux-proof-inputs.mjs";
@@ -12,7 +13,7 @@ import { proofEntrypoint } from "./helpers/linux-proof-harness.mjs";
 function qualify(t, scenario = {}) {
   const root = mkdtempSync(join(tmpdir(), "snapback4-linux-test-")); t.after(() => rmSync(root, { recursive: true, force: true }));
   for (const dir of ["scripts", "packages/snapback4", "packages/snapback4-linux-x64", "target/x86_64-unknown-linux-musl/production"]) mkdirSync(join(root, dir), { recursive: true });
-  for (const file of ["qualify-linux.mjs", "qualify-linux-proot.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-artifacts.mjs", "publication-roundtrip.mjs", "publication-starters.mjs", "build-linux-musl.sh"]) copyFileSync(new URL(`../../../scripts/${file}`, import.meta.url), join(root, "scripts", file));
+  for (const file of ["qualify-linux.mjs", "qualify-linux-proot.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-artifacts.mjs", "publication-roundtrip.mjs", "publication-starters.mjs", "test-command-owner.mjs", "test-owned-command.mjs", "test-command-group.mjs", "build-linux-musl.sh"]) copyFileSync(new URL(`../../../scripts/${file}`, import.meta.url), join(root, "scripts", file));
   writeFileSync(join(root, "scripts/publication-roundtrip.mjs"), proofEntrypoint);
   writeFileSync(join(root, "scripts/publication-starters.mjs"), `
     import { appendFileSync } from 'node:fs';
@@ -278,4 +279,30 @@ test("proot invocations use exactly the allowlist despite host sentinels, and bi
     r => r.proofs[0].node = "0.0.0", r => r.proofs[1].status = "skipped"]) {
     const modified = structuredClone(r.receipt); alter(modified); assert.throws(() => validate(modified), /successful Ubuntu .* and Alpine proofs/);
   }
+});
+
+
+test("toolchain command custody accepts only zero exits and survives spawn failure", async () => {
+  const options = { cwd: process.cwd(), env: process.env, timeout: 5_000 };
+  await runToolchainCommand(process.execPath, ["-e", "process.exit(0)"], options);
+  await assert.rejects(runToolchainCommand(process.execPath, ["-e", "process.exit(17)"], options), /exited 17/);
+  await assert.rejects(runToolchainCommand("/snapback4-no-such-toolchain-command", [], options), /ENOENT/);
+});
+
+test("toolchain timeout kills a TERM-ignoring driver and grandchild without a numeric signal from the runner", { timeout: 15_000 }, async t => {
+  const cwd = mkdtempSync(join(tmpdir(), "sb4-toolchain-custody-"));
+  t.after(() => rmSync(cwd, { recursive: true, force: true }));
+  const pidFile = join(cwd, "grandchild.pid");
+  const driver = `
+    const {spawn} = require('node:child_process');
+    process.on('SIGTERM', () => {});
+    spawn(process.execPath, ['-e', "process.on('SIGTERM',()=>{}); require('node:fs').writeFileSync(process.argv[1], String(process.pid)); setInterval(()=>{},1000)", process.argv[1]], {stdio:'inherit'});
+    setInterval(()=>{},1000);
+  `;
+  const started = performance.now();
+  await assert.rejects(runToolchainCommand(process.execPath, ["-e", driver, pidFile], { cwd, env: process.env, timeout: 500 }), /timed out/);
+  assert.ok(performance.now() - started < 10_000, "TERM handling cannot trap the watchdog");
+  const pid = Number(readFileSync(pidFile, "utf8"));
+  const probe = spawnSync("/bin/ps", ["-p", String(pid), "-o", "stat="], { encoding: "utf8", timeout: 2_000 });
+  assert.ok(probe.status === 1 || /^\s*[ZX]/.test(probe.stdout), `grandchild must be gone or dead, not executing: ${probe.stdout}`);
 });

@@ -17,6 +17,8 @@ export function containerRuntime(probeRuntime = name => spawnSync(name, ["info"]
 }
 export function containerProof(runtime, client, platform, version, work, expo) {
   const context = join(work, "container"); mkdirSync(context);
+  for (const file of ["test-command-owner.mjs", "test-owned-command.mjs", "test-command-group.mjs"])
+    copyFileSync(new URL(`./${file}`, import.meta.url), join(context, file));
   copyFileSync(expo, join(context, "expo.tgz"));
   copyFileSync(new URL("./publication-starters.mjs", import.meta.url), join(context, "starters.mjs"));
   copyFileSync(client, join(context, "client.tgz")); copyFileSync(platform, join(context, "platform.tgz"));
@@ -27,7 +29,7 @@ export function containerProof(runtime, client, platform, version, work, expo) {
     const dockerfile = base === "alpine"
       ? `FROM node:${nodeVersion}-alpine AS node\nFROM alpine:3.23\nCOPY --from=node /usr/local /usr/local\nRUN apk add --no-cache libstdc++ ca-certificates\n`
       : `FROM node:${nodeVersion}-bookworm-slim AS node\nFROM ubuntu:22.04\nCOPY --from=node /usr/local /usr/local\nRUN apt-get update && apt-get install -y --no-install-recommends libstdc++6 ca-certificates && rm -rf /var/lib/apt/lists/*\n`;
-    writeFileSync(join(context, "Dockerfile"), dockerfile + `COPY client.tgz platform.tgz expo.tgz roundtrip.mjs starters.mjs /proof/\nWORKDIR /consumer\nENV NPM_CONFIG_USERCONFIG=/dev/null NPM_CONFIG_GLOBALCONFIG=/tmp/snapback4-empty-global.npmrc\n`);
+    writeFileSync(join(context, "Dockerfile"), dockerfile + `COPY client.tgz platform.tgz expo.tgz roundtrip.mjs starters.mjs test-command-owner.mjs test-owned-command.mjs test-command-group.mjs /proof/\nWORKDIR /consumer\nENV NPM_CONFIG_USERCONFIG=/dev/null NPM_CONFIG_GLOBALCONFIG=/tmp/snapback4-empty-global.npmrc\n`);
     const tag = `snapback4-proof-${process.pid}-${base.startsWith("ubuntu") ? "ubuntu" : "alpine"}`;
     try {
       run(runtime, ["build", "--pull", "--platform", "linux/amd64", "-t", tag, context], { stdio: "inherit" });

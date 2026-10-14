@@ -95003,3 +95003,11 @@ proot. Bound generated Expo web export scripts to two workers, matching the
 direct qualification command. Historical stages lacking retained Expo proof
 bytes now fail explicitly and preserve all artifacts; the layout-compatibility
 test is separated from the genuine-old-stage refusal.
+
+Final review's timeout counterexample is repaired with the existing live
+command-owner: async calls keep the watchdog responsive, the private pipe
+requests group cleanup on success/failure/caller death, and two read-only
+empty-group probes gate success without mounting host /proc in a guest.
+A TERM-ignoring driver/grandchild regression verifies hard termination and
+bounded return. Numeric PGIDs never authorize a runner signal. Both families
+re-review this final custody change independently.

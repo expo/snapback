@@ -4,7 +4,7 @@ import { run, digest } from "./publication-artifacts.mjs";
 import { proveStarters } from "./publication-starters.mjs";
 import { verifyDeveloperId } from "./signing.mjs";
 // @ref LLP 3000.021#3.3 — only Darwin is executed and signature-checked by the publisher
-export function proveDarwin(staged, work) {
+export async function proveDarwin(staged, work) {
 const platform = staged.platforms.find(p => p.name === "snapback4-darwin-arm64");
 const consumer = join(work, "consumer");
 mkdirSync(consumer);
@@ -46,6 +46,6 @@ console.log(run("node", ["run.mjs"], { cwd: consumer }).trim());
 
 copyFileSync(new URL("./publication-roundtrip.mjs", import.meta.url), join(consumer, "roundtrip.mjs"));
 run("node", ["roundtrip.mjs", staged.version], { cwd: consumer, env, timeout: 90_000 });
-const starters = proveStarters(staged.client.tarball, platform.tarball, staged.expo.tarball, work);
+const starters = await proveStarters(staged.client.tarball, platform.tarball, staged.expo.tarball, work);
 return { status: "passed", starters, expoIntegrity: staged.expo.integrity, clientIntegrity: staged.client.integrity, platformIntegrity: platform.integrity };
 }
