@@ -95143,3 +95143,10 @@ constraints. Both focused round-3 reviews mark it READY, and the real CLI
 minimum-length regression passes. Extra review controls prove history still
 prints when device preflight refuses, and silence P9 for pinned audiences and
 cursor traversals. No classifier, validation or runtime change follows round 2.
+
+NARR grouped-source follow-up: 031adb3be4 derives job declaration boundaries
+from full-file lexer indentation/delimiter depth. Valid multiline signatures
+and column-one object fields no longer look like declaration endings. The
+stronger module/job regression and all five narration probes pass. Both
+focused round-4 reviews are READY, retained under the same NARR review prefix.
+No Quarry parser, IR, classifier, storage, runtime or protocol changed.
