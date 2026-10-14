@@ -112,6 +112,14 @@ query totalPosts():
         assert!(planned.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
             && diagnostic.message.contains("global maintained scalar")), "{projection}: {:#?}", planned.diagnostics);
     }
+    for rule in [
+        "table guarded:\n  insert <- exists total[true] by byGroup\n  online only",
+        "table guarded:\n  insert <- allow\n  after insert <- exists total[true] by byGroup\n  online only",
+    ] {
+        let probed = compile(&format!("view total: count posts\n  read <- deny\n  online only\n{rule}\n"));
+        assert!(probed.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+            && diagnostic.message.contains("global maintained scalar")), "{rule}: {:#?}", probed.diagnostics);
+    }
 }
 
 #[test]

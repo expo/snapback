@@ -890,6 +890,14 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
     if catalog.tables.get(&read.table).is_some_and(|t| t.decl.ephemeral.is_some()) {
         return Err(Diagnostic::new(site, "E_QUARRY_EPHEMERAL", format!("a rule or after insert cannot probe ephemeral table {}", read.table), "probe a durable table instead").guide("ephemeral"));
     }
+    // @ref LLP 3000.013.001#3-global-maintained-view-representation — rules
+    // and postconditions must not recover the compiler-owned physical row.
+    if catalog.tables.get(&read.table).and_then(|table| table.maintained.as_ref())
+        .is_some_and(|maintain| maintain.by.is_empty())
+    {
+        return Err(type_error(site, format!("{} is one global maintained scalar, not a rule-probe table", read.table),
+            format!("read `{}` as a scalar in a query; keep rules over application tables", read.table)).guide("maintains"));
+    }
     // `exists pieces[.id = .piece, …]`: a comparison where a key belongs. Name
     // the column (`id = .piece`) or give the full unique key by position first.
     // @ref LLP 3000.036#11 — app-farm pattern 27: the positional unique-key form.
