@@ -105,7 +105,7 @@ application tables and maintained views; `sql '\d messages'` (or `'.schema messa
 columns/nullability, indexes and unique keys. Both report the active schema generation and bounded stored row
 counts: exact through 10,000, otherwise >=10,001; ephemeral counts are unavailable. `--json` returns
 `generation`, `tables` and `ruleFiltered: false`. These catalog commands use the active schema, even with broken
-local source.
+local source. Derived sweeps use shortest text/list arguments; test.cases.jsonl supplies boundaries.
 
 ## Refusals
 E_SQL_READ_ONLY means inspection received something other than one read-only `SELECT` or `WITH ... SELECT`. For

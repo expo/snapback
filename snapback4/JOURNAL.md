@@ -95107,3 +95107,29 @@ variables. Independent review logs retain their actual commands; Codex's
 additional review-side test invocations used the default profile rather than
 the explicitly requested environment, a delegation-brief omission. Future
 review briefs must pass those Cargo constraints explicitly.
+
+### 2026-10-14 — wave 11 packaged discovery and production recipes
+
+DX3 adds a tested production transition card rather than an automatic policy
+rewrite: password restoration gates, account display-name profiles, a restricted
+directory picker, seat-enrolled roles/linked memberships, catalogue bootstrap
+and real-account rollback assertions. Seven authorization recipes compile without
+notes and run privacy/revocation checks. Capability reads and column-level rules
+remain open (LLP 3000.036 §21); share links redeem into principal grants, with
+program-readable secret rows and no exported listing operation.
+
+`init --web --online` chooses the browser journal explicitly. Adapt prints its
+file plan and defaults to preview when application-owned files coexist, with
+`--dry-run` and selective `--apply`. Inspection names nearby release stores and
+refuses flags inside the SQL argument. Hook/keyword aliases and the recipe
+pointers now resolve. Packaged ownership prose is refused by publication lint.
+Mutation output inference follows stable read authority across updates and
+retains nullable results when writes may hide a row (LLP 3000.013 §2.2).
+Both independent amendment reviews are READY; their artifacts are in
+`llp/reviews/3000.011.003.000-wave11-dx3-{codex,muse}-r1.review.md`.
+
+Affected Rust/client checks and the guide/README budgets passed; no ceiling was
+raised. The root inventory/guide commands were run and their remaining
+preconditions are Snapback 1 generated demo artifacts and workspace contract
+imports; they do not qualify as a successful root check. The complete battery
+was not run. Work is committed locally on sb4-w11-dx3, without a push.

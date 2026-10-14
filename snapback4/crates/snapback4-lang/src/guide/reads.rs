@@ -32,6 +32,8 @@ Repeated `where` clauses combine with `and` in order.
 
 ## Details
 
+Unreadable query references act absent: null points or complete empty pages. Mutation references refuse; ids grant no authority.
+
 Reads select authorized rows by id, predicate or search text.
 Add an order, page size and cursor to browse a population.
 

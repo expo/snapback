@@ -66,11 +66,13 @@ mod indexes;
 mod types;
 pub use discovery::{FULL_LINES, piped, alias_landing, aliases, find, listing, nearest, overview, overview_and_first_section, section, section_index, sections};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "rule-recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "deploy", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet", "changes"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "rule-recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "deploy", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet", "changes", "production"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
-    ("release", "deploy"), ("serve", "deploy"), ("production", "deploy"), ("rollback", "deploy"), ("upgrade", "changes"), ("optional param", "types"), ("mutation default", "writes"), ("service seat", "deploy"),
+    ("schema", "language"), ("reference", "types"), ("references", "types"), ("principal", "personas"), ("principals", "personas"), ("first admin", "deploy"),
+    ("useAuth", "client"), ("useClient", "client"), ("useViewer", "client"), ("useSignedInViewer", "client"), ("usePersonaApp", "client"), ("useSession", "client"), ("useQuery", "client"), ("usePage", "client"), ("useFollowing", "client"), ("useMutation", "client"), ("useAction", "client"), ("useAsset", "client"), ("useSaveAsset", "client"), ("useUpload", "client"), ("useLink", "client"), ("useOnline", "client"), ("useNow", "client"), ("useAcquired", "client"), ("useAcquisition", "client"), ("usePendingWrite", "client"), ("usePendingWrites", "client"), ("usePendingItems", "client"), ("usePendingState", "client"), ("useSeen", "client"), ("useInspection", "client"),
+    ("release", "deploy"), ("serve", "deploy"), ("rollback", "deploy"), ("upgrade", "changes"), ("optional param", "types"), ("mutation default", "writes"), ("service seat", "deploy"),
     ("identity", "deploy"), ("password", "deploy"), ("tokens", "deploy"), ("migrations", "deploy"),
     ("test", "testing"), ("tests", "testing"), ("fixture", "testing"), ("fixtures", "testing"), ("acceptance", "testing"), ("e2e", "testing"), ("cases", "testing"),
     ("index", "start"),
@@ -152,7 +154,7 @@ pub const ALIASES: &[(&str, &str)] = &[
 // @ref LLP 3000.007#20.1 — wave 6: `guide pagination` opened the reads card's index, and `--section pagination` found nothing.
 pub const ALIAS_SECTIONS: &[(&str, &str)] = &[
     ("pagination", "Pages and cursors"), ("paging", "Pages and cursors"), ("cursor", "Pages and cursors"),
-    ("roles", "Roles"), ("role", "Roles"), ("admin", "First admin"), ("rbac", "Roles"), ("permissions", "Roles"),
+    ("first admin", "First admin"), ("roles", "Roles"), ("role", "Roles"), ("admin", "First admin"), ("rbac", "Roles"), ("permissions", "Roles"),
     ("two-party", "Two parties"), ("two party", "Two parties"), ("buyer seller", "Two parties"), ("marketplace", "Two parties"),
     ("booking", "Booking"), ("bookings", "Booking"), ("reservation", "Booking"), ("reservations", "Booking"),
     ("capacity", "Booking"), ("seats", "Booking"), ("double booking", "Booking"),
@@ -170,7 +172,7 @@ pub const ALIAS_SECTIONS: &[(&str, &str)] = &[
 
 /// The section an alias names in its card, if it names one: (card, heading words).
 pub fn alias_section(word: &str) -> Option<(&'static str, &'static str)> {
-    let (alias, heading) = ALIAS_SECTIONS.iter().find(|(alias, _)| alias.eq_ignore_ascii_case(word.trim()))?;
+    let (alias, heading) = ALIAS_SECTIONS.iter().find(|(alias, _)| alias.eq_ignore_ascii_case(word.trim()) || alias.eq_ignore_ascii_case(&word.trim().replace('-', " ")))?;
     Some((resolve(alias)?, heading))
 }
 
@@ -227,7 +229,7 @@ pub use language_card::LANGUAGE;
 
 /// The card a word names: a keyword, or an alias's target (any case).
 pub fn resolve(word: &str) -> Option<&'static str> {
-    ALIASES.iter().find(|(alias, _)| alias.eq_ignore_ascii_case(word)).map(|(_, target)| *target)
+    ALIASES.iter().find(|(alias, _)| alias.eq_ignore_ascii_case(word.trim()) || alias.eq_ignore_ascii_case(&word.trim().replace('-', " "))).map(|(_, target)| *target)
         .or_else(|| KEYWORDS.iter().copied().find(|name| name.eq_ignore_ascii_case(word)))
 }
 
@@ -247,6 +249,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
         "prediction" => prediction::CARD,
         "evolution" => discovery::EVOLUTION,
         "changes" => concat!("# Changes in ", env!("CARGO_PKG_VERSION"), "\n\nCompiler upgrades explain changes for the current schema.\n\n```sh\nsnapback4 upgrade\n```\n\nUpgrade with `snapback4 upgrade`; it pins core and installed Expo adapters together, captures the old check, and runs the new check.\nThe first check after a version change prints new notes by code, changed generated API types, and new refusals for your schema.\n\nKeyed aggregates: a hidden key reads null; an authorized missing count group reads 0.\nA private keyed count can therefore change from number to number | null in the generated API.\nUse `qtySum[room] ?? 0` only when treating a hidden or missing value as zero is your intended application policy.\nNew notes are advice, not compilation failures; new refusals need a schema repair.\n\nNative Expo adapters need a rebuild after upgrade. Exact apps: `bun exact.mjs snapback --rebuild`.\nRun your acceptance and visible-form proof after check; `guide testing` has the commands.\n"),
+        "production" => include_str!("guide/production.md"),
         "types" => types::CARD,
         "time" => include_str!("guide/time.md"),
         "cheatsheet" => include_str!("guide/cheatsheet.md"),
@@ -602,6 +605,25 @@ mutation sendClip(clip: video <=50000000):
 mutation sendPhotos(photos: [image <=10000000] <=4):
   return insert clips { ownerId: viewer, photos, at: now }
 ```
+
+Choose a bounded `image`, `video` or `file` column first; upload bytes, place
+`{ id: uploaded.asset.id }` through a mutation, then render with `useAsset`.
+Image capture in a browser uses the same upload path:
+
+```tsx
+<input type="file" accept="image/jpeg,image/png,image/webp" capture="environment"
+  onChange={async event => {
+    const file = event.currentTarget.files?.[0];
+    if (!file) return;
+    const uploaded = await client.upload(file);
+    if (uploaded.ok) await save.run({ photo: { id: uploaded.asset.id } });
+    else setError(uploaded.why.message);
+  }} />
+```
+
+The row write can refuse independently of upload. Keep the receipt and error
+in the form owner; raw `POST /assets` returns `{ asset, generation }`.
+
 
 `POST /assets` uploads raw bytes with the viewer's session (Authorization: Bearer TOKEN) or a declared dev persona (x-snapback-persona: alice).
 Set Content-Type to the file MIME type; the response is `{ "asset": { "id": "...", "type": "image/png", "bytes": 123, "width": 1, "height": 1, "duration": null } }`.

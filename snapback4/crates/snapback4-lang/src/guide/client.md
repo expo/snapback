@@ -15,20 +15,21 @@ export function Inbox() { const page = usePage(api.inboxCards, {}), status = rea
 - `E_QUERY_RETRY`: settlement exhausted; retry.
 
 ## Reference
+`Write<R>`: pending `{id}`; fresh sent `{id,seq,result:R}`; replayed sent `{id,seq,replayed:true}` without result; failed `{id,why}`. Only failed has `why`. `sentResult(write)` extracts a fresh result; undefined means pending/failed/replayed, not success.
 ```tsx
-import { useState } from "react"; import { matchRead, useMutation, useQuery } from "snapback4/react";
+import { useState } from "react"; import { matchRead, sentResult, useMutation, useQuery } from "snapback4/react";
 import { api } from "../snapback/generated/api";
 export function Composer({conversationId}:{conversationId:string}) {
   const [draft,setDraft]=useState(""),[submitted,setSubmitted]=useState("");
   const send=useMutation(api.send),member=useQuery(api.myMembership,{conversationId});
   const blocked=matchRead(member,{denied:()=>true,absent:read=>read.fresh&&!read.revalidating,partial:()=>false,otherwise:()=>false});
-  async function submit(){if(blocked)return;const text=draft;setSubmitted(text);setDraft("");const write=await send.run({conversationId,body:text},{waitSeconds:0});if(write.state==="failed")setDraft(current=>current||text);}
+  async function submit(){const text=draft.trim();if(blocked||!text||text.length>2000)return;setSubmitted(text);const write=await send.run({conversationId,body:text});if(sentResult(write)!==undefined)setDraft(current=>current.trim()===text?"":current);}
   return <><input value={draft} onChange={e=>setDraft(e.target.value)}/>
     <button disabled={send.inFlight||blocked} onClick={()=>void submit()}>Send</button>
     {send.last?.state==="failed"&&submitted&&<p role="alert">Not sent: {submitted} <button onClick={()=>setDraft(current=>current?current+" "+submitted:submitted)}>Edit</button> <button onClick={()=>setSubmitted("")}>Dismiss</button></p>}</>;
 }
 ```
-Keep the composer mounted above reactive rows; [full screen](CLIENT-AND-OPERATIONS.md#a-stable-conversation-screen).
+Validate before run; clear only this draft after a fresh sent receipt. Pending/replayed receipts keep it. Read notices never grant permission. Keep the composer mounted above reactive rows; [full screen](CLIENT-AND-OPERATIONS.md#a-stable-conversation-screen).
 Membership: no horizon, the conversation's own group and messages' audience prove presence/absence unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. Never add `with own keys` to admin-written memberships.
 `denied` always blocks. `existence(member) === "absent"` blocks only when fresh and non-revalidating. Stale absence queues; `loading`/`partial` never disable.
 
@@ -58,7 +59,7 @@ function Password() {
     <button onClick={() => void submit(false)}>Sign in</button><button onClick={() => void submit(true)}>Sign up</button>{why}</>;
 }
 ```
-SDK sign-in answers `{ok:true, session}` or `{ok:false, why}`. Expo uses SecureStore; web uses localStorageSessionStore. Synced web: webDevice; native: nativeDevice; no-sync web: journal. `init --web`/`--expo` writes the form.
+SDK sign-in answers `{ok:true, session}` or `{ok:false, why}`. Expo uses SecureStore; web uses localStorageSessionStore. Synced web: webDevice; native: nativeDevice; no-sync: journal (`init --web --online`). Password production transition: `guide production`.
 
 `useAuth()` members: `state`, `viewer`, `session`, `why`, `signup(email, password)`,
 `login(email, password)`, `guest()`, `logout()`, `logoutEverywhere()`.
@@ -75,20 +76,20 @@ SDK sign-in answers `{ok:true, session}` or `{ok:false, why}`. Expo uses SecureS
 
 ## Generic read props and outcomes
 
-List props: `Read<T[]>` (`T extends { id: string }`); operation props: `UseQuery<typeof api.op>`. Ordinary `run()` waits for `sent | failed`, independent of query subscribers or component unmount; keep the App alive to collect its receipt. Offline it waits for reconnect. Explicit `{ waitSeconds: 0 }` returns custody immediately; pending is not success.
-`sentResult(write)` returns the fresh result (including null) or undefined for pending, failed and replayed receipts; failed carries why.
+List props: `Read<T[]>` (`T extends { id: string }`); operation props: `UseQuery<typeof api.op>`. Ordinary `run()` waits for `sent | failed`, even after unmount; keep App alive for receipts. Offline it waits for reconnect. `{ waitSeconds: 0 }` returns custody; pending is not success. Null is a legitimate fresh result.
 
+Compact list renderer, with two independent `matchRead` calls:
 ```tsx
-import { matchRead, otherwiseAll, sentResult, useMutation, useQuery } from "snapback4/react";
+import { matchRead, otherwiseAll, readPresentation, useQuery } from "snapback4/react";
 import { api } from "../snapback/generated/api";
-export function StaffNotes({granted}:{granted:boolean}) {
-  const read=useQuery(api.staffNotes,{}, {skip:!granted}),add=useMutation(api.add);
-  const text=matchRead(read,{...otherwiseAll(()=>"Unavailable"),absent:()=>"No notes",present:rows=>`${rows.length} notes`});
-  async function submit(){const write=await add.run({title:"Proof"});const result=sentResult(write);if(result!==undefined)console.log(result);if(write.state==="failed")console.log(write.why.message);}
-  return <>{matchRead(read,{loading:()=>"Loading…",denied:why=>why.message,absent:()=>text,partial:()=>"Partial results",present:data=>`${data.length} notes`})}<button onClick={()=>void submit()}>Add</button></>;
+export function StaffNotes() {
+  const read=useQuery(api.staffNotes,{}),status=readPresentation(read);
+  const count=matchRead(read,{partial:rows=>`${rows.length} so far`,denied:why=>why.message,present:rows=>`${rows.length} notes`,otherwise:()=>"…"});
+  const list=matchRead(read,{...otherwiseAll(()=>null),present:rows=>rows.map(row=><p key={row.id}>{row.title}</p>)});
+  return <>{count}{status.incomplete&&"Incomplete"}{status.stale&&"Offline copy"}{list}</>;
 }
 ```
-A complete empty list is absent; null is a legitimate fresh write result.
+`otherwise` still requires explicit denied/partial handlers. `otherwiseAll` supplies every omitted handler; explicit handlers win. No `mapRead` helper is needed: map the rows in `present`, preserving the read's state separately.
 
 Keyed counts: hidden key → null; authorized missing count group → 0; public count → number. Choose `count ?? 0` explicitly. `useQuery` is live; after sent, `client.query(...)` reads once.
 

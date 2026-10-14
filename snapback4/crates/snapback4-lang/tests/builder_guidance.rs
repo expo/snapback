@@ -100,3 +100,26 @@ fn same_table_row_helpers_and_explicit_author_choices_still_compile() {
     let hoisted = PRESENCE.replace("  if not exists connected[p]:\n    emit notify {row: notes[n = 1]}", "  row = notes[n = 1]\n  if not exists connected[p]:\n    emit notify {row}");
     assert_eq!(clean(&hoisted).schema.operations["send"].predicts.as_deref(), Some("eligible"));
 }
+
+#[test]
+fn wave11_discovery_opens_schema_principals_and_every_exported_hook() {
+    use snapback4_lang::guide;
+    for (word, target) in [("schema", "language"), ("reference", "types"), ("references", "types"),
+        ("principal", "personas"), ("principals", "personas"), ("first admin", "deploy"),
+        ("timed-disclosure", "rule-recipes"), ("service-seat", "deploy")] {
+        assert_eq!(guide::resolve(word), Some(target), "{word}");
+        assert!(guide::card(word).is_some());
+    }
+    assert!(guide::alias_landing("timed-disclosure", "rule-recipes", guide::card("rule-recipes").unwrap()).is_some());
+    let api = guide::card("api").unwrap();
+    let source = include_str!("../../../packages/snapback4/src/react.tsx");
+    for line in source.lines().filter(|line| line.starts_with("export function use")) {
+        let hook = line.strip_prefix("export function ").unwrap().split(['(', '<']).next().unwrap();
+        assert_eq!(guide::resolve(hook), Some("client"), "hook alias {hook}");
+        assert!(guide::find("api", api, hook).is_ok(), "hook search {hook}");
+    }
+    for code in ["E_QUARRY_RULE_HOP", "E_STRUCTURAL_FANOUT", "E_SYNC"] {
+        assert!(guide::explain_code(code).unwrap().contains("guide rule-recipes"), "{code}");
+    }
+    assert!(!guide::listing().contains("non-TTY output prints the full card"));
+}

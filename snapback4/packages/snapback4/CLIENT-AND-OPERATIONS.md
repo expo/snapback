@@ -2904,7 +2904,7 @@ default of an existing required column rechecks the unique indexes and
 caps over it, and a group that no longer fits is `E_ADOPT` like any other
 step.
 
-- **`snapback4 init [dir] [--online|--expo|--web]`** starts a project without overwriting existing files. An
+- **`snapback4 init [dir] [--online|--expo|--web [--online]]`** starts a project without overwriting existing files. An
   existing `package.json` keeps its metadata; required dependencies, devDependencies and scripts merge into it
   through an atomic replacement, so a failed package write leaves the original intact. A different value for
   the same required key refuses with the key and both values before any file is written. Run `npm install`
@@ -3178,7 +3178,7 @@ try {
   cost, or a table's rules, sync line, expire column and indexes; **`data <table> [--limit N]`** prints rows
   as one JSON object per stdout line (50 by default), with any truncation hint on stderr; **`doctor
   [--json]`** says what is in place: the store, its size, schedules and their last boundary, the last job
-  runs, the effects by state and the failed ones; **`guide [keyword]`** prints cards: changes, cheatsheet, language, app, recipes, rule-recipes, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, deploy, expire, assets, client, wire, social, reads, shapes, writes, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services, presence, receipts, read-only, manual-receipts, ephemeral, bounds, refusals, personas, testing, witness
+  runs, the effects by state and the failed ones; **`guide [keyword]`** prints cards: production, changes, cheatsheet, language, app, recipes, rule-recipes, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, deploy, expire, assets, client, wire, social, reads, shapes, writes, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services, presence, receipts, read-only, manual-receipts, ephemeral, bounds, refusals, personas, testing, witness
   (`guide <E_CODE>` explains a code; `guide aliases` lists the words that open a card or one of its sections). In a terminal, a card over 130 lines prints its opening and section index; piped output prints the full card.
   `--section <number or words>` prints one section (any case, a unique prefix or the heading's words; a
   word no heading names prints the section holding most of its mentions, or all of them when they spread),
@@ -3397,8 +3397,8 @@ windows; requests completing after shutdown starts are not covered.
 
 Start with `snapback4 guide deploy` for package upgrades (including the Expo adapter),
 password identity, the first admin and migration recipes. check warns on stderr
-(including with --json) when installed core/Expo versions differ. Stop the owned serve process,
-wait for exit, deploy, then restart serve; live activation currently refuses E_STORE_BUSY.
+(including with --json) when installed core/Expo versions differ. Deploy activates through the live serving owner; wait for the command
+to confirm the current release and generation.
 
 `snapback4 dev` is development only — it admits loopback personas and an unauthenticated `/seed`; deploy with `snapback4 deploy` + `snapback4 serve`, which refuse both.
 

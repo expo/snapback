@@ -59,6 +59,7 @@ mutation checkIn():
   `Date.now()`, `new Date(row.startsAt)`. Fixture rows use the same numbers.
 - `now` is the clock of the host running the operation: the server, or the device for a predicted write.
   `default now` stamps an omitted field the same way.
+- Duration grammar: one non-negative integer immediately followed by `ms`, `s`, `m`, `h` or `d`; no spaces, fractions or compound `1h30m` literals. Use `1h + 30m` in Quarry.
 - Duration literals: `500ms`, `30s`, `15m`, `24h`, `7d`. They are plain integers of milliseconds:
   `now + 1h`, `.endsAt - .startsAt` (elapsed ms), `hours * 1h`, `.at >= now - 7d`.
 - There are no time zones and no date type. Compute local wall-clock dates, weekdays and local months in
@@ -142,6 +143,7 @@ schedule closer every 1m: closeDeparted
 
 ## The dev clock
 
+- CLI clock durations use one positive whole number and `ms`, `s`, `m`, `h`, `d` or `w`, optionally prefixed `+`: use `90m`, not `1h30m`. Quarry uses `7d` instead of `1w`.
 - `snapback4 dev --clock-offset +25h` starts the dev server 25 hours ahead; mutations stamp `now` from it.
 - `snapback4 clock advance 2m [--port N]` moves a running dev forward, sweeps expiry and runs due
   schedules and jobs; over HTTP: `POST /dev/clock/advance` with `{"duration":"2m"}`. An advance across

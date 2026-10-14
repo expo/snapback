@@ -10,11 +10,9 @@ bunx snapback4 serve ./deployment --port 4400
 ```
 
 ## Upgrade
-
 `snapback4 upgrade [version]` resolves once and exactly pins core and installed Expo adapters with npm/bun/pnpm. Rebuild native apps after adapter changes; commit the lockfile, run check/typecheck/acceptance. `test` uses ./fixtures; `--fixture dir` overrides it. Use the password and first-admin recipes below.
 
 ## Deploy and password identity
-
 Add `use identity password` (included below). Deploy from the app directory onto durable storage:
 
 Serve admits bearer sessions; personas are 401 and /seed/dev doors 403, even through proxies. Signup creates an account, not a privileged role. See guide client for SDK session stores; auth/headless for account setup. HTTP auth returns session/denied; SDK signup/login from `snapback4/auth` returns ok/why. Check warns on installed version skew.
@@ -62,12 +60,13 @@ curl -s "$U/m/grantAdmin" -H "Authorization: Bearer $TOKEN" \
 unset TOKEN
 ```
 
-This roster is synced. A whole service-seat branch may add the first member; ordinary callers must already hold the roster. Service grants add no device audience. The mutation completes before the grant syncs; wait for the enrolled account's client to receive its scope before using offline staff reads.
+This roster is synced. A whole service-seat branch may add the first member; ordinary callers must already hold the roster. Service grants add no device audience. The seat's own program lookups and `exists` obey read rules too: to inspect a roster, add `or viewer = 'service:ops'` to its read rule, as above. A rule probe has authorization visibility; a program probe does not. The mutation completes before the grant syncs; wait for the enrolled account's client to receive its scope before using offline staff reads.
 
-Mint locally against the same store. Token stdout is only the credential; prose is stderr. Protect it; it expires under the seat-session policy. Rotate the credential by revoking its session (guide services) and minting a replacement. Expired or revoked bearer sessions cannot invoke the mutation. A repeat grant hits uniqueness; add membership revocation deliberately.
+A synced row has at most one group-roster audience: cross-table crew grants are not a second group. Enroll those readers in the same roster or keep the table `online only` (`guide rule-recipes`).
+
+Mint locally against the same store. Token stdout is only the credential; prose is stderr. Protect it; it expires under the seat-session policy. Rotate the credential by revoking its session (guide services) and minting a replacement. Expired or revoked bearer sessions cannot invoke the mutation. A repeat grant hits uniqueness; add membership revocation deliberately. Programmatic account sessions use `mintSession(url, serviceToken, principal)` from `snapback4/worker` (guide services); service seats themselves are minted locally by `token`.
 
 ## Migrations and adoption
-
 Optional/defaulted columns, new tables/ops, non-unique indexes and wider types are additive. Required new fields need a literal default or explicit backfill; default now/viewer cannot invent historical values. Dev check/adoption refuses incompatible values with E_ADOPT. Release type narrowing instead retains each row whose present values cannot fit. Unique/cap conflicts still refuse atomically; repair active rows, or restore through a widened non-unique bridge, repair, then reinstate constraints. Prefer expand → migrate → contract for client compatibility.
 
 ## Rollback after widening, restore and prune
@@ -119,9 +118,11 @@ export SNAPBACK4_SERVICE_TOKEN=$(bunx snapback4 token --service ops --release ./
 bunx snapback4 run reconcile --release ./deployment --json
 unset SNAPBACK4_SERVICE_TOKEN
 ```
-`--token-env NAME` reads another environment variable. The command uses served source, so it also works outside the app directory. A lost reply is ambiguous; inspect the queue before retrying. DX2 owns starter and client job recipes.
+`--token-env NAME` reads another environment variable. The command uses served source, so it also works outside the app directory. A lost reply is ambiguous; inspect the queue before retrying. Starter/client recipes: `guide client`.
 
 ## Persona transition checklist
+
+The complete account directory, linked membership and real-account transition is `guide production`.
 1. Add password identity and signup/login UI; persist sessions with localStorageSessionStore on web or the secure native store, and verify restart.
 2. Replace hard-coded persona owners/UI with signed-in account principals; map roles through the trusted seat recipe.
 3. Give profiles a production write path and authorized directory; expose no credentials.
@@ -131,7 +132,16 @@ unset SNAPBACK4_SERVICE_TOKEN
 
 ## Inspection, proxies and TLS
 
-`snapback4 sql 'SELECT id, archived FROM notes' --release ./deployment --json` returns positional rows under `columns`; `--json-objects` returns object rows with direct boolean columns as true/false. Schema-qualified relations, recursive or shadowing/forward-reference CTEs need positional --json. Inspection bypasses read rules and can show expired stored rows; it is an operator tool, not an app query surface. Bind loopback behind a TLS proxy. Forward Authorization and preserve response bodies; allow long polls without buffering or early timeouts. Non-loopback HTTP requires `--i-understand-cleartext` and a trusted private hop behind TLS. Identity rate keys use the socket peer, not forwarded headers. Serve refuses personas and dev doors even through a local proxy; see SERVER.md for capacity. For the `--json-objects` envelope fields, see `snapback4 sql --help`.
+| Door | `dev` | `serve` |
+|---|---|---|
+| `/q`, `/m`, `GET /` compatibility record | Loopback persona or bearer | Bearer session required, including public rows |
+| `/auth/config`; signup/login/guest | Public config; declared sign-in methods | Public config; declared sign-in methods |
+| `/seed`, `/dev/*` | Development only | Refused |
+| `/jobs/<job>` | Service seat | Full service seat |
+
+Public visitors obtain guest sessions with `use identity`; `use identity password` disables guests (`guide rule-recipes`).
+
+`snapback4 sql 'SELECT id, archived FROM notes' --release ./deployment --json` returns positional rows under `columns`; `--json-objects` returns object rows with direct boolean columns as true/false. Schema-qualified relations, recursive or shadowing/forward-reference CTEs need positional --json. Inspection bypasses read rules and can show expired stored rows; it is an operator tool, not an app query surface. Bind loopback behind a TLS proxy. Forward Authorization and preserve response bodies; allow long polls without buffering or early timeouts. Non-loopback HTTP requires `--i-understand-cleartext` and a trusted private hop behind TLS. Identity rate keys use the socket peer, not forwarded headers. Serve refuses personas and dev doors even through a local proxy; see SERVER.md for capacity. `--json-objects` returns `{header, columns, rows, limit, more, ruleFiltered:false}` with object `rows`; `--json` uses positional `rows`. Put flags outside the quoted SQL.
 
 ## Authoring and proof refusals
 
