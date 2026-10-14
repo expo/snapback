@@ -1,0 +1,65 @@
+{
+  "baseline": "81cb4124aa",
+  "qualifierCommit": "5915c7e361",
+  "version": "0.4.28",
+  "prepared": {
+    "format": 1,
+    "source": "81cb4124aae059352b3c5f541b7d072e0a74e0c6",
+    "expo": {
+      "name": "snapback4-expo",
+      "version": "0.4.28",
+      "filename": "snapback4-expo-0.4.28.tgz",
+      "integrity": "sha512-xrZQCiga5iarZEd0j/BO897v2h5EvTl3Zk6hWxNe1/KnLMQmbHRGTtM6bWrmCCAOCAZFwbOiR9SWVlNHSnHFCw==",
+      "bytes": 20681
+    },
+    "client": {
+      "name": "snapback4",
+      "version": "0.4.28",
+      "filename": "snapback4-0.4.28.tgz",
+      "integrity": "sha512-hfOCNMKYQJeTaO5V6QfW032Yoisdt1mgSUnGVFY2R19SZjJbgWmZH766hPhpOF8dWrkHMjVxqYL7Esl3ppknOQ==",
+      "bytes": 1242110,
+      "files": 303
+    }
+  },
+  "platformPack": {
+    "id": "snapback4-linux-x64@0.4.28",
+    "name": "snapback4-linux-x64",
+    "version": "0.4.28",
+    "size": 11781207,
+    "unpackedSize": 27785611,
+    "shasum": "9a65d714db8d56a32fdc4b4ca7bbf16855782a3e",
+    "integrity": "sha512-45jzDK0XDWoVrS/rAzy6OwmD3X6oXBWlDHXa3mhDzvQL2fT/seBic1607RAew/6cBaocpdWuzArh6m0xvfhARQ==",
+    "filename": "snapback4-linux-x64-0.4.28.tgz",
+    "files": [
+      {
+        "path": "THIRD-PARTY-NOTICES",
+        "size": 7467,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 448,
+        "mode": 420
+      },
+      {
+        "path": "snapback4",
+        "size": 27777696,
+        "mode": 493
+      }
+    ],
+    "entryCount": 3,
+    "bundled": []
+  },
+  "results": {
+    "qualify-linux": "failed: web chat sign-in timeout",
+    "starter-toolchain": "failed: web chat sign-in timeout",
+    "Expo chat": "failed: sign-in timeout",
+    "Expo social": "failed: sign-in timeout"
+  },
+  "logs": {
+    "before-qualification.log": "e2f0276bbf0c4ad504770739fcaa7c2ca93b32f51f3b459519f07a55d316ea2c",
+    "before-starter-toolchain.log": "2fb3541f6d98b7a5a8ace6b76ea382519bf4c308ce079151497457ff5a80c600",
+    "before-expo-templates.log": "bb4320f1c37e027c337a1eb9a91fa5a853ae263513ea539c809a399252e9b747",
+    "before-expo-templates.json": "246987756cf14a2d2018cb6ba61ed4abcc01ef0788cde74f0abffd8dc9552340"
+  }
+}

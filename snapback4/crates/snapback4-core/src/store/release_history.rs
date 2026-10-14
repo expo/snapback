@@ -13,6 +13,9 @@ pub struct DormantItem {
     pub rows: u64,
     pub bytes: u64,
     pub asset_bytes: u64,
+    /// Internal audit distinction: zero standalone cells may still be covered by a dormant row.
+    #[serde(skip)]
+    pub(crate) definition_only: bool,
     pub sample_ids: Vec<String>,
     #[serde(default,skip_serializing_if="Option::is_none")]
     pub before_rows:Option<u64>,
@@ -100,17 +103,22 @@ pub(crate) fn inventory(
             })
             .optional()?;
         let Some(t) = t else { continue };
-        let (mut count,bytes):(u64,u64)=match kind.as_str(){
+        // @ref LLP 3000.000.000#11-wave-11-factual-release-narration — dormant row images cover their retained cells; standalone cells have active owners.
+        let (mut count,mut bytes):(u64,u64)=match kind.as_str(){
             "table"=>conn.query_row("SELECT COUNT(*),COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_rows WHERE t=?1",[t],|r|Ok((r.get::<_,i64>(0)? as u64,r.get::<_,i64>(1)? as u64)))?,
             "rows"=>conn.query_row("SELECT COUNT(*),COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_narrow_rows WHERE t=?1",[t],|r|Ok((r.get::<_,i64>(0)? as u64,r.get::<_,i64>(1)? as u64)))?,
-            "column"=>conn.query_row("SELECT COUNT(*),COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_values WHERE t=?1 AND column_name=?2",params![t,column],|r|Ok((r.get::<_,i64>(0)? as u64,r.get::<_,i64>(1)? as u64)))?,
+            "column"=>conn.query_row("SELECT COUNT(*),COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_values v WHERE t=?1 AND column_name=?2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id)",params![t,column],|r|Ok((r.get::<_,i64>(0)? as u64,r.get::<_,i64>(1)? as u64)))?,
             _=>conn.query_row("SELECT COUNT(*),0 FROM (SELECT id FROM r WHERE t=?1 UNION SELECT id FROM _dormant_rows WHERE t=?1)",[t],|r|Ok((r.get::<_,i64>(0)? as u64,r.get::<_,i64>(1)? as u64)))?,
         };
+        if matches!(kind.as_str(), "table" | "rows") {
+            let images = if kind == "table" { "_dormant_rows" } else { "_dormant_narrow_rows" };
+            bytes += conn.query_row(&format!("SELECT COALESCE(SUM(octet_length(v.id)+octet_length(v.data)),0) FROM _dormant_values v WHERE v.t=?1 AND EXISTS(SELECT 1 FROM {images} d WHERE d.t=v.t AND d.id=v.id)"), [t], |r| r.get::<_, i64>(0))? as u64;
+        }
         let query = match kind.as_str() {
             "rows" => "SELECT id FROM _dormant_narrow_rows WHERE t=?1 AND ?2 IS NULL ORDER BY id LIMIT 5",
             "table" => "SELECT id FROM _dormant_rows WHERE t=?1 AND ?2 IS NULL ORDER BY id LIMIT 5",
             "column" => {
-                "SELECT id FROM _dormant_values WHERE t=?1 AND column_name=?2 ORDER BY id LIMIT 5"
+                "SELECT id FROM _dormant_values v WHERE t=?1 AND column_name=?2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) ORDER BY id LIMIT 5"
             }
             _ => {
                 "SELECT id FROM (SELECT id FROM r WHERE t=?1 UNION SELECT id FROM _dormant_rows WHERE t=?1) WHERE ?2 IS NOT NULL ORDER BY id LIMIT 5"
@@ -131,11 +139,14 @@ pub(crate) fn inventory(
         } else {
             let selector=match kind.as_str(){
                 "rows"=>"EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=?3 AND n.id=_assets.home_id)",
-                "column"=>"EXISTS(SELECT 1 FROM _dormant_values v WHERE v.t=?3 AND v.id=_assets.home_id AND v.column_name=_assets.home_column)",
-                _=>"?3 IS NOT NULL AND NOT EXISTS(SELECT 1 FROM _dormant_values v WHERE v.t=?3 AND v.id=_assets.home_id AND v.column_name=_assets.home_column)",
+                "column"=>"EXISTS(SELECT 1 FROM _dormant_values v JOIN r ON r.t=v.t AND r.id=v.id WHERE v.t=?3 AND v.id=_assets.home_id AND v.column_name=_assets.home_column)",
+                _=>"EXISTS(SELECT 1 FROM _dormant_rows d WHERE d.t=?3 AND d.id=_assets.home_id)",
             };
             conn.query_row(&format!("SELECT COALESCE(SUM(bytes),0) FROM _assets WHERE home_table=?1 AND (?2 IS NULL OR home_column=?2) AND released_at IS NULL AND {selector}"),params![name,if kind=="table" || kind=="rows" {None}else{column.as_deref()},t],|r|r.get::<_,i64>(0).map(|n|n as u64))?
         };
+        let definition_only = if kind == "column" {
+            !conn.query_row("SELECT EXISTS(SELECT 1 FROM _dormant_values WHERE t=?1 AND column_name=?2)", params![t, column], |r| r.get::<_, bool>(0))?
+        } else { count == 0 };
         out.push(DormantItem {
             key: format!("{kind}:{path}"),
             path,
@@ -144,6 +155,7 @@ pub(crate) fn inventory(
             rows: count,
             bytes,
             asset_bytes,
+            definition_only,
             sample_ids: ids,
             before_rows:None,after_rows:None,restored_rows:None,before_sample_ids:None,
         });

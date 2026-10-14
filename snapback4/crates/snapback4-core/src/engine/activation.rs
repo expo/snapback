@@ -154,9 +154,9 @@ impl Engine {
                     } else if item.kind=="table" {
                         tx.meta(&format!("activation_table_restored:{}",item.path))?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0)
                     } else {item.rows};
-                    item.action=if restored>0 || item.rows==0 {"restored"} else {"removed without restoration"}.into();
+                    item.action=if restored>0 || item.definition_only {"restored"} else {"removed without restoration"}.into();
                     item.before_rows=Some(item.rows);item.after_rows=Some(0);item.restored_rows=Some(restored);item.before_sample_ids=Some(item.sample_ids.clone());
-                    if restored>0 || item.rows==0 {restored_items+=1;}
+                    if restored>0 || item.definition_only {restored_items+=1;}
                     items.push(item);
                 }
                 population.set(Some((tx.meta("activation_narrowed_retained")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0),tx.meta("activation_narrowed_restored")?.and_then(|s|s.parse::<u64>().ok()).unwrap_or(0))));

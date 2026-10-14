@@ -1,0 +1,16 @@
+[
+  {
+    "template": "chat",
+    "status": "failed-before-fix",
+    "reason": "npm: toolchain command exited 1",
+    "client": "/home/ccheever/projects/sb4-w12-fix28/snapback4/target/publication/client-0.4.28/snapback4-0.4.28.tgz",
+    "platform": "/home/ccheever/projects/sb4-w12-fix28/snapback4/target/fix28-baseline-artifacts/snapback4-linux-x64-0.4.28.tgz"
+  },
+  {
+    "template": "social",
+    "status": "failed-before-fix",
+    "reason": "npm: toolchain command exited 1",
+    "client": "/home/ccheever/projects/sb4-w12-fix28/snapback4/target/publication/client-0.4.28/snapback4-0.4.28.tgz",
+    "platform": "/home/ccheever/projects/sb4-w12-fix28/snapback4/target/fix28-baseline-artifacts/snapback4-linux-x64-0.4.28.tgz"
+  }
+]

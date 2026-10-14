@@ -1,6 +1,7 @@
 //! Recover a version, not invented compiler facts, from an older app.
 use super::*;
 use std::fs;
+// @ref LLP 3000.011.003.000#11-wave-11-runtime-upgrade-history — history acknowledgment is independent of compiler qualification.
 
 fn exact(text: &str) -> Option<String> {
     snapback4_lang::release_changes::version(text).map(|_| text.to_owned())
@@ -35,6 +36,7 @@ pub(super) fn locked_version(text: &str) -> Option<String> {
 }
 pub(super) fn previous(project: &Project) -> Option<String> {
     let read_version = |path, key| fs::read_to_string(path).ok().and_then(|text| json_version(&text, key));
+    if let Some(version) = read_version(project.data_dir().join("runtime-version.json"), "version") { return Some(version); }
     if let Some(version) = read_version(project.data_dir().join("check-surface.json"), "version") { return Some(version); }
     if let Some(version) = read_version(project.data_dir().join("upgrade-version.json"), "version") { return Some(version); }
     if let Some(version) = read_version(project.generated_dir().join("package.json"), "snapback4Version") { return Some(version); }
@@ -45,10 +47,19 @@ pub(super) fn previous(project: &Project) -> Option<String> {
     None
 }
 pub(super) fn report(project: &Project, json: bool) {
+    if std::env::var("SNAPBACK4_UPGRADE_BASELINE").as_deref() == Ok("1") { return; }
     if let Some(previous) = previous(project) {
         let text = snapback4_lang::release_changes::interval(&previous, env!("CARGO_PKG_VERSION"));
         if !text.is_empty() { if json { eprint!("{text}"); } else { print!("{text}"); } }
     }
+    let save = || -> std::io::Result<()> {
+        fs::create_dir_all(project.data_dir())?;
+        let path = project.data_dir().join("runtime-version.json");
+        let temporary = path.with_extension(format!("{}.tmp", std::process::id()));
+        fs::write(&temporary, serde_json::to_vec(&json!({ "version": env!("CARGO_PKG_VERSION") }))?)?;
+        fs::rename(temporary, path)
+    };
+    if let Err(error) = save() { eprintln!("check: runtime history acknowledgment not saved: {error}"); }
 }
 
 #[cfg(test)]

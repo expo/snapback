@@ -95,7 +95,7 @@ pub(super) fn report(project: &Project, bound: &Bound, json: bool) {
 }
 
 pub(super) fn remember(project: &Project, bound: &Bound) {
-    if !bound.diagnostics.is_empty() { return; }
+    if !bound.diagnostics.is_empty() || std::env::var("SNAPBACK4_UPGRADE_BASELINE").as_deref() == Ok("1") { return; }
     let save = || -> std::io::Result<()> {
         fs::create_dir_all(project.data_dir())?;
         let temporary = path(project).with_extension(format!("{}.tmp", std::process::id()));

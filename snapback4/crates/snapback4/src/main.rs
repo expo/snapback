@@ -77,7 +77,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
     sql '\\d messages' / '.schema messages'  columns (Quarry types/nullability), indexes and unique keys
   token --service <name> [--days N] [--release <dir>]  a bearer token for a service principal (a worker's seat), printed once
   doctor [--url <url>] [--latency [--reset]]  health or latency (--json for JSON)
-  upgrade [version]                upgrade core and installed adapters together, exactly pinned
+  upgrade [--to version] [--json]   upgrade core and installed adapters together; only --to allows downgrades
   witness web [dist] [--as PERSONA | --email EMAIL --password-env NAME] [--mutation NAME --args JSON] [--url URL]
   witness acquire --as <persona|principal> [--url URL] [--token TOKEN] [--restart] [--runs N] [--query NAME --args JSON] [--artifacts DIR] [--timeout 120] [--json]
                                       prove fresh acquisition and retained cold restart on the native process device

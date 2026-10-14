@@ -68,6 +68,7 @@ mutation copy(owner: principal):
 test('upgrade captures the old installed compiler, checks the new one and points Exact at its rebuild', t => {
   const dir = project(t); mkdirSync(join(dir, 'snapback')); writeFileSync(join(dir, 'snapback/schema.q'), aggregates);
   success(invoke(['check'], dir));
+  writeFileSync(join(dir, '.snapback4/runtime-version.json'), JSON.stringify({ version: '0.4.24' }));
   const oldApi = readFileSync(join(dir, 'snapback/generated/api.ts'), 'utf8').replaceAll('number | null', 'number');
   const packageRoot = join(dir, 'node_modules/snapback4'); mkdirSync(join(packageRoot, 'bin'), { recursive: true }); mkdirSync(join(packageRoot, 'dist'));
   writeFileSync(join(packageRoot, 'package.json'), JSON.stringify({ name: 'snapback4', version: '0.4.24', exports: { './bin-path': './dist/bin-path.js' } })); writeFileSync(join(packageRoot, 'dist/bin-path.js'), '');
@@ -98,6 +99,7 @@ test('module-only backends compile and participate in upgrade qualification', t 
 
 test('upgrade resolves the new compiler after a pnpm-style package symlink replacement', t => {
   const dir=project(t);mkdirSync(join(dir,'snapback'));writeFileSync(join(dir,'snapback/schema.q'),aggregates);success(invoke(['check'],dir));
+  writeFileSync(join(dir,'.snapback4/runtime-version.json'),JSON.stringify({version:'0.4.24'}));
   const oldApi=readFileSync(join(dir,'snapback/generated/api.ts'),'utf8').replaceAll('number | null','number');
   mkdirSync(join(dir,'node_modules'));mkdirSync(join(dir,'tools'));
   for(const [folder,version] of [['old','0.4.24'],['new',releaseVersion]]){
@@ -139,4 +141,46 @@ test('schema-less upgrade reads the new changelog after package symlink replacem
   writeFileSync(join(dir, 'tools/pnpm'), `#!${process.execPath}\nconst fs=require('fs');if(process.argv[2]==='view'){console.log('${JSON.stringify(releaseVersion)}')}else{const p=JSON.parse(fs.readFileSync('package.json'));p.dependencies.snapback4='${releaseVersion}';fs.writeFileSync('package.json',JSON.stringify(p));fs.unlinkSync('node_modules/snapback4');fs.symlinkSync(${JSON.stringify(join(dir,'new'))},'node_modules/snapback4');}`, { mode: 0o755 });
   const result = invoke(['upgrade'], dir, { PATH: `${join(dir, 'tools')}:${process.env.PATH}` }); success(result);
   assert.match(result.stdout, /runtime changes: 0\.4\.25 →/); assert.match(result.stdout, /run\(\).*sent \| failed/);
+});
+
+// The installed package facade changes version as npm would; the current check
+// runs the actual binary, so acknowledgment and surface writes are real.
+function upgradeFixture(t, installed = releaseVersion, latest = releaseVersion) {
+  const dir = project(t, 'fix28-upgrade-'); mkdirSync(join(dir, 'snapback'));
+  writeFileSync(join(dir, 'snapback/schema.q'), aggregates); success(invoke(['check'], dir));
+  const surface = join(dir, '.snapback4/check-surface.json');
+  writeFileSync(surface, JSON.stringify({ ...JSON.parse(readFileSync(surface)), version: '0.4.27' }));
+  writeFileSync(join(dir, '.snapback4/runtime-version.json'), '{"version":"0.4.27"}');
+  const pack = join(dir, 'node_modules/snapback4'); mkdirSync(join(pack, 'dist'), { recursive: true }); mkdirSync(join(pack, 'bin'));
+  writeFileSync(join(pack, 'dist/bin-path.js'), '');
+  writeFileSync(join(pack, 'package.json'), JSON.stringify({ name: 'snapback4', version: installed, exports: { './bin-path': './dist/bin-path.js' } }));
+  writeFileSync(join(pack, 'CHANGELOG.md'), readFileSync(new URL('../CHANGELOG.md', import.meta.url)));
+  writeFileSync(join(pack, 'bin/snapback4.js'), `const r=require('child_process').spawnSync(${JSON.stringify(bin)},process.argv.slice(2),{encoding:'utf8'});process.stdout.write(r.stdout);process.stderr.write(r.stderr);process.exit(r.status);`);
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ dependencies: { snapback4: installed }, packageManager: 'npm@10' }));
+  mkdirSync(join(dir, 'tools')); writeFileSync(join(dir, 'tools/npm'), `#!${process.execPath}
+const fs=require('fs');if(process.argv[2]==='view')console.log('${JSON.stringify(latest)}');else{fs.appendFileSync('installs','install\\n');const v=process.argv.at(-1).split('@').at(-1);for(const file of ['package.json','node_modules/snapback4/package.json']){const p=JSON.parse(fs.readFileSync(file));if(p.dependencies)p.dependencies.snapback4=v;else p.version=v;fs.writeFileSync(file,JSON.stringify(p));}}`, { mode: 0o755 });
+  return { dir, env: { PATH: `${join(dir, 'tools')}:${process.env.PATH}` } };
+}
+for (const order of ['upgrade-first', 'install-then-upgrade', 'install-then-check']) for (const json of [false, true]) test(`runtime history is acknowledged once: ${order}, ${json ? 'JSON' : 'human'}`, t => {
+  const { dir, env } = upgradeFixture(t, order === 'upgrade-first' ? '0.4.27' : releaseVersion);
+  const first = invoke([order === 'install-then-check' ? 'check' : 'upgrade', ...(json ? ['--json'] : [])], dir, env); success(first);
+  const stream = first.stdout + first.stderr;
+  assert.equal((stream.match(/runtime changes: 0\.4\.27 →/g) ?? []).length, 1, stream);
+  if (json) assert.equal(JSON.parse(first.stdout).ok, true);
+  else { assert.doesNotMatch(first.stdout, /"problems"\s*:/); assert.match(first.stdout, /check:/); }
+  const again = invoke(['check'], dir, env); success(again);
+  const upgrade = invoke(['upgrade'], dir, env); success(upgrade);
+  assert.doesNotMatch(again.stdout + again.stderr + upgrade.stdout + upgrade.stderr, /runtime changes:/);
+  assert.equal(JSON.parse(readFileSync(join(dir, '.snapback4/runtime-version.json'))).version, releaseVersion);
+});
+test('registry latest cannot silently downgrade; only --to authorizes it', t => {
+  const { dir, env } = upgradeFixture(t, releaseVersion, '0.4.26');
+  const before = readFileSync(join(dir, '.snapback4/check-surface.json'), 'utf8');
+  for (const args of [['upgrade'], ['upgrade', '0.4.26']]) {
+    const refused = invoke(args, dir, env); assert.equal(refused.status, 1); assert.match(refused.stderr, /older than installed.*refusing a downgrade.*--to 0.4.26/);
+    assert.equal(readFileSync(join(dir, '.snapback4/check-surface.json'), 'utf8'), before);
+    assert.equal(readFileSync(join(dir, 'package.json'), 'utf8').includes(releaseVersion), true);
+  }
+  success(invoke(['upgrade', '--to', '0.4.26'], dir, env));
+  assert.equal(JSON.parse(readFileSync(join(dir, 'package.json'))).dependencies.snapback4, '0.4.26');
 });

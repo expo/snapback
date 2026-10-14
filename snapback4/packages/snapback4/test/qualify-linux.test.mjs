@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { digest, json, member, sqliteBuildFlags, sri, validateLinux, validateFrontendProofs } from "../../../scripts/publication-artifacts.mjs";
+import { digest, json, member, sqliteBuildFlags, sri, validateLinux, validateFrontendProofs, validateStarterProofs } from "../../../scripts/publication-artifacts.mjs";
 import { runToolchainCommand, starterCases } from "../../../scripts/publication-starters.mjs";
 import { containerRuntime } from "../../../scripts/qualify-linux.mjs";
 import { fetchPinned, prootCommand, prootEnvironment } from "../../../scripts/qualify-linux-proot.mjs";
@@ -348,4 +348,13 @@ test('consumer-only refuses a failed packed starter without evidence or receipt'
   const r = qualify(t, { consumerOnly: true, startersFail: true });
   assert.notEqual(r.status, 0); assert.equal(r.receipt, null);
   assert.equal(existsSync(join(r.root, 'out/consumer.json')), false);
+});
+
+test('starter toolchain evidence requires the full frontend matrix and adapted Home twice', () => {
+  const attempts = s => [1, 2].map(attempt => ({ starter: s.id, kind: s.kind, attempt, status: 'passed', range: [30000, 30020], occupied: 30000, cpuLoadWorkers: 2 }));
+  const evidence = starterCases.map(s => ({starter:s.id,status:'passed',typecheck:'passed',build:'passed',frontendProofs:attempts(s),adaptedProofs:attempts(s)}));
+  validateStarterProofs(evidence);
+  for (const corrupt of [evidence.slice(1), evidence.map(s => s.starter === 'expo-chat' ? {...s,frontendProofs:[]} : s), evidence.map(s => s.starter === 'web' ? {...s,adaptedProofs:s.adaptedProofs.slice(1)} : s), evidence.map(s => s.starter === 'expo-social' ? {...s,build:'failed'} : s)]) {
+    assert.throws(() => validateStarterProofs(corrupt), /proof/);
+  }
 });

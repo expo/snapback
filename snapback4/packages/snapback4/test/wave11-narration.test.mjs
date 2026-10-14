@@ -70,7 +70,7 @@ test('probe and deploy guide agree on exact compatibility, schedule, dormancy an
   for (const body of ['A', 'B', 'C']) { const write = await host.post('/m/add', { body }); assert.equal(write.state, 'sent'); ids.push(write.result.id); }
   writeFileSync(schema, v2);
   const widening = run('deploy', deployment);
-  assert.equal(widening.stderr.trim(), "note: notes.status admits 'archived'; rows that later use them become dormant on rollback to release 1");
+  assert.equal(widening.stderr.trim(), "note: notes.status admits 'archived'; rows that later use those values become dormant on rollback to release 1");
   assert.doesNotMatch(widening.stderr, /WARNING|existing rows/);
   const zero = run('rollback', deployment, '--to', '1', '--check').stdout;
   assert.ok(zero.split('\n').includes('  note: notes.status: no stored values are incompatible with release 1'), zero);
@@ -83,15 +83,15 @@ test('probe and deploy guide agree on exact compatibility, schedule, dormancy an
   await host.stop();
   assert.equal(existsSync(join(deployment, 'serve.lock')), false, host.log());
   const warning = "WARNING notes.status: 1 row holds 'archived', which release 1 cannot hold; it becomes dormant on this switch and is restored on compatible forward";
-  const samples = `samples: cells notes.color [${[...ids].sort().join(', ')}]; rows notes [${ids[0]}]`;
+  const samples = `samples: cells notes.color [${ids.slice(1).sort().join(', ')}]; rows notes [${ids[0]}]`;
   const plan = run('rollback', deployment, '--to', '1', '--check');
   assert.ok(plan.stdout.split('\n').includes(`  ${warning}`), plan.stdout);
-  assert.ok(plan.stdout.includes(`1 row, 3 cells, 0 index entries dormant; ${samples}`), plan.stdout);
-  assert.ok(plan.stdout.split('\n').includes(`  column:notes.color: 3 cells dormant (restored on compatible forward); sample ids [${[...ids].sort().join(', ')}]`), plan.stdout);
+  assert.ok(plan.stdout.includes(`1 row, 2 cells, 0 index entries dormant; ${samples}`), plan.stdout);
+  assert.ok(plan.stdout.split('\n').includes(`  column:notes.color: 2 cells dormant (restored on compatible forward); sample ids [${ids.slice(1).sort().join(', ')}]`), plan.stdout);
   assert.match(plan.stdout, /release 1 lacks operation archive/);
   const rolled = run('rollback', deployment, '--to', '1');
   assert.equal(rolled.stderr.trim(), warning);
-  assert.ok(rolled.stdout.includes(`1 row, 3 cells, 0 index entries dormant; ${samples}`), rolled.stdout);
+  assert.ok(rolled.stdout.includes(`1 row, 2 cells, 0 index entries dormant; ${samples}`), rolled.stdout);
   const old = await serve(t, deployment);
   assert.equal((await old.post('/q/readNote', { note: ids[0] })).data, null);
   assert.equal((await old.post('/q/guardedNote', { note: ids[0] })).denied.code, 'MISSING_NOTE');
@@ -104,7 +104,7 @@ test('probe and deploy guide agree on exact compatibility, schedule, dormancy an
   assert.equal(restored.status, 'archived'); assert.equal(restored.color, 'none');
   await old.stop();
   const guide = run('guide', 'deploy').stdout;
-  for (const text of ['1 row, 3 cells, 0 index entries dormant', 'cells notes.color [A, B, C]', 'Point query or mutation with an explicit `! else CODE` guard', 'Ignored by the older release', 'Clients across rollback', 'runtime guarantee']) assert.ok(guide.includes(text), text);
+  for (const text of ['1 row, 2 cells, 0 index entries dormant', 'cells notes.color [B, C]', 'Point query or mutation with an explicit `! else CODE` guard', 'Ignored by the older release', 'Clients across rollback', 'runtime guarantee']) assert.ok(guide.includes(text), text);
 });
 
 test('rollback preview distinguishes missing schedules, edited source and current rule clauses', { timeout: hangBudget(3) }, async t => {

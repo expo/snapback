@@ -1,4 +1,5 @@
 import test from "node:test";
+import { starterCases } from "../../../../scripts/publication-starters.mjs";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -22,7 +23,7 @@ export function publish(t, scenario = {}, previousRoot) {
     writeFileSync(join(root, "crates/snapback4-lang/src/guide.rs"), "// fixture guide\n");
     writeFileSync(join(root, "packages/snapback4/README.md"), "# Fixture client\n");
     for (const dir of ["snapback4", "snapback4-expo", platform]) writeFileSync(join(root, "packages", dir, "package.json"), JSON.stringify({ name: dir, version: "0.0.0", ...(dir === "snapback4" ? { optionalDependencies: { "snapback4-darwin-arm64": "0.0.0", "snapback4-linux-x64": "0.0.0" } } : {}) }));
-    writeFileSync(join(root, "scripts/publication-starters.mjs"), `export function proveStarters() { if (process.env.PUBLICATION_STARTERS_FAIL === '1') throw Error('starter export failed'); return [{kind:'expo', status:'passed'}, {kind:'web', status:'passed'}]; }`);
+    writeFileSync(join(root, "scripts/publication-starters.mjs"), `export const starterCases = ${JSON.stringify(starterCases)}; export function proveStarters() { if (process.env.PUBLICATION_STARTERS_FAIL === '1') throw Error('starter export failed'); return [{kind:'expo', status:'passed'}, {kind:'web', status:'passed'}]; }`);
     writeFileSync(join(root, "target/production/snapback4"), "unsigned");
     writeFileSync(join(root, "packages", platform, "THIRD-PARTY-NOTICES"), "notices");
   }

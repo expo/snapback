@@ -36,3 +36,20 @@ for (const identity of [null, 'use identity password', 'use personas alice']) te
     run(join(root, 'node_modules/.bin/tsc'), ['--noEmit'], dir);
   }
 });
+
+test('Expo native smoke reads the current runtime range on each launch', t => {
+  const dir = mkdtempSync(join(root, 'target', 'fix28-native-launch-'));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  run(bin, ['init', '--expo', '--port', '4400'], dir);
+  symlinkSync(join(root, 'node_modules'), join(dir, 'node_modules'));
+  const pkg = JSON.parse(readFileSync(join(dir, 'package.json')));
+  assert.equal(pkg.scripts['native:smoke'], 'node scripts/launch.mjs native-smoke');
+  const recorder = join(dir, 'record-cli');
+  writeFileSync(recorder, `#!${process.execPath}\nconsole.log(JSON.stringify(process.argv.slice(2)));`, { mode: 0o755 });
+  for (const port of [31400, 32500]) {
+    const result = spawnSync(process.execPath, ['scripts/launch.mjs', 'native-smoke'], { cwd: dir, encoding: 'utf8', timeout: 5000,
+      env: { ...process.env, SNAPBACK4_BIN: recorder, PORT_LO: String(port), PORT_HI: String(port + 10) } });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.deepEqual(JSON.parse(result.stdout), ['witness', 'ios', '--build', '.', '--smoke', '--port', String(port)]);
+  }
+});

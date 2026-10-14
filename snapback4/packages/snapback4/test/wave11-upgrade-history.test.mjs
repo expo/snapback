@@ -18,7 +18,7 @@ function fixture(t) {
   const run = (...args) => { const result = invoke(...args); assert.equal(result.status, 0, result.stdout + result.stderr); return result; };
   return { dir, deployment, schema, run, invoke };
 }
-import { runtimeChanges, lockedVersion } from '../bin/release-changes.js';
+import { runtimeChanges, lockedVersion, compareVersions } from '../bin/release-changes.js';
 const installed = JSON.parse(readFileSync(new URL('../package.json', import.meta.url))).version;
 const v1 = `use identity guests
 table notes:
@@ -75,5 +75,14 @@ test('runtime history remains visible when the first check refuses device prefli
   assert.equal(JSON.parse(checked.stdout).denied.code, 'E_DEVICE_VERSION');
   assert.match(checked.stderr, /runtime changes: 0\.4\.25 →/); assert.match(checked.stderr, /run\(\).*sent \| failed/);
   assert.equal(existsSync(join(dir, 'snapback/generated/api.ts')), false);
+  const again = invoke('check', '--json'); assert.equal(again.status, 1);
+  assert.doesNotMatch(again.stdout + again.stderr, /runtime changes:/);
 });
 
+
+test('downgrade ordering includes prereleases and numeric prerelease identifiers', () => {
+  for (const [older, newer] of [['0.4.26', '0.4.28'], ['0.4.28-rc.1', '0.4.28'], ['0.4.28-rc.2', '0.4.28-rc.10'], ['0.4.28-1', '0.4.28-a']]) {
+    assert.ok(compareVersions(older, newer) < 0); assert.ok(compareVersions(newer, older) > 0);
+  }
+  assert.equal(compareVersions('0.4.28', '0.4.28'), 0);
+});

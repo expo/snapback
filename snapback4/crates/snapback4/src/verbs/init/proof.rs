@@ -2,7 +2,17 @@
 use serde_json::{Value, json};
 use super::{Options, pretty};
 
+pub(super) fn readme(mut text: String) -> String {
+    if !text.contains("`npm run frontend:proof`") {
+        text.push_str("\n## Frontend and day-two proofs\n\nAfter `npm run build` (web) or `npm run build:web` (Expo), run\n`npm run frontend:proof` to prove sign-in and the starter form in Chromium.\nAfter replacing the screen, add your business assertions to scripts/frontend-proof.mjs.\n`npm run day2:proof -- versions/v1.q versions/v2.q` proves saved-source deploy,\nrollback and compatible forward without replacing your working schema.\nSet `PORT_LO` and `PORT_HI` at run time to confine proof servers and launchers;\nunset means allocated proof ports and the interactive starter defaults.\nSet `CHROME=/path/to/chromium` or install Playwright's Chromium (`npx playwright-core install chromium`).\n");
+    }
+    text
+}
+
 pub(super) fn files(files: &mut Vec<(&'static str, String)>, _options: &Options, backend: u16, frontend: u16, web: bool, _shape: &super::starter::Shape) {
+    for (name, text) in files.iter_mut().filter(|(name, _)| *name == "README.md") {
+        *text = readme(std::mem::take(text)); let _ = name;
+    }
     let proof = include_str!("frontend-proof.mjs").to_owned();
     files.push(("scripts/frontend-proof.mjs", proof));
     files.push(("scripts/day2-proof.mjs", include_str!("day2-proof.mjs").to_owned()));
@@ -20,6 +30,7 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, _options: &Options,
         } else {
             package["scripts"]["start"] = json!("node scripts/launch.mjs expo");
             package["scripts"]["web"] = json!("node scripts/launch.mjs expo-web");
+            package["scripts"]["native:smoke"] = json!("node scripts/launch.mjs native-smoke");
         }
         *text = pretty(&package);
         let _ = name;

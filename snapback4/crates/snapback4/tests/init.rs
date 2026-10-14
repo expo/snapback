@@ -569,7 +569,7 @@ fn expo_starters_pave_native_smoke_and_export_at_every_milestone() {
         assert!(output.status.success(), "{output:?}");
         let root = if social { dir.0.join("social") } else { dir.0.clone() };
         let package: Value = serde_json::from_slice(&fs::read(root.join("package.json")).unwrap()).unwrap();
-        assert_eq!(package["scripts"]["native:smoke"], "snapback4 witness ios --build . --smoke --port 4400");
+        assert_eq!(package["scripts"]["native:smoke"], "node scripts/launch.mjs native-smoke");
         assert_eq!(package["scripts"]["export:ios"], "snapback4-export-ios");
         assert_eq!(package["devDependencies"]["@expo/fingerprint"], "0.20.13");
         let config: Value = serde_json::from_slice(&fs::read(root.join("app.json")).unwrap()).unwrap();

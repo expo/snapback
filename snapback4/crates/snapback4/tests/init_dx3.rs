@@ -98,3 +98,19 @@ fn proof_additions_share_the_complete_nonmutating_adaptation_plan() {
     assert!(dir.0.join("scripts/day2-proof.mjs").exists());
     assert_eq!(dir.text("README.md"), "Application-owned introduction\n");
 }
+
+#[test]
+fn every_frontend_template_documents_proofs_and_expo_uses_the_runtime_api() {
+    for args in [vec!["init", "--web"], vec!["init", "--web", "--online"], vec!["init", "--expo"], vec!["init", "--web", "--template", "chat"], vec!["init", "--expo", "--template", "chat"], vec!["init", "--template", "social"]] {
+        let dir = Project::new(); ok(dir.run(&args));
+        let readme = dir.text("README.md");
+        for word in ["frontend:proof", "day2:proof", "PORT_LO", "PORT_HI", "CHROME"] { assert!(readme.contains(word), "{args:?}: missing {word}"); }
+        let package: serde_json::Value = serde_json::from_str(&dir.text("package.json")).unwrap();
+        assert_eq!(package["scripts"]["frontend:proof"], "node scripts/frontend-proof.mjs");
+        if args.contains(&"--web") { assert!(dir.text("src/client.ts").contains("new URLSearchParams(window.location.search).get(\"api\")")); }
+        else {
+            assert!(dir.text("src/client.ts").contains("Platform.OS === \"web\" ? new URLSearchParams(window.location.search).get(\"api\") : null"));
+            assert_eq!(package["scripts"]["native:smoke"], "node scripts/launch.mjs native-smoke");
+        }
+    }
+}

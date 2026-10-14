@@ -931,7 +931,8 @@ fn partial_restoration_prunes_only_dormant_asset_homes() {
     activate(&mut e,&mixed,3).unwrap();
     assert!(e.asset_access("alice",&active.id,102).is_ok());
     let inventory=e.store_mut().dormant_inventory(None,100).unwrap();
-    assert_eq!(inventory.iter().find(|i|i.key=="column:rows.photo").unwrap().asset_bytes,dormant.bytes);
+    assert_eq!(inventory.iter().find(|i|i.key=="column:rows.photo").unwrap().asset_bytes,0);
+    assert_eq!(inventory.iter().find(|i|i.key=="rows:rows").unwrap().asset_bytes,dormant.bytes);
     e.store_mut().prune_dormant(true,None).unwrap();
     assert!(e.asset_access("alice",&active.id,103).is_ok(),"prune cannot release the active row's restored asset");
     let released=|e:&Engine,id:&str|e.store().conn().query_row("SELECT released_at FROM _assets WHERE id=?1",[id],|r|r.get::<_,Option<i64>>(0)).unwrap();
@@ -1047,7 +1048,9 @@ fn audit_keeps_before_after_and_partial_restoration_counts() {
     assert!(event["summary"]["restored_items"].as_u64().unwrap()>0);
     let items=e.store_mut().release_status(0,None,event["id"].as_u64()).unwrap();
     let item=items["items"].as_array().unwrap().iter().find(|i|i["key"]=="column:rows.extra").unwrap();
-    assert_eq!(item["before_rows"],2);assert_eq!(item["after_rows"],1);assert_eq!(item["restored_rows"],1);
+    assert_eq!(item["before_rows"],2);assert_eq!(item["after_rows"],0);assert_eq!(item["restored_rows"],1);
+    // The unconsumed cell now belongs to the narrowed row, not a standalone cell.
+    assert_eq!(items["items"].as_array().unwrap().iter().find(|i|i["key"]=="rows:rows").unwrap()["after_rows"],1);
     assert_eq!(item["action"],"partially restored");
 }
 
@@ -1290,7 +1293,7 @@ fn narr_text_constraints_and_literal_default_counts_share_activation_predicate()
 }
 
 #[test]
-fn narr_separate_cells_remain_counted_under_a_dormant_table() {
+fn narr_dormant_rows_cover_their_separately_retained_cells() {
     let mut e = engine(&v2());
     for id in ["a", "b", "c"] { seed(&mut e, "rows", serde_json::json!({"id":id,"n":1,"status":"active","extra":42})); }
     activate(&mut e, V1, 2).unwrap();
@@ -1298,10 +1301,12 @@ fn narr_separate_cells_remain_counted_under_a_dormant_table() {
     assert_eq!(before.iter().filter(|i|i.kind == "column").map(|i|i.rows).sum::<u64>(), 3);
     activate(&mut e, "query value():\n  return 1\n", 3).unwrap();
     let after = e.store_mut().dormant_inventory(None, usize::MAX).unwrap();
-    assert_eq!(after.iter().filter(|i|i.kind == "column").map(|i|i.rows).sum::<u64>(), 3);
-    assert!(crate::store::adoption_report::AdoptionReport::dormant(&after).contains("3 rows, 3 cells"));
+    assert_eq!(after.iter().filter(|i|i.kind == "column").map(|i|i.rows).sum::<u64>(), 0);
+    assert!(crate::store::adoption_report::AdoptionReport::dormant(&after).contains("3 rows, 0 cells"));
     let actual:i64 = e.store().conn().query_row("SELECT COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_rows", [], |r|r.get(0)).unwrap();
-    assert_eq!(after.iter().filter(|i|i.kind == "table").map(|i|i.bytes).sum::<u64>(), actual as u64);
+    let cells: i64 = e.store().conn().query_row("SELECT COALESCE(SUM(octet_length(id)+octet_length(data)),0) FROM _dormant_values", [], |r|r.get(0)).unwrap();
+    assert_eq!(after.iter().filter(|i|i.kind == "table").map(|i|i.bytes).sum::<u64>(), (actual + cells) as u64);
+    assert!(after.iter().filter(|i|i.kind == "column").all(|i|i.bytes == 0 && i.sample_ids.is_empty()));
     activate(&mut e, &v2(), 1).unwrap();
     assert_eq!(e.store().count("rows").unwrap(), 3);
     assert!(e.store_mut().dormant_inventory(None, usize::MAX).unwrap().is_empty());

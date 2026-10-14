@@ -23,7 +23,7 @@ fn allowed(verb: &str) -> &'static str {
         "sql" => "release limit json json-objects",
         "token" => "service days release json",
         "doctor" => "url latency reset json instance release",
-        "upgrade" => "",
+        "upgrade" => "to json",
         "witness" => "email password-env mutation initialize environment-skip background if-present as url token restart runs query args artifacts timeout json build export smoke udid port bundle-id segment prime relaunch wait repack app-project field value button port-range",
         _ => "",
     }
@@ -85,6 +85,7 @@ mod integration_tests {
             assert!(validate(&[verb.into(), "--unknown-wave9".into()]).is_err());
         }
         assert!(validate(&["upgrade".into(), "0.4.25".into()]).is_ok());
+        assert!(validate(&["upgrade".into(), "--to".into(), "0.4.25".into(), "--json".into()]).is_ok());
         assert!(validate(&["witness".into(), "web".into(), "--password-env".into()]).is_err());
     }
 }

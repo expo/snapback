@@ -9,10 +9,11 @@ const mode = process.argv[2];
 const range = portRange();
 const low = range === "0" ? null : Number(range.split("-")[0]);
 const high = range === "0" ? null : Number(range.split("-")[1]);
-if (low !== null && high === low && mode !== "backend") throw Error("the starter needs two runtime ports");
-const port = mode === "backend" ? low === null ? BACKEND : low : low === null ? FRONTEND : low + 1;
-const command = mode === "backend" ? resolveBinary() : process.execPath;
-const args = mode === "backend" ? ["dev", "--port", String(port)]
+if (low !== null && high === low && !["backend", "native-smoke"].includes(mode)) throw Error("the starter needs two runtime ports");
+const port = ["backend", "native-smoke"].includes(mode) ? low === null ? BACKEND : low : low === null ? FRONTEND : low + 1;
+const command = ["backend", "native-smoke"].includes(mode) ? resolveBinary() : process.execPath;
+const args = mode === "native-smoke" ? ["witness", "ios", "--build", ".", "--smoke", ...(low === null ? [] : ["--port", String(port)])]
+  : mode === "backend" ? ["dev", "--port", String(port)]
   : mode.startsWith("vite") ? [join(dirname(require.resolve("vite/package.json")), "bin/vite.js"), ...(mode === "vite-preview" ? ["preview"] : []), "--port", String(port), "--strictPort"]
   : [join(dirname(require.resolve("expo/package.json")), "bin/cli"), "start", ...(mode === "expo-web" ? ["--web"] : []), "--port", String(port)];
 const env = { ...process.env };

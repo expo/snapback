@@ -95369,3 +95369,29 @@ nullable-order cases; do not hide the cases behind an Unsupported label.
 Two model regressions retain readable rows and unknown absence. No runtime,
 compiler plan, read authority or device bytes change. Re-run the complete 20k
 campaign and formal checks after this model correction.
+
+### 2026-10-14 — FIX28: pre-wave defects in unpublished 0.4.28
+
+Keep 0.4.28. Extend both packed proof and starter-toolchain qualification to
+every supported frontend/template pair, twice; require their complete matrices
+in imported Linux evidence. Browser execution belongs to the Linux host; clean
+Ubuntu/Alpine userspaces still independently build all packed starters. Default
+web/Expo adaptation also runs twice. The expanded baseline run exposes web chat
+ignoring ?api= as well as the reported Expo chat/social clients; all current
+clients now use the Todos runtime URL override. Historical byte templates stay
+historical. Generated READMEs explain both proofs, runtime ranges and CHROME.
+Native smoke uses the runtime launcher, reading its current range on each run.
+
+Runtime history acknowledgment is independent of successful compiler snapshots.
+First check delivers history once even on refusal; upgrade baseline checks cannot
+consume it, and install-first cannot overwrite older compiler facts. Refuse an
+implicit downgrade before compilation/install, with an explicit --to remedy.
+Human upgrade runs human check; --json emits one object and puts progress/history
+on stderr. LLP 3000.011.003.000 §11 and its packaged-proof child record this.
+
+Dormant row populations cover their own retained cells, bytes and assets; only
+active rows contribute standalone column cells/samples. The archived-row example
+is one row plus two cells. Audit keeps actual restoration counters and distinguishes
+a truly empty definition from zero standalone cells covered by a dormant row.
+The widening note says rows that later use those values. LLP 3000.000.000 §11
+and the deploy card document the disjoint counts. Validation/review follows.
