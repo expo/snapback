@@ -83,22 +83,27 @@ impl Binder<'_> {
     /// itself refer to the old value of that local. Such a self-dependent
     /// capture cannot be represented by the post-assignment binding and is
     /// therefore deliberately not narrowed.
-    pub(super) fn count_capture(&self, name: &str, value: &A) -> Option<(Vec<String>, BTreeSet<String>)> {
+    pub(super) fn count_capture(&self, name: &str, value: &A) -> Option<(String, BTreeSet<String>)> {
         let A::Call { name: call, args, .. } = value else { return None };
         if call != "count" || args.len() != 1 || self.catalog.functions.contains_key(call)
             || !self.aggregate_guard_safe(value) { return None; }
         let read = args.first().and_then(|arg| self.aggregate_domain(arg))?;
         let (aggregate, roots) = self.aggregate_key(&read)?;
         if roots.contains(name) { return None; }
-        let capture = vec![COUNT_CAPTURE.into(), aggregate[1].clone()];
-        Some((capture, roots))
+        Some((aggregate[1].clone(), roots))
     }
 
     /// Attach pre-resolved capture-time provenance after assigning `name`.
     /// `origins` remains diagnostic history; this field fact is the reaching
     /// definition proof used by a later `require name > 0`.
-    pub(super) fn record_count_capture(&mut self, name: &str, capture: Option<(Vec<String>, BTreeSet<String>)>) {
-        let Some((capture, mut owners)) = capture else { return };
+    pub(super) fn record_count_capture(&mut self, name: &str, capture: Option<(String, BTreeSet<String>)>) {
+        let Some((aggregate, mut owners)) = capture else { return };
+        let Some(result) = self.binding(name) else { return };
+        // The reaching definition is part of the marker. A later count over
+        // the same textual domain may restore a root marker after rebinding,
+        // but it must never make an older captured result current again.
+        let capture = vec![COUNT_CAPTURE.into(), aggregate,
+            format!("{}:{}", result.runtime, result.revision)];
         owners.insert(name.to_owned());
         for owner in owners {
             let Some(mut binding) = self.binding(&owner).cloned() else { return };
@@ -120,8 +125,10 @@ impl Binder<'_> {
         }.map(|arg| (arg, match value { A::Name { name, .. } => Some(name.as_str()), _ => None }))?;
         let result = self.aggregate_key(&self.aggregate_domain(count_arg)?)?;
         if let Some(name) = captured_name {
-            let capture = vec![COUNT_CAPTURE.into(), result.0[1].clone()];
-            if self.binding(name)?.fields.get(&capture) != Some(&Ty::Bool)
+            let binding = self.binding(name)?;
+            let capture = binding.fields.keys().find(|path| path.len() == 3
+                && path[0] == COUNT_CAPTURE && path[1] == result.0[1])?.clone();
+            if binding.fields.get(&capture) != Some(&Ty::Bool)
                 || !result.1.iter().all(|root| self.binding(root)
                     .is_some_and(|binding| binding.fields.get(&capture) == Some(&Ty::Bool)))
             {

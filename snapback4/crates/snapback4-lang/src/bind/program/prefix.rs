@@ -7,7 +7,10 @@ pub(super) enum Position { Page, Domain, Aggregate, Exists }
 
 impl Binder<'_> {
     pub(super) fn is_page(&self, read: &ReadExpr, point: ReadMode) -> Fallible<bool> {
-        if !read.order_keys.is_empty() || read.range.is_some() || read.matching.is_some() || read.filter.is_some() || !read.seeks.is_empty() || read.keys.is_empty() { return Ok(true); }
+        let global = read.keys.is_empty() && self.catalog.tables.get(&read.table)
+            .and_then(|table| table.maintained.as_ref()).is_some_and(|maintain| maintain.by.is_empty());
+        if !read.order_keys.is_empty() || read.range.is_some() || read.matching.is_some() || read.filter.is_some() || !read.seeks.is_empty() || read.keys.is_empty() && !global { return Ok(true); }
+        if global { return Ok(false); }
         // Speculation cannot emit setup or consume compiler names. The selected
         // form binds its key expressions exactly once in the caller's body.
         let mut probe = self.clone();

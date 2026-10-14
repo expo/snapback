@@ -23,7 +23,7 @@ view total: count entries
 view categoryTotals: count entries by .category
   read <- exists staff[principal = viewer, role = 'finance']
   online only
-mutation add(id: id, category: enum('coffee-shop', 'book_store', 'museum'), contact: text 3..254 format email, amount: decimal 2):
+mutation add(id: id, category: enum('coffee-shop', 'book_store', 'museum'), contact: text 3..254, amount: decimal 2):
   return insert entries { id, category, contact, amount }
 mutation remove(id: entries):
   delete entries[id]
@@ -89,6 +89,11 @@ fn server_executes_all_wave12_semantic_surfaces_together() {
     assert_eq!(call(&mut engine, "average", &[("total", Value::Int(-1)), ("count", Value::Int(8))]), Value::Int(-12));
     assert_eq!(call(&mut engine, "email", &[("value", Value::String("a@localhost".into()))]), Value::String("a@localhost".into()));
     assert_eq!(engine.query("email", Context::new("dev:alice", args(&[("value", Value::String("a..b@example.com".into()))]))).unwrap_err().code, "E_INPUT");
+    let rejected = engine.mutate("add", None, Context::new("dev:alice", args(&[
+        ("id", Value::Id("bad".into())), ("category", Value::String("museum".into())),
+        ("contact", Value::String("a..b@example.com".into())), ("amount", Value::Int(0)),
+    ]))).unwrap();
+    assert!(matches!(rejected.state, WriteState::Failed { ref why, .. } if why.code == "E_CONSTRAINT"), "{rejected:?}");
     let hits = call(&mut engine, "search", &[("q", Value::String("cof".into())), ("c", Value::Null)]);
     assert_eq!(hits.as_array().unwrap().len(), 1);
     assert_eq!(hits.as_array().unwrap()[0].field("id").unwrap(), &Value::Id("a".into()));

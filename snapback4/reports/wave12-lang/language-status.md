@@ -22,7 +22,8 @@ planner.
   maintained counts, enum search, exact three/four-argument rounded division,
   and capture-time count provenance with stale-proof invalidation.
 - Cross-runtime evidence landed in `4156cdf7e5`: generated rounded-division
-  cases execute through native, Lean and both device stores; simulator and
+  cases cover every mode/scale and compile into the Lean fragment; one drawn
+  representative executes through native, Lean and both device stores. Simulator and
   device scenarios exercise all five surfaces; standalone Lean witnesses
   cover the semantic fragments outside the row evaluator.
 - The shared Lean lowering compile blocker reported in the coordination inbox

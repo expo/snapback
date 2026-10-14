@@ -116,11 +116,12 @@ mutation freshAfterWrite(owner: principal, victim: entries):
         ("rebound", "n = count(entries[owner] by byOwner)\n  n = 1\n  require n > 0 else EMPTY\n  return min(entries[owner] by byOwner, .score) + 1"),
         ("joined", "n = count(entries[owner] by byOwner)\n  if flag:\n    n = 1\n  require n > 0 else EMPTY\n  return min(entries[owner] by byOwner, .score) + 1"),
         ("root_rebound", "who = owner\n  n = count(entries[who] by byOwner)\n  who = next\n  require n > 0 else EMPTY\n  return min(entries[who] by byOwner, .score) + 1"),
+        ("root_recaptured", "who = owner\n  n = count(entries[who] by byOwner)\n  who = next\n  m = count(entries[who] by byOwner)\n  require n > 0 else EMPTY\n  return min(entries[who] by byOwner, .score) + 1"),
     ] {
         let args = match name {
             "written" | "stale_binding" => "owner: principal, victim: entries",
             "joined" => "owner: principal, flag: bool",
-            "root_rebound" => "owner: principal, next: principal",
+            "root_rebound" | "root_recaptured" => "owner: principal, next: principal",
             _ => "owner: principal",
         };
         let kind = if matches!(name, "written" | "stale_binding") { "mutation" } else { "query" };
@@ -263,6 +264,8 @@ table contacts:
   public
   insert <- allow
   online only
+mutation addUnchecked(id: id, email: text 3..254):
+  return insert contacts { id, email }
 query echo(email: text 3..254 format email):
   return email
 "#;
@@ -275,6 +278,10 @@ query echo(email: text 3..254 format email):
         let error = engine.query("echo", Context::new("alice", BTreeMap::from([("email".into(), Value::String(email.into()))]))).unwrap_err();
         assert_eq!(error.code, "E_INPUT", "{email}: {error:?}");
     }
+    let rejected = engine.mutate("addUnchecked", None, Context::new("alice", BTreeMap::from([
+        ("id".into(), Value::Id("bad".into())), ("email".into(), Value::String("a..b@example.com".into())),
+    ]))).unwrap();
+    assert!(matches!(rejected.state, WriteState::Failed { ref why, .. } if why.code == "E_CONSTRAINT"), "{rejected:?}");
 }
 
 #[test]

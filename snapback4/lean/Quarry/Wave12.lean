@@ -34,21 +34,24 @@ structure CountCapture where
   domain : String
   transaction : Nat
   authority : String
+  definition : Nat
   deriving DecidableEq
 
 def countCaptureLive (capture : CountCapture) (domain : String)
-    (transaction : Nat) (authority : String) : Bool :=
+    (transaction : Nat) (authority : String) (definition : Nat) : Bool :=
   capture.domain == domain && capture.transaction == transaction &&
-    capture.authority == authority
+    capture.authority == authority && capture.definition == definition
 
-example : countCaptureLive ⟨"entries/owner=alice", 4, "alice"⟩
-    "entries/owner=alice" 4 "alice" = true := rfl
-example : countCaptureLive ⟨"entries/owner=alice", 4, "alice"⟩
-    "entries/owner=alice" 5 "alice" = false := rfl
-example : countCaptureLive ⟨"entries/owner=alice", 4, "alice"⟩
-    "entries/owner=bob" 4 "alice" = false := rfl
-example : countCaptureLive ⟨"entries/owner=alice", 4, "alice"⟩
-    "entries/owner=alice" 4 "bob" = false := rfl
+example : countCaptureLive ⟨"entries/owner=alice", 4, "alice", 7⟩
+    "entries/owner=alice" 4 "alice" 7 = true := rfl
+example : countCaptureLive ⟨"entries/owner=alice", 4, "alice", 7⟩
+    "entries/owner=alice" 5 "alice" 7 = false := rfl
+example : countCaptureLive ⟨"entries/owner=alice", 4, "alice", 7⟩
+    "entries/owner=bob" 4 "alice" 7 = false := rfl
+example : countCaptureLive ⟨"entries/owner=alice", 4, "alice", 7⟩
+    "entries/owner=alice" 4 "bob" 7 = false := rfl
+example : countCaptureLive ⟨"entries/owner=alice", 4, "alice", 7⟩
+    "entries/owner=alice" 4 "alice" 8 = false := rfl
 
 /-- A keyed maintained count becomes required only for the exact key whose
 role predicate was proved in the same transaction. A readable miss is zero;

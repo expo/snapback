@@ -142,8 +142,8 @@ on any other role does not; use the view.
 
 For extrema over a domain, first establish that exact domain is non-empty:
 `n = count(orders where .owner = viewer)` followed by `require n > 0 else
-EMPTY`. From there, `min`, `max` and `sum` of a required column on the identical
-domain are required values. Optional projected columns remain optional. A
+EMPTY`. From there, `min` and `max` of a required column on the identical
+domain are required values; `sum` already has a zero identity. Optional projected columns remain optional. A
 write, local rebinding, viewer/authority scope change, or different key/filter
 invalidates the proof.
 

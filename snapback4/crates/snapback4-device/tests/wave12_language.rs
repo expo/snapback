@@ -14,7 +14,7 @@ table entries:
   insert <- allow
   sync public
 view total: count entries
-mutation add(id: id, category: enum('coffee-shop', 'book_store', 'museum'), contact: text 3..254 format email, amount: decimal 2):
+mutation add(id: id, category: enum('coffee-shop', 'book_store', 'museum'), contact: text 3..254, amount: decimal 2):
   return insert entries { id, category, contact, amount }
 query totalEntries():
   return total
@@ -58,6 +58,9 @@ fn parity<H: Host>(host: &mut H) {
     assert_eq!(device.query("email", "alice", &json!({"value":"a@localhost"}), 10).unwrap().data,
         Value::String("a@localhost".into()));
     assert_eq!(device.query("email", "alice", &json!({"value":"a..b@example.com"}), 10).unwrap_err().code, "E_INPUT");
+    assert_eq!(device.predict("add", "alice", &json!({
+        "id":"bad", "category":"museum", "contact":"a..b@example.com", "amount":0
+    }), 10, vec![], 1).unwrap_err().code(), "E_CONSTRAINT", "{}", host.label());
     let hits = device.query("search", "alice", &json!({"q":"cof","c":null}), 10).unwrap();
     assert_eq!(hits.data.as_array().unwrap().len(), 1);
     assert_eq!(hits.data.as_array().unwrap()[0].field("id").unwrap(), &id("a"));
