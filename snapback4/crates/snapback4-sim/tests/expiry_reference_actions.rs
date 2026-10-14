@@ -210,6 +210,68 @@ mutation replaceExpired():
 }
 
 #[test]
+fn row_keyed_view_source_expiry_retires_through_reference_actions() {
+    let source = r#"
+table conversations:
+  public
+table members:
+  conversation: conversations
+  principal: principal
+  cap 4 by conversation
+  public
+table messages:
+  conversation: conversations
+  ordinal: int
+  sender: principal
+  until: time ?
+  expire at .until
+  public
+  update <- allow
+view unread: count messages by members m
+  where .conversation = m.conversation and .sender != m.principal
+table cascadeKids:
+  message: messages on delete cascade
+  cap 1 by message
+  public
+table nullableKids:
+  message: messages ? on delete set null
+  cap 1 by message
+  public
+table blockers:
+  message: messages
+  public
+mutation expire(message: messages):
+  update messages[message] { until: now }
+"#;
+    let mut e = engine(source);
+    e.seed_at([
+        ("conversations".into(), object([("id", id("c"))])),
+        ("members".into(), object([("id", id("member")), ("conversation", id("c")), ("principal", id("alice"))])),
+        ("messages".into(), object([("id", id("message")), ("conversation", id("c")), ("ordinal", Value::Int(1)), ("sender", id("bob")), ("until", Value::Null)])),
+        ("cascadeKids".into(), object([("id", id("cascade")), ("message", id("message"))])),
+        ("nullableKids".into(), object([("id", id("nullable")), ("message", id("message"))])),
+        ("blockers".into(), object([("id", id("blocker")), ("message", id("message"))])),
+    ], 0).unwrap();
+    assert_eq!(e.store().rows("unread").unwrap()[0].field("value").unwrap(), &Value::Int(1));
+
+    let context = || Context::new("dev:alice", BTreeMap::from([("message".into(), id("message"))])).at(100);
+    let refused = e.mutate("expire", None, context()).unwrap();
+    assert!(matches!(refused.state, WriteState::Failed { ref why, .. } if why.code == "E_REFERENCED"), "{:?}", refused.state);
+    assert_eq!(e.store().rows("messages").unwrap()[0].field("until").unwrap(), &Value::Null);
+    assert_eq!(e.store().rows("unread").unwrap()[0].field("value").unwrap(), &Value::Int(1));
+    assert_eq!(e.store().rows("cascadeKids").unwrap().len(), 1, "a refused commit rolls its cascade back");
+    assert_eq!(e.store().rows("nullableKids").unwrap()[0].field("message").unwrap(), &id("message"));
+
+    e.seed_delete("blockers", "blocker").unwrap();
+    let sent = e.mutate("expire", None, context()).unwrap();
+    assert!(matches!(sent.state, WriteState::Sent { .. }), "{:?}", sent.state);
+    assert!(e.store().rows("messages").unwrap().is_empty());
+    assert!(e.store().rows("cascadeKids").unwrap().is_empty());
+    assert_eq!(e.store().rows("nullableKids").unwrap()[0].field("message").unwrap(), &Value::Null);
+    assert_eq!(e.store().rows("unread").unwrap()[0].field("value").unwrap(), &Value::Int(0));
+}
+
+#[test]
 fn same_id_replacement_reloads_maintained_columns_after_cascade_retirement() {
     let source = r#"
 table roots:

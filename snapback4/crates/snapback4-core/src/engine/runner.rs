@@ -144,6 +144,10 @@ pub struct Runner<'a> {
     /// through inside the commit is sent neither its image nor its id.
     #[cfg(feature = "sqlite")]
     pub(crate) touched_rows: HashMap<(String, String), (usize, std::collections::BTreeSet<String>)>,
+    /// Expiring source rows whose final image this execution must inspect at
+    /// commit end. Unlike partition event bookkeeping, this includes tables
+    /// without sync and therefore cannot reuse `born_rows`/`touched_rows`.
+    pub(crate) expiry_rows: BTreeSet<(String, String)>,
     /// Set only while a commit retires the rows it inserted already expired.
     #[cfg(feature = "sqlite")]
     pub(crate) retiring: Option<Retiring>,
@@ -334,6 +338,7 @@ impl<'a> Runner<'a> {
             born_grants: HashMap::new(),
             #[cfg(feature = "sqlite")]
             touched_rows: HashMap::new(),
+            expiry_rows: BTreeSet::new(),
             #[cfg(feature = "sqlite")]
             retiring: None,
             outbox: Vec::new(),

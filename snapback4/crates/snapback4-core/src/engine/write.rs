@@ -473,8 +473,8 @@ impl Runner<'_> {
         Ok(true)
     }
 
-    /// At a program commit's end, retire every synced row the commit changed
-    /// and every row it inserted whose lifetime has already ended: its final
+    /// At a program commit's end, retire every source row the commit changed
+    /// or inserted whose lifetime has already ended: its final
     /// image was never live at a commit boundary, so it leaves no row for a
     /// later sweep to announce. Inside the commit the
     /// row existed as written (an insert-then-update still works). Engine
@@ -489,14 +489,14 @@ impl Runner<'_> {
         let Some(now) = self.context.now else { return Ok(Default::default());
         };
         // @ref LLP 3000.036.000.000#3 — an expired final image never grants a new recipient the row's id.
+        // The tracker covers synced and unsynced source tables alike. Each
+        // distinct entry prepaid its tree node, strings and this vector slot;
+        // the rows-written ceiling bounds the commit-end walk.
         // A row that existed before the commit and ends it already expired is
         // retired too: accounted from the partitions it was in at the commit's
         // start, it revokes there and announces nothing to a partition it only
         // entered with its expiring image.
-        let mut changed: Vec<(String, String)> = self.born_rows.keys()
-            .chain(self.touched_rows.keys())
-            .filter(|(table, _)| self.schema.table(table).is_some_and(|t| t.is_expiring()))
-            .cloned().collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+        let mut changed: Vec<(String, String)> = std::mem::take(&mut self.expiry_rows).into_iter().collect();
         if changed.is_empty() {
             return Ok(Default::default());
         }
@@ -903,6 +903,14 @@ impl Runner<'_> {
         // and deletes remove only that row's contributions in O(index count).
         let id = old.or(new).expect("a row change has an image").field("id")?.as_str()?;
         let owner = (table_name.to_owned(), id.to_owned());
+        if origin == Origin::Source && new.is_some() && table.is_expiring() && !self.expiry_rows.contains(&owner) {
+            self.meter.step(1)?;
+            self.meter.heap(crate::rows::word_heap::text(table_name)
+                + crate::rows::word_heap::text(id)
+                + crate::rows::word_heap::insertion::<(String, String), ()>(self.expiry_rows.len())
+                + crate::rows::word_heap::slots::<(String, String)>(1))?;
+            self.expiry_rows.insert(owner.clone());
+        }
         if self.device && new.is_some() { self.provisional_rows.insert(owner.clone()); }
         let previous = self.created_rows.remove(&owner);
         let was_created = previous.is_some() || old.is_none();
@@ -935,17 +943,7 @@ impl Runner<'_> {
         if self.device { if !self.event_free { partition::account_row_change::<false>(self, table_name, old, new, origin)?; } }
         else if !self.event_free { partition::row_changed(self, table_name, old, new, origin)?; }
         if origin == Origin::Source {
-            // @ref LLP 3000.015#3 — a source born expired never enters the count basis.
-            // Retire it now, in the same transaction, so a later correction/sweep
-            // cannot subtract a contribution which was never added. Other derived
-            // consumers see the same physical deletion (including an expiring update).
-            let new = if let Some(row) = new.filter(|row| self.expired(table, row))
-                && self.schema.maintains.iter().any(|m| m.source == table_name && m.row_key.is_some())
-            {
-                let entries = self.tx.delete(table_name, table, row)?;
-                self.meter.charge(MeterKind::IndexEntries, entries)?;
-                None
-            } else { new };
+            // @ref LLP 3000.039#3 — even a derived source that ends expired reaches commit-end retirement and its reference actions.
             if old.is_some() || new.is_some() {
                 #[cfg(feature = "sqlite")]
                 self.place_assets(table_name, table, old, new)?;

@@ -166,6 +166,62 @@ table dualNullableChildren:
     assert_eq!(dual[0].field("right").unwrap(), &snapback4_core::Value::Null);
     host.close("expiry-actions", d);
 
+    // An expiring row-keyed-view source follows the same server action path;
+    // derived maintenance cannot delete it before cascade/set-null run. The
+    // device receives the committed source and child changes together.
+    let row_view_expiry = r#"
+table conversations:
+  public
+  sync public
+table members:
+  conversation: conversations
+  principal: principal
+  cap 4 by conversation
+  public
+  sync public
+table messages:
+  conversation: conversations
+  ordinal: int
+  sender: principal
+  until: time ?
+  expire at .until
+  public
+  update <- allow
+  sync public
+view unread: count messages by members m
+  where .conversation = m.conversation and .sender != m.principal
+table cascadeKids:
+  message: messages on delete cascade
+  cap 1 by message
+  public
+  sync public
+table nullableKids:
+  message: messages ? on delete set null
+  cap 1 by message
+  public
+  sync public
+mutation expire(message: messages):
+  update messages[message] { until: now }
+"#;
+    let (mut e, b) = compile(row_view_expiry);
+    e.seed_at([
+        ("conversations".into(), snapback4_core::value::object([("id", id("c"))])),
+        ("members".into(), snapback4_core::value::object([("id", id("member")), ("conversation", id("c")), ("principal", id("alice"))])),
+        ("messages".into(), snapback4_core::value::object([("id", id("message")), ("conversation", id("c")), ("ordinal", snapback4_core::Value::Int(1)), ("sender", id("bob")), ("until", snapback4_core::Value::Null)])),
+        ("cascadeKids".into(), snapback4_core::value::object([("id", id("cascade")), ("message", id("message"))])),
+        ("nullableKids".into(), snapback4_core::value::object([("id", id("nullable")), ("message", id("message"))])),
+    ], 0).unwrap();
+    let mut d = host.open("row-view-expiry-actions", Some(b)).unwrap();
+    acquire(&mut e, &mut d, "alice", 0);
+    let from = d.state().unwrap().0;
+    assert_eq!(write(&mut e, "expire", "alice", &[("message", id("message"))]), "ok");
+    assert_eq!(e.store().rows("unread").unwrap()[0].field("value").unwrap(), &snapback4_core::Value::Int(0));
+    d.apply(&stream_page(&mut e, "alice", from), false).unwrap();
+    assert!(d.store().raw_rows("messages").is_empty());
+    assert!(d.store().raw_rows("cascadeKids").is_empty());
+    assert_eq!(d.store().raw_rows("nullableKids")[0].field("message").unwrap(), &snapback4_core::Value::Null);
+    host.close("row-view-expiry-actions", d);
+
     // A read-through child below a cascade is a physical-retention blocker.
     // The server preflights it before set-null writes and continues to a later
     // due root; devices receive only that committed result.
