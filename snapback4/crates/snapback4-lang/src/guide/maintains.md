@@ -275,27 +275,16 @@ incomplete. An inherited
 aggregate over a public source with subset delivery runs on the server;
 its local scalar and page coverage is unknown, including for the viewer.
 
-Filtered counts disclose predicate membership, calendar groups disclose bucket
-membership, and rank discloses relative values to the aggregate's read audience.
-The filter grants no source-row read. N_MAINTAIN_DELTA names dependencies;
-restrict the aggregate read rule when the delta is private (guide rules).
-When that delta is an intended, reviewed product disclosure, record the review
-without changing authority:
-
+Filtered counts disclose predicate membership, calendar groups disclose bucket membership, and rank discloses relative values to the aggregate's audience. The filter grants no source read. N_MAINTAIN_DELTA names dependencies; restrict the aggregate audience when the delta is private (`guide rules`). For an intended, reviewed disclosure, record why without changing authority:
 ```quarry
-maintain monthlyCounts: count escorts by zone, month(.at)
-  read <- exists staff[viewer]
-  disclosure reviewed 'staff intentionally see monthly zone totals'
+maintain dailyMessages: count messages by roomId, day(.at)
+  read <- exists members[.roomId, viewer]
+  disclosure reviewed 'members intentionally see daily room totals'
+  online only
 ```
+`disclosure reviewed` silences the note. It neither makes the source or view public nor weakens write rules.
 
-The rationale silences N_MAINTAIN_DELTA for this maintain. It does not make the
-source or aggregate public and does not weaken either table's write rules.
-
-Even a hidden aggregate can disclose a constraint outcome: near an integer
-endpoint, a hidden selected contribution can make a write fail with
-E_OVERFLOW while an excluded contribution commits. Work reservation does not
-prevent this overflow bit; the refusal names only the view and column,
-and the failed transaction rolls back.
+Even a hidden aggregate can disclose a constraint outcome: near an integer endpoint, a hidden selected contribution can make a write fail with E_OVERFLOW while an excluded contribution commits. Work reservation does not prevent this overflow bit; the refusal names only the view and column, and the failed transaction rolls back.
 
 Adding or changing a filter, key, duration, offset, dependent literal default or index
 is a derived rebuild at its declaration. Today's atomic activation rebuilds

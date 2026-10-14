@@ -245,23 +245,11 @@ If the product instead permits readable availability checks, an `exists` or
 audience. Pinning a private guest merely narrows the check; it cannot enforce
 a constraint across all guests.
 
-## On delete restrict
+## On delete
 
-An undeclared reference is `on delete restrict`: deleting the parent refuses
-E_REFERENCED while any live child names it. Declare the product behavior on
-the child reference:
-
-- `on delete restrict` keeps audit/history rows and blocks the parent delete.
-- `on delete cascade` deletes children too; every parent group needs the
-  declared cap or unique key that bounds the cascade. A multi-level cascade
-  continues through each child's declared cascade references.
-- `on delete set null` clears an optional reference.
-- `on delete keep` preserves the child and its old parent id after deletion.
-
-For a multi-level ownership tree, use cascade only where deleting the root
-really deletes the descendant. Use keep or restrict at history and audit
-boundaries so deleting an intermediate row does not erase records that should
-survive.
+References default to `restrict`; a live child causes E_REFERENCED. Alternatives:
+bounded `cascade`, optional `set null`, or `keep`. Cascades recurse under a
+cap/unique key per parent; keep/restrict history and audit rows.
 
 ## Server-arrival order within a conversation
 

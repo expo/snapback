@@ -334,12 +334,6 @@ query digest(roomId: rooms):
   return { sum, earliest, latest, smallest, grouped, first: first(page), last: last(page), at: at(page, 1), total: messageCounts[roomId], counter, offsets, label, labelSize: count(label), doubled, quotient, remainder, weeks, days, lo, hi, brief: isBrief(null), oldest: sort(slice(page, 0, 10), 'at') { id, at }, smaller: min(weeks, days), larger: max(weeks, days) }
 ```
 
-For the compact aggregate additions, `view totalPosts: count posts` declares a
-global scalar read as `totalPosts`; `require count(page) > 0 else EMPTY`
-narrows extrema over that exact domain; and `divide(total, count, 2,
-'half-even')` returns an exact `decimal 2`. Text also admits `format email`,
-and enum columns named by `search` use the same word-prefix matching as text.
-
 ### Text, search and presence
 ```quarry
 query mentions(body: text <=4000):

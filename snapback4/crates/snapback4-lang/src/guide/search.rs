@@ -54,8 +54,7 @@ Plain `check` counts and summarizes search warnings: unscoped completeness (`N_S
 
 An empty needle, including whitespace or punctuation that folds to no terms, browses in the query's order under the same read rule. This directory uses one query, ordered by handle, with `next` to continue; reset the cursor when changing the search text. For a screen that wants nothing until typing, put `if q = '': return []` before the read.
 
-`search body, caption` declares the searchable columns. Enum columns use the
-same spelling, for example `search category`; their stored variant text is
+`search body, caption` declares the searchable columns. Enum columns use the same spelling, for example `search category`; their stored variant text is
 tokenized exactly like text (`'coffee-shop'` contributes `coffee` and `shop`).
 The planner supplies the words index: one entry per distinct word of the named text or enum columns, in that position, folded the same way everywhere
 (NFC, lowercase, a word boundary at every character that is not a letter

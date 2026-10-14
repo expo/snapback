@@ -17,17 +17,25 @@ mutation createProfile(name: text 1..80):
 
 Reference contexts project required rows’ `.id`. Media: decimal KB/MB/GB.
 
-Columns/arguments become nullable with `?`; omission becomes null. Table types are references; neither typing nor membership reads the target: use `require exists t[id] else CODE` or `r = t[id] ! else CODE`.
-Defaults fill omissions; explicit values win. Formats: handle/url/email. `format email` is the shared ASCII address contract described below; identity providers may apply additional policy.
-Money/decimal are scaled integers; fractions refuse E_INPUT. Divide them by an int with an explicit rounding mode, for example `divide(amount, 3, 'half-even')`. To produce a fractional decimal from integer inputs, name its result scale: `divide(total, count, 2, 'half-even')` returns `decimal 2`; no floating point or manual `total * 100` is introduced. Identical admitted unique-key reads narrow after exists/non-null guards, including pure helper arguments; writes, rebinding and viewer changes invalidate proof. A matching positive `count(domain)` guard also makes `min` and `max` of a required column non-null until a write or authority change invalidates that proof; `sum` already has a zero identity.
+`?` makes columns/arguments nullable; omission is null. Table references do not
+read targets: use `require exists t[id] else CODE` or
+`r = t[id] ! else CODE`.
+Defaults fill omissions; explicit wins. Formats: handle/url/email; identity may
+be stricter than the email contract below. Money/decimal are
+scaled integers; fractions refuse E_INPUT. `divide` names rounding and int/int
+result scale. Unique-read/positive-count guards narrow; `sum` has zero. Writes,
+rebinding or viewer changes invalidate.
 
 ## Limits
 
 - Guard or assert nullable values before passing them to required parameters: E_QUARRY_TYPE.
 - Values and arithmetic must fit the integer range: E_OVERFLOW.
 - `/` and `%` take ints and floor: `-7 / 2` is -4, `-7 % 2` is 1. A divisor must be nonzero: E_DIV_ZERO.
-- `divide(value, int, mode)` preserves int/decimal/money and requires one of `toward-zero`, `away-from-zero`, `floor`, `ceiling`, `half-away-from-zero` or `half-even` as a literal mode. It uses checked integer quotient/remainder arithmetic; zero refuses E_DIV_ZERO and overflow refuses E_OVERFLOW.
-- `divide(int, int, scale, mode)` returns `decimal scale`; `scale` is a literal from 0 through 12. Scaling uses a checked wide integer, then applies the same signed rounding rule and i53 result check. Null inputs are never zero.
+- `divide(value, int, mode)` preserves kind; modes are `toward-zero`,
+  `away-from-zero`, `floor`, `ceiling`, `half-away-from-zero`, `half-even`.
+  Zero: E_DIV_ZERO; overflow: E_OVERFLOW.
+- `divide(int, int, scale, mode)` returns `decimal scale` (literal 0–12) with
+  checked wide scaling and an i53 result. Null is not zero.
 - New required defaults must also fit the existing store: E_ADOPT.
 
 ## Details
@@ -101,23 +109,19 @@ checks them (`E_INPUT`).
 parameters. Write `text <=N` or `text M..N` when the bound is a product rule;
 an indexed column must also fit the key budget (`guide indexes`).
 
-`format email` accepts one ASCII `@`, a 1–64 character local part made from
-letters, digits and `!#$%&'*+-/=?^_`{|}~` atoms separated by single dots, and a
-1–253 character domain made from 1–63 character ASCII letter/digit/hyphen
-labels. Dots cannot lead, trail or repeat, and a domain label cannot begin or
-end with `-`. A single domain label such as `alice@localhost` is allowed.
-The engine does not normalize case or Unicode; store a separate normalized
-lookup column when the product needs case-insensitive identity matching.
+`format email` accepts one ASCII `@`. Its 1–64 character local part uses
+letter/digit/`!#$%&'*+-/=?^_`{|}~` dot-separated atoms; its 1–253 character
+domain uses 1–63 character letter/digit/hyphen labels. Dots cannot bound/repeat;
+hyphens cannot bound labels. `alice@localhost` is valid. Case/Unicode are not
+normalized; store a normalized lookup when needed.
 
 ## Engine-assigned per-parent sequences
 
-`ordinal: sequence by conversationId` is an `int` assigned by the engine
-inside the write transaction. The named column must be a required reference
-on this table, such as `conversationId: conversations`. E_SEQUENCE_PARENT
-names a missing, optional or non-reference parent column and gives the rewrite.
-The ordinal and parent reference are immutable. Do not
-supply a value or default. A table named `sequence` remains a reference type;
-only the two words `sequence by` introduce an ordinal.
+`ordinal: sequence by conversationId` is a transaction-assigned `int` whose
+parent is a required reference. E_SEQUENCE_PARENT names a missing, optional or
+non-reference parent column. Ordinal and parent are immutable. Do not supply a
+value or default. Only `sequence by` declares an ordinal; a table named
+`sequence` remains a reference type.
 
 ```quarry
 table conversations:
@@ -131,15 +135,12 @@ table messages:
   online only
 ```
 
-Counters remain keyed by parent table and id across deletions and reopen.
-An explicit store reset clears them with its rows. Adding or rebinding a sequence
-on a populated table refuses E_ADOPT with an empty-table rewrite; there is no
-implicit historical backfill. An empty table may adopt the declaration.
-E_SEQUENCE_EXHAUSTED refuses a transaction that would exceed the maximum int.
-Create a new parent for subsequent writes; the refused transaction consumes no value.
-The generated schema carries the `sequence-by` engine capability; upgrade
-older engines and devices that refuse it with E_SCHEMA_CAPABILITY.
-See `guide writes` for prediction, ordering and the complete chat example.
+Counters survive deletion/reopen; store reset clears them. Adding/rebinding a
+populated sequence refuses E_ADOPT with an empty-table rewrite; empty tables may
+adopt it. E_SEQUENCE_EXHAUSTED refuses a transaction that would exceed the
+maximum int. Create a new parent for subsequent writes; no value is consumed.
+The schema carries `sequence-by`; upgrade engines/devices that refuse
+E_SCHEMA_CAPABILITY. `guide writes` has prediction, ordering and the full recipe.
 
 ## Tables
 
