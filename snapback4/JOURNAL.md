@@ -95355,3 +95355,17 @@ Whole artifact adds 5,338 raw / 1,786 gzip B against Integration 11, without
 per-feature attribution or runtime ceiling change. The first build correctly
 refused the isolated PAGE4 budget by 282 B; the measured merged budget replaces it.
 Linux qualification follows; no push, publication or Mac qualification claim.
+
+Integration 12 correction: the measured Brotli value above is 534,854 B,
+as recorded in reports/20261014-integration12/wasm.json (the earlier prose
+value was a transcription error). Raw/gzip and the budget are unchanged.
+
+The merged 20k Lean campaign found three new completeness disagreements in
+simple party pages pinning their leading order column. PAGE4's general positive
+classifier bypassed the existing simple classifier's system/party order check.
+Apply that same physical-order requirement to the independent compound model:
+the authored native scan stays supported and incomplete, including empty and
+nullable-order cases; do not hide the cases behind an Unsupported label.
+Two model regressions retain readable rows and unknown absence. No runtime,
+compiler plan, read authority or device bytes change. Re-run the complete 20k
+campaign and formal checks after this model correction.

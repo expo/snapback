@@ -572,7 +572,12 @@ def laneDecided (td : TableDecl) (order : List String) (eqs pins : List (String 
 readable guard, or one exact membership witness with every remaining
 conjunct true by its pins. -/
 def compoundDecided (sch : Schema) (td : TableDecl) (pins : List (String × Expr)) (order : List String) : Bool :=
-  td.read.hasCompound && td.read.positiveRanges.any fun ranges =>
+  -- @ref LLP 3000.036.001#17 — a declined candidate retains its authored scan.
+  -- The system lane pins the first order column, changing its physical order;
+  -- party lanes keep it in their shared position, so their orders cannot merge.
+  td.read.hasCompound
+    && !(order.head?.any fun o => o != "id" && pins.any (·.1 == o))
+    && td.read.positiveRanges.any fun ranges =>
     ranges.length + 1 ≤ 8 && ranges.all fun atoms =>
       let extra := atoms.filterMap Rule.rangePin
       let ps := extra ++ pins

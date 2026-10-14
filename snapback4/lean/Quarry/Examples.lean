@@ -911,8 +911,30 @@ def page4Examples : List Example := [
     expected := r#"{"kind":"answer","data":[],"complete":true,"next":null}"# }
 ]
 
+-- Integration 12's seed 10282, plus its nullable-order companion.
+-- These ordinary scans are supported model cases, never excluded as Unsupported.
+def page4FallbackSchema : Schema := { tables := [
+  { name := "items", cols := [c "owner", c "helper" true, c "bucket", c "flag", c "score", c "maybe" true]
+    read := .or (.eq (self "owner") .viewer) (.eq (self "helper") .viewer) }] }
+
+def page4FallbackExamples : List Example := [
+  { name := "page4-pinned-leading-order-empty-fallback"
+    source := "LLP 3000.036.001 §17: mismatched system/party order retains the incomplete authored scan"
+    case := { schema := page4FallbackSchema, store := Store.empty, viewer := alice,
+              program := query [.ret (.page "items" [("bucket", int 0), ("flag", .lit (.s (.bool true)))] none ["flag", "score"] true 1 (some (.lit (.s .null))))] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[],"complete":false,"next":null}"# },
+  { name := "page4-nullable-leading-order-populated-fallback"
+    source := "LLP 3000.036.001 §17: ordinary fallback still returns readable matching rows without claiming absence"
+    case := { schema := page4FallbackSchema,
+              store := mkStore [("items", [mkRow "a" [("owner", I "alice"), ("helper", .null), ("bucket", N 0), ("maybe", .null)]])], viewer := alice,
+              program := query [.ret (.page "items" [("bucket", int 0), ("maybe", .lit (.s .null))] none ["maybe"] true 2 (some (.lit (.s .null))))] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"a","owner":"alice","helper":null,"bucket":0,"maybe":null}],"complete":false,"next":null}"# }
+]
+
 /-- Every example: the guide cards' and the referential actions'. -/
-def all : List Example := examples ++ merged ++ refExamples ++ page3Examples ++ qdiagExamples ++ page4Examples
+def all : List Example := examples ++ merged ++ refExamples ++ page3Examples ++ qdiagExamples ++ page4Examples ++ page4FallbackExamples
 
 /-- Run every example; returns the failures. -/
 def check : List (String × String × String) :=
