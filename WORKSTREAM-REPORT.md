@@ -28,7 +28,7 @@ Started clean at d9f0160e31 on sb4-loop; no version bump, push or publication.
   count as passes. Root foundation/current inspected; Snapback 4 has its own
   fence and working set. Hand-off: none; Linux qualification still in progress.
 
-## Completed merged evidence (remaining checks in progress)
+## Completed merged evidence (full Rust still in progress)
 
 - Wasm: **2,319,740 raw / 707,674 gzip / 534,854 Brotli B**; glue 16,053 /
   3,695 / 3,260 B. Budget **708,174 B**, exactly gzip + 500 B platform headroom.
@@ -71,8 +71,7 @@ Started clean at d9f0160e31 on sb4-loop; no version bump, push or publication.
   Non-blocking follow-up: two corrected completeness cases exhibit the existing
   historical next signature (59→61); supported/unsupported counts are unchanged
   and this known cursor limitation remains visible. PAGE4's six original paired review rounds
-  remain intact. Full Rust, full client pool, packed consumer proof
-  are not yet complete. Root guide passes all 22 checks with 121 inherited warnings.
+  remain intact. Full Rust is not yet complete. Root guide passes all 22 checks with 121 inherited warnings.
 
 
 ## Preserved Integration 11 report
@@ -293,3 +292,30 @@ not complete a test battery. The fixture and all pooled client files passed;
 17 isolated timer files follow in that same pool invocation. A fresh complete
 five-crate command is running against the cached artifacts, followed by the
 difftest crate suite. No test timeout or product budget was increased.
+
+## Final client and Linux consumer evidence
+
+- Complete client pool: 388/388 files in one invocation, 7,433 passed, zero
+  failures/cancellations/TODOs, 56 intentional skips. All 17 real-timer files
+  ran in the same pool invocation after its shared phase. Horizon's fixture
+  completed after the competing build was interrupted; no test failed.
+- Full-count models: 81 passed, zero failures/skips. Fixture wrapper: 9 passed.
+- Fresh publish.mjs --prepare-client at ff1255a681; Integration 11's old prepared
+  pack is preserved at target/publication/client-0.4.28-integration11-7df01679fc.
+  No version bump. Fresh prepared tarballs remain under client-0.4.28.
+- qualify-linux.mjs --consumer-only passes all four loaded-host UI attempts
+  (web/Expo twice, occupied first port and two CPU-load workers), then Ubuntu
+  24.04 and Alpine installed-consumer/starter-toolchain proofs via pinned proot.
+  The static Linux ELF has no interpreter/shared-library requirements. Both OS
+  proofs pass web, Expo, adapted and template starters. Source and byte binding
+  remains ff1255a681 through closeout. consumer.json records publicationQualified
+  false and suite not-run; no publication receipt.json was issued.
+- Source/doc diff-check is clean. Three inherited EOF blank-line warnings in
+  original Muse rounds 3–5 remain because those outputs must stay verbatim.
+
+## Explicit non-runs
+
+No Mac suite/measurement, full publication qualification/receipt, npm/GitHub
+publication or git push. Full scripts/test.sh was explicitly prohibited and
+never run; its requested Linux components are executed separately. Existing
+opt-in Rust ignores and client skips retain their named boundaries.
