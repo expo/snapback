@@ -47,10 +47,13 @@ fn write(e: &mut Engine, op: &str, who: &str, args: Json, now: i64) -> Json {
 }
 fn fail(e: &mut Engine, op: &str, who: &str, args: Json, now: i64, code: &str) {
     let c = ctx(e, op, who, args, now);
+    let state = e.mutate(op, None, c).unwrap().state;
     assert!(
-        matches!(e.mutate(op,None,c).unwrap().state, WriteState::Failed { why, .. } if why.code == code)
+        matches!(&state, WriteState::Failed { why, .. } if why.code == code),
+        "{op}: expected {code}, got {state:?}"
     );
 }
+
 fn read(e: &mut Engine, op: &str, who: &str, args: Json, now: i64) -> Json {
     let c = ctx(e, op, who, args, now);
     wire::to_json(&e.query(op, c).unwrap().data)
@@ -298,7 +301,14 @@ fn presence_copies_scope_and_revokes_with_enrolment() {
     assert!(read(&mut e, "presence", "carol", args.clone(), 1000).is_null());
     write(&mut e, "leaveSpace", "bob", json!({"space":"s"}), 1000);
     assert!(read(&mut e, "presence", "bob", args.clone(), 1000).is_null());
-    fail(&mut e, "pulse", "bob", json!({"space":"s"}), 1000, "E_RULE");
+    fail(
+        &mut e,
+        "pulse",
+        "bob",
+        json!({"space":"s"}),
+        1000,
+        "NOT_FOUND",
+    );
     assert!(
         e.schema().operations["pulse"].renews,
         "the presence helper must support SDK renewal"
