@@ -115,11 +115,11 @@ fn the_chat_api_types_are_inferred() {
     let bound = compile(&[("schema.q".to_owned(), CHAT.to_owned())]);
     assert!(bound.diagnostics.is_empty());
     let ts = snapback4_lang::emit::typescript(&bound);
-    assert!(ts.contains("thread: Query<{ conversationId: string; c?: Cursor | null }, Rows[\"messages\"][]>;"), "{ts}");
-    assert!(ts.contains("inbox: Query<Record<string, never>, { conversation: Rows[\"conversations\"] | null; conversationId: string; count: number | null; pending?: boolean; retained?: boolean }[]>;"), "{ts}");
+    assert!(ts.contains("thread: Query<{ conversationId: string; c?: Cursor | null }, Rows[\"messages\"][]> & { available(release: ReleaseSnapshot): boolean };"), "{ts}");
+    assert!(ts.contains("inbox: Query<Record<string, never>, { conversation: Rows[\"conversations\"] | null; conversationId: string; count: number | null; pending?: boolean; retained?: boolean }[]> & { available(release: ReleaseSnapshot): boolean };"), "{ts}");
     assert!(ts.contains("role: \"member\" | \"admin\";"));
-    assert!(ts.contains("send: Mutation<{ conversationId: string; body: string }, { id: string }>;"), "{ts}");
-    assert!(ts.contains("unsend: Mutation<{ messageId: string }, null>;"), "{ts}");
+    assert!(ts.contains("send: Mutation<{ conversationId: string; body: string }, { id: string }> & { available(release: ReleaseSnapshot): boolean };"), "{ts}");
+    assert!(ts.contains("unsend: Mutation<{ messageId: string }, null> & { available(release: ReleaseSnapshot): boolean };"), "{ts}");
     assert!(ts.contains("export const api: Ops = {"));
 }
 

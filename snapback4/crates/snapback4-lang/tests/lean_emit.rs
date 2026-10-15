@@ -232,7 +232,8 @@ fn expiry_emits_the_full_selected_plain_index_order() {
     let planned = source.replace("  rank: int\n", "  rank: int\n  other: int\n")
         .replace("query witness():\n  return 1", "query witness(c: cursor ?):\n  return t first 10 by .expiresAt, .other after c");
     let m = module(&planned);
-    assert_eq!(table(&m, "t")["expiryOrder"], json!(["expiresAt", "other"]));
+    // The planned index includes its id tie-breaker; sweep continuation keeps it.
+    assert_eq!(table(&m, "t")["expiryOrder"], json!(["expiresAt", "other", "id"]));
 }
 
 #[test]

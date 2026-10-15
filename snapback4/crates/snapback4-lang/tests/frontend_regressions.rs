@@ -648,9 +648,9 @@ query complete(flag: bool):
     assert_eq!(query(&mut engine, "conditional", &[("x", Value::Null)]), Value::Null);
     assert_eq!(query(&mut engine, "loop", &[("xs", Value::Array(Vec::new()))]), Value::Null);
     let emitted = snapback4_lang::emit::typescript(&compiled);
-    assert!(emitted.contains("conditional: Query<{ x?: number | null }, number | null>;"), "{emitted}");
-    assert!(emitted.contains("loop: Query<{ xs: number[] }, number | null>;"), "{emitted}");
-    assert!(emitted.contains("complete: Query<{ flag: boolean }, number>;"), "{emitted}");
+    assert!(emitted.contains("conditional: Query<{ x?: number | null }, number | null> & { available(release: ReleaseSnapshot): boolean };"), "{emitted}");
+    assert!(emitted.contains("loop: Query<{ xs: number[] }, number | null> & { available(release: ReleaseSnapshot): boolean };"), "{emitted}");
+    assert!(emitted.contains("complete: Query<{ flag: boolean }, number> & { available(release: ReleaseSnapshot): boolean };"), "{emitted}");
 }
 
 #[test]

@@ -56,11 +56,11 @@ fn paired_id_and_parent_lookups_keep_row_page_types_and_absence() {
     }
     let types = snapback4_lang::emit::typescript(&b);
     for name in ["generic", "typed", "explicit", "explicitBy"] {
-        assert!(types.contains(&format!("{name}: Query<{{ k: string }}, Rows[\"replies\"] | null>;")),"{types}");
+        assert!(types.contains(&format!("{name}: Query<{{ k: string }}, Rows[\"replies\"] | null> & {{ available(release: ReleaseSnapshot): boolean }};")),"{types}");
     }
-    assert!(types.contains("parent: Query<{ k: string }, Rows[\"replies\"][]>;"));
-    assert!(types.contains("nullable: Query<{ k?: string | null }, Rows[\"replies\"] | null>;"));
-    assert!(types.contains("children: Query<{ k?: string | null }, Rows[\"replies\"][]>;"));
+    assert!(types.contains("parent: Query<{ k: string }, Rows[\"replies\"][]> & { available(release: ReleaseSnapshot): boolean };"));
+    assert!(types.contains("nullable: Query<{ k?: string | null }, Rows[\"replies\"] | null> & { available(release: ReleaseSnapshot): boolean };"));
+    assert!(types.contains("children: Query<{ k?: string | null }, Rows[\"replies\"][]> & { available(release: ReleaseSnapshot): boolean };"));
     println!("types:\n{types}");
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     let row = wire::row_from_json(e.schema().table("replies").unwrap(), &json!({"id":"r","postId":"p","body":"reply"})).unwrap();

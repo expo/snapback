@@ -15,7 +15,7 @@ fn durable_schema_and_types_keep_base_bytes() {
         let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
         if !bound.diagnostics.is_empty() { continue; } // Repair fixtures deliberately refuse.
         actual.insert(file.file_name().unwrap().to_str().unwrap().to_owned(), (
-            strip_reference_actions(&serde_json::to_string(&bound.schema).unwrap()), snapback4_lang::emit::typescript(&bound)));
+            strip_reference_actions(&serde_json::to_string(&bound.schema).unwrap()), strip_client_metadata(&snapback4_lang::emit::typescript(&bound), &bound)));
     }
     assert!(actual.len() >= 20, "only {} compilable fixtures", actual.len());
     let mut expected: BTreeMap<String, (String, String)> = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
@@ -313,4 +313,29 @@ fn strip_reference_actions(text: &str) -> String {
         }
     }
     serde_json::to_string(&serde_json::from_value::<snapback4_core::Schema>(schema).unwrap()).unwrap()
+}
+
+// @ref LLP 3000.000.000.000#3 — retain the durable pre-capability golden files;
+// validate and remove REL3's SDK import/member/descriptor and SURF's unwrap hint.
+fn strip_client_metadata(types: &str, bound: &snapback4_lang::Bound) -> String {
+    use snapback4_core::ProgramKind;
+    const IMPORTS: &str = "import { operationAvailable } from \"snapback4/contract\";\nimport type { ReleaseSnapshot } from \"snapback4/contract\";\n\n";
+    const MEMBER: &str = " & { available(release: ReleaseSnapshot): boolean }";
+    assert_eq!(types.matches(IMPORTS).count(), 1);
+    const UNWRAP: &str = " Unwrap with isReady(read) && read.data, or matchRead(read, handlers) from snapback4/contract (also snapback4/react).";
+    assert_eq!(types.matches(UNWRAP).count(), bound.programs.iter().filter(|p| p.program.kind == ProgramKind::Query).count());
+    let mut normalized = types.replacen(IMPORTS, "", 1).replace(UNWRAP, "");
+    let mut count = 0;
+    for program in &bound.programs {
+        let program = &program.program;
+        let kind = match program.kind { ProgramKind::Query => "query", ProgramKind::Mutation => "mutation", ProgramKind::Action => "action", ProgramKind::Job => continue };
+        let name = serde_json::to_string(&program.name).unwrap();
+        let args = serde_json::to_string(&serde_json::to_string(&program.args).unwrap()).unwrap();
+        let descriptor = format!(", available: (release) => operationAvailable(release, {name}, \"{kind}\", JSON.parse({args}))");
+        assert_eq!(normalized.matches(&descriptor).count(), 1, "{}: exact public argument descriptor", program.name);
+        normalized = normalized.replacen(&descriptor, "", 1);
+        count += 1;
+    }
+    assert_eq!(normalized.matches(MEMBER).count(), count);
+    normalized.replace(MEMBER, "")
 }
