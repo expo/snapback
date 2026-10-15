@@ -1,0 +1,13 @@
+-- client file start: packages/snapback4/test/write-authority.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/page-authority.test.mjs; stall bound 900000 ms
+-- process inspection: {"snapshots":3,"unrelatedRows":3798}
+-- client file ok: packages/snapback4/test/write-authority.test.mjs (9524 ms)
+-- client file start: packages/snapback4/test/asset-avatars.test.mjs; stall bound 900000 ms
+-- process inspection: {"snapshots":3,"unrelatedRows":3712}
+-- client file ok: packages/snapback4/test/page-authority.test.mjs (17051 ms)
+-- process inspection: {"snapshots":3,"unrelatedRows":3569}
+-- client file ok: packages/snapback4/test/asset-avatars.test.mjs (59420 ms)
+-- client file start: packages/snapback4/test/ephemeral-e2e.test.mjs; stall bound 900000 ms
+-- process inspection: {"snapshots":3,"unrelatedRows":3592}
+-- client file ok: packages/snapback4/test/ephemeral-e2e.test.mjs (59413 ms)
+-- client files: 4/4; failed 0; tests {"tests":41,"pass":41,"fail":0,"cancelled":0,"skipped":0,"todo":0}

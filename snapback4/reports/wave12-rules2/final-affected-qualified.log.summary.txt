@@ -1,0 +1,8 @@
+     Running tests/guide.rs (target/debug/deps/guide-56e0b0e2010f1983)
+test result: ok. 123 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.90s
+     Running tests/wave10_rules_expressiveness.rs (target/debug/deps/wave10_rules_expressiveness-f8758e7ba6b66dcc)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+     Running tests/wave12_rule_composition.rs (target/debug/deps/wave12_rule_composition-71ca00ef0289e6dd)
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+     Running tests/wave12_rule_recipes.rs (target/debug/deps/wave12_rule_recipes-f8068ff96b38a840)
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s

@@ -15,6 +15,7 @@ mod complete_form;
 mod auth_lints;
 mod owner_equality;
 mod write_affordances;
+mod rule_composition;
 pub(crate) mod audience_diagnostics;
 mod row_views;
 mod through;
@@ -335,6 +336,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     // @ref LLP 3000.036#16.4 — wave 6 #22: authorization shapes that compile but grant or withhold more than meant.
     notes.extend(auth_lints::notes(&catalog, &schema));
     notes.extend(write_affordances::notes(&catalog, &schema));
+    notes.extend(rule_composition::notes(&catalog));
     notes.extend(optional_patches::notes(&catalog));
     notes.extend(residency::maintain_notes(&catalog, &schema));
     notes.extend(columns::notes(&catalog, &schema));

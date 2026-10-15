@@ -398,3 +398,511 @@ query entry(entry: library):
 ```
 
 Public visitors still need transport authentication: declare `use identity`, call `auth.guest()` from `snapback4/react`'s `useAuth()` (or `client.guest()`), then query. Public describes row authority, not an unauthenticated HTTP door. A guest can see shared rows, not team rows; password accounts enroll in the team roster. Use `use identity password` when the app should have no visitors.
+
+## Day-scoped and time-window visibility
+
+Store the assigned day as a key in a roster; select it in the API instead of
+putting a clock in a rule. A publication's lower and upper lifetime bounds are
+server enforced. Here staff assign readers, and only the assigned day reader
+can read the publication while it is live. Changing the roster revokes access
+on the next read; the day never changes on an existing publication.
+
+```quarry
+table dayReaders:
+  principal: principal
+  dayNumber: int
+  unique principal, dayNumber
+  immutable principal, dayNumber
+  read <- .principal = viewer or viewer = 'service:ops'
+  insert <- viewer = 'service:ops'
+  delete <- viewer = 'service:ops'
+  online only
+table dayPublications:
+  dayNumber: int
+  opensAt: time
+  endsAt: time
+  body: text 1..200
+  by byOpening: opensAt
+  by byExpiry: endsAt
+  immutable dayNumber, opensAt, endsAt, body
+  not before .opensAt
+  expire at .endsAt
+  read <- exists dayReaders[viewer, .dayNumber]
+  insert <- viewer = 'service:ops'
+  online only
+mutation assignDay(who: principal, dayNumber: int):
+  require viewer = 'service:ops' else NOT_OPERATOR
+  return insert dayReaders { principal: who, dayNumber }
+mutation publishDay(dayNumber: int, opensAt: time, endsAt: time, body: text 1..200):
+  require viewer = 'service:ops' else NOT_OPERATOR
+  require opensAt < endsAt else BAD_WINDOW
+  return insert dayPublications { dayNumber, opensAt, endsAt, body }
+query dayPublication(publication: dayPublications):
+  return dayPublications[publication]
+```
+
+For a slot-relative audience (the previous speaker), store an immutable slot
+identity and a validated successor principal, then authorize that principal
+explicitly. A lookup of a hidden prior slot cannot repair its successor. Give
+that maintenance operation readable authority, or update by key under an
+explicit transition rule; do not silently skip a nullable hidden lookup.
+
+## Column-level privacy: public identity, private sheet
+
+A returned shape does not protect a stored field. Split the row so that every
+field in the public identity is public and the private sheet has its own read
+rule. Column-level read rules remain an open language decision; this recipe applies ordinary row rules.
+
+```quarry
+table identities:
+  principal: principal
+  name: text 1..80
+  unique principal
+  immutable principal
+  public 'display name and account principal are public'
+  insert <- .principal = viewer
+  online only
+table privateSheets:
+  identity: identities
+  owner: principal
+  notes: text 1..200
+  unique identity
+  immutable identity, owner
+  read <- .owner = viewer
+  insert <- .owner = viewer and exists identities[.identity, principal = .owner]
+  online only
+mutation createIdentity(name: text 1..80, notes: text 1..200):
+  i = insert identities { principal: viewer, name }
+  insert privateSheets { identity: i.id, owner: viewer, notes }
+  return i
+query identity(identity: identities):
+  return identities[identity]
+query privateSheet(identity: identities):
+  return privateSheets[identity = identity]
+```
+
+## Status dashboard over private rows
+
+Declare the wider count disclosure on the view, not on private source rows.
+Role queries read the caller's own roster row; use them for access UI even
+when a private list is empty. An authorized missing count group is zero; a
+hidden keyed count is null. A roster holder can see the status count but not
+another user's body. Counts disclose activity; grant them deliberately.
+
+```quarry
+table dashboardStaff:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  online only
+table privateTickets:
+  owner: principal
+  status: enum('open', 'closed')
+  body: text 1..200
+  immutable owner
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  update <- .owner = viewer
+  online only
+view statusCounts: count privateTickets by .status
+  read <- exists dashboardStaff[viewer]
+query dashboardRole():
+  return exists dashboardStaff[viewer]
+query statusCount(status: enum('open', 'closed')):
+  return { count: statusCounts[status] }
+query privateTicket(ticket: privateTickets):
+  return privateTickets[ticket]
+mutation ticket(body: text 1..200):
+  return insert privateTickets { owner: viewer, status: 'open', body }
+```
+
+## Audience follows a mutable parent
+
+Copy-at-insert plus immutable copies keeps the creation-time audience, so a
+transfer leaves existing children with the old owner. `read through` captures
+a parent's immutable audience inputs and lifetime; it refuses mutable inputs
+and does not follow owner transfers. A fixed stricter audience (for example
+the child's author) intentionally never follows the parent. To follow a mutable
+parent live, stay online and test its current owner in every read. This recipe
+transfers existing children with the parent; the original author loses access.
+
+```quarry
+table movableFolders:
+  owner: principal
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  update (old, next) <- old.owner = viewer
+  online only
+table liveFiles:
+  folder: movableFolders
+  body: text 1..200
+  immutable folder
+  read <- exists movableFolders[.folder, owner = viewer]
+  insert <- exists movableFolders[.folder, owner = viewer]
+  online only
+mutation newMovableFolder():
+  return insert movableFolders { owner: viewer }
+mutation liveFile(folder: movableFolders, body: text 1..200):
+  f = movableFolders[folder] ! else NOT_FOUND
+  return insert liveFiles { folder: f.id, body }
+mutation transferFolder(folder: movableFolders, who: principal):
+  f = movableFolders[folder] ! else NOT_FOUND
+  update movableFolders[f.id] { owner: who }
+  return null
+query liveFileById(file: liveFiles):
+  return liveFiles[file]
+```
+
+## Minimum-group publication
+
+A rule cannot count a population. Maintain a count, check its readable group,
+and publish a copy atomically. Approvals here are irrevocable, so publication
+is monotone. For retractable consent, withdraw the publication in the same
+transaction as every withdrawal, as in Materialised access; a later cleanup
+job leaves a disclosure window.
+
+```quarry
+table petitions:
+  owner: principal
+  body: text 1..200
+  immutable owner, body
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  online only
+table approvals:
+  petition: petitions
+  principal: principal
+  unique petition, principal
+  immutable petition, principal
+  read <- .principal = viewer or exists petitions[.petition, owner = viewer]
+  insert <- .principal = viewer and exists petitions[.petition]
+  online only
+view approvalCount: count approvals by .petition
+  read <- exists petitions[.petition, owner = viewer]
+table petitionPublications:
+  petition: petitions
+  body: text 1..200
+  unique petition
+  immutable petition, body
+  public 'the owner published after ten irrevocable approvals'
+  insert <- exists petitions[.petition, owner = viewer]
+  online only
+mutation petition(body: text 1..200):
+  return insert petitions { owner: viewer, body }
+mutation approve(petition: petitions):
+  return insert approvals { petition, principal: viewer }
+mutation publishPetition(petition: petitions):
+  p = petitions[petition] ! else NOT_FOUND
+  require (approvalCount[petition] ?? 0) >= 10 else TOO_FEW
+  return insert petitionPublications { petition, body: p.body }
+query petitionPublication(petition: petitions):
+  return petitionPublications[petition = petition]
+```
+
+Only publish the trusted threshold mutation. The table rule proves the owner,
+not the threshold; adding a generic publication writer would bypass it.
+
+## Secret ballots, closed publication, maintained result
+
+Keep voter choices private, and disclose only the maintained result after
+closing. The public poll metadata makes the closed-phase probe explicit.
+Neither insert nor delete can change votes after closure. There is no reopen
+operation. A readable empty result is zero; while open the count key is hidden
+and reads null. This is choice privacy from other voters, not administrator
+anonymity. Small totals may reveal an individual choice.
+
+```quarry
+table polls:
+  owner: principal
+  closed: bool default false
+  immutable owner
+  public 'poll identity and whether voting is closed are public'
+  insert <- .owner = viewer and .closed = false
+  update (old, next) <- old.owner = viewer and old.closed = false and next.closed = true
+  online only
+table ballots:
+  poll: polls
+  voter: principal
+  choice: enum('yes', 'no')
+  unique poll, voter
+  immutable poll, voter, choice
+  read <- .voter = viewer
+  insert <- .voter = viewer and exists polls[.poll, closed = false]
+  delete <- .voter = viewer and exists polls[.poll, closed = false]
+  online only
+view ballotResults: count ballots by .poll, .choice
+  read <- exists polls[.poll, closed = true]
+mutation poll():
+  return insert polls { owner: viewer }
+mutation vote(poll: polls, choice: enum('yes', 'no')):
+  return insert ballots { poll, voter: viewer, choice }
+mutation closePoll(poll: polls):
+  p = polls[poll] ! else NOT_FOUND
+  require p.owner = viewer else NOT_OWNER
+  update polls[p.id] { closed: true }
+  return null
+query ballotResult(poll: polls, choice: enum('yes', 'no')):
+  return { count: ballotResults[poll, choice] }
+query ownBallot(poll: polls):
+  return ballots[poll, viewer]
+```
+
+## Ephemeral presence under an enrolment parent
+
+An ephemeral row cannot use `read through`. Copy the durable scope, verify it
+against the unique enrolment key on every write, and probe the durable
+roster for current read authority. Removing a viewer's enrolment hides presence
+from that viewer on the next read; a departed writer's row lasts at most 4s.
+Renewals require membership, including after leave/rejoin. Never replace presence with a durable table to repair this refusal.
+
+```quarry
+table spaces:
+  title: text 1..80
+  public 'space metadata is public; participation is private'
+  online only
+table enrolments:
+  space: spaces
+  principal: principal
+  unique space, principal
+  immutable space, principal
+  read <- .principal = viewer
+  insert <- viewer = 'service:ops'
+  delete <- .principal = viewer or viewer = 'service:ops'
+  online only
+table presenceRows:
+  space: spaces
+  principal: principal
+  unique space, principal
+  immutable space, principal
+  read <- exists enrolments[.space, viewer]
+  insert <- .principal = viewer and exists enrolments[.space, viewer]
+  update <- .principal = viewer and exists enrolments[.space, viewer]
+  ephemeral 4s
+mutation pulse(space: spaces):
+  upsert presenceRows[space, viewer] {}
+mutation leaveSpace(space: spaces):
+  delete enrolments[space, viewer]
+  return null
+query presence(space: spaces, who: principal):
+  return presenceRows[space, who]
+```
+
+## Blind comparison with a system job
+
+A mutation cannot scan or compare secrets its caller cannot read. A system job
+can read them, but must publish only the explicitly permitted derived fact.
+Here the operator schedules the comparison, and ordinary callers get only
+which of two known submissions is higher, not either score. Jobs run as the
+system; no client mutation delegates arbitrary secret comparisons.
+
+```quarry
+table secretScores:
+  owner: principal
+  score: int
+  immutable owner, score
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  online only
+table comparisons:
+  left: secretScores
+  right: secretScores
+  leftHigher: bool
+  public 'operator-authorized comparison discloses only the ordering'
+  online only
+mutation secretScore(score: int):
+  return insert secretScores { owner: viewer, score }
+job compare(left: secretScores, right: secretScores):
+  for a in secretScores where .id = left:
+    b = secretScores[right] ! else NOT_FOUND
+    insert comparisons { left: a.id, right, leftHigher: a.score > b.score }
+query comparison(comparison: comparisons):
+  return comparisons[comparison]
+query secretScoreById(score: secretScores):
+  return secretScores[score]
+```
+
+## Enrolment into hidden things: invite, self-join or public metadata
+
+Choose one entry contract. **Invite:** the inviter reads the private parent and
+creates an addressed invitation; the recipient reads that invitation, then
+inserts their own membership without looking up the hidden parent. The table
+insert rule probes the parent and invitation even when program reads cannot.
+**Self-join:** deliberately make the root metadata public and require its open
+flag in the membership insert rule. **Public metadata:** keep a separate public
+catalogue with no private payload, and let its entry operation create private
+membership. Knowing an id is not consent and does not make a hidden parent
+readable. `! else NOT_FOUND` before joining will stop the invitee too early.
+
+```quarry
+table hiddenClubs:
+  owner: principal
+  title: text 1..80
+  immutable owner
+  read <- .owner = viewer or exists clubMembers[.id, viewer]
+  insert <- .owner = viewer
+  online only
+table clubInvites:
+  club: hiddenClubs
+  principal: principal
+  unique club, principal
+  immutable club, principal
+  read <- .principal = viewer or exists hiddenClubs[.club, owner = viewer]
+  insert <- exists hiddenClubs[.club, owner = viewer]
+  delete <- .principal = viewer
+  online only
+table clubMembers:
+  club: hiddenClubs
+  principal: principal
+  unique club, principal
+  immutable club, principal
+  read <- .principal = viewer
+  insert <- .principal = viewer and exists hiddenClubs[.club] and exists clubInvites[.club, viewer]
+  online only
+mutation club(title: text 1..80):
+  return insert hiddenClubs { owner: viewer, title }
+mutation inviteClub(club: hiddenClubs, who: principal):
+  c = hiddenClubs[club] ! else NOT_FOUND
+  return insert clubInvites { club: c.id, principal: who }
+mutation acceptClub(club: hiddenClubs):
+  i = clubInvites[club, viewer] ! else NOT_FOUND
+  m = insert clubMembers { club: i.club, principal: viewer }
+  delete clubInvites[i.id]
+  return m
+query hiddenClub(club: hiddenClubs):
+  return hiddenClubs[club]
+```
+
+For the self-join variant, replace the private root read rule with explicit
+public metadata and the membership insert rule with `.principal = viewer and
+exists root[.root, open = true]`; there is no invite. Do not apply that variant
+to a synced closed roster: its grant law also requires existing membership or
+a newly created parent (`guide sharing`). SURF owns transport authentication
+and production UI recipes; KIT owns proof-kit details in `guide testing`.
+
+## Revocable media links with expiry
+
+Redemption copies the link's upper lifetime to a principal grant. A live grant
+permits the media row and its download; an expired grant is absent even before
+physical sweep. Tokens are unguessable secrets generated outside Quarry. Keep
+them out of exported query results and listings. Revoking a token prevents new
+redemptions; revoke existing readers separately to remove their media access.
+Revocation cannot retract downloaded bytes. The asset itself is placed on the
+private row through the ordinary upload API (`guide assets`).
+
+```quarry
+table mediaDocuments:
+  owner: principal
+  title: text 1..80
+  image: image <=5000000 ?
+  immutable owner
+  read <- .owner = viewer or exists mediaReaders[.id, viewer] or viewer = 'service:ops'
+  insert <- .owner = viewer
+  update <- .owner = viewer
+  online only
+table mediaLinks:
+  secret: text 32..100
+  document: mediaDocuments
+  expiresAt: time
+  unique secret
+  by byExpiry: expiresAt
+  immutable secret, document, expiresAt
+  expire at .expiresAt
+  read <- allow
+  insert <- viewer = 'service:ops'
+  delete <- viewer = 'service:ops'
+  online only
+table mediaReaders:
+  document: mediaDocuments
+  principal: principal
+  expiresAt: time
+  unique document, principal
+  by byExpiry: expiresAt
+  immutable document, principal, expiresAt
+  expire at .expiresAt
+  read <- .principal = viewer or viewer = 'service:ops'
+  insert <- .principal = viewer
+  delete <- viewer = 'service:ops'
+  online only
+mutation mediaDocument(title: text 1..80):
+  return insert mediaDocuments { owner: viewer, title }
+mutation placeMedia(document: mediaDocuments, image: image <=5000000):
+  update mediaDocuments[document] { image }
+  return null
+mutation mediaLink(document: mediaDocuments, secret: text 32..100, expiresAt: time):
+  require viewer = 'service:ops' else NOT_OPERATOR
+  d = mediaDocuments[document] ! else NOT_FOUND
+  require expiresAt > now else EXPIRED_LINK
+  return insert mediaLinks { document: d.id, secret, expiresAt }
+mutation claimMedia(secret: text 32..100):
+  t = mediaLinks[secret = secret] ! else BAD_LINK
+  return insert mediaReaders { document: t.document, principal: viewer, expiresAt: t.expiresAt }
+mutation revokeMediaLink(secret: text 32..100):
+  require viewer = 'service:ops' else NOT_OPERATOR
+  t = mediaLinks[secret = secret] ! else BAD_LINK
+  delete mediaLinks[t.id]
+  return null
+mutation revokeMediaReader(document: mediaDocuments, who: principal):
+  require viewer = 'service:ops' else NOT_OPERATOR
+  delete mediaReaders[document = document, principal = who]
+  return null
+query mediaDocumentById(document: mediaDocuments):
+  return mediaDocuments[document]
+```
+
+Only expose claimMedia as the reader writer. A generic insert of a grant would
+bypass possession and expiry checks. Repeated claims use the declared unique
+constraint; they do not extend a grant's expiry.
+
+## N_LOOKUP_NEVER_VISIBLE
+
+N_LOOKUP_NEVER_VISIBLE means a nullable point lookup is always null for callers
+satisfying its preceding require/branch conditions: those conditions contradict
+the table read rule, so a non-null branch cannot run. Authorize the read or
+write by key under the table rule; Enrolment into hidden things shows the latter.
+Unknown relationships and role overlap do not trigger this proof.
+
+## Self-join through a public catalogue
+
+The public catalogue is the root metadata; the private payload has a separate
+row rule. Open entries permit self-join without an invitation. Closed entries
+refuse the join even though their metadata is readable. Opening an entry is
+an explicit owner decision, not a consequence of knowing its id.
+
+```quarry
+table clubCatalogue:
+  owner: principal
+  title: text 1..80
+  open: bool
+  immutable owner
+  public 'club titles and whether enrolment is open are public metadata'
+  insert <- .owner = viewer
+  update <- .owner = viewer
+  online only
+table catalogueMembers:
+  club: clubCatalogue
+  principal: principal
+  unique club, principal
+  immutable club, principal
+  read <- .principal = viewer
+  insert <- .principal = viewer and exists clubCatalogue[.club, open = true]
+  online only
+table clubSheets:
+  club: clubCatalogue
+  owner: principal
+  body: text 1..200
+  unique club
+  immutable club, owner
+  read <- .owner = viewer or exists catalogueMembers[.club, viewer]
+  insert <- .owner = viewer and exists clubCatalogue[.club, owner = .owner]
+  online only
+mutation catalogueClub(title: text 1..80, open: bool, body: text 1..200):
+  c = insert clubCatalogue { owner: viewer, title, open }
+  insert clubSheets { club: c.id, owner: viewer, body }
+  return c
+mutation selfJoinClub(club: clubCatalogue):
+  return insert catalogueMembers { club, principal: viewer }
+query catalogueClubById(club: clubCatalogue):
+  return clubCatalogue[club]
+query clubSheet(club: clubCatalogue):
+  return clubSheets[club = club]
+```

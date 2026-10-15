@@ -371,7 +371,7 @@ fn denied_counters(catalog: &Catalog, schema: &Schema, mutations: &[&ProgramDecl
 /// `{ column: value }` a read pins, its keys resolved against the table's
 /// indexes (named keys, or positional keys of the one unique index of that
 /// width) and its `where` equalities. None when a positional key is ambiguous.
-fn pins(catalog: &Catalog, read: &ReadExpr) -> Option<BTreeMap<String, Expr>> {
+pub(super) fn pins(catalog: &Catalog, read: &ReadExpr) -> Option<BTreeMap<String, Expr>> {
     let info = catalog.tables.get(&read.table)?;
     let mut out = BTreeMap::new();
     let positional: Vec<&KeyPart> = read.keys.iter().filter(|k| k.column.is_none()).collect();
@@ -600,7 +600,7 @@ fn same_test(schema: &Schema, have: &RuleExpr, need: &RuleExpr) -> bool {
     }
 }
 
-fn empty_read(table: &str, site: &Site) -> ReadExpr {
+pub(super) fn empty_read(table: &str, site: &Site) -> ReadExpr {
     ReadExpr { cursor_prefix: None, computed: BTreeMap::new(), order_keys: Vec::new(), table: table.to_owned(), keys: Vec::new(), seeks: Vec::new(), filter: None, index: None, range: None, matching: None, site: site.clone() }
 }
 

@@ -1,0 +1,2 @@
+     Running tests/wave10_rules_expressiveness.rs (target/debug/deps/wave10_rules_expressiveness-f8758e7ba6b66dcc)
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s

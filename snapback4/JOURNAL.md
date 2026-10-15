@@ -95539,3 +95539,62 @@ Clean Linux measurement at `726d2e94d6` is 2,353,736 B raw / 716,763 B gzip / 54
 ### 2026-10-15 — LANG final reviewed migration ownership measurement
 
 Wave 12 LANG final reviewed ownership/admission correction (2026-10-15, clean Linux measurement at 073acfc7ff): 2353736 B raw / 716765 B gzip / 541361 B Brotli; strict family and absence audits PASS. Set 717265 B = measured gzip + exactly 500 B. Whole-device gzip growth from qualified 0.4.28 is 9091 B. Final legacy adoption validates full predecessor column admission and limits identity ownership to actual predecessor aggregates, preserving opaque ordinary IDs and counters. Whole-artifact Linux evidence; no per-feature attribution, Mac claim or runtime ceiling increase. Supersedes prior LANG values below. Exact artifact and scoped qualification receipts: `reports/wave12-lang/final-artifacts.json` and `reports/wave12-lang/r19-artifact-and-client-qualification.json`.
+
+### 2026-10-14 — RULES2 wave 12 authorization recipes and composition notes
+
+Added compiled rule-recipes for the remaining day/window, column privacy,
+status-count, mutable-parent, threshold-publication, secret-ballot, media-link,
+enrolment-presence and blind-comparison shapes, plus invite/self-join/public
+metadata entry models. Each runs under its shipped rules in the language tests.
+Refusals point to the repair recipes; ephemeral read-through suggests a copied
+validated durable scope. The cheatsheet uses one clerk/officer roster for its
+owner-or-staff union. KIT retains testing authoring; SURF retains transport/UI.
+
+The checker proves narrow contradictions between preceding caller gates and
+update/upsert rules, and identifies always-null nullable point lookups. Unknown
+role overlap stays quiet; nullable snapshots never stand for physical row
+fields. LLP 3000.036.002 §9 records the proof boundary. LLP 3000.036 §22 records
+the end games and reasons for deferring column reads, roster-plus-group union
+sync, windowed unions and changed-only sugar. No runtime authority, sync,
+protocol, expiry, planner or adoption behavior changes. A uniformly denied
+hidden-only page is complete/empty; a nonuniform empty page may remain partial,
+which the testing pointer now says explicitly.
+
+### 2026-10-15 — RULES2 independent review closeout
+
+Both fresh, mutually blind reviewers (Muse spark 1.3 contributor and Codex
+GPT-6.1-sol, high) mark the amendments and implementation at `45c2936e64` READY.
+The prior Codex rounds caught two kinds of stale snapshot evidence (if-condition
+helpers and opaque shape/spread evaluation) and distinct spellings of equal
+numeric literals; each has an admitted-runtime regression witness. Eleven
+composition tests and thirteen recipe tests pass. The 100 final-schema census
+still passes with exactly 324 notes before and after, no new notes/refusals.
+The device authoring census adds 27 new never-predicting guide mutations and
+preserves every existing occurrence/private write site; all 88 read-authority
+tests pass after that reviewed census update. Root inventory/guide, references,
+docs budget and all 41 affected client tests pass. Full Rust closeout is recorded
+in the lane's WORKSTREAM-REPORT.md and reports/wave12-rules2 evidence.
+
+### 2026-10-15 — RULES2 presence heartbeat uses the stable audience key
+
+Final recipe qualification tightened the presence example: copy only space and
+principal, and verify membership by its unique space/principal probe in both
+write rules. The heartbeat now has no read-derived payload or row return and
+qualifies for SDK renewal; it renews immediately after leaving and rejoining
+under a new enrolment id while its old memory row is still live. Viewer
+revocation is immediate, writer rows live at most four seconds. This removes
+unnecessary enrolment-id custody without changing the engine or language.
+
+### 2026-10-15 — RULES2 verification complete; no push
+
+The focused final presence/budget review at `1ac7589835` is READY from both
+fresh model families. Full default Rust inventories pass: 1,157 CLI, 1,975
+language, 1,547 device, 656 simulator and 79 difftest tests; default opt-in
+ignored tests remain ignored. The guide passes 123, recipes 13, composition
+proofs 11, older rule-expressiveness 5, and affected clients 41. The final
+100-schema check retains exactly 324 notes and adds no refusals. Root inventory
+and all 22 guide checks pass; ref-check has no errors/unchecked references and
+the README remains 320/320. Raw schema census, source hashes, scoped target
+results, concise verification logs and precision notes are under
+reports/wave12-rules2. The workstream report is at the worktree root. No push
+or publication; coordinator integration owns 0.4.29.

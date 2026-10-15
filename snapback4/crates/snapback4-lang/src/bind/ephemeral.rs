@@ -64,7 +64,7 @@ pub fn declarations(documents: &[Document], diagnostics: &mut Vec<Diagnostic>) {
                 {
                     refuse(
                         "through cannot appear on an ephemeral table",
-                        "keep that data in a durable table",
+                        "copy the durable enrolment scope onto the ephemeral row and validate it in insert/update rules; guide rule-recipes, Ephemeral presence under an enrolment parent",
                     );
                 }
                 if table.columns.iter().any(|c| asset(&c.type_.kind)) {

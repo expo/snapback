@@ -20,6 +20,23 @@ The client adds link (a transport or HTTP response failure) and client (the clie
 Reads never raise a rule refusal: a
 hidden row is null, and a page omits it.
 
+## Client-visible refusal ladder
+
+For an operation written as decode → asserted lookup → write → require:
+
+| Rung | Client-visible answer |
+| --- | --- |
+| Argument decoding | `E_INPUT`; no statement ran |
+| Hidden or missing `t[id] ! else NOT_FOUND` | `NOT_FOUND`; a nullable `t[id]` is null and does not refuse |
+| Table write rule | `E_RULE` for a readable denied target; `NOT_FOUND` for a hidden update/delete target; hidden insert collisions stay `E_RULE` |
+| Program `require` | The authored `else CODE`, if execution reaches this statement |
+
+After decoding, authored statement order decides precedence: a require placed
+before the write can win, while a later require cannot replace an earlier
+lookup or write refusal. For enrolment without a hidden-parent lookup, see
+`guide rule-recipes --section "Enrolment into hidden things"`. Transport guest
+sessions and production authentication: SURF owns `guide personas`/`guide wire`.
+
 ## Which refusal fires first
 
 An operation stops at the first refusal it reaches, and a mutation's writes

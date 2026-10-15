@@ -17,6 +17,7 @@ table todos:
 - `N_NO_HORIZON`: a partition can grow; read the diagnostic's prediction warning before adding `last N by .column` or an intended cap.
 
 ## Reference
+- Copied scopes and mutable parents: `guide rule-recipes`. Owner or clerk/officer uses one roster with a role column (`guide cheatsheet`); a separate staff roster plus a group roster and windowed unions remain refused.
 
 ```quarry
 table notices:
@@ -27,7 +28,6 @@ table notices:
   update <- deny
   delete <- deny
   sync last 500 by .at, .id       -- everyone holds the newest 500, with id breaking time ties
-
 query recentNotices(c: cursor ?):
   return notices last 20 by .at, .id after c
 

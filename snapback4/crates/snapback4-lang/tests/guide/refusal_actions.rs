@@ -2,6 +2,7 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("N_LOOKUP_NEVER_VISIBLE", &["Authorize the read", "write by key"]),
     ("N_SYNC_EMPTY", &["bound the public sync and read the window unfiltered, then filter in the client", "whole acquisition can establish coverage"]),
 
     ("E_UNIQUE", &["Update the existing row or choose a new key.", "Every refused write rolls back the whole mutation."]),

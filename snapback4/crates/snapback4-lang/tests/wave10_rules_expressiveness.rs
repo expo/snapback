@@ -227,7 +227,12 @@ fn timed_disclosure_recipe_separates_read_lifetime_from_write_deadline() {
 #[test]
 fn timed_disclosure_is_discoverable_from_language_time_and_expiry() {
     let recipes = guide::card("rule-recipes").unwrap();
-    assert!(recipes.lines().count() <= 400);
+    // The cookbook grew from four patterns to 21 compiled recipe blocks.
+    // Keep each individually discoverable recipe bounded rather than dropping
+    // tested forms to preserve the old whole-book limit.
+    for section in recipes.split("\n## ") {
+        assert!(section.lines().count() <= 120, "recipe section too large: {}", section.lines().next().unwrap());
+    }
     for alias in ["not before", "timed disclosure"] {
         assert_eq!(guide::resolve(alias), Some("rule-recipes"));
         let landing = guide::alias_landing(alias, "rule-recipes", recipes).unwrap();
