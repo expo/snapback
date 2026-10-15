@@ -1,0 +1,116 @@
+{
+  "carriedQualification": {
+    "r13Search6": {
+      "evidence": {
+        "bytes": 8116,
+        "path": "snapback4/reports/wave12-lang/clients/client-qualification-65560f6c4e-final.json",
+        "sha256": "dd93f58a708f6f89af790707a37d9dfb48055d89450eb54aaac153f6d384a02f"
+      },
+      "files": 6,
+      "ordinarySearchOracle": "8/8 top-level tests, including 300 process and 300 wasm seeds",
+      "status": "PASS under the six per-file non-reach reasons recorded in the R14 receipt"
+    },
+    "r14Affected23": {
+      "authoredSkips": 12,
+      "evidence": {
+        "bytes": 8116,
+        "path": "snapback4/reports/wave12-lang/clients/client-qualification-65560f6c4e-final.json",
+        "sha256": "dd93f58a708f6f89af790707a37d9dfb48055d89450eb54aaac153f6d384a02f"
+      },
+      "fail": 0,
+      "files": 23,
+      "pass": 307,
+      "productFailures": 0,
+      "status": "PASS",
+      "tests": 319
+    },
+    "r15ReachabilityAudit": {
+      "changedSurface": "server persisted aggregate-identity adoption enumerates and re-keys SQLite/PostgreSQL _sequences counters, including removed targets, and max-merges colliding high-water values in the activation transaction",
+      "deviceBoundary": "Rows adds default refusing methods for device/read-only implementations; only the server SQLite/PostgreSQL activation transaction calls the new enumeration/re-key operations. Client TypeScript and test source are unchanged.",
+      "fileLevelConclusion": "None of the 29 carried executed paths has a persisted sequence whose parent is a legacy maintained aggregate identity. The copied corpus contains ordinary sequence fixtures, including chat/receipt custody, but those parents are ordinary tables and the corresponding unrelated tests are not part of this 30-file run.",
+      "heavySearchDecision": "The six search files were not rerun: their schemas have no maintained aggregate sequence parent, the JavaScript-only ledger/order files do not execute Rust, and R15 changes no search, paging, expiry, authorization, or query evaluator path.",
+      "status": "NON_REACH",
+      "wasmByteChange": "The default trait surface changed the optimized wasm bytes from 2dff27d1... to 3dd408d5... despite no reachable device behavior change. The exact final wasm was rebuilt/typechecked and the critical expiry/reference bridge was rerun above."
+    }
+  },
+  "createdUtc": "2026-10-15T02:40:32.870732+00:00",
+  "currentArtifactChecks": {
+    "build": {
+      "log": {
+        "bytes": 130,
+        "path": "snapback4/reports/wave12-lang/clients/client-build-f3ba53b70f.log.gz",
+        "sha256": "4d14883e2b0db3911d2e0cc3da4068471226a200e312f8f69885b60d25ab104f"
+      },
+      "realCargoToolchainInvoked": false,
+      "status": "PASS"
+    },
+    "expiryReferenceBridge": {
+      "fail": 0,
+      "file": "packages/snapback4/test/expiry-reference-actions.test.mjs",
+      "log": {
+        "bytes": 165,
+        "path": "snapback4/reports/wave12-lang/clients/client-run-f3ba53b70f-expiry-reference-actions.log.gz",
+        "sha256": "139dd87ee3892316512843a6c7f15dc24a41c3e12549883e1dae3c1f43c7c75c"
+      },
+      "pass": 1,
+      "semanticCases": 8,
+      "status": "PASS",
+      "tests": 1
+    },
+    "sealedInputs": {
+      "manifest": {
+        "bytes": 569427,
+        "path": "snapback4/reports/wave12-lang/clients/client-inputs-f3ba53b70f-device-delta.json",
+        "sha256": "c4129ccdb477aa5cf68c49024b9f5623f9823d8498076f736a530a9f8d9a1f67"
+      },
+      "status": "PASS: all 1197 content hashes and authored modes matched after both executions; no active snapshot refresh"
+    },
+    "typecheck": {
+      "log": {
+        "bytes": 64,
+        "path": "snapback4/reports/wave12-lang/clients/client-typecheck-f3ba53b70f.log.gz",
+        "sha256": "0d07ff7fb2b313e89bc38c46701808345e611a9c80b5e6e5962c681aedcad060"
+      },
+      "status": "PASS"
+    },
+    "wasmBudgetHelper": {
+      "fail": 0,
+      "file": "packages/snapback4/test/wasm-budget.test.mjs",
+      "log": {
+        "bytes": 239,
+        "path": "snapback4/reports/wave12-lang/clients/client-run-f3ba53b70f-wasm-budget.log.gz",
+        "sha256": "e7ec3a73ebb6836ef0b9c6a0127f4237ab76adc98ddaf798f74bf12143015ab4"
+      },
+      "pass": 2,
+      "status": "PASS",
+      "tests": 2
+    }
+  },
+  "kind": "wave12-final-client-qualification-union",
+  "notes": [
+    "The R14 receipt retains its original read-only-fixture EACCES failures and exact 7/7 corrective rerun. This R15 receipt does not erase or relabel that setup evidence.",
+    "The final R15 wasm is 40 gzip bytes smaller than R14; the committed cap remains measured gzip plus exactly 500 bytes."
+  ],
+  "production": {
+    "budgetCheckpoint": "89d8349ec54d03093668abe1fea6ca82ae3b0e6a",
+    "cleanMeasurement": true,
+    "cliSha256": "0ebf6162b048bf2f4feb71419c0a5fb1eaf6703529c0b8e499e76da537ce2380",
+    "productCheckpoint": "f3ba53b70f14ec98cedb80dc2ad33b425729d760",
+    "wasmBrotliBytes": 541248,
+    "wasmBudgetBytes": 717267,
+    "wasmGzipBytes": 716767,
+    "wasmHeadroomBytes": 500,
+    "wasmRawBytes": 2353736,
+    "wasmSha256": "3dd408d5408909f3fd172f20e47ab444d85f5217631b615dff6b50c0e05dd8cf"
+  },
+  "qualifiedFileUnion": {
+    "aggregateTestCountOmitted": "the layered receipts intentionally avoid double counting shared setup and repeated bridge evidence",
+    "composition": "23 R14 affected files + 6 sealed R13 search files, all carried through the R15 path audit, plus 1 expiry/reference bridge rerun on the exact R15 artifacts",
+    "productFailures": 0,
+    "qualifiedProductFiles": 30,
+    "requestedProductFiles": 30
+  },
+  "schema": 1,
+  "status": "PASS_FINAL_R15",
+  "supersedesForFinalArtifact": "snapback4/reports/wave12-lang/clients/client-qualification-65560f6c4e-final.json"
+}
