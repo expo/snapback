@@ -95482,3 +95482,8 @@ Clean Linux measurement at `f3ba53b70f` is 2,353,736 B raw / 716,767 B gzip / 54
 ### 2026-10-15 — LANG canonical counter identity boundary
 
 Clean Linux measurement at `5042e58965` is 2,353,736 B raw / 716,766 B gzip / 541,126 B Brotli. Strict family and absence audits pass. Set the final budget to **717,266 B = measured gzip + exactly 500 B**. The canonical predecessor counter decoder keeps arbitrary reference IDs opaque; validator visibility changes the device layout by -1 B gzip without exposing server adoption. Whole-artifact growth from qualified 0.4.28 is 9,092 B gzip. Earlier LANG measurements are superseded; this remains Linux evidence without publication or runtime ceiling changes.
+
+
+### 2026-10-15 — LANG row and counter precedence qualification
+
+Clean Linux measurement at `726d2e94d6` is 2,353,736 B raw / 716,763 B gzip / 541,305 B Brotli. Strict family and absence audits pass. Set the final budget to **717,263 B = measured gzip + exactly 500 B**. Surviving aggregate row mappings remain authoritative during legacy counter adoption, including counter-only descendants of a dangling reference. The server-only correction changes compiled device layout by -3 B gzip. Whole-artifact growth from qualified 0.4.28 is 9,089 B gzip. Earlier LANG allowances are superseded; no runtime ceiling or publication claim changes.
