@@ -1,0 +1,12 @@
+{
+  "step": "chat-backend-check",
+  "command": [
+    "../../target/debug/snapback4",
+    "check"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0428/snapback4/apps/chat",
+  "start": 1792018471.332604,
+  "end": 1792018472.6345322,
+  "seconds": 1.302,
+  "exit": 0
+}

@@ -1,0 +1,15 @@
+{
+  "step": "simulator-uninstall",
+  "command": [
+    "xcrun",
+    "simctl",
+    "uninstall",
+    "D2C67F7F-196C-439E-AEB9-3FDA4479761E",
+    "dev.snapback4.chat"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0428/snapback4",
+  "start": 1792028447.223922,
+  "end": 1792028447.5132601,
+  "seconds": 0.289,
+  "exit": 0
+}

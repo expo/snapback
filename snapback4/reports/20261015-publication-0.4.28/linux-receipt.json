@@ -1,0 +1,774 @@
+{
+  "format": 1,
+  "route": "proot",
+  "source": "af4b256a31f5266577d5c014bd96b7827386c9db",
+  "target": "x86_64-unknown-linux-musl",
+  "toolchain": {
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)\nbinary: rustc\ncommit-hash: 2d8144b7880597b6e6d3dfd63a9a9efae3f533d3\ncommit-date: 2026-07-07\nhost: x86_64-unknown-linux-gnu\nrelease: 1.97.0\nLLVM version: 22.1.6",
+    "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+    "cc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "linker": "/home/ccheever/.local/share/snapback4-musl-1.2.5/bin/musl-gcc"
+  },
+  "flags": {
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "RUSTFLAGS": "-C target-feature=+crt-static -C relocation-model=static"
+  },
+  "suite": {
+    "status": "passed",
+    "exitCode": 0,
+    "summary": "== 0 failure(s) in 2546 s"
+  },
+  "proofs": [
+    {
+      "base": "ubuntu:24.04",
+      "node": "22.22.0",
+      "rootfs": {
+        "url": "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.3-base-amd64.tar.gz",
+        "sha256": "6bc2cde3930ad088b3bb46fa45279e96d25bc3810f209850ecbe4722711874f9"
+      },
+      "tools": [
+        {
+          "url": "https://github.com/proot-me/proot/releases/download/v5.4.1/proot",
+          "sha256": "19f44283f5c0e73091c60195f5fcd4f4c1165505e44410d434e2ab1b677c1a09"
+        },
+        {
+          "url": "https://nodejs.org/dist/v22.22.0/node-v22.22.0-linux-x64.tar.xz",
+          "sha256": "9aa8e9d2298ab68c600bd6fb86a6c13bce11a4eca1ba9b39d79fa021755d7c37"
+        }
+      ],
+      "route": "proot",
+      "runtime": "proot",
+      "status": "passed",
+      "elapsedMs": 292274,
+      "clientIntegrity": "sha512-jYtgDRhJ5cY8NlzWiDP7R0nhAV6gzWIiqQhaKnPueI5OiP7/ZMH1xDMRQpbHJJ+0pwuOoaR6N6R7rtIRG17Mkw==",
+      "platformIntegrity": "sha512-Zj9UCQh1d+4XX0GceI5KUAZYLAjhLjeMPHb6+ieYws3gdAV2lAhfWaNJS4EAl4dor5w/00uQfbH9gMx+ayEzZA==",
+      "expoIntegrity": "sha512-7OqmBc3iBw0PdT8fqL5GZqMr9s7rfMJx9umKjXE8IVeVvE+pskK0uEpZVvqKhIwbSqgZUNFtLUmvhRT2KvBifg==",
+      "starters": {
+        "web": "passed",
+        "expo": "passed",
+        "adapted": "passed",
+        "templates": "passed"
+      }
+    },
+    {
+      "base": "alpine",
+      "node": "24.18.1",
+      "rootfs": {
+        "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/releases/x86_64/alpine-minirootfs-3.23.3-x86_64.tar.gz",
+        "sha256": "42d0e6d8de5521e7bf92e075e032b5690c1d948fa9775efa32a51a38b25460fb"
+      },
+      "tools": [
+        {
+          "url": "https://github.com/proot-me/proot/releases/download/v5.4.1/proot",
+          "sha256": "19f44283f5c0e73091c60195f5fcd4f4c1165505e44410d434e2ab1b677c1a09"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/nodejs-24.18.1-r0.apk",
+          "sha256": "3c78c9bc8a1d52cc18e79f94120d69ae7705dab1d77054dfa040a064bf344b87"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/ada-libs-3.3.0-r0.apk",
+          "sha256": "5afb61331b184c47e91d0637ecb706aaf30e9270e845a6c0417235bdec2009c1"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/brotli-libs-1.2.0-r0.apk",
+          "sha256": "09fbf1ddf0c71c6c4ab7bc12aef3452d8ace5adeab10c4c30214fc70f5e0e087"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/c-ares-1.34.8-r0.apk",
+          "sha256": "7a570d080d05e60b1256ea73586924bf9a25f468c57aae10d1cdfe7fcc3f93a2"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/ca-certificates-20260909-r0.apk",
+          "sha256": "68ee230255f291fcc7539bacd1cc38cb15debda9cff66e57e9ff022a2c38816c"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/icu-data-en-76.1-r1.apk",
+          "sha256": "82d55e064ca2ff15e6ef6c3b7009eb2e869469f56f36c0d84411b265825a3251"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/icu-libs-76.1-r1.apk",
+          "sha256": "c6b53c168bb1af380fcbc305ff9e25c30e3cab756165fd7b8f77d4dac132aa4d"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/libcrypto3-3.5.8-r0.apk",
+          "sha256": "a5592b5cf276bc7a30ac7b161d46446085490b640faa1f839ea98eb15aacad31"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/libgcc-15.2.0-r2.apk",
+          "sha256": "4279d14cbf43311312d3a7d43619f4c15ede2e46d5608ba421ed157ded57c700"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/libssl3-3.5.8-r0.apk",
+          "sha256": "f80b76cb5e5a52cfc1ced08f8dc3022adc0ce0a3d6e7741976731b22c71fe310"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/libstdc++-15.2.0-r2.apk",
+          "sha256": "d4be2967a06d78b499f5e136323f4ebe51ad367b381933b3369539499c4f5752"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/nghttp2-libs-1.69.0-r0.apk",
+          "sha256": "e52a5325b8720449ed4f123a33202794361b6b164c127abdb4b3c057467e7a41"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/simdjson-3.12.0-r0.apk",
+          "sha256": "1dfe639550b5457018b7993a9ac9417a6b3d0e4ecbbdacf0ef0e3b42582173e4"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/simdutf-7.5.0-r1.apk",
+          "sha256": "6ca498fdaf3eae672e656f3746c2b4a4740a1924d1210af43ec6233b4a5a1476"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/sqlite-libs-3.53.4-r0.apk",
+          "sha256": "414be12c879052f4614a42a10fc12af67a88ba49e8e1e33f78cd9ddbbdb13fee"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/zlib-1.3.2-r0.apk",
+          "sha256": "f56dea63692059bd65854bb179b7551971a441000b0d98c5b031291ca0450b56"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/main/x86_64/zstd-libs-1.5.7-r2.apk",
+          "sha256": "d5fcc58f7f071a5658d97b09838668e4443203217631992915b8e60656904104"
+        },
+        {
+          "url": "https://dl-cdn.alpinelinux.org/alpine/v3.23/community/x86_64/npm-11.11.0-r0.apk",
+          "sha256": "9ceb98c5ee7b2a5f63b4d7b9a95f48682d5f169031bfe7dd60b68c922cea46e4"
+        }
+      ],
+      "route": "proot",
+      "runtime": "proot",
+      "status": "passed",
+      "elapsedMs": 413459,
+      "clientIntegrity": "sha512-jYtgDRhJ5cY8NlzWiDP7R0nhAV6gzWIiqQhaKnPueI5OiP7/ZMH1xDMRQpbHJJ+0pwuOoaR6N6R7rtIRG17Mkw==",
+      "platformIntegrity": "sha512-Zj9UCQh1d+4XX0GceI5KUAZYLAjhLjeMPHb6+ieYws3gdAV2lAhfWaNJS4EAl4dor5w/00uQfbH9gMx+ayEzZA==",
+      "expoIntegrity": "sha512-7OqmBc3iBw0PdT8fqL5GZqMr9s7rfMJx9umKjXE8IVeVvE+pskK0uEpZVvqKhIwbSqgZUNFtLUmvhRT2KvBifg==",
+      "starters": {
+        "web": "passed",
+        "expo": "passed",
+        "adapted": "passed",
+        "templates": "passed"
+      }
+    }
+  ],
+  "frontendProofs": [
+    {
+      "starter": "web",
+      "kind": "web",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 1801,
+      "range": [
+        39841,
+        39861
+      ],
+      "occupied": 39841,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        2.29,
+        2.48,
+        4.95
+      ],
+      "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/frontend-web/logs"
+    },
+    {
+      "starter": "web",
+      "kind": "web",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 1758,
+      "range": [
+        42213,
+        42233
+      ],
+      "occupied": 42213,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        2.42,
+        2.51,
+        4.95
+      ],
+      "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/frontend-web/logs"
+    },
+    {
+      "starter": "web-online",
+      "kind": "web",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 1265,
+      "range": [
+        33089,
+        33109
+      ],
+      "occupied": 33089,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        2.31,
+        2.48,
+        4.93
+      ],
+      "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/frontend-web-online/logs"
+    },
+    {
+      "starter": "web-online",
+      "kind": "web",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 1309,
+      "range": [
+        33073,
+        33093
+      ],
+      "occupied": 33073,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        2.31,
+        2.48,
+        4.93
+      ],
+      "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/frontend-web-online/logs"
+    },
+    {
+      "starter": "expo",
+      "kind": "expo",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 1884,
+      "range": [
+        39169,
+        39189
+      ],
+      "occupied": 39169,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        2.84,
+        2.59,
+        4.91
+      ],
+      "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/frontend-expo/logs"
+    },
+    {
+      "starter": "expo",
+      "kind": "expo",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 1849,
+      "range": [
+        36523,
+        36543
+      ],
+      "occupied": 36523,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        2.84,
+        2.59,
+        4.91
+      ],
+      "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/frontend-expo/logs"
+    },
+    {
+      "starter": "web-chat",
+      "kind": "web",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 1665,
+      "range": [
+        33007,
+        33027
+      ],
+      "occupied": 33007,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        2.87,
+        2.6,
+        4.89
+      ],
+      "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/frontend-web-chat/logs"
+    },
+    {
+      "starter": "web-chat",
+      "kind": "web",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 1627,
+      "range": [
+        37119,
+        37139
+      ],
+      "occupied": 37119,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        2.87,
+        2.6,
+        4.89
+      ],
+      "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/frontend-web-chat/logs"
+    },
+    {
+      "starter": "expo-chat",
+      "kind": "expo",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 1671,
+      "range": [
+        34831,
+        34851
+      ],
+      "occupied": 34831,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        3.14,
+        2.67,
+        4.87
+      ],
+      "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/frontend-expo-chat/logs"
+    },
+    {
+      "starter": "expo-chat",
+      "kind": "expo",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 1641,
+      "range": [
+        36147,
+        36167
+      ],
+      "occupied": 36147,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        3.14,
+        2.67,
+        4.87
+      ],
+      "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/frontend-expo-chat/logs"
+    },
+    {
+      "starter": "expo-social",
+      "kind": "expo",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 1763,
+      "range": [
+        39007,
+        39027
+      ],
+      "occupied": 39007,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        3.58,
+        2.81,
+        4.86
+      ],
+      "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/frontend-expo-social/logs"
+    },
+    {
+      "starter": "expo-social",
+      "kind": "expo",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 1884,
+      "range": [
+        39187,
+        39207
+      ],
+      "occupied": 39187,
+      "cpuLoadWorkers": 2,
+      "loadavg": [
+        3.58,
+        2.81,
+        4.86
+      ],
+      "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/frontend-expo-social/logs"
+    }
+  ],
+  "starterProofs": [
+    {
+      "starter": "web",
+      "kind": "web",
+      "status": "passed",
+      "adapted": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "frontendProofs": [
+        {
+          "starter": "web",
+          "kind": "web",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 1752,
+          "range": [
+            38261,
+            38281
+          ],
+          "occupied": 38261,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            3.48,
+            2.82,
+            4.84
+          ],
+          "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/starter-web/logs"
+        },
+        {
+          "starter": "web",
+          "kind": "web",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 1732,
+          "range": [
+            35995,
+            36015
+          ],
+          "occupied": 35995,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            3.48,
+            2.82,
+            4.84
+          ],
+          "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/starter-web/logs"
+        }
+      ],
+      "adaptedProofs": [
+        {
+          "starter": "web",
+          "kind": "web",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 1087,
+          "range": [
+            40155,
+            40175
+          ],
+          "occupied": 40155,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            3.44,
+            2.82,
+            4.83
+          ],
+          "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/starter-web/logs"
+        },
+        {
+          "starter": "web",
+          "kind": "web",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 1036,
+          "range": [
+            35541,
+            35561
+          ],
+          "occupied": 35541,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            3.44,
+            2.82,
+            4.83
+          ],
+          "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/starter-web/logs"
+        }
+      ]
+    },
+    {
+      "starter": "web-online",
+      "kind": "web",
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "frontendProofs": [
+        {
+          "starter": "web-online",
+          "kind": "web",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 1333,
+          "range": [
+            46839,
+            46859
+          ],
+          "occupied": 46839,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            3.25,
+            2.79,
+            4.81
+          ],
+          "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/starter-web-online/logs"
+        },
+        {
+          "starter": "web-online",
+          "kind": "web",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 1263,
+          "range": [
+            43769,
+            43789
+          ],
+          "occupied": 43769,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            3.31,
+            2.81,
+            4.81
+          ],
+          "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/starter-web-online/logs"
+        }
+      ]
+    },
+    {
+      "starter": "expo",
+      "kind": "expo",
+      "status": "passed",
+      "adapted": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "frontendProofs": [
+        {
+          "starter": "expo",
+          "kind": "expo",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 1778,
+          "range": [
+            42673,
+            42693
+          ],
+          "occupied": 42673,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            3.21,
+            2.82,
+            4.77
+          ],
+          "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/starter-expo/logs"
+        },
+        {
+          "starter": "expo",
+          "kind": "expo",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 1849,
+          "range": [
+            35471,
+            35491
+          ],
+          "occupied": 35471,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            3.21,
+            2.82,
+            4.77
+          ],
+          "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/starter-expo/logs"
+        }
+      ],
+      "adaptedProofs": [
+        {
+          "starter": "expo",
+          "kind": "expo",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 1076,
+          "range": [
+            42123,
+            42143
+          ],
+          "occupied": 42123,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            3.35,
+            2.86,
+            4.76
+          ],
+          "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/starter-expo/logs"
+        },
+        {
+          "starter": "expo",
+          "kind": "expo",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 1106,
+          "range": [
+            44139,
+            44159
+          ],
+          "occupied": 44139,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            3.35,
+            2.86,
+            4.76
+          ],
+          "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/starter-expo/logs"
+        }
+      ]
+    },
+    {
+      "starter": "web-chat",
+      "kind": "web",
+      "template": "chat",
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "frontendProofs": [
+        {
+          "starter": "web-chat",
+          "kind": "web",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 1587,
+          "range": [
+            42589,
+            42609
+          ],
+          "occupied": 42589,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            3.16,
+            2.83,
+            4.74
+          ],
+          "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/starter-web-chat/logs"
+        },
+        {
+          "starter": "web-chat",
+          "kind": "web",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 1555,
+          "range": [
+            36473,
+            36493
+          ],
+          "occupied": 36473,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            3.23,
+            2.85,
+            4.73
+          ],
+          "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/starter-web-chat/logs"
+        }
+      ]
+    },
+    {
+      "starter": "expo-chat",
+      "kind": "expo",
+      "template": "chat",
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "frontendProofs": [
+        {
+          "starter": "expo-chat",
+          "kind": "expo",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 1647,
+          "range": [
+            39531,
+            39551
+          ],
+          "occupied": 39531,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            3.17,
+            2.86,
+            4.71
+          ],
+          "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/starter-expo-chat/logs"
+        },
+        {
+          "starter": "expo-chat",
+          "kind": "expo",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 1517,
+          "range": [
+            42713,
+            42733
+          ],
+          "occupied": 42713,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            3.17,
+            2.86,
+            4.71
+          ],
+          "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/starter-expo-chat/logs"
+        }
+      ]
+    },
+    {
+      "starter": "expo-social",
+      "kind": "expo",
+      "template": "social",
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed",
+      "frontendProofs": [
+        {
+          "starter": "expo-social",
+          "kind": "expo",
+          "attempt": 1,
+          "status": "passed",
+          "elapsedMs": 1842,
+          "range": [
+            38587,
+            38607
+          ],
+          "occupied": 38587,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            4.21,
+            3.14,
+            4.75
+          ],
+          "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/starter-expo-social/logs"
+        },
+        {
+          "starter": "expo-social",
+          "kind": "expo",
+          "attempt": 2,
+          "status": "passed",
+          "elapsedMs": 1818,
+          "range": [
+            35027,
+            35047
+          ],
+          "occupied": 35027,
+          "cpuLoadWorkers": 2,
+          "loadavg": [
+            4.19,
+            3.15,
+            4.75
+          ],
+          "logs": "/home/ccheever/sb4-pub-0428-records/linux-qualification-0.4.28/starter-expo-social/logs"
+        }
+      ]
+    }
+  ],
+  "elf": {
+    "status": "passed",
+    "machine": "x86_64",
+    "interpreter": null,
+    "needed": []
+  },
+  "platform": {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.28",
+    "filename": "snapback4-linux-x64-0.4.28.tgz",
+    "integrity": "sha512-Zj9UCQh1d+4XX0GceI5KUAZYLAjhLjeMPHb6+ieYws3gdAV2lAhfWaNJS4EAl4dor5w/00uQfbH9gMx+ayEzZA==",
+    "bytes": 11784484
+  },
+  "binarySha256": "1b8d4a75feea9be7b2f03a83b139b9c3e23b139fd123c7ab4deb477a6fde78a3",
+  "clientIntegrity": "sha512-jYtgDRhJ5cY8NlzWiDP7R0nhAV6gzWIiqQhaKnPueI5OiP7/ZMH1xDMRQpbHJJ+0pwuOoaR6N6R7rtIRG17Mkw==",
+  "expo": {
+    "name": "snapback4-expo",
+    "version": "0.4.28",
+    "filename": "snapback4-expo-0.4.28.tgz",
+    "integrity": "sha512-7OqmBc3iBw0PdT8fqL5GZqMr9s7rfMJx9umKjXE8IVeVvE+pskK0uEpZVvqKhIwbSqgZUNFtLUmvhRT2KvBifg==",
+    "bytes": 6281284
+  }
+}

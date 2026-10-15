@@ -1,0 +1,19 @@
+{
+  "step": "fence-2",
+  "command": [
+    "env",
+    "-u",
+    "SNAPBACK4_BIN",
+    "PATH=/Users/ccheever/.elan/bin:/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/Users/ccheever/.bun/bin:/Users/ccheever/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "SNAPBACK4_FENCE_PUBLISHED=/Users/ccheever/sb4-03-lanes/published-0.2.33",
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "packages/snapback4/test/schema-capabilities.test.mjs"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0428/snapback4",
+  "start": 1792045452.2692502,
+  "end": 1792045457.124434,
+  "seconds": 4.855,
+  "exit": 0
+}

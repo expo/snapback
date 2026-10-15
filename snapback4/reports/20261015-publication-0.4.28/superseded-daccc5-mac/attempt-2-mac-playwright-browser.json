@@ -1,0 +1,16 @@
+{
+  "step": "mac-playwright-browser",
+  "command": [
+    "env",
+    "PATH=/Users/ccheever/.elan/bin:/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/Users/ccheever/.bun/bin:/Users/ccheever/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "node",
+    "node_modules/playwright-core/cli.js",
+    "install",
+    "chromium-headless-shell"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0428/snapback4",
+  "start": 1792044343.52647,
+  "end": 1792044442.906892,
+  "seconds": 99.38,
+  "exit": 0
+}

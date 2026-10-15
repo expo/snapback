@@ -1,0 +1,17 @@
+{
+  "step": "linux-isolated-release-activation",
+  "command": [
+    "env",
+    "-u",
+    "SNAPBACK4_BIN",
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "packages/snapback4/test/release-activation.test.mjs"
+  ],
+  "cwd": "/home/ccheever/projects/sb4-pub-0428/snapback4",
+  "start": 1792021761.3979642,
+  "end": 1792021777.1717143,
+  "seconds": 15.774,
+  "exit": 1
+}

@@ -1,0 +1,14 @@
+{
+  "step": "linux-playwright-browser",
+  "command": [
+    "node",
+    "node_modules/playwright-core/cli.js",
+    "install",
+    "chromium-headless-shell"
+  ],
+  "cwd": "/home/ccheever/projects/sb4-pub-0428/snapback4",
+  "start": 1792021748.5951347,
+  "end": 1792021752.440968,
+  "seconds": 3.846,
+  "exit": 0
+}

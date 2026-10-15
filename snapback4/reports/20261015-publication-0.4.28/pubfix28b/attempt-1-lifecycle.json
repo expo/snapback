@@ -1,0 +1,20 @@
+{
+  "step": "lifecycle",
+  "command": [
+    "env",
+    "PATH=/Users/ccheever/.elan/bin:/Users/ccheever/.volta/tools/image/node/24.18.0/bin:/Users/ccheever/.bun/bin:/Users/ccheever/.cargo/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+    "CARGO_INCREMENTAL=0",
+    "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "cargo",
+    "test",
+    "-p",
+    "snapback4",
+    "--test",
+    "lifecycle"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0428/snapback4",
+  "start": 1792045457.174755,
+  "end": 1792045519.8752909,
+  "seconds": 62.701,
+  "exit": 0
+}

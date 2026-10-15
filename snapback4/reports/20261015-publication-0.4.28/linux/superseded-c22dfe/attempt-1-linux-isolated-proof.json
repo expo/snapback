@@ -1,0 +1,17 @@
+{
+  "step": "linux-isolated-proof",
+  "command": [
+    "env",
+    "-u",
+    "SNAPBACK4_BIN",
+    "node",
+    "--test",
+    "--test-reporter=tap",
+    "packages/snapback4/test/proof.test.mjs"
+  ],
+  "cwd": "/home/ccheever/projects/sb4-pub-0428/snapback4",
+  "start": 1792021756.1716788,
+  "end": 1792021761.3538764,
+  "seconds": 5.182,
+  "exit": 0
+}

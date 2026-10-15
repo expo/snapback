@@ -1,0 +1,131 @@
+[
+  {
+    "id": "snapback4-expo@0.4.28",
+    "name": "snapback4-expo",
+    "version": "0.4.28",
+    "size": 6281284,
+    "unpackedSize": 15604183,
+    "shasum": "70814520f77a9a3001b2893779994530f803b5bd",
+    "integrity": "sha512-7OqmBc3iBw0PdT8fqL5GZqMr9s7rfMJx9umKjXE8IVeVvE+pskK0uEpZVvqKhIwbSqgZUNFtLUmvhRT2KvBifg==",
+    "filename": "snapback4-expo-0.4.28.tgz",
+    "files": [
+      {
+        "path": "README.md",
+        "size": 6718,
+        "mode": 420
+      },
+      {
+        "path": "expo-module.config.json",
+        "size": 82,
+        "mode": 420
+      },
+      {
+        "path": "export-ios.mjs",
+        "size": 10235,
+        "mode": 493
+      },
+      {
+        "path": "ios/MediaFiles.swift",
+        "size": 4191,
+        "mode": 420
+      },
+      {
+        "path": "ios/SavedAsset.swift",
+        "size": 1641,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/Info.plist",
+        "size": 1257,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/module.modulemap",
+        "size": 61,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/snapback4.h",
+        "size": 2576,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a",
+        "size": 7764096,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/ios-arm64/Headers/module.modulemap",
+        "size": 61,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/ios-arm64/Headers/snapback4.h",
+        "size": 2576,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a",
+        "size": 7770976,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Expo.podspec",
+        "size": 1222,
+        "mode": 420
+      },
+      {
+        "path": "ios/Snapback4Module.swift",
+        "size": 5570,
+        "mode": 420
+      },
+      {
+        "path": "ios/WitnessContainer.swift",
+        "size": 4184,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 983,
+        "mode": 420
+      },
+      {
+        "path": "plugin.cjs",
+        "size": 3135,
+        "mode": 420
+      },
+      {
+        "path": "src/index.ts",
+        "size": 3776,
+        "mode": 420
+      },
+      {
+        "path": "src/save-asset.ts",
+        "size": 1812,
+        "mode": 420
+      },
+      {
+        "path": "src/smoke.ts",
+        "size": 11226,
+        "mode": 420
+      },
+      {
+        "path": "src/witness-core.ts",
+        "size": 4731,
+        "mode": 420
+      },
+      {
+        "path": "src/witness-runtime.ts",
+        "size": 915,
+        "mode": 420
+      },
+      {
+        "path": "src/witness.ts",
+        "size": 2159,
+        "mode": 420
+      }
+    ],
+    "entryCount": 23,
+    "bundled": []
+  }
+]

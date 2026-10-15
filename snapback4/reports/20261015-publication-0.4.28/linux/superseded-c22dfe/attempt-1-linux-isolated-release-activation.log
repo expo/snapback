@@ -1,0 +1,443 @@
+TAP version 13
+# (node:3440670) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: rollback then deploy keeps immutable source identities and serving only attaches
+ok 1 - rollback then deploy keeps immutable source identities and serving only attaches
+  ---
+  duration_ms: 227.999333
+  type: 'test'
+  ...
+# Subtest: live release deploy and rollback activate without restart
+ok 2 - live release deploy and rollback activate without restart
+  ---
+  duration_ms: 254.468536
+  type: 'test'
+  ...
+# Subtest: required pointer and ledger failures happen before database activation
+ok 3 - required pointer and ledger failures happen before database activation
+  ---
+  duration_ms: 60.178689
+  type: 'test'
+  ...
+# Subtest: data and doctor inspect persisted state despite destructive or broken source edits
+ok 4 - data and doctor inspect persisted state despite destructive or broken source edits
+  ---
+  duration_ms: 48.10638
+  type: 'test'
+  ...
+# Subtest: serving edited release schema or programs refuses without adopting them
+ok 5 - serving edited release schema or programs refuses without adopting them
+  ---
+  duration_ms: 46.737488
+  type: 'test'
+  ...
+# Subtest: legacy pointer deployments upgrade through deploy, never implicit serving
+ok 6 - legacy pointer deployments upgrade through deploy, never implicit serving
+  ---
+  duration_ms: 171.250597
+  type: 'test'
+  ...
+# Subtest: local dev and run cannot reactivate source inside a deployed release
+ok 7 - local dev and run cannot reactivate source inside a deployed release
+  ---
+  duration_ms: 176.708059
+  type: 'test'
+  ...
+# Subtest: inspection of a new project does not initialize a store
+ok 8 - inspection of a new project does not initialize a store
+  ---
+  duration_ms: 9.739862
+  type: 'test'
+  ...
+# Subtest: check reports generated-type write failures and data refuses malformed limits
+ok 9 - check reports generated-type write failures and data refuses malformed limits
+  ---
+  duration_ms: 32.134736
+  type: 'test'
+  ...
+# Subtest: run says when a job ignores --as and executes as the system
+ok 10 - run says when a job ignores --as and executes as the system
+  ---
+  duration_ms: 27.730673
+  type: 'test'
+  ...
+# Subtest: stopped full-release restore preserves its recovery point and stays separate from the original
+ok 11 - stopped full-release restore preserves its recovery point and stays separate from the original
+  ---
+  duration_ms: 1026.613204
+  type: 'test'
+  ...
+# recovery point: release 1, generation 1, sequence 1; password login and rotation passed; fresh process device only; post-backup original writes excluded; queued effects never delivered; process/stopped-copy recovery, WAL synchronous=NORMAL, no power-loss claim
+# Subtest: a queued scheduled job survives serving process death and runs once after restart
+ok 12 - a queued scheduled job survives serving process death and runs once after restart
+  ---
+  duration_ms: 1544.161846
+  type: 'test'
+  ...
+# owned serve SIGKILL after durable schedule admission, before first chunk; same job id resumed once; one queued effect; no external worker; WAL synchronous=NORMAL, no power-loss claim
+# Subtest: release serving repairs dangling legacy links and refuses an unexpected regular store file
+ok 13 - release serving repairs dangling legacy links and refuses an unexpected regular store file
+  ---
+  duration_ms: 282.969284
+  type: 'test'
+  ...
+# Subtest: release nextExpiry excludes irrelevant hidden grants: owner
+ok 14 - release nextExpiry excludes irrelevant hidden grants: owner
+  ---
+  duration_ms: 167.836859
+  type: 'test'
+  ...
+# Subtest: release nextExpiry excludes irrelevant hidden grants: failed branch
+ok 15 - release nextExpiry excludes irrelevant hidden grants: failed branch
+  ---
+  duration_ms: 175.601279
+  type: 'test'
+  ...
+# Subtest: release nextExpiry excludes irrelevant hidden grants: second witness
+ok 16 - release nextExpiry excludes irrelevant hidden grants: second witness
+  ---
+  duration_ms: 168.069237
+  type: 'test'
+  ...
+# Subtest: release nextExpiry excludes irrelevant hidden grants: multiple witnesses
+ok 17 - release nextExpiry excludes irrelevant hidden grants: multiple witnesses
+  ---
+  duration_ms: 172.216745
+  type: 'test'
+  ...
+# Subtest: release nextExpiry excludes irrelevant hidden grants: correlated branches
+ok 18 - release nextExpiry excludes irrelevant hidden grants: correlated branches
+  ---
+  duration_ms: 172.620079
+  type: 'test'
+  ...
+# Subtest: hot additive rollback and forward preserve dormant data, old writes and a connected client
+ok 19 - hot additive rollback and forward preserve dormant data, old writes and a connected client
+  ---
+  duration_ms: 1033.475813
+  type: 'test'
+  ...
+# Subtest: native-only hot activation advances generation and refreshes an already connected device
+ok 20 - native-only hot activation advances generation and refreshes an already connected device
+  ---
+  duration_ms: 4420.670869
+  type: 'test'
+  ...
+# Subtest: hot release replaces, adds and retires named workers without restarting serve
+ok 21 - hot release replaces, adds and retires named workers without restarting serve
+  ---
+  duration_ms: 563.159161
+  type: 'test'
+  ...
+# Subtest: an unserved release cannot create a shadow development store
+ok 22 - an unserved release cannot create a shadow development store
+  ---
+  duration_ms: 44.669107
+  type: 'test'
+  ...
+# Subtest: owned serve death before hot commit and after commit recovers database authority
+ok 23 - owned serve death before hot commit and after commit recovers database authority
+  ---
+  duration_ms: 315.632221
+  type: 'test'
+  ...
+# Subtest: REL identical source is a no-op; latest and exact previews never activate
+ok 24 - REL identical source is a no-op; latest and exact previews never activate
+  ---
+  duration_ms: 377.254154
+  type: 'test'
+  ...
+# Subtest: REL 16 concurrent callers remain request-safe over six hot switch pairs
+ok 25 - REL 16 concurrent callers remain request-safe over six hot switch pairs
+  ---
+  duration_ms: 1115.414174
+  type: 'test'
+  ...
+# 1408 HTTP replies across 12 hot activations
+# TEST_BODY: AssertionError [ERR_ASSERTION]: The input did not match the regular expression /1 row, 20 cells, 0 index entries dormant/. Input:
+# 'preview: release 1 would be current as generation 3; 1 row, 0 cells, 0 index entries dormant; samples: rows values [01M4YD4FW4DAVPBQ2KWVWXD78E]; live release unchanged\\n' +
+#   '  tables.values.columns.spare0: column values.spare0 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#   '  tables.values.columns.spare1: column values.spare1 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#   '  tables.values.columns.spare10: column values.spare10 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#   '  tables.values.columns.spare11: column values.spare11 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#   '  tables.values.columns.spare12: column values.spare12 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#   '  tables.values.columns.spare13: column values.spare13 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#   '  tables.values.columns.spare14: column values.spare14 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#   '  tables.values.columns.spare15: column values.spare15 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#   '  tables.values.columns.spare16: column values.spare16 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#   '  tables.values.columns.spare17: column values.spare17 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#   '  tables.values.columns.spare18: column values.spare18 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#   '  tables.values.columns.spare19: column values.spare19 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#   '  tables.values.columns.spare2: column values.spare2 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#   '  tables.values.columns.spare3: column values.spare3 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#   '  tables.values.columns.spare4: column values.spare4 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#   '  tables.values.columns.spare5: column values.spare5 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#   '  tables.values.columns.spare6: column values.spare6 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#   '  tables.values.columns.spare7: column values.spare7 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#   '  tables.values.columns.spare8: column values.spare8 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#   '  tables.values.columns.spare9: column values.spare9 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#   "  tables.values.columns.status: column values.status changes from enum('old', 'new') to enum('old'); active rows satisfy the candidate after dormant projection\\n" +
+#   "  WARNING values.status: 1 row holds 'new', which release 1 cannot hold; it becomes dormant on this switch and is restored on compatible forward\\n" +
+#   '  WARNING release 1 lacks operation setStatus\\n' +
+#   '  column:values.spare0: 0 cells dormant (restored on compatible forward); sample ids []\\n' +
+#   '  column:values.spare1: 0 cells dormant (restored on compatible forward); sample ids []\\n' +
+#   '  column:values.spare10: 0 cells dormant (restored on compatible forward); sample ids []\\n' +
+#   '  column:values.spare11: 0 cells dormant (restored on compatible forward); sample ids []\\n' +
+#   '  column:values.spare12: 0 cells dormant (restored on compatible forward); sample ids []\\n' +
+#   '  column:values.spare13: 0 cells dormant (restored on compatible forward); sample ids []\\n' +
+#   '  column:values.spare14: 0 cells dormant (restored on compatible forward); sample ids []\\n' +
+#   '  column:values.spare15: 0 cells dormant (restored on compatible forward); sample ids []\\n' +
+#   '  column:values.spare16: 0 cells dormant (restored on compatible forward); sample ids []\\n' +
+#   '  column:values.spare17: 0 cells dormant (restored on compatible forward); sample ids []\\n' +
+#   '  column:values.spare18: 0 cells dormant (restored on compatible forward); sample ids []\\n' +
+#   '  column:values.spare19: 0 cells dormant (restored on compatible forward); sample ids []\\n' +
+#   '  column:values.spare2: 0 cells dormant (restored on compatible forward); sample ids []\\n' +
+#   '  column:values.spare3: 0 cells dormant (restored on compatible forward); sample ids []\\n' +
+#   '  column:values.spare4: 0 cells dormant (restored on compatible forward); sample ids []\\n' +
+#   '  column:values.spare5: 0 cells dormant (restored on compatible forward); sample ids []\\n' +
+#   '  column:values.spare6: 0 cells dormant (restored on compatible forward); sample ids []\\n' +
+#   '  column:values.spare7: 0 cells dormant (restored on compatible forward); sample ids []\\n' +
+#   '  column:values.spare8: 0 cells dormant (restored on compatible forward); sample ids []\\n' +
+#   '  column:values.spare9: 0 cells dormant (restored on compatible forward); sample ids []\\n' +
+#   '  rows:values: 1 row dormant (restored on compatible forward); sample ids [01M4YD4FW4DAVPBQ2KWVWXD78E]\\n'
+#     at file:///home/ccheever/projects/sb4-pub-0428/snapback4/packages/snapback4/test/release-activation.test.mjs:949:12
+#     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+#     at async file:///home/ccheever/projects/sb4-pub-0428/snapback4/packages/snapback4/test/release-activation.test.mjs:79:5
+#     at async withCleanup (file:///home/ccheever/projects/sb4-pub-0428/snapback4/packages/snapback4/test/helpers/cleanup.mjs:7:17)
+#     at async serve (file:///home/ccheever/projects/sb4-pub-0428/snapback4/packages/snapback4/test/release-activation.test.mjs:70:3)
+#     at async TestContext.<anonymous> (file:///home/ccheever/projects/sb4-pub-0428/snapback4/packages/snapback4/test/release-activation.test.mjs:933:3)
+#     at async Test.run (node:internal/test_runner/test:1110:7)
+#     at async Test.processPendingSubtests (node:internal/test_runner/test:785:7) {
+#   generatedMessage: true,
+#   code: 'ERR_ASSERTION',
+#   actual: 'preview: release 1 would be current as generation 3; 1 row, 0 cells, 0 index entries dormant; samples: rows values [01M4YD4FW4DAVPBQ2KWVWXD78E]; live release unchanged\\n' +
+#     '  tables.values.columns.spare0: column values.spare0 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#     '  tables.values.columns.spare1: column values.spare1 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#     '  tables.values.columns.spare10: column values.spare10 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#     '  tables.values.columns.spare11: column values.spare11 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#     '  tables.values.columns.spare12: column values.spare12 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#     '  tables.values.columns.spare13: column values.spare13 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#     '  tables.values.columns.spare14: column values.spare14 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#     '  tables.values.columns.spare15: column values.spare15 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#     '  tables.values.columns.spare16: column values.spare16 is removed; its cells become dormant (0 cells; restored on forward)\\n' +
+#     '...',
+#   expected: /1 row, 20 cells, 0 index entries dormant/,
+#   operator: 'match',
+#   diff: 'simple'
+# }
+# Subtest: REL mutation decoding and many-item previews report complete plans
+not ok 26 - REL mutation decoding and many-item previews report complete plans
+  ---
+  duration_ms: 166.54376
+  type: 'test'
+  location: '/home/ccheever/projects/sb4-pub-0428/snapback4/packages/snapback4/test/release-activation.test.mjs:920:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    The input did not match the regular expression /1 row, 20 cells, 0 index entries dormant/. Input:
+    
+    'preview: release 1 would be current as generation 3; 1 row, 0 cells, 0 index entries dormant; samples: rows values [01M4YD4FW4DAVPBQ2KWVWXD78E]; live release unchanged\n' +
+      '  tables.values.columns.spare0: column values.spare0 is removed; its cells become dormant (0 cells; restored on forward)\n' +
+      '  tables.values.columns.spare1: column values.spare1 is removed; its cells become dormant (0 cells; restored on forward)\n' +
+      '  tables.values.columns.spare10: column values.spare10 is removed; its cells become dormant (0 cells; restored on forward)\n' +
+      '  tables.values.columns.spare11: column values.spare11 is removed; its cells become dormant (0 cells; restored on forward)\n' +
+      '  tables.values.columns.spare12: column values.spare12 is removed; its cells become dormant (0 cells; restored on forward)\n' +
+      '  tables.values.columns.spare13: column values.spare13 is removed; its cells become dormant (0 cells; restored on forward)\n' +
+      '  tables.values.columns.spare14: column values.spare14 is removed; its cells become dormant (0 cells; restored on forward)\n' +
+      '  tables.values.columns.spare15: column values.spare15 is removed; its cells become dormant (0 cells; restored on forward)\n' +
+      '  tables.values.columns.spare16: column values.spare16 is removed; its cells become dormant (0 cells; restored on forward)\n' +
+      '  tables.values.columns.spare17: column values.spare17 is removed; its cells become dormant (0 cells; restored on forward)\n' +
+      '  tables.values.columns.spare18: column values.spare18 is removed; its cells become dormant (0 cells; restored on forward)\n' +
+      '  tables.values.columns.spare19: column values.spare19 is removed; its cells become dormant (0 cells; restored on forward)\n' +
+      '  tables.values.columns.spare2: column values.spare2 is removed; its cells become dormant (0 cells; restored on forward)\n' +
+      '  tables.values.columns.spare3: column values.spare3 is removed; its cells become dormant (0 cells; restored on forward)\n' +
+      '  tables.values.columns.spare4: column values.spare4 is removed; its cells become dormant (0 cells; restored on forward)\n' +
+      '  tables.values.columns.spare5: column values.spare5 is removed; its cells become dormant (0 cells; restored on forward)\n' +
+      '  tables.values.columns.spare6: column values.spare6 is removed; its cells become dormant (0 cells; restored on forward)\n' +
+      '  tables.values.columns.spare7: column values.spare7 is removed; its cells become dormant (0 cells; restored on forward)\n' +
+      '  tables.values.columns.spare8: column values.spare8 is removed; its cells become dormant (0 cells; restored on forward)\n' +
+      '  tables.values.columns.spare9: column values.spare9 is removed; its cells become dormant (0 cells; restored on forward)\n' +
+      "  tables.values.columns.status: column values.status changes from enum('old', 'new') to enum('old'); active rows satisfy the candidate after dormant projection\n" +
+      "  WARNING values.status: 1 row holds 'new', which release 1 cannot hold; it becomes dormant on this switch and is restored on compatible forward\n" +
+      '  WARNING release 1 lacks operation setStatus\n' +
+      '  column:values.spare0: 0 cells dormant (restored on compatible forward); sample ids []\n' +
+      '  column:values.spare1: 0 cells dormant (restored on compatible forward); sample ids []\n' +
+      '  column:values.spare10: 0 cells dormant (restored on compatible forward); sample ids []\n' +
+      '  column:values.spare11: 0 cells dormant (restored on compatible forward); sample ids []\n' +
+      '  column:values.spare12: 0 cells dormant (restored on compatible forward); sample ids []\n' +
+      '  column:values.spare13: 0 cells dormant (restored on compatible forward); sample ids []\n' +
+      '  column:values.spare14: 0 cells dormant (restored on compatible forward); sample ids []\n' +
+      '  column:values.spare15: 0 cells dormant (restored on compatible forward); sample ids []\n' +
+      '  column:values.spare16: 0 cells dormant (restored on compatible forward); sample ids []\n' +
+      '  column:values.spare17: 0 cells dormant (restored on compatible forward); sample ids []\n' +
+      '  column:values.spare18: 0 cells dormant (restored on compatible forward); sample ids []\n' +
+      '  column:values.spare19: 0 cells dormant (restored on compatible forward); sample ids []\n' +
+      '  column:values.spare2: 0 cells dormant (restored on compatible forward); sample ids []\n' +
+      '  column:values.spare3: 0 cells dormant (restored on compatible forward); sample ids []\n' +
+      '  column:values.spare4: 0 cells dormant (restored on compatible forward); sample ids []\n' +
+      '  column:values.spare5: 0 cells dormant (restored on compatible forward); sample ids []\n' +
+      '  column:values.spare6: 0 cells dormant (restored on compatible forward); sample ids []\n' +
+      '  column:values.spare7: 0 cells dormant (restored on compatible forward); sample ids []\n' +
+      '  column:values.spare8: 0 cells dormant (restored on compatible forward); sample ids []\n' +
+      '  column:values.spare9: 0 cells dormant (restored on compatible forward); sample ids []\n' +
+      '  rows:values: 1 row dormant (restored on compatible forward); sample ids [01M4YD4FW4DAVPBQ2KWVWXD78E]\n'
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual: |-
+    preview: release 1 would be current as generation 3; 1 row, 0 cells, 0 index entries dormant; samples: rows values [01M4YD4FW4DAVPBQ2KWVWXD78E]; live release unchanged
+      tables.values.columns.spare0: column values.spare0 is removed; its cells become dormant (0 cells; restored on forward)
+      tables.values.columns.spare1: column values.spare1 is removed; its cells become dormant (0 cells; restored on forward)
+      tables.values.columns.spare10: column values.spare10 is removed; its cells become dormant (0 cells; restored on forward)
+      tables.values.columns.spare11: column values.spare11 is removed; its cells become dormant (0 cells; restored on forward)
+      tables.values.columns.spare12: column values.spare12 is removed; its cells become dormant (0 cells; restored on forward)
+      tables.values.columns.spare13: column values.spare13 is removed; its cells become dormant (0 cells; restored on forward)
+      tables.values.columns.spare14: column values.spare14 is removed; its cells become dormant (0 cells; restored on forward)
+      tables.values.columns.spare15: column values.spare15 is removed; its cells become dormant (0 cells; restored on forward)
+      tables.values.columns.spare16: column values.spare16 is removed; its cells become dormant (0 cells; restored on forward)
+      tables.values.columns.spare17: column values.spare17 is removed; its cells become dormant (0 cells; restored on forward)
+      tables.values.columns.spare18: column values.spare18 is removed; its cells become dormant (0 cells; restored on forward)
+      tables.values.columns.spare19: column values.spare19 is removed; its cells become dormant (0 cells; restored on forward)
+      tables.values.columns.spare2: column values.spare2 is removed; its cells become dormant (0 cells; restored on forward)
+      tables.values.columns.spare3: column values.spare3 is removed; its cells become dormant (0 cells; restored on forward)
+      tables.values.columns.spare4: column values.spare4 is removed; its cells become dormant (0 cells; restored on forward)
+      tables.values.columns.spare5: column values.spare5 is removed; its cells become dormant (0 cells; restored on forward)
+      tables.values.columns.spare6: column values.spare6 is removed; its cells become dormant (0 cells; restored on forward)
+      tables.values.columns.spare7: column values.spare7 is removed; its cells become dormant (0 cells; restored on forward)
+      tables.values.columns.spare8: column values.spare8 is removed; its cells become dormant (0 cells; restored on forward)
+      tables.values.columns.spare9: column values.spare9 is removed; its cells become dormant (0 cells; restored on forward)
+      tables.values.columns.status: column values.status changes from enum('old', 'new') to enum('old'); active rows satisfy the candidate after dormant projection
+      WARNING values.status: 1 row holds 'new', which release 1 cannot hold; it becomes dormant on this switch and is restored on compatible forward
+      WARNING release 1 lacks operation setStatus
+      column:values.spare0: 0 cells dormant (restored on compatible forward); sample ids []
+      column:values.spare1: 0 cells dormant (restored on compatible forward); sample ids []
+      column:values.spare10: 0 cells dormant (restored on compatible forward); sample ids []
+      column:values.spare11: 0 cells dormant (restored on compatible forward); sample ids []
+      column:values.spare12: 0 cells dormant (restored on compatible forward); sample ids []
+      column:values.spare13: 0 cells dormant (restored on compatible forward); sample ids []
+      column:values.spare14: 0 cells dormant (restored on compatible forward); sample ids []
+      column:values.spare15: 0 cells dormant (restored on compatible forward); sample ids []
+      column:values.spare16: 0 cells dormant (restored on compatible forward); sample ids []
+      column:values.spare17: 0 cells dormant (restored on compatible forward); sample ids []
+      column:values.spare18: 0 cells dormant (restored on compatible forward); sample ids []
+      column:values.spare19: 0 cells dormant (restored on compatible forward); sample ids []
+      column:values.spare2: 0 cells dormant (restored on compatible forward); sample ids []
+      column:values.spare3: 0 cells dormant (restored on compatible forward); sample ids []
+      column:values.spare4: 0 cells dormant (restored on compatible forward); sample ids []
+      column:values.spare5: 0 cells dormant (restored on compatible forward); sample ids []
+      column:values.spare6: 0 cells dormant (restored on compatible forward); sample ids []
+      column:values.spare7: 0 cells dormant (restored on compatible forward); sample ids []
+      column:values.spare8: 0 cells dormant (restored on compatible forward); sample ids []
+      column:values.spare9: 0 cells dormant (restored on compatible forward); sample ids []
+      rows:values: 1 row dormant (restored on compatible forward); sample ids [01M4YD4FW4DAVPBQ2KWVWXD78E]
+    
+  operator: 'match'
+  stack: |-
+    file:///home/ccheever/projects/sb4-pub-0428/snapback4/packages/snapback4/test/release-activation.test.mjs:949:12
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async file:///home/ccheever/projects/sb4-pub-0428/snapback4/packages/snapback4/test/release-activation.test.mjs:79:5
+    async withCleanup (file:///home/ccheever/projects/sb4-pub-0428/snapback4/packages/snapback4/test/helpers/cleanup.mjs:7:17)
+    async serve (file:///home/ccheever/projects/sb4-pub-0428/snapback4/packages/snapback4/test/release-activation.test.mjs:70:3)
+    async TestContext.<anonymous> (file:///home/ccheever/projects/sb4-pub-0428/snapback4/packages/snapback4/test/release-activation.test.mjs:933:3)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: REL minimum-text widening warns in both deploy and rollback directions
+ok 27 - REL minimum-text widening warns in both deploy and rollback directions
+  ---
+  duration_ms: 135.181662
+  type: 'test'
+  ...
+# Subtest: REL2 refused deploy is unselectable and latest restores the adopted source
+ok 28 - REL2 refused deploy is unselectable and latest restores the adopted source
+  ---
+  duration_ms: 475.490669
+  type: 'test'
+  ...
+# Subtest: REL2 bare rollback follows active history and committed pending sources recover
+ok 29 - REL2 bare rollback follows active history and committed pending sources recover
+  ---
+  duration_ms: 138.170504
+  type: 'test'
+  ...
+# Subtest: REL2 CLI help, guide list and dry-run refusal are discoverable
+ok 30 - REL2 CLI help, guide list and dry-run refusal are discoverable
+  ---
+  duration_ms: 59.317317
+  type: 'test'
+  ...
+# Subtest: REL2 deploy preview preserves live state, refuses name reuse and narrates dormancy
+ok 31 - REL2 deploy preview preserves live state, refuses name reuse and narrates dormancy
+  ---
+  duration_ms: 254.846222
+  type: 'test'
+  ...
+# Subtest: REL2 served job uses a full service token and served source
+ok 32 - REL2 served job uses a full service token and served source
+  ---
+  duration_ms: 172.732097
+  type: 'test'
+  ...
+# Subtest: REL2 stale lock is reclaimed and live conflict identifies PID URL and directory
+ok 33 - REL2 stale lock is reclaimed and live conflict identifies PID URL and directory
+  ---
+  duration_ms: 207.128254
+  type: 'test'
+  ...
+# Subtest: REL2 old release sees E_OP, NOT_FOUND and null; forward restores exact values
+ok 34 - REL2 old release sees E_OP, NOT_FOUND and null; forward restores exact values
+  ---
+  duration_ms: 464.754624
+  type: 'test'
+  ...
+# Subtest: REL2 first deploy check creates no live store or numbered release
+ok 35 - REL2 first deploy check creates no live store or numbered release
+  ---
+  duration_ms: 26.766738
+  type: 'test'
+  ...
+# Subtest: NARR populated widening describes future risk without miscounting compatible rows
+ok 36 - NARR populated widening describes future risk without miscounting compatible rows
+  ---
+  duration_ms: 153.281497
+  type: 'test'
+  ...
+# Subtest: REL2 successful preview reports a rebuilt maintain instead of its speculative refusal
+ok 37 - REL2 successful preview reports a rebuilt maintain instead of its speculative refusal
+  ---
+  duration_ms: 176.675489
+  type: 'test'
+  ...
+# Subtest: REL2 legacy predecessor stays selectable after release-history upgrade
+ok 38 - REL2 legacy predecessor stays selectable after release-history upgrade
+  ---
+  duration_ms: 95.980202
+  type: 'test'
+  ...
+# Subtest: REL2 successful preview validates uniqueness after narrowed rows become dormant
+ok 39 - REL2 successful preview validates uniqueness after narrowed rows become dormant
+  ---
+  duration_ms: 177.82296
+  type: 'test'
+  ...
+# Subtest: REL2 deploy check validates declared worker secret selection without launching
+ok 40 - REL2 deploy check validates declared worker secret selection without launching
+  ---
+  duration_ms: 76.273048
+  type: 'test'
+  ...
+# Subtest: REL2 receipts find dormant sample ids beyond empty inventory definitions
+ok 41 - REL2 receipts find dormant sample ids beyond empty inventory definitions
+  ---
+  duration_ms: 169.134184
+  type: 'test'
+  ...
+1..41
+# tests 41
+# suites 0
+# pass 40
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 15739.999312

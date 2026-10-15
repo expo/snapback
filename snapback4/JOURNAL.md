@@ -95716,3 +95716,29 @@ adopts long-principal aggregate keys and applies the expected cascading expiry.
 Native/device difftests are clean; Lean retains four baseline signatures and
 introduces none. Root guide/inventories, refs and docs budget pass. Evidence and
 limits are in the Integration 13 report. No push or publication.
+
+
+## 2026-10-15 — 0.4.28 published (snapback4, both platforms, snapback4-expo)
+
+`snapback4`, `snapback4-darwin-arm64`, `snapback4-linux-x64` and
+`snapback4-expo` 0.4.28 are published from `af4b256a31` (Integration 12, FIX28,
+PUBFIX28 and the PUBFIX28b 0.2.33 fence); all four `latest` = 0.4.28:
+
+| Package | Registry integrity |
+|---|---|
+| `snapback4` | `sha512-jYtgDRhJ5cY8NlzWiDP7R0nhAV6gzWIiqQhaKnPueI5OiP7/ZMH1xDMRQpbHJJ+0pwuOoaR6N6R7rtIRG17Mkw==` |
+| `snapback4-darwin-arm64` | `sha512-RiIekl+ApZNpfyIAq1ZHOMkbMkLohaDws0nTlyExJ44iFCGIIVSqHMA4AfBjBsxKdcvefG48ZSCuEXVjmbh3EA==` |
+| `snapback4-linux-x64` | `sha512-Zj9UCQh1d+4XX0GceI5KUAZYLAjhLjeMPHb6+ieYws3gdAV2lAhfWaNJS4EAl4dor5w/00uQfbH9gMx+ayEzZA==` |
+| `snapback4-expo` | `sha512-7OqmBc3iBw0PdT8fqL5GZqMr9s7rfMJx9umKjXE8IVeVvE+pskK0uEpZVvqKhIwbSqgZUNFtLUmvhRT2KvBifg==` |
+
+Two earlier cuts stopped on deterministic reds that were fixed on main (the
+rollback-preview cell count, then the darwin-only 0.2.33 fence exposed by
+NARR's address-hint cleanup). Both hosts needed the pinned Playwright 1.55.1
+headless shell for the new proof tests. At `af4b256a31` Linux qualified with
+`== 0 failure(s) in 2546 s`; the Mac's third dry run spanned a ten-hour lid-closed
+sleep and one witness-recovery unit test failed (it passed alone three times and
+in two other full pools); dry run 5 passed with `== 0 failure(s) in 8765 s`,
+including the blocking release-control regression and the 0.2.33 fences. One
+`--resume` published the platforms and client, then Expo. Clean installs on
+Linux and the Mac print `snapback4 0.4.28` and pass `init` + `check`. Details:
+`reports/20261015-publication-0.4.28/REPORT.md`.

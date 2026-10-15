@@ -1,0 +1,99 @@
+TAP version 13
+# Subtest: published 0.2.33 capability fence: timeline-v2
+ok 1 - published 0.2.33 capability fence: timeline-v2
+  ---
+  duration_ms: 1056.600625
+  type: 'test'
+  ...
+# snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+# snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+# timeline-v2 initial native refusal: device: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-U9w5CV/backend.json: E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 9347
+# timeline-v2 adoption refusal: {"denied":{"code":"E_INPUT","family":"input","message":"E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert`"}}
+# timeline-v2 stored-engine refusal: snapback4 0.2.33\\n  project   /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-U9w5CV/prior\\n  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>\\n  schema    2 problems (`snapback4 check`)\\n  store     /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-U9w5CV/prior/.snapback4/store.sqlite at seq 1, generation 2\\n  replay    off — new effects enabled; schedules enabled (persisted dev policy)\\n  storage   rows 69 B (1 rows) · indexes 56 B · log 83 B (1 events, 1.2× rows) · ops 0 B · file 220.0 KB\\n  backend   FAIL E_STORE: invalid stored schema: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 503\\n  types     generated\\n  not ok in 2.1 ms 
+# timeline-v2: native+WASM initial/refusal, prediction, adoption/store preservation and reopen passed; old engine doctor/serve/write refusal passed
+# Subtest: published 0.2.33 capability fence: recorded-attribution
+ok 2 - published 0.2.33 capability fence: recorded-attribution
+  ---
+  duration_ms: 809.769417
+  type: 'test'
+  ...
+# snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+# snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+# recorded-attribution initial native refusal: device: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-BvAlhc/backend.json: E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 4117
+# recorded-attribution adoption refusal: {"denied":{"code":"E_INPUT","family":"input","message":"E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert`"}}
+# recorded-attribution stored-engine refusal: snapback4 0.2.33\\n  project   /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-BvAlhc/prior\\n  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>\\n  schema    1 problem (`snapback4 check`)\\n  store     /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-BvAlhc/prior/.snapback4/store.sqlite at seq 1, generation 2\\n  replay    off — new effects enabled; schedules enabled (persisted dev policy)\\n  storage   rows 56 B (1 rows) · indexes 9 B · log 67 B (1 events, 1.2× rows) · ops 0 B · file 208.0 KB\\n  backend   FAIL E_STORE: invalid stored schema: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 1081\\n  types     generated\\n  not ok in 1.9 ms 
+# recorded-attribution: native+WASM initial/refusal, prediction, adoption/store preservation and reopen passed; old engine doctor/serve/write refusal passed
+# Subtest: published 0.2.33 capability fence: maintained-column
+ok 3 - published 0.2.33 capability fence: maintained-column
+  ---
+  duration_ms: 809.105208
+  type: 'test'
+  ...
+# snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+# snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+# maintained-column initial native refusal: device: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-nnPaa7/backend.json: E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 3152
+# maintained-column adoption refusal: {"denied":{"code":"E_INPUT","family":"input","message":"E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert`"}}
+# maintained-column stored-engine refusal: snapback4 0.2.33\\n  project   /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-nnPaa7/candidate\\n  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>\\n  schema    2 problems (`snapback4 check`)\\n  store     /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-nnPaa7/candidate/.snapback4/store.sqlite at seq 2, generation 2\\n  replay    off — new effects enabled; schedules enabled (persisted dev policy)\\n  storage   rows 78 B (1 rows) · indexes 9 B · log 89 B (1 events, 1.1× rows) · ops 0 B · file 212.0 KB\\n  backend   FAIL E_STORE: invalid stored schema: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 1101\\n  types     generated\\n  not ok in 1.2 ms 
+# maintained-column: native+WASM initial/refusal, prediction, adoption/store preservation and reopen passed; old engine doctor/serve/write refusal passed
+# Subtest: published 0.2.33 list minimum fence: argument
+ok 4 - published 0.2.33 list minimum fence: argument
+  ---
+  duration_ms: 392.590583
+  type: 'test'
+  ...
+# snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+# snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+# Subtest: published 0.2.33 list minimum fence: column
+ok 5 - published 0.2.33 list minimum fence: column
+  ---
+  duration_ms: 544.8835
+  type: 'test'
+  ...
+# snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+# snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+# Subtest: published 0.2.33 list minimum fence: nested
+ok 6 - published 0.2.33 list minimum fence: nested
+  ---
+  duration_ms: 425.193958
+  type: 'test'
+  ...
+# snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+# snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+# Subtest: Linux schema-byte fixture is the published capability-free control source
+ok 7 - Linux schema-byte fixture is the published capability-free control source
+  ---
+  duration_ms: 0.276583
+  type: 'test'
+  ...
+# Subtest: published 0.2.33 control: capability-free bytes stay compatible; release stores refuse by version
+ok 8 - published 0.2.33 control: capability-free bytes stay compatible; release stores refuse by version
+  ---
+  duration_ms: 860.4005
+  type: 'test'
+  ...
+# snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+# snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+# capability-free 0.4 backend: published 0.2.33 native and WASM install, adopt, query and reopen passed
+# published 0.2.33 left an empty serve.lock (mode 644) and no other release change
+# published 0.2.33 development store doctor passed; release doctor and serve refused store version and preserved release/store bytes
+# Subtest: RV publication allowance is confined to commit evidence
+ok 9 - RV publication allowance is confined to commit evidence
+  ---
+  duration_ms: 9.776708
+  type: 'test'
+  ...
+# Subtest: published answer comparison admits only neutral additive metadata
+ok 10 - published answer comparison admits only neutral additive metadata
+  ---
+  duration_ms: 1.289875
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4954.254625

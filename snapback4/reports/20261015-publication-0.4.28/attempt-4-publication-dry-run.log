@@ -1,0 +1,9 @@
+file:///Users/ccheever/projects/snapback-pub-0428/snapback4/scripts/publication-artifacts.mjs:26
+    throw new Error("publication source is dirty; commit the release changes before preparing or qualifying artifacts");
+          ^
+
+Error: publication source is dirty; commit the release changes before preparing or qualifying artifacts
+    at cleanSource (file:///Users/ccheever/projects/snapback-pub-0428/snapback4/scripts/publication-artifacts.mjs:26:11)
+    at file:///Users/ccheever/projects/snapback-pub-0428/snapback4/scripts/publish.mjs:69:18
+
+Node.js v24.18.0
