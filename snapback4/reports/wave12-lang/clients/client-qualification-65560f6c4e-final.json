@@ -1,0 +1,184 @@
+{
+  "build": {
+    "build": "PASS",
+    "buildLog": {
+      "bytes": 130,
+      "path": "snapback4/reports/wave12-lang/clients/client-build-65560f6c4e.log.gz",
+      "sha256": "4d14883e2b0db3911d2e0cc3da4068471226a200e312f8f69885b60d25ab104f"
+    },
+    "realCargoToolchainInvoked": false,
+    "typecheck": "PASS",
+    "typecheckLog": {
+      "bytes": 64,
+      "path": "snapback4/reports/wave12-lang/clients/client-typecheck-65560f6c4e.log.gz",
+      "sha256": "0d07ff7fb2b313e89bc38c46701808345e611a9c80b5e6e5962c681aedcad060"
+    }
+  },
+  "carriedR13SearchSet": {
+    "evidence": {
+      "bytes": 4473,
+      "path": "snapback4/reports/wave12-lang/clients/client-qualification-cfd4e2f242-intermediate.json",
+      "sha256": "127dc245da7cb4d6e1744f1d42918f69d9e7c7b9203790b83df6290a93a278d2"
+    },
+    "files": [
+      {
+        "file": "packages/snapback4/test/decorated-search.test.mjs",
+        "reason": "decorated reads and ordinary row/value expiry use no reference declaration or maintained column; the R14 reference-action closure and nested action-proof paths are unreachable"
+      },
+      {
+        "file": "packages/snapback4/test/in-chat-search.test.mjs",
+        "reason": "chat search uses membership/read paging without reference actions or maintained columns; its fixture-complete sealed cfd4 correction remains applicable"
+      },
+      {
+        "file": "packages/snapback4/test/ordinary-search.test.mjs",
+        "reason": "message expiry has no referencing table and no maintained column, so the changed reference-action closure and private-column queue guard are unreachable"
+      },
+      {
+        "file": "packages/snapback4/test/ordinary-search-ledger.test.mjs",
+        "reason": "pure JavaScript coordinator/ledger tests do not execute the Rust device evaluator"
+      },
+      {
+        "file": "packages/snapback4/test/ordinary-search-oracle.test.mjs",
+        "reason": "the 300 process plus 300 wasm seed oracle updates message expiry, but its schema has neither references nor maintained columns; the R14 closure is empty and the changed nested proof path is unreachable"
+      },
+      {
+        "file": "packages/snapback4/test/retained-search-order.test.mjs",
+        "reason": "pure JavaScript retained-order routing tests do not execute the Rust device evaluator"
+      }
+    ],
+    "ordinarySearchOracle": "8/8 top-level tests, including the default 300 process plus 300 wasm seeds, completed in the sealed cfd4 run",
+    "status": "PASS for all six files; in-chat uses the fixture-complete correction recorded there"
+  },
+  "createdUtc": "2026-10-15T02:28:42.415565+00:00",
+  "effectiveR14AffectedSet": {
+    "authoredSkips": 12,
+    "fail": 0,
+    "filePass": 23,
+    "pass": 307,
+    "productFailures": 0,
+    "requestedFiles": 23,
+    "tests": 319
+  },
+  "kind": "wave12-final-client-qualification-union",
+  "nativeMigrationFence": {
+    "scope": "The post-qualification R15 follow-up re-keys persisted server _sequences entries only during legacy maintained-aggregate identity adoption. The qualified 30 client files contain no maintained sequence declaration, and wasm/client TypeScript/evaluator behavior is unchanged. Insert the exact native follow-up checkpoint before final reporting.",
+    "status": "AUDITED_NON_REACH_PENDING_CHECKPOINT_HASH"
+  },
+  "notes": [
+    "The first 23-file exit is retained verbatim and is not reported as a product failure. The separately hashed source-mode snapshot is the effective result for its two files.",
+    "The R13 receipt is freeze-revoked as a whole; only the six named files are carried because a file-level reachability audit excludes every R14 changed path."
+  ],
+  "postRunInputVerification": {
+    "activeSnapshotRefreshes": 0,
+    "bridge": "PASS under its independent sealed manifest e70d84f146de1743a29b3a4f8c2a23e5da82313d3d44ad3ba0d0d4df350196c5",
+    "correction": "PASS for all 1197 content hashes and authored modes after execution",
+    "primary": "PASS for all 1197 content hashes; 1196 mode changes were the controlled read-only sealing step performed after the pre-run manifest, and caused only the two recorded setup failures"
+  },
+  "production": {
+    "budgetCheckpoint": "2531c6e28cd52985ecf989a2659cfa590cfc0138",
+    "cliSha256": "35ca2d73a5f40244e03cd3af1c05cf92d9c97cd06218e7e7f77d0417eb1ad7a0",
+    "productCheckpoint": "65560f6c4ed3a04c50093e78dacf24fba8164b66",
+    "wasmBudgetBytes": 717307,
+    "wasmGzipBytes": 716807,
+    "wasmHeadroomBytes": 500,
+    "wasmRawBytes": 2353573,
+    "wasmSha256": "2dff27d1ab9d62edc58b4fc918044ee25ea7cd512f3bf3d98fb0e2329eb8f6d8"
+  },
+  "qualifiedFileUnion": {
+    "aggregateTestCountOmitted": "the bridge and carried R13 receipts overlap setup/build evidence; file-level union avoids double counting",
+    "composition": "23 current R14 affected files + 6 sealed R13 non-reach search files + 1 current R14 expiry/reference bridge",
+    "productFailures": 0,
+    "qualifiedProductFiles": 30,
+    "requestedProductFiles": 30
+  },
+  "r14ExpiryReferenceBridge": {
+    "checkpoint": "6cb27fdd69",
+    "file": "packages/snapback4/test/expiry-reference-actions.test.mjs",
+    "receipt": {
+      "bytes": 3099,
+      "path": "snapback4/reports/wave12-lang/r13-wasm-bridge/receipt.json",
+      "sha256": "cba380c3a51a8d19305c981c4566227de5ca57d724800e22e1f7433fc7f061ae"
+    },
+    "status": "PASS 1/1 with 8 semantic cases"
+  },
+  "runs": [
+    {
+      "exit": 1,
+      "fail": 7,
+      "filePass": 21,
+      "fileSetupFail": 2,
+      "files": 23,
+      "log": {
+        "bytes": 12874,
+        "path": "snapback4/reports/wave12-lang/clients/client-run-65560f6c4e-affected23.log.gz",
+        "sha256": "679efb0702e97d39576cf2a99d789791eac4b67c23faaf54cb4e9f572f7954ef"
+      },
+      "manifest": {
+        "bytes": 571315,
+        "path": "snapback4/reports/wave12-lang/clients/client-inputs-65560f6c4e-affected.json",
+        "sha256": "0d12d9a8dd7f8d8c9c4a5e3d0172d73e894bfbcc07c03a828ed7e65c0bda9631"
+      },
+      "pass": 300,
+      "productFailures": 0,
+      "scope": "23 non-search client files, deliberately read-only filesystem seal",
+      "setupFailure": {
+        "cause": "the snapshot chmod seal was copied into each temporary witness app; writes to media.q or the copied app root failed with EACCES before a product assertion ran",
+        "failedAssertions": 7,
+        "files": [
+          "packages/snapback4/test/typing-expiry.test.mjs",
+          "packages/snapback4/test/web-pages.test.mjs"
+        ]
+      },
+      "skipped": 12,
+      "tests": 319
+    },
+    {
+      "exit": 0,
+      "fail": 0,
+      "filePass": 2,
+      "files": 2,
+      "log": {
+        "bytes": 752,
+        "path": "snapback4/reports/wave12-lang/clients/client-run-65560f6c4e-witness-modes.log.gz",
+        "sha256": "0a9e8b14a63b5f10944f7219834d1af5f599fef83cbba51b8ce3fd51c95424c8"
+      },
+      "manifest": {
+        "bytes": 569083,
+        "path": "snapback4/reports/wave12-lang/clients/client-inputs-65560f6c4e-witness-modes.json",
+        "sha256": "74dbb189db97f91d1e42a1deba4545dcb09ec2b2e667926896f9bb5ff3060835"
+      },
+      "pass": 7,
+      "scope": "source-mode-preserving correction for the two setup failures",
+      "skipped": 0,
+      "tests": 7
+    },
+    {
+      "exit": 0,
+      "fail": 0,
+      "filePass": 1,
+      "files": 1,
+      "log": {
+        "bytes": 239,
+        "path": "snapback4/reports/wave12-lang/clients/client-run-65560f6c4e-wasm-budget.log.gz",
+        "sha256": "2bdc0988a12a5fc4b65e9167971d6db072bda39629a1fe1a18b3a86721eb8941"
+      },
+      "pass": 2,
+      "scope": "committed wasm budget helper",
+      "skipped": 0,
+      "tests": 2
+    },
+    {
+      "exit": 1,
+      "log": {
+        "bytes": 192,
+        "path": "snapback4/reports/wave12-lang/clients/client-run-65560f6c4e-invocation-error.log.gz",
+        "sha256": "394216f91fe16cba783304ea2b3c8422119ce17c7963da0442988f060b3dff1e"
+      },
+      "productAssertionsRun": 0,
+      "scope": "operator invocation record before the required `files` argument was supplied",
+      "testsStarted": 0
+    }
+  ],
+  "schema": 1,
+  "status": "PASS_R14_DEVICE_SEMANTICS"
+}
