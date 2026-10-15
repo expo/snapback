@@ -1,0 +1,64 @@
+{
+  "at": "2026-10-15T02:51:27.239023+00:00",
+  "status": "PASS",
+  "product_commit": "5042e58965",
+  "budget_commit": "af87f35ca3",
+  "native_cli_sha256": "aa45a14452f0c17a0b2dff765444f1833d9ab721a9b842c697d60506f8bba063",
+  "wasm": {
+    "sha256": "f2a5c87327da730d73c4b69988b212e088dd84fe3de06fafec937038504c06d4",
+    "raw": 2353736,
+    "gzip": 716766,
+    "brotli": 541126,
+    "budget": 717266,
+    "margin": 500,
+    "clean_measurement": true,
+    "platform": "Linux",
+    "family_and_absence_audits": "PASS"
+  },
+  "build": "PASS",
+  "typecheck": "PASS",
+  "tests": {
+    "passed": 3,
+    "failed": 0,
+    "ignored": 0,
+    "expiry_reference_bridge_cases": 8,
+    "budget_tests": 2
+  },
+  "inputs_manifest": "clients/client-inputs-5042e58965-device-delta.json",
+  "inputs_manifest_sha256": "e41c972f9af7c7b5c6b915a43386802dc60145caa0db6e68ffac7f2f457d4dcb",
+  "verified_inputs_after_run": 1198,
+  "refreshes_while_running": 0,
+  "command": "SNAPBACK4_BIN=/tmp/lang-final-cli-5042e58965 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 node --test packages/snapback4/test/expiry-reference-actions.test.mjs packages/snapback4/test/wasm-budget.test.mjs",
+  "qualified_client_union": {
+    "files": 30,
+    "base_receipt": "clients/client-qualification-f3ba53b70f-final.json",
+    "scope": "Opaque canonical counter decoding only affects server predecessor-store adoption. No carried executed client path has a persisted sequence whose parent is a legacy maintained aggregate identity. Ordinary chat sequence custody does not invoke this migration. Exact changed wasm bytes get their own bridge above."
+  },
+  "logs": [
+    {
+      "path": "logs/r16-client-build.log.gz",
+      "sha256": "acc549ecda1143a4de66f3e06e93745b4036519dbaa8f24eff43236099e65b9c",
+      "uncompressed_sha256": "66f4201f8e38d47d591bfa776cf5ae0ed01d04c428a5efac75b2a6fa9c401baa"
+    },
+    {
+      "path": "logs/r16-client-typecheck.log.gz",
+      "sha256": "63c1bb6b55ca8cda7507be7ae59e66e4dbf96847163b5e27c85a7f24934be3b2",
+      "uncompressed_sha256": "38ac890c60e7f38d59ddfb410325cdfb5fca83c9411765c5481754e01c021630"
+    },
+    {
+      "path": "logs/r16-client-device-delta.log.gz",
+      "sha256": "0500455fd36eda563f6e376abc3a992f6551d453409136bf58eda87004229b03",
+      "uncompressed_sha256": "0f3fe0dd4e70b5c0fa78ecc3d0c65381426de29abdd97d017d9778cfc182e98b"
+    },
+    {
+      "path": "logs/r16-wasm-build.log.gz",
+      "sha256": "c2c4ef2a11871729775b14f638877487e52fda2af1101c652809942627741d6a",
+      "uncompressed_sha256": "3f8ad19717dc25e6160ee14a2c1e145d9264e7acf5f84e8f7bfd608b5a4fd8a4"
+    },
+    {
+      "path": "logs/r16-wasm-measure-clean.log.gz",
+      "sha256": "ed7b8c592800158c6c828357e625398cc0184d16fc82103591a655954977e983",
+      "uncompressed_sha256": "c8afe96a3a28b1f45aefe40e191307039572e459ecabcc01134a14fdbc1f3e75"
+    }
+  ]
+}
