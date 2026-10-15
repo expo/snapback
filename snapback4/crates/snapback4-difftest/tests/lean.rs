@@ -183,7 +183,7 @@ fn generated_expiry_sweep_agrees_with_the_engine_and_model() {
 #[test]
 fn consecutive_sweeps_share_the_runtime_table_continuation() {
     if !model_built() { return; }
-    let source = "table aRoots:\n  until: time ?\n  expire at .until\n  read <- allow\n  online only\ntable zRoots:\n  until: time ?\n  expire at .until\n  read <- allow\n  online only\ntable children:\n  a: aRoots on delete cascade\n  z: zRoots on delete restrict\n  cap 4 by a\n  cap 4 by z\n  read <- allow\n  online only\ntable nullable:\n  z: zRoots ? on delete set null\n  cap 4 by z\n  read <- allow\n  online only\nquery prep0():\n  return null\nquery run():\n  return { a: aRoots['a'], z: zRoots['z'], child: children['c'], nullable: nullable['n'] }\n";
+    let source = "table aRoots:\n  until: time ?\n  expire at .until\n  read <- allow\n  online only\ntable zRoots:\n  until: time ?\n  expire at .until\n  read <- allow\n  online only\ntable children:\n  a: aRoots on delete cascade\n  z: zRoots on delete restrict\n  cap 4 by a\n  cap 4 by z\n  read <- allow\n  online only\ntable nullable:\n  z: zRoots ? on delete set null\n  cap 4 by z\n  read <- allow\n  online only\nquery prep0():\n  return null\nquery run(a: aRoots, z: zRoots, child: children, nullable: nullable):\n  return { a: aRoots[a], z: zRoots[z], child: children[child], nullable: nullable[nullable] }\n";
     let mut case = (0..100).map(lean::generate).find(|case| !case.program.mutation()).unwrap();
     case.rows = vec![
         ("aRoots".into(), json!({"id":"a","until":10})),
@@ -193,7 +193,7 @@ fn consecutive_sweeps_share_the_runtime_table_continuation() {
         ("nullable".into(), json!({"id":"n","z":"z"})),
     ];
     case.principal = "alice".into();
-    case.args = json!({});
+    case.args = json!({"a":"a","z":"z","child":"c","nullable":"n"});
     case.seeded_at = Some(0);
     case.steps = vec![Step { args: json!({}), at: 5, viewer: None, sweep: true }];
     case.clock = 10;
