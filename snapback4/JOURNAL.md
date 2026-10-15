@@ -95687,3 +95687,15 @@ not the product; the failed attempt supplies no complete qualification claim.
 ### 2026-10-15 — Integration 13 wave 12 wasm and upgrade boundary
 
 Merged LANG, RULES2, REL3, SURF and KIT in that order, preserving PUBFIX28's disjoint dormant inventory and blocking accepted release-control streams. Clean Linux measurement at `36cf289d0a` is **2,353,736 B raw / 716,714 B gzip / 541,576 B Brotli**; strict family and absence audits pass. Budget **717,214 B = measured gzip + exactly 500 B**. Whole-device growth from 0.4.28 is 9,040 B gzip for shared expiry actions, digest identities, language/device semantics and capability fences; no runtime ceiling increase. A real 0.4.28 store with a long user: principal count view adopts digest keys without losing counts; after clock advance the 0.4.29 maintenance sweep removes its expired parent and both cascading children. Qualification and any initial reds are recorded in the Integration 13 report; no publication or push.
+
+### 2026-10-15 — Integration 13 trace writer under concurrent forks
+
+The complete Linux battery exposed a diagnostic trace lock retained by an
+unrelated forked child between fork and exec. Closing the parent's file alone
+leaves flock attached to the inherited open description. The writer now
+explicitly unlocks before closing on every locked exit, while preserving its
+nonblocking best-effort writes, 256 KiB cap and custody separation. A controlled
+fork regression keeps the child descriptor open while the parent appends again;
+the original symlink, permissions and bounded-tail cases remain covered.
+The client card also stays within its existing 1,200-word budget while retaining
+release-hook discovery and the retry/offline/held diagnostic boundaries.

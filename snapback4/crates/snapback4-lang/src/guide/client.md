@@ -12,7 +12,7 @@ export function Inbox() { const page = usePage(api.inboxCards, {}), status = rea
 ```
 
 - `E_OFFLINE`: unavailable; reconnect.
-- `E_QUERY_RETRY`: after four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; offline unavailable reads give immediate `E_OFFLINE`.
+- `E_QUERY_RETRY`: four rounds exhausted; retry the read.
 
 ## Reference
 `Write<R>`: pending `{id}`; fresh sent `{id,seq,result:R}`; replayed sent `{id,seq,replayed:true}` without result; failed `{id,why}`. Only failed has `why`. `sentResult(write)` extracts a fresh result; undefined means pending/failed/replayed, not success.
@@ -29,7 +29,7 @@ export function Composer({conversationId}:{conversationId:string}) {
     {send.last?.state==="failed"&&submitted&&<p role="alert">Not sent: {submitted} <button onClick={()=>setDraft(current=>current?current+" "+submitted:submitted)}>Edit</button> <button onClick={()=>setSubmitted("")}>Dismiss</button></p>}</>;
 }
 ```
-Validate; clear this draft only on fresh sent. Pending/replayed keep it. Notices never grant permission. Keep the composer above reactive rows; [full screen](CLIENT-AND-OPERATIONS.md#a-stable-conversation-screen).
+Validate; clear drafts only on fresh sent. Pending/replayed keep them. Notices grant no permission. Keep composers above reactive rows; [full screen](CLIENT-AND-OPERATIONS.md#a-stable-conversation-screen).
 Membership: no horizon, the conversation's own group and messages' audience prove presence/absence unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. Never add `with own keys` to admin-written memberships.
 `denied` always blocks. `existence(member) === "absent"` blocks only when fresh and non-revalidating. Stale absence queues; `loading`/`partial` never disable.
 
@@ -38,7 +38,7 @@ Membership: no horizon, the conversation's own group and messages' audience prov
 Pending composition: usePendingItems/usePendingState; [reference](CLIENT-AND-OPERATIONS.md).
 
 ## Read boundaries
-`query(op,args)` settles ready/denied within 30 seconds including queued work. Dependent writes settle or have complete device predictions; unrelated writes pass. Offline unavailable reads give immediate `E_OFFLINE`. After four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. `useRelease()` exposes served capabilities; availability is not authority (`guide deploy`).
+`query(op,args)` settles ready/denied within 30 seconds. Dependent writes settle or have complete device predictions; unrelated writes pass. Unavailable offline reads give immediate `E_OFFLINE`. After four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. `useRelease()` exposes served capabilities; availability is not authority (`guide deploy`).
 
 ## Password React and Expo
 

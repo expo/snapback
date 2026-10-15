@@ -8,6 +8,21 @@ const LINE_LIMIT: usize = 4096;
 struct Event { root: PathBuf, step: &'static str, detail: Value, at: u128 }
 static WRITER: OnceLock<Option<SyncSender<Event>>> = OnceLock::new();
 
+struct LockedTraceFile(File);
+impl LockedTraceFile {
+    fn try_lock(file: File) -> Option<Self> {
+        if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } != 0 { return None; }
+        Some(Self(file))
+    }
+}
+impl Drop for LockedTraceFile {
+    fn drop(&mut self) {
+        // flock belongs to the open description. A child forked before exec
+        // can retain it after our close, so release it explicitly first.
+        unsafe { libc::flock(self.0.as_raw_fd(), libc::LOCK_UN); }
+    }
+}
+
 pub(super) fn emit(root: &Path, step: &'static str, detail: Value) {
     let sender = WRITER.get_or_init(|| {
         let (sender, events) = sync_channel::<Event>(32);
@@ -24,17 +39,17 @@ pub(super) fn emit(root: &Path, step: &'static str, detail: Value) {
 }
 
 fn append(event: Event) -> std::io::Result<()> {
-    let mut file = OpenOptions::new().create(true).append(true).mode(0o600)
+    let file = OpenOptions::new().create(true).append(true).mode(0o600)
         .custom_flags(libc::O_NONBLOCK | libc::O_NOFOLLOW | libc::O_CLOEXEC)
         .open(event.root.join("retention-trace.jsonl"))?;
     let metadata = file.metadata()?;
     if !metadata.is_file() || metadata.nlink() != 1 || metadata.uid() != unsafe { libc::geteuid() } { return Ok(()); }
     // A nonblocking diagnostic-only flock makes the size bound collective across
     // processes. It is never a maintenance lease and never waits for a writer.
-    if unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) } != 0 { return Ok(()); }
-    let size = file.metadata()?.len();
+    let Some(mut file) = LockedTraceFile::try_lock(file) else { return Ok(()); };
+    let size = file.0.metadata()?.len();
     if size >= LIMIT { return Ok(()); }
-    file.set_permissions(std::os::unix::fs::PermissionsExt::from_mode(0o600))?;
+    file.0.set_permissions(std::os::unix::fs::PermissionsExt::from_mode(0o600))?;
     let mut line = serde_json::to_vec(&json!({ "at": event.at, "pid": std::process::id(), "step": event.step, "detail": event.detail }))?;
     if line.len() >= LINE_LIMIT {
         line = serde_json::to_vec(&json!({ "at": event.at, "pid": std::process::id(), "step": event.step, "detailTruncated": true }))?;
@@ -50,16 +65,43 @@ fn append(event: Event) -> std::io::Result<()> {
             let mut tail = vec![b' '; remaining];
             tail[..marker.len()].copy_from_slice(marker);
             tail[remaining - 1] = b'\n';
-            file.write_all(&tail)?;
+            file.0.write_all(&tail)?;
         }
         return Ok(());
     }
-    file.write_all(&line)
+    file.0.write_all(&line)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn trace_lock_releases_while_a_forked_child_keeps_the_description() {
+        let root = std::env::temp_dir().join(format!("sb4-trace-fork-{}-{}", std::process::id(), now()));
+        fs::create_dir(&root).unwrap();
+        let path = root.join("retention-trace.jsonl");
+        let file = OpenOptions::new().create(true).append(true).mode(0o600).open(&path).unwrap();
+        let held = LockedTraceFile::try_lock(file).unwrap();
+        let (reader, mut release) = std::os::unix::net::UnixStream::pair().unwrap();
+        let child = unsafe { libc::fork() };
+        assert!(child >= 0);
+        if child == 0 {
+            // Only async-signal-safe calls after fork; keep the inherited
+            // trace descriptor until the parent has attempted another append.
+            let mut byte = 0u8;
+            unsafe { libc::read(reader.as_raw_fd(), (&mut byte as *mut u8).cast(), 1); libc::_exit(0); }
+        }
+        drop(held);
+        let written = append(Event { root: root.clone(), step: "after-fork", detail: json!(null), at: now() });
+        let bytes = fs::read(&path);
+        release.write_all(&[1]).unwrap();
+        let mut status = 0;
+        assert_eq!(unsafe { libc::waitpid(child, &mut status, 0) }, child);
+        assert_eq!(status, 0);
+        written.unwrap();
+        assert!(String::from_utf8(bytes.unwrap()).unwrap().contains("after-fork"));
+        fs::remove_dir_all(root).unwrap();
+    }
     #[test]
     fn trace_sink_refuses_links_and_bounds_a_regular_file() {
         let root = std::env::temp_dir().join(format!("sb4-trace-{}-{}", std::process::id(), now()));
