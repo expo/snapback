@@ -292,6 +292,12 @@ def MaterialStore.store (rows : MaterialStore) (fallback : Store) : Store := fun
   | some (_, rs) => rs
   | none => fallback t
 
+/-- Runtime's stable ancestor order is lexical when read-through is absent,
+as it is in this model fragment. Expiry retirement visits that order in
+reverse so peers cannot depend on declaration or mutation order. -/
+def expiryRetirementTables (sch : Schema) : List TableDecl :=
+  sch.tables.mergeSort fun a b => String.compare a.name b.name != .lt
+
 -- @ref LLP 3000.036.003#6 — sweep each due root transactionally in table order.
 /-- Retire every due physical row. `restrict` retains that root but never
 stops later due keys; cascade and set-null are committed with the root. The
@@ -299,7 +305,7 @@ model has no read-through retained-history rows, so every non-restricted due
 root can be retired immediately. -/
 def sweepExpired (sch : Schema) (s : Store) (now : Int) : Store :=
   let tables := sch.tables.map (·.name)
-  let rows := sch.tables.foldl (fun rows td =>
+  let rows := (expiryRetirementTables sch).foldl (fun rows td =>
     let physical := rows.store s
     (physical td.name).foldl (fun rows r =>
       let physical := rows.store s

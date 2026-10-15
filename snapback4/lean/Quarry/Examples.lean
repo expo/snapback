@@ -913,12 +913,20 @@ def changedRetirementOrderSchema : Schema := { tables := [
   { name := "zRoots", cols := [c "until"], expire := some "until", read := .allow,
     update := .allow },
   { name := "children", cols := [refCol "a" "aRoots" (some .cascade),
-      refCol "z" "zRoots" (some .restrict)], read := .allow }] }
+      refCol "z" "zRoots" (some .restrict)], read := .allow },
+  { name := "nullable", cols := [refCol "z" "zRoots" (some .setNull) (nullable := true)],
+    read := .allow }] }
 
 def changedRetirementOrderStore : Store := mkStore [
   ("aRoots", [mkRow "a" [("until", .null)]]),
   ("zRoots", [mkRow "z" [("until", .null)]]),
   ("children", [mkRow "c" [("a", I "a"), ("z", I "z")]])]
+
+def sweepRetirementOrderStore : Store := mkStore [
+  ("aRoots", [mkRow "a" [("until", N 10)]]),
+  ("zRoots", [mkRow "z" [("until", N 10)]]),
+  ("children", [mkRow "c" [("a", I "a"), ("z", I "z")]]),
+  ("nullable", [mkRow "n" [("z", I "z")]])]
 
 def refExamples : List Example := [
   { name := "delete-cascade"
@@ -1070,7 +1078,13 @@ def refExamples : List Example := [
                 .write none (.update "zRoots" [("id", idE "z")] [("until", int 10)] none),
                 .ret (lit .null)] }
     tables := []
-    expected := r#"{"kind":"refused","code":"E_REFERENCED"}"# }
+    expected := r#"{"kind":"refused","code":"E_REFERENCED"}"# },
+  { name := "expiry-sweep-uses-runtime-table-order"
+    source := "LLP 3000.036.003 §6: a scheduled sweep uses reverse table order, so zRoots stays restricted and its set-null row unchanged before aRoots cascades the blocker"
+    case := { schema := changedRetirementOrderSchema, store := sweepRetirementOrderStore,
+              viewer := alice, now := 10, program := query [.ret (lit .null)], sweepOnly := true }
+    tables := ["aRoots", "zRoots", "children", "nullable"]
+    expected := r#"{"kind":"committed","result":null,"store":{"aRoots":[],"zRoots":[{"id":"z","until":10}],"children":[],"nullable":[{"id":"n","z":"z"}]}}"# }
 ]
 
 def page3Pure : Schema := { tables := membershipDocs.tables.map fun t =>

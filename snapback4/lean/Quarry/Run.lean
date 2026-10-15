@@ -81,8 +81,7 @@ def mutationHooks : Hooks MutationWorld where
 ascending id order. Read-through tables are outside this model fragment, so
 its through order is the schema's lexical table order. -/
 def changedRetirementOrder (sch : Schema) (changed : ChangedRows) : ChangedRows :=
-  let tables := sch.tables.mergeSort fun a b => String.compare a.name b.name != .lt
-  tables.flatMap fun td =>
+  (expiryRetirementTables sch).flatMap fun td =>
     (changed.filter fun address => address.1 == td.name).mergeSort fun a b =>
       lex cmpNat a.2 b.2 != .gt
 
