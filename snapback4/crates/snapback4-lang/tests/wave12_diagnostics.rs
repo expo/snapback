@@ -198,6 +198,17 @@ fn structural_fanout_leads_with_a_direct_viewer_predicate() {
     let source = "table bottles:\n  organizer: principal\n  read <- .organizer = viewer\n  update <- .organizer = viewer\ntable shares:\n  bottle: bottles\n  member: principal\n  organizer: principal\n  cap 120 by bottle\n  read <- .member = viewer or .organizer = viewer\n  update <- .organizer = viewer\nmutation cancel(bottle: bottles):\n  b = bottles[bottle] ! else NOT_FOUND\n  require b.organizer = viewer else NOT_ORGANIZER\n  for share in shares where .bottle = bottle:\n    update shares[share.id] { member: share.member }\n";
     let d = diagnostic(source, "E_STRUCTURAL_FANOUT");
     assert!(d.rewrite.starts_with("First add `.member = viewer`"), "{d}");
+    let predicate = d
+        .rewrite
+        .split('`')
+        .nth(1)
+        .expect("the direct viewer predicate");
+    assert_eq!(predicate, ".member = viewer");
+    replace_and_compile(
+        source,
+        "shares where .bottle = bottle",
+        &format!("shares where {predicate} and .bottle = bottle"),
+    );
 }
 
 #[test]
