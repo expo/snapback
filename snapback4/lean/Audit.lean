@@ -67,5 +67,7 @@ open Quarry
 #print axioms Calendar.lt_yearStart_succ
 #print axioms Calendar.marchDays_succ
 #print axioms Quarry.positiveRanges_eval
+#print axioms Quarry.Wave12DeviceQueue.projection_queues
+#print axioms Quarry.Wave12DeviceQueue.nested_spends_fit
 
 #print axioms Rule.eval_viewer_component
