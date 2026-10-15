@@ -83,6 +83,39 @@ fn long_project_path_serves_hot_deploys_rolls_back_and_cleans_up() {
     assert!(!socket.exists());
 }
 
+// @ref LLP 3000.000.000#11-wave-11-factual-release-narration — an address hint never blocks a new owner; managed stop unlinks the one it opened.
+// Published 0.2.33 refuses a release store but leaves an empty serve.lock it
+// wrote first; a killed host leaves a populated one. Neither may stop `serve`.
+#[test]
+fn a_leftover_release_address_hint_does_not_block_serve_and_is_cleared_on_stop() {
+    let dir = Directory::new();
+    fs::write(dir.0.join("snapback/schema.q"), "query version():\n  return 1\n").unwrap();
+    let deployment = dir.0.join("release");
+    let release = deployment.to_str().unwrap();
+    let deployed = dir.run(&["deploy", release]);
+    assert!(deployed.status.success(), "{deployed:?}");
+    let minted = dir.run(&["token", "--release", release, "--service", "probe"]);
+    assert!(minted.status.success(), "{minted:?}");
+    let credential = format!("Authorization: Bearer {}", String::from_utf8(minted.stdout).unwrap().trim());
+    let mut exited = Command::new("true").spawn().unwrap();
+    let dead = exited.id();
+    exited.wait().unwrap();
+    let hint = deployment.join("serve.lock");
+    for (label, contents, mode) in [
+        ("empty legacy hint", String::new(), 0o644),
+        ("stale dead-owner hint", format!("4400\nhttp://127.0.0.1:4400\npid {dead}\n"), 0o600),
+    ] {
+        fs::write(&hint, &contents).unwrap();
+        fs::set_permissions(&hint, fs::Permissions::from_mode(mode)).unwrap();
+        let mut host = Host::start(&dir, &["serve", release]);
+        assert_eq!(post_as(host.port, "/q/version", json!({"args":{}}), &credential)["data"], 1, "{label}");
+        let announced = fs::read_to_string(&hint).unwrap();
+        assert!(announced.contains(&format!(":{}", host.port)) && !announced.contains("4400"), "{label}: {announced:?}");
+        assert_eq!(host.signal(libc::SIGTERM).code(), Some(143), "{label}: {}", host.log());
+        assert!(!hint.exists(), "{label}: managed stop must remove the address hint");
+    }
+}
+
 #[test]
 fn dev_and_serve_raise_low_soft_limits_and_doctor_reports_the_server() {
     use std::os::unix::process::CommandExt;

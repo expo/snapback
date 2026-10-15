@@ -10,7 +10,7 @@ import {spawn,spawnSync} from 'node:child_process';
 import {once} from 'node:events';
 import {createHash} from 'node:crypto';
 import {DatabaseSync} from 'node:sqlite';
-import {mkdtempSync,mkdirSync,readFileSync,writeFileSync,rmSync,existsSync,readdirSync,readlinkSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,readFileSync,writeFileSync,rmSync,existsSync,readdirSync,readlinkSync,statSync} from 'node:fs';
 import {homedir,tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -378,7 +378,8 @@ test('published 0.2.33 control: capability-free bytes stay compatible; release s
   const closedStore=new DatabaseSync(join(release,'store.sqlite'));
   try {assert.equal(closedStore.prepare('PRAGMA wal_checkpoint(TRUNCATE)').get().busy,0);} finally {closedStore.close();}
   // Let the old compiler reach the store gate rather than stop at new source syntax.
-  writeFileSync(join(release,'releases/1/snapback/schema.q'),'use identity guests\n'+legacyOrdinary);
+  const releaseSchema=join(release,'releases/1/snapback/schema.q'),releaseSource=readFileSync(releaseSchema);
+  writeFileSync(releaseSchema,'use identity guests\n'+legacyOrdinary);
   const releaseLogical=dump(join(release,'store.sqlite')),releaseBefore=files(release),storeBefore=readFileSync(join(release,'store.sqlite'));
   const releaseDoctor=run(legacy.binary,['doctor','--release',release],'',newApp.cwd);
   releaseStoreRefusal(releaseDoctor,join(release,'store.sqlite'));
@@ -388,9 +389,31 @@ test('published 0.2.33 control: capability-free bytes stay compatible; release s
   const served=run(legacy.binary,['serve',release,'--port','0'],'',newApp.cwd);
   releaseStoreRefusal(served,join(release,'store.sqlite'));
   assert.equal(dump(join(release,'store.sqlite')),releaseLogical,'refused mixed-version serve preserves every table');
-  assert.deepEqual(files(release),releaseBefore,'refused mixed-version serve preserves the release');
+  // Published 0.2.33 writes its serve.lock address hint before it reaches the
+  // store-version gate, and that binary cannot change. The current host unlinks
+  // its own address inode on managed stop, so the release has no hint before the
+  // refusal: the legacy hint is the one file the refusal may add. Every file the
+  // current product owns, the store bytes and every table stay identical.
+  // @ref LLP 3000.000.000#11-wave-11-factual-release-narration — graceful shutdown unlinks only the address inode this host opened.
+  const releaseAfter=files(release),legacyHint=join(release,'serve.lock');
+  assert.ok(!releaseBefore.some(([name])=>name==='serve.lock'),'the current server cleared its address hint before the legacy refusal');
+  assert.deepEqual(releaseAfter.filter(([name])=>name!=='serve.lock'),releaseBefore,'refused mixed-version serve preserves every other release file byte-for-byte');
+  assert.ok(releaseAfter.some(([name])=>name==='serve.lock'),'published 0.2.33 leaves the address hint it writes before refusing');
+  // Observed on the M5 (2026-10-15): 0.2.33 truncates the hint at ownership and
+  // refuses before announcing, leaving an empty file (mode 0644 under umask 022).
+  assert.equal(readFileSync(legacyHint,'utf8'),'','the legacy refusal leaves its empty, unannounced address hint');
+  t.diagnostic(`published 0.2.33 left an empty serve.lock (mode ${(statSync(legacyHint).mode&0o777).toString(8)}) and no other release change`);
   assert.deepEqual(readFileSync(join(release,'store.sqlite')),storeBefore,'refused mixed-version serve preserves every SQLite byte');
   t.diagnostic('published 0.2.33 development store doctor passed; release doctor and serve refused store version and preserved release/store bytes');
+  // The current product must tolerate the legacy hint: it serves the restored
+  // release over it, and its managed stop unlinks the hint again.
+  writeFileSync(releaseSchema,releaseSource);
+  const resumed=await start(binary,newApp.cwd,['serve',release,'--port','0']);
+  const resumedGuest=await request(resumed,'/auth/guest',{},{});assert.ok(resumedGuest.json.session?.token);
+  const resumedReply=await request(resumed,'/q/posts',{args:{}},{authorization:`Bearer ${resumedGuest.json.session.token}`});
+  assert.equal(resumedReply.json.complete,true);assert.deepEqual(resumedReply.json.data,[]);
+  await resumed.stop();
+  assert.ok(!existsSync(legacyHint),'managed stop removes the address hint left by the legacy refusal');
   // Pin the complete canonical 0.4 backend after the behavioral checks. This
   // fixture includes the new first-10 site spelling and selection explanation.
   // SN adds settlement summaries to the program envelope (+150 bytes). Published
