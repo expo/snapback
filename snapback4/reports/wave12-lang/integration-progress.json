@@ -1,51 +1,31 @@
 {
-  "at": "2026-10-14T23:35:30.442362+00:00",
+  "at": "2026-10-15T00:47:25.712541+00:00",
   "final_qualification": false,
-  "evidence": [
-    {
-      "label": "initial-full-five",
-      "exit": 101,
-      "status": "not-final: moving tree and concurrent artifact invalidation",
-      "log": "logs/initial-full-five.log.gz",
-      "sha256": "402af818296693de04d9f1db73a7d5db046aad304cb8d7bfa874886b41617310",
-      "passed": 6085,
-      "failed": 43,
-      "ignored": 42,
-      "test_targets": 395
-    },
-    {
-      "label": "lean-102",
-      "exit": 0,
-      "status": "model before pending P1 R4 ordering fixes",
-      "log": "logs/lean-102.log.gz",
-      "sha256": "c995b22cbea4b61e725039e1e3833f5e2f15d9d0b6e48edffa6c0c8a501dae82"
-    },
-    {
-      "label": "ref-current",
-      "exit": 0,
-      "status": "passed",
-      "log": "logs/ref-current.log.gz",
-      "sha256": "a7a82493df2f8538ac3525ef456fbfda6cf611e21e9b43027259868e97fbf2e5"
-    },
-    {
-      "label": "docs-current",
-      "exit": 0,
-      "status": "passed with required Cargo environment",
-      "log": "logs/docs-current.log.gz",
-      "sha256": "f4d2d45ca12defd4f7b87f0f1a0b5de09eaa1a90d5d6ced1547fcf6e4342a29f"
-    }
-  ],
-  "census_v3": {
-    "schemas": 100,
-    "failed": 0,
-    "notes": 318,
-    "P3_P4_exceptions": []
+  "completed": {
+    "baseline": "100 clean /324 notes",
+    "final_census": "100 clean /318 notes /hashes unchanged /no reservation exceptions",
+    "root_checks": "inventories PASS; guide22/22 zero skips/preconditions",
+    "docs_budget": "320/320 +selfcontainment PASS",
+    "diagnostics_reviews": "r8 dual READY",
+    "language_reviews": "r7 dual READY",
+    "PAGE5_reviews": "r8 dual READY e82f268289",
+    "clients": "27 requested files qualified by scoped union; final21/21 +budget2/2",
+    "wasm": "clean2337449raw/712813gzip/538170Brotli;budget713313=+500",
+    "native_20000": "1220035executions zero signatures/unexpected refusals",
+    "Lean111_20000": "16693matched /3180unsupported /127 inherited disagreements4baseline signatures /zero new"
   },
-  "PAGE5_production_freeze": "fa6c1fdf68",
-  "reviews_pending": [
-    "P1/P2 R5 after native/formal R4 fixes",
-    "language R5 after scoped tests",
-    "PAGE5 R4"
-  ],
-  "cargo_env": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0"
+  "pending": {
+    "P1_P2": "R10 formal continuation/selected expiry index model +seedfix4aeb review; model oracle changing",
+    "device_campaign": "precise Present(Key) first-write classifiera03e35a773 committed; rebuild/rerun after exclusive",
+    "full_six": "session20986 running;5corecertificationfailures diagnosed/fixed4aeb;followupaffectedchecksrequired",
+    "final_artifacts_report_commit": "after all pending checks"
+  },
+  "frozen_artifacts": {
+    "CLI_d4": "d1e38e41102d1fa287ad85c9e91fd26ec8cf0fedd4f8bdab15cc2abd691e4cf9",
+    "difftest_d4": "59aa97014ea0f5d67d2544000955b75e387811c20be6b9eb7e8cf778c49c7a6b",
+    "fullsix_oracle_f6": "cd11389e8d42ed6c4471392edaf77bbcd0f9a6fc4f06cba289b1f61e490d1669",
+    "oracle111": "fcb47b2b795ab808f24e58790e0eabe42689e6636ac71aa9e556b98f564ee34a"
+  },
+  "cargo_env": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0",
+  "pushed": false
 }
