@@ -1,0 +1,12 @@
+{
+  "exit_code": 0,
+  "source_production_commit": "65560f6c4e",
+  "command": "CARGO_BUILD_JOBS=12 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 SNAPBACK4_REQUIRE_LEAN=1 SNAPBACK4_LEAN_ORACLE=/tmp/lang-final-oracle-2fb3bb2e98/quarry-oracle cargo test -p snapback4-difftest --no-fail-fast",
+  "targets": 11,
+  "passed": 93,
+  "failed": 0,
+  "ignored": 0,
+  "log": "logs/r14-full-difftest.log.gz",
+  "log_sha256": "472b313e9237f2e29790f1329891e9b77f84f40869d0c8963109575e45ca4ce9",
+  "uncompressed_sha256": "4da981206614af468a7273040bf03db99e0e2e18ba3754f642dfca27eac625e8"
+}
