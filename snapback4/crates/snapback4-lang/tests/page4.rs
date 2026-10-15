@@ -312,10 +312,30 @@ fn standalone_static_grant_leaves_coexist_with_membership_lanes() {
 
     // A static point inside the membership conjunction remains a retained
     // ordinary-read guard. Hidden fixed points still decline PAGE.
-    let hidden = fixed_and_varying.replace("  public\n  online only\ntable chapterAccess:", "  read <- deny\n  online only\ntable chapterAccess:");
+    let hidden = fixed_and_varying.replacen(
+        "  read <- .principal = viewer\n  online only\ntable versionAccess:",
+        "  read <- deny\n  online only\ntable versionAccess:",
+        1,
+    );
     let bound = compile(&[("schema.q".into(), hidden)]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     assert!(bound.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"), "{:?}", bound.notes);
+
+    // Every omitted standalone static alternative must be independently
+    // readable. A readable role must not conceal a hidden system-only role.
+    let mixed_hidden = static_and_membership.replacen(
+        "table roles:",
+        "table secretRoles:\n  principal: principal\n  unique principal\n  read <- deny\n  online only\ntable roles:",
+        1,
+    ).replace(
+        "read <- exists roles[viewer, role = 'advisor'] or exists access[.id, viewer]",
+        "read <- exists secretRoles[viewer] or exists roles[viewer, role = 'advisor'] or exists access[.id, viewer]",
+    );
+    let bound = compile(&[("schema.q".into(), mixed_hidden)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"), "{:?}", bound.notes);
+    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+        .iter().all(|merge| !merge.branches()), "{:?}", bound.programs);
 }
 
 #[test]

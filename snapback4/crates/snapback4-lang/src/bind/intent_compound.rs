@@ -21,7 +21,7 @@ pub(super) fn total_readable(tables: &Tables, synthesized: &BTreeSet<(String, St
             if !probe.keys.iter().all(|key| fixed_key_total(&key.value)) { return false; }
             let Some(target) = tables.get(&probe.table) else { return false };
             if target.through.is_some() || target.decl.not_before.is_some() || target.decl.expire.is_some() { return false; }
-            let Some(columns) = super::intent_lanes::probe_columns(tables, synthesized, focal, probe) else { return false };
+            let Some(columns) = point_columns(tables, synthesized, focal, probe) else { return false };
             if !target.indexes.iter().any(|index| target.total_unique(index) && index.columns.iter().all(|column| columns.contains(column))) { return false; }
             let mut point = probe.clone();
             for (key, column) in point.keys.iter_mut().zip(columns) { key.column = Some(column); }
@@ -30,6 +30,19 @@ pub(super) fn total_readable(tables: &Tables, synthesized: &BTreeSet<(String, St
         }
         _ => false,
     }
+}
+
+/// Resolve a point whose declared unique key is positional while additional
+/// fixed equalities name columns (`roles[viewer, role = 'advisor']`). Named
+/// equalities constrain the point but do not widen its identity key.
+fn point_columns(tables: &Tables, synthesized: &BTreeSet<(String, String)>, focal: &TableInfo, probe: &ReadExpr) -> Option<Vec<String>> {
+    if probe.keys.iter().all(|key| key.column.is_some()) {
+        return Some(probe.keys.iter().filter_map(|key| key.column.clone()).collect());
+    }
+    let mut positional = probe.clone();
+    positional.keys.retain(|key| key.column.is_none());
+    let mut resolved = super::intent_lanes::probe_columns(tables, synthesized, focal, &positional)?.into_iter();
+    probe.keys.iter().map(|key| key.column.clone().or_else(|| resolved.next())).collect()
 }
 
 /// Distribution must not evaluate a fallible key on an overlapping party's
@@ -64,13 +77,20 @@ pub(super) fn expand(tables: &Tables, synthesized: &BTreeSet<(String, String)>, 
         let mut pins = Vec::new();
         let mut probes = Vec::new();
         for atom in &leaf {
-            if let Expr::Exists { .. } = atom
-                && (!branches::columns_within(atom, &[]) || leaf.len() > 1) {
-                // A static point beside another atom is a fixed guard too;
-                // omitting it from the retained residual would weaken the
-                // authored conjunction. A sole static point is instead the
-                // ordinary guarded lane for that top-level rule alternative.
-                probes.push(atom.clone());
+            if let Expr::Exists { .. } = atom {
+                if branches::columns_within(atom, &[]) && leaf.len() == 1 {
+                    // The core chooses one usable page guard for a guarded
+                    // lane. Prove this particular omitted alternative too,
+                    // so another readable static disjunct cannot conceal a
+                    // hidden or timed one.
+                    if !total_readable(tables, synthesized, table, atom) { return None; }
+                } else {
+                    // A static point beside another atom is a fixed guard too;
+                    // omitting it from the retained residual would weaken the
+                    // authored conjunction. A sole static point is instead the
+                    // ordinary guarded lane for that top-level rule alternative.
+                    probes.push(atom.clone());
+                }
             } else if intent::equality(atom, table).is_some() {
                 pins.push(atom.clone());
             } else if matches!(atom, Expr::Unary { .. }) && !branches::columns_within(atom, &[]) {
