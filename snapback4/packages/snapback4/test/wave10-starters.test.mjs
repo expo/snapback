@@ -44,8 +44,9 @@ test('invalid ranges refuse before writing; explicit ports must lie inside a ran
     assert.equal(result.status, 2); assert.match(result.stderr, /E_INPUT/);
     assert.throws(() => readFileSync(join(dir, 'package.json')));
   }
-  const dir = project(t); success(invoke(['init', '--web'], dir, { PORT_LO: '30000', PORT_HI: '' }));
-  assert.ok(!readFileSync(join(dir, 'scripts/launch.mjs'), 'utf8').includes('30000'), 'runtime environment is validated at invocation');
+  const dir = project(t); const invalid = invoke(['init', '--web'], dir, { PORT_LO: '30000', PORT_HI: '' });
+  assert.equal(invalid.status, 2); assert.match(invalid.stderr, /E_INPUT/);
+  assert.throws(() => readFileSync(join(dir, 'package.json')), 'an incomplete init range refuses before writes');
 });
 
 for (const identity of ['use identity password', 'use identity guests', 'use personas alice']) test(`Expo sync detection and smoke use schema sign-in: ${identity}`, t => {
@@ -75,7 +76,7 @@ for (const identity of ['use identity password', 'use identity guests', 'use per
 test('adapting a guest starter to password changes the untouched smoke helper too', t => {
   const dir = project(t); success(invoke(['init', '--expo'], dir));
   const schema = join(dir, 'snapback/schema.q'); writeFileSync(schema, readFileSync(schema, 'utf8').replace('use identity ', 'use identity password '));
-  success(invoke(['init', '--adapt'], dir)); assert.match(readFileSync(join(dir, 'src/native-smoke.ts'), 'utf8'), /auth\.signup/);
+  success(invoke(['init', '--adapt', '--apply'], dir)); assert.match(readFileSync(join(dir, 'src/native-smoke.ts'), 'utf8'), /auth\.signup/);
 });
 
 test('the published stopChild accepts handles and validates unknown shapes; serve launcher closes a real release', async t => {
@@ -97,11 +98,11 @@ test('Expo Todos README and client both adapt from synced to journal and back', 
   const dir = project(t); success(invoke(['init', '--expo'], dir));
   const schema = join(dir, 'snapback/schema.q'), original = readFileSync(schema, 'utf8');
   writeFileSync(schema, original.replace('  sync to .ownerId', '  online only'));
-  success(invoke(['init', '--adapt'], dir));
+  success(invoke(['init', '--adapt', '--apply'], dir));
   const readme = readFileSync(join(dir, 'README.md'), 'utf8');
   assert.match(readme, /principal write journal/); assert.ok(!readme.includes('wasm device'));
   assert.ok(!readFileSync(join(dir, 'src/client.ts'), 'utf8').includes('webDevice'));
-  writeFileSync(schema, original); success(invoke(['init', '--adapt'], dir));
+  writeFileSync(schema, original); success(invoke(['init', '--adapt', '--apply'], dir));
   assert.ok(readFileSync(join(dir, 'README.md'), 'utf8').includes('wasm') && !readFileSync(join(dir, 'README.md'), 'utf8').includes('principal write journal'));
   assert.match(readFileSync(join(dir, 'src/client.ts'), 'utf8'), /webDevice/);
 });

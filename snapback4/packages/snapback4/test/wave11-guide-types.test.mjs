@@ -15,6 +15,7 @@ declare const api: {
   directory: Query<{c?:Cursor|null}, {principal:string;displayName:string}[]>;
   staffNotes: Query<{}, {id:string;title:string}[]>;
   myMembership: Query<{conversationId:string}, {id:string}|null>;
+  enroll: Mutation<{team:string;principal:string}, unknown>;
   register: Mutation<{displayName:string}, {principal:string;displayName:string}>;
   send: Mutation<{conversationId:string;body:string}, null>;
 };`;

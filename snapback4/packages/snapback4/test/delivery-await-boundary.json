@@ -260,8 +260,8 @@
     "sha256": "323f28ced6d00a468c7ea24a7da419b0dc4ebb22e6314cae1ca87ffce1bbaf71"
   },
   "local.ts": {
-    "count": 167,
-    "sha256": "eb470e1ff73b98c7c8b05acdfc7c1af839356b783c605c418b8cdcc0c2fbce9a"
+    "count": 168,
+    "sha256": "d8fe3b64151b7d8132c7009a084669008a3d1bddd05827af23a145849b596d08"
   },
   "mock-ephemeral.ts": {
     "count": 0,
@@ -329,7 +329,7 @@
   },
   "proof.ts": {
     "count": 29,
-    "sha256": "23bfa84e4f70369084db6afa929a4f42634723b1ae2c74957ab09bad2c00c0a2"
+    "sha256": "47e313c568eadb10f836a37d5eac8489b8771940e06e8063c44474a974fc44cf"
   },
   "query-custody.ts": {
     "count": 1,
@@ -402,6 +402,10 @@
   "receipt-family.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "release.ts": {
+    "count": 3,
+    "sha256": "280a772ac9dae26ef5ea8bc7d56480ffcbf71b0095c29740f14b98c11d7370f3"
   },
   "request-wait.ts": {
     "count": 3,

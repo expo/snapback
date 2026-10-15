@@ -104,7 +104,7 @@ test('probe and deploy guide agree on exact compatibility, schedule, dormancy an
   assert.equal(restored.status, 'archived'); assert.equal(restored.color, 'none');
   await old.stop();
   const guide = run('guide', 'deploy').stdout;
-  for (const text of ['1 row, 2 cells, 0 index entries dormant', 'cells notes.color [B, C]', 'Point query or mutation with an explicit `! else CODE` guard', 'Ignored by the older release', 'Clients across rollback', 'runtime guarantee']) assert.ok(guide.includes(text), text);
+  for (const text of ['1 row, 2 cells, 0 index entries dormant', 'cells notes.color [B, C]', 'Point query or mutation with an explicit `! else CODE` guard', 'Ignored by the older release', 'Clients across rollback', 'capability, not authorization']) assert.ok(guide.includes(text), text);
 });
 
 test('rollback preview distinguishes missing schedules, edited source and current rule clauses', { timeout: hangBudget(3) }, async t => {

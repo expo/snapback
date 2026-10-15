@@ -23,7 +23,7 @@ test("social recipes in React/browser: real online signals and media, controlled
     assert.equal(run.status, 0, run.stdout + run.stderr);
   }
   const { url } = await server(t, undefined, readFileSync(join(dir, "snapback/schema.q"), "utf8"));
-  const js = ts.transpileModule(readFileSync(join(dir, "snapback/generated/api.ts"), "utf8"), { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText;
+  const js = ts.transpileModule(readFileSync(join(dir, "snapback/generated/api.ts"), "utf8"), { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText.replaceAll('"snapback4/contract"', JSON.stringify(import.meta.resolve("snapback4/contract")));
   const { api } = await import(`data:text/javascript;base64,${Buffer.from(js).toString("base64")}`);
   const sessions = await Promise.all([signup(url, "alice@social.test", "social-password"), guest(url), guest(url)]);
   sessions.forEach(value => assert.equal(value.ok, true));
@@ -415,7 +415,7 @@ test("social search in React/browser uses current server and retained device pag
     assert.equal(run.status, 0, run.stdout + run.stderr);
   }
   const { url } = await server(t, undefined, readFileSync(join(dir, "snapback/schema.q"), "utf8"));
-  const js = ts.transpileModule(readFileSync(join(dir, "snapback/generated/api.ts"), "utf8"), { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText;
+  const js = ts.transpileModule(readFileSync(join(dir, "snapback/generated/api.ts"), "utf8"), { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText.replaceAll('"snapback4/contract"', JSON.stringify(import.meta.resolve("snapback4/contract")));
   const { api } = await import(`data:text/javascript;base64,${Buffer.from(js).toString("base64")}`);
   const signed = await guest(url); assert.equal(signed.ok, true);
   const { session } = signed, owner = session.principal;
@@ -528,7 +528,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
     assert.equal(run.status, 0, run.stdout + run.stderr);
   }
   const { url } = await server(t, undefined, readFileSync(join(dir, "snapback/schema.q"), "utf8"));
-  const js = ts.transpileModule(readFileSync(join(dir, "snapback/generated/api.ts"), "utf8"), { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText;
+  const js = ts.transpileModule(readFileSync(join(dir, "snapback/generated/api.ts"), "utf8"), { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText.replaceAll('"snapback4/contract"', JSON.stringify(import.meta.resolve("snapback4/contract")));
   const { api } = await import(`data:text/javascript;base64,${Buffer.from(js).toString("base64")}`);
   const sessions = await Promise.all([guest(url), guest(url), guest(url)]);
   sessions.forEach(value => assert.equal(value.ok, true));

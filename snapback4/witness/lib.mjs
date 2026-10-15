@@ -106,7 +106,7 @@ export async function launch({ seed, extraSource = "", headless = true, sourceDi
   writeFileSync(entry, `import "./bootstrap.ts";\n${entrySource}\n`);
   writeFileSync(join(harness, "index.html"), `<!doctype html><title>witness</title><script type="module" src="./harness.ts"></script>`);
   const overrides = () => ({ name: "witness-source-overrides", enforce: "pre", transform(code, id) { return sourceOverrides[id] ? { code: sourceOverrides[id], map: null } : null; } });
-  await build({ root: harness, logLevel: "silent", plugins: [overrides()], worker: { plugins: () => [overrides()] }, build: { outDir: join(harness, "dist"), emptyOutDir: true, minify: false, target: "es2022", assetsInlineLimit: 0 } });
+  await build({ root: harness, resolve: { alias: { "snapback4/contract": join(root, "packages/snapback4/src/contract.ts") } }, logLevel: "silent", plugins: [overrides()], worker: { plugins: () => [overrides()] }, build: { outDir: join(harness, "dist"), emptyOutDir: true, minify: false, target: "es2022", assetsInlineLimit: 0 } });
 
   const dev = await devServer({ seed, extraSource, sourceDir, clockOffset, watch });
   const { api, app, seeded, seedMs } = dev;

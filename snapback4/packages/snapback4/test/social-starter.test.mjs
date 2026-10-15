@@ -55,7 +55,7 @@ test("generated feed, chats, profile and search preserve read-state text and con
     const module = { exports: {} };
     const source = ts.transpileModule(readFileSync(join(dir, `src/${name}.tsx`), 'utf8'), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
-    }).outputText;
+    }).outputText.replaceAll('"snapback4/contract"', JSON.stringify(import.meta.resolve("snapback4/contract")));
     runInNewContext(source, { exports: module.exports, require: id => {
       if (id === 'react-native') return native;
       if (id === 'snapback4/react') return hooks;
@@ -213,7 +213,7 @@ for (const tier of ["native", "web"]) {
 
 export async function generatedApi(dir) {
   const source = readFileSync(join(dir, "snapback/generated/api.ts"), "utf8");
-  const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText;
+  const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.ESNext } }).outputText.replaceAll('"snapback4/contract"', JSON.stringify(import.meta.resolve("snapback4/contract")));
   return (await import(`data:text/javascript;base64,${Buffer.from(js).toString("base64")}`)).api;
 }
 
@@ -518,7 +518,7 @@ test("guide aliases send schedules, DMs and Expo readers to their owning cards",
 test("social proposal associations are durable, account/backend scoped and preserve every send's arguments", async t => {
   const dir = starter(t);
   const source = readFileSync(join(dir, "src/intents.ts"), "utf8");
-  const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText;
+  const js = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText.replaceAll('"snapback4/contract"', JSON.stringify(import.meta.resolve("snapback4/contract")));
   const { IntentJournal } = await import(`data:text/javascript;base64,${Buffer.from(js).toString("base64")}`);
   const values = new Map(); let viewer = "alice";
   const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value), removeItem: key => values.delete(key) };

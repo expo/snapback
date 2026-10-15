@@ -18,6 +18,10 @@ export const sharedAwaits = new Map([
 ]);
 export const followSync = 'local.ts:follow:network.once()#1';
 export const followRetry = 'local.ts:follow:new Promise((r) => setTimeout(r, 1000))#1';
+// Integration 13: REL3 adds an awaited transport wrapper that preserves every
+// existing doFetch rejection, plus catalog-only fetch/JSON awaits in release.ts.
+// These do not originate or settle delivery work; existing transport fault sites
+// still exercise delivery failures. KIT changes only proof-host awaits.
 export const scope = {
   'local.ts': ['flush', 'flushOnce', 'call', 'captureStore', 'refreshAcquired', 'sendPost', 'syncRound', 'probe', 'waitForChange', 'follow', 'replayOnOpen', 'listenForExit', 'commit', 'read', 'lookup', 'save'],
   'local-receipts.ts': '*',

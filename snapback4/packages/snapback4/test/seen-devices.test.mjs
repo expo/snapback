@@ -35,7 +35,7 @@ for(const tier of ['process','wasm'])test(`seen lifecycle ${tier}: real generate
  const rows=[['conversations',{id:'c',creatorId:'dev:alice',lastOrdinal:3}],...['alice','bob'].map(p=>['members',{id:p,conversation:'c',principal:'dev:'+p,joinedOrdinal:0}]),...[1,2,3].map(n=>['messages',{id:'m'+n,conversation:'c',sender:'dev:alice',ordinal:n,recipients:1,text:'m'+n,at:Date.now()}])];
  const seeded=await post('/seed',rows.map(([table,row])=>({table,row})));assert.equal(seeded.seeded,rows.length,JSON.stringify(seeded));
  const generated=readFileSync(join(dir,'snapback/generated/api.ts'),'utf8');
- const {api}=await import('data:text/javascript;base64,'+Buffer.from(ts.transpileModule(generated,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText).toString('base64'));
+ const {api}=await import('data:text/javascript;base64,'+Buffer.from(ts.transpileModule(generated,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ESNext}}).outputText.replaceAll('"snapback4/contract"', JSON.stringify(import.meta.resolve("snapback4/contract")))).toString('base64'));
  assert.equal(api.receiptFamilies.chat.member.name,'receiptMember');assert.equal(api.receiptFamilies.chat.mapping.floor,'joinedOrdinal');
  const persist=memoryPersistence();
  const device=tier==='wasm'?webDevice({wasm,persist}):processDevice({binary,dir:join(dir,'device'),spawn:(cmd,args)=>spawn(cmd,args,{stdio:['pipe','pipe','inherit']}),writeFile:async(path,value)=>writeFileSync(path,value)});
