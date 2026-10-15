@@ -95462,3 +95462,8 @@ compatibility fences. The intermediate allowance above is superseded.
 The build passed the stricter previous 713,244 B allowance. Final native,
 device, model and client evidence is recorded under `reports/wave12-lang/`;
 this measurement is Linux evidence and does not assert publication.
+
+
+### 2026-10-15 — LANG device commit-end expiry qualification
+
+The final shared prediction path runs the same bounded reference retirement and net aggregate maintenance before final obligations on native and web devices. Clean Linux measurement at ee824cac6f (product cfd4e2f242) is 2,352,628 B raw / 716,694 B gzip / 541,347 B Brotli; family/absence audits pass. Set the wasm budget to **717,194 B = measured gzip + exactly 500 B**. Whole-device gzip delta versus qualified 0.4.28 is +9,020 B; no per-feature attribution, macOS measurement or runtime ceiling increase. Earlier LANG candidate measurements are superseded.

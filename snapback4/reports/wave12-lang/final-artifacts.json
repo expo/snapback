@@ -1,23 +1,57 @@
 {
-  "at": "2026-10-15T01:30:47.871861+00:00",
-  "production_commit": "46dcc1e99f",
-  "git_head_at_build": "46dcc1e99fda3bd10b844dc7aa86726a38c31fdb",
+  "at": "2026-10-15T01:49:24.499831+00:00",
+  "production_commit": "cfd4e2f242",
+  "git_head_at_build": "ee824cac6fdb5cbd0810d5298af6072018bba5b7",
   "oracle_model_commit": "2fb3bb2e98",
   "artifacts": {
     "cli": {
-      "path": "/tmp/lang-final-cli-46dcc1e99f",
-      "sha256": "63a0b57bc289361dda703b85a88d09558b5f1cc6c56edba0fcf906ab5427cc53"
+      "path": "/tmp/lang-final-cli-cfd4e2f242",
+      "sha256": "d45eded9e2747c8d1a281a1bd6e2d16ce203ee0a1ae1c2cea073eccfc50aab72"
     },
     "difftest": {
-      "path": "/tmp/lang-final-difftest-46dcc1e99f",
-      "sha256": "a9ee851c6d99d97ec9bfe9e6889e6337a2e7975ec9b0bd09ef4ddcb478747a60"
+      "path": "/tmp/lang-final-difftest-cfd4e2f242",
+      "sha256": "72b1357a69d3f8a24df54d09324bbedc14d49380f7a21a6a8fa7b6b13859d1cb"
+    },
+    "wasm": {
+      "path": "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+      "sha256": "0d1eae6c4dd50ab65a05e59ffd2bc35b5e46212ce29b4e1e115cf34bf6fc9283",
+      "raw": 2352628,
+      "gzip": 716694,
+      "brotli": 541347,
+      "budget": 717194,
+      "clean_measurement_commit": "ee824cac6f"
     },
     "oracle": {
       "path": "/tmp/lang-final-oracle-2fb3bb2e98/quarry-oracle",
       "sha256": "c81001208782e3a086b51ff0d213bd193f21cbbf1189cea94500305eb112db0b"
     }
   },
+  "previous_artifact_receipts": [
+    {
+      "at": "2026-10-15T01:30:47.871861+00:00",
+      "production_commit": "46dcc1e99f",
+      "git_head_at_build": "46dcc1e99fda3bd10b844dc7aa86726a38c31fdb",
+      "oracle_model_commit": "2fb3bb2e98",
+      "artifacts": {
+        "cli": {
+          "path": "/tmp/lang-final-cli-46dcc1e99f",
+          "sha256": "63a0b57bc289361dda703b85a88d09558b5f1cc6c56edba0fcf906ab5427cc53"
+        },
+        "difftest": {
+          "path": "/tmp/lang-final-difftest-46dcc1e99f",
+          "sha256": "a9ee851c6d99d97ec9bfe9e6889e6337a2e7975ec9b0bd09ef4ddcb478747a60"
+        },
+        "oracle": {
+          "path": "/tmp/lang-final-oracle-2fb3bb2e98/quarry-oracle",
+          "sha256": "c81001208782e3a086b51ff0d213bd193f21cbbf1189cea94500305eb112db0b"
+        }
+      },
+      "crate_source_files": 774,
+      "crate_source_digest": "b01c30825e57ff29a2adafd624adef8401b21ebed87cbb8b6169ee1110efe4aa",
+      "cargo_env": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0"
+    }
+  ],
   "crate_source_files": 774,
-  "crate_source_digest": "b01c30825e57ff29a2adafd624adef8401b21ebed87cbb8b6169ee1110efe4aa",
+  "crate_source_digest": "36f2c9008ddc545ebf19c79f35701bf82f227f6e5ff3222b8fcd435dd56e89a4",
   "cargo_env": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0"
 }
