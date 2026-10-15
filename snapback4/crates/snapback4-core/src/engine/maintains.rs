@@ -8,7 +8,6 @@ use crate::schema::materialize_optional_fields;
 #[cfg(feature = "sqlite")]
 use crate::rows::{Bounds, Dir};
 use crate::value::{I53_MAX, I53_MIN, Value};
-#[cfg(feature = "sqlite")]
 use crate::value::canonical_json;
 use std::collections::BTreeMap;
 
@@ -157,7 +156,6 @@ impl Runner<'_> {
             else { changes.push((key, change)); }
         }
         for (key, change) in changes {
-            #[cfg(feature = "sqlite")]
             if let Some(retiring) = self.retiring.as_mut() {
                 let entry = retiring.aggregates.entry((maintain.target.clone(), canonical_json(&key))).or_insert_with(|| (key, 0));
                 entry.1 = entry.1.checked_add(change).ok_or_else(|| aggregate_overflow(maintain))?;
@@ -172,7 +170,6 @@ impl Runner<'_> {
 
     /// Apply a retirement's net aggregate changes, one per target row, in
     /// key order. Only a total the commit really ends with can overflow.
-    #[cfg(feature = "sqlite")]
     pub(super) fn apply_retired_aggregates(&mut self, changes: BTreeMap<(String, String), (Vec<Value>, i128)>) -> Result<(), RuntimeError> {
         let schema = self.schema;
         for ((target, _), (key, change)) in changes {

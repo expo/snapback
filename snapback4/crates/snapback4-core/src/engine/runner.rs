@@ -56,6 +56,15 @@ pub(crate) struct Retiring {
     pub(crate) live_keys: HashMap<(String, String, String), bool>,
 }
 
+/// A logless device still nets maintained deltas across commit-end expiry.
+/// It has no partition audience cache, but it must apply the same aggregate
+/// total as the server before publishing a prediction.
+#[cfg(not(feature = "sqlite"))]
+#[derive(Default)]
+pub(crate) struct Retiring {
+    pub(crate) aggregates: BTreeMap<(String, String), (Vec<Value>, i128)>,
+}
+
 /// One evaluated cursor-bearing page; the return plan selects its owner.
 #[derive(Clone, Debug)]
 pub(crate) struct PagePosition {
@@ -149,7 +158,6 @@ pub struct Runner<'a> {
     /// without sync and therefore cannot reuse `born_rows`/`touched_rows`.
     pub(crate) expiry_rows: BTreeSet<(String, String)>,
     /// Set only while a commit retires the rows it inserted already expired.
-    #[cfg(feature = "sqlite")]
     pub(crate) retiring: Option<Retiring>,
     /// Queued effects with their grace dependencies.
     pub(crate) outbox: Vec<super::presence::Emission>,
@@ -339,7 +347,6 @@ impl<'a> Runner<'a> {
             #[cfg(feature = "sqlite")]
             touched_rows: HashMap::new(),
             expiry_rows: BTreeSet::new(),
-            #[cfg(feature = "sqlite")]
             retiring: None,
             outbox: Vec::new(),
             effect_presence: Default::default(),
