@@ -337,12 +337,15 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         if matches!(case.program.tables[0].residency, Residency::Group) {
             dims.push("group-pages");
         }
+        if matches!(case.program.body, Body::Scalar(snapback4_difftest::ast::Expr::RoundedDivide(..))) {
+            dims.push("rounded-division");
+        }
         if dims.is_empty() && !snapback4_difftest::lean::features(&case).iter().any(|f| f.starts_with("page4/")) {
             assert_eq!(serde_json::to_value(&case).unwrap(), serde_json::to_value(&plain).unwrap(), "seed {seed}");
         }
         seen.extend(dims);
     }
-    assert_eq!(seen.len(), 14, "{seen:?}");
+    assert_eq!(seen.len(), 15, "{seen:?}");
 }
 
 #[test]

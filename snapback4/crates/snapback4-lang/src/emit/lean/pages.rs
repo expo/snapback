@@ -30,8 +30,11 @@ fn page_pins(table: &Table, read: &ReadExpr) -> PagePins {
         })).collect();
     }
     if !distributed || branches.len() < 2 { return PagePins::Plain(system); }
+    // The native candidate declines an alternative product when any lane has
+    // no physical pin.  That leaves the authored read on its ordinary,
+    // incomplete scan, which the model can still execute directly.
     if branches.iter().any(|branch| !branch.iter().any(|atom| page_pin(table, atom))) {
-        return PagePins::Invalid;
+        return PagePins::Plain(system);
     }
     PagePins::Product {
         system,
@@ -121,7 +124,17 @@ pub(super) fn membership_physical_issue(module: &LeanModule, read: &ReadExpr) ->
     }
     let (system_pins, branches) = match page_pins(target, read) {
         PagePins::Plain(system) => (system.clone(), vec![system]),
-        PagePins::Product { system, branches } => (system, branches),
+        PagePins::Product { system, branches } => {
+            // A product that pins any membership witness's varying outer
+            // field is declined by the native planner.  Preserve the modeled
+            // ordinary scan instead of counting those pins as PAGE lanes.
+            if memberships.iter().any(|membership| branches.iter().any(|branch|
+                branch.contains(&membership.target_parent))) {
+                (system.clone(), vec![system])
+            } else {
+                (system, branches)
+            }
+        }
         PagePins::Invalid => return Some("page-membership-filter-product"),
     };
     if 1usize.saturating_add(branches.len().saturating_mul(parties.len().saturating_add(memberships.len()))) > 8 {
