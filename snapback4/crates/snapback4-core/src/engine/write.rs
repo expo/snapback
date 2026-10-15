@@ -17,6 +17,13 @@ pub(crate) enum Origin {
     Maintained,
 }
 
+#[derive(Clone)]
+pub(super) struct FinalExistsWitness {
+    table: String,
+    row: Value,
+    constraint: usize,
+}
+
 #[path = "write_references.rs"]
 mod references;
 #[path = "write_target.rs"]
@@ -170,16 +177,19 @@ impl Runner<'_> {
         // and reserved both target proofs. Retiring an expired predecessor
         // uses that same allowance, not a third read-rule reservation.
         let collision_probes = if upsert_index.is_some() { 0 } else { super::rules::rule_probes(&table.rules.read) };
-        let has_children = self.schema.children(table_name).next().is_some()
-            || self.schema.is_referenced(table_name);
+        let has_through_children = self.schema.children(table_name).next().is_some();
+        let has_children = has_through_children || self.schema.is_referenced(table_name);
         let predecessor = self.authorized_scan(&[(MeterKind::RuleProbes, collision_probes)], |runner, allowance| {
             let existing = runner.tx.get(allowance, table_name, &id)?;
             if let Some(row) = &existing {
                 if !runner.expired(table, row) { runner.visible_collision(table_name, row, Effect::Insert, "unique id")?; }
-                // The expired predecessor is internal retirement work. Its
-                // read rule cannot veto or disclose a logically absent image;
-                // the authorized replacement still applies its reference
-                // actions transactionally below.
+                // An expired predecessor's read rule cannot veto actionable
+                // reference retirement. A declared read-through child is
+                // different: a non-reader cannot probe whether hidden
+                // physical children retain the predecessor.
+                else if has_through_children && !runner.check_rule(table_name, Effect::Read, None, row)? {
+                    return Err(runner.rule_refusal(table_name, Effect::Insert, "unique id"));
+                }
             }
             Ok(existing)
         })?;
@@ -801,74 +811,115 @@ impl Runner<'_> {
         Ok(())
     }
 
+    fn final_exists_holds(&mut self, table_name: &str, row: &Value, constraint: &Constraint) -> Result<bool, RuntimeError> {
+        let Constraint::FinalExistsOnInsert { table: target, index, key } = constraint else { return Ok(true);
+        };
+        let table = self.schema.table(table_name).expect("validated").clone();
+        let has_references = key.iter().any(|term| term.reference_source().is_some());
+        let key: Vec<Value> = if has_references {
+            // Preserve the structural target probe, but authorize each live
+            // row supplying its key before it can confer authority.
+            let rule = crate::schema::RuleExpr::Exists { table: target.clone(), index: index.clone(), key: key.clone(), equalities: vec![], provenance: crate::ir::KeyProvenance::Shape };
+            for term in key { if let crate::schema::RuleTerm::Field(field) = term { self.provisional_sequence_read |= self.device && table.sequences.contains_key(field); } }
+            let Some(key) = self.final_reference_key(table_name, &rule, row)? else { return Ok(false);
+            };
+            key
+        } else { key
+            .iter()
+            .map(|term| match term {
+                crate::schema::RuleTerm::Field(field) | crate::schema::RuleTerm::NextField(field) => {
+                    // This inserted image owns a provisional ordinal even if no expression read it.
+                    self.provisional_sequence_read |= self.device && table.sequences.contains_key(field);
+                    row.field(field).cloned().unwrap_or(Value::Null)
+                }
+                crate::schema::RuleTerm::Viewer => Value::Id(self.context.viewer.clone()),
+                crate::schema::RuleTerm::Literal(value) => value.clone(),
+                crate::schema::RuleTerm::OldField(_) | crate::schema::RuleTerm::Reference { .. } | crate::schema::RuleTerm::ReferenceChain { .. } => Value::Null,
+            })
+            .collect() };
+        self.read_tables.insert(target.clone());
+        self.observe_sequence_selection(target, index, &key)?;
+        let definition = self.schema.table(target).ok_or_else(|| RuntimeError::Schema(format!("missing {target}")))?;
+        let target_index = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing {target}.{index}")))?;
+        let found = match self.lookup_stored(target, index, target_index, &key, true)? {
+            Some(row) => self.live_aggregate(target, row)?,
+            None => None,
+        };
+        if has_references && self.device && let Some(row) = &found
+            && !self.witness_covered(target, index, &key, row)? {
+            self.unknown_fact(target, index, &key, "after insert");
+            return Ok(false);
+        }
+        if found.is_none() {
+            // @ref LLP 3000.007#20.5 — a final-exists miss needs the same readable, fully held group proof as upsert absence; a local hit needs no absence proof.
+            // Budget spent only while establishing device coverage is the device's
+            // uncertainty, not the write's: the server needs no such proof.
+            let proven = self.device && match self.upsert_absence_proven(target, index, &key) {
+                Ok(proven) => proven,
+                Err(RuntimeError::Bound { .. }) => false,
+                Err(error) => return Err(error),
+            };
+            if self.device && !proven {
+                let first_unknown = self.missing_fact.is_none();
+                self.unknown_fact(target, index, &key, "after insert");
+                if first_unknown && let Some(message) = &mut self.missing_fact {
+                    *message = message.replace("the row or its absence is past the acquired horizon or online only", "the probe key does not establish a fully held, readable group without a horizon");
+                }
+            }
+            return Ok(false);
+        }
+        Ok(true)
+    }
+
+    fn final_exists_refusal(table_name: &str, constraint: &Constraint) -> RuntimeError {
+        let Constraint::FinalExistsOnInsert { table: target, .. } = constraint else { unreachable!("final-exists witness names a final-exists constraint");
+        };
+        RuntimeError::Constraint(format!("inserting into {table_name} requires a matching row in {target} by the end of the mutation"))
+    }
+
     /// `after insert <- exists t[...]` holds for every row inserted this
     /// transaction; checked once the program has run.
     pub(super) fn check_final_exists(&mut self) -> Result<(), RuntimeError> {
         let inserted = std::mem::take(&mut self.inserted);
         for (table_name, row) in &inserted {
-            let table = self.schema.table(table_name).expect("validated");
-            for constraint in &table.constraints {
-                let Constraint::FinalExistsOnInsert { table: target, index, key } = constraint else { continue;
-                };
-                let refusal = || {
-                    RuntimeError::Constraint(format!("inserting into {table_name} requires a matching row in {target} by the end of the mutation"))
-                };
-                let has_references = key.iter().any(|term| term.reference_source().is_some());
-                let key: Vec<Value> = if has_references {
-                    // Preserve the structural target probe, but authorize each
-                    // live row supplying its key before it can confer authority.
-                    let rule = crate::schema::RuleExpr::Exists { table: target.clone(), index: index.clone(), key: key.clone(), equalities: vec![], provenance: crate::ir::KeyProvenance::Shape };
-                    for term in key { if let crate::schema::RuleTerm::Field(field) = term { self.provisional_sequence_read |= self.device && table.sequences.contains_key(field); } }
-                    self.final_reference_key(table_name, &rule, row)?.ok_or_else(refusal)?
-                } else { key
-                    .iter()
-                    .map(|term| match term {
-                        crate::schema::RuleTerm::Field(field) | crate::schema::RuleTerm::NextField(field) => {
-                            // This inserted image owns a provisional ordinal even if no expression read it.
-                            self.provisional_sequence_read |= self.device && table.sequences.contains_key(field);
-                            row.field(field).cloned().unwrap_or(Value::Null)
-                        }
-                            crate::schema::RuleTerm::Viewer => {
-                                Value::Id(self.context.viewer.clone())
-                            }
-                            crate::schema::RuleTerm::Literal(value) => value.clone(),
-                        crate::schema::RuleTerm::OldField(_) | crate::schema::RuleTerm::Reference { .. } | crate::schema::RuleTerm::ReferenceChain { .. } => Value::Null,
-                    })
-                    .collect() };
-                self.read_tables.insert(target.clone());
-                self.observe_sequence_selection(target, index, &key)?;
-                let definition = self.schema.table(target).ok_or_else(|| RuntimeError::Schema(format!("missing {target}")))?;
-                let target_index = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing {target}.{index}")))?;
-                let found = match self.lookup_stored(target, index, target_index, &key, true)? {
-                    Some(row) => self.live_aggregate(target, row)?,
-                    None => None,
-                };
-                if has_references && self.device && let Some(row) = &found
-                    && !self.witness_covered(target, index, &key, row)? {
-                    self.unknown_fact(target, index, &key, "after insert");
-                    return Err(refusal());
-                }
-                if found.is_none() {
-                    // @ref LLP 3000.007#20.5 — a final-exists miss needs the same readable, fully held group proof as upsert absence; a local hit needs no absence proof.
-                    // Budget spent only while establishing device coverage is the device's
-                    // uncertainty, not the write's: the server needs no such proof.
-                    let proven = self.device && match self.upsert_absence_proven(target, index, &key) {
-                        Ok(proven) => proven,
-                        Err(RuntimeError::Bound { .. }) => false,
-                        Err(error) => return Err(error),
-                    };
-                    if self.device && !proven {
-                        let first_unknown = self.missing_fact.is_none();
-                        self.unknown_fact(target, index, &key, "after insert");
-                        if first_unknown && let Some(message) = &mut self.missing_fact {
-                            *message = message.replace("the row or its absence is past the acquired horizon or online only", "the probe key does not establish a fully held, readable group without a horizon");
-                        }
-                    }
-                    return Err(RuntimeError::Constraint(format!("inserting into {table_name} requires a matching row in {target} by the end of the mutation")));
+            let constraints = self.schema.table(table_name).expect("validated").constraints.clone();
+            for constraint in &constraints {
+                if matches!(constraint, Constraint::FinalExistsOnInsert { .. })
+                    && !self.final_exists_holds(table_name, row, constraint)? {
+                    return Err(Self::final_exists_refusal(table_name, constraint));
                 }
             }
         }
         self.inserted = inserted;
+        Ok(())
+    }
+
+    /// Seed imports historically do not enforce every final-exists clause.
+    /// Capture only clauses that currently hold so seeded expiry retirement
+    /// can prove that its own reference actions did not invalidate them.
+    pub(super) fn satisfied_final_exists(&mut self) -> Result<Vec<FinalExistsWitness>, RuntimeError> {
+        let inserted = self.inserted.clone();
+        let mut witnesses = Vec::new();
+        for (table, row) in inserted {
+            let constraints = self.schema.table(&table).expect("validated").constraints.clone();
+            for (constraint, clause) in constraints.iter().enumerate() {
+                if matches!(clause, Constraint::FinalExistsOnInsert { .. })
+                    && self.final_exists_holds(&table, &row, clause)? {
+                    witnesses.push(FinalExistsWitness { table: table.clone(), row: row.clone(), constraint });
+                }
+            }
+        }
+        Ok(witnesses)
+    }
+
+    pub(super) fn check_final_exists_witnesses(&mut self, witnesses: &[FinalExistsWitness]) -> Result<(), RuntimeError> {
+        for witness in witnesses {
+            let constraint = self.schema.table(&witness.table).expect("validated")
+                .constraints.get(witness.constraint).expect("captured constraint").clone();
+            if !self.final_exists_holds(&witness.table, &witness.row, &constraint)? {
+                return Err(Self::final_exists_refusal(&witness.table, &constraint));
+            }
+        }
         Ok(())
     }
 

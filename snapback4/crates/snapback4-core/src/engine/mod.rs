@@ -1353,11 +1353,12 @@ pub(crate) fn seed_rows(schema: &Schema, tx: &crate::store::Tx<'_>, rows: impl I
     // a clock rollback. Route only those sources through the common retirement
     // path so reference actions and net maintenance still run transactionally.
     // @ref LLP 3000.039#6.5 — seeded expired row-view sources retire with actions; unrelated expired fixtures remain stored.
+    let final_exists = runner.satisfied_final_exists()?;
     runner.retire_seeded_view_sources()?;
-    // Retirement can remove a witness named by a seeded row's end-of-commit
-    // obligation. Judge that obligation against the final provisional store,
-    // as the mutation and Postgres seed paths do.
-    runner.check_final_exists()?;
+    // Seeds historically admit fixture rows whose obligations are not
+    // meaningful under the system viewer. Retirement may not invalidate an
+    // obligation that did hold immediately before its reference actions.
+    runner.check_final_exists_witnesses(&final_exists)?;
     let events = runner.events.take();
     let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
     drop(runner);
