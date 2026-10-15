@@ -224,7 +224,7 @@ query mine(c: cursor ?):
 mutation post(body: text 1..100):
   return insert notes { owner: viewer, body }
 `);
-  run("init", "--adapt"); run("check");
+  run("init", "--adapt", "--apply"); run("check");
   const app = readFileSync(join(dir, starter === "expo" ? "App.tsx" : "src/App.tsx"), "utf8");
   assert.match(app, /const read = useQuery\(api\.mine, \{\}\);/);
   // Wave 7 (R2): the spread comes first, so a handler added after it wins.

@@ -1,5 +1,5 @@
 //! Conservative propositional implication for narration, never admission.
-// @ref LLP 3000.000.000#12-wave-12-clause-comparison — uncertainty stays a warning.
+// @ref LLP 3000.000.000#12.2 — uncertainty stays a warning.
 use snapback4_core::schema::RuleExpr;
 use snapback4_lang::{ast::{Expr, Literal}, print::expression};
 use std::collections::BTreeSet;
