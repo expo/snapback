@@ -104,6 +104,8 @@ fn recorded_prediction_stream_and_reopen_on_both_stores() { run(&mut Sqlite::new
 fn activation<H: Host>(host: &mut H) {
     let bare = format!("{}\nquery allLikes():\n  return likes first 100 by byId\n", SOURCE.split("maintain receivedLikes:").next().unwrap());
     let (mut server, backend) = compile(&bare);
+    assert!(server.schema().maintains.is_empty(), "the predecessor has no legacy aggregate identity map");
+    assert_eq!(server.store().meta(snapback4_core::schema::MAINTAINED_ID_META).unwrap(), None);
     server.seed([post("p", "alice", Value::Null), ("likes".into(), snapback4_core::value::object([("id",id("l")),("postId",id("p")),("principal",id("alice")),("at",Value::Int(100)),("until",Value::Null)]))]).unwrap();
     let mut device = host.open("activation", Some(backend)).unwrap();
     for (i,page) in snapshot_pages(&mut server,"alice",100).iter().enumerate() { device.apply(page,i==0).unwrap(); }
@@ -114,6 +116,7 @@ fn activation<H: Host>(host: &mut H) {
     let (_, next) = compile(SOURCE);
     server.adopt(next.schema.clone(), next.programs.clone()).unwrap();
     assert_eq!(server.seq().unwrap(), before, "no per-row activation commit");
+    assert_eq!(server.store().meta(snapback4_core::schema::MAINTAINED_ID_META).unwrap().as_deref(), Some(snapback4_core::schema::MAINTAINED_ID_VERSION), "the first aggregate records the current identity without pretending it had a legacy row map");
     assert!(server.stream("alice", before, 100).unwrap().events.is_empty());
     device.adopt(Backend { generation:server.generation(), ..next }).unwrap();
     assert_eq!(device.query("allLikes", "alice", &json!({}), 1000).unwrap_err().code, "E_PREDICT", "adoption requires a new snapshot");
