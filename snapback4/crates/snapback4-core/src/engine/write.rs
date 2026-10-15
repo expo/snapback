@@ -490,7 +490,8 @@ impl Runner<'_> {
     /// the program's metering is already recorded. Its work, returned, stays
     /// linear in the rows retired: each aggregate row takes one net change
     /// and each audience key is scanned for a live row once. Seeds and loads
-    /// keep their rows for the sweep.
+    /// ordinarily keep their rows for the sweep; row-keyed view sources use
+    /// `retire_seeded_view_sources` to preserve their count-basis contract.
     // @ref LLP 3000#7-decisions-during-execution — a row whose lifetime ended by its own commit's end never exists at a commit boundary.
     #[cfg(feature = "sqlite")]
     pub(crate) fn retire_expired_births(&mut self) -> Result<crate::meter::Metered, RuntimeError> {
@@ -526,6 +527,18 @@ impl Runner<'_> {
         let retired = retired.and_then(|()| self.apply_retired_aggregates(aggregates));
         let work = std::mem::replace(&mut self.meter, meter).used;
         retired.map(|()| work)
+    }
+
+    /// Seed writes historically retire only already-expired sources of
+    /// row-keyed views. Keep that narrow boundary while routing their removal
+    /// through the common action and net-maintenance path.
+    // @ref LLP 3000.039#6.5 — ordinary expired fixtures remain stored; derived row-view sources cannot revive after clock rollback.
+    #[cfg(feature = "sqlite")]
+    pub(crate) fn retire_seeded_view_sources(&mut self) -> Result<crate::meter::Metered, RuntimeError> {
+        let schema = self.schema;
+        self.expiry_rows.retain(|(table, _)| schema.maintains.iter()
+            .any(|maintain| maintain.source == table.as_str() && maintain.row_key.is_some()));
+        self.retire_expired_births()
     }
 
     /// A column with a declared default takes it when the written row leaves

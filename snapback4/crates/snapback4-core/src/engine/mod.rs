@@ -1347,6 +1347,13 @@ pub(crate) fn seed_rows(schema: &Schema, tx: &crate::store::Tx<'_>, rows: impl I
         runner.upsert(&table, &row.field("id")?.clone(), row.import_input(&ImportInput(())))?;
         count += 1;
     }
+    // Seeds preserve ordinary expired images for a later sweep. A source of
+    // a row-keyed view is the established exception: an already-expired
+    // seeded image must not enter a committed count basis or revive after
+    // a clock rollback. Route only those sources through the common retirement
+    // path so reference actions and net maintenance still run transactionally.
+    // @ref LLP 3000.039#6.5 — seeded expired row-view sources retire with actions; unrelated expired fixtures remain stored.
+    runner.retire_seeded_view_sources()?;
     let events = runner.events.take();
     let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
     drop(runner);

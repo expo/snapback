@@ -391,6 +391,7 @@ impl PostgresEngine {
             runner.upsert(&table, &row.field("id")?.clone(), row.import_input(&crate::engine::ImportInput(())))?;
             count += 1;
         }
+        runner.retire_seeded_view_sources()?;
         runner.check_final_exists()?;
         let events = runner.events.take();
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();

@@ -69,6 +69,42 @@ fn random(state: &mut u64) -> u64 {
 fn incremental_certification_matches_naive_after_every_random_step() { property_clock(false); }
 #[test]
 fn incremental_certification_matches_naive_with_expiring_members() { property_clock(true); }
+
+#[test]
+fn seeded_expired_row_view_sources_do_not_revive_on_clock_rollback() {
+    let mut e = Engine::memory(compile(false), vec![]).unwrap();
+    e.seed_at([("members".into(), member(0, 0, 0))], 1).unwrap();
+    e.seed_at([("messages".into(), message(0, 1, 99, false, Some(100)))], 1).unwrap();
+
+    // Updating a live source into an expired final image and seeding a new
+    // born-expired source both retire through the common action path.
+    e.seed_at([
+        ("messages".into(), message(0, 1, 99, false, Some(5))),
+        ("messages".into(), message(1, 1, 99, false, Some(5))),
+    ], 10).unwrap();
+    assert!(e.store().rows("messages").unwrap().is_empty());
+
+    // Ordinary expired fixture images keep the seed contract.
+    let grant = with_deadline(object([
+        ("id", id("expired-grant")),
+        ("conversationId", id("room")),
+        ("principal", id("reader")),
+    ]), Some(5));
+    e.seed_at([("access".into(), grant)], 10).unwrap();
+    assert_eq!(e.store().rows("access").unwrap().len(), 1);
+
+    // A later rollback cannot resurrect either retired source into the live
+    // acquisition, even though both deadlines would otherwise be live at 2.
+    let views = e.store().rows("unread").unwrap();
+    let schema = e.schema().clone();
+    let tx = e.store_mut().transaction().unwrap();
+    let mut runner = Runner::new(&tx, &schema, Context::new("reader", Default::default()).at(2),
+        Meter::new(Ceilings::unbounded(), Cut::Abort), 0);
+    let acquired = runner.live_acquisition_batch("unread", &views).unwrap();
+    assert_eq!(acquired.len(), 1);
+    assert_eq!(acquired[0].as_ref().map(|row| field(row, "value")), Some(0));
+}
+
 fn property_clock(expiring_members: bool) {
     const SEEDS: [u64; 8] = [1, 7, 28, 20261002, 0xbadcafe, 0xdeadbeef, 0x12345678, 0x5eed];
     let mut assertions = 0;
