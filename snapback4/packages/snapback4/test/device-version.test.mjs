@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createLocalClient, DeviceVersionError } from '../dist/local.js';
 import { webDevice, memoryPersistence } from '../dist/web.js';
 const packageVersion = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
-assert.equal(packageVersion, '0.4.28', 'release fixture pin follows the package bump');
+assert.equal(packageVersion, '0.4.29', 'release fixture pin follows the package bump');
 
 test('startup compatibility refusal is typed before a backend reaches the device', async () => {
   const engine = {format:1,version:'0.4.23',capabilities:[]};
