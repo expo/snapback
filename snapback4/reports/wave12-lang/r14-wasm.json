@@ -1,0 +1,29 @@
+{
+  "production_commit": "65560f6c4e",
+  "clean_measurement_commit": "5a9deb182e",
+  "wasm_sha256": "2dff27d1ab9d62edc58b4fc918044ee25ea7cd512f3bf3d98fb0e2329eb8f6d8",
+  "raw": 2353573,
+  "gzip": 716807,
+  "brotli": 541202,
+  "budget": 717307,
+  "headroom": 500,
+  "qualified_baseline_gzip": 707674,
+  "gzip_growth": 9133,
+  "build_exit_code": 0,
+  "measurement_exit_code": 0,
+  "strict_family_and_absence_audits": "PASS",
+  "platform": "Linux",
+  "cargo_env": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0",
+  "logs": [
+    {
+      "path": "logs/r14-wasm-build.log.gz",
+      "sha256": "32d04cfe341240c61597a4087e9f35cd5c90d78547132f9cb3fed44ba38e12bd",
+      "uncompressed_sha256": "162d107f5c3a8720bfe6318a88377f1f97317e41e75a1732fb3385b0720ee7f5"
+    },
+    {
+      "path": "logs/r14-wasm-measure-clean.log.gz",
+      "sha256": "d29447988ba081bcf306a9336b90c72952badaf2846d9c660ad9e7098a462dfd",
+      "uncompressed_sha256": "eda7136465e9217f4c09a62707ed004dbbf8432d281030d487fd14da1dc1d1cb"
+    }
+  ]
+}
