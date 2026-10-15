@@ -134,7 +134,7 @@ impl Engine {
             let mut runner = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
             if repair_maintained_ids {
                 let started = std::time::Instant::now();
-                let rewritten = runner.rewrite_legacy_maintained_references(&rebuild.iter().copied().cloned().collect::<Vec<_>>(), previous.as_ref())?;
+                let rewritten = runner.rewrite_legacy_maintained_references(&rebuild.iter().copied().cloned().collect::<Vec<_>>(), previous.as_ref(), Some(tx))?;
                 if rewritten != 0 { report.changes.push(format!("rewrote {rewritten} legacy aggregate references")); }
                 report.detail("rewrite legacy aggregate references", started);
             }

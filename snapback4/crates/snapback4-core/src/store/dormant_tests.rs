@@ -794,6 +794,44 @@ fn rollback_runs_only_active_actions_and_deleted_parents_block_dormant_restorati
 }
 
 #[test]
+fn legacy_aggregate_identity_migrates_dormant_references_before_restore() {
+    const BASE: &str = "table entries:\n  n: int\n  public\nview totals: count entries by .n\n  public\n";
+    const WITH_SAVED: &str = "table entries:\n  n: int\n  public\nview totals: count entries by .n\n  public\ntable saved:\n  target: totals\n  public\n";
+    let mut e = engine(WITH_SAVED);
+    seed(&mut e, "entries", serde_json::json!({"id":"e","n":7}));
+    let digest = e.store().rows("totals").unwrap()[0].field("id").unwrap().as_str().unwrap().to_owned();
+    seed(&mut e, "saved", serde_json::json!({"id":"s","target":digest}));
+
+    // Model a release-store row written by 0.4.28, before digest identities.
+    let legacy = crate::value::canonical_json(&[Value::Int(7)]);
+    let target = e.schema().tables["totals"].clone();
+    let saved = e.schema().tables["saved"].clone();
+    let old_target = e.store().rows("totals").unwrap().remove(0);
+    let old_saved = e.store().rows("saved").unwrap().remove(0);
+    let mut legacy_target = old_target.clone();
+    let mut legacy_saved = old_saved.clone();
+    if let Value::Row(fields) | Value::Map(fields) = &mut legacy_target { fields.insert("id".into(), Value::Id(legacy.clone())); }
+    if let Value::Row(fields) | Value::Map(fields) = &mut legacy_saved { fields.insert("target".into(), Value::Id(legacy)); }
+    let tx = e.store_mut().transaction().unwrap();
+    tx.delete("saved", &saved, &old_saved).unwrap();
+    tx.put("saved", &saved, &legacy_saved, None).unwrap();
+    tx.delete("totals", &target, &old_target).unwrap();
+    tx.put("totals", &target, &legacy_target, None).unwrap();
+    tx.commit().unwrap();
+    e.store().conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
+
+    // Removing `saved` retains it outside the active namespace while the
+    // aggregate target remains active. Identity adoption must rewrite both
+    // the hidden row and its dormant-reference ledger before setting marker.
+    activate(&mut e, BASE, 2).unwrap();
+    assert_eq!(e.store().meta(crate::schema::MAINTAINED_ID_META).unwrap().as_deref(), Some(crate::schema::MAINTAINED_ID_VERSION));
+    activate(&mut e, WITH_SAVED, 3).unwrap();
+    let restored = e.store().rows("saved").unwrap();
+    assert_eq!(restored.len(), 1);
+    assert_eq!(restored[0].field("target").unwrap(), &Value::Id(digest));
+}
+
+#[test]
 fn rollback_replaces_newer_actions_on_a_reference_that_stays_active() {
     let base = "table parents:\n  n: int\n  read <- allow\n  delete <- allow\n  sync public\nmutation drop():\n  delete parents['p']\ntable children:\n  parent: parents on delete keep\n  cap 4 by parent\n  read <- allow\n  sync public\n";
     for action in ["cascade", "restrict"] {

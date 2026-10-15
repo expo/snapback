@@ -3,7 +3,7 @@
 use super::*;
 use crate::schema::{ColumnDefault, ColumnType, materialize_optional_fields};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) const VERSION: &str = "snapback4-release-store-3";
 
@@ -61,6 +61,98 @@ fn references(kind: &ColumnType, value: &Value, out: &mut Vec<(String, String)>)
         (ColumnType::Ref { table }, Value::Id(id)) => out.push((table.clone(), id.clone())),
         _ => {}
     }
+}
+
+fn rewrite_legacy_reference(
+    kind: &ColumnType,
+    value: &mut Value,
+    ids: &BTreeMap<String, BTreeMap<String, String>>,
+) -> bool {
+    match (kind, value) {
+        (ColumnType::Ref { table }, Value::Id(id)) => {
+            let Some(next) = ids.get(table).and_then(|ids| ids.get(id)) else { return false };
+            *id = next.clone();
+            true
+        }
+        (ColumnType::Optional(inner), value) => rewrite_legacy_reference(inner, value, ids),
+        (ColumnType::List { of, .. } | ColumnType::ListRange { of, .. }, Value::Array(values)) =>
+            values.iter_mut().fold(false, |changed, value| rewrite_legacy_reference(of, value, ids) || changed),
+        _ => false,
+    }
+}
+
+fn rewrite_legacy_row(
+    table: &Table,
+    row: &mut Value,
+    ids: &BTreeMap<String, BTreeMap<String, String>>,
+) -> bool {
+    let (Value::Row(fields) | Value::Map(fields)) = row else { return false };
+    table.columns.iter().fold(false, |changed, (column, kind)| {
+        fields.get_mut(column).is_some_and(|value| rewrite_legacy_reference(kind, value, ids)) || changed
+    })
+}
+
+/// Rewrite references retained outside the active namespace alongside their
+/// active counterparts. References whose aggregate target was itself retired
+/// have no map and retain the ordinary dormant-lifetime refusal on restore.
+// @ref LLP 3000.007.003#3.0 — identity adoption covers every surviving typed reference, including dormant storage.
+pub(crate) fn rewrite_legacy_maintained_references(
+    tx: &Tx<'_>,
+    ids: &BTreeMap<String, BTreeMap<String, String>>,
+) -> Result<u64, RuntimeError> {
+    if ids.values().all(BTreeMap::is_empty) || !enabled(tx)? { return Ok(0); }
+    let mut rewritten = 0_u64;
+
+    let cells = tx.conn().prepare(
+        "SELECT v.t,v.id,v.column_name,v.data,c.definition FROM _dormant_values v JOIN _catalog k ON k.num=v.t JOIN _dormant_columns c ON c.table_name=k.name AND c.column_name=v.column_name ORDER BY v.t,v.id,v.column_name"
+    )?.query_map([], |row| Ok((row.get::<_,i64>(0)?, row.get::<_,String>(1)?, row.get::<_,String>(2)?, row.get::<_,String>(3)?, row.get::<_,String>(4)?)))?
+        .collect::<Result<Vec<_>,_>>()?;
+    for (t, id, column, data, definition) in cells {
+        let definition: Column = serde_json::from_str(&definition).map_err(|e|RuntimeError::Store(e.to_string()))?;
+        let mut value: Value = serde_json::from_str(&data).map_err(|e|RuntimeError::Store(e.to_string()))?;
+        if rewrite_legacy_reference(&definition.kind, &mut value, ids) {
+            tx.conn().execute("UPDATE _dormant_values SET data=?1 WHERE t=?2 AND id=?3 AND column_name=?4", params![canonical_json(&value),t,id,column])?;
+            rewritten = rewritten.saturating_add(1);
+        }
+    }
+
+    let rows = tx.conn().prepare(
+        "SELECT r.t,r.id,r.data,d.definition FROM _dormant_rows r JOIN _catalog c ON c.num=r.t JOIN _dormant_tables d ON d.table_name=c.name ORDER BY r.t,r.id"
+    )?.query_map([], |row| Ok((row.get::<_,i64>(0)?, row.get::<_,String>(1)?, row.get::<_,String>(2)?, row.get::<_,String>(3)?)))?
+        .collect::<Result<Vec<_>,_>>()?;
+    for (t, id, data, definition) in rows {
+        let table: Table = serde_json::from_str(&definition).map_err(|e|RuntimeError::Store(e.to_string()))?;
+        let mut row: Value = serde_json::from_str(&data).map_err(|e|RuntimeError::Store(e.to_string()))?;
+        if rewrite_legacy_row(&table, &mut row, ids) {
+            tx.conn().execute("UPDATE _dormant_rows SET data=?1 WHERE t=?2 AND id=?3", params![canonical_json(&row),t,id])?;
+            rewritten = rewritten.saturating_add(1);
+        }
+    }
+
+    let narrowed = if super::narrowed::present(tx.conn())? {
+        tx.conn().prepare(
+            "SELECT t,id,data,definition FROM _dormant_narrow_rows ORDER BY t,id"
+        )?.query_map([], |row| Ok((row.get::<_,i64>(0)?, row.get::<_,String>(1)?, row.get::<_,String>(2)?, row.get::<_,String>(3)?)))?
+            .collect::<Result<Vec<_>,_>>()?
+    } else { Vec::new() };
+    for (t, id, data, definition) in narrowed {
+        let table: Table = serde_json::from_str(&definition).map_err(|e|RuntimeError::Store(e.to_string()))?;
+        let mut row: Value = serde_json::from_str(&data).map_err(|e|RuntimeError::Store(e.to_string()))?;
+        if rewrite_legacy_row(&table, &mut row, ids) {
+            tx.conn().execute("UPDATE _dormant_narrow_rows SET data=?1 WHERE t=?2 AND id=?3", params![canonical_json(&row),t,id])?;
+            rewritten = rewritten.saturating_add(1);
+        }
+    }
+
+    for (target, target_ids) in ids {
+        if target_ids.is_empty() { continue; }
+        let parent_t = tx.num(target)?;
+        for (old, next) in target_ids {
+            tx.conn().execute("INSERT OR IGNORE INTO _dormant_refs(t,id,column_name,parent_t,parent_id,invalid) SELECT t,id,column_name,parent_t,?1,invalid FROM _dormant_refs WHERE parent_t=?2 AND parent_id=?3", params![next,parent_t,old])?;
+            tx.conn().execute("DELETE FROM _dormant_refs WHERE parent_t=?1 AND parent_id=?2", params![parent_t,old])?;
+        }
+    }
+    Ok(rewritten)
 }
 
 pub(super) fn capture_refs(

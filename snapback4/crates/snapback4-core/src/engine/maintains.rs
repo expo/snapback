@@ -200,7 +200,7 @@ impl Runner<'_> {
     /// Every pass is inside the adoption writer transaction, so no reader can
     /// observe a dangling intermediate reference.
     #[cfg(feature = "sqlite")]
-    pub(crate) fn rewrite_legacy_maintained_references(&mut self, maintains: &[Maintain], previous: Option<&crate::schema::Schema>) -> Result<u64, RuntimeError> {
+    pub(crate) fn rewrite_legacy_maintained_references(&mut self, maintains: &[Maintain], previous: Option<&crate::schema::Schema>, activation_tx: Option<&crate::store::Tx<'_>>) -> Result<u64, RuntimeError> {
         let mut legacy = Vec::new();
         for maintain in maintains.iter().filter(|maintain| maintain.private.is_none() && maintain.row_key.is_none()) {
             // The durable legacy address is the predecessor's canonical
@@ -272,13 +272,20 @@ impl Runner<'_> {
             return Err(RuntimeError::Schema("legacy aggregate identity references form a cycle".into()));
         }
 
+        // Release retention is part of the store: a hidden row or column may
+        // still name an aggregate target that remains active through adoption.
+        // Rewrite its image and reference ledger in this transaction too.
+        let mut rewritten = match activation_tx {
+            Some(tx) => crate::store::dormant::rewrite_legacy_maintained_references(tx, &ids)?,
+            None => 0,
+        };
+
         let references: Vec<_> = self.schema.tables.iter().filter_map(|(name, table)| {
             let columns: Vec<_> = table.columns.iter().filter_map(|(column, kind)|
                 has_legacy_maintained_reference(kind, &ids).then(|| (column.clone(), kind.clone())))
                 .collect();
             (!columns.is_empty()).then(|| (name.clone(), table.clone(), columns))
         }).collect();
-        let mut rewritten = 0_u64;
         for (name, table, columns) in references {
             let mut bounds = Bounds::default();
             loop {

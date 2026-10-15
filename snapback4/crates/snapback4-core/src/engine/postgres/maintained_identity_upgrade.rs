@@ -30,7 +30,7 @@ pub(super) fn install(
             tx.next_seq()?,
         );
         runner.event_free = true;
-        runner.rewrite_legacy_maintained_references(&aggregates, None)?;
+        runner.rewrite_legacy_maintained_references(&aggregates, None, None)?;
         for maintain in &aggregates {
             runner.rebuild_maintain(maintain)?;
         }
