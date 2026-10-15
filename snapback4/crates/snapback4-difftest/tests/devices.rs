@@ -9,7 +9,7 @@ use snapback4_difftest::{
     oracle::{Oracle, Verdict},
     shrink,
 };
-use snapback4_difftest::device_writes::{UNHELD_UNIQUE, clashing_row, first_insert, refused_over_unheld_unique, seeded_items};
+use snapback4_difftest::device_writes::{UNHELD_UNIQUE, clashing_row, first_insert, first_insert_at, refused_over_unheld_unique, seeded_items};
 use std::collections::BTreeSet;
 
 #[test]
@@ -180,6 +180,43 @@ fn a_literal_branch_uses_only_its_reachable_first_insert() {
         ret: Expr::Int(0),
     });
     assert_eq!(first_insert(&case), Some(Key::Key), "the dead upsert cannot change the first-write classification");
+
+    let mut report = snapback4_difftest::campaign::Report::default();
+    let mut files = devices::Files::new().unwrap();
+    let mut found = Vec::new();
+    devices::check(&case, &mut report, &mut files, |f| found.push(f.signature)).unwrap();
+    assert!(found.is_empty(), "{found:?}");
+    for store in devices::STORES {
+        let write = &report.by_oracle[&format!("device-{store}-write")];
+        assert_eq!(write.named.get(UNHELD_UNIQUE), Some(&1), "{report:#?}");
+        assert_eq!(write.disagreeing, 0, "{report:#?}");
+    }
+}
+
+#[test]
+fn a_complete_present_branch_uses_only_its_logically_reachable_first_insert() {
+    // Retained final-campaign seed 13172: the then arm is an upsert, but the
+    // complete logical point miss selects an insert whose secondary unique
+    // key is held by an unobserved Alice row.
+    let case = generate(13172);
+    assert!(case.program.source().contains("if (exists items[key])"));
+    assert_eq!(first_insert(&case), None, "without a complete logical fact both arms remain possible");
+    let absent = Outcome { kind: "query".into(), value: json!({
+        "complete": true, "data": {"Array": ["Null", "Null"]}
+    }) };
+    assert_eq!(first_insert_at(&case, &absent), Some(Key::Key));
+    let present = Outcome { kind: "query".into(), value: json!({
+        "complete": true, "data": {"Array": [{"Row": {}}, "Null"]}
+    }) };
+    assert_eq!(first_insert_at(&case, &present), None, "the reachable upsert is not the named insert outcome");
+    let incomplete = Outcome { kind: "query".into(), value: json!({
+        "complete": false, "data": {"Array": ["Null", "Null"]}
+    }) };
+    assert_eq!(first_insert_at(&case, &incomplete), None, "an incomplete miss cannot select a branch");
+    let mut physical_but_logically_absent = case.clone();
+    physical_but_logically_absent.args["key"] = physical_but_logically_absent.rows[0].1["id"].clone();
+    assert_eq!(first_insert_at(&physical_but_logically_absent, &absent), Some(Key::Key),
+        "a complete logical miss stays absent when a hidden or expired physical image exists");
 
     let mut report = snapback4_difftest::campaign::Report::default();
     let mut files = devices::Files::new().unwrap();
