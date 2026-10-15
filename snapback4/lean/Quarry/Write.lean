@@ -307,7 +307,10 @@ def sweepExpired (sch : Schema) (s : Store) (now : Int) : Store :=
   let tables := sch.tables.map (·.name)
   let rows := (expiryRetirementTables sch).foldl (fun rows td =>
     let physical := rows.store s
-    (physical td.name).foldl (fun rows r =>
+    let candidates := match td.expire with
+      | some column => sortRows [column] false (physical td.name)
+      | none => physical td.name
+    candidates.foldl (fun rows r =>
       let physical := rows.store s
       if expired td now r && stored physical td.name r then
         match refDeleteFrom sch (unexpiredStore sch physical now) physical td.name r with

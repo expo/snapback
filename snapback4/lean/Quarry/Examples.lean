@@ -928,6 +928,18 @@ def sweepRetirementOrderStore : Store := mkStore [
   ("children", [mkRow "c" [("a", I "a"), ("z", I "z")]]),
   ("nullable", [mkRow "n" [("z", I "z")]])]
 
+def sweepRowOrderSchema : Schema := { tables := [
+  { name := "roots", cols := [c "until"], expire := some "until", read := .allow },
+  { name := "children", cols := [refCol "a" "roots" (some .cascade),
+      refCol "z" "roots" (some .restrict)], read := .allow },
+  { name := "nullable", cols := [refCol "z" "roots" (some .setNull) (nullable := true)],
+    read := .allow }] }
+
+def sweepRowOrderStore : Store := mkStore [
+  ("roots", [mkRow "a" [("until", N 20)], mkRow "z" [("until", N 10)]]),
+  ("children", [mkRow "c" [("a", I "a"), ("z", I "z")]]),
+  ("nullable", [mkRow "n" [("z", I "z")]])]
+
 def refExamples : List Example := [
   { name := "delete-cascade"
     source := "LLP 3000.039 §3: a cascade deletes the referencing rows, hidden ones included; set null clears outside the closure; keep keeps"
@@ -1084,7 +1096,13 @@ def refExamples : List Example := [
     case := { schema := changedRetirementOrderSchema, store := sweepRetirementOrderStore,
               viewer := alice, now := 10, program := query [.ret (lit .null)], sweepOnly := true }
     tables := ["aRoots", "zRoots", "children", "nullable"]
-    expected := r#"{"kind":"committed","result":null,"store":{"aRoots":[],"zRoots":[{"id":"z","until":10}],"children":[],"nullable":[{"id":"n","z":"z"}]}}"# }
+    expected := r#"{"kind":"committed","result":null,"store":{"aRoots":[],"zRoots":[{"id":"z","until":10}],"children":[],"nullable":[{"id":"n","z":"z"}]}}"# },
+  { name := "expiry-sweep-uses-expiry-index-row-order"
+    source := "LLP 3000.036.003 §6: a scheduled sweep orders due roots by deadline then id, so z stays restricted before a cascades its blocker"
+    case := { schema := sweepRowOrderSchema, store := sweepRowOrderStore,
+              viewer := alice, now := 30, program := query [.ret (lit .null)], sweepOnly := true }
+    tables := ["roots", "children", "nullable"]
+    expected := r#"{"kind":"committed","result":null,"store":{"roots":[{"id":"z","until":10}],"children":[],"nullable":[{"id":"n","z":"z"}]}}"# }
 ]
 
 def page3Pure : Schema := { tables := membershipDocs.tables.map fun t =>
