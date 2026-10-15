@@ -276,6 +276,32 @@ impl Rows for Tx<'_> {
         self.execute("INSERT INTO _sequences VALUES ($1, $2, $3) ON CONFLICT(parent, id) DO UPDATE SET value = EXCLUDED.value", &[&parent, &id, &value])?;
         Ok(())
     }
+    fn sequence_ids(&self, parent: &str) -> Result<Vec<String>, RuntimeError> {
+        Ok(self.query("SELECT id FROM _sequences WHERE parent=$1 ORDER BY id", &[&parent])?
+            .into_iter().map(|row| row.get::<_, &str>(0).to_owned()).collect())
+    }
+    fn rewrite_sequence_ids(&self, ids: &BTreeMap<String, BTreeMap<String, String>>) -> Result<u64, RuntimeError> {
+        let mut rewritten = 0u64;
+        for (parent, parent_ids) in ids.iter().filter(|(_, ids)| !ids.is_empty()) {
+            let rows = self.query("SELECT id,value FROM _sequences WHERE parent=$1 ORDER BY id", &[parent])?;
+            let mut merged = BTreeMap::<String, i64>::new();
+            let mut parent_rewritten = 0u64;
+            for row in rows {
+                let old = row.get::<_, &str>(0);
+                let value = row.get::<_, i64>(1);
+                let next = parent_ids.get(old).cloned().unwrap_or_else(|| old.to_owned());
+                parent_rewritten = parent_rewritten.saturating_add(u64::from(next != old));
+                merged.entry(next).and_modify(|current| *current = (*current).max(value)).or_insert(value);
+            }
+            if parent_rewritten == 0 || merged.is_empty() { continue; }
+            self.execute("DELETE FROM _sequences WHERE parent=$1", &[parent])?;
+            for (id, value) in merged {
+                self.execute("INSERT INTO _sequences(parent,id,value) VALUES ($1,$2,$3)", &[parent, &id, &value])?;
+            }
+            rewritten = rewritten.saturating_add(parent_rewritten);
+        }
+        Ok(rewritten)
+    }
 
     fn effect_once(&self, effect: &str, key: &str) -> Result<bool, RuntimeError> {
         Ok(!self.query("INSERT INTO _effect_keys(effect, key) VALUES ($1, $2) ON CONFLICT DO NOTHING RETURNING effect", &[&effect, &key])?.is_empty())

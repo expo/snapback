@@ -159,7 +159,6 @@ impl Store {
             .is_some_and(|previous| previous.maintains.iter().any(|maintain| maintain.row_key.is_none()));
         let maintained_identity_upgrade = programs.is_some()
             && predecessor_has_aggregate
-            && schema.maintains.iter().any(|maintain| maintain.row_key.is_none())
             && sql.query_row("SELECT value FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META], |row| row.get::<_, String>(0)).optional()?.as_deref()
                 != Some(crate::schema::MAINTAINED_ID_VERSION);
         changed |= maintained_identity_upgrade;

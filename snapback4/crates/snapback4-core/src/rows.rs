@@ -221,6 +221,18 @@ pub trait Rows {
     fn set_sequence(&self, _parent: &str, _id: &str, _value: i64) -> Result<(), RuntimeError> {
         Err(RuntimeError::Store("sequence counter requires a server write transaction".into()))
     }
+    fn sequence_ids(&self, _parent: &str) -> Result<Vec<String>, RuntimeError> {
+        Err(RuntimeError::Store("sequence identity migration requires a server write transaction".into()))
+    }
+    /// Re-key persisted parent counters during aggregate-identity adoption.
+    /// Server stores override this; devices and read-only facades never run
+    /// adoption and therefore refuse the operation.
+    fn rewrite_sequence_ids(
+        &self,
+        _ids: &std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>>,
+    ) -> Result<u64, RuntimeError> {
+        Err(RuntimeError::Store("sequence identity migration requires a server write transaction".into()))
+    }
 
     /// Claim an effect's canonical lifetime key inside the current transaction.
     /// Devices discard emits before reaching this operation.

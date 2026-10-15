@@ -84,11 +84,12 @@ impl Engine {
             if let Some(options)=release {tx.set_meta("release",&options.release.to_string())?;}
             use rusqlite::OptionalExtension;
             let repair_live_sums = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'live_sum_candidates'", [], |row| row.get::<_, String>(0)).optional()?.as_deref() != Some("1");
-            let needs_maintained_id_marker = schema.maintains.iter().any(|maintain| maintain.row_key.is_none())
-                && tx.meta(crate::schema::MAINTAINED_ID_META)?.as_deref() != Some(crate::schema::MAINTAINED_ID_VERSION);
-            if !changed && !repair_live_sums && !needs_maintained_id_marker { return Ok(()); }
             let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
             let previous: Option<Schema> = previous.map(|text| serde_json::from_str(&text).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))).transpose()?;
+            let needs_maintained_id_marker = (schema.maintains.iter().any(|maintain| maintain.row_key.is_none())
+                || previous.as_ref().is_some_and(|old| old.maintains.iter().any(|maintain| maintain.row_key.is_none())))
+                && tx.meta(crate::schema::MAINTAINED_ID_META)?.as_deref() != Some(crate::schema::MAINTAINED_ID_VERSION);
+            if !changed && !repair_live_sums && !needs_maintained_id_marker { return Ok(()); }
             let repair_maintained_ids = needs_maintained_id_marker
                 && previous.as_ref().is_some_and(|old| old.maintains.iter().any(|maintain| maintain.row_key.is_none()));
             if changed {
@@ -114,7 +115,7 @@ impl Engine {
             }
             let attribution = recorded::paths_changed(schema, previous.as_ref());
             let columns = column_activation::changed_parents(schema, if population_changed {None} else {previous.as_ref()});
-            if rebuild.is_empty() && !attribution && columns.is_empty() { return Ok(()); }
+            if rebuild.is_empty() && !attribution && columns.is_empty() && !repair_maintained_ids { return Ok(()); }
             let seq = tx.next_seq()?;
             let phase = std::time::Instant::now();
             if attribution {

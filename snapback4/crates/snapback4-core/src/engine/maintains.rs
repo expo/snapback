@@ -50,6 +50,81 @@ fn rewrite_legacy_maintained_reference(
     }
 }
 
+#[cfg(feature = "sqlite")]
+type LegacyIdentities = Vec<(String, Vec<(String, Vec<(crate::schema::ColumnType, Value)>)>)>;
+
+#[cfg(feature = "sqlite")]
+type LegacyIdentityMap = BTreeMap<String, BTreeMap<String, Vec<(crate::schema::ColumnType, Value)>>>;
+
+#[cfg(feature = "sqlite")]
+fn collect_sequence_identity_dependencies(
+    kind: &crate::schema::ColumnType,
+    value: &Value,
+    definitions: &BTreeMap<String, Vec<crate::schema::ColumnType>>,
+    identities: &mut LegacyIdentityMap,
+) {
+    match (kind, value) {
+        (crate::schema::ColumnType::Ref { table }, Value::Id(old)) => {
+            let Some(kinds) = definitions.get(table) else { return };
+            if identities.get(table).is_some_and(|ids| ids.contains_key(old)) { return; }
+            let Some(values) = crate::json_codec::from_text::<Vec<Value>>(old).ok()
+                .filter(|values| values.len() == kinds.len()) else { return };
+            let key: Vec<_> = kinds.iter().cloned().zip(values).collect();
+            identities.entry(table.clone()).or_default().insert(old.clone(), key.clone());
+            for (kind, value) in &key {
+                collect_sequence_identity_dependencies(kind, value, definitions, identities);
+            }
+        }
+        (crate::schema::ColumnType::Optional(inner), value) =>
+            collect_sequence_identity_dependencies(inner, value, definitions, identities),
+        (crate::schema::ColumnType::List { of, .. } | crate::schema::ColumnType::ListRange { of, .. }, Value::Array(values)) =>
+            for value in values { collect_sequence_identity_dependencies(of, value, definitions, identities); },
+        _ => {}
+    }
+}
+
+#[cfg(feature = "sqlite")]
+fn insert_sequence_identity(
+    target: &str,
+    old: String,
+    key: Vec<(crate::schema::ColumnType, Value)>,
+    definitions: &BTreeMap<String, Vec<crate::schema::ColumnType>>,
+    identities: &mut LegacyIdentityMap,
+) {
+    if identities.get(target).is_some_and(|ids| ids.contains_key(&old)) { return; }
+    identities.entry(target.to_owned()).or_default().insert(old, key.clone());
+    for (kind, value) in &key {
+        collect_sequence_identity_dependencies(kind, value, definitions, identities);
+    }
+}
+
+#[cfg(feature = "sqlite")]
+fn settle_legacy_maintained_ids(
+    legacy: &LegacyIdentities,
+    base: &BTreeMap<String, BTreeMap<String, String>>,
+) -> Result<BTreeMap<String, BTreeMap<String, String>>, RuntimeError> {
+    let mut ids = base.clone();
+    let identity_count = legacy.iter().map(|(_, rows)| rows.len()).sum::<usize>();
+    for _ in 0..=identity_count.saturating_add(1) {
+        let mut next_ids = base.clone();
+        for (target, rows) in legacy {
+            let target_ids = next_ids.entry(target.clone()).or_default();
+            for (old, key) in rows {
+                let key: Vec<_> = key.iter().map(|(kind, value)| {
+                    let mut value = value.clone();
+                    rewrite_legacy_maintained_reference(kind, &mut value, &ids);
+                    value
+                }).collect();
+                let next = maintained_id(&key);
+                if old != &next { target_ids.insert(old.clone(), next); }
+            }
+        }
+        if next_ids == ids { return Ok(next_ids); }
+        ids = next_ids;
+    }
+    Err(RuntimeError::Schema("legacy aggregate identity references form a cycle".into()))
+}
+
 impl Runner<'_> {
     // @ref LLP 3000.022#14.3 — no predicted delta enters receipt-derived state.
     pub(super) fn defer_receipt_maintain(&self, m: &Maintain) -> bool {
@@ -198,7 +273,21 @@ impl Runner<'_> {
     /// observe a dangling intermediate reference.
     #[cfg(feature = "sqlite")]
     pub(crate) fn rewrite_legacy_maintained_references(&mut self, maintains: &[Maintain], previous: Option<&crate::schema::Schema>, activation_tx: Option<&crate::store::Tx<'_>>) -> Result<u64, RuntimeError> {
-        let mut legacy = Vec::new();
+        let mut legacy: LegacyIdentities = Vec::new();
+        let mut definitions = BTreeMap::<String, Vec<crate::schema::ColumnType>>::new();
+        for maintain in maintains.iter().filter(|maintain| maintain.private.is_none() && maintain.row_key.is_none()) {
+            let target = &self.schema.tables[&maintain.target];
+            definitions.insert(maintain.target.clone(), maintain.group_fields().into_iter()
+                .map(|field| target.columns[&field].clone()).collect());
+        }
+        if let Some(previous) = previous {
+            for maintain in previous.maintains.iter().filter(|maintain| maintain.private.is_none() && maintain.row_key.is_none()) {
+                let target = &previous.tables[&maintain.target];
+                definitions.insert(maintain.target.clone(), maintain.group_fields().into_iter()
+                    .map(|field| target.columns[&field].clone()).collect());
+            }
+        }
+        let mut sequence_identity_map = LegacyIdentityMap::new();
         for maintain in maintains.iter().filter(|maintain| maintain.private.is_none() && maintain.row_key.is_none()) {
             // The durable legacy address is the predecessor's canonical
             // logical group tuple. Decode that address with predecessor types:
@@ -234,48 +323,62 @@ impl Runner<'_> {
                 }
             }
             legacy.push((maintain.target.clone(), rows));
-        }
-
-        let mut ids: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
-        let mut settled = false;
-        // One dependency edge can settle per pass.  Count identities rather
-        // than target tables: one aggregate target may contain an arbitrary
-        // acyclic chain of references to other rows in that same target.
-        let identity_count = legacy.iter().map(|(_, rows)| rows.len()).sum::<usize>();
-        // The first pass also materializes empty target maps, so retain one
-        // additional observation pass even when every target is empty.
-        for _ in 0..=identity_count.saturating_add(1) {
-            let mut next_ids: BTreeMap<String, BTreeMap<String, String>> = BTreeMap::new();
-            for (target, rows) in &legacy {
-                let target_ids = next_ids.entry(target.clone()).or_default();
-                for (old, key) in rows {
-                    let key: Vec<_> = key.iter().map(|(kind, value)| {
-                        let mut value = value.clone();
-                        rewrite_legacy_maintained_reference(kind, &mut value, &ids);
-                        value
-                    }).collect();
-                    let next = maintained_id(&key);
-                    if old != &next { target_ids.insert(old.clone(), next); }
+            for old in self.tx.sequence_ids(&maintain.target)? {
+                let values = crate::json_codec::from_text::<Vec<Value>>(&old).ok()
+                    .filter(|key| key.len() == fields.len());
+                if let Some(values) = values {
+                    let key = fields.iter().zip(values).map(|((_, kind), value)| (kind.clone(), value)).collect();
+                    insert_sequence_identity(&maintain.target, old, key, &definitions, &mut sequence_identity_map);
                 }
             }
-            if next_ids == ids {
-                ids = next_ids;
-                settled = true;
-                break;
+        }
+
+        // A removed aggregate can leave parent-counter history even after its
+        // derived rows and every allocating row are gone. The store marker
+        // covers that retained custody too: translate it from predecessor
+        // types now so reintroducing the same maintained target cannot revive
+        // a legacy address under a current marker.
+        if let Some(previous) = previous {
+            for maintain in previous.maintains.iter().filter(|maintain|
+                maintain.private.is_none() && maintain.row_key.is_none()
+                    && !maintains.iter().any(|current| current.target == maintain.target)) {
+                let target = &previous.tables[&maintain.target];
+                let fields: Vec<_> = maintain.group_fields().into_iter().map(|field|
+                    (field.clone(), target.columns[&field].clone())).collect();
+                for old in self.tx.sequence_ids(&maintain.target)? {
+                    let values = crate::json_codec::from_text::<Vec<Value>>(&old).ok()
+                        .filter(|key| key.len() == fields.len());
+                    if let Some(values) = values {
+                        let key = fields.iter().zip(values).map(|((_, kind), value)| (kind.clone(), value)).collect();
+                        insert_sequence_identity(&maintain.target, old, key, &definitions, &mut sequence_identity_map);
+                    }
+                }
             }
-            ids = next_ids;
         }
-        if !settled {
-            return Err(RuntimeError::Schema("legacy aggregate identity references form a cycle".into()));
-        }
+
+        // Row references retain the established contract: only a stored
+        // aggregate target proves an old address. Sequence custody is broader;
+        // its parent key persists after target/source/child deletion, so its
+        // independently decoded legacy tuple joins the same fixed point.
+        let ids = settle_legacy_maintained_ids(&legacy, &BTreeMap::new())?;
+        let sequence_legacy: LegacyIdentities = sequence_identity_map.into_iter()
+            .map(|(target, rows)| (target, rows.into_iter().collect())).collect();
+        let sequence_ids = settle_legacy_maintained_ids(&sequence_legacy, &ids)?;
+
+        // Sequence counters are keyed by the referenced parent table and id,
+        // independently of any surviving allocating row. Translate them from
+        // the same target-specific maps before rows are rebuilt; colliding
+        // old/current counters retain the larger high-water value.
+        // @ref LLP 3000.007.003#3.0 — digest adoption re-keys dependent sequence custody in the same transaction.
+        let mut rewritten = self.tx.rewrite_sequence_ids(&sequence_ids)?;
 
         // Release retention is part of the store: a hidden row or column may
         // still name an aggregate target that remains active through adoption.
         // Rewrite its image and reference ledger in this transaction too.
-        let mut rewritten = match activation_tx {
+        rewritten = rewritten.saturating_add(match activation_tx {
             Some(tx) => crate::store::dormant::rewrite_legacy_maintained_references(tx, &ids)?,
             None => 0,
-        };
+        });
 
         let references: Vec<_> = self.schema.tables.iter().filter_map(|(name, table)| {
             let columns: Vec<_> = table.columns.iter().filter_map(|(column, kind)|

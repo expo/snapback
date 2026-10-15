@@ -60,6 +60,32 @@ theorem adoptMaintainedV1_values (old : MaintainedState) (groups) :
     (adoptMaintainedV1 old groups).rows.map Row.cols = groups.map Prod.snd := by
   simp [adoptMaintainedV1, maintainedRowV1]
 
+/-! Persisted `sequence by` counters are server custody keyed by the parent
+table and physical parent id. They outlive allocating rows. This small model
+does not model SQL or the device protocol; it states the adoption invariant
+for one target-specific legacy-to-digest key. -/
+
+def sequenceHighWater (id : List Nat) (counters : List (List Nat × Nat)) : Nat :=
+  counters.foldl (fun high counter =>
+    if counter.1 = id then max high counter.2 else high) 0
+
+/-- If a partially upgraded store already has both keys, adoption merges them
+at their maximum. No child-row population participates in this value. -/
+def adoptedSequenceHighWater (legacy digest : List Nat)
+    (counters : List (List Nat × Nat)) : Nat :=
+  max (sequenceHighWater legacy counters) (sequenceHighWater digest counters)
+
+theorem adoptedSequence_preserves_legacy (legacy digest counters) :
+    sequenceHighWater legacy counters ≤ adoptedSequenceHighWater legacy digest counters :=
+  Nat.le_max_left _ _
+
+theorem adoptedSequence_preserves_digest (legacy digest counters) :
+    sequenceHighWater digest counters ≤ adoptedSequenceHighWater legacy digest counters :=
+  Nat.le_max_right _ _
+
+example : adoptedSequenceHighWater [91, 55, 93] (maintainedIdV1 [.int 7])
+    [([91, 55, 93], 9), (maintainedIdV1 [.int 7], 4)] = 9 := by decide
+
 example : (maintainedIdV1 []).length = 64 := maintainedIdV1_length []
 example : (maintainedIdV1 [.id (List.replicate 64 97), .text (List.replicate 64 120)]).length = 64 :=
   maintainedIdV1_length _

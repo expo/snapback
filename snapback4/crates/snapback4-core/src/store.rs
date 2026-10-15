@@ -1083,6 +1083,34 @@ impl crate::rows::Rows for Tx<'_> {
         self.conn().execute("INSERT INTO _sequences VALUES (?1, ?2, ?3) ON CONFLICT(parent, id) DO UPDATE SET value = excluded.value", params![parent, id, value])?;
         Ok(())
     }
+    fn sequence_ids(&self, parent: &str) -> Result<Vec<String>, RuntimeError> {
+        if !self.has_sequence_table()? { return Ok(Vec::new()); }
+        Ok(self.conn().prepare_cached("SELECT id FROM _sequences WHERE parent=?1 ORDER BY id")?
+            .query_map([parent], |row| row.get(0))?.collect::<Result<_, _>>()?)
+    }
+    fn rewrite_sequence_ids(&self, ids: &BTreeMap<String, BTreeMap<String, String>>) -> Result<u64, RuntimeError> {
+        if !self.has_sequence_table()? { return Ok(0); }
+        let mut rewritten = 0u64;
+        for (parent, parent_ids) in ids.iter().filter(|(_, ids)| !ids.is_empty()) {
+            let rows: Vec<(String, i64)> = self.conn().prepare_cached(
+                "SELECT id,value FROM _sequences WHERE parent=?1 ORDER BY id"
+            )?.query_map([parent], |row| Ok((row.get(0)?, row.get(1)?)))?
+                .collect::<Result<_, _>>()?;
+            let mut merged = BTreeMap::<String, i64>::new();
+            let mut parent_rewritten = 0u64;
+            for (old, value) in rows {
+                let next = parent_ids.get(&old).cloned().unwrap_or_else(|| old.clone());
+                parent_rewritten = parent_rewritten.saturating_add(u64::from(next != old));
+                merged.entry(next).and_modify(|current| *current = (*current).max(value)).or_insert(value);
+            }
+            if parent_rewritten == 0 || merged.is_empty() { continue; }
+            self.conn().execute("DELETE FROM _sequences WHERE parent=?1", [parent])?;
+            let mut insert = self.conn().prepare_cached("INSERT INTO _sequences(parent,id,value) VALUES (?1,?2,?3)")?;
+            for (id, value) in merged { insert.execute(params![parent, id, value])?; }
+            rewritten = rewritten.saturating_add(parent_rewritten);
+        }
+        Ok(rewritten)
+    }
 
     fn effect_once(&self, effect: &str, key: &str) -> Result<bool, RuntimeError> {
         // Opening an old store must not change it before a backend can refuse.

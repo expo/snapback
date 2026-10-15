@@ -62,6 +62,11 @@ view totals: count entries by .bucket
 table pointers:
   total: totals
   public
+table sequenced:
+  total: totals
+  ordinal: sequence by total
+  unique total, ordinal
+  public
 table groups:
   total: count children by .group
   public
@@ -97,6 +102,8 @@ table children:
     tx.put("totals", &target, &old, None).unwrap();
     let pointer_table = engine.schema.tables["pointers"].clone();
     tx.put("pointers", &pointer_table, &object([("id", Value::Id("pointer".into())), ("total", Value::Id(legacy.clone()))]), None).unwrap();
+    tx.set_sequence("totals", &legacy, 17).unwrap();
+    tx.set_sequence("totals", &digest, 4).unwrap();
     let private_target_name = engine.schema.maintains.iter().find(|maintain| maintain.private.is_some()).unwrap().target.clone();
     let private_target = engine.schema.tables[&private_target_name].clone();
     let private_digest = crate::schema::maintained_id(&[Value::Id("group".into())]);
@@ -124,6 +131,8 @@ table children:
     let rebuilt = tx.get("totals", &digest).unwrap().expect("digest aggregate");
     assert_eq!(rebuilt.field("value").unwrap(), &Value::Int(1));
     assert_eq!(tx.get("pointers", "pointer").unwrap().unwrap().field("total").unwrap(), &Value::Id(digest));
+    assert_eq!(tx.sequence_value("totals", &legacy).unwrap(), 0);
+    assert_eq!(tx.sequence_value("totals", &digest).unwrap(), 17, "identity adoption preserves the larger persisted high-water value");
     assert!(tx.get(&private_target_name, &private_legacy).unwrap().is_none());
     assert_eq!(tx.get(&private_target_name, &private_digest).unwrap().unwrap().field("value").unwrap(), &Value::Int(1));
     assert_eq!(tx.get("groups", "group").unwrap().unwrap().field("total").unwrap(), &Value::Int(1), "private target rebuild mirrors before generation publication");

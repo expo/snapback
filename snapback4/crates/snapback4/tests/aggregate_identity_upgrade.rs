@@ -130,6 +130,31 @@ query total(bucket: int):
   return totals[bucket]
 "#;
 
+const SEQUENCE_SOURCE: &str = r#"use personas alice
+table entries:
+  bucket: int
+  insert <- allow
+  delete <- allow
+  public
+view totals: count entries by .bucket
+  public
+table ordered:
+  total: totals
+  ordinal: sequence by total
+  unique total, ordinal
+  insert <- allow
+  delete <- allow
+  public
+mutation addEntry(id: id, bucket: int):
+  insert entries {id, bucket}
+mutation removeEntry(id: entries):
+  delete entries[id]
+mutation addOrder(id: id, total: totals):
+  insert ordered {id, total}
+mutation removeOrder(id: ordered):
+  delete ordered[id]
+"#;
+
 struct Temp(PathBuf);
 impl Temp {
     fn new(source: &str) -> Self {
@@ -451,4 +476,53 @@ fn a_0_4_28_store_can_change_grouping_while_adopting_digest_ids() {
         |row| row.get(0),
     ).unwrap();
     assert_eq!(marker, snapback4_core::schema::MAINTAINED_ID_VERSION);
+}
+
+#[test]
+#[ignore = "requires frozen 0.4.28 binary via SNAPBACK4_BASELINE_BIN"]
+fn a_0_4_28_store_preserves_counter_only_sequence_history() {
+    let baseline = PathBuf::from(
+        std::env::var_os("SNAPBACK4_BASELINE_BIN")
+            .expect("set SNAPBACK4_BASELINE_BIN to the frozen 0.4.28 snapback4 binary"),
+    );
+    assert!(baseline.is_file(), "SNAPBACK4_BASELINE_BIN is not a file: {}", baseline.display());
+    let dir = Temp::new(SEQUENCE_SOURCE);
+    let legacy = snapback4_core::value::canonical_json(&[snapback4_core::Value::Int(7)]);
+    let run = |binary: &Path, operation: &str, args: serde_json::Value, now: &str| {
+        let output = Command::new(binary).current_dir(&dir.0)
+            .args(["run", operation, &args.to_string(), "--as", "alice", "--now", now, "--json"])
+            .output().unwrap();
+        assert!(output.status.success(), "{operation}: stdout={} stderr={}",
+            String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
+        output
+    };
+    run(&baseline, "addEntry", serde_json::json!({"id":"entry-old","bucket":7}), "1");
+    for n in 1..=3 {
+        run(&baseline, "addOrder", serde_json::json!({"id":format!("order-{n}"),"total":legacy}), "1");
+    }
+    for n in 1..=3 {
+        run(&baseline, "removeOrder", serde_json::json!({"id":format!("order-{n}")}), "1");
+    }
+    run(&baseline, "removeEntry", serde_json::json!({"id":"entry-old"}), "1");
+
+    let store = dir.0.join(".snapback4/store.sqlite");
+    let conn = Connection::open(&store).unwrap();
+    assert_eq!(conn.query_row("SELECT value FROM _sequences WHERE parent='totals' AND id=?1", [&legacy], |row| row.get::<_, i64>(0)).unwrap(), 3);
+    assert_eq!(conn.query_row("SELECT COUNT(*) FROM r JOIN _catalog c ON c.num=r.t WHERE c.name IN ('entries','totals','ordered')", [], |row| row.get::<_, i64>(0)).unwrap(), 0);
+    drop(conn);
+
+    let current = Path::new(env!("CARGO_BIN_EXE_snapback4"));
+    run(current, "addEntry", serde_json::json!({"id":"entry-new","bucket":7}), "2");
+    let digest = snapback4_core::schema::maintained_id(&[snapback4_core::Value::Int(7)]);
+    run(current, "addOrder", serde_json::json!({"id":"order-4","total":digest}), "2");
+
+    let conn = Connection::open(&store).unwrap();
+    assert_eq!(conn.query_row("SELECT COUNT(*) FROM _sequences WHERE parent='totals' AND id=?1", [&legacy], |row| row.get::<_, i64>(0)).unwrap(), 0);
+    assert_eq!(conn.query_row("SELECT value FROM _sequences WHERE parent='totals' AND id=?1", [&digest], |row| row.get::<_, i64>(0)).unwrap(), 4);
+    let data: String = conn.query_row(
+        "SELECT r.data FROM r JOIN _catalog c ON c.num=r.t WHERE c.name='ordered' AND r.id='order-4'",
+        [], |row| row.get(0),
+    ).unwrap();
+    let row: snapback4_core::Value = serde_json::from_str(&data).unwrap();
+    assert_eq!(row.field("ordinal").unwrap(), &snapback4_core::Value::Int(4));
 }

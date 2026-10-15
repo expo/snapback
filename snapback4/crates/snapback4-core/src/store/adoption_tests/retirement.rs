@@ -1,5 +1,6 @@
 //! Pause advice covers retained populations without running their activation.
 use super::*;
+use crate::rows::Rows;
 
 fn open(source: &str) -> Engine {
     let b = compile(source);
@@ -151,6 +152,152 @@ fn identity_redeployment_rebuilds_the_ungrouped_empty_tuple() {
     assert_eq!(after[0].field("id").unwrap(), &Value::Id(expected));
     assert_eq!(after[0].field("$global").unwrap(), &Value::Bool(true));
     assert_eq!(after[0].field("value").unwrap(), &Value::Int(1));
+}
+
+#[test]
+fn identity_adoption_rekeys_sequence_history_without_reusing_deleted_ordinals() {
+    const SOURCE: &str = "table entries:\n  bucket: int\n  public\nview totals: count entries by .bucket\n  public\ntable sequenced:\n  total: totals\n  ordinal: sequence by total\n  unique total, ordinal\n  public\n";
+    let mut e = open(SOURCE);
+    e.seed_at([
+        ("entries".into(), object([("id", Value::Id("e7".into())), ("bucket", Value::Int(7))])),
+        ("entries".into(), object([("id", Value::Id("e9".into())), ("bucket", Value::Int(9))])),
+    ], 0).unwrap();
+    let digest7 = crate::schema::maintained_id(&[Value::Int(7)]);
+    let digest9 = crate::schema::maintained_id(&[Value::Int(9)]);
+    e.seed_at([
+        ("sequenced".into(), object([("id", Value::Id("gone".into())), ("total", Value::Id(digest7.clone()))])),
+        ("sequenced".into(), object([("id", Value::Id("kept".into())), ("total", Value::Id(digest7.clone()))])),
+    ], 0).unwrap();
+    e.seed_delete("sequenced", "gone").unwrap();
+
+    let legacy7 = crate::value::canonical_json(&[Value::Int(7)]);
+    let legacy9 = crate::value::canonical_json(&[Value::Int(9)]);
+    let schema = e.schema().clone();
+    let target = schema.tables["totals"].clone();
+    let entries = schema.tables["entries"].clone();
+    let sequenced = schema.tables["sequenced"].clone();
+    let tx = e.store_mut().transaction().unwrap();
+    let mut row = tx.get("totals", &digest7).unwrap().unwrap();
+    tx.delete("totals", &target, &row).unwrap();
+    if let Value::Row(fields) | Value::Map(fields) = &mut row {
+        fields.insert("id".into(), Value::Id(legacy7.clone()));
+    }
+    tx.put("totals", &target, &row, None).unwrap();
+    tx.delete("totals", &target, &tx.get("totals", &digest9).unwrap().unwrap()).unwrap();
+    tx.delete("entries", &entries, &tx.get("entries", "e9").unwrap().unwrap()).unwrap();
+    let old = tx.get("sequenced", "kept").unwrap().unwrap();
+    let mut next = old.clone();
+    if let Value::Row(fields) | Value::Map(fields) = &mut next {
+        fields.insert("total".into(), Value::Id(legacy7.clone()));
+    }
+    tx.put("sequenced", &sequenced, &next, Some(&old)).unwrap();
+    tx.set_sequence("totals", &legacy7, 7).unwrap();
+    tx.set_sequence("totals", &digest7, 4).unwrap();
+    tx.set_sequence("totals", &legacy9, crate::value::I53_MAX).unwrap();
+    tx.set_sequence("totals", &digest9, 12).unwrap();
+    tx.set_sequence("ordinary", &legacy7, 11).unwrap();
+    tx.commit().unwrap();
+    e.store().conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
+
+    let next = compile(SOURCE);
+    e.adopt_at(next.schema, next.programs, 1).unwrap();
+    let tx = e.store_mut().transaction().unwrap();
+    assert_eq!(tx.sequence_value("totals", &legacy7).unwrap(), 0);
+    assert_eq!(tx.sequence_value("totals", &legacy9).unwrap(), 0);
+    assert_eq!(tx.sequence_value("totals", &digest7).unwrap(), 7, "the deleted allocating row and lower destination counter cannot lower the high-water mark");
+    assert_eq!(tx.sequence_value("totals", &digest9).unwrap(), crate::value::I53_MAX);
+    assert_eq!(tx.sequence_value("ordinary", &legacy7).unwrap(), 11, "translation is scoped by parent table and id");
+    tx.commit().unwrap();
+    let kept = e.store().rows("sequenced").unwrap().pop().unwrap();
+    assert_eq!(kept.field("total").unwrap(), &Value::Id(digest7.clone()));
+    assert_eq!(kept.field("ordinal").unwrap(), &Value::Int(2));
+
+    e.seed_at([("sequenced".into(), object([("id", Value::Id("next".into())), ("total", Value::Id(digest7))]))], 2).unwrap();
+    assert_eq!(e.store().rows("sequenced").unwrap().into_iter().find(|row| row.field("id") == Ok(&Value::Id("next".into()))).unwrap().field("ordinal"), Ok(&Value::Int(8)));
+    let error = e.seed_at([("sequenced".into(), object([("id", Value::Id("full".into())), ("total", Value::Id(digest9.clone()))]))], 2).unwrap_err();
+    assert_eq!(error.refusal().code, "E_SEQUENCE_EXHAUSTED");
+    let tx = e.store_mut().transaction().unwrap();
+    assert_eq!(tx.sequence_value("totals", &digest9).unwrap(), crate::value::I53_MAX, "overflow refusal must not change the migrated counter");
+    tx.rollback().unwrap();
+}
+
+#[test]
+fn removing_an_aggregate_normalizes_retained_sequence_custody_before_marking_the_store() {
+    const SOURCE: &str = "table entries:\n  bucket: int\n  public\nview totals: count entries by .bucket\n  public\ntable sequenced:\n  total: totals\n  ordinal: sequence by total\n  unique total, ordinal\n  public\n";
+    const WITHOUT_AGGREGATE: &str = "table entries:\n  bucket: int\n  public\n";
+    let mut e = open(SOURCE);
+    e.seed_at([("entries".into(), object([("id", Value::Id("entry".into())), ("bucket", Value::Int(3))]))], 0).unwrap();
+    let digest = crate::schema::maintained_id(&[Value::Int(3)]);
+    let legacy = crate::value::canonical_json(&[Value::Int(3)]);
+    let target = e.schema().tables["totals"].clone();
+    let tx = e.store_mut().transaction().unwrap();
+    let mut row = tx.get("totals", &digest).unwrap().unwrap();
+    tx.delete("totals", &target, &row).unwrap();
+    if let Value::Row(fields) | Value::Map(fields) = &mut row {
+        fields.insert("id".into(), Value::Id(legacy.clone()));
+    }
+    tx.put("totals", &target, &row, None).unwrap();
+    tx.set_sequence("totals", &legacy, 5).unwrap();
+    tx.commit().unwrap();
+    e.store().conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
+
+    let removed = compile(WITHOUT_AGGREGATE);
+    e.adopt_at(removed.schema, removed.programs, 1).unwrap();
+    let tx = e.store_mut().transaction().unwrap();
+    assert_eq!(tx.sequence_value("totals", &legacy).unwrap(), 0);
+    assert_eq!(tx.sequence_value("totals", &digest).unwrap(), 5);
+    tx.commit().unwrap();
+    assert_eq!(e.store().meta(crate::schema::MAINTAINED_ID_META).unwrap().as_deref(), Some(crate::schema::MAINTAINED_ID_VERSION));
+
+    let restored = compile(SOURCE);
+    e.adopt_at(restored.schema, restored.programs, 2).unwrap();
+    e.seed_at([("sequenced".into(), object([("id", Value::Id("next".into())), ("total", Value::Id(digest))]))], 3).unwrap();
+    assert_eq!(e.store().rows("sequenced").unwrap()[0].field("ordinal"), Ok(&Value::Int(6)));
+}
+
+#[test]
+fn counter_only_aggregate_reference_chains_rekey_to_the_final_digest() {
+    const SOURCE: &str = "table aEntries:\n  key: int\n  public\nview aTotals: count aEntries by .key\n  public\ntable bEntries:\n  parent: aTotals\n  public\nview bTotals: count bEntries by .parent\n  public\ntable sequenced:\n  parent: bTotals\n  ordinal: sequence by parent\n  public\n";
+    let mut e = open(SOURCE);
+    let legacy_a = crate::value::canonical_json(&[Value::Int(5)]);
+    let legacy_b = crate::value::canonical_json(&[Value::Id(legacy_a.clone())]);
+    let digest_a = crate::schema::maintained_id(&[Value::Int(5)]);
+    let digest_b = crate::schema::maintained_id(&[Value::Id(digest_a)]);
+    let tx = e.store_mut().transaction().unwrap();
+    tx.set_sequence("bTotals", &legacy_b, 9).unwrap();
+    tx.commit().unwrap();
+    e.store().conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
+
+    let next = compile(SOURCE);
+    e.adopt_at(next.schema, next.programs, 1).unwrap();
+    let tx = e.store_mut().transaction().unwrap();
+    assert_eq!(tx.sequence_value("bTotals", &legacy_b).unwrap(), 0);
+    assert_eq!(tx.sequence_value("bTotals", &digest_b).unwrap(), 9, "the absent referenced aggregate identity must settle before its dependent counter key");
+    tx.rollback().unwrap();
+}
+
+#[test]
+fn sequence_identity_rekey_rolls_back_with_the_adoption_writer() {
+    let mut store = Store::memory().unwrap();
+    let legacy = crate::value::canonical_json(&[Value::Int(7)]);
+    let digest = crate::schema::maintained_id(&[Value::Int(7)]);
+    let tx = store.transaction().unwrap();
+    tx.set_sequence("totals", &legacy, 11).unwrap();
+    tx.commit().unwrap();
+
+    let tx = store.transaction().unwrap();
+    tx.rewrite_sequence_ids(&BTreeMap::from([(
+        "totals".into(),
+        BTreeMap::from([(legacy.clone(), digest.clone())]),
+    )])).unwrap();
+    assert_eq!(tx.sequence_value("totals", &legacy).unwrap(), 0);
+    assert_eq!(tx.sequence_value("totals", &digest).unwrap(), 11);
+    tx.rollback().unwrap();
+
+    let tx = store.transaction().unwrap();
+    assert_eq!(tx.sequence_value("totals", &legacy).unwrap(), 11);
+    assert_eq!(tx.sequence_value("totals", &digest).unwrap(), 0);
+    tx.rollback().unwrap();
 }
 
 #[test]
