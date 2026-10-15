@@ -68,9 +68,12 @@ fn redundant_witness_lifetimes_do_not_change_scan_or_write_probe_reservations() 
         for world in 0..2 {
             let mut e=pair.engine(world);
             let out=e.query("page",Context::new("alice",Default::default()).at(NOW)).unwrap();
-            // @ref LLP 3000.036.001#16 — PAGE3's two owner ranges each reserve the two static probes once, independent of redundant witness lifetimes.
-            assert_eq!(out.next_expiry,None);assert_eq!(out.metered.rule_probes,4);
+            // @ref LLP 3000.036.001#18 — two branch ranges retain their fixed
+            // guard probes in addition to the complete authored read rule.
+            assert_eq!(out.next_expiry,None);assert_eq!(out.metered.rule_probes,8);
             let out=e.mutate("touch",None,Context::new("alice",Default::default()).at(NOW)).unwrap();
+            // A point mutation has no PAGE lane filter; its authored read and
+            // update checks retain their existing eight-probe reservation.
             assert!(matches!(out.state,WriteState::Sent{..}),"{out:?}");assert_eq!(out.metered.rule_probes,8);
         }
     }
