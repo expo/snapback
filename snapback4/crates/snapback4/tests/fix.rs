@@ -2,6 +2,7 @@
 #![allow(dead_code)]
 
 #[path = "../src/project.rs"] mod project;
+#[path = "../src/client_compatibility.rs"] mod client_compatibility;
 #[path = "../src/verbs/fix.rs"] mod fix;
 
 use snapback4_lang::{Diagnostic, Site, diag};
