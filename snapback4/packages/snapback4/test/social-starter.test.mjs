@@ -55,7 +55,7 @@ test("generated feed, chats, profile and search preserve read-state text and con
     const module = { exports: {} };
     const source = ts.transpileModule(readFileSync(join(dir, `src/${name}.tsx`), 'utf8'), {
       compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
-    }).outputText.replaceAll('"snapback4/contract"', JSON.stringify(import.meta.resolve("snapback4/contract")));
+    }).outputText;
     runInNewContext(source, { exports: module.exports, require: id => {
       if (id === 'react-native') return native;
       if (id === 'snapback4/react') return hooks;
