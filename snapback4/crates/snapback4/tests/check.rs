@@ -1588,7 +1588,7 @@ fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
     assert!(react.contains("## React hooks") && react.contains("matchRead") && !react.contains("## Row queries"), "{react}");
     let (code, spread) = guide(&["rules", "--section", "Named"]);
     assert_eq!(code, Some(0), "{spread}");
-    assert!(spread.contains("its mentions span") && !spread.contains("nearest heading"), "{spread}");
+    assert!(spread.contains("keyword \"Named\" appears in") && !spread.contains("nearest heading"), "{spread}");
     let (code, near) = guide(&["types", "--section", "Detials"]);
     assert_eq!(code, Some(1));
     assert!(near.contains("nearest heading: 2. Details") && near.contains("no line mentions it"), "{near}");

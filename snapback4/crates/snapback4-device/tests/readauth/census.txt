@@ -315,11 +315,12 @@ card/presence/1:sendBrief | eligible
 card/presence/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/presence/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/presence/1:split | never
-card/production/1:createTeam | never
-card/production/1:enroll | never
-card/production/1:grantStaff | never
-card/production/1:provisionCatalogue | never
-card/production/1:register | never
+card/production/1:provisionLabel | never
+card/production/2:createTeam | never
+card/production/2:enroll | never
+card/production/2:grantStaff | never
+card/production/2:provisionCatalogue | never
+card/production/2:register | never
 card/programs/1:checkin | never
 card/programs/1:createRoom | eligible
 card/programs/1:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
