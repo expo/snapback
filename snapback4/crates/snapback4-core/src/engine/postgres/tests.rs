@@ -62,6 +62,13 @@ view totals: count entries by .bucket
 table pointers:
   total: totals
   public
+table groups:
+  total: count children by .group
+  public
+table children:
+  group: groups
+  immutable group
+  read through .group
 "#.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let schema: Schema = serde_json::from_str(&serde_json::to_string(&bound.schema).unwrap()).unwrap();
@@ -69,7 +76,11 @@ table pointers:
     let url = std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private test-postgres.sh database");
     let name = format!("sb4_eval_maintained_id_{:x}", crate::ids::seed());
     let mut engine = PostgresEngine::create(Client::connect(&url, postgres::NoTls).unwrap(), &name, schema, programs).unwrap();
-    engine.load([("entries".into(), object([("id", Value::Id("entry".into())), ("bucket", Value::Int(7))]))]).unwrap();
+    engine.load([
+        ("entries".into(), object([("id", Value::Id("entry".into())), ("bucket", Value::Int(7))])),
+        ("groups".into(), object([("id", Value::Id("group".into()))])),
+        ("children".into(), object([("id", Value::Id("child".into())), ("group", Value::Id("group".into()))])),
+    ]).unwrap();
     let digest = crate::schema::maintained_id(&[Value::Int(7)]);
     let legacy = crate::value::canonical_json(&[Value::Int(7)]);
     let target = engine.schema.tables["totals"].clone();
@@ -84,6 +95,22 @@ table pointers:
     tx.put("totals", &target, &old, None).unwrap();
     let pointer_table = engine.schema.tables["pointers"].clone();
     tx.put("pointers", &pointer_table, &object([("id", Value::Id("pointer".into())), ("total", Value::Id(legacy.clone()))]), None).unwrap();
+    let private_target_name = engine.schema.maintains.iter().find(|maintain| maintain.private.is_some()).unwrap().target.clone();
+    let private_target = engine.schema.tables[&private_target_name].clone();
+    let private_digest = crate::schema::maintained_id(&[Value::Id("group".into())]);
+    let private_legacy = crate::value::canonical_json(&[Value::Id("group".into())]);
+    let mut private_row = tx.get(&private_target_name, &private_digest).unwrap().expect("current private aggregate");
+    tx.delete(&private_target_name, &private_target, &private_row).unwrap();
+    if let Value::Row(fields) | Value::Map(fields) = &mut private_row {
+        fields.insert("id".into(), Value::Id(private_legacy.clone()));
+    }
+    tx.put(&private_target_name, &private_target, &private_row, None).unwrap();
+    let group_table = engine.schema.tables["groups"].clone();
+    let mut group = tx.get("groups", "group").unwrap().unwrap();
+    if let Value::Row(fields) | Value::Map(fields) = &mut group {
+        fields.insert("total".into(), Value::Int(41));
+    }
+    tx.put("groups", &group_table, &group, None).unwrap();
     tx.execute("UPDATE _backend SET maintained_identity_version=NULL WHERE singleton", &[]).unwrap();
     tx.commit().unwrap();
     drop(engine);
@@ -95,6 +122,9 @@ table pointers:
     let rebuilt = tx.get("totals", &digest).unwrap().expect("digest aggregate");
     assert_eq!(rebuilt.field("value").unwrap(), &Value::Int(1));
     assert_eq!(tx.get("pointers", "pointer").unwrap().unwrap().field("total").unwrap(), &Value::Id(digest));
+    assert!(tx.get(&private_target_name, &private_legacy).unwrap().is_none());
+    assert_eq!(tx.get(&private_target_name, &private_digest).unwrap().unwrap().field("value").unwrap(), &Value::Int(1));
+    assert_eq!(tx.get("groups", "group").unwrap().unwrap().field("total").unwrap(), &Value::Int(1), "private target rebuild mirrors before generation publication");
     tx.rollback().unwrap();
 }
 

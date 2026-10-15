@@ -18,7 +18,7 @@ pub(super) fn install(
     }
 
     let aggregates: Vec<_> = schema.maintains.iter()
-        .filter(|maintain| maintain.private.is_none() && maintain.row_key.is_none())
+        .filter(|maintain| maintain.row_key.is_none())
         .cloned()
         .collect();
     if !creating && !aggregates.is_empty() {
@@ -33,6 +33,14 @@ pub(super) fn install(
         runner.rewrite_legacy_maintained_references(&aggregates, None, None)?;
         for maintain in &aggregates {
             runner.rebuild_maintain(maintain)?;
+        }
+        // The narrow maintained-column shape admitted by this adapter keeps
+        // its private target out of the public rows but still shares the same
+        // identity upgrade. Rebuild every target before publishing the marker,
+        // then restore its authoritative value into each live parent.
+        // @ref LLP 3000.007.001#3.11 — activation is rebuild, then mirror, before the generation barrier.
+        for maintain in aggregates.iter().filter(|maintain| maintain.private.is_some()) {
+            runner.mirror_column_pass(maintain)?;
         }
     }
 

@@ -245,9 +245,10 @@ impl Runner<'_> {
     // prediction, but cannot spend the server-equivalent mutation budget.
     pub(super) fn device_work<T>(&mut self, work: impl FnOnce(&mut Self) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
         let Some(allowance) = self.device_allowance.take() else { return work(self) };
+        let outer_active = self.device_work_active;
         let (caller, entered) = self.enter_device_work(allowance);
         let result = entered.and_then(|_| work(self));
-        self.leave_device_work(caller, result.as_ref().err())?;
+        self.leave_device_work(caller, result.as_ref().err(), outer_active)?;
         result
     }
 
@@ -263,8 +264,8 @@ impl Runner<'_> {
 
     /// Restore the caller's meter; an exhausted allowance cannot refuse the write.
     #[inline(never)]
-    fn leave_device_work(&mut self, mut caller: Meter, error: Option<&RuntimeError>) -> Result<(), RuntimeError> {
-        self.device_work_active = false;
+    fn leave_device_work(&mut self, mut caller: Meter, error: Option<&RuntimeError>, outer_active: bool) -> Result<(), RuntimeError> {
+        self.device_work_active = outer_active;
         std::mem::swap(&mut self.meter, &mut caller);
         self.device_allowance = Some(caller);
         match error {
