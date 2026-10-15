@@ -127,6 +127,11 @@ pub fn predict(rows: &dyn Rows, schema: &Schema, program: &Program, mut context:
     runner.device = true;
     runner.device_allowance = Some(Meter::new(ceilings, Cut::Abort));
     let result = runner.run(program).and_then(|value| {
+        // The server retires every born/updated-expired final image before
+        // final obligations. Prediction must publish that same action closure
+        // or queue/refuse when device coverage cannot prove it.
+        // @ref LLP 3000.039#6.4 — commit-end expiry actions are part of the predicted transaction.
+        runner.device_work(|runner| runner.retire_expired_births())?;
         runner.check_final_exists()?;
         if runner.receipt_allocation { runner.charge_output(&value)?; }
         Ok(value)

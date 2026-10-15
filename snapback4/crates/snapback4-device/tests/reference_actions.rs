@@ -210,6 +210,126 @@ mutation replace(id: id):
     assert!(d.store().raw_rows("children").is_empty());
     host.close("expiry-same-id-replacement", d);
 
+    // Commit-end retirement is part of device prediction too. With complete
+    // public coverage, updating a parent to an already-ended lifetime applies
+    // the same cascade and set-null closure as the server. A child born earlier
+    // in the same mutation belongs to that closure as well.
+    let predicted_expiry = r#"
+table parents:
+  until: time
+  expire at .until
+  public
+  update <- allow
+  sync public
+table cascadeKids:
+  parent: parents on delete cascade
+  cap 4 by parent
+  public
+  insert <- allow
+  sync public
+table nullableKids:
+  parent: parents ? on delete set null
+  cap 4 by parent
+  public
+  sync public
+table blockers:
+  parent: parents on delete restrict
+  cap 4 by parent
+  public
+  sync public
+mutation expire(parent: parents):
+  update parents[parent] { until: now }
+  insert cascadeKids { id: 'born', parent }
+"#;
+    let row = |table: &str, fields: &[(&str, snapback4_core::Value)]|
+        (table.to_owned(), snapback4_core::value::object(fields.iter().cloned()));
+    let (mut e, b) = compile(predicted_expiry);
+    e.seed_at([
+        row("parents", &[("id", id("p")), ("until", snapback4_core::Value::Int(200))]),
+        row("cascadeKids", &[("id", id("old")), ("parent", id("p"))]),
+        row("nullableKids", &[("id", id("nullable")), ("parent", id("p"))]),
+    ], 0).unwrap();
+    let mut d = host.open("predicted-expiry-actions", Some(b)).unwrap();
+    acquire(&mut e, &mut d, "alice", 100);
+    let predicted = d.predict("expire", "alice", &json!({"parent":"p"}), 100, vec![], 1);
+    assert!(predicted.is_ok(), "{}: {predicted:?}", host.label());
+    assert!(d.store().raw_rows("parents").is_empty());
+    assert!(d.store().raw_rows("cascadeKids").is_empty(), "the old and same-mutation children cascade");
+    assert_eq!(d.store().raw_rows("nullableKids")[0].field("parent").unwrap(), &snapback4_core::Value::Null);
+    assert_eq!(write(&mut e, "expire", "alice", &[("parent", id("p"))]), "ok");
+    assert!(e.store().rows("parents").unwrap().is_empty());
+    assert!(e.store().rows("cascadeKids").unwrap().is_empty());
+    assert_eq!(e.store().rows("nullableKids").unwrap()[0].field("parent").unwrap(), &snapback4_core::Value::Null);
+    host.close("predicted-expiry-actions", d);
+
+    // The device charges the schema's worst-case closure before walking it.
+    // A large declared cap therefore queues even when this particular store
+    // contains only the child this mutation just inserted; no unbounded
+    // commit-end walk can escape the prediction allowance.
+    let bounded_expiry = predicted_expiry.replace("cap 4 by parent", "cap 1024 by parent");
+    let (mut e, b) = compile(&bounded_expiry);
+    e.seed_at([row("parents", &[("id", id("p")), ("until", snapback4_core::Value::Int(200))])], 0).unwrap();
+    let mut d = host.open("predicted-expiry-bounded", Some(b)).unwrap();
+    acquire(&mut e, &mut d, "alice", 100);
+    let queued = d.predict("expire", "alice", &json!({"parent":"p"}), 100, vec![], 1).unwrap_err();
+    assert_eq!(queued.code(), "E_PREDICT", "{}: {queued:?}", host.label());
+    assert_eq!(d.store().raw_rows("parents")[0].field("until").unwrap(), &snapback4_core::Value::Int(200));
+    assert!(d.store().raw_rows("cascadeKids").is_empty(), "queued prediction rolls back its new child");
+    assert_eq!(write(&mut e, "expire", "alice", &[("parent", id("p"))]), "ok");
+    assert!(e.store().rows("parents").unwrap().is_empty());
+    host.close("predicted-expiry-bounded", d);
+
+    // A complete restrict witness refuses locally and rolls back the parent
+    // update plus the child inserted before commit-end retirement.
+    let (mut e, b) = compile(predicted_expiry);
+    e.seed_at([
+        row("parents", &[("id", id("p")), ("until", snapback4_core::Value::Int(200))]),
+        row("cascadeKids", &[("id", id("old")), ("parent", id("p"))]),
+        row("nullableKids", &[("id", id("nullable")), ("parent", id("p"))]),
+        row("blockers", &[("id", id("blocker")), ("parent", id("p"))]),
+    ], 0).unwrap();
+    let mut d = host.open("predicted-expiry-restrict", Some(b)).unwrap();
+    acquire(&mut e, &mut d, "alice", 100);
+    let refused = d.predict("expire", "alice", &json!({"parent":"p"}), 100, vec![], 1).unwrap_err();
+    assert_eq!(refused.code(), "E_REFERENCED", "{}: {refused:?}", host.label());
+    assert_eq!(d.store().raw_rows("parents")[0].field("until").unwrap(), &snapback4_core::Value::Int(200));
+    assert_eq!(d.store().raw_rows("cascadeKids").len(), 1, "the same-mutation child rolls back");
+    assert_eq!(d.store().raw_rows("nullableKids")[0].field("parent").unwrap(), &id("p"));
+    assert_eq!(write(&mut e, "expire", "alice", &[("parent", id("p"))]), "E_REFERENCED");
+    assert_eq!(e.store().rows("parents").unwrap()[0].field("until").unwrap(), &snapback4_core::Value::Int(200));
+    host.close("predicted-expiry-restrict", d);
+
+    // Expiry itself does not force an online round trip. An unreferenced row
+    // can be updated or born already expired and disappear in the prediction.
+    let plain_expiry = r#"
+table notes:
+  until: time
+  expire at .until
+  public
+  insert <- allow
+  update <- allow
+  sync public
+mutation expire(note: notes):
+  update notes[note] { until: now }
+mutation createExpired():
+  insert notes { id: 'born', until: now }
+"#;
+    let (mut e, b) = compile(plain_expiry);
+    e.seed_at([row("notes", &[("id", id("note")), ("until", snapback4_core::Value::Int(200))])], 0).unwrap();
+    let mut d = host.open("predicted-plain-expiry", Some(b)).unwrap();
+    acquire(&mut e, &mut d, "alice", 100);
+    let predicted = d.predict("expire", "alice", &json!({"note":"note"}), 100, vec![], 1);
+    assert!(predicted.is_ok(), "{}: {predicted:?}", host.label());
+    assert!(d.store().raw_rows("notes").is_empty());
+    d.withdraw(&[]).unwrap();
+    let predicted = d.predict("createExpired", "alice", &json!({}), 100, vec![], 2);
+    assert!(predicted.is_ok(), "{}: {predicted:?}", host.label());
+    assert_eq!(d.store().raw_rows("notes").len(), 1, "withdrawing the first prediction restores its live base row");
+    assert_eq!(d.store().raw_rows("notes")[0].field("id").unwrap(), &id("note"));
+    assert_eq!(write(&mut e, "expire", "alice", &[("note", id("note"))]), "ok");
+    assert!(e.store().rows("notes").unwrap().is_empty());
+    host.close("predicted-plain-expiry", d);
+
     // An expiring row-keyed-view source follows the same server action path;
     // derived maintenance cannot delete it before cascade/set-null run. The
     // device receives the committed source and child changes together.

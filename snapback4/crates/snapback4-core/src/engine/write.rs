@@ -496,14 +496,15 @@ impl Runner<'_> {
     /// image was never live at a commit boundary, so it leaves no row for a
     /// later sweep to announce. Inside the commit the
     /// row existed as written (an insert-then-update still works). Engine
-    /// bookkeeping, unmetered: the device's prediction does not do it, and
-    /// the program's metering is already recorded. Its work, returned, stays
+    /// bookkeeping, unmetered: the program's metering is already recorded.
+    /// Server execution and device prediction both run it so a predicted
+    /// final image cannot omit cascade, set-null or restrict effects. Its work,
+    /// returned, stays
     /// linear in the rows retired: each aggregate row takes one net change
     /// and each audience key is scanned for a live row once. Seeds and loads
     /// ordinarily keep their rows for the sweep; row-keyed view sources use
     /// `retire_seeded_view_sources` to preserve their count-basis contract.
     // @ref LLP 3000#7-decisions-during-execution — a row whose lifetime ended by its own commit's end never exists at a commit boundary.
-    #[cfg(feature = "sqlite")]
     pub(crate) fn retire_expired_births(&mut self) -> Result<crate::meter::Metered, RuntimeError> {
         let Some(now) = self.context.now else { return Ok(Default::default());
         };
@@ -525,7 +526,13 @@ impl Runner<'_> {
             (std::cmp::Reverse(order.iter().position(|n| n == name)),id.clone(),
             )
         });
-        let meter = std::mem::replace(&mut self.meter, crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort));
+        // Server execution already reserved this bookkeeping in the source
+        // writes. Device prediction instead runs the walk inside its separate
+        // bounded physical-work meter: exhausting that allowance queues the
+        // intent, never publishes a partial closure or refuses the write.
+        let meter = if self.device_work_active { None } else {
+            Some(std::mem::replace(&mut self.meter, crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort)))
+        };
         self.retiring = Some(Default::default());
         let retired = changed.iter().try_for_each(|(table_name, id)| {
             let Some(row) = self.metered_scan(|runner, allowance| runner.tx.get(allowance, table_name, id))? else { return Ok(());
@@ -535,7 +542,7 @@ impl Runner<'_> {
         });
         let aggregates = self.retiring.take().map(|retiring| retiring.aggregates).unwrap_or_default();
         let retired = retired.and_then(|()| self.apply_retired_aggregates(aggregates));
-        let work = std::mem::replace(&mut self.meter, meter).used;
+        let work = meter.map(|meter| std::mem::replace(&mut self.meter, meter).used).unwrap_or_default();
         retired.map(|()| work)
     }
 
