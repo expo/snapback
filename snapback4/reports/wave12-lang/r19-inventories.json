@@ -1,0 +1,15 @@
+{
+  "status": "PASS",
+  "source_commit": "4c27eac1b5",
+  "semantic_commit": "8e2ac7cacd",
+  "command": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 node scripts/check-inventories.mjs",
+  "package_tests": 365,
+  "script_tests": 35,
+  "demos": 31,
+  "publication_leaves": 487,
+  "guide_pages": 162,
+  "snippets": 1937,
+  "log": "logs/r19-inventories.log.gz",
+  "log_sha256": "aaccbf1c47636d2f304da2c5ddc22bd97799ae5a29ceed98dcd6ed0cfa1ec43e",
+  "uncompressed_log_sha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813"
+}
