@@ -1,0 +1,45 @@
+{
+  "kind": "wave12-r13-real-wasm-expiry-reference-actions",
+  "status": "expected-current-failure-pending-product-fix",
+  "sealed_run": {
+    "directory": "/tmp/lang-client-qualification-final-cfd4e2f242-r13bridge-v4",
+    "base_snapshot": "/tmp/lang-client-qualification-final-cfd4e2f242",
+    "base_checkpoint": "cfd4e2f242",
+    "command": "SNAPBACK4_BIN=/tmp/lang-final-cli-cfd4e2f242 node --test packages/snapback4/test/expiry-reference-actions.test.mjs",
+    "result": "fail",
+    "tests": { "passed": 0, "failed": 1 },
+    "inputs_manifest": "raw/inputs.sha256",
+    "inputs_manifest_sha256": "5c71aff20380915e8fd5cd6bc13ddad8d885982e793fb90298e23aaaf2fd2250",
+    "log": "raw/current-failure.log.gz",
+    "log_sha256": "3517ce7ed1655e9d4c38f157a2243180030044bf59c8f44c3041a9db0a63c092"
+  },
+  "sealed_inputs": {
+    "test_sha256": "c04a0deaa2c69f980e93611aff4030737f0706a84188959ff39e158daca1741b",
+    "wasm_sha256": "0d1eae6c4dd50ab65a05e59ffd2bc35b5e46212ce29b4e1e115cf34bf6fc9283",
+    "wasm_raw_bytes": 2352628,
+    "wasm_gzip_bytes": 716694,
+    "cli_sha256": "d45eded9e2747c8d1a281a1bd6e2d16ce203ee0a1ae1c2cea073eccfc50aab72"
+  },
+  "coverage_reached_before_failure": [
+    "real CLI compilation and SQLite server",
+    "real public-sync snapshot applied to the web wasm memory store",
+    "cascade update-to-expired parity",
+    "set-null update-to-expired parity",
+    "restrict update-to-expired E_REFERENCED parity",
+    "same-mutation cascade child retirement parity",
+    "empty reference-group retirement parity",
+    "confirmed aggregate and old aggregate child present in the complete device snapshot"
+  ],
+  "failure": {
+    "expected": { "groups/g.total": 0 },
+    "actual_wasm_prediction": { "groups/g.total": 1 },
+    "server": { "groups/g.total": 0 },
+    "trigger": "expireAggregate inserts aggregate-born (+1), updates its parent to expired, then commit-end retirement cascades aggregate-old and aggregate-born (-2); the required net delta is -1",
+    "owner": "P1/P2 production lane",
+    "followup": "Rebuild and seal the fixed wasm, rerun this unchanged test to completion, then replace status with pass evidence. Do not weaken the aggregate parity assertion."
+  },
+  "remaining_cases_after_the_failure": [
+    "future-expiry positive control",
+    "audience-hidden reference group queues through admit with predictable=false and no predicted rows"
+  ]
+}
