@@ -36,8 +36,14 @@ table blockers:
   cap 4 by parent
   public
   sync public
+table aggregateParents:
+  until: time
+  expire at .until
+  public
+  update <- allow
+  sync public
 table aggregateKids:
-  parent: parents on delete cascade
+  parent: aggregateParents on delete cascade
   group: groups
   cap 4 by parent
   public
@@ -60,9 +66,9 @@ mutation setExpiry(parent: parents, until: time):
 mutation expireWithChild(parent: parents):
   insert cascadeKids { id: 'same-mutation-child', parent }
   update parents[parent] { until: 0 }
-mutation expireAggregate(parent: parents, group: groups):
+mutation expireAggregate(parent: aggregateParents, group: groups):
   insert aggregateKids { id: 'aggregate-born', parent, group }
-  update parents[parent] { until: 0 }
+  update aggregateParents[parent] { until: 0 }
 mutation expirePrivate(parent: privateParents):
   update privateParents[parent] { until: 0 }
 query parent(id: id):
@@ -73,6 +79,8 @@ query nullableKid(id: id):
   return nullableKids[id]
 query blocker(id: id):
   return blockers[id]
+query aggregateParent(id: id):
+  return aggregateParents[id]
 query aggregateKid(id: id):
   return aggregateKids[id]
 query privateParent(id: id):
@@ -104,7 +112,8 @@ test('wasm predicts commit-end expiry actions exactly like the server', { timeou
   const parent = id => ({ table: 'parents', row: { id, until: future } });
   const rows = [
     { table: 'groups', row: { id: 'g' } },
-    ...['cascade', 'nullable', 'restrict', 'same', 'empty', 'aggregate', 'future'].map(parent),
+    ...['cascade', 'nullable', 'restrict', 'same', 'empty', 'future'].map(parent),
+    { table: 'aggregateParents', row: { id: 'aggregate', until: future } },
     { table: 'cascadeKids', row: { id: 'cascade-child', parent: 'cascade' } },
     { table: 'nullableKids', row: { id: 'nullable-child', parent: 'nullable' } },
     { table: 'blockers', row: { id: 'blocker', parent: 'restrict' } },
@@ -177,9 +186,35 @@ test('wasm predicts commit-end expiry actions exactly like the server', { timeou
   assert.equal(await local('parent', { id: 'empty' }), null);
 
   assert.deepEqual(await local('group', { id: 'g' }), { total: 1 });
-  assert.equal((await predict('expireAggregate', { parent: 'aggregate', group: 'g' })).denied, undefined);
-  assert.equal((await mutate('expireAggregate', { parent: 'aggregate', group: 'g' }, 'server-aggregate')).state, 'sent');
-  await parity('parent', { id: 'aggregate' });
+  const aggregateId = 'aggregate-expiry';
+  const aggregateQueued = ok(await core.call({ op: 'admit', entry: {
+    id: aggregateId, seq: 1, op: 'expireAggregate', args: { parent: 'aggregate', group: 'g' }, viewer, now,
+    new_ids: [], predicted: [], predictable: true,
+  } }));
+  assert.equal(aggregateQueued.predictable, false, JSON.stringify(aggregateQueued));
+  assert.deepEqual(aggregateQueued.predicted, []);
+  assert.deepEqual(await local('group', { id: 'g' }), { total: 1 }, 'queued private-maintain work publishes no aggregate change');
+  assert.notEqual(await local('aggregateParent', { id: 'aggregate' }), null, 'queued private-maintain work publishes no parent change');
+  assert.notEqual(await local('aggregateKid', { id: 'aggregate-old' }), null, 'queued private-maintain work publishes no cascade');
+
+  const aggregateSent = await mutate('expireAggregate', { parent: 'aggregate', group: 'g' }, aggregateId);
+  assert.equal(aggregateSent.state, 'sent', JSON.stringify(aggregateSent));
+  ok(await core.call({ op: 'settle', id: aggregateId, seq: aggregateSent.seq }));
+  const catchupResponse = await fetch(host.url + '/sync', {
+    method: 'POST',
+    headers: { ...headers, 'x-snapback-device': JSON.stringify(engine) },
+    body: JSON.stringify({
+      generation: backend.generation, from: snapshot.watermark, limit: 1000, after: null,
+      stream: true, pending: [aggregateId],
+    }),
+    signal: AbortSignal.timeout(hangBudget()),
+  });
+  assert.equal(catchupResponse.status, 200);
+  const catchup = await catchupResponse.json();
+  assert.equal(catchup.snapshot, false, JSON.stringify(catchup));
+  assert.equal(catchup.more, false, JSON.stringify(catchup));
+  ok(await core.call({ op: 'apply', first: false, page: catchup }));
+  await parity('aggregateParent', { id: 'aggregate' });
   await parity('aggregateKid', { id: 'aggregate-old' });
   await parity('aggregateKid', { id: 'aggregate-born' });
   await parity('group', { id: 'g' });
