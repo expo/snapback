@@ -120,6 +120,10 @@ structure Case where
   budget : Option Nat := none
   /-- Run only the server expiry sweep and return its resulting store. -/
   sweepOnly : Bool := false
+  /-- In-engine sweep continuation supplied by the differential driver. -/
+  sweepCursor : SweepCursor := {}
+  /-- Visited-row bound for the sweep; examples default to a complete pass. -/
+  sweepLimit : Option Nat := none
 
 def Case.ctx (c : Case) : Ctx :=
   { schema := c.schema, viewer := c.viewer, now := c.now, helpers := c.helpers, budget := c.budget,
@@ -155,7 +159,9 @@ def runMutation (c : Case) : Outcome :=
     | .error .unavailable => .refused "E_BOUND"
 
 def run (c : Case) : Outcome :=
-  if c.sweepOnly then .committed .null (sweepExpired c.schema c.store c.now)
+  if c.sweepOnly then
+    let (store, cursor) := sweepExpired c.schema c.store c.now c.sweepCursor c.sweepLimit
+    .committed cursor.toValue store
   else match c.program.kind with
     | .query => runQuery c
     | .mutation => runMutation c

@@ -93,6 +93,30 @@ partial def value (j : Json) : D Value := do
     return .row fs
   | _ => return .s (← scalar j)
 
+def sweepCursorValue : Value → D SweepCursor
+  | .row fields => do
+    let table ← match fields.lookup "table" with
+      | none | some (.s .null) => pure none
+      | some (.s (.text name)) => pure (some (cpsToString name))
+      | _ => throw "sweep cursor table must be text or null"
+    let rows ← match fields.lookup "rows" with
+      | none => pure []
+      | some (.arr rows) => rows.mapM fun row => match row with
+        | .row fields => do
+          let name ← match fields.lookup "table" with
+            | some (.s (.text name)) => pure (cpsToString name)
+            | _ => throw "sweep row cursor table must be text"
+          let key ← match fields.lookup "key" with
+            | some (.arr values) => values.mapM fun value => match value with
+              | .s scalar => pure scalar
+              | _ => throw "sweep row cursor key must contain scalars"
+            | _ => throw "sweep row cursor key must be an array"
+          pure (name, key)
+        | _ => throw "sweep row cursor must be a row"
+      | _ => throw "sweep cursor rows must be an array"
+    pure { table, rows }
+  | _ => throw "sweep cursor must be a row"
+
 def img (s : String) : D Img :=
   match s with
   | "self" => pure .self | "old" => pure .old | "next" => pure .next
@@ -255,7 +279,10 @@ def table (j : Json) : D TableDecl := do
   let expire := match optField j "expire" with
     | some (.str column) => some column
     | _ => none
-  return { name := ← str j "name", cols, uniques, uniqueCodes := codes, caps, notBefore, expire,
+  let expiryOrder ← match optField j "expiryOrder" with
+    | none => pure []
+    | some order => (← order.getArr?).toList.mapM (·.getStr?)
+  return { name := ← str j "name", cols, uniques, uniqueCodes := codes, caps, notBefore, expire, expiryOrder,
            read := ← rule (← field j "read"), insert := ← rule (← field j "insert"),
            update := ← rule (← field j "update"), delete := ← rule (← field j "delete") }
 
@@ -308,8 +335,15 @@ def case (j : Json) : D (Case × List String) := do
   let sweepOnly ← match optField j "sweep" with
     | some b => b.getBool?
     | none => pure false
+  let sweepCursor ← match optField j "sweepCursor" with
+    | some cursor => sweepCursorValue (← value cursor)
+    | none => pure {}
+  let sweepLimit ← match optField j "sweepLimit" with
+    | some limit => pure (some (← limit.getNat?))
+    | none => pure none
   return ({ schema := sch, helpers, store, viewer := cps (← str j "viewer"), now,
-            program := ← program (← field j "program"), args, budget, sweepOnly },
+            program := ← program (← field j "program"), args, budget, sweepOnly,
+            sweepCursor, sweepLimit },
           sch.tables.map (·.name))
 
 /-! ## Tagged output -/

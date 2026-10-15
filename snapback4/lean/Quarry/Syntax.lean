@@ -104,6 +104,8 @@ structure TableDecl where
   notBefore : Option String := none
   /-- An upper read lifetime: non-null values at most the request clock are expired. -/
   expire : Option String := none
+  /-- Components of the plain index selected for expiry, before its appended row id. -/
+  expiryOrder : List String := []
   read : Rule := .deny
   insert : Rule := .deny
   update : Rule := .deny

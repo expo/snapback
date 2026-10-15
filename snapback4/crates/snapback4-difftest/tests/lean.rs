@@ -6,6 +6,7 @@
 use serde_json::json;
 use snapback4_difftest::{
     campaign, execute,
+    generate::Step,
     lean::{self, Canon},
     oracle::{Oracle, Verdict},
     shrink,
@@ -177,6 +178,28 @@ fn generated_expiry_sweep_agrees_with_the_engine_and_model() {
     let source = case.program.source();
     let checked = lean::compare(&case, &source).unwrap();
     assert!(matches!(checked.verdict, Verdict::Pass), "seed {}: {:?}\n{source}", case.seed, checked.verdict);
+}
+
+#[test]
+fn consecutive_sweeps_share_the_runtime_table_continuation() {
+    if !model_built() { return; }
+    let source = "table aRoots:\n  until: time ?\n  expire at .until\n  read <- allow\n  online only\ntable zRoots:\n  until: time ?\n  expire at .until\n  read <- allow\n  online only\ntable children:\n  a: aRoots on delete cascade\n  z: zRoots on delete restrict\n  cap 4 by a\n  cap 4 by z\n  read <- allow\n  online only\ntable nullable:\n  z: zRoots ? on delete set null\n  cap 4 by z\n  read <- allow\n  online only\nquery prep0():\n  return null\nquery run():\n  return { a: aRoots['a'], z: zRoots['z'], child: children['c'], nullable: nullable['n'] }\n";
+    let mut case = (0..100).map(lean::generate).find(|case| !case.program.mutation()).unwrap();
+    case.rows = vec![
+        ("aRoots".into(), json!({"id":"a","until":10})),
+        ("zRoots".into(), json!({"id":"q","until":5})),
+        ("zRoots".into(), json!({"id":"z","until":10})),
+        ("children".into(), json!({"id":"c","a":"a","z":"z"})),
+        ("nullable".into(), json!({"id":"n","z":"z"})),
+    ];
+    case.principal = "alice".into();
+    case.args = json!({});
+    case.seeded_at = Some(0);
+    case.steps = vec![Step { args: json!({}), at: 5, viewer: None, sweep: true }];
+    case.clock = 10;
+    case.sweep = true;
+    let checked = lean::compare(&case, source).unwrap();
+    assert!(matches!(checked.verdict, Verdict::Pass), "{:?}", checked.verdict);
 }
 
 #[test]

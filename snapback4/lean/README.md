@@ -62,7 +62,7 @@ elan.
 **Out of scope** (§5.2): the meter, apart from one abstract ceiling on
 visible candidates examined (OPEN M1), and the following:
 
-- ephemeral tables and physical expiry scheduling (request-time expiry and explicit sweeps are modeled);
+- ephemeral-table scheduling (request-time expiry and explicit across-call cursor sweeps of ordinary tables are modeled);
 - maintained columns and view evaluation (their fixed physical identity/adoption invariants and the pure Wave 12 global-count visibility witness are modeled);
 - residency, sync and devices;
 - full Unicode search, jobs and effects (the Wave 12 enum witness covers its ASCII tokenizer fragment);
@@ -286,6 +286,13 @@ The format's rules:
   visibility, while write target resolution and constraints remain physical.
   Generated model cases seed at this one request clock; bounded publication
   of an existing due-row backlog is a runtime/device lifecycle concern.
+- **Upper read lifetimes** use a table's optional `expire` column. An expiring
+  table also carries `expiryOrder`, the checked physical index components
+  before the store-appended id. A case with `sweep: true` may supply the
+  server's in-engine tagged `sweepCursor` and `sweepLimit`; its committed result is the
+  next cursor, so a differential sequence resumes both table rotation and the
+  per-table full index tuple. The model independently executes that plan but
+  does not re-prove the compiler's physical index synthesis.
 - **The output** is one of:
   - `{"kind":"answer","data":…,"complete":b,"next":…}`;
   - `{"kind":"unavailable"}`;

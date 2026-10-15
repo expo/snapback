@@ -7,10 +7,13 @@
 //! **Why the surface tree.** The model is a second implementation of the
 //! binder and the interpreter together. Reading the binder's IR would copy
 //! the binder's decisions into the model's input, and the comparison could
-//! no longer find a binder defect. So nothing here reads `bind` or the IR:
-//! the input is the parsed [`Document`]s, and the only binder fact used is
-//! that [`crate::compile`] reported no diagnostics, i.e. that the program
-//! type-checks ([`lean`] refuses otherwise).
+//! no longer find a binder defect. The input is the parsed [`Document`]s.
+//! Besides the fact that [`crate::compile`] reported no diagnostics, the case
+//! carries the checked schema's selected plain expiry-index columns: that
+//! physical choice determines observable cross-root action order and the
+//! across-call continuation tuple. The emitter independently selects the first
+//! eligible catalog entry; this qualifies execution given the planned index
+//! catalog, not the planner's index synthesis. No program IR is read.
 //!
 //! **Types.** The few places that need a type (a text literal beside an id is
 //! an id, OPEN V1; a positional key chooses a unique key by its argument
@@ -202,12 +205,22 @@ pub fn lean(sources: &[(String, String)]) -> Result<LeanModule, LeanError> {
         return Err(LeanError::Diagnostics(bound.diagnostics.iter().map(|d| format!("{}: {}", d.code, d.message)).collect()));
     }
     let documents: Vec<Document> = sources.iter().map(|(file, source)| crate::parse_document(file, source).0).collect();
-    from_documents(&documents).map_err(LeanError::Unsupported)
+    let expiry_orders = bound.schema.tables.iter().filter_map(|(name, table)| {
+        let column = table.expire.as_deref()?;
+        table.indexes.iter().find(|(_, index)| index.is_plain()
+            && index.columns().first().map(String::as_str) == Some(column))
+            .map(|(_, index)| (name.clone(), index.columns()))
+    }).collect();
+    from_documents_with_expiry(&documents, &expiry_orders).map_err(LeanError::Unsupported)
 }
 
 /// Translate documents that [`crate::compile`] has accepted. Callers that
 /// have not checked them must use [`lean`].
 pub fn from_documents(documents: &[Document]) -> R<LeanModule> {
+    from_documents_with_expiry(documents, &BTreeMap::new())
+}
+
+fn from_documents_with_expiry(documents: &[Document], expiry_orders: &BTreeMap<String, Vec<String>>) -> R<LeanModule> {
     for d in documents {
         for (present, what) in [
             (!d.maintains.is_empty(), "maintain"),
@@ -233,7 +246,7 @@ pub fn from_documents(documents: &[Document]) -> R<LeanModule> {
     let module_tables = tables.clone();
     let mut schema_tables = Vec::new();
     for (t, shape) in decls.iter().zip(&tables) {
-        schema_tables.push(table_json(t, shape, &module_tables)?);
+        schema_tables.push(table_json(t, shape, &module_tables, expiry_orders.get(&t.name))?);
     }
     let functions: Vec<&ast::FunctionDecl> = documents.iter().flat_map(|d| d.functions.iter()).collect();
     let helper_names: Vec<String> = functions.iter().map(|f| f.name.clone()).collect();
@@ -331,7 +344,7 @@ fn table_shape(t: &ast::TableDecl) -> R<Table> {
         caps: t.caps.iter().map(|cap| (cap.max, cap.by.clone())).collect() })
 }
 
-fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Json> {
+fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table], selected_expiry: Option<&Vec<String>>) -> R<Json> {
     let mut rules: BTreeMap<&str, Json> = BTreeMap::new();
     if t.public.is_some() {
         rules.insert("read", json!("allow"));
@@ -354,6 +367,12 @@ fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Json> {
         rules.insert(word, json);
     }
     let rule = |w: &str| rules.get(w).cloned().unwrap_or(json!("deny"));
+    let expiry_order = selected_expiry.cloned().unwrap_or_else(|| {
+        let Some((column, _)) = &t.expire else { return Vec::new() };
+        t.indexes.iter().filter(|index| index.is_plain()
+            && index.columns.first() == Some(column)).min_by_key(|index| &index.name)
+            .map_or_else(|| vec![column.clone()], |index| index.columns.clone())
+    });
     Ok(json!({
         "name": t.name,
         "cols": shape.cols.iter().map(|c| {
@@ -369,6 +388,7 @@ fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Json> {
         "caps": shape.caps.iter().map(|(max, by)| json!({"by": by, "max": max})).collect::<Vec<_>>(),
         "notBefore": t.not_before.as_ref().map(|(column, _)| column),
         "expire": t.expire.as_ref().map(|(column, _)| column),
+        "expiryOrder": expiry_order,
         "read": rule("read"), "insert": rule("insert"), "update": rule("update"), "delete": rule("delete"),
     }))
 }

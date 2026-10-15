@@ -327,11 +327,11 @@ pub struct Checked {
 
 /// The module, or why the case is outside the fragment.
 pub fn module(source: &str) -> Result<LeanModule, String> {
-    let (document, diagnostics) = snapback4_lang::parse_document("schema.q", source);
-    if !diagnostics.is_empty() {
-        return Err("parse".into());
+    match snapback4_lang::emit::lean::lean(&[("schema.q".into(), source.into())]) {
+        Ok(module) => Ok(module),
+        Err(snapback4_lang::emit::lean::LeanError::Diagnostics(_)) => Err("parse".into()),
+        Err(snapback4_lang::emit::lean::LeanError::Unsupported(u)) => Err(u.reason),
     }
-    snapback4_lang::emit::lean::from_documents(&[document]).map_err(|u| u.reason)
 }
 
 /// Compare one case whose source compiles. `Err` is a harness or emitter
@@ -373,6 +373,7 @@ pub fn compare(case: &Case, source: &str) -> Result<Checked, String> {
     let mut executed = 0;
     let mut pages = 0;
     let mut store = store;
+    let mut sweep_cursor: Option<Json> = None;
     let mut steps = prelude.iter();
     let mut trail = vec![];
     for (i, step) in case.steps.iter().enumerate() {
@@ -384,10 +385,14 @@ pub fn compare(case: &Case, source: &str) -> Result<Checked, String> {
             }
             let args = module.tag_args(&name, &step.args).map_err(|u| u.to_string())?;
             let viewer = step.viewer.as_deref().unwrap_or(&case.principal);
-            let swept = ask(&module.case_at_sweep(&name, store.clone(), viewer, args, None, step.at, true).map_err(|u| u.to_string())?)?;
+            let mut sweep_case = module.case_at_sweep(&name, store.clone(), viewer, args, None, step.at, true).map_err(|u| u.to_string())?;
+            sweep_case["sweepLimit"] = json!(10_000);
+            if let Some(cursor) = &sweep_cursor { sweep_case["sweepCursor"] = cursor.clone(); }
+            let swept = ask(&sweep_case)?;
             executed += 1;
             if swept["kind"] != "committed" { return Err(format!("Lean prelude sweep failed: {swept}")); }
             store = swept["store"].clone();
+            sweep_cursor = Some(swept["result"].clone());
         }
         let e_raw = steps.next().ok_or("prelude outcome missing")?.clone();
         let args = module.tag_args(&name, &step.args).map_err(|u| u.to_string())?;
@@ -408,7 +413,10 @@ pub fn compare(case: &Case, source: &str) -> Result<Checked, String> {
         if e_sweep.kind != "sweep" || e_sweep.value.get("error").is_some() {
             return Err(format!("engine final sweep failed: {:?}", e_sweep.value));
         }
-        let swept = ask(&module.case_at_sweep("run", store.clone(), &case.principal, m_args.clone(), None, case.clock, true).map_err(|u| u.to_string())?)?;
+        let mut sweep_case = module.case_at_sweep("run", store.clone(), &case.principal, m_args.clone(), None, case.clock, true).map_err(|u| u.to_string())?;
+        sweep_case["sweepLimit"] = json!(10_000);
+        if let Some(cursor) = &sweep_cursor { sweep_case["sweepCursor"] = cursor.clone(); }
+        let swept = ask(&sweep_case)?;
         executed += 1;
         if swept["kind"] != "committed" { return Err(format!("Lean final sweep failed: {swept}")); }
         store = swept["store"].clone();

@@ -216,8 +216,23 @@ fn expiry_is_emitted_as_a_modeled_table_lifecycle() {
     let source = "table t:\n  n: int\n  expiresAt: time ?\n  expire at .expiresAt\n  read <- allow\n  online only\nquery witness():\n  return 1\n";
     let m = module(source);
     assert_eq!(table(&m, "t")["expire"], "expiresAt");
+    assert_eq!(table(&m, "t")["expiryOrder"], json!(["expiresAt"]));
     let case = m.case_at_sweep("witness", m.store(&[]).unwrap(), "alice", Default::default(), None, 10, true).unwrap();
     assert_eq!(case["sweep"], true);
+}
+
+#[test]
+fn expiry_emits_the_full_selected_plain_index_order() {
+    let source = "table t:\n  expiresAt: time ?\n  rank: int\n  by aExpiry: expiresAt, rank\n  expire at .expiresAt\n  read <- allow\n  online only\nquery witness():\n  return 1\n";
+    let m = module(source);
+    assert_eq!(table(&m, "t")["expiryOrder"], json!(["expiresAt", "rank"]));
+
+    // A separately planned leading-expiry index has an internal `$intent`
+    // name and therefore sorts before the authored index in the catalog.
+    let planned = source.replace("  rank: int\n", "  rank: int\n  other: int\n")
+        .replace("query witness():\n  return 1", "query witness(c: cursor ?):\n  return t first 10 by .expiresAt, .other after c");
+    let m = module(&planned);
+    assert_eq!(table(&m, "t")["expiryOrder"], json!(["expiresAt", "other"]));
 }
 
 #[test]

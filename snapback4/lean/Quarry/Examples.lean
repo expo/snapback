@@ -940,6 +940,25 @@ def sweepRowOrderStore : Store := mkStore [
   ("children", [mkRow "c" [("a", I "a"), ("z", I "z")]]),
   ("nullable", [mkRow "n" [("z", I "z")]])]
 
+def sweepRowAfterFirstStore : Store := mkStore [
+  ("roots", [mkRow "z" [("until", N 10)]]),
+  ("children", []),
+  ("nullable", [mkRow "n" [("z", I "z")]])]
+
+def sweepCompoundOrderSchema : Schema := { tables := [
+  { name := "roots", cols := [c "until", c "rank"], expire := some "until",
+    expiryOrder := ["until", "rank"], read := .allow },
+  { name := "children", cols := [refCol "a" "roots" (some .cascade),
+      refCol "z" "roots" (some .restrict)], read := .allow },
+  { name := "nullable", cols := [refCol "z" "roots" (some .setNull) (nullable := true)],
+    read := .allow }] }
+
+def sweepCompoundOrderStore : Store := mkStore [
+  ("roots", [mkRow "a" [("until", N 10), ("rank", N 1)],
+    mkRow "z" [("until", N 10), ("rank", N 0)]]),
+  ("children", [mkRow "c" [("a", I "a"), ("z", I "z")]]),
+  ("nullable", [mkRow "n" [("z", I "z")]])]
+
 def refExamples : List Example := [
   { name := "delete-cascade"
     source := "LLP 3000.039 §3: a cascade deletes the referencing rows, hidden ones included; set null clears outside the closure; keep keeps"
@@ -964,7 +983,7 @@ def refExamples : List Example := [
     case := { schema := expiryRefSchema, store := expiryRefStore, viewer := alice,
               program := query [.ret (lit .null)], now := 10, sweepOnly := true }
     tables := ["parents", "cascadeKids", "nullableKids", "dualNullableKids", "blockers"]
-    expected := r#"{"kind":"committed","result":null,"store":{"parents":[{"id":"a","until":10}],"cascadeKids":[{"id":"ca","parent":"a"}],"nullableKids":[{"id":"nz","parent":null}],"dualNullableKids":[{"id":"dn","left":null,"right":null}],"blockers":[{"id":"ba","parent":"a","until":20}]}}"# },
+    expected := r#"{"kind":"committed","result":{"table":"blockers","rows":[]},"store":{"parents":[{"id":"a","until":10}],"cascadeKids":[{"id":"ca","parent":"a"}],"nullableKids":[{"id":"nz","parent":null}],"dualNullableKids":[{"id":"dn","left":null,"right":null}],"blockers":[{"id":"ba","parent":"a","until":20}]}}"# },
   { name := "update-expired-target-is-not-found"
     source := "LLP 3000.036.003 §3: an expired physical row is absent from update target lookup"
     case := { schema := expiryWriteSchema, store := expiryWriteStore, viewer := alice, now := 10,
@@ -998,7 +1017,7 @@ def refExamples : List Example := [
     case := { schema := sweepScaleSchema, store := sweepScaleStore, viewer := alice, now := 10,
               program := query [.ret (lit .null)], sweepOnly := true }
     tables := ["items", "tags"]
-    expected := r#"{"kind":"committed","result":null,"store":{"items":[],"tags":[]}}"# },
+    expected := r#"{"kind":"committed","result":{"table":"items","rows":[]},"store":{"items":[],"tags":[]}}"# },
   { name := "upsert-retires-expired-id-before-secondary-unique"
     source := "LLP 3000.036.003 §6: an expired same-id row retires before an upsert checks the new image's other unique keys"
     case := { schema := expiryWriteSchema, store := expiryWriteStore, viewer := alice, now := 10,
@@ -1096,13 +1115,41 @@ def refExamples : List Example := [
     case := { schema := changedRetirementOrderSchema, store := sweepRetirementOrderStore,
               viewer := alice, now := 10, program := query [.ret (lit .null)], sweepOnly := true }
     tables := ["aRoots", "zRoots", "children", "nullable"]
-    expected := r#"{"kind":"committed","result":null,"store":{"aRoots":[],"zRoots":[{"id":"z","until":10}],"children":[],"nullable":[{"id":"n","z":"z"}]}}"# },
+    expected := r#"{"kind":"committed","result":{"table":"aRoots","rows":[]},"store":{"aRoots":[],"zRoots":[{"id":"z","until":10}],"children":[],"nullable":[{"id":"n","z":"z"}]}}"# },
   { name := "expiry-sweep-uses-expiry-index-row-order"
     source := "LLP 3000.036.003 §6: a scheduled sweep orders due roots by deadline then id, so z stays restricted before a cascades its blocker"
     case := { schema := sweepRowOrderSchema, store := sweepRowOrderStore,
               viewer := alice, now := 30, program := query [.ret (lit .null)], sweepOnly := true }
     tables := ["roots", "children", "nullable"]
-    expected := r#"{"kind":"committed","result":null,"store":{"roots":[{"id":"z","until":10}],"children":[],"nullable":[{"id":"n","z":"z"}]}}"# }
+    expected := r#"{"kind":"committed","result":{"table":"roots","rows":[]},"store":{"roots":[{"id":"z","until":10}],"children":[],"nullable":[{"id":"n","z":"z"}]}}"# },
+  { name := "expiry-sweep-uses-selected-compound-index-order"
+    source := "LLP 3000.036.003 §6: equal deadlines follow every selected expiry-index component before id"
+    case := { schema := sweepCompoundOrderSchema, store := sweepCompoundOrderStore,
+              viewer := alice, now := 10, program := query [.ret (lit .null)], sweepOnly := true }
+    tables := ["roots", "children", "nullable"]
+    expected := r#"{"kind":"committed","result":{"table":"roots","rows":[]},"store":{"roots":[{"id":"z","rank":0,"until":10}],"children":[],"nullable":[{"id":"n","z":"z"}]}}"# },
+  { name := "expiry-sweep-resumes-after-last-visited-table"
+    source := "LLP 3000.036.003 §6: a complete prior sweep still rotates the next call after its last visited table"
+    case := { schema := changedRetirementOrderSchema, store := sweepRetirementOrderStore,
+              viewer := alice, now := 10, program := query [.ret (lit .null)], sweepOnly := true,
+              sweepCursor := { table := some "zRoots" } }
+    tables := ["aRoots", "zRoots", "children", "nullable"]
+    expected := r#"{"kind":"committed","result":{"table":"zRoots","rows":[]},"store":{"aRoots":[],"zRoots":[],"children":[],"nullable":[{"id":"n","z":null}]}}"# },
+  { name := "expiry-sweep-persists-row-cursor-at-limit"
+    source := "LLP 3000.036.003 §6: a bounded sweep resumes strictly after its per-table expiry-index key"
+    case := { schema := sweepRowOrderSchema, store := sweepRowOrderStore,
+              viewer := alice, now := 30, program := query [.ret (lit .null)], sweepOnly := true,
+              sweepCursor := { table := some "roots", rows := [("roots", [N 10, I "z"])] },
+              sweepLimit := some 1 }
+    tables := ["roots", "children", "nullable"]
+    expected := r#"{"kind":"committed","result":{"table":"roots","rows":[{"table":"roots","key":[20,"a"]}]},"store":{"roots":[{"id":"z","until":10}],"children":[],"nullable":[{"id":"n","z":"z"}]}}"# },
+  { name := "expiry-sweep-wraps-persisted-row-cursor"
+    source := "LLP 3000.036.003 §6: after scanning the tail, a later bounded call wraps to older retained due keys"
+    case := { schema := sweepRowOrderSchema, store := sweepRowAfterFirstStore,
+              viewer := alice, now := 30, program := query [.ret (lit .null)], sweepOnly := true,
+              sweepCursor := { table := some "roots", rows := [("roots", [N 20, I "a"])] } }
+    tables := ["roots", "children", "nullable"]
+    expected := r#"{"kind":"committed","result":{"table":"roots","rows":[]},"store":{"roots":[],"children":[],"nullable":[{"id":"n","z":null}]}}"# }
 ]
 
 def page3Pure : Schema := { tables := membershipDocs.tables.map fun t =>

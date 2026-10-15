@@ -298,27 +298,101 @@ reverse so peers cannot depend on declaration or mutation order. -/
 def expiryRetirementTables (sch : Schema) : List TableDecl :=
   sch.tables.mergeSort fun a b => String.compare a.name b.name != .lt
 
+/-- In-engine continuation of the bounded expiry index walk. `table` rotates
+the next call after the last table that consumed a visit; `rows` carries the
+last `(selected index components,id)` key for a table whose page exhausted
+the call's limit. -/
+structure SweepCursor where
+  table : Option String := none
+  rows : List (String × Key) := []
+  deriving Repr, DecidableEq
+
+def SweepCursor.after (cursor : SweepCursor) (table : String) : Option Key :=
+  cursor.rows.lookup table
+
+def SweepCursor.mark (cursor : SweepCursor) (table : String) (key : Key) : SweepCursor :=
+  { table := some table, rows := (table, key) :: cursor.rows.filter fun p => p.1 != table }
+
+def SweepCursor.clear (cursor : SweepCursor) (table : String) : SweepCursor :=
+  { cursor with rows := cursor.rows.filter fun p => p.1 != table }
+
+def SweepCursor.toValue (cursor : SweepCursor) : Value :=
+  .row [("table", cursor.table.map (fun t => Value.s (.text (cps t))) |>.getD .null),
+    ("rows", .arr (cursor.rows.mergeSort (fun a b => String.compare a.1 b.1 != .gt) |>.map fun p =>
+      .row [("table", .s (.text (cps p.1))), ("key", .arr (p.2.map Value.s))]))]
+
+/-- Rotate a stable table order after a persisted table name. A stale name
+from an adopted schema leaves the new order unchanged. -/
+def rotateExpiryTables (tables : List TableDecl) : Option String → List TableDecl
+  | none => tables
+  | some after =>
+    let rec go (before : List TableDecl) : List TableDecl → List TableDecl
+      | [] => tables
+      | td :: rest => if td.name == after then rest ++ before.reverse ++ [td]
+        else go (td :: before) rest
+    go [] tables
+
+def expiryOrder (td : TableDecl) : List String :=
+  if td.expiryOrder.isEmpty then td.expire.toList else td.expiryOrder
+
+def dueRowsAfter (td : TableDecl) (physical : List Row) (now : Int)
+    (after : Option Key) : List Row :=
+  match td.expire with
+  | none => []
+  | some _ =>
+    let order := expiryOrder td
+    let due := (sortRows order false physical).filter (expired td now)
+    match after with
+    | none => due
+    | some key => due.filter fun row => keyCmp (rowKey order row) key == .gt
+
+structure SweepState where
+  rows : MaterialStore
+  cursor : SweepCursor
+  visited : Nat := 0
+
+/-- One native expiry-index walk. Native fetches at most 256 keys at a time;
+actions in that page can move or remove rows before the next scan. -/
+partial def sweepExpiryTable (sch : Schema) (base : Store) (now : Int) (limit : Nat)
+    (td : TableDecl) (wrapped : Bool) (state : SweepState) : SweepState :=
+  if state.visited >= limit then state else
+  let physical := state.rows.store base
+  let batch := min (limit - state.visited) 256
+  let candidates := (dueRowsAfter td (physical td.name) now (state.cursor.after td.name)).take batch
+  let count := candidates.length
+  let state := candidates.foldl (fun (state : SweepState) r =>
+    let key := rowKey (expiryOrder td) r
+    let cursor := state.cursor.mark td.name key
+    let physical := state.rows.store base
+    let rows := if stored physical td.name r then
+      match refDeleteFrom sch (unexpiredStore sch physical now) physical td.name r with
+      | .ok next => materialRows (sch.tables.map (·.name)) next
+      | .error (.refuse "E_REFERENCED") => state.rows
+      | .error _ => state.rows
+      else state.rows
+    { rows, cursor, visited := state.visited + 1 }) state
+  if count < batch then
+    let state := { state with cursor := state.cursor.clear td.name }
+    if !wrapped && state.visited < limit then sweepExpiryTable sch base now limit td true state
+    else state
+  else sweepExpiryTable sch base now limit td wrapped state
+
 -- @ref LLP 3000.036.003#6 — sweep each due root transactionally in table order.
 /-- Retire every due physical row. `restrict` retains that root but never
 stops later due keys; cascade and set-null are committed with the root. The
 model has no read-through retained-history rows, so every non-restricted due
-root can be retired immediately. -/
-def sweepExpired (sch : Schema) (s : Store) (now : Int) : Store :=
+root can be retired immediately. The cursor persists across server sweep calls,
+including calls that finish their current due population. -/
+def sweepExpired (sch : Schema) (s : Store) (now : Int) (cursor : SweepCursor := {})
+    (limit : Option Nat := none) : Store × SweepCursor :=
   let tables := sch.tables.map (·.name)
-  let rows := (expiryRetirementTables sch).foldl (fun rows td =>
-    let physical := rows.store s
-    let candidates := match td.expire with
-      | some column => sortRows [column] false (physical td.name)
-      | none => physical td.name
-    candidates.foldl (fun rows r =>
-      let physical := rows.store s
-      if expired td now r && stored physical td.name r then
-        match refDeleteFrom sch (unexpiredStore sch physical now) physical td.name r with
-        | .ok next => materialRows tables next
-        | .error (.refuse "E_REFERENCED") => rows
-        | .error _ => rows
-      else rows) rows) (materialRows tables s)
-  rows.store s
+  let limit := limit.getD (storeSize sch s + 1)
+  let ordered := rotateExpiryTables (expiryRetirementTables sch) cursor.table
+  let state := ordered.foldl (fun (state : SweepState) (td : TableDecl) =>
+    if state.visited >= limit then state else
+    sweepExpiryTable sch s now limit td (state.cursor.after td.name).isNone state
+    ) ({ rows := materialRows tables s, cursor } : SweepState)
+  (state.rows.store s, state.cursor)
 
 -- @ref LLP 3000.036.003#6 — same-id replacement authorizes, retires with actions, then inserts.
 /-- Apply one write to the store. -/
