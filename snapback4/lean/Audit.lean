@@ -21,6 +21,7 @@ open Quarry
 #print axioms adoptedSequenceParent_row_wins
 #print axioms adoptedSequenceCounterKey_rejected_stays_opaque
 #print axioms adoptedSequenceCounterKey_admitted_migrates
+#print axioms removedAggregate_rowKeyedReplacement_migrates
 #print axioms run_deterministic
 #print axioms sortRows_perm
 #print axioms candidates_perm

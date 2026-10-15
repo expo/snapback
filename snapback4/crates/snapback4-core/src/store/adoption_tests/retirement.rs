@@ -332,6 +332,41 @@ fn removing_an_aggregate_normalizes_retained_sequence_custody_before_marking_the
 }
 
 #[test]
+fn row_keyed_replacement_does_not_suppress_removed_aggregate_counter_migration() {
+    const AGGREGATE: &str = "table rooms:\n  public\ntable entries:\n  room: rooms\n  bucket: int\n  public\nview totals: count entries by .bucket\n  public\ntable sequenced:\n  total: totals\n  ordinal: sequence by total\n  unique total, ordinal\n  public\n";
+    const ROW_KEYED: &str = "table rooms:\n  public\ntable entries:\n  room: rooms\n  bucket: int\n  public\ntable members:\n  room: rooms\n  cap 100 by room\n  public\nview totals: count entries by members m\n  where .room = m.room\ntable sequenced:\n  total: totals\n  ordinal: sequence by total\n  unique total, ordinal\n  public\n";
+    let mut e = open(AGGREGATE);
+    e.seed_at([
+        ("rooms".into(), object([("id", Value::Id("room".into()))])),
+        ("entries".into(), object([("id", Value::Id("entry".into())), ("room", Value::Id("room".into())), ("bucket", Value::Int(3))])),
+    ], 0).unwrap();
+    let digest = crate::schema::maintained_id(&[Value::Int(3)]);
+    let legacy = crate::value::canonical_json(&[Value::Int(3)]);
+    let target = e.schema().tables["totals"].clone();
+    let tx = e.store_mut().transaction().unwrap();
+    let mut row = tx.get("totals", &digest).unwrap().unwrap();
+    tx.delete("totals", &target, &row).unwrap();
+    if let Value::Row(fields) | Value::Map(fields) = &mut row { fields.insert("id".into(), Value::Id(legacy.clone())); }
+    tx.put("totals", &target, &row, None).unwrap();
+    tx.set_sequence("totals", &legacy, 5).unwrap();
+    tx.commit().unwrap();
+    e.store().conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
+
+    let replacement = compile(ROW_KEYED);
+    e.adopt_at(replacement.schema, replacement.programs, 1).unwrap();
+    let tx = e.store_mut().transaction().unwrap();
+    assert_eq!(tx.sequence_value("totals", &legacy).unwrap(), 0);
+    assert_eq!(tx.sequence_value("totals", &digest).unwrap(), 5, "a same-name row-keyed view cannot suppress predecessor aggregate custody migration");
+    tx.commit().unwrap();
+    assert_eq!(e.store().meta(crate::schema::MAINTAINED_ID_META).unwrap().as_deref(), Some(crate::schema::MAINTAINED_ID_VERSION));
+
+    let restored = compile(AGGREGATE);
+    e.adopt_at(restored.schema, restored.programs, 2).unwrap();
+    e.seed_at([("sequenced".into(), object([("id", Value::Id("next".into())), ("total", Value::Id(digest))]))], 3).unwrap();
+    assert_eq!(e.store().rows("sequenced").unwrap()[0].field("ordinal"), Ok(&Value::Int(6)));
+}
+
+#[test]
 fn counter_only_aggregate_reference_chains_rekey_to_the_final_digest() {
     const SOURCE: &str = "table aEntries:\n  key: int\n  public\nview aTotals: count aEntries by .key\n  public\ntable bEntries:\n  parent: aTotals\n  public\nview bTotals: count bEntries by .parent\n  public\ntable sequenced:\n  parent: bTotals\n  ordinal: sequence by parent\n  public\n";
     let mut e = open(SOURCE);

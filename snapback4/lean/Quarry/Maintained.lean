@@ -111,6 +111,21 @@ theorem adoptedSequenceCounterKey_admitted_migrates (legacy digest) :
     adoptedSequenceCounterKey true legacy digest = digest := by
   rfl
 
+/-! A same-name row-keyed view is not an ordinary aggregate identity owner.
+Removal therefore normalizes the predecessor aggregate's admitted counter
+even while that distinct maintained form occupies the target name. This is a
+lifecycle abstraction; it does not model row-keyed view evaluation. -/
+def removedAggregateCounterKey (predecessorOrdinary currentOrdinary : Bool)
+    (predecessorAdmits : Bool) (legacy digest : List Nat) : List Nat :=
+  if predecessorOrdinary && !currentOrdinary then
+    adoptedSequenceCounterKey predecessorAdmits legacy digest
+  else legacy
+
+theorem removedAggregate_rowKeyedReplacement_migrates
+    (legacy digest : List Nat) :
+    removedAggregateCounterKey true false true legacy digest = digest := by
+  rfl
+
 example : adoptedSequenceHighWater [91, 55, 93] (maintainedIdV1 [.int 7])
     [([91, 55, 93], 9), (maintainedIdV1 [.int 7], 4)] = 9 := by decide
 

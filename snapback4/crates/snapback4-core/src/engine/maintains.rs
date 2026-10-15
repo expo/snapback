@@ -395,7 +395,8 @@ impl Runner<'_> {
         if let Some(previous) = previous {
             for maintain in previous.maintains.iter().filter(|maintain|
                 maintain.private.is_none() && maintain.row_key.is_none()
-                    && !maintains.iter().any(|current| current.target == maintain.target)) {
+                    && !maintains.iter().any(|current| current.target == maintain.target
+                        && current.private.is_none() && current.row_key.is_none())) {
                 let fields = legacy_group_fields(previous, None, maintain);
                 for old in self.tx.sequence_ids(&maintain.target)? {
                     let values = decode_legacy_sequence_identity(&old, &fields);
