@@ -1,0 +1,747 @@
+{
+  "kind": "wave12-lang-p1-p2-status",
+  "generated_at": "2026-10-15T03:35:29.723522+00:00",
+  "scope": {
+    "p1": "expiry sweeps and commit-end retirement apply transactional reference actions with bounded progress",
+    "p2": "fixed-size aggregate identity and atomic legacy-store adoption, including retained sequence custody"
+  },
+  "final_product_commits": [
+    "f3ba53b70f",
+    "5042e58965",
+    "726d2e94d6",
+    "f365e464f6",
+    "b3c66354ce",
+    "93d05d65b6",
+    "8e2ac7cacd"
+  ],
+  "semantic_commits": [
+    {
+      "commit": "20e7c22d11bc4332569948ce468ba37ef713c0e2",
+      "role": "initial P1/P2 runtime, migration, tests and governing LLPs"
+    },
+    {
+      "commit": "f5adbda0d19bac6d3ec76e0e87a046f0672e99ee",
+      "role": "P1/P2 Lean, differential, device and simulator evidence"
+    },
+    {
+      "commit": "0fe7cc1263bfaef6ece6541e76fadc16cd015c19",
+      "role": "ungrouped aggregate identity foundation"
+    },
+    {
+      "commit": "49890d57a709ade9d8dbf7906250d420c945bfd8",
+      "role": "expiry lifecycle, PostgreSQL and formal corrections"
+    },
+    {
+      "commit": "2a30c75480640a4d53825c6dd626f77d9ef07489",
+      "role": "legacy adapter and capability corrections"
+    },
+    {
+      "commit": "be38abf68f4d3562690747d74bd62bcb98f6fe02",
+      "role": "same-id maintained-column and bounded closure corrections"
+    },
+    {
+      "commit": "aea76ada7a2bf3ef093e8ca417e3ca3fb1d4d95d",
+      "role": "formal expiry write semantics"
+    },
+    {
+      "commit": "d516faac8ab27a3dc286dec82f0dbc242039c5d0",
+      "role": "per-child reservation and transitive legacy references"
+    },
+    {
+      "commit": "5639bd4cc30e47482df08acd332622db488e7017",
+      "role": "compatibility fixtures and explicit aggregate ordering"
+    },
+    {
+      "commit": "1648fd2c24d973ce283e4febb3c351501d3a3b12",
+      "role": "opaque digest byId order"
+    },
+    {
+      "commit": "e45f92b0f3d8a068acf072aac7e3b38b832cb698",
+      "role": "formal live uniqueness and if-absent ordering"
+    },
+    {
+      "commit": "86be8027a9c85d9ee9f35de88e70855485cd870a",
+      "role": "row-keyed source expiry action path"
+    },
+    {
+      "commit": "b8e02c13ca04854f0d38fc372543753c62275b26",
+      "role": "migration and authority review corrections"
+    },
+    {
+      "commit": "ebd6937b90bd5b3497aba9889d55ec237981e107",
+      "role": "formal live secondary lookup"
+    },
+    {
+      "commit": "19583953dd722ecd33a75c3df6a495e1cc83fd11",
+      "role": "bounded Lean expiry sweep"
+    },
+    {
+      "commit": "12fe4f47fddf2c8ae6a35bba837d3ce2cc89c08a",
+      "role": "bidirectional device semantic fences"
+    },
+    {
+      "commit": "f4f0bafe794c3685017d7bdd36d7584206013a2c",
+      "role": "retirement constraint, postcondition and formal ordering"
+    },
+    {
+      "commit": "f6cb0d706cb8559bd35ff09bd9efa51b8e639888",
+      "role": "formal scheduled sweep table order"
+    },
+    {
+      "commit": "0245c43b024cddb73c18bcce7dd5aa0df4899ac3",
+      "role": "formal expiry-index row order"
+    },
+    {
+      "commit": "a03e35a773238d72b69e3a1e0d8cccbcad731146",
+      "role": "reachable device branch classification"
+    },
+    {
+      "commit": "4aeb3184b0e86a4d98d10c7a515256cb813c6ee5",
+      "role": "seed retirement of expired row-view sources"
+    },
+    {
+      "commit": "d701b31c9aa50d38d296fc94852098379da57525",
+      "role": "development reset expiry continuation"
+    },
+    {
+      "commit": "2fb3bb2e983b68f42cf23710d33a9de9f35f2b56",
+      "role": "formal across-call sweep continuation and selected index order"
+    },
+    {
+      "commit": "2fcff60b23c7a7fd414b9a2705045081eeb2cebd",
+      "role": "seed final obligation and predecessor tuple migration"
+    },
+    {
+      "commit": "54edc531f05f0a743e1601ddce11b1d7399f20c8",
+      "role": "always-run legacy regroup adoption"
+    },
+    {
+      "commit": "11cbf7d030f7dc03fcc5c9b345fe24af3c09637a",
+      "role": "explicit legacy-key typing"
+    },
+    {
+      "commit": "14ba04da6ed9cbdc41e10a81b11358ba5a7b1f9b",
+      "role": "seed final obligation fixture"
+    },
+    {
+      "commit": "e9fffeb78284c93d75e872744432a95f3366c74d",
+      "role": "retained probe accounting companion"
+    },
+    {
+      "commit": "60c3cdecd5db55c9a9b7bcf598dd3a6b6f63aeb9",
+      "role": "first aggregate activation trigger"
+    },
+    {
+      "commit": "7abe75b555232be15bc7f65c1733008f17256b57",
+      "role": "formal generator integration companion"
+    },
+    {
+      "commit": "09136e5da00d0ec991ed29d80786f41a0d55fc5d",
+      "role": "typed consecutive-sweep keys"
+    },
+    {
+      "commit": "526072491d91c925ef4832a9c75cd4b93ff6199f",
+      "role": "release-dormant aggregate reference migration"
+    },
+    {
+      "commit": "46dcc1e99fda3bd10b844dc7aa86726a38c31fdb",
+      "role": "seed obligation preservation and refusal privacy"
+    },
+    {
+      "commit": "312a315c2ff62ba07dc1890c8341939c3423049e",
+      "role": "fresh device rule-hop ids"
+    },
+    {
+      "commit": "ba8613aa76041aa4afbba2689aec4d5d6f21f9c7",
+      "role": "device commit-end expiry prediction"
+    },
+    {
+      "commit": "cfd4e2f2426ed4e3d54c80c337c3eaf561e07124",
+      "role": "web commit-end aggregate retirement"
+    },
+    {
+      "commit": "ee824cac6fdb5cbd0810d5298af6072018bba5b7",
+      "role": "generated expiry parity matrix"
+    },
+    {
+      "commit": "83d26f9a99b01e32e22754755d6254b0eed95497",
+      "role": "sealed web counterexample"
+    },
+    {
+      "commit": "b9ab88a8b7a7a814c384ff04e8075906179f7ffe",
+      "role": "abstract device queue formal witness"
+    },
+    {
+      "commit": "65560f6c4ed3a04c50093e78dacf24fba8164b66",
+      "role": "device allowance, private queue and PG identity gaps"
+    },
+    {
+      "commit": "5a9deb182e310f1ed04d1a6eb584b55775f3fe2a",
+      "role": "PostgreSQL migration test compile checkpoint"
+    },
+    {
+      "commit": "6cb27fdd69f2fb168e9e7370e37b6a553f7fa11b",
+      "role": "real Wasm expiry bridge receipt"
+    },
+    {
+      "commit": "f3ba53b70f14ec98cedb80dc2ad33b425729d760",
+      "role": "sequence counters across digest adoption"
+    },
+    {
+      "commit": "5042e5896550ad5c17f524aff27f29d69c8742a7",
+      "role": "canonical typed counter identity fence"
+    },
+    {
+      "commit": "726d2e94d6fba4acbf4ad9c2f2249378cdb57743",
+      "role": "surviving aggregate row identity precedence"
+    },
+    {
+      "commit": "f365e464f6583e3d6e632b43811cd12dad29fa14",
+      "role": "complete predecessor group admission and opaque invalid-tuple custody"
+    },
+    {
+      "commit": "b3c66354ce32d543dd69ca69a69d51af95744a3a",
+      "role": "paired predecessor schema and aggregate metadata"
+    },
+    {
+      "commit": "93d05d65b6df17b6169defc1c7ec8f13c4252015",
+      "role": "predecessor-only legacy identity ownership"
+    },
+    {
+      "commit": "8e2ac7cacdb338b859272f0f522912c3081f9ebf",
+      "role": "removed aggregate counter migration across row-keyed replacement"
+    }
+  ],
+  "review": {
+    "status": "READY",
+    "final_round": "r19",
+    "brief": "llp/reviews/3000.039-wave12-p1-p2.r19.brief.md",
+    "required_commands": [
+      "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 ~/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file brief",
+      "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < brief"
+    ],
+    "history": [
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r1.brief.md",
+        "sha256": "27e1906be8f05760bf45585143a056395df9c32855f820d4e520a56e8db6840b",
+        "bytes": 9269,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r1.codex.md",
+        "sha256": "295151e213f098c0b2e750ea6d5f23a474dad532ed5c2bb0c5d99db32f09743b",
+        "bytes": 1714017,
+        "verdict": "NOT READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r1.muse.md",
+        "sha256": "9861a7acd1b153eb17327d15540e3a68f5eb4a1069cd106b2e5ff786181b18c4",
+        "bytes": 2978,
+        "verdict": "READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r2.brief.md",
+        "sha256": "4732cf40b835ee4a4bc20a1e6755655578304b243e05125052cb83ac5af014f4",
+        "bytes": 11260,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r2.codex.md",
+        "sha256": "43fa656602d2f6981fe9c8e0b856e550765a763b6af7d1c8a2f03202e16f769d",
+        "bytes": 745371,
+        "verdict": "NOT READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r2.muse.md",
+        "sha256": "7e5c9d8b01cfb4365b35a220ceea98d625eac15ee2d77d044cdc759e6bf01259",
+        "bytes": 2680,
+        "verdict": "READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r3.brief.md",
+        "sha256": "353b0643afebfa3f585ad5083701d5151b11cb5ebc5b7cce66831683f6ece205",
+        "bytes": 13153,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r3.codex.md",
+        "sha256": "39cbf028f474515be7acc1f0e78b2d313c90b69792c3579475291fcdb640e422",
+        "bytes": 726404,
+        "verdict": "NOT READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r3.muse.md",
+        "sha256": "6f3be79c97427289c3783934010943c6489693894c6098d8ec26583385f82886",
+        "bytes": 1155,
+        "verdict": "READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r4.brief.md",
+        "sha256": "7aa28813161679e1707c6a50fc2996bf90ae658c3fcb9559ec7a6cd013bcb182",
+        "bytes": 14285,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r4.codex.md",
+        "sha256": "3b966478f4c1cb81dba08a6a84f6fd138679ba70ab0a357dde174974940a529f",
+        "bytes": 1138005,
+        "verdict": "NOT READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r4.muse.md",
+        "sha256": "07e828be6e7f74b7f3c9b8f14758a6040264d8beeae7075c29697126d5cec864",
+        "bytes": 702,
+        "verdict": "READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r5.brief.md",
+        "sha256": "248cb5ccd8934d241feb6694394893cc9fec5470fde0fc2ebb04b13cd9a2ba59",
+        "bytes": 15895,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r5.codex.md",
+        "sha256": "ecd3b699da8651e60819a9f5dc833aaf980fd553b7a0f8e2913d48ff318336a0",
+        "bytes": 1121538,
+        "verdict": "NOT READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r5.muse.md",
+        "sha256": "92c4becf561415e4649d765c78bba5a064d5912c047ef5eb4aeb3b24183fca62",
+        "bytes": 2260,
+        "verdict": "READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r6.brief.md",
+        "sha256": "fe75bd776d5451010af42ca167c6ae3da8b5462ff43d0a7142d33cd6b9d1be2f",
+        "bytes": 19256,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r6.codex.md",
+        "sha256": "9eb309774446fca7ebc868720d4741a4f4c5ea83314c023c82ae8c58edfe739f",
+        "bytes": 1673122,
+        "verdict": "NOT READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r6.muse.md",
+        "sha256": "e910eaefb2a1a360501ebfb55de3557cf1b11e3040352cb844a03cc1994998f9",
+        "bytes": 1483,
+        "verdict": "READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r7.brief.md",
+        "sha256": "3a549650ee1455b1bbe81720d3d6c44c9ce4a2f0e19280b8a482a0ea681924e0",
+        "bytes": 21851,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r7.codex.md",
+        "sha256": "6a64771a793110a03708ff584c9681cde5024095ae4763ef3546fc231e19f31a",
+        "bytes": 2478901,
+        "verdict": "NOT READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r7.muse.md",
+        "sha256": "f9b1446fb80a7823d372ed0c4abe1904781b6e6d321fea5e9362cdc6ddf8f5ed",
+        "bytes": 1853,
+        "verdict": "READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r8.brief.md",
+        "sha256": "f825e79863395ab31890e3e7a4f9c424055f6ec84cb2fe78f650de503924d1e8",
+        "bytes": 22504,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r8.codex.md",
+        "sha256": "b7c6dc904aa66d8dfe34e21cbe8b53dcfb5aaec7d00214b24df72600c7f5a7ec",
+        "bytes": 1022955,
+        "verdict": "NOT READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r8.muse.md",
+        "sha256": "0ef25ea81c183842b48d9dc6ee2eec89487a46f7fee09a23799449b58391434d",
+        "bytes": 941,
+        "verdict": "READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r9.brief.md",
+        "sha256": "583470a7e11d8ee680affbcdba16dea5bba7ba198c94f44ea14acfacb6f39cdc",
+        "bytes": 23344,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r9.codex.md",
+        "sha256": "636b7aa2fba98c2cc3502fd46a995040ab83fc94c97f5d575f8d95615f073eb2",
+        "bytes": 1109624,
+        "verdict": "NOT READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r9.muse.md",
+        "sha256": "5664ea05a263f08f79a6a1d5610a41324f0318a0f3cbf3ef8558fe9b390ce091",
+        "bytes": 1680,
+        "verdict": "READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r10.brief.md",
+        "sha256": "a0cfc25e866ddf950f110d94f12ad1bfe22e8d54bc547cf5dfd60841eb359be4",
+        "bytes": 26123,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r10.codex.md",
+        "sha256": "61baf13838bf8ef89be0c713703a7cb691797903766201156c07fac4f9936f7f",
+        "bytes": 2454843,
+        "verdict": "NOT READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r10.muse.md",
+        "sha256": "c333c13a3a0243524604c619b9c3b187fb61515fd4b188917207bf2ef72d88dd",
+        "bytes": 1775,
+        "verdict": "NOT READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r11.brief.md",
+        "sha256": "f628448d6133fd73504dc65655adff5e4d9ace4c08bd9deac847632fa788bc07",
+        "bytes": 29854,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r11.codex.md",
+        "sha256": "4860c27910b821cb23263a8088da4ccb2aeca11adcc6e925dab4467b83b3e227",
+        "bytes": 2099377,
+        "verdict": "READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r11.muse.md",
+        "sha256": "daf6db60a41a507bc9f3e0419279a0d9b8b635621a83cbcaf77afa99315363d9",
+        "bytes": 1034,
+        "verdict": "READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r12.brief.md",
+        "sha256": "34ac7555179370ed80396fc039db5ef3ceeb5946ca916597f302f48e85921ae2",
+        "bytes": 31540,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r12.codex.md",
+        "sha256": "a5d32b6002c9edc3f126c05b12b25ae852de3f94074c62f2ebeac26b17becbdd",
+        "bytes": 1482921,
+        "verdict": "NOT READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r12.muse.md",
+        "sha256": "8837675fa074db77e106718847ebced801792cf63f0cee315c92b3b4ae21dbeb",
+        "bytes": 972,
+        "verdict": "READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r13.aborted-pre-web-fix.codex.md",
+        "sha256": "f0c498109e7fff3ccab03e324086a06cd79676f9a54e96e69f20900c714a65cb",
+        "bytes": 2153465,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r13.aborted-pre-web-fix.muse.md",
+        "sha256": "0de3f5625960c7c355286201545c7b7b656114c2ee67a54060e7744a53753641",
+        "bytes": 540,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r13.brief.md",
+        "sha256": "1ab7ec919c0143be2639cdd8625abafcf16ea75e75d457606be1efa8c95d70e7",
+        "bytes": 34009,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r13.codex.md",
+        "sha256": "da408a07b31b62fc02e9f67c6f95076c1ab521f080a5bd24f97e6faa3812b5d7",
+        "bytes": 1221247,
+        "verdict": "NOT READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r13.muse.md",
+        "sha256": "4037ecdde45fa2534e4c3a492feda1ec38efbdea711e7856304e23ef099300c0",
+        "bytes": 1328,
+        "verdict": "READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r14.brief.md",
+        "sha256": "aa09753f52b6befbaf36ceba2a2a300cddb7ec8407bc88cbb491c47060fa245a",
+        "bytes": 38207,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r14.codex.md",
+        "sha256": "8538e6bd8dd73b48a5cfb548443c680ad9a050ba6653e5f31d5d7a144a73b15d",
+        "bytes": 3343712,
+        "verdict": "NOT READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r14.muse.md",
+        "sha256": "1d52729ee0ddb01e51d81e9c6af7496191eb6bac522c47e8e177bf99e373d6ae",
+        "bytes": 1504,
+        "verdict": "READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r15.aborted-capacity.codex.md",
+        "sha256": "6fd7d1c4522cdad2d12bc50bbedb04c7133ce95debda91e4b13a56f9b773508a",
+        "bytes": 1668405,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r15.aborted-capacity.muse.md",
+        "sha256": "d50f777aac9b186abb28be47ff03a18a3f8a7fb868f3046aa6725321739cf4cc",
+        "bytes": 502,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r15.brief.md",
+        "sha256": "ee3ec08e92e02f169472188e78e1c61e3a811f18410953de7ad326383cb6ae5a",
+        "bytes": 41176,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r16.brief.md",
+        "sha256": "5116e1159293e4fad9dad567fde4443fd875773097931e382e8054b770288e25",
+        "bytes": 41785,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r16.codex.md",
+        "sha256": "38383eef41f6422301ae5424fd6fee6862b03b346e9db8081b838a8b9267193c",
+        "bytes": 626917,
+        "verdict": "NOT READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r16.muse.md",
+        "sha256": "95e5cde14db149d4dad22fdb8ba89bf463d50c80f440e32c8bf1997c593cbecd",
+        "bytes": 1330,
+        "verdict": "READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r17.brief.md",
+        "sha256": "a0fd5a4bc45faabca89a516d91a8b59b937e209a73d50e6f757575e6069b97c9",
+        "bytes": 42904,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r17.codex.md",
+        "sha256": "203d6a3ce677464fce0d14805458bb363db67301a85524ae016f0179e12f0c57",
+        "bytes": 3189186,
+        "verdict": "NOT READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r17.muse.md",
+        "sha256": "f43052fca72d611b4c3631fefe31125b4bffc96e8d1abf388a73d1467fffc51a",
+        "bytes": 905,
+        "verdict": "READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r18.brief.md",
+        "sha256": "7dd20ea45c1ff20ba9dcaacaeaf839e8b0c8ef8f8b1b249c5f2368e9e1281e38",
+        "bytes": 45116,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r18.codex.md",
+        "sha256": "51d89472243da78e39fbec5dc7e6699d344b4c4dba728549973c8570f3237937",
+        "bytes": 3117236,
+        "verdict": "NOT READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r18.muse.md",
+        "sha256": "643c9132c96786579df365166c0a84c93ee024fe993d5b356d1b97b077bc5226",
+        "bytes": 2113,
+        "verdict": "READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r19.brief.md",
+        "sha256": "1aa38595236b94f7be78ab1368eb5ab824f7e9adda072dbd69ef7b58f960e1a1",
+        "bytes": 46175,
+        "verdict": null
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r19.codex.md",
+        "sha256": "3b8977b04f18174326eb177f63ab9d326601a42adfa0f4449569f9ac58857d23",
+        "bytes": 2254252,
+        "verdict": "READY"
+      },
+      {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r19.muse.md",
+        "sha256": "548ff30ae771026f658af42f8bd059d5512777dc3014481a142c13aa87b6910a",
+        "bytes": 2040,
+        "verdict": "READY"
+      }
+    ],
+    "final_verdicts": {
+      "muse": {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r19.muse.md",
+        "sha256": "548ff30ae771026f658af42f8bd059d5512777dc3014481a142c13aa87b6910a",
+        "bytes": 2040,
+        "verdict": "READY"
+      },
+      "codex": {
+        "path": "llp/reviews/3000.039-wave12-p1-p2.r19.codex.md",
+        "sha256": "3b8977b04f18174326eb177f63ab9d326601a42adfa0f4449569f9ac58857d23",
+        "bytes": 2254252,
+        "verdict": "READY"
+      }
+    }
+  },
+  "focused_verification": [
+    {
+      "command": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p snapback4-core --lib",
+      "result": {
+        "passed": 349,
+        "failed": 0,
+        "ignored": 3,
+        "seconds": 164.25
+      },
+      "evidence": "direct terminal result in agent session before the narrow R18/R19 migration-owner corrections; those corrections are covered by the focused module below"
+    },
+    {
+      "path": "logs/core-retirement-r19.log.gz",
+      "sha256": "443e3801b982db35c06024052a417346aa0287ca463b0a832ffb89aef9342772",
+      "uncompressed_sha256": "4e3a5271a6dea936d1d99b904cc4993c55707ff66d8fd9c7ce71fb3957bb7e58",
+      "command": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p snapback4-core store::adoption_tests::retirement --lib -- --nocapture",
+      "result": {
+        "passed": 25,
+        "failed": 0,
+        "ignored": 0,
+        "filtered": 331
+      }
+    },
+    {
+      "path": "logs/core-postgres-r19.log.gz",
+      "sha256": "4c350d25aee923d8c8d2869bae255f0f81425d3be1e3d3bae118d6a5dba589c8",
+      "uncompressed_sha256": "475ccf8dd1b732746719daedf3e75063e641d1a34418ab40ea98db8a79760f01",
+      "command": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p snapback4-core --features postgres --lib --no-run",
+      "result": {
+        "compile": "PASS"
+      }
+    },
+    {
+      "path": "logs/actual-028-migration-r19.log.gz",
+      "sha256": "5e94941a125a8b6afc74d3f928942a7b4250adac43b07d863910d4100d4c3d76",
+      "uncompressed_sha256": "a74cef7a7f3df3820a368309e66b546a743da096990d0c892bcb57e2251bff61",
+      "command": "SNAPBACK4_BASELINE_BIN=/tmp/lang-baseline-snapback4 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p snapback4 --test aggregate_identity_upgrade -- --ignored --nocapture",
+      "result": {
+        "passed": 4,
+        "failed": 0
+      }
+    },
+    {
+      "path": "logs/lean-r19.log.gz",
+      "sha256": "a82cc2e16ceefaaa842b04c916506ef9eb73c03f23a0562a1f8995c5802c1c93",
+      "uncompressed_sha256": "6279004b3ab6d403f335b28dcba2ffcfddc90f110151d40cf104a7f88d4c0ea9",
+      "command": "snapback4/lean/check.sh",
+      "result": {
+        "jobs": 56,
+        "standard_axiom_theorems": 73,
+        "examples": 115,
+        "oracle_fixtures": 7
+      }
+    },
+    {
+      "path": "logs/ref-check-r19.log.gz",
+      "sha256": "81aa5b65a3fe614f3c0fa7c56600fe413ee56331ea2f81444279b197f2dd1d82",
+      "uncompressed_sha256": "921e0e84bff3dbab582bc8c65e0e8c620bd9263cc7d6031a7ef35302fd661b41",
+      "command": "./ref-check --verbose",
+      "result": {
+        "llp_docs": 547,
+        "refs": 11889,
+        "files": 41778,
+        "errors": 0,
+        "unchecked": 0
+      }
+    },
+    {
+      "path": "logs/wave12-diagnostics-r16.log.gz",
+      "sha256": "f6413ab908b8b80818573be69d3cf1301f493baf4312268c85647ac9ca6b0b8a",
+      "uncompressed_sha256": "fdbd7526994b96922286435ae0ca46e81361348c73be7aab1937eae58c7d775c",
+      "command": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p snapback4-lang --test wave12_diagnostics",
+      "result": {
+        "passed": 12,
+        "failed": 0
+      }
+    }
+  ],
+  "compatibility_receipts": [
+    {
+      "path": "logs/actual-028-migration-r12.log.gz",
+      "sha256": "db2916c2ce3535b21153c7668b208b78c49ea68286514a645d37e05f9576b76d",
+      "result": {
+        "frozen_0_4_28_cases": 3,
+        "failed": 0
+      }
+    },
+    {
+      "path": "logs/dormant-migration-r12.log.gz",
+      "sha256": "b324368061b780c15174a281761c0820227470a4091f68334a32e9acf462fbcd",
+      "result": {
+        "dormant_reactivation_cases": 1,
+        "failed": 0
+      }
+    },
+    {
+      "path": "logs/actual-028-migration-r19.log.gz",
+      "sha256": "5e94941a125a8b6afc74d3f928942a7b4250adac43b07d863910d4100d4c3d76",
+      "result": {
+        "frozen_0_4_28_cases": 4,
+        "failed": 0,
+        "new_case": "sequence history survives deletion of allocator, source and aggregate rows; next ordinal is 4"
+      }
+    }
+  ],
+  "formal_scope": {
+    "covered": [
+      "logical expiry and reference-action ordering",
+      "bounded across-call sweep continuation for the selected physical expiry index",
+      "fixed 64-character logical aggregate identity representation without claiming SHA-256",
+      "sequence high-water max preservation",
+      "surviving aggregate row map precedence over counter-only inference",
+      "abstract private-maintainer queue soundness",
+      "complete predecessor aggregate column admission decides whether canonical counter custody migrates or stays opaque",
+      "predecessor aggregate counter custody migrates when a same-name row-keyed view temporarily replaces the target"
+    ],
+    "boundaries": [
+      "Lean does not implement or prove SHA-256",
+      "Lean does not model SQL serialization or recursive persisted tuple decoding",
+      "checked physical index catalog is an input; planner index synthesis is not re-proved",
+      "runtime duration-budget early stop and engine-reopen scheduling restart are outside the oracle",
+      "private custody device protocol is represented only by the standalone abstract two-world witness"
+    ]
+  },
+  "broad_followups": [
+    "affected-hosts/receipt.json",
+    "full-six-reconciliation.json",
+    "r13-full-device-difftest.json",
+    "r14-full-difftest.json",
+    "r14-device-affected.json",
+    "campaigns/review-r12-20000-receipt.json",
+    "campaigns/review-r14-20000-device-receipt.json",
+    "r13-expiry-generation/receipt.json",
+    "r13-wasm-bridge/receipt.json",
+    "clients/client-qualification-f3ba53b70f-final.json"
+  ],
+  "artifacts": {
+    "cli": {
+      "path": "/tmp/lang-final-cli-8e2ac7cacd",
+      "sha256": "ad6811e6c765436b8060768fec6450fbc013b2226267912aeaaa3e2b9455ed91",
+      "bytes": 55261344
+    },
+    "oracle": {
+      "path": "/tmp/lang-final-oracle-2fb3bb2e98/quarry-oracle",
+      "sha256": "c81001208782e3a086b51ff0d213bd193f21cbbf1189cea94500305eb112db0b"
+    }
+  },
+  "limitations": [
+    "No live PostgreSQL executable or cluster was available; PostgreSQL evidence is feature/lib-test compilation plus static shared-path review and an ignored runtime witness.",
+    "The standalone Lean migration proofs abstract custody, admission verdicts, and lifecycle ownership; they do not duplicate SQL serialization, concrete predecessor validation, cryptographic SHA-256, or row-keyed evaluation.",
+    "Full cross-crate/root qualification and the final global report are parent-owned; this receipt records their referenced artifacts without claiming to rerun every broad check at 8e2ac7cacd."
+  ],
+  "pending_product": []
+}
