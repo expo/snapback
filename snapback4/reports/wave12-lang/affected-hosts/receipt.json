@@ -1,0 +1,122 @@
+{
+  "kind": "wave12-affected-host-validation",
+  "cargo_environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_TARGET_DIR": "/tmp/lang-affected-target",
+    "CARGO_BUILD_JOBS": "12"
+  },
+  "source": {
+    "batch_started_at": "09136e5da00d0ec991ed29d80786f41a0d55fc5d",
+    "final_core_freeze": "46dcc1e99fda3bd10b844dc7aa86726a38c31fdb",
+    "fixture_freeze": "2398d7c2a29a8883a85e7a2a46e6b61028b54895",
+    "file_sha256": {
+      "crates/snapback4-core/src/engine/mod.rs": "a3ae7416f2a30a3a2845bfb1120e23022af9b740abdc3f423272680d26ab5763",
+      "crates/snapback4-core/src/engine/write.rs": "ff04ae5f7933dd1ab7d9f36e633e3eed81e4571880560c6193bb5272b378832f",
+      "crates/snapback4-core/src/engine/activation.rs": "3a0e8027ca90e477d25083ba638427526067493eebda966cd35d3ec080c5f439",
+      "crates/snapback4-core/src/store/activation.rs": "31ab247cbb5743b89a02a20b96eabeca74d523e4af13c227b2ac98e0f46b3c3f",
+      "crates/snapback4-device/tests/rx_rule_hops.rs": "c99b14541db84a5f5289343767fc654b53355a195183a3b4cb35097ef2832c70",
+      "crates/snapback4-lang/tests/reservation_app_headroom.rs": "b22e3a6f2af166726e000ddfe92f3569c4750980995bfb528718c69ab7ff8432",
+      "crates/snapback4-lang/tests/reservation_app_headroom/profile_upgrade.rs": "13230f64d75e6443f99d4716f247d101a3872a1aa4b067c3f99d2db35ca01b85"
+    }
+  },
+  "outcomes": [
+    {
+      "command": "cargo test -p snapback4-core --test dev_reset -- --nocapture",
+      "result": "pass",
+      "tests": { "passed": 5, "failed": 0, "filtered": 0 },
+      "log": "raw/core-dev-reset.log.gz",
+      "sha256": "b5696ec87c63adb240a173b577b1ce94f6dee049e846d2f3fe4b834f6804821b"
+    },
+    {
+      "command": "cargo test -p snapback4-device --test row_view_expiry -- --nocapture",
+      "result": "pass",
+      "tests": { "passed": 14, "failed": 0, "filtered": 0 },
+      "log": "raw/device-row-view-expiry.log.gz",
+      "sha256": "64e8bac9a5d5711ac56f271f89b04472b7f0e705ba2ff2440c5c220eaf0003b4"
+    },
+    {
+      "command": "cargo test -p snapback4-device --test reference_actions -- --nocapture",
+      "result": "pass",
+      "tests": { "passed": 4, "failed": 0, "filtered": 0 },
+      "log": "raw/device-reference-actions.log.gz",
+      "sha256": "7f9281cea33ee8e92131582089fb5437abcafc1912f0c3ccb08edb9ad34e4ea1"
+    },
+    {
+      "command": "cargo test -p snapback4-sim --test expiry_reference_actions row_keyed_view_source_expiry_retires_through_reference_actions -- --exact --nocapture",
+      "result": "pass",
+      "tests": { "passed": 1, "failed": 0, "filtered": 6 },
+      "log": "raw/sim-expiry-reference-actions.log.gz",
+      "sha256": "fa3ccafa101406e12a510f546a490dc38fce9fc7caa0e7b7d5f19795052229f1"
+    },
+    {
+      "command": "cargo test -p snapback4-sim --test clique digest::period_digest_and_viewer_inbox_agree_before_the_expiry_sweep -- --exact --nocapture",
+      "result": "pass",
+      "tests": { "passed": 1, "failed": 0, "filtered": 254 },
+      "log": "raw/sim-digest-period.log.gz",
+      "sha256": "8ab29c495f617f5a6bec39c00988fba58b8581a64b29a375bc7957f75a66de23"
+    },
+    {
+      "command": "cargo test -p snapback4 --test dev_reset the_cli_mirror_resets_and_reseeds_from_a_fixture_directory_or_a_rows_file -- --exact --nocapture",
+      "result": "pass",
+      "tests": { "passed": 1, "failed": 0, "filtered": 3 },
+      "log": "raw/cli-dev-reset-exact.log.gz",
+      "sha256": "97ea2d6f5bf692099a87a5ec4e9d8de5260dbeedde16c1e7c44f8464135030da"
+    },
+    {
+      "command": "cargo check -p snapback4-core --features postgres",
+      "result": "pass",
+      "log": "raw/core-postgres-check.log.gz",
+      "sha256": "3914f350f5776fd5e7aa7cee1a6f7b68d5f371f93214b78fb43055e668317369"
+    },
+    {
+      "command": "cargo test -p snapback4-device --test read_through -- --nocapture",
+      "result": "pass",
+      "tests": { "passed": 9, "failed": 0, "filtered": 0 },
+      "log": "raw/device-read-through.log.gz",
+      "sha256": "76ae8a6c32f8597f42a8229ce17c6629f98885079208439fa0b7fdf27bb7781f"
+    },
+    {
+      "command": "cargo test -p snapback4-device --test recorded_coverage -- --nocapture",
+      "result": "pass",
+      "tests": { "passed": 24, "failed": 0, "filtered": 0 },
+      "log": "raw/device-recorded-coverage.log.gz",
+      "sha256": "4891c4288213f702667c52924505038cfa506188220cfc929e3fb95ef9827f8d"
+    },
+    {
+      "command": "cargo test -p snapback4-device --test rx_rule_hops -- --nocapture",
+      "result": "pass",
+      "tests": { "passed": 2, "failed": 0, "filtered": 0 },
+      "log": "raw/device-rx-rule-hops.log.gz",
+      "sha256": "d4141415106c489e6589db30ade939432d00e1865d333225463d7e2f3a6d37dd"
+    },
+    {
+      "command": "cargo test -p snapback4-lang --test reservation_app_headroom -- --nocapture",
+      "result": "pass",
+      "tests": { "passed": 4, "failed": 0, "filtered": 0 },
+      "generated_cases_per_host": { "server_committed": 6, "predicted": 0, "conservative": 6, "server_refused": 0 },
+      "log": "raw/lang-reservation-headroom.log.gz",
+      "sha256": "426a21e83f645151f1d333ec3d0b8a93d1ded6c4a038cdf66737e6e55bedf69b"
+    },
+    {
+      "command": "cargo test -p snapback4-lang --test read_through_review -- --nocapture",
+      "result": "pass",
+      "tests": { "passed": 35, "failed": 0, "filtered": 0 },
+      "log": "raw/lang-read-through-review.log.gz",
+      "sha256": "48affd316e01c357ad64e6c7f9aa2d943f93aeaee9fa5f0160452a824d12fab4"
+    },
+    {
+      "command": "node --test test/reservation-app-headroom.test.mjs test/profile-upgrade.test.mjs",
+      "result": "pass",
+      "tests": { "passed": 8, "failed": 0 },
+      "log": "raw/node-reservation-profile.log.gz",
+      "sha256": "b26f62a76defa9da9f640b4b744d23fda71d3ae1d6d3cceed8b721c52398189b"
+    }
+  ],
+  "notes": [
+    "The first four host checks were compiled before the final P1 checkpoint; the parent retained them because the later dormant-store and seed-final-obligation patches do not change their host API paths.",
+    "The digest control initially exposed an overbroad seed final-obligation check. The receipt retains the successful rerun after 46dcc1e99f; no failed attempt is counted as parity.",
+    "Every exact Cargo selection ran one test; filtered-only runs are absent."
+  ]
+}
