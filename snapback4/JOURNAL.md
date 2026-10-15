@@ -95477,3 +95477,8 @@ Clean Linux measurement at `5a9deb182e` (product `65560f6c4e`) is 2,353,573 B ra
 ### 2026-10-15 — LANG final aggregate sequence custody
 
 Clean Linux measurement at `f3ba53b70f` is 2,353,736 B raw / 716,767 B gzip / 541,248 B Brotli. Strict family and absence audits pass. Set the final wasm budget to **717,267 B = measured gzip + exactly 500 B**. Shared Rows interface changes for native persisted sequence adoption alter the wasm layout by -40 B gzip versus R14; device paths do not execute server adoption. Whole-artifact gzip growth from qualified 0.4.28 is 9,093 B. Earlier LANG allowances are superseded; no runtime ceiling or publication claim changes.
+
+
+### 2026-10-15 — LANG canonical counter identity boundary
+
+Clean Linux measurement at `5042e58965` is 2,353,736 B raw / 716,766 B gzip / 541,126 B Brotli. Strict family and absence audits pass. Set the final budget to **717,266 B = measured gzip + exactly 500 B**. The canonical predecessor counter decoder keeps arbitrary reference IDs opaque; validator visibility changes the device layout by -1 B gzip without exposing server adoption. Whole-artifact growth from qualified 0.4.28 is 9,092 B gzip. Earlier LANG measurements are superseded; this remains Linux evidence without publication or runtime ceiling changes.
