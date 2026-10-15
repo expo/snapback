@@ -605,6 +605,7 @@ pub fn branch_merge_lazy(schema: &Schema, merge: &Merge) -> bool {
         };
         let authority = if lane.membership() { membership_branch(schema, lane) }
             else if lane.system() { lane.source.is_none() }
+            else if lane.vacancy() { vacancy_branch(schema, lane) }
             else if lane.grant() { lane.source.is_none() && covering_grant(schema, scan).is_some() }
             else if lane.guarded() { lane.source.is_none() && page_guard_decision(schema, scan).is_some() }
             else { lane.source.is_none() && scan_visibility(schema, scan).uniform };
@@ -619,6 +620,25 @@ pub fn branch_merge_lazy(schema: &Schema, merge: &Merge) -> bool {
             && plain && (total_unique || prefix_total_unique
                 || index.components.last().and_then(|component| component.column()).is_some_and(|c| c == "id"))
             && authority
+    })
+}
+
+/// Exhaustion is observable only when the authored read rule itself contains
+/// a top-level absence check on an exact required point keyed by this row's
+/// intrinsic id. The lane stays private and evaluates the complete rule.
+fn vacancy_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
+    if lane.source.is_some() || lane.scan.filter.is_some() || !lane.scan.prefix.is_empty() { return false; }
+    let Some(outer) = schema.table(&lane.scan.table) else { return false };
+    if outer.sync.is_some() { return false; }
+    outer.rules.read.disjuncts().iter().any(|rule| {
+        let RuleExpr::Not(inner) = rule else { return false };
+        let RuleExpr::Exists { table, index, key, equalities, .. } = inner.as_ref() else { return false };
+        let Some(target) = schema.table(table) else { return false };
+        let Some(point) = target.index(index) else { return false };
+        equalities.is_empty() && key == &[RuleTerm::Field("id".into())]
+            && point.unique && point.is_plain() && point.components.len() == 1
+            && point.components[0].column().is_some_and(|column|
+                target.columns.get(column).is_some_and(|kind| !kind.is_optional()))
     })
 }
 
@@ -753,7 +773,95 @@ fn membership_witness(schema: &Schema, lane: &crate::ir::MergeLane, null_distinc
             || !equalities.iter().all(|(column, term)| matches(column, term)) { return false; }
         !null_distinct || probe_index.components.iter().all(|part| part.column().is_some_and(|column| column != source_column
             && fixed(column).is_some_and(|expr| matches!(expr, Expr::Input(Input::Viewer)) || fixed_non_null_literal(expr))))
-    }, &|rule| rule_true(rule, &lane.scan.table, outer_table, &pinned))
+    }, &|rule| rule_true(rule, &lane.scan.table, outer_table, &pinned)
+        || lane.scan.filter.as_deref().is_some_and(|filter|
+            fixed_rule_holds(schema, filter, rule, &lane.scan.table, outer_table, &pinned, &pins)))
+}
+
+/// Every sibling of a varying membership witness must already hold. Preserve
+/// authored Boolean grouping: every fixed conjunct is required, while proving
+/// one fixed alternative is enough for an authored disjunction.
+fn fixed_rule_holds<'a>(schema: &Schema, filter: &Expr, rule: &RuleExpr,
+    outer_name: &str, outer_table: &Table, pinned: &impl Fn(&str) -> Option<&'a Expr>,
+    pins: &[(&String, &Expr)]) -> bool {
+    if rule_true(rule, outer_name, outer_table, pinned) { return true; }
+    match rule {
+        RuleExpr::And(parts) => parts.iter().all(|part|
+            fixed_rule_holds(schema, filter, part, outer_name, outer_table, pinned, pins)),
+        RuleExpr::Or(parts) => parts.iter().any(|part|
+            fixed_rule_holds(schema, filter, part, outer_name, outer_table, pinned, pins)),
+        _ => fixed_filter_requires_rule(schema, filter, rule, pins),
+    }
+}
+
+/// A generated membership lane may retain prefix-fixed point grants
+/// as a residual predicate.  Recognize only the exact bound point expression:
+/// this proves that every row emitted by the lane satisfies that conjunct,
+/// while a missing, reordered or merely similar probe keeps the merge out.
+// @ref LLP 3000.036.001#18 — fixed grants may guard one varying per-row grant.
+fn fixed_filter_requires_rule(schema: &Schema, filter: &Expr, rule: &RuleExpr,
+    pins: &[(&String, &Expr)]) -> bool {
+    if let Expr::Binary { op: crate::ir::BinaryOp::And, left, right } = filter {
+        return fixed_filter_requires_rule(schema, left, rule, pins)
+            || fixed_filter_requires_rule(schema, right, rule, pins);
+    }
+    // The compiler lowers a left-associated `a and b and c` into successive
+    // Let/If pairs. Accept only that exact dataflow chain: every right operand
+    // assigns the current result on its true branch, while `or` assigns on the
+    // false branch and any extra statement or mismatched name is rejected.
+    if let Expr::Block { body, value } = filter {
+        if body.is_empty() || body.len() % 2 != 0 { return false; }
+        let mut previous: Option<&String> = None;
+        let mut matched = false;
+        let mut at = 0;
+        while at < body.len() {
+            let [crate::ir::Stmt::Let { name, value: left }, crate::ir::Stmt::If {
+                condition: Expr::Variable(condition), then_body, else_body }] = &body[at..at + 2] else { return false };
+            let [crate::ir::Stmt::Assign { name: assigned, value: right }] = then_body.as_slice() else { return false };
+            if !else_body.is_empty() || condition != name || assigned != name { return false; }
+            if let Some(previous) = previous {
+                if !matches!(left, Expr::Variable(input) if input == previous) { return false; }
+            } else {
+                matched |= fixed_filter_requires_rule(schema, left, rule, pins);
+            }
+            matched |= fixed_filter_requires_rule(schema, right, rule, pins);
+            previous = Some(name);
+            at += 2;
+        }
+        if !matches!((value.as_ref(), previous), (Expr::Variable(result), Some(previous)) if result == previous) { return false; }
+        return matched;
+    }
+    let (Expr::Exists(read), RuleExpr::Exists { table, index, key, equalities, .. }) = (filter, rule) else { return false };
+    let Some(target) = schema.table(table) else { return false };
+    let Some(point) = target.index(index) else { return false };
+    equalities.is_empty() && target.through.is_none() && target.not_before.is_none() && !target.is_expiring()
+        && point.unique && point.is_plain() && point.components.iter().all(|part| part.column()
+            .and_then(|column| target.columns.get(column)).is_some_and(|kind| !kind.is_optional()))
+        && &read.table == table && &read.index == index && read.key.len() == key.len()
+        && read.key.iter().zip(key).all(|(expression, term)| rule_term_expression(term, expression, pins))
+        && point_read_is_visible(schema, read)
+}
+
+/// A rule probe uses system authority, but the retained residual point uses
+/// ordinary caller authority. Re-prove that the generated, pin-substituted
+/// point is visible instead of asking about the unsubstituted authored terms.
+fn point_read_is_visible(schema: &Schema, read: &crate::ir::Read) -> bool {
+    let Some(table) = schema.table(&read.table) else { return false };
+    let Some(index) = table.index(&read.index) else { return false };
+    if !index.is_plain() || index.components.len() != read.key.len() { return false; }
+    let pinned = |name: &str| index.components.iter().zip(&read.key).find_map(|(part, value)|
+        (part.column().is_some_and(|column| column == name)).then_some(value));
+    visibility(&read.table, table, &table.rules.read, &pinned).decided_true
+}
+
+fn rule_term_expression(term: &RuleTerm, expression: &Expr, pins: &[(&String, &Expr)]) -> bool {
+    match (term, expression) {
+        (RuleTerm::Viewer, Expr::Input(Input::Viewer)) => true,
+        (RuleTerm::Literal(value), Expr::Literal(actual)) => value == actual,
+        (RuleTerm::Field(field), expression) => pins.iter().find_map(|(name, value)|
+            (name.as_str() == field).then_some(*value)).is_some_and(|value| value == expression),
+        _ => false,
+    }
 }
 
 /// A witness supplies one conjunct; every other conjunct must already hold

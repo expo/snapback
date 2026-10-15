@@ -75,6 +75,9 @@ impl Engine {
         let seeded = seed_rows(&self.schema, &tx, rows, now)?;
         let seq = tx.next_seq()?.saturating_sub(1);
         tx.commit()?;
+        // A new store identity starts a fresh bounded expiry walk. Clear only
+        // after commit so a refused reset keeps the old store's continuation.
+        self.expiry_after.clear();
         self.timeline_schedule = timeline::Schedule::default();
         self.ephemeral.rebind_committed(store_id.clone(), self.generation, &self.schema);
         Ok(DevReset { previous_store_id, store_id, seq, seeded, assets: assets::AssetSweep::named(assets, self.store.assets_dir()) })

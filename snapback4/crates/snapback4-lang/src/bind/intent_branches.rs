@@ -55,6 +55,10 @@ pub(super) fn expand(tables: &Tables, synthesized: &std::collections::BTreeSet<(
     }
     let normalized = bounded_page(tables, requests, &authored)?;
     let read = &normalized;
+    // Vacancy is an exact negative lane, rather than a generic positive
+    // grant branch. Classify it before the positive branch planner.
+    // @ref LLP 3000.036.001#18 — exact vacancy retains a full private scan.
+    if let Some(merge) = super::intent_compound::vacancy(tables, synthesized, requests, read) { return Some(merge); }
     if let Some(merge) = scoped_membership(tables, synthesized, requests, read) { return Some(merge); }
     if let Some(merge) = membership(tables, synthesized, requests, read) { return Some(merge); }
     // An exact owner-or-membership rule belongs wholly to PAGE. If one of its
@@ -149,7 +153,15 @@ pub(super) fn membership(tables: &Tables, synthesized: &std::collections::BTreeS
     }
     if memberships.is_empty() { return None; }
     let conjuncts = read.filter.as_ref().map(|filter| { let mut out = Vec::new(); intent::split(*filter.clone(), &mut out); out }).unwrap_or_default();
-    let base = where_branches(table, &conjuncts).unwrap_or_else(|| vec![conjuncts.clone()]);
+    // @ref LLP 3000.036.001#18 — an invalid or overflowing product is a
+    // declined PAGE candidate, never an undistributed complete membership lane.
+    let has_alternatives = conjuncts.iter().any(|conjunct|
+        matches!(conjunct, Expr::Binary { op, .. } if op == "or"));
+    let base = match where_branches(table, &conjuncts) {
+        Some(branches) => branches,
+        None if has_alternatives => return None,
+        None => vec![conjuncts.clone()],
+    };
     // These are structural PAGE exclusions, not late core fallbacks: decline
     // before the candidate can retain party/source indexes the original scan
     // does not use.
@@ -482,22 +494,30 @@ fn branches(tables: &Tables, synthesized: &std::collections::BTreeSet<(String, S
     (out.len() <= MAX_BRANCHES).then_some(out)
 }
 
-/// The alternatives of the read's one top-level `or` conjunct, each with the
-/// other conjuncts, when every alternative holds an equality pin.
+/// The bounded positive alternatives of the read's top-level conjunction.
+/// Each `or` contributes a Cartesian factor, so
+/// `(a = x or b = x) and (state = 'open' or state = 'held')` becomes four
+/// independently pinned lanes.  Keep the published eight-lane ceiling while
+/// allowing an exact query predicate to narrow a wider read-rule union.
+// @ref LLP 3000.036.001#18 — exact positive query scopes may combine party and status alternatives.
 fn where_branches(table: &TableInfo, conjuncts: &[Expr]) -> Option<Vec<Vec<Expr>>> {
-    let ors: Vec<usize> = conjuncts.iter().enumerate().filter(|(_, conjunct)| matches!(conjunct, Expr::Binary { op, .. } if op == "or")).map(|(n, _)| n).collect();
-    let [position] = ors.as_slice() else { return None };
-    let mut alternatives = Vec::new();
-    disjuncts(&conjuncts[*position], &mut alternatives);
-    if alternatives.len() < 2 || alternatives.len() > MAX_BRANCHES { return None; }
-    let rest: Vec<Expr> = conjuncts.iter().enumerate().filter(|(n, _)| n != position).map(|(_, conjunct)| conjunct.clone()).collect();
-    alternatives.into_iter().map(|alternative| {
-        let mut lane = Vec::new();
-        intent::split(alternative, &mut lane);
-        if !lane.iter().any(|conjunct| pin(table, conjunct)) { return None; }
-        lane.extend(rest.iter().cloned());
-        Some(lane)
-    }).collect()
+    let mut branches = vec![Vec::new()];
+    let mut distributed = false;
+    for conjunct in conjuncts {
+        let mut alternatives = Vec::new();
+        disjuncts(conjunct, &mut alternatives);
+        distributed |= alternatives.len() > 1;
+        if branches.len().saturating_mul(alternatives.len()) > MAX_BRANCHES { return None; }
+        branches = branches.into_iter().flat_map(|prefix| alternatives.iter().map(move |alternative| {
+            let mut lane = prefix.clone();
+            intent::split(alternative.clone(), &mut lane);
+            lane
+        })).collect();
+    }
+    if !distributed || branches.len() < 2 || branches.iter().any(|lane| !lane.iter().any(|conjunct| pin(table, conjunct))) {
+        return None;
+    }
+    Some(branches)
 }
 
 /// An equality the planner turns into an index prefix. A nullable column is

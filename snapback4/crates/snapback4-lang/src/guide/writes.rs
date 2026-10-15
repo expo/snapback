@@ -245,6 +245,12 @@ If the product instead permits readable availability checks, an `exists` or
 audience. Pinning a private guest merely narrows the check; it cannot enforce
 a constraint across all guests.
 
+## On delete restrict
+
+References default to `restrict`; a live child causes E_REFERENCED. Alternatives:
+bounded `cascade`, optional `set null`, or `keep`. Cascades recurse under a
+cap/unique key per parent; keep/restrict history and audit rows.
+
 ## Server-arrival order within a conversation
 
 For timestamp order with ties, use existing columns: `sync last 500 by .at, .id`

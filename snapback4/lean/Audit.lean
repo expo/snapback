@@ -11,6 +11,17 @@ open Quarry
 #print axioms keyCmp_lawful
 #print axioms id_ne_text
 #print axioms codepoint_order
+#print axioms maintainedIdV1_length
+#print axioms maintainedIdV1_fits
+#print axioms adoptMaintainedV1_version
+#print axioms adoptMaintainedV1_ids
+#print axioms adoptMaintainedV1_values
+#print axioms adoptedSequence_preserves_legacy
+#print axioms adoptedSequence_preserves_digest
+#print axioms adoptedSequenceParent_row_wins
+#print axioms adoptedSequenceCounterKey_rejected_stays_opaque
+#print axioms adoptedSequenceCounterKey_admitted_migrates
+#print axioms removedAggregate_rowKeyedReplacement_migrates
 #print axioms run_deterministic
 #print axioms sortRows_perm
 #print axioms candidates_perm
@@ -62,5 +73,7 @@ open Quarry
 #print axioms Calendar.lt_yearStart_succ
 #print axioms Calendar.marchDays_succ
 #print axioms Quarry.positiveRanges_eval
+#print axioms Quarry.Wave12DeviceQueue.projection_queues
+#print axioms Quarry.Wave12DeviceQueue.nested_spends_fit
 
 #print axioms Rule.eval_viewer_component

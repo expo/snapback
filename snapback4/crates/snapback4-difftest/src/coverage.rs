@@ -4,6 +4,7 @@ use std::collections::BTreeSet;
 pub fn features(case: &Case) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
     for feature in crate::generate::page4_features(case) { out.insert(feature); }
+    for feature in crate::generate::page5_features(case) { out.insert(feature); }
     for table in &case.program.tables {
         out.insert(format!("rule/{:?}", table.rule));
         out.insert(format!("residency/{:?}", table.residency));
@@ -219,6 +220,11 @@ fn expr(e: &Expr, out: &mut BTreeSet<String>) {
         Expr::Calendar(f, e) => {
             out.insert(format!("expr/calendar-{}", f.source("t").split('(').next().unwrap_or_default()));
             expr(e, out);
+        }
+        Expr::RoundedDivide(mode, scale, a, b) => {
+            out.insert(format!("expr/rounded-divide-{}-{}", mode.source(), scale.map_or("preserve".into(), |scale| format!("scale-{scale}"))));
+            expr(a, out);
+            expr(b, out);
         }
         _ => {}
     }

@@ -34,6 +34,7 @@ impl MemoryStore {
         let schema = self.schema.clone().ok_or_else(|| {
             RuntimeError::Schema("install a server schema before sweeping".into())
         })?;
+        let mut expiry_after = self.expiry_after.clone();
         let tx = self.transaction()?;
         let mut runner = Runner::new(
             &tx,
@@ -42,9 +43,10 @@ impl MemoryStore {
             Meter::new(Ceilings::unbounded(), Cut::Abort),
             0,
         );
-        let count = runner.sweep_server_rows(limit)?;
+        let count = runner.sweep_server_rows(limit, &mut expiry_after)?;
         drop(runner);
         tx.commit()?;
+        self.expiry_after = expiry_after;
         Ok(count)
     }
     pub fn activate_server_at(
@@ -65,6 +67,7 @@ impl MemoryStore {
             schema: previous.clone(),
             changes: RefCell::new(self.changes.borrow().clone()),
             drained: Cell::new(self.drained.get()),
+            expiry_after: BTreeMap::new(),
         };
         let tx = staged.transaction()?;
         let shortened = through_activation::activate(&tx, &schema, previous.as_ref(), now)?;

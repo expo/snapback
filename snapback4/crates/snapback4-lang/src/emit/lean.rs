@@ -7,10 +7,13 @@
 //! **Why the surface tree.** The model is a second implementation of the
 //! binder and the interpreter together. Reading the binder's IR would copy
 //! the binder's decisions into the model's input, and the comparison could
-//! no longer find a binder defect. So nothing here reads `bind` or the IR:
-//! the input is the parsed [`Document`]s, and the only binder fact used is
-//! that [`crate::compile`] reported no diagnostics, i.e. that the program
-//! type-checks ([`lean`] refuses otherwise).
+//! no longer find a binder defect. The input is the parsed [`Document`]s.
+//! Besides the fact that [`crate::compile`] reported no diagnostics, the case
+//! carries the checked schema's selected plain expiry-index columns: that
+//! physical choice determines observable cross-root action order and the
+//! across-call continuation tuple. The emitter independently selects the first
+//! eligible catalog entry; this qualifies execution given the planned index
+//! catalog, not the planner's index synthesis. No program IR is read.
 //!
 //! **Types.** The few places that need a type (a text literal beside an id is
 //! an id, OPEN V1; a positional key chooses a unique key by its argument
@@ -202,12 +205,22 @@ pub fn lean(sources: &[(String, String)]) -> Result<LeanModule, LeanError> {
         return Err(LeanError::Diagnostics(bound.diagnostics.iter().map(|d| format!("{}: {}", d.code, d.message)).collect()));
     }
     let documents: Vec<Document> = sources.iter().map(|(file, source)| crate::parse_document(file, source).0).collect();
-    from_documents(&documents).map_err(LeanError::Unsupported)
+    let expiry_orders = bound.schema.tables.iter().filter_map(|(name, table)| {
+        let column = table.expire.as_deref()?;
+        table.indexes.iter().find(|(_, index)| index.is_plain()
+            && index.columns().first().map(String::as_str) == Some(column))
+            .map(|(_, index)| (name.clone(), index.columns()))
+    }).collect();
+    from_documents_with_expiry(&documents, &expiry_orders).map_err(LeanError::Unsupported)
 }
 
 /// Translate documents that [`crate::compile`] has accepted. Callers that
 /// have not checked them must use [`lean`].
 pub fn from_documents(documents: &[Document]) -> R<LeanModule> {
+    from_documents_with_expiry(documents, &BTreeMap::new())
+}
+
+fn from_documents_with_expiry(documents: &[Document], expiry_orders: &BTreeMap<String, Vec<String>>) -> R<LeanModule> {
     for d in documents {
         for (present, what) in [
             (!d.maintains.is_empty(), "maintain"),
@@ -233,7 +246,7 @@ pub fn from_documents(documents: &[Document]) -> R<LeanModule> {
     let module_tables = tables.clone();
     let mut schema_tables = Vec::new();
     for (t, shape) in decls.iter().zip(&tables) {
-        schema_tables.push(table_json(t, shape, &module_tables)?);
+        schema_tables.push(table_json(t, shape, &module_tables, expiry_orders.get(&t.name))?);
     }
     let functions: Vec<&ast::FunctionDecl> = documents.iter().flat_map(|d| d.functions.iter()).collect();
     let helper_names: Vec<String> = functions.iter().map(|f| f.name.clone()).collect();
@@ -285,7 +298,6 @@ fn table_shape(t: &ast::TableDecl) -> R<Table> {
         (!t.immutable.is_empty(), "immutable"),
         (!t.final_exists.is_empty(), "after-insert"),
         (t.retain.is_some(), "retain"),
-        (t.expire.is_some(), "expiry"),
     ] {
         if present {
             return no(&format!("table-{what}"), format!("table {} declares {what}", t.name));
@@ -332,7 +344,7 @@ fn table_shape(t: &ast::TableDecl) -> R<Table> {
         caps: t.caps.iter().map(|cap| (cap.max, cap.by.clone())).collect() })
 }
 
-fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Json> {
+fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table], selected_expiry: Option<&Vec<String>>) -> R<Json> {
     let mut rules: BTreeMap<&str, Json> = BTreeMap::new();
     if t.public.is_some() {
         rules.insert("read", json!("allow"));
@@ -355,6 +367,12 @@ fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Json> {
         rules.insert(word, json);
     }
     let rule = |w: &str| rules.get(w).cloned().unwrap_or(json!("deny"));
+    let expiry_order = selected_expiry.cloned().unwrap_or_else(|| {
+        let Some((column, _)) = &t.expire else { return Vec::new() };
+        t.indexes.iter().filter(|index| index.is_plain()
+            && index.columns.first() == Some(column)).min_by_key(|index| &index.name)
+            .map_or_else(|| vec![column.clone()], |index| index.columns.clone())
+    });
     Ok(json!({
         "name": t.name,
         "cols": shape.cols.iter().map(|c| {
@@ -369,6 +387,8 @@ fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table]) -> R<Json> {
         "uniqueCodes": shape.codes,
         "caps": shape.caps.iter().map(|(max, by)| json!({"by": by, "max": max})).collect::<Vec<_>>(),
         "notBefore": t.not_before.as_ref().map(|(column, _)| column),
+        "expire": t.expire.as_ref().map(|(column, _)| column),
+        "expiryOrder": expiry_order,
         "read": rule("read"), "insert": rule("insert"), "update": rule("update"), "delete": rule("delete"),
     }))
 }
@@ -669,6 +689,9 @@ impl<'a> Scope<'a> {
                     .unwrap_or(Ty::Unknown)
             }
             Expr::Read(read) if read.range.is_none() && read.filter.is_none() && !read.keys.is_empty() => Ty::Row(read.table.clone()),
+            // The model erases decimal static scale but evaluates its exact stored integer.
+            Expr::Call { name, args, .. } if name == "divide" && args.len() == 4 => if matches!(&args[2], Expr::Literal { value: Literal::Number(_), .. }) { Ty::Scalar(Kind::Int) } else { Ty::Unknown },
+            Expr::Call { name, args, .. } if name == "divide" => args.first().map(|arg| self.ty(arg)).unwrap_or(Ty::Unknown),
             Expr::Call { name, .. } if name == "count" || CALENDAR.contains(&name.as_str()) => Ty::Scalar(Kind::Int),
             Expr::Exists { .. } => Ty::Scalar(Kind::Bool),
             Expr::Unary { op, value, .. } => if op == "not" { Ty::Scalar(Kind::Bool) } else { self.ty(value) },
@@ -794,6 +817,13 @@ impl<'a> Scope<'a> {
                         let (pins, filter) = self.domain(read, false)?;
                         Ok(json!({"count": {"table": read.table, "pins": pins, "filter": filter}}))
                     }
+                    ("divide", [dividend, divisor, Expr::Literal { value: Literal::Str(rounding), .. }])
+                        if matches!(rounding.as_str(), "toward-zero" | "away-from-zero" | "floor" | "ceiling" | "half-away-from-zero" | "half-even") => {
+                        Ok(json!({"roundDiv": {"rounding": rounding, "dividend": self.expr(dividend)?, "divisor": self.expr(divisor)?}}))
+                    }
+                    ("divide", [dividend, divisor, Expr::Literal { value: Literal::Number(scale), .. }, Expr::Literal { value: Literal::Str(rounding), .. }])
+                        if scale.parse::<u8>().is_ok_and(|scale| scale <= 12) && matches!(rounding.as_str(), "toward-zero" | "away-from-zero" | "floor" | "ceiling" | "half-away-from-zero" | "half-even") =>
+                        Ok(json!({"roundDiv": {"rounding": rounding, "scale": scale.parse::<u8>().unwrap(), "dividend": self.expr(dividend)?, "divisor": self.expr(divisor)?}})),
                     _ => no(&format!("call-{name}"), print()),
                 }
             }
@@ -1222,30 +1252,6 @@ fn model_lane_columns(mut pins: Vec<String>, order: &[String]) -> Vec<String> {
     pins
 }
 
-/// Equality prefixes for the original system scan and for each PAGE filter
-/// alternative. Pins are sorted like the planner's `BTreeMap`, then the
-/// shared order and id suffix are appended separately by the caller.
-fn model_page_pins(table: &Table, read: &ReadExpr) -> (Vec<String>, Vec<Vec<String>>) {
-    let Some(filter) = read.filter.as_deref() else { return (Vec::new(), vec![Vec::new()]) };
-    let mut conjuncts = Vec::new();
-    flatten_and(filter, &mut conjuncts);
-    let system = model_pin_columns(table, &conjuncts, &read.order_keys);
-    let ors: Vec<_> = conjuncts.iter().enumerate().filter(|(_, expression)| matches!(expression, Expr::Binary { op, .. } if op == "or")).collect();
-    let [(position, expression)] = ors.as_slice() else { return (system.clone(), vec![system]) };
-    let mut alternatives = Vec::new();
-    flatten_or(expression, &mut alternatives);
-    let rest: Vec<_> = conjuncts.iter().enumerate().filter_map(|(at, expression)| (at != *position).then_some(*expression)).collect();
-    let branches: Option<Vec<Vec<String>>> = alternatives.into_iter().map(|alternative| {
-        let mut parts = Vec::new();
-        flatten_and(alternative, &mut parts);
-        let alternative_pins = model_pin_columns(table, &parts, &read.order_keys);
-        if alternative_pins.is_empty() { return None }
-        parts.extend(rest.iter().copied());
-        Some(model_pin_columns(table, &parts, &read.order_keys))
-    }).collect();
-    (system.clone(), branches.filter(|branches| branches.len() >= 2).unwrap_or_else(|| vec![system]))
-}
-
 fn party_column<'a>(table: &Table, expression: &'a Expr) -> Option<&'a str> {
     let Expr::Binary { op, left, right, .. } = expression else { return None };
     if op != "=" { return None }
@@ -1467,10 +1473,13 @@ impl LeanModule {
 
     /// One complete case for `entry`, evaluated at the server request clock.
     pub fn case_at(&self, entry: &str, store: Json, viewer: &str, args: Map<String, Json>, budget: Option<u64>, now: i64) -> R<Json> {
-        Ok(json!({
-            "version": 1, "schema": self.schema, "helpers": self.helpers, "store": store,
-            "viewer": viewer, "now": now, "program": self.program(entry)?, "args": args, "budget": budget,
-        }))
+        self.case_at_sweep(entry, store, viewer, args, budget, now, false)
+    }
+
+    /// A formal expiry-only case; `entry` supplies an unexecuted typed program.
+    pub fn case_at_sweep(&self, entry: &str, store: Json, viewer: &str, args: Map<String, Json>, budget: Option<u64>, now: i64, sweep: bool) -> R<Json> {
+        Ok(json!({ "version": 1, "schema": self.schema, "helpers": self.helpers, "store": store,
+            "viewer": viewer, "now": now, "program": self.program(entry)?, "args": args, "budget": budget, "sweep": sweep }))
     }
     /// The schema, helpers and every supported program (`check --emit-lean`).
     pub fn to_json(&self) -> Json {

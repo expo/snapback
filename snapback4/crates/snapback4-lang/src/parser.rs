@@ -16,6 +16,7 @@ mod timeline;
 mod expected;
 mod types;
 mod reserved;
+pub(crate) use reserved::repeated_identity;
 mod programs;
 mod actions;
 mod routes;
@@ -157,7 +158,13 @@ impl Parser {
                     self.position += 1;
                     password = false;
                 }
+                if let (Some(first), Some(first_site)) =
+                    (self.document.identity, self.document.identity_site.as_ref())
+                {
+                    return Err(repeated_identity(&site, first, first_site, (password, guests)));
+                }
                 self.document.identity = Some((password, guests));
+                self.document.identity_site = Some(site.clone());
             }
             "personas" => {
                 let first = self.word()?;
@@ -772,13 +779,13 @@ impl Parser {
             column = Some(self.word()?.value);
         }
         let mut filter = if self.maybe("where") { Some(self.filtered_predicate(&source, &[], true)?) } else { None };
-        self.take("by")?;
-        let row_key = if self.peek().kind == Kind::Word && self.peek_at(1).kind == Kind::Word && self.peek_at(1).value != "where" {
+        let grouped = self.maybe("by");
+        let row_key = if grouped && self.peek().kind == Kind::Word && self.peek_at(1).kind == Kind::Word && self.peek_at(1).value != "where" {
             Some((self.word()?.value, self.word()?.value))
         } else { None };
         let mut keys = Vec::new();
         let keys_start = self.position;
-        while row_key.is_none() {
+        while grouped && row_key.is_none() {
             let mut key = self.expression(0, &[",", "<newline>", "where"])?;
             views::unfocal_key(&mut key);
             keys.push(key);
@@ -810,6 +817,7 @@ impl Parser {
         if block { self.take_kind(Kind::Indent)?; }
         let mut indexes = Vec::new();
         let mut read = None;
+        let mut reviewed_disclosure = None;
         let mut online_only = false;
         while block && !self.at_kind(Kind::Dedent) && !self.at_kind(Kind::Eof) {
             self.skip_newlines();
@@ -835,6 +843,27 @@ impl Parser {
                     while self.maybe(",") { columns.push(self.maintain_column()?); }
                     self.newline()?;
                     indexes.push(IndexDecl { name, columns, unique: false, refusal: None, words: None, computed: std::collections::BTreeMap::new(), site: effect.site });
+                    return Ok(());
+                }
+                if effect.value == "disclosure" {
+                    // @ref LLP 3000.036.002#9 — reviewed disclosure is a non-empty audit annotation, not runtime authority.
+                    self.take("reviewed")?;
+                    let reason = self.take_kind(Kind::Str)?.value;
+                    if reason.trim().is_empty() {
+                        return Err(syntax_with(
+                            &effect.site,
+                            "a reviewed disclosure needs a concrete rationale",
+                            "disclosure reviewed 'why this aggregate delta is an intended read channel'",
+                        ));
+                    }
+                    self.newline()?;
+                    if reviewed_disclosure.replace(reason).is_some() {
+                        return Err(syntax_with(
+                            &effect.site,
+                            "duplicate reviewed disclosure",
+                            "keep one disclosure reviewed 'rationale' line",
+                        ));
+                    }
                     return Ok(());
                 }
                 if effect.value == "readable" {
@@ -864,7 +893,7 @@ impl Parser {
             }
         }
         if block { self.take_kind(Kind::Dedent)?; }
-        Ok(MaintainDecl { row_key, filter, keys, indexes, name, aggregate: aggregate.value, source, column, by, read, online_only, site })
+        Ok(MaintainDecl { row_key, filter, keys, indexes, name, aggregate: aggregate.value, source, column, by, read, reviewed_disclosure, online_only, site })
     }
 
     fn maintain_duration(&mut self, offset: bool) -> Fallible<Expr> {
@@ -1210,40 +1239,6 @@ impl Parser {
         self.newline()?;
         let body = self.parse_block()?;
         Ok(Stmt::For { name, domain, body, site })
-    }
-
-    fn parse_require(&mut self) -> Fallible<Stmt> {
-        let site = self.take("require")?.site;
-        let condition = self.expression(0, &["else"])?;
-        // @ref LLP 3000.036#14.5 — `require url like 'https://%' else BAD_URL` (wave 4 #20): name the
-        // operator Quarry lacks, not a missing code the author already wrote.
-        // `url like 'x'` parses as the shape use `url like`, then a string.
-        let pattern = match &condition {
-            Expr::ShapeUse { base, name, site } if TEXT_PATTERN_WORDS.contains(&name.to_ascii_lowercase().as_str()) => Some((name.clone(), print::expression(base), site.clone())),
-            _ => {
-                let next = self.peek();
-                (next.kind == Kind::Word && TEXT_PATTERN_WORDS.contains(&next.value.to_ascii_lowercase().as_str()))
-                    .then(|| (next.value.clone(), print::expression(&condition), next.site.clone()))
-            }
-        };
-        if let Some((word, operand, at)) = pattern {
-            return Err(syntax_with(&at, format!("Quarry has no `{word}` operator; `{operand} {word} …` is not a condition"),
-                format!("compare whole text with `=` or `!=`; bound its length in the type (`{operand}: text 3..80`); declare a link `text <=200 format url` (http or https; anything else refuses E_INPUT before the program runs) or a handle `format handle`; or check the pattern in the client")).guide("types"));
-        }
-        if self.at_kind(Kind::Newline) && self.peek_at(1).value == "else" {
-            let code = self.peek_at(2).value.clone();
-            return Err(syntax_with(&site, "a require's else must be on the condition's closing line",
-                format!("put `else {code}` on the closing line: `require {} else {code}`", print::expression(&condition))).guide("programs"));
-        }
-        if !self.at("else") {
-            return Err(syntax_with(&site, "require needs a refusal code: require <condition> else CODE", format!("require {} else NOT_ALLOWED", print::expression(&condition))));
-        }
-        self.take("else")?;
-        let code = self.word()?.value;
-        // @ref LLP 3000.036#11 — the same optional message `unique … else CODE 'message'` takes.
-        let message = if self.at_kind(Kind::Str) { Some(self.take_kind(Kind::Str)?.value) } else { None };
-        self.newline()?;
-        Ok(Stmt::Require { condition, code, message, site })
     }
 
     fn tuple_binding_ahead(&self) -> bool {

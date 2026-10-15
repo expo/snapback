@@ -187,7 +187,7 @@ pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String
 pub const KEYS: [&str; 8] = ["as", "op", "args", "expect", "data", "count", "save", "label"];
 
 // @ref LLP 3000.036#15.3 — an unknown key is refused, never ignored: ignoring it was a false green.
-fn validate(case: &Json) -> Result<(), String> {
+pub(super) fn validate(case: &Json) -> Result<(), String> {
     let Json::Object(fields) = case else { return Err("each case is a JSON object: {\"op\":..,\"as\":..,\"args\":{..},\"expect\":..}".into()) };
     let valid = KEYS.iter().map(|key| format!("`{key}`")).collect::<Vec<_>>().join(", ");
     for key in fields.keys() {

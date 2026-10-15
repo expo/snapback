@@ -89,7 +89,7 @@ fn adoption<S: DeviceStore>(mut store: S) {
 fn genuine_legacy_codec_remains_recognized_but_timeline_execution_is_fenced() {
     let backend = legacy();
     assert_eq!(backend.schema.timelines[0].version, 1);
-    assert_eq!(backend.schema.required_capabilities(), ["recorded-attribution".into(), "timeline".into()].into());
+    assert_eq!(backend.schema.required_capabilities(), ["maintained-id-sha256-v1".into(), "recorded-attribution".into(), "timeline".into()].into());
     let encoded = serde_json::to_string(&backend).unwrap();
     assert!(!encoded.contains("Recorded"));
     assert_eq!(encoded.matches("Capabilities").count(), 1);

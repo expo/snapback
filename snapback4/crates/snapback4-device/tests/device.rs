@@ -37,6 +37,81 @@ fn on_both(scenario: impl Fn(&mut dyn HostDyn)) {
     scenario(&mut Memory::new());
 }
 
+// @ref LLP 3000.036.001#18 — older devices refuse PAGE5's validator
+// interpretation instead of executing fixed residual or vacancy lanes as v3.
+#[test]
+fn page5_plans_require_branch_pages_v4_from_the_device() {
+    let vacancy = "table holds:
+  item: designs
+  owner: principal
+  unique item
+  read <- .owner = viewer
+  online only
+table designs:
+  owner: principal
+  read <- not exists holds[item = .id] or .owner = viewer
+  online only
+query available(c: cursor ?):
+  return designs first 1 by .id after c
+";
+    let fixed = "table roles:
+  bucket: int
+  principal: principal
+  unique bucket, principal
+  read <- .principal = viewer
+  online only
+table seats:
+  bucket: int
+  principal: principal
+  unique bucket, principal
+  read <- .principal = viewer
+  online only
+table permits:
+  principal: principal
+  unique principal
+  read <- .principal = viewer
+  online only
+table access:
+  item: items
+  bucket: int
+  principal: principal
+  unique item, bucket, principal
+  read <- .principal = viewer
+  online only
+table items:
+  bucket: int
+  at: int
+  read <- ((exists roles[.bucket, viewer] and exists seats[.bucket, viewer]) and exists permits[viewer]) and exists access[.id, .bucket, viewer]
+  online only
+query page(bucket: int, c: cursor ?):
+  return items where .bucket = bucket first 1 by .at after c
+";
+    let product = "table items:
+  owner: principal
+  helper: principal
+  status: text <=10
+  at: int
+  read <- (.owner = viewer or .helper = viewer) and (.status = 'open' or .status = 'active')
+  online only
+query page(c: cursor ?):
+  return items first 1 by .at after c
+";
+    for (name, source) in [("fixed", fixed), ("vacancy", vacancy)] {
+        let (_, backend) = compile(source);
+        assert!(backend.schema.required_capabilities().contains("branch-pages-v4"), "{name}");
+        let required = snapback4_core::device_protocol::compatibility(&backend.schema.public_projection());
+        let mut old = snapback4_core::device_protocol::DeviceEngine::current();
+        old.version = "0.4.28-page4".into();
+        old.capabilities.retain(|capability| capability != "branch-pages-v4");
+        let refusal = snapback4_core::device_protocol::check(Some(&old), &required).unwrap_err();
+        assert_eq!(refusal.code, "E_DEVICE_VERSION", "{name}");
+        assert!(refusal.message.contains("branch-pages-v4"), "{name}: {refusal:?}");
+    }
+    let (_, product_backend) = compile(product);
+    assert!(!product_backend.schema.required_capabilities().contains("branch-pages-v4"),
+        "bounded products reuse the existing branch validator");
+}
+
 /// The scenarios are written once over this object-safe view of a host:
 /// open, close, and the calls a test makes through one JSON dispatcher.
 pub trait HostDyn {

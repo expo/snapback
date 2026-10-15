@@ -48,5 +48,6 @@ fn docs_use_engine_file_types_period_boundaries_and_projection_identity() {
     assert_eq!(schedule.boundary(8 * 86_400_000), 7 * 86_400_000 + 8 * 3_600_000);
     let jobs = card("jobs").unwrap();
     assert!(jobs.contains("periodEnd` is the scheduled firing boundary") && jobs.contains("Thursday 08:00 UTC"));
-    assert!(card("types").unwrap().contains("not `format email`"));
+    let types = card("types").unwrap();
+    assert!(types.contains("`format email` accepts one ASCII `@`") && types.contains("alice@localhost"));
 }

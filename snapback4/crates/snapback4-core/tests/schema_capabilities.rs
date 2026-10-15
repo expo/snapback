@@ -18,10 +18,11 @@ fn capabilities_are_derived_independently_and_together() {
     let mut private_only = columns.clone();
     for table in private_only.tables.values_mut() { table.maintained.clear(); }
     assert!(private_only.maintains.iter().any(|m| m.private.is_some()));
-    for schema in [&columns, &projection, &private_only] {
-        assert_eq!(schema.required_capabilities(), ["maintained-column".into(), "source-write-reservations-v1".into(), "source-write-reservations-v2".into()].into());
+    for schema in [&columns, &private_only] {
+        assert_eq!(schema.required_capabilities(), ["maintained-column".into(), "maintained-id-sha256-v1".into(), "source-write-reservations-v1".into(), "source-write-reservations-v2".into()].into());
     }
-    assert_eq!(recorded.required_capabilities(), ["recorded-attribution".into(), "source-write-reservations-v1".into(), "source-write-reservations-v2".into()].into());
+    assert_eq!(projection.required_capabilities(), ["maintained-column".into(), "source-write-reservations-v1".into(), "source-write-reservations-v2".into()].into());
+    assert_eq!(recorded.required_capabilities(), ["maintained-id-sha256-v1".into(), "recorded-attribution".into(), "source-write-reservations-v1".into(), "source-write-reservations-v2".into()].into());
     assert_eq!(timeline.required_capabilities(), ["timeline-event-slots".into(), "timeline-v2".into()].into());
     let mut both = timeline.clone();
     both.tables.get_mut("posts").unwrap().recorded = recorded.tables["likes"].recorded.clone();
@@ -113,7 +114,7 @@ fn legacy_recorded_fixture_decodes_and_emits_only_capabilities() {
     assert_eq!(schema.tables["posts"].recorded.len(), 1);
     assert!(schema.tables.values().all(|t| !t.constraints.iter().any(|c|
         matches!(c, snapback4_core::schema::Constraint::Recorded | snapback4_core::schema::Constraint::Capabilities(_)))));
-    assert_eq!(schema.required_capabilities(), ["recorded-attribution".into()].into());
+    assert_eq!(schema.required_capabilities(), ["maintained-id-sha256-v1".into(), "recorded-attribution".into()].into());
     let encoded = serde_json::to_string(&schema).unwrap();
     assert!(!encoded.contains("Recorded"));
     assert_eq!(encoded.matches("Capabilities").count(), 1);
@@ -138,6 +139,70 @@ fn legacy_recorded_marker_cannot_substitute_for_sequence_capability() {
         if sequences { assert!(decoded.unwrap_err().to_string().starts_with("E_SCHEMA_CAPABILITY:")); }
         else { assert_eq!(decoded.unwrap(), schema); }
     }
+}
+
+#[test]
+fn aggregate_identity_capability_upgrades_legacy_wire_and_fences_old_devices() {
+    let schema = compile("table entries:\n  group: text <=64\n  public\nview totals: count entries by .group\n  public\n");
+    assert!(schema.required_capabilities().contains("maintained-id-sha256-v1"));
+
+    // A pre-migration stored schema may already have a carrier for unrelated
+    // capabilities. Decode it once, then stamp the digest identity capability
+    // on every newly published schema/projection.
+    let mut legacy = serde_json::to_value(&schema).unwrap();
+    for table in legacy["tables"].as_object_mut().unwrap().values_mut() {
+        for constraint in table["constraints"].as_array_mut().unwrap() {
+            if let Some(names) = constraint.get_mut("Capabilities").and_then(|value| value.as_array_mut()) {
+                names.retain(|value| value != "maintained-id-sha256-v1");
+            }
+        }
+    }
+    let upgraded: Schema = serde_json::from_value(legacy).unwrap();
+    let encoded = serde_json::to_string(&upgraded).unwrap();
+    assert!(encoded.contains("maintained-id-sha256-v1"));
+
+    let required = snapback4_core::device_protocol::compatibility(&upgraded.public_projection());
+    let mut old = snapback4_core::device_protocol::DeviceEngine::current();
+    old.version = "0.4.28".into();
+    old.capabilities.retain(|capability| capability != "maintained-id-sha256-v1");
+    let refusal = snapback4_core::device_protocol::check(Some(&old), &required).unwrap_err();
+    assert_eq!(refusal.code, "E_DEVICE_VERSION");
+    assert!(refusal.message.contains("maintained-id-sha256-v1"), "{refusal:?}");
+}
+
+#[test]
+fn expiry_reference_actions_upgrade_legacy_wire_and_fence_old_devices() {
+    let source = "table parents:\n  until: time ?\n  expire at .until\n  public\ntable children:\n  parent: parents on delete cascade\n  cap 1 by parent\n  public\n";
+    let schema = compile(source);
+    assert!(schema.required_capabilities().contains("reference-actions"));
+    assert!(schema.required_capabilities().contains("expiry-reference-actions-v1"));
+
+    let reference_only = compile(&source.replace("  until: time ?\n  expire at .until\n", ""));
+    assert!(reference_only.required_capabilities().contains("reference-actions"));
+    assert!(!reference_only.required_capabilities().contains("expiry-reference-actions-v1"));
+    let expiry_only = compile("table parents:\n  until: time ?\n  expire at .until\n  public\n");
+    assert!(!expiry_only.required_capabilities().contains("expiry-reference-actions-v1"));
+
+    // A kept pre-Wave-12 schema decodes for server adoption, then its next
+    // projection stamps the new device requirement.
+    let mut legacy = serde_json::to_value(&schema).unwrap();
+    for table in legacy["tables"].as_object_mut().unwrap().values_mut() {
+        for constraint in table["constraints"].as_array_mut().unwrap() {
+            if let Some(names) = constraint.get_mut("Capabilities").and_then(|value| value.as_array_mut()) {
+                names.retain(|value| value != "expiry-reference-actions-v1");
+            }
+        }
+    }
+    let upgraded: Schema = serde_json::from_value(legacy).unwrap();
+    assert!(serde_json::to_string(&upgraded).unwrap().contains("expiry-reference-actions-v1"));
+
+    let required = snapback4_core::device_protocol::compatibility(&upgraded.public_projection());
+    let mut old = snapback4_core::device_protocol::DeviceEngine::current();
+    old.version = "0.4.28".into();
+    old.capabilities.retain(|capability| capability != "expiry-reference-actions-v1");
+    let refusal = snapback4_core::device_protocol::check(Some(&old), &required).unwrap_err();
+    assert_eq!(refusal.code, "E_DEVICE_VERSION");
+    assert!(refusal.message.contains("expiry-reference-actions-v1"), "{refusal:?}");
 }
 
 #[test]

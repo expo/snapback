@@ -1,0 +1,74 @@
+{
+  "at": "2026-10-14T22:58:33.773424+00:00",
+  "reason": "Repeat guide run initially found root node_modules absent; restored frozen install and workspace hoist, revalidated generated artifacts, then reran guide successfully. Earlier successful setup remains in setup-results.json. No tracked generated drift.",
+  "guide": {
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0,
+    "preconditions": 0,
+    "warnings": 121
+  },
+  "inventories": {
+    "package_tests": 365,
+    "script_tests": 35,
+    "demos": 31,
+    "publication_leaves": 487,
+    "guide_pages": 162,
+    "snippets": 1937
+  },
+  "docs_budget": {
+    "readme_lines": 320,
+    "budget": 320,
+    "self_containment_passed": 1
+  },
+  "receipts": [
+    {
+      "file": "logs/lang-root-final-inventories.log.gz",
+      "exit": 0,
+      "uncompressed_sha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813",
+      "bytes": 3499
+    },
+    {
+      "file": "logs/lang-root-final-guide.log.gz",
+      "exit": 1,
+      "uncompressed_sha256": "5cfa3833c01be87ceeae02ef6f117802c3ef886735b4d92395ec95fd7248b1fd",
+      "bytes": 19708
+    },
+    {
+      "file": "logs/lang-root-restore-install.log.gz",
+      "exit": 0,
+      "uncompressed_sha256": "83d70540b7e7d17dbf9e835ffdf5c54b2dd535adf05922824b95b53bc35225d4",
+      "bytes": 397
+    },
+    {
+      "file": "logs/lang-root-restore-hoist.log.gz",
+      "exit": 0,
+      "uncompressed_sha256": "029220472bbb9a59211cb6c81d8ccb8f78c7ec70949efd86002fd311ad794c24",
+      "bytes": 1354
+    },
+    {
+      "file": "logs/lang-root-restore-generated.log.gz",
+      "exit": 0,
+      "uncompressed_sha256": "8ec89bab8bb64e61874c8d984788f1cd609008988f8ed90c71c50e1940c92c5a",
+      "bytes": 60627
+    },
+    {
+      "file": "logs/lang-root-restored-guide.log.gz",
+      "exit": 0,
+      "uncompressed_sha256": "d62ed70274abd318ee262e7995bcfbd000425b050f7b6cba9b28582c0c074559",
+      "bytes": 19451
+    },
+    {
+      "file": "logs/lang-docs-budget.log.gz",
+      "exit": 0,
+      "uncompressed_sha256": "1b3d17653da1ef7fe5570af3508b280b3f82cc4756a8795cefd8b5dbdcaeb5c3",
+      "bytes": 4709
+    },
+    {
+      "file": "logs/lang-lean-check.log.gz",
+      "exit": 0,
+      "uncompressed_sha256": "74970e36c9c8dd6659f64e181b45765cf19df4900e1c4b7d674599558cdb1f1f",
+      "bytes": 141
+    }
+  ]
+}

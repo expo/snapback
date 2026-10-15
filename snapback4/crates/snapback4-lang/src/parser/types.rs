@@ -87,12 +87,12 @@ impl Parser {
                     let mut format = None;
                     if self.maybe("format") {
                         let value = self.word()?;
-                        if value.value != "handle" && value.value != "url" {
+                        if !matches!(value.value.as_str(), "handle" | "url" | "email") {
                             let bound = match min {
                                 Some(min) => format!("{min}..{max}"),
                                 None => format!("<={max}"),
                             };
-                            return Err(syntax_with(&value.site, format!("unknown text format {}", value.value), format!("use text {bound} format handle or text {bound} format url")));
+                            return Err(syntax_with(&value.site, format!("unknown text format {}", value.value), format!("use text {bound} format handle, text {bound} format url, or text {bound} format email")));
                         }
                         format = Some(value.value);
                     }

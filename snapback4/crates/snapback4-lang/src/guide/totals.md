@@ -34,6 +34,9 @@ There are two spellings, and they do not mix:
   `view name: sum t of .col by .key`, optionally `where …` before `by`
   (`sum t of .col where … by .key`, in that order). Read
   it by its group key, `spentByOwner[viewer]`; a group with no rows reads `0`.
+  Omit `by` for one global scalar, `view orderCount: count orders`, and read it
+  as `orderCount`. Its authorized empty value is `0` even though zero has no
+  physical aggregate row.
   A view over an `online only` table is read online; its own `online only`
   line is optional.
 
@@ -121,15 +124,28 @@ query myDeptTotal(dept: text <=20):
 
 Finance reads every department's total; each requester reads their own.
 `E_QUARRY_BOUND`'s rewrite prints this view for your table, column and group.
-A view groups by at least one column (`count requests` alone does not parse):
-for a whole-table total, give every row the same key (`totalKey:
-enum('all') default 'all'`, `immutable totalKey`), group by it and read
-`requestsCount['all']`.
+A keyed private view stays nullable until its own read rule is proved. For
+example, after `require exists staff[principal = viewer, role = 'finance']
+else NOT_FINANCE`, `requestsTotal[dept] + 1` is well typed and a readable
+missing group contributes zero. A hidden stored group and a hidden miss both
+remain null. A following write or viewer change invalidates the proof before
+another keyed read.
+A view may omit `by` for a whole-table scalar: `view requestsCount: count
+requests`, read as bare `requestsCount`. The scalar still obeys its view read
+rule: an authorized absence is zero, while a hidden stored or absent value is
+null. Keep a real group key when callers need independent totals.
 A guard on the read rule's own grant admits an inline total, as it admits a
 staff page (`guide indexes`): after `require exists staff[principal = viewer,
 role = 'finance'] else …` (or inside `if` on it), `sum(requests, .amount)` is
 every row's total, because every caller who reaches it reads every row. A guard
 on any other role does not; use the view.
+
+For extrema over a domain, first establish that exact domain is non-empty:
+`n = count(orders where .owner = viewer)` followed by `require n > 0 else
+EMPTY`. From there, `min` and `max` of a required column on the identical
+domain are required values; `sum` already has a zero identity. Optional projected columns remain optional. A
+write, local rebinding, viewer/authority scope change, or different key/filter
+invalidates the proof.
 
 ## Choosing
 

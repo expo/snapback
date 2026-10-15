@@ -43,6 +43,7 @@ pub(super) fn column(decl: &ColumnDecl, expr: &Expr) -> Fallible<ColumnDefault> 
         let format = match format.as_deref() {
             Some("handle") => Some(snapback4_core::schema::TextFormat::Handle),
             Some("url") => Some(snapback4_core::schema::TextFormat::Url),
+            Some("email") => Some(snapback4_core::schema::TextFormat::Email),
             _ => None,
         };
         snapback4_core::engine::validate::validate_text(&decl.name, text, min.unwrap_or(0), format).map_err(|_| bad())?;

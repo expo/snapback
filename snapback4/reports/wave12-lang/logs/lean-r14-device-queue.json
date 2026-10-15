@@ -1,0 +1,35 @@
+{
+  "boundary": "Abstract contract witness only; it does not claim Quarry Eval or device protocol support and leaves the existing row-oracle unsupported boundary unchanged.",
+  "checkpoint": "b9ab88a8b7456df28faec47720ca40569a187fea",
+  "createdUtc": "2026-10-15T02:28:42.417666+00:00",
+  "kind": "wave12-r14-device-queue-formal-witness",
+  "lean": {
+    "auditedTheorems": 67,
+    "examples": 115,
+    "jobs": 56,
+    "log": {
+      "bytes": 205,
+      "path": "snapback4/reports/wave12-lang/logs/lean-r14-device-queue.log.gz",
+      "sha256": "15636c91c0391c25fff9c663221658e0dd27ceed2676bc14d9d48bab5d7850a4"
+    },
+    "oracleFixtures": 7
+  },
+  "refcheck": {
+    "documents": 547,
+    "errors": 0,
+    "log": {
+      "bytes": 94,
+      "path": "snapback4/reports/wave12-lang/logs/refcheck-r14-device-queue.log.gz",
+      "sha256": "2abb3bf20bc907561707c42a6cddaed9f69dcfbc52793cc944d8df8ec1441b55"
+    },
+    "refs": 11888,
+    "unchecked": 0
+  },
+  "schema": 1,
+  "scope": [
+    "abstract two-world public-projection counterexample for private maintained predicates",
+    "honest queue preserves confirmed state until authoritative catch-up",
+    "sequential nested allowance spend and reset 2+3>4 queue counterexample"
+  ],
+  "status": "PASS"
+}

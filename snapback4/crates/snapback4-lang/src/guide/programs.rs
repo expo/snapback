@@ -14,12 +14,6 @@ mutation programWrites(roomId: rooms, title: text 1..80):     -- reads and write
   update rooms[room] { name: title }                           -- a final write is the implicit return
 ```
 
-`programForms` returns the `card` shape; `programWrites` checks visibility
-and ownership before renaming.
-Helpers share one namespace; a helper from `m.q` accepts both `helper(x)` and `m.helper(x)`.
-A different module name is refused with the declaring file and the correct call.
-Helpers inherit loop placement (guide jobs); repeated pure calls narrow (guide types).
-
 ## Limits
 
 - Queries cannot write or mint ids, including through helpers: E_QUARRY_PLACEMENT.
@@ -33,11 +27,9 @@ Jobs run background work, and helpers share logic between programs.
 
 ### Loop writes
 
-Read an authorized page, then write each row:
 Mutation scans of expiring tables require `predicts: "never"` —
-inferred from server-only work, or declared with `: server` — and must sit in
-the initial read-only phase. A write or emit anywhere in an enclosing statement
-ends it. Bind before writing loops:
+inferred from server-only work, or declared with `: server` — in the initial read-only phase.
+An enclosing write or emit ends it; bind the page first:
 
 ```quarry
 table expiringNotes:

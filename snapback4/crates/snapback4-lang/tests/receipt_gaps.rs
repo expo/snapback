@@ -210,6 +210,25 @@ fn uniform_membership_rule_still_requires_the_callers_authority_check() {
 }
 
 #[test]
+fn grant_dominated_expiry_scan_does_not_offer_a_narrower_viewer_predicate() {
+    let source = refused_gap("  unique conversation, ordinal")
+        .replace(
+            "table messages:",
+            "table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable messages:",
+        )
+        .replace("  other: conversations\n", "  other: conversations\n  sender: principal\n")
+        .replace("  public\n  expire", "  read <- .sender = viewer or exists staff[viewer]\n  expire")
+        .replace(
+            "mutation gap(conversation: conversations):\n",
+            "mutation gap(conversation: conversations):\n  require exists staff[viewer] else NOT_STAFF\n",
+        );
+    let b = compile(&[("schema.q".into(), source)]);
+    let d = b.diagnostics.iter().find(|d| d.code == "E_STRUCTURAL_FANOUT").unwrap_or_else(|| panic!("{:?}", b.diagnostics));
+    assert!(!d.rewrite.starts_with("First add `.sender = viewer`"), "{d}");
+    assert!(d.rewrite.contains("above the entire `emit observeGap`"), "{d}");
+}
+
+#[test]
 fn expiry_page_refusal_supplies_a_pasteable_helper_for_both_allocators() {
     let source = recipe();
     let helper_start = source.find("fn skipExpired_messages").unwrap();

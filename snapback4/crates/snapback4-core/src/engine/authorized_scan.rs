@@ -104,6 +104,8 @@ impl<'a> GuardedRows<'a> {
     pub(crate) fn sequence_value(&self, _authorization: &Authorization, parent: &str, id: &str) -> Result<i64, RuntimeError> { self.raw.sequence_value(parent, id) }
     pub(crate) fn provisional_sequence_floor(&self, _authorization: &Authorization, parent: &str, id: &str) -> Result<i64, RuntimeError> { self.raw.provisional_sequence_floor(parent, id) }
     pub(crate) fn set_sequence(&self, parent: &str, id: &str, value: i64) -> Result<(), RuntimeError> { self.raw.set_sequence(parent, id, value) }
+    pub(crate) fn sequence_ids(&self, parent: &str) -> Result<Vec<String>, RuntimeError> { self.raw.sequence_ids(parent) }
+    pub(crate) fn rewrite_sequence_ids(&self, ids: &std::collections::BTreeMap<String, std::collections::BTreeMap<String, String>>) -> Result<u64, RuntimeError> { self.raw.rewrite_sequence_ids(ids) }
     pub(crate) fn put(&self, name: &str, table: &Table, row: &Value, old: Option<&Value>) -> Result<u64, RuntimeError> { self.revision.set(self.revision.get().wrapping_add(1)); self.lookup_cache.borrow_mut().take(); self.raw.put(name, table, row, old) }
     pub(crate) fn delete(&self, name: &str, table: &Table, old: &Value) -> Result<u64, RuntimeError> { self.revision.set(self.revision.get().wrapping_add(1)); self.lookup_cache.borrow_mut().take(); self.raw.delete(name, table, old)
     }

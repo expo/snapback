@@ -225,7 +225,7 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
         if let TypeKind::Text { min, format, .. } = &column.type_.kind
             && (min.is_some() || format.is_some())
         {
-            constraints.push(Constraint::Text { field: column.name.clone(), min: min.unwrap_or(0), format: format.as_deref().map(|f| if f == "handle" { core::TextFormat::Handle } else { core::TextFormat::Url }) });
+            constraints.push(Constraint::Text { field: column.name.clone(), min: min.unwrap_or(0), format: format.as_deref().map(|f| match f { "handle" => core::TextFormat::Handle, "url" => core::TextFormat::Url, "email" => core::TextFormat::Email, _ => unreachable!("parser text format") }) });
         }
     }
     for (value, site) in &decl.final_exists {
@@ -594,7 +594,7 @@ pub fn bind_rule(catalog: &Catalog, info: &TableInfo, rule: &RuleDecl) -> Fallib
         let mut error = super::first_paste::inherited_rule(catalog, info, rule).unwrap_or(error);
         if error.code == "E_QUARRY_RULE_OPERATOR" && rule.effect == Effect::Update && rule.bindings.is_empty()
             && error.rewrite == "write this as a named transition" {
-            let source = format!("update (old, next) <- {}", crate::print::expression(&rule.value));
+            let source = super::rule_operator::named_update_source(&rule.value);
             error.rewrite = format!("name both row images: `{source}`");
             error.source_rewrite = Some(source);
             error.source_rewrite_kind = Some(crate::diag::SourceRewriteKind::NamedUpdate);
@@ -890,6 +890,14 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
     if catalog.tables.get(&read.table).is_some_and(|t| t.decl.ephemeral.is_some()) {
         return Err(Diagnostic::new(site, "E_QUARRY_EPHEMERAL", format!("a rule or after insert cannot probe ephemeral table {}", read.table), "probe a durable table instead").guide("ephemeral"));
     }
+    // @ref LLP 3000.013.001#3-global-maintained-view-representation — rules
+    // and postconditions must not recover the compiler-owned physical row.
+    if catalog.tables.get(&read.table).and_then(|table| table.maintained.as_ref())
+        .is_some_and(|maintain| maintain.by.is_empty())
+    {
+        return Err(type_error(site, format!("{} is one global maintained scalar, not a rule-probe table", read.table),
+            format!("read `{}` as a scalar in a query; keep rules over application tables", read.table)).guide("maintains"));
+    }
     // `exists pieces[.id = .piece, …]`: a comparison where a key belongs. Name
     // the column (`id = .piece`) or give the full unique key by position first.
     // @ref LLP 3000.036#11 — app-farm pattern 27: the positional unique-key form.
@@ -947,7 +955,7 @@ fn probe(catalog: &Catalog, info: &TableInfo, read: &ReadExpr, site: &Site, bind
         let typed = types.iter().cloned().zip(terms.iter().map(|(_, term)| matches!(term, RuleTerm::Literal(Value::String(_))))).collect::<Vec<_>>();
         let declared = super::positional_keys::candidates(target, read, &typed, &catalog.synthesized);
         if declared.len() != 1 {
-            return Err(super::positional_keys::refusal(target, read, &declared, catalog));
+            return Err(super::positional_keys::refusal(target, read, &typed, &declared, catalog));
         }
         if read.index.is_none() {
             let mut selected = read.clone();
@@ -1051,6 +1059,7 @@ fn title(value: &str) -> String {
 /// The columns of a generated maintain target: `id`, `value`, and the `by`
 /// columns typed as the source declares them.
 pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<TableDecl> {
+    const GLOBAL: &str = "$global";
     let site = maintain.site.clone();
     if source.maintained.is_some() { return Err(super::maintains::refusal(&site, "a maintain cannot use another maintain as its source", "define the view over application source rows, or use a job sweep")); }
     let mut columns = Vec::new();
@@ -1075,7 +1084,12 @@ pub fn maintain_target(source: &TableInfo, maintain: &MaintainDecl) -> Fallible<
         let ty = if computed.contains_key(field) { ScalarType { kind: TypeKind::Int, optional: computed[field].column.contains('.') } } else { source.columns[aliases.get(field).unwrap_or(field)].clone() };
         columns.push(ColumnDecl { on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: None, default: None, name: field.clone(), type_: ty, site: site.clone() });
     }
-    let mut indexes = vec![IndexDecl { name: "byGroup".into(), columns: maintain.by.clone(), unique: true, refusal: None, words: None, computed: BTreeMap::new(), site: site.clone() }];
+    // @ref LLP 3000.013.001#3-global-maintained-view-representation — the logical empty tuple gets one store-indexable, compiler-only discriminator.
+    let group = if maintain.by.is_empty() {
+        columns.push(ColumnDecl { on_delete: None, sequence: None, written_by: None, readable_by_audience: false, maintained: None, default: None, name: GLOBAL.into(), type_: ScalarType { kind: TypeKind::Bool, optional: false }, site: site.clone() });
+        vec![GLOBAL.into()]
+    } else { maintain.by.clone() };
+    let mut indexes = vec![IndexDecl { name: "byGroup".into(), columns: group, unique: true, refusal: None, words: None, computed: BTreeMap::new(), site: site.clone() }];
     let mut names = BTreeSet::from(["byGroup".to_owned(), "byId".to_owned()]);
     for index in &maintain.indexes {
         if !names.insert(index.name.clone()) { return Err(super::maintains::refusal(&index.site, format!("duplicate maintain index {}", index.name), "use a distinct index name; byGroup and byId are generated")); }

@@ -94,6 +94,31 @@ def binop (op : BinOp) (a b : Value) : EM Value :=
     else typeErr
   | _, _, _ => typeErr
 
+/-- Truncating quotient/remainder followed by one exact rounding step. The
+model deliberately derives truncation from the existing Euclidean primitive,
+so its oracle is independent of the Rust implementation. -/
+def roundedDiv (rounding : Rounding) (scale : Option Nat) (x y : Int) : EM Value := do
+  if y = 0 then refuse "E_DIV_ZERO"
+  let x := x * (10 : Int) ^ scale.getD 0
+  let qe := Int.ediv x y
+  let re := Int.emod x y
+  let q := if x < 0 ∧ re ≠ 0 then qe + (if y < 0 then -1 else 1) else qe
+  let r := x - q * y
+  if r = 0 then checkI53 q else
+    let direction : Int := if (x < 0) = (y < 0) then 1 else -1
+    let away := q + direction
+    let result := match rounding with
+      | .towardZero => q
+      | .awayFromZero => away
+      | .floor => if direction < 0 then away else q
+      | .ceiling => if 0 < direction then away else q
+      | .halfAwayFromZero => if Int.natAbs r * 2 ≥ Int.natAbs y then away else q
+      | .halfEven =>
+          if Int.natAbs r * 2 > Int.natAbs y ∨
+              (Int.natAbs r * 2 = Int.natAbs y ∧ Int.emod q 2 ≠ 0)
+          then away else q
+    checkI53 result
+
 /-- A calendar builtin over unbounded integers; the caller checks i53. A
 non-positive period or an offset outside `[0, period)` is unreachable from a
 checked program. -/
@@ -558,6 +583,9 @@ def eligiblePin (td : TableDecl) (e : Expr) : Bool :=
   | some (c, v) => c != "id" && (td.cols.any fun d => d.name == c && (!d.nullable || v.isViewer))
   | none => false
 
+def eligiblePinned (td : TableDecl) (p : String × Expr) : Bool :=
+  p.1 != "id" && (td.cols.any fun d => d.name == p.1 && (!d.nullable || p.2.isViewer))
+
 /-- A branch's prefix: its own equalities first, then the page's pins, each
 column once, never `id` or an order column (a merge lane keeps those as
 seeks), within an index's 8 components. -/
@@ -567,6 +595,37 @@ def laneFits (order : List String) (eqs pins : List (String × Expr)) : Bool :=
 
 def laneDecided (td : TableDecl) (order : List String) (eqs pins : List (String × Expr)) : Bool :=
   laneFits order eqs pins && decidedPins td ((eqs ++ pins).filter fun p => p.1 != "id" && !order.contains p.1)
+
+/-- PAGE5's fixed half of a fixed-plus-varying grant: after substituting the
+page pins, this is one timeless, required exact point whose ordinary read
+rule discloses the same answer to the caller. -/
+def fixedPointGuard (sch : Schema) (outer : TableDecl)
+    (pins : List (String × Expr)) : Rule → Bool
+  | r@(.probe t point key) => match sch.table? t with
+    | some source =>
+      let columns := key.map (·.1)
+      key.length == point.length
+        && point.eraseDups.length == point.length
+        && point.all columns.contains
+        && (point == ["id"] || source.uniques.contains point)
+        && point.all (fun name => name == "id" || source.cols.any (fun col => col.name == name && !col.nullable))
+        && source.notBefore.isNone && source.expire.isNone
+        && r.usableGuard sch outer pins
+    | none => false
+  | _ => false
+
+/-- PAGE5's varying half has exactly one outer-row key component and otherwise
+uses PAGE's existing readable, total membership witness. -/
+def varyingPointGrant (sch : Schema) (pins : List (String × Expr))
+    (order : List String) : Rule → Bool
+  | r@(.probe ..) => match r.guardForm pins with
+    | .probe t point key => membershipEligible sch t point key
+        && (membershipColumns key).any fun pair =>
+          !pins.any (·.1 == pair.2)
+            && (!order.contains pair.2 || pair.2 == "id" && order == ["id"])
+            && laneFits order [(pair.2, .viewer)] pins
+    | _ => false
+  | _ => false
 
 /-- Each positive alternative either has a prefix-decided rule, its own
 readable guard, or one exact membership witness with every remaining
@@ -593,7 +652,11 @@ def compoundDecided (sch : Schema) (td : TableDecl) (pins : List (String × Expr
                   !ps.any (·.1 == pair.2) && (!order.contains pair.2 || pair.2 == "id" && order == ["id"])
                   && laneFits order ((pair.2, .viewer) :: extra) pins
               | _ => false
-            | _ => false)
+            | _ =>
+                own.length >= 2
+                  && (own.filter (varyingPointGrant sch ps order)).length == 1
+                  && own.all (fun r => varyingPointGrant sch ps order r
+                    || fixedPointGuard sch td ps r))
 
 
 /-- The exact positive where witness of PAGE4. Other audiences cannot
@@ -621,6 +684,17 @@ def scopedWitnessDecided (sch : Schema) (td : TableDecl)
               && laneFits order [(pair.2, .viewer)] pins
     | _ => false
 
+/-- PAGE5's explicit vacancy: a top-level negated probe of one required
+exact point by the focal row's intrinsic id. The native lane still checks the
+whole read rule per row; this predicate governs only its exhaustion verdict. -/
+def vacancyDecided (sch : Schema) (td : TableDecl) : Bool :=
+  td.read.disjuncts.any fun r => match r with
+    | .not (.probe t [point] [(key, .col .self "id")]) =>
+        point == key && (sch.table? t).any fun source =>
+          (point == "id" || source.uniques.contains [point])
+            && (point == "id" || source.cols.any (fun col => col.name == point && !col.nullable))
+    | _ => false
+
 /-- The pins the single-index planner keeps: the page's equalities and bare
 boolean conjuncts, except `id` and an order column other than the first,
 which stay seeks (`Requests::read`; GPT round 3, finding 3). -/
@@ -628,6 +702,22 @@ def plannedPins (pins : List (String × Expr)) (filter : Option Expr) (order : L
   let fs := (filter.map Expr.conjuncts).getD []
   (pins ++ (fs.filter (!·.isOr)).filterMap Expr.eqPin).filter fun p =>
     p.1 != "id" && (order.head? == some p.1 || !order.contains p.1)
+
+/-- The native membership planner's bounded Cartesian product of positive
+query alternatives. Every resulting branch needs an eligible equality pin;
+the later case-specific descriptor check keeps the system lane plus all
+membership/party lanes within eight. -/
+def filterAlternatives (td : TableDecl) (pins : List (String × Expr))
+    (fs : List Expr) : Option (List (List Expr)) :=
+  let common := fs.filter (!·.isOr)
+  let factors := (fs.filter Expr.isOr).map fun e => e.disjuncts.map Expr.conjuncts
+  if factors.isEmpty then none else
+    let branches := factors.foldl (fun product factor =>
+      product.flatMap fun prior => factor.map fun alternative => prior ++ alternative) [[]]
+    if 2 ≤ branches.length && branches.length ≤ 8
+      && branches.all (fun branch => pins.any (eligiblePinned td)
+        || (common ++ branch).any (eligiblePin td))
+    then some branches else none
 
 /-- The branch rule of LLP 3000.036.001 §2 (cases 1 and 2; a grant branch is
 complete for its holders as `granted` is, and empty for everyone else). -/
@@ -639,16 +729,12 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
     let fs := (filter.map Expr.conjuncts).getD []
     let total := pins.all (fun p => p.2.total) && fs.all (Expr.readablePredicate sch)
     let readFree := pins.all (fun p => p.2.total) && fs.all Expr.total
-    let alts : Option (List (List Expr)) :=
-      match fs.filter Expr.isOr with
-      | [o] =>
-        let as := o.disjuncts
-        if 2 ≤ as.length && as.length ≤ 8 && as.all (fun a => a.conjuncts.any (eligiblePin td))
-        then some (as.map Expr.conjuncts) else none
-      | _ => none
+    let filterPins := pins ++ (fs.filter (!·.isOr)).filterMap Expr.eqPin
+    let alts := filterAlternatives td filterPins fs
+    let filterAlternativesSupported := alts.isSome || !(fs.any Expr.isOr)
     -- The planner pins a bare boolean conjunct too (`where .flag`); the
     -- emitter leaves it in the filter.
-    let pins := pins ++ (fs.filter (!·.isOr)).filterMap Expr.eqPin
+    let pins := filterPins
     let reservedMembership := td.read.ownerMembershipReserved sch
     let case1Candidate := alts.any fun as => as.all fun a => laneDecided td order (a.filterMap Expr.eqPin) pins
     -- The grant lane is the read as written, planned as the single-index page
@@ -674,7 +760,7 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
         | .membership source _ key => (membershipColumns key).any (fun pair => guardPins.any (·.1 == pair.2))
             && (sch.table? source).any (fun source => source.notBefore.isNone)
         | _ => false
-    let case2 := if !guards || ((reservedMembership || pinnedMembership) && !fixedMembership) then false else match td.read.branchParties sch td guardPins true with
+    let case2 := if !guards || !filterAlternativesSupported || ((reservedMembership || pinnedMembership) && !fixedMembership) then false else match td.read.branchParties sch td guardPins true with
       | some ps =>
         let bases := alts.getD [[]]
         -- The grant lane is always planned (the system reads it whole).
@@ -687,7 +773,7 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
     -- PAGE: one system descriptor, party descriptors and eligible exact
     -- membership descriptors. Dynamic discovery does not count against
     -- eight; its static membership descriptor does.
-    let case3 := if !guards then false else match membershipRule with
+    let case3 := if !guards || !filterAlternativesSupported then false else match membershipRule with
       | some leaves =>
         let bases := alts.getD [[]]
         let parties := leaves.filterMap fun leaf => match leaf with | .party c => some c | _ => none
@@ -705,7 +791,8 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
       | none => false
     let case4 := guards && !reservedMembership && !pinnedMembership && alts.isNone && compoundDecided sch td pins order
     let witnessScope := guards && pins.all (fun p => p.2.total) && scopedWitnessDecided sch td pins fs order
-    (total && (case1 || case2)) || (readFree && (case3 || case4)) || witnessScope
+    let vacancy := guards && pins.isEmpty && fs.isEmpty && vacancyDecided sch td
+    (total && (case1 || case2)) || (readFree && (case3 || case4)) || witnessScope || vacancy
 
 def keyValue (k : Key) : Value := .arr (k.map .s)
 
@@ -885,6 +972,12 @@ def evalExpr : Nat → Ctx → View → Env → Option Value → Expr → EM (Va
       | .s (.int n), g => match g n with
         | some r => return (← checkI53 r, none)
         | none => typeErr
+      | _, _ => typeErr
+    | .roundDiv rounding scale a b => do
+      let (x, _) ← ev a
+      let (y, _) ← ev b
+      match x, y with
+      | .s (.int x), .s (.int y) => return (← roundedDiv rounding scale x y, none)
       | _, _ => typeErr
     | .arr xs => do return (.arr (← evs xs), none)
     | .record fs => do

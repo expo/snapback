@@ -98,6 +98,13 @@ def clashCode (td : TableDecl) (withId : Bool) (i : Nat) : Stop :=
 def findRow (rows : List Row) (ks : List (String × Scalar)) : Option Row :=
   if ks.any (·.2 == .null) then none else rows.find? (keyMatch ks)
 
+-- @ref LLP 3000.036.003#7 — expired rows release every logical lookup key.
+/-- A write target lookup selects among live rows, rather than selecting a
+physical predecessor and rejecting it after it has hidden a live match. -/
+def findLiveRow (td : TableDecl) (now : Int) (rows : List Row)
+    (ks : List (String × Scalar)) : Option Row :=
+  findRow (rows.filter (unexpired td now)) ks
+
 /-- The result of a write: the row if the viewer can read it afterwards,
 else null (`why E_CONFLICT`: results are read-rule gets; OPEN W4 for insert). -/
 def resultOf (sch : Schema) (s : Store) (v : List Nat) (t : String) (r : Row) : Value :=
@@ -111,13 +118,14 @@ def resultOfAt (sch : Schema) (s : Store) (v : List Nat) (now : Int)
 def guardE (b : Bool) (e : Stop) : Except Stop Unit := if b then .ok () else .error e
 
 def doInsertImage (sch : Schema) (s : Store) (v : List Nat) (now : Int) (t : String) (td : TableDecl)
-    (img : Row) (ifAbsent : Bool) (deny clashHidden : Stop) :
+    (img : Row) (clashHidden : Stop) :
     Except Stop (Value × Store) := do
-  guardE (td.insert.eval (openedStore sch s now) v { self := some img }) deny
-  match findClash (s t) (["id"] :: td.uniques) img none with
+  -- Insert authority has already been checked. Remaining unique checks and
+  -- the physical insertion use the post-retirement store.
+  match findClash ((s t).filter (unexpired td now)) (["id"] :: td.uniques) img none with
   | some (i, r) => do
     guardE (readableAt sch s v now t r) clashHidden
-    if ifAbsent then pure (.null, s) else throw (clashCode td true i)
+    throw (clashCode td true i)
   | none =>
     let s' := s.insertRow t img
     pure (resultOfAt sch s' v now t img, s')
@@ -135,7 +143,7 @@ def condCheck (rd : Bool) (cond : Option (Row → Except Stop Bool)) (old : Row)
 /-- A secondary unique clash of an update's next image with another row. -/
 def clashCheck (sch : Schema) (s : Store) (v : List Nat) (now : Int) (t : String) (td : TableDecl)
     (rd : Bool) (old nw : Row) : Except Stop Unit :=
-  match findClash (s t) td.uniques nw (some old.id) with
+  match findClash ((s t).filter (unexpired td now)) td.uniques nw (some old.id) with
   | some (i, r) =>
     throw (if !rd then notFound else if !(readableAt sch s v now t r) then eRule else clashCode td false i)
   | none => pure ()
@@ -219,6 +227,174 @@ def refDelete (sch : Schema) (s : Store) (t : String) (old : Row) : Except Stop 
   if restricted sch s cl then throw (.refuse "E_REFERENCED")
   else pure (cl.foldl (fun s p => s.removeRow p.1 p.2) (setNulls sch cl s))
 
+/-- Apply actions to the physical store using only the rows that are logically
+live as action witnesses. The root may itself be absent from `witnesses`. -/
+def refDeleteFrom (sch : Schema) (witnesses physical : Store) (t : String) (old : Row) : Except Stop Store :=
+  let cl := closure sch witnesses (storeSize sch witnesses + 1) [(t, old)] [(t, old)]
+  if restricted sch witnesses cl then throw (.refuse "E_REFERENCED")
+  else
+    let physical := cl.foldl (fun s (parent, row) => (referencing sch parent).foldl (fun s (child, col, action) =>
+      if action == .setNull then
+        ((witnesses child).filter fun k => names k col row.id && !inClosure cl child k).foldl
+          (fun s witness => match (s child).find? fun current => current.id == witness.id with
+            | some current =>
+              if names current col row.id then s.replaceRow child current (clearCol current col) else s
+            | none => s) s
+      else s) s) physical
+    pure (cl.foldl (fun s p => s.removeRow p.1 p.2) physical)
+
+/-! ## Expiry retirement (LLP 3000.036.003 §6; LLP 3000.039 §3) -/
+
+def expired (td : TableDecl) (now : Int) (r : Row) : Bool :=
+  match td.expire with
+  | none => false
+  | some c => match r.get c with
+    | .int closes => closes <= now
+    | _ => false
+
+def stored (s : Store) (t : String) (r : Row) : Bool :=
+  (s t).any fun current => current.id == r.id
+
+/-- Retire a due row that physically holds an inserted id. The native engine
+does this before checking the new image's remaining unique keys, in the same
+transaction as the insert. -/
+def retireExpiredSameId (sch : Schema) (s : Store) (now : Int) (t : String)
+    (td : TableDecl) (rid : List Nat) : Except Stop Store :=
+  match findRow (s t) [("id", .id rid)] with
+  | some old =>
+    if expired td now old then refDeleteFrom sch (unexpiredStore sch s now) s t old
+    else pure s
+  | none => pure s
+
+/-- Whether `insert if absent` has a live unique-key occupant. Native checks
+all live unique collisions before retiring an expired same-id predecessor, so
+a no-op leaves the physical store and its action children unchanged. -/
+def insertIfAbsentClash (sch : Schema) (s : Store) (v : List Nat) (now : Int)
+    (t : String) (td : TableDecl) (img : Row) : Except Stop Bool :=
+  match findClash ((s t).filter (unexpired td now)) (["id"] :: td.uniques) img none with
+  | some (_, r) => do
+    guardE (readableAt sch s v now t r) eRule
+    pure true
+  | none => pure false
+
+/-- An eager snapshot of the declared table rows used while sweeping. A
+`Store` update is a functional closure over the previous store; repeatedly
+retiring rows through that representation retains an exponentially growing
+evaluation tree. Snapshotting after each successful retirement changes only
+the representation, while preserving table order and action sequencing. -/
+abbrev MaterialStore := Array (String × List Row)
+
+def materialRows (tables : List String) (s : Store) : MaterialStore :=
+  tables.toArray.map fun t => (t, s t)
+
+def MaterialStore.store (rows : MaterialStore) (fallback : Store) : Store := fun t =>
+  match rows.find? fun p => p.1 == t with
+  | some (_, rs) => rs
+  | none => fallback t
+
+/-- Runtime's stable ancestor order is lexical when read-through is absent,
+as it is in this model fragment. Expiry retirement visits that order in
+reverse so peers cannot depend on declaration or mutation order. -/
+def expiryRetirementTables (sch : Schema) : List TableDecl :=
+  sch.tables.mergeSort fun a b => String.compare a.name b.name != .lt
+
+/-- In-engine continuation of the bounded expiry index walk. `table` rotates
+the next call after the last table that consumed a visit; `rows` carries the
+last `(selected index components,id)` key for a table whose page exhausted
+the call's limit. -/
+structure SweepCursor where
+  table : Option String := none
+  rows : List (String × Key) := []
+  deriving Repr, DecidableEq
+
+def SweepCursor.after (cursor : SweepCursor) (table : String) : Option Key :=
+  cursor.rows.lookup table
+
+def SweepCursor.mark (cursor : SweepCursor) (table : String) (key : Key) : SweepCursor :=
+  { table := some table, rows := (table, key) :: cursor.rows.filter fun p => p.1 != table }
+
+def SweepCursor.clear (cursor : SweepCursor) (table : String) : SweepCursor :=
+  { cursor with rows := cursor.rows.filter fun p => p.1 != table }
+
+def SweepCursor.toValue (cursor : SweepCursor) : Value :=
+  .row [("table", cursor.table.map (fun t => Value.s (.text (cps t))) |>.getD .null),
+    ("rows", .arr (cursor.rows.mergeSort (fun a b => String.compare a.1 b.1 != .gt) |>.map fun p =>
+      .row [("table", .s (.text (cps p.1))), ("key", .arr (p.2.map Value.s))]))]
+
+/-- Rotate a stable table order after a persisted table name. A stale name
+from an adopted schema leaves the new order unchanged. -/
+def rotateExpiryTables (tables : List TableDecl) : Option String → List TableDecl
+  | none => tables
+  | some after =>
+    let rec go (before : List TableDecl) : List TableDecl → List TableDecl
+      | [] => tables
+      | td :: rest => if td.name == after then rest ++ before.reverse ++ [td]
+        else go (td :: before) rest
+    go [] tables
+
+def expiryOrder (td : TableDecl) : List String :=
+  if td.expiryOrder.isEmpty then td.expire.toList else td.expiryOrder
+
+def dueRowsAfter (td : TableDecl) (physical : List Row) (now : Int)
+    (after : Option Key) : List Row :=
+  match td.expire with
+  | none => []
+  | some _ =>
+    let order := expiryOrder td
+    let due := (sortRows order false physical).filter (expired td now)
+    match after with
+    | none => due
+    | some key => due.filter fun row => keyCmp (rowKey order row) key == .gt
+
+structure SweepState where
+  rows : MaterialStore
+  cursor : SweepCursor
+  visited : Nat := 0
+
+/-- One native expiry-index walk. Native fetches at most 256 keys at a time;
+actions in that page can move or remove rows before the next scan. -/
+partial def sweepExpiryTable (sch : Schema) (base : Store) (now : Int) (limit : Nat)
+    (td : TableDecl) (wrapped : Bool) (state : SweepState) : SweepState :=
+  if state.visited >= limit then state else
+  let physical := state.rows.store base
+  let batch := min (limit - state.visited) 256
+  let candidates := (dueRowsAfter td (physical td.name) now (state.cursor.after td.name)).take batch
+  let count := candidates.length
+  let state := candidates.foldl (fun (state : SweepState) r =>
+    let key := rowKey (expiryOrder td) r
+    let cursor := state.cursor.mark td.name key
+    let physical := state.rows.store base
+    let rows := if stored physical td.name r then
+      match refDeleteFrom sch (unexpiredStore sch physical now) physical td.name r with
+      | .ok next => materialRows (sch.tables.map (·.name)) next
+      | .error (.refuse "E_REFERENCED") => state.rows
+      | .error _ => state.rows
+      else state.rows
+    { rows, cursor, visited := state.visited + 1 }) state
+  if count < batch then
+    let state := { state with cursor := state.cursor.clear td.name }
+    if !wrapped && state.visited < limit then sweepExpiryTable sch base now limit td true state
+    else state
+  else sweepExpiryTable sch base now limit td wrapped state
+
+-- @ref LLP 3000.036.003#6 — sweep each due root transactionally in table order.
+/-- Retire every due physical row. `restrict` retains that root but never
+stops later due keys; cascade and set-null are committed with the root. The
+model has no read-through retained-history rows, so every non-restricted due
+root can be retired immediately. The cursor persists across server sweep calls,
+including calls that finish their current due population. -/
+def sweepExpired (sch : Schema) (s : Store) (now : Int) (cursor : SweepCursor := {})
+    (limit : Option Nat := none) : Store × SweepCursor :=
+  let tables := sch.tables.map (·.name)
+  let limit := limit.getD (storeSize sch s + 1)
+  let ordered := rotateExpiryTables (expiryRetirementTables sch) cursor.table
+  let state := ordered.foldl (fun (state : SweepState) (td : TableDecl) =>
+    if state.visited >= limit then state else
+    sweepExpiryTable sch s now limit td (state.cursor.after td.name).isNone state
+    ) ({ rows := materialRows tables s, cursor } : SweepState)
+  (state.rows.store s, state.cursor)
+
+-- @ref LLP 3000.036.003#6 — same-id replacement authorizes, retires with actions, then inserts.
 /-- Apply one write to the store. -/
 def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
   | .insert t fields ifAbsent =>
@@ -228,14 +404,25 @@ def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
       let fs ← scalarsE fields
       let rid ← insertId fs
       let img ← buildImage td rid fs eInput
-      doInsertImage cx.schema s cx.viewer cx.now t td img ifAbsent eRule eRule
+      -- Native refusal order authorizes the proposed image while the expired
+      -- predecessor is still present, then retires it and applies its actions.
+      guardE (td.insert.eval (openedStore cx.schema s cx.now) cx.viewer { self := some img }) eRule
+      if ifAbsent then
+        let clashes ← insertIfAbsentClash cx.schema s cx.viewer cx.now t td img
+        if clashes then pure (.null, s)
+        else
+          let s ← retireExpiredSameId cx.schema s cx.now t td rid
+          doInsertImage cx.schema s cx.viewer cx.now t td img eRule
+      else
+        let s ← retireExpiredSameId cx.schema s cx.now t td rid
+        doInsertImage cx.schema s cx.viewer cx.now t td img eRule
   | .update t key patch cond =>
     match cx.schema.table? t with
     | none => throw eInput
     | some td => do
       let ks ← scalarsE key
       let ps ← scalarsE patch
-      match findRow (s t) ks with
+      match findLiveRow td cx.now (s t) ks with
       | none => throw notFound
       | some old => doUpdateRow cx.schema s cx.viewer cx.now t td old ps cond
   | .upsert t key patch =>
@@ -244,23 +431,25 @@ def applyWrite (cx : Ctx) (s : Store) : RWrite → Except Stop (Value × Store)
     | some td => do
       let ks ← scalarsE key
       let ps ← scalarsE patch
-      match findRow (s t) ks with
+      match findLiveRow td cx.now (s t) ks with
       | some old => doUpdateRow cx.schema s cx.viewer cx.now t td old ps none
       | none => do
         let rid ← upsertId ks ps
         let img ← buildImage td rid (ks ++ ps) notFound
-        doInsertImage cx.schema s cx.viewer cx.now t td img false notFound notFound
+        guardE (td.insert.eval (openedStore cx.schema s cx.now) cx.viewer { self := some img }) notFound
+        let s ← retireExpiredSameId cx.schema s cx.now t td rid
+        doInsertImage cx.schema s cx.viewer cx.now t td img notFound
   | .delete t key =>
     match cx.schema.table? t with
     | none => throw eInput
     | some td => do
       let ks ← scalarsE key
-      match findRow (s t) ks with
+      match findLiveRow td cx.now (s t) ks with
       | none => throw notFound
       | some old => do
         guardE (td.delete.eval (openedStore cx.schema s cx.now) cx.viewer { self := some old })
           (if readableAt cx.schema s cx.viewer cx.now t old then eRule else notFound)
         guardE ((referencing cx.schema t).isEmpty || readableAt cx.schema s cx.viewer cx.now t old) notFound
-        pure (.null, ← refDelete cx.schema s t old)
+        pure (.null, ← refDeleteFrom cx.schema (unexpiredStore cx.schema s cx.now) s t old)
 
 end Quarry

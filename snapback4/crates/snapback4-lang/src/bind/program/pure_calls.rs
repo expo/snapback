@@ -118,7 +118,7 @@ fn builtin_pure(builtin: &Builtin) -> bool {
         | Builtin::Len | Builtin::Slice | Builtin::Concat | Builtin::Lower | Builtin::Trim
         | Builtin::Sha256 | Builtin::Join | Builtin::Group { .. } | Builtin::First | Builtin::Last
         | Builtin::At | Builtin::Min | Builtin::Max | Builtin::Extremum { .. }
-        | Builtin::ExtremumOf { .. } | Builtin::Divmod { .. } | Builtin::Sort { .. }
+        | Builtin::ExtremumOf { .. } | Builtin::Divmod { .. } | Builtin::Divide { .. } | Builtin::Sort { .. }
         | Builtin::MentionTokens | Builtin::SearchPresent | Builtin::DeterministicShare
         | Builtin::Count | Builtin::Sum | Builtin::CountCapped => true,
     }

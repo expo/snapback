@@ -416,7 +416,7 @@ pub fn scalar_to_arg(scalar: &ScalarType) -> ArgType {
         TypeKind::Text { min, max, format } => ArgType::Text {
             max: *max,
             min: min.unwrap_or(0),
-            format: format.as_deref().map(|f| if f == "handle" { TextFormat::Handle } else { TextFormat::Url }),
+            format: format.as_deref().map(|f| match f { "handle" => TextFormat::Handle, "url" => TextFormat::Url, "email" => TextFormat::Email, _ => unreachable!("parser text format") }),
         },
         TypeKind::Id => ArgType::Id,
         TypeKind::Principal => ArgType::Principal,

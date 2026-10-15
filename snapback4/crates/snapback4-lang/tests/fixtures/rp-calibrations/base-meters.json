@@ -1,56 +1,56 @@
 {
   "0411-hello": {
     "examined": 513,
-    "heap_bytes": 132571,
+    "heap_bytes": 133947,
     "index_entries": 1064,
     "output_bytes": 182210,
     "rows_written": 202,
     "rule_probes": 10,
-    "steps": 9354
+    "steps": 9355
   },
   "0411-near-max": {
     "examined": 513,
-    "heap_bytes": 154023,
+    "heap_bytes": 155399,
     "index_entries": 1064,
     "output_bytes": 182210,
     "rows_written": 202,
     "rule_probes": 10,
-    "steps": 9354
+    "steps": 9355
   },
   "0411-realistic": {
     "examined": 513,
-    "heap_bytes": 140605,
+    "heap_bytes": 141981,
     "index_entries": 1094,
     "output_bytes": 182210,
     "rows_written": 202,
     "rule_probes": 10,
-    "steps": 9354
+    "steps": 9355
   },
   "0412-hello": {
     "examined": 561,
-    "heap_bytes": 224907,
+    "heap_bytes": 226283,
     "index_entries": 1065,
     "output_bytes": 182210,
     "rows_written": 202,
     "rule_probes": 10,
-    "steps": 9798
+    "steps": 9799
   },
   "0412-near-max": {
     "examined": 561,
-    "heap_bytes": 341633,
+    "heap_bytes": 343009,
     "index_entries": 1065,
     "output_bytes": 182210,
     "rows_written": 202,
     "rule_probes": 10,
-    "steps": 9798
+    "steps": 9799
   },
   "0412-realistic": {
     "examined": 561,
-    "heap_bytes": 236535,
+    "heap_bytes": 237911,
     "index_entries": 1095,
     "output_bytes": 182210,
     "rows_written": 202,
     "rule_probes": 10,
-    "steps": 9798
+    "steps": 9799
   }
 }

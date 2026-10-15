@@ -97,6 +97,21 @@ pub fn bind(documents: Vec<Document>) -> Bound {
 // verifying the diagnostics from a rejected candidate.
 pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     let mut diagnostics = Vec::new();
+    let mut first_identity = None;
+    for document in &documents {
+        if let (Some(methods), Some(site)) = (document.identity, document.identity_site.as_ref()) {
+            if let Some((first_methods, first_site)) = &first_identity {
+                diagnostics.push(crate::parser::repeated_identity(
+                    site,
+                    *first_methods,
+                    first_site,
+                    methods,
+                ));
+            } else {
+                first_identity = Some((methods, site.clone()));
+            }
+        }
+    }
     // @ref LLP 3000.007#8 — catalog provenance comes from source, before any generated declarations.
     let authored_indexes = documents.iter().flat_map(|doc|
         doc.tables.iter().map(|t| (&t.name, &t.indexes))
@@ -263,8 +278,13 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
                 }
                 let source = bound.sources.get(&error.site).or_else(|| error.page_site.as_ref().and_then(|site| bound.sources.get(site)));
                 let site = source.map_or(&bound.site, |(site, _)| site);
+                // @ref LLP 3000.036.002#9 — the direct viewer predicate is the smallest structural-fanout repair.
+                let direct_viewer_repair = bound.direct_viewer_repair(&schema, &error);
                 let message = if error.site.starts_with("for/") && let Some((_, name)) = source { format!("loop over {name}: {}", error.message) } else { error.message };
                 let mut rewrite = error.rewrite;
+                if let Some(direct) = direct_viewer_repair {
+                    rewrite = format!("{direct}{rewrite}");
+                }
                 if rewrite.starts_with("iterate the original group:") && let Some(page) = error.page_site.as_ref().and_then(|site| bound.sources.get(site))
                     && let Some(scan) = snapback4_core::ir::scans(&bound.program).into_iter().find(|scan| Some(&scan.site) == error.page_site.as_ref()) {
                     let group = whole_group_rewrite(&catalog, &page.1, scan);
@@ -800,7 +820,9 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         let inferred_search = snapback4_core::search_plan::ordinary::plan(schema, &bound.program);
         // @ref LLP 3000.036.001#14 — grant, system and witnessed membership lanes carry their own proof.
         let proof_lanes: Vec<*const snapback4_core::ir::Scan> = snapback4_core::ir::body_merges(&bound.program.body).into_iter()
-            .filter(|merge| merge.branches()).flat_map(|merge| merge.lanes.iter().filter(|lane| lane.grant() || lane.system() || lane.membership() || lane.guarded()).map(|lane| &lane.scan as *const _)).collect();
+            .filter(|merge| merge.branches()).flat_map(|merge| merge.lanes.iter().filter(|lane|
+                lane.grant() || lane.system() || lane.membership() || lane.guarded() || lane.vacancy())
+                .map(|lane| &lane.scan as *const _)).collect();
 
         for scan in snapback4_core::ir::scans(&bound.program) {
             if proof_lanes.contains(&(scan as *const _)) { continue; }
@@ -846,6 +868,8 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                 && schema.operations.get(&bound.program.name).is_some_and(|fact| fact.runs.as_deref() == Some("device")))
                 .then(|| first_paste::held_query(catalog, &bound.site)).flatten();
             let scope_rewrite = existing.map(|(name, _)| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); the existing index `{name}: {columns}` supports it; or read the page on the device", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));
+            let equality_index_rewrite = equality_filter_index_rewrite(catalog, table, scan, &unpinned, &leading,
+                &bound.site, bound.sources.get(&scan.site).map(|(site, _)| site));
             let cap_repair = bound
                 .sources
                 .get(&scan.site)
@@ -909,7 +933,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                         admitted.as_ref().map_or_else(String::new, |grant| if conditional { format!(" for callers `{grant}` admits, and otherwise remains capped") } else { format!(" except for callers `{grant}` admits") }),
                         table.rules.read.quarry(), unpinned.iter().map(|c| format!(".{c}")).collect::<Vec<_>>().join(", ")) },
                     cap_repair.or(held_rewrite).or(search_rewrite.clone()).unwrap_or_else(|| {
-                        let base = scope_rewrite.unwrap_or_else(|| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));
+                        let base = scope_rewrite.or(equality_index_rewrite).unwrap_or_else(|| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));
                         let declaration = catalog.source.declarations.get(&bound.site.to_string()).map(String::as_str);
                         match pin_rewrite::pin_rewrite(schema, &bound.program, scan, table, &unpinned, declaration) {
                             Some((Some(code), pin)) => format!("{code}\n\nOtherwise: {base}. As code: {pin}{parent_advice}"),
@@ -923,6 +947,78 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         }
     }
     notes
+}
+
+/// An authored equality may already be the right authorization scope while a
+/// named order index leaves it as a residual filter. Print the two exact edits
+/// together: the compatible declaration and the same query selecting it.
+// @ref LLP 3000.036.001#18 — equality-filter advice is mechanically coherent even when it remains advisory.
+fn equality_filter_index_rewrite(catalog: &Catalog, table: &snapback4_core::schema::Table,
+    scan: &snapback4_core::ir::Scan, unpinned: &[String], leading: &[String],
+    declaration_site: &crate::Site, read_site: Option<&crate::Site>) -> Option<String> {
+    use snapback4_core::ir::{BinaryOp, Expr};
+    fn pins(expr: &Expr, column: &str) -> bool {
+        match expr {
+            Expr::Binary { op: BinaryOp::And, left, right } => pins(left, column) || pins(right, column),
+            Expr::Binary { op: BinaryOp::Eq, left, right } => field(left, column) && independent(right)
+                || field(right, column) && independent(left),
+            _ => false,
+        }
+    }
+    fn field(expr: &Expr, column: &str) -> bool {
+        matches!(expr, Expr::Field { base, name } if name == column
+            && matches!(base.as_ref(), Expr::Variable(binding) if binding == "$filter"))
+    }
+    fn independent(expr: &Expr) -> bool {
+        match expr {
+            Expr::Field { base, .. } => !matches!(base.as_ref(), Expr::Variable(binding) if binding == "$filter") && independent(base),
+            Expr::Binary { left, right, .. } => independent(left) && independent(right),
+            Expr::Unary { value, .. } => independent(value),
+            Expr::Array(values) => values.iter().all(independent),
+            Expr::Object(fields) => fields.values().all(independent),
+            Expr::Builtin { args, .. } => args.iter().all(independent),
+            Expr::Get(_) | Expr::Exists(_) | Expr::Scan(_) | Expr::Merge(_) | Expr::Block { .. } => false,
+            _ => true,
+        }
+    }
+    let filter = scan.filter.as_deref()?;
+    if unpinned.is_empty() || leading.len() > 8 || !unpinned.iter().all(|column| pins(filter, column)) { return None; }
+    let title = |value: &str| { let mut chars = value.chars(); chars.next()
+        .map(|first| first.to_uppercase().collect::<String>() + chars.as_str()).unwrap_or_default() };
+    let stem = leading.iter().filter(|column| column.as_str() != "id").map(|column| title(column)).collect::<String>();
+    if stem.is_empty() { return None; }
+    let mut name = format!("by{stem}");
+    let mut suffix = 2;
+    while table.indexes.contains_key(&name) {
+        name = format!("by{stem}{suffix}"); suffix += 1;
+    }
+    let authored = catalog.tables.get(&scan.table)?;
+    let candidate = crate::ast::IndexDecl { name: name.clone(), columns: leading.to_vec(), unique: false,
+        refusal: None, words: None, computed: Default::default(), site: declaration_site.clone() };
+    if !key_bound::plain_index_fits(authored, &candidate, &name) { return None; }
+    // Locate the authored read by its source-map span. A declaration can use
+    // the same old index more than once; replacing a text occurrence can edit
+    // an earlier, unrelated read and print a query that does not compile.
+    let read_site = read_site?;
+    let (mut read, text, grouped, start) = catalog.source.read(read_site)?;
+    // Positional/named bracket keys address the old index's columns. Merely
+    // prepending authorization components would retarget those values, so a
+    // coherent repair needs authored key expressions for the new prefix.
+    if !read.keys.is_empty() { return None; }
+    if read.index.as_deref() != Some(scan.index.as_str()) { return None; }
+    read.index = Some(name.clone());
+    let fixed = crate::ast::Expr::Read(read);
+    let replacement = crate::print::with_source_at(&fixed, if grouped { 8 } else { 0 }, &|expr| catalog.source.get(expr));
+    let declaration = catalog.source.declarations.get(&declaration_site.to_string())?;
+    let line = start.line.checked_sub(declaration_site.line)? as usize;
+    let lines = declaration.split('\n').collect::<Vec<_>>();
+    let column = start.col.checked_sub(1)? as usize;
+    let byte = lines.get(line)?.char_indices().map(|(i, _)| i).chain([lines[line].len()]).nth(column)?;
+    let offset = lines[..line].iter().map(|line| line.len() + 1).sum::<usize>() + byte;
+    let span = offset..offset.checked_add(text.len())?;
+    if declaration.get(span.clone())? != text { return None; }
+    let rewritten = crate::parser::repairs::splice(declaration, vec![(span, replacement)])?;
+    Some(format!("on table {} add `by {name}: {}`; use the same index in the rewritten query:\n```quarry\n{rewritten}\n```", scan.table, leading.join(", ")))
 }
 
 fn matching_merge_rewrite(schema: &Schema, scan: &snapback4_core::ir::Scan, table: &snapback4_core::schema::Table) -> Option<String> {

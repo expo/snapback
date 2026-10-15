@@ -1,0 +1,46 @@
+{
+  "at": "2026-10-15T01:55:36.649058+00:00",
+  "production": "cfd4e2f242",
+  "ref_check": {
+    "docs": 547,
+    "refs": 11885,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "inventories": {
+    "package_tests": 365,
+    "script_tests": 35,
+    "demos": 31,
+    "publication_leaves": 487,
+    "pages": 162,
+    "snippets": 1937
+  },
+  "guide": {
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0,
+    "preconditions": 0,
+    "warnings": 121
+  },
+  "docs_budget_prior_unchanged_inputs": "root-recheck-results.json; 320/320 +self-containment PASS; R13 changes no README/guide-budget inputs",
+  "receipts": [
+    {
+      "file": "logs/lang-r13-final-ref-check.log.gz",
+      "sha256": "2b9fecc1bb94791fe7c50f3009fb84ba26a960152e8cfe850b36539da7de7cb3",
+      "uncompressed_sha256": "999fe2152fbe1a3797ab4695b827d3feb8bc5d55346bb32156f1e72024296ee3",
+      "exit": 0
+    },
+    {
+      "file": "logs/lang-r13-root-inventories.log.gz",
+      "sha256": "3e726e2a66c8627b0f3779e0533edbab31ae71def49b8790abb06f9c08594925",
+      "uncompressed_sha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813",
+      "exit": 0
+    },
+    {
+      "file": "logs/lang-r13-root-guide.log.gz",
+      "sha256": "0a4e5edd6f9518da0fa97d61adee9dc0f4fdf7bd006ed67628e5e0ef7a3c215f",
+      "uncompressed_sha256": "d62ed70274abd318ee262e7995bcfbd000425b050f7b6cba9b28582c0c074559",
+      "exit": 0
+    }
+  ]
+}

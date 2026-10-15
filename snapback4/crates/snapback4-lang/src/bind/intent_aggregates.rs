@@ -65,7 +65,9 @@ pub(super) fn remember_domains(catalog: &mut Catalog) {
                 && matches!(name.as_str(), "min" | "max") && args.len() == 2
                 && !catalog.functions.contains_key(name) && intent::column(&args[1]).is_none()
                 && let Expr::Read(read) = &args[0]
-                && read.range.is_none() && read.matching.is_none() && catalog.tables.contains_key(&read.table) {
+                && read.range.is_none() && read.matching.is_none()
+                && catalog.tables.get(&read.table).is_some_and(|table|
+                    !table.maintained.as_ref().is_some_and(|maintain| maintain.by.is_empty())) {
                 catalog.extremum_domains.insert(read.site.to_string(), read.clone());
             }
         });

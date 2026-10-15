@@ -1,0 +1,59 @@
+{
+  "recorded_utc": "2026-10-15T03:38:24.517766+00:00",
+  "final_product_commit": "8e2ac7cacd",
+  "status": "SEMANTIC_INPUT_AUDIT_COMPLETE",
+  "principle": "Carry evidence only for unchanged semantic inputs; the authentic predecessor-store paths changed in R15 have separate migration regressions and a new complete core unit run. This is not an exact-HEAD complete-battery claim.",
+  "native_campaign": {
+    "receipt": "campaigns/review-r12-20000-receipt.json",
+    "source_commit": "46dcc1e99f",
+    "generated": 20000,
+    "executed": 1220035,
+    "new_signatures": 0,
+    "changes_after_source": [
+      "R13 commit-end retirement added to local::predict only; SQLite aggregate/retirement cfg was already active for native server builds.",
+      "R14 private-column queue is guarded by self.device; nested allowance ownership is false for native execution; PostgreSQL migration is feature-gated off in this campaign.",
+      "R15 counter scan/rekey runs only during predecessor aggregate-id adoption. execute::seeded creates Store::memory and a fresh Engine::new_at, with no predecessor or legacy marker. It cannot reach that migration.",
+      "5042 accepts only byte-exact canonical predecessor-typed tuples for persisted counter custody; arbitrary/dangling noncanonical IDs remain opaque. This remains inside legacy adoption, not fresh campaign execution.",
+      "726d preserves established surviving-row identity mappings when settling counter-only dependencies; this remains in legacy adoption only. The complete retirement/adoption module passed 21/21 and frozen 0.4.28 migrations passed 4/4.",
+      "Final R19 f365/b3c/93d requires full predecessor column admission, pairs the predecessor schema/maintain metadata and limits ownership to predecessor aggregates. All run only during predecessor-store adoption; fresh campaigns cannot reach them. Final adoption/retirement25/25 and authentic0.4.28 migrations4/4 pass."
+    ],
+    "path_evidence": [
+      "crates/snapback4-difftest/src/execute.rs:60",
+      "crates/snapback4-core/src/engine/activation.rs",
+      "crates/snapback4-core/src/engine/local.rs",
+      "crates/snapback4-core/src/engine/write_references.rs"
+    ]
+  },
+  "device_campaign": {
+    "receipt": "campaigns/review-r14-20000-device-receipt.json",
+    "source_commit": "65560f6c4e",
+    "generated": 20000,
+    "executed": 648098,
+    "new_signatures": 0,
+    "r15_non_reach": "devices::server calls execute::seeded for a fresh server; device installation is not server legacy-store adoption. Added Rows trait methods refuse device use and are called only by the legacy installer. Shared web layout changed, so the final wasm gets its own build/measurement and exact bridge."
+  },
+  "lean_campaign": {
+    "receipt": "campaigns/review-r12-20000-receipt.json",
+    "oracle_model_commit": "2fb3bb2e98",
+    "oracle_sha256": "c81001208782e3a086b51ff0d213bd193f21cbbf1189cea94500305eb112db0b",
+    "generated": 20000,
+    "executed": 56917,
+    "matched": 16697,
+    "unsupported": 3173,
+    "inherited_disagreements": 130,
+    "new_signatures": 0,
+    "baseline": "reports/20261013-integration9/lean-signature-baseline.json",
+    "baseline_sha256": "c78c291f7381bb22a8dcc936d9a257e61401b729cdf70ca0fe6f2accb9f9c1df",
+    "unchanged_evaluator": "git diff 2fb3bb2e98..f3ba53b70f -- snapback4/lean changes only Audit.lean, Quarry.lean imports, Maintained.lean abstract counter witnesses and new Wave12DeviceQueue.lean. Eval/Write/Syntax and the runtime oracle algorithm are unchanged.",
+    "fragment_boundary": "Full maintained-view execution, full Unicode search, duration stops, store/commit faults and through/ephemeral scheduling remain outside declared row-oracle support."
+  },
+  "broad_tests": {
+    "full_six": "full-six-reconciliation.json",
+    "full_device_and_difftest": "r13-full-device-difftest.json",
+    "r14_device_delta": "r14-device-affected.json",
+    "r14_full_difftest": "r14-full-difftest.json",
+    "full_simulator": "full-six-reconciliation.json",
+    "r15_host_migration_and_core": "p1-p2-status.json"
+  },
+  "client_carry": "r19-artifact-and-client-qualification.json; R19 server predecessor aggregate-counter adoption is not reached by carried clients. Ordinary chat sequences have ordinary parents. Final exact wasm bytes receive an independent bridge."
+}

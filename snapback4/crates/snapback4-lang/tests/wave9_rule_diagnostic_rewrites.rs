@@ -41,6 +41,46 @@ fn every_concrete_rule_rewrite_is_the_emitted_text_and_compiles_in_its_schema() 
     classified(&diagnostic, SourceRewriteKind::NamedUpdate);
     assert_eq!(diagnostic.source_rewrite.as_deref(), Some("update (old, next) <- (old.status = 'pending' and next.status = 'confirmed')"));
     emitted_source_compiles(update, "update <- old.status = 'pending' and next.status = 'confirmed'", &diagnostic);
+
+    let partially_named = "table fees:\n  owner: principal\n  status: enum('pending', 'archived')\n  public 'fees'\n  update <- .owner = viewer and old.status != 'archived'\n  online only\n";
+    let diagnostic = refusal(partially_named, "E_QUARRY_RULE_OPERATOR");
+    classified(&diagnostic, SourceRewriteKind::NamedUpdate);
+    assert_eq!(
+        diagnostic.source_rewrite.as_deref(),
+        Some("update (old, next) <- (next.owner = viewer and old.status != 'archived')")
+    );
+    let repaired = emitted_source_compiles(
+        partially_named,
+        "update <- .owner = viewer and old.status != 'archived'",
+        &diagnostic,
+    );
+    assert!(repaired.contains("update (old, next)") && repaired.contains("next.owner"));
+
+    let literal_field_text = "table fees:\n  owner: principal\n  label: text <=40\n  public 'fees'\n  update <- old.label = '.owner' and .owner = viewer\n  online only\n";
+    let diagnostic = refusal(literal_field_text, "E_QUARRY_RULE_OPERATOR");
+    classified(&diagnostic, SourceRewriteKind::NamedUpdate);
+    assert_eq!(
+        diagnostic.source_rewrite.as_deref(),
+        Some("update (old, next) <- (old.label = '.owner' and next.owner = viewer)")
+    );
+    emitted_source_compiles(
+        literal_field_text,
+        "update <- old.label = '.owner' and .owner = viewer",
+        &diagnostic,
+    );
+
+    let underscore_field = "table fees:\n  _owner: principal\n  status: enum('pending', 'archived')\n  public 'fees'\n  update <- old.status != 'archived' and ._owner = viewer\n  online only\n";
+    let diagnostic = refusal(underscore_field, "E_QUARRY_RULE_OPERATOR");
+    classified(&diagnostic, SourceRewriteKind::NamedUpdate);
+    assert_eq!(
+        diagnostic.source_rewrite.as_deref(),
+        Some("update (old, next) <- (old.status != 'archived' and next._owner = viewer)")
+    );
+    emitted_source_compiles(
+        underscore_field,
+        "update <- old.status != 'archived' and ._owner = viewer",
+        &diagnostic,
+    );
 }
 
 #[test]

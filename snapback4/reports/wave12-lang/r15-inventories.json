@@ -1,0 +1,13 @@
+{
+  "command": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 node scripts/check-inventories.mjs",
+  "exit_code": 0,
+  "status": "PASS",
+  "package_tests": 365,
+  "script_tests": 35,
+  "demos": 31,
+  "publication_leaves": 487,
+  "guide_pages": 162,
+  "guide_snippets": 1937,
+  "log": "logs/r15-inventories.log.gz",
+  "sha256": "68b07bed3e979d557c802855edfba48baadd34072e30f4f8a74fc79b1b252fe8"
+}

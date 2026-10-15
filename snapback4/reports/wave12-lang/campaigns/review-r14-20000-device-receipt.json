@@ -1,0 +1,18 @@
+{
+  "at": "2026-10-15T02:28:49.746271+00:00",
+  "product_commit": "65560f6c4e",
+  "binary_sha256": "930190f5f7257ceaad75cff0023bfcfe023a830d67bb3a0001d99ae580193463",
+  "command": "/tmp/lang-final-difftest-65560f6c4e run-devices --seed 0 --cases 20000 --workers 4 --out /tmp/lang-final-device-65560f6c4e",
+  "exit_code": 0,
+  "generated": 20000,
+  "executed": 648098,
+  "seconds": 434.201770446,
+  "runtime_refused_unexpected": {},
+  "signatures": {},
+  "time_limited_workers": 0,
+  "report": "review-r14-20000-device.json",
+  "report_sha256": "0538a943f68d57f3c3f08dcb6b37dd58d93b72ebcec41e92266c9fd532a2b979",
+  "log": "review-r14-20000-device.log.gz",
+  "log_sha256": "d10092ef8ad05bd54296b0891e1126671cec16cd07b6afc2908279c87069fa5d",
+  "scope": "Final R14 prediction runtime; the later persisted-store counter migration is outside these fresh-store device campaign paths and requires its authentic legacy-store migration witnesses. Named unsupported and predicted-then-refused controls remain reported in the detailed report."
+}

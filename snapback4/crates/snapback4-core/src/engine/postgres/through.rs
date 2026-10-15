@@ -25,7 +25,8 @@ impl PostgresEngine {
             Meter::new(Ceilings::unbounded(), Cut::Abort),
             seq,
         );
-        let count = runner.sweep_server_rows(limit)?;
+        let mut expiry_after = self.expiry_after.clone();
+        let count = runner.sweep_server_rows(limit, &mut expiry_after)?;
         let events = runner.events.take();
         let tables: Vec<_> = runner.written_tables.iter().cloned().collect();
         let writes = runner.rows_written;
@@ -43,6 +44,7 @@ impl PostgresEngine {
             partition::append(&tx, seq, &events)?;
         }
         tx.commit()?;
+        self.expiry_after = expiry_after;
         Ok(count)
     }
 
@@ -175,11 +177,15 @@ impl PostgresEngine {
         )?;
         drop(runner);
         super::super::through_activation::validate_indexes(&tx, &schema)?;
-        tx.execute("UPDATE _backend SET schema=$1, programs=$2, generation=$3, through_shortened=$4 WHERE singleton",&[&canonical_json(&schema),&canonical_json(&programs),&(generation as i64),&canonical_json(&shortened)])?;
+        tx.execute("UPDATE _backend SET schema=$1, programs=$2, generation=$3, through_shortened=$4, maintained_identity_version=$5 WHERE singleton",&[
+            &canonical_json(&schema), &canonical_json(&programs), &(generation as i64),
+            &canonical_json(&shortened), &crate::schema::MAINTAINED_ID_VERSION,
+        ])?;
         tx.commit()?;
         self.schema = schema;
         self.programs = programs;
         self.store.generation = generation;
+        self.expiry_after.clear();
         Ok(generation)
     }
 }

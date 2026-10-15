@@ -120,6 +120,60 @@ fn a_refused_reseed_leaves_the_store_untouched() {
     assert_eq!(count(&mut engine, "L1"), Value::Int(1));
 }
 
+const EXPIRY_RESET: &str = "table aFree:
+  until: time
+  expire at .until
+  public
+table zBlocked:
+  until: time
+  expire at .until
+  public
+table zReferences:
+  root: zBlocked on delete restrict
+  public
+";
+
+fn expiry_engine() -> Engine {
+    let bound = snapback4_lang::compile(&[("expiry-reset.q".into(), EXPIRY_RESET.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    Engine::new_at(Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program), 0).unwrap()
+}
+
+fn expiring(table: &str, id: &str) -> (String, Value) {
+    (table.into(), object([("id", Value::Id(id.into())), ("until", Value::Int(10))]))
+}
+
+/// A successful reset creates a fresh store identity and therefore a fresh
+/// bounded expiry walk. A refused reset leaves both the store and its walk
+/// continuation untouched.
+#[test]
+fn reset_restarts_the_expiry_walk_only_after_commit() {
+    let blocked_seed = || [
+        expiring("aFree", "a"),
+        expiring("zBlocked", "z"),
+        ("zReferences".into(), object([
+            ("id", Value::Id("w".into())),
+            ("root", Value::Id("z".into())),
+        ])),
+    ];
+
+    let mut refused = expiry_engine();
+    refused.seed_at(blocked_seed(), 0).unwrap();
+    assert_eq!(refused.sweep_expired(10, 1).unwrap(), 0, "the reverse table walk first retains zBlocked");
+    assert!(refused.dev_reset_at(vec![("aFree".into(), Value::Null)], 0).is_err());
+    assert_eq!(refused.sweep_expired(10, 1).unwrap(), 1, "a refused reset preserves the cursor that rotates next to aFree");
+    assert!(refused.store().rows("aFree").unwrap().is_empty());
+    assert_eq!(refused.store().rows("zBlocked").unwrap().len(), 1);
+
+    let mut committed = expiry_engine();
+    committed.seed_at(blocked_seed(), 0).unwrap();
+    assert_eq!(committed.sweep_expired(10, 1).unwrap(), 0);
+    committed.dev_reset_at(vec![expiring("aFree", "a"), expiring("zBlocked", "z")], 0).unwrap();
+    assert_eq!(committed.sweep_expired(10, 1).unwrap(), 1);
+    assert_eq!(committed.store().rows("aFree").unwrap().len(), 1, "the fresh reverse walk has not reached aFree");
+    assert!(committed.store().rows("zBlocked").unwrap().is_empty(), "the fresh reverse walk starts at zBlocked");
+}
+
 /// A reset empties every table together, so no referential action runs and
 /// no reference is left naming a removed row (LLP 3000.039 §6.5); the reseed
 /// rebuilds the reference indexes, so the next delete cascades and restricts

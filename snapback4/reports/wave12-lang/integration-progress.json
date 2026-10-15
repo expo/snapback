@@ -1,0 +1,64 @@
+{
+  "at": "2026-10-15T03:43:09.520521+00:00",
+  "status": "COMPLETE",
+  "final_qualification": true,
+  "qualification_scope": "LANG semantic and affected integration checks; not publication qualification or a single exact-HEAD full-battery claim",
+  "production": "8e2ac7cacd",
+  "semantic_review_provenance_commit": "073acfc7ff",
+  "artifact_budget_census_commit": "4c27eac1b5",
+  "reviews": {
+    "P1P2": "R19 both READY",
+    "P3P4_diagnostics": "R8 both READY",
+    "language": "R7 both READY",
+    "PAGE5": "R8 both READY"
+  },
+  "census": {
+    "schemas": 100,
+    "before_notes": 324,
+    "after_notes": 318,
+    "new_refusals": [],
+    "P3_P4_exceptions": [],
+    "source_hashes_identical": true
+  },
+  "verification": {
+    "full_six": "393 targets6201pass21initialfail43ignore; all21initialfailures closed by scoped greens; original red log retained",
+    "core_unit": "349pass3ignore; finaladoption25pass",
+    "actual028": "4/4PASS",
+    "full_simulator": "706pass7ignore",
+    "full_device_difftest": "110targets1647pass4ignore",
+    "final_device_delta": "29/29PASS",
+    "final_full_difftest": "93/93PASS",
+    "Lean": "56jobs73theorems115examples7fixturesPASS",
+    "clients": "30file scoped union; final exact bytes3testsPASS8bridgecases;1198sealedinputhashes/modes unchanged;12earlier authored published-RX skips retained",
+    "native20k": "1220035executions0newsignatures",
+    "device20k": "648098executions0newsignatures",
+    "Lean20k": "56917executions16697matched3173unsupported130disagreements4inheritedsignatures0new",
+    "root_checks": "Final R19 inventoriesPASS365/35/31/487/162/1937; guide22/22PASS0skip0precondition121inheritedwarnings",
+    "docs_budget": "README320/320+selfcontainmentPASS",
+    "ref_check": "547docs11889refs0errors0unchecked",
+    "PostgreSQL": "feature compilationPASS; no livecluster"
+  },
+  "wasm": {
+    "path": "/tmp/lang-final-wasm-8e2ac7cacd/snapback4_device_bg.wasm",
+    "sha256": "66b1e7bcf41379b46a1d63be46b3fde8ddb257c8957fbb1eb8ee905c0a6ca955",
+    "raw": 2353736,
+    "gzip": 716765,
+    "brotli": 541361,
+    "budget": 717265,
+    "clean_measurement_commit": "073acfc7ff"
+  },
+  "remaining": [],
+  "pending": {},
+  "pushed": false,
+  "report": "WORKSTREAM-REPORT.md",
+  "orchestration_tick": {
+    "at": "2026-10-15T03:43:09.520521+00:00",
+    "milestone": "All requested LANG implementation, semantic review and qualification complete; final report commit",
+    "percent": 100,
+    "eta_minutes": [
+      0,
+      0
+    ],
+    "program_elapsed_minutes": 376
+  }
+}

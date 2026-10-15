@@ -1,1 +1,1 @@
-{"args":{"conversation":"c","id":"m","quote":null,"text":"hello"},"label":"0411-hello","meter":{"examined":513,"heap_bytes":132003,"index_entries":1064,"output_bytes":182210,"rows_written":202,"rule_probes":10,"steps":9354},"now":4000000000000,"predicted":true,"serverCommitted":true}
+{"args":{"conversation":"c","id":"m","quote":null,"text":"hello"},"label":"0411-hello","meter":{"examined":513,"heap_bytes":133379,"index_entries":1064,"output_bytes":182210,"rows_written":202,"rule_probes":10,"steps":9355},"now":4000000000000,"predicted":false,"serverCommitted":true}

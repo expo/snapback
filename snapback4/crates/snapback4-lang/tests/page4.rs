@@ -216,3 +216,209 @@ fn compound_prefix_conditional_note_names_the_guard_for_its_admitted_callers() {
     let note=b.notes.iter().find(|n|n.code=="N_CONDITIONAL_COMPLETE").unwrap();
     assert!(note.message.contains("for callers `exists members[") && note.message.contains("and otherwise remains capped"),"{note:?}");
 }
+
+#[test]
+fn two_principal_status_scope_and_fixed_plus_per_row_grants_are_complete() {
+    let escorts = "table roles:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable escorts:\n  student: principal\n  volunteerOne: principal ?\n  volunteerTwo: principal ?\n  status: enum('requested', 'assigned', 'arrived', 'walking', 'completed')\n  at: int\n  read <- .student = viewer or exists roles[viewer] or ((.volunteerOne = viewer or .volunteerTwo = viewer) and (.status = 'assigned' or .status = 'arrived' or .status = 'walking'))\n  online only\nquery walks(c: cursor ?):\n  return escorts where (.volunteerOne = viewer or .volunteerTwo = viewer) and (.status = 'assigned' or .status = 'arrived' or .status = 'walking') first 1 by .at after c\n";
+    let b = compile(&[("schema.q".into(), escorts.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert!(!b.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE"), "{:?}", b.notes);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    e.seed([
+        ("escorts".into(), object([("id", id("a")), ("student", id("s")), ("volunteerOne", id("alice")), ("volunteerTwo", Value::Null), ("status", Value::String("assigned".into())), ("at", Value::Int(1))])),
+        ("escorts".into(), object([("id", id("b")), ("student", id("s")), ("volunteerOne", id("alice")), ("volunteerTwo", id("alice")), ("status", Value::String("walking".into())), ("at", Value::Int(2))])),
+        ("escorts".into(), object([("id", id("hidden")), ("student", id("s")), ("volunteerOne", id("alice")), ("volunteerTwo", Value::Null), ("status", Value::String("completed".into())), ("at", Value::Int(3))])),
+    ]).unwrap();
+    assert_eq!(walk(&mut e, "walks", "alice"), ["a", "b"]);
+
+    let grants = "table chapterAccess:\n  chapter: int\n  principal: principal\n  unique chapter, principal\n  read <- .principal = viewer\n  online only\ntable chapterSeats:\n  chapter: int\n  principal: principal\n  unique chapter, principal\n  read <- .principal = viewer\n  online only\ntable versionAccess:\n  version: id\n  principal: principal\n  unique version, principal\n  read <- .principal = viewer\n  online only\ntable versions:\n  chapter: int\n  at: int\n  read <- (exists chapterAccess[.chapter, viewer] and exists chapterSeats[.chapter, viewer]) and exists versionAccess[.id, viewer]\n  online only\nquery versionsOf(chapter: int, c: cursor ?):\n  return versions where .chapter = chapter first 1 by .at after c\n";
+    let b = compile(&[("schema.q".into(), grants.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert!(!b.notes.iter().any(|n| matches!(n.code.as_str(), "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE")), "{:?}", b.notes);
+    assert!(b.schema.required_capabilities().contains("branch-pages-v4"));
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    e.seed([
+        ("chapterAccess".into(), object([("id", id("ca")), ("chapter", Value::Int(1)), ("principal", id("alice"))])),
+        ("chapterSeats".into(), object([("id", id("cs")), ("chapter", Value::Int(1)), ("principal", id("alice"))])),
+        ("versionAccess".into(), object([("id", id("va")), ("version", id("a")), ("principal", id("alice"))])),
+        ("versions".into(), object([("id", id("a")), ("chapter", Value::Int(1)), ("at", Value::Int(1))])),
+        ("versions".into(), object([("id", id("b")), ("chapter", Value::Int(1)), ("at", Value::Int(2))])),
+    ]).unwrap();
+    let args = |chapter| BTreeMap::from([("chapter".into(), Value::Int(chapter)), ("c".into(), Value::Null)]);
+    let r = e.query("versionsOf", Context::new("alice", args(1))).unwrap();
+    assert!(r.complete, "{r:?}");
+    assert_eq!(r.data.as_array().unwrap().iter().map(|row| row.field("id").unwrap().as_str().unwrap()).collect::<Vec<_>>(), ["a"]);
+    let r = e.query("versionsOf", Context::new("bob", args(1))).unwrap();
+    assert!(r.complete && r.data.as_array().unwrap().is_empty(), "{r:?}");
+
+    // A rule probe sees its target with system authority, while the residual
+    // query probe uses ordinary read authority.  Keep PAGE out unless those
+    // observations are equivalent for a timeless readable exact point.
+    for unsafe_grant in [
+        grants.replacen("  read <- .principal = viewer", "  read <- deny", 1),
+        grants.replacen("  read <- .principal = viewer", "  until: time ?\n  expire at .until\n  read <- .principal = viewer", 1),
+        grants.replacen("  principal: principal\n  unique chapter, principal", "  principal: principal\n  active: bool\n  unique chapter, principal", 1)
+            .replace("exists chapterAccess[.chapter, viewer]", "exists chapterAccess[chapter = .chapter, principal = viewer, active = true]"),
+    ] {
+        let declined = compile(&[("schema.q".into(), unsafe_grant)]);
+        assert!(declined.diagnostics.is_empty(), "{:?}", declined.diagnostics);
+        assert!(declined.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE"), "{:?}", declined.notes);
+    }
+
+    // Validator readability is about the generated residual point after page
+    // pins are substituted: roles[viewer] is visible even though the authored
+    // fixed guard is roles[.bucket]. Two already-static siblings also prove
+    // the full left-associated residual conjunction rather than disappearing.
+    let substituted = "table roles:\n  bucket: principal\n  unique bucket\n  read <- .bucket = viewer\n  online only\ntable seats:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable permits:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable access:\n  item: id\n  bucket: principal\n  principal: principal\n  unique item, bucket, principal\n  read <- .principal = viewer\n  online only\ntable items:\n  bucket: principal\n  at: int\n  read <- ((exists roles[.bucket] and exists seats[viewer]) and exists permits[viewer]) and exists access[.id, .bucket, viewer]\n  online only\nquery mine(c: cursor ?):\n  return items where .bucket = viewer first 10 by .at after c\n";
+    let b = compile(&[("schema.q".into(), substituted.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert!(!b.notes.iter().any(|n| matches!(n.code.as_str(), "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE")), "{:?}", b.notes);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    e.seed([
+        ("roles".into(), object([("id", id("r")), ("bucket", id("alice"))])),
+        ("seats".into(), object([("id", id("s")), ("principal", id("alice"))])),
+        ("permits".into(), object([("id", id("p")), ("principal", id("alice"))])),
+        ("access".into(), object([("id", id("x")), ("item", id("a")), ("bucket", id("alice")), ("principal", id("alice"))])),
+        ("items".into(), object([("id", id("a")), ("bucket", id("alice")), ("at", Value::Int(1))])),
+        ("items".into(), object([("id", id("b")), ("bucket", id("alice")), ("at", Value::Int(2))])),
+    ]).unwrap();
+    let r = e.query("mine", Context::new("alice", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
+    assert!(r.complete, "{r:?}");
+    assert_eq!(r.data.as_array().unwrap().iter().map(|row| row.field("id").unwrap().as_str().unwrap()).collect::<Vec<_>>(), ["a"]);
+}
+
+#[test]
+fn standalone_static_grant_leaves_coexist_with_membership_lanes() {
+    let tables = "table roles:\n  principal: principal\n  role: enum('advisor', 'student')\n  unique principal\n  public\n  online only\ntable access:\n  item: items\n  principal: principal\n  unique item, principal\n  read <- .principal = viewer\n  online only\n";
+    let static_and_membership = format!("{tables}table items:\n  at: int\n  read <- exists roles[viewer, role = 'advisor'] or exists access[.id, viewer]\n  online only\nquery page(c: cursor ?):\n  return items first 10 by .at after c\n");
+    let party_static_and_membership = static_and_membership.replace(
+        "read <- exists roles[viewer, role = 'advisor'] or exists access[.id, viewer]",
+        "read <- .owner = viewer or exists roles[viewer, role = 'advisor'] or exists access[.id, viewer]",
+    ).replace("table items:\n  at: int", "table items:\n  owner: principal\n  at: int");
+    let fixed_and_varying = "table roles:\n  principal: principal\n  role: enum('advisor', 'student')\n  unique principal\n  public\n  online only\ntable chapterAccess:\n  chapter: int\n  principal: principal\n  unique chapter, principal\n  read <- .principal = viewer\n  online only\ntable versionAccess:\n  version: id\n  principal: principal\n  unique version, principal\n  read <- .principal = viewer\n  online only\ntable versions:\n  chapter: int\n  at: int\n  read <- exists roles[viewer, role = 'advisor'] or (exists chapterAccess[.chapter, viewer] and exists versionAccess[.id, viewer])\n  online only\nquery page(chapter: int, c: cursor ?):\n  return versions where .chapter = chapter first 10 by .at after c\n";
+
+    for (name, source) in [
+        ("static-membership", static_and_membership.as_str()),
+        ("party-static-membership", party_static_and_membership.as_str()),
+        ("static-fixed-varying", fixed_and_varying),
+    ] {
+        let bound = compile(&[("schema.q".into(), source.into())]);
+        assert!(bound.diagnostics.is_empty(), "{name}: {:?}", bound.diagnostics);
+        assert!(!bound.notes.iter().any(|note| matches!(note.code.as_str(), "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE")),
+            "{name}: {:?}", bound.notes);
+        assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body).iter().any(|merge| merge.branches()),
+            "{name}: {:?}", bound.programs);
+    }
+
+    // A static point inside the membership conjunction remains a retained
+    // ordinary-read guard. Hidden fixed points still decline PAGE.
+    let hidden = fixed_and_varying.replacen(
+        "  read <- .principal = viewer\n  online only\ntable versionAccess:",
+        "  read <- deny\n  online only\ntable versionAccess:",
+        1,
+    );
+    let bound = compile(&[("schema.q".into(), hidden)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"), "{:?}", bound.notes);
+
+    // Every omitted standalone static alternative must be independently
+    // readable. A readable role must not conceal a hidden system-only role.
+    let mixed_hidden = static_and_membership.replacen(
+        "table roles:",
+        "table secretRoles:\n  principal: principal\n  unique principal\n  read <- deny\n  online only\ntable roles:",
+        1,
+    ).replace(
+        "read <- exists roles[viewer, role = 'advisor'] or exists access[.id, viewer]",
+        "read <- exists secretRoles[viewer] or exists roles[viewer, role = 'advisor'] or exists access[.id, viewer]",
+    );
+    let bound = compile(&[("schema.q".into(), mixed_hidden)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"), "{:?}", bound.notes);
+    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+        .iter().all(|merge| !merge.branches()), "{:?}", bound.programs);
+}
+
+#[test]
+fn lean_gate_prices_every_filter_product_pin_before_comparison() {
+    let source = "table access:\n  bucket: text <=40\n  principal: principal\n  unique bucket, principal\n  read <- .principal = viewer\n  online only\ntable items:\n  bucket: text <=40\n  region: text <=435\n  status: text <=435\n  at: int\n  read <- exists access[.bucket, viewer]\n  online only\nquery mine(c: cursor ?):\n  return items where (.region = 'north' or .region = 'south') and (.status = 'open' or .status = 'held') first 10 by .at after c\n";
+    let bound = compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body)
+        .iter().all(|merge| !merge.branches()), "{:?}", bound.programs);
+    let module = snapback4_lang::emit::lean::lean(&[("schema.q".into(), source.into())]).unwrap();
+    assert_eq!(module.program("mine").unwrap_err().reason, "page-membership-key-bound");
+}
+
+#[test]
+fn equality_filter_note_prints_one_matching_index_and_query() {
+    let source = "table skippers:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable logs:\n  starts: time\n  by byStart: starts, id\n  public\n  online only\ntable watches:\n  crew: principal\n  starts: time\n  by byStart: starts, id\n  read <- .crew = viewer or exists skippers[viewer]\n  online only\nquery myWatches():\n  ignored = logs first 1 by byStart\n  return watches where .crew = viewer first 240 by byStart\n";
+    let b = compile(&[("schema.q".into(), source.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let note = b.notes.iter().find(|note| note.code == "N_NEVER_COMPLETE").unwrap();
+    assert!(note.rewrite.contains("by byCrewStarts: crew, starts, id"), "{note}");
+    assert!(note.rewrite.contains("ignored = logs first 1 by byStart"), "{note}");
+    assert!(note.rewrite.contains("return watches[] first 240 by byCrewStarts where .crew = viewer"), "{note}");
+
+    let rewritten = note.rewrite.split("```quarry\n").nth(1).and_then(|rest| rest.split("\n```").next()).unwrap();
+    let query = source.find("query myWatches():").unwrap();
+    let repaired = format!("{}{}\n", source[..query].replace("  by byStart: starts, id\n  read <- .crew = viewer",
+        "  by byStart: starts, id\n  by byCrewStarts: crew, starts, id\n  read <- .crew = viewer"), rewritten);
+    let b = compile(&[("schema.q".into(), repaired)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert!(!b.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"), "{:?}", b.notes);
+
+    // The old order still fits, but adding the authorization prefix would
+    // exceed the portable encoded-key ceiling. Do not print an edit that the
+    // compiler itself rejects.
+    let wide = source.replace("table watches:\n  crew: principal\n  starts: time", "table watches:\n  crew: principal\n  starts: text <=430");
+    let b = compile(&[("schema.q".into(), wide)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let note = b.notes.iter().find(|note| note.code == "N_NEVER_COMPLETE").unwrap();
+    assert!(!note.rewrite.contains("by byCrewStarts: crew, starts, id"), "{note}");
+
+    // An authored bracket value addresses `starts` in the old index. Changing
+    // only the index would reinterpret it as `crew`, so omit that repair too.
+    let keyed = source.replace("query myWatches():", "query myWatches(s: time):")
+        .replace("return watches where .crew = viewer first 240 by byStart",
+            "return watches[s] first 240 by byStart where .crew = viewer");
+    let b = compile(&[("schema.q".into(), keyed)]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let note = b.notes.iter().find(|note| note.code == "N_NEVER_COMPLETE").unwrap();
+    assert!(!note.rewrite.contains("by byCrewStarts: crew, starts, id"), "{note}");
+}
+
+#[test]
+fn exact_vacancy_pages_publish_only_rule_visible_exhaustion() {
+    let source = "table artists:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable designs:\n  oneOfKind: bool\n  at: int\n  read <- exists artists[viewer] or not .oneOfKind or not exists holds[design = .id] or exists holds[design = .id, owner = viewer]\n  online only\ntable holds:\n  design: designs\n  owner: principal\n  expiresAt: time ?\n  unique design\n  read <- .owner = viewer or exists artists[viewer]\n  expire at .expiresAt\n  online only\nquery available(c: cursor ?):\n  return designs first 1 by .at after c\nquery availableAssigned(c: cursor ?):\n  page = designs first 1 by .at after c\n  return page\n";
+    let b = compile(&[("schema.q".into(), source.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    assert!(!b.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"), "{:?}", b.notes);
+    assert!(b.schema.required_capabilities().contains("branch-pages-v4"));
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    e.seed([
+        ("artists".into(), object([("id", id("artist")), ("principal", id("art"))])),
+        ("designs".into(), object([("id", id("a")), ("oneOfKind", Value::Bool(false)), ("at", Value::Int(1))])),
+        ("designs".into(), object([("id", id("b")), ("oneOfKind", Value::Bool(true)), ("at", Value::Int(2))])),
+        ("designs".into(), object([("id", id("c")), ("oneOfKind", Value::Bool(true)), ("at", Value::Int(3))])),
+        ("holds".into(), object([("id", id("h")), ("design", id("c")), ("owner", id("alice")), ("expiresAt", Value::Null)])),
+    ]).unwrap();
+    for ceilings in [
+        snapback4_core::Ceilings { examined: 0, ..Default::default() },
+        snapback4_core::Ceilings { rule_probes: 0, ..Default::default() },
+    ] {
+        e.set_ceilings(ceilings);
+        let cut = e.query("available", Context::new("bob", BTreeMap::from([("c".into(), Value::Null)]))).unwrap();
+        assert!(!cut.complete, "a cut before private vacancy exhaustion must stay incomplete: {cut:?}");
+    }
+    e.set_ceilings(Default::default());
+    assert_eq!(walk(&mut e, "available", "bob"), ["a", "b"]);
+    assert_eq!(walk(&mut e, "availableAssigned", "bob"), ["a", "b"]);
+    assert_eq!(walk(&mut e, "available", "alice"), ["a", "b", "c"]);
+    assert_eq!(walk(&mut e, "available", "art"), ["a", "b", "c"]);
+
+    let non_point = source.replace("  design: designs\n", "  design: designs ?\n")
+        .replace(" or exists holds[design = .id, owner = viewer]", "");
+    let declined = compile(&[("schema.q".into(), non_point)]);
+    assert!(declined.diagnostics.is_empty(), "{:?}", declined.diagnostics);
+    assert!(declined.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"));
+}

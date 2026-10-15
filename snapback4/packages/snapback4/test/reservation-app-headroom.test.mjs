@@ -13,10 +13,10 @@ const call = (d, request) => {
   return result.ok;
 };
 for (const version of ['0411', '0412']) for (const kind of ['hello', 'realistic', 'near-max']) {
-  test(`wasm real calibration ${version}: 50-member ${kind} send keeps base headroom`, () => {
+  test(`wasm real calibration ${version}: 50-member ${kind} send keeps server headroom`, () => {
     const c = read(`${version}-${kind}.json`);
     assert.equal(c.serverCommitted, true);
-    assert.equal(c.predicted, true);
+    assert.equal(c.predicted, false);
     const baseline = read('base-meters.json')[c.label];
     for (const [name, used] of Object.entries(c.meter)) assert.ok(used <= baseline[name], `${name}: ${used}`);
     const snapshot = read(`${version}/pages.json`);
@@ -26,11 +26,13 @@ for (const version of ['0411', '0412']) for (const kind of ['hello', 'realistic'
       snapshot.pages.forEach((page, i) => call(d, { op: 'apply', first: i === 0, page }));
       const q = call(d, { op: 'admit', entry: { id: c.label, seq: 1, op: 'send', args: c.args,
         viewer: 'alice', now: c.now, new_ids: [], predicted: [], predictable: true } });
-      assert.equal(q.predictable, true, JSON.stringify(q));
+      // The authentic app supplies the id of an expiring, referenced row.
+      // Only the server can exclude a hidden expired same-id predecessor.
+      assert.equal(q.predictable, false, JSON.stringify(q));
+      assert.deepEqual(q.predicted, []);
       const history = call(d, { op: 'query', name: 'history', args: { conversation: 'c', c: null }, viewer: 'alice', now: c.now });
       const message = history.data.find(row => row.id === 'm');
-      assert.equal(message.pending, true);
-      assert.equal(message.text, c.args.text);
+      assert.equal(message, undefined);
     } finally { d.free(); }
   });
 }

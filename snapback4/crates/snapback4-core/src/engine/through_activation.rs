@@ -6,6 +6,31 @@ use crate::{
     schema::{RuleExpr, Schema, Table, through::PARENT_DEADLINE},
     value::Value,
 };
+use std::collections::BTreeMap;
+
+const EXPIRY_TABLE_CURSOR: &str = "$expiry-table";
+
+/// Rotate a sweep's table order after the last table that consumed a bounded
+/// visit. Per-table row cursors alone can starve every later table when an
+/// earlier table contains a permanently restricted due row.
+pub(crate) fn resume_expiry_tables(
+    mut tables: Vec<String>,
+    cursors: &BTreeMap<String, Vec<Value>>,
+) -> Vec<String> {
+    let after = cursors
+        .get(EXPIRY_TABLE_CURSOR)
+        .and_then(|cursor| cursor.first())
+        .and_then(|value| value.as_str().ok());
+    if let Some(index) = after.and_then(|after| tables.iter().position(|table| table == after)) {
+        let next = (index + 1) % tables.len().max(1);
+        tables.rotate_left(next);
+    }
+    tables
+}
+
+pub(crate) fn mark_expiry_table(cursors: &mut BTreeMap<String, Vec<Value>>, table: &str) {
+    cursors.insert(EXPIRY_TABLE_CURSOR.into(), vec![Value::String(table.into())]);
+}
 
 /// Only inherited batches need staging. Preserve the streaming path for
 /// existing schemas, including large fixture imports.
@@ -437,7 +462,7 @@ impl super::runner::Runner<'_> {
     }
 
     /// A bounded child-first sweep on the common Rows interface.
-    pub fn sweep_server_rows(&mut self, limit: usize) -> Result<u64, RuntimeError> {
+    pub fn sweep_server_rows(&mut self, limit: usize, expiry_after: &mut BTreeMap<String, Vec<Value>>) -> Result<u64, RuntimeError> {
         if !self.context.is_system() || self.device {
             return Err(RuntimeError::Input(
                 "server sweep requires system authority".into(),
@@ -448,35 +473,52 @@ impl super::runner::Runner<'_> {
             .now
             .ok_or_else(|| RuntimeError::Input("sweep clock is not pinned".into()))?;
         let mut count = 0;
-        for name in self.schema.through_order().into_iter().rev() {
+        let mut visited = 0;
+        let tables = resume_expiry_tables(self.schema.through_order().into_iter().rev().collect(), expiry_after);
+        for name in tables {
             let Some((index, _)) = self.schema.tables[&name].expiry_index() else {
                 continue;
             };
-            while count < limit as u64 {
-                let bounds = Bounds {
-                    gte: Some(Value::Int(i64::MIN)),
-                    lte: Some(Value::Int(now)),
-                    ..Default::default()
-                };
-                let batch = (limit - count as usize).min(256);
+            let due = Bounds { gte: Some(Value::Int(i64::MIN)), lte: Some(Value::Int(now)), ..Default::default() };
+            let mut bounds = due.clone();
+            bounds.after = expiry_after.get(&name).cloned();
+            let mut wrapped = bounds.after.is_none();
+            while visited < limit {
+                let batch = (limit - visited).min(256);
                 let page = self.metered_scan(|runner, scope| {
                     runner
                         .tx
                         .scan(scope, &name, index, &[], &bounds, Dir::Asc, batch)
                 })?;
                 if page.is_empty() {
-                    break;
-                }
-                let mut progress = false;
-                for (row, _) in page {
-                    if self.physical_children(&name, row.field("id")?)? {
+                    expiry_after.remove(&name);
+                    if !wrapped && visited < limit {
+                        bounds = due.clone();
+                        wrapped = true;
                         continue;
                     }
-                    self.remove(&name, &row)?;
-                    count += 1;
-                    progress = true;
+                    break;
                 }
-                if !progress {
+                let page_len = page.len();
+                for (row, key) in page {
+                    bounds.after = crate::key::decode(&key);
+                    if let Some(after) = &bounds.after { expiry_after.insert(name.clone(), after.clone()); }
+                    visited += 1;
+                    mark_expiry_table(expiry_after, &name);
+                    match self.retire_expired_row(&name, &row) {
+                        Ok(true) => count += 1,
+                        Ok(false) => {},
+                        Err(RuntimeError::Structural { code: "E_REFERENCED" | "E_PARENT_HAS_CHILDREN", .. }) => {},
+                        Err(error) => return Err(error),
+                    }
+                }
+                if page_len < batch {
+                    expiry_after.remove(&name);
+                    if !wrapped && visited < limit {
+                        bounds = due.clone();
+                        wrapped = true;
+                        continue;
+                    }
                     break;
                 }
             }

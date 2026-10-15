@@ -6,6 +6,7 @@ mod log;
 mod store;
 mod caps;
 mod contribution_upgrade;
+mod maintained_identity_upgrade;
 mod authority;
 mod prefetch;
 mod tail;
@@ -49,6 +50,7 @@ pub struct PostgresEngine {
     mode: WriteMode,
     retries: u64,
     precharge: Metered,
+    expiry_after: BTreeMap<String, Vec<Value>>,
 }
 
 impl PostgresEngine {
@@ -122,6 +124,7 @@ impl PostgresEngine {
         for (column, ddl) in [
             ("generation", "ALTER TABLE _backend ADD COLUMN generation BIGINT NOT NULL DEFAULT 1"),
             ("through_shortened", "ALTER TABLE _backend ADD COLUMN through_shortened TEXT NOT NULL DEFAULT '{}'"),
+            ("maintained_identity_version", "ALTER TABLE _backend ADD COLUMN maintained_identity_version TEXT"),
         ] {
             let exists: bool = tx.query("SELECT EXISTS(SELECT 1 FROM pg_attribute WHERE attrelid = '_backend'::regclass AND attname = $1 AND NOT attisdropped)", &[&column])?[0].get(0);
             if !exists { tx.batch(ddl)?; }
@@ -138,12 +141,13 @@ impl PostgresEngine {
         tx.batch("DROP INDEX IF EXISTS _log_row_seq; DROP INDEX IF EXISTS _log_row_seq_kind;")?;
         caps::install(&tx, &schema)?;
         let generation = contribution_upgrade::install(&tx, &mut schema)?;
+        let generation = maintained_identity_upgrade::install(&tx, &schema, create.is_some(), generation)?;
         // Retain the adapter's ordinary connection limits on successful open.
         tx.batch("SET statement_timeout = '5s'; SET lock_timeout = '5s';")?;
         tx.commit()?;
         store.generation = generation;
         schema.prepare_delivery_lookup();
-        Ok(Self { store, schema, programs, ceilings: Ceilings::default(), mode: WriteMode::Serialized, retries: 0, precharge: Metered::default() })
+        Ok(Self { store, schema, programs, ceilings: Ceilings::default(), mode: WriteMode::Serialized, retries: 0, precharge: Metered::default(), expiry_after: BTreeMap::new() })
     }
 
     pub fn schema(&self) -> &Schema {
@@ -288,12 +292,12 @@ impl PostgresEngine {
         let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(self.ceilings, Cut::Abort), seq);
         runner.meter.used = self.precharge;
         let ran = runner.run(program).and_then(|value| {
-            runner.check_final_exists()?;
             runner.charge_output(&value)?;
             Ok(value)
         });
+        let ran = ran.and_then(|value| runner.retire_expired_births().map(|_| value))
+            .and_then(|value| runner.check_final_exists().map(|_| value));
         let metered = runner.meter.used;
-        let ran = ran.and_then(|value| runner.retire_expired_births().map(|_| value));
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
         let events = runner.events.take();
         let action_tables = std::mem::take(&mut runner.action_tables);
@@ -387,7 +391,9 @@ impl PostgresEngine {
             runner.upsert(&table, &row.field("id")?.clone(), row.import_input(&crate::engine::ImportInput(())))?;
             count += 1;
         }
-        runner.check_final_exists()?;
+        let final_exists = runner.satisfied_final_exists()?;
+        runner.retire_seeded_view_sources()?;
+        runner.check_final_exists_witnesses(&final_exists)?;
         let events = runner.events.take();
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
         drop(runner);

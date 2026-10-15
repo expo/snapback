@@ -42,7 +42,7 @@ A filter or projection is planned when read. Branches form a union without a cop
 
 Each union branch runs under its own source's read rule before filtering or projection. Branches have compatible fields and types. Identity includes both branch and source id; equal ids in different tables remain distinct events. The exposed `id` is the source id. Include a branch discriminator, such as `repost`, when forming a client list key. A predicate on a projected column reaches each source; a constant predicate selects branches. Order fields must map to source columns in every branch.
 
-A maintained view has rows `{ id, <group columns>, value }`. A full group key returns a scalar. An authorized miss is zero; a hidden hit and hidden miss are both null. Pages return existing groups, using `first`/`last`, `by .column`
+A maintained view has rows `{ id, <group columns>, value }`. A full group key returns a scalar. An authorized miss is zero; a hidden hit and hidden miss are both null. Omit `by` for one global scalar such as `view totalPosts: count posts`, read it by its bare name, and receive zero for authorized absence; its compiler-owned physical group key is not an application column. Pages return existing groups, using `first`/`last`, `by .column`
 and `after c`. A domain may use an inherited product cap or the runtime meter.
 Source caps can bound distinct groups; no new target cap is enforced.
 
@@ -275,16 +275,16 @@ incomplete. An inherited
 aggregate over a public source with subset delivery runs on the server;
 its local scalar and page coverage is unknown, including for the viewer.
 
-Filtered counts disclose predicate membership, calendar groups disclose bucket
-membership, and rank discloses relative values to the aggregate's read audience.
-The filter grants no source-row read. N_MAINTAIN_DELTA names dependencies;
-restrict the aggregate read rule when the delta is private (guide rules).
+Filtered counts disclose predicate membership, calendar groups disclose bucket membership, and rank discloses relative values to the aggregate's audience. The filter grants no source read. N_MAINTAIN_DELTA names dependencies; restrict the aggregate audience when the delta is private (`guide rules`). For an intended, reviewed disclosure, record why without changing authority:
+```quarry
+maintain dailyMessages: count messages by roomId, day(.at)
+  read <- exists members[.roomId, viewer]
+  disclosure reviewed 'members intentionally see daily room totals'
+  online only
+```
+`disclosure reviewed` silences the note. It neither makes the source or view public nor weakens write rules.
 
-Even a hidden aggregate can disclose a constraint outcome: near an integer
-endpoint, a hidden selected contribution can make a write fail with
-E_OVERFLOW while an excluded contribution commits. Work reservation does not
-prevent this overflow bit; the refusal names only the view and column,
-and the failed transaction rolls back.
+Even a hidden aggregate can disclose a constraint outcome: near an integer endpoint, a hidden selected contribution can make a write fail with E_OVERFLOW while an excluded contribution commits. Work reservation does not prevent this overflow bit; the refusal names only the view and column, and the failed transaction rolls back.
 
 Adding or changing a filter, key, duration, offset, dependent literal default or index
 is a derived rebuild at its declaration. Today's atomic activation rebuilds

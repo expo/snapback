@@ -62,7 +62,7 @@ pub fn recorded(tables: &mut BTreeMap<String,TableInfo>, diagnostics: &mut Vec<D
     for (table,column,a) in declarations {
         let decl = MaintainDecl { row_key: None, name:format!("{table}.{}",column.name), aggregate:if a.of.is_some() { "sum" } else { "count" }.into(),
             source:a.source.clone(),column:a.of,by:vec![a.by.clone()],keys:vec![Expr::Name {name:a.by,site:column.site.clone()}],filter:a.filter,
-            indexes:vec![],read:Some(RuleDecl {effect:Effect::Read,bindings:vec![],value:Expr::Name {name:"deny".into(),site:column.site.clone()},site:column.site.clone()}),online_only:true,site:column.site };
+            indexes:vec![],read:Some(RuleDecl {effect:Effect::Read,bindings:vec![],value:Expr::Name {name:"deny".into(),site:column.site.clone()},site:column.site.clone()}),reviewed_disclosure:None,online_only:true,site:column.site };
         match super::maintains::recorded_paths(tables,&decl) {
             Ok(paths) => if let Some(source) = tables.get_mut(&decl.source) {source.recorded.extend(paths)},
             Err(d) => diagnostics.push(d),

@@ -33,7 +33,7 @@
 //! `revocation::preserved_between`, as `serve_sync.rs` computes it.
 // @ref LLP 3000.035#5.1 — predicted device writes against committed server outcomes.
 use crate::{
-    ast::{Body, Key, Stmt, Write},
+    ast::{Body, Expr, Key, Stmt, Write},
     campaign::Report,
     devices::{self, Dev, Server},
     execute::Outcome,
@@ -58,11 +58,16 @@ pub const UNHELD_UNIQUE: &str = "predicted-then-refused-unheld-unique-key";
 /// wide `observe` (`[items[key], items[k2]]`), that key's element.
 fn holds_row(o: &Outcome, target: &Key) -> bool {
     let Some(data) = o.data() else { return false };
-    let row = match data.get("Array").and_then(Json::as_array) {
-        Some(items) => items.get(usize::from(*target == Key::K2)),
-        None => Some(data),
-    };
-    row.and_then(|d| d.get("Row")).is_some()
+    fn observed_item<'a>(data: &'a Json, target: &Key) -> Option<&'a Json> {
+        if let Some(items) = data.get("Array").and_then(Json::as_array) {
+            return observed_item(items.get(usize::from(*target == Key::K2))?, target);
+        }
+        if let Some(item) = data.get("Row").and_then(|row| row.get("item")) {
+            return observed_item(item, target);
+        }
+        Some(data)
+    }
+    observed_item(data, target).and_then(|d| d.get("Row")).is_some()
 }
 
 /// The inserts that can be a program's first write, as `(target, tag)`,
@@ -73,18 +78,29 @@ fn holds_row(o: &Outcome, target: &Key) -> bool {
 /// Statements before it (lets, requires, and `if`s holding no write) cannot
 /// refuse `E_RULE`: a failed `require` refuses its own code, and their point
 /// reads see null for a hidden row.
-pub fn first_inserts(case: &Case) -> Option<Vec<(Key, String)>> {
+fn first_inserts_with(case: &Case, present: &dyn Fn(&Key) -> Option<bool>) -> Option<Vec<(Key, String)>> {
     fn writes(s: &Stmt) -> bool {
         let mut all = vec![];
         s.walk(&mut all);
         all.iter().any(|s| matches!(s, Stmt::Write { .. }))
     }
-    fn first(stmts: &[Stmt]) -> Option<Vec<(Key, String)>> {
+    fn first(stmts: &[Stmt], present: &dyn Fn(&Key) -> Option<bool>) -> Option<Vec<(Key, String)>> {
         match stmts.iter().find(|s| writes(s))? {
             Stmt::Write { kind: Write::Insert, target, tag, .. } => Some(vec![(target.clone(), tag.clone())]),
+            Stmt::If(Expr::Bool(true), then, _) => first(then, present),
+            Stmt::If(Expr::Bool(false), _, otherwise) => first(otherwise, present),
+            Stmt::If(Expr::Present(target), then, otherwise) => match present(target) {
+                Some(true) => first(then, present),
+                Some(false) => first(otherwise, present),
+                None => {
+                    let mut out = first(then, present)?;
+                    out.extend(first(otherwise, present)?);
+                    Some(out)
+                }
+            },
             Stmt::If(_, then, otherwise) => {
-                let mut out = first(then)?;
-                out.extend(first(otherwise)?);
+                let mut out = first(then, present)?;
+                out.extend(first(otherwise, present)?);
                 Some(out)
             }
             _ => None,
@@ -92,9 +108,26 @@ pub fn first_inserts(case: &Case) -> Option<Vec<(Key, String)>> {
     }
     match &case.program.body {
         Body::Write(Write::Insert, _) => Some(vec![(Key::Key, "tag".into())]),
-        Body::Block(b) => first(&b.stmts),
+        Body::Block(b) => first(&b.stmts, present),
         _ => None,
     }
+}
+
+pub fn first_inserts(case: &Case) -> Option<Vec<(Key, String)>> {
+    first_inserts_with(case, &|_| None)
+}
+
+/// Resolve only a top-level `exists items[key]` branch whose pre-admission
+/// point observation is complete. This is the same logical fact the device
+/// used to choose its predicted arm; a physical hidden or expired row remains
+/// absent here. Incomplete observations retain both structural arms.
+pub fn first_insert_at(case: &Case, before: &Outcome) -> Option<Key> {
+    let present = |target: &Key| {
+        (before.value.get("complete").and_then(Json::as_bool) == Some(true)).then(|| holds_row(before, target))
+    };
+    let inserts = first_inserts_with(case, &present)?;
+    let target = inserts[0].0.clone();
+    inserts.iter().all(|(t, _)| *t == target).then_some(target)
 }
 
 /// The single row target of [`first_inserts`] (all paths insert the same id).
@@ -142,14 +175,27 @@ pub fn server_items(server: &Server) -> Result<ItemKeys, String> {
 /// key: the row with the inserted id, else a row holding the inserted `tag`
 /// when `items` declares the unique `byTag`.
 pub fn clashing_row(case: &Case, rows: &[(String, String)]) -> Option<String> {
-    let target = first_insert(case)?;
+    let inserts = first_inserts(case)?;
+    clashing_row_with(case, rows, first_insert(case), &inserts)
+}
+
+fn clashing_row_at(case: &Case, rows: &[(String, String)], before: &Outcome) -> Option<String> {
+    let present = |target: &Key| {
+        (before.value.get("complete").and_then(Json::as_bool) == Some(true)).then(|| holds_row(before, target))
+    };
+    let inserts = first_inserts_with(case, &present)?;
+    clashing_row_with(case, rows, first_insert_at(case, before), &inserts)
+}
+
+fn clashing_row_with(case: &Case, rows: &[(String, String)], target: Option<Key>, inserts: &[(Key, String)]) -> Option<String> {
+    let target = target?;
     let id = case.args[target.source()].as_str()?;
     let unique_tag = case.program.tables.first().is_some_and(|t| t.keys.iter().any(|(_, cols, unique)| *unique && cols == &["tag".to_string()]));
     // Every possible first insert must clash, so whichever ran was refused
     // for its clash; the id clash is checked first, then the tag.
     let mut clash = None;
-    for (_, tag) in first_inserts(case)? {
-        let row = rows.iter().find(|(r, _)| r == id).or_else(|| rows.iter().find(|(_, t)| unique_tag && *t == tag))?;
+    for (_, tag) in inserts {
+        let row = rows.iter().find(|(r, _)| r == id).or_else(|| rows.iter().find(|(_, t)| unique_tag && t == tag))?;
         clash.get_or_insert_with(|| row.0.clone());
         if clash.as_deref() != Some(row.0.as_str()) {
             return None;
@@ -178,13 +224,17 @@ pub fn clash_args(case: &Case, row: &str) -> Json {
 /// shows the clashing row.
 pub fn refused_over_unheld_unique(case: &Case, rows: &[(String, String)], admitted: &Json, committed: &Outcome, server_view: &Outcome, device_view: &Outcome) -> bool {
     let Some(target) = first_insert(case) else { return false };
+    refused_over_unheld_unique_with(case, admitted, committed, server_view, device_view, target, clashing_row(case, rows))
+}
+
+fn refused_over_unheld_unique_with(case: &Case, admitted: &Json, committed: &Outcome, server_view: &Outcome, device_view: &Outcome, target: Key, clash: Option<String>) -> bool {
     let Some(key) = case.args[target.source()].as_str() else { return false };
     let refusal = committed.value.get("why").or_else(|| committed.value.get("refusal"));
     admitted["ok"]["predictable"] == json!(true)
         && admitted["ok"]["predicted"].as_array().is_some_and(|p| p.contains(&json!(format!("items/{key}"))))
         && committed.value.get("seq").is_none_or(Json::is_null)
         && refusal.is_some_and(|r| r["code"] == "E_RULE")
-        && clashing_row(case, rows).is_some()
+        && clash.is_some()
         && !holds_row(server_view, &Key::Key)
         && !holds_row(device_view, &Key::Key)
 }
@@ -244,7 +294,8 @@ pub fn compare(store: &str, server: &mut Server, dev: &mut dyn Dev, case: &Case,
     // The row a first insert would clash with, as the viewer sees it on the
     // device before admission (and on the server after the call).
     let rows = server_items(server)?;
-    let clash = clashing_row(case, &rows);
+    let target = first_insert_at(case, &device_before);
+    let clash = clashing_row_at(case, &rows, &device_before);
     let device_clash = clash.as_ref().map(|row| devices::device_answer_online(dev, case, "observe", &clash_args(case, row), server.online("observe")).outcome);
     let admitted = dev.call_text(&json!({"op": "admit", "entry": entry}).to_string());
     let (_, pending_device) = observe(server, dev, case);
@@ -277,7 +328,8 @@ pub fn compare(store: &str, server: &mut Server, dev: &mut dyn Dev, case: &Case,
             if let (Some(row), Some(device_view)) = (&clash, &device_clash) {
                 server.engine.set_ceilings(snapback4_core::Ceilings::default());
                 let server_view = crate::execute::execute(&mut server.engine, case, "observe", &clash_args(case, row));
-                unheld = refused_over_unheld_unique(case, &rows, &admitted, &committed, &server_view, device_view);
+                unheld = target.clone().is_some_and(|target| refused_over_unheld_unique_with(
+                    case, &admitted, &committed, &server_view, device_view, target, clash.clone()));
             }
             finding(store, "write", "predicted-refused", committed.clone(), admission.clone(), &trail)
         } else if !matches!(pending_device.class.as_str(), "complete" | "refused") {

@@ -17,6 +17,8 @@ struct Wire {
     source_reservations: BTreeMap<String, reservations::WriteReservation>,
     #[serde(skip)]
     legacy_receipt_prediction: bool,
+    #[serde(skip)]
+    legacy_semantic_capabilities: LegacySemanticCapabilities,
     tables: BTreeMap<String, Table>,
     #[cfg(feature = "sqlite")]
     #[serde(skip)]
@@ -70,8 +72,14 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     // @ref LLP 3000.036#12 — a decoder that orders only int/time in insert rules refuses a money or decimal order by name.
     ("insert-rule-order-units", |s| s.tables.values().any(|t| ordered_units(t, &t.rules.insert))),
     ("row-keyed-view", |s| s.maintains.iter().any(|m|m.row_key.is_some())),
+    // @ref LLP 3000.007.003#30-aggregate-target-identity-and-migration — older devices compute canonical-JSON
+    // aggregate ids and would silently miss digest-addressed target rows.
+    ("maintained-id-sha256-v1", |s| s.maintains.iter().any(|m| m.row_key.is_none())),
     // @ref LLP 3000.039#8 — an older engine or device must not delete with the old (orphaning) semantics.
     ("reference-actions", |s| s.tables.values().any(|t| !t.on_delete.is_empty())),
+    // @ref LLP 3000.039#6.4 — pre-Wave-12 devices neither retire expiry
+    // through actions nor queue an unproved same-id physical predecessor.
+    ("expiry-reference-actions-v1", |s| s.tables.iter().any(|(name, table)| table.is_expiring() && s.is_referenced(name))),
     ("read-through", |s| s.tables.values().any(|t| t.through.is_some()) || s.maintains.iter().any(|m| m.parent_key.is_some() || !m.aliases.is_empty())),
     // Device projections keep column metadata but omit private maintains.
     ("maintained-column", |s| s.tables.values().any(|t| !t.maintained.is_empty()) || s.maintains.iter().any(|m| m.private.is_some())),
@@ -91,6 +99,7 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     // @ref LLP 3000.036.001#15 — v2 fences metered uncapped discovery and row-id point lanes from v1 devices.
     ("branch-pages-v2", |s| s.operations.values().any(|o| o.branch_pages_v2)),
     ("branch-pages-v3", |s| s.operations.values().any(|o| o.branch_pages_v3)),
+    ("branch-pages-v4", |s| s.operations.values().any(|o| o.branch_pages_v4)),
     ("branch-membership-v2", |s| s.operations.values().any(|o| o.branch_membership_v2)),
     // Source slots alter negative coverage, prediction and application row projection.
     ("timeline-event-slots", |s| s.tables.values().any(|t| t.columns.keys().any(|field| timeline::is_slot(field)))),
@@ -197,6 +206,20 @@ impl<'de> Deserialize<'de> for Schema {
             if declared.contains(cap) { required.insert(cap.into()); }
             else { required.remove(cap); }
         }
+        // Stores written before the digest migration have no carrier for this
+        // capability. Admit that persisted schema for server-side rebuilding;
+        // its next serialization stamps the capability, so old devices refuse.
+        let mut legacy_semantic_capabilities = BTreeSet::new();
+        if !declared.contains("maintained-id-sha256-v1")
+            && required.remove("maintained-id-sha256-v1") {
+            legacy_semantic_capabilities.insert("maintained-id-sha256-v1".into());
+        }
+        // Kept pre-Wave-12 schemas need the server's new expiry action path,
+        // then stamp the device fence on their next published projection.
+        if !declared.contains("expiry-reference-actions-v1")
+            && required.remove("expiry-reference-actions-v1") {
+            legacy_semantic_capabilities.insert("expiry-reference-actions-v1".into());
+        }
         // Before the shared fence, the binder emitted Recorded on F2 tables
         // even when the same schema also declared timelines. Only that legacy
         // representation infers its full requirements; modern carriers remain
@@ -217,6 +240,7 @@ impl<'de> Deserialize<'de> for Schema {
         if !had_prices { schema.source_reservations.clear(); }
         schema.legacy_receipt_prediction = legacy_receipt_prediction
             || (!declared.contains("source-write-reservations-v1") && !schema.receipts.is_empty());
+        schema.legacy_semantic_capabilities = legacy_semantic_capabilities.into();
         Ok(schema)
     }
 }

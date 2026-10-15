@@ -8,8 +8,10 @@ impl Binder<'_> {
     /// names keep their lexical meaning and ordinary pages keep their bounds.
     pub(super) fn aggregate_domain(&self, value: &A) -> Option<ReadExpr> {
         match value {
-            A::Read(read) if read.range.is_none() && read.matching.is_none() => Some(read.clone()),
-            A::Name { name, site } if self.binding(name).is_none() && self.catalog.tables.contains_key(name) =>
+            A::Read(read) if read.range.is_none() && read.matching.is_none()
+                && !self.catalog.tables.get(&read.table).and_then(|table| table.maintained.as_ref()).is_some_and(|maintain| maintain.by.is_empty()) => Some(read.clone()),
+            A::Name { name, site } if self.binding(name).is_none() && self.catalog.tables.contains_key(name)
+                && !self.catalog.tables.get(name).and_then(|table| table.maintained.as_ref()).is_some_and(|maintain| maintain.by.is_empty()) =>
                 Some(ReadExpr { cursor_prefix: None, order_keys: Vec::new(), computed: Default::default(), table: name.clone(), keys: Vec::new(), index: Some("byId".into()), range: None, matching: None, filter: None, seeks: Vec::new(), site: site.clone() }),
             _ => None,
         }
@@ -122,6 +124,11 @@ impl Binder<'_> {
                 let mut merge = self.catalog.view_reads[name].clone();
                 merge.site = site.clone();
                 self.planned_view(&merge, out, prefix::Position::Page)
+            }
+            A::Name { name, .. } if self.binding(name).is_none()
+                && self.catalog.tables.get(name).and_then(|table| table.maintained.as_ref()).is_some_and(|maintain| maintain.by.is_empty()) => {
+                // @ref LLP 3000.013.001#3-global-maintained-view-representation — an ungrouped view name is its scalar, not a table page.
+                self.read(&ReadExpr { cursor_prefix: None, computed: Default::default(), table: name.clone(), keys: Vec::new(), seeks: Vec::new(), filter: None, index: Some("byGroup".into()), order_keys: Vec::new(), range: None, matching: None, site: site.clone() }, out)
             }
             A::Name { name, .. } if self.binding(name).is_none() && self.catalog.tables.contains_key(name) => {
                 self.read(&ReadExpr { cursor_prefix: None, computed: Default::default(), table: name.clone(), keys: Vec::new(), seeks: Vec::new(), filter: None, index: Some("byId".into()),
@@ -251,6 +258,28 @@ impl Binder<'_> {
             A::Shape { base, fields, .. } => self.shape(base, fields, site, out),
             A::ShapeUse { base, name, .. } => {
                 let Some(shape) = self.catalog.shapes.get(name).cloned() else {
+                    // @ref LLP 3000.036.002#9 — diagnose SQL's trailing desc only after project-wide shape resolution.
+                    if name == "desc" && let A::Read(read) = base.as_ref() && let Some(range) = &read.range {
+                        let page = format!(
+                            "{} {} by {}",
+                            if range.order == ast::Order::Desc { "last" } else { "first" },
+                            range.take,
+                            if read.order_keys.is_empty() {
+                                read.index.clone().unwrap_or_else(|| "<index>".into())
+                            } else {
+                                read.order_keys.iter().map(|key| format!(".{key}")).collect::<Vec<_>>().join(", ")
+                            },
+                        );
+                        let mut repaired = read.clone();
+                        repaired.range.as_mut().expect("the diagnosed page has a range").order = ast::Order::Desc;
+                        return Err(Diagnostic::new(
+                            site,
+                            "E_QUARRY_SYNTAX",
+                            format!("`{page}` is already {}; Quarry has no trailing `desc`", if range.order == ast::Order::Desc { "descending" } else { "ascending" }),
+                            print::read_expr(&repaired),
+                        )
+                        .guide("from-sql"));
+                    }
                     return Err(unknown(site, format!("unknown shape {name}"), name_rewrite(name, self.catalog.shapes.keys().map(String::as_str), Some("declare `shape name = { fields }`"))));
                 };
                 self.shape(base, &shape.fields, site, out)
@@ -839,6 +868,41 @@ impl Binder<'_> {
                 }
                 Ok((Expr::Builtin { builtin: Builtin::Sum, args: vec![e] }, item))
             }
+            "divide" => {
+                if !matches!(args.len(), 3 | 4) {
+                    return Err(type_error(site, format!("divide takes 3 or 4 arguments, got {}", args.len()),
+                        "divide(amount, divisor, 'half-even'), or divide(integer, divisor, 2, 'half-even')"));
+                }
+                let [(dividend, dividend_ty), (divisor, divisor_ty)]: [(Expr, Ty); 2] = self.strict_args(&args[..2], out)?.try_into().expect("checked arity");
+                let (scale, result_ty, rounding_arg) = if args.len() == 4 {
+                    if dividend_ty != Ty::Int || divisor_ty != Ty::Int {
+                        return Err(type_error(site, format!("scaled divide takes a present int numerator and divisor; got {} and {}", dividend_ty.name(), divisor_ty.name()),
+                            "narrow optional values first, then divide(integer, divisor, 2, 'half-even')"));
+                    }
+                    let Some(scale) = literal_int(&args[2]).filter(|scale| (0..=12).contains(scale)) else {
+                        return Err(type_error(args[2].site(), "divide's result scale is an integer literal from 0 through 12", "divide(numerator, denominator, 2, 'half-even')"));
+                    };
+                    (Some(scale as u8), Ty::Decimal(scale as u8), &args[3])
+                } else {
+                    if !matches!(dividend_ty, Ty::Int | Ty::Decimal(_) | Ty::Money(_, _)) || divisor_ty != Ty::Int {
+                        return Err(type_error(site, format!("divide takes a present int, decimal or money dividend and a present int divisor; got {} and {}", dividend_ty.name(), divisor_ty.name()), "narrow optional values first, then divide(amount, divisor, 'half-even')"));
+                    }
+                    (None, dividend_ty, &args[2])
+                };
+                let A::Literal { value: Literal::Str(rounding), .. } = rounding_arg else {
+                    return Err(type_error(rounding_arg.site(), "divide's rounding mode is an explicit enum literal", "use 'toward-zero', 'away-from-zero', 'floor', 'ceiling', 'half-away-from-zero', or 'half-even'"));
+                };
+                let rounding = match rounding.as_str() {
+                    "toward-zero" => ir::Rounding::TowardZero,
+                    "away-from-zero" => ir::Rounding::AwayFromZero,
+                    "floor" => ir::Rounding::Floor,
+                    "ceiling" => ir::Rounding::Ceiling,
+                    "half-away-from-zero" => ir::Rounding::HalfAwayFromZero,
+                    "half-even" => ir::Rounding::HalfEven,
+                    _ => return Err(type_error(rounding_arg.site(), format!("unknown rounding mode '{rounding}'"), "use 'toward-zero', 'away-from-zero', 'floor', 'ceiling', 'half-away-from-zero', or 'half-even'")),
+                };
+                Ok((Expr::Builtin { builtin: Builtin::Divide { rounding, scale }, args: vec![dividend, divisor] }, result_ty))
+            }
             "slice" => {
                 arity(3, "slice(value, start, end)")?;
                 let [(e, t), (s, st), (n, nt)]: [(Expr, Ty); 3] = self.strict_args(args, out)?.try_into().expect("checked arity");
@@ -926,7 +990,7 @@ impl Binder<'_> {
             other => Err(unknown(
                 site,
                 format!("unknown function {other}"),
-                name_rewrite(other, self.catalog.functions.keys().map(String::as_str).chain(["count", "sum", "slice", "min", "max", "tokens", "share", "sort", "divmod", "sorted", "lower", "trim", "sha256", "join", "group", "first", "last", "at", "day", "hour", "bucket", "month", "year", "monthStart", "yearStart"]), None),
+                name_rewrite(other, self.catalog.functions.keys().map(String::as_str).chain(["count", "sum", "divide", "slice", "min", "max", "tokens", "share", "sort", "divmod", "sorted", "lower", "trim", "sha256", "join", "group", "first", "last", "at", "day", "hour", "bucket", "month", "year", "monthStart", "yearStart"]), None),
             )),
         }
     }

@@ -8,11 +8,15 @@ impl Binder<'_> {
         if matches!(&args[1], A::Member { base, .. } if matches!(base.as_ref(), A::Focal { .. })) {
             return self.column_extremum(name, args, out);
         }
-        let candidate = self.aggregate_domain(&args[0]).or_else(||
-            self.catalog.extremum_domains.get(&args[0].site().to_string()).cloned());
+        let candidate = self.aggregate_domain(&args[0]).or_else(|| {
+            self.catalog.extremum_domains.get(&args[0].site().to_string()).filter(|read|
+                !self.catalog.tables.get(&read.table).and_then(|table| table.maintained.as_ref())
+                    .is_some_and(|maintain| maintain.by.is_empty())).cloned()
+        });
         let domain = if let Some(read) = candidate {
             self.is_page(&read, ReadMode::FilteredPoint)?.then_some(read)
         } else { None };
+        let nonempty = domain.as_ref().is_some_and(|read| self.aggregate_nonempty(read));
         let mut probe = self.clone();
         let source_ty = match probe.expr(&args[0], &mut setup::Body::default()) {
             Ok((_, ty)) => {
@@ -61,7 +65,8 @@ impl Binder<'_> {
                 format!("{name}({}, .column + 1)", print::expression(&args[0]))));
         }
         let value = if body.is_empty() { value } else { Expr::Block { body: body.code, value: Box::new(value) } };
-        Ok(Some((Expr::Builtin { builtin: Builtin::ExtremumOf { max: name == "max", domain }, args: vec![source, value] }, ty.optional())))
+        let result = if nonempty && !ty.is_optional() { ty } else { ty.optional() };
+        Ok(Some((Expr::Builtin { builtin: Builtin::ExtremumOf { max: name == "max", domain }, args: vec![source, value] }, result)))
     }
 
     // @ref LLP 3000.013#5.1 — domains retain aggregate admission and coverage.
@@ -91,6 +96,7 @@ impl Binder<'_> {
                 return Ok(None);
             }
         }
+        let nonempty = domain.as_ref().is_some_and(|read| self.aggregate_nonempty(read));
         let (source, item, domain) = if let Some(mut read) = domain {
             // Bare table names reach the binder without intent planning.
             if matches!(&args[0], A::Name { .. }) {
@@ -123,6 +129,7 @@ impl Binder<'_> {
         let (_, ty) = self.member(Expr::Literal(Value::Null), item, field, args[1].site())?;
         // Column ordering uses the same total order as binary min/max. Nulls
         // contribute no value, including when every row's column is null.
-        Ok(Some((Expr::Builtin { builtin: Builtin::Extremum { field: field.clone(), max: name == "max", domain }, args: vec![source] }, ty.optional())))
+        let result = if nonempty && !ty.is_optional() { ty } else { ty.optional() };
+        Ok(Some((Expr::Builtin { builtin: Builtin::Extremum { field: field.clone(), max: name == "max", domain }, args: vec![source] }, result)))
     }
 }

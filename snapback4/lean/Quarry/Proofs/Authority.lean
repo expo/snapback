@@ -31,8 +31,22 @@ inductive Step (sch : Schema) (v : List Nat) (now : Int) : Store → Store → P
   | delete {s s' : Store} {t : String} {td : TableDecl} {old : Row} :
       sch.table? t = some td → old ∈ s t →
       td.delete.eval (openedStore sch s now) v { self := some old } = true →
-      refDelete sch s t old = .ok s' →
+      refDeleteFrom sch (unexpiredStore sch s now) s t old = .ok s' →
       Step sch v now s s'
+  /-- An expired same-id row is retired inside an insert transaction before
+  the replacement image's remaining constraints are checked. -/
+  | retire {s s' : Store} {t : String} {td : TableDecl} {old : Row} :
+      sch.table? t = some td → old ∈ s t → expired td now old = true →
+      refDeleteFrom sch (unexpiredStore sch s now) s t old = .ok s' →
+      Step sch v now s s'
+  /-- A same-id replacement is one authorized transition: its insert rule is
+  checked against the pre-retirement store, then the expired predecessor's
+  actions run, then the new image is inserted. -/
+  | replaceExpired {s retired : Store} {t : String} {td : TableDecl} {old img : Row} :
+      sch.table? t = some td → old ∈ s t → expired td now old = true →
+      td.insert.eval (openedStore sch s now) v { self := some img } = true →
+      refDeleteFrom sch (unexpiredStore sch s now) s t old = .ok retired →
+      Step sch v now s (retired.insertRow t img)
 
 inductive Steps (sch : Schema) (v : List Nat) (now : Int) : Store → Store → Prop
   | refl (s : Store) : Steps sch v now s s
@@ -64,17 +78,20 @@ theorem findRow_mem {rows : List Row} {ks} {r : Row} (h : findRow rows ks = some
   · cases h
   · exact List.mem_of_find?_eq_some h
 
-theorem doInsertImage_ok {sch s v now t td img ifAbsent d c val s'}
-    (h : doInsertImage sch s v now t td img ifAbsent d c = .ok (val, s')) :
-    s' = s ∨ (td.insert.eval (openedStore sch s now) v { self := some img } = true ∧ s' = s.insertRow t img) := by
+theorem findLiveRow_mem {td : TableDecl} {now : Int} {rows : List Row} {ks} {r : Row}
+    (h : findLiveRow td now rows ks = some r) : r ∈ rows := by
+  exact (List.mem_filter.1 (findRow_mem (by simpa [findLiveRow] using h))).1
+
+theorem doInsertImage_ok {sch : Schema} {s : Store} {v : List Nat} {now : Int}
+    {t : String} {td : TableDecl} {img : Row} {clashHidden : Stop}
+    {val : Value} {s' : Store}
+    (h : doInsertImage sch s v now t td img clashHidden = .ok (val, s')) :
+    s' = s.insertRow t img := by
   unfold doInsertImage at h
-  obtain ⟨_, hg, h⟩ := bind_ok h
   split at h
   · obtain ⟨_, -, h⟩ := bind_ok h
-    split at h
-    · cases h; exact .inl rfl
-    · cases h
-  · cases h; exact .inr ⟨guardE_ok hg, rfl⟩
+    cases h
+  · cases h; rfl
 
 theorem doUpdateRow_ok {sch s v now t td old patch cond val s'}
     (h : doUpdateRow sch s v now t td old patch cond = .ok (val, s')) :
@@ -87,6 +104,45 @@ theorem doUpdateRow_ok {sch s v now t td old patch cond val s'}
   obtain ⟨_, -, h⟩ := bind_ok h
   cases h
   exact ⟨nw, guardE_ok hg, rfl⟩
+
+theorem retireExpiredSameId_result {sch : Schema} {s s' : Store} {now : Int}
+    {t : String} {td : TableDecl} {rid : List Nat}
+    (h : retireExpiredSameId sch s now t td rid = .ok s') :
+    s' = s ∨ ∃ old, old ∈ s t ∧ expired td now old = true ∧
+      refDeleteFrom sch (unexpiredStore sch s now) s t old = .ok s' := by
+  unfold retireExpiredSameId at h
+  split at h
+  · rename_i old hold
+    split at h
+    · rename_i hexp
+      exact .inr ⟨old, findRow_mem hold, hexp, h⟩
+    · cases h
+      exact .inl rfl
+  · cases h
+    exact .inl rfl
+
+theorem retireExpiredSameId_steps {sch s s' v now t td rid}
+    (ht : sch.table? t = some td)
+    (h : retireExpiredSameId sch s now t td rid = .ok s') :
+    Steps sch v now s s' := by
+  rcases retireExpiredSameId_result h with h | ⟨old, hold, hexp, href⟩
+  · subst h; exact .refl _
+  · exact .step (.retire ht hold hexp href) (.refl _)
+
+theorem retireThenInsert_authorized {sch : Schema} {s s0 s' : Store} {v : List Nat}
+    {now : Int} {t : String} {td : TableDecl} {rid : List Nat} {img : Row}
+    {clashHidden : Stop} {val : Value}
+    (ht : sch.table? t = some td)
+    (ha : td.insert.eval (openedStore sch s now) v { self := some img } = true)
+    (hr : retireExpiredSameId sch s now t td rid = .ok s0)
+    (hi : doInsertImage sch s0 v now t td img clashHidden = .ok (val, s')) :
+    Steps sch v now s s' := by
+  have hi := doInsertImage_ok hi
+  subst hi
+  rcases retireExpiredSameId_result hr with hs | ⟨old, hold, hexp, href⟩
+  · subst hs
+    exact .step (.insert ht ha) (.refl _)
+  · exact .step (.replaceExpired ht hold hexp ha href) (.refl _)
 
 /-- **Referential actions change nothing a schema does not declare**
 (LLP 3000.039 §1): a delete from a table no action-carrying reference names
@@ -101,7 +157,7 @@ theorem refDelete_without_actions {sch : Schema} {s : Store} {t : String} {old :
 
 /-- **Write authority, one write.** -/
 theorem applyWrite_authorized {cx : Ctx} {s s' : Store} {rw : RWrite} {val : Value}
-    (h : applyWrite cx s rw = .ok (val, s')) : s' = s ∨ Step cx.schema cx.viewer cx.now s s' := by
+    (h : applyWrite cx s rw = .ok (val, s')) : Steps cx.schema cx.viewer cx.now s s' := by
   cases rw with
   | insert t fields ifAbsent =>
     simp only [applyWrite] at h
@@ -111,9 +167,24 @@ theorem applyWrite_authorized {cx : Ctx} {s s' : Store} {rw : RWrite} {val : Val
       obtain ⟨_, -, h⟩ := bind_ok h
       obtain ⟨_, -, h⟩ := bind_ok h
       obtain ⟨img, -, h⟩ := bind_ok h
-      rcases doInsertImage_ok h with h | ⟨hr, h⟩
-      · exact .inl h
-      · subst h; exact .inr (.insert htd hr)
+      obtain ⟨_, hg, h⟩ := bind_ok h
+      cases ifAbsent with
+      | false =>
+        simp only [Bool.false_eq_true, ite_false] at h
+        obtain ⟨s0, hr, h⟩ := bind_ok h
+        exact retireThenInsert_authorized htd (guardE_ok hg) hr h
+      | true =>
+        simp only [ite_true] at h
+        obtain ⟨clashes, -, h⟩ := bind_ok h
+        cases clashes with
+        | false =>
+          simp only [Bool.false_eq_true, ite_false] at h
+          obtain ⟨s0, hr, h⟩ := bind_ok h
+          exact retireThenInsert_authorized htd (guardE_ok hg) hr h
+        | true =>
+          simp only [ite_true] at h
+          cases h
+          exact .refl _
   | update t key patch cond =>
     simp only [applyWrite] at h
     split at h
@@ -125,7 +196,7 @@ theorem applyWrite_authorized {cx : Ctx} {s s' : Store} {rw : RWrite} {val : Val
       · cases h
       · rename_i old hold
         obtain ⟨nw, hr, h⟩ := doUpdateRow_ok h
-        subst h; exact .inr (.update htd (findRow_mem hold) hr)
+        subst h; exact .step (.update htd (findLiveRow_mem hold) hr) (.refl _)
   | upsert t key patch =>
     simp only [applyWrite] at h
     split at h
@@ -136,12 +207,13 @@ theorem applyWrite_authorized {cx : Ctx} {s s' : Store} {rw : RWrite} {val : Val
       split at h
       · rename_i old hold
         obtain ⟨nw, hr, h⟩ := doUpdateRow_ok h
-        subst h; exact .inr (.update htd (findRow_mem hold) hr)
+        subst h
+        exact .step (.update htd (findLiveRow_mem hold) hr) (.refl _)
       · obtain ⟨_, -, h⟩ := bind_ok h
         obtain ⟨img, -, h⟩ := bind_ok h
-        rcases doInsertImage_ok h with h | ⟨hr, h⟩
-        · exact .inl h
-        · subst h; exact .inr (.insert htd hr)
+        obtain ⟨_, hg, h⟩ := bind_ok h
+        obtain ⟨s0, hrs, h⟩ := bind_ok h
+        exact retireThenInsert_authorized htd (guardE_ok hg) hrs h
   | delete t key =>
     simp only [applyWrite] at h
     split at h
@@ -155,7 +227,7 @@ theorem applyWrite_authorized {cx : Ctx} {s s' : Store} {rw : RWrite} {val : Val
         obtain ⟨_, -, h⟩ := bind_ok h
         obtain ⟨s2, hd, h⟩ := bind_ok h
         cases h
-        exact .inr (.delete htd (findRow_mem hold) (guardE_ok hg) hd)
+        exact .step (.delete htd (findLiveRow_mem hold) (guardE_ok hg) hd) (.refl _)
 
 end Quarry
 
@@ -229,22 +301,78 @@ theorem execStmts_inv {W : Type} (H : Hooks W) (cx : Ctx) (R : W → W → Prop)
         obtain ⟨⟨val, w1⟩, rs3, h1, h⟩ := sbind_ok h
         exact htrans _ _ _ (happ _ _ _ _ (liftE_ok h1)) (ih _ _ _ _ _ _ _ _ h)
 
+theorem mutationHooks_apply_authorized {cx : Ctx} {w w' : MutationWorld}
+    {rw : RWrite} {val : Value}
+    (h : mutationHooks.apply cx w rw = .ok (val, w')) :
+    Steps cx.schema cx.viewer cx.now w.store w'.store := by
+  change (match applyWrite cx w.store rw with
+    | Except.error e => Except.error e
+    | Except.ok (value, store) =>
+      let changed := w.changed ++ changedFinalRows cx.schema w.store store
+      let changed := match rw.changedExplicitId? cx w.store with
+        | some address => changed ++ [address]
+        | none => changed
+      Except.ok (value, { store, changed := changed.eraseDups })) = Except.ok (val, w') at h
+  split at h
+  · cases h
+  · rename_i result store happ
+    cases h
+    exact applyWrite_authorized happ
+
+/-- Commit-end expiry retirement is a chain of referential-action retirement
+steps. Rows absent from the final store and rows whose final image is live are
+identity transitions. -/
+theorem retireExpiredChanged_steps {sch : Schema} {v : List Nat} {now : Int}
+    (changed : ChangedRows) : ∀ s s',
+    retireExpiredChanged sch now s changed = .ok s' → Steps sch v now s s' := by
+  induction changed with
+  | nil =>
+    intro s s' h
+    simp only [retireExpiredChanged, pure, Except.pure] at h
+    cases h
+    exact .refl _
+  | cons address rest ih =>
+    rcases address with ⟨t, rid⟩
+    intro s s' h
+    simp only [retireExpiredChanged] at h
+    split at h
+    · exact ih _ _ h
+    · rename_i td htd
+      split at h
+      · exact ih _ _ h
+      · rename_i row hrow
+        split at h
+        · rename_i hexp
+          obtain ⟨s1, href, hrest⟩ := bind_ok h
+          exact .step (.retire htd (findRow_mem hrow) hexp href) (ih _ _ hrest)
+        · exact ih _ _ h
+
 /-- **Write authority, whole mutation.** Every committed mutation's store is
-reached from the original by a chain of authorized steps. -/
+reached from the original by a chain of authorized writes followed by the
+transactional retirement of final images that were born or updated expired. -/
 theorem mutation_authorized {c : Case} {res : Value} {s' : Store}
-    (hk : c.program.kind = .mutation) (h : run c = .committed res s') :
+    (hk : c.program.kind = .mutation) (hs : c.sweepOnly = false)
+    (h : run c = .committed res s') :
     Steps c.schema c.viewer c.now c.store s' := by
-  simp only [run, hk, runMutation] at h
+  simp [run, hs, hk, runMutation] at h
   split at h
   · cases h
   · cases h
   · split at h
-    · rename_i fl s1 env1 rs1 hx
-      cases h
-      exact execStmts_inv storeHooks c.ctx (Steps c.schema c.viewer c.now) Steps.refl
-        (fun _ _ _ => Steps.trans)
-        (fun w rw val w' happ => Steps.of_step_or_eq (applyWrite_authorized (cx := c.ctx) happ))
-        _ _ _ _ _ _ _ _ _ hx
+    · rename_i fl w env1 rs1 hx
+      split at h
+      · rename_i hret
+        cases h
+        have hbody : Steps c.schema c.viewer c.now c.store w.store :=
+          execStmts_inv mutationHooks c.ctx
+            (fun a b => Steps c.schema c.viewer c.now a.store b.store)
+            (fun _ => Steps.refl _) (fun _ _ _ => Steps.trans)
+            (fun _ _ _ _ happ => mutationHooks_apply_authorized happ)
+            _ _ _ _ _ _ _ _ _ hx
+        exact hbody.trans (retireExpiredChanged_steps
+          (changedRetirementOrder c.schema w.changed) w.store s' hret)
+      · cases h
+      · cases h
     · cases h
     · cases h
 

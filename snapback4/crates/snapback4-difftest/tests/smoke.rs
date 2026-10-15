@@ -47,6 +47,30 @@ fn fixed_seeds_compile_execute_and_continue() {
 }
 
 #[test]
+fn generated_zero_divisors_are_expected_runtime_refusals() {
+    let case = (0..20_000)
+        .map(generate)
+        .find(|case| {
+            matches!(
+                &case.program.body,
+                Body::Scalar(Expr::RoundedDivide(_, _, _, divisor))
+                    if matches!(divisor.as_ref(), Expr::Int(0))
+                        || matches!(divisor.as_ref(), Expr::Arg(name, _) if case.args[name] == json!(0))
+            )
+        })
+        .expect("rounded division generator must reach a zero divisor");
+    let source = case.program.source();
+    let mut engine = execute::engine(&case, &source).unwrap();
+    let outcome = execute::execute(&mut engine, &case, "run", &case.args);
+    assert_eq!(outcome.refusal().unwrap()["code"], "E_DIV_ZERO", "seed {}: {source}", case.seed);
+
+    let mut report = Report::default();
+    campaign::check(&case, &mut report, |_| {});
+    assert_eq!(report.runtime_refusals.get("E_DIV_ZERO"), Some(&1), "{report:#?}");
+    assert!(report.runtime_refused_unexpected.is_empty(), "{report:#?}");
+}
+
+#[test]
 fn helper_calls_have_distinct_arguments_and_skipped_assertions_do_not_run() {
     let mut case = generate(0);
     case.program.tables.clear();
@@ -313,12 +337,15 @@ fn widening_keeps_unwidened_seeds_and_every_dimension_compiles() {
         if matches!(case.program.tables[0].residency, Residency::Group) {
             dims.push("group-pages");
         }
+        if matches!(case.program.body, Body::Scalar(snapback4_difftest::ast::Expr::RoundedDivide(..))) {
+            dims.push("rounded-division");
+        }
         if dims.is_empty() && !snapback4_difftest::lean::features(&case).iter().any(|f| f.starts_with("page4/")) {
             assert_eq!(serde_json::to_value(&case).unwrap(), serde_json::to_value(&plain).unwrap(), "seed {seed}");
         }
         seen.extend(dims);
     }
-    assert_eq!(seen.len(), 14, "{seen:?}");
+    assert_eq!(seen.len(), 15, "{seen:?}");
 }
 
 #[test]
@@ -740,4 +767,91 @@ fn page4_generated_families_compare_and_search_is_explicitly_unsupported_in_lean
         seen.insert(family);if seen.len()==10 {break;}
     }
     assert_eq!(seen.len(),10,"{seen:?}");
+}
+
+#[test]
+fn page5_generated_families_compile_and_compare_natively() {
+    let mut seen = std::collections::BTreeSet::new();
+    for shape in 0..3 {
+        for seed in 0..8 {
+            let case = snapback4_difftest::generate::page5(seed, shape);
+            seen.extend(snapback4_difftest::coverage::features(&case).into_iter().filter(|f| f.starts_with("page5/")));
+            let source = case.program.source();
+            execute::compile(&source).unwrap_or_else(|error| panic!("shape {shape} seed {seed}: {error}\n{source}"));
+            let (verdict, executions) = oracle::repeat(&case, &source).unwrap();
+            assert!(matches!(verdict, Verdict::Pass) && executions >= 2,
+                "shape {shape} seed {seed}: {verdict:?}\n{source}");
+        }
+    }
+    assert_eq!(seen, ["page5/fixed-per-row", "page5/product-scope", "page5/vacancy"].map(String::from).into());
+}
+
+#[test]
+fn membership_page_with_two_filter_alternatives_stays_incomplete_in_lean_and_native() {
+    let have_model = model_built();
+    for seed in 0..4 {
+        let case = snapback4_difftest::generate::page_membership_filter_fallback(seed);
+        let source = case.program.source();
+        execute::compile(&source).unwrap_or_else(|error| panic!("seed {seed}: {error}\n{source}"));
+        let mut engine = execute::engine(&case, &source).unwrap();
+        let outcome = execute::execute(&mut engine, &case, "run", &case.args);
+        assert_eq!(outcome.value["complete"], false, "seed {seed}: {outcome:?}\n{source}");
+        let mut report = Report::default(); campaign::check(&case, &mut report, |_| {});
+        assert!(!report.failed(), "seed {seed}: {report:?}\n{source}");
+        if have_model {
+            let checked = snapback4_difftest::lean::compare(&case, &source).unwrap();
+            assert!(matches!(checked.verdict, Verdict::Pass), "seed {seed}: {:?}\n{source}", checked.verdict);
+        }
+    }
+}
+
+#[test]
+fn membership_page_with_two_equality_alternative_factors_is_complete_in_lean_and_native() {
+    let have_model = model_built();
+    for seed in 0..4 {
+        let case = snapback4_difftest::generate::page_membership_filter_product(seed);
+        let source = case.program.source();
+        execute::compile(&source).unwrap_or_else(|error| panic!("seed {seed}: {error}\n{source}"));
+        let mut engine = execute::engine(&case, &source).unwrap();
+        let outcome = execute::execute(&mut engine, &case, "run", &case.args);
+        assert_eq!(outcome.value["complete"], true, "seed {seed}: {outcome:?}\n{source}");
+        let mut report = Report::default(); campaign::check(&case, &mut report, |_| {});
+        assert!(!report.failed(), "seed {seed}: {report:?}\n{source}");
+        if have_model {
+            let checked = snapback4_difftest::lean::compare(&case, &source).unwrap();
+            assert!(matches!(checked.verdict, Verdict::Pass), "seed {seed}: {:?}\n{source}", checked.verdict);
+        }
+    }
+}
+
+#[test]
+fn page5_review_boundaries_agree_in_generated_native_and_lean_cases() {
+    let have_model = model_built();
+    for seed in 0..4 {
+        for (case, complete, model_boundary) in [
+            (snapback4_difftest::generate::page_membership_filter_overflow(seed), false, Some("page-membership-filter-product")),
+            (snapback4_difftest::generate::page_membership_shared_filter_product(seed), true, None),
+            (snapback4_difftest::generate::page_membership_shared_boolean_product(seed), true, None),
+            (snapback4_difftest::generate::page_membership_repeated_party_product(seed), true, None),
+            (snapback4_difftest::generate::page5_implicit_id_vacancy(seed), true, None),
+        ] {
+            let source = case.program.source();
+            execute::compile(&source).unwrap_or_else(|error| panic!("seed {seed}: {error}\n{source}"));
+            let mut engine = execute::engine(&case, &source).unwrap();
+            let outcome = execute::execute(&mut engine, &case, "run", &case.args);
+            assert_eq!(outcome.value["complete"], complete, "seed {seed}: {outcome:?}\n{source}");
+            let mut report = Report::default(); campaign::check(&case, &mut report, |_| {});
+            assert!(!report.failed(), "seed {seed}: {report:?}\n{source}");
+            if have_model {
+                let checked = snapback4_difftest::lean::compare(&case, &source).unwrap();
+                if let Some(reason) = model_boundary {
+                    assert!(matches!(&checked.verdict, Verdict::Unsupported(actual) if actual == reason),
+                        "seed {seed}: {:?}\n{source}", checked.verdict);
+                    assert_eq!(checked.executed, 0, "seed {seed}: model boundary executed\n{source}");
+                } else {
+                    assert!(matches!(checked.verdict, Verdict::Pass), "seed {seed}: {:?}\n{source}", checked.verdict);
+                }
+            }
+        }
+    }
 }

@@ -322,7 +322,8 @@ fn r2_a_not_exists_guard_over_private_children_prints_the_zero_count_and_it_runs
     let b = bound(&natural);
     let d = b.diagnostics.iter().find(|d| d.code == "E_STRUCTURAL_FANOUT").unwrap_or_else(|| panic!("{:#?}", b.diagnostics)).clone();
     let quoted: Vec<&str> = d.rewrite.split('`').skip(1).step_by(2).collect();
-    assert!(d.rewrite.starts_with("an absence check"), "the zero count leads: {d}");
+    assert!(d.rewrite.starts_with("First add `.reporter = viewer`"), "the direct audience predicate leads: {d}");
+    assert!(d.rewrite.contains("an absence check over every sightings row"), "the zero-count alternative remains: {d}");
     let view = quoted.iter().find(|q| q.starts_with("view ")).unwrap_or_else(|| panic!("{d}"));
     let check = quoted.iter().find(|q| q.starts_with("require ")).unwrap_or_else(|| panic!("{d}"));
     assert_eq!((*view, *check), ("view sightingsCount: count sightings by .cat", "require sightingsCount[cat] = 0 else HAS_SIGHTINGS"), "{d}");

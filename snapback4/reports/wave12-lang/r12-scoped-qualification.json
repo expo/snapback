@@ -1,0 +1,98 @@
+{
+  "at": "2026-10-15T01:42:28.020923+00:00",
+  "production": "46dcc1e99f",
+  "model": "2fb3bb2e98",
+  "final_qualification": false,
+  "reason": "R13 device-local commit-end retirement fix pending; these remain scoped receipts for unchanged native/model inputs. Genuine-baseline and dormant cases were compiled before R12 device-only changes; R12 core unit suite covers the latter dormant case. First R12 measure dirty only for uncommitted whitespace formatting in a test helper; second clean measure agrees byte-for-byte in sizes.",
+  "receipts": [
+    {
+      "name": "r12-core-lib",
+      "file": "logs/r12-core-lib.log.gz",
+      "sha256": "d284fa29da64767594161f370cf6c30078117b4c9a89927a69312d6d4b7ba29f",
+      "uncompressed_sha256": "b7bf6aea4f5fb0954904f0fe64b5dc29b19649b8c3ea4d428120e58b02a61465",
+      "exit": 0,
+      "result": {
+        "passed": 344,
+        "failed": 0,
+        "ignored": 3
+      }
+    },
+    {
+      "name": "lean115-check",
+      "file": "logs/lean115-check.log.gz",
+      "sha256": "44c5d9c6cb31dc0eb4674cc3f75a9e1e98b075bfb7481456e1776a056736059c",
+      "uncompressed_sha256": "3c1cb4f2819dc5aeca72462c86e1580c9fddccc2b8bdd913514668739069bfd9",
+      "exit": 0,
+      "result": {
+        "jobs": 54,
+        "standard_axiom_theorems": 65,
+        "examples": 115,
+        "oracle_fixtures": 7
+      }
+    },
+    {
+      "name": "r10-ref-check",
+      "file": "logs/r10-ref-check.log.gz",
+      "sha256": "b494f48b1cc4b4dca6d1c8465f9773c423d0f893c745f43f60af57c35a50343e",
+      "uncompressed_sha256": "b0f5fefbff76e0f1ce57d6788638818421a711ba9b3daf0ce5fae2f70120c238",
+      "exit": 0,
+      "result": {
+        "docs": 547,
+        "refs": 11883,
+        "errors": 0,
+        "unchecked": 0
+      }
+    },
+    {
+      "name": "actual-028-migration-r12",
+      "file": "logs/actual-028-migration-r12.log.gz",
+      "sha256": "db2916c2ce3535b21153c7668b208b78c49ea68286514a645d37e05f9576b76d",
+      "uncompressed_sha256": "20087720c2237615edb6219fb0f338a33585d5de7f847c5e76a1703a6eda52af",
+      "exit": 0,
+      "result": {
+        "passed": 3,
+        "failed": 0
+      }
+    },
+    {
+      "name": "dormant-migration-r12",
+      "file": "logs/dormant-migration-r12.log.gz",
+      "sha256": "b324368061b780c15174a281761c0820227470a4091f68334a32e9acf462fbcd",
+      "uncompressed_sha256": "c9d9d85b5d6d11e705b496266589e1332e0e62c91c85a2add214490446dd7e63",
+      "exit": 0,
+      "result": {
+        "passed": 1,
+        "failed": 0
+      }
+    },
+    {
+      "name": "r12-wasm-build",
+      "file": "logs/r12-wasm-build.log.gz",
+      "sha256": "1937b4094e9b53cbeb685e245c4028063a9f27879c82c44bf110c8d18aea011f",
+      "uncompressed_sha256": "a5365a0d98d5b58ad721a94e46bb15d773f56291dbde96dfcc3f15206a2ba5d6",
+      "exit": 0,
+      "result": {}
+    },
+    {
+      "name": "r12-wasm-measure-dirty-test-format",
+      "file": "logs/r12-wasm-measure-dirty-test-format.log.gz",
+      "sha256": "2af07a5f020e7a8c6f25fb66bd19634d45418f89f25cd5b61394dff2871afd99",
+      "uncompressed_sha256": "4bcc613078ca8c785b5bf6909a2f981367600018c1e813742344f85cbe5caf64",
+      "exit": 0,
+      "result": {}
+    },
+    {
+      "name": "r12-wasm-measure-clean",
+      "file": "logs/r12-wasm-measure-clean.log.gz",
+      "sha256": "2729b41c7223acccc1123e9bfaa14d38da4d5e10242afab69ebb0b6a0300a472",
+      "uncompressed_sha256": "57013a6ad9f90842e74f70ce70473731c7cdabe988e14b82467e45508da6976e",
+      "exit": 0,
+      "result": {
+        "raw": 2337662,
+        "gzip": 713002,
+        "brotli": 538341,
+        "strict_audits": "PASS"
+      }
+    }
+  ]
+}

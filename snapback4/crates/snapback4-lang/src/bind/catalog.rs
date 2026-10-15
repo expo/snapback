@@ -85,9 +85,8 @@ impl Catalog {
                     }
                 }
                 for field in &table.search {
-                    if !matches!(columns.get(field), Some(ScalarType { kind: TypeKind::Text { .. }, .. })) {
-                        diagnostics.push(crate::diag::type_error(&table.site, format!("search {} requires a text column on {}", field, table.name), format!("declare `{field}: text <=2000` before `search {field}`")).guide("search"));
-                        ok = false;
+                    if !matches!(columns.get(field), Some(ScalarType { kind: TypeKind::Text { .. } | TypeKind::Enum { .. }, .. })) {
+                        diagnostics.push(crate::diag::type_error(&table.site, format!("search {} requires a text or enum column on {}", field, table.name), format!("declare `{field}: text <=2000` or `{field}: enum('one', 'two')` before `search {field}`")).guide("search"));
                     }
                 }
                 let mut indexes = vec![IndexDecl { name: "byId".into(), columns: vec!["id".into()], unique: true, refusal: None, words: None, computed: BTreeMap::new(), site: table.site.clone() }];
@@ -106,11 +105,11 @@ impl Catalog {
                     }
                     for field in index.words.iter().flat_map(|(_, fields)| fields) {
                         match columns.get(field) {
-                            Some(ScalarType { kind: TypeKind::Text { .. }, .. }) => {}
+                            Some(ScalarType { kind: TypeKind::Text { .. } | TypeKind::Enum { .. }, .. }) => {}
                             // The table stays in the catalog: one line is
                             // wrong, and its readers should hear about that
                             // line, not about a table that vanished.
-                            Some(other) => diagnostics.push(crate::diag::type_error(&index.site, format!("index {}.{} tokenizes {field}, which is {}, not text", table.name, index.name, crate::print::scalar_type(other)), format!("words(<a text column of {}>)", table.name))),
+                            Some(other) => diagnostics.push(crate::diag::type_error(&index.site, format!("index {}.{} tokenizes {field}, which is {}, not text or enum", table.name, index.name, crate::print::scalar_type(other)), format!("words(<a text or enum column of {}>)", table.name))),
                             None => diagnostics.push(crate::diag::type_error(&index.site, format!("index {}.{} tokenizes unknown column {field}", table.name, index.name), name_rewrite(field, columns.keys().map(String::as_str), None))),
                         }
                     }
@@ -130,6 +129,12 @@ impl Catalog {
                 }
                 if ok {
                     let mut decl = table.clone();
+                    // @ref LLP 3000.036.002#9 — rejected search metadata must not erase the usable table symbol.
+                    // An invalid search field is a fault of that search line,
+                    // not evidence that every later reference names an
+                    // unknown table. Keep the usable table symbol and omit
+                    // only search fields that could not be indexed.
+                    decl.search.retain(|field| matches!(columns.get(field), Some(ScalarType { kind: TypeKind::Text { .. } | TypeKind::Enum { .. }, .. })));
                     // @ref LLP 3000.015#2 — catalog consumers see the same
                     // implicit immutability as runtime schema consumers.
                     for column in &table.columns {
@@ -141,12 +146,21 @@ impl Catalog {
                 }
             }
             for maintain in &doc.maintains {
+                let mut maintain = maintain.clone();
+                super::maintains::normalize_keys(&mut maintain);
+                if maintain.row_key.is_none()
+                    && maintain.by.is_empty()
+                    && matches!(maintain.name.as_str(), "viewer" | "now" | "commit" | "new")
+                {
+                    diagnostics.push(Diagnostic::new(&maintain.site, "E_QUARRY_RESERVED",
+                        format!("global maintained scalar `{}` would shadow Quarry's contextual `{}` builtin", maintain.name, maintain.name),
+                        format!("rename the view, for example `view total{}: ...`", maintain.name[..1].to_uppercase() + &maintain.name[1..])).guide("maintains"));
+                    continue;
+                }
                 if tables.contains_key(&maintain.name) || maintains.contains_key(&maintain.name) {
                     diagnostics.push(unknown(&maintain.site, format!("maintain {} collides with a table of the same name", maintain.name), "rename the aggregate view"));
                     continue;
                 }
-                let mut maintain = maintain.clone();
-                super::maintains::normalize_keys(&mut maintain);
                 maintains.insert(maintain.name.clone(), maintain);
             }
             for shape in &doc.shapes {

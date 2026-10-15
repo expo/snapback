@@ -114,6 +114,7 @@ impl Engine {
             schema,
             programs,
             generation,
+            expiry_after: BTreeMap::new(),
             dev_effects: false,
             ceilings: Ceilings::default(),
             entropy: crate::ids::seed(),
@@ -150,6 +151,7 @@ impl Engine {
         self.schema = schema;
         self.programs = programs;
         self.generation = generation;
+        self.expiry_after.clear();
         self.dev_effects = false;
         self.ephemeral
             .rebind_committed(metadata.store_id, generation, &self.schema);

@@ -330,6 +330,34 @@ def examples : List Example := [
               program := scalar (.bin .mod (int 1) (int 0)) }
     tables := []
     expected := r#"{"kind":"refused","code":"E_DIV_ZERO"}"# },
+  { name := "rounded-division"
+    source := "LLP 3000.013.001 §2: divide uses exact signed quotient/remainder arithmetic and one explicit rounding step"
+    case := { schema := plain, store := Store.empty, viewer := alice,
+              program := scalar (.arr [
+                .roundDiv .towardZero none (int 5) (int 2), .roundDiv .awayFromZero none (int 5) (int 2),
+                .roundDiv .floor none (int 5) (int 2), .roundDiv .ceiling none (int 5) (int 2),
+                .roundDiv .halfAwayFromZero none (int 5) (int 2), .roundDiv .halfEven none (int 5) (int 2),
+                .roundDiv .halfEven none (int 7) (int 2), .roundDiv .halfAwayFromZero none (int (-5)) (int 2),
+                .roundDiv .floor none (int (-5)) (int 2), .roundDiv .ceiling none (int (-5)) (int 2),
+                .roundDiv .floor none (int 5) (int (-2)), .roundDiv .ceiling none (int 5) (int (-2)),
+                .roundDiv .halfEven none (int 7) (int 3), .roundDiv .halfEven none (int 8) (int 3),
+                .roundDiv .halfEven (some 2) (int 101) (int 2), .roundDiv .halfEven (some 2) (int (-1)) (int 8),
+                .roundDiv .halfAwayFromZero (some 2) (int (-1)) (int 8),
+                .roundDiv .halfEven (some 12) (int 9007199254740991) (int 9007199254740991)]) }
+    tables := []
+    expected := r#"{"kind":"answer","data":[2,3,2,3,3,2,4,-3,-3,-2,-3,-2,2,3,5050,-12,-13,1000000000000],"complete":true,"next":null}"# },
+  { name := "rounded-division-zero"
+    source := "LLP 3000.013.001 §2: divide by zero refuses E_DIV_ZERO before rounding"
+    case := { schema := plain, store := Store.empty, viewer := alice,
+              program := scalar (.roundDiv .halfEven none (int 1) (int 0)) }
+    tables := []
+    expected := r#"{"kind":"refused","code":"E_DIV_ZERO"}"# },
+  { name := "scaled-division-overflow"
+    source := "LLP 3000.013.001 §2: scaled division checks the rounded result against i53"
+    case := { schema := plain, store := Store.empty, viewer := alice,
+              program := scalar (.roundDiv .halfEven (some 1) (int 9007199254740991) (int 1)) }
+    tables := []
+    expected := r#"{"kind":"refused","code":"E_OVERFLOW"}"# },
   { name := "codepoint-order"
     source := "LLP 3000.035 §2: text compares by code point (U+E000 before U+10000)"
     case := { schema := labels, store := labelStore, viewer := alice,
@@ -800,6 +828,137 @@ def projectStore (note : Bool) : Store := mkStore [
   ("tags", [mkRow "g" [("task", I "t2")]]),
   ("logs", [mkRow "l" [("task", I "t1")]])]
 
+def expiryRefSchema : Schema := { tables := [
+  { name := "parents", cols := [c "until"], expire := some "until", read := .allow },
+  { name := "cascadeKids", cols := [refCol "parent" "parents" (some .cascade)], read := .allow },
+  { name := "nullableKids", cols := [refCol "parent" "parents" (some .setNull) (nullable := true)], read := .allow },
+  { name := "dualNullableKids", cols := [refCol "left" "parents" (some .setNull) (nullable := true),
+      refCol "right" "parents" (some .setNull) (nullable := true)], read := .allow },
+  { name := "blockers", cols := [refCol "parent" "parents" (some .restrict), c "until"],
+    expire := some "until", read := .allow }] }
+
+def expiryRefStore : Store := mkStore [
+  ("parents", [mkRow "a" [("until", .int 10)], mkRow "e" [("until", .int 10)], mkRow "z" [("until", .int 10)]]),
+  ("cascadeKids", [mkRow "ca" [("parent", I "a")], mkRow "cz" [("parent", I "z")]]),
+  ("nullableKids", [mkRow "nz" [("parent", I "z")]]),
+  ("dualNullableKids", [mkRow "dn" [("left", I "e"), ("right", I "z")]]),
+  ("blockers", [mkRow "ba" [("parent", I "a"), ("until", .int 20)],
+    mkRow "be" [("parent", I "e"), ("until", .int 10)]])]
+
+def expiryWriteSchema : Schema := { tables := [
+  { name := "items", cols := [c "owner", c "until" true, c "tag"], uniques := [["tag"]],
+    expire := some "until", read := .allow, insert := .allow, update := .allow, delete := .allow }] }
+
+def expiryWriteStore : Store := mkStore [
+  ("items", [mkRow "r0" [("owner", I "alice"), ("until", N 10), ("tag", I "tag0")],
+    mkRow "r1" [("owner", I "alice"), ("until", .null), ("tag", I "tag1")]])]
+
+def expirySecondaryTargetStore : Store := mkStore [
+  ("items", [mkRow "r0" [("owner", I "alice"), ("until", N 10), ("tag", I "tag0")],
+    mkRow "r1" [("owner", I "alice"), ("until", .null), ("tag", I "tag0")]])]
+
+def sweepScaleSchema : Schema := { tables := [
+  { name := "items", cols := [refCol "tag" "tags" (some .restrict), c "until"],
+    expire := some "until", read := .allow },
+  { name := "tags", cols := [c "until"], expire := some "until", read := .allow }] }
+
+def sweepScaleStore : Store := mkStore [
+  ("items", (List.range 14).map fun n =>
+    mkRow s!"item{n}" [("tag", I s!"tag{n}"), ("until", N 10)]),
+  ("tags", (List.range 14).map fun n =>
+    mkRow s!"tag{n}" [("until", N 10)])]
+
+def ifAbsentExpirySchema : Schema := { tables := [
+  { name := "parents", cols := [c "until", c "tag"], uniques := [["tag"]],
+    expire := some "until", read := .allow, insert := .allow, update := .allow, delete := .allow },
+  { name := "cascadeKids", cols := [refCol "parent" "parents" (some .cascade)],
+    read := .allow, insert := .allow }] }
+
+def ifAbsentExpiryStore : Store := mkStore [
+  ("parents", [mkRow "p" [("until", N 10), ("tag", I "old")],
+    mkRow "q" [("until", .null), ("tag", I "taken")]]),
+  ("cascadeKids", [mkRow "c" [("parent", I "p")]])]
+
+def mutationExpirySchema (parentInsert : Rule := .allow) : Schema := { tables := [
+  { name := "parents", cols := [c "until"], expire := some "until", read := .allow,
+    insert := parentInsert, update := .allow, delete := .allow },
+  { name := "cascadeKids", cols := [refCol "parent" "parents" (some .cascade), c "until" true],
+    expire := some "until", read := .allow, insert := .allow },
+  { name := "nullableKids", cols := [refCol "parent" "parents" (some .setNull) (nullable := true), c "until" true],
+    expire := some "until", read := .allow, insert := .allow },
+  { name := "blockers", cols := [refCol "parent" "parents" (some .restrict), c "until" true],
+    expire := some "until", read := .allow, insert := .allow }] }
+
+def expiredActionWitnessStore : Store := mkStore [
+  ("parents", [mkRow "p" [("until", N 20)]]),
+  ("cascadeKids", [mkRow "c" [("parent", I "p"), ("until", N 10)]]),
+  ("nullableKids", [mkRow "n" [("parent", I "p"), ("until", N 10)]]),
+  ("blockers", [mkRow "b" [("parent", I "p"), ("until", N 10)]])]
+
+def liveActionStore : Store := mkStore [
+  ("parents", [mkRow "p" [("until", N 20)]]),
+  ("cascadeKids", [mkRow "c" [("parent", I "p"), ("until", .null)]]),
+  ("nullableKids", [mkRow "n" [("parent", I "p"), ("until", .null)]])]
+
+def sameIdAuthoritySchema : Schema := mutationExpirySchema
+  (.probe "cascadeKids" ["parent"] [("parent", self "id")])
+
+def sameIdAuthorityStore : Store := mkStore [
+  ("parents", [mkRow "p" [("until", N 10)]]),
+  ("cascadeKids", [mkRow "c" [("parent", I "p"), ("until", .null)]])]
+
+def changedRetirementOrderSchema : Schema := { tables := [
+  { name := "aRoots", cols := [c "until"], expire := some "until", read := .allow,
+    update := .allow },
+  { name := "zRoots", cols := [c "until"], expire := some "until", read := .allow,
+    update := .allow },
+  { name := "children", cols := [refCol "a" "aRoots" (some .cascade),
+      refCol "z" "zRoots" (some .restrict)], read := .allow },
+  { name := "nullable", cols := [refCol "z" "zRoots" (some .setNull) (nullable := true)],
+    read := .allow }] }
+
+def changedRetirementOrderStore : Store := mkStore [
+  ("aRoots", [mkRow "a" [("until", .null)]]),
+  ("zRoots", [mkRow "z" [("until", .null)]]),
+  ("children", [mkRow "c" [("a", I "a"), ("z", I "z")]])]
+
+def sweepRetirementOrderStore : Store := mkStore [
+  ("aRoots", [mkRow "a" [("until", N 10)]]),
+  ("zRoots", [mkRow "z" [("until", N 10)]]),
+  ("children", [mkRow "c" [("a", I "a"), ("z", I "z")]]),
+  ("nullable", [mkRow "n" [("z", I "z")]])]
+
+def sweepRowOrderSchema : Schema := { tables := [
+  { name := "roots", cols := [c "until"], expire := some "until", read := .allow },
+  { name := "children", cols := [refCol "a" "roots" (some .cascade),
+      refCol "z" "roots" (some .restrict)], read := .allow },
+  { name := "nullable", cols := [refCol "z" "roots" (some .setNull) (nullable := true)],
+    read := .allow }] }
+
+def sweepRowOrderStore : Store := mkStore [
+  ("roots", [mkRow "a" [("until", N 20)], mkRow "z" [("until", N 10)]]),
+  ("children", [mkRow "c" [("a", I "a"), ("z", I "z")]]),
+  ("nullable", [mkRow "n" [("z", I "z")]])]
+
+def sweepRowAfterFirstStore : Store := mkStore [
+  ("roots", [mkRow "z" [("until", N 10)]]),
+  ("children", []),
+  ("nullable", [mkRow "n" [("z", I "z")]])]
+
+def sweepCompoundOrderSchema : Schema := { tables := [
+  { name := "roots", cols := [c "until", c "rank"], expire := some "until",
+    expiryOrder := ["until", "rank"], read := .allow },
+  { name := "children", cols := [refCol "a" "roots" (some .cascade),
+      refCol "z" "roots" (some .restrict)], read := .allow },
+  { name := "nullable", cols := [refCol "z" "roots" (some .setNull) (nullable := true)],
+    read := .allow }] }
+
+def sweepCompoundOrderStore : Store := mkStore [
+  ("roots", [mkRow "a" [("until", N 10), ("rank", N 1)],
+    mkRow "z" [("until", N 10), ("rank", N 0)]]),
+  ("children", [mkRow "c" [("a", I "a"), ("z", I "z")]]),
+  ("nullable", [mkRow "n" [("z", I "z")]])]
+
 def refExamples : List Example := [
   { name := "delete-cascade"
     source := "LLP 3000.039 §3: a cascade deletes the referencing rows, hidden ones included; set null clears outside the closure; keep keeps"
@@ -818,7 +977,179 @@ def refExamples : List Example := [
     case := { schema := projectsSchema, store := projectStore false, viewer := alice,
               program := mutation [.write none (.delete "tasks" [("id", idE "t1")])] }
     tables := []
-    expected := r#"{"kind":"refused","code":"NOT_FOUND"}"# }
+    expected := r#"{"kind":"refused","code":"NOT_FOUND"}"# },
+  { name := "expiry-actions-and-restrict-progress"
+    source := "LLP 3000.039 §3: expiry retains a restricted root, then advances to apply cascade and set null to later due roots"
+    case := { schema := expiryRefSchema, store := expiryRefStore, viewer := alice,
+              program := query [.ret (lit .null)], now := 10, sweepOnly := true }
+    tables := ["parents", "cascadeKids", "nullableKids", "dualNullableKids", "blockers"]
+    expected := r#"{"kind":"committed","result":{"table":"blockers","rows":[]},"store":{"parents":[{"id":"a","until":10}],"cascadeKids":[{"id":"ca","parent":"a"}],"nullableKids":[{"id":"nz","parent":null}],"dualNullableKids":[{"id":"dn","left":null,"right":null}],"blockers":[{"id":"ba","parent":"a","until":20}]}}"# },
+  { name := "update-expired-target-is-not-found"
+    source := "LLP 3000.036.003 §3: an expired physical row is absent from update target lookup"
+    case := { schema := expiryWriteSchema, store := expiryWriteStore, viewer := alice, now := 10,
+              program := mutation [.write none (.update "items" [("id", idE "r0")] [("owner", idE "bob")] none)] }
+    tables := []
+    expected := r#"{"kind":"refused","code":"NOT_FOUND"}"# },
+  { name := "delete-expired-target-is-not-found"
+    source := "LLP 3000.036.003 §3: an expired physical row is absent from delete target lookup"
+    case := { schema := expiryWriteSchema, store := expiryWriteStore, viewer := alice, now := 10,
+              program := mutation [.write none (.delete "items" [("id", idE "r0")])] }
+    tables := []
+    expected := r#"{"kind":"refused","code":"NOT_FOUND"}"# },
+  { name := "update-secondary-key-skips-expired-predecessor"
+    source := "LLP 3000.036.003 §7: update target lookup skips an expired physical row before selecting a live row with the released secondary key"
+    case := { schema := expiryWriteSchema, store := expirySecondaryTargetStore, viewer := alice, now := 10,
+              program := mutation [
+                .write none (.update "items" [("tag", idE "tag0")] [("owner", idE "bob")] none),
+                .ret (lit .null)] }
+    tables := ["items"]
+    expected := r#"{"kind":"committed","result":null,"store":{"items":[{"id":"r0","owner":"alice","tag":"tag0","until":10},{"id":"r1","owner":"bob","tag":"tag0","until":null}]}}"# },
+  { name := "delete-secondary-key-skips-expired-predecessor"
+    source := "LLP 3000.036.003 §7: delete target lookup skips an expired physical row before selecting a live row with the released secondary key"
+    case := { schema := expiryWriteSchema, store := expirySecondaryTargetStore, viewer := alice, now := 10,
+              program := mutation [
+                .write none (.delete "items" [("tag", idE "tag0")]),
+                .ret (lit .null)] }
+    tables := ["items"]
+    expected := r#"{"kind":"committed","result":null,"store":{"items":[{"id":"r0","owner":"alice","tag":"tag0","until":10}]}}"# },
+  { name := "expiry-sweep-scales-across-restrict-rows"
+    source := "LLP 3000.036.003 §6 and LLP 3000.039 §3: a sweep retires many due roots in table order while restrict sees the current live witness store"
+    case := { schema := sweepScaleSchema, store := sweepScaleStore, viewer := alice, now := 10,
+              program := query [.ret (lit .null)], sweepOnly := true }
+    tables := ["items", "tags"]
+    expected := r#"{"kind":"committed","result":{"table":"items","rows":[]},"store":{"items":[],"tags":[]}}"# },
+  { name := "upsert-retires-expired-id-before-secondary-unique"
+    source := "LLP 3000.036.003 §6: an expired same-id row retires before an upsert checks the new image's other unique keys"
+    case := { schema := expiryWriteSchema, store := expiryWriteStore, viewer := alice, now := 10,
+              program := mutation [.write none (.upsert "items" [("id", idE "r0")]
+                [("owner", idE "alice"), ("until", int 20), ("tag", idE "tag1")])] }
+    tables := []
+    expected := r#"{"kind":"refused","code":"E_UNIQUE"}"# },
+  { name := "insert-ignores-expired-secondary-unique"
+    source := "LLP 3000.036.003 §7: expired secondary occupants release their logical unique keys"
+    case := { schema := expiryWriteSchema, store := expiryWriteStore, viewer := alice, now := 10,
+              program := mutation [
+                .write none (.insert "items" [("id", idE "r2"), ("owner", idE "alice"),
+                  ("until", int 20), ("tag", idE "tag0")] false),
+                .ret (lit .null)] }
+    tables := ["items"]
+    expected := r#"{"kind":"committed","result":null,"store":{"items":[{"id":"r0","owner":"alice","tag":"tag0","until":10},{"id":"r1","owner":"alice","tag":"tag1","until":null},{"id":"r2","owner":"alice","tag":"tag0","until":20}]}}"# },
+  { name := "update-ignores-expired-secondary-unique"
+    source := "LLP 3000.036.003 §7: update uniqueness also ignores expired secondary occupants"
+    case := { schema := expiryWriteSchema, store := expiryWriteStore, viewer := alice, now := 10,
+              program := mutation [
+                .write none (.update "items" [("id", idE "r1")] [("tag", idE "tag0")] none),
+                .ret (lit .null)] }
+    tables := ["items"]
+    expected := r#"{"kind":"committed","result":null,"store":{"items":[{"id":"r0","owner":"alice","tag":"tag0","until":10},{"id":"r1","owner":"alice","tag":"tag0","until":null}]}}"# },
+  { name := "insert-if-absent-clash-preserves-expired-predecessor"
+    source := "LLP 3000.036.003 §7: a live secondary clash makes if-absent a no-op before same-id retirement"
+    case := { schema := ifAbsentExpirySchema, store := ifAbsentExpiryStore, viewer := alice, now := 10,
+              program := mutation [
+                .write none (.insert "parents" [("id", idE "p"), ("until", int 20),
+                  ("tag", idE "taken")] true),
+                .ret (lit .null)] }
+    tables := ["parents", "cascadeKids"]
+    expected := r#"{"kind":"committed","result":null,"store":{"cascadeKids":[{"id":"c","parent":"p"}],"parents":[{"id":"p","tag":"old","until":10},{"id":"q","tag":"taken","until":null}]}}"# },
+  { name := "ordinary-delete-ignores-expired-action-witnesses"
+    source := "LLP 3000.039 §3 and LLP 3000.036.003 §3: logically expired cascade, set-null and restrict children are not delete-action witnesses"
+    case := { schema := mutationExpirySchema, store := expiredActionWitnessStore, viewer := alice, now := 10,
+              program := mutation [.write none (.delete "parents" [("id", idE "p")])] }
+    tables := ["parents", "cascadeKids", "nullableKids", "blockers"]
+    expected := r#"{"kind":"committed","result":null,"store":{"parents":[],"cascadeKids":[{"id":"c","parent":"p","until":10}],"nullableKids":[{"id":"n","parent":"p","until":10}],"blockers":[{"id":"b","parent":"p","until":10}]}}"# },
+  { name := "born-expired-restrict-rolls-back"
+    source := "LLP 3000.036.003 §6: commit-end retirement applies restrict and rolls back the mutation"
+    case := { schema := mutationExpirySchema, store := mkStore [], viewer := alice, now := 10,
+              program := mutation [
+                .write none (.insert "parents" [("id", idE "p"), ("until", int 10)] false),
+                .write none (.insert "blockers" [("id", idE "b"), ("parent", idE "p"), ("until", lit .null)] false),
+                .ret (lit .null)] }
+    tables := []
+    expected := r#"{"kind":"refused","code":"E_REFERENCED"}"# },
+  { name := "born-expired-cascade-and-set-null"
+    source := "LLP 3000.036.003 §6: commit-end retirement applies cascade and set null in the mutation transaction"
+    case := { schema := mutationExpirySchema, store := mkStore [], viewer := alice, now := 10,
+              program := mutation [
+                .write none (.insert "parents" [("id", idE "p"), ("until", int 10)] false),
+                .write none (.insert "cascadeKids" [("id", idE "c"), ("parent", idE "p"), ("until", lit .null)] false),
+                .write none (.insert "nullableKids" [("id", idE "n"), ("parent", idE "p"), ("until", lit .null)] false),
+                .ret (lit .null)] }
+    tables := ["parents", "cascadeKids", "nullableKids"]
+    expected := r#"{"kind":"committed","result":null,"store":{"parents":[],"cascadeKids":[],"nullableKids":[{"id":"n","parent":null,"until":null}]}}"# },
+  { name := "updated-expired-cascade-and-set-null"
+    source := "LLP 3000.036.003 §6: a final image updated expired retires with its declared actions"
+    case := { schema := mutationExpirySchema, store := liveActionStore, viewer := alice, now := 10,
+              program := mutation [
+                .write none (.update "parents" [("id", idE "p")] [("until", int 10)] none),
+                .ret (lit .null)] }
+    tables := ["parents", "cascadeKids", "nullableKids"]
+    expected := r#"{"kind":"committed","result":null,"store":{"parents":[],"cascadeKids":[],"nullableKids":[{"id":"n","parent":null,"until":null}]}}"# },
+  { name := "same-id-insert-authorizes-before-cascade-retirement"
+    source := "LLP 3000.036.003 §6: insert authority sees the expired predecessor's child before retirement cascades it"
+    case := { schema := sameIdAuthoritySchema, store := sameIdAuthorityStore, viewer := alice, now := 10,
+              program := mutation [
+                .write none (.insert "parents" [("id", idE "p"), ("until", int 20)] false),
+                .ret (lit .null)] }
+    tables := ["parents", "cascadeKids"]
+    expected := r#"{"kind":"committed","result":null,"store":{"parents":[{"id":"p","until":20}],"cascadeKids":[]}}"# },
+  { name := "same-id-upsert-authorizes-before-cascade-retirement"
+    source := "LLP 3000.036.003 §6: upsert's insert arm has the same pre-retirement authority order"
+    case := { schema := sameIdAuthoritySchema, store := sameIdAuthorityStore, viewer := alice, now := 10,
+              program := mutation [
+                .write none (.upsert "parents" [("id", idE "p")] [("until", int 20)]),
+                .ret (lit .null)] }
+    tables := ["parents", "cascadeKids"]
+    expected := r#"{"kind":"committed","result":null,"store":{"parents":[{"id":"p","until":20}],"cascadeKids":[]}}"# },
+  { name := "commit-end-expiry-uses-runtime-table-order"
+    source := "LLP 3000.036.003 §6: commit-end retirement uses reverse table order, so zRoots restricts before aRoots can cascade its blocker"
+    case := { schema := changedRetirementOrderSchema, store := changedRetirementOrderStore,
+              viewer := alice, now := 10,
+              program := mutation [
+                .write none (.update "aRoots" [("id", idE "a")] [("until", int 10)] none),
+                .write none (.update "zRoots" [("id", idE "z")] [("until", int 10)] none),
+                .ret (lit .null)] }
+    tables := []
+    expected := r#"{"kind":"refused","code":"E_REFERENCED"}"# },
+  { name := "expiry-sweep-uses-runtime-table-order"
+    source := "LLP 3000.036.003 §6: a scheduled sweep uses reverse table order, so zRoots stays restricted and its set-null row unchanged before aRoots cascades the blocker"
+    case := { schema := changedRetirementOrderSchema, store := sweepRetirementOrderStore,
+              viewer := alice, now := 10, program := query [.ret (lit .null)], sweepOnly := true }
+    tables := ["aRoots", "zRoots", "children", "nullable"]
+    expected := r#"{"kind":"committed","result":{"table":"aRoots","rows":[]},"store":{"aRoots":[],"zRoots":[{"id":"z","until":10}],"children":[],"nullable":[{"id":"n","z":"z"}]}}"# },
+  { name := "expiry-sweep-uses-expiry-index-row-order"
+    source := "LLP 3000.036.003 §6: a scheduled sweep orders due roots by deadline then id, so z stays restricted before a cascades its blocker"
+    case := { schema := sweepRowOrderSchema, store := sweepRowOrderStore,
+              viewer := alice, now := 30, program := query [.ret (lit .null)], sweepOnly := true }
+    tables := ["roots", "children", "nullable"]
+    expected := r#"{"kind":"committed","result":{"table":"roots","rows":[]},"store":{"roots":[{"id":"z","until":10}],"children":[],"nullable":[{"id":"n","z":"z"}]}}"# },
+  { name := "expiry-sweep-uses-selected-compound-index-order"
+    source := "LLP 3000.036.003 §6: equal deadlines follow every selected expiry-index component before id"
+    case := { schema := sweepCompoundOrderSchema, store := sweepCompoundOrderStore,
+              viewer := alice, now := 10, program := query [.ret (lit .null)], sweepOnly := true }
+    tables := ["roots", "children", "nullable"]
+    expected := r#"{"kind":"committed","result":{"table":"roots","rows":[]},"store":{"roots":[{"id":"z","rank":0,"until":10}],"children":[],"nullable":[{"id":"n","z":"z"}]}}"# },
+  { name := "expiry-sweep-resumes-after-last-visited-table"
+    source := "LLP 3000.036.003 §6: a complete prior sweep still rotates the next call after its last visited table"
+    case := { schema := changedRetirementOrderSchema, store := sweepRetirementOrderStore,
+              viewer := alice, now := 10, program := query [.ret (lit .null)], sweepOnly := true,
+              sweepCursor := { table := some "zRoots" } }
+    tables := ["aRoots", "zRoots", "children", "nullable"]
+    expected := r#"{"kind":"committed","result":{"table":"zRoots","rows":[]},"store":{"aRoots":[],"zRoots":[],"children":[],"nullable":[{"id":"n","z":null}]}}"# },
+  { name := "expiry-sweep-persists-row-cursor-at-limit"
+    source := "LLP 3000.036.003 §6: a bounded sweep resumes strictly after its per-table expiry-index key"
+    case := { schema := sweepRowOrderSchema, store := sweepRowOrderStore,
+              viewer := alice, now := 30, program := query [.ret (lit .null)], sweepOnly := true,
+              sweepCursor := { table := some "roots", rows := [("roots", [N 10, I "z"])] },
+              sweepLimit := some 1 }
+    tables := ["roots", "children", "nullable"]
+    expected := r#"{"kind":"committed","result":{"table":"roots","rows":[{"table":"roots","key":[20,"a"]}]},"store":{"roots":[{"id":"z","until":10}],"children":[],"nullable":[{"id":"n","z":"z"}]}}"# },
+  { name := "expiry-sweep-wraps-persisted-row-cursor"
+    source := "LLP 3000.036.003 §6: after scanning the tail, a later bounded call wraps to older retained due keys"
+    case := { schema := sweepRowOrderSchema, store := sweepRowAfterFirstStore,
+              viewer := alice, now := 30, program := query [.ret (lit .null)], sweepOnly := true,
+              sweepCursor := { table := some "roots", rows := [("roots", [N 20, I "a"])] } }
+    tables := ["roots", "children", "nullable"]
+    expected := r#"{"kind":"committed","result":{"table":"roots","rows":[]},"store":{"roots":[],"children":[],"nullable":[{"id":"n","z":null}]}}"# }
 ]
 
 def page3Pure : Schema := { tables := membershipDocs.tables.map fun t =>
@@ -911,11 +1242,149 @@ def page4Examples : List Example := [
     expected := r#"{"kind":"answer","data":[],"complete":true,"next":null}"# }
 ]
 
+def page5Product : Schema := { tables := [
+  { name := "items", cols := [c "owner", c "helper", c "status", c "at"]
+    read := .and
+      (.or (.eq (self "owner") .viewer) (.eq (self "helper") .viewer))
+      (.or (.eq (self "status") (.lit (T "open"))) (.eq (self "status") (.lit (T "active")))) }] }
+
+def page5FixedPerRow : Schema := { tables := [
+  { name := "roles", cols := [c "bucket", c "principal"], uniques := [["bucket", "principal"]]
+    read := .eq (self "principal") .viewer },
+  { name := "seats", cols := [c "bucket", c "principal"], uniques := [["bucket", "principal"]]
+    read := .eq (self "principal") .viewer },
+  { name := "permits", cols := [c "principal"], uniques := [["principal"]]
+    read := .eq (self "principal") .viewer },
+  { name := "access", cols := [c "item", c "bucket", c "principal"], uniques := [["item", "bucket", "principal"]]
+    read := .eq (self "principal") .viewer },
+  { name := "items", cols := [c "bucket", c "at"]
+    read := .and (.and
+      (.and (.probe "roles" ["bucket", "principal"] [("bucket", self "bucket"), ("principal", .viewer)])
+        (.probe "seats" ["bucket", "principal"] [("bucket", self "bucket"), ("principal", .viewer)]))
+      (.probe "permits" ["principal"] [("principal", .viewer)]))
+      (.probe "access" ["item", "bucket", "principal"] [("item", self "id"), ("bucket", self "bucket"), ("principal", .viewer)]) }] }
+
+def page5MembershipProduct : Schema := { tables := [
+  { name := "access", cols := [c "bucket", c "principal"], uniques := [["bucket", "principal"]]
+    read := .allow },
+  { name := "items", cols := [c "bucket", c "region", c "status", c "at"]
+    read := .probe "access" ["bucket", "principal"] [("bucket", self "bucket"), ("principal", .viewer)] }] }
+
+def page5MembershipProductBoundaries : Schema := { tables := [
+  { name := "access", cols := [c "bucket", c "principal"], uniques := [["bucket", "principal"]]
+    read := .allow },
+  { name := "items", cols := [c "bucket", c "region", c "score", c "rank", c "p", c "q", c "r", c "s", c "at"]
+    read := .probe "access" ["bucket", "principal"] [("bucket", self "bucket"), ("principal", .viewer)] }] }
+
+def page5Vacancy : Schema := { tables := [
+  { name := "holds", cols := [c "design", c "owner"], uniques := [["design"]], read := .eq (self "owner") .viewer },
+  { name := "designs", cols := [c "owner", c "at"],
+    read := .or (.not (.probe "holds" ["design"] [("design", self "id")])) (.eq (self "owner") .viewer) }] }
+def page5ImplicitIdVacancy : Schema := { tables := [
+  { name := "designs", cols := [c "owner", c "at"],
+    read := .or (.not (.probe "designs" ["id"] [("id", self "id")])) (.eq (self "owner") .viewer) }] }
+def page5VacancyExamples : List Example := [
+  { name := "page5-bounded-product"
+    source := "LLP 3000.036.001 §18: two principal pins times two status pins retain both predicates in four complete lanes"
+    case := {
+      schema := page5Product
+      store := mkStore [("items", [
+        mkRow "a" [("owner", I "alice"), ("helper", I "bob"), ("status", T "open"), ("at", N 1)],
+        mkRow "b" [("owner", I "bob"), ("helper", I "alice"), ("status", T "active"), ("at", N 2)],
+        mkRow "c" [("owner", I "alice"), ("helper", I "bob"), ("status", T "closed"), ("at", N 3)],
+        mkRow "d" [("owner", I "bob"), ("helper", I "bob"), ("status", T "open"), ("at", N 4)]])]
+      viewer := alice
+      program := query [.ret (.page "items" [] none ["at"] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"a","owner":"alice","helper":"bob","status":"open","at":1},{"id":"b","owner":"bob","helper":"alice","status":"active","at":2}],"complete":true,"next":null}"# },
+  { name := "page5-fixed-plus-per-row"
+    source := "LLP 3000.036.001 §18: readable fixed points may guard one varying per-row membership lane"
+    case := {
+      schema := page5FixedPerRow
+      store := mkStore [
+        ("roles", [mkRow "r" [("bucket", N 1), ("principal", I "alice")]]),
+        ("seats", [mkRow "s" [("bucket", N 1), ("principal", I "alice")]]),
+        ("permits", [mkRow "p" [("principal", I "alice")]]),
+        ("access", [mkRow "x" [("item", I "a"), ("bucket", N 1), ("principal", I "alice")],
+          mkRow "y" [("item", I "c"), ("bucket", N 2), ("principal", I "alice")]]),
+        ("items", [mkRow "a" [("bucket", N 1), ("at", N 1)],
+          mkRow "b" [("bucket", N 1), ("at", N 2)],
+          mkRow "c" [("bucket", N 2), ("at", N 3)]])]
+      viewer := alice
+      program := query [.ret (.page "items" [("bucket", int 1)] none ["at"] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"a","bucket":1,"at":1}],"complete":true,"next":null}"# },
+  { name := "page5-membership-filter-product"
+    source := "LLP 3000.036.001 §18: two equality-alternative filters form four bounded membership lanes"
+    case := {
+      schema := page5MembershipProduct
+      store := Store.empty
+      viewer := alice
+      program := query [.ret (.page "items" [] (some (.and
+        (.or (.bin .eq (.dot "region") (.lit (.s (T "north")))) (.bin .eq (.dot "region") (.lit (.s (T "south")))))
+        (.or (.bin .eq (.dot "status") (.lit (.s (T "open")))) (.bin .eq (.dot "status") (.lit (.s (T "held")))))))
+        ["at"] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[],"complete":true,"next":null}"# },
+  { name := "page5-membership-shared-pin-product"
+    source := "LLP 3000.036.001 §18: one common equality pins all four residual-comparison lanes"
+    case := {
+      schema := page5MembershipProductBoundaries
+      store := Store.empty
+      viewer := alice
+      program := query [.ret (.page "items" [("region", .lit (.s (T "north")))] (some (.and
+        (.or (.bin .gt (.dot "score") (int 0)) (.bin .gt (.dot "score") (int 10)))
+        (.or (.bin .gt (.dot "rank") (int 0)) (.bin .gt (.dot "rank") (int 10))))) ["at"] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[],"complete":true,"next":null}"# },
+  { name := "page5-membership-product-overflow"
+    source := "LLP 3000.036.001 §18: sixteen product lanes retain the ordinary incomplete scan"
+    case := {
+      schema := page5MembershipProductBoundaries
+      store := Store.empty
+      viewer := alice
+      program := query [.ret (.page "items" [] (some (.and
+        (.and (.or (.bin .eq (.dot "p") (int 0)) (.bin .eq (.dot "p") (int 1)))
+          (.or (.bin .eq (.dot "q") (int 0)) (.bin .eq (.dot "q") (int 1))))
+        (.and (.or (.bin .eq (.dot "r") (int 0)) (.bin .eq (.dot "r") (int 1)))
+          (.or (.bin .eq (.dot "s") (int 0)) (.bin .eq (.dot "s") (int 1)))))) ["at"] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[],"complete":false,"next":null}"# },
+  { name := "page5-exact-vacancy"
+    source := "LLP 3000.036.001 §18: explicit exact-point vacancy makes private server exhaustion observable"
+    case := {
+      schema := page5Vacancy
+      store := mkStore [("holds", [mkRow "h" [("design", I "held"), ("owner", I "alice")]]),
+        ("designs", [mkRow "free" [("owner", I "alice"), ("at", N 1)],
+          mkRow "held" [("owner", I "alice"), ("at", N 2)]])]
+      viewer := bob
+      program := query [.ret (.page "designs" [] none ["at"] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[{"id":"free","owner":"alice","at":1}],"complete":true,"next":null}"# },
+  { name := "page5-implicit-id-vacancy"
+    source := "LLP 3000.036.001 §18: intrinsic id is a required unique vacancy point"
+    case := {
+      schema := page5ImplicitIdVacancy
+      store := mkStore [("designs", [mkRow "free" [("owner", I "alice"), ("at", N 1)],
+          mkRow "held" [("owner", I "alice"), ("at", N 2)]])]
+      viewer := bob
+      program := query [.ret (.page "designs" [] none ["at"] false 10 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[],"complete":true,"next":null}"# }
+]
+
 -- Integration 12's seed 10282, plus its nullable-order companion.
 -- These ordinary scans are supported model cases, never excluded as Unsupported.
 def page4FallbackSchema : Schema := { tables := [
   { name := "items", cols := [c "owner", c "helper" true, c "bucket", c "flag", c "score", c "maybe" true]
     read := .or (.eq (self "owner") .viewer) (.eq (self "helper") .viewer) }] }
+
+def pageMembershipFilterFallbackSchema : Schema := { tables := [
+  { name := "access", cols := [c "bucket", c "principal"], uniques := [["bucket", "principal"]]
+    caps := [{ columns := ["principal"], max := 16 }], read := .allow },
+  { name := "items", cols := [c "owner", c "bucket", c "score", c "label", c "flag"]
+    read := .or (.eq (self "owner") .viewer)
+      (.probe "access" ["bucket", "principal"] [("bucket", self "bucket"), ("principal", .viewer)]) }] }
 
 def page4FallbackExamples : List Example := [
   { name := "page4-pinned-leading-order-empty-fallback"
@@ -930,11 +1399,20 @@ def page4FallbackExamples : List Example := [
               store := mkStore [("items", [mkRow "a" [("owner", I "alice"), ("helper", .null), ("bucket", N 0), ("maybe", .null)]])], viewer := alice,
               program := query [.ret (.page "items" [("bucket", int 0), ("maybe", .lit (.s .null))] none ["maybe"] true 2 (some (.lit (.s .null))))] }
     tables := []
-    expected := r#"{"kind":"answer","data":[{"id":"a","owner":"alice","helper":null,"bucket":0,"maybe":null}],"complete":false,"next":null}"# }
+    expected := r#"{"kind":"answer","data":[{"id":"a","owner":"alice","helper":null,"bucket":0,"maybe":null}],"complete":false,"next":null}"# },
+  { name := "page-membership-two-filter-alternatives-fallback"
+    source := "LLP 3000.036.001 §18: membership PAGE classifies every filter factor before declining a product that pins its varying target"
+    case := { schema := pageMembershipFilterFallbackSchema, store := Store.empty, viewer := alice,
+              program := query [.ret (.page "items" [] (some (.and
+                (.or (.bin .eq (.dot "bucket") (int 0)) (.bin .eq (.dot "bucket") (int 1)))
+                (.or (.bin .gt (.dot "score") (int 0)) (.bin .eq (.dot "flag") (.lit (.s (.bool false)))))))
+                ["label", "score"] false 1 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[],"complete":false,"next":null}"# }
 ]
 
 /-- Every example: the guide cards' and the referential actions'. -/
-def all : List Example := examples ++ merged ++ refExamples ++ page3Examples ++ qdiagExamples ++ page4Examples ++ page4FallbackExamples
+def all : List Example := examples ++ merged ++ refExamples ++ page3Examples ++ qdiagExamples ++ page4Examples ++ page5VacancyExamples ++ page4FallbackExamples
 
 /-- Run every example; returns the failures. -/
 def check : List (String × String × String) :=

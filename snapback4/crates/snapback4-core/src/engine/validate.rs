@@ -139,6 +139,7 @@ pub fn validate_text(label: &str, text: &str, min: u32, format: Option<TextForma
         return Err(RuntimeError::Input(match format {
             TextFormat::Handle => format!("{label} must be a handle: lowercase letters, digits and underscores"),
             TextFormat::Url => format!("{label} must be an http or https URL"),
+            TextFormat::Email => format!("{label} must be an ASCII email address with one @, a dot-safe local part, and valid domain labels"),
         }));
     }
     Ok(())
@@ -158,7 +159,7 @@ pub fn disallowed_text_control(text: &str) -> Option<u32> {
     text.chars().find(|c| c.is_control() && !matches!(c, '\t' | '\n' | '\r')).map(|c| c as u32)
 }
 
-fn fits(kind: &ColumnType, value: Option<&Value>) -> bool {
+pub(crate) fn fits(kind: &ColumnType, value: Option<&Value>) -> bool {
     match (kind, value) {
         (ColumnType::Optional(_), None | Some(Value::Null)) => true,
         (ColumnType::Optional(inner), Some(value)) => fits(inner, Some(value)),

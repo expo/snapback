@@ -148,6 +148,20 @@ impl Store {
         let activation_hash = programs.map(|programs| match &native {Some(native)=>digest(&(schema,programs,native)),None=>digest(&(schema,programs))});
         let schema_changed = before.0.as_deref() != Some(&schema_hash);
         let mut changed = schema_changed || activation_hash.as_ref().is_some_and(|hash| before.1.as_ref() != Some(hash));
+        // The address function is part of the semantic generation even when
+        // the authored schema and programs are byte-identical. Devices reset
+        // with that generation; the server rebuilds old target rows below.
+        let predecessor_has_aggregate = sql.query_row(
+            "SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')",
+            [], |row| row.get::<_, String>(0),
+        ).optional()?.map(|text| serde_json::from_str::<Schema>(&text)
+            .map_err(|error| RuntimeError::decode(error, RuntimeError::Store))).transpose()?
+            .is_some_and(|previous| previous.maintains.iter().any(|maintain| maintain.row_key.is_none()));
+        let maintained_identity_upgrade = programs.is_some()
+            && predecessor_has_aggregate
+            && sql.query_row("SELECT value FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META], |row| row.get::<_, String>(0)).optional()?.as_deref()
+                != Some(crate::schema::MAINTAINED_ID_VERSION);
+        changed |= maintained_identity_upgrade;
         let mut catalog: BTreeMap<String, i64> = sql.prepare("SELECT name, num FROM _catalog")?
             .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))?.collect::<Result<_, _>>()?;
         // Repeat source-count admission under the writer lock, before any candidate writes.

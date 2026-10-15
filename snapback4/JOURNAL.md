@@ -95483,3 +95483,59 @@ tiny_http's overload response uses nonblocking I/O only after acceptance.
 The macOS ticket is resolved under issues/closed. Version stays 0.4.28; no push
 or publication. Paired semantic reviews and Linux checks are recorded in the
 PUBFIX28 report and llp/reviews.
+
+
+### 2026-10-15 — Wave 12 LANG intermediate device budget
+
+The locked Linux whole device at the LANG expiry/digest/language-runtime
+revision measures 2,336,386 B raw, 712,744 B gzip and 538,230 B Brotli.
+Strict wasm family and absence audits pass. The budget is 713,244 B:
+measured gzip plus exactly 500 B, as requested for this workstream.
+The 5,070 B gzip growth is measured against the qualified 0.4.28 device;
+this whole-artifact measurement covers the shared runtime changes.
+Final review, test and census evidence belongs in `reports/wave12-lang/`
+and the worktree's `WORKSTREAM-REPORT.md`; qualification remains in progress.
+
+
+### 2026-10-15 — Wave 12 LANG final Linux device budget
+
+Clean product sources at `d4e7e4fcf9` measure 2,337,449 B raw,
+712,813 B gzip and 538,170 B Brotli with the locked Binaryen and
+strict family/absence audits passing. Set the budget to 713,313 B,
+exactly measured gzip plus 500 B. Whole-device gzip growth from the
+qualified 0.4.28 measurement is 5,139 B; this pays for expiry reference
+actions, digest aggregate identities, language runtime changes and their
+compatibility fences. The intermediate allowance above is superseded.
+The build passed the stricter previous 713,244 B allowance. Final native,
+device, model and client evidence is recorded under `reports/wave12-lang/`;
+this measurement is Linux evidence and does not assert publication.
+
+
+### 2026-10-15 — LANG device commit-end expiry qualification
+
+The final shared prediction path runs the same bounded reference retirement and net aggregate maintenance before final obligations on native and web devices. Clean Linux measurement at ee824cac6f (product cfd4e2f242) is 2,352,628 B raw / 716,694 B gzip / 541,347 B Brotli; family/absence audits pass. Set the wasm budget to **717,194 B = measured gzip + exactly 500 B**. Whole-device gzip delta versus qualified 0.4.28 is +9,020 B; no per-feature attribution, macOS measurement or runtime ceiling increase. Earlier LANG candidate measurements are superseded.
+
+
+### 2026-10-15 — LANG private retirement and bounded device proof
+
+Clean Linux measurement at `5a9deb182e` (product `65560f6c4e`) is 2,353,573 B raw / 716,807 B gzip / 541,202 B Brotli. Strict family and absence audits pass. Set the wasm budget to **717,307 B = measured gzip + exactly 500 B**. The final device increment queues retirement when required maintained-column IR is private and preserves the active device allowance through nested reference scopes. Whole-artifact gzip growth from qualified 0.4.28 is 9,133 B; earlier LANG allowances are superseded. No runtime ceiling increase or publication claim.
+
+
+### 2026-10-15 — LANG final aggregate sequence custody
+
+Clean Linux measurement at `f3ba53b70f` is 2,353,736 B raw / 716,767 B gzip / 541,248 B Brotli. Strict family and absence audits pass. Set the final wasm budget to **717,267 B = measured gzip + exactly 500 B**. Shared Rows interface changes for native persisted sequence adoption alter the wasm layout by -40 B gzip versus R14; device paths do not execute server adoption. Whole-artifact gzip growth from qualified 0.4.28 is 9,093 B. Earlier LANG allowances are superseded; no runtime ceiling or publication claim changes.
+
+
+### 2026-10-15 — LANG canonical counter identity boundary
+
+Clean Linux measurement at `5042e58965` is 2,353,736 B raw / 716,766 B gzip / 541,126 B Brotli. Strict family and absence audits pass. Set the final budget to **717,266 B = measured gzip + exactly 500 B**. The canonical predecessor counter decoder keeps arbitrary reference IDs opaque; validator visibility changes the device layout by -1 B gzip without exposing server adoption. Whole-artifact growth from qualified 0.4.28 is 9,092 B gzip. Earlier LANG measurements are superseded; this remains Linux evidence without publication or runtime ceiling changes.
+
+
+### 2026-10-15 — LANG row and counter precedence qualification
+
+Clean Linux measurement at `726d2e94d6` is 2,353,736 B raw / 716,763 B gzip / 541,305 B Brotli. Strict family and absence audits pass. Set the final budget to **717,263 B = measured gzip + exactly 500 B**. Surviving aggregate row mappings remain authoritative during legacy counter adoption, including counter-only descendants of a dangling reference. The server-only correction changes compiled device layout by -3 B gzip. Whole-artifact growth from qualified 0.4.28 is 9,089 B gzip. Earlier LANG allowances are superseded; no runtime ceiling or publication claim changes.
+
+
+### 2026-10-15 — LANG final reviewed migration ownership measurement
+
+Wave 12 LANG final reviewed ownership/admission correction (2026-10-15, clean Linux measurement at 073acfc7ff): 2353736 B raw / 716765 B gzip / 541361 B Brotli; strict family and absence audits PASS. Set 717265 B = measured gzip + exactly 500 B. Whole-device gzip growth from qualified 0.4.28 is 9091 B. Final legacy adoption validates full predecessor column admission and limits identity ownership to actual predecessor aggregates, preserving opaque ordinary IDs and counters. Whole-artifact Linux evidence; no per-feature attribution, Mac claim or runtime ceiling increase. Supersedes prior LANG values below. Exact artifact and scoped qualification receipts: `reports/wave12-lang/final-artifacts.json` and `reports/wave12-lang/r19-artifact-and-client-qualification.json`.

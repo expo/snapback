@@ -73,6 +73,56 @@ query timeKeys():
 }
 
 #[test]
+fn ungrouped_view_is_a_scalar_with_one_hidden_physical_group() {
+    let bound = compile(r#"view total: count posts
+  read <- allow
+  online only
+query totalPosts():
+  return total
+"#);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    assert_eq!(bound.programs[0].result, snapback4_lang::types::Ty::Int);
+    let maintain = &bound.schema.maintains[0];
+    assert!(maintain.by.is_empty());
+    let target = &bound.schema.tables["total"];
+    assert_eq!(target.columns.get("$global"), Some(&snapback4_core::schema::ColumnType::Bool));
+    assert_eq!(target.indexes["byGroup"].columns(), ["$global"]);
+    let snapback4_core::ir::Stmt::Let { value: snapback4_core::ir::Expr::Get(read), .. } = &bound.programs[0].program.body[0]
+        else { panic!("global scalar starts with its point read: {:#?}", bound.programs[0].program.body) };
+    assert_eq!(read.index, "byGroup");
+    assert_eq!(read.key, [snapback4_core::ir::Expr::Literal(snapback4_core::Value::Bool(true))]);
+
+    for domain in ["total", "total first 1 by .id"] {
+        let rejected = compile(&format!("view total: count posts\n  read <- allow\n  online only\nquery leak():\n  for row in {domain}:\n    return row\n  return null\n"));
+        assert!(rejected.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+            && diagnostic.message.contains("global maintained scalar")), "{domain}: {:#?}", rejected.diagnostics);
+    }
+    for expression in ["count(total)", "exists total"] {
+        let rejected = compile(&format!("view total: count posts\n  read <- allow\n  online only\nquery leak():\n  return {expression}\n"));
+        assert!(rejected.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"),
+            "{expression}: {:#?}", rejected.diagnostics);
+    }
+    for expression in ["min((total where true by byId), .value + 0)", "max((total where true by byId), .value + 0)"] {
+        let rejected = compile(&format!("view total: count posts\n  read <- allow\n  online only\nquery leak():\n  return {expression}\n"));
+        assert!(rejected.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+            && diagnostic.message.contains("global maintained scalar")), "{expression}: {:#?}", rejected.diagnostics);
+    }
+    for projection in ["total { value }", "total { nested: { value: .value } }"] {
+        let planned = compile(&format!("view total: count posts\n  read <- allow\n  online only\nview exposed:\n  {projection}\nquery leak():\n  return exposed first 1 by .id\n"));
+        assert!(planned.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+            && diagnostic.message.contains("global maintained scalar")), "{projection}: {:#?}", planned.diagnostics);
+    }
+    for rule in [
+        "table guarded:\n  insert <- exists total[true] by byGroup\n  online only",
+        "table guarded:\n  insert <- allow\n  after insert <- exists total[true] by byGroup\n  online only",
+    ] {
+        let probed = compile(&format!("view total: count posts\n  read <- deny\n  online only\n{rule}\n"));
+        assert!(probed.diagnostics.iter().any(|diagnostic| diagnostic.code == "E_QUARRY_TYPE"
+            && diagnostic.message.contains("global maintained scalar")), "{rule}: {:#?}", probed.diagnostics);
+    }
+}
+
+#[test]
 fn maintain_refusals_point_to_the_expression_and_offer_a_rewrite() {
     for head in [
         "count posts where .active = viewer by author",

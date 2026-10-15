@@ -1,6 +1,61 @@
 //! Physical page eligibility derived solely from Quarry surface declarations.
 use super::*;
 
+enum PagePins {
+    Plain(Vec<String>),
+    Product { system: Vec<String>, branches: Vec<Vec<String>> },
+    Invalid,
+}
+
+/// Reconstruct the native planner's bounded Cartesian product from the
+/// authored filter.  This stays surface-derived: the executable model cannot
+/// trust the binder's proof metadata when deciding whether comparison is safe.
+// @ref LLP 3000.036.001#18 — every modeled PAGE filter lane has its own exact physical prefix.
+fn page_pins(table: &Table, read: &ReadExpr) -> PagePins {
+    let Some(filter) = read.filter.as_deref() else { return PagePins::Plain(Vec::new()) };
+    let mut conjuncts = Vec::new();
+    flatten_and(filter, &mut conjuncts);
+    let system = model_pin_columns(table, &conjuncts, &read.order_keys);
+    let mut branches = vec![Vec::new()];
+    let mut distributed = false;
+    for conjunct in &conjuncts {
+        let mut alternatives = Vec::new();
+        flatten_or(conjunct, &mut alternatives);
+        distributed |= alternatives.len() > 1;
+        if branches.len().saturating_mul(alternatives.len()) > 8 { return PagePins::Invalid; }
+        branches = branches.into_iter().flat_map(|prefix| alternatives.iter().map(move |alternative| {
+            let mut lane = prefix.clone();
+            flatten_and(alternative, &mut lane);
+            lane
+        })).collect();
+    }
+    if !distributed || branches.len() < 2 { return PagePins::Plain(system); }
+    // The native candidate declines an alternative product when any lane has
+    // no physical pin.  That leaves the authored read on its ordinary,
+    // incomplete scan, which the model can still execute directly.
+    if branches.iter().any(|branch| !branch.iter().any(|atom| page_pin(table, atom))) {
+        return PagePins::Plain(system);
+    }
+    PagePins::Product {
+        system,
+        branches: branches.into_iter().map(|branch| model_pin_columns(table, &branch, &read.order_keys)).collect(),
+    }
+}
+
+fn page_pin(table: &Table, expression: &Expr) -> bool {
+    if let Expr::Binary { op, left, right, .. } = expression && op == "=" {
+        let (column, value) = if let Some(column) = column_of(left) { (column, right.as_ref()) }
+            else if let Some(column) = column_of(right) { (column, left.as_ref()) }
+            else { return false };
+        return column != "id" && model_independent(value) && table.cols.iter().find(|field| field.name == column)
+            .is_some_and(|field| !field.nullable || matches!(value, Expr::Name { name, .. } if name == "viewer"));
+    }
+    let value = if let Expr::Unary { op, value, .. } = expression && op == "not" { value.as_ref() } else { expression };
+    let Some(column) = column_of(value) else { return false };
+    column != "id" && table.cols.iter().find(|field| field.name == column)
+        .is_some_and(|field| !field.nullable && matches!(field.kind, Kind::Bool))
+}
+
 /// The executable predicate classifier currently knows literal/viewer point
 /// terms only. Preserve an explicit boundary for admitted native argument
 /// and signed-expression keys rather than reporting a model disagreement
@@ -49,7 +104,9 @@ pub(super) fn membership_physical_issue(module: &LeanModule, read: &ReadExpr) ->
     let mut parties = Vec::new();
     let mut memberships = Vec::new();
     for leaf in leaves {
-        if let Some(column) = party_column(target, leaf) { parties.push(column.to_owned()); }
+        if let Some(column) = party_column(target, leaf) {
+            if !parties.iter().any(|party| party == column) { parties.push(column.to_owned()); }
+        }
         else if let Some(membership) = membership_physical(module, target, leaf) { memberships.push(membership); }
         else { return None; }
     }
@@ -65,7 +122,24 @@ pub(super) fn membership_physical_issue(module: &LeanModule, read: &ReadExpr) ->
             None => model_plain_index_fit(module, table, &membership.columns, false),
         });
     }
-    let (system_pins, branches) = model_page_pins(target, read);
+    let (system_pins, branches) = match page_pins(target, read) {
+        PagePins::Plain(system) => (system.clone(), vec![system]),
+        PagePins::Product { system, branches } => {
+            // A product that pins any membership witness's varying outer
+            // field is declined by the native planner.  Preserve the modeled
+            // ordinary scan instead of counting those pins as PAGE lanes.
+            if memberships.iter().any(|membership| branches.iter().any(|branch|
+                branch.contains(&membership.target_parent))) {
+                (system.clone(), vec![system])
+            } else {
+                (system, branches)
+            }
+        }
+        PagePins::Invalid => return Some("page-membership-filter-product"),
+    };
+    if 1usize.saturating_add(branches.len().saturating_mul(parties.len().saturating_add(memberships.len()))) > 8 {
+        return Some("page-membership-filter-product");
+    }
     fits.push(model_plain_index_fit(module, target, &model_lane_columns(system_pins, &read.order_keys), true));
     for branch in branches {
         for prefix in parties.iter().chain(memberships.iter().map(|membership| &membership.target_parent)) {
@@ -114,10 +188,12 @@ pub(super) fn compound_physical_issue(module: &LeanModule, read: &ReadExpr) -> O
     // their where alternatives already have an independent physical proof.
     if simple.iter().all(|leaf| party_column(target, leaf).is_some() || membership_physical(module, target, leaf).is_some()) { return None; }
     let leaves = ranges(&rule)?;
-    let (system, bases) = model_page_pins(target, read);
+    let system = match page_pins(target, read) {
+        PagePins::Plain(system) => system,
+        PagePins::Product { .. } | PagePins::Invalid => return Some("page-compound-where-branches"),
+    };
     // The model's compound classifier deliberately keeps the where-branch
     // composition outside its fragment until it models each source prefix.
-    if bases.len() > 1 { return Some("page-compound-where-branches"); }
     let mut fits = vec![model_plain_index_fit(module, target, &model_lane_columns(system.clone(), &read.order_keys), true)];
     for leaf in leaves {
         let mut pins = system.clone();

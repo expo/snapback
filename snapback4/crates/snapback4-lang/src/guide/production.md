@@ -165,6 +165,9 @@ membership or page as complete.
 
 Write the schema above first, then run `init --web` (or `--expo`); identity
 is read from the schema. Apps with no sync use `init --web --online`.
+Declare `use identity`, `use identity password`, or `use identity guests` once
+for the whole project; repeating it is refused rather than replacing the active
+methods.
 An existing persona app runs `init --adapt --web` after adding password identity.
 Signup is not staff enrollment. The first
 account signs up and calls `register`, then the local operator:

@@ -58,22 +58,28 @@ fn queued<S:DeviceStore>(d:&mut Device<S>,op:&str,input:Json,key:&str)->snapback
     d.admit(serde_json::from_value(json!({"id":key,"seq":0,"op":op,"args":input,"viewer":"alice","now":100,"predictable":true})).unwrap()).unwrap()
 }
 fn prediction<H:Host>(host:&mut H) {
-    let (mut e,b)=setup(SOURCE);
+    let source=format!("{SOURCE}\nmutation mintTask(project: projects):\n  insert tasks {{id: new, project}}\n");
+    let (mut e,b)=setup(&source);
     let mut d=host.open("predict",Some(b)).unwrap();acquire(&mut e,&mut d,100);
     let miss=queued(&mut d,"post",json!({"id":"miss","task":"unheld","body":"pending"}),"w0");
     assert!(!miss.predictable && miss.predicted.is_empty());
-    let parent=queued(&mut d,"newTask",json!({"id":"new","project":"p"}),"w1");
+    let supplied=queued(&mut d,"newTask",json!({"id":"supplied","project":"p"}),"w1");
+    assert!(!supplied.predictable && supplied.predicted.is_empty(),"an arbitrary id cannot prove the absence of a hidden expired predecessor: {supplied:?}");
+    let mut minted: snapback4_device::device::Queued=serde_json::from_value(json!({"id":"w2","seq":0,"op":"mintTask","args":{"project":"p"},"viewer":"alice","now":100,"predictable":true})).unwrap();
+    minted.new_ids=vec!["new".into()];
+    let parent=d.admit(minted).unwrap();
     assert!(parent.predictable,"{parent:?}");
-    let child=queued(&mut d,"post",json!({"id":"new-comment","task":"new","body":"pending"}),"w2");
+    assert_eq!(parent.predicted,["tasks/new"]);
+    let child=queued(&mut d,"post",json!({"id":"new-comment","task":"new","body":"pending"}),"w3");
     assert!(child.predictable,"{child:?}");
     let page=query(&mut d,"page","new",100);
     assert_eq!(page["data"][0]["id"],"new-comment","{page}");
     assert_eq!(page["complete"],false,"predicted parent grants no child coverage: {page}");
     assert_eq!(page["unknown"],true,"{page}");
-    d.settle("w1",None).unwrap();
+    d.settle("w2",None).unwrap();
     let page=query(&mut d,"page","new",100);
     assert_eq!(page["data"],json!([]),"refused parent replays child: {page}");
-    assert!(d.queued().unwrap().iter().find(|q|q.id=="w2").unwrap().predicted.is_empty());
+    assert!(d.queued().unwrap().iter().find(|q|q.id=="w3").unwrap().predicted.is_empty());
     host.close("predict",d);
 }
 fn deletes<H:Host>(host:&mut H) {

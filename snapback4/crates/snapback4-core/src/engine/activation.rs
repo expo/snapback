@@ -84,9 +84,14 @@ impl Engine {
             if let Some(options)=release {tx.set_meta("release",&options.release.to_string())?;}
             use rusqlite::OptionalExtension;
             let repair_live_sums = tx.conn().query_row("SELECT value FROM _meta WHERE key = 'live_sum_candidates'", [], |row| row.get::<_, String>(0)).optional()?.as_deref() != Some("1");
-            if !changed && !repair_live_sums { return Ok(()); }
             let previous: Option<String> = tx.conn().query_row("SELECT schema FROM _generations WHERE generation = (SELECT CAST(value AS INTEGER) FROM _meta WHERE key = 'generation')", [], |row| row.get(0)).optional()?;
             let previous: Option<Schema> = previous.map(|text| serde_json::from_str(&text).map_err(|e| RuntimeError::decode(e, RuntimeError::Store))).transpose()?;
+            let needs_maintained_id_marker = (schema.maintains.iter().any(|maintain| maintain.row_key.is_none())
+                || previous.as_ref().is_some_and(|old| old.maintains.iter().any(|maintain| maintain.row_key.is_none())))
+                && tx.meta(crate::schema::MAINTAINED_ID_META)?.as_deref() != Some(crate::schema::MAINTAINED_ID_VERSION);
+            if !changed && !repair_live_sums && !needs_maintained_id_marker { return Ok(()); }
+            let repair_maintained_ids = needs_maintained_id_marker
+                && previous.as_ref().is_some_and(|old| old.maintains.iter().any(|maintain| maintain.row_key.is_none()));
             if changed {
                 let epoch = tx.next_seq()?;
                 for table in partition::changed_group_audiences(previous.as_ref(), schema) {
@@ -97,12 +102,20 @@ impl Engine {
             let population_changed=tx.meta("activation_population")?.as_deref()==Some("true");
             let rebuild: Vec<_> = schema.maintains.iter().filter(|m| {
                 (changed && (population_changed || previous.as_ref().is_none_or(|old| crate::successor::maintain_rebuild_needed(old, schema, m))))
+                    || (repair_maintained_ids && m.row_key.is_none())
                     || (repair_live_sums && matches!(m.kind, crate::schema::MaintainKind::Sum { .. }) && schema.table(&m.source).is_some_and(|source| source.is_expiring()))
             }).collect();
             tx.set_meta("live_sum_candidates", "1")?;
+            if needs_maintained_id_marker {
+                // This write is inside the activation transaction: a failed
+                // rebuild leaves both old rows and the old/missing marker. A
+                // first aggregate has no legacy target identity to rewrite,
+                // but records the current address function for later opens.
+                tx.set_meta(crate::schema::MAINTAINED_ID_META, crate::schema::MAINTAINED_ID_VERSION)?;
+            }
             let attribution = recorded::paths_changed(schema, previous.as_ref());
             let columns = column_activation::changed_parents(schema, if population_changed {None} else {previous.as_ref()});
-            if rebuild.is_empty() && !attribution && columns.is_empty() { return Ok(()); }
+            if rebuild.is_empty() && !attribution && columns.is_empty() && !repair_maintained_ids { return Ok(()); }
             let seq = tx.next_seq()?;
             let phase = std::time::Instant::now();
             if attribution {
@@ -111,9 +124,28 @@ impl Engine {
                 let mut capture = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
                 capture.capture_activation(previous.as_ref(), Some(report))?;
                 report.detail("capture recorded paths", phase);
-                capture.rebuild_recorded_activation(previous.as_ref(), &rebuild.iter().copied().filter(|m| m.private.is_none()).collect::<Vec<_>>(), report)?;
+                // A newly introduced aggregate has no legacy identity map to
+                // preserve. Keep its event-free recorded-path rebuild out of
+                // commit accounting, as activation did before the address
+                // migration existed.
+                if !repair_maintained_ids {
+                    capture.rebuild_recorded_activation(previous.as_ref(), &rebuild.iter().copied().filter(|m| m.private.is_none()).collect::<Vec<_>>(), report)?;
+                }
             }
             let mut runner = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+            if repair_maintained_ids {
+                let started = std::time::Instant::now();
+                let rewritten = runner.rewrite_legacy_maintained_references(&rebuild.iter().copied().cloned().collect::<Vec<_>>(), previous.as_ref(), Some(tx))?;
+                if rewritten != 0 { report.changes.push(format!("rewrote {rewritten} legacy aggregate references")); }
+                report.detail("rewrite legacy aggregate references", started);
+            }
+            // Legacy maps must be captured before any activation rebuild can
+            // remove their target rows. Recorded values themselves are
+            // stamped first so their historical paths may still traverse the
+            // predecessor addresses.
+            if attribution && repair_maintained_ids {
+                runner.rebuild_recorded_activation(previous.as_ref(), &rebuild.iter().copied().filter(|m| m.private.is_none()).collect::<Vec<_>>(), report)?;
+            }
             runner.activate_columns(previous.as_ref(), &rebuild, &columns, Some(report))?;
             for maintain in rebuild.into_iter().filter(|m| m.private.is_none()) {
                 if !recorded::table_paths_changed(schema.table(&maintain.source), previous.as_ref().and_then(|s| s.table(&maintain.source))) {

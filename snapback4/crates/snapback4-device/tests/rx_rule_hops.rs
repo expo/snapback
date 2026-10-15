@@ -14,7 +14,8 @@ fn seed(e: &mut snapback4_core::Engine, owner: &str) {
 fn scenario<H: Host>(host: &mut H) {
     // Retained images remain readable after current coverage is removed.
     // Unlike until-revoked images, their presence is not itself current evidence.
-    let retained = SOURCE.replace("  sync", "  retain delivered-history\n  sync");
+    let retained = format!("{}\nmutation sendFresh(conversation: conversations):\n  insert messages {{ id: new, conversation }}\nmutation reactFresh(message: messages):\n  insert reactions {{ id: new, message, principal: viewer, emoji: 'like' }}\n",
+        SOURCE.replace("  sync", "  retain delivered-history\n  sync"));
     let (mut e, backend) = compile(&retained);
     seed(&mut e,"alice");
     for missing in [None, Some("reactions"), Some("messages"), Some("conversations"), Some("members")] {
@@ -39,8 +40,12 @@ fn scenario<H: Host>(host: &mut H) {
             d.withdraw(&[]).unwrap();
             // Each hop may follow an earlier provisional row, with the same
             // membership, liveness and current-coverage requirements.
-            d.predict("send","alice",&json!({"id":"pending-m","conversation":"c"}),100,vec![],0).unwrap();
-            d.predict("react","alice",&json!({"id":"pending-r","message":"pending-m"}),100,vec![],0).unwrap();
+            assert!(d.predict("send","alice",&json!({"id":"supplied-m","conversation":"c"}),100,vec![],0).is_err(),
+                "an arbitrary id cannot prove there is no hidden expired predecessor with children");
+            d.predict("sendFresh","alice",&json!({"conversation":"c"}),100,vec!["pending-m".into()],0).unwrap();
+            assert!(d.predict("react","alice",&json!({"id":"supplied-r","message":"pending-m"}),100,vec![],0).is_err(),
+                "the inherited-expiry child needs the same fresh-address proof");
+            d.predict("reactFresh","alice",&json!({"message":"pending-m"}),100,vec!["pending-r".into()],0).unwrap();
             assert!(d.predict("endorse","alice",&json!({"id":"pending-e","reaction":"pending-r"}),100,vec![],0).is_ok());
         } else {
             let error = predicted.expect_err(&format!("{missing:?}: uncovered chain predicted"));

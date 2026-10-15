@@ -47,6 +47,11 @@ pub struct Schema {
     pub source_reservations: BTreeMap<String, reservations::WriteReservation>,
     /// Decode-only compatibility fence; programs narrow it before admission.
     pub legacy_receipt_prediction: bool,
+    /// Capabilities inferred from old persisted schema bytes rather than
+    /// declared by their producer. Servers may adopt and restamp those bytes;
+    /// devices must not execute them under newer semantics.
+    #[doc(hidden)]
+    pub legacy_semantic_capabilities: LegacySemanticCapabilities,
     pub tables: BTreeMap<String, Table>,
     /// Nonsemantic inspection input; only the catalog side record persists it.
     /// Never part of schema equality, hashes, generation bytes or device input.
@@ -69,6 +74,23 @@ pub struct Schema {
     pub effect_specs: BTreeMap<String, WorkSpec>,
     pub routes: BTreeMap<String, RouteSpec>,
 }
+
+/// Decode provenance used only at the device execution boundary. It is not a
+/// schema-semantic difference: server adoption compares and republishes the
+/// same schema after upgrading its stored representation.
+#[derive(Clone, Debug, Default)]
+pub struct LegacySemanticCapabilities(BTreeSet<String>);
+impl std::ops::Deref for LegacySemanticCapabilities {
+    type Target = BTreeSet<String>;
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+impl From<BTreeSet<String>> for LegacySemanticCapabilities {
+    fn from(value: BTreeSet<String>) -> Self { Self(value) }
+}
+impl PartialEq for LegacySemanticCapabilities {
+    fn eq(&self, _other: &Self) -> bool { true }
+}
+impl Eq for LegacySemanticCapabilities {}
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UniqueRefusal {
     pub code: String,
@@ -123,6 +145,10 @@ pub struct Execution {
     /// PAGE4 fixes a second rule-witness component from an exact target pin.
     #[serde(default, rename = "branchPagesV3", skip_serializing_if = "std::ops::Not::not")]
     pub branch_pages_v3: bool,
+    /// PAGE5 admits a timeless fixed point as a residual guard on a dynamic
+    /// membership lane. Older validators must refuse the plan.
+    #[serde(default, rename = "branchPagesV4", skip_serializing_if = "std::ops::Not::not")]
+    pub branch_pages_v4: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub renews: bool,
     #[serde(default, rename = "renewMs", skip_serializing_if = "Option::is_none")]
@@ -961,6 +987,7 @@ pub enum Constraint {
 pub enum TextFormat {
     Handle,
     Url,
+    Email,
 }
 
 impl TextFormat {
@@ -971,6 +998,24 @@ impl TextFormat {
                 .strip_prefix("https://")
                 .or_else(|| text.strip_prefix("http://"))
                 .is_some_and(|rest| !rest.is_empty() && rest.chars().all(|c| !c.is_whitespace() && !c.is_control())),
+            // @ref LLP 3000.013.001#1-decision — one deterministic ASCII mailbox grammar is shared by arguments, writes and devices.
+            Self::Email => {
+                if text.len() > 254 { return false; }
+                let Some((local, domain)) = text.split_once('@') else { return false };
+                if domain.contains('@') || local.is_empty() || local.len() > 64
+                    || domain.is_empty() || domain.len() > 253
+                    || local.starts_with('.') || local.ends_with('.') || local.contains("..")
+                {
+                    return false;
+                }
+                let local_ok = local.bytes().all(|b| b.is_ascii_alphanumeric()
+                    || matches!(b, b'.' | b'!' | b'#' | b'$' | b'%' | b'&' | b'\'' | b'*'
+                        | b'+' | b'/' | b'=' | b'?' | b'^' | b'_' | b'`' | b'{' | b'|'
+                        | b'}' | b'~' | b'-'));
+                local_ok && domain.split('.').all(|label| !label.is_empty() && label.len() <= 63
+                    && !label.starts_with('-') && !label.ends_with('-')
+                    && label.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-'))
+            }
         }
     }
 }
@@ -1157,8 +1202,8 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                         }
                         for field in fields {
                             match table.columns.get(field).map(ColumnType::required) {
-                                Some(ColumnType::Text { .. }) => {}
-                                Some(kind) => issue(&mut issues, ipath.clone(), format!("words({field}) needs a text column; {field} is {kind}")),
+                                Some(ColumnType::Text { .. } | ColumnType::Enum { .. }) => {}
+                                Some(kind) => issue(&mut issues, ipath.clone(), format!("words({field}) needs a text or enum column; {field} is {kind}")),
                                 None => issue(&mut issues, ipath.clone(), format!("words names undeclared column {field}")),
                             }
                         }
@@ -1316,6 +1361,7 @@ fn validate_rule(schema: &Schema, table: &Table, rule: &RuleExpr, update: bool, 
 }
 
 fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issues: &mut Vec<SchemaIssue>) {
+    const GLOBAL: &str = "$global";
     let path = format!("maintains[{position}]");
     let issue = |issues: &mut Vec<SchemaIssue>, message: String| issues.push(SchemaIssue { path: path.clone(), message });
     let Some(source) = schema.table(&maintain.source) else {
@@ -1340,9 +1386,6 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
         issue(issues, format!("maintain {} cannot expire; give its source {} the lifetime", maintain.target, maintain.source));
     }
     if let Some(message) = maintain.expiring_read_refusal(schema) { issue(issues, message); }
-    if maintain.by.is_empty() {
-        issue(issues, "maintain by needs at least one source column".into());
-    }
     if let Err(message) = maintain.validate_keys(source) { issue(issues, message); }
     for (field, target_field) in maintain.by.iter().zip(maintain.group_fields()) {
         let calendar_type = if maintain.computed.get(field).is_some_and(|key| source.recorded.contains_key(&key.column)) { ColumnType::Optional(Box::new(ColumnType::Int)) } else { ColumnType::Int };
@@ -1375,12 +1418,20 @@ fn validate_maintain(schema: &Schema, position: usize, maintain: &Maintain, issu
         issue(issues, format!("maintain target {}.value must be {expected}", maintain.target));
     }
     let group_fields = maintain.group_fields();
-    let allowed: BTreeSet<&str> = ["id", "value"].into_iter().chain(group_fields.iter().map(String::as_str)).collect();
+    // @ref LLP 3000.013.001#3-global-maintained-view-representation — `$global` is admitted only on the exact compiler-owned ungrouped target.
+    if maintain.by.is_empty() && target.columns.get(GLOBAL) != Some(&ColumnType::Bool) {
+        issue(issues, format!("ungrouped maintain target {} needs its compiler-owned {GLOBAL} bool", maintain.target));
+    }
+    let allowed: BTreeSet<&str> = ["id", "value"].into_iter()
+        .chain(group_fields.iter().map(String::as_str))
+        .chain(maintain.by.is_empty().then_some(GLOBAL))
+        .collect();
     let extra: Vec<_> = target.columns.keys().filter(|c| !allowed.contains(c.as_str())).cloned().collect();
     if !extra.is_empty() {
         issue(issues, format!("maintain target {} has non-aggregate columns {}", maintain.target, extra.join(", ")));
     }
-    if !target.indexes.values().any(|index| index.unique && index.columns() == maintain.group_fields()) {
+    let group_index = if maintain.by.is_empty() { vec![GLOBAL.into()] } else { maintain.group_fields() };
+    if !target.indexes.values().any(|index| index.unique && index.columns() == group_index) {
         issue(issues, format!("maintain target {} needs a unique index over {}", maintain.target, maintain.by.join(", ")));
     }
     // A delivered aggregate reveals a count: every recipient must be able to
@@ -1740,12 +1791,27 @@ pub fn maintained_key(source: &Value, by: &[String]) -> Vec<Value> {
     by.iter().map(|field| source.field(field).cloned().unwrap_or(Value::Null)).collect()
 }
 
-/// The id of a maintained row is its group's canonical form, as Snapback 2
-/// spelled it: an aggregate's identity is its key, and the conformance
-/// corpus holds it to this spelling. Programs read aggregates by group,
-/// never by id.
+/// Activation marker for the maintained-row address function. A missing or
+/// older marker rebuilds every aggregate target before the generation opens.
+pub const MAINTAINED_ID_META: &str = "maintained_id_version";
+pub const MAINTAINED_ID_VERSION: &str = "sha256-v1";
+
+/// The id of a maintained row is a fixed-size digest of its typed group key.
+/// Programs address aggregates by their group index, never by this internal
+/// id. Domain separation makes future encodings explicit migrations.
+// @ref LLP 3000.007.003#30-aggregate-target-identity-and-migration — every aggregate writer, synthetic check row and adoption rebuild shares this bounded identity.
 pub fn maintained_id(key: &[Value]) -> String {
-    crate::value::canonical_json(&key)
+    crate::value::digest(&("snapback4-maintained-id/sha256-v1", key))
+}
+
+#[test]
+fn maintained_identity_is_fixed_size_and_domain_separated() {
+    let short = maintained_id(&[Value::String("x".into())]);
+    let long = maintained_id(&[Value::String("x".repeat(100_000))]);
+    assert_eq!(short.len(), 64);
+    assert_eq!(long.len(), 64);
+    assert_ne!(short, long);
+    assert_ne!(short, crate::value::digest(&[Value::String("x".into())]));
 }
 
 /// Whether a value is (or contains) the reserved system principal.

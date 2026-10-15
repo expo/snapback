@@ -1,9 +1,29 @@
 //! A private population cannot answer a cross-row constraint for its writer.
 // @ref LLP 3000.013#5.1 — aggregate consumers retain scan authorization and admission.
 use super::*;
-use snapback4_core::{engine::{admission, rules}, schema::{Constraint, Schema}};
+use snapback4_core::{engine::{admission, rules}, schema::{Constraint, RuleExpr, RuleTerm, Schema}};
 
 impl BoundProgram {
+    /// The shortest repair for a hidden-row population when one direct read
+    /// disjunct exposes the viewer-owned slice.
+    pub(crate) fn direct_viewer_repair(&self, schema: &Schema, problem: &admission::Problem) -> Option<String> {
+        if problem.code != "E_STRUCTURAL_FANOUT" || self.program.kind != ir::ProgramKind::Mutation { return None; }
+        let site = problem.page_site.as_ref()?;
+        let scan = ir::scans(&self.program).into_iter().find(|scan| &scan.site == site)?;
+        let table = schema.table(&scan.table)?;
+        // Expiry can refuse an already-uniform scan for a different reason;
+        // adding its existing viewer predicate would not repair that refusal.
+        if rules::scan_visibility(schema, scan).uniform || rules::grant_dominated(schema, &self.program, scan) { return None; }
+        let column = table.rules.read.disjuncts().iter().find_map(|rule| match rule {
+            RuleExpr::Eq(RuleTerm::Field(column), RuleTerm::Viewer)
+            | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(column)) => Some(column.as_str()),
+            _ => None,
+        })?;
+        Some(format!(
+            "First add `.{column} = viewer` to this read's `where` predicate; that directly selects the read-rule audience and is the smallest qualifying repair. "
+        ))
+    }
+
     // @ref LLP 3000.025#6-diagnostics-and-exact-documentation-changes — retain the admission repair before the qualified receipt-gap fallback.
     pub(crate) fn expiry_gap_diagnostic(&self, schema: &Schema, problem: &admission::Problem) -> Option<Diagnostic> {
         use snapback4_core::schema::ColumnType;
@@ -60,6 +80,8 @@ impl BoundProgram {
         let name = &scan.table;
         let group = pins.iter().map(|(column, _)| column.clone()).collect::<Vec<_>>().join(", ");
         let key = pins.iter().map(|(_, value)| value.clone()).collect::<Vec<_>>().join(", ");
+        // @ref LLP 3000.036.002#9 — offer the direct viewer predicate before heavier structural repairs.
+        let direct_audience = self.direct_viewer_repair(schema, problem).unwrap_or_default();
         let example = format!("declare one row per reserved unit with `unique resource, unit else TAKEN`, then insert those rows inside `{}`", self.program.name);
         // @ref LLP 3000.036#16.2 — wave 6 R2: `require not exists children…` before a delete is a zero count, not a capacity.
         let by = pins.iter().map(|(column, _)| format!(".{column}")).collect::<Vec<_>>().join(", ");
@@ -68,7 +90,7 @@ impl BoundProgram {
         Some(Diagnostic::new(source, "E_STRUCTURAL_FANOUT",
             format!("`{}` can read only the {} its viewer may read (`{}`). A check over them would miss hidden {} rows, so it is refused. A point read of a full unique key (`exists {name}[…]`) is not refused, but it too sees only readable rows",
                 self.program.name, scan.table, table.rules.read.quarry(), scan.table),
-            format!("{absence}for one known {name} row, use a point read by id (`{name}[id]`); for a global total, read a maintained aggregate whose explicit read rule admits this caller (public only if its totals may be public). use a constraint every write obeys, whoever wrote the clashing row: {example}; a clash rolls back the whole mutation. A hidden clash stays E_RULE; make the unit table public only if availability may be public, so a readable clash can return TAKEN. Or use a readable audience: check a public availability table if those rows may be public. {count}A `require` role guard does not make the population readable. See `snapback4 guide writes` for the per-night example", count = if pins.is_empty() || !absence.is_empty() { String::new() } else {
+            format!("{direct_audience}{absence}for one known {name} row, use a point read by id (`{name}[id]`); for a global total, read a maintained aggregate whose explicit read rule admits this caller (public only if its totals may be public). use a constraint every write obeys, whoever wrote the clashing row: {example}; a clash rolls back the whole mutation. A hidden clash stays E_RULE; make the unit table public only if availability may be public, so a readable clash can return TAKEN. Or use a readable audience: check a public availability table if those rows may be public. {count}A `require` role guard does not make the population readable. See `snapback4 guide writes` for the per-night example", count = if pins.is_empty() || !absence.is_empty() { String::new() } else {
                 // @ref LLP 3000.036#14.6 — wave 4 #15: the count view and the author's own capacity check, as code.
                 let check = capacity_require(&self.program.body, site).map_or_else(|| format!("require {name}Count[{key}] < limit else FULL"),
                     |(op, bound, code)| format!("require {name}Count[{key}] {op} {bound} else {code}"));

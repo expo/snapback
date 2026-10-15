@@ -1,0 +1,113 @@
+{
+  "build": {
+    "build": "PASS",
+    "buildLog": {
+      "bytes": 130,
+      "path": "snapback4/reports/wave12-lang/clients/client-build-cfd4e2f242.log.gz",
+      "sha256": "4d14883e2b0db3911d2e0cc3da4068471226a200e312f8f69885b60d25ab104f"
+    },
+    "realCargoToolchainInvoked": false,
+    "typecheck": "PASS",
+    "typecheckLog": {
+      "bytes": 64,
+      "path": "snapback4/reports/wave12-lang/clients/client-typecheck-cfd4e2f242.log.gz",
+      "sha256": "0d07ff7fb2b313e89bc38c46701808345e611a9c80b5e6e5962c681aedcad060"
+    }
+  },
+  "createdUtc": "2026-10-15T02:03:32.413558+00:00",
+  "kind": "wave12-client-qualification-intermediate",
+  "notes": [
+    "The main setup failure is retained verbatim; the separate corrected snapshot adds only the missing transitive matching_order fixture and re-hashes every input.",
+    "The final R14 qualification may carry forward files whose execution path is outside the corrected semantics, but this intermediate receipt itself makes no final-production claim."
+  ],
+  "postRunInputVerification": "PASS: every hash and mode in all three sealed manifests matched after execution (1196, 1198, and 1197 inputs respectively); the active 29-file snapshot was never refreshed mid-run",
+  "production": {
+    "cliSha256": "d45eded9e2747c8d1a281a1bd6e2d16ce203ee0a1ae1c2cea073eccfc50aab72",
+    "commit": "cfd4e2f2426ed4e3d54c80c337c3eaf561e07124",
+    "freezeRevoked": true,
+    "revocationReason": "Later R13 review and wasm bridge evidence found PostgreSQL adoption filtering, nested device work bounding, and device net-aggregate issues; this receipt is retained as intermediate evidence only.",
+    "wasmBudgetBytes": 717194,
+    "wasmGzipBytes": 716694,
+    "wasmRawBytes": 2352628,
+    "wasmSha256": "0d1eae6c4dd50ab65a05e59ffd2bc35b5e46212ce29b4e1e115cf34bf6fc9283"
+  },
+  "qualifiedUnion": {
+    "additionalBudgetTestsPassed": 2,
+    "authoredSkips": 12,
+    "filePass": 29,
+    "productFailures": 0,
+    "requestedFiles": 29,
+    "testsPassed": 460
+  },
+  "runs": [
+    {
+      "exit": 1,
+      "fail": 1,
+      "filePass": 28,
+      "fileSetupFail": 1,
+      "files": 29,
+      "log": {
+        "bytes": 19955,
+        "path": "snapback4/reports/wave12-lang/clients/client-run-cfd4e2f242-all29.log.gz",
+        "sha256": "795f63213ffeff82b1e65cf12bcb3ed7575a0a3fb2096e9b031bc7bf1dec085d"
+      },
+      "manifest": {
+        "bytes": 570868,
+        "path": "snapback4/reports/wave12-lang/clients/client-inputs-cfd4e2f242.json",
+        "sha256": "187193ce9c197d208472760ad710d1fcc0fc4da5f712443df142dbf402e8671f"
+      },
+      "notable": "ordinary-search-oracle completed the default 300 process plus 300 wasm seeds and passed all 8 top-level tests in 726.6 seconds",
+      "pass": 456,
+      "productFailures": 0,
+      "scope": "all 29 requested client files at cfd4",
+      "setupFailure": {
+        "cause": "transitive crates/snapback4-device/tests/matching_order/composite.q was absent; no product assertion ran",
+        "file": "packages/snapback4/test/in-chat-search.test.mjs"
+      },
+      "skipped": 12,
+      "tests": 469
+    },
+    {
+      "exit": 0,
+      "fail": 0,
+      "filePass": 1,
+      "files": 1,
+      "log": {
+        "bytes": 658,
+        "path": "snapback4/reports/wave12-lang/clients/client-run-cfd4e2f242-inchat.log.gz",
+        "sha256": "5d3f0b779c20f9e8c42839ba2df92084e4ed6f418afa72c2d56feea3dbedc70b"
+      },
+      "manifest": {
+        "bytes": 569242,
+        "path": "snapback4/reports/wave12-lang/clients/client-inputs-cfd4e2f242-inchat.json",
+        "sha256": "d02d1003f53d4bb617fc8289bd9c8197bcff1020314c0cd7d4ecb3fb788cacf6"
+      },
+      "pass": 4,
+      "scope": "fixture-complete in-chat correction",
+      "skipped": 0,
+      "tests": 4
+    },
+    {
+      "exit": 0,
+      "fail": 0,
+      "filePass": 1,
+      "files": 1,
+      "log": {
+        "bytes": 446,
+        "path": "snapback4/reports/wave12-lang/clients/client-run-cfd4e2f242-wasm-budget.log.gz",
+        "sha256": "d15a0cf1ac240b1f6644b5b17ba87e10cf0ddee8f818e66b6ca05d82f722ee79"
+      },
+      "manifest": {
+        "bytes": 568693,
+        "path": "snapback4/reports/wave12-lang/clients/client-inputs-cfd4e2f242-budget.json",
+        "sha256": "294cade15a9ab1ef625f94125a8d5a19a36bdda9e5312571056dedb57d1510d1"
+      },
+      "pass": 2,
+      "scope": "committed wasm budget helper",
+      "skipped": 0,
+      "tests": 2
+    }
+  ],
+  "schema": 1,
+  "status": "INTERMEDIATE_PASSING_UNION_FREEZE_REVOKED"
+}

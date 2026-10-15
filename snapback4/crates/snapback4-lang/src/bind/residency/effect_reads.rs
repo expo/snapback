@@ -201,6 +201,7 @@ fn total(expr: &Expr) -> bool {
             // Typed ints are bounded to the safe integer range. Dividing by a
             // known nonzero integer cannot overflow that range (including -1).
             Builtin::Divmod { remainder_sink } => remainder_sink == "operator" && args.get(1).and_then(integer).is_some_and(|n| n != 0),
+            Builtin::Divide { .. } => false,
             _ => false,
         },
         Expr::Input(Input::NewId) | Expr::Scan(_) | Expr::Merge(_) | Expr::Block { .. } => false,

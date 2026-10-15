@@ -81,7 +81,7 @@ pub fn check(case: &Case, report: &mut Report, mut found: impl FnMut(Finding)) {
             || case.program.tables.iter().any(|t| t.columns.iter().any(|c| matches!(c.ty, crate::ast::Type::IntRange(..))));
         if !matches!(
             code,
-            "E_OVERFLOW" | "NOT_FOUND" | "NULL_ASSERT" | "E_RULE" | "E_CONSTRAINT" | "E_UNIQUE" | "E_ID_REUSED" | "REQUIRED" | "E_REFERENCED"
+            "E_OVERFLOW" | "E_DIV_ZERO" | "NOT_FOUND" | "NULL_ASSERT" | "E_RULE" | "E_CONSTRAINT" | "E_UNIQUE" | "E_ID_REUSED" | "REQUIRED" | "E_REFERENCED"
         ) && !(bounded && code == "E_INPUT") {
             *report
                 .runtime_refused_unexpected

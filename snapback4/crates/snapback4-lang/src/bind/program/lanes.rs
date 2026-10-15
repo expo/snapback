@@ -75,12 +75,24 @@ fn range_width(domain: &A) -> Option<u64> {
 // A lane-dependent predicate needs the eager binding snapshot. Plain row
 // predicates can keep the same head strategy as explicitly written lanes.
 pub(super) fn filter_uses_lane(value: &A, name: &str) -> bool {
+    let read_uses_lane = |read: &ast::ReadExpr| {
+        read.keys.iter().any(|key| filter_uses_lane(&key.value, name))
+            || read.seeks.iter().any(|seek| filter_uses_lane(&seek.value, name))
+            || read.filter.as_deref().is_some_and(|filter| filter_uses_lane(filter, name))
+            || read.matching.as_deref().is_some_and(|matching| filter_uses_lane(matching, name))
+            || read.range.as_ref().and_then(|range| range.cursor.as_deref())
+                .is_some_and(|cursor| filter_uses_lane(cursor, name))
+            || read.computed.values().any(|value| filter_uses_lane(value, name))
+    };
     match value {
         A::Name { name: used, .. } => used == name,
         A::Focal { .. } | A::Literal { .. } => false,
         A::Member { base, .. } | A::Unary { value: base, .. } => filter_uses_lane(base, name),
         A::Binary { left, right, .. } => filter_uses_lane(left, name) || filter_uses_lane(right, name),
         A::Call { args, .. } => args.iter().any(|arg| filter_uses_lane(arg, name)),
+        // @ref LLP 3000.036.001#18 — an independent fixed point guard does
+        // not need a snapshot of the varying membership row.
+        A::Exists { read, .. } | A::Created { read, .. } | A::Read(read) => read_uses_lane(read),
         _ => true,
     }
 }

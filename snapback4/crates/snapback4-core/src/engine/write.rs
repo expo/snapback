@@ -17,6 +17,13 @@ pub(crate) enum Origin {
     Maintained,
 }
 
+#[derive(Clone)]
+pub(super) struct FinalExistsWitness {
+    table: String,
+    row: Value,
+    constraint: usize,
+}
+
 #[path = "write_references.rs"]
 mod references;
 #[path = "write_target.rs"]
@@ -137,9 +144,7 @@ impl Runner<'_> {
         }
         if sequence_full { return Err(super::sequences::exhausted()); }
         let row = self.record_insert(table_name, row)?;
-        let row = self.birth_columns(table_name, row)?;
         let row = self.with_asset_facts(table_name, row, None, None)?;
-        super::validate::validate_before_slots(self.schema, table_name, &row)?;
         if if_absent {
             for (name, index) in table.indexes.iter().filter(|(_, index)| index.unique) {
                 let key = index_values(index, &row);
@@ -172,20 +177,31 @@ impl Runner<'_> {
         // and reserved both target proofs. Retiring an expired predecessor
         // uses that same allowance, not a third read-rule reservation.
         let collision_probes = if upsert_index.is_some() { 0 } else { super::rules::rule_probes(&table.rules.read) };
-        let has_children = self.schema.children(table_name).next().is_some();
+        let has_through_children = self.schema.children(table_name).next().is_some();
+        let has_children = has_through_children || self.schema.is_referenced(table_name);
         let predecessor = self.authorized_scan(&[(MeterKind::RuleProbes, collision_probes)], |runner, allowance| {
             let existing = runner.tx.get(allowance, table_name, &id)?;
             if let Some(row) = &existing {
                 if !runner.expired(table, row) { runner.visible_collision(table_name, row, Effect::Insert, "unique id")?; }
-                // @ref LLP 3000.014#3-a-child-lives-within-its-parent — an expired birth with physical
-                // children collides like a live birth: check the old image's authority under the same
-                // reservation, without treating expiry as denial. A non-reader never probes the children.
-                else if has_children && !runner.check_rule(table_name, Effect::Read, None, row)? {
+                // An expired predecessor's read rule cannot veto actionable
+                // reference retirement. A declared read-through child is
+                // different: a non-reader cannot probe whether hidden
+                // physical children retain the predecessor.
+                else if has_through_children && !runner.check_rule(table_name, Effect::Read, None, row)? {
                     return Err(runner.rule_refusal(table_name, Effect::Insert, "unique id"));
                 }
             }
             Ok(existing)
         })?;
+        // @ref LLP 3000.039#6.4 — a logical device miss cannot prove there is
+        // no hidden, expired physical predecessor whose retirement would run
+        // reference actions. Controller-minted identities are the existing
+        // fresh-address proof; every other referenced same-id insert queues.
+        if self.device && predecessor.is_none() && has_children && table.is_expiring() && !minted {
+            return Err(RuntimeError::Prediction(format!(
+                "same-id insert into referenced {table_name} needs the server's physical predecessor check; queued without predicted rows"
+            )));
+        }
         if predecessor.as_ref().is_none_or(|old| self.expired(table, old)) && has_children {
             let mark = self.meter.mark();
             if self.physical_children(table_name, &Value::Id(id.clone()))? {
@@ -203,8 +219,15 @@ impl Runner<'_> {
             }
             // The expired predecessor is internal authorization work, not a
             // disclosed examination (LLP 3000.015 §§1–2).
-            self.remove(table_name, existing)?;
+            self.retire_expired_row(table_name, existing)?;
         }
+        // Retiring an expired predecessor can cascade a source row whose
+        // contribution determines this image's maintained columns. Initialize
+        // them from the post-retirement private totals. Maintained columns are
+        // forbidden from constraints and authority, so the earlier collision
+        // and authorization preflights need only the authored image.
+        let row = self.birth_columns(table_name, row)?;
+        super::validate::validate_before_slots(self.schema, table_name, &row)?;
         // @ref LLP 3000.007#20.5 — an authored plain insert predicts unproved; a later refusal is then the server's
         // to report. The engine's own timeline writes are not the author's prediction.
         if let Some(index) = proof.filter(|_| {
@@ -220,9 +243,10 @@ impl Runner<'_> {
                 match proved { Err(RuntimeError::Prediction(_)) => self.unproved_write = true, other => other? }
             }
         }
-        // The server's same-id expired replacement preserves occupancy in
-        // unchanged cap groups. A device cannot rely on an expired predecessor.
-        self.check_constraints(table_name, predecessor.as_ref(), &row, Effect::Insert)?;
+        // Retirement released every logical key and cap slot. Treat the new
+        // image as a fresh insert: an unchanged secondary key can now belong
+        // to another live row and must be probed again.
+        self.check_constraints(table_name, None, &row, Effect::Insert)?;
         self.commit_sequences(table_name, &row)?;
         self.commit_receipt_counter(table_name, &row)?;
         let row = self.prepare_event_slots(table_name, None, row, image_bytes)?;
@@ -446,30 +470,53 @@ impl Runner<'_> {
         self.row_changed(table_name, Some(old), None, Origin::Source)
     }
 
-    /// At a program commit's end, retire every synced row the commit changed
-    /// and every row it inserted whose lifetime has already ended: its final
+    /// Physically retire one row whose upper lifetime ended. Expiry bypasses
+    /// the root's authored delete rule and constraints, but it does not bypass
+    /// the schema's declared effects on rows that reference the root. A
+    /// read-through child still retains the expired parent physically.
+    // @ref LLP 3000.039#3 — expiry cleanup runs the same closure/restrict/set-null actions as an authored delete.
+    pub(super) fn retire_expired_row(&mut self, table_name: &str, old: &Value) -> Result<bool, RuntimeError> {
+        if self.physical_children(table_name, old.field("id")?)? { return Ok(false); }
+        let current = if self.schema.is_referenced(table_name) {
+            self.apply_reference_actions(table_name, old)?;
+            // A cascade may maintain a column on the root; delete its current
+            // physical image so index and cap entries match what is stored.
+            let id = old.field("id")?.as_str()?;
+            self.metered_scan(|runner, allowance| runner.tx.get(allowance, table_name, id))?
+                .unwrap_or_else(|| old.clone())
+        } else {
+            old.clone()
+        };
+        self.remove(table_name, &current)?;
+        Ok(true)
+    }
+
+    /// At a program commit's end, retire every source row the commit changed
+    /// or inserted whose lifetime has already ended: its final
     /// image was never live at a commit boundary, so it leaves no row for a
     /// later sweep to announce. Inside the commit the
     /// row existed as written (an insert-then-update still works). Engine
-    /// bookkeeping, unmetered: the device's prediction does not do it, and
-    /// the program's metering is already recorded. Its work, returned, stays
+    /// bookkeeping, unmetered: the program's metering is already recorded.
+    /// Server execution and device prediction both run it so a predicted
+    /// final image cannot omit cascade, set-null or restrict effects. Its work,
+    /// returned, stays
     /// linear in the rows retired: each aggregate row takes one net change
     /// and each audience key is scanned for a live row once. Seeds and loads
-    /// keep their rows for the sweep.
+    /// ordinarily keep their rows for the sweep; row-keyed view sources use
+    /// `retire_seeded_view_sources` to preserve their count-basis contract.
     // @ref LLP 3000#7-decisions-during-execution — a row whose lifetime ended by its own commit's end never exists at a commit boundary.
-    #[cfg(feature = "sqlite")]
     pub(crate) fn retire_expired_births(&mut self) -> Result<crate::meter::Metered, RuntimeError> {
         let Some(now) = self.context.now else { return Ok(Default::default());
         };
         // @ref LLP 3000.036.000.000#3 — an expired final image never grants a new recipient the row's id.
+        // The tracker covers synced and unsynced source tables alike. Each
+        // distinct entry prepaid its tree node, strings and this vector slot;
+        // the rows-written ceiling bounds the commit-end walk.
         // A row that existed before the commit and ends it already expired is
         // retired too: accounted from the partitions it was in at the commit's
         // start, it revokes there and announces nothing to a partition it only
         // entered with its expiring image.
-        let mut changed: Vec<(String, String)> = self.born_rows.keys()
-            .chain(self.touched_rows.keys())
-            .filter(|(table, _)| self.schema.table(table).is_some_and(|t| t.is_expiring()))
-            .cloned().collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+        let mut changed: Vec<(String, String)> = std::mem::take(&mut self.expiry_rows).into_iter().collect();
         if changed.is_empty() {
             return Ok(Default::default());
         }
@@ -479,18 +526,36 @@ impl Runner<'_> {
             (std::cmp::Reverse(order.iter().position(|n| n == name)),id.clone(),
             )
         });
-        let meter = std::mem::replace(&mut self.meter, crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort));
+        // Server execution already reserved this bookkeeping in the source
+        // writes. Device prediction instead runs the walk inside its separate
+        // bounded physical-work meter: exhausting that allowance queues the
+        // intent, never publishes a partial closure or refuses the write.
+        let meter = if self.device_work_active { None } else {
+            Some(std::mem::replace(&mut self.meter, crate::meter::Meter::new(crate::meter::Ceilings::unbounded(), crate::meter::Cut::Abort)))
+        };
         self.retiring = Some(Default::default());
         let retired = changed.iter().try_for_each(|(table_name, id)| {
             let Some(row) = self.metered_scan(|runner, allowance| runner.tx.get(allowance, table_name, id))? else { return Ok(());
             };
             let table = self.schema.table(table_name).ok_or_else(|| RuntimeError::Schema(format!("missing table {table_name}")))?;
-            if table.expired(&row, now) && !self.physical_children(table_name,row.field("id")?)? { self.remove(table_name, &row) } else { Ok(()) }
+            if table.expired(&row, now) { self.retire_expired_row(table_name, &row).map(|_| ()) } else { Ok(()) }
         });
         let aggregates = self.retiring.take().map(|retiring| retiring.aggregates).unwrap_or_default();
         let retired = retired.and_then(|()| self.apply_retired_aggregates(aggregates));
-        let work = std::mem::replace(&mut self.meter, meter).used;
+        let work = meter.map(|meter| std::mem::replace(&mut self.meter, meter).used).unwrap_or_default();
         retired.map(|()| work)
+    }
+
+    /// Seed writes historically retire only already-expired sources of
+    /// row-keyed views. Keep that narrow boundary while routing their removal
+    /// through the common action and net-maintenance path.
+    // @ref LLP 3000.039#6.5 — ordinary expired fixtures remain stored; derived row-view sources cannot revive after clock rollback.
+    #[cfg(feature = "sqlite")]
+    pub(crate) fn retire_seeded_view_sources(&mut self) -> Result<crate::meter::Metered, RuntimeError> {
+        let schema = self.schema;
+        self.expiry_rows.retain(|(table, _)| schema.maintains.iter()
+            .any(|maintain| maintain.source == table.as_str() && maintain.row_key.is_some()));
+        self.retire_expired_births()
     }
 
     /// A column with a declared default takes it when the written row leaves
@@ -753,74 +818,115 @@ impl Runner<'_> {
         Ok(())
     }
 
+    fn final_exists_holds(&mut self, table_name: &str, row: &Value, constraint: &Constraint) -> Result<bool, RuntimeError> {
+        let Constraint::FinalExistsOnInsert { table: target, index, key } = constraint else { return Ok(true);
+        };
+        let table = self.schema.table(table_name).expect("validated").clone();
+        let has_references = key.iter().any(|term| term.reference_source().is_some());
+        let key: Vec<Value> = if has_references {
+            // Preserve the structural target probe, but authorize each live
+            // row supplying its key before it can confer authority.
+            let rule = crate::schema::RuleExpr::Exists { table: target.clone(), index: index.clone(), key: key.clone(), equalities: vec![], provenance: crate::ir::KeyProvenance::Shape };
+            for term in key { if let crate::schema::RuleTerm::Field(field) = term { self.provisional_sequence_read |= self.device && table.sequences.contains_key(field); } }
+            let Some(key) = self.final_reference_key(table_name, &rule, row)? else { return Ok(false);
+            };
+            key
+        } else { key
+            .iter()
+            .map(|term| match term {
+                crate::schema::RuleTerm::Field(field) | crate::schema::RuleTerm::NextField(field) => {
+                    // This inserted image owns a provisional ordinal even if no expression read it.
+                    self.provisional_sequence_read |= self.device && table.sequences.contains_key(field);
+                    row.field(field).cloned().unwrap_or(Value::Null)
+                }
+                crate::schema::RuleTerm::Viewer => Value::Id(self.context.viewer.clone()),
+                crate::schema::RuleTerm::Literal(value) => value.clone(),
+                crate::schema::RuleTerm::OldField(_) | crate::schema::RuleTerm::Reference { .. } | crate::schema::RuleTerm::ReferenceChain { .. } => Value::Null,
+            })
+            .collect() };
+        self.read_tables.insert(target.clone());
+        self.observe_sequence_selection(target, index, &key)?;
+        let definition = self.schema.table(target).ok_or_else(|| RuntimeError::Schema(format!("missing {target}")))?;
+        let target_index = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing {target}.{index}")))?;
+        let found = match self.lookup_stored(target, index, target_index, &key, true)? {
+            Some(row) => self.live_aggregate(target, row)?,
+            None => None,
+        };
+        if has_references && self.device && let Some(row) = &found
+            && !self.witness_covered(target, index, &key, row)? {
+            self.unknown_fact(target, index, &key, "after insert");
+            return Ok(false);
+        }
+        if found.is_none() {
+            // @ref LLP 3000.007#20.5 — a final-exists miss needs the same readable, fully held group proof as upsert absence; a local hit needs no absence proof.
+            // Budget spent only while establishing device coverage is the device's
+            // uncertainty, not the write's: the server needs no such proof.
+            let proven = self.device && match self.upsert_absence_proven(target, index, &key) {
+                Ok(proven) => proven,
+                Err(RuntimeError::Bound { .. }) => false,
+                Err(error) => return Err(error),
+            };
+            if self.device && !proven {
+                let first_unknown = self.missing_fact.is_none();
+                self.unknown_fact(target, index, &key, "after insert");
+                if first_unknown && let Some(message) = &mut self.missing_fact {
+                    *message = message.replace("the row or its absence is past the acquired horizon or online only", "the probe key does not establish a fully held, readable group without a horizon");
+                }
+            }
+            return Ok(false);
+        }
+        Ok(true)
+    }
+
+    fn final_exists_refusal(table_name: &str, constraint: &Constraint) -> RuntimeError {
+        let Constraint::FinalExistsOnInsert { table: target, .. } = constraint else { unreachable!("final-exists witness names a final-exists constraint");
+        };
+        RuntimeError::Constraint(format!("inserting into {table_name} requires a matching row in {target} by the end of the mutation"))
+    }
+
     /// `after insert <- exists t[...]` holds for every row inserted this
     /// transaction; checked once the program has run.
     pub(super) fn check_final_exists(&mut self) -> Result<(), RuntimeError> {
         let inserted = std::mem::take(&mut self.inserted);
         for (table_name, row) in &inserted {
-            let table = self.schema.table(table_name).expect("validated");
-            for constraint in &table.constraints {
-                let Constraint::FinalExistsOnInsert { table: target, index, key } = constraint else { continue;
-                };
-                let refusal = || {
-                    RuntimeError::Constraint(format!("inserting into {table_name} requires a matching row in {target} by the end of the mutation"))
-                };
-                let has_references = key.iter().any(|term| term.reference_source().is_some());
-                let key: Vec<Value> = if has_references {
-                    // Preserve the structural target probe, but authorize each
-                    // live row supplying its key before it can confer authority.
-                    let rule = crate::schema::RuleExpr::Exists { table: target.clone(), index: index.clone(), key: key.clone(), equalities: vec![], provenance: crate::ir::KeyProvenance::Shape };
-                    for term in key { if let crate::schema::RuleTerm::Field(field) = term { self.provisional_sequence_read |= self.device && table.sequences.contains_key(field); } }
-                    self.final_reference_key(table_name, &rule, row)?.ok_or_else(refusal)?
-                } else { key
-                    .iter()
-                    .map(|term| match term {
-                        crate::schema::RuleTerm::Field(field) | crate::schema::RuleTerm::NextField(field) => {
-                            // This inserted image owns a provisional ordinal even if no expression read it.
-                            self.provisional_sequence_read |= self.device && table.sequences.contains_key(field);
-                            row.field(field).cloned().unwrap_or(Value::Null)
-                        }
-                            crate::schema::RuleTerm::Viewer => {
-                                Value::Id(self.context.viewer.clone())
-                            }
-                            crate::schema::RuleTerm::Literal(value) => value.clone(),
-                        crate::schema::RuleTerm::OldField(_) | crate::schema::RuleTerm::Reference { .. } | crate::schema::RuleTerm::ReferenceChain { .. } => Value::Null,
-                    })
-                    .collect() };
-                self.read_tables.insert(target.clone());
-                self.observe_sequence_selection(target, index, &key)?;
-                let definition = self.schema.table(target).ok_or_else(|| RuntimeError::Schema(format!("missing {target}")))?;
-                let target_index = definition.index(index).ok_or_else(|| RuntimeError::Schema(format!("missing {target}.{index}")))?;
-                let found = match self.lookup_stored(target, index, target_index, &key, true)? {
-                    Some(row) => self.live_aggregate(target, row)?,
-                    None => None,
-                };
-                if has_references && self.device && let Some(row) = &found
-                    && !self.witness_covered(target, index, &key, row)? {
-                    self.unknown_fact(target, index, &key, "after insert");
-                    return Err(refusal());
-                }
-                if found.is_none() {
-                    // @ref LLP 3000.007#20.5 — a final-exists miss needs the same readable, fully held group proof as upsert absence; a local hit needs no absence proof.
-                    // Budget spent only while establishing device coverage is the device's
-                    // uncertainty, not the write's: the server needs no such proof.
-                    let proven = self.device && match self.upsert_absence_proven(target, index, &key) {
-                        Ok(proven) => proven,
-                        Err(RuntimeError::Bound { .. }) => false,
-                        Err(error) => return Err(error),
-                    };
-                    if self.device && !proven {
-                        let first_unknown = self.missing_fact.is_none();
-                        self.unknown_fact(target, index, &key, "after insert");
-                        if first_unknown && let Some(message) = &mut self.missing_fact {
-                            *message = message.replace("the row or its absence is past the acquired horizon or online only", "the probe key does not establish a fully held, readable group without a horizon");
-                        }
-                    }
-                    return Err(RuntimeError::Constraint(format!("inserting into {table_name} requires a matching row in {target} by the end of the mutation")));
+            let constraints = self.schema.table(table_name).expect("validated").constraints.clone();
+            for constraint in &constraints {
+                if matches!(constraint, Constraint::FinalExistsOnInsert { .. })
+                    && !self.final_exists_holds(table_name, row, constraint)? {
+                    return Err(Self::final_exists_refusal(table_name, constraint));
                 }
             }
         }
         self.inserted = inserted;
+        Ok(())
+    }
+
+    /// Seed imports historically do not enforce every final-exists clause.
+    /// Capture only clauses that currently hold so seeded expiry retirement
+    /// can prove that its own reference actions did not invalidate them.
+    pub(super) fn satisfied_final_exists(&mut self) -> Result<Vec<FinalExistsWitness>, RuntimeError> {
+        let inserted = self.inserted.clone();
+        let mut witnesses = Vec::new();
+        for (table, row) in inserted {
+            let constraints = self.schema.table(&table).expect("validated").constraints.clone();
+            for (constraint, clause) in constraints.iter().enumerate() {
+                if matches!(clause, Constraint::FinalExistsOnInsert { .. })
+                    && self.final_exists_holds(&table, &row, clause)? {
+                    witnesses.push(FinalExistsWitness { table: table.clone(), row: row.clone(), constraint });
+                }
+            }
+        }
+        Ok(witnesses)
+    }
+
+    pub(super) fn check_final_exists_witnesses(&mut self, witnesses: &[FinalExistsWitness]) -> Result<(), RuntimeError> {
+        for witness in witnesses {
+            let constraint = self.schema.table(&witness.table).expect("validated")
+                .constraints.get(witness.constraint).expect("captured constraint").clone();
+            if !self.final_exists_holds(&witness.table, &witness.row, &constraint)? {
+                return Err(Self::final_exists_refusal(&witness.table, &constraint));
+            }
+        }
         Ok(())
     }
 
@@ -876,6 +982,14 @@ impl Runner<'_> {
         // and deletes remove only that row's contributions in O(index count).
         let id = old.or(new).expect("a row change has an image").field("id")?.as_str()?;
         let owner = (table_name.to_owned(), id.to_owned());
+        if origin == Origin::Source && new.is_some() && table.is_expiring() && !self.expiry_rows.contains(&owner) {
+            self.meter.step(1)?;
+            self.meter.heap(crate::rows::word_heap::text(table_name)
+                + crate::rows::word_heap::text(id)
+                + crate::rows::word_heap::insertion::<(String, String), ()>(self.expiry_rows.len())
+                + crate::rows::word_heap::slots::<(String, String)>(1))?;
+            self.expiry_rows.insert(owner.clone());
+        }
         if self.device && new.is_some() { self.provisional_rows.insert(owner.clone()); }
         let previous = self.created_rows.remove(&owner);
         let was_created = previous.is_some() || old.is_none();
@@ -908,17 +1022,7 @@ impl Runner<'_> {
         if self.device { if !self.event_free { partition::account_row_change::<false>(self, table_name, old, new, origin)?; } }
         else if !self.event_free { partition::row_changed(self, table_name, old, new, origin)?; }
         if origin == Origin::Source {
-            // @ref LLP 3000.015#3 — a source born expired never enters the count basis.
-            // Retire it now, in the same transaction, so a later correction/sweep
-            // cannot subtract a contribution which was never added. Other derived
-            // consumers see the same physical deletion (including an expiring update).
-            let new = if let Some(row) = new.filter(|row| self.expired(table, row))
-                && self.schema.maintains.iter().any(|m| m.source == table_name && m.row_key.is_some())
-            {
-                let entries = self.tx.delete(table_name, table, row)?;
-                self.meter.charge(MeterKind::IndexEntries, entries)?;
-                None
-            } else { new };
+            // @ref LLP 3000.039#3 — even a derived source that ends expired reaches commit-end retirement and its reference actions.
             if old.is_some() || new.is_some() {
                 #[cfg(feature = "sqlite")]
                 self.place_assets(table_name, table, old, new)?;

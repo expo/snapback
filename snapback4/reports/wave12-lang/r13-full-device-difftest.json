@@ -1,0 +1,13 @@
+{
+  "recorded_utc": "2026-10-15T02:21:45.122550+00:00",
+  "exit_code": 0,
+  "targets": 110,
+  "passed": 1647,
+  "failed": 0,
+  "ignored": 4,
+  "command": "CARGO_TARGET_DIR=/tmp/lang-affected-target CARGO_BUILD_JOBS=12 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 SNAPBACK4_REQUIRE_LEAN=1 SNAPBACK4_LEAN_ORACLE=/tmp/lang-final-oracle-2fb3bb2e98/quarry-oracle cargo test -p snapback4-device -p snapback4-difftest --no-fail-fast",
+  "scope": "R13 compiled binaries; R14 private-column prediction and nested-budget deltas require their separate affected-device and full-difftest receipts. Later native-store migration changes do not alter these device operations.",
+  "log": "logs/r13-full-device-difftest.log.gz",
+  "log_sha256": "79c82bd7455a50e001d62d1f24d877baf4e7531731f74668fcf0e18e747ed862",
+  "uncompressed_sha256": "3e85b4ee67b48e5231d4a6945c1b4a63ee0d6f587852060ead15a3d9d645bf71"
+}

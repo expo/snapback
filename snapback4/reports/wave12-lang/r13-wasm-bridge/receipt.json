@@ -1,0 +1,46 @@
+{
+  "kind": "wave12-r14-real-wasm-expiry-reference-actions",
+  "status": "pass",
+  "product_checkpoint": "65560f6c4e",
+  "formal_checkpoint": "b9ab88a8b7",
+  "sealed_run": {
+    "directory": "/tmp/lang-client-qualification-final-65560f6c4e-r14bridge-v2",
+    "base_snapshot": "/tmp/lang-client-qualification-final-cfd4e2f242",
+    "command": "SNAPBACK4_BIN=/tmp/lang-final-cli-cfd4e2f242 node --test packages/snapback4/test/expiry-reference-actions.test.mjs",
+    "result": "pass",
+    "tests": { "passed": 1, "failed": 0 },
+    "semantic_cases": 8,
+    "inputs_manifest": "raw/final-inputs.sha256",
+    "inputs_manifest_sha256": "e70d84f146de1743a29b3a4f8c2a23e5da82313d3d44ad3ba0d0d4df350196c5",
+    "log": "raw/final-pass.log.gz",
+    "log_sha256": "1f857cf47ae57661c4e6e46e70783542705fc7683dfe66f78dfaeb0e76cc2022"
+  },
+  "sealed_inputs": {
+    "test_sha256": "4f699b5c254e3dd2a536763450a75d170533e838125f585c652f652123316d4a",
+    "wasm_sha256": "2dff27d1ab9d62edc58b4fc918044ee25ea7cd512f3bf3d98fb0e2329eb8f6d8",
+    "wasm_raw_bytes": 2353573,
+    "wasm_gzip_bytes": 716807,
+    "cli_sha256": "d45eded9e2747c8d1a281a1bd6e2d16ce203ee0a1ae1c2cea073eccfc50aab72"
+  },
+  "coverage": [
+    "real CLI compilation and SQLite server, schema export, public-sync snapshot, and web wasm memory store",
+    "cascade update-to-expired predicts locally and reaches exact server parity",
+    "set-null update-to-expired predicts locally and reaches exact server parity",
+    "restrict update-to-expired returns E_REFERENCED locally and on the server",
+    "same-mutation child insertion is retired by the predicted commit-end cascade and reaches server parity",
+    "an empty reference group permits predicted commit-end retirement and reaches server parity",
+    "maintained-column retirement queues with predictable=false and no predicted or local changes, then settle plus stream catch-up reaches exact total-zero and row parity",
+    "future expiry remains present through local prediction and server execution",
+    "an audience-hidden reference group queues with predictable=false, no predicted rows, and no local parent change while the server retires the hidden child"
+  ],
+  "fixture_isolation": "The maintained-column child references aggregateParents rather than the parents table used by direct-action controls. Reference closures are table-level; sharing the parent table would correctly make every parent retirement conservative and would erase the independent direct-prediction controls.",
+  "historical_failure": {
+    "checkpoint": "cfd4e2f242",
+    "status": "preserved",
+    "inputs_manifest": "raw/pre-r14-inputs.sha256",
+    "inputs_manifest_sha256": "5c71aff20380915e8fd5cd6bc13ddad8d885982e793fb90298e23aaaf2fd2250",
+    "log": "raw/pre-r14-failure.log.gz",
+    "log_sha256": "3517ce7ed1655e9d4c38f157a2243180030044bf59c8f44c3041a9db0a63c092",
+    "finding": "The old web wasm directly predicted aggregate retirement but left groups/g.total at 1 while the server committed 0. R14 instead queues the private-maintain closure and applies the authoritative result during catch-up."
+  }
+}

@@ -367,6 +367,9 @@ pub struct Engine {
     ceilings: Ceilings,
     entropy: u64,
     generation: u64,
+    /// Per-table physical expiry scan positions. Restricted or retained roots
+    /// consume a visit, so later due keys make progress across short sweeps.
+    expiry_after: BTreeMap<String, Vec<Value>>,
     /// Dev engines may consult replay policy; release engines never suppress effects.
     dev_effects: bool,
     /// The app's native module, once installed (LLP 3000.005).
@@ -400,14 +403,14 @@ impl Engine {
         let (generation, metadata) = Self::activate(&mut store, &schema, &programs, None, now, true, None, None)?;
         let dev_effects = metadata.dev_effects;
         store.exclude_ephemeral(&schema);
-        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id, generation, &schema)), store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id, generation, &schema)), store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// A detached read owner for HTTP query/sync computation. Creating it is
     /// brief; materializing its response does not hold the serving engine.
     pub fn reader(&self) -> Result<Self, RuntimeError> {
         Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: self.ephemeral.clone(), store: self.store.reader()?, schema: self.schema.clone(), programs: self.programs.clone(),
-            ceilings: self.ceilings, entropy: 0, generation: self.generation, dev_effects: self.dev_effects,
+            ceilings: self.ceilings, entropy: 0, generation: self.generation, expiry_after: BTreeMap::new(), dev_effects: self.dev_effects,
             #[cfg(feature = "native")] native: self.native.clone(),
             #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: self.presence.clone() })
     }
@@ -452,13 +455,15 @@ impl Engine {
         // @ref LLP 3000.007#20.9.3 — expiry index adoption is required even without physical cap counters.
         let (generation, metadata) = if stored_schema_hash == schema_hash
             && tx.meta("live_sum_candidates")?.as_deref() == Some("1")
+            && (!schema.maintains.iter().any(|maintain| maintain.row_key.is_none())
+                || tx.meta(crate::schema::MAINTAINED_ID_META)?.as_deref() == Some(crate::schema::MAINTAINED_ID_VERSION))
             && (!crate::rows::caps::required(&schema) || tx.meta("cap_counts_schema")?.as_deref() == Some(&schema_hash))
             && (!schema.tables.values().any(|table| table.not_before.is_some())
                 || tx.meta(crate::store::time_audience::PUBLICATION_STATE_KEY)?.as_deref() == Some("1")) { (generation, Store::finish_open(tx)?) }
             else { tx.rollback()?; Self::activate(&mut store, &schema, &programs, None, now, true, expected_release, Some(&kept))? };
         let dev_effects = metadata.dev_effects;
         store.accept_open(); store.exclude_ephemeral(&schema);
-        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id, generation, &schema)), store, schema, programs, generation, dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id, generation, &schema)), store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// Serving a selected immutable release may attach only while that release
@@ -574,6 +579,7 @@ impl Engine {
         self.schema = schema;
         self.programs = programs;
         self.generation = generation;
+        self.expiry_after.clear();
         self.ephemeral.rebind_committed(metadata.store_id, generation, &self.schema);
         Ok(generation)
     }
@@ -606,22 +612,49 @@ impl Engine {
         let seq = tx.next_seq()?;
         let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
         let mut removed = 0_u64;
+        let mut visited = 0_usize;
+        let mut expiry_after = self.expiry_after.clone();
         let due = crate::store::Bounds { gte: Some(Value::Int(i64::MIN)), lte: Some(Value::Int(now)), ..Default::default() };
+        let expiring = through_activation::resume_expiry_tables(
+            expiring.into_iter().map(|(name, _)| name).collect(), &expiry_after,
+        ).into_iter().map(|name| {
+            let index = self.schema.tables[&name].expiry_index().expect("expiring table").0.to_owned();
+            (name, index)
+        }).collect::<Vec<_>>();
         'tables: for (table_name, index) in &expiring {
+            let mut bounds = due.clone();
+            bounds.after = expiry_after.get(table_name).cloned();
+            let mut wrapped = bounds.after.is_none();
             loop {
-                let batch = (limit - removed as usize).min(256);
+                let batch = (limit - visited).min(256);
                 if batch == 0 {
                     break 'tables;
                 }
-                let rows = tx.scan(table_name, index, &[], &due, crate::store::Dir::Asc, batch)?;
+                let rows = tx.scan(table_name, index, &[], &bounds, crate::store::Dir::Asc, batch)?;
                 let count = rows.len();
-                for (row, _) in rows {
+                for (row, key) in rows {
+                    bounds.after = crate::key::decode(&key);
+                    if let Some(after) = &bounds.after { expiry_after.insert(table_name.clone(), after.clone()); }
+                    visited += 1;
+                    through_activation::mark_expiry_table(&mut expiry_after, table_name);
                     if removed > 0 && started.elapsed() >= budget { break 'tables; }
-                    if runner.physical_children(table_name,row.field("id")?)? { break 'tables; }
-                    runner.remove(table_name, &row)?;
-                    removed += 1;
+                    match runner.retire_expired_row(table_name, &row) {
+                        Ok(true) => removed += 1,
+                        Ok(false) => {},
+                        // An expected reference/read-through blocker retains
+                        // the logically expired root. Continue by key so it
+                        // cannot wedge cleanup of unrelated due rows.
+                        Err(RuntimeError::Structural { code: "E_REFERENCED" | "E_PARENT_HAS_CHILDREN", .. }) => {},
+                        Err(error) => return Err(error),
+                    }
                 }
                 if count < batch {
+                    expiry_after.remove(table_name);
+                    if !wrapped && visited < limit {
+                        bounds = due.clone();
+                        wrapped = true;
+                        continue;
+                    }
                     break;
                 }
             }
@@ -635,6 +668,7 @@ impl Engine {
             partition::append(&tx, seq, &events)?;
         }
         tx.commit()?;
+        self.expiry_after = expiry_after;
         self.advance_time_audience(now)?;
         Ok(removed)
     }
@@ -932,12 +966,15 @@ impl Engine {
         tx.savepoint("program")?;
         let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(ceilings, Cut::Abort), tx.next_seq()?);
         let ran = runner.run(&program).and_then(|value| {
-            runner.check_final_exists()?;
             runner.charge_output(&value)?;
             Ok(value)
         });
+        // Commit-end expiry can cascade or clear rows that an `after insert`
+        // witness names. Final obligations therefore inspect the actual
+        // provisional commit state, after every retirement action.
+        let ran = ran.and_then(|value| runner.retire_expired_births().map(|_| value))
+            .and_then(|value| runner.check_final_exists().map(|_| value));
         let metered = runner.meter.used;
-        let ran = ran.and_then(|value| runner.retire_expired_births().map(|_| value));
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
         let events: Vec<Event> = runner.events.take();
         let action_tables = std::mem::take(&mut runner.action_tables);
@@ -1310,6 +1347,18 @@ pub(crate) fn seed_rows(schema: &Schema, tx: &crate::store::Tx<'_>, rows: impl I
         runner.upsert(&table, &row.field("id")?.clone(), row.import_input(&ImportInput(())))?;
         count += 1;
     }
+    // Seeds preserve ordinary expired images for a later sweep. A source of
+    // a row-keyed view is the established exception: an already-expired
+    // seeded image must not enter a committed count basis or revive after
+    // a clock rollback. Route only those sources through the common retirement
+    // path so reference actions and net maintenance still run transactionally.
+    // @ref LLP 3000.039#6.5 — seeded expired row-view sources retire with actions; unrelated expired fixtures remain stored.
+    let final_exists = runner.satisfied_final_exists()?;
+    runner.retire_seeded_view_sources()?;
+    // Seeds historically admit fixture rows whose obligations are not
+    // meaningful under the system viewer. Retirement may not invalidate an
+    // obligation that did hold immediately before its reference actions.
+    runner.check_final_exists_witnesses(&final_exists)?;
     let events = runner.events.take();
     let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
     drop(runner);

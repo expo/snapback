@@ -26,6 +26,14 @@ impl Runner<'_> {
         };
         // @ref LLP 3000.039#4.2 — what the commit publishes is fixed by the schema, not by the rows the actions reach.
         let closure = schema.action_tables(table_name);
+        // A public device projection carries the private column's price but
+        // not the maintain that computes its value. If an action can write
+        // such a source, settlement must supply the authoritative mirror.
+        // @ref LLP 3000.007.001#3.7 — devices store maintained columns but never derive them.
+        if self.device && closure.written.iter().any(|source| schema.write_reservation(source)
+            .is_some_and(|plan| plan.price(crate::schema::reservations::COLUMNS)[3] != 0)) {
+            return Err(RuntimeError::Prediction(format!("deleting {table_name} can change a server-maintained column; queued without a local delete")));
+        }
         for table in &closure.written {
             if schema.visible(table) { self.written_tables.insert(table.clone()); }
             self.action_tables.insert(table.clone());
@@ -44,12 +52,25 @@ impl Runner<'_> {
         // @ref LLP 3000.039#3 — draw the reservation's rows from the request's physical allowance before the first seek.
         if !self.context.is_system() { self.tx.draw(table_name, price[2])?; }
         let meter = std::mem::replace(&mut self.meter, Meter::new(Ceilings::unbounded(), Cut::Abort));
+        // The fixed action reservation prepays the closure itself, but held-
+        // group and authority proofs remain device-only bounded work. Keep the
+        // active allowance reachable by nested `device_work` calls while the
+        // closure runs under its prepaid unbounded meter. Recursive cascade
+        // removals see the already-stored allowance and must not take it over.
+        // @ref LLP 3000.039#6.4 — every device-only proof spends the separate bounded physical-work allowance.
+        let owns_device_allowance = self.device_work_active && self.device_allowance.is_none();
+        let mut meter = Some(meter);
+        if owns_device_allowance { self.device_allowance = meter.take(); }
         let prepaid = self.tx.reference_prepaid(true);
         let action = std::mem::replace(&mut self.engine_action, true);
         let result = self.reference_closure(table_name, old);
         self.engine_action = action;
         self.tx.reference_prepaid(prepaid);
-        self.meter = meter;
+        self.meter = if owns_device_allowance {
+            self.device_allowance.take().expect("active device allowance")
+        } else {
+            meter.expect("prepaid action meter")
+        };
         self.meter.release_heap(mark);
         result
     }
@@ -97,6 +118,15 @@ impl Runner<'_> {
             self.refusing_clause(&child, &format!("{column}: {parent} (on delete restrict)"));
             let via = if parent == root_table { String::new() } else { format!(", through a {parent} row this delete cascades to") };
             return Err(RuntimeError::Structural { code: "E_REFERENCED", message: format!("{root_table} at {} is still referenced through {child}.{column} (on delete restrict){via}; delete or retarget those rows first, or declare the reference's action (guide writes)", self.statement_site) });
+        }
+        // A cascaded row can itself have a physically retained read-through
+        // child. Decide that blocker before set-null writes begin, so expiry
+        // can retain this root and continue without relying on transaction
+        // rollback to undo a partial closure.
+        for (table, id) in visits.iter().skip(1) {
+            if self.physical_children_outside(table, id, &seen)? {
+                return Err(self.parent_has_children(table));
+            }
         }
         // 5. Set null outside the closure. Each group is gathered whole before
         // any of it is cleared: a clear can recount a sibling that shares the
@@ -223,6 +253,48 @@ impl Runner<'_> {
 /// Rows a child scan holds per seek: the reservation's transient `4 × row`
 /// (LLP 3000.039 §5.1, `Schema::delete_reservation`).
 const PAGE: usize = crate::schema::references::REFERENCE_PAGE;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Context, rows::{MemoryRows, Rows}, value::{Value, object}};
+
+    #[test]
+    fn prepaid_actions_keep_nested_device_proofs_bounded() {
+        let bound = snapback4_lang::compile(&[("nested-allowance.q".into(), r#"
+table parents:
+  public
+table children:
+  parent: parents on delete cascade
+  cap 1 by parent
+  public
+"#.into())]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let schema: crate::Schema = crate::json_codec::from_text(
+            &crate::json_codec::to_text(&bound.schema).unwrap(),
+        ).unwrap();
+        let rows = MemoryRows::new();
+        let parent = object([("id", Value::Id("p".into()))]);
+        rows.put("parents", &schema.tables["parents"], &parent, None).unwrap();
+        rows.put("children", &schema.tables["children"], &object([
+            ("id", Value::Id("c".into())), ("parent", Value::Id("p".into())),
+        ]), None).unwrap();
+        let price = schema.delete_reservation("parents").unwrap();
+        let ceilings = Ceilings {
+            steps: price[0], index_entries: price[1], examined: price[2],
+            rows_written: price[3], heap_bytes: price[4], output_bytes: price[5],
+            rule_probes: price[6],
+        };
+        let mut runner = Runner::new(&rows, &schema, Context::system().at(1), Meter::new(ceilings, Cut::Abort), 0);
+        runner.device = true;
+        // Model the commit-end walk after its outer device_work swap: the
+        // bounded allowance is the active meter and no spare copy exists.
+        runner.device_work_active = true;
+        let error = runner.apply_reference_actions("parents", &parent).unwrap_err();
+        assert!(matches!(&error, RuntimeError::Prediction(message) if message.contains("allowance exhausted")), "{error:?}");
+        assert_eq!(runner.meter.used.steps, price[0] + 1, "the nested proof attempted its bounded step");
+    }
+}
 
 fn through_reference(r: &Referencing<'_>) -> bool {
     r.table.through.as_ref().is_some_and(|t| t.reference == r.column)

@@ -15,10 +15,27 @@ impl<'a> Binder<'a> {
             let e = if expr::allocates(&e) { self.snapshot(e, out) } else { e };
             keys.push((part.column.clone(), e, t));
         }
+        self.contextualize_bound_keys(info, read, keys)?;
+        Ok(())
+    }
+
+    /// Apply the selected index's identity context to operands already bound
+    /// for type-directed positional selection. This changes only their
+    /// retained IR/type and never evaluates the authored expression again.
+    pub(super) fn contextualize_bound_keys(&self, info: &TableInfo, read: &ReadExpr,
+        keys: &mut [(Option<String>, Expr, Ty)]) -> Fallible<()> {
         if let Some(index) = read.index.as_ref().and_then(|name| info.indexes.iter().find(|i| &i.name == name)) {
             for (position,(column,value,ty)) in keys.iter_mut().enumerate() {
                 if let Some(expected) = column.as_deref().or_else(|| index.columns.get(position).map(String::as_str)).and_then(|c| key_identity(info,c)) {
-                    (*value,*ty) = self.row_identity(value.clone(),ty.clone(),&expected);
+                    if let Expr::Literal(Value::String(text)) = value {
+                        if text.is_empty() {
+                            return Err(type_error(read.keys[position].value.site(), "an empty text literal cannot be an id", "use a non-empty id literal, or null"));
+                        }
+                        *value = Expr::Literal(Value::Id(text.clone()));
+                        *ty = expected.required();
+                    } else {
+                        (*value,*ty) = self.row_identity(value.clone(),ty.clone(),&expected);
+                    }
                 }
             }
         }

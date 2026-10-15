@@ -463,9 +463,9 @@ impl Engine {
             seq,
         );
         let result = runner.run(program)?;
-        runner.check_final_exists()?;
         runner.charge_output(&result)?;
         runner.retire_expired_births()?;
+        runner.check_final_exists()?;
         let metered = runner.meter.used;
         let tables: Vec<_> = runner.written_tables.iter().cloned().collect();
         drop(runner);

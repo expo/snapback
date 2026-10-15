@@ -270,6 +270,15 @@ pub enum Builtin {
     /// The existing column extremum encoding is unchanged.
     ExtremumOf { max: bool, domain: bool },
     Divmod { remainder_sink: String },
+    /// Checked exact integer division with an author-selected rounding rule.
+    // @ref LLP 3000.013.001#2-rounded-division-table — the mode is a closed wire enum and evaluation never uses floating point.
+    Divide {
+        rounding: Rounding,
+        /// Decimal places requested by the four-argument surface. `None`
+        /// preserves the dividend's already-scaled representation.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        scale: Option<u8>,
+    },
     Sort { keys: Vec<SortKey> },
     MentionTokens,
     SearchPresent,
@@ -292,10 +301,21 @@ impl Builtin {
             #[cfg(feature = "sqlite")]
             Self::JobAs => 2,
             Self::ReceiptSettled { .. } | Self::Extremum { .. } | Self::ProjectFields { .. } | Self::OptionalField { .. } | Self::Calendar { .. } | Self::Civil(_) | Self::Group { .. } | Self::First | Self::Last | Self::Len | Self::Lower | Self::Trim | Self::Sha256 | Self::Sort { .. } | Self::MentionTokens | Self::SearchPresent | Self::RequireUncapped | Self::Count | Self::Sum | Self::CountCapped | Self::Connected => 1,
-            Self::ExtremumOf { .. } | Self::At | Self::Concat | Self::Join | Self::Min | Self::Max | Self::Divmod { .. } => 2,
+            Self::ExtremumOf { .. } | Self::At | Self::Concat | Self::Join | Self::Min | Self::Max | Self::Divmod { .. } | Self::Divide { .. } => 2,
             Self::Slice | Self::DeterministicShare => 3,
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Rounding {
+    TowardZero,
+    AwayFromZero,
+    Floor,
+    Ceiling,
+    HalfAwayFromZero,
+    HalfEven,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -478,7 +498,7 @@ impl Merge {
     // @ref LLP 3000.036.001#3 — the lane identity marks the plan, so no existing program's IR or digest changes.
     pub fn branches(&self) -> bool {
         self.view.is_none() && !self.lanes.is_empty()
-            && self.lanes.iter().all(|lane| matches!(lane.branch.as_deref(), Some(BRANCH_LANE | GRANT_LANE | MEMBERSHIP_LANE | SYSTEM_LANE | GUARDED_LANE)))
+            && self.lanes.iter().all(|lane| matches!(lane.branch.as_deref(), Some(BRANCH_LANE | GRANT_LANE | MEMBERSHIP_LANE | SYSTEM_LANE | GUARDED_LANE | VACANCY_LANE)))
     }
     /// The cursor descriptor's index field: a bounded digest of the branch
     /// set, in lane order. Legal labels repeated across eight lanes can
@@ -502,6 +522,8 @@ impl Merge {
                 hash.update(SYSTEM_LANE.as_bytes());
             } else if lane.guarded() {
                 hash.update(GUARDED_LANE.as_bytes());
+            } else if lane.vacancy() {
+                hash.update(VACANCY_LANE.as_bytes());
             }
             if lane.membership() { if let Some(source) = lane.source.as_ref().and_then(LaneSource::scan) {
                 hash.update((source.table.len() as u64).to_be_bytes()); hash.update(source.table.as_bytes());
@@ -522,6 +544,8 @@ pub const MEMBERSHIP_LANE: &str = "$or:membership";
 pub const SYSTEM_LANE: &str = "$or:system";
 /// A range admitted by its own positive page guard, without covering other lanes.
 pub const GUARDED_LANE: &str = "$or:guarded";
+/// A server-only private range whose exact vacancy rule makes exhaustion observable.
+pub const VACANCY_LANE: &str = "$or:vacancy";
 /// The prefix of a branch merge's cursor descriptor (cursor version 4).
 pub const BRANCH_DESCRIPTOR: &str = "$or:";
 
@@ -530,6 +554,7 @@ impl MergeLane {
     pub fn membership(&self) -> bool { self.branch.as_deref() == Some(MEMBERSHIP_LANE) }
     pub fn system(&self) -> bool { self.branch.as_deref() == Some(SYSTEM_LANE) }
     pub fn guarded(&self) -> bool { self.branch.as_deref() == Some(GUARDED_LANE) }
+    pub fn vacancy(&self) -> bool { self.branch.as_deref() == Some(VACANCY_LANE) }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -593,7 +618,8 @@ fn deserialize_text_format<'de, D: serde::Deserializer<'de>>(deserializer: D) ->
     match String::deserialize(deserializer)?.as_str() {
         "handle" => Ok(Some(crate::schema::TextFormat::Handle)),
         "url" => Ok(Some(crate::schema::TextFormat::Url)),
-        _ => Err(serde::de::Error::custom("text format must be handle or url")),
+        "email" => Ok(Some(crate::schema::TextFormat::Email)),
+        _ => Err(serde::de::Error::custom("text format must be handle, url, or email")),
     }
 }
 

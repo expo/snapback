@@ -76,6 +76,16 @@ pub enum Rule {
     NamedOld,
     /// `.owner = viewer or .helper = viewer`: two parties (LLP 3000.036.001).
     TwoParty,
+    /// Two independently distributed positive alternatives (PAGE5).
+    ProductScope,
+    /// Grouped readable fixed point guards beside one per-row membership (PAGE5).
+    FixedPerRow,
+    /// An owner alternative beside an exact missing-point predicate (PAGE5).
+    Vacancy,
+    /// The same vacancy predicate through the target's implicit unique id.
+    VacancyImplicitId,
+    /// A duplicated party leaf beside membership, for model descriptor accounting.
+    RepeatedPartyMembership,
 }
 impl Rule {
     fn source(&self) -> &'static str {
@@ -100,6 +110,11 @@ impl Rule {
             Self::NamedNext => "next.owner = viewer",
             Self::NamedOld => "old.owner = viewer",
             Self::TwoParty => ".owner = viewer or .helper = viewer",
+            Self::ProductScope => "(.owner = viewer or .helper = viewer) and (.status = 'open' or .status = 'active')",
+            Self::FixedPerRow => "((exists roles[.bucket, viewer] and exists seats[.bucket, viewer]) and exists permits[viewer]) and exists access[.id, .bucket, viewer]",
+            Self::Vacancy => "not exists access[item = .id] or .owner = viewer",
+            Self::VacancyImplicitId => "not exists items[id = .id] or .owner = viewer",
+            Self::RepeatedPartyMembership => ".owner = viewer or .owner = viewer or exists access[.bucket, viewer]",
         }
     }
     /// Whether the rule names the update's two images (`update (old, next)`).
@@ -214,6 +229,29 @@ pub enum Expr {
     Point(String, Key),
     /// A calendar builtin over one int (LLP 3000.040 §2): `month(t)`, ..
     Calendar(Cal, Box<Expr>),
+    RoundedDivide(Rounding, Option<u8>, Box<Expr>, Box<Expr>),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum Rounding {
+    TowardZero,
+    AwayFromZero,
+    Floor,
+    Ceiling,
+    HalfAwayFromZero,
+    HalfEven,
+}
+impl Rounding {
+    pub fn source(&self) -> &'static str {
+        match self {
+            Self::TowardZero => "toward-zero",
+            Self::AwayFromZero => "away-from-zero",
+            Self::Floor => "floor",
+            Self::Ceiling => "ceiling",
+            Self::HalfAwayFromZero => "half-away-from-zero",
+            Self::HalfEven => "half-even",
+        }
+    }
 }
 /// The calendar builtins, with `bucket`'s period and offset in milliseconds.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -252,6 +290,7 @@ impl Expr {
             Self::Point(table, _) => Type::Reference(table.clone()),
             Self::Calendar(Cal::MonthStart | Cal::YearStart, _) => Type::Time,
             Self::Calendar(..) => Type::Int,
+            Self::RoundedDivide(..) => Type::Int,
             Self::Identity(e) => e.ty(),
             Self::Assert(e) => match e.ty() {
                 Type::Nullable(t) => *t,
@@ -276,6 +315,10 @@ impl Expr {
             Self::Identity(e) => format!("identity({})", e.source()),
             Self::Assert(e) => format!("({} ! else NULL_ASSERT)", e.source()),
             Self::Calendar(f, e) => f.source(&e.source()),
+            Self::RoundedDivide(rounding, scale, dividend, divisor) => match scale {
+                Some(scale) => format!("divide({}, {}, {scale}, '{}')", dividend.source(), divisor.source(), rounding.source()),
+                None => format!("divide({}, {}, '{}')", dividend.source(), divisor.source(), rounding.source()),
+            },
         }
     }
     pub fn simpler(&self) -> Vec<Self> {
@@ -300,6 +343,10 @@ impl Expr {
                 }
             }
             Self::Identity(e) => out.push((**e).clone()),
+            Self::RoundedDivide(rounding, scale, a, b) => {
+                for e in a.simpler() { out.push(Self::RoundedDivide(rounding.clone(), *scale, Box::new(e), b.clone())); }
+                for e in b.simpler() { out.push(Self::RoundedDivide(rounding.clone(), *scale, a.clone(), Box::new(e))); }
+            }
             _ => {}
         }
         out.retain(|e| e.source().len() < self.source().len());
@@ -479,6 +526,9 @@ pub struct Program {
     /// A further domain conjunct, as source (Lean variants).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub residual: Option<String>,
+    /// Emit a whole-table read with no generated `where` domain.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub unfiltered: bool,
     /// The domain's first clause in place of `.bucket = bucket`, as source:
     /// a disjunction of pinned branches (LLP 3000.036.001).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -626,7 +676,7 @@ impl Program {
                 owner,
                 project,
             } => {
-                let mut predicates = if self.search_term.is_some() {
+                let mut predicates = if self.search_term.is_some() || self.unfiltered {
                     Vec::new()
                 } else {
                     vec![self.domain.as_deref().unwrap_or(".bucket = bucket").to_owned()]

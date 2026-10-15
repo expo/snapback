@@ -7,7 +7,10 @@ pub(super) enum Position { Page, Domain, Aggregate, Exists }
 
 impl Binder<'_> {
     pub(super) fn is_page(&self, read: &ReadExpr, point: ReadMode) -> Fallible<bool> {
-        if !read.order_keys.is_empty() || read.range.is_some() || read.matching.is_some() || read.filter.is_some() || !read.seeks.is_empty() || read.keys.is_empty() { return Ok(true); }
+        let global = read.keys.is_empty() && self.catalog.tables.get(&read.table)
+            .and_then(|table| table.maintained.as_ref()).is_some_and(|maintain| maintain.by.is_empty());
+        if !read.order_keys.is_empty() || read.range.is_some() || read.matching.is_some() || read.filter.is_some() || !read.seeks.is_empty() || read.keys.is_empty() && !global { return Ok(true); }
+        if global { return Ok(false); }
         // Speculation cannot emit setup or consume compiler names. The selected
         // form binds its key expressions exactly once in the caller's body.
         let mut probe = self.clone();
@@ -180,6 +183,12 @@ impl Binder<'_> {
 
     // @ref LLP 3000.007#20.22 — ruling 25: program existence over a prefix is a top-1 scan below page ownership; rule probes retain their exact-key path.
     pub(super) fn exists_read(&mut self, read: &ReadExpr, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        if self.catalog.tables.get(&read.table).and_then(|table| table.maintained.as_ref())
+            .is_some_and(|maintain| maintain.by.is_empty())
+        {
+            return Err(type_error(&read.site, format!("{} is one global maintained scalar, not an existence probe", read.table),
+                format!("compare the bare scalar instead: `{} > 0`", read.table)).guide("maintains"));
+        }
         self.exists_probe(read, out).map_err(|error| super::super::bracket_ranges::refusal(read, false, error))
     }
 
