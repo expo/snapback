@@ -95438,7 +95438,7 @@ Consumer evidence has publicationQualified false and suite not-run. No full
 scripts/test.sh, native iOS/Mac publication qualification, upload or push.
 
 
-### 2026-10-15 — Wave 12 LANG device budget
+### 2026-10-15 — Wave 12 LANG intermediate device budget
 
 The locked Linux whole device at the LANG expiry/digest/language-runtime
 revision measures 2,336,386 B raw, 712,744 B gzip and 538,230 B Brotli.
@@ -95448,3 +95448,17 @@ The 5,070 B gzip growth is measured against the qualified 0.4.28 device;
 this whole-artifact measurement covers the shared runtime changes.
 Final review, test and census evidence belongs in `reports/wave12-lang/`
 and the worktree's `WORKSTREAM-REPORT.md`; qualification remains in progress.
+
+
+### 2026-10-15 — Wave 12 LANG final Linux device budget
+
+Clean product sources at `d4e7e4fcf9` measure 2,337,449 B raw,
+712,813 B gzip and 538,170 B Brotli with the locked Binaryen and
+strict family/absence audits passing. Set the budget to 713,313 B,
+exactly measured gzip plus 500 B. Whole-device gzip growth from the
+qualified 0.4.28 measurement is 5,139 B; this pays for expiry reference
+actions, digest aggregate identities, language runtime changes and their
+compatibility fences. The intermediate allowance above is superseded.
+The build passed the stricter previous 713,244 B allowance. Final native,
+device, model and client evidence is recorded under `reports/wave12-lang/`;
+this measurement is Linux evidence and does not assert publication.
