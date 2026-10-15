@@ -113,6 +113,10 @@ fn main() -> ExitCode {
     if verb == "--internal-worker-watchdog" { return ExitCode::from(dev_worker::process::watchdog(&args[1..])); }
     quiet_broken_pipe(verb);
     let options = verbs::parse(&args);
+    // The packaged web helper owns its subcommand help and browser environment.
+    if options.flags.contains_key("help") && verb == "witness" && args.get(1).is_some_and(|arg| arg == "web") {
+        return ExitCode::from(verbs::witness::run(&["web".into(), "--help".into()]) as u8);
+    }
     if options.flags.contains_key("help") || matches!(verb, "--help" | "-h") || verb.is_empty() {
         // `snapback4 test --help` is about test; `snapback4 --help` lists every verb.
         println!("{}", verb_help::page(verb, HELP).unwrap_or_else(|| HELP.to_owned()));
