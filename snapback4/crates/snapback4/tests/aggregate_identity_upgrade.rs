@@ -102,6 +102,34 @@ query count(previous: chain ?):
   return chain[previous]
 "#;
 
+const GROUPING_BASELINE_SOURCE: &str = r#"use personas alice
+table entries:
+  n: int
+  bucket: int
+  insert <- allow
+  public
+view totals: count entries by .n
+  public
+mutation add(n: int, bucket: int):
+  insert entries {n, bucket}
+query total(n: int):
+  return totals[n]
+"#;
+
+const GROUPING_SOURCE: &str = r#"use personas alice
+table entries:
+  n: int
+  bucket: int
+  insert <- allow
+  public
+view totals: count entries by .bucket
+  public
+mutation add(n: int, bucket: int):
+  insert entries {n, bucket}
+query total(bucket: int):
+  return totals[bucket]
+"#;
+
 struct Temp(PathBuf);
 impl Temp {
     fn new(source: &str) -> Self {
@@ -370,4 +398,57 @@ fn a_0_4_28_store_adopts_an_acyclic_same_target_reference_chain() {
     ).unwrap();
     let saved: snapback4_core::Value = serde_json::from_str(&saved).unwrap();
     assert_eq!(saved.field("target").unwrap(), &snapback4_core::Value::Id(next));
+}
+
+#[test]
+#[ignore = "requires frozen 0.4.28 binary via SNAPBACK4_BASELINE_BIN"]
+fn a_0_4_28_store_can_change_grouping_while_adopting_digest_ids() {
+    let baseline = PathBuf::from(
+        std::env::var_os("SNAPBACK4_BASELINE_BIN")
+            .expect("set SNAPBACK4_BASELINE_BIN to the frozen 0.4.28 snapback4 binary"),
+    );
+    assert!(baseline.is_file(), "SNAPBACK4_BASELINE_BIN is not a file: {}", baseline.display());
+    let dir = Temp::new(GROUPING_BASELINE_SOURCE);
+    for (n, bucket) in [(1, 7), (2, 7)] {
+        let output = Command::new(&baseline)
+            .current_dir(&dir.0)
+            .args([
+                "run", "add", &serde_json::json!({"n": n, "bucket": bucket}).to_string(),
+                "--as", "alice", "--now", "1", "--json",
+            ])
+            .output()
+            .unwrap();
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    }
+    fs::write(dir.0.join("snapback/schema.q"), GROUPING_SOURCE).unwrap();
+
+    let opened = Command::new(env!("CARGO_BIN_EXE_snapback4"))
+        .current_dir(&dir.0)
+        .args([
+            "run", "total", &serde_json::json!({"bucket": 7}).to_string(),
+            "--as", "alice", "--now", "2", "--json",
+        ])
+        .output()
+        .unwrap();
+    assert!(opened.status.success(), "stdout={} stderr={}",
+        String::from_utf8_lossy(&opened.stdout), String::from_utf8_lossy(&opened.stderr));
+    let answer: serde_json::Value = serde_json::from_slice(&opened.stdout).unwrap();
+    assert_eq!(answer["data"], 2, "{answer}");
+
+    let store = dir.0.join(".snapback4/store.sqlite");
+    let conn = Connection::open(store).unwrap();
+    let ids: Vec<String> = {
+        let mut statement = conn.prepare(
+            "SELECT r.id FROM r JOIN _catalog c ON c.num=r.t WHERE c.name='totals' ORDER BY r.id"
+        ).unwrap();
+        statement.query_map([], |row| row.get(0)).unwrap().collect::<Result<_, _>>().unwrap()
+    };
+    assert_eq!(ids.len(), 1);
+    assert_eq!(ids[0], snapback4_core::schema::maintained_id(&[snapback4_core::Value::Int(7)]));
+    let marker: String = conn.query_row(
+        "SELECT value FROM _meta WHERE key=?1",
+        [snapback4_core::schema::MAINTAINED_ID_META],
+        |row| row.get(0),
+    ).unwrap();
+    assert_eq!(marker, snapback4_core::schema::MAINTAINED_ID_VERSION);
 }

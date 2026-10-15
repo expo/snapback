@@ -105,6 +105,75 @@ fn seeded_expired_row_view_sources_do_not_revive_on_clock_rollback() {
     assert_eq!(acquired[0].as_ref().map(|row| field(row, "value")), Some(0));
 }
 
+#[test]
+fn seeded_source_retirement_precedes_final_exists_and_rolls_back() {
+    let source = r#"
+table conversations:
+  public
+table members:
+  conversationId: conversations
+  seen: int
+  cap 10 by conversationId
+  public
+table messages:
+  conversationId: conversations
+  ordinal: int
+  until: time ?
+  expire at .until
+  public
+table witnesses:
+  message: messages on delete cascade
+  unique byMessage: message
+  cap 1 by message
+  public
+table gates:
+  message: messages
+  public
+  after insert <- exists witnesses[message = .message] by byMessage
+table fixtures:
+  until: time ?
+  expire at .until
+  public
+view unread: count messages by members m
+  where .conversationId = m.conversationId and .ordinal > m.seen
+"#;
+    let bound = snapback4_lang::compile(&[("seed-final-exists.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let schema: Schema = crate::json_codec::from_text(
+        &crate::json_codec::to_text(&bound.schema).unwrap(),
+    ).unwrap();
+    let message = |until| object([
+        ("id", id("m")), ("conversationId", id("c")),
+        ("ordinal", Value::Int(1)), ("until", Value::Int(until)),
+    ]);
+    let witness = object([("id", id("w")), ("message", id("m"))]);
+    let gate = object([("id", id("g")), ("message", id("m"))]);
+
+    let mut e = Engine::memory(schema.clone(), vec![]).unwrap();
+    let refused = e.seed_at([
+        ("messages".into(), message(5)),
+        ("witnesses".into(), witness.clone()),
+        ("gates".into(), gate.clone()),
+    ], 10);
+    assert!(matches!(refused, Err(crate::RuntimeError::Constraint(_))), "{refused:?}");
+    for table in ["messages", "witnesses", "gates", "unread"] {
+        assert!(e.store().rows(table).unwrap().is_empty(), "{table} survived refused seed");
+    }
+
+    // A live source leaves the witness intact, while an unrelated expired
+    // fixture retains the ordinary physical seed contract.
+    let mut e = Engine::memory(schema, vec![]).unwrap();
+    e.seed_at([
+        ("messages".into(), message(50)),
+        ("witnesses".into(), witness),
+        ("gates".into(), gate),
+        ("fixtures".into(), object([("id", id("f")), ("until", Value::Int(5))])),
+    ], 10).unwrap();
+    for table in ["messages", "witnesses", "gates", "fixtures"] {
+        assert_eq!(e.store().rows(table).unwrap().len(), 1, "{table}");
+    }
+}
+
 fn property_clock(expiring_members: bool) {
     const SEEDS: [u64; 8] = [1, 7, 28, 20261002, 0xbadcafe, 0xdeadbeef, 0x12345678, 0x5eed];
     let mut assertions = 0;

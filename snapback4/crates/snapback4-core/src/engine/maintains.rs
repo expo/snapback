@@ -200,12 +200,21 @@ impl Runner<'_> {
     /// Every pass is inside the adoption writer transaction, so no reader can
     /// observe a dangling intermediate reference.
     #[cfg(feature = "sqlite")]
-    pub(crate) fn rewrite_legacy_maintained_references(&mut self, maintains: &[Maintain]) -> Result<u64, RuntimeError> {
+    pub(crate) fn rewrite_legacy_maintained_references(&mut self, maintains: &[Maintain], previous: Option<&crate::schema::Schema>) -> Result<u64, RuntimeError> {
         let mut legacy = Vec::new();
         for maintain in maintains.iter().filter(|maintain| maintain.private.is_none() && maintain.row_key.is_none()) {
-            let target = self.schema.tables[&maintain.target].clone();
-            let fields: Vec<_> = maintain.group_fields().into_iter().map(|field| {
-                let kind = target.columns.get(&field).expect("validated maintain group").clone();
+            // The durable legacy address is the predecessor's canonical
+            // logical group tuple. Decode that address with predecessor types:
+            // candidate projection may already have removed predecessor group
+            // columns when adoption also changes the maintain declaration.
+            let identity_schema = previous.unwrap_or(self.schema);
+            let identity_maintain = identity_schema.maintain_for(&maintain.target)
+                .filter(|old| old.private.is_none() && old.row_key.is_none())
+                .unwrap_or(maintain);
+            let identity_target = identity_schema.table(&maintain.target)
+                .unwrap_or_else(|| &self.schema.tables[&maintain.target]);
+            let fields: Vec<_> = identity_maintain.group_fields().into_iter().map(|field| {
+                let kind = identity_target.columns.get(&field).expect("validated maintain group").clone();
                 (field, kind)
             }).collect();
             let mut rows = Vec::new();
@@ -216,8 +225,14 @@ impl Runner<'_> {
                 for (row, encoded) in page {
                     bounds.after = crate::key::decode(&encoded);
                     let old = row.field("id")?.as_str()?.to_owned();
-                    let key = fields.iter().map(|(field, kind)| Ok((kind.clone(), row.field(field)?.clone())))
-                        .collect::<Result<Vec<_>, RuntimeError>>()?;
+                    let address = crate::json_codec::from_text::<Vec<Value>>(&old).ok()
+                        .filter(|key| key.len() == fields.len());
+                    let values = match address {
+                        Some(key) => key,
+                        None => fields.iter().map(|(field, _)| Ok(row.field(field)?.clone()))
+                            .collect::<Result<Vec<_>, RuntimeError>>()?,
+                    };
+                    let key = fields.iter().zip(values).map(|((_, kind), value)| (kind.clone(), value)).collect();
                     rows.push((old, key));
                 }
             }
