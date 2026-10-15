@@ -48,6 +48,7 @@ function generated(t, held, fetcher, address = url) {
     if (name === "expo-secure-store") return { getItemAsync: held.store.get, setItemAsync: held.store.set, deleteItemAsync: held.store.delete };
     if (name === "snapback4/app") return { createApp: options => createApp({ ...options, fetch: fetcher }) };
     if (name === "snapback4-expo") return { nativeAvailable: () => false };
+    if (name === "snapback4/witness-web") return { registerWebWitness: () => () => {} };
     if (name === "snapback4-expo/witness") return { smokeOrigin: fallback => fallback };
     return {};
   } };

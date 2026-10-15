@@ -8,6 +8,13 @@ impl Dir {
         let path = std::env::temp_dir().join(format!("sb4-init-{}-{}", std::process::id(), SERIAL.fetch_add(1, Ordering::Relaxed)));
         fs::create_dir_all(&path).unwrap(); Self(path)
     }
+    fn install_client(&self) {
+        // Generated release-availability handles now use the installed SDK at runtime.
+        fs::create_dir_all(self.0.join("node_modules")).unwrap();
+        let source = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../packages/snapback4").canonicalize().unwrap();
+        #[cfg(unix)] std::os::unix::fs::symlink(source, self.0.join("node_modules/snapback4")).unwrap();
+        #[cfg(windows)] std::os::windows::fs::symlink_dir(source, self.0.join("node_modules/snapback4")).unwrap();
+    }
     fn run(&self, flag: &str) -> std::process::Output { Command::new(BIN).args(["init", flag]).current_dir(&self.0).output().unwrap() }
     fn init(&self, flags: &[&str]) -> std::process::Output { Command::new(BIN).arg("init").args(flags).current_dir(&self.0).output().unwrap() }
 }
@@ -196,6 +203,7 @@ fn failed_package_write_preserves_original() {
 #[test]
 fn calibration_commonjs_expo_imports_generated_api_from_node_esm() {
     let dir = Dir::new();
+    dir.install_client();
     fs::write(dir.0.join("package.json"), r#"{"name":"astra-snapback4","version":"1.0.0","type":"commonjs"}"#).unwrap();
     assert!(dir.run("--expo").status.success());
     let check = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
@@ -213,6 +221,7 @@ fn calibration_commonjs_expo_imports_generated_api_from_node_esm() {
 fn init_preserves_existing_commonjs_scripts_and_imports_generated_api() {
     for (package, flag) in [(r#"{"type":"commonjs"}"#, ""), ("{}", "--online"), (r#"{"type":"commonjs"}"#, "--expo")] {
         let dir = Dir::new();
+        dir.install_client();
         fs::write(dir.0.join("package.json"), package).unwrap();
         fs::create_dir_all(dir.0.join("snapback")).unwrap();
         let seed = "const assert = require('node:assert/strict');\nmodule.exports = 42;\nassert.equal(module.exports, 42);\nconsole.log('existing CommonJS seed: ok');\n";
@@ -529,7 +538,7 @@ fn usage_stderr_never_recommends_the_retired_installer() {
         assert_eq!(output.status.code(), Some(expected), "{flags:?}: {output:?}");
         let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
         assert!(text.contains("init [dir] [--online|--expo|--web [--online]]"), "{text}");
-        assert!(!text.contains("--recipe"), "{text}");
+        assert!(text.lines().filter(|line| line.contains("--recipe")).all(|line| line.contains("retired spelling")), "{text}");
         assert_eq!(snapshot(&dir.0), before);
     }
 }

@@ -80,7 +80,7 @@ custom code. `test` and dev refusal logs explain the hidden lookup or rule.
 
 ## An acceptance script over HTTP
 
-The same kit supports HTTP and browser proofs.
+The same kit supports HTTP and browser proofs. HTTP acknowledgement is not React settlement; mutation refusals are `{state:'failed', why}`.
 
 ```js
 import assert from "node:assert/strict";
