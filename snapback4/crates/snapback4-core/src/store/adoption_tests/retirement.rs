@@ -273,14 +273,20 @@ fn sequence_identity_adoption_keeps_invalid_canonical_groups_opaque() {
 
 #[test]
 fn newly_maintained_ordinary_target_does_not_reinterpret_predecessor_custody() {
-    const OLD: &str = "table entries:\n  label: text 3..20 format handle\n  public\ntable totals:\n  public\ntable sequenced:\n  parent: totals\n  ordinal: sequence by parent\n  public\n";
-    const NEW: &str = "table entries:\n  label: text 3..20 format handle\n  public\nview totals: count entries by .label\n  public\ntable sequenced:\n  parent: totals\n  ordinal: sequence by parent\n  public\n";
+    const OLD: &str = "table entries:\n  label: text 3..20 format handle\n  public\ntable oldEntries:\n  bucket: int\n  public\nview oldTotals: count oldEntries by .bucket\n  public\ntable totals:\n  label: text 3..20 format handle\n  value: int\n  public\ntable saved:\n  target: totals\n  public\ntable sequenced:\n  parent: totals\n  ordinal: sequence by parent\n  public\n";
+    const NEW: &str = "table entries:\n  label: text 3..20 format handle\n  public\ntable oldEntries:\n  bucket: int\n  public\nview oldTotals: count oldEntries by .bucket\n  public\nview totals: count entries by .label\n  public\ntable saved:\n  target: totals\n  public\ntable sequenced:\n  parent: totals\n  ordinal: sequence by parent\n  public\n";
     let mut e = open(OLD);
     let legacy = crate::value::canonical_json(&[Value::String("valid_1".into())]);
     let digest = crate::schema::maintained_id(&[Value::String("valid_1".into())]);
+    e.seed_at([
+        ("oldEntries".into(), object([("id", Value::Id("old-entry".into())), ("bucket", Value::Int(1))])),
+        ("totals".into(), object([("id", Value::Id(legacy.clone())), ("label", Value::String("valid_1".into())), ("value", Value::Int(42))])),
+        ("saved".into(), object([("id", Value::Id("saved".into())), ("target", Value::Id(legacy.clone()))])),
+    ], 0).unwrap();
     let tx = e.store_mut().transaction().unwrap();
     tx.set_sequence("totals", &legacy, 4).unwrap();
     tx.commit().unwrap();
+    e.store().conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
 
     let next = compile(NEW);
     e.adopt_at(next.schema, next.programs, 1).unwrap();
@@ -288,6 +294,7 @@ fn newly_maintained_ordinary_target_does_not_reinterpret_predecessor_custody() {
     assert_eq!(tx.sequence_value("totals", &legacy).unwrap(), 4, "the predecessor had no aggregate identity domain");
     assert_eq!(tx.sequence_value("totals", &digest).unwrap(), 0, "a newly maintained same-name table does not capture ordinary custody");
     tx.rollback().unwrap();
+    assert_eq!(e.store().rows("saved").unwrap()[0].field("target"), Ok(&Value::Id(legacy)), "a legacy migration elsewhere cannot rebind the ordinary predecessor's references");
 }
 
 #[test]

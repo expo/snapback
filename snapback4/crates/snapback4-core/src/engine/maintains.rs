@@ -339,13 +339,9 @@ impl Runner<'_> {
     pub(crate) fn rewrite_legacy_maintained_references(&mut self, maintains: &[Maintain], previous: Option<&crate::schema::Schema>, activation_tx: Option<&crate::store::Tx<'_>>) -> Result<u64, RuntimeError> {
         let mut legacy: LegacyIdentities = Vec::new();
         let mut definitions = BTreeMap::<String, Vec<LegacyGroupField>>::new();
-        for maintain in maintains.iter().filter(|maintain| maintain.private.is_none() && maintain.row_key.is_none()) {
-            definitions.insert(maintain.target.clone(), legacy_group_fields(self.schema, None, maintain));
-        }
-        if let Some(previous) = previous {
-            for maintain in previous.maintains.iter().filter(|maintain| maintain.private.is_none() && maintain.row_key.is_none()) {
-                definitions.insert(maintain.target.clone(), legacy_group_fields(previous, Some(self.schema), maintain));
-            }
+        let identity_schema = previous.unwrap_or(self.schema);
+        for maintain in identity_schema.maintains.iter().filter(|maintain| maintain.private.is_none() && maintain.row_key.is_none()) {
+            definitions.insert(maintain.target.clone(), legacy_group_fields(identity_schema, None, maintain));
         }
         let mut sequence_identity_map = LegacyIdentityMap::new();
         for maintain in maintains.iter().filter(|maintain| maintain.private.is_none() && maintain.row_key.is_none()) {
@@ -353,11 +349,14 @@ impl Runner<'_> {
             // logical group tuple. Decode that address with predecessor types:
             // candidate projection may already have removed predecessor group
             // columns when adoption also changes the maintain declaration.
-            let (identity_schema, identity_maintain) = previous.and_then(|schema|
-                schema.maintain_for(&maintain.target)
-                    .filter(|old| old.private.is_none() && old.row_key.is_none())
-                    .map(|old| (schema, old)))
-                .unwrap_or((self.schema, maintain));
+            let identity_maintain = match previous {
+                Some(schema) => match schema.maintain_for(&maintain.target)
+                    .filter(|old| old.private.is_none() && old.row_key.is_none()) {
+                    Some(old) => old,
+                    None => continue,
+                },
+                None => maintain,
+            };
             let fields = legacy_group_fields(identity_schema, None, identity_maintain);
             let mut rows = Vec::new();
             let mut bounds = Bounds::default();
