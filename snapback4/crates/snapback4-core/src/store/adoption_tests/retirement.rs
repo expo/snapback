@@ -272,6 +272,25 @@ fn sequence_identity_adoption_keeps_invalid_canonical_groups_opaque() {
 }
 
 #[test]
+fn newly_maintained_ordinary_target_does_not_reinterpret_predecessor_custody() {
+    const OLD: &str = "table entries:\n  label: text 3..20 format handle\n  public\ntable totals:\n  public\ntable sequenced:\n  parent: totals\n  ordinal: sequence by parent\n  public\n";
+    const NEW: &str = "table entries:\n  label: text 3..20 format handle\n  public\nview totals: count entries by .label\n  public\ntable sequenced:\n  parent: totals\n  ordinal: sequence by parent\n  public\n";
+    let mut e = open(OLD);
+    let legacy = crate::value::canonical_json(&[Value::String("valid_1".into())]);
+    let digest = crate::schema::maintained_id(&[Value::String("valid_1".into())]);
+    let tx = e.store_mut().transaction().unwrap();
+    tx.set_sequence("totals", &legacy, 4).unwrap();
+    tx.commit().unwrap();
+
+    let next = compile(NEW);
+    e.adopt_at(next.schema, next.programs, 1).unwrap();
+    let tx = e.store_mut().transaction().unwrap();
+    assert_eq!(tx.sequence_value("totals", &legacy).unwrap(), 4, "the predecessor had no aggregate identity domain");
+    assert_eq!(tx.sequence_value("totals", &digest).unwrap(), 0, "a newly maintained same-name table does not capture ordinary custody");
+    tx.rollback().unwrap();
+}
+
+#[test]
 fn removing_an_aggregate_normalizes_retained_sequence_custody_before_marking_the_store() {
     const SOURCE: &str = "table entries:\n  bucket: int\n  public\nview totals: count entries by .bucket\n  public\ntable sequenced:\n  total: totals\n  ordinal: sequence by total\n  unique total, ordinal\n  public\n";
     const WITHOUT_AGGREGATE: &str = "table entries:\n  bucket: int\n  public\n";

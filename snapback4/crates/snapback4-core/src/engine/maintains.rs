@@ -353,11 +353,12 @@ impl Runner<'_> {
             // logical group tuple. Decode that address with predecessor types:
             // candidate projection may already have removed predecessor group
             // columns when adoption also changes the maintain declaration.
-            let identity_schema = previous.unwrap_or(self.schema);
-            let identity_maintain = identity_schema.maintain_for(&maintain.target)
-                .filter(|old| old.private.is_none() && old.row_key.is_none())
-                .unwrap_or(maintain);
-            let fields = legacy_group_fields(identity_schema, Some(self.schema), identity_maintain);
+            let (identity_schema, identity_maintain) = previous.and_then(|schema|
+                schema.maintain_for(&maintain.target)
+                    .filter(|old| old.private.is_none() && old.row_key.is_none())
+                    .map(|old| (schema, old)))
+                .unwrap_or((self.schema, maintain));
+            let fields = legacy_group_fields(identity_schema, None, identity_maintain);
             let mut rows = Vec::new();
             let mut bounds = Bounds::default();
             loop {
