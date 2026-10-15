@@ -1,0 +1,12 @@
+{
+  "exit_code": 0,
+  "production_commit": "65560f6c4e",
+  "command": "CARGO_BUILD_JOBS=12 CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p snapback4-device --test reference_actions --test expiry_maintained_columns --test row_view_expiry --test read_through",
+  "targets": 4,
+  "passed": 29,
+  "failed": 0,
+  "ignored": 0,
+  "log": "logs/r14-device-affected.log.gz",
+  "log_sha256": "649fa724ff4b91c6e88dfe625bc83d4730e6f8f4a38f5a01528a91824c7e083c",
+  "uncompressed_sha256": "924b80c9c01a313b02622f4eea36d418e3789dfb9bf3ee2248fdc9728b4d9a9c"
+}
