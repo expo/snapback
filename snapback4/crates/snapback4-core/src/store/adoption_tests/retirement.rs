@@ -172,6 +172,8 @@ fn identity_adoption_rekeys_sequence_history_without_reusing_deleted_ordinals() 
 
     let legacy7 = crate::value::canonical_json(&[Value::Int(7)]);
     let legacy9 = crate::value::canonical_json(&[Value::Int(9)]);
+    let noncanonical7 = "[ { \"Int\" : 7 } ]".to_owned();
+    let wrong_type7 = crate::value::canonical_json(&[Value::String("7".into())]);
     let schema = e.schema().clone();
     let target = schema.tables["totals"].clone();
     let entries = schema.tables["entries"].clone();
@@ -195,6 +197,8 @@ fn identity_adoption_rekeys_sequence_history_without_reusing_deleted_ordinals() 
     tx.set_sequence("totals", &digest7, 4).unwrap();
     tx.set_sequence("totals", &legacy9, crate::value::I53_MAX).unwrap();
     tx.set_sequence("totals", &digest9, 12).unwrap();
+    tx.set_sequence("totals", &noncanonical7, 13).unwrap();
+    tx.set_sequence("totals", &wrong_type7, 14).unwrap();
     tx.set_sequence("ordinary", &legacy7, 11).unwrap();
     tx.commit().unwrap();
     e.store().conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
@@ -206,6 +210,8 @@ fn identity_adoption_rekeys_sequence_history_without_reusing_deleted_ordinals() 
     assert_eq!(tx.sequence_value("totals", &legacy9).unwrap(), 0);
     assert_eq!(tx.sequence_value("totals", &digest7).unwrap(), 7, "the deleted allocating row and lower destination counter cannot lower the high-water mark");
     assert_eq!(tx.sequence_value("totals", &digest9).unwrap(), crate::value::I53_MAX);
+    assert_eq!(tx.sequence_value("totals", &noncanonical7).unwrap(), 13, "a noncanonical dangling id must not collapse into the real group");
+    assert_eq!(tx.sequence_value("totals", &wrong_type7).unwrap(), 14, "a canonical tuple with the wrong predecessor type stays opaque");
     assert_eq!(tx.sequence_value("ordinary", &legacy7).unwrap(), 11, "translation is scoped by parent table and id");
     tx.commit().unwrap();
     let kept = e.store().rows("sequenced").unwrap().pop().unwrap();

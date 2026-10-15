@@ -130,7 +130,7 @@ table children:
     assert!(tx.get("totals", &legacy).unwrap().is_none());
     let rebuilt = tx.get("totals", &digest).unwrap().expect("digest aggregate");
     assert_eq!(rebuilt.field("value").unwrap(), &Value::Int(1));
-    assert_eq!(tx.get("pointers", "pointer").unwrap().unwrap().field("total").unwrap(), &Value::Id(digest));
+    assert_eq!(tx.get("pointers", "pointer").unwrap().unwrap().field("total").unwrap(), &Value::Id(digest.clone()));
     assert_eq!(tx.sequence_value("totals", &legacy).unwrap(), 0);
     assert_eq!(tx.sequence_value("totals", &digest).unwrap(), 17, "identity adoption preserves the larger persisted high-water value");
     assert!(tx.get(&private_target_name, &private_legacy).unwrap().is_none());

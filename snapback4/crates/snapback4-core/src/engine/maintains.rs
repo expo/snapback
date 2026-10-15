@@ -57,6 +57,19 @@ type LegacyIdentities = Vec<(String, Vec<(String, Vec<(crate::schema::ColumnType
 type LegacyIdentityMap = BTreeMap<String, BTreeMap<String, Vec<(crate::schema::ColumnType, Value)>>>;
 
 #[cfg(feature = "sqlite")]
+fn decode_legacy_sequence_identity(
+    old: &str,
+    kinds: &[crate::schema::ColumnType],
+) -> Option<Vec<Value>> {
+    let values = crate::json_codec::from_text::<Vec<Value>>(old).ok()?;
+    (values.len() == kinds.len()
+        && crate::value::canonical_json(&values) == old
+        && kinds.iter().zip(&values).all(|(kind, value)|
+            crate::engine::validate::fits(kind, Some(value))))
+        .then_some(values)
+}
+
+#[cfg(feature = "sqlite")]
 fn collect_sequence_identity_dependencies(
     kind: &crate::schema::ColumnType,
     value: &Value,
@@ -67,8 +80,7 @@ fn collect_sequence_identity_dependencies(
         (crate::schema::ColumnType::Ref { table }, Value::Id(old)) => {
             let Some(kinds) = definitions.get(table) else { return };
             if identities.get(table).is_some_and(|ids| ids.contains_key(old)) { return; }
-            let Some(values) = crate::json_codec::from_text::<Vec<Value>>(old).ok()
-                .filter(|values| values.len() == kinds.len()) else { return };
+            let Some(values) = decode_legacy_sequence_identity(old, kinds) else { return };
             let key: Vec<_> = kinds.iter().cloned().zip(values).collect();
             identities.entry(table.clone()).or_default().insert(old.clone(), key.clone());
             for (kind, value) in &key {
@@ -324,8 +336,8 @@ impl Runner<'_> {
             }
             legacy.push((maintain.target.clone(), rows));
             for old in self.tx.sequence_ids(&maintain.target)? {
-                let values = crate::json_codec::from_text::<Vec<Value>>(&old).ok()
-                    .filter(|key| key.len() == fields.len());
+                let kinds: Vec<_> = fields.iter().map(|(_, kind)| kind.clone()).collect();
+                let values = decode_legacy_sequence_identity(&old, &kinds);
                 if let Some(values) = values {
                     let key = fields.iter().zip(values).map(|((_, kind), value)| (kind.clone(), value)).collect();
                     insert_sequence_identity(&maintain.target, old, key, &definitions, &mut sequence_identity_map);
@@ -346,8 +358,8 @@ impl Runner<'_> {
                 let fields: Vec<_> = maintain.group_fields().into_iter().map(|field|
                     (field.clone(), target.columns[&field].clone())).collect();
                 for old in self.tx.sequence_ids(&maintain.target)? {
-                    let values = crate::json_codec::from_text::<Vec<Value>>(&old).ok()
-                        .filter(|key| key.len() == fields.len());
+                    let kinds: Vec<_> = fields.iter().map(|(_, kind)| kind.clone()).collect();
+                    let values = decode_legacy_sequence_identity(&old, &kinds);
                     if let Some(values) = values {
                         let key = fields.iter().zip(values).map(|((_, kind), value)| (kind.clone(), value)).collect();
                         insert_sequence_identity(&maintain.target, old, key, &definitions, &mut sequence_identity_map);

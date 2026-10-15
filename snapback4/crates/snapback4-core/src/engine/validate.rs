@@ -159,7 +159,7 @@ pub fn disallowed_text_control(text: &str) -> Option<u32> {
     text.chars().find(|c| c.is_control() && !matches!(c, '\t' | '\n' | '\r')).map(|c| c as u32)
 }
 
-fn fits(kind: &ColumnType, value: Option<&Value>) -> bool {
+pub(crate) fn fits(kind: &ColumnType, value: Option<&Value>) -> bool {
     match (kind, value) {
         (ColumnType::Optional(_), None | Some(Value::Null)) => true,
         (ColumnType::Optional(inner), Some(value)) => fits(inner, Some(value)),
