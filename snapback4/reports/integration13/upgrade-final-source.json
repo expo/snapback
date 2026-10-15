@@ -1,0 +1,134 @@
+{
+  "baseline": {
+    "version": "snapback4 0.4.28",
+    "sha256": "80e04bece8b373fd6d81e7d16164ad1221a92643b34035d005d5cec3fcfabe47"
+  },
+  "candidate": {
+    "version": "snapback4 0.4.29",
+    "sha256": "23724468c5444a7afc180aff47fe37797913cbc891808db531bb65780d1c5c00"
+  },
+  "principalLength": 135,
+  "before": {
+    "totals": [
+      [
+        "[{\"Id\":\"user:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}]"
+      ]
+    ],
+    "parents": [
+      [
+        "p"
+      ]
+    ],
+    "children": [
+      [
+        "kid-0"
+      ],
+      [
+        "kid-1"
+      ]
+    ],
+    "entries": [
+      [
+        "entry-0"
+      ],
+      [
+        "entry-1"
+      ],
+      [
+        "entry-2"
+      ]
+    ]
+  },
+  "tallyAfterAdoption": {
+    "complete": true,
+    "cut": null,
+    "data": 3,
+    "metered": {
+      "examined": 1,
+      "heap_bytes": 1743,
+      "index_entries": 0,
+      "output_bytes": 9,
+      "rows_written": 0,
+      "rule_probes": 0,
+      "steps": 12
+    },
+    "next": null
+  },
+  "afterAdoption": {
+    "totals": [
+      [
+        "23d81859b5d0cd34c021fd462b486d9551f638be318d77e7a2ea816689dfe201"
+      ]
+    ],
+    "parents": [
+      [
+        "p"
+      ]
+    ],
+    "children": [
+      [
+        "kid-0"
+      ],
+      [
+        "kid-1"
+      ]
+    ],
+    "entries": [
+      [
+        "entry-0"
+      ],
+      [
+        "entry-1"
+      ],
+      [
+        "entry-2"
+      ]
+    ]
+  },
+  "afterSweep": {
+    "totals": [
+      [
+        "23d81859b5d0cd34c021fd462b486d9551f638be318d77e7a2ea816689dfe201"
+      ]
+    ],
+    "parents": [],
+    "children": [],
+    "entries": [
+      [
+        "entry-0"
+      ],
+      [
+        "entry-1"
+      ],
+      [
+        "entry-2"
+      ]
+    ]
+  },
+  "tallyAfterSweep": {
+    "scopes": {},
+    "generation": 2,
+    "complete": true,
+    "cut": null,
+    "data": 3,
+    "next": null,
+    "nextExpiry": null,
+    "seq": 8,
+    "store_id": "c609927f7b616ebaa7c37be226370188",
+    "tables": [
+      "totals"
+    ],
+    "viewer": "dev:alice",
+    "meter": {
+      "cut": null,
+      "examined": 1,
+      "heapBytes": 1743,
+      "indexEntries": 0,
+      "outputBytes": 9,
+      "probes": 0,
+      "rowsWritten": 0,
+      "steps": 12
+    }
+  },
+  "status": "PASS"
+}

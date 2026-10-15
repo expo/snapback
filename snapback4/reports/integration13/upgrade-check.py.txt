@@ -1,0 +1,69 @@
+from pathlib import Path
+import subprocess, tempfile, json, hashlib, sqlite3, time, urllib.request, signal
+old=Path('/tmp/lang-baseline-snapback4')
+new=Path('/home/ccheever/projects/snapback-sb4loop/snapback4/target/integration13/snapback4-final-release')
+source='''use personas alice
+table entries:
+  owner: principal
+  insert <- allow
+  public
+view totals: count entries by .owner
+  public
+table parents:
+  until: time
+  expire at .until
+  insert <- allow
+  public
+table children:
+  parent: parents on delete cascade
+  cap 4 by parent
+  insert <- allow
+  public
+mutation add(id: id, owner: principal):
+  insert entries { id, owner }
+mutation parent(id: id, until: time):
+  insert parents { id, until }
+mutation child(id: id, parent: parents):
+  insert children { id, parent }
+query tally(owner: principal):
+  return totals[owner]
+query kid(id: id):
+  return children[id]
+'''
+principal='user:'+'x'*130
+record={'baseline':{'version':subprocess.check_output([old,'--version'],text=True).strip(),'sha256':hashlib.sha256(old.read_bytes()).hexdigest()},'candidate':{'version':subprocess.check_output([new,'--version'],text=True).strip(),'sha256':hashlib.sha256(new.read_bytes()).hexdigest()},'principalLength':len(principal)}
+with tempfile.TemporaryDirectory(prefix='i13-upgrade-') as d:
+ root=Path(d);(root/'snapback').mkdir();(root/'snapback/schema.q').write_text(source)
+ def run(binary,op,args):
+  p=subprocess.run([binary,'run',op,json.dumps(args),'--as','alice','--now','1','--json'],cwd=d,text=True,capture_output=True)
+  assert p.returncode==0,(op,p.stdout,p.stderr)
+  value=json.loads(p.stdout);assert 'denied' not in value,value
+  return value
+ for i in range(3):run(old,'add',{'id':f'entry-{i}','owner':principal})
+ run(old,'parent',{'id':'p','until':4000000000000})
+ for i in range(2):run(old,'child',{'id':f'kid-{i}','parent':'p'})
+ store=root/'.snapback4/store.sqlite'
+ def physical():
+  with sqlite3.connect(store) as c:
+   return {name:c.execute('SELECT id FROM r WHERE t=(SELECT num FROM _catalog WHERE name=?) ORDER BY id',(name,)).fetchall() for name in ['totals','parents','children','entries']}
+ record['before']=physical();assert len(record['before']['totals'][0][0])>144,record
+ record['tallyAfterAdoption']=run(new,'tally',{'owner':principal})
+ record['afterAdoption']=physical();assert len(record['afterAdoption']['totals'][0][0])==64,record
+ assert len(record['afterAdoption']['children'])==2
+ p=subprocess.Popen([new,'dev','--port','0','--no-watch','--clock-offset','+10000000000000ms'],cwd=d,stdout=subprocess.PIPE,stderr=open('/tmp/i13-upgrade-dev.log','w'),text=True)
+ try:
+  url=p.stdout.readline().strip();assert url.startswith('http'),url
+  until=time.monotonic()+30
+  while time.monotonic()<until:
+   record['afterSweep']=physical()
+   if not record['afterSweep']['children'] and not record['afterSweep']['parents']:break
+   time.sleep(.1)
+  assert not record['afterSweep']['children'] and not record['afterSweep']['parents'],record
+  req=urllib.request.Request(url+'/q/tally',data=json.dumps({'args':{'owner':principal}}).encode(),headers={'Content-Type':'application/json','x-snapback-persona':'alice'})
+  record['tallyAfterSweep']=json.load(urllib.request.urlopen(req,timeout=10))
+  assert record['tallyAfterSweep']['data']==3,record
+ finally:
+  p.send_signal(signal.SIGTERM);p.wait(timeout=15)
+record['status']='PASS'
+Path('/tmp/i13-upgrade-final-source.json').write_text(json.dumps(record,indent=2)+'\n')
+print(json.dumps(record,indent=2))

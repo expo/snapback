@@ -1,0 +1,27 @@
+{
+  "status": "PASS",
+  "incoming": "af4b256a31f5266577d5c014bd96b7827386c9db",
+  "merge": "6276acbfcfc653351988a555ee53abb5045d4d3c",
+  "kind": "test-only PUBFIX28b",
+  "changedPaths": [
+    "snapback4/crates/snapback4/tests/lifecycle.rs",
+    "snapback4/packages/snapback4/test/schema-capabilities.test.mjs"
+  ],
+  "productSourceUnchanged": true,
+  "rustLifecycle": {
+    "passed": 29,
+    "failed": 0
+  },
+  "clientSchemaCapabilities": {
+    "passed": 3,
+    "skipped": 7,
+    "failed": 0
+  },
+  "refCheck": {
+    "docs": 548,
+    "refs": 11917,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "decision": "Retain full post-fix Rust and complete client evidence on unchanged product source; cover the incoming test-only delta with affected checks under the repository optimistic integration rule. The modified legacy control is Darwin-only and remains an authored Linux skip."
+}

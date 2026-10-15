@@ -1,0 +1,26 @@
+{
+  "baseline": "d814b279d0",
+  "new_signatures": [],
+  "signatures": {
+    "lean--code--E_RULE~NOT_FOUND": {
+      "count": 3,
+      "baseline_tree": "71e3a721ecfc51244f677f82d3f5b7d188fd26f9",
+      "record_commit": "a31626eed0d0ac62dbb857fc75631bef11d8507a 2026-10-08 snapback4-difftest: R2 and E4 resolved, unique-key prediction ruling (lane GW follow-up)"
+    },
+    "lean--continuation-next--next~no-next": {
+      "count": 57,
+      "baseline_tree": "b38e89c1374e16709b0dd40d94e7b896277653c0",
+      "record_commit": "8eb5f8a78b9665493ef514b304c58d0e66ba0406 2026-10-08 Snapback 4: the Lean oracle \u2014 emitter, quarry-oracle runner and run-lean (LLP 3000.035 \u00a75.2)"
+    },
+    "lean--next--next~no-next": {
+      "count": 116,
+      "baseline_tree": "1222afecd24631b2c3d3e05d4bae3b2c51c7e09d",
+      "record_commit": "8eb5f8a78b9665493ef514b304c58d0e66ba0406 2026-10-08 Snapback 4: the Lean oracle \u2014 emitter, quarry-oracle runner and run-lean (LLP 3000.035 \u00a75.2)"
+    },
+    "lean--prelude-code--E_RULE~NOT_FOUND": {
+      "count": 27,
+      "baseline_tree": "35e60b6b7d51bce6a89b38c51ec484226c1675dc",
+      "record_commit": "42ac03c3e2f6a5369c484d4b9fead1c46cce0d90 2026-10-08 snapback4-difftest: widen the generator (prefetch reads, blocks, prelude, expiry)"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "status": "PASS",
+  "schemas": 100,
+  "notes": 318,
+  "note_counts": {
+    "N_CONDITIONAL_COMPLETE": 7,
+    "N_DELETE_NEEDS_READ": 3,
+    "N_DELETE_RESTRICTED": 4,
+    "N_EPHEMERAL_SERVER": 1,
+    "N_LOOKUP_HIDDEN": 1,
+    "N_MAINTAINED_COLUMN_DISCLOSURE": 1,
+    "N_MAINTAIN_AUTHORIZATION": 7,
+    "N_MAINTAIN_DELTA": 10,
+    "N_NEVER_COMPLETE": 13,
+    "N_NO_CURSOR": 160,
+    "N_NO_HORIZON": 13,
+    "N_NO_PRODUCTION_WRITER": 48,
+    "N_PATCH_CLEARS": 3,
+    "N_REFERENCE_UNCHECKED": 1,
+    "N_SHAPE_METER": 1,
+    "N_SPARSE_FILTER": 11,
+    "N_SYNC_EMPTY": 1,
+    "N_SYNC_ORDER": 17,
+    "N_UNREADABLE_PROBE": 13,
+    "N_VACUOUS_RULE": 2,
+    "N_WIDE_MERGE": 1
+  },
+  "binarySha256": "23724468c5444a7afc180aff47fe37797913cbc891808db531bb65780d1c5c00",
+  "langSourceManifest": "exact",
+  "rules2SourceManifest": "exact",
+  "semanticResults": "identical across both runs; elapsed ms differs",
+  "composition": "LANG reduces conditional 10->7, never 15->13, sparse 12->11; RULES2 alone is unchanged at 324; merged is 318 with no extra firing"
+}

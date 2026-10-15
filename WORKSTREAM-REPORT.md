@@ -1,132 +1,171 @@
-# PUBFIX28 — unblock 0.4.28 publication
+# Integration 13 — wave 12 / Snapback 4 0.4.29
 
-Worktree `/home/ccheever/projects/sb4-w12-pubfix28`, branch `sb4-w12-pubfix28`,
-baseline `8fe2b2e8394399af124ccf438702672dc4eb7d83`.
-Initial `git status --short` was clean; `git log sb4-loop..HEAD` contained only
-the publication record and macOS socket ticket. Built on both. Version remains
-0.4.28. No push, npm publication, or edits to another worktree.
+Worktree `/home/ccheever/projects/snapback-sb4loop`, branch `sb4-loop`.
+Started clean at `daccc512f5`; fetched and fast-forwarded `origin/main` before
+merging. Read each lane's report from its named worktree first. Local commits
+only: no push or npm publication, no edits to other worktrees or their publication
+stages. All commits use Charlie Cheever / ccheever@firewoodagent.com.
 
-## Governing context (llp-orient)
+Applied llp-orient with the Snapback 4 fence, LLP 3000 and 2000.000, NOT-DOING,
+JOURNAL and adopted rules. Governing constraints are the retained-release and
+release-client LLPs, LANG's expiry/aggregate/completeness amendments, the
+rule/diagnostic LLPs and the packaged-proof-kit amendment. Preserve server
+authority, custody and bounded runtime budgets; qualified Linux consumer
+bytes do not imply a Mac/iOS or publication result.
 
-Scope: release preview narration/tests and local release-control listener.
-No Snapback 4 foundation entry; govern from LLP 3000 §7 (fenced implementation
-and qualified publication), LLP 3000.000.000 §§5–5.1 (single writer/local socket,
-bounded input) and §§9.2/11 (exact immutable preview and disjoint populations).
-Read Snapback 4 AGENTS, NOT-DOING, JOURNAL tail, LLP 2000.000 and adopted rules.
-The paved surface is the compiler's deploy guide card. References in changed
-code still apply. No new backend semantics, budget, gate, or version bump.
-Doc updates are in the same commit as the code. Hand-off: none.
+## Integration and commits
 
-## 1. Deterministic client red
+| Order | Lane | `--no-ff` merge | Delivered |
+|---|---|---|---|
+| 1 | LANG | `c2ce6631e9` | P1 expiry reference actions, P2 digest aggregate identities/adoption, builtin/identity refusals, language/diagnostic repairs, PAGE5 completeness |
+| 2 | RULES2 | `3179fc9bd8` | Executable authorization recipes, contradiction notes, hidden-row/refusal guidance, enrolment presence |
+| 3 | REL3 | `62ef409f91` | Reactive release catalog/capability hook, compatibility generation, rollback dependencies, fixtures/test/dev/upgrade doors |
+| 4 | SURF | `524809d34c` | Metadata-derived help, directional clause narration, actual auth/client recipes, list helper, SecureStore export, raw HTTP docs |
+| 5 | KIT | `67cf911161` | Trusted browser witnesses, pipe-based bounded browser helper, honest custom proofs, listener audits, metadata/port-safe starters and adaptation |
 
-Root cause: FIX28 `4e96153fdf` corrected the inventory to disjoint row/cell
-ownership, but left the older many-column client assertion unchanged. Its
-only row has status `new`, which release 1's enum cannot hold. That whole row
-becomes dormant and covers its twenty spare-column cells. Correct total:
-**one row, zero standalone cells**, not one row plus twenty duplicate cells.
+`c113020b4a` is the separate `snapback4 0.4.29: expiry safety, digest aggregates,
+release capabilities and honest proofs` bump. Its ten files and 23 additions /
+23 removals match the 0.4.28 bump's scope. `abc71893ff` authored the complete
+changes entry; subsequent corrections keep its upgrade and runtime semantics
+accurate. `57b033bf71` and `327f4df426` add LLP 3000.037 §16 from wave12 patterns
+and the five reports, including the composed surveys.
 
-Kept the core product inventory and changed the stale test. Fixed product
-per-column narration to say no standalone cells become dormant when count is
-zero, explaining row ownership. Positive counts use the same inventory source
-as totals. Zero-row/index steps also avoid claiming a positive transition.
-Amended the governing LLP §11. Expanded the same real-server fixture with a
-compatible live row: **one dormant row plus twenty dormant cells**, one per
-column; text/JSON counts and sample ids are checked, previews preserve store
-state, rollback keeps the live id, and forward restores both rows and all
-spare values. The original enum argument-decoding checks remain.
+Every root WORKSTREAM-REPORT conflict kept the integration side; this report
+replaces it at closeout. Generated projections were regenerated, not hand-merged.
+PUBFIX28's one dormant row / zero standalone cells and mixed dormant/live cases
+survive alongside REL3's dormant-operation visibility and SURF's directional
+old/new clause warnings. Accepted release-control streams remain blocking.
+LANG/RULES2 notes and refusal pointers, KIT/SURF init/help and KIT/RULES2 testing
+text all retain both lanes' requirements. Overlapping LLP sections were retained
+as distinct sections with repaired references.
 
-The expanded test failed against the original binary specifically on the
-contradictory zero-cell narration, then passed against the fixed binary.
-Paired fresh, mutually blind semantic reviews: Muse **READY**, Codex **READY**.
-[Verbatim reviews, commands, provenance and final file hashes](llp/reviews/3000.000.000-pubfix28.provenance.md).
-Muse's authorized fallback recovered from plan quota exhaustion. No keys were
-read or printed. During review, stored tagged-value decoding was corrected
-and additional zero-column JSON assertions strengthened the same semantics.
+## Integration corrections
 
-## 2. macOS release-control Broken pipe
+- Wired REL3's compatibility module into the standalone rewrite test crate.
+  Updated installed-SDK fixtures for the generated runtime import, scoped to
+  the actual oracle hosts; preserved existing CommonJS stubs and data-URL tests.
+- Updated generated help/guide assertions and native witness help. The native
+  binary keeps generated flags and Chromium discovery prose; the installed JS
+  wrapper still owns browser-specific subcommands. Exported API examples and
+  maintained delivery/authoring censuses were regenerated.
+- Reconciled exact emitted operation type assertions with the new available
+  member without weakening nullable-result checks. Historical compatibility
+  captures validate and normalize only the additive release metadata and unwrap
+  hint; list bounds snapshots were regenerated through their supported mode.
+  Expiry Lean emission now expects the selected index's id tie-breaker.
+- Selected the full production recipe explicitly after SURF added a minimal
+  example before it. Added useRelease discovery and the matching runtime SDK
+  dependency requirement, including standalone seed scripts. The client card
+  stays within its existing 1,200-word limit and keeps all diagnostic boundaries.
+- The full concurrent battery exposed a trace flock retained across fork by an
+  unrelated child. Explicit unlock before close now releases it on every locked
+  exit; a real fork regression holds the inherited description open while the
+  parent appends. Nonblocking best-effort diagnostics, permissions/symlink
+  checks, 256 KiB cap and custody separation remain covered. Commit `23f9aa540f`.
+  Linux flock's open-description behavior is documented in [flock(2)](https://man7.org/linux/man-pages/man2/flock.2.html).
 
-Root cause: Darwin accepts inherit O_NONBLOCK from the polling listener,
-causing input to return WouldBlock before a delayed client writes; Linux
-accepts do not inherit it. The production accept helper resets each stream to
-blocking mode immediately after accept, before peer/input. Setup failure drops
-the stream through the existing accept-error path. Existing deadlines remain.
+The lane semantic review artifacts and provenance remain verbatim under
+llp/reviews (Muse Spark high and fresh Codex high). No new RFC/amendment was
+authored by this integration; the trace fix implements LLP 3000.030 §15.
 
-The regression connects first, waits for the actual production accept helper,
-delays 100 ms, sends a valid envelope, and checks successful execution/reply.
-It passes on Linux; the unfixed Darwin-specific failure cannot be shown on
-Linux because the platform inheritance semantics differ. No Darwin run claimed.
+## Verification
 
-Audit: only release_control has a nonblocking listener in the crate. TCP
-reservations in port_flag, witness_socket, witness/protocol and host_limits
-are blocking; vendored tiny_http accepts are blocking too. Its limits module
-sets an already accepted overload-response socket nonblocking, not a listener.
-Also checked O_NONBLOCK, SOCK_NONBLOCK, F_SETFL and accept4 spellings; the
-remaining O_NONBLOCK sites are guarded file opens, not listeners.
-No other listener requires a fix. Ticket resolved into issues/closed with
-cause, regression and audit record.
+Concurrent main update `af4b256a31` (PUBFIX28b) was merged as `6276acbfcf`
+after the frozen client pass. Its entire delta is two test files: one new
+platform-independent lifecycle case and a Darwin-only legacy-control fence.
+Production source and all 587 frozen candidate inputs are identical. The full
+lifecycle file passes 29 tests; the changed client file passes three Linux cases
+with seven authored platform/legacy skips. ref-check passes with both new refs.
+The full product proofs remain bound to unchanged source; the incoming test-only
+delta is covered by these affected checks, following the repository's optimistic
+integration rule. No product fix followed the complete Rust run.
 
-## Commits
+The required complete five-package Rust invocation **passes (exit 0)** in
+run 8, after the last source fix. The complete client pass covers **400 pooled
+files plus both serial models (402/402 files), 7,620 passing cases,
+56 authored conditional skips, zero failures**. All 587
+candidate input hashes remain unchanged after the models.
 
-- `1f963c6ccc` — both product fixes, regression tests, governing LLP/journal,
-  and resolved socket ticket.
-- `e28e574cf7` — verbatim independent READY reviews, review brief, provenance.
-- Final closeout commit contains this report and the compressed Linux command
-  logs/verification manifest; it changes no product source.
+| Check | Result |
+|---|---|
+| Rust: core, lang, device, sim and CLI; --no-fail-fast | Full post-fix run 8, exit 0; no failed target |
+| Client pool and models | 400/400 pooled files + 2/2 models, zero failures; includes five nested identity-fixture test files |
+| Native difftest run | 20,000 generated/compiled cases; 1,220,035 executions; zero disagreements |
+| Device difftest run-devices | Seeds 0–999, 1,000 cases; 27,922 executions; zero disagreements on memory/SQLite |
+| Lean run-lean | 20,000 cases, 56,917 executions; 16,697 pass, 3,173 unsupported, 130 inherited disagreements; exactly four baseline signatures, none new |
+| Fresh prepare-client pack + Linux consumer qualification | Source `23f9aa540fc81a0255d10730ecd46ca6b722c35f`; 12 frontend attempts, six starter cases, 30/30 listener audits, both no-write controls and form-submit proof pass; help versus changelog passes |
+| Clean installed-consumer toolchains | Ubuntu 24.04 and Alpine: round trips and all six starter builds pass |
+| LANG and RULES2 surveys on final binary | Both 100/100 clean, 318 notes; source hashes match each lane's complete manifest |
+| Actual 0.4.28 → 0.4.29 store | Digest adoption retains count 3; maintenance removes expired parent and both cascading children; four additional ignored legacy migration tests explicitly pass |
+| Docs budget | README 320/320 physical lines; exactly one self-containment test passes |
+| ref-check | 548 LLP docs, 11,917 refs; zero errors or unchecked refs |
+| Root inventories | 365 package tests, 35 script tests, 31 demos, 487 publication leaves, 162 pages / 1,937 snippets; PASS |
+| Root guide | 22 pass, zero failures/skips/preconditions; 121 inherited warnings |
+| Generated projections | Delivery/authoring censuses, diagnostics registry, symbol projections and guide manifest regenerated; no hand-merged projections |
+| Paved changes entry | Final frozen CLI exposes 0.4.29 with useRelease, useAuth, withBrowser, witness, cascade and digest upgrade guidance |
 
-## Linux verification
+RULES2's isolated survey had 324 notes; LANG removes six: conditional-complete
+10→7, never-complete 15→13 and sparse-filter 12→11. The composed 318 exactly
+matches LANG's report; RULES2 introduces no extra firing or refusal. Survey
+results are identical apart from elapsed milliseconds, with all source hashes
+preserved. The final native snapshot SHA-256 is
+`23724468c5444a7afc180aff47fe37797913cbc891808db531bb65780d1c5c00`.
 
-[Verification manifest, commands and SHA-256-bound compressed logs](snapback4/reports/20261015-pubfix28/verification.json)
-are committed with this report. Original logs remain under `/tmp/pubfix28-logs`.
-Setup completed: frozen Snapback 4 Bun install; CLI build; wasm build
-(2,319,740 raw / 707,674 gzip bytes, within 708,174 budget); client package build.
-Root setup follows Integration 11: frozen root install, existing workspace-hoist
-helper, scripts/check-generated-artifacts. No root manifest/dependency changes.
+A repeat root inventory check found missing local dependencies. A frozen Bun
+install and workspace hoist restored them, then diagnostics/symbol/guide
+regeneration, inventories and the complete root guide check passed again. This
+was an environment precondition, with the red attempt retained. The intermediate
+755 pack finished its consumer checks but correctly refused success because
+source changed during qualification; the final fresh source-bound receipt is
+separate. Earlier failed/superseded runs remain distinct from the final proofs.
 
-All directly run Cargo commands and Cargo-bearing scripts carry
-CARGO_INCREMENTAL=0, CARGO_PROFILE_DEV_DEBUG=0, CARGO_PROFILE_TEST_DEBUG=0.
-Publication-scope Cargo checks use LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT.
-Never ran full scripts/test.sh. Rust drains before the publication client pool;
-the client command comes from scripts/test.sh as invoked by publish.mjs and
-qualify-linux.mjs: all *.test.mjs except the two full-count model files in one
-run-client-tests.mjs files invocation with min(24,max(1,floor(CPUs/3))) slots.
-Models retain their separate serial command.
+[Verification manifest](snapback4/reports/integration13/verification.json) binds
+the final commands, source, checksums, counts and limits. Compressed raw logs,
+consumer receipts, listener traces, surveys, the upgrade transcript and exact
+merged-lane report transcripts are under `snapback4/reports/integration13/`.
+The lane transcripts come from each merge's second parent; their links retain
+their original repository-root meaning. The final prepared tarballs remain in
+`snapback4/target/publication/client-0.4.29/`; the retained Linux platform pack
+and readable consumer receipt are in `snapback4/target/integration13/linux-final-source/`.
+No other worktree's publication directory was touched.
 
-Affected regression: one client test passed. All nine release_control unit
-tests passed, including the new delayed-input case. ./ref-check passed.
-Root setup passed with current projections. `node scripts/docs-budget.mjs`
-passed (README 320/320 plus the named first-account screen test).
-`node scripts/check-inventories.mjs` passed: 365 package tests, 35 script tests,
-31 demos/catalog entries, 487 publication leaves, 162 pages/1,937 snippets.
-`node scripts/check-guide.mjs` passed: 22 checks, zero failures/skips/preconditions,
-174 routes + 51 host operations; 121 existing warnings remain warnings.
-Full `cargo test -p snapback4-core -p snapback4-lang -p snapback4-device
--p snapback4-sim -p snapback4 --no-fail-fast` passed, exit 0: **6,076 passed,
-zero failed, 41 existing opt-in ignores** across 377 top-level result groups,
-including doctests. Fourteen nested fixture-process summaries are excluded.
-All new control tests are included. This is one complete command, not a sum
-of isolated affected reruns. Both root checks also passed fresh reruns after
-the complete root bootstrap returned, making setup-before-check ordering explicit.
 
-Complete publication client pool passed in one invocation, exit 0: **388/388
-files; 7,445 passed; zero failures/cancellations/TODOs; 56 intentional skips**.
-All 17 isolated timer files ran after the shared phase inside that invocation.
-The entire release-activation file passed in that pool. No CLI rebuild ran
-alongside it; the child horizon fixture inherited the same Cargo profile and
-publication SQLite flags. No full scripts/test.sh was executed.
+## Wasm and upgrade
 
-Fixture wrapper passed: **9/9 tests**, exit 0. The separate serial model slot
-passed **81/81 tests**, exit 0, at full defaults: 5,000 session sequences per
-tier and 3,000 online sequences, with no counter overrides. Zero model/wrapper
-failures, skips, cancellations or TODOs. All requested Linux checks pass.
+Clean integrated measurement at `6244ffc7aa` (committed by `5569f806d7`):
+**2,353,736 B raw / 716,714 B gzip / 541,576 B Brotli**. Strict family and
+absence audits pass. Budget **717,214 B = measured gzip + 500 B**, with reason
+in metrics/wasm-budget.json (`79a601f383`). Whole-device growth versus 0.4.28
+is 9,040 B gzip for expiry actions, digest identities, shared language/device
+semantics and capability fences; this is whole-artifact evidence, with no
+independent feature attribution or runtime ceiling change. Later changes are
+host-only trace code, guide prose and tests, outside device wasm inputs.
 
-Source/doc diff-check excluding the verbatim Codex transcript passes. The full
-range reports eight trailing-space lines inside that transcript's quoted diff;
-they remain byte-for-byte intact as required for verbatim review provenance.
+The upgrade check uses an actual 0.4.28 executable to write three entries
+keyed by a 135-character user: principal, its count view, an expiring parent
+and two cascading children. 0.4.29 adoption changes the old 146-character
+aggregate id to a 64-character digest, preserves count 3 and both children
+before expiry; an advanced clock physically removes the expired parent and
+both children, retaining the count. Four additional authored legacy migration
+tests were explicitly run with --ignored and pass.
 
-## Deferrals and decisions
+Existing stores undergo transactional aggregate adoption and new expiry
+reference actions. Rebuild devices for semantic capability fences. Existing
+apps retain authority/custody/receipt defaults; generated api.ts requires the
+matching SDK runtime. useRelease is availability, never authorization; keep
+drafts outside release gates. Existing witnesses need trusted registered
+visible writes and terminal receipts; withBrowser uses the caller's Playwright.
+useAuth exposes state/viewer/why and auth methods, without a session member.
 
-No product work deferred. No question/approval needed: user preauthorized
-implementation, extra review rounds and checks. Kept the version unchanged
-because 0.4.28 is not on npm. macOS regression execution and publication remain
-with the publication coordinator; this workstream supplies Linux evidence and
-commits only, with no publication qualification receipt claim.
+## Limits and deferrals
+
+Full scripts/test.sh was deliberately not run, as instructed. Linux packed
+qualification uses --consumer-only and records suite:not-run and
+publicationQualified:false; it is not a publication receipt. The separately
+requested Rust, complete client and repository checks supply their own results.
+No Darwin/iOS, production deployment, publication or optional PostgreSQL/store
+campaign was commissioned or claimed. Authored client skips, Rust ignores and
+Lean unsupported/inherited signatures remain explicit in the raw evidence.
+Earlier failed/superseded attempts are retained as such; no isolated rerun is
+used to relabel a failing full invocation. Final required suites are distinct
+complete runs after the last affected fix. No push.

@@ -1,0 +1,512 @@
+{
+  "format": 1,
+  "integration": 13,
+  "recordedAt": "2026-10-15T06:47:50.109978+00:00",
+  "source": "23f9aa540fc81a0255d10730ecd46ca6b722c35f",
+  "bump": "c113020b4a",
+  "version": "0.4.29",
+  "merges": {
+    "LANG": "c2ce6631e9",
+    "RULES2": "3179fc9bd8",
+    "REL3": "62ef409f91",
+    "SURF": "524809d34c",
+    "KIT": "67cf911161"
+  },
+  "rust": {
+    "status": "passed",
+    "command": "cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast",
+    "fullRun": 8,
+    "afterLastFix": true,
+    "exitCode": 0
+  },
+  "clients": {
+    "status": "passed",
+    "filePool": 400,
+    "modelFiles": 2,
+    "counts": {
+      "tests": 7595,
+      "pass": 7539,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 56,
+      "todo": 0
+    },
+    "models": {
+      "tests": 81,
+      "pass": 81,
+      "fail": 0,
+      "cancelled": 0,
+      "skipped": 0,
+      "todo": 0
+    },
+    "frozenInputs": 587,
+    "binarySha256": "23724468c5444a7afc180aff47fe37797913cbc891808db531bb65780d1c5c00"
+  },
+  "packedLinux": {
+    "status": "passed",
+    "mode": "consumer-only",
+    "source": "23f9aa540fc81a0255d10730ecd46ca6b722c35f",
+    "clientIntegrity": "sha512-04O6s0whBShhAkRH8nj7TOwp29ytrgNQFSVcdF/ANS4eM82fnyAdTpwtvcVWhAGXg2V/7fEL7r8fB5x3KBHr2A==",
+    "expoIntegrity": "sha512-uWl/grQhbpeYAt8H5kdL8vpQu0JChWabk9wfhq6Gbv23nvcmlsYioQxU2mXyE5MBOC0ypZM1LOsYoz385qVe+Q==",
+    "platform": {
+      "name": "snapback4-linux-x64",
+      "version": "0.4.29",
+      "filename": "snapback4-linux-x64-0.4.29.tgz",
+      "integrity": "sha512-MnQDVabvAZi4WpR1UYLJ2brIS/+DJ0jghv/JcuE23AK0+S0njvTMl0KqZpiG41EviUHvWT3Crx2vrEZEoMTewg==",
+      "bytes": 12019626
+    },
+    "binarySha256": "9ab0c8fb6faf4f9e0b088130917f51d6e8717970c691f2dcc8fdd1d9ce1ce4c8",
+    "frontendAttempts": 12,
+    "starterCases": 6,
+    "listenerAudits": 30,
+    "noWriteControls": 2,
+    "cleanUserspaces": [
+      "ubuntu:24.04",
+      "alpine"
+    ],
+    "suite": "not-run",
+    "publicationQualified": false
+  },
+  "difftest": {
+    "native": {
+      "generated": 20000,
+      "executed": 1220035,
+      "byOracle": {
+        "meter": {
+          "attempted": 544736,
+          "passed": 67880,
+          "unsupported": {
+            "examined-opening-no-position": 15543,
+            "heap_bytes-unwind-no-continuation": 147343,
+            "mutation-not-a-read": 3663,
+            "output_bytes-refusal-no-continuation": 13966,
+            "return-not-pageable": 43615,
+            "rule_probes-opening-no-position": 1573,
+            "steps-refusal-no-continuation": 217750,
+            "steps-unwind-no-continuation": 31032,
+            "timed-search-no-continuation": 410,
+            "uncut-refusal": 1961
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        },
+        "repeat": {
+          "attempted": 20000,
+          "passed": 20000,
+          "unsupported": {},
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        },
+        "rewrite-commute": {
+          "attempted": 20000,
+          "passed": 3160,
+          "unsupported": {
+            "rewrite-not-applicable": 16840
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 1683
+        },
+        "rewrite-declarations": {
+          "attempted": 20000,
+          "passed": 20000,
+          "unsupported": {},
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        },
+        "rewrite-identity": {
+          "attempted": 20000,
+          "passed": 2751,
+          "unsupported": {
+            "rewrite-not-applicable": 17249
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 2751
+        },
+        "rewrite-lazy-and": {
+          "attempted": 20000,
+          "passed": 1145,
+          "unsupported": {
+            "rewrite-not-applicable": 18855
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 1145
+        },
+        "rewrite-lazy-or": {
+          "attempted": 20000,
+          "passed": 1250,
+          "unsupported": {
+            "rewrite-not-applicable": 18750
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 1250
+        },
+        "rewrite-let": {
+          "attempted": 20000,
+          "passed": 20000,
+          "unsupported": {},
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 20000
+        },
+        "timed-search-future-absence": {
+          "attempted": 415,
+          "passed": 415,
+          "unsupported": {},
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        }
+      }
+    },
+    "devices": {
+      "generated": 1000,
+      "executed": 27922,
+      "byOracle": {
+        "device-memory-converge": {
+          "attempted": 177,
+          "passed": 40,
+          "unsupported": {
+            "converge-observe-online-only-unknown-incomplete": 137
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        },
+        "device-memory-cut": {
+          "attempted": 5700,
+          "passed": 5700,
+          "unsupported": {},
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        },
+        "device-memory-read": {
+          "attempted": 823,
+          "passed": 448,
+          "unsupported": {
+            "online-only-unavailable": 75,
+            "online-only-unknown-incomplete": 300
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        },
+        "device-memory-write": {
+          "attempted": 177,
+          "passed": 32,
+          "unsupported": {
+            "prediction-declined": 12,
+            "unpredictable-unsynced-table": 133
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        },
+        "device-sqlite-converge": {
+          "attempted": 177,
+          "passed": 40,
+          "unsupported": {
+            "converge-observe-online-only-unknown-incomplete": 137
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        },
+        "device-sqlite-cut": {
+          "attempted": 5700,
+          "passed": 5700,
+          "unsupported": {},
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        },
+        "device-sqlite-read": {
+          "attempted": 823,
+          "passed": 448,
+          "unsupported": {
+            "online-only-unavailable": 75,
+            "online-only-unknown-incomplete": 300
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        },
+        "device-sqlite-write": {
+          "attempted": 177,
+          "passed": 32,
+          "unsupported": {
+            "prediction-declined": 12,
+            "unpredictable-unsynced-table": 133
+          },
+          "disagreeing": 0,
+          "signatures": {},
+          "meter_fields_omitted": 0
+        }
+      }
+    },
+    "lean": {
+      "generated": 20000,
+      "executed": 56917,
+      "byOracle": {
+        "lean": {
+          "attempted": 20000,
+          "passed": 16697,
+          "unsupported": {
+            "call-max": 319,
+            "call-min": 276,
+            "call-sum": 286,
+            "index-computed-or-words": 556,
+            "input-null": 2,
+            "loop": 449,
+            "now": 99,
+            "page-compound-where-branches": 22,
+            "page-static-key-expression": 12,
+            "prelude-now": 151,
+            "shape": 1001
+          },
+          "disagreeing": 130,
+          "signatures": {
+            "lean--code--E_RULE~NOT_FOUND": 3,
+            "lean--continuation-next--next~no-next": 35,
+            "lean--next--next~no-next": 67,
+            "lean--prelude-code--E_RULE~NOT_FOUND": 25
+          },
+          "meter_fields_omitted": 0
+        }
+      }
+    }
+  },
+  "leanNewSignatures": [],
+  "surveys": {
+    "status": "PASS",
+    "schemas": 100,
+    "notes": 318,
+    "note_counts": {
+      "N_CONDITIONAL_COMPLETE": 7,
+      "N_DELETE_NEEDS_READ": 3,
+      "N_DELETE_RESTRICTED": 4,
+      "N_EPHEMERAL_SERVER": 1,
+      "N_LOOKUP_HIDDEN": 1,
+      "N_MAINTAINED_COLUMN_DISCLOSURE": 1,
+      "N_MAINTAIN_AUTHORIZATION": 7,
+      "N_MAINTAIN_DELTA": 10,
+      "N_NEVER_COMPLETE": 13,
+      "N_NO_CURSOR": 160,
+      "N_NO_HORIZON": 13,
+      "N_NO_PRODUCTION_WRITER": 48,
+      "N_PATCH_CLEARS": 3,
+      "N_REFERENCE_UNCHECKED": 1,
+      "N_SHAPE_METER": 1,
+      "N_SPARSE_FILTER": 11,
+      "N_SYNC_EMPTY": 1,
+      "N_SYNC_ORDER": 17,
+      "N_UNREADABLE_PROBE": 13,
+      "N_VACUOUS_RULE": 2,
+      "N_WIDE_MERGE": 1
+    },
+    "binarySha256": "23724468c5444a7afc180aff47fe37797913cbc891808db531bb65780d1c5c00",
+    "langSourceManifest": "exact",
+    "rules2SourceManifest": "exact",
+    "semanticResults": "identical across both runs; elapsed ms differs",
+    "composition": "LANG reduces conditional 10->7, never 15->13, sparse 12->11; RULES2 alone is unchanged at 324; merged is 318 with no extra firing"
+  },
+  "upgrade": {
+    "baseline": {
+      "version": "snapback4 0.4.28",
+      "sha256": "80e04bece8b373fd6d81e7d16164ad1221a92643b34035d005d5cec3fcfabe47"
+    },
+    "candidate": {
+      "version": "snapback4 0.4.29",
+      "sha256": "23724468c5444a7afc180aff47fe37797913cbc891808db531bb65780d1c5c00"
+    },
+    "principalLength": 135,
+    "before": {
+      "totals": [
+        [
+          "[{\"Id\":\"user:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}]"
+        ]
+      ],
+      "parents": [
+        [
+          "p"
+        ]
+      ],
+      "children": [
+        [
+          "kid-0"
+        ],
+        [
+          "kid-1"
+        ]
+      ],
+      "entries": [
+        [
+          "entry-0"
+        ],
+        [
+          "entry-1"
+        ],
+        [
+          "entry-2"
+        ]
+      ]
+    },
+    "tallyAfterAdoption": {
+      "complete": true,
+      "cut": null,
+      "data": 3,
+      "metered": {
+        "examined": 1,
+        "heap_bytes": 1743,
+        "index_entries": 0,
+        "output_bytes": 9,
+        "rows_written": 0,
+        "rule_probes": 0,
+        "steps": 12
+      },
+      "next": null
+    },
+    "afterAdoption": {
+      "totals": [
+        [
+          "23d81859b5d0cd34c021fd462b486d9551f638be318d77e7a2ea816689dfe201"
+        ]
+      ],
+      "parents": [
+        [
+          "p"
+        ]
+      ],
+      "children": [
+        [
+          "kid-0"
+        ],
+        [
+          "kid-1"
+        ]
+      ],
+      "entries": [
+        [
+          "entry-0"
+        ],
+        [
+          "entry-1"
+        ],
+        [
+          "entry-2"
+        ]
+      ]
+    },
+    "afterSweep": {
+      "totals": [
+        [
+          "23d81859b5d0cd34c021fd462b486d9551f638be318d77e7a2ea816689dfe201"
+        ]
+      ],
+      "parents": [],
+      "children": [],
+      "entries": [
+        [
+          "entry-0"
+        ],
+        [
+          "entry-1"
+        ],
+        [
+          "entry-2"
+        ]
+      ]
+    },
+    "tallyAfterSweep": {
+      "scopes": {},
+      "generation": 2,
+      "complete": true,
+      "cut": null,
+      "data": 3,
+      "next": null,
+      "nextExpiry": null,
+      "seq": 8,
+      "store_id": "c609927f7b616ebaa7c37be226370188",
+      "tables": [
+        "totals"
+      ],
+      "viewer": "dev:alice",
+      "meter": {
+        "cut": null,
+        "examined": 1,
+        "heapBytes": 1743,
+        "indexEntries": 0,
+        "outputBytes": 9,
+        "probes": 0,
+        "rowsWritten": 0,
+        "steps": 12
+      }
+    },
+    "status": "PASS"
+  },
+  "mainSupplement": {
+    "status": "PASS",
+    "incoming": "af4b256a31f5266577d5c014bd96b7827386c9db",
+    "merge": "6276acbfcfc653351988a555ee53abb5045d4d3c",
+    "kind": "test-only PUBFIX28b",
+    "changedPaths": [
+      "snapback4/crates/snapback4/tests/lifecycle.rs",
+      "snapback4/packages/snapback4/test/schema-capabilities.test.mjs"
+    ],
+    "productSourceUnchanged": true,
+    "rustLifecycle": {
+      "passed": 29,
+      "failed": 0
+    },
+    "clientSchemaCapabilities": {
+      "passed": 3,
+      "skipped": 7,
+      "failed": 0
+    },
+    "refCheck": {
+      "docs": 548,
+      "refs": 11917,
+      "errors": 0,
+      "unchecked": 0
+    },
+    "decision": "Retain full post-fix Rust and complete client evidence on unchanged product source; cover the incoming test-only delta with affected checks under the repository optimistic integration rule. The modified legacy control is Darwin-only and remains an authored Linux skip."
+  },
+  "wasm": {
+    "raw": 2353736,
+    "gzip": 716714,
+    "brotli": 541576,
+    "gzipBudget": 717214,
+    "headroom": 500,
+    "measurementCommit": "6244ffc7aa",
+    "laterChanges": "host-only trace, guides and tests; device input hash preserved"
+  },
+  "repository": {
+    "refCheck": "passed",
+    "inventories": "passed",
+    "guide": "22 passed; 0 failed/skipped/preconditions; 121 inherited warnings",
+    "docsBudget": "320/320 lines; exactly one self-containment test passed",
+    "generators": "delivery, authoring, diagnostics, symbols and guide manifest regenerated",
+    "finalRefCheck": "548 LLP docs, 11917 refs; zero errors or unchecked refs, after report and PUBFIX28b"
+  },
+  "environment": {
+    "cargo": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0",
+    "node": "v24.13.1",
+    "platform": "Linux"
+  },
+  "limits": [
+    "Full scripts/test.sh prohibited and not run",
+    "No Darwin/iOS or npm publication claim",
+    "Authored Rust ignores and client conditional skips remain explicit in logs; four legacy migration tests additionally ran with --ignored",
+    "Lean unsupported cases and 130 inherited disagreements are not passes",
+    "No optional PostgreSQL/store campaign",
+    "No push"
+  ],
+  "finalMainTip": "af4b256a31f5266577d5c014bd96b7827386c9db"
+}

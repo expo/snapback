@@ -95699,3 +95699,20 @@ fork regression keeps the child descriptor open while the parent appends again;
 the original symlink, permissions and bounded-tail cases remain covered.
 The client card also stays within its existing 1,200-word budget while retaining
 release-hook discovery and the retry/offline/held diagnostic boundaries.
+
+### 2026-10-15 — Integration 13 final Linux qualification
+
+The complete five-package Rust invocation passes after the final trace/guide
+fix. The final client pass covers all 402 test files: 7,620 passing cases,
+56 authored conditional skips, zero failures, with all frozen input hashes
+unchanged. Fresh source `23f9aa540f` packs pass the installed Linux
+consumer matrix, 30 listener audits, both no-write controls, form submit and
+Ubuntu/Alpine toolchains. These are consumer-only records, not publication
+qualification.
+
+Both merged-binary 100-schema surveys are clean with 318 notes, composing
+LANG's six reductions with RULES2's unchanged firings. A genuine 0.4.28 store
+adopts long-principal aggregate keys and applies the expected cascading expiry.
+Native/device difftests are clean; Lean retains four baseline signatures and
+introduces none. Root guide/inventories, refs and docs budget pass. Evidence and
+limits are in the Integration 13 report. No push or publication.
