@@ -72,7 +72,9 @@ table children:
 "#.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let schema: Schema = serde_json::from_str(&serde_json::to_string(&bound.schema).unwrap()).unwrap();
-    let programs = bound.programs.into_iter().map(|p| p.program).collect::<Vec<_>>();
+    let programs = bound.programs.into_iter().map(|p|
+        serde_json::from_str(&serde_json::to_string(&p.program).unwrap()).unwrap()
+    ).collect::<Vec<Program>>();
     let url = std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private test-postgres.sh database");
     let name = format!("sb4_eval_maintained_id_{:x}", crate::ids::seed());
     let mut engine = PostgresEngine::create(Client::connect(&url, postgres::NoTls).unwrap(), &name, schema, programs).unwrap();
