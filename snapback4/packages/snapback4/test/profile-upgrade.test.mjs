@@ -10,7 +10,7 @@ const read = name => readFileSync(new URL(name, root), 'utf8');
 const json = name => JSON.parse(read(name));
 const ok = result => { assert.ok(!result.denied, JSON.stringify(result)); return result.ok; };
 const now = 4_000_000_000_000;
-for (const version of ['0411', '0412']) test(`authentic ${version} saveProfile: offline SDK Kept custody survives online adoption`, async () => {
+for (const version of ['0411', '0412']) test(`authentic ${version} saveProfile: legacy semantics refuse until current adoption`, async () => {
   const path = `rp-profile-upgrade/${version}/`;
   const old = read(path + 'backend-schema.part') + read(path + 'backend-programs.part');
   assert.equal(JSON.parse(old).schema.operations.saveProfile.predicts, 'eligible');
@@ -20,7 +20,10 @@ for (const version of ['0411', '0412']) test(`authentic ${version} saveProfile: 
   const persist = memoryPersistence();
   await persist.save(version, kept);
   const opener = webDevice({ wasm, persist });
-  let d = await openLocalDevice(opener, version, current);
+  await assert.rejects(openLocalDevice(opener, version, current), /E_SCHEMA_CAPABILITY.*maintained-id-sha256-v1/);
+  // The refused kept open is read-only. Supplying the server's current bundle
+  // performs the semantic upgrade while preserving the authentic old outbox.
+  let d = await opener.open(version, current);
   const entry = (name, seq) => ({ id: `profile-${name}`, seq, op: 'saveProfile', viewer: 'alice', now,
     new_ids: [], predicted: [], predictable: true,
     args: { displayName: name, handle: 'alice', bio: 'A new bio', location: 'Berlin', link: null } });
@@ -28,18 +31,14 @@ for (const version of ['0411', '0412']) test(`authentic ${version} saveProfile: 
     const queued = () => d.call({ op: 'queued' }).then(ok);
     assert.equal((await queued())[0].id, 'profile-before-upgrade');
     const q = ok(await d.call({ op: 'admit', entry: entry('offline', 2) }));
-    assert.equal(q.predictable, false);
-    assert.deepEqual(q.predicted, []);
+    assert.equal(q.predictable, true);
+    assert.equal(q.predicted.length, 1);
     const before = (await queued()).map(({ id, args }) => ({ id, args }));
     assert.equal(before.length, 2);
-    // Persist/reopen still offline with the new app bundle available. The
-    // helper must not overwrite kept custody to restore optimistic UI.
+    // Reopening now uses the adopted current backend and preserves custody.
     await d.close();
     d = await openLocalDevice(opener, version, current);
     assert.deepEqual((await queued()).map(({ id, args }) => ({ id, args })), before);
-    const prediction = await d.call({ op: 'predict', name: 'saveProfile', args: q.args, viewer: 'alice', now, new_ids: [], entropy: 1 });
-    assert.match(JSON.stringify(prediction), /no complete reservation price/);
-    // The online sync boundary adopts the current backend before dispatch.
     ok(await d.call({ op: 'adopt', backend: current }));
     assert.deepEqual((await queued()).map(({ id, args }) => ({ id, args })), before);
     const after = ok(await d.call({ op: 'admit', entry: entry('online', 3) }));

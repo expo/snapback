@@ -47,9 +47,13 @@ fn run<H:Host>(host:&mut H, version:&str, message:&str, kind:&str)->serde_json::
     println!("RP APP {version}-{kind} {} predicted={predicted} committed={committed} meter={:?} state={:?}",host.label(),out.metered,out.state);
     {
         assert!(committed,"{version}-{kind}: {out:?}");
-        assert!(predicted,"{version}-{kind}: {admission:?}");
+        // These unchanged apps accept a caller-supplied id for an expiring
+        // message which has reference children. The device cannot see a
+        // hidden expired same-id predecessor, so the server keeps custody.
+        assert!(!predicted,"{version}-{kind}: {admission:?}");
+        assert!(admission.as_ref().unwrap().predicted.is_empty(),"{version}-{kind}: {admission:?}");
         let history=d.query("history","alice",&json!({"conversation":"c","c":null}),NOW).unwrap();
-        assert!(history.data.as_array().unwrap().iter().any(|r|r.field("pending").ok()==Some(&Value::Bool(true))));
+        assert!(!history.data.as_array().unwrap().iter().any(|r|r.field("pending").ok()==Some(&Value::Bool(true))));
         let baseline:serde_json::Value=serde_json::from_str(&std::fs::read_to_string(root().join("base-meters.json")).unwrap()).unwrap();
         let meter=serde_json::to_value(out.metered).unwrap();
         for (name, used) in meter.as_object().unwrap() {
@@ -74,7 +78,7 @@ fn differential<H:Host>(host:&mut H) {
         let case=run(host,version,&message,kind);
         fixture(&format!("{version}-{kind}.json"),&case);
     }}
-    println!("RP APP DIFFERENTIAL cases=6 predicted=6 conservative=0 server_refused=0");
+    println!("RP APP DIFFERENTIAL cases=6 predicted=0 conservative=6 server_refused=0");
 }
 #[test] fn calibration_headroom_memory(){differential(&mut Memory::new());}
 #[test] fn calibration_headroom_sqlite(){differential(&mut Sqlite::new("rp-r5-apps"));}

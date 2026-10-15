@@ -1,7 +1,18 @@
 //! Authentic a8c20c40e9 app stores: unrelated profile writes under offline Kept.
 // @ref LLP 3000.022#14.3 — hidden private source footprints require adoption.
 use super::*;
+use snapback4_core::error::RuntimeError;
 use snapback4_device::{device::Device, memory::{Change, MemoryStore}, opening::Opening, store::{DeviceStore, DeviceTx}};
+use std::collections::BTreeMap;
+struct Borrowed<'a,S>(&'a mut S);
+impl<S:DeviceStore> DeviceStore for Borrowed<'_,S> {
+    type Tx<'a>=S::Tx<'a> where Self:'a;
+    fn install(&mut self,schema:&snapback4_core::Schema,metadata:&BTreeMap<String,String>,reset:bool)->Result<(),RuntimeError>{self.0.install(schema,metadata,reset)}
+    fn install_checked(&mut self,schema:&snapback4_core::Schema,metadata:&BTreeMap<String,String>,reset:bool,expected:&BTreeMap<String,Option<String>>)->Result<(),RuntimeError>{self.0.install_checked(schema,metadata,reset,expected)}
+    fn meta(&self,key:&str)->Result<Option<String>,RuntimeError>{self.0.meta(key)}
+    fn set_meta(&mut self,key:&str,value:&str)->Result<(),RuntimeError>{self.0.set_meta(key,value)}
+    fn transaction(&mut self)->Result<Self::Tx<'_>,RuntimeError>{self.0.transaction()}
+}
 fn directory(version: &str) -> std::path::PathBuf {
     root().parent().unwrap().join("rp-profile-upgrade").join(version)
 }
@@ -22,17 +33,15 @@ fn entry(name: &str, seq: u64) -> Queued {
 fn exercise<S: DeviceStore>(mut d: Device<S>, version: &str) {
     let (mut e, backend) = build(version);
     seed(&mut e, version);
-    assert!(d.schema().source_reservations.is_empty());
+    assert!(!d.schema().source_reservations.is_empty());
     assert!(d.schema().tables.values().any(|t| !t.maintained.is_empty()));
     assert!(d.schema().maintains.iter().all(|m| m.private.is_none()));
     assert_eq!(d.queued().unwrap()[0].id, "profile-before-upgrade");
     let offline = d.admit(entry("offline", 2)).unwrap();
-    assert!(!offline.predictable && offline.predicted.is_empty(), "{offline:?}");
-    // Merely supplying a bundle is not adoption: the SDK opens this kept
-    // backend first. No online operation has occurred so far.
+    assert!(offline.predictable && offline.predicted.len() == 1, "{offline:?}");
     assert_eq!(d.queued().unwrap().len(), 2);
     let before: Vec<_> = d.queued().unwrap().iter().map(|q| (q.id.clone(),q.args.clone())).collect();
-    d.adopt(backend).unwrap();
+    d.adopt(backend).unwrap(); // same current backend; queued custody is stable
     assert_eq!(d.queued().unwrap().iter().map(|q| (q.id.clone(),q.args.clone())).collect::<Vec<_>>(), before);
     let online = d.admit(entry("online", 3)).unwrap();
     assert!(online.predictable && online.predicted.len() == 1, "{online:?}");
@@ -63,7 +72,11 @@ fn authentic_profile_kept_memory() {
     for version in ["0411","0412"] {
         let mut store = MemoryStore::new();
         store.load(changes(version)).unwrap();
-        exercise(Opening::Kept.open(store).unwrap(),version);
+        let error=match Opening::Kept.open(Borrowed(&mut store)){Err(error)=>error,Ok(_)=>panic!("legacy aggregate identity backend executed")};
+        assert_eq!(error.code(),"E_SCHEMA_CAPABILITY");
+        assert!(error.to_string().contains("maintained-id-sha256-v1"),"{error}");
+        let (_,current)=build(version);
+        exercise(Opening::Install(current).open(store).unwrap(),version);
     }
 }
 // Replay the exact old wasm persistence records into SQLite. This tests the
@@ -75,7 +88,6 @@ fn authentic_profile_kept_sqlite() {
         let host = Sqlite::new("rp-r6-profile");
         let changes = changes(version);
         let old: Backend = snapback4_core::json_codec::from_text(changes[0].v.as_ref().unwrap()).unwrap();
-        drop(Device::open(&host.path("d"),Some(old.clone())).unwrap());
         let mut store = snapback4_core::Store::open_shared(&host.path("d")).unwrap();
         DeviceStore::install(&mut store,&old.schema,&Default::default(),false).unwrap();
         let tx = store.transaction().unwrap();
@@ -109,6 +121,12 @@ fn authentic_profile_kept_sqlite() {
             }
         }
         tx.commit().unwrap();
-        exercise(Opening::Kept.open(store).unwrap(),version);
+        drop(store);
+        let mut store = snapback4_core::Store::open_shared(&host.path("d")).unwrap();
+        let error=match Opening::Kept.open(Borrowed(&mut store)){Err(error)=>error,Ok(_)=>panic!("legacy aggregate identity backend executed")};
+        assert_eq!(error.code(),"E_SCHEMA_CAPABILITY");
+        assert!(error.to_string().contains("maintained-id-sha256-v1"),"{error}");
+        let (_,current)=build(version);
+        exercise(Opening::Install(current).open(store).unwrap(),version);
     }
 }
