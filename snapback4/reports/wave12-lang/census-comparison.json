@@ -1,0 +1,100 @@
+{
+  "baseline_commit": "c22dfefc9c",
+  "final_production_commit": "46dcc1e99f",
+  "baseline_binary_sha256": "80e04bece8b373fd6d81e7d16164ad1221a92643b34035d005d5cec3fcfabe47",
+  "final_binary_sha256": "63a0b57bc289361dda703b85a88d09558b5f1cc6c56edba0fcf906ab5427cc53",
+  "schemas": 100,
+  "source_hashes_identical": true,
+  "before_refusals": 0,
+  "after_refusals": 0,
+  "new_refusals": [],
+  "P3_P4_reservation_exceptions": [],
+  "before_notes": 324,
+  "after_notes": 318,
+  "note_counts": {
+    "N_CONDITIONAL_COMPLETE": {
+      "before": 10,
+      "after": 7
+    },
+    "N_DELETE_NEEDS_READ": {
+      "before": 3,
+      "after": 3
+    },
+    "N_DELETE_RESTRICTED": {
+      "before": 4,
+      "after": 4
+    },
+    "N_EPHEMERAL_SERVER": {
+      "before": 1,
+      "after": 1
+    },
+    "N_LOOKUP_HIDDEN": {
+      "before": 1,
+      "after": 1
+    },
+    "N_MAINTAINED_COLUMN_DISCLOSURE": {
+      "before": 1,
+      "after": 1
+    },
+    "N_MAINTAIN_AUTHORIZATION": {
+      "before": 7,
+      "after": 7
+    },
+    "N_MAINTAIN_DELTA": {
+      "before": 10,
+      "after": 10
+    },
+    "N_NEVER_COMPLETE": {
+      "before": 15,
+      "after": 13
+    },
+    "N_NO_CURSOR": {
+      "before": 160,
+      "after": 160
+    },
+    "N_NO_HORIZON": {
+      "before": 13,
+      "after": 13
+    },
+    "N_NO_PRODUCTION_WRITER": {
+      "before": 48,
+      "after": 48
+    },
+    "N_PATCH_CLEARS": {
+      "before": 3,
+      "after": 3
+    },
+    "N_REFERENCE_UNCHECKED": {
+      "before": 1,
+      "after": 1
+    },
+    "N_SHAPE_METER": {
+      "before": 1,
+      "after": 1
+    },
+    "N_SPARSE_FILTER": {
+      "before": 12,
+      "after": 11
+    },
+    "N_SYNC_EMPTY": {
+      "before": 1,
+      "after": 1
+    },
+    "N_SYNC_ORDER": {
+      "before": 17,
+      "after": 17
+    },
+    "N_UNREADABLE_PROBE": {
+      "before": 13,
+      "after": 13
+    },
+    "N_VACUOUS_RULE": {
+      "before": 2,
+      "after": 2
+    },
+    "N_WIDE_MERGE": {
+      "before": 1,
+      "after": 1
+    }
+  }
+}

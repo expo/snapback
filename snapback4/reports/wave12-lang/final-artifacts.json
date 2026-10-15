@@ -1,0 +1,23 @@
+{
+  "at": "2026-10-15T01:30:47.871861+00:00",
+  "production_commit": "46dcc1e99f",
+  "git_head_at_build": "46dcc1e99fda3bd10b844dc7aa86726a38c31fdb",
+  "oracle_model_commit": "2fb3bb2e98",
+  "artifacts": {
+    "cli": {
+      "path": "/tmp/lang-final-cli-46dcc1e99f",
+      "sha256": "63a0b57bc289361dda703b85a88d09558b5f1cc6c56edba0fcf906ab5427cc53"
+    },
+    "difftest": {
+      "path": "/tmp/lang-final-difftest-46dcc1e99f",
+      "sha256": "a9ee851c6d99d97ec9bfe9e6889e6337a2e7975ec9b0bd09ef4ddcb478747a60"
+    },
+    "oracle": {
+      "path": "/tmp/lang-final-oracle-2fb3bb2e98/quarry-oracle",
+      "sha256": "c81001208782e3a086b51ff0d213bd193f21cbbf1189cea94500305eb112db0b"
+    }
+  },
+  "crate_source_files": 774,
+  "crate_source_digest": "b01c30825e57ff29a2adafd624adef8401b21ebed87cbb8b6169ee1110efe4aa",
+  "cargo_env": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0"
+}
