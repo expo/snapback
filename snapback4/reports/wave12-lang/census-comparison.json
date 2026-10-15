@@ -1,8 +1,8 @@
 {
   "baseline_commit": "c22dfefc9c",
-  "final_production_commit": "726d2e94d6",
+  "final_production_commit": "8e2ac7cacd",
   "baseline_binary_sha256": "80e04bece8b373fd6d81e7d16164ad1221a92643b34035d005d5cec3fcfabe47",
-  "final_binary_sha256": "269c396f5c6be47aff0a2007b4497b530214cb5699e7999751074cc429c123eb",
+  "final_binary_sha256": "ad6811e6c765436b8060768fec6450fbc013b2226267912aeaaa3e2b9455ed91",
   "schemas": 100,
   "source_hashes_identical": true,
   "before_refusals": 0,

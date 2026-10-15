@@ -95487,3 +95487,8 @@ Clean Linux measurement at `5042e58965` is 2,353,736 B raw / 716,766 B gzip / 54
 ### 2026-10-15 — LANG row and counter precedence qualification
 
 Clean Linux measurement at `726d2e94d6` is 2,353,736 B raw / 716,763 B gzip / 541,305 B Brotli. Strict family and absence audits pass. Set the final budget to **717,263 B = measured gzip + exactly 500 B**. Surviving aggregate row mappings remain authoritative during legacy counter adoption, including counter-only descendants of a dangling reference. The server-only correction changes compiled device layout by -3 B gzip. Whole-artifact growth from qualified 0.4.28 is 9,089 B gzip. Earlier LANG allowances are superseded; no runtime ceiling or publication claim changes.
+
+
+### 2026-10-15 — LANG final reviewed migration ownership measurement
+
+Wave 12 LANG final reviewed ownership/admission correction (2026-10-15, clean Linux measurement at 073acfc7ff): 2353736 B raw / 716765 B gzip / 541361 B Brotli; strict family and absence audits PASS. Set 717265 B = measured gzip + exactly 500 B. Whole-device gzip growth from qualified 0.4.28 is 9091 B. Final legacy adoption validates full predecessor column admission and limits identity ownership to actual predecessor aggregates, preserving opaque ordinary IDs and counters. Whole-artifact Linux evidence; no per-feature attribution, Mac claim or runtime ceiling increase. Supersedes prior LANG values below. Exact artifact and scoped qualification receipts: `reports/wave12-lang/final-artifacts.json` and `reports/wave12-lang/r19-artifact-and-client-qualification.json`.

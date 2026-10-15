@@ -1,6 +1,6 @@
 {
-  "recorded_utc": "2026-10-15T02:40:17.634599+00:00",
-  "final_product_commit": "726d2e94d6",
+  "recorded_utc": "2026-10-15T03:38:24.517766+00:00",
+  "final_product_commit": "8e2ac7cacd",
   "status": "SEMANTIC_INPUT_AUDIT_COMPLETE",
   "principle": "Carry evidence only for unchanged semantic inputs; the authentic predecessor-store paths changed in R15 have separate migration regressions and a new complete core unit run. This is not an exact-HEAD complete-battery claim.",
   "native_campaign": {
@@ -14,7 +14,8 @@
       "R14 private-column queue is guarded by self.device; nested allowance ownership is false for native execution; PostgreSQL migration is feature-gated off in this campaign.",
       "R15 counter scan/rekey runs only during predecessor aggregate-id adoption. execute::seeded creates Store::memory and a fresh Engine::new_at, with no predecessor or legacy marker. It cannot reach that migration.",
       "5042 accepts only byte-exact canonical predecessor-typed tuples for persisted counter custody; arbitrary/dangling noncanonical IDs remain opaque. This remains inside legacy adoption, not fresh campaign execution.",
-      "726d preserves established surviving-row identity mappings when settling counter-only dependencies; this remains in legacy adoption only. The complete retirement/adoption module passed 21/21 and frozen 0.4.28 migrations passed 4/4."
+      "726d preserves established surviving-row identity mappings when settling counter-only dependencies; this remains in legacy adoption only. The complete retirement/adoption module passed 21/21 and frozen 0.4.28 migrations passed 4/4.",
+      "Final R19 f365/b3c/93d requires full predecessor column admission, pairs the predecessor schema/maintain metadata and limits ownership to predecessor aggregates. All run only during predecessor-store adoption; fresh campaigns cannot reach them. Final adoption/retirement25/25 and authentic0.4.28 migrations4/4 pass."
     ],
     "path_evidence": [
       "crates/snapback4-difftest/src/execute.rs:60",
@@ -54,5 +55,5 @@
     "full_simulator": "full-six-reconciliation.json",
     "r15_host_migration_and_core": "p1-p2-status.json"
   },
-  "client_carry": "r17-artifact-and-client-qualification.json; current product legacy counter settlement is outside carried fresh client paths; changed final wasm bytes have a separate exact bridge."
+  "client_carry": "r19-artifact-and-client-qualification.json; R19 server predecessor aggregate-counter adoption is not reached by carried clients. Ordinary chat sequences have ordinary parents. Final exact wasm bytes receive an independent bridge."
 }

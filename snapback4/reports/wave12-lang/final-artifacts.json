@@ -1,28 +1,28 @@
 {
-  "at": "2026-10-15T02:59:45.996450+00:00",
-  "production_commit": "726d2e94d6",
-  "git_head_at_build": "726d2e94d6fba4acbf4ad9c2f2249378cdb57743",
+  "at": "2026-10-15T03:38:24.517766+00:00",
+  "production_commit": "8e2ac7cacd",
+  "git_head_at_build": "8e2ac7cacdb338b859272f0f522912c3081f9ebf",
   "oracle_model_commit": "2fb3bb2e98",
   "standalone_device_contract_commit": "b9ab88a8b7",
   "artifacts": {
     "cli": {
-      "path": "/tmp/lang-final-cli-726d2e94d6",
-      "sha256": "269c396f5c6be47aff0a2007b4497b530214cb5699e7999751074cc429c123eb"
+      "path": "/tmp/lang-final-cli-8e2ac7cacd",
+      "sha256": "ad6811e6c765436b8060768fec6450fbc013b2226267912aeaaa3e2b9455ed91"
     },
     "difftest": {
       "path": "/tmp/lang-final-difftest-65560f6c4e",
       "sha256": "930190f5f7257ceaad75cff0023bfcfe023a830d67bb3a0001d99ae580193463",
       "source_commit": "65560f6c4e",
-      "scope": "Final device campaign on R14 prediction semantics; R15 adds server legacy-store adoption only, not reached by fresh-store native/Lean/device campaigns. See final-semantic-input-audit.json."
+      "scope": "Final device campaign on R14 prediction semantics; subsequent changes affect server predecessor-store adoption only. See final-semantic-input-audit.json."
     },
     "wasm": {
-      "path": "/tmp/lang-final-wasm-726d2e94d6/snapback4_device_bg.wasm",
-      "sha256": "1e331705f9005f882ea0b89caecc029087722488d058dfc05fa8dc0aad802619",
+      "path": "/tmp/lang-final-wasm-8e2ac7cacd/snapback4_device_bg.wasm",
+      "sha256": "66b1e7bcf41379b46a1d63be46b3fde8ddb257c8957fbb1eb8ee905c0a6ca955",
       "raw": 2353736,
-      "gzip": 716763,
-      "brotli": 541305,
-      "budget": 717263,
-      "clean_measurement_commit": "726d2e94d6"
+      "gzip": 716765,
+      "brotli": 541361,
+      "budget": 717265,
+      "clean_measurement_commit": "073acfc7ff"
     },
     "oracle": {
       "path": "/tmp/lang-final-oracle-2fb3bb2e98/quarry-oracle",
@@ -30,17 +30,24 @@
       "note": "Native Eval/Write/Syntax implementation unchanged; b9ab adds independent abstract contracts, not oracle runtime semantics."
     }
   },
+  "crate_source_files": 1277,
+  "crate_source_digest": "8967325d2f5d0586ea5a57ed61a8852ddeb234999f43df41590099501bcd33e2",
+  "cargo_env": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0",
+  "clean_measurement_commit": "073acfc7ff",
+  "standalone_counter_contract_commit": "f3ba53b70f",
+  "crate_source_digest_method": "SHA256 of sorted tracked repository-relative .rs path, NUL, file SHA256 and newline",
+  "standalone_row_precedence_contract_commit": "726d2e94d6",
   "previous_artifact_receipts": [
     {
-      "at": "2026-10-15T02:49:07.118541+00:00",
-      "production_commit": "5042e58965",
-      "git_head_at_build": "6cb27fdd69f2fb168e9e7370e37b6a553f7fa11b",
+      "at": "2026-10-15T02:59:45.996450+00:00",
+      "production_commit": "726d2e94d6",
+      "git_head_at_build": "726d2e94d6fba4acbf4ad9c2f2249378cdb57743",
       "oracle_model_commit": "2fb3bb2e98",
       "standalone_device_contract_commit": "b9ab88a8b7",
       "artifacts": {
         "cli": {
-          "path": "/tmp/lang-final-cli-5042e58965",
-          "sha256": "aa45a14452f0c17a0b2dff765444f1833d9ab721a9b842c697d60506f8bba063"
+          "path": "/tmp/lang-final-cli-726d2e94d6",
+          "sha256": "269c396f5c6be47aff0a2007b4497b530214cb5699e7999751074cc429c123eb"
         },
         "difftest": {
           "path": "/tmp/lang-final-difftest-65560f6c4e",
@@ -49,13 +56,13 @@
           "scope": "Final device campaign on R14 prediction semantics; R15 adds server legacy-store adoption only, not reached by fresh-store native/Lean/device campaigns. See final-semantic-input-audit.json."
         },
         "wasm": {
-          "path": "/tmp/lang-final-wasm-5042e58965/snapback4_device_bg.wasm",
-          "sha256": "f2a5c87327da730d73c4b69988b212e088dd84fe3de06fafec937038504c06d4",
+          "path": "/tmp/lang-final-wasm-726d2e94d6/snapback4_device_bg.wasm",
+          "sha256": "1e331705f9005f882ea0b89caecc029087722488d058dfc05fa8dc0aad802619",
           "raw": 2353736,
-          "gzip": 716766,
-          "brotli": 541126,
-          "budget": 717266,
-          "clean_measurement_commit": "5042e58965"
+          "gzip": 716763,
+          "brotli": 541305,
+          "budget": 717263,
+          "clean_measurement_commit": "726d2e94d6"
         },
         "oracle": {
           "path": "/tmp/lang-final-oracle-2fb3bb2e98/quarry-oracle",
@@ -65,15 +72,15 @@
       },
       "previous_artifact_receipts": [
         {
-          "at": "2026-10-15T02:39:08.693158+00:00",
-          "production_commit": "f3ba53b70f",
+          "at": "2026-10-15T02:49:07.118541+00:00",
+          "production_commit": "5042e58965",
           "git_head_at_build": "6cb27fdd69f2fb168e9e7370e37b6a553f7fa11b",
           "oracle_model_commit": "2fb3bb2e98",
           "standalone_device_contract_commit": "b9ab88a8b7",
           "artifacts": {
             "cli": {
-              "path": "/tmp/lang-final-cli-f3ba53b70f",
-              "sha256": "0ebf6162b048bf2f4feb71419c0a5fb1eaf6703529c0b8e499e76da537ce2380"
+              "path": "/tmp/lang-final-cli-5042e58965",
+              "sha256": "aa45a14452f0c17a0b2dff765444f1833d9ab721a9b842c697d60506f8bba063"
             },
             "difftest": {
               "path": "/tmp/lang-final-difftest-65560f6c4e",
@@ -82,13 +89,13 @@
               "scope": "Final device campaign on R14 prediction semantics; R15 adds server legacy-store adoption only, not reached by fresh-store native/Lean/device campaigns. See final-semantic-input-audit.json."
             },
             "wasm": {
-              "path": "/tmp/lang-final-wasm-f3ba53b70f/snapback4_device_bg.wasm",
-              "sha256": "3dd408d5408909f3fd172f20e47ab444d85f5217631b615dff6b50c0e05dd8cf",
+              "path": "/tmp/lang-final-wasm-5042e58965/snapback4_device_bg.wasm",
+              "sha256": "f2a5c87327da730d73c4b69988b212e088dd84fe3de06fafec937038504c06d4",
               "raw": 2353736,
-              "gzip": 716767,
-              "brotli": 541248,
-              "budget": 717267,
-              "clean_measurement_commit": "f3ba53b70f"
+              "gzip": 716766,
+              "brotli": 541126,
+              "budget": 717266,
+              "clean_measurement_commit": "5042e58965"
             },
             "oracle": {
               "path": "/tmp/lang-final-oracle-2fb3bb2e98/quarry-oracle",
@@ -98,28 +105,30 @@
           },
           "previous_artifact_receipts": [
             {
-              "at": "2026-10-15T02:17:46.760917+00:00",
-              "production_commit": "65560f6c4e",
+              "at": "2026-10-15T02:39:08.693158+00:00",
+              "production_commit": "f3ba53b70f",
               "git_head_at_build": "6cb27fdd69f2fb168e9e7370e37b6a553f7fa11b",
               "oracle_model_commit": "2fb3bb2e98",
               "standalone_device_contract_commit": "b9ab88a8b7",
               "artifacts": {
                 "cli": {
-                  "path": "/tmp/lang-final-cli-65560f6c4e",
-                  "sha256": "35ca2d73a5f40244e03cd3af1c05cf92d9c97cd06218e7e7f77d0417eb1ad7a0"
+                  "path": "/tmp/lang-final-cli-f3ba53b70f",
+                  "sha256": "0ebf6162b048bf2f4feb71419c0a5fb1eaf6703529c0b8e499e76da537ce2380"
                 },
                 "difftest": {
                   "path": "/tmp/lang-final-difftest-65560f6c4e",
-                  "sha256": "930190f5f7257ceaad75cff0023bfcfe023a830d67bb3a0001d99ae580193463"
+                  "sha256": "930190f5f7257ceaad75cff0023bfcfe023a830d67bb3a0001d99ae580193463",
+                  "source_commit": "65560f6c4e",
+                  "scope": "Final device campaign on R14 prediction semantics; R15 adds server legacy-store adoption only, not reached by fresh-store native/Lean/device campaigns. See final-semantic-input-audit.json."
                 },
                 "wasm": {
-                  "path": "/tmp/lang-final-wasm-65560f6c4e/snapback4_device_bg.wasm",
-                  "sha256": "2dff27d1ab9d62edc58b4fc918044ee25ea7cd512f3bf3d98fb0e2329eb8f6d8",
-                  "raw": 2353573,
-                  "gzip": 716807,
-                  "brotli": 541202,
-                  "budget": 717307,
-                  "clean_measurement_commit": "5a9deb182e"
+                  "path": "/tmp/lang-final-wasm-f3ba53b70f/snapback4_device_bg.wasm",
+                  "sha256": "3dd408d5408909f3fd172f20e47ab444d85f5217631b615dff6b50c0e05dd8cf",
+                  "raw": 2353736,
+                  "gzip": 716767,
+                  "brotli": 541248,
+                  "budget": 717267,
+                  "clean_measurement_commit": "f3ba53b70f"
                 },
                 "oracle": {
                   "path": "/tmp/lang-final-oracle-2fb3bb2e98/quarry-oracle",
@@ -129,88 +138,122 @@
               },
               "previous_artifact_receipts": [
                 {
-                  "at": "2026-10-15T01:49:24.499831+00:00",
-                  "production_commit": "cfd4e2f242",
-                  "git_head_at_build": "ee824cac6fdb5cbd0810d5298af6072018bba5b7",
+                  "at": "2026-10-15T02:17:46.760917+00:00",
+                  "production_commit": "65560f6c4e",
+                  "git_head_at_build": "6cb27fdd69f2fb168e9e7370e37b6a553f7fa11b",
                   "oracle_model_commit": "2fb3bb2e98",
+                  "standalone_device_contract_commit": "b9ab88a8b7",
                   "artifacts": {
                     "cli": {
-                      "path": "/tmp/lang-final-cli-cfd4e2f242",
-                      "sha256": "d45eded9e2747c8d1a281a1bd6e2d16ce203ee0a1ae1c2cea073eccfc50aab72"
+                      "path": "/tmp/lang-final-cli-65560f6c4e",
+                      "sha256": "35ca2d73a5f40244e03cd3af1c05cf92d9c97cd06218e7e7f77d0417eb1ad7a0"
                     },
                     "difftest": {
-                      "path": "/tmp/lang-final-difftest-cfd4e2f242",
-                      "sha256": "72b1357a69d3f8a24df54d09324bbedc14d49380f7a21a6a8fa7b6b13859d1cb"
+                      "path": "/tmp/lang-final-difftest-65560f6c4e",
+                      "sha256": "930190f5f7257ceaad75cff0023bfcfe023a830d67bb3a0001d99ae580193463"
                     },
                     "wasm": {
-                      "path": "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm",
-                      "sha256": "0d1eae6c4dd50ab65a05e59ffd2bc35b5e46212ce29b4e1e115cf34bf6fc9283",
-                      "raw": 2352628,
-                      "gzip": 716694,
-                      "brotli": 541347,
-                      "budget": 717194,
-                      "clean_measurement_commit": "ee824cac6f"
+                      "path": "/tmp/lang-final-wasm-65560f6c4e/snapback4_device_bg.wasm",
+                      "sha256": "2dff27d1ab9d62edc58b4fc918044ee25ea7cd512f3bf3d98fb0e2329eb8f6d8",
+                      "raw": 2353573,
+                      "gzip": 716807,
+                      "brotli": 541202,
+                      "budget": 717307,
+                      "clean_measurement_commit": "5a9deb182e"
                     },
                     "oracle": {
                       "path": "/tmp/lang-final-oracle-2fb3bb2e98/quarry-oracle",
-                      "sha256": "c81001208782e3a086b51ff0d213bd193f21cbbf1189cea94500305eb112db0b"
+                      "sha256": "c81001208782e3a086b51ff0d213bd193f21cbbf1189cea94500305eb112db0b",
+                      "note": "Native Eval/Write/Syntax implementation unchanged; b9ab adds independent abstract contracts, not oracle runtime semantics."
                     }
                   },
                   "previous_artifact_receipts": [
                     {
-                      "at": "2026-10-15T01:30:47.871861+00:00",
-                      "production_commit": "46dcc1e99f",
-                      "git_head_at_build": "46dcc1e99fda3bd10b844dc7aa86726a38c31fdb",
+                      "at": "2026-10-15T01:49:24.499831+00:00",
+                      "production_commit": "cfd4e2f242",
+                      "git_head_at_build": "ee824cac6fdb5cbd0810d5298af6072018bba5b7",
                       "oracle_model_commit": "2fb3bb2e98",
                       "artifacts": {
                         "cli": {
-                          "path": "/tmp/lang-final-cli-46dcc1e99f",
-                          "sha256": "63a0b57bc289361dda703b85a88d09558b5f1cc6c56edba0fcf906ab5427cc53"
+                          "path": "/tmp/lang-final-cli-cfd4e2f242",
+                          "sha256": "d45eded9e2747c8d1a281a1bd6e2d16ce203ee0a1ae1c2cea073eccfc50aab72"
                         },
                         "difftest": {
-                          "path": "/tmp/lang-final-difftest-46dcc1e99f",
-                          "sha256": "a9ee851c6d99d97ec9bfe9e6889e6337a2e7975ec9b0bd09ef4ddcb478747a60"
+                          "path": "/tmp/lang-final-difftest-cfd4e2f242",
+                          "sha256": "72b1357a69d3f8a24df54d09324bbedc14d49380f7a21a6a8fa7b6b13859d1cb"
+                        },
+                        "wasm": {
+                          "path": "snapback4/packages/snapback4/src/wasm/snapback4_device_bg.wasm",
+                          "sha256": "0d1eae6c4dd50ab65a05e59ffd2bc35b5e46212ce29b4e1e115cf34bf6fc9283",
+                          "raw": 2352628,
+                          "gzip": 716694,
+                          "brotli": 541347,
+                          "budget": 717194,
+                          "clean_measurement_commit": "ee824cac6f"
                         },
                         "oracle": {
                           "path": "/tmp/lang-final-oracle-2fb3bb2e98/quarry-oracle",
                           "sha256": "c81001208782e3a086b51ff0d213bd193f21cbbf1189cea94500305eb112db0b"
                         }
                       },
+                      "previous_artifact_receipts": [
+                        {
+                          "at": "2026-10-15T01:30:47.871861+00:00",
+                          "production_commit": "46dcc1e99f",
+                          "git_head_at_build": "46dcc1e99fda3bd10b844dc7aa86726a38c31fdb",
+                          "oracle_model_commit": "2fb3bb2e98",
+                          "artifacts": {
+                            "cli": {
+                              "path": "/tmp/lang-final-cli-46dcc1e99f",
+                              "sha256": "63a0b57bc289361dda703b85a88d09558b5f1cc6c56edba0fcf906ab5427cc53"
+                            },
+                            "difftest": {
+                              "path": "/tmp/lang-final-difftest-46dcc1e99f",
+                              "sha256": "a9ee851c6d99d97ec9bfe9e6889e6337a2e7975ec9b0bd09ef4ddcb478747a60"
+                            },
+                            "oracle": {
+                              "path": "/tmp/lang-final-oracle-2fb3bb2e98/quarry-oracle",
+                              "sha256": "c81001208782e3a086b51ff0d213bd193f21cbbf1189cea94500305eb112db0b"
+                            }
+                          },
+                          "crate_source_files": 774,
+                          "crate_source_digest": "b01c30825e57ff29a2adafd624adef8401b21ebed87cbb8b6169ee1110efe4aa",
+                          "cargo_env": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0"
+                        }
+                      ],
                       "crate_source_files": 774,
-                      "crate_source_digest": "b01c30825e57ff29a2adafd624adef8401b21ebed87cbb8b6169ee1110efe4aa",
+                      "crate_source_digest": "36f2c9008ddc545ebf19c79f35701bf82f227f6e5ff3222b8fcd435dd56e89a4",
                       "cargo_env": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0"
                     }
                   ],
                   "crate_source_files": 774,
-                  "crate_source_digest": "36f2c9008ddc545ebf19c79f35701bf82f227f6e5ff3222b8fcd435dd56e89a4",
+                  "crate_source_digest": "b7eabd81d55870dd3a8ae6692920a11648fafa8667290caa8e77fedce73f5c5a",
                   "cargo_env": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0"
                 }
               ],
               "crate_source_files": 774,
               "crate_source_digest": "b7eabd81d55870dd3a8ae6692920a11648fafa8667290caa8e77fedce73f5c5a",
-              "cargo_env": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0"
+              "cargo_env": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0",
+              "clean_measurement_commit": "f3ba53b70f",
+              "standalone_counter_contract_commit": "f3ba53b70f"
             }
           ],
-          "crate_source_files": 774,
-          "crate_source_digest": "b7eabd81d55870dd3a8ae6692920a11648fafa8667290caa8e77fedce73f5c5a",
+          "crate_source_files": 1277,
+          "crate_source_digest": "14bf16ee61cd4f3cad81b4dc19891772e47df4117eb44dd40d80781a50b2773a",
           "cargo_env": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0",
-          "clean_measurement_commit": "f3ba53b70f",
-          "standalone_counter_contract_commit": "f3ba53b70f"
+          "clean_measurement_commit": "5042e58965",
+          "standalone_counter_contract_commit": "f3ba53b70f",
+          "crate_source_digest_method": "SHA256 of sorted repository-relative .rs path, NUL, file SHA256 and newline for every crate Rust source"
         }
       ],
       "crate_source_files": 1277,
-      "crate_source_digest": "14bf16ee61cd4f3cad81b4dc19891772e47df4117eb44dd40d80781a50b2773a",
+      "crate_source_digest": "e7c0310576c47650ac80eaddbea844d136ad01c0cff4982cbd6c0b30e57f8b93",
       "cargo_env": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0",
-      "clean_measurement_commit": "5042e58965",
+      "clean_measurement_commit": "726d2e94d6",
       "standalone_counter_contract_commit": "f3ba53b70f",
-      "crate_source_digest_method": "SHA256 of sorted repository-relative .rs path, NUL, file SHA256 and newline for every crate Rust source"
+      "crate_source_digest_method": "SHA256 of sorted tracked repository-relative .rs path, NUL, file SHA256 and newline",
+      "standalone_row_precedence_contract_commit": "726d2e94d6"
     }
   ],
-  "crate_source_files": 1277,
-  "crate_source_digest": "e7c0310576c47650ac80eaddbea844d136ad01c0cff4982cbd6c0b30e57f8b93",
-  "cargo_env": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0",
-  "clean_measurement_commit": "726d2e94d6",
-  "standalone_counter_contract_commit": "f3ba53b70f",
-  "crate_source_digest_method": "SHA256 of sorted tracked repository-relative .rs path, NUL, file SHA256 and newline",
-  "standalone_row_precedence_contract_commit": "726d2e94d6"
+  "standalone_admission_contract_commit": "f365e464f6"
 }
