@@ -1,0 +1,51 @@
+{
+  "at": "2026-10-15T01:39:17.774625+00:00",
+  "production": "46dcc1e99f",
+  "model": "2fb3bb2e98",
+  "final_qualification": false,
+  "reason": "R12 paired review found a device commit-end expiry prediction gap. The successful device campaign predates that fix; native and Lean evidence may carry only with a scoped semantic-input audit. No new allowed baseline signatures.",
+  "campaigns": {
+    "native": {
+      "report": "review-r12-20000-native.json",
+      "log": "review-r12-20000-native.log.gz",
+      "log_sha256": "1875db2902a645b39f8da75a5a86017feab204cf439ae1b19d3106006fffd1ee",
+      "generated": 20000,
+      "executed": 1220035,
+      "runtime_refused_unexpected": {},
+      "signatures": {},
+      "seconds": 413.274002367,
+      "time_limited_workers": 0
+    },
+    "device": {
+      "report": "review-r12-20000-device.json",
+      "log": "review-r12-20000-device.log.gz",
+      "log_sha256": "1f589da0cf8cb093b9e7733b77ac98ec9bb50e382976c5966c8e59316555633e",
+      "generated": 20000,
+      "executed": 648098,
+      "runtime_refused_unexpected": {},
+      "signatures": {},
+      "seconds": 441.929215687,
+      "time_limited_workers": 0
+    },
+    "lean": {
+      "report": "review-r12-20000-lean.json",
+      "log": "review-r12-20000-lean.log.gz",
+      "log_sha256": "9449a46bf35b50c22ca593610296c4cbc4fc9b381bb6874d647df9678d98ec18",
+      "generated": 20000,
+      "executed": 56917,
+      "runtime_refused_unexpected": {},
+      "signatures": {
+        "lean": {
+          "lean--code--E_RULE~NOT_FOUND": 3,
+          "lean--continuation-next--next~no-next": 35,
+          "lean--next--next~no-next": 67,
+          "lean--prelude-code--E_RULE~NOT_FOUND": 25
+        }
+      },
+      "seconds": 138.019184843,
+      "time_limited_workers": 0
+    }
+  },
+  "lean_baseline": "snapback4/reports/20261013-integration9/lean-signature-baseline.json",
+  "lean_baseline_sha256": "c78c291f7381bb22a8dcc936d9a257e61401b729cdf70ca0fe6f2accb9f9c1df"
+}
