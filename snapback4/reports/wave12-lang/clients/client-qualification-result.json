@@ -66,6 +66,23 @@
     "unionCoversEveryRequestedFile": true
   },
   "qualifiedRequestedFileCount": 27,
+  "readOnlyFinalDeltaAudit": {
+    "auditedCommit": "f4f0bafe794c3685017d7bdd36d7584206013a2c",
+    "deltaShapes": [
+      "expired same-id replacement must recheck a secondary unique key acquired by another live row",
+      "commit-end expiry cascades before an after-insert final-exists obligation"
+    ],
+    "files": {
+      "packages/snapback4/test/decorated-search.test.mjs": "Expiring rows are seeded, updated, renewed or deleted; unique profiles/cards are never replaced at the same id. The message replacement uses distinct old/new ids and messages have no secondary unique key.",
+      "packages/snapback4/test/in-chat-search.test.mjs": "It declares unique indexes but no expiry and performs no mutation path that replaces an expired row.",
+      "packages/snapback4/test/ordinary-search-ledger.test.mjs": "It is a client coordinator fixture with mocked device/server replies and performs no engine write or schema constraint evaluation.",
+      "packages/snapback4/test/ordinary-search-oracle.test.mjs": "It covers expired same-id message rebirth, but messages have no secondary unique or cap constraint; the final fix changes rechecking of released secondary keys, which this schema cannot exercise.",
+      "packages/snapback4/test/ordinary-search.test.mjs": "Expiring messages have no secondary unique key and are updated rather than same-id inserted; the unique members table does not expire.",
+      "packages/snapback4/test/retained-search-order.test.mjs": "Its answers-stay schema has no expiry; it exercises membership removal and retained delivery only."
+    },
+    "rerunRequired": false,
+    "sharedExclusion": "None of the six files declares an `after insert` obligation, so none reaches the final-exists ordering change."
+  },
   "runs": [
     {
       "compressedLog": {
