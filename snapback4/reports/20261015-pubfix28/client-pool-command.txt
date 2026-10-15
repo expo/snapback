@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -u
+cd /home/ccheever/projects/sb4-w12-pubfix28/snapback4
+export CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
+export LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT
+export PATH=/home/ccheever/.bun-1.4.2/bin:$PATH
+unset SNAPBACK4_BIN SNAPBACK4_TEST_SERIAL_CLIENT_FILES
+client_files=()
+for path in packages/snapback4/test/*.test.mjs; do
+  case "$(basename "$path")" in
+    app-session-model.test.mjs|online-client-model.test.mjs) ;;
+    *) client_files+=("$path") ;;
+  esac
+done
+client_test_cpus=$(node -p 'require("node:os").availableParallelism()')
+client_test_concurrency=$((client_test_cpus / 3))
+if [ "$client_test_concurrency" -lt 1 ]; then client_test_concurrency=1; fi
+if [ "$client_test_concurrency" -gt 24 ]; then client_test_concurrency=24; fi
+printf 'publication client pool: %s files; %s CPUs; %s slots\n' "${#client_files[@]}" "$client_test_cpus" "$client_test_concurrency"
+node scripts/run-client-tests.mjs "$client_test_concurrency" files "${client_files[@]}"
+pool_status=$?
+printf '%s\n' "$pool_status" > /tmp/pubfix28-logs/client-pool.exit
+exit "$pool_status"

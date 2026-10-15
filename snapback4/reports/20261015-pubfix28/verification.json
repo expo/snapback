@@ -1,0 +1,177 @@
+{
+  "format": 1,
+  "scope": "PUBFIX28 requested Linux verification; not a publication receipt",
+  "publicationQualified": false,
+  "version": "0.4.28",
+  "platform": "linux-x64",
+  "baseline": "8fe2b2e8394399af124ccf438702672dc4eb7d83",
+  "sourceCommit": "e28e574cf737abbb41bf45766f0df899ecdb6c3a",
+  "productCommit": "1f963c6ccccd19c3aa177aeba50ea0673be162e4",
+  "binarySha256": "75618ca08584755df3523d189362bebc19a10ed0df02001172c2a1fd180f2236",
+  "rust": {
+    "groups": 377,
+    "passed": 6076,
+    "failed": 0,
+    "ignored": 41,
+    "excludedNestedSummaries": 14
+  },
+  "clients": {
+    "client-pool": {
+      "completedFiles": 388,
+      "totalFiles": 388,
+      "failedFiles": 0,
+      "tests": {
+        "tests": 7501,
+        "pass": 7445,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 56,
+        "todo": 0
+      }
+    },
+    "client-models": {
+      "completedFiles": 2,
+      "totalFiles": 2,
+      "failedFiles": 0,
+      "tests": {
+        "tests": 81,
+        "pass": 81,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    },
+    "fixture-tests": {
+      "completedFiles": 1,
+      "totalFiles": 1,
+      "failedFiles": 0,
+      "tests": {
+        "tests": 9,
+        "pass": 9,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    }
+  },
+  "commands": {
+    "five-crates": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast",
+    "client-pool": "See client-pool-command.txt; same publication files selection/concurrency, default SNAPBACK4_BIN removed, all 17 timer files stay in this invocation.",
+    "client-models": "node scripts/run-client-tests.mjs 1 models packages/snapback4/test/app-session-model.test.mjs packages/snapback4/test/online-client-model.test.mjs",
+    "fixture-tests": "node scripts/run-client-tests.mjs 1 files fixtures/",
+    "docs-budget": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 node scripts/docs-budget.mjs",
+    "ref-check-final": "./ref-check",
+    "inventories-final": "node scripts/check-inventories.mjs",
+    "guide-final": "node scripts/check-guide.mjs",
+    "control-tests": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test -p snapback4 release_control::tests -- --nocapture (then CLI build with the same flags)",
+    "preview-before": "node --test --test-name-pattern=\"REL mutation decoding\" packages/snapback4/test/release-activation.test.mjs, against the original binary: expected narration red",
+    "preview-after": "same affected command, rebuilt fixed binary: passed",
+    "sb4-setup": "bun install --frozen-lockfile; cargo build -p snapback4 with disabled incremental/dev-debug/test-debug; bash scripts/build-wasm.sh; bun run --cwd packages/snapback4 build",
+    "root-setup": "bun install --frozen-lockfile; node scripts/ensure-workspace-hoist.mjs; scripts/check-generated-artifacts"
+  },
+  "logs": {
+    "sb4-setup": {
+      "log": "sb4-setup.log.gz",
+      "rawBytes": 19113,
+      "rawSha256": "138f2b8f12de610e51b800f9ea6b3ef7b52b2848fea5c0dd23cac40fc1dd09ae",
+      "gzipSha256": "f378a9183e03f191ed2a28d077a4c061a2e240638242db8f666545eaffcf247c",
+      "exitCode": 0
+    },
+    "root-setup": {
+      "log": "root-setup.log.gz",
+      "rawBytes": 62522,
+      "rawSha256": "090b29c2085147049b9a3832c59d7838ced09e854380dc9a775d01e6d67d4fc3",
+      "gzipSha256": "d295775e948d4419a8b035f575e6bc7cfe062df03c2936a24f4a93352aa72b98",
+      "exitCode": 0
+    },
+    "preview-before": {
+      "log": "preview-before.log.gz",
+      "rawBytes": 19720,
+      "rawSha256": "2fe7e918d5d70a9e61df95376d3d4e8fef86db9b68f3ff5c31b28fe526b3f72a",
+      "gzipSha256": "de4a9164747557f0d7eaadd2d497fa759811de6c65e672602f2646f79ff85be5",
+      "exitCode": 1
+    },
+    "preview-after": {
+      "log": "preview-after.log.gz",
+      "rawBytes": 372,
+      "rawSha256": "65656f96ea5f1f542f6e50ea088f2aee54f262c5bc069473a78b3a0fee1c8897",
+      "gzipSha256": "43636436c3fd18bb87410f3b46b5e05f8cd291838b60446d88f20446191f68de",
+      "exitCode": 0
+    },
+    "control-tests": {
+      "log": "control-tests.log.gz",
+      "rawBytes": 30371,
+      "rawSha256": "fe36b437bd0be4faa12516fe680426bb46ed8c75d0eea87b7974d53336451865",
+      "gzipSha256": "8ed79d221a38ae3f5e247afe6cf9a79e62fafd68c8e06be225e3f7600ba8c79c",
+      "exitCode": 0
+    },
+    "five-crates": {
+      "log": "five-crates.log.gz",
+      "rawBytes": 748185,
+      "rawSha256": "fc4c60a5c49936fb437cfd72ee69745781875978a6bb7239dfde0317fead5c07",
+      "gzipSha256": "9183d8b1a043223009a8df721f8b5ccc3b464e5eb84eeff7ed2ef9348bea393c",
+      "exitCode": 0
+    },
+    "client-pool": {
+      "log": "client-pool.log.gz",
+      "rawBytes": 2011907,
+      "rawSha256": "2ffd04bf2c7fee6411091e102a71458300e081f1f2abe8a40abaddf302bc0a35",
+      "gzipSha256": "6c3ba2cf914e1e4970cb6c5782fb97ac1593cc10f59e4ce65a37696b8fa7d8f0",
+      "exitCode": 0
+    },
+    "client-models": {
+      "log": "client-models.log.gz",
+      "rawBytes": 32671,
+      "rawSha256": "c948739e79f7e0512d563e90ce8285e8b90baf931a2ac7ff7c98d5eaef2ec37d",
+      "gzipSha256": "189da5c06008aa1affdfb066c8098c645d574c0ad75505c651447205430cb4a7",
+      "exitCode": 0
+    },
+    "fixture-tests": {
+      "log": "fixture-tests.log.gz",
+      "rawBytes": 2363,
+      "rawSha256": "b23f18e14a40266cf8aef1c1269e1ac2b67c5802ea80da76405285a6c29f672f",
+      "gzipSha256": "3b74188537efbefde01b459f2e068a0ab9a2f1d401357134937da3721c9b2d62",
+      "exitCode": 0
+    },
+    "docs-budget": {
+      "log": "docs-budget.log.gz",
+      "rawBytes": 5092,
+      "rawSha256": "a37275b4a9dcd8c57046e5ea559612348cee317f8cfcbfd5ea6396c81b01dd1c",
+      "gzipSha256": "62872e0cfc5d6a67532aa83b0ef2fa5bdf7fa61ab1d1116998d30a13506b88b9",
+      "exitCode": 0
+    },
+    "ref-check-final": {
+      "log": "ref-check-final.log.gz",
+      "rawBytes": 81,
+      "rawSha256": "1112a1bf8c6fd98e3bf4da03bcd18260fdda3ef95c9601204d046fe0c231bdce",
+      "gzipSha256": "b65e71a826539ded3a4fbd3c806166abd5e21e62a31bac7ce5c163faf7e508fc",
+      "exitCode": 0
+    },
+    "inventories-final": {
+      "log": "inventories-final.log.gz",
+      "rawBytes": 3499,
+      "rawSha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813",
+      "gzipSha256": "3e726e2a66c8627b0f3779e0533edbab31ae71def49b8790abb06f9c08594925",
+      "exitCode": 0
+    },
+    "guide-final": {
+      "log": "guide-final.log.gz",
+      "rawBytes": 19451,
+      "rawSha256": "d62ed70274abd318ee262e7995bcfbd000425b050f7b6cba9b28582c0c074559",
+      "gzipSha256": "0a4e5edd6f9518da0fa97d61adee9dc0f4fdf7bd006ed67628e5e0ef7a3c215f",
+      "exitCode": 0
+    }
+  },
+  "limits": [
+    "No macOS regression execution; the pre-fix Darwin inheritance failure cannot be demonstrated on Linux.",
+    "No push, publication, platform tarball qualification or publication receipt.",
+    "Eight trailing-space lines in the verbatim Codex review transcript are preserved; source/doc diff-check excluding that transcript passes."
+  ],
+  "modelSequenceDefaults": {
+    "sessionPerTier": 5000,
+    "online": 3000,
+    "overridesAbsent": true
+  }
+}
