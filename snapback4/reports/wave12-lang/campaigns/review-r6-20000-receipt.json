@@ -1,0 +1,50 @@
+{
+  "at": "2026-10-15T00:17:53.223829+00:00",
+  "production": "12fe4f47fd",
+  "model": "19583953dd",
+  "final_qualification": false,
+  "reason": "P1/P2 R6 review revoked production freeze; device prediction refusal remains under investigation",
+  "campaigns": {
+    "native": {
+      "report": "review-r6-20000-native.json",
+      "log": "review-r6-20000-native.log.gz",
+      "log_sha256": "192b5df4f59c1f33b1e18c480c8df190649cae6ee58fef47d96710feb8724d9a",
+      "generated": 20000,
+      "executed": 1220035,
+      "unexpected_runtime_refusals": {},
+      "signatures": {}
+    },
+    "device": {
+      "report": "review-r6-20000-device.json",
+      "log": "review-r6-20000-device.log.gz",
+      "log_sha256": "51650be950e4cceef06b261a5d4ec7d7eb260469cedce2ad6a0161e6828e1f45",
+      "generated": 20000,
+      "executed": 648098,
+      "unexpected_runtime_refusals": {},
+      "signatures": {
+        "device-memory-write": {
+          "device-memory--write-predicted-refused--admitted": 1
+        },
+        "device-sqlite-write": {
+          "device-sqlite--write-predicted-refused--admitted": 1
+        }
+      }
+    },
+    "lean": {
+      "report": "review-r6-20000-lean.json",
+      "log": "review-r6-20000-lean.log.gz",
+      "log_sha256": "7d73bf203fb289119162d021b16d67d15d641e126d98956d2973c7f3b1b3921f",
+      "generated": 20000,
+      "executed": 56897,
+      "unexpected_runtime_refusals": {},
+      "signatures": {
+        "lean": {
+          "lean--code--E_RULE~NOT_FOUND": 3,
+          "lean--continuation-next--next~no-next": 35,
+          "lean--next--next~no-next": 64,
+          "lean--prelude-code--E_RULE~NOT_FOUND": 25
+        }
+      }
+    }
+  }
+}
