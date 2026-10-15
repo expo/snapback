@@ -62,6 +62,7 @@ export async function qualify(args = process.argv.slice(2)) {
   if (!options["--client"] || !options["--expo"] || !options["--out"]) throw new Error("usage: qualify-linux.mjs --client /path/client.tgz --expo /path/expo.tgz --out /path/new-directory [--consumer-only]");
   const root = resolve(dirname(fileURLToPath(import.meta.url)), ".."), out = options["--out"], client = options["--client"], expo = options["--expo"];
   if (existsSync(join(out, "receipt.json"))) throw new Error("qualification receipt already exists; choose a new --out directory");
+  (await import("./proof-listener-audit.mjs")).requireListenerTracer();
   const source = cleanSource(root), version = json(join(root, "packages/snapback4/package.json")).version;
   if (!/^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/.test(version)) throw new Error("invalid release version");
   clientManifest(client, version);

@@ -67,9 +67,18 @@ export async function proveFrontendTwice(run, cwd, starter) {
     const high = Math.min(65535, low + 20);
     const workers = Array.from({ length: 2 }, () => new Worker(`setInterval(() => { const until = performance.now() + 25; while (performance.now() < until) {} }, 50);`, { eval: true }));
     const started = Date.now(), load = loadavg();
+    const audit = join(cwd, `listener-audit-${attempt}.json`);
+    const trace = join(cwd, `listener-audit-${attempt}.trace`);
+    const auditEnabled = process.platform === "linux";
+    const tracerVersion = auditEnabled ? (await import("./proof-listener-audit.mjs")).requireListenerTracer() : undefined;
+    const proofLogs = join(cwd, `proof-logs-${attempt}`);
     try {
-      await run("npm", ["run", "frontend:proof"], cwd, { PORT_LO: String(low), PORT_HI: String(high) });
-      results.push({ starter: starter.id, kind: starter.kind, attempt, status: "passed", elapsedMs: Date.now() - started, range: [low, high], occupied: low, cpuLoadWorkers: workers.length, loadavg: load, logs: join(cwd, "logs") });
+      await run(auditEnabled ? "strace" : process.execPath, [...(auditEnabled ? ["-f", "-q", "-z", "-yy", "-e", "trace=listen", "-e", "signal=none", "-o", trace, process.execPath] : []), "scripts/frontend-proof.mjs"], cwd, { PORT_LO: String(low), PORT_HI: String(high), SNAPBACK4_PROOF_LOGS: proofLogs });
+      const listenerAudit = auditEnabled ? (await import("./proof-listener-audit.mjs")).auditListenerTrace(readFileSync(trace, "utf8"), low, high) : { status: "not-run", reason: "listener audit belongs to Linux qualification" };
+      if (auditEnabled) { assert.equal(listenerAudit.status, "passed"); assert.ok(listenerAudit.samples > 0); listenerAudit.tracerVersion = tracerVersion; }
+      assert.ok(existsSync(proofLogs));
+      writeFileSync(audit, JSON.stringify(listenerAudit));
+      results.push({ starter: starter.id, kind: starter.kind, attempt, status: "passed", elapsedMs: Date.now() - started, range: [low, high], occupied: low, cpuLoadWorkers: workers.length, loadavg: load, listenerAudit, logs: proofLogs });
     } finally {
       const stopped = await Promise.allSettled([...workers.map(worker => boundedStop(worker.terminate(), "CPU worker stop")), boundedStop(new Promise(resolve => occupied.close(resolve)), "occupied listener close")]);
       const failures = stopped.filter(result => result.status === "rejected").map(result => result.reason);
@@ -77,6 +86,27 @@ export async function proveFrontendTwice(run, cwd, starter) {
     }
   }
   return results;
+}
+
+// A fixture-owned component makes the custom Home prove an actual rendered write.
+export function installCustomWriteScenario(cwd,kind) {
+  assert.ok(["web","expo"].includes(kind));
+  const screen=join(cwd,kind === "web" ? "src/App.tsx" : "App.tsx");
+  const proofPath=join(cwd,"scripts/frontend-proof.mjs");
+  const original=readFileSync(screen,"utf8"), proof=readFileSync(proofPath,"utf8");
+  assert.equal(original.split("<FirstRead />").length-1,1,"custom qualification needs one generated Home read slot");
+  assert.ok(original.includes("function Home()") && !original.includes("function ProofWrite()"),"custom qualification needs a fresh Home");
+  const needle="renderedText(page, new RegExp(title))";
+  assert.equal(proof.split(needle).length-1,1,"custom qualification needs the generated assertion slot");
+  const imports=`import {useState as proofState} from 'react';\nimport {useMutation as proofMutation,useQuery as proofQuery} from 'snapback4/react';\n`
+    +(kind === "expo" ? `import {TextInput as ProofTextInput} from 'react-native';\n` : '');
+  const body=kind === "web"
+    ? `<section id="proof-rows"><form onSubmit={e=>{e.preventDefault();void writer.run({title:draft})}}><input aria-label="Task" value={draft} onChange={e=>setDraft(e.target.value)}/><button type="submit">Add</button></form><p>{"data" in rows?JSON.stringify(rows.data):""}</p></section>`
+    : `<View nativeID="proof-rows"><ProofTextInput accessibilityLabel="Task" value={draft} onChangeText={setDraft}/><Button title="Add" onPress={()=>void writer.run({title:draft})}/><Text>{"data" in rows?JSON.stringify(rows.data):""}</Text></View>`;
+  const component=`\nfunction ProofWrite(){const [draft,setDraft]=proofState("");const writer=proofMutation(api.add),rows=proofQuery(api.mine,{});return ${body};}\n`;
+  const source=imports+original.replace("<FirstRead />","<FirstRead /><ProofWrite />")+component;
+  const assertion=proof.replace(needle,'renderedText(page, new RegExp(title), { within: page.locator("#proof-rows") })');
+  writeFileSync(screen,source);writeFileSync(proofPath,assertion);
 }
 
 // Runs outside a checkout, using only packed release artifacts. Registry access
@@ -124,10 +154,25 @@ export async function proveStarters(client, platform, expo, directory, browserPr
     // Exercise init-first adaptation with a different online-only schema: Home,
     // generated API, identity, README and the no-wasm journal must build together.
     writeFileSync(join(cwd, "snapback/schema.q"), `use identity guests\ntable notes:\n  owner: principal\n  title: text <=80\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nquery mine():\n  return notes where .owner = viewer first 20 by .id\nmutation add(title: text <=80):\n  return insert notes { owner: viewer, title }\n`);
-    await run(cli, ["init", "--adapt"], cwd);
+    await run(cli, ["init", "--adapt", "--apply"], cwd);
+    await build();
+    let negativeProof;
+    if (browserProofs) {
+      const guard = join(cwd, "negative-proof.mjs");
+      const tracerVersion = process.platform === "linux" ? (await import("./proof-listener-audit.mjs")).requireListenerTracer() : undefined;
+      const negativeTrace = join(cwd, "negative-listener-audit.trace");
+      writeFileSync(guard, `import {spawnSync} from 'node:child_process'; import assert from 'node:assert/strict'; const r=spawnSync(${JSON.stringify(process.platform === 'linux' ? 'strace' : process.execPath)},${JSON.stringify([...(process.platform === 'linux' ? ['-f','-q','-z','-yy','-e','trace=listen','-e','signal=none','-o',negativeTrace,process.execPath] : []),'scripts/frontend-proof.mjs'])},{encoding:'utf8',timeout:60000,env:process.env}); process.stdout.write(r.stdout); process.stderr.write(r.stderr); assert.notEqual(r.status,0); assert.match(r.stderr,/no write scenario: replace the Home assertions/);`);
+      const negativeAudit = join(cwd, "negative-listener-audit.json");
+      await run(process.execPath, [guard], cwd, {PORT_LO:"30000",PORT_HI:"30020"});
+      const listenerAudit = process.platform === "linux" ? (await import("./proof-listener-audit.mjs")).auditListenerTrace(readFileSync(negativeTrace,"utf8"),30000,30020) : {status:"not-run",reason:"listener audit belongs to Linux qualification"};
+      if (process.platform === "linux") { assert.equal(listenerAudit.status,"passed"); assert.ok(listenerAudit.samples>0); listenerAudit.tracerVersion = tracerVersion; }
+      writeFileSync(negativeAudit, JSON.stringify(listenerAudit));
+      negativeProof = {status:"passed", expected:"no write scenario: replace the Home assertions", listenerAudit};
+    }
+    installCustomWriteScenario(cwd,kind);
     await build();
     const adaptedProofs = browserProofs ? await proveFrontendTwice(run, cwd, starter) : [];
-    results.push({ starter: id, kind, status: "passed", adapted: "passed", typecheck: "passed", build: "passed", frontendProofs, adaptedProofs });
+    results.push({ starter: id, kind, status: "passed", adapted: "passed", typecheck: "passed", build: "passed", frontendProofs, adaptedProofs, negativeProof, formSubmit: kind === "web" ? "passed" : "not-applicable" });
   }
   return results;
 }

@@ -54,7 +54,7 @@ fn plan(dir: &Path) -> (Vec<Leftover>, Vec<String>, Vec<String>) {
     }
     if let Some(text) = read(dir, "src/native-smoke.ts") {
         let wanted = starter::native_smoke(own.identity.is_some_and(|(password, guests)| password && !guests));
-        let recognized = [false, true].into_iter().any(|password| text == starter::native_smoke(password));
+        let recognized = [false, true].into_iter().any(|password| text == starter::native_smoke(password) || text == starter::native_smoke(password).lines().filter(|line| !line.starts_with("// smokeSegment()") && !line.starts_with("// native module config")).collect::<Vec<_>>().join("\n") + "\n");
         if !recognized { modified.push("src/native-smoke.ts".to_owned()); }
         if text != wanted && recognized && smoke_referenced(dir) {
             found.push(Leftover { path: "src/native-smoke.ts", why: "the unmodified native smoke helper uses the previous schema's sign-in".into(), rewrite: Some(wanted) });
@@ -353,9 +353,11 @@ pub(super) fn adapt(dir: &Path, dry_run: bool, apply: bool) -> i32 {
         println!("  {} {} — missing proof infrastructure", if *path == "package.json" { "extend" } else { "add" }, path);
     }
     if !modified.is_empty() { println!("init --adapt: application-owned or modified files stay unchanged: {}", modified.join(", ")); }
-    if dry_run || (!apply && !modified.is_empty() && (!found.is_empty() || !proof.is_empty())) {
-        println!("init --adapt: preview only; no files changed. Run `snapback4 init{} --adapt --apply` to apply the listed changes", if dir == Path::new(".") { String::new() } else { format!(" {}", dir.display()) });
+    if dry_run || !apply {
         for line in advice { println!("init --adapt: {line}"); }
+        if !fits_todos(&own) { println!("init --adapt: no write scenario: replace the Home assertions"); }
+        println!("init --adapt: preview only; no files changed. Apply with:");
+        println!("snapback4 init{} --adapt --apply", if dir == Path::new(".") { String::new() } else { format!(" '{}'", dir.to_string_lossy().replace('\'', "'\"'\"'")) });
         return 0;
     }
     if let Err(error) = super::proof::apply(dir, &proof) { eprintln!("init --adapt proof: {error}"); return 2; }

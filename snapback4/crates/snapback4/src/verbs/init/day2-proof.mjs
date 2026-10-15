@@ -6,8 +6,11 @@ import { mkdtemp, rm, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { deploy, rollback, startServe, testSource, cli, cleanup } from "snapback4/proof";
-const [v1, v2] = process.argv.slice(2);
-if (!v1 || !v2) throw Error("usage: npm run day2:proof -- versions/v1.q versions/v2.q");
+const args = process.argv.slice(2);
+// npm appends caller arguments after the script's default pair.
+const supplied = args.length > 2 && args[0] === "versions/v1.q" && args[1] === "versions/v2.q" ? args.slice(2) : args;
+const [v1, v2] = supplied;
+if (supplied.length !== 2 || !v1 || !v2) throw Error("usage: npm run day2:proof -- versions/v1.q versions/v2.q");
 const before = await Promise.all([readFile(v1), readFile(v2)]);
 const directory = await mkdtemp(join(tmpdir(), "snapback4-day2-"));
 let serve;

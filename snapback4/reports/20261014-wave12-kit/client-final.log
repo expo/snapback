@@ -1,0 +1,32 @@
+✔ runtime port range is inclusive, validated, and never cached (0.971538ms)
+✔ native and static bind beyond an occupied port; identity and independent logs (166.475491ms)
+✔ exhausted range and missing export fail with bounded cleanup (189.179617ms)
+✔ static host serves wasm correctly and refuses escaped symlink assets (122.892026ms)
+✔ saved-source deploy, preview, hot forward, rollback and fixture test never change working bytes (488.19086ms)
+✔ cli awaits close, separates output and returns refusal status (65.601511ms)
+✔ ANSI and blank ready lines, early exit, stalled readiness and TERM escalation (168.24183ms)
+✔ cleanup bounds stalled actions and continues after errors (39.976945ms)
+✔ exit sweep kills registered child, not a neighboring child (61.720671ms)
+✔ Vite uses the project's config and bound identity (232.529701ms)
+✔ browser helpers use fresh text, stable values and RN keystrokes (706.769524ms)
+✔ SIGKILLed driver closes frontend liveness and sweeps its whole private group (186.237704ms)
+✔ saved schemas typecheck server companions against private candidate API without replacing working types (2877.928283ms)
+✔ ready PID and served marker mismatches refuse instead of adopting another identity (118.489732ms)
+✔ H8 custom-schema generated proof refuses success without a write (1377.640533ms)
+✔ H8 withBrowser honors caller Playwright and opens no TCP listener (269.716281ms)
+✔ H8 witness claims the trusted button form submit, preserving canonical null arguments (619.486631ms)
+✔ init preserves package identity, reports current range, and adapt is read-only by default (57.787351ms)
+✔ proof.cli runs JS wrapper verbs (38.862824ms)
+✔ rendered evidence excludes textareas and scopes freshness; frontPage activates (434.722807ms)
+✔ unclaimable events, operations and arguments settle with reasons; pending is never terminal (4.057987ms)
+✔ day2 caller source arguments override npm defaults and malformed argument lists refuse (77.245517ms)
+✔ adapt migrates recognized legacy literal scripts/config and preserves explicit defaults (21.01392ms)
+✔ single-port ranges remain valid for schema-only init; UI init refuses before writes (6.593ms)
+ℹ tests 24
+ℹ suites 0
+ℹ pass 24
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5485.738872

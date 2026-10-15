@@ -95618,3 +95618,68 @@ Both independent fresh families are READY on semantic 03342458bd; all received
 rounds and briefs are retained under llp/reviews/3000.000.000-surf-r*.
 Subsequent changes are aliases, explanatory text and tests. Version remains
 0.4.28 until integration. No full test.sh, push, publication or Mac qualification.
+
+## 2026-10-14 — KIT, wave 12: honest proof scaffolds and bounded browsers
+
+The proof kit now launches the caller's Playwright over a pipe, dispatches CLI
+verbs through the installed wrapper, and keeps default logs outside app source.
+Rendered-text/container freshness and frontPage helpers carry the next browser
+pitfalls. The witness global always installs; URL arming is explicit, synchronous
+button-caused submit qualifies, and unclaimable durable writes settle with a
+reason. Pending notifications are never terminal evidence. Custom Home proofs
+fail until the builder supplies a write. Chat and social proofs now exercise
+real stored writes rather than stopping after sign-in.
+
+Init keeps package identity, reports current range URLs, generates saved-source
+snapshots/default day-two arguments, and ends with a bold npm install line.
+Installation stays explicit. Bare adapt writes nothing; only --apply migrates
+recognized generated files, including legacy literal launch commands, while
+preserving explicit port defaults and application edits. UI scaffolds need two
+runtime ports; single-port ranges remain valid for schema-only init/proof hosts.
+LLP 3000.011.003.000.000 §8 records this amendment. Independent reviews found and
+repaired nested script-click provenance, appended source arguments, legacy port
+preservation, missing template registrations and retained log paths.
+
+Linux packed-starter qualification now requires custom-Home negative evidence,
+process-tree listener audits on every browser proof, and an application form
+whose only writer is onSubmit. Darwin consumers keep write/negative cases and
+record the Linux listener audit as not-run. The three new H8 tests each fail on
+0.4.28; candidate focused tests and the standalone chat write proof pass. Final
+packed bytes, review confirmations and check results are recorded in this
+workstream's report; no publish or push is authorized here.
+
+## 2026-10-15 — KIT qualification: trace observations and routed witness arming
+
+The first packed frontend passed its write but the /proc listener observer
+refused a transient Chromium sandbox-helper EACCES. The observer now traces
+returned listen calls in the proof's own process tree with strace >=6.8;
+preflight checks the decoder, receipts retain its version and corroborated
+absent/zombie no-return fragments, and one shared validator refuses empty,
+malformed or wrong-range regular and negative evidence. No process is signalled
+by the observer. This is observational qualification, with its limits stated in
+LLP 3000.011.003.000.000 §8. Two more blind review rounds found incomplete named
+listen/result and receipt validation; their concrete controls now pass. Static
+export input validation also moves before keeper spawn so a missing-index
+message flushes before private-group cleanup.
+
+The fresh six-template matrix then passed ten attempts and caught a real social
+starter issue: Expo Router drops the witness query parameter on Profile. Arming
+is sampled at browser registration and retained across same-document routes,
+like the original opt-in registration lifetime; a new registration samples its
+URL again. The global still installs when disabled and names the repair. A real
+browser route/submit regression passes, and the social write passes twice under
+occupied-port/CPU load with listener traces. Registration safely ignores native
+window aliases without browser location; the added Expo template registrations
+therefore do not depend on a native location object. Final exact-pack evidence
+and paired confirmation follow in the workstream report; no publish or push.
+
+## 2026-10-15 — KIT custom-schema qualification fixture correction
+
+All twelve generated frontend attempts passed at 57002d88cc. The subsequent
+custom-schema fixture failed TypeScript before its positive proof: positional
+JSX insertion had selected Account while the writer variables belonged to Home.
+Qualification now adds a separate ProofWrite component to Home's unique
+FirstRead slot, with a scoped rendered-row assertion. Generated web and Expo
+fixtures both typecheck and refuse repeat application without modifying files.
+The custom web writer remains an actual form onSubmit. This repairs the harness,
+not the product; the failed attempt supplies no complete qualification claim.

@@ -1,0 +1,790 @@
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:292:13
+    |
+292 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:503:15
+    |
+503 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: `snapback4-core` (lib) generated 9 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling snapback4-lang v0.4.28 (/home/ccheever/projects/sb4-w12-kit/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.28 (/home/ccheever/projects/sb4-w12-kit/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:450:51
+    |
+450 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4 v0.4.28 (/home/ccheever/projects/sb4-w12-kit/snapback4/crates/snapback4)
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:115:30
+    |
+115 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:131:30
+    |
+131 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+
+warning: method `push` is never used
+  --> crates/snapback4/src/dev_refusal_console.rs:22:12
+   |
+16 | impl Console {
+   | ------------ method in this implementation
+...
+22 |     pub fn push(&mut self, record: Value, identity: &Value, out: &mut impl Write) {
+   |            ^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `human_period` is never used
+   --> crates/snapback4/src/verbs.rs:822:4
+    |
+822 | fn human_period(ms: u64) -> String {
+    |    ^^^^^^^^^^^^
+
+warning: `snapback4` (bin "snapback4" test) generated 4 warnings (run `cargo fix --bin "snapback4" -p snapback4 --tests` to apply 2 suggestions)
+    Finished `test` profile [optimized] target(s) in 40.49s
+     Running unittests src/main.rs (snapback4/target/debug/deps/snapback4-249264fb8883eae0)
+
+running 432 tests
+snapback4: recovered a mutex after a request panicked
+test assets::tests::byte_ranges_distinguish_invalid_and_unsatisfiable_requests ... ok
+test auth::tests::bearer_padding_matches_sdk_read_token_predicate ... ok
+test cli_flags::integration_tests::wave9_web_flags_and_upgrade_keep_shared_validation ... ok
+test auth::tests::password_slots_are_bounded_and_reusable_for_each_admission_class ... ok
+test auth::tests::rate_keys_expire_and_rotation_does_not_bypass_limits ... ok
+test dev_clock_store::tests::utc_text_and_spans_match_the_calendar ... ok
+test dev_worker::environment::tests::structured_logs_redact_json_escaped_secrets_across_chunks ... ok
+test dev_worker::environment::tests::secrets_are_redacted_across_chunks_newlines_and_prefixes ... ok
+test host_limits::capacity_tests::the_descriptor_bound_follows_connections ... ok
+test host_limits::capacity_tests::defaults_flags_and_environment_size_the_pools ... ok
+test host_limits::tests::descriptor_policy_preserves_hard_and_higher_soft_limits ... ok
+test exact_device::tests::unstamped_corrupt_and_duplicate_stamps_are_unknown ... ok
+test host_limits::tests::hard_capped_1024_warns_without_attempting_a_setter ... ok
+test host_limits::tests::doctor_uses_the_live_servers_effective_limit ... ok
+test host_limits::tests::inherited_hard_cap_requires_operator_remediation ... ok
+snapback4 dev: the new schema was not adopted: E_STORE: expiry phase is locked; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+test host_limits::tests::inherited_linux_default_needs_no_operator_remediation ... ok
+test host_limits::tests::inherited_macos_limit_accounts_for_open_max_and_lower_host_ceilings ... ok
+test host_limits::tests::refused_raise_keeps_the_inherited_limit_and_reports_the_os_cause ... ok
+test native::tests::cargo_messages_select_the_current_cdylib_over_a_later_stale_name ... ok
+test native::tests::cargo_messages_refuse_missing_or_ambiguous_app_cdylibs ... ok
+test note_rank::tests::a_compiled_complete_form_prints_once_per_lead_by_default ... ok
+test note_rank::tests::notes_rank_by_consequence_and_collapse_repeats ... ok
+test note_rank::tests::completeness_note_is_three_lines_and_points_to_verbose_detail ... ok
+test persona_principals::qdiag_tests::declared_persona_principals_are_checked_without_rewriting_identity ... ok
+test port_flag::tests::every_listening_verb_parses_one_port_zero_a_range_or_refuses_e_input ... ok
+test port_flag::tests::a_port_range_binds_its_first_free_port_and_refuses_when_full ... ok
+test auth::tests::an_exhausted_peer_cannot_fill_the_email_admission_table ... ok
+test serve::dev_doors::tests::the_missing_id_example_is_a_valid_id ... ok
+test serve::dev_refusals::console::tests::counted_line_stays_intact_between_uncoordinated_writes ... ok
+test serve::dev_refusals::console::tests::auth_preflight_probes_are_labelled_and_never_grouped_with_operation_failures ... ok
+test serve::dev_refusals::console::tests::counts_repeats_without_sliding_and_separates_causes ... ok
+test scale::search::tests::certificate_uses_every_runtime_eligibility_condition ... ok
+test serve::dev_refusals::console::tests::every_cause_field_separates_identified_counts ... ok
+test serve::dev_refusals::console::tests::distinct_causes_are_bounded_and_counts_flush_on_disconnect ... ok
+test serve::dev_refusals::console::tests::shutdown_diagnostic_cannot_split_a_counted_refusal_line ... ok
+test serve::dev_refusals::console::tests::the_default_line_is_short_and_leads_with_the_operation_code_and_site ... ok
+test serve::engine_lock::tests::a_waiting_request_behind_a_holder_admits_background_immediately ... ok
+test serve::engine_lock::tests::background_does_not_count_as_request_activity ... ok
+test serve::engine_lock::tests::background_takes_its_ticket_at_five_ms_despite_new_request_activity ... ok
+snapback4 dev: the new schema was not adopted: E_STORE: database is locked; serving generation 1; jobs and sweeps may fail until adoption succeeds; retrying automatically
+test scale::search::tests::explicit_bounded_merge_describes_the_legacy_opening_cut ... ok
+test serve::engine_lock::tests::quiet_interval_ends_at_one_ms_on_the_injected_clock ... ok
+snapback4 dev: the new schema was not adopted: E_STORE: database is locked; serving generation 2; jobs and sweeps may fail until adoption succeeds; retrying automatically
+test serve::latency::tests::latency_record_cost_and_memory ... ignored, measurement: one million bounded recordings, no timing gate
+snapback4 dev: the new schema was not adopted: E_STORE: expiry phase; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+snapback4 dev: the new schema was not adopted: E_GENERATION: another owner adopted; serving generation 1; jobs and sweeps may fail until adoption succeeds; retrying automatically
+test serve::engine_lock::tests::panic_releases_ticket_and_poison_can_be_recovered ... ok
+snapback4 dev: the new schema was not adopted: E_GENERATION: another owner adopted; serving generation 2; jobs and sweeps may fail until adoption succeeds; retrying automatically
+test serve::engine_lock::tests::busy_background_eventually_takes_a_ticket_behind_waiting_requests ... ok
+test serve::latency::tests::missing_cpu_clock_omits_header_metric_and_doctor_reports_unavailable ... ok
+test scale::search::tests::independent_search_cost_axes_include_inlined_peer_helpers ... ok
+test serve::long_waits::tests::a_share_is_refused_at_its_limit_and_released_on_drop ... ok
+test serve::latency::tests::zero_edges_and_extreme_durations_keep_the_error_bound ... ok
+test serve::maintenance::tests::deferred_empty_cpu_keeps_each_capped_charge_without_longer_pauses ... ok
+test serve::maintenance::tests::empty_kinds_repay_cpu_with_useful_work_or_before_idle_wait ... ok
+test serve::latency::tests::registry_bounds_unknown_names_adopts_and_excludes_old_arrivals_after_reset ... ok
+test serve::maintenance::tests::pacing_charges_atomic_overruns_but_cannot_suppress_aged_service ... ok
+test serve::maintenance::tests::slice_completion_preserves_an_empty_cycles_outstanding_repayment ... ok
+test scale::search::tests::membership_rosters_under_message_hits_only_and_all_repairs_compile ... ok
+test scale::search::tests::unscoped_repair_keeps_filter_direction_order_take_and_argument_names ... ok
+test serve::request_workers::tests::last_worker_exit_refuses_queued_requests ... ok
+test serve::request_workers::tests::a_panic_outside_the_job_boundary_does_not_spend_capacity_forever ... ok
+test serve::request_workers::tests::partial_worker_exit_refuses_queued_requests_while_another_worker_is_blocked ... ok
+snapback4 host: uploads=2; file descriptors (this process): soft=1048576 hard=1048576; descriptor_exhaustions=0; startup soft=1048576 target=1048576
+test scale::search::tests::grouped_and_refusal_repairs_keep_the_preview_and_its_meter_advice ... ok
+test serve::tests::adoption_tests::reads::crash_during_adoption_child ... ignored, child process for the atomic adoption restart witness
+snapback4 dev: the new schema was not adopted: E_STORE: database is locked; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+snapback4 dev: adoption failure changed; suppressed 2 repeated background failures
+snapback4 dev: the new schema was not adopted: E_GENERATION: second owner; serving generation 1; jobs and sweeps may fail until adoption succeeds; retrying automatically
+dev refusal: newer E_RULE at <generated> (cause not instrumented) — snapback4 why recent
+dev refusal: older E_RULE at <generated> (cause not instrumented) — snapback4 why recent
+test serve::tests::adoption_tests::scale::scale_changes_waits_for_durable_adoption_while_query_and_sync_read ... ignored, requires SNAPBACK4_ADOPTION_HTTP_DB pointing at the prepared M7 fixture
+test serve::engine_lock::tests::a_single_continuous_holder_cannot_defer_background_forever ... ok
+test serve::tests::adoption_tests::w8r2_adoption_bounds_alternating_background_reasons ... ok
+test serve::tests::adoption_tests::w8r2_adoption_rate_windows_are_per_code_and_do_not_slide_on_suppression ... ok
+test serve::tests::adoption_tests::w8r1b_adoption_bounds_repeated_background_logs_and_resets_on_recovery ... ok
+test serve::tests::change_polls_and_effect_claims_take_separate_long_wait_classes ... ok
+test serve::tests::adoption_tests::w8r1b_adoption_reports_different_background_reasons_and_failure_changes ... ok
+test serve::latency::tests::random_exact_nearest_rank_percentiles_are_within_five_percent ... ok
+test scale::search::tests::lifted_search_and_precise_non_key_refusals ... ok
+test serve::tests::ephemeral_tests::token_bucket_refills_at_twenty_per_second ... ok
+test serve::engine_lock::tests::waiting_request_precedes_next_chunk_and_background_precedes_later_requests ... ok
+test serve::dev_refusals::tests::late_handoff_cannot_replace_a_newer_response ... ok
+test serve::maintenance::tests::pacing_does_not_charge_time_already_spent_off_cpu ... ok
+test scale::search::tests::builtin_repairs_use_quarry_spellings_on_the_originating_schema ... ok
+test serve::tests::bounded_connections_do_not_queue_pipelined_requests ... ok
+test scale::search::tests::ordinary_search_certificate_names_the_inferred_audience_and_grouped_repair ... ok
+test serve::tests::connections_are_capped_before_slow_headers_and_idle_sockets_expire ... ok
+test serve::tests::continue_and_final_response_have_separate_write_deadlines ... ok
+test release_control::tests::input_deadline_expires_while_the_peer_keeps_sending ... ok
+test serve::latency::tests::snapshot_of_ten_thousand_operations_does_not_serialize_recording ... ok
+test serve::tests::header_and_body_deadlines_are_absolute_despite_dribbling ... ok
+test release_control::tests::socket_permissions_and_entry_types_are_enforced ... ok
+test release_control::tests::rejected_store_identity_does_not_execute_command ... ok
+test release_control::tests::stale_socket_is_replaced_but_a_live_listener_is_preserved ... ok
+test release_control::tests::long_deployment_path_uses_same_private_socket ... ok
+test release_control::tests::runtime_directory_refuses_permissions_symlinks_files_and_wrong_owner ... ok
+test release_control::tests::lost_reply_does_not_cancel_admitted_command ... ok
+test serve::tests::adoption_tests::reads::fresh_storage_has_independent_readers_and_is_removed_by_its_owner ... ok
+test serve::tests::latency_tests::latency_recording_overhead_on_real_queries ... ignored, measurement: repeated real HTTP reads, no timing gate on a shared host
+snapback4: recovered a mutex after a request panicked
+test serve::poison_tests::a_request_after_engine_poison_still_serves ... ok
+snapback4 worker: /tmp/sb4-reader-reuse-2041167-1792014314056037920-17/snapback/worker.mjs (pid 2042747)
+test serve::maintenance::tests::clock_drain_unwind_releases_background_work ... ok
+test serve::tests::adoption_tests::reads::a_write_queued_behind_adoption_does_not_keep_expired_authority ... ok
+
+running 1 test
+snapback4 worker: /tmp/sb4-reader-reuse-2041167-1792014314054618522-11/worker.mjs (pid 2042851)
+test dev_clock_store::tests::commit_tolerance_and_largest_lead_ignore_future_application_values ... ok
+snapback4: atomic feed adoption: view feed: 1 source rows, 1 events, 0 follows; 1 rows to copy; estimated writer lock 0.00 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+snapback4 worker: /tmp/sb4-reader-reuse-2041167-1792014314056037920-17/snapback/worker.mjs (pid 2042915)
+test dev_clock_store::tests::resume_offset_follows_the_newest_commit_and_is_never_negative ... ok
+E_ASSET_TYPE at POST /assets: 'text/html' can carry script that a browser runs; Snapback never stores it as a file — accept it as 'text/plain' or inside 'application/zip'. Verifiable types: 'audio/wav', 'audio/mpeg', 'audio/flac', 'application/pdf', 'text/plain', 'text/csv', 'text/markdown', 'application/json', 'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/zip', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+E_ASSET_TYPE at POST /assets: 'image/svg+xml' can carry script that a browser runs; Snapback never stores it as a file — accept it as 'text/plain' or inside 'application/zip'. Verifiable types: 'audio/wav', 'audio/mpeg', 'audio/flac', 'application/pdf', 'text/plain', 'text/csv', 'text/markdown', 'application/json', 'image/png', 'image/jpeg', 'image/webp', 'image/gif', 'application/zip', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+E_ASSET_TYPE at POST /assets: the upload declares application/pdf, but the bytes do not match it; declare the file's real type
+E_ASSET_TYPE at POST /assets: the upload declares application/pdf, but the bytes are image/png; declare the file's real type
+E_ASSET_TYPE at POST /assets: no file column of this backend accepts text/csv; they accept application/pdf, text/plain
+E_ASSET_TYPE at POST /assets: the bytes are not a JPEG, PNG, WebP or MP4
+E_ASSET_TYPE at POST /assets: declare the file's media type in Content-Type: only PDF, PNG, JPEG, WebP, GIF and zip are recognized without one
+test serve::maintenance::tests::stalled_bulk_admission_does_not_stop_an_ordinary_expiry_slice ... ok
+test serve::tests::delivery_tests::delivery_manifests_are_on_successful_answers_without_provenance_opt_in ... ok
+snapback4: job catchup done: 1 chunks, 0 rows written
+test serve::tests::asset_list_tests::files::oversize_files_are_refused_before_and_while_streaming ... ok
+test serve::tests::asset_list_tests::files::script_bearing_spoofed_and_unaccepted_types_are_refused ... ok
+test serve::tests::ephemeral_tests::legacy_poll_reply_has_base_shape_plus_change_evidence ... ok
+test serve::tests::foreign_origins_and_rebound_hosts_cannot_seed_or_impersonate ... ok
+test serve::tests::a_presence_answer_asks_its_client_to_refresh ... ok
+test serve::maintenance::tests::aged_bulk_progresses_when_the_bulk_thread_never_runs ... ok
+snapback4 dev: the new schema was not adopted: E_GENERATION: another owner adopted; serving generation 1; jobs and sweeps may fail until adoption succeeds; retrying automatically
+snapback4 worker: /tmp/sb4-reader-reuse-2041167-1792014314054785092-14/worker.mjs (pid 2043277)
+test serve::tests::delivery_tests::binding_is_rechecked_after_waiting_for_the_executing_writer ... ok
+test serve::tests::asset_list_tests::files::a_pdf_uploads_with_its_name_and_downloads_only_as_an_attachment ... ok
+test serve::tests::device_handshake_tests::a_clock_jump_cannot_be_captured_as_the_revision_of_a_prejump_token ... ok
+test serve::changes::column_tests::saturated_changes_uses_the_public_table_enumeration ... ok
+test serve::tests::asset_list_tests::image_list_http_once_is_per_element_and_survives_reorder ... ok
+test serve::changes::column_tests::settlement_intervals_project_private_counts_and_keep_public_fields ... ok
+test serve::maintenance::tests::stalled_bulk_engine_owner_leaves_the_gate_free_and_ordinary_admission_queued ... ok
+test serve::tests::a_poll_rechecks_session_liveness_after_waiting ... ok
+snapback4 worker: /tmp/sb4-reader-reuse-2041167-1792014314055696027-16/worker.mjs (pid 2043559)
+test dev_clock_store::tests::recent_window_does_not_claim_older_commits_or_read_row_payloads ... ok
+test serve::tests::delivery_tests::http_receipt_precedes_ephemeral_dispatch_and_stale_fingerprint_refuses ... ok
+test serve::tests::latency_tests::duration::latency_disconnected_asset_records_exactly_one_sample_and_refusal ... ok
+test serve::tests::asset_list_tests::files::html_uploaded_as_text_is_served_as_text_never_inline ... ok
+test serve::tests::ephemeral_tests::durable_publication_does_not_acquire_the_ephemeral_hub ... ok
+snapback4 worker: /tmp/sb4-reader-reuse-2041167-1792014314054559293-10/worker.mjs (pid 2043832)
+test serve::tests::latency_tests::duration::latency_small_json_total_includes_blocked_socket_write ... ok
+snapback4 worker: cannot close the child's session; worker stopped, replacement suspended: E_STORE: database is locked
+test serve::tests::ephemeral_tests::every_ephemeral_refusal_uses_failed_http_200 ... ok
+test serve::tests::asset_list_tests::image_list_http_placement_reorder_removal_and_delete ... ok
+test serve::tests::dev_loopback_admits_eight_simultaneous_sign_ins_within_host_capacity ... ok
+snapback4 worker: /tmp/sb4-reader-reuse-2041167-1792014314054476499-9/worker.mjs (pid 2044196)
+test serve::tests::asset_list_tests::files::a_hostile_filename_cannot_inject_headers_or_paths ... ok
+test serve::tests::latency_tests::headers::clock_maintenance_retry_open_is_wait_not_engine ... ok
+test serve::tests::latency_tests::duration::latency_query_total_includes_controlled_engine_work ... ok
+snapback4 worker: exited exit status: 17; restarting in 250 ms
+test serve::tests::asset_list_tests::image_list_http_regression_with_scalar_upload_admission ... ok
+test serve::tests::a_refusal_names_the_cut_its_evaluation_read ... ok
+snapback4 worker: /tmp/sb4-reader-reuse-2041167-1792014314054618522-11/worker.mjs (pid 2044520)
+test serve::tests::adoption_tests::a2_adoption_fences_supervised_claims_before_the_old_child_stops ... ok
+test serve::tests::latency_tests::duration::latency_large_asset_total_includes_blocked_socket_write ... ok
+test serve::tests::ephemeral_tests::blocked_poll_wakes_without_lost_notification_and_is_paced ... ok
+snapback4 worker: exited exit status: 17; restarting in 250 ms
+test serve::tests::latency_tests::headers::delayed_changes_open_is_wait ... ok
+test serve::tests::bound_session_http_refuses_stale_and_cancelled_claims_without_minting ... ok
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+test serve::tests::bound_session_http_requires_exact_shape_and_current_action_lease ... ok
+test serve::tests::adoption_tests::w8r1b_adoption_recovery_retires_a_query_already_in_flight ... ok
+test serve::tests::ephemeral_tests::admission_rechecks_classification_when_adoption_passes_the_early_route_check ... ok
+test serve::tests::adoption_tests::reads::process_exit_during_build_retains_the_old_generation_and_restart_rebuilds ... ok
+test serve::tests::release_lifecycle_tests::crash_child_after_release_commit ... ignored, owned crash subprocess; invoked by crash_between_commit_and_publication
+test serve::tests::ephemeral_tests::revoked_bearer_poll_finishes_on_a_read_only_connection_without_engine_lock ... ok
+snapback4 dev: the new schema was not adopted: E_STORE: not authorized; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+test serve::tests::latency_tests::headers::maintenance_writer_admission_under_a_request_sample_is_wait ... ok
+test serve::tests::overload_tests::fd_limits::many_servers_raise_a_low_soft_limit_and_release_their_descriptors ... ok
+test serve::tests::latency_tests::headers::maintenance_coordination_gate_does_not_claim_engine_ownership ... ok
+test serve::tests::latency_tests::headers::delayed_ephemeral_pool_take_is_wait ... ok
+test serve::dev_refusals::tests::shutdown_deadline_covers_full_queue_and_missing_acknowledgement ... ok
+test serve::tests::effect_http_strictly_validates_present_fields_without_mutating_work ... ok
+test serve::tests::latency_tests::headers::delayed_query_open_and_pool_checkout_are_wait ... ok
+test serve::tests::latency_tests::duration::latency_panicking_handler_excludes_withheld_request_body_cleanup ... ok
+snapback4 dev: the new schema was not adopted: E_STORE: not authorized; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+test serve::tests::ephemeral_tests::ephemeral_wake_finishes_with_the_serving_engine_locked ... ok
+test serve::tests::latency_tests::duration::latency_held_poll_ends_at_final_frame_before_request_body_drain ... ok
+test serve::tests::latency_tests::headers::changes_reopens_after_a_commit_and_times_each_open_as_wait ... ok
+snapback4 dev: the new schema was not adopted: E_STORE: not authorized; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+test serve::tests::delivery_tests::receipt_only_reports_and_replays_do_not_wake_change_waiters ... ok
+test serve::tests::ephemeral_tests::adoption_and_restart_change_incarnation_and_removed_members_read_empty ... ok
+test serve::tests::latency_tests::duration::latency_held_poll_total_includes_blocked_final_frame_write ... ok
+test serve::tests::latency_tests::duration::latency_total_excludes_post_response_drain_for_changes_and_asset ... ok
+snapback4 worker: /tmp/sb4-reader-reuse-2041167-1792014314055696027-16/worker.mjs (pid 2045018)
+test serve::tests::adoption_tests::failure::failed_candidate_clears_pending_names_and_allows_a_later_adoption ... ok
+test serve::tests::ephemeral_tests::action_admission_notifies_held_polls_without_maintenance ... ok
+test serve::tests::latency_tests::headers::reader_header_attributes_engine_sleep_without_waiting_for_a_held_writer ... ok
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+test serve::tests::an_effect_claim_rechecks_service_session_after_waiting ... ok
+test serve::tests::latency_tests::headers::thread_cpu_excludes_another_busy_thread_and_records_own_work ... ok
+snapback4 worker: /tmp/sb4-reader-reuse-2041167-1792014314054559293-10/worker.mjs (pid 2045245)
+test serve::tests::adoption_tests::worker::production_accept_loop_reads_while_exited_worker_waits_for_adoption ... ok
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+test serve::tests::ephemeral_tests::unrelated_interest_keeps_waiting_and_absent_interest_means_all ... ok
+test serve::tests::adoption_tests::worker::production_accept_loop_waits_for_complete_worker_readiness ... ok
+test serve::tests::adoption_tests::atomic_feed_launch_keeps_queries_reading_and_holds_sync_and_writes ... ok
+test serve::tests::latency_tests::headers::changes_refresh_is_engine_work_but_poll_sleep_is_not ... ok
+test serve::tests::release_lifecycle_tests::crash_between_commit_and_publication_recovers_dormant_data_from_database ... ok
+snapback4 worker: cannot close the child's session; worker stopped, replacement suspended: E_STORE: database is locked
+snapback4 worker: exited exit status: 17; restarting in 250 ms
+snapback4 worker: cannot close the child's session; worker stopped, replacement suspended: E_STORE: database is locked
+snapback4 worker: /tmp/sb4-reader-reuse-2041167-1792014314054785092-14/worker.mjs (pid 2046840)
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+snapback4 dev: the new schema was not adopted: E_STORE: not authorized; serving generation 1; jobs and sweeps may fail until adoption succeeds; fix the schema and save again
+test release_control::tests::cleanup_preserves_a_replacement_and_canonical_aliases_share_an_address ... ok
+snapback4 worker: /tmp/sb4-reader-reuse-2041167-1792014314054476499-9/worker.mjs (pid 2047035)
+test serve::tests::latency_tests::headers::wildcard_listener_omits_timing_for_loopback_and_external_peers ... ok
+SNAPBACK4_THREAD_EXIT verb=serve generation=0 thread="worker" reason="unexpected return"
+test serve::tests::latency_tests::latency_engine_wait_is_attributed_to_its_request_and_dev_inspection_never_waits ... ok
+test serve::tests::adoption_tests::worker::production_accept_loop_reads_after_delayed_worker_exit ... ok
+test serve::tests::latency_tests::latency_admission_refusals_do_not_disappear ... ok
+test serve::tests::latency_tests::latency_reset_excludes_requests_that_arrived_in_the_previous_window ... ok
+test serve::tests::latency_tests::latency_writer_admission_refuses_once_and_keeps_dev_inspection_available ... ok
+test serve::tests::latency_tests::latency_counts_queries_mutations_actions_fixed_routes_and_typed_refusals ... ok
+test serve::tests::latency_tests::latency_successful_asset_stream_and_range_refusal_are_both_measured ... ok
+test serve::tests::overload_tests::full_mutation_workers_refuse_upload_without_body_drain_or_eviction ... ok
+test serve::tests::latency_tests::latency_release_requires_a_live_service_and_never_allows_reset ... ok
+test serve::tests::opening_a_development_project_protects_its_data_directory_and_store ... ok
+test serve::tests::latency_tests::headers::timing_survives_cors_suppression_on_route_and_token_refusals_and_pending ... ok
+snapback4: cannot start request thread: Resource temporarily unavailable (os error 11)
+test serve::tests::device_handshake_tests::device_handshake_precedes_body_decoding_and_page_work_on_all_device_doors ... ok
+test serve::tests::overload_tests::every_worker_pool_counts_and_returns_the_same_public_refusal ... ok
+test serve::tests::overload_tests::failed_thread_spawn_refuses_unfinished_upload_and_releases_permit ... ok
+test serve::tests::overload_tests::a_panicking_request_releases_its_slot_and_the_worker_serves_again ... ok
+test serve::tests::sync_snapshot_encoding_preserves_plain_values_and_explicit_nulls ... ok
+test serve::tests::sync_stream_encoding_preserves_sequences_scopes_and_empty_groups ... ok
+test serve::tests::long_wait_tests::a_full_viewer_pool_refuses_with_e_streams_while_short_requests_and_unheld_polls_progress ... ok
+test serve::tests::catalog_and_changes_require_live_identity_and_release_refuses_dev_doors ... ok
+test serve::tests::device_handshake_tests::headerless_legacy_sync_refuses_before_a_garbage_body_and_schema_auth_is_first ... ok
+test serve::tests::long_wait_tests::one_principal_cannot_hold_more_than_its_share_of_change_polls ... ok
+test serve::tests::asset_list_tests::files::media_uploads_are_unchanged_and_a_schema_without_files_refuses_file_uploads ... ok
+test serve::tests::slow_readers_cannot_pin_response_writers ... ok
+test serve::token::protocol::tests::concurrent_completion_has_exactly_one_winner ... ok
+test serve::token::protocol::tests::expiry_and_pending_capacity_use_monotonic_time_without_sleep ... ok
+test serve::token::protocol::tests::known_hmac_vectors_and_direction_separation ... ok
+test serve::token::protocol::tests::nonce_is_single_use_even_after_invalid_proof_or_transcript ... ok
+test serve::token::protocol::tests::replies_require_the_secret_and_exact_transcript_and_authenticate_all_bytes ... ok
+test store_owner::tests::address_cleanup_preserves_replacements_and_the_ownership_sidecar ... ok
+test store_owner::tests::busy_missing_database_creates_nothing ... ok
+test serve::tests::raced_mutation_id_refusal_keeps_its_terminal_http_status ... ok
+test serve::tests::long_wait_tests::a_new_poll_never_takes_a_wake_answer_older_than_an_unpublished_commit ... ok
+test store_owner::tests::doctor_dials_the_published_loopback_address ... ok
+test store_owner::tests::external_sqlite_writer ... ok
+test serve::tests::pooled_readers_observe_new_commits_and_each_viewer ... ok
+test serve::tests::ops_tests::production_auth_refusals_use_http_auth_statuses_and_keep_the_body ... ok
+test store_owner::tests::replaced_canonical_path_cannot_be_opened_with_the_old_guard ... ok
+test store_owner::tests::sidecar_is_private_and_shared_devices_exclude_backend_owners ... ok
+test tests::development_binding_preserves_a_loopback_path_for_the_supervised_worker ... ok
+test tests::early_response_does_not_wait_for_an_unread_request_body ... ok
+test tests::help_names_every_dispatched_verb ... ok
+test serve::tests::adoption_tests::atomic_feed_sync_authenticates_before_wait_and_rechecks_after_it ... ok
+test tests::version_is_the_workspace_version ... ok
+test thread_priority::tests::background_priority_is_lower_without_changing_its_parent ... ok
+test thread_priority::tests::later_failures_preserve_startup_evidence_and_identify_each_class ... ok
+snapback4: setpriority nice 5 failed (thread class background-nice, errno 22, at unix ms 1792014321447); inspect doctor host.scheduling: Invalid argument (os error 22)
+test thread_priority::tests::linux_setpriority_failure_is_counted_without_replacing_startup_readback ... ok
+test thread_priority::tests::maintenance_keeps_ordinary_priority ... ok
+snapback4: setpriority nice 5 failed (thread class worker-nice, errno 1, at unix ms 1792014321447); inspect doctor host.scheduling: Operation not permitted (os error 1)
+test thread_priority::tests::watchdog_nice_failure_reaches_the_owning_host ... ok
+test verbs::adoption::tests::doctor_url_is_a_loopback_http_origin ... ok
+test verbs::check_surface::tests::generated_surface_separates_modules_columns_and_nested_types ... ok
+test verbs::doctor_tests::w11_check_renderer_has_a_dedicated_excerpt_for_every_registered_code ... ok
+test serve::tests::presence_tests::w15a_vanished_held_poll_is_claimed_once_after_clock_advance_6s ... ok
+test verbs::hand_tests::bound_explanation_is_once_per_run_and_keeps_every_located_rewrite ... ok
+test serve::tests::refusal_tests::a_checked_out_reader_keeps_its_source_coordinates_across_publication ... ok
+test verbs::init::expo_core_derivation_removes_complete_server_declarations ... ok
+test verbs::proof_source::tests::archived_names_preserve_operations_and_diagnostics_name_the_selected_input ... ok
+test verbs::proof_source::tests::inherited_native_workspace_refuses_before_touching_working_generated_types ... ok
+test serve::tests::refresh_rotates_and_logout_all_revokes_every_session ... ok
+test verbs::releases::tests::deployment_startup_resolves_new_paths_and_existing_aliases ... ok
+test verbs::init::adapt::untouched_wave9_screens_still_adapt_and_edited_clients_stay_owned ... ok
+test verbs::releases::tests::release_diagnostic_fixture ... ok
+test verbs::releases::tests::serving_defaults_loopback_and_requires_cleartext_acknowledgement ... ok
+test serve::tests::refusal_tests::stopping_admission_flushes_console_entries_that_cannot_expire ... ok
+test verbs::run_admission::tests::compilation_uses_captured_bytes_through_an_aba_source_edit ... ok
+test verbs::run_admission::tests::only_typed_sqlite_locks_are_retryable ... ok
+test verbs::run_forward::tests::personas_map_to_the_principal_a_local_run_uses ... ok
+test verbs::run_forward::tests::the_alternative_is_a_runnable_curl ... ok
+test verbs::run_refusal::tests::a_forwarded_record_is_chosen_only_from_a_complete_unambiguous_interval ... ok
+test verbs::run_refusal::tests::a_forwarded_record_is_named_without_quoting_disk_source ... ok
+test verbs::run_refusal::tests::a_service_lookup_names_the_read_rule_hiding_it ... ok
+test verbs::run_refusal::tests::an_omitted_rule_is_named_as_deny_at_the_table ... ok
+test verbs::run_refusal::tests::comments_are_stripped_outside_quotes_only ... ok
+test verbs::run_refusal::tests::names_the_written_clause_and_its_line ... ok
+test verbs::run_refusal::tests::other_causes_keep_their_recorded_name ... ok
+test verbs::run_refusal::tests::uninstrumented_records_print_nothing ... ok
+test verbs::proof_source::tests::native_types_are_built_for_selected_source_in_private_tree ... ok
+test serve::tests::ephemeral_tests::rate_and_input_refusals_are_http_200_failed_under_dev_and_serve ... ok
+test serve::tests::latency_tests::headers::dev_headers_cover_operations_and_refusals_without_data_and_respect_the_fence ... ok
+test serve::tests::public_live_logout_keeps_the_bound_family_tombstone_authoritative ... ok
+test tests::json_responses_preserve_framing_on_a_persistent_connection ... ok
+test serve::tests::refusal_tests::generation_footer_overflow_returns_a_complete_bounded_refusal ... ok
+test verbs::sql::catalog::tests::commands_are_exact_and_never_combine_with_sql ... ok
+test serve::tests::ephemeral_tests::mutation_wire_query_version_and_no_sqlite_writer_lock ... ok
+snapback4 worker: /tmp/sb4-reader-reuse-2041167-1792014318056775183-41/snapback/workers/push.mjs (pid 2048832)
+test serve::tests::adoption_tests::reader_failure::failed_reader_factory_recovers_on_maintenance ... ok
+test serve::tests::long_wait_tests::held_polls_at_one_cursor_share_a_wake_read_and_entry_reads_the_store ... ok
+snapback4 serve: release 2 activated without restart as generation 2
+test serve::tests::read_only_tests::read_sync_is_allow_listed_and_has_full_visibility_without_writes ... ok
+test verbs::test_cases::saved_alias_tests::aliases_resolve_or_refuse_by_name_and_literals_are_expressible ... ok
+snapback4 serve: release 2 activated without restart as generation 2
+snapback4 dev: store reset (store 231b22ca64ef64bc2122a7018abe3e3e → 3c829ca85a78904d4ebcb9e7aea0ead1, seeded 0) in 44 ms
+test serve::tests::long_wait_tests::a_wake_racing_adoption_waits_for_the_new_reader_pool ... ok
+test serve::tests::pooled_readers_discard_old_loans_after_backend_or_native_epoch_changes ... ok
+test verbs::upgrade_history::tests::lock_resolution_uses_versions_not_dependency_ranges ... ok
+test verbs::witness::background::policy::tests::export_policy_fixture_override_requires_debug_and_exact_opt_in ... ok
+test verbs::witness::background::policy::tests::export_policy_preserves_both_darwin_flags_and_direct_linux_launch ... ok
+test verbs::witness::background::tests::sleep_clock_requires_actual_suspended_time ... ok
+test verbs::witness::background::tests::status_distinguishes_skips_from_product_failures ... ok
+snapback4 serve: release 1 activated without restart as generation 2
+snapback4 serve: release 2 activated without restart as generation 2
+snapback4 serve: release 2 activated without restart as generation 2
+test serve::tests::reset_tests::accounts_and_sessions_are_reset_but_personas_keep_working ... ok
+test verbs::witness::background::tests::witness_passed_outcome_survives_post_driver_compression_failure_fixture ... ok
+test serve::tests::release_lifecycle_tests::following_reply_stamps_the_engine_selected_after_request_intake ... ok
+test verbs::witness::cleanup::tests::absent_or_first_observation_does_not_renew_a_stall ... ok
+test verbs::witness::cleanup::tests::continuous_progress_cannot_move_the_hard_cap ... ok
+test verbs::witness::cleanup::tests::exits_extend_cleanup_but_growth_churn_and_empty_polls_do_not ... ok
+test verbs::witness::cleanup::tests::late_joiners_can_shrink_without_reaching_the_original_low_water_mark ... ok
+test serve::tests::read_only_tests::password_guest_scope_unknown_scope_and_service_mint_are_explicit ... ok
+test verbs::witness::naming_tests::installed_runs_cannot_emit_reserved_native_names ... ok
+test verbs::witness::naming_tests::prepared_scenario_scope_is_explicit ... ok
+test verbs::witness::ownership::tests::ownership_predicate_requires_the_current_uid ... ok
+test verbs::witness::ownership::tests::partial_ownership_write_is_removed ... ok
+snapback4 serve: release 2 activated without restart as generation 2
+test serve::tests::read_only_tests::assets::complete_asset_matrix_preserves_access_order_and_once_consumption ... ok
+snapback4 serve: release 2 activated without restart as generation 2
+snapback4 serve: release 2 activated without restart as generation 2
+test verbs::releases::tests::release_completion_drains_a_delayed_writer_on_success_and_failure ... ok
+snapback4 worker: cannot close the child's session; worker stopped, replacement suspended: E_STORE: database is locked
+test verbs::witness::background::tests::witness_status_rechecks_latest_after_hash_and_wait_retries_transient_observation ... ok
+test verbs::witness::preparation::tests::lease_fork_fixture ... ok
+test verbs::witness::preparation::tests::lease_preserves_an_existing_owner_and_releases_on_drop ... ok
+test serve::tests::release_lifecycle_tests::concurrent_release_commands_share_cas_and_queued_write_uses_committed_generation ... ok
+test serve::tests::release_lifecycle_tests::media_declaration_stamps_the_generation_after_streamed_intake ... ok
+snapback4 serve: release 2 activated without restart as generation 2
+snapback4 serve: release 3 activated without restart as generation 3
+snapback4 serve: release 3 activated without restart as generation 2
+snapback4 serve: release 3 activated without restart as generation 3
+test serve::tests::review_changes::finding_5_reordered_commit_notifications_cannot_report_a_restored_head ... ok
+snapback4 worker: /tmp/sb4-reader-reuse-2041167-1792014318056775183-41/snapback/workers/push.mjs (pid 2049639)
+test serve::tests::route_tests::route_seat_revocation_during_verification_cannot_be_undone_by_allow ... ok
+test serve::tests::release_lifecycle_tests::post_commit_pointer_failure_keeps_new_runtime_and_database_recovery ... ok
+test serve::tests::route_tests::registry_claim_retains_long_action_and_maximum_route_names_over_http ... ok
+test serve::tests::release_lifecycle_tests::action_reply_stamps_admission_after_switch_during_request_intake ... ok
+SNAPBACK4_THREAD_EXIT verb=serve generation=3 thread="worker" reason="unexpected return"
+test verbs::witness::background::tests::witness_passed_outcome_survives_post_driver_compression_failure ... ok
+test verbs::witness::preparation::tests::stalled_resolver_owner ... ok
+test serve::tests::overload_tests::a_thousand_sequential_reads_reuse_bounded_request_threads ... ok
+snapback4 serve: release 1 activated without restart as generation 2
+test serve::tests::adoption_tests::worker::serve_rotation_fences_a_valid_credential_while_retirement_is_locked ... ok
+test serve::tests::route_tests::route_development_exception_does_not_expose_core_doors_or_personas ... ok
+snapback4 serve: release 2 activated without restart as generation 2
+test verbs::witness::preparation::cleanup_tests::direct_enumeration_resizes_and_keeps_births_in_the_selected_group ... ok
+test verbs::witness::preparation::tests::startup_binds_each_independent_identity ... ok
+test verbs::witness::preparation_deadline::tests::completion_receipt_does_not_charge_later_cleanup_to_preparation ... ok
+test verbs::witness::preparation_deadline::tests::foreground_expires_at_exactly_900_seconds_despite_output ... ok
+test serve::tests::release_lifecycle_tests::hot_release_cas_refuses_stale_aba_and_changed_artifact_digest ... ok
+test verbs::witness::preparation_deadline::tests::only_new_output_or_phase_bytes_extend_a_stall ... ok
+test verbs::witness::preparation_deadline::tests::progress_extends_background_but_cannot_pass_hard_cap ... ok
+test verbs::witness::protocol::tests::an_empty_receipt_after_done_is_accepted_and_a_step_change_is_not ... ok
+test verbs::witness::protocol::tests::runtime_artifact_refusals_name_flags_without_values ... ok
+test verbs::witness::protocol::tests::runtime_device_refusal_names_flag_without_value ... ok
+
+running 1 test
+test verbs::witness::publication::tests::witness_orphan_deletion_does_not_hold_the_publication_lock ... test serve::tests::route_tests::route_wait_capacity_leaves_verification_and_short_core_requests_available ... ok
+test serve::tests::release_lifecycle_tests::hot_release_pinned_old_read_finishes_and_unpinned_reader_is_fenced ... ok
+
+running 1 test
+test verbs::witness::publication::tests::witness_orphan_markers_recover_after_repeated_sigkill_and_retain_then_prune ... 
+running 1 test
+test verbs::witness::publication::tests::witness_orphan_reconciliation_requires_all_leases_and_preserves_changed_identity ... test serve::tests::route_tests::route_invalid_delivery_never_admits_and_cannot_collect_a_settled_body ... ok
+witness: interrupted publication preserved at /tmp/sb4-publish-orphan-locks-2050053-1792014322322/runs/1-123; publication recovery required (see publication-pending.json)
+
+running 1 test
+test verbs::witness::publication::tests::witness_pruning_cannot_delete_through_an_export_during_atomic_publication ... snapback4 serve: release 3 activated without restart as generation 3
+E_ASSET_TOO_LARGE at POST /assets: the file is 2048 bytes; the largest file column accepting text/plain takes 10
+witness: interrupted publication preserved at /tmp/sb4-publish-orphan-locks-2050053-1792014322322/runs/1-123; publication recovery required (see publication-pending.json)
+test verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics ... ok
+witness: restored previous export after interrupted publication at /tmp/sb4-publish-orphan-locks-2050053-1792014322322/runs/1-123/export
+witness: reconciled orphan publication marker at /tmp/sb4-publish-orphan-locks-2050053-1792014322322/runs/1-123
+witness: recovered abandoned export /tmp/sb4-publish-orphan-locks-2050053-1792014322322/runs/1-123
+test serve::tests::release_lifecycle_tests::failed_hot_commit_keeps_runtime_and_retry_cleans_prepared_pointer ... ok
+test verbs::witness::publication::tests::witness_publication_process_fixture ... ok
+
+running 1 test
+test verbs::witness::publication::tests::witness_retention_recovers_verified_publication_without_a_later_publisher ... witness: reconciled orphan publication marker at /tmp/sb4-publish-orphan-locks-2050053-1792014322322/runs/1-123
+test serve::tests::route_tests::route_503_is_collectible_only_after_fresh_verification_of_the_same_body ... ok
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 431 filtered out; finished in 0.02s
+
+
+running 1 test
+test verbs::witness::publication::tests::witness_two_wrappers_killed_after_exchange_leave_only_survivors_verified_export ... test verbs::witness::publication::tests::witness_orphan_reconciliation_requires_all_leases_and_preserves_changed_identity ... ok
+test serve::tests::route_tests::route_verifier_fences_wrong_tokens_and_expired_tickets_without_admission ... ok
+test serve::tests::release_lifecycle_tests::upload_preparation_refusal_stamps_the_generation_after_streamed_intake ... ok
+witness: restored previous export after interrupted publication at /tmp/sb4-publish-killed-2050092-1792014322345/runs/1-123/export
+witness: recovered abandoned export /tmp/sb4-publish-delete-outside-lock-2050040-1792014322305/runs/9-123
+witness: reconciled orphan publication marker at /tmp/sb4-publish-delete-outside-lock-2050040-1792014322305/runs/1-123
+test verbs::witness::recorded_process::tests::witness_recorded_birth_mismatch_spares_real_process_then_matching_record_stops_it ... ok
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 431 filtered out; finished in 0.09s
+
+test verbs::witness::publication::tests::witness_publication_detects_tampering_before_and_after_exchange ... ok
+test verbs::witness::recovery::linux_tests::captured_exit_snapshot_requires_a_fresh_esrch ... ok
+test verbs::witness::recorded_process::tests::witness_stopped_identity_mismatch_at_each_observation_never_authorizes_kill ... ok
+test verbs::witness::publication::tests::witness_orphan_deletion_does_not_hold_the_publication_lock ... ok
+test verbs::witness::recovery::linux_tests::malformed_state_and_birth_still_refuse_unless_the_pid_is_gone ... ok
+test verbs::witness::recovery::linux_tests::outside_group_details_cannot_fail_a_readable_row ... ok
+test serve::tests::ephemeral_tests::bearer_poll_crosses_schema_adoption_without_using_a_stale_catalog_or_engine_lock ... ok
+test verbs::witness::recovery::linux_tests::rejected_metadata_rechecks_exit_but_never_excuses_a_live_unknown_process ... ok
+test verbs::witness::recovery::linux_tests::stat_read_errors_only_skip_known_outside_groups_or_disappearance ... ok
+test verbs::witness::recovery::linux_tests::unknown_group_fails_closed ... ok
+
+running 1 test
+test verbs::witness::recovery::tests::abandoned_bulk_and_backend_wait_for_the_run_lease_and_reject_a_reused_pid ... test verbs::witness::recovery::linux_tests::refusal_detail_is_bounded_and_marks_truncation ... ok
+
+running 1 test
+test verbs::witness::recovery::tests::discovery_of_an_unfinished_leased_export_keeps_maintenance_pending ... witness: reconciled orphan publication marker at /tmp/sb4-publish-killed-2050092-1792014322345/runs/1-123
+witness: recovered abandoned export /tmp/sb4-publish-killed-2050092-1792014322345/runs/1-123
+witness: recovered abandoned export /tmp/sb4-publish-killed-2050092-1792014322345/runs/9-123
+test verbs::witness::recovery::linux_tests::live_foreign_group_and_member_refuse_recovery_without_birth_custody ... ok
+test serve::tests::route_tests::route_wire_retains_raw_bytes_and_independent_set_cookie_headers ... ok
+
+running 1 test
+test verbs::witness::recovery::tests::live_wrapper_lease_preserves_export_and_journal_after_driver_exit ... witness: recovered abandoned export /tmp/sb4-deferred-discovery-2050236-1792014322415/1-1
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 431 filtered out; finished in 0.09s
+
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 431 filtered out; finished in 0.03s
+
+test verbs::witness::recovery::tests::discovery_of_an_unfinished_leased_export_keeps_maintenance_pending ... ok
+test verbs::witness::publication::tests::witness_two_wrappers_killed_after_exchange_leave_only_survivors_verified_export ... ok
+test verbs::witness::recovery::tests::pid_reuse_does_not_keep_an_abandoned_run_alive ... ok
+
+running 1 test
+test verbs::witness::recovery::tests::ownerless_shell_waits_only_for_live_leases_without_becoming_finished_evidence ... 
+running 1 test
+test verbs::witness::recovery::tests::recovery_drains_a_live_preparation_descendant_before_finishing_even_with_a_live_wrapper ... test verbs::witness::recorded_process::tests::witness_pidfd_rejects_wrong_birth_wrong_handle_and_exit_after_verification ... ok
+witness: removed ownerless unfinished export /tmp/sb4-ownerless-2050271-1792014322449/artifacts/native-smoke/1-1
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 431 filtered out; finished in 0.01s
+
+
+running 1 test
+test verbs::witness::recovery::tests::retention_pins_current_and_pending_swap_generations_before_start_order ... test verbs::witness::recovery::linux_tests::outside_group_non_utf8_comm_does_not_break_enumeration ... ok
+test verbs::witness::recovery::tests::unknown_publication_pin_defers_the_entire_history_order ... ok
+test serve::tests::long_wait_tests::worker_claim_polls_and_viewer_waits_cannot_starve_each_other ... ok
+test verbs::witness::recovery::tests::ownerless_shell_waits_only_for_live_leases_without_becoming_finished_evidence ... ok
+test verbs::witness::retention::tests::fresh_wakeup_preserves_its_deadline_and_expired_wakeup_cannot_restart ... ok
+test verbs::witness::retention::tests::observer_covers_a_discovery_removed_by_its_failed_initializer ... ok
+test verbs::witness::retention::tests::only_a_later_valid_intent_resets_the_observation_ceiling ... ok
+test verbs::witness::retention::tests::claim_ack_never_erases_a_new_request_and_crash_retries_are_bounded ... ok
+test verbs::witness::retention::tests::wakeup_publication_preserves_equal_or_later_valid_intent ... ok
+test verbs::witness::retention::trace_writer::tests::trace_sink_refuses_links_and_bounds_a_regular_file ... ok
+test verbs::witness::smoke::tests::receipt_cannot_reclassify_or_skip_a_query ... ok
+test verbs::witness::recovery::tests::inventory_backstop_counts_evidence_and_discovers_ownerless_work_without_queue_records ... ok
+test verbs::witness::smoke::tests::compiler_classifies_ephemeral_and_online_queries_before_execution ... ok
+test verbs::witness::smoke::tests::restart_requires_its_barrier_even_if_newer_than_prime ... ok
+
+running 1 test
+test verbs::witness::smoke::tests::smoke_barrier_advances_only_the_commit_clock ... witness: reconciled orphan publication marker at /tmp/sb4-publish-retention-committed-2050087-1792014322342/runs/1-123
+witness: recovered abandoned export /tmp/sb4-publish-retention-committed-2050087-1792014322342/runs/1-123
+test verbs::witness::preparation::cleanup_tests::stopped_supervisor_without_exits_requires_recovery_and_keeps_its_deadline ... ok
+test verbs::witness::preparation::tests::recovery_keeps_group_custody_after_anchor_exit ... ok
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 431 filtered out; finished in 0.05s
+
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 431 filtered out; finished in 0.02s
+
+test verbs::witness::recovery::tests::retention_pins_current_and_pending_swap_generations_before_start_order ... ok
+test verbs::witness::smoke::tests::smoke_barrier_advances_only_the_commit_clock ... ok
+witness: reconciled orphan publication marker at /tmp/sb4-publish-orphan-commit-false-2050051-1792014322321/runs/1-123
+witness: recovered abandoned export /tmp/sb4-publish-orphan-commit-false-2050051-1792014322321/runs/1-123
+test verbs::sql::catalog::tests::main_store_reopens_and_describes_before_and_after_metadata_only_adoption ... ok
+test verbs::witness::recovery::tests::witness_group_leader_exit_during_member_snapshot_revokes_custody ... ok
+orphan SIGKILL control passed: commit, destination initially absent=false
+test serve::tests::adoption_tests::reads::adoption_keeps_queries_and_sync_readable_and_serializes_writes_once ... ok
+witness: reconciled orphan publication marker at /tmp/sb4-publish-retention-committed-2050087-1792014322493/runs/1-123
+witness: recovered abandoned export /tmp/sb4-publish-retention-committed-2050087-1792014322493/runs/1-123
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 431 filtered out; finished in 0.29s
+
+test verbs::witness::publication::tests::witness_retention_recovers_verified_publication_without_a_later_publisher ... ok
+native smoke skipped for export 0bfd3dfae54107534255d3cc716d0412b1b9158955e789e722e7291e3b32ecab: fixture skip; log: /tmp/sb4-publish-run-intent-saved-2041167-1792014322350/runs/1-123/background.log
+test serve::tests::oidc_terminal_codes_survive_http_settlement_and_public_recollection ... ok
+witness: reconciled orphan publication marker at /tmp/sb4-publish-orphan-commit-true-2050051-1792014322588/runs/1-123
+orphan SIGKILL control passed: commit, destination initially absent=true
+test verbs::witness::preparation::tests::preparation_cleans_term_resistant_descendants_before_releasing_lease ... ok
+native smoke skipped for export 0bfd3dfae54107534255d3cc716d0412b1b9158955e789e722e7291e3b32ecab: fixture skip; log: /tmp/sb4-publish-exchange-before-verify-2041167-1792014322688/runs/1-123/background.log
+test verbs::witness::publication::tests::witness_wait_follows_publication_through_exchange_and_verify_without_an_older_pass ... ok
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 431 filtered out; finished in 0.62s
+
+witness: reconciled orphan publication marker at /tmp/sb4-publish-orphan-rollback-false-2050051-1792014322845/runs/1-123
+witness: recovered abandoned export /tmp/sb4-publish-orphan-rollback-false-2050051-1792014322845/runs/1-123
+test verbs::witness::recovery::tests::abandoned_bulk_and_backend_wait_for_the_run_lease_and_reject_a_reused_pid ... ok
+test serve::tests::review_changes::finding_5_actual_head_does_not_skip_tables_beyond_the_commit_page ... ok
+test serve::tests::read_only_tests::guard_barriers_replay_and_http_parity ... ok
+orphan SIGKILL control passed: rollback, destination initially absent=false
+test serve::tests::route_tests::route_adoption_fences_old_supervised_verifier_before_child_shutdown ... ok
+test verbs::witness::preparation::tests::stalled_resolver_sigkill_triggers_watchdog_before_recovery ... ok
+test serve::tests::route_tests::registry_claims_have_bounded_input_and_recheck_worker_revision ... ok
+snapback4 worker: /tmp/sb4-reader-reuse-2041167-1792014320471931107-47/snapback/workers/push.mjs (pid 2050823)
+witness: reconciled orphan publication marker at /tmp/sb4-publish-orphan-rollback-true-2050051-1792014323093/runs/1-123
+test serve::tests::route_tests::route_verifier_reclaims_expired_lease_but_old_callback_cannot_promote ... ok
+orphan SIGKILL control passed: rollback, destination initially absent=true
+test verbs::witness::preparation::tests::stalled_resolver_sigint_is_bounded_journalled_and_drained ... ok
+test verbs::witness::preparation::tests::stalled_resolver_sigterm_is_bounded_journalled_and_drained ... ok
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 431 filtered out; finished in 0.98s
+
+test verbs::witness::recovery::tests::live_wrapper_lease_preserves_export_and_journal_after_driver_exit ... ok
+witness: reconciled orphan publication marker at /tmp/sb4-publish-orphan-intent-false-2050051-1792014323341/runs/1-123
+witness: recovered abandoned export /tmp/sb4-publish-orphan-intent-false-2050051-1792014323341/runs/1-123
+orphan SIGKILL control passed: intent, destination initially absent=false
+test serve::tests::store_tests::action_store_precondition_precedes_admission_and_replay ... ok
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 431 filtered out; finished in 1.39s
+
+test verbs::witness::publication::tests::witness_pruning_cannot_delete_through_an_export_during_atomic_publication ... ok
+test serve::tests::store_tests::intent_store_precondition_fences_execution_and_replay_without_recording_a_refusal ... ok
+test serve::tests::store_tests::an_idless_mutation_cannot_execute_on_the_wrong_store ... ok
+test serve::tests::sync_generation_tests::failed_materialization_is_not_counted_and_unreadable_head_fails_discovery ... ok
+witness: reconciled orphan publication marker at /tmp/sb4-publish-orphan-intent-true-2050051-1792014323605/runs/1-123
+snapback4 dev: read costly (guest:01M4Y6142GN4AJ2PBPJ09SYSY6) cut by heap bytes at costly:2:1; examined=0 index_entries=0 rule_probes=0 steps=1838 heap_bytes=16808700 output_bytes=6 rows_written=0; snapback4 why costly
+test serve::tests::unsupported_http_versions_release_connection_slots ... ok
+orphan SIGKILL control passed: intent, destination initially absent=true
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 431 filtered out; finished in 1.52s
+
+test verbs::witness::publication::tests::witness_orphan_markers_recover_after_repeated_sigkill_and_retain_then_prune ... ok
+test serve::tests::unauthorized_large_posts_close_before_body_admission ... ok
+test serve::tests::timeline_tests::following_history::following_http_binding_replay_refusals_and_independent_cancellation ... ok
+test serve::tests::upload_disk_work_is_bounded_and_does_not_hold_the_query_engine ... ok
+test serve::tests::sync_generation_tests::stale_generation_engine_snapshot ... ok
+test serve::tests::sync_generation_tests::stale_generation_engine_stream ... ok
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 431 filtered out; finished in 1.48s
+
+test verbs::witness::recovery::tests::recovery_drains_a_live_preparation_descendant_before_finishing_even_with_a_live_wrapper ... ok
+test verbs::doctor_tests::w8r1b_doctor_effect_line_keeps_one_snapshot_across_a_concurrent_claim ... ok
+test verbs::sql::catalog::tests::declared_unique_and_maintained_keys_survive_and_legacy_provenance_is_unknown ... ok
+test verbs::sql::catalog::tests::catalog_private_targets_name_the_parent_column ... ok
+test serve::tests::delivery_tests::adoption_after_preflight_decodes_the_captured_signature_then_refuses_binding ... ok
+test verbs::sql::catalog::tests::chat_starter_index_names_and_keys_are_public ... ok
+test verbs::residency::tests::maintained_values_distinguish_payload_bytes_from_implicit_zeros ... ok
+test verbs::sql::catalog::tests::catalog_recognizes_the_starters_maintained_timeline ... ok
+snapback4 dev: store reset (store 48f4f6a0b7333b792fb270a75db76fb4 → 87180604881f3721759b17f16a8bef08, seeded 0) in 6 ms
+snapback4 dev: store reset (store 5d453ba1a37ff3712eee11e2d4337e3a → 16a7df8778d6b0a359c073ff150ddc64, seeded 1) in 7 ms
+test verbs::test_fixture::column_tests::residency_fixture_import_rebuilds_poisoned_columns ... ok
+snapback4 dev: store reset (store 16a7df8778d6b0a359c073ff150ddc64 → ed61307f8136b9835dff1a6521b2069c, seeded 2) in 8 ms
+test verbs::test_fixture::order_tests::read_through_child_file_before_parent_file_loads ... ok
+test verbs::sql::catalog::tests::social_starter_index_names_and_keys_are_public ... ok
+test serve::tests::password_work_is_bounded_and_does_not_hold_the_query_engine ... ok
+test verbs::sql::catalog::tests::catalog_side_record_is_atomic_and_rejects_stale_identity ... ok
+snapback4 dev: store reset (store 3473e731522edef9fae2eae56be33ca3 → e1b5de2f68725e5a096b2175ea72a329, seeded 0) in 12 ms
+snapback4 dev: store reset (store 2046ba9bca48b2c24ff179cb79249ca4 → 97b53998e98d27c202cc15c48fcb13f5, seeded 0) in 11 ms
+snapback4 dev: store reset (store 97b53998e98d27c202cc15c48fcb13f5 → 0e7b41ff69a4cfa07e2eb518cd2c7fa3, seeded 0) in 9 ms
+test serve::tests::read_only_tests::request_manifest_construction_counter_alternates_on_reused_engine ... ok
+snapback4 serve: release 2 activated without restart as generation 2
+test serve::tests::reset_tests::release_and_foreign_origins_cannot_reset ... ok
+test serve::tests::reset_tests::reset_keeps_the_dev_clock_unless_asked ... ok
+snapback4 dev: store reset (store 993223ae690e3ea10df51727c6e4e850 → a73ae632d7090c353237600ab6654428, seeded 1) in 8 ms
+test serve::tests::read_only_tests::held_read_poll_rechecks_revoked_credential_at_completion ... ok
+test verbs::witness::preparation::tests::recovery_direct_node_drains_late_group_member ... ok
+snapback4 dev: store reset (store a60066a77b03efa5cf2fe22a1008f4d1 → 8bbf7970eb9175edb98f47cef0d34ede, seeded 1) in 6 ms
+snapback4 dev: store reset (store 986dbf914c049740ec4c9356ff8ca390 → 792b1b842cea527ca980abf34099895d, seeded 0) in 16 ms
+test serve::tests::sync_generation_tests::stale_generation_reader_snapshot ... ok
+snapback4 dev: store reset (store a73ae632d7090c353237600ab6654428 → 46b7ef004f0bdd6d0387f32f2d041bc1, seeded 2) in 16 ms
+snapback4 serve: release 2 activated without restart as generation 2
+test serve::tests::reset_tests::reset_empties_rows_views_sequences_and_assets_under_a_new_identity ... ok
+test serve::tests::route_tests::saturated_legacy_waits_cannot_starve_route_verification_or_registry_execution ... ok
+snapback4 serve: release 3 activated without restart as generation 3
+test serve::tests::reset_tests::reset_reseeds_in_the_same_transaction_and_a_refused_row_keeps_the_store ... ok
+test serve::tests::sync_generation_tests::stale_generation_reader_stream ... ok
+test verbs::witness::preparation::tests::recovery_direct_node_drains_final_empty_snapshot_joiner ... ok
+test serve::tests::release_lifecycle_tests::hot_release_discards_old_worker_preparation_before_minting ... ok
+test serve::tests::presence_tests::w15a_commit_wakes_all_49_recipients_and_their_next_polls_satisfy_without_attempts ... ok
+test serve::tests::latency_tests::latency_detached_checkout_separates_prework_acquisition_and_engine ... ok
+test verbs::witness::preparation::tests::recovery_volta_style_shim_drains_late_group_member ... ok
+test verbs::witness::preparation::tests::recovery_volta_style_shim_drains_final_empty_snapshot_joiner ... ok
+test verbs::witness::preparation::tests::recovery_shell_shim_drains_late_group_member ... ok
+test verbs::witness::preparation::tests::recovery_shell_shim_drains_final_empty_snapshot_joiner ... ok
+snapback4 dev: store reset (store 774de65898f986b8c1c3e8b821c328dc → 8430483a3ffe49d06ccaa78f92660969, seeded 1) in 13 ms
+test serve::tests::read_only_tests::paired_deterministic_reader_runs_have_equal_application_digest ... ok
+test serve::tests::reset_tests::a_held_change_poll_and_a_device_sync_see_the_new_store ... ok
+test store_owner::tests::hard_linked_databases_refuse_both_paths_and_existing_owners ... ok
+test store_owner::tests::database_ownership_preserves_sqlites_posix_locks ... ok
+test store_owner::tests::database_renamed_to_auxiliary_name_is_never_opened_or_truncated ... ok
+test serve::tests::unavailable_http_body_is_incomplete_for_legacy_clients_and_hides_release_meters ... ok
+test serve::tests::sync_generation_tests::generation_discovery_keeps_page_authorization ... ok
+test serve::tests::store_tests::query_and_mutation_replies_identify_the_evaluated_store_and_replay_head ... ok
+test store_owner::tests::removed_or_replaced_sidecar_ends_exclusion_documented_boundary ... ok
+test verbs::sql::catalog::tests::unmodified_starters_record_only_source_declared_indexes ... ok
+test serve::tests::delivery_tests::http_rebound_removed_and_malformed_bindings_never_run_the_body ... ok
+snapback4 serve: release 2 activated without restart as generation 2
+test serve::tests::release_lifecycle_tests::authentication_and_metadata_stamp_the_engine_after_intake_switch ... ok
+test serve::tests::adoption_tests::saturation::saturated_mutation_admission_reserves_query_and_sync_capacity ... ok
+test serve::tests::session_diagnostics_tests::refresh_expiry_after_initial_resolution_preserves_the_refusal_envelope ... ok
+test serve::tests::session_diagnostics_tests::public_routes_disclose_no_token_standing_outside_the_dev_trust_boundary ... ok
+test serve::tests::session_diagnostics_tests::dev_auth_explains_refused_bearers_without_history_serve_discloses_no_cause ... ok
+test verbs::witness::preparation_deadline::tests::live_output_passes_original_budget_and_stalled_child_is_drained ... ok
+snapback4 worker: cannot close the child's session; worker stopped, replacement suspended: E_STORE: database is locked
+dev refusal: point E_RULE at schema.q:4:3 (authorization allowance (read) on rows) — snapback4 why recent
+test serve::tests::refusal_tests::detached_query_uses_its_checkout_map_when_the_advertised_source_changes ... ok
+test serve::tests::timeline_tests::paired_tombstoned_repost_identity_is_unobservable ... ok
+snapback4 worker: /tmp/sb4-reader-reuse-2041167-1792014320471931107-47/snapback/workers/push.mjs (pid 2052417)
+test serve::tests::adoption_tests::reader_failure::failed_file_reader_refuses_without_waiting_for_the_writer ... ok
+SNAPBACK4_THREAD_EXIT verb=serve generation=2 thread="worker" reason="unexpected return"
+test serve::tests::adoption_tests::worker::serve_rotation_waits_for_a_delayed_retirement_turn ... ok
+dev refusal: point E_RULE at schema.q:4:3 (authorization allowance (read) on rows) — snapback4 why recent
+dev refusal: /uninstrumented E_RULE at <generated> (cause not instrumented) — snapback4 why recent
+test serve::tests::refusal_tests::memory_query_branch_collects_and_a_bare_response_cannot_reuse_a_previous_cause ... ok
+test verbs::witness::preparation::tests::stalled_resolver_timeout_is_bounded_journalled_and_drained ... ok
+test serve::tests::adoption_tests::authority::bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps ... ok
+test serve::tests::sync_generation_tests::time_audience::a_timed_join_over_the_wire_limit_recovers_with_paged_snapshots ... ok
+test verbs::sql::catalog::tests::catalog_on_populated_sqlite_store ... ok
+test verbs::sql::catalog::tests::catalog_on_populated_memory_store ... ok
+test serve::tests::sync_generation_tests::concurrent::detached_sync_never_skips_a_commit_after_its_snapshot ... ok
+test serve::tests::read_only_tests::read_polls_neither_enter_nor_leave_overlapping_full_presence ... ok
+test verbs::witness::preparation::cleanup_tests::shrinking_group_extends_cleanup_until_supervisor_exits ... ok
+
+test result: ok. 427 passed; 0 failed; 5 ignored; 0 measured; 0 filtered out; finished in 16.18s
+

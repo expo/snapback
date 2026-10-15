@@ -1,3 +1,5 @@
+import { registerWebWitness } from "snapback4/witness-web";
+import { api } from "../snapback/generated/api.ts";
 import { createApp } from "snapback4/app";
 import { localStorageSessionStore } from "snapback4/auth";
 import { webDevice } from "snapback4/web";
@@ -6,3 +8,5 @@ export const url = (new URLSearchParams(window.location.search).get("api") ?? im
 const witnessPersona = new URLSearchParams(window.location.search).get("witness") === "web"
   ? new URLSearchParams(window.location.search).get("as") ?? undefined : undefined;
 export const app = createApp({ ...(witnessPersona ? { persona: witnessPersona } : {}), url, device: webDevice(), sessionStore: localStorageSessionStore() });
+
+registerWebWitness(app, api);

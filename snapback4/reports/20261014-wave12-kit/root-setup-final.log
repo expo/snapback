@@ -1,0 +1,527 @@
+bun install v1.4.2 (744846f84)
+Resolving dependencies
+Resolved, downloaded and extracted [0]
+
+$ node scripts/require-bun-package-manager.mjs
+
++ ajv@8.20.0
++ axe-core@4.12.1
++ esbuild@0.28.1
++ fake-indexeddb@6.2.5
++ miniflare@4.20260706.0
++ react@19.2.7
++ react-dom@19.2.7
++ react-test-renderer@19.2.7
++ typescript@5.9.3
++ workerd@1.20260707.1
++ wrangler@4.108.0
+
+522 packages installed [185.00ms]
+hoisted @expo/snapback-admin-client -> node_modules/@expo/snapback-admin-client
+hoisted @expo/snapback-app-cli -> node_modules/@expo/snapback-app-cli
+hoisted @expo/snapback-cli -> node_modules/@expo/snapback-cli
+hoisted @expo/snapback-client -> node_modules/@expo/snapback-client
+hoisted @expo/snapback-codegen -> node_modules/@expo/snapback-codegen
+hoisted @expo/snapback-contract -> node_modules/@expo/snapback-contract
+hoisted @expo/snapback-expo -> node_modules/@expo/snapback-expo
+hoisted @expo/snapback-expo-custody -> node_modules/@expo/snapback-expo-custody
+hoisted @expo/snapback-expo-dev-identity -> node_modules/@expo/snapback-expo-dev-identity
+hoisted @expo/snapback-harness -> node_modules/@expo/snapback-harness
+hoisted @expo/snapback-hosted-supervisor -> node_modules/@expo/snapback-hosted-supervisor
+hoisted @expo/snapback-publication-authority -> node_modules/@expo/snapback-publication-authority
+hoisted @expo/snapback-react -> node_modules/@expo/snapback-react
+hoisted @expo/snapback-runtime-darwin-arm64 -> node_modules/@expo/snapback-runtime-darwin-arm64
+hoisted @expo/snapback-runtime-linux-x64 -> node_modules/@expo/snapback-runtime-linux-x64
+hoisted @expo/snapback-sidecar -> node_modules/@expo/snapback-sidecar
+hoisted @expo/snapback -> node_modules/@expo/snapback
+hoisted @expo/snapback-vite -> node_modules/@expo/snapback-vite
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/todo/snapback
+[warning] SNAPBACK_AUTH_SCOPE_FIELD_WITHOUT_CALLER_PREDICATE (auth) listTodos: authScopeField userId narrows invalidation/retention bookkeeping but does not authorize reads; add a filter equating userId to authUserId() (handler-backed queries have no declarative filter for codegen to prove).
+[warning] SNAPBACK_QUERY_COLLECT_UNBOUNDED (codegen) listTodos: this ctx.db query chain ends in .collect() without .take(...) on the same chain and therefore uses the 1,024-row implicit ceiling. A live subscription on this query will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED and blank rows when it reaches that ceiling; repair it with server-side .order(...).take(n).
+Codegen summary for todo
+  tables 1; operations 6 (query 1, live query 1, mutation 4, action 0); live 1; ephemeral 0
+  files 51 (review manifest 1, consumer committed 9, ignored cache 41); warnings 2
+  degraded createTodo: functions.mjs:47:14 -> generated/api.d.ts#GeneratedApi["createTodo"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `createTodo` in functions.mjs and regenerate.
+  degraded deleteTodo: functions.mjs:68:14 -> generated/api.d.ts#GeneratedApi["deleteTodo"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `deleteTodo` in functions.mjs and regenerate.
+  degraded setCompleted: functions.mjs:54:14 -> generated/api.d.ts#GeneratedApi["setCompleted"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `setCompleted` in functions.mjs and regenerate.
+  table visibility 1 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/todo/snapback/generated  (inputsHash 9a3f9e938a85…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/todo-v2/snapback
+Codegen summary for todo-v2
+  tables 1; operations 8 (query 1, live query 2, mutation 5, action 0); live 2; ephemeral 1
+  files 62 (review manifest 1, consumer committed 9, ignored cache 52); warnings 0
+  table visibility 1 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/todo-v2/snapback/generated  (inputsHash 0b22d9dc3359…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/todo-v2/snapback --target-profile remote-service-sqlite-ibex
+Codegen summary for todo-v2
+  tables 1; operations 8 (query 1, live query 2, mutation 5, action 0); live 2; ephemeral 1
+  files 65 (review manifest 1, consumer committed 9, ignored cache 55); warnings 0
+  table visibility 1 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/todo-v2/snapback/generated-remote-service  (inputsHash f44664b6d3a9…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/latency-kanban/snapback
+Codegen summary for latency-kanban
+  tables 2; operations 8 (query 0, live query 2, mutation 6, action 0); live 2; ephemeral 0
+  files 50 (review manifest 1, consumer committed 7, ignored cache 42); warnings 6
+  migration declare-explicit-write-authority: 2 affected tables across 6 findings
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 2 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/latency-kanban/snapback/generated  (inputsHash 0d4287754125…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/messaging-snapback/snapback
+[warning] SNAPBACK_AUTHORING_N_PLUS_ONE_BATCH_READ (codegen) myConversations: ctx.db.get appears unconditionally inside a loop that can perform at least 3 same-table point reads; collect the exact inputs and use ctx.db.getMany to make one bounded host call (guide/backend/queries.md#batch-exact-lookups-in-one-host-call).
+[warning] SNAPBACK_AUTHORING_N_PLUS_ONE_BATCH_READ (codegen) startDirectMessage: ctx.db.get appears unconditionally inside a loop that can perform at least 3 same-table point reads; collect the exact inputs and use ctx.db.getMany to make one bounded host call (guide/backend/queries.md#batch-exact-lookups-in-one-host-call).
+[warning] PROVIDER_INTROSPECTION_RESULT_TYPE_DEGRADED (contract) queries.viewOnceMessageById.result.row.grants is explicitly unknown; generated consumers receive unknown
+Codegen summary for messaging-snapback
+  tables 8; operations 26 (query 0, live query 9, mutation 17, action 0); live 9; ephemeral 1
+  files 87 (review manifest 1, consumer committed 7, ignored cache 79); warnings 23
+  degraded viewOnceMessageById: schema.mjs:1:1 -> generated/provider-bindings.d.ts#ViewOnceMessageByIdResult
+    Replace the unknown validator for `grants` in schema.mjs with a concrete scalar or `v.object({ ... })` validator and regenerate.
+  migration declare-explicit-write-authority: 6 affected tables across 20 findings
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 8 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/messaging-snapback/snapback/generated  (inputsHash 33bb72f7a65f…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/triage-graph/snapback
+[warning] SNAPBACK_QUERY_COLLECT_UNBOUNDED (codegen) implicitPrefixProbe: this ctx.db query chain ends in .collect() without .take(...) on the same chain and therefore uses the 1,024-row implicit ceiling. A live subscription on this query will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED and blank rows when it reaches that ceiling; repair it with server-side .order(...).take(n).
+Codegen summary for triage-graph
+  tables 5; operations 9 (query 1, live query 4, mutation 4, action 0); live 4; ephemeral 0
+  files 52 (review manifest 1, consumer committed 7, ignored cache 44); warnings 1
+  table visibility 5 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/triage-graph/snapback/generated  (inputsHash snapback.v1:…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/fleet-observatory-move1/snapback
+[warning] SNAPBACK_AUTHORING_N_PLUS_ONE_BATCH_READ (codegen) applyTelemetryBurst: a complete unique lookup through events.by_event_key appears unconditionally inside a loop that can perform at least 3 same-table point reads; collect the exact inputs and use ctx.db.uniqueMany to make one bounded host call (guide/backend/queries.md#batch-exact-lookups-in-one-host-call).
+[warning] SNAPBACK_QUERY_COLLECT_UNBOUNDED (codegen) implicitPrefixProbe: this ctx.db query chain ends in .collect() without .take(...) on the same chain and therefore uses the 1,024-row implicit ceiling. A live subscription on this query will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED and blank rows when it reaches that ceiling; repair it with server-side .order(...).take(n).
+Codegen summary for fleet-observatory-move1
+  tables 4; operations 9 (query 1, live query 3, mutation 5, action 0); live 3; ephemeral 0
+  files 52 (review manifest 1, consumer committed 7, ignored cache 44); warnings 4
+  migration declare-explicit-write-authority: 1 affected table across 2 findings
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 4 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/fleet-observatory-move1/snapback/generated  (inputsHash snapback.v1:…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/zero-bakeoff/apps/contention-calendar/snapback
+[warning] SNAPBACK_QUERY_COLLECT_UNBOUNDED (codegen) clearReservations: this ctx.db query chain ends in .collect() without .take(...) on the same chain and therefore uses the 1,024-row implicit ceiling. This one-shot invocation will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED when it reaches that ceiling; repair it with server-side .order(...).take(n).
+Codegen summary for contention-calendar
+  tables 2; operations 5 (query 0, live query 3, mutation 2, action 0); live 3; ephemeral 0
+  files 44 (review manifest 1, consumer committed 7, ignored cache 36); warnings 3
+  migration declare-explicit-write-authority: 1 affected table across 2 findings
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 2 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/zero-bakeoff/apps/contention-calendar/snapback/generated  (inputsHash c968ffba96cf…)
+[check-generated-artifacts] $ env SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs demos/all-aboard/snapback
+[warning] SNAPBACK_QUERY_COLLECT_UNBOUNDED (codegen) applyFeedTick: this ctx.db query chain ends in .collect() without .take(...) on the same chain and therefore uses the 1,024-row implicit ceiling. This one-shot invocation will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED when it reaches that ceiling; repair it with server-side .order(...).take(n).
+[warning] SNAPBACK_QUERY_COLLECT_UNBOUNDED (codegen) applyLiveFeedSnapshot: this ctx.db query chain ends in .collect() without .take(...) on the same chain and therefore uses the 1,024-row implicit ceiling. This one-shot invocation will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED when it reaches that ceiling; repair it with server-side .order(...).take(n).
+[warning] SNAPBACK_QUERY_COLLECT_UNBOUNDED (codegen) resetFeed: this ctx.db query chain ends in .collect() without .take(...) on the same chain and therefore uses the 1,024-row implicit ceiling. This one-shot invocation will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED when it reaches that ceiling; repair it with server-side .order(...).take(n).
+[warning] PROVIDER_INTROSPECTION_RESULT_TYPE_DEGRADED (contract) queries.tripsQuery.result.row.minuteSlots is explicitly unknown; generated consumers receive unknown
+[warning] PROVIDER_INTROSPECTION_RESULT_TYPE_DEGRADED (contract) mutations.applyLiveFeedSnapshot.arguments.delays is explicitly unknown; generated consumers receive unknown
+[warning] PROVIDER_INTROSPECTION_RESULT_TYPE_DEGRADED (contract) mutations.applyLiveFeedSnapshot.arguments.departures is explicitly unknown; generated consumers receive unknown
+Codegen summary for all-aboard
+  tables 7; operations 12 (query 3, live query 3, mutation 4, action 2); live 3; ephemeral 0
+  files 65 (review manifest 1, consumer committed 7, ignored cache 57); warnings 17
+  degraded applyFeedTick: functions.mjs:117:14 -> generated/api.d.ts#GeneratedApi["applyFeedTick"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `applyFeedTick` in functions.mjs and regenerate.
+  degraded applyLiveFeedSnapshot: functions.mjs:138:14 -> generated/api.d.ts#GeneratedApi["applyLiveFeedSnapshot"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `applyLiveFeedSnapshot` in functions.mjs and regenerate.
+  degraded claimFeedPoll: functions.mjs:160:14 -> generated/api.d.ts#GeneratedApi["claimFeedPoll"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `claimFeedPoll` in functions.mjs and regenerate.
+  degraded refreshFeed: functions.mjs:189:14 -> generated/api.d.ts#GeneratedApi["refreshFeed"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `refreshFeed` in functions.mjs and regenerate.
+  degraded resetFeed: functions.mjs:177:14 -> generated/api.d.ts#GeneratedApi["resetFeed"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `resetFeed` in functions.mjs and regenerate.
+  degraded routeEstimate: functions.mjs:210:14 -> generated/api.d.ts#GeneratedApi["routeEstimate"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `routeEstimate` in functions.mjs and regenerate.
+  degraded tripsQuery: schema.mjs:37:5 -> generated/provider-bindings.d.ts#TripsQueryResult
+    Replace the unknown validator for `minuteSlots` in schema.mjs with a concrete scalar or `v.object({ ... })` validator and regenerate.
+  migration declare-explicit-write-authority: 3 affected tables across 11 findings
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 7 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/all-aboard/snapback/generated  (inputsHash 5801504cf0ba…)
+[check-generated-artifacts] $ env SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs demos/all-aboard/tests/egress-probe
+[warning] PROVIDER_INTROSPECTION_RESULT_TYPE_DEGRADED (contract) queries.queryProbe.result.row is explicitly unknown; generated consumers receive unknown
+Codegen summary for all-aboard
+  tables 2; operations 7 (query 2, live query 0, mutation 1, action 4); live 0; ephemeral 0
+  files 43 (review manifest 1, consumer committed 7, ignored cache 35); warnings 2
+  degraded egressProbe: functions.mjs:30:14 -> generated/api.d.ts#GeneratedApi["egressProbe"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `egressProbe` in functions.mjs and regenerate.
+  degraded queryProbe: functions.mjs:35:14 -> generated/api.d.ts#GeneratedApi["queryProbe"]
+    Add `result: results.documents("table")` for complete stored rows or `result: results.records(v.object({ ... }))` for computed rows to `queryProbe` in functions.mjs and regenerate.
+  degraded recordDelivery: functions.mjs:52:14 -> generated/api.d.ts#GeneratedApi["recordDelivery"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `recordDelivery` in functions.mjs and regenerate.
+  migration declare-explicit-write-authority: 1 affected table across 1 finding
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 2 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/all-aboard/tests/egress-probe/generated  (inputsHash 3a27ba34515a…)
+[check-generated-artifacts] $ env SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs demos/competitive-checkpoint/snapback
+[warning] SNAPBACK_AUTH_SCOPE_FIELD_WITHOUT_CALLER_PREDICATE (auth) listMessages: authScopeField ownerId narrows invalidation/retention bookkeeping but does not authorize reads; add a filter equating ownerId to authUserId() (handler-backed queries have no declarative filter for codegen to prove).
+[warning] SNAPBACK_QUERY_COLLECT_UNBOUNDED (codegen) listMessages: this ctx.db query chain ends in .collect() without .take(...) on the same chain and therefore uses the 1,024-row implicit ceiling. A live subscription on this query will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED and blank rows when it reaches that ceiling; repair it with server-side .order(...).take(n).
+[warning] SNAPBACK_QUERY_COLLECT_UNBOUNDED (codegen) startReply: this ctx.db query chain ends in .collect() without .take(...) on the same chain and therefore uses the 1,024-row implicit ceiling. This one-shot invocation will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED when it reaches that ceiling; repair it with server-side .order(...).take(n).
+Codegen summary for competitive-checkpoint
+  tables 4; operations 18 (query 0, live query 8, mutation 9, action 1); live 8; ephemeral 0
+  files 68 (review manifest 1, consumer committed 12, ignored cache 55); warnings 4
+  degraded applyReplyProgress: functions.mjs:106:14 -> generated/api.d.ts#GeneratedApi["applyReplyProgress"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `applyReplyProgress` in functions.mjs and regenerate.
+  degraded cancelReply: functions.mjs:139:14 -> generated/api.d.ts#GeneratedApi["cancelReply"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `cancelReply` in functions.mjs and regenerate.
+  degraded completeReply: functions.mjs:117:14 -> generated/api.d.ts#GeneratedApi["completeReply"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `completeReply` in functions.mjs and regenerate.
+  degraded deleteConversation: functions.mjs:1:1 -> generated/api.d.ts#GeneratedApi["deleteConversation"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `deleteConversation` in functions.mjs and regenerate.
+  degraded registerModel: functions.mjs:193:14 -> generated/api.d.ts#GeneratedApi["registerModel"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `registerModel` in functions.mjs and regenerate.
+  degraded settleReply: functions.mjs:128:14 -> generated/api.d.ts#GeneratedApi["settleReply"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `settleReply` in functions.mjs and regenerate.
+  degraded startReply: functions.mjs:91:14 -> generated/api.d.ts#GeneratedApi["startReply"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `startReply` in functions.mjs and regenerate.
+  degraded streamReply: functions.mjs:150:14 -> generated/api.d.ts#GeneratedApi["streamReply"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `streamReply` in functions.mjs and regenerate.
+  migration declare-explicit-write-authority: 1 affected table across 1 finding
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 4 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/competitive-checkpoint/snapback/generated  (inputsHash d78a80e3c489…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/campfire/snapback
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) liveMessages: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) liveReactions: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) messagePage: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) roomSummary: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+[warning] SNAPBACK_QUERY_COLLECT_UNBOUNDED (codegen) roomSummary: this ctx.db query chain ends in .collect() without .take(...) on the same chain and therefore uses the 1,024-row implicit ceiling. A live subscription on this query will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED and blank rows when it reaches that ceiling; repair it with server-side .order(...).take(n).
+[warning] SNAPBACK_QUERY_COLLECT_UNBOUNDED (codegen) roomSummary: this ctx.db query chain ends in .collect() without .take(...) on the same chain and therefore uses the 1,024-row implicit ceiling. A live subscription on this query will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED and blank rows when it reaches that ceiling; repair it with server-side .order(...).take(n).
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) sendMessage: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+[warning] SNAPBACK_QUERY_COLLECT_UNBOUNDED (codegen) sendMessage: this ctx.db query chain ends in .collect() without .take(...) on the same chain and therefore uses the 1,024-row implicit ceiling. This one-shot invocation will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED when it reaches that ceiling; repair it with server-side .order(...).take(n).
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) toggleReaction: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+[warning] SNAPBACK_QUERY_COLLECT_UNBOUNDED (codegen) toggleReaction: this ctx.db query chain ends in .collect() without .take(...) on the same chain and therefore uses the 1,024-row implicit ceiling. This one-shot invocation will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED when it reaches that ceiling; repair it with server-side .order(...).take(n).
+Codegen summary for campfire
+  tables 3; operations 6 (query 2, live query 2, mutation 2, action 0); live 2; ephemeral 0
+  files 47 (review manifest 1, consumer committed 7, ignored cache 39); warnings 13
+  auth liveMessages: functions.mjs:24:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  auth liveReactions: functions.mjs:32:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  auth messagePage: functions.mjs:78:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  auth roomSummary: functions.mjs:39:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  auth sendMessage: functions.mjs:104:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  auth toggleReaction: functions.mjs:143:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  migration declare-explicit-write-authority: 2 affected tables across 3 findings
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 3 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/campfire/snapback/generated  (inputsHash snapback.v1:…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/chirp/snapback
+Codegen summary for chirp
+  tables 3; operations 5 (query 0, live query 3, mutation 2, action 0); live 3; ephemeral 0
+  files 44 (review manifest 1, consumer committed 7, ignored cache 36); warnings 6
+  migration declare-explicit-write-authority: 2 affected tables across 6 findings
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 3 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/chirp/snapback/generated  (inputsHash cd7193f59696…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/knockoff/snapback
+Codegen summary for knockoff
+  tables 3; operations 7 (query 0, live query 4, mutation 3, action 0); live 4; ephemeral 0
+  files 48 (review manifest 1, consumer committed 7, ignored cache 40); warnings 7
+  migration declare-explicit-write-authority: 3 affected tables across 7 findings
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 3 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/knockoff/snapback/generated  (inputsHash snapback.v1:…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/cursors-web/snapback
+Codegen summary for cursors-web
+  tables 0; operations 0 (query 0, live query 0, mutation 0, action 0); live 0; ephemeral 1
+  files 37 (review manifest 1, consumer committed 7, ignored cache 29); warnings 0
+  table visibility 0 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/cursors-web/snapback/generated  (inputsHash 12dfb4b319fb…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/graffiti/snapback
+Codegen summary for graffiti
+  tables 1; operations 2 (query 0, live query 1, mutation 1, action 0); live 1; ephemeral 1
+  files 44 (review manifest 1, consumer committed 7, ignored cache 36); warnings 1
+  migration declare-explicit-write-authority: 1 affected table across 1 finding
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 1 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/graffiti/snapback/generated  (inputsHash 10ff3cf34925…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/card-game/snapback
+Codegen summary for card-game
+  tables 2; operations 3 (query 0, live query 1, mutation 2, action 0); live 1; ephemeral 0
+  files 42 (review manifest 1, consumer committed 7, ignored cache 34); warnings 0
+  degraded acceptHandCard: functions.mjs:22:14 -> generated/api.d.ts#GeneratedApi["acceptHandCard"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `acceptHandCard` in functions.mjs and regenerate.
+  table visibility 2 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/card-game/snapback/generated  (inputsHash snapback.v1:…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/pointing-room/snapback
+Codegen summary for pointing-room
+  tables 3; operations 5 (query 0, live query 2, mutation 3, action 0); live 2; ephemeral 1
+  files 52 (review manifest 1, consumer committed 9, ignored cache 42); warnings 4
+  migration declare-explicit-write-authority: 2 affected tables across 4 findings
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 3 declared; 0 implicit
+  field boundary liveTally: value — handler-enforced (not proven)
+    condition: the round is revealed or the caller owns the vote
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/pointing-room/snapback/generated  (inputsHash snapback.v1:…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/rbac/snapback
+Codegen summary for rbac
+  tables 3; operations 12 (query 1, live query 3, mutation 8, action 0); live 3; ephemeral 0
+  files 57 (review manifest 1, consumer committed 7, ignored cache 49); warnings 1
+  migration declare-explicit-write-authority: 1 affected table across 1 finding
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 3 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/rbac/snapback/generated  (inputsHash snapback.v1:…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/shindig/snapback
+[warning] SNAPBACK_TABLE_VISIBILITY_INDEX_PREFIX_MISMATCH (auth) guestList: injected owner visibility on invites.userId is not the leading field of selected index invites.by_event; the policy remains enforced, but this access path may degrade to a scan. Choose or add an index beginning with userId.
+[warning] SNAPBACK_QUERY_COLLECT_UNBOUNDED (codegen) rsvp: this ctx.db query chain ends in .collect() without .take(...) on the same chain and therefore uses the 1,024-row implicit ceiling. This one-shot invocation will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED when it reaches that ceiling; repair it with server-side .order(...).take(n).
+[warning] PROVIDER_INTROSPECTION_RESULT_TYPE_DEGRADED (contract) queries.getEvent.result.row is explicitly unknown; generated consumers receive unknown
+Codegen summary for shindig
+  tables 4; operations 9 (query 1, live query 4, mutation 4, action 0); live 4; ephemeral 0
+  files 60 (review manifest 1, consumer committed 7, ignored cache 52); warnings 7
+  degraded createEvent: functions.mjs:67:14 -> generated/api.d.ts#GeneratedApi["createEvent"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `createEvent` in functions.mjs and regenerate.
+  degraded getEvent: functions.mjs:57:14 -> generated/api.d.ts#GeneratedApi["getEvent"]
+    Add `result: results.documents("table")` for complete stored rows or `result: results.records(v.object({ ... }))` for computed rows to `getEvent` in functions.mjs and regenerate.
+  degraded invite: functions.mjs:81:14 -> generated/api.d.ts#GeneratedApi["invite"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `invite` in functions.mjs and regenerate.
+  degraded postToWall: functions.mjs:105:14 -> generated/api.d.ts#GeneratedApi["postToWall"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `postToWall` in functions.mjs and regenerate.
+  degraded rsvp: functions.mjs:92:14 -> generated/api.d.ts#GeneratedApi["rsvp"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `rsvp` in functions.mjs and regenerate.
+  migration declare-explicit-write-authority: 2 affected tables across 4 findings
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 4 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/shindig/snapback/generated  (inputsHash b7c394bbf81a…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/partiful-matrix/snapback
+Codegen summary for partiful-matrix
+  tables 3; operations 7 (query 0, live query 4, mutation 3, action 0); live 4; ephemeral 0
+  files 47 (review manifest 1, consumer committed 8, ignored cache 38); warnings 5
+  migration declare-explicit-write-authority: 3 affected tables across 5 findings
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 3 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/partiful-matrix/snapback/generated  (inputsHash 5a97bf1bb199…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/signal-desk/snapback
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) addComment: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) addTask: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+[warning] SNAPBACK_QUERY_COLLECT_UNBOUNDED (codegen) addTask: this ctx.db query chain ends in .collect() without .take(...) on the same chain and therefore uses the 1,024-row implicit ceiling. This one-shot invocation will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED when it reaches that ceiling; repair it with server-side .order(...).take(n).
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) allActivity: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) allComments: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) allTasks: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) createIncident: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) generateBrief: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+[warning] SNAPBACK_QUERY_COLLECT_UNBOUNDED (codegen) generateBrief: this ctx.db query chain ends in .collect() without .take(...) on the same chain and therefore uses the 1,024-row implicit ceiling. A live subscription on this query will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED and blank rows when it reaches that ceiling; repair it with server-side .order(...).take(n).
+[warning] SNAPBACK_QUERY_COLLECT_UNBOUNDED (codegen) generateBrief: this ctx.db query chain ends in .collect() without .take(...) on the same chain and therefore uses the 1,024-row implicit ceiling. A live subscription on this query will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED and blank rows when it reaches that ceiling; repair it with server-side .order(...).take(n).
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) listActivity: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) listComments: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) listIncidents: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) listTasks: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) setStatus: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) toggleTask: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+Codegen summary for backend-bakeoff
+  tables 4; operations 20 (query 2, live query 10, mutation 8, action 0); live 10; ephemeral 1
+  files 77 (review manifest 1, consumer committed 7, ignored cache 69); warnings 34
+  auth addComment: functions.mjs:417:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  auth addTask: functions.mjs:193:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  auth allActivity: functions.mjs:148:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  auth allComments: functions.mjs:147:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  auth allTasks: functions.mjs:146:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  auth createIncident: functions.mjs:150:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  auth generateBrief: functions.mjs:499:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  auth listActivity: functions.mjs:61:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  auth listComments: functions.mjs:53:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  auth listIncidents: functions.mjs:38:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  auth listTasks: functions.mjs:45:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  auth setStatus: functions.mjs:455:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  auth toggleTask: functions.mjs:382:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  migration declare-explicit-write-authority: 4 affected tables across 18 findings
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 4 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/signal-desk/snapback/generated  (inputsHash snapback.v1:…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/catalog-lens/snapback
+Codegen summary for catalog-lens
+  tables 2; operations 3 (query 0, live query 1, mutation 2, action 0); live 1; ephemeral 0
+  files 39 (review manifest 1, consumer committed 7, ignored cache 31); warnings 1
+  degraded addBook: functions.mjs:15:14 -> generated/api.d.ts#GeneratedApi["addBook"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `addBook` in functions.mjs and regenerate.
+  degraded addPublisher: functions.mjs:31:14 -> generated/api.d.ts#GeneratedApi["addPublisher"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `addPublisher` in functions.mjs and regenerate.
+  migration declare-explicit-write-authority: 1 affected table across 1 finding
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 2 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/catalog-lens/snapback/generated  (inputsHash 8057fb5ae690…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/dispatch-board/snapback
+Codegen summary for dispatch-board
+  tables 2; operations 3 (query 0, live query 2, mutation 1, action 0); live 2; ephemeral 0
+  files 39 (review manifest 1, consumer committed 7, ignored cache 31); warnings 0
+  degraded reportIncident: functions.mjs:31:14 -> generated/api.d.ts#GeneratedApi["reportIncident"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `reportIncident` in functions.mjs and regenerate.
+  table visibility 2 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/dispatch-board/snapback/generated  (inputsHash 19f84406429e…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/pulse-monitor/snapback
+[warning] SNAPBACK_QUERY_COLLECT_UNBOUNDED (codegen) applyProbe: this ctx.db query chain ends in .collect() without .take(...) on the same chain and therefore uses the 1,024-row implicit ceiling. This one-shot invocation will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED when it reaches that ceiling; repair it with server-side .order(...).take(n).
+Codegen summary for pulse-monitor
+  tables 1; operations 3 (query 0, live query 1, mutation 1, action 1); live 1; ephemeral 0
+  files 38 (review manifest 1, consumer committed 7, ignored cache 30); warnings 2
+  degraded applyProbe: functions.mjs:20:14 -> generated/api.d.ts#GeneratedApi["applyProbe"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `applyProbe` in functions.mjs and regenerate.
+  degraded probeServices: functions.mjs:28:14 -> generated/api.d.ts#GeneratedApi["probeServices"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `probeServices` in functions.mjs and regenerate.
+  migration declare-explicit-write-authority: 1 affected table across 1 finding
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 1 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/pulse-monitor/snapback/generated  (inputsHash 4b382c82c75d…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/public-dashboard/snapback
+Codegen summary for public-dashboard
+  tables 1; operations 6 (query 0, live query 4, mutation 2, action 0); live 4; ephemeral 0
+  files 46 (review manifest 1, consumer committed 7, ignored cache 38); warnings 2
+  migration declare-explicit-write-authority: 1 affected table across 2 findings
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 1 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/public-dashboard/snapback/generated  (inputsHash e87ae9f8637e…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/browser-local-first/snapback
+Codegen summary for browser-local-first
+  tables 1; operations 6 (query 0, live query 4, mutation 2, action 0); live 4; ephemeral 0
+  files 45 (review manifest 1, consumer committed 7, ignored cache 37); warnings 2
+  migration declare-explicit-write-authority: 1 affected table across 2 findings
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 1 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/browser-local-first/snapback/generated  (inputsHash 1f8792e4e128…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/browser-local-first/snapback-sessions
+Codegen summary for browser-local-first
+  tables 1; operations 6 (query 0, live query 4, mutation 2, action 0); live 4; ephemeral 0
+  files 45 (review manifest 1, consumer committed 7, ignored cache 37); warnings 2
+  migration declare-explicit-write-authority: 1 affected table across 2 findings
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 1 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/browser-local-first/snapback-sessions/generated  (inputsHash snapback.v1:…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/access-desk/snapback
+Codegen summary for access-desk
+  tables 3; operations 4 (query 0, live query 1, mutation 3, action 0); live 1; ephemeral 0
+  files 41 (review manifest 1, consumer committed 7, ignored cache 33); warnings 1
+  degraded addMember: functions.mjs:30:14 -> generated/api.d.ts#GeneratedApi["addMember"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `addMember` in functions.mjs and regenerate.
+  degraded addNote: functions.mjs:39:14 -> generated/api.d.ts#GeneratedApi["addNote"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `addNote` in functions.mjs and regenerate.
+  degraded createWorkspace: functions.mjs:22:14 -> generated/api.d.ts#GeneratedApi["createWorkspace"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `createWorkspace` in functions.mjs and regenerate.
+  migration declare-explicit-write-authority: 1 affected table across 1 finding
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 3 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/access-desk/snapback/generated  (inputsHash 9efe3f80409a…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/team-chat/snapback
+[warning] SNAPBACK_QUERY_COLLECT_UNBOUNDED (codegen) sendMessage: this ctx.db query chain ends in .collect() without .take(...) on the same chain and therefore uses the 1,024-row implicit ceiling. This one-shot invocation will be refused with SNAPBACK_QUERY_IMPLICIT_LIMIT_REACHED when it reaches that ceiling; repair it with server-side .order(...).take(n).
+Codegen summary for team-chat
+  tables 9; operations 14 (query 0, live query 5, mutation 9, action 0); live 5; ephemeral 0
+  files 76 (review manifest 1, consumer committed 7, ignored cache 68); warnings 1
+  degraded createRoom: functions.mjs:41:14 -> generated/api.d.ts#GeneratedApi["createRoom"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `createRoom` in functions.mjs and regenerate.
+  degraded markRoomRead: functions.mjs:58:14 -> generated/api.d.ts#GeneratedApi["markRoomRead"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `markRoomRead` in functions.mjs and regenerate.
+  degraded sendMessage: functions.mjs:49:14 -> generated/api.d.ts#GeneratedApi["sendMessage"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `sendMessage` in functions.mjs and regenerate.
+  table visibility 9 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/team-chat/snapback/generated  (inputsHash 4fb73b4d8ce0…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/party-wall/snapback
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) eventWall: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+[warning] PROVIDER_INTROSPECTION_RESULT_TYPE_DEGRADED (contract) queries.getEvent.result.row is explicitly unknown; generated consumers receive unknown
+Codegen summary for party-wall
+  tables 3; operations 8 (query 1, live query 1, mutation 6, action 0); live 1; ephemeral 0
+  files 51 (review manifest 1, consumer committed 7, ignored cache 43); warnings 5
+  degraded addGuest: functions.mjs:97:14 -> generated/api.d.ts#GeneratedApi["addGuest"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `addGuest` in functions.mjs and regenerate.
+  degraded createEvent: functions.mjs:88:14 -> generated/api.d.ts#GeneratedApi["createEvent"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `createEvent` in functions.mjs and regenerate.
+  degraded createPost: functions.mjs:117:14 -> generated/api.d.ts#GeneratedApi["createPost"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `createPost` in functions.mjs and regenerate.
+  degraded deletePost: functions.mjs:133:14 -> generated/api.d.ts#GeneratedApi["deletePost"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `deletePost` in functions.mjs and regenerate.
+  degraded getEvent: functions.mjs:80:14 -> generated/api.d.ts#GeneratedApi["getEvent"]
+    Add `result: results.documents("table")` for complete stored rows or `result: results.records(v.object({ ... }))` for computed rows to `getEvent` in functions.mjs and regenerate.
+  degraded leaveEvent: functions.mjs:106:14 -> generated/api.d.ts#GeneratedApi["leaveEvent"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `leaveEvent` in functions.mjs and regenerate.
+  degraded setCover: functions.mjs:125:14 -> generated/api.d.ts#GeneratedApi["setCover"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `setCover` in functions.mjs and regenerate.
+  auth eventWall: functions.mjs:71:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  migration declare-explicit-write-authority: 2 affected tables across 3 findings
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 3 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/party-wall/snapback/generated  (inputsHash snapback.v1:…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/file-drop/snapback
+[warning] SNAPBACK_AUTH_REQUIREMENT_IMPLICIT (auth) listPhotos: sessions-mode functions must explicitly set auth; omission currently uses the legacy optional-user requirement. Add auth: 'public', auth: 'optional-user', or auth: 'authenticated' (guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement).
+Codegen summary for file-drop
+  tables 1; operations 2 (query 0, live query 1, mutation 1, action 0); live 1; ephemeral 0
+  files 38 (review manifest 1, consumer committed 7, ignored cache 30); warnings 2
+  auth listPhotos: functions.mjs:25:14 omits auth and currently uses optional-user
+    Add auth: 'public', auth: 'optional-user', or auth: 'authenticated'; see guide/auth/sessions-and-principals.md#choose-each-functions-auth-requirement
+  migration declare-explicit-write-authority: 1 affected table across 1 finding
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 1 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/demos/file-drop/snapback/generated  (inputsHash snapback.v1:…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs packages/snapback-cli/fixtures/comparator/app/snapback
+Codegen summary for app
+  tables 4; operations 7 (query 0, live query 4, mutation 3, action 0); live 4; ephemeral 1
+  files 49 (review manifest 1, consumer committed 7, ignored cache 41); warnings 4
+  degraded publishLiveRow: functions.mjs:17:14 -> generated/api.d.ts#GeneratedApi["publishLiveRow"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `publishLiveRow` in functions.mjs and regenerate.
+  degraded rejectInvalidWrite: functions.mjs:45:14 -> generated/api.d.ts#GeneratedApi["rejectInvalidWrite"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `rejectInvalidWrite` in functions.mjs and regenerate.
+  degraded writePrimaryAndActivity: functions.mjs:38:14 -> generated/api.d.ts#GeneratedApi["writePrimaryAndActivity"]
+    Add `result: results.document("table")` for one complete stored row or `result: results.value(v.object({ ... }))` for a direct payload to `writePrimaryAndActivity` in functions.mjs and regenerate.
+  migration declare-explicit-write-authority: 4 affected tables across 4 findings
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 4 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/packages/snapback-cli/fixtures/comparator/app/snapback/generated  (inputsHash 558029eaed8f…)
+[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs packages/snapback-react/fixtures/conversation/app/snapback
+Codegen summary for app
+  tables 5; operations 11 (query 0, live query 5, mutation 6, action 0); live 5; ephemeral 1
+  files 57 (review manifest 1, consumer committed 7, ignored cache 49); warnings 8
+  migration declare-explicit-write-authority: 3 affected tables across 8 findings
+    Choose one explicit table write posture or replace generic writes with a declaration-owned operation.
+    Per-table detail: --json diagnostics; generated/authorization-review.json#writePolicyChecks
+  table visibility 5 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/packages/snapback-react/fixtures/conversation/app/snapback/generated  (inputsHash snapback.v1:…)
+[check-generated-artifacts] $ env SNAPBACK_OUTBOUND_ACTIONS=1 node packages/snapback-codegen/index.mjs packages/snapback-cli/fixtures/push-seam/app/snapback
+Codegen summary for app
+  tables 1; operations 4 (query 1, live query 0, mutation 2, action 1); live 0; ephemeral 0
+  files 40 (review manifest 1, consumer committed 7, ignored cache 32); warnings 0
+  table visibility 1 declared; 0 implicit
+codegen ok: /home/ccheever/projects/sb4-w12-kit/packages/snapback-cli/fixtures/push-seam/app/snapback/generated  (inputsHash snapback.v1:…)
+[check-generated-artifacts] $ node scripts/check-authorization-review.mjs
+[check-authorization-review] ok: 35 projections are schema-valid, identity-bound, consumer-committed, and current
+[check-generated-artifacts] $ node scripts/check-data-tier-corpus-exemplar.mjs
+data-tier-corpus-exemplar: applyLiveFeedSnapshot outgrew-IR diagnostic verified
+[check-generated-artifacts] $ node admin-ui/generate-contract-bindings.mjs
+admin-ui: generated Contract bindings -> /home/ccheever/projects/sb4-w12-kit/admin-ui/generated/contract
+[check-generated-artifacts] ok: review manifests, ignored caches, and committed projections are current

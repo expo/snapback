@@ -53,6 +53,13 @@ pub fn init(options: &Options) -> i32 {
         eprintln!("{USAGE}");
         return 2;
     }
+    match ports::environment() {
+        Err(error) => { eprintln!("E_INPUT: {error}"); return 2; }
+        Ok(Some((lo, hi))) if lo == hi && (social || options.flags.contains_key("web") || options.flags.contains_key("expo")) => {
+            eprintln!("E_INPUT: a UI starter needs at least two runtime ports for its backend and frontend"); return 2;
+        }
+        _ => {},
+    }
     let range = match ports::range(options) {
         Ok(range) => range,
         Err(error) => { eprintln!("E_INPUT: {error}"); return 2; }
@@ -276,13 +283,14 @@ pub fn init(options: &Options) -> i32 {
     if expo && files.iter().any(|(name, _)| *name == "package.json") {
         println!("init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)");
     }
+    let runtime = match ports::environment() { Ok(range) => range, Err(_) => None };
     if web {
-        let page = web_port.unwrap_or(5173);
+        let page = runtime.map(|(lo, _)| lo + 1).unwrap_or(web_port.unwrap_or(5173));
         // @ref LLP 3000.011.003.000#7.6 — wave 7 (11 lanes): `--port N` already moved both; the line named only --web-port.
         let flags = if port.is_some() { "" } else { "; `init --web --port N` sets the backend to N and the page to N+1 together" };
-        println!("init: the backend is http://127.0.0.1:{}; `npm run dev` serves the page on http://localhost:{page}{flags}", port.unwrap_or(4400));
-    } else if expo && port.is_none() {
-        println!("init: the backend is http://127.0.0.1:4400; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together");
+        println!("init: the backend is http://127.0.0.1:{}; `npm run dev` serves the page on http://localhost:{page}{flags}", runtime.map(|(lo, _)| lo).unwrap_or(port.unwrap_or(4400)));
+    } else if expo {
+        println!("init: the backend is http://127.0.0.1:{}; `npm run web` serves http://localhost:{}; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together", runtime.map(|(lo, _)| lo).unwrap_or(port.unwrap_or(4400)), runtime.map(|(lo, _)| lo + 1).unwrap_or(web_port.unwrap_or(8081)));
     }
     if !pinned.is_empty() {
         println!("init: pinned package.json {} (the starter's exact versions)", pinned.join(", "));
@@ -315,6 +323,7 @@ pub fn init(options: &Options) -> i32 {
             Some(_) => {},
         }
     }
+    if web || expo { println!("\x1b[1mnpm install\x1b[0m"); }
     0
 }
 

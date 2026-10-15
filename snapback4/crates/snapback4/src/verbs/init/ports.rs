@@ -32,3 +32,15 @@ pub(super) fn scripts(files: &mut Vec<(&'static str, String)>, backend: u16, fro
         *text = super::pretty(&package);
     }
 }
+
+/// The initializer only reports this range; generated files read it again at launch.
+pub(super) fn environment() -> Result<Option<(u16, u16)>, String> {
+    match (std::env::var("PORT_LO").ok(), std::env::var("PORT_HI").ok()) {
+        (None, None) => Ok(None),
+        (Some(lo), Some(hi)) => match (lo.parse::<u16>(), hi.parse::<u16>()) {
+            (Ok(lo), Ok(hi)) if lo > 0 && lo <= hi => Ok(Some((lo, hi))),
+            _ => Err("PORT_LO/PORT_HI must provide an inclusive range in 1..65535".into()),
+        },
+        _ => Err("PORT_LO and PORT_HI must both be set".into()),
+    }
+}

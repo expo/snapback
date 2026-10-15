@@ -111,8 +111,7 @@
   },
   "dependencies": {
     "openid-client": "6.8.8",
-    "undici": "8.11.2",
-    "playwright-core": "1.55.1"
+    "undici": "8.11.2"
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/",
@@ -124,10 +123,12 @@
     "@types/react-dom": "19.3.0",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "playwright-core": "1.55.1"
   },
   "peerDependencies": {
-    "react": "^19.0.0"
+    "react": "^19.0.0",
+    "playwright-core": ">=1.55.1 <2"
   },
   "license": "MIT",
   "repository": {
@@ -137,6 +138,9 @@
   },
   "peerDependenciesMeta": {
     "react": {
+      "optional": true
+    },
+    "playwright-core": {
       "optional": true
     }
   }

@@ -1,0 +1,30 @@
+✔ default web starter guest proves a visible labelled form and ships a favicon (2828.234996ms)
+✔ default web starter alice proves a visible labelled form and ships a favicon (3962.811678ms)
+✔ visible-form arming ignores old sent state, isolates the clicked mutation and cleans repeated observers (2.150004ms)
+✔ form proof rejects matching background writes with a broken button (613.71321ms)
+✔ form proof accepts click-owned app mutation (654.965005ms)
+✔ a later background requestSubmit never inherits a broken button click (594.139198ms)
+✔ clicked dispatch provenance: microtask (600.217212ms)
+✔ clicked dispatch provenance: nested-submit (665.904779ms)
+✔ clicked dispatch provenance: script-click (666.075825ms)
+✔ clicked dispatch provenance: nested-script-click (2620.380287ms)
+✔ unapproved App calls preserve supported options from prototypes, non-enumerable fields and private getters (3.103664ms)
+✔ H8 custom-schema generated proof refuses success without a write (1359.738549ms)
+✔ H8 withBrowser honors caller Playwright and opens no TCP listener (274.784239ms)
+✔ H8 witness claims the trusted button form submit, preserving canonical null arguments (642.353966ms)
+✔ init preserves package identity, reports current range, and adapt is read-only by default (45.616841ms)
+✔ proof.cli runs JS wrapper verbs (34.840302ms)
+✔ rendered evidence excludes textareas and scopes freshness; frontPage activates (405.410608ms)
+✔ unclaimable events, operations and arguments settle with reasons; pending is never terminal (2.161802ms)
+✔ day2 caller source arguments override npm defaults and malformed argument lists refuse (85.03013ms)
+✔ adapt migrates recognized legacy literal scripts/config and preserves explicit defaults (34.860852ms)
+✔ single-port ranges remain valid for schema-only init; UI init refuses before writes (13.548636ms)
+✔ native window aliases without a browser location do not install a web witness (0.974551ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13315.105175

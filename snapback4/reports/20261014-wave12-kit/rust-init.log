@@ -1,0 +1,208 @@
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:292:13
+    |
+292 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:503:15
+    |
+503 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: `snapback4-core` (lib) generated 9 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling snapback4-device v0.4.28 (/home/ccheever/projects/sb4-w12-kit/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:450:51
+    |
+450 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4 v0.4.28 (/home/ccheever/projects/sb4-w12-kit/snapback4/crates/snapback4)
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:115:30
+    |
+115 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:131:30
+    |
+131 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+
+warning: method `push` is never used
+  --> crates/snapback4/src/dev_refusal_console.rs:22:12
+   |
+16 | impl Console {
+   | ------------ method in this implementation
+...
+22 |     pub fn push(&mut self, record: Value, identity: &Value, out: &mut impl Write) {
+   |            ^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `human_period` is never used
+   --> crates/snapback4/src/verbs.rs:822:4
+    |
+822 | fn human_period(ms: u64) -> String {
+    |    ^^^^^^^^^^^^
+
+warning: `snapback4` (bin "snapback4") generated 4 warnings (run `cargo fix --bin "snapback4" -p snapback4` to apply 2 suggestions)
+    Finished `test` profile [optimized] target(s) in 28.11s
+     Running tests/init.rs (snapback4/target/debug/deps/init-7b90248a65fde1a5)
+
+running 50 tests
+test failed_package_write_preserves_original ... ok
+test w13e_removed_search_recipe_is_an_ordinary_unknown_recipe ... ok
+test generated_proofs_read_ports_at_execution_and_declare_the_driver ... ok
+test every_q_file_is_the_projects_schema ... ok
+test init_port_sets_the_backend_url_and_next_step ... ok
+test web_starter_refuses_conflicts_before_writing ... ok
+test frontend_starters_ignore_builds_and_take_the_directorys_name ... ok
+test expo_starters_pave_native_smoke_and_export_at_every_milestone ... ok
+test init_names_the_one_flag_that_moves_both_ports ... ok
+test init_preserves_unrelated_symlinks_and_readmes_in_every_starter ... ok
+test adapt_keeps_the_fixture_directory_and_the_projects_own_rows ... ok
+test expo_metro_blocks_store_files_and_preserves_expo_exclusions ... ok
+test init_lists_the_files_it_wrote ... ok
+test adapt_names_an_old_expo_starters_ids_after_the_directory ... ok
+test init_web_port_moves_vite_with_the_backend ... ok
+test init_reports_all_conflicts_before_writing ... ok
+test adapt_never_touches_a_file_the_project_changed ... ok
+test init_merges_packages_and_preserves_unrelated_metadata ... ok
+test init_conflicts_name_the_key_and_leave_every_destination_untouched ... ok
+test expo_starters_override_the_config_plugins_uuid ... ok
+test schema_first_init_after_check_replaces_generated_files ... ok
+test usage_stderr_never_recommends_the_retired_installer ... ok
+test adapt_repairs_only_the_owned_0_4_26_expo_favicon ... ok
+test adapt_adds_missing_proof_files_and_preserves_application_proofs ... ok
+test init_refuses_owned_symlinks_but_allows_an_unwritten_package_link ... ok
+test package_scripts_compare_as_commands ... ok
+test chat_template_is_explicit_and_needs_one_client ... ok
+test skip_existing_keeps_files_and_writes_the_rest ... ok
+test wave8_web_client_chooses_principal_journal_for_both_identity_modes_when_nothing_syncs ... ok
+test web_chat_template_embeds_reference_and_keeps_default_schema_only ... ok
+test password_starters_and_expo_web_journal_follow_schema ... ok
+test every_starter_is_free_of_repository_history ... ok
+test init_beside_a_projects_own_schema_leaves_its_tests_green ... ok
+test web_and_expo_starters_are_one_small_screen_with_product_comments ... ok
+test init_first_then_schema_leftovers_are_named_and_adapted ... ok
+test calibration_commonjs_expo_imports_generated_api_from_node_esm ... ok
+test adapt_switches_guest_password_and_persona_and_keeps_password_readme ... ok
+test the_readme_says_what_works_offline_from_the_schemas_synced_tables ... ok
+test untouched_previous_release_clients_adapt_to_password_but_edits_stay_owned ... ok
+test ordinary_starters_still_check_and_preserve_their_server_opt_in ... ok
+test orphan_and_invalid_recipe_options_keep_the_clear_retirement_refusal ... ok
+test init_preserves_inherited_module_type_when_creating_root_package ... ok
+test a_schema_without_the_todo_operations_gets_a_neutral_home_screen ... ok
+test untouched_starters_have_no_adaptation_advice ... ok
+test w10r1b_backfill_leaves_room_for_delete_and_replace_before_purge ... ok
+test w10r1b_51st_follow_fits_the_write_ceiling_with_the_app_edge ... ok
+test init_preserves_existing_commonjs_scripts_and_imports_generated_api ... ok
+test w7a_residency_measures_the_wired_500_follow_reader ... ok
+test retired_feed_installer_and_all_its_options_refuse_without_writes ... ok
+test w8b_residency_measures_the_wired_calibration_shape has been running for over 60 seconds
+test w8b_residency_measures_the_wired_calibration_shape ... ok
+
+test result: ok. 50 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 198.26s
+
+     Running tests/init_dx3.rs (snapback4/target/debug/deps/init_dx3-616902bb77be5b2f)
+
+running 7 tests
+test preview_flags_require_adapt_and_cannot_be_combined ... ok
+test dry_run_lists_removals_and_rewrites_without_changing_files ... ok
+test every_frontend_template_documents_proofs_and_expo_uses_the_runtime_api ... ok
+test online_web_keeps_an_existing_synced_schema_and_supports_personas ... ok
+test proof_additions_share_the_complete_nonmutating_adaptation_plan ... ok
+test explicit_online_web_starter_checks_and_keeps_the_choice_when_adapted ... ok
+test historical_readmes_without_the_exact_proof_appendix_still_adapt ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.17s
+

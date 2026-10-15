@@ -1,0 +1,139 @@
+
+> snapback4-social-starter@0.0.1 build:web
+> expo export -p web --max-workers 2 && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+| (node:2611783) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+Web Bundled 732ms node_modules/expo-router/entry.js (929 modules)
+
+› Assets (19):
+node_modules/expo-router/assets/arrow_down.017bc6ba3fc25503e5eb5e53826d48a8.png (9.5KB)
+node_modules/expo-router/assets/error.d1ea1496f9057eb392d5bbf3732a61b7.png (469B)
+node_modules/expo-router/assets/file.19eeb73b9593a38f8e9f418337fc7d10.png (138B)
+node_modules/expo-router/assets/forward.d8b800c443b8972542883e0b9de2bdc6.png (188B)
+node_modules/expo-router/assets/pkg.ab19f4cbc543357183a20571f68380a3.png (364B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.0a328cd9c1afd0afe8e3b1ec5165b1b4.png (653B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon.35ba0eaec5a4f5ed12ca16fabeae451d.png (207B)
+node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55.png (4 variations | 425B)
+node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7.png (4 variations | 235B)
+node_modules/expo-router/assets/react-navigation/elements/search-icon.286d67d3f74808a60a78d3ebf1a5fb57.png (928B)
+node_modules/expo-router/assets/sitemap.412dd9275b6b48ad28f5e3d81bb1f626.png (465B)
+node_modules/expo-router/assets/unmatched.20e71bdf79e3a97bf55fd9e164041578.png (4.8KB)
+node_modules/snapback4/dist/wasm/snapback4_device_bg.43b0fcf38e51391a6d49a7a85dcc4b71.wasm (2.3MB)
+
+› web bundles (2):
+_expo/static/js/web/entry-a83b4877ea96037ea09fe0241512ac9a.js (1.6MB)
+_expo/static/js/web/web-worker-entry-650f0e4244a9b624e4155750c59de637.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 23 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+[
+  {
+    "starter": "expo-social",
+    "kind": "expo",
+    "attempt": 1,
+    "status": "passed",
+    "elapsedMs": 4864,
+    "range": [
+      44537,
+      44557
+    ],
+    "occupied": 44537,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      75.64,
+      36.82,
+      28.63
+    ],
+    "listenerAudit": {
+      "status": "passed",
+      "method": "strace-listen",
+      "samples": 4,
+      "listeners": [
+        {
+          "pid": 2612311,
+          "port": 44538
+        },
+        {
+          "pid": 2612311,
+          "port": 44538
+        },
+        {
+          "pid": 2612504,
+          "port": 44539
+        }
+      ],
+      "nonReturned": [
+        {
+          "pid": 2613139,
+          "state": "absent",
+          "record": "???( <unfinished ...>"
+        }
+      ],
+      "range": [
+        44537,
+        44557
+      ],
+      "tracerVersion": "strace -- version 6.8"
+    },
+    "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-final/frontend-expo-social/proof-logs-1"
+  },
+  {
+    "starter": "expo-social",
+    "kind": "expo",
+    "attempt": 2,
+    "status": "passed",
+    "elapsedMs": 5137,
+    "range": [
+      45105,
+      45125
+    ],
+    "occupied": 45105,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      75.64,
+      36.82,
+      28.63
+    ],
+    "listenerAudit": {
+      "status": "passed",
+      "method": "strace-listen",
+      "samples": 4,
+      "listeners": [
+        {
+          "pid": 2615627,
+          "port": 45106
+        },
+        {
+          "pid": 2615627,
+          "port": 45106
+        },
+        {
+          "pid": 2615705,
+          "port": 45107
+        }
+      ],
+      "nonReturned": [
+        {
+          "pid": 2615707,
+          "state": "absent",
+          "record": "???(2615671 +++ exited with 0 +++"
+        }
+      ],
+      "range": [
+        45105,
+        45125
+      ],
+      "tracerVersion": "strace -- version 6.8"
+    },
+    "logs": "/home/ccheever/projects/sb4-w12-kit/snapback4/target/wave12-kit-linux-final/frontend-expo-social/proof-logs-2"
+  }
+]

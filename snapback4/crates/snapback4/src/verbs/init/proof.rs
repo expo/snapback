@@ -14,17 +14,44 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, 
     for (name, text) in files.iter_mut().filter(|(name, _)| *name == "README.md") {
         *text = readme(std::mem::take(text)); let _ = name;
     }
+    for (name, text) in files.iter_mut() {
+        if *name == "vite.config.mts" { *text = runtime_vite(text, backend, frontend); }
+    }
     // Social keeps account controls on its Profile tab; prove the actual route.
-    let proof = include_str!("frontend-proof.mjs").replace("// TEMPLATE_READY", if options.flags.get("template").is_some_and(|template| template == "social") {
+    let mut proof = include_str!("frontend-proof.mjs").replace("// TEMPLATE_READY", if options.flags.get("template").is_some_and(|template| template == "social") {
         "await page.getByText(\"Profile\", { exact: true }).click();"
     } else { "" });
+    let dir = options.positionals.first().map(std::path::Path::new).unwrap_or_else(|| std::path::Path::new("."));
+    let source = if let Ok(Some(own)) = super::own_schema(dir) {
+        own.files.iter().filter_map(|name| std::fs::read_to_string(dir.join("snapback").join(name)).ok()).collect::<Vec<_>>().join("\n")
+    } else { files.iter().find(|(name, _)| *name == "snapback/schema.q").map(|(_, text)| text.clone()).unwrap_or_default() };
+    if !source.is_empty() { files.push(("versions/v1.q", source.clone())); files.push(("versions/v2.q", source)); }
+    if options.flags.get("template").is_some_and(|template| template == "social") {
+        proof = proof.replace("getByLabel(\"Task\"", "getByLabel(\"Display name\"")
+            .replace("name: \"Add\"", "name: \"Save profile\"")
+            .replace("beginForm(\"add\", { title }", "beginForm(\"saveProfile\", { name: title }");
+    } else if options.flags.get("template").is_some_and(|template| template == "chat") {
+        proof = proof.replace("    const task =", r#"    const viewer = await page.evaluate(() => window.__snapback4Witness.viewer());
+    const seeded = await fetch(`${dev.url}/seed`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify([
+      { table: "conversations", row: { id: "proof-room", title: "Proof room", creatorId: viewer } },
+      { table: "memberships", row: { id: "proof-member", conversationId: "proof-room", principal: viewer, role: "admin", joinedAt: Date.now() } }
+    ]) });
+    assert.ok(seeded.ok, await seeded.text());
+    await page.getByText("Proof room", { exact: true }).click();
+    const task ="#)
+            .replace("page.getByLabel(\"Task\", { exact: true })", "page.getByPlaceholder(\"Message\", { exact: true })")
+            .replace("name: \"Add\"", "name: \"Send\"")
+            .replace("beginForm(\"add\", { title }", "beginForm(\"send\", { conversationId: \"proof-room\", body: title }");
+        // Chat receipts echo drafts. Restrict evidence to its message display.
+        if web { proof = proof.replace("renderedText(page, new RegExp(title))", "renderedText(page, new RegExp(title), { within: page.getByRole(\"region\", { name: \"Thread\" }) })"); }
+    }
     files.push(("scripts/frontend-proof.mjs", proof));
     files.push(("scripts/day2-proof.mjs", include_str!("day2-proof.mjs").to_owned()));
     files.push(("scripts/launch.mjs", include_str!("launch.mjs").replace("BACKEND", &backend.to_string()).replace("FRONTEND", &frontend.to_string())));
     for (name, text) in files.iter_mut().filter(|(name, _)| *name == "package.json") {
         let mut package: Value = serde_json::from_str(text).unwrap();
         package["scripts"]["frontend:proof"] = json!("node scripts/frontend-proof.mjs");
-        package["scripts"]["day2:proof"] = json!("node scripts/day2-proof.mjs");
+        package["scripts"]["day2:proof"] = json!("node scripts/day2-proof.mjs versions/v1.q versions/v2.q");
         package["scripts"]["proof:web"] = json!("node scripts/frontend-proof.mjs");
         package["devDependencies"]["playwright-core"] = json!("1.55.1");
         package["scripts"]["backend"] = json!("node scripts/launch.mjs backend");
@@ -53,17 +80,45 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema) -> std::io::Re
     let text = std::fs::read_to_string(&path)?;
     let mut package: Value = serde_json::from_str(&text).map_err(std::io::Error::other)?;
     let original = package.clone();
+    let backend = package["scripts"]["backend"].as_str().and_then(|s| s.strip_prefix("snapback4 dev --port ")).and_then(|s| s.parse::<u16>().ok())
+        .or_else(|| std::fs::read_to_string(dir.join("src/client.ts")).ok()
+            .and_then(|s| s.split_once("127.0.0.1:").or_else(|| s.split_once("localhost:")).map(|(_, rest)| rest.chars().take_while(char::is_ascii_digit).collect::<String>()))
+            .and_then(|s| s.parse::<u16>().ok())).unwrap_or(4400);
+    let frontend = package["scripts"][if web { "dev" } else { "start" }].as_str()
+        .and_then(|s| s.split_once("--port ")).and_then(|(_, rest)| rest.split_whitespace().next()).and_then(|n| n.parse::<u16>().ok())
+        .or_else(|| std::fs::read_to_string(dir.join("vite.config.mts")).ok().and_then(|s| s.split_once("server: { port: ").and_then(|(_, rest)| rest.split(|c: char| !c.is_ascii_digit()).next()).and_then(|n| n.parse::<u16>().ok())))
+        .unwrap_or(if backend != 4400 { backend.saturating_add(1) } else if web { 5173 } else { 8081 });
     let mut generated = vec![("package.json", pretty(&package))];
-    files(&mut generated, &Options { positionals: vec![], flags: Default::default(), json: false }, 4400, if web { 5173 } else { 8081 }, web, &shape);
+    files(&mut generated, &Options { positionals: vec![dir.to_string_lossy().into_owned()], flags: Default::default(), json: false }, backend, frontend, web, &shape);
     let wanted: Value = serde_json::from_str(&generated[0].1).unwrap();
     for group in ["scripts", "devDependencies"] {
         if !package[group].is_object() { package[group] = json!({}); }
         for (key, value) in wanted[group].as_object().unwrap() {
-            if (key == "frontend:proof" || key == "day2:proof" || key == "playwright-core") && package[group].get(key).is_none() { package[group][key] = value.clone(); }
+            let old = package[group].get(key).and_then(Value::as_str);
+            let managed = group == "scripts" && old.is_some_and(|old| match key.as_str() {
+                "day2:proof" => old == "node scripts/day2-proof.mjs",
+                "backend" => old.strip_prefix("snapback4 dev --port ").is_some_and(|n| n.parse::<u16>().is_ok()),
+                "dev" | "preview" => old.strip_prefix(if key == "dev" { "vite --port " } else { "vite preview --port " }).and_then(|s| s.strip_suffix(" --strictPort")).is_some_and(|n| n.parse::<u16>().is_ok()),
+                "start" | "web" => old.strip_prefix(if key == "start" { "expo start --port " } else { "expo start --web --port " }).is_some_and(|n| n.parse::<u16>().is_ok()),
+                _ => false,
+            });
+            if managed || ((key == "frontend:proof" || key == "day2:proof" || key == "playwright-core") && old.is_none()) { package[group][key] = value.clone(); }
+        }
+    }
+    let mut config_changes = Vec::new();
+    if web {
+        if let Ok(current) = std::fs::read_to_string(dir.join("vite.config.mts")) {
+            // Replace only the exact initializer forms, allowing their port literals.
+            let numbers = current.split("port: ").skip(1).filter_map(|s| s.split(|c: char| !c.is_ascii_digit()).next()?.parse::<u16>().ok()).collect::<Vec<_>>();
+            let mut normalized = current.clone();
+            for number in &numbers { normalized = normalized.replace(&format!("port: {number}"), "port: 5173"); }
+            let reference = include_str!("starter/web/vite.config.mts").replace("port: 4173", "port: 5173");
+            if normalized == reference { config_changes.push(("vite.config.mts", runtime_vite(&current, backend, numbers.first().copied().unwrap_or(5173)))); }
         }
     }
     let mut additions: Vec<_> = generated.into_iter().skip(1)
-        .filter(|(name, _)| !dir.join(name).exists()).collect();
+        .filter(|(name, _)| !dir.join(name).exists() || (*name == "scripts/frontend-proof.mjs" && std::fs::read_to_string(dir.join(name)).ok().is_some_and(|text| text == include_str!("previous/frontend-proof-0.4.28.mjs").replace("// TEMPLATE_READY", ""))) || (*name == "scripts/day2-proof.mjs" && std::fs::read_to_string(dir.join(name)).ok().is_some_and(|text| text == include_str!("previous/day2-proof-0.4.28.mjs")))) .collect();
+    additions.extend(config_changes);
     if package != original { additions.push(("package.json", pretty(&package))); }
     Ok(additions)
 }
@@ -71,13 +126,28 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema) -> std::io::Re
 pub(super) fn apply(dir: &std::path::Path, additions: &[(&str, String)]) -> std::io::Result<()> {
     for (name, body) in additions {
         let path = dir.join(name);
-        if *name == "package.json" { super::replace_file(&path, body)?; }
+        std::fs::create_dir_all(path.parent().unwrap())?;
+        if *name == "package.json" || *name == "vite.config.mts" || *name == "scripts/frontend-proof.mjs" || *name == "scripts/day2-proof.mjs" { super::replace_file(&path, body)?; }
         else {
-            std::fs::create_dir_all(path.parent().unwrap())?;
             use std::io::Write;
             let mut file = std::fs::OpenOptions::new().write(true).create_new(true).open(&path)?;
             file.write_all(body.as_bytes())?;
         }
     }
     Ok(())
+}
+
+/// Environment is evaluated whenever Vite loads the config, never at init time.
+pub(super) fn runtime_vite(text: &str, backend: u16, frontend: u16) -> String {
+    if text.contains("const proofRange") { return text.to_owned(); }
+    let header = format!(r#"const proofRange = [process.env.PORT_LO, process.env.PORT_HI];
+if (proofRange.some(v => v !== undefined) && (!proofRange.every(v => v && /^\d+$/.test(v)) || Number(proofRange[0]) < 1 || Number(proofRange[1]) > 65535 || Number(proofRange[0]) >= Number(proofRange[1]))) throw Error("PORT_LO/PORT_HI must provide at least two valid ports");
+const backendPort = proofRange[0] === undefined ? {backend} : Number(proofRange[0]);
+const frontendPort = proofRange[0] === undefined ? {frontend} : backendPort + 1;
+process.env.VITE_SNAPBACK_URL ??= `http://127.0.0.1:${{backendPort}}`;
+"#);
+    let mut result = text.to_owned();
+    // All generated configurations have literal ports; preserve unrelated config.
+    for port in [frontend, 5173, 4173] { result = result.replace(&format!("port: {port}"), "port: frontendPort"); }
+    format!("{header}{result}")
 }

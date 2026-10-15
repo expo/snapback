@@ -1,0 +1,345 @@
+info: component rust-std for target x86_64-unknown-linux-musl is up to date
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.47
+   Compiling version_check v0.9.5
+   Compiling serde_core v1.0.229
+   Compiling zmij v1.0.23
+   Compiling serde v1.0.229
+   Compiling foldhash v0.2.0
+   Compiling allocator-api2 v0.2.21
+   Compiling typenum v1.20.1
+   Compiling cfg-if v1.0.4
+   Compiling stable_deref_trait v1.2.1
+   Compiling libm v0.2.16
+   Compiling find-msvc-tools v0.1.12
+   Compiling itoa v1.0.18
+   Compiling siphasher v1.0.3
+   Compiling shlex v2.0.1
+   Compiling rustversion v1.0.23
+   Compiling libc v0.2.189
+   Compiling writeable v0.6.4
+   Compiling vcpkg v0.2.15
+   Compiling pkg-config v0.3.34
+   Compiling wasmi_ir v2.0.0
+   Compiling bitflags v2.13.2
+   Compiling subtle v2.6.1
+   Compiling wasmparser v0.228.0
+   Compiling icu_locale_fallback_data v2.3.0
+   Compiling litemap v0.8.3
+   Compiling getrandom v0.3.4
+   Compiling icu_segmenter_data v2.3.0
+   Compiling static_assertions v1.1.0
+   Compiling thiserror v2.0.20
+   Compiling memchr v2.8.3
+   Compiling rustc-hash v2.1.3
+   Compiling oxc_data_structures v0.154.0
+   Compiling wasmi v2.0.0
+   Compiling serde_json v1.0.151
+   Compiling oxc_estree v0.154.0
+   Compiling utf8_iter v1.0.4
+   Compiling fastrand v2.5.0
+   Compiling cpufeatures v0.2.17
+   Compiling autocfg v1.5.1
+   Compiling unicode-width v0.2.2
+   Compiling dragonbox_ecma v0.1.12
+   Compiling cow-utils v0.1.3
+   Compiling smawk v0.3.3
+   Compiling base64ct v1.8.3
+   Compiling bytecount v0.6.9
+   Compiling nonmax v0.5.5
+   Compiling unicode-segmentation v1.13.3
+   Compiling rand_core v0.6.4
+   Compiling percent-encoding v2.3.2
+   Compiling unicode-id-start v1.5.0
+   Compiling tinyvec_macros v0.1.1
+   Compiling fallible-iterator v0.3.0
+   Compiling fallible-streaming-iterator v0.1.9
+   Compiling wasmi_collections v2.0.0
+   Compiling smallvec v1.16.1
+   Compiling spin v0.9.9
+   Compiling equivalent v1.0.2
+   Compiling zeroize v1.9.0
+   Compiling log v0.4.34
+   Compiling opaque-debug v0.3.1
+   Compiling snapback4-lang v0.4.28 (/home/ccheever/projects/sb4-w12-kit/snapback4/crates/snapback4-lang)
+   Compiling winnow v0.7.15
+   Compiling toml_write v0.1.2
+   Compiling chunked_transfer v1.5.0
+   Compiling httpdate v1.0.3
+   Compiling seq-macro v0.3.6
+   Compiling ascii v1.1.0
+   Compiling generic-array v0.14.7
+   Compiling cc v1.4.5
+   Compiling phf_shared v0.14.0
+   Compiling hashbrown v0.17.1
+   Compiling tinyvec v1.13.2
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling num-traits v0.2.19
+   Compiling password-hash v0.5.0
+   Compiling sqlparser v0.59.0
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling phf v0.14.0
+   Compiling phf_generator v0.14.0
+   Compiling unicode-normalization v0.1.25
+   Compiling castaway v0.2.4
+   Compiling compact_str v0.10.0
+   Compiling hashlink v0.12.2
+   Compiling syn v3.0.5
+   Compiling syn v2.0.119
+   Compiling oxc_allocator v0.154.0
+   Compiling indexmap v2.14.2
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling inout v0.1.4
+   Compiling digest v0.10.7
+   Compiling libsqlite3-sys v0.38.2
+   Compiling num-integer v0.1.47
+   Compiling universal-hash v0.5.1
+   Compiling aead v0.5.2
+   Compiling cipher v0.4.4
+   Compiling poly1305 v0.8.0
+   Compiling blake2 v0.10.6
+   Compiling sha2 v0.10.9
+   Compiling tiny_http v0.12.0 (/home/ccheever/projects/sb4-w12-kit/snapback4/vendor/tiny_http)
+   Compiling wasmi_core v2.0.0
+   Compiling hmac v0.12.1
+   Compiling chacha20 v0.9.1
+   Compiling num-bigint v0.5.1
+   Compiling oxc_str v0.154.0
+   Compiling argon2 v0.5.3
+   Compiling chacha20poly1305 v0.10.1
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling phf_macros v0.14.0
+warning: `tiny_http` (lib) generated 1 warning
+   Compiling synstructure v0.14.0
+   Compiling serde_derive v1.0.229
+   Compiling zerofrom-derive v0.1.8
+   Compiling yoke-derive v0.8.4
+   Compiling zerovec-derive v0.11.6
+   Compiling displaydoc v0.2.7
+   Compiling thiserror-impl v2.0.20
+   Compiling oxc_ast_macros v0.154.0
+   Compiling oxc_span v0.154.0
+   Compiling zerotrie v0.2.5
+   Compiling zerofrom v0.1.8
+   Compiling yoke v0.8.3
+   Compiling zerovec v0.11.8
+   Compiling tinystr v0.8.4
+   Compiling potential_utf v0.1.6
+   Compiling icu_collections v2.3.0
+   Compiling icu_locale_core v2.3.0
+   Compiling oxc_index v5.0.0
+   Compiling serde_spanned v0.6.9
+   Compiling toml_datetime v0.6.11
+   Compiling toml_edit v0.22.27
+   Compiling oxc_syntax v0.154.0
+   Compiling icu_provider v2.3.1
+   Compiling icu_locale_fallback v2.3.0
+   Compiling icu_segmenter v2.3.0
+   Compiling toml v0.8.23
+   Compiling textwrap v0.16.4
+   Compiling rusqlite v0.40.2
+   Compiling oxc_diagnostics v0.154.0
+   Compiling oxc_regular_expression v0.154.0
+   Compiling snapback4-core v0.4.28 (/home/ccheever/projects/sb4-w12-kit/snapback4/crates/snapback4-core)
+   Compiling oxc_ast v0.154.0
+   Compiling oxc_ecmascript v0.154.0
+   Compiling oxc_ast_visit v0.154.0
+   Compiling oxc_parser v0.154.0
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:292:13
+    |
+292 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:503:15
+    |
+503 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: `snapback4-core` (lib) generated 9 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling snapback4-device v0.4.28 (/home/ccheever/projects/sb4-w12-kit/snapback4/crates/snapback4-device)
+warning: dropping unsupported crate type `cdylib` for target `x86_64-unknown-linux-musl`
+
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:450:51
+    |
+450 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 2 warnings (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4 v0.4.28 (/home/ccheever/projects/sb4-w12-kit/snapback4/crates/snapback4)
+warning: use of deprecated type alias `libc::time_t`: This type is changed to 64-bit in musl 1.2.0, we'll follow that change in the future release. See #1848 for more info.
+   --> crates/snapback4/src/verbs/witness/background.rs:388:65
+    |
+388 |     let seconds = (value.as_u64().unwrap_or(0) / 1000) as libc::time_t;
+    |                                                                 ^^^^^^
+    |
+    = note: `#[warn(deprecated)]` on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:115:30
+    |
+115 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:131:30
+    |
+131 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+
+warning: method `push` is never used
+  --> crates/snapback4/src/dev_refusal_console.rs:22:12
+   |
+16 | impl Console {
+   | ------------ method in this implementation
+...
+22 |     pub fn push(&mut self, record: Value, identity: &Value, out: &mut impl Write) {
+   |            ^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `human_period` is never used
+   --> crates/snapback4/src/verbs.rs:822:4
+    |
+822 | fn human_period(ms: u64) -> String {
+    |    ^^^^^^^^^^^^
+
+warning: `snapback4` (bin "snapback4") generated 5 warnings (run `cargo fix --bin "snapback4" -p snapback4` to apply 2 suggestions)
+    Finished `production` profile [optimized] target(s) in 6m 44s
+{"status":"passed","machine":"x86_64","interpreter":null,"needed":[]}
+
+added 6 packages in 2s
+init: wrote 20 files in . — Vite + React todos, offline-capable — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:29040; `npm run dev` serves the page on http://localhost:29041; `init --web --port N` sets the backend to N and the page to N+1 together
+[1mnpm install[0m
+
+added 26 packages in 6s
+check: ok — 1 table (1 synced), 4 operations, no problems, 4.0 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 134 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    0.45 kB │ gzip:   0.29 kB
+dist/assets/web-worker-entry-DseDHWyJ.js          25.02 kB
+dist/assets/snapback4_device_bg-LOu4IHPv.wasm  2,319.74 kB │ gzip: 719.82 kB
+dist/assets/index-D1mLdyLc.css                     0.36 kB │ gzip:   0.24 kB
+dist/assets/index-CiBYTUdW.js                    586.13 kB │ gzip: 186.58 kB
+
+✓ built in 251ms
+web-shell: 6 files at /; wrote snapback4-sw.js
+Error: EACCES: permission denied, scandir '/proc/2322081/fd'
+Error: EACCES: permission denied, scandir '/proc/2322081/fd'
+Error: EACCES: permission denied, scandir '/proc/2322081/fd'
+Error: EACCES: permission denied, scandir '/proc/2322081/fd'
+Error: EACCES: permission denied, scandir '/proc/2322081/fd'
+frontend:proof passed
+Error: EACCES: permission denied, scandir '/proc/2322081/fd'
+Error: EACCES: permission denied, scandir '/proc/2322081/fd'
+file:///home/ccheever/projects/sb4-w12-kit/snapback4/scripts/publication-starters.mjs:45
+  if (status !== 0) throw Error(`${command}: toolchain command exited ${status}`);
+                          ^
+
+Error: /home/ccheever/.local/node-v24.13.1-linux-x64/bin/node: toolchain command exited 1
+    at runToolchainCommand (file:///home/ccheever/projects/sb4-w12-kit/snapback4/scripts/publication-starters.mjs:45:27)
+    at async proveFrontendTwice (file:///home/ccheever/projects/sb4-w12-kit/snapback4/scripts/publication-starters.mjs:74:7)
+    at async proveGeneratedProofs (file:///home/ccheever/projects/sb4-w12-kit/snapback4/scripts/publication-frontend-proofs.mjs:32:21)
+    at async qualify (file:///home/ccheever/projects/sb4-w12-kit/snapback4/scripts/qualify-linux.mjs:92:28)
+    at async file:///home/ccheever/projects/sb4-w12-kit/snapback4/scripts/qualify-linux.mjs:128:90
+
+Node.js v24.13.1

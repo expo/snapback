@@ -1,5 +1,13 @@
 # Snapback 4 behavior changes
 
+## Unreleased — KIT (0.4.29)
+
+- Browser proofs use the caller's Playwright over a pipe, with no TCP listener; playwright-core is a peer. cli runs wrapper verbs too. Rendered-text, scoped freshness, frontPage and external logs keep evidence bounded.
+- The witness global always installs in browsers; ?witness=web arms claiming at registration and survives SPA routes. A clicked form's synchronous submit qualifies. Unclaimable durable writes settle E_WITNESS_UNCLAIMED with a reason.
+- Custom-schema proofs fail with "no write scenario: replace the Home assertions". day2:proof passes versions/v1.q versions/v2.q; init creates both from the current schema.
+- init preserves existing package.json name and version, reports runtime range URLs, and ends with one bold npm install line. It does not install dependencies.
+- Bare `init --adapt` writes nothing and ends with the exact `--apply` command. Only `--apply` changes recognized starter files; edited files stay owned by the application. Adapt updates recognized 0.4.27 launch scripts to runtime ports.
+
 ## 0.4.28
 
 - Deploy/rollback narration counts incompatible stored values and dormant rows, standalone cells and logical index entries separately; dormant rows cover their retained cells. Unchanged scheduled source with changed dependencies gets a note. Graceful shutdown removes serve.lock; dead-owner reclaim is verbose-only.

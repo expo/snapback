@@ -1,3 +1,5 @@
+import { registerWebWitness } from "snapback4/witness-web";
+import { api } from "../snapback/generated/api";
 import { smokeOrigin } from "snapback4-expo/witness";
 import { withIntentStorage } from "./intents";
 import { intentStorage } from "./intent-store";
@@ -22,3 +24,5 @@ export const app = createApp({ ...(witnessPersona ? { persona: witnessPersona } 
   sessionStore: Platform.OS === "web" ? localStorageSessionStore() : sessionStore,
   device: tier === "web" ? webDevice() : tier === "native" ? nativeDevice : undefined,
 });
+
+registerWebWitness(app, api);

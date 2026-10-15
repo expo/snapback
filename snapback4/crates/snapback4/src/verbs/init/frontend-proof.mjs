@@ -2,15 +2,16 @@
 // Replace the application assertions when replacing the starter screen.
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { startDev, startStatic, withBrowser, fillRN, statusText, waitForFresh, bounded, cleanup } from "snapback4/proof";
+import { startDev, startStatic, withBrowser, renderedText, fillRN, statusText, waitForFresh, bounded, cleanup } from "snapback4/proof";
 
-const dev = await startDev();
+const options = process.env.SNAPBACK4_PROOF_LOGS ? { logsDir: process.env.SNAPBACK4_PROOF_LOGS } : {};
+const dev = await startDev(options);
 let web;
 try {
   const identity = await (await fetch(`${dev.url}/auth/config`, { signal: AbortSignal.timeout(5000) })).json();
   const personas = (await (await fetch(`${dev.url}/dev/status`, { signal: AbortSignal.timeout(5000) })).json()).personas;
-  web = await startStatic("dist");
-  await withBrowser({ executablePath: process.env.CHROME }, async context => {
+  web = await startStatic("dist", options);
+  await withBrowser({ executablePath: process.env.CHROME, ...options }, async context => {
     const page = await context.newPage();
     await page.goto(`${web.url}/?api=${encodeURIComponent(dev.url)}&witness=web`, { waitUntil: "domcontentloaded" });
     if (identity.guests) {
@@ -26,7 +27,8 @@ try {
     // TEMPLATE_READY
     await page.getByRole("button", { name: /^(Sign out|Switch persona)$/, exact: true }).waitFor();
     const task = page.getByLabel("Task", { exact: true });
-    if (await task.count()) {
+    assert.ok(await task.count(), "no write scenario: replace the Home assertions");
+    {
       const title = `Proof ${randomUUID()}`;
       await fillRN(task, title);
       // Arm the app's SDK receipt outside the form, which may unmount.
@@ -35,7 +37,7 @@ try {
       await button.click();
       const receipt = await bounded(page.evaluate(() => window.__snapback4Witness.formResult()), 30_000, "clicked write receipt");
       assert.equal(receipt.state, "sent", JSON.stringify(receipt));
-      await waitForFresh(statusText(page, new RegExp(title)), null);
+      await waitForFresh(renderedText(page, new RegExp(title)), null);
     }
   });
   console.log("frontend:proof passed");

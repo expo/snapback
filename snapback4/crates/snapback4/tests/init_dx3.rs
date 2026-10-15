@@ -31,7 +31,7 @@ fn explicit_online_web_starter_checks_and_keeps_the_choice_when_adapted() {
     fs::write(dir.0.join("snapback/schema.q"), schema).unwrap();
     let plan = ok(dir.run(&["init", "--adapt", "--dry-run"]));
     assert!(plan.contains("rewrite src/App.tsx") && plan.contains("preview only"), "{plan}");
-    ok(dir.run(&["init", "--adapt"]));
+    ok(dir.run(&["init", "--adapt", "--apply"]));
     assert!(dir.text("src/App.tsx").contains("auth.signup"));
     assert!(dir.text("src/client.ts").contains("writes: \"online\"") && !dir.text("src/client.ts").contains("webDevice"));
     assert!(dir.text("README.md").contains("ships no device"));

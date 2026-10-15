@@ -1,0 +1,99 @@
+{
+  "source": "ac219032c355d7c55ed8991fa85a409e955d6ceb",
+  "version": "0.4.28",
+  "route": "proot",
+  "clientIntegrity": "sha512-of7rmYpEkhGjp9urI/m1P6/1hJZp2m1qHSIE39dCeGyxjT/sI4XjR+ljIilVOHYg/KaCea6krREmfNoFf2LahQ==",
+  "expoIntegrity": "sha512-xrZQCiga5iarZEd0j/BO897v2h5EvTl3Zk6hWxNe1/KnLMQmbHRGTtM6bWrmCCAOCAZFwbOiR9SWVlNHSnHFCw==",
+  "platformIntegrity": "sha512-YYTQ5wkpyWxd0TvkPCkLwUj8VOBLuVG9MioKov6pdluHwlRkJuOdseDnNvXtkJKxljMgIwGjoExdQ96er+HKiQ==",
+  "binarySha256": "d585057677f16e698df3a143b8f6e8793985394c6d0647c5268db3fe46089142",
+  "browserSummary": {
+    "source": "ac219032c355d7c55ed8991fa85a409e955d6ceb",
+    "frontendAttempts": 12,
+    "positiveBrowserAttempts": 28,
+    "negativeCustomAttempts": 2,
+    "allAuditsPassed": true,
+    "allObservedTcpPortsInRange": true,
+    "formSubmit": [
+      "web"
+    ]
+  },
+  "consumerQualification": "passed",
+  "publicationQualified": false,
+  "fullSourceSuite": "not-run (user prohibited scripts/test.sh)",
+  "distros": [
+    {
+      "base": "ubuntu:24.04",
+      "status": "passed",
+      "starters": {
+        "web": "passed",
+        "expo": "passed",
+        "adapted": "passed",
+        "templates": "passed"
+      }
+    },
+    {
+      "base": "alpine",
+      "status": "passed",
+      "starters": {
+        "web": "passed",
+        "expo": "passed",
+        "adapted": "passed",
+        "templates": "passed"
+      }
+    }
+  ],
+  "traceArchive": "latest per-app/attempt traces; all30 audit results are embedded in consumer.json",
+  "commands": {
+    "prepare": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 node scripts/publish.mjs --prepare-client",
+    "qualify": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CHROME=/home/ccheever/.cache/ms-playwright/chromium-1248/chrome-linux64/chrome node scripts/qualify-linux.mjs --client target/publication/client-0.4.28/snapback4-0.4.28.tgz --expo target/publication/client-0.4.28/snapback4-expo-0.4.28.tgz --out target/wave12-kit-linux-complete --consumer-only"
+  },
+  "evidenceSha256": {
+    "audit-unit-final.log": "a56d5beff45ec420e03c982717bb89156e6bfb00f2be39a16bedcb6e16a59cda",
+    "baseline-0.4.28-final.log": "d62ac7350ffbcfc5a693931a9292a8f824472b85b7563293f4983e48493b6331",
+    "baseline-0.4.28.log": "3960f441edcf810b355507a91bea5e817fd276f308bc718c795fdb6ca8d16ab4",
+    "baseline-kernel-check.log": "fef7d4c2a151fcb045511f349b836701234aa96610a370d1cbacd12af63c881e",
+    "baseline-listener.trace.gz": "1a222e4e1757affabba1d1c6dbfce76027bb473e184066eb1afe0dbee326b85b",
+    "baseline-sha256.txt": "e0bdcdd9c2ddd460c9593afd357b380c3e5bcc47e4b4443cdd778ff25ba054bf",
+    "browser-death.log": "629fe541e197b3e40ff19a3f70cda94361882538bff7286c5305b85fa7622e9b",
+    "caller-playwright-1.64.log": "175833161d4e61fcc5aae5bb126f8d3ea08b87e1b87cc625f4a192da9c31d83a",
+    "chat-proof.log": "c27fd64ba46a23f52e2198b62e171d39438a0f04c09a40c5c3df8b3c82a5f85d",
+    "client-final.log": "8b128c021a45b959d109bcde9bf33eee29a8fdaad4fc4d10472a5950e4343d2d",
+    "client-more.log": "ab2d950ba40a0458cd5ea4cd9ca38ac7609e471270f1b25b62c5b02b6e8a3c5f",
+    "client.log": "aaa9d198cce6c624c17109f5831de68607174412aff6714ef96895066ef69f7f",
+    "consumer.json": "cd44dd628f123c96d001fbd90598e6a27087ad16bc774e8199e08617a664bd28",
+    "docs-budget-final.log": "d4e901266a1cddb936ede068cb7d6984ab3ee3ed945fcd6ac40187fa3275a446",
+    "fixture-qualifier-tests.log": "b2aed77ca2bc4fdc2ef5a91e101348ff24aba4e02efeafe4596f6e4c3bc5c541",
+    "fixture-typechecks.log": "52ee8dc6b39407ec1e6a3cc8397974ce1100c9d846d1e362d99d733c000cf543",
+    "frontend-attempt3-all12.json": "8824880d7d1aa293e6f88127f7921fb4ca22a4637c1e78fa455f31cfd0303234",
+    "frontend-proofs.json": "52878f1fdd5a0f243ad596410c40905edee00c9cf1fbe034bb3e7bc3beae2cb2",
+    "host-browser-summary.json": "9c9776e7faf53b478ec559f8225fd61625359820d1fd8844e31b8f62cd5db7ee",
+    "linux-attempt1.log": "4349ace9a6d61c62e00b043bd18419f19c922b131fce681601974e8cbb7dff20",
+    "linux-attempt2-routing.log": "450db8c75f4bddb46948be7621a6eb4b2f09509407a36304831225b5eebe35f8",
+    "linux-attempt3-fixture.log": "d718a2cd73d9ff5372f68cdf97923e4091aea3ae60d23415fac4e9eca4258cb1",
+    "linux-complete.log": "0b0acd21386a020c70ebd0825ce177bbc60a8319005b51a7e3938ca9261913aa",
+    "listener-traces.json.gz": "70c31a4b491bf9f58d04c599e7f837c98ab8d1e407122f6e2a06bda0b7537492",
+    "prepare-final.json": "4659a84af8f0dfdc8f1fbb6806223c026d3b95ce46438b36a6c886282b5fcdd4",
+    "prepare-final.log": "1f13a8aa207976416fa2ba802ed76efd449304265e396e51bd23a8feb39d0d03",
+    "proofs.json": "b473fcdd12acbef3a3177e0622dee5678a5d77b4fe7c0f718831b8041669689a",
+    "qualifier-unit.log": "02ad947545ca95275c5f2b9190f38aeffd56089134143153ae74a127fb8e26c9",
+    "ref-check-final.log": "a52ae196e5e930446c964b1c691133bca78337e8e6728f6da8a454558e108085",
+    "review-fixture-codex.raw.gz": "0dd24cec493c12949fd631fee92f3b3485c5dffa2b680929b332921122565e7f",
+    "review-fixture-muse.raw.gz": "117107c92c0b108fc52a96ce078b50d638192c897659c71ab0143d9280de02ea",
+    "review-r1-brief.txt": "1c058f0b602c0f6119dc7919e51906e9444f0a5955ad18ad778061d08e8bc7c0",
+    "review-r1.codex.raw.gz": "167a1a89119dc8a8d3d7049c960ef8046d5046f0b14c9adda9a9e8b2634c6e48",
+    "review-routing-codex.raw.gz": "ff06da7cfdca118e89fc25a477ee9445dde48b48827a679d88752b884b4f2fd3",
+    "review-routing-muse.raw.gz": "2cff3599eae7e6ed7f39a2f3d09539d0c090e1d8ee3e27f7b1901a917d0fedf8",
+    "root-guide-final.log": "d62ed70274abd318ee262e7995bcfbd000425b050f7b6cba9b28582c0c074559",
+    "root-inventories-final.log": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813",
+    "root-inventories-missing-deps.log": "b9df48a62431079f729f30e27132fdb03d5f66a195ab2a311a7bea82563d8264",
+    "root-setup-final.log": "cc09fb8a002369aa89b14667431959129bc002b94c66ba433a76ac35f43635e6",
+    "routing-final-tests.log": "f315f4bdf14cc6fa5fd514e41910419be1a0579fa9653a79d379448faa6132ed",
+    "routing-guide.log": "fac68bde05e5bf46354c10e144f9ea3dd2ff91f15022a3d27f3a118687268577",
+    "rust-adapt-parent.log": "e0b974833a5618bdce7847802c98dcc6a0563a941c9e3ba43f7f2cf634674ef9",
+    "rust-binary.log": "f1a0127920c0f2fca5fbe18fb49e567fdb2264364b8daed25d7be014f33ae241",
+    "rust-guide.log": "a2bd4372fb21e43ea307a09899c74712cb21414db82c698768007dff4d0ccdb4",
+    "rust-init.log": "25205a669a91d2f11847b17985a1d7b5d9c3f327ffd24a9e2471c0f593ca124a",
+    "social-routing-probe.log": "6e19223cbbfc0ea3fdddc63e74a2497e9bee16e28fac1e8b2c90c7608ccff805",
+    "starter-proofs.json": "f541467e4542b70b19b1fd59e7c748c759eb8b61663f26e5348d1274ee6418b7"
+  }
+}

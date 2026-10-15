@@ -56,11 +56,28 @@ export function refuseCredentials(env = process.env) {
   for (const key of ["NPM_TOKEN", "NODE_AUTH_TOKEN"]) if (Object.hasOwn(env, key))
     throw new Error(`Linux qualification refuses ${key}; unset it before qualification (no authenticated registry writes)`);
 }
+function supportedListenerTracer(version) {
+  const match = typeof version === "string" && version.match(/version (\d+)\.(\d+)/);
+  return !!match && (Number(match[1]) > 6 || Number(match[1]) === 6 && Number(match[2]) >= 8);
+}
+function validNonReturned(audit) {
+  return Array.isArray(audit?.nonReturned) && audit.nonReturned.every(record =>
+    Number.isInteger(record.pid) && record.pid > 0 && ["absent", "zombie"].includes(record.state)
+    && typeof record.record === "string" && /^\?\?\?\((?: <(?:unfinished|detached) \.\.\.>|\d+ \+\+\+ (?:exited with \d+|killed by SIG[A-Z0-9]+(?: \(core dumped\))?) \+\+\+)$/.test(record.record));
+}
+function validListenerAudit(audit, range) {
+  return Array.isArray(range) && range.length === 2 && Number.isInteger(range[0]) && Number.isInteger(range[1])
+    && range[0] > 0 && range[0] < range[1] && range[1] <= 65535
+    && audit?.status === "passed" && audit.method === "strace-listen" && supportedListenerTracer(audit.tracerVersion)
+    && Number.isInteger(audit.samples) && audit.samples > 0 && validNonReturned(audit)
+    && Array.isArray(audit.range) && audit.range.length === 2 && audit.range.every((port,index)=>port === range[index])
+    && Array.isArray(audit.listeners) && audit.listeners.length > 0 && audit.samples >= audit.listeners.length
+    && audit.listeners.every(row => Number.isInteger(row.pid) && row.pid > 0 && Number.isInteger(row.port) && row.port >= range[0] && row.port <= range[1]);
+}
 function validAttempts(proofs, starter) {
   return Array.isArray(proofs) && proofs.length === 2 && [1, 2].every(attempt => proofs.some(p =>
-    p.starter === starter.id && p.kind === starter.kind && p.attempt === attempt && p.status === "passed" && Array.isArray(p.range) && p.range.length === 2
-    && Number.isInteger(p.range[0]) && Number.isInteger(p.range[1]) && p.range[0] > 0 && p.range[1] <= 65535 && p.range[0] < p.range[1]
-    && p.occupied === p.range[0] && p.cpuLoadWorkers >= 1));
+    p.starter === starter.id && p.kind === starter.kind && p.attempt === attempt && p.status === "passed"
+    && validListenerAudit(p.listenerAudit,p.range) && p.occupied === p.range[0] && p.cpuLoadWorkers >= 1));
 }
 export function validateFrontendProofs(proofs) {
   if (!Array.isArray(proofs) || proofs.length !== starterCases.length * 2 || !starterCases.every(s => validAttempts(proofs.filter(p => p.starter === s.id), s)))
@@ -72,7 +89,8 @@ export function validateStarterProofs(starters) {
   for (const starter of starterCases) {
     const result = starters.find(s => s.starter === starter.id);
     if (!result || result.status !== "passed" || result.typecheck !== "passed" || result.build !== "passed"
-        || (["web", "expo"].includes(starter.id) && !validAttempts(result.adaptedProofs, starter)))
+        || (["web", "expo"].includes(starter.id) && (!validAttempts(result.adaptedProofs, starter) || result.negativeProof?.status !== "passed"
+          || !validListenerAudit(result.negativeProof.listenerAudit,[30000,30020]) || (starter.id === "web" && result.formSubmit !== "passed"))))
       throw Error("Linux receipt needs every starter toolchain and frontend proof, including adapted Home");
   }
 }
