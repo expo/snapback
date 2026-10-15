@@ -127,7 +127,8 @@ table witnesses:
   cap 1 by message
   public
 table gates:
-  message: messages
+  message: messages on delete cascade
+  cap 1 by message
   public
   after insert <- exists witnesses[message = .message] by byMessage
 table fixtures:
