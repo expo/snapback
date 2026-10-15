@@ -3,15 +3,17 @@
     "build": "PASS",
     "buildCommand": "bunx --bun bun@1.3.12 run build",
     "bunVersion": "1.3.12",
-    "cargoInvokedByQualification": false,
+    "realCargoToolchainInvoked": false,
     "typecheck": "PASS",
-    "typecheckCommand": "bunx --bun bun@1.3.12 run typecheck"
+    "typecheckCommand": "bunx --bun bun@1.3.12 run typecheck",
+    "wasmBudgetTestUsesIsolatedFakeCargoStub": true
   },
   "createdUtc": "2026-10-15T00:33:55.826806+00:00",
   "notes": [
     "The initial four setup failures are retained verbatim and superseded by passing final-snapshot reruns.",
     "A hash/size guard caught a concurrent wasm refresh before any retry began; the final run used a new snapshot bound to d4 CLI and wasm.",
-    "The final snapshot preserved source permissions so witness copies could create their temporary authored schema."
+    "The final snapshot preserved source permissions so witness copies could create their temporary authored schema.",
+    "The wasm-budget unit test invokes its own temporary fake cargo stub to verify script routing; it does not invoke the Cargo toolchain or build Rust."
   ],
   "outcome": "PASS",
   "production": {
