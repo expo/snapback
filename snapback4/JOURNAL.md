@@ -95467,3 +95467,8 @@ this measurement is Linux evidence and does not assert publication.
 ### 2026-10-15 — LANG device commit-end expiry qualification
 
 The final shared prediction path runs the same bounded reference retirement and net aggregate maintenance before final obligations on native and web devices. Clean Linux measurement at ee824cac6f (product cfd4e2f242) is 2,352,628 B raw / 716,694 B gzip / 541,347 B Brotli; family/absence audits pass. Set the wasm budget to **717,194 B = measured gzip + exactly 500 B**. Whole-device gzip delta versus qualified 0.4.28 is +9,020 B; no per-feature attribution, macOS measurement or runtime ceiling increase. Earlier LANG candidate measurements are superseded.
+
+
+### 2026-10-15 — LANG private retirement and bounded device proof
+
+Clean Linux measurement at `5a9deb182e` (product `65560f6c4e`) is 2,353,573 B raw / 716,807 B gzip / 541,202 B Brotli. Strict family and absence audits pass. Set the wasm budget to **717,307 B = measured gzip + exactly 500 B**. The final device increment queues retirement when required maintained-column IR is private and preserves the active device allowance through nested reference scopes. Whole-artifact gzip growth from qualified 0.4.28 is 9,133 B; earlier LANG allowances are superseded. No runtime ceiling increase or publication claim.
