@@ -232,7 +232,7 @@ impl Runner<'_> {
                         None => fields.iter().map(|(field, _)| Ok(row.field(field)?.clone()))
                             .collect::<Result<Vec<_>, RuntimeError>>()?,
                     };
-                    let key = fields.iter().zip(values).map(|((_, kind), value)| (kind.clone(), value)).collect();
+                    let key: Vec<_> = fields.iter().zip(values).map(|((_, kind), value)| (kind.clone(), value)).collect();
                     rows.push((old, key));
                 }
             }
