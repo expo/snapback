@@ -1,0 +1,47 @@
+{
+  "kind": "wave12-r13-generated-device-expiry-actions",
+  "cargo_environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_TARGET_DIR": "/tmp/lang-affected-target",
+    "CARGO_BUILD_JOBS": "12"
+  },
+  "source": {
+    "device_expiry_checkpoint": "ba8613aa76",
+    "web_aggregate_checkpoint": "cfd4e2f242",
+    "file_sha256": {
+      "crates/snapback4-difftest/tests/wave12_expiry_actions_generated.rs": "d6f74fd162ba87a5bc9538c4b662dc42524c1948a590e9076a071571091ff037",
+      "crates/snapback4-core/src/engine/local.rs": "40d26f9020bf5c1fb4b556b2ad676361fca309f2833baf0d1538c4b48f51954a",
+      "crates/snapback4-core/src/engine/write.rs": "32d5c3ee6c49dbeb74ec10e6c52c2ce8898c6158b7374c1fbbf8bb82b3c184df"
+    }
+  },
+  "outcome": {
+    "command": "cargo test -p snapback4-difftest --test wave12_expiry_actions_generated -- --nocapture",
+    "result": "pass",
+    "tests": {
+      "passed": 2,
+      "failed": 0,
+      "filtered": 0
+    },
+    "generated": {
+      "complete_sources": 18,
+      "complete_memory_sqlite_cases": 36,
+      "complete_snapshot_pages": 84,
+      "complete_stream_prelude_pages": 18,
+      "complete_target_outcomes": 72,
+      "incomplete_sources": 9,
+      "incomplete_memory_sqlite_cases": 18,
+      "incomplete_snapshot_pages": 18,
+      "exact_e_predict_zero_change_outcomes": 18
+    },
+    "log": "raw/generated-device-expiry.log.gz",
+    "sha256": "0450267912c12cd6d1d3d2fa1002bedaf00ac7c22076dc3278903d4811317532"
+  },
+  "coverage": [
+    "Every complete source uses a real public-sync snapshot on Memory and SQLite; half also deliver the target or control child through an incremental stream prelude.",
+    "Cascade, set-null and restrict each cover an update to the expiry boundary, a future-expiry control and an expired parent with no inbound reference.",
+    "The negative family covers an unprovable empty private group, a wholly audience-hidden child and a visible-plus-hidden partially acquired group for every action.",
+    "No unknown or incomplete answer counts as parity: complete cases assert the exact action result and data image; incomplete cases require E_PREDICT and byte-equivalent authored rows before and after prediction."
+  ]
+}
