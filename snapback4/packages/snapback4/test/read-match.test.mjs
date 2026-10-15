@@ -80,3 +80,25 @@ test('present pages still expose incomplete, stale and revalidating independentl
     assert.deepEqual(result, { existence: 'present', pending: false, incomplete: true, stale: true, revalidating: true, since: 0 });
   }
 });
+
+test('matchReadList explicitly routes partial lists to otherwise and preserves named handlers', async () => {
+  const { matchReadList } = await import('../dist/contract.js');
+  assert.equal((await import('../dist/react.js')).matchReadList, matchReadList);
+  const partial = { data: [], existence: 'partial', complete: false, cut: 'meter', fresh: true };
+  const denied = { denied: why };
+  const handlers = { denied: found => found.code, otherwise: read => read, present: rows => rows };
+  assert.equal(matchReadList(partial, handlers), partial);
+  assert.equal(matchReadList({read: partial, loadMore() {}}, handlers), partial);
+  assert.equal(matchReadList(denied, handlers), 'E_OFFLINE');
+  assert.equal(matchReadList(partial, {...handlers, partial: rows => rows}), partial.data);
+  const present = {data: [{id:'a'}], existence:'present', complete:false, cut:'meter', fresh:false};
+  assert.equal(matchReadList(present, handlers), present.data);
+  assert.equal(matchReadList({loading:true}, handlers).loading, true);
+  const absent = {...partial, existence:'absent', complete:true, cut:null};
+  assert.equal(matchReadList(absent, handlers), absent);
+});
+
+test('list denial stays mandatory for JavaScript callers with a list-specific repair', async () => {
+  const {matchReadList}=await import('../dist/contract.js');
+  assert.throws(()=>matchReadList({denied:why},{otherwise:()=>null}),/matchReadList: denial is mandatory; add denied/);
+});

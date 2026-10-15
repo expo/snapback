@@ -3,7 +3,7 @@ use super::{ALIASES, KEYWORDS, SERVER_KEYWORDS};
 
 // @ref LLP 3000.007#20.1 — wave 6: the ~200 aliases moved behind `guide aliases`; the bare listing stays one screen.
 pub fn listing() -> String {
-    format!("cards: {}\nwith use server: {}\nStart here: snapback4 guide start (eight short patterns; guide <card> for reference).\nOne screen of the common forms: snapback4 guide cheatsheet; package exports: guide api.\nCards over {FULL_LINES} lines print their opening and section index on terminals and pipes: guide <card> --section <heading or number> prints one (a topic word prints the section that mentions it most), --find <words> prints the lines holding every word (a|b or a OR b for either), --full prints the whole card.\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\nBackground notifications: snapback/workers/<service>.mjs runs with dev and serve; guide effects shows ledger: true and provider idempotency.\nAliases: {} words open a card, or one section of it (pagination, roles, capacity, aggregates, …); snapback4 guide aliases lists them.", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.len())
+    format!("cards: {}\nwith use server: {}\nStart here: snapback4 guide start (eight short patterns; guide <card> for reference).\nOne screen of the common forms: snapback4 guide cheatsheet; package exports: guide api.\nOn terminals, cards over {FULL_LINES} lines print their opening and section index; pipes print whole cards. Narrow with guide <card> --section <heading or number> prints one (a topic word prints the section that mentions it most), --find <words> prints the lines holding every word (a|b or a OR b for either), --full prints the whole card.\nMessaging app: snapback4 new <dir> --template social; guide social carries the client recipes.\nBackground notifications: snapback/workers/<service>.mjs runs with dev and serve; guide effects shows ledger: true and provider idempotency.\nAliases: {} words open a card, or one section of it (pagination, roles, capacity, aggregates, …); snapback4 guide aliases lists them.", KEYWORDS.iter().filter(|word| !SERVER_KEYWORDS.contains(word)).copied().collect::<Vec<_>>().join(", "), SERVER_KEYWORDS.join(", "), ALIASES.len())
 }
 
 /// `guide aliases`: every alias, one per line, with the card (and section) it opens.
@@ -404,11 +404,11 @@ pub fn section(name: &str, card: &str, words: &str) -> Result<String, String> {
                     format!("{count} of the {total} lines that mention it; also {others} (--find {words:?} prints them all)")
                 }
             };
-            let note = format!("No heading of guide {name} is named {words:?}; {best}. {heading} holds {share}.");
+            let note = format!("guide {name}: keyword {words:?} opens {best}. {heading} ({share}).");
             let body = if best == 0 { lines[start..end].join("\n").trim_end().to_owned() } else { print(start, end) };
             return Ok(format!("{note}\n\n{body}"));
         }
-        let note = format!("No heading of guide {name} is named {words:?}, and its mentions span {} sections; here they are:\n", counts.len());
+        let note = format!("guide {name}: keyword {words:?} appears in {} sections; matching lines:\n", counts.len());
         return find(name, card, words).map(|lines| format!("{note}{lines}"));
     }
     // A whole-card alias no line mentions prints the card's opening.

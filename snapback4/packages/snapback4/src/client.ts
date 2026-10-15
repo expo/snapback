@@ -660,6 +660,7 @@ export function createClient(options: ClientOptions): Client {
 
   async function runQuery<A, R>(op: Query<A, R>, args: A, quiet = false, signal?: AbortSignal): Promise<QueryResult<R>> {
     checkRead(signal);
+    if (op == null || typeof op !== "object" || typeof op.name !== "string") return { read: { denied: { code: "E_OP", family: "op", message: "pass a generated handle (api.op), not an operation name", guide: "client" } }, tables: [], seq: minimumReadSeq, epoch: queryEpoch, valueDevice: null, valueServer: null, nextExpiry: null };
     const eph = ephemeralTables(op).length ? ephemeralReads.request() : undefined;
     const result = await withReadSignal(signal, eph?.signal ?? aborter.signal, stopped => runQueryOnce(op, args, eph, quiet, stopped));
     checkRead(signal);
@@ -1149,6 +1150,7 @@ export function createClient(options: ClientOptions): Client {
     },
     mutate: routeMutations(options.readOnly ? () => Promise.resolve({ state: "failed", id: mintId(), why: readOnlyRefusal() }) : ephemeral!.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
       const id = options?.id === undefined ? mintId() : options.id;
+      if (op == null || typeof op !== "object" || typeof op.name !== "string") return failedAdmission(id, { code: "E_OP", family: "op", message: "pass a generated handle (api.op), not an operation name", guide: "client" });
       if (readGate) return failedAdmission(id, readOnlyRefusal());
       if (closed || !credentials || link === "signed-out" || storeRefusal) {
         const failed = { state: "failed" as const, id, why: storeRefusal ?? (closed ? ended() : auth()) };

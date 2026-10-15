@@ -178,7 +178,7 @@ become `read <-`, `create <-` becomes `insert <-`, `modify <-` and `edit <-`
 become `update <-`, and `remove <-` becomes `delete <-`. For `write <-`,
 declare separate insert, update and delete rules for the operations intended.
 
-### What a refused write returns: E_RULE, NOT_FOUND, E_CONSTRAINT
+### What a refused write returns: E_RULE, NOT_FOUND, E_UNIQUE, E_CONSTRAINT
 For update/upsert, "readable" means the read rule admits the old row in the
 pre-write state, before the patch or any of its effects. The engine resolves
 id and unique-key targets privately; the update rule judges old and next.
@@ -186,14 +186,14 @@ id and unique-key targets privately; the update rule judges old and next.
 A mutation's writes pass the table's insert, update and delete rules as the caller; only a job runs as the system. `check` also notes N_WRITE_DENIED when preceding caller conditions provably contradict the update rule, including the update arm of an upsert; N_LOOKUP_NEVER_VISIBLE identifies a nullable point lookup whose read rule contradicts those conditions. Unknown role overlap is quiet. `check` notes N_WRITE_DENIED for a mutation's write (or upsert arm) whose rule is `deny` or omitted: write the rule its callers need, or do the write in a job. It notes the same code for a counter (`stock: v.stock - 1`) on a table whose update rule admits only a role, in a mutation that ordinary callers use and that never requires the role: keep the count as a maintained view over the rows they write instead. `check` notes N_READ_DENIED for a query or mutation that looks up an aggregate by key whose read rule is `deny`: every caller reads `null` for both a stored and absent group, so give it the rule its readers need over its group keys. In development, `snapback4 run` prints the clause that refused a write and its line; the refusal a client sees never names it. `insert` and `insert ... if absent` return E_RULE when the insert rule denies
 the viewer. A unique clash with a hidden row returns E_RULE for either insert
 form. For a readable secondary unique clash without a custom refusal, ordinary
-insert returns E_CONSTRAINT naming the index, while `insert ... if absent`
+insert returns E_UNIQUE naming the declared key, while `insert ... if absent`
 succeeds with null. If the update rule denies an update or upsert-patch, it
 returns E_RULE for a readable target and NOT_FOUND for an unreadable target. A
 valid update or upsert-patch admitted by the update rule can change a hidden
 row; if the resulting row remains hidden, it returns null. Without a custom
 unique refusal, an update or upsert-patch with a secondary unique clash returns
 NOT_FOUND if its target is unreadable, E_RULE if only the colliding row is
-unreadable, and E_CONSTRAINT naming the index if both are readable. An update
+unreadable, and E_UNIQUE naming the declared key if both are readable. An update
 condition on an unreadable target returns NOT_FOUND even if it would match; on a
 readable target, a false condition returns E_CONFLICT with a read-rule
 `current`. Delete returns NOT_FOUND for a missing id or an unreadable refused target, and E_RULE for a readable row whose delete rule refuses. Reading a
@@ -202,7 +202,7 @@ update or upsert-patch does not prove absence.
 
 | Update/upsert target before the write | Refusal details |
 | --- | --- |
-| Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |
+| Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_UNIQUE` for declared keys; `E_CONSTRAINT` for other constraints; `E_INPUT` |
 | Unreadable or absent | `NOT_FOUND` for rule denial, an `update` condition, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |
 
 Use `upsert counters[recipient] { count: 1 }` under an `update` rule to

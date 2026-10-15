@@ -56,14 +56,39 @@ fn plan(dir: &Path) -> (Vec<Leftover>, Vec<String>, Vec<String>) {
         let wanted = starter::native_smoke(own.identity.is_some_and(|(password, guests)| password && !guests));
         let recognized = [false, true].into_iter().any(|password| text == starter::native_smoke(password));
         if !recognized { modified.push("src/native-smoke.ts".to_owned()); }
-        if text != wanted && recognized {
+        if text != wanted && recognized && smoke_referenced(dir) {
             found.push(Leftover { path: "src/native-smoke.ts", why: "the unmodified native smoke helper uses the previous schema's sign-in".into(), rewrite: Some(wanted) });
         }
+    }
+    if read(dir, "src/native-smoke.ts").is_some() && !smoke_referenced(dir) {
+        advice.push("info: src/native-smoke.ts has no source reference; review it before a native smoke proof".into());
     }
     readme(dir, &own, todos, &mut found, &mut modified);
     app_json(dir, &mut found);
     expo_favicon(dir, &mut found);
     (found, advice, modified)
+}
+
+// A custom entry/component/proof can reference the helper too. Generated trees
+// and dependency directories are not authored source; do not follow symlinks.
+fn smoke_referenced(root: &Path) -> bool {
+    fn walk(dir: &Path, helper: &Path) -> bool {
+        let Ok(entries)=std::fs::read_dir(dir) else { return true; };
+        for entry in entries {
+            let Ok(entry)=entry else {return true;};
+            let Ok(kind)=entry.file_type() else {return true;};
+            let path=entry.path();
+            if kind.is_symlink() {continue;}
+            if kind.is_dir() {
+                if !matches!(entry.file_name().to_str(),Some("node_modules"|".git"|".snapback4"|".expo"|"target"|"dist"|"build"|"generated")) && walk(&path,helper) {return true;}
+            } else if path!=helper && !path.to_string_lossy().ends_with(".d.ts")
+                && path.extension().and_then(|e|e.to_str()).is_some_and(|e|matches!(e,"ts"|"tsx"|"js"|"jsx"|"mjs"|"cjs")) {
+                if std::fs::read_to_string(path).map_or(true,|text|text.contains("native-smoke")) {return true;}
+            }
+        }
+        false
+    }
+    walk(root,&root.join("src/native-smoke.ts"))
 }
 
 /// The starter README, while it is still one init wrote (for either screen,
@@ -285,6 +310,7 @@ fn port_of(client: &str) -> Option<&str> {
 pub(crate) fn report(dir: &Path) -> Option<String> {
     let (found, advice) = leftovers(dir);
     if found.is_empty() && advice.is_empty() { return None; }
+    if found.is_empty() && advice.iter().all(|line| line.starts_with("info:")) { return Some(advice.join("\n")); }
     let mut lines = Vec::new();
     for leftover in &found { lines.push(format!("  {}: {}", leftover.path, leftover.why)); }
     for line in &advice { lines.push(format!("  {line}")); }

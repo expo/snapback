@@ -72,3 +72,5 @@ export function saveAsset(client: Pick<Client, "asset">, id: string, name?: stri
 }
 export { uploadAndPlace, type UploadIntent, type UploadAndPlaceOptions } from "snapback4/local";
 export { useUpload } from "snapback4/react";
+
+export { secureStoreSessionStore, type SecureStoreLike } from "./session-store";

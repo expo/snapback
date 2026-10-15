@@ -201,3 +201,19 @@ test("historical stages without Expo proof bytes refuse without deleting artifac
   assert.equal(publications(r).length, 0);
   assert.deepEqual(readFileSync(join(directory, "platform.tgz")), before);
 });
+
+test('publication refuses an announced flag missing from verb help before any upload', t => {
+  const r=publish(t,{real:true,omitSchemaHelp:true});
+  assert.notEqual(r.status,0);
+  assert.match(r.stderr,/deploy --help omits announced --schema/);
+  assert.equal(publications(r).length,0);
+});
+
+test('resume checks installed help against the installed changelog before uploads', t => {
+  const first=publish(t);
+  assert.equal(first.status,0,first.stderr);
+  const resumed=publish(t,{resume:true,real:true,omitSchemaHelp:true},first.root);
+  assert.notEqual(resumed.status,0);
+  assert.match(resumed.stderr,/deploy --help omits announced --schema/);
+  assert.equal(publications(resumed).length,0);
+});

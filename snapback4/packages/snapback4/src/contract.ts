@@ -502,6 +502,23 @@ export function matchRead<T, R>(input: Matchable<T>, handlers: { [K in keyof Rea
   }
 }
 
+/** List matching keeps denial explicit; otherwise also handles uncertain lists.
+ * Named partial/loading/absent/present handlers always win. */
+export type ReadMatchListHandlers<T extends readonly unknown[], R = unknown> =
+  Pick<ReadMatchHandlers<T, R>, "denied"> & {
+    [K in "loading" | "absent" | "partial" | "present"]?: ReadMatchHandlers<T, R>[K];
+  } & { otherwise: (read: Read<T>) => R };
+
+// @ref LLP 3000.031#9-wave-12-list-matching — explicit list fallback covers partial without erasing denial.
+export function matchReadList<T extends readonly unknown[], H extends NoInfer<ReadMatchListHandlers<T>>>(
+  input: Matchable<T>, handlers: H,
+): ReturnType<Extract<H[keyof H], (...args: never[]) => unknown>>;
+export function matchReadList<T extends readonly unknown[], R>(input: Matchable<T>, handlers: ReadMatchListHandlers<T, R>): R {
+  const read: Read<T> = "loadMore" in input && "read" in input ? input.read : input as Read<T>;
+  if ("denied" in read && typeof handlers.denied !== "function") throw new TypeError("matchReadList: denial is mandatory; add denied: why => …");
+  return matchRead(read, { ...handlers, partial: handlers.partial ?? ((_data, current) => handlers.otherwise(current)) });
+}
+
 /** The fallback `otherwiseAll` builds: marked, so `matchRead` also sends the
  * denied and partial states the call does not name to it. The mark is a plain
  * property, so two copies of the package agree on it. */

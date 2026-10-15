@@ -96,7 +96,7 @@ fn typescript_inner(bound: &Bound, compatibility: Option<(&Bound, u64)>) -> Stri
             if !bounds.is_empty() { comment.push_str(&format!(" Bounds: {}.", bounds.join("; "))); }
             if fact.held { comment.push_str(" Held: device only; server refuses E_QUERY_HELD; no server fallback."); }
             if program.program.kind == ProgramKind::Query {
-                comment.push_str(" Read.cut: meter | words | null, beside complete.");
+                comment.push_str(" Read.cut: meter | words | null, beside complete. Unwrap with isReady(read) && read.data, or matchRead(read, handlers) from snapback4/contract (also snapback4/react).");
                 // Which React hook takes this query: `usePage` needs a cursor argument named `c`.
                 let paged = program.args.iter().any(|(name, ty)| name == "c" && ty_ts(ty).starts_with("Cursor"));
                 comment.push_str(if kind == "FollowingQuery" { HOOK_FOLLOWING } else if paged { HOOK_PAGE } else { HOOK_QUERY });

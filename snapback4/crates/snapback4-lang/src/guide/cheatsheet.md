@@ -96,6 +96,8 @@ mutation removeItem(item: items):
 - Time-varying access: `not before .opensAt`/`expire at .endsAt`; an event copies private payload into an authorized publication table (`guide rule-recipes`). A clock does not belong in read rules.
 - Background work: `job`, `schedule x every 1d at 03:00: x`, `every 1 month at day 1 09:00` (UTC), `effect` (`guide jobs`, `guide effects`).
 
+Rules are per row: one readable row never authorizes its neighbours. `last N` is newest-first; `first N` is oldest-first by the selected key. Client-minted ids are time-ordered, and do not sort like hand-written fixture ids.
+
 ## Roles and rosters
 
 A role is a roster row, and a rule or `exists` probe names one row, so the roster needs a unique key:

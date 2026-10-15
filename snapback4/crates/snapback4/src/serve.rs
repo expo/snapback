@@ -1067,7 +1067,7 @@ fn handle(mut request: Request, shared: &Shared) {
         (Method::Get, "/auth/config") => {
             let auth = producing_engine(shared).schema().auth.clone();
             // @ref LLP 3000.011.003.000.000#1 — an opt-in proof marker asserts the directly bound server, without granting authority.
-            let mut config = json!({ "guests": auth.guests, "password": auth.password });
+            let mut config = json!({ "guests": auth.guests, "password": auth.password, "development": shared.personas });
             if let Ok(id) = std::env::var("SNAPBACK4_PROOF_ID") && !id.is_empty() {
                 config["proof_id"] = json!(id);
             }

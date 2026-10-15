@@ -1,4 +1,5 @@
-import { mkdirSync, writeFileSync, copyFileSync, statSync } from "node:fs";
+import { checkVerbHelp } from "./check-verb-help.mjs";
+import { mkdirSync, writeFileSync, copyFileSync, statSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { run, digest } from "./publication-artifacts.mjs";
 import { proveStarters } from "./publication-starters.mjs";
@@ -12,6 +13,7 @@ writeFileSync(join(consumer, "package.json"), JSON.stringify({ name: "consumer",
 const env = { ...process.env }; delete env.SNAPBACK4_BIN;
 run("npm", ["install", "--no-audit", "--no-fund", "--loglevel=error", platform.tarball, staged.client.tarball, "react@19.3.0", "react-dom@19.3.0", "@types/react@19.3.0", "typescript@5.9.3"], { cwd: consumer, env });
 const installedBinary = join(consumer, "node_modules/snapback4-darwin-arm64/snapback4");
+checkVerbHelp(installedBinary, readFileSync(join(consumer, "node_modules/snapback4/CHANGELOG.md"), "utf8"));
 if (digest(installedBinary) !== platform.binarySha256) throw new Error("packed/installed platform binary differs from the production artifact");
 const signature = verifyDeveloperId(installedBinary);
 if (signature.signingAuthority !== platform.signing.signingAuthority || signature.signingTeamId !== platform.signing.signingTeamId) throw new Error("installed binary signature differs from the staged signature");

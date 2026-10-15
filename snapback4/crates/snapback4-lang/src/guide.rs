@@ -129,6 +129,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("push", "effects"), ("notification", "effects"), ("notify", "effects"), ("worker", "effects"), ("workers", "effects"), ("background", "effects"), ("idempotency", "effects"),
     ("route", "routes"), ("webhook", "routes"), ("webhooks", "routes"),
     ("auth", "personas"), ("signin", "deploy"), ("login", "deploy"), ("session", "personas"),
+    ("fixture test", "testing"), ("fixture tests", "testing"), ("cross row", "rules"),
     ("headless", "personas"), ("signup", "deploy"), ("sign-up", "deploy"), ("register", "deploy"),
     ("upload", "assets"), ("timeline", "feeds"), ("timelines", "feeds"),
     ("media", "assets"), ("image", "assets"), ("video", "assets"),
@@ -168,6 +169,8 @@ pub const ALIAS_SECTIONS: &[(&str, &str)] = &[
     ("sealed", "Sealed"), ("sealed bid", "Sealed"), ("sealed bids", "Sealed"), ("blind", "Sealed"), ("reveal", "Sealed"),
     ("not before", "Timed disclosure and timed writes"), ("timed disclosure", "Timed disclosure and timed writes"),
     ("roster", "Roles and rosters"), ("rosters", "Roles and rosters"), ("probe", "Roles and rosters"), ("positional", "Roles and rosters"),
+    ("fixture test", "Fixtures and cases"), ("fixture tests", "Fixtures and cases"),
+    ("cross row", "Hops, operators and read through"),
 ];
 
 /// The section an alias names in its card, if it names one: (card, heading words).
@@ -231,6 +234,13 @@ pub use language_card::LANGUAGE;
 pub fn resolve(word: &str) -> Option<&'static str> {
     ALIASES.iter().find(|(alias, _)| alias.eq_ignore_ascii_case(word.trim()) || alias.eq_ignore_ascii_case(&word.trim().replace('-', " "))).map(|(_, target)| *target)
         .or_else(|| KEYWORDS.iter().copied().find(|name| name.eq_ignore_ascii_case(word)))
+        .or_else(|| {
+            let prefix = word.trim().to_lowercase();
+            if prefix.len() < 3 { return None; }
+            let hits: std::collections::BTreeSet<_> = KEYWORDS.iter().copied().filter(|name| name.starts_with(&prefix))
+                .chain(ALIASES.iter().filter(|(alias,_)| alias.to_lowercase().starts_with(&prefix)).map(|(_,target)|*target)).collect();
+            (hits.len() == 1).then(|| *hits.iter().next().unwrap())
+        })
 }
 
 pub fn card(keyword: &str) -> Option<&'static str> {
@@ -675,7 +685,7 @@ preview. A Range request against a once asset is refused before consuming a
 view (E_ASSET_RANGE). Unsatisfiable ordinary ranges return HTTP 416. Every
 asset response is `private, no-store`, so a browser must reauthorize each
 viewer. At most two uploads run at once, and their disk writes happen outside
-the engine mutex. Uploads are online only; there is nothing to queue.
+the engine mutex. client.upload transfers bytes online and never queues them; device-owned uploadAndPlace/useUpload keeps durable offline capture and placement custody (below).
 The host admits 128 HTTP connections plus one per long wait (1,184 by
 default). Excess connections receive HTTP 503 E_RATE_LIMIT before request
 admission; full request worker pools also refuse.
@@ -963,6 +973,16 @@ curl -s -D - -o taxi-copy.pdf "$U/assets/$id" -H 'x-snapback-persona: ana' | gre
 Seed `approvers` with `{"id":"a1","principal":"dev:ana"}` in a fixture.
 
 ## Durable offline capture
+
+For custody without waiting for reconnect:
+```ts
+import { hasUploads, uploadAndPlace } from "snapback4/local";
+if (hasUploads(client)) {
+  const write = await uploadAndPlace(client, api.placePhoto, {title}, file, {argument: "photo", waitSeconds: 0});
+  // Keep the draft until sent; queued/uploading/placing are not success.
+}
+```
+The placement mutation takes the named asset argument; online-only clients use client.upload then placement. Full recipe: OFFLINE-UPLOADS.md.
 
 `useUpload` and `uploadAndPlace` commit a byte copy and its placing mutation
 together to the device outbox. For the API, Exact adapter contract, typed

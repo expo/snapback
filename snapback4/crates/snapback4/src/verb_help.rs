@@ -222,6 +222,15 @@ acceptance script over HTTP.";
 pub fn page(verb: &str, full: &str) -> Option<String> {
     let page = match verb {
         "init" => INIT,
+        "new" => "snapback4 new <dir> --template social|chat [--web|--expo]
+
+Choose a full reference template. For a small starter or schema-only setup, use snapback4 init. The Flags section lists the shared scaffold validator; each template checks its own combinations.",
+        "version" => "snapback4 --version
+
+Print the binary version.",
+        "upgrade" => "snapback4 upgrade [version]
+
+Upgrade core and every installed snapback4-expo adapter together with npm, bun or pnpm, keeping exact pins. Default: latest; --to selects an explicit target and permits a downgrade. Rebuild native apps after adapter changes; guide deploy has the upgrade checklist. Executing upgrade requires the matching installed client helper; help itself is built into this binary.",
         "check" => CHECK,
         "dev" => DEV,
         "run" => RUN,
@@ -247,8 +256,8 @@ Attaches the active release; a running serve adopts deploy and rollback atomical
                 if inside && !trimmed.is_empty() { lines.push(line.to_owned()); }
             }
             if lines.is_empty() { return None; }
-            return Some(format!("{}\n\nsnapback4 --help lists every verb.", lines.join("\n")));
+            return Some(format!("{}\n\n{}\n\nsnapback4 --help lists every verb.", lines.join("\n"), crate::cli_flags::help(verb)));
         }
     };
-    Some(format!("{page}\n\nsnapback4 --help lists every verb."))
+    Some(format!("{page}\n\n{}\n\nsnapback4 --help lists every verb.", crate::cli_flags::help(verb)))
 }

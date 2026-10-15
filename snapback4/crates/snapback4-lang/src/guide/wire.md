@@ -1,6 +1,6 @@
 # Wire: HTTP for curl, scripts and non-JS clients
 
-Under the JS client is plain JSON over HTTP, which curl, Python, Swift or any HTTP client can speak. Each call below is a POST with a JSON body unless it says GET.
+Every call carries a principal; public visitors use guest sessions; `serve` accepts bearers only. Plain JSON over HTTP works with curl, scripts and non-JS clients.
 
 ```sh
 U=http://127.0.0.1:4400
@@ -14,6 +14,8 @@ refuses the start at once with `E_ADDRINUSE`, naming the holder's pid. The JS cl
 paved surface for apps: it adds sync, offline writes and live queries.
 
 ## Identity
+
+/auth/config includes development true on dev and false on serve; show persona controls only in development.
 
 In development, `x-snapback-persona: alice` acts as `dev:alice`: same machine
 only, `[A-Za-z0-9_-]+`, and only for a name `use personas` declares; any other

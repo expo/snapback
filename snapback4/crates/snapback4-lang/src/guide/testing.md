@@ -203,3 +203,19 @@ A full `cap` counts every row, readable or not, and refuses `E_CONSTRAINT`.
 ## Hidden-only pages
 
 A uniformly denied page over only hidden rows is `complete` and empty, never `denied`; nonuniform scans can remain partial (`guide indexes`). Assert empty data and completeness for that denied scope, and use a readable role query for access UI (`guide refusals`, `guide rule-recipes`). KIT owns the rest of this page.
+
+## Raw HTTP proof across releases
+Every call carries `Authorization: Bearer TOKEN` on serve (a declared persona on dev). Send `Content-Type: application/json` and `{args: {...}}`; query data and mutation results use different envelopes. Reuse a stable mutation id for a retry, never a new id after an ambiguous reply.
+
+| Door | HTTP status | Body to assert |
+|---|---|---|
+| `POST /q/<query>` | 200 | `{data, complete, next, cut, ...}` or `{denied:{code,...}}`; loading is not empty |
+| `POST /m/<mutation>` | 200 | `{state:"sent", result, ...}` or `{state:"failed", why:{code,...}}` |
+| Unknown operation on either door | 404 | `{denied:{code:"E_OP"}, generation}`; it is absent from the selected release |
+| Missing/expired bearer | 401 | `{denied:{code:"E_AUTH"}}` |
+| Wrong operation door | 400 | `{denied:{code:"E_OP"}}`; use /q for queries, /m for mutations |
+| Invalid JSON | 400 | `{denied:{code:"E_INPUT"}}`; typed argument refusals differ below |
+| Invalid typed arguments | /q: 400; /m: 200 | /q `{denied:{code:"E_INPUT"}}`; /m `{state:"failed",why:{code:"E_INPUT"}}` |
+| SDK mutation at custody (`waitSeconds: 0`) | SDK, not raw HTTP | `{state:"pending", id}` is custody, never success |
+
+Read response bodies even on HTTP errors. Raw queries have no SDK `existence`; mutation failures use `why`, not top-level denied. `guide wire` covers the full protocol.

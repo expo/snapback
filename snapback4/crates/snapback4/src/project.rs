@@ -90,6 +90,18 @@ impl Project {
         names.into_iter().map(|name| Ok((name.clone(), std::fs::read_to_string(self.schema_dir().join(&name))?))).collect()
     }
 
+    pub fn saved_copy_hint(&self) -> Option<String> {
+        let sources = self.sources().ok()?;
+        let tables: Vec<_> = sources.iter().map(|(file, text)| (file, snapback4_lang::parse_document(file, text).0.tables.into_iter().map(|t| t.name).collect::<std::collections::BTreeSet<_>>())).collect();
+        for (i, (file, names)) in tables.iter().enumerate() {
+            if names.is_empty() { continue; }
+            for (other, next) in &tables[i + 1..] {
+                if names == next { return Some(format!("{file} and {other} declare the same tables — a saved copy? keep saved sources outside snapback/")); }
+            }
+        }
+        None
+    }
+
     /// The newest modification time among the sources — the `.q` files and
     /// the native crate's manifest and `src/` — for the watcher.
     pub fn sources_stamp(&self) -> SourceStamp {

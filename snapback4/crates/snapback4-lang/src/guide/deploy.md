@@ -9,6 +9,8 @@ bunx snapback4 deploy ./deployment
 bunx snapback4 serve ./deployment --port 4400
 ```
 
+Generations climb on every actual switch, including rollback and forward; selecting identical execution content is a no-op. `token --service ops --release ./deployment` works while serve runs. Signups are rate-limited: create proof accounts sequentially and respect a returned retry delay. Time-gated mutations on the real clock need a bounded retry of the authored refusal (for example `NOT_OPEN`), with a deadline and short delay; never retry unrelated refusals. Development proofs can advance the clock (`guide time`).
+
 ## Upgrade
 `snapback4 upgrade [version]` resolves once and exactly pins core and installed Expo adapters with npm/bun/pnpm. Rebuild native apps after adapter changes; commit the lockfile, run check/typecheck/acceptance. `test` uses ./fixtures; `--fixture dir` overrides it. Use the password and first-admin recipes below.
 
@@ -61,9 +63,7 @@ unset TOKEN
 
 This roster is synced. A whole service-seat branch may add the first member; ordinary callers must already hold the roster. Service grants add no device audience. The seat's own program lookups and `exists` obey read rules too: to inspect a roster, add `or viewer = 'service:ops'` to its read rule, as above. A rule probe has authorization visibility; a program probe does not. The mutation completes before the grant syncs; wait for the enrolled account's client to receive its scope before using offline staff reads.
 
-A synced row has at most one group-roster audience: cross-table crew grants are not a second group. Enroll those readers in the same roster or keep the table `online only` (`guide rule-recipes`).
-
-Mint locally against the same store. Token stdout is only the credential; prose is stderr. Protect it; it expires under the seat-session policy. Rotate the credential by revoking its session (guide services) and minting a replacement. Expired or revoked bearer sessions cannot invoke the mutation. A repeat grant hits uniqueness; add membership revocation deliberately. Programmatic account sessions use `mintSession(url, serviceToken, principal)` from `snapback4/worker` (guide services); service seats themselves are minted locally by `token`.
+A synced row has at most one group-roster audience: cross-table crew grants are not a second group. Enroll those readers in the same roster or keep the table `online only` (`guide rule-recipes`). Mint locally against the same store. Token stdout is only the credential; prose is stderr. Protect it; it expires under the seat-session policy. Rotate the credential by revoking its session (guide services) and minting a replacement. Expired or revoked bearer sessions cannot invoke the mutation. A repeat grant hits uniqueness; add membership revocation deliberately. Programmatic account sessions use `mintSession(url, serviceToken, principal)` from `snapback4/worker` (guide services); service seats themselves are minted locally by `token`.
 
 ## Migrations and adoption
 Optional/defaulted columns, new tables/ops, non-unique indexes and wider types are additive. Required new fields need a literal default or explicit backfill; default now/viewer cannot invent historical values. Dev check/adoption refuses incompatible values with E_ADOPT. Release type narrowing instead retains each row whose present values cannot fit. Unique/cap conflicts still refuse atomically; repair active rows, or restore through a widened non-unique bridge, repair, then reinstate constraints. Prefer expand → migrate → contract for client compatibility.
@@ -104,7 +104,7 @@ assert.equal((await post('/q/readItem', {item})).data, null);
 await cli('rollback', deployment, '--to', 'latest'); assert.equal((await post('/q/readItem', {item})).data.status, 'new');
 ```
 
-Preview names missing operations, changed rule clauses, absent schedules and populated removed tables: dormant holds no longer enforce their safeguards. A changed job body is named separately; an unchanged job that compiles differently after a dependency change gets a note. Captures from the original read-through lifetime stay dormant with columns; restoring the same capture definition restores them. New rows without those captures still need safe audience correspondence.
+Preview shows old and new rule clauses and mutation `require`s side by side. A proved tightening is a note; a loosening or unproved implication is a WARNING, including rollback that removes a new guard. Equivalent Boolean clauses are notes. Comparison never changes admission.  Preview names missing operations, changed rule clauses, absent schedules and populated removed tables: dormant holds no longer enforce their safeguards. A changed job body is named separately; an unchanged job that compiles differently after a dependency change gets a note. Captures from the original read-through lifetime stay dormant with columns; restoring the same capture definition restores them. New rows without those captures still need safe audience correspondence.
 
 Receipts and previews count storage by kind: `1 row, 2 cells, 0 index entries dormant`. Dormant rows cover their retained cells; standalone cell counts/samples belong only to active rows. Bytes/assets follow the same disjoint ownership. Samples are labelled and unique within each kind/path, for example `rows notes [A]; cells notes.color [B, C]`. A retained index definition represents logical entries to rebuild, not a dormant physical index. A widening note describes values later writes could use; a compatibility WARNING counts only current values the selected release cannot hold. Compatible forward has no such warning.
 
