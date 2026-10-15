@@ -1,0 +1,28 @@
+muse: workspace root: /home/ccheever/projects/sb4-w12-pubfix28 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=0f2c5c80-486f-480d-b18f-5c6186294d04]: Subscription quota exhausted. Your usage window resets at 2026-10-19T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-w12-pubfix28 (cwd default)
+muse: workspace trust: trusted source=run-flag
+I am Muse Code, powered by Meta Muse Spark.
+
+**Verdict: READY** — no material concern in change 1's scope. I do not accept the RFC on the author's behalf. Build/test qualification was not run here and remains with the independent run.
+
+Paths inspected (worktree diff vs baseline `8fe2b2e839`, incl. FIX28 `4e96153fdf`):
+
+- [retained-storage RFC §11](/home/ccheever/projects/sb4-w12-pubfix28/llp/3000.000.000-retained-storage-and-hot-release.rfc.md) (§11, new PUBFIX28 paragraph)
+- [release_preview.rs](/home/ccheever/projects/sb4-w12-pubfix28/snapback4/crates/snapback4/src/verbs/release_preview.rs) (per-column prose, lines ~96–119)
+- [release-activation.test.mjs](/home/ccheever/projects/sb4-w12-pubfix28/snapback4/packages/snapback4/test/release-activation.test.mjs) (`REL mutation decoding` test; `state()` helper)
+- Core inventory as needed: `snapback4-core/src/store/release_history.rs` (disjoint column predicate, `definition_only`), `adoption_report.rs` (`dormant()` totals), FIX28 `dormant_tests.rs` rename to `narr_dormant_rows_cover_their_separately_retained_cells`.
+
+Which side should change: the test/narration side, not the inventory. Under your rule (dormant rows cover their retained cells; standalone cells count only for live rows) the old `1 row, 20 cells` double-counts the incompatible row's 20 covered cells. FIX28 inventory already implements the rule (column counts require `EXISTS` a live `r` owner; covered bytes fold into the row item), and the core test locks `3 rows, 0 cells`. The new `1 row, 0 cells` assertion is the correct side.
+
+Checks, all consistent with actual data:
+
+- Totals: single-row case `1 row, 0 cells`; after adding a compatible row, `1 row, 20 cells` (one per removed column). Disjoint sums hold.
+- Per-column narration: lookup key mapping matches `DormantItem` paths; zero-count columns now say "no standalone cells become dormant (…counted with those rows)" with a `doesNotMatch` guard against the old contradictory "its cells become dormant (0 cells)". All 20 columns asserted in both fixtures.
+- JSON samples: mixed fixture asserts `rows:values` → `[added]` and each `column:values.spareN` → `[live]` — disjoint, matching §11.
+- Immutability: `saved`/`mixedSaved` `deepEqual` after text and JSON previews; preview is structurally snapshot-based (`VACUUM INTO` temp).
+- Restoration: rollback to 1 leaves only the live id; forward to 2 restores both rows with all `spareN=false`, proving covered cells were retained.
+
+Notes (non-material): the single-case JSON block asserts only `rows:values`, not the zero-count column items — covered functionally by restoration. "1 cells" grammar is pre-existing. Socket/`release_control.rs`/§5.1 text also in the worktree diff was excluded per instructions.
