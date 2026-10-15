@@ -307,7 +307,7 @@ fn strip_reference_actions(text: &str) -> String {
         if let Some(indexes) = table.get_mut("indexes").and_then(|i| i.as_object_mut()) { indexes.retain(|name, _| !name.starts_with("$reference:")); }
         if let Some(constraints) = table.get_mut("constraints").and_then(|c| c.as_array_mut()) {
             for constraint in constraints.iter_mut() {
-                if let Some(names) = constraint.get_mut("Capabilities").and_then(|c| c.as_array_mut()) { names.retain(|n| n != "reference-actions"); }
+                if let Some(names) = constraint.get_mut("Capabilities").and_then(|c| c.as_array_mut()) { names.retain(|n| n != "reference-actions" && n != "expiry-reference-actions-v1"); }
             }
             constraints.retain(|c| c.get("Capabilities").is_none_or(|names| !names.as_array().unwrap().is_empty()));
         }

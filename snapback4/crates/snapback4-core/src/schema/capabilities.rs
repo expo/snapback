@@ -17,6 +17,8 @@ struct Wire {
     source_reservations: BTreeMap<String, reservations::WriteReservation>,
     #[serde(skip)]
     legacy_receipt_prediction: bool,
+    #[serde(skip)]
+    legacy_semantic_capabilities: LegacySemanticCapabilities,
     tables: BTreeMap<String, Table>,
     #[cfg(feature = "sqlite")]
     #[serde(skip)]
@@ -207,13 +209,16 @@ impl<'de> Deserialize<'de> for Schema {
         // Stores written before the digest migration have no carrier for this
         // capability. Admit that persisted schema for server-side rebuilding;
         // its next serialization stamps the capability, so old devices refuse.
-        if !declared.contains("maintained-id-sha256-v1") {
-            required.remove("maintained-id-sha256-v1");
+        let mut legacy_semantic_capabilities = BTreeSet::new();
+        if !declared.contains("maintained-id-sha256-v1")
+            && required.remove("maintained-id-sha256-v1") {
+            legacy_semantic_capabilities.insert("maintained-id-sha256-v1".into());
         }
         // Kept pre-Wave-12 schemas need the server's new expiry action path,
         // then stamp the device fence on their next published projection.
-        if !declared.contains("expiry-reference-actions-v1") {
-            required.remove("expiry-reference-actions-v1");
+        if !declared.contains("expiry-reference-actions-v1")
+            && required.remove("expiry-reference-actions-v1") {
+            legacy_semantic_capabilities.insert("expiry-reference-actions-v1".into());
         }
         // Before the shared fence, the binder emitted Recorded on F2 tables
         // even when the same schema also declared timelines. Only that legacy
@@ -235,6 +240,7 @@ impl<'de> Deserialize<'de> for Schema {
         if !had_prices { schema.source_reservations.clear(); }
         schema.legacy_receipt_prediction = legacy_receipt_prediction
             || (!declared.contains("source-write-reservations-v1") && !schema.receipts.is_empty());
+        schema.legacy_semantic_capabilities = legacy_semantic_capabilities.into();
         Ok(schema)
     }
 }

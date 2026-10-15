@@ -47,6 +47,11 @@ pub struct Schema {
     pub source_reservations: BTreeMap<String, reservations::WriteReservation>,
     /// Decode-only compatibility fence; programs narrow it before admission.
     pub legacy_receipt_prediction: bool,
+    /// Capabilities inferred from old persisted schema bytes rather than
+    /// declared by their producer. Servers may adopt and restamp those bytes;
+    /// devices must not execute them under newer semantics.
+    #[doc(hidden)]
+    pub legacy_semantic_capabilities: LegacySemanticCapabilities,
     pub tables: BTreeMap<String, Table>,
     /// Nonsemantic inspection input; only the catalog side record persists it.
     /// Never part of schema equality, hashes, generation bytes or device input.
@@ -69,6 +74,23 @@ pub struct Schema {
     pub effect_specs: BTreeMap<String, WorkSpec>,
     pub routes: BTreeMap<String, RouteSpec>,
 }
+
+/// Decode provenance used only at the device execution boundary. It is not a
+/// schema-semantic difference: server adoption compares and republishes the
+/// same schema after upgrading its stored representation.
+#[derive(Clone, Debug, Default)]
+pub struct LegacySemanticCapabilities(BTreeSet<String>);
+impl std::ops::Deref for LegacySemanticCapabilities {
+    type Target = BTreeSet<String>;
+    fn deref(&self) -> &Self::Target { &self.0 }
+}
+impl From<BTreeSet<String>> for LegacySemanticCapabilities {
+    fn from(value: BTreeSet<String>) -> Self { Self(value) }
+}
+impl PartialEq for LegacySemanticCapabilities {
+    fn eq(&self, _other: &Self) -> bool { true }
+}
+impl Eq for LegacySemanticCapabilities {}
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UniqueRefusal {
     pub code: String,

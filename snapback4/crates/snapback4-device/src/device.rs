@@ -59,6 +59,19 @@ impl<'de> Deserialize<'de> for Backend {
     }
 }
 
+impl Backend {
+    fn require_current_semantics(&self) -> Result<(), RuntimeError> {
+        if self.schema.legacy_semantic_capabilities.is_empty() { return Ok(()); }
+        Err(RuntimeError::Structural {
+            code: "E_SCHEMA_CAPABILITY",
+            message: format!(
+                "backend omitted required semantic capabilities {:?}; the server must adopt and republish it before a device can execute it",
+                self.schema.legacy_semantic_capabilities
+            ),
+        })
+    }
+}
+
 /// One transaction's stream request inputs. A response may apply only while
 /// no other owner has started a mutation send after this capture.
 #[derive(Clone, Debug, Serialize)]
@@ -461,10 +474,13 @@ impl<S: DeviceStore> Device<S> {
             .map_err(|e| RuntimeError::decode(e, |e| RuntimeError::Store(format!("the kept backend does not parse: {e}")))))
             .transpose()?;
         if let Some(previous) = &previous { check_version(&previous.schema)?; }
-        let mut backend = if backend.is_none() || (initial && kept.is_some()) {
+        let kept_needs_semantic_upgrade = previous.as_ref().is_some_and(|backend|
+            !backend.schema.legacy_semantic_capabilities.is_empty());
+        let mut backend = if backend.is_none() || (initial && kept.is_some() && !kept_needs_semantic_upgrade) {
             previous.clone().ok_or_else(|| RuntimeError::Auth("this device has never synced: the server must be reachable once to open".into()))?
         } else { backend.unwrap() };
         check_version(&backend.schema)?;
+        backend.require_current_semantics()?;
         backend.schema.check_row_view_audiences()?;
         #[cfg(not(target_arch = "wasm32"))]
         {
@@ -584,6 +600,7 @@ impl<S: DeviceStore> Device<S> {
 
     pub fn adopt_captured(&mut self, mut backend: Backend, mut expected: BTreeMap<String, Option<String>>) -> Result<(), RuntimeError> {
         check_version(&backend.schema)?;
+        backend.require_current_semantics()?;
         backend.schema.check_row_view_audiences()?;
         #[cfg(not(target_arch = "wasm32"))]
         {

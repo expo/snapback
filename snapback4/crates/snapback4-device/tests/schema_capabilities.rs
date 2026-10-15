@@ -42,6 +42,95 @@ fn future_capability_refuses_initial_install_and_adoption_without_changes() {
     assert_eq!(call::call(&mut device, json!({"op":"backend"})), before);
 }
 
+#[test]
+fn legacy_semantic_backend_is_server_adoptable_but_device_refused() {
+    for (capability, source) in [
+        ("maintained-id-sha256-v1", "table entries:\n  group: text <=64\n  public\nview totals: count entries by .group\n  public\n"),
+        ("expiry-reference-actions-v1", "table parents:\n  until: time ?\n  expire at .until\n  public\ntable children:\n  parent: parents on delete cascade\n  cap 1 by parent\n  public\n"),
+    ] {
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+        assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+        let backend = Backend { generation: 1, schema: bound.schema, programs: bound.programs.into_iter().map(|program| program.program).collect() };
+        let mut legacy = serde_json::to_value(&backend).unwrap();
+        for table in legacy["schema"]["tables"].as_object_mut().unwrap().values_mut() {
+            for constraint in table["constraints"].as_array_mut().unwrap() {
+                if let Some(names) = constraint.get_mut("Capabilities").and_then(|value| value.as_array_mut()) {
+                    names.retain(|value| value != capability);
+                }
+            }
+        }
+        let adopted: Schema = serde_json::from_value(legacy["schema"].clone()).unwrap();
+        assert!(adopted.legacy_semantic_capabilities.contains(capability));
+        assert!(serde_json::to_string(&adopted).unwrap().contains(capability));
+        let opening = Opening::parse(Some(&legacy.to_string())).expect("legacy bytes remain decodable for store migration");
+        let error = match opening.open(MemoryStore::new()) {
+            Err(error) => error,
+            Ok(_) => panic!("device executed backend missing {capability}"),
+        };
+        assert_eq!(error.code(), "E_SCHEMA_CAPABILITY");
+        assert!(error.to_string().contains(capability), "{error}");
+    }
+}
+
+fn legacy_digest_store<S: DeviceStore>(store: &mut S) -> Backend {
+    let source = "table entries:\n  group: text <=64\n  public\nview totals: count entries by .group\n  public\n";
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:#?}", bound.diagnostics);
+    let mut current = Backend { generation: 2, schema: bound.schema, programs: bound.programs.into_iter().map(|program| program.program).collect() };
+    let mut legacy = serde_json::to_value(&current).unwrap();
+    legacy["generation"] = json!(1);
+    for table in legacy["schema"]["tables"].as_object_mut().unwrap().values_mut() {
+        for constraint in table["constraints"].as_array_mut().unwrap() {
+            if let Some(names) = constraint.get_mut("Capabilities").and_then(|value| value.as_array_mut()) {
+                names.retain(|value| value != "maintained-id-sha256-v1");
+            }
+        }
+    }
+    let old: Backend = serde_json::from_value(legacy.clone()).unwrap();
+    store.install(&old.schema, &BTreeMap::from([
+        ("device:backend".into(), legacy.to_string()),
+        ("device:generation".into(), "1".into()),
+    ]), false).unwrap();
+    let tx = store.transaction().unwrap();
+    tx.outbox_insert(1, "pending", r#"{"id":"pending","seq":1,"op":"write","args":{},"new_ids":[]}"#).unwrap();
+    tx.commit().unwrap();
+    current.generation = 2;
+    current
+}
+
+fn legacy_digest_recovery<S: DeviceStore>(store: &mut S, initial: bool) {
+    let current = legacy_digest_store(store);
+    let error = match Opening::Kept.open(Borrowed(store)) {
+        Err(error) => error,
+        Ok(_) => panic!("offline device executed a kept pre-digest backend"),
+    };
+    assert_eq!(error.code(), "E_SCHEMA_CAPABILITY");
+    let tx = store.transaction().unwrap();
+    let before = tx.outbox_entries().unwrap();
+    tx.commit().unwrap();
+    let opening = if initial { Opening::Initial(current) } else { Opening::Install(current) };
+    drop(opening.open(Borrowed(store)).expect("a current backend must recover a kept legacy backend"));
+    let tx = store.transaction().unwrap();
+    assert_eq!(tx.outbox_entries().unwrap(), before, "semantic upgrade preserves queued writes");
+    assert_eq!(tx.meta("device:generation").unwrap().as_deref(), Some("2"));
+    tx.commit().unwrap();
+}
+
+#[test]
+fn current_backend_recovers_kept_legacy_semantics_memory() {
+    for initial in [false, true] {
+        legacy_digest_recovery(&mut MemoryStore::new(), initial);
+    }
+}
+
+#[test]
+fn current_backend_recovers_kept_legacy_semantics_sqlite() {
+    for initial in [false, true] {
+        let host = common::Sqlite::new(if initial { "legacy-semantic-initial" } else { "legacy-semantic-install" });
+        legacy_digest_recovery(&mut snapback4_core::store::Store::open(&host.path("device")).unwrap(), initial);
+    }
+}
+
 // Borrow the real store so a refused opening leaves it available for inspection.
 struct Borrowed<'a, S>(&'a mut S);
 impl<S: DeviceStore> DeviceStore for Borrowed<'_, S> {

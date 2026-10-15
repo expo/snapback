@@ -187,7 +187,7 @@ impl Runner<'_> {
         // no hidden, expired physical predecessor whose retirement would run
         // reference actions. Controller-minted identities are the existing
         // fresh-address proof; every other referenced same-id insert queues.
-        if self.device && predecessor.is_none() && has_children && !minted {
+        if self.device && predecessor.is_none() && has_children && table.is_expiring() && !minted {
             return Err(RuntimeError::Prediction(format!(
                 "same-id insert into referenced {table_name} needs the server's physical predecessor check; queued without predicted rows"
             )));
