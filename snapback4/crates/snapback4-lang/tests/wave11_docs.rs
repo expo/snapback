@@ -330,7 +330,7 @@ fn visitors_and_teams() {
 const PRODUCTION: &str = include_str!("../src/guide/production.md");
 #[test]
 fn production_accounts_enroll_privately_and_survive_rollback() {
-    let source = guide::quarry(PRODUCTION).remove(0);
+    let source = guide::quarry(PRODUCTION).into_iter().find(|source| source.contains("mutation register(")).expect("production profile and enrollment recipe");
     let compile = |source: String| {
         let b = snapback4_lang::compile(&[("schema.q".into(), source)]);
         assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);

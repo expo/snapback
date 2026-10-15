@@ -72,7 +72,7 @@ fn assert_type(b: &snapback4_lang::Bound, name: &str, table: &str, optional: boo
     assert_eq!(b.programs.iter().find(|p| p.program.name == name).unwrap().result, expected, "{name}");
     let ts = snapback4_lang::emit::typescript(b);
     let line = ts.lines().find(|line| line.trim_start().starts_with(&format!("{name}: Mutation<"))).unwrap();
-    assert!(line.ends_with(&format!("Rows[\"{table}\"]{}>;", if optional { " | null" } else { "" })), "{line}");
+    assert!(line.ends_with(&format!("Rows[\"{table}\"]{}> & {{ available(release: ReleaseSnapshot): boolean }};", if optional { " | null" } else { "" })), "{line}");
 }
 
 #[test]
