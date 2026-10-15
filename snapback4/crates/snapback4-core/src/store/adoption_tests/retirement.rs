@@ -162,6 +162,37 @@ fn changed_key_counts_cleared_retained_view_rows() {
     rebuild_groups(&GROUPS.replace("by .n", "by .bucket"), 1);
 }
 #[test]
+fn legacy_identity_adoption_can_change_the_grouping_key() {
+    let mut e = groups();
+    let schema = e.schema().clone();
+    let target = schema.tables["totals"].clone();
+    let rows = e.store().rows("totals").unwrap();
+    let tx = e.store_mut().transaction().unwrap();
+    for old in rows {
+        tx.delete("totals", &target, &old).unwrap();
+        let mut legacy = old.clone();
+        let id = crate::value::canonical_json(&[old.field("n").unwrap().clone()]);
+        if let Value::Row(fields) | Value::Map(fields) = &mut legacy {
+            fields.insert("id".into(), Value::Id(id));
+        }
+        tx.put("totals", &target, &legacy, None).unwrap();
+    }
+    tx.commit().unwrap();
+    e.store().conn().execute(
+        "DELETE FROM _meta WHERE key=?1",
+        [crate::schema::MAINTAINED_ID_META],
+    ).unwrap();
+
+    let next = compile(&GROUPS.replace("by .n", "by .bucket"));
+    e.adopt_at(next.schema, next.programs, 10).unwrap();
+    let rows = e.store().rows("totals").unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].field("id").unwrap(),
+        &Value::Id(crate::schema::maintained_id(&[Value::Int(0)])));
+    assert_eq!(rows[0].field("bucket").unwrap(), &Value::Int(0));
+    assert_eq!(rows[0].field("value").unwrap(), &Value::Int(4));
+}
+#[test]
 fn empty_source_does_not_hide_retained_target_cleanup() {
     let mut e = groups();
     // A legacy/imported target may outlive its source population.
