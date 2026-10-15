@@ -5151,6 +5151,7 @@
       "target": "Doc-tests snapback4_sim"
     }
   ],
+  "allInitialFailedTargetsHavePassingScopedFollowups": true,
   "artifactErrors": [],
   "command": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 -p snapback4-difftest --no-fail-fast",
   "createdUtc": "2026-10-15T01:38:19.499759+00:00",
@@ -5401,15 +5402,23 @@
   "followups": {
     "-p snapback4-core --lib": {
       "log": {
-        "bytes": 72323,
-        "path": "/tmp/lang-affected-core-lib-green.log",
-        "sha256": "20fa55c315db654673776e3ef9d1f3891e0e5d9efd50c70a14aad70020999531"
+        "bytes": 11195,
+        "path": "snapback4/reports/wave12-lang/logs/r12-core-lib.log.gz",
+        "sha256": "d284fa29da64767594161f370cf6c30078117b4c9a89927a69312d6d4b7ba29f"
       },
-      "status": "PASS_CURRENT_SOURCE",
-      "tests": "343 passed; 0 failed; 3 ignored"
+      "receipt": "snapback4/reports/wave12-lang/r12-scoped-qualification.json",
+      "status": "PASS_RELEVANT_CURRENT_SOURCE",
+      "tests": "344 passed; 0 failed; 3 ignored"
     },
     "-p snapback4-core --test sequence_disclosure": {
-      "status": "FOLLOWUP_NOT_YET_RECORDED"
+      "log": {
+        "bytes": 1298,
+        "path": "snapback4/reports/wave12-lang/full-six/followup-sequence-disclosure.log.gz",
+        "sha256": "2d782eb6588aa42a77b9847f564d365f1018fa8f446e04b7166f2de10f2fc2ad"
+      },
+      "sourceLogSha256": "57bb4a48d2cd32deadfa4c4867db3c33311119c64edeeb32a1d22b2b71d5f2ed",
+      "status": "PASS_RELEVANT_CURRENT_SOURCE",
+      "tests": "29 passed; 0 failed"
     },
     "-p snapback4-device --test read_through": {
       "log": {
@@ -5467,17 +5476,19 @@
       "tests": "4 passed; 0 failed"
     },
     "-p snapback4-sim --test maintains_recorded": {
-      "failedTests": [
-        "activation_dangling_expired_reused_and_removed_paths",
-        "round1::activation_capture_persists_after_reopen_and_empty_capture_has_no_gap"
-      ],
-      "status": "FOLLOWUP_PENDING_AFTER_DISCOVERY"
+      "log": {
+        "bytes": 18580,
+        "path": "snapback4/reports/wave12-lang/full-six/followup-sim-full.log.gz",
+        "sha256": "b0e306dd1281cc91779484eb3644df29a1a723e4ea22bf9d9482dba7863f2ba2"
+      },
+      "sourceLogSha256": "8ccbd6cde5ffe74c782940d967ce2de709331b87db3b2c6d9d90e93da03db488",
+      "status": "PASS_AS_PART_OF_FULL_SIM_RELEVANT_CURRENT_SOURCE",
+      "tests": "maintains_recorded 19 passed; 0 failed; whole snapback4-sim 706 passed; 0 failed; 7 ignored across 44 top-level targets"
     }
   },
-  "openItems": [
-    "sequence_disclosure has no preserved current-source follow-up receipt yet",
-    "maintains_recorded two failures were discovered at the end of this run and await current-source follow-up"
-  ],
+  "openItems": [],
+  "reconciledUtc": "2026-10-15T01:59:35.891651+00:00",
+  "reconciliationBoundary": "Follow-ups bind the relevant source content, not the later shared-tree HEAD. The sequence and full-sim batches began at 076175d99a; subsequent R13 changes were confined to device-side commit-end expiry prediction and did not change these native/core/simulator paths.",
   "schema": 1,
   "sourceConcurrencyNote": "The exhaustive command began before several scoped fixes landed in the shared tree. Its 21 failures across 10 targets are retained as the exact initial-run result. Follow-up entries qualify current source only where an explicit preserved receipt exists; they do not rewrite the initial totals.",
   "sourceLog": {
@@ -5492,7 +5503,7 @@
       "sha256": "60d43bf15b235b62f1749d4766e98239b6e5d75910162e7d18fe3f288b160cee"
     }
   },
-  "status": "INITIAL_RUN_FAILED_WITH_SCOPED_FOLLOWUPS",
+  "status": "ALL_INITIAL_FAILURES_RECONCILED_BY_SCOPED_FOLLOWUPS",
   "totals": {
     "doctestTargets": 5,
     "failed": 21,

@@ -21,4 +21,10 @@ The raw log is preserved verbatim as `snapback4/reports/wave12-lang/full-six/ini
 
 ## Reconciliation boundary
 
-The exhaustive command began before several scoped fixes landed in the shared tree. The table and JSON retain the exact initial result. Current-source follow-ups are attached only when a preserved receipt exists. Core lib, the three device targets, full difftest, and both language targets have passing follow-ups. `sequence_disclosure` has no preserved current-source follow-up receipt yet. The two `maintains_recorded` failures were discovered at the end of this run and await a current-source follow-up.
+The exhaustive command began before several scoped fixes landed in the shared tree. The table and JSON retain the exact initial result. Current-source follow-ups are attached only when a preserved receipt exists. Every initially failing target now has a passing scoped follow-up. Core `sequence_disclosure` passed 29/29. A full simulator follow-up passed 706 tests with 7 ignored across 44 targets, including `maintains_recorded` at 19/19. These batches bind relevant source content: later R13 changes were confined to device-side commit-end expiry prediction and did not change the core/simulator paths covered here.
+
+## Closing follow-ups
+
+- `sequence_disclosure`: 29 passed, 0 failed; `snapback4/reports/wave12-lang/full-six/followup-sequence-disclosure.log.gz` (SHA-256 `2d782eb6588aa42a77b9847f564d365f1018fa8f446e04b7166f2de10f2fc2ad`).
+- Full `snapback4-sim`: 706 passed, 0 failed, 7 ignored across 44 targets; `snapback4/reports/wave12-lang/full-six/followup-sim-full.log.gz` (SHA-256 `b0e306dd1281cc91779484eb3644df29a1a723e4ea22bf9d9482dba7863f2ba2`).
+- Core lib: 344 passed, 0 failed, 3 ignored; preserved by `snapback4/reports/wave12-lang/r12-scoped-qualification.json`.
