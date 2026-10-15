@@ -288,6 +288,37 @@ fn two_principal_status_scope_and_fixed_plus_per_row_grants_are_complete() {
 }
 
 #[test]
+fn standalone_static_grant_leaves_coexist_with_membership_lanes() {
+    let tables = "table roles:\n  principal: principal\n  role: enum('advisor', 'student')\n  unique principal\n  public\n  online only\ntable access:\n  item: items\n  principal: principal\n  unique item, principal\n  read <- .principal = viewer\n  online only\n";
+    let static_and_membership = format!("{tables}table items:\n  at: int\n  read <- exists roles[viewer, role = 'advisor'] or exists access[.id, viewer]\n  online only\nquery page(c: cursor ?):\n  return items first 10 by .at after c\n");
+    let party_static_and_membership = static_and_membership.replace(
+        "read <- exists roles[viewer, role = 'advisor'] or exists access[.id, viewer]",
+        "read <- .owner = viewer or exists roles[viewer, role = 'advisor'] or exists access[.id, viewer]",
+    ).replace("table items:\n  at: int", "table items:\n  owner: principal\n  at: int");
+    let fixed_and_varying = "table roles:\n  principal: principal\n  role: enum('advisor', 'student')\n  unique principal\n  public\n  online only\ntable chapterAccess:\n  chapter: int\n  principal: principal\n  unique chapter, principal\n  read <- .principal = viewer\n  online only\ntable versionAccess:\n  version: id\n  principal: principal\n  unique version, principal\n  read <- .principal = viewer\n  online only\ntable versions:\n  chapter: int\n  at: int\n  read <- exists roles[viewer, role = 'advisor'] or (exists chapterAccess[.chapter, viewer] and exists versionAccess[.id, viewer])\n  online only\nquery page(chapter: int, c: cursor ?):\n  return versions where .chapter = chapter first 10 by .at after c\n";
+
+    for (name, source) in [
+        ("static-membership", static_and_membership.as_str()),
+        ("party-static-membership", party_static_and_membership.as_str()),
+        ("static-fixed-varying", fixed_and_varying),
+    ] {
+        let bound = compile(&[("schema.q".into(), source.into())]);
+        assert!(bound.diagnostics.is_empty(), "{name}: {:?}", bound.diagnostics);
+        assert!(!bound.notes.iter().any(|note| matches!(note.code.as_str(), "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE")),
+            "{name}: {:?}", bound.notes);
+        assert!(snapback4_core::ir::body_merges(&bound.programs[0].program.body).iter().any(|merge| merge.branches()),
+            "{name}: {:?}", bound.programs);
+    }
+
+    // A static point inside the membership conjunction remains a retained
+    // ordinary-read guard. Hidden fixed points still decline PAGE.
+    let hidden = fixed_and_varying.replace("  public\n  online only\ntable chapterAccess:", "  read <- deny\n  online only\ntable chapterAccess:");
+    let bound = compile(&[("schema.q".into(), hidden)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.iter().any(|note| note.code == "N_NEVER_COMPLETE"), "{:?}", bound.notes);
+}
+
+#[test]
 fn lean_gate_prices_every_filter_product_pin_before_comparison() {
     let source = "table access:\n  bucket: text <=40\n  principal: principal\n  unique bucket, principal\n  read <- .principal = viewer\n  online only\ntable items:\n  bucket: text <=40\n  region: text <=435\n  status: text <=435\n  at: int\n  read <- exists access[.bucket, viewer]\n  online only\nquery mine(c: cursor ?):\n  return items where (.region = 'north' or .region = 'south') and (.status = 'open' or .status = 'held') first 10 by .at after c\n";
     let bound = compile(&[("schema.q".into(), source.into())]);

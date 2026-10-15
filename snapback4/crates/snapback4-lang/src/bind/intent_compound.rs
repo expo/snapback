@@ -64,9 +64,12 @@ pub(super) fn expand(tables: &Tables, synthesized: &BTreeSet<(String, String)>, 
         let mut pins = Vec::new();
         let mut probes = Vec::new();
         for atom in &leaf {
-            if let Expr::Exists { .. } = atom {
-                // Static points are fixed guards too; omitting them from the
-                // retained residual would weaken the authored conjunction.
+            if let Expr::Exists { .. } = atom
+                && (!branches::columns_within(atom, &[]) || leaf.len() > 1) {
+                // A static point beside another atom is a fixed guard too;
+                // omitting it from the retained residual would weaken the
+                // authored conjunction. A sole static point is instead the
+                // ordinary guarded lane for that top-level rule alternative.
                 probes.push(atom.clone());
             } else if intent::equality(atom, table).is_some() {
                 pins.push(atom.clone());
