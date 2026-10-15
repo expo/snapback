@@ -118,14 +118,14 @@ session after server confirmation. `auth.why` exposes a restore/storage failure.
 import { createApp } from "snapback4/app";
 import { localStorageSessionStore } from "snapback4/auth";
 import { webDevice } from "snapback4/web";
-import { AppProvider, useAuth } from "snapback4/react";
+import { AppProvider, useAuth, useRelease } from "snapback4/react";
 import { api } from "../snapback/generated/api";
 const app = createApp({ url: "http://127.0.0.1:4400", device: webDevice(), sessionStore: localStorageSessionStore(),
   assets: { keep: "viewed", maxBytes: 67108864 },
 });
 function Account() {
-  const auth = useAuth();
-  return <button onClick={() => void (auth.state === "signed-in" ? auth.logout() : auth.guest())}>{auth.state}</button>;
+  const auth = useAuth(), release = useRelease();
+  return <button data-release={"generation" in release ? release.generation : "unavailable"} onClick={() => void (auth.state === "signed-in" ? auth.logout() : auth.guest())}>{auth.state}</button>;
 }
 function Root() { return AppProvider({ app, children: <Account /> }); }
 async function send(conversationId: string) {
@@ -1576,6 +1576,7 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | Function | Returns |
 | --- | --- |
 | `AppProvider({ app })`, `SnapbackProvider({ client })` | the provider; `AppProvider` remounts its children when the account changes |
+| `useRelease()` | authenticated served capabilities; generation changes refresh metadata, never authority |
 | `useAuth()` | `AuthSnapshot` plus `signup`, `login`, `guest`, `logout`, `logoutEverywhere`; `state === "signed-in"` narrows `viewer` |
 | `useClient()`, `useOnline()` | the `Client`; the app's server arm `Online` (under `AppProvider`) |
 | `useQuery(op, args, { keep, skip }?)` | `Read<R>` (`UseQuery<typeof op>`): narrow with `matchRead` or the guards; `skip: true` reads nothing (`loading`) |
@@ -1594,6 +1595,7 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | `useSaveAsset()` | `{ save(id, name?), saving, why }`: a file saved on demand, through the browser's download |
 | `useSeen(family, { scope, through, active })` | seen-progress snapshot plus `retry()` (`guide receipts`) |
 | `useInspection(enabled?)` | development overlay samples, or null when disabled |
+| `matchReadList(read, handlers)` | list shorthand: partial may fall back, denial remains explicit |
 | `matchRead(read, handlers)` | the handlers' result for the read's state: `loading`, `denied`, `absent`, `partial`, `present`, or `otherwise`; `read` may be a `usePage` result |
 | `otherwiseAll(fallback, overrides?)` | spread anywhere into `matchRead`'s handlers: `fallback(read)` for every state the call does not name, `denied` and `partial` included; named handlers win in any order |
 | `isReady`, `isLoading`, `isDenied`, `isFailed`, `existence`, `readPresentation` | guards over any read (and `isFailed` over any `Outcome`, a hook, or `unknown`); the state name; notice flags |
@@ -4004,11 +4006,11 @@ proof can compose the same bounded hosts, private logs and saved release inputs:
 ```ts
 import { startDev, startServe, startStatic, startVite, cli, command, deploy,
   rollback, testSource, withBrowser, waitForFresh, fillRN, statusText,
-  selectByValue, bounded, cleanup, stopChild, portRange, sandboxUnavailable }
+  selectByValue, renderedText, frontPage, logsDir, bounded, cleanup, stopChild, portRange, sandboxUnavailable }
   from "snapback4/proof";
 
 export async function applicationProof(cwd: string) {
-  const options = { cwd, timeoutMs: 120_000 };
+  const options = { cwd, logsDir: logsDir(), timeoutMs: 120_000 };
   console.log("proof port range", portRange());
   const checked = await cli(["check"], options);
   if (checked.code !== 0) throw Error(checked.stderr);
@@ -4029,6 +4031,8 @@ export async function applicationProof(cwd: string) {
         await selectByValue(page.getByLabel("Category"), "work");
         await page.getByRole("button", { name: "Add" }).click();
         await bounded(waitForFresh(status, before), 35_000, "fresh rendered result");
+        await renderedText(page, "Proof", { within: page.getByRole("list") }).waitFor();
+        await frontPage(page);
       });
     } finally { await stopChild(frontend); }
     await deploy("deployment", "versions/v2.q", options);

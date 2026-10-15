@@ -14,7 +14,8 @@ function audit(range=[30000,30020]) { return {status:"passed",method:"strace-lis
 function qualify(t, scenario = {}) {
   const root = mkdtempSync(join(tmpdir(), "snapback4-linux-test-")); t.after(() => rmSync(root, { recursive: true, force: true }));
   for (const dir of ["scripts", "packages/snapback4", "packages/snapback4-linux-x64", "target/x86_64-unknown-linux-musl/production"]) mkdirSync(join(root, dir), { recursive: true });
-  for (const file of ["qualify-linux.mjs", "qualify-linux-proot.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-artifacts.mjs", "publication-roundtrip.mjs", "publication-starters.mjs", "publication-frontend-proofs.mjs", "proof-listener-audit.mjs", "test-command-owner.mjs", "test-owned-command.mjs", "test-command-group.mjs", "build-linux-musl.sh"]) copyFileSync(new URL(`../../../scripts/${file}`, import.meta.url), join(root, "scripts", file));
+  for (const file of ["check-verb-help.mjs", "qualify-linux.mjs", "qualify-linux-proot.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-artifacts.mjs", "publication-roundtrip.mjs", "publication-starters.mjs", "publication-frontend-proofs.mjs", "proof-listener-audit.mjs", "test-command-owner.mjs", "test-owned-command.mjs", "test-command-group.mjs", "build-linux-musl.sh"]) copyFileSync(new URL(`../../../scripts/${file}`, import.meta.url), join(root, "scripts", file));
+  copyFileSync(new URL("../CHANGELOG.md", import.meta.url), join(root, "packages/snapback4/CHANGELOG.md"));
   writeFileSync(join(root, "scripts/proof-listener-audit.mjs"), `export function requireListenerTracer(){ ${scenario.tracerFail ? "throw Error('E_PROOF_LISTENER: strace 6.8 required')" : "return 'strace -- version 6.16'"} }`);
   writeFileSync(join(root, "scripts/publication-frontend-proofs.mjs"), `
     const audit = ${audit.toString()};
@@ -165,6 +166,7 @@ cp.execFileSync = (cmd,args,opts={}) => {
 };
 cp.spawnSync = (cmd,args,opts={}) => {
   log(cmd,args);
+  if (args?.includes("--help")) return {status: 0, stdout: readFileSync(join(root, "packages/snapback4/CHANGELOG.md"), "utf8").match(/--[a-z][a-z-]*/g).join(" ")};
   if(cmd === "bash") { writeFileSync(opts.stdio[1], "== " + (scenario.suiteFail ? 1 : 0) + " failure(s) in 2 s\\n"); return {status: scenario.suiteFail ? 1 : 0}; }
   return {status: scenario.noRuntime || scenario.proot ? 1 : 0};
 };

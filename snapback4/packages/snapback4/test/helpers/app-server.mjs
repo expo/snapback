@@ -2,7 +2,7 @@ import { signalChild, spawnTracked as spawn } from '../../../../scripts/test-sig
 import { captureStdout } from './server-output.mjs';
 import { waitFor as awaitState } from './wait.mjs';
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -17,6 +17,8 @@ export const until = async (read, label = "condition", options) => { return awai
 export async function server(t, residency = "sync to .owner", source, { watch = false } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "sb4-app-"));
   mkdirSync(join(dir, "snapback"));
+  mkdirSync(join(dir, "node_modules"));
+  symlinkSync(resolve(import.meta.dirname, "../.."), join(dir, "node_modules/snapback4"), "dir");
   writeFileSync(join(dir, "snapback/schema.q"), source ?? `use identity
  tablePlaceholder` .replace(' tablePlaceholder', `table notes:
   owner: principal
