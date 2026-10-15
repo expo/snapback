@@ -907,6 +907,19 @@ def sameIdAuthorityStore : Store := mkStore [
   ("parents", [mkRow "p" [("until", N 10)]]),
   ("cascadeKids", [mkRow "c" [("parent", I "p"), ("until", .null)]])]
 
+def changedRetirementOrderSchema : Schema := { tables := [
+  { name := "aRoots", cols := [c "until"], expire := some "until", read := .allow,
+    update := .allow },
+  { name := "zRoots", cols := [c "until"], expire := some "until", read := .allow,
+    update := .allow },
+  { name := "children", cols := [refCol "a" "aRoots" (some .cascade),
+      refCol "z" "zRoots" (some .restrict)], read := .allow }] }
+
+def changedRetirementOrderStore : Store := mkStore [
+  ("aRoots", [mkRow "a" [("until", .null)]]),
+  ("zRoots", [mkRow "z" [("until", .null)]]),
+  ("children", [mkRow "c" [("a", I "a"), ("z", I "z")]])]
+
 def refExamples : List Example := [
   { name := "delete-cascade"
     source := "LLP 3000.039 §3: a cascade deletes the referencing rows, hidden ones included; set null clears outside the closure; keep keeps"
@@ -1047,7 +1060,17 @@ def refExamples : List Example := [
                 .write none (.upsert "parents" [("id", idE "p")] [("until", int 20)]),
                 .ret (lit .null)] }
     tables := ["parents", "cascadeKids"]
-    expected := r#"{"kind":"committed","result":null,"store":{"parents":[{"id":"p","until":20}],"cascadeKids":[]}}"# }
+    expected := r#"{"kind":"committed","result":null,"store":{"parents":[{"id":"p","until":20}],"cascadeKids":[]}}"# },
+  { name := "commit-end-expiry-uses-runtime-table-order"
+    source := "LLP 3000.036.003 §6: commit-end retirement uses reverse table order, so zRoots restricts before aRoots can cascade its blocker"
+    case := { schema := changedRetirementOrderSchema, store := changedRetirementOrderStore,
+              viewer := alice, now := 10,
+              program := mutation [
+                .write none (.update "aRoots" [("id", idE "a")] [("until", int 10)] none),
+                .write none (.update "zRoots" [("id", idE "z")] [("until", int 10)] none),
+                .ret (lit .null)] }
+    tables := []
+    expected := r#"{"kind":"refused","code":"E_REFERENCED"}"# }
 ]
 
 def page3Pure : Schema := { tables := membershipDocs.tables.map fun t =>

@@ -33,7 +33,7 @@
 //! `revocation::preserved_between`, as `serve_sync.rs` computes it.
 // @ref LLP 3000.035#5.1 — predicted device writes against committed server outcomes.
 use crate::{
-    ast::{Body, Key, Stmt, Write},
+    ast::{Body, Expr, Key, Stmt, Write},
     campaign::Report,
     devices::{self, Dev, Server},
     execute::Outcome,
@@ -87,6 +87,8 @@ pub fn first_inserts(case: &Case) -> Option<Vec<(Key, String)>> {
     fn first(stmts: &[Stmt]) -> Option<Vec<(Key, String)>> {
         match stmts.iter().find(|s| writes(s))? {
             Stmt::Write { kind: Write::Insert, target, tag, .. } => Some(vec![(target.clone(), tag.clone())]),
+            Stmt::If(Expr::Bool(true), then, _) => first(then),
+            Stmt::If(Expr::Bool(false), _, otherwise) => first(otherwise),
             Stmt::If(_, then, otherwise) => {
                 let mut out = first(then)?;
                 out.extend(first(otherwise)?);

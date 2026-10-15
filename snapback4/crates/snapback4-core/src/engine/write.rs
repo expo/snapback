@@ -233,9 +233,10 @@ impl Runner<'_> {
                 match proved { Err(RuntimeError::Prediction(_)) => self.unproved_write = true, other => other? }
             }
         }
-        // The server's same-id expired replacement preserves occupancy in
-        // unchanged cap groups. A device cannot rely on an expired predecessor.
-        self.check_constraints(table_name, predecessor.as_ref(), &row, Effect::Insert)?;
+        // Retirement released every logical key and cap slot. Treat the new
+        // image as a fresh insert: an unchanged secondary key can now belong
+        // to another live row and must be probed again.
+        self.check_constraints(table_name, None, &row, Effect::Insert)?;
         self.commit_sequences(table_name, &row)?;
         self.commit_receipt_counter(table_name, &row)?;
         let row = self.prepare_event_slots(table_name, None, row, image_bytes)?;

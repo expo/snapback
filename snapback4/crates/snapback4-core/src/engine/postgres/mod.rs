@@ -292,12 +292,12 @@ impl PostgresEngine {
         let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(self.ceilings, Cut::Abort), seq);
         runner.meter.used = self.precharge;
         let ran = runner.run(program).and_then(|value| {
-            runner.check_final_exists()?;
             runner.charge_output(&value)?;
             Ok(value)
         });
+        let ran = ran.and_then(|value| runner.retire_expired_births().map(|_| value))
+            .and_then(|value| runner.check_final_exists().map(|_| value));
         let metered = runner.meter.used;
-        let ran = ran.and_then(|value| runner.retire_expired_births().map(|_| value));
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
         let events = runner.events.take();
         let action_tables = std::mem::take(&mut runner.action_tables);

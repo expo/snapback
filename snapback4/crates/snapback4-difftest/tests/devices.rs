@@ -9,7 +9,7 @@ use snapback4_difftest::{
     oracle::{Oracle, Verdict},
     shrink,
 };
-use snapback4_difftest::device_writes::{UNHELD_UNIQUE, clashing_row, refused_over_unheld_unique, seeded_items};
+use snapback4_difftest::device_writes::{UNHELD_UNIQUE, clashing_row, first_insert, refused_over_unheld_unique, seeded_items};
 use std::collections::BTreeSet;
 
 #[test]
@@ -152,6 +152,44 @@ fn a_predicted_insert_over_an_unheld_supplied_id_is_the_named_outcome() {
         assert!(settled.get("denied").is_none(), "{store}: {settled}");
         let after = devices::device_answer_named(dev.as_mut(), &case, "observe", &observe).outcome;
         assert!(after.data().and_then(|d| d.get("Row")).is_none(), "{store}: {after:?}");
+    }
+}
+
+#[test]
+fn a_literal_branch_uses_only_its_reachable_first_insert() {
+    let mut case = unheld_id_case();
+    case.args["k2"] = json!("missing2");
+    case.program.body = Body::Block(Block {
+        stmts: vec![Stmt::If(
+            Expr::Bool(false),
+            vec![Stmt::Write {
+                kind: Write::Upsert,
+                target: Key::Key,
+                value: Expr::Int(0),
+                tag: "tag".into(),
+                ttl: None,
+            }],
+            vec![Stmt::Write {
+                kind: Write::Insert,
+                target: Key::Key,
+                value: Expr::Int(0),
+                tag: "tag".into(),
+                ttl: None,
+            }],
+        )],
+        ret: Expr::Int(0),
+    });
+    assert_eq!(first_insert(&case), Some(Key::Key), "the dead upsert cannot change the first-write classification");
+
+    let mut report = snapback4_difftest::campaign::Report::default();
+    let mut files = devices::Files::new().unwrap();
+    let mut found = Vec::new();
+    devices::check(&case, &mut report, &mut files, |f| found.push(f.signature)).unwrap();
+    assert!(found.is_empty(), "{found:?}");
+    for store in devices::STORES {
+        let write = &report.by_oracle[&format!("device-{store}-write")];
+        assert_eq!(write.named.get(UNHELD_UNIQUE), Some(&1), "{report:#?}");
+        assert_eq!(write.disagreeing, 0, "{report:#?}");
     }
 }
 

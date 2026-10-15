@@ -369,7 +369,8 @@ theorem mutation_authorized {c : Case} {res : Value} {s' : Store}
             (fun _ => Steps.refl _) (fun _ _ _ => Steps.trans)
             (fun _ _ _ _ happ => mutationHooks_apply_authorized happ)
             _ _ _ _ _ _ _ _ _ hx
-        exact hbody.trans (retireExpiredChanged_steps w.changed w.store s' hret)
+        exact hbody.trans (retireExpiredChanged_steps
+          (changedRetirementOrder c.schema w.changed) w.store s' hret)
       · cases h
       · cases h
     · cases h

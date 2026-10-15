@@ -966,12 +966,15 @@ impl Engine {
         tx.savepoint("program")?;
         let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(ceilings, Cut::Abort), tx.next_seq()?);
         let ran = runner.run(&program).and_then(|value| {
-            runner.check_final_exists()?;
             runner.charge_output(&value)?;
             Ok(value)
         });
+        // Commit-end expiry can cascade or clear rows that an `after insert`
+        // witness names. Final obligations therefore inspect the actual
+        // provisional commit state, after every retirement action.
+        let ran = ran.and_then(|value| runner.retire_expired_births().map(|_| value))
+            .and_then(|value| runner.check_final_exists().map(|_| value));
         let metered = runner.meter.used;
-        let ran = ran.and_then(|value| runner.retire_expired_births().map(|_| value));
         let tables: Vec<String> = runner.written_tables.iter().cloned().collect();
         let events: Vec<Event> = runner.events.take();
         let action_tables = std::mem::take(&mut runner.action_tables);

@@ -183,6 +183,112 @@ mutation replace(id: id):
 }
 
 #[test]
+fn same_id_replacement_rechecks_an_unchanged_secondary_unique_key() {
+    let source = r#"
+table records:
+  expiresAt: time ?
+  name: text <=20
+  unique name
+  expire at .expiresAt
+  read <- allow
+  insert <- allow
+mutation add(id: id, name: text <=20, expiresAt: time ?):
+  insert records { id, name, expiresAt }
+"#;
+    let mut e = engine(source);
+    e.seed_at([row("records", &[
+        ("id", id("p")),
+        ("name", Value::String("taken".into())),
+        ("expiresAt", Value::Int(900)),
+    ])], 500).unwrap();
+
+    let live = e.mutate("add", None, ctx("alice", &[
+        ("id", id("q")),
+        ("name", Value::String("taken".into())),
+        ("expiresAt", Value::Null),
+    ])).unwrap();
+    assert_eq!(refusal(&live), None, "an expired image releases its key: {live:?}");
+
+    let replace = e.mutate("add", None, ctx("alice", &[
+        ("id", id("p")),
+        ("name", Value::String("taken".into())),
+        ("expiresAt", Value::Null),
+    ])).unwrap();
+    assert_eq!(refusal(&replace).as_deref(), Some("E_UNIQUE"), "the replacement must see q's live key: {replace:?}");
+    let rows = e.store().rows("records").unwrap();
+    assert_eq!(rows.len(), 2, "the retirement rolls back with the refused replacement");
+    assert!(rows.iter().any(|r| r.field("id").is_ok_and(|v| *v == id("p"))
+        && r.field("expiresAt").is_ok_and(|v| *v == Value::Int(900))), "{rows:?}");
+}
+
+#[test]
+fn commit_end_expiry_precedes_final_exists_checks() {
+    let source = r#"
+table roots:
+  expiresAt: time ?
+  expire at .expiresAt
+  read <- allow
+  insert <- allow
+table children:
+  root: roots on delete cascade
+  cap 2 by root
+  read <- allow
+  insert <- allow
+table markers:
+  child: children on delete cascade
+  cap 2 by child
+  read <- allow
+  insert <- allow
+  after insert <- exists children[.child]
+mutation create(expiresAt: time):
+  insert roots { id: 'r', expiresAt }
+  insert children { id: 'c', root: 'r' }
+  insert markers { id: 'm', child: 'c' }
+"#;
+    let mut e = engine(source);
+    let out = e.mutate("create", None, ctx("alice", &[("expiresAt", Value::Int(900))])).unwrap();
+    assert_eq!(refusal(&out).as_deref(), Some("E_CONSTRAINT"), "the cascade removes the final witness: {out:?}");
+    assert_eq!((count(&e, "roots"), count(&e, "children"), count(&e, "markers")), (0, 0, 0),
+        "the failed postcondition rolls back the whole mutation");
+}
+
+#[test]
+fn commit_end_expiry_uses_reverse_table_order_transactionally() {
+    let source = r#"
+table aRoots:
+  expiresAt: time ?
+  expire at .expiresAt
+  read <- allow
+  update <- allow
+table zRoots:
+  expiresAt: time ?
+  expire at .expiresAt
+  read <- allow
+  update <- allow
+table children:
+  a: aRoots on delete cascade
+  z: zRoots
+  cap 2 by a
+  read <- allow
+mutation expireBoth():
+  update aRoots['a'] { expiresAt: 900 }
+  update zRoots['z'] { expiresAt: 900 }
+"#;
+    let mut e = engine(source);
+    e.seed_at([
+        row("aRoots", &[("id", id("a")), ("expiresAt", Value::Null)]),
+        row("zRoots", &[("id", id("z")), ("expiresAt", Value::Null)]),
+        row("children", &[("id", id("c")), ("a", id("a")), ("z", id("z"))]),
+    ], 500).unwrap();
+    let out = e.mutate("expireBoth", None, ctx("alice", &[])).unwrap();
+    assert_eq!(refusal(&out).as_deref(), Some("E_REFERENCED"), "zRoots retires before aRoots can cascade the blocker: {out:?}");
+    assert_eq!((count(&e, "aRoots"), count(&e, "zRoots"), count(&e, "children")), (1, 1, 1),
+        "the restrict refusal rolls back both expiry updates and every action");
+    assert!(e.store().rows("aRoots").unwrap()[0].field("expiresAt").is_ok_and(|v| *v == Value::Null));
+    assert!(e.store().rows("zRoots").unwrap()[0].field("expiresAt").is_ok_and(|v| *v == Value::Null));
+}
+
+#[test]
 fn a_diamond_deletes_together_and_the_reported_reference_is_in_schema_order() {
     let source = r#"
 table roots:

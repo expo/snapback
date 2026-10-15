@@ -77,6 +77,15 @@ def mutationHooks : Hooks MutationWorld where
         | none => changed
       .ok (value, { store, changed := changed.eraseDups })
 
+/-- Runtime retires changed expiry rows in reverse through-table order, then
+ascending id order. Read-through tables are outside this model fragment, so
+its through order is the schema's lexical table order. -/
+def changedRetirementOrder (sch : Schema) (changed : ChangedRows) : ChangedRows :=
+  let tables := sch.tables.mergeSort fun a b => String.compare a.name b.name != .lt
+  tables.flatMap fun td =>
+    (changed.filter fun address => address.1 == td.name).mergeSort fun a b =>
+      lex cmpNat a.2 b.2 != .gt
+
 /-- Retire only rows written by this mutation whose final image is already
 expired. A restrict refusal aborts the mutation; cascade and set-null actions
 are in the same transition. -/
@@ -138,7 +147,8 @@ def runMutation (c : Case) : Outcome :=
   | .error .unavailable => .unavailable
   | .ok env =>
     match (execStmts mutationHooks defaultFuel c.ctx { store := c.store } env c.program.body).run {} with
-    | .ok ((fl, w, _), _) => match retireExpiredChanged c.schema c.now w.store w.changed with
+    | .ok ((fl, w, _), _) => match retireExpiredChanged c.schema c.now w.store
+        (changedRetirementOrder c.schema w.changed) with
       | .ok s' => .committed (flowValue fl).1 s'
       | .error (.refuse code) => .refused code
       | .error .unavailable => .refused "E_BOUND"
