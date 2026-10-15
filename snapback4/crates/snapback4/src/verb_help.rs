@@ -255,6 +255,7 @@ Attaches the active release; a running serve adopts deploy and rollback atomical
                 if inside && !trimmed.is_empty() { lines.push(line.to_owned()); }
             }
             if lines.is_empty() { return None; }
+            if verb == "witness" { lines.push("Browser executable: set SNAPBACK4_CHROMIUM (or CHROME) to Chromium. Run build:web first and register the app with registerWebWitness(app, api) from snapback4/witness-web.".into()); }
             return Some(format!("{}\n\n{}\n\nsnapback4 --help lists every verb.", lines.join("\n"), crate::cli_flags::help(verb)));
         }
     };
