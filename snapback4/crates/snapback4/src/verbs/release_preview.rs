@@ -92,6 +92,8 @@ pub(super) fn preview(
             .map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())?;
+    let items: Vec<snapback4_core::store::DormantItem> = serde_json::from_value(planned["items"].clone()).map_err(|e| e.to_string())?;
+    hazards.extend(super::release_safeguards::warnings(&candidate_schema, &candidate_programs, &items, release));
     steps.retain(|step|!step.message.contains("engine capture"));
     for step in &mut steps {
         if step.change==snapback4_core::successor::Change::Narrowing {
@@ -120,7 +122,6 @@ pub(super) fn preview(
     if options.json {
         println!("{}",serde_json::to_string_pretty(&serde_json::json!({"preview":true,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report.summary()})).unwrap());
     } else {
-        let items: Vec<snapback4_core::store::DormantItem> = serde_json::from_value(planned["items"].clone()).map_err(|e| e.to_string())?;
         println!("preview: release {release} would be current as generation {}; {}; live release unchanged", engine.generation(), snapback4_core::store::adoption_report::AdoptionReport::dormant(&items));
         for step in steps {println!("  {}: {}",step.path,step.message);}
         for hazard in hazards {println!("  WARNING {hazard}");}

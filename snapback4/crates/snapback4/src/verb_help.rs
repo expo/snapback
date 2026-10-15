@@ -163,7 +163,11 @@ refused (the refusing clause and its site are printed), 2 cannot run.";
 
 const TEST: &str = "snapback4 test [--source file.q] [--fixture dir] [--as persona] [--json] [--residency [--verbose]]
 
-Runs every query as each persona and prints its meters; with a fixture it
+Runs fixture cases in order, then sweeps every query as each persona and prints
+its meters. The sweep uses that persona's case arguments when available, otherwise
+derives arguments from the resulting store (including the cases' writes).
+Cases default to sent for mutations and check's verdict for queries: complete,
+or either complete/capped when check notes N_NEVER_COMPLETE. With a fixture it
 first loads the rows into a private in-memory store and afterwards runs
 dir/test.cases.jsonl, your own operations with expectations (a query's default
 expectation is its check verdict; a failing refusal names the layer that refused).
@@ -171,8 +175,8 @@ expectation is its check verdict; a failing refusal names the layer that refused
   --fixture dir   dir/<table>.jsonl, one JSON row per line, loaded as one batch
                   (parents first) exactly as POST /seed writes rows: defaults,
                   sequences, unique (your codes) and caps, maintained views.
-                  Without it, test reads the dev store
-                  .snapback4/store.sqlite (E_STORE_BUSY while a dev owns it).
+                  Defaults to ./fixtures when present; otherwise reads the dev
+                  store .snapback4/store.sqlite (E_STORE_BUSY while a dev owns it).
   --as alice      one persona (default: every persona in `use personas`); an
                   undeclared one is refused, as dev refuses it (--residency
                   measures any principal)

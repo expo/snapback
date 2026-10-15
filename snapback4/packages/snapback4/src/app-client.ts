@@ -1,3 +1,4 @@
+import { releaseLoading } from "./release.ts";
 import { guardUploads } from "./app-uploads.ts";
 import { bindSessionRefusal, sessionRefusal } from "./session-refusal.ts";
 import { guardFollowing, notifyFollowing } from "./following-transport.ts";
@@ -305,6 +306,14 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       cleanups.add(stop); return () => { cleanups.delete(stop); stop(); };
     },
   };
+  if (raw.release) {
+    const source = raw.release;
+    Object.assign(client, { release: { getSnapshot: () => valid() ? source.getSnapshot() : releaseLoading,
+      subscribe(listener: () => void) {
+        invalidations.add(listener); const stop = source.subscribe(listener);
+        return () => { stop(); invalidations.delete(listener); };
+      } } });
+  }
   guardUploads(client,raw,refusal,valid,why,listen);
   guardFollowing(client, raw, refusal, () => valid() && followingAdmissions === 0);
   guardPendingIntents(client, raw, valid, refusal);

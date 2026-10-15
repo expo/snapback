@@ -1716,3 +1716,48 @@ fn production_readiness_follows_positive_cycles_and_read_through_parents() {
 
 #[path = "check/wave10_diagnostics.rs"]
 mod wave10_diagnostics;
+
+// @ref LLP 3000.000.000.000#3-generated-compatibility — invalid baselines never replace a generated API.
+#[test]
+fn client_compatibility_configuration_refuses_invalid_baselines_without_rewriting_api() {
+    let p = Project::new();
+    assert!(p.run(&["check"]).status.success());
+    let api = p.0.join("snapback/generated/api.ts");
+    let original = fs::read(&api).unwrap();
+    for config in [r#"{"baseline":"missing.q","since_release":2}"#, r#"{"baseline":"schema.q","since_release":0}"#, r#"{"baseline":"schema.q","since_release":2,"typo":true}"#] {
+        fs::write(p.0.join("snapback/client-compatibility.json"), config).unwrap();
+        let output = p.run(&["check"]);
+        assert!(!output.status.success(), "{output:?}");
+        assert!(String::from_utf8_lossy(&output.stderr).contains("client-compatibility.json"), "{output:?}");
+        assert_eq!(fs::read(&api).unwrap(), original);
+    }
+    fs::write(p.0.join("bad.q"), "table :\n").unwrap();
+    fs::write(p.0.join("snapback/client-compatibility.json"), r#"{"baseline":"bad.q","since_release":2}"#).unwrap();
+    let output = p.run(&["check"]);
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("saved baseline does not compile"));
+    assert_eq!(fs::read(&api).unwrap(), original);
+}
+
+#[test]
+fn compatibility_baselines_preserve_module_identities_for_directories_and_single_modules() {
+    let p=Project::new();
+    let old="query greet():\n  return {text: 'hello'}\n";
+    let next="query greet(name: text <=20):\n  return {text: name, added: true}\n";
+    fs::create_dir_all(p.0.join("versions/v1")).unwrap();
+    fs::write(p.0.join("versions/v1/schema.q"),SOURCE).unwrap();
+    fs::write(p.0.join("versions/v1/messages.q"),old).unwrap();
+    fs::write(p.0.join("snapback/messages.q"),next).unwrap();
+    for baseline in ["versions/v1", "versions/v1/messages.q"] {
+        fs::write(p.0.join("snapback/client-compatibility.json"),serde_json::to_vec(&json!({"baseline":baseline,"since_release":2})).unwrap()).unwrap();
+        let output=p.run(&["check"]); assert!(output.status.success(),"{baseline}: {output:?}");
+        let api=fs::read_to_string(p.0.join("snapback/generated/api.ts")).unwrap();
+        assert!(api.contains("name?: string"),"{baseline}: {api}");
+        assert!(api.contains("added?: boolean"),"{baseline}: {api}");
+        assert!(api.contains("name: \"messages.greet\""),"{api}");
+    }
+    fs::create_dir(p.0.join("versions/empty")).unwrap();
+    fs::write(p.0.join("snapback/client-compatibility.json"),r#"{"baseline":"versions/empty","since_release":2}"#).unwrap();
+    let output=p.run(&["check"]); assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("no Quarry .q sources"));
+}

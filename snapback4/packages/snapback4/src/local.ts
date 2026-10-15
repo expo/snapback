@@ -1,3 +1,4 @@
+import { servedRelease } from "./release.ts";
 import { engineHeaders, unknownEngine, normalizeEngine, deviceVersionState, probeDeviceEngine, DeviceVersionError } from "./device-version.ts";
 export { DeviceVersionError, type DeviceVersionStatus, type DeviceEngine, type DeviceCompatibility } from "./device-version.ts";
 import { immediateUpload } from "./local-upload.ts";
@@ -72,7 +73,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   validateReadOptions(options); refuseReadDevice(options.session);
   const retention = assetRetention(options.assets);
   const clock = serverClock(options.fetch ?? defaultFetch).fork();
-  const doFetch = clock.wrap(options.fetch ?? defaultFetch);
+  let release: ReturnType<typeof servedRelease> | undefined;
+  const transport = clock.wrap(options.fetch ?? defaultFetch);
+  const doFetch: typeof fetch = async (...args) => { const response = await transport(...args); release?.hint(response); return response; };
   const fetchSync = syncTransport(doFetch);
   const base = options.url.replace(/\/$/, "");
   const engineInfo = options.device.engineInfo ? normalizeEngine(await options.device.engineInfo()) : undefined;
@@ -1372,6 +1375,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       await client.close();
     },
     close() {
+      release?.close();
       readWork.clear();
       if (closing) return closing;
       closed = true; holds.clear();
@@ -1481,6 +1485,10 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   if (!deferStart(options, start)) await start();
   stopHost = core.onClient?.(client, base);
   bindSessionRefusal(client, () => authRefusal);
+  release = servedRelease({ url: base, fetch: doFetch, headers: () => requestCredentials().headers, current: () => !closed && !sessionDead && !partitionDenied && !versionBlocked() });
+  Object.assign(client, { release });
+  client.onSession(() => release?.invalidate());
+  client.onViewer(() => release?.invalidate());
   return client;
   } catch (error) {
     stopSuspend?.(); stopOutbox?.();

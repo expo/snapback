@@ -1,4 +1,5 @@
 //! Recover a version, not invented compiler facts, from an older app.
+// @ref LLP 3000.000.000.000#6-upgrade-evidence — direct-install Exact rebuild guidance shares history acknowledgment.
 use super::*;
 use std::fs;
 // @ref LLP 3000.011.003.000#11-wave-11-runtime-upgrade-history — history acknowledgment is independent of compiler qualification.
@@ -51,6 +52,12 @@ pub(super) fn report(project: &Project, json: bool) {
     if let Some(previous) = previous(project) {
         let text = snapback4_lang::release_changes::interval(&previous, env!("CARGO_PKG_VERSION"));
         if !text.is_empty() { if json { eprint!("{text}"); } else { print!("{text}"); } }
+        // History acknowledgment covers direct package-manager installs too,
+        // even if the device preflight or schema compilation will refuse.
+        if previous != env!("CARGO_PKG_VERSION") && !crate::exact_device::inspect(&project.root, &snapback4_core::Schema::default()).is_empty() {
+            let hint = "Exact device: bun exact.mjs snapback --rebuild";
+            if json { eprintln!("{hint}"); } else { println!("{hint}"); }
+        }
     }
     let save = || -> std::io::Result<()> {
         fs::create_dir_all(project.data_dir())?;

@@ -10,7 +10,7 @@ struct Entry { record: Value, count: u64, until: Instant }
 pub(super) struct Console { entries: VecDeque<Entry>, detail: bool }
 
 fn same_cause(a: &Value, b: &Value) -> bool {
-    ["operation", "code", "table", "clause", "phase", "site", "executionSite", "generation", "hiddenBy", "preflight"]
+    ["operation", "code", "table", "clause", "phase", "site", "executionSite", "generation", "hiddenBy", "preflight", "seedHint"]
         .iter().all(|key| a[key] == b[key])
 }
 impl Console {
@@ -49,15 +49,16 @@ impl Console {
         let table = r["table"].as_str().filter(|t| !t.is_empty()).map(|t| format!(" {t}")).unwrap_or_default();
         // A lookup refusal whose row the read rule hid: name that layer, since the author's later `require` never ran.
         let hidden = r["hiddenBy"]["table"].as_str().map(|t| format!("; the lookup's {t} row is hidden by its read rule at {} (a hidden row reads as absent at a lookup, before any later require)", r["hiddenBy"]["readRuleSite"].as_str().unwrap_or("<generated>"))).unwrap_or_default();
+        let seed = r["seedHint"].as_str().map(|hint| format!("; {hint}")).unwrap_or_default();
         let kind = if r["preflight"].as_bool() == Some(true) { "auth preflight probe" } else { "refusal" };
-        let line = if self.detail { format!("dev {kind}: {}:{table} — {} at {}{hidden}; execution site {}; phase {}; generation {}; store {}; instance {}; code {}; count {}; window 1s; first request {}; first job {}; first time {}; first response {}; `snapback4 why recent --instance {}`\n",
+        let line = if self.detail { format!("dev {kind}: {}:{table} — {} at {}{hidden}{seed}; execution site {}; phase {}; generation {}; store {}; instance {}; code {}; count {}; window 1s; first request {}; first job {}; first time {}; first response {}; `snapback4 why recent --instance {}`\n",
             r["operation"].as_str().unwrap_or(""), r["clause"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["executionSite"], r["phase"], r["generation"], identity["storeId"], identity["instance"], r["code"], entry.count, r["requestId"], r["jobId"], r["at"], r["responseSequence"], identity["instance"].as_str().unwrap_or("")) }
         else {
             // @ref LLP 3000.036#16.5 — wave 6 #19: the human signal first, one short line; the record stays in `why recent`.
             let on = r["table"].as_str().filter(|t| !t.is_empty()).map(|t| format!(" on {t}")).unwrap_or_default();
             let hidden = r["hiddenBy"]["table"].as_str().map(|t| format!("; the {t} row is hidden by its read rule at {} (hidden reads as absent)", r["hiddenBy"]["readRuleSite"].as_str().unwrap_or("<generated>"))).unwrap_or_default();
             let times = if entry.count > 1 { format!(" ×{}", entry.count) } else { String::new() };
-            format!("dev {kind}: {} {} at {} ({}{on}){hidden}{times} — snapback4 why recent\n", r["operation"].as_str().unwrap_or(""), r["code"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["clause"].as_str().unwrap_or(""))
+            format!("dev {kind}: {} {} at {} ({}{on}){hidden}{seed}{times} — snapback4 why recent\n", r["operation"].as_str().unwrap_or(""), r["code"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["clause"].as_str().unwrap_or(""))
         };
         let _ = out.write_all(line.as_bytes());
     }

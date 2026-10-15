@@ -22,6 +22,8 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_NO_PRODUCTION_WRITER", &["Add a service-seat insert mutation"]),
     ("N_FIXTURE_ARGUMENT_DRIFT", &["Update its arguments and run snapback4 test"]),
     ("E_UPGRADE", &["Repair the package-manager or registry error and rerun upgrade"]),
+    ("E_FIXTURE_ALIAS", &["Use an earlier case's `save` name", "escape a literal", "An unresolved assertion fails the case"]),
+    ("E_FIXTURE_TIME", &["Use `now` or `now±duration`", "Relative conversion applies only to typed time leaves"]),
     ("E_WITNESS_BROWSER", &["Set SNAPBACK4_CHROMIUM"]),
     ("E_WITNESS_AUTH", &["Check the persona or credentials and register its client"]),
     ("E_WITNESS_MUTATION", &["Pass --mutation with a generated API name"]),

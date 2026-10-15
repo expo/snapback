@@ -3,6 +3,7 @@
 //! client's types; `dev` serves it and re-adopts it on every save; `run`,
 //! `test`, `why`, `guide`, `doctor`, `data` and `init` do what they say.
 
+mod client_compatibility;
 mod witness_socket;
 mod listen_refusal;
 mod verb_help;

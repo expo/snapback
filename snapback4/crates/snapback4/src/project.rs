@@ -171,7 +171,7 @@ impl Project {
         let dir = self.generated_dir();
         std::fs::create_dir_all(&dir)?;
         let path = dir.join("api.ts");
-        let text = snapback4_lang::emit::typescript(bound);
+        let text = crate::client_compatibility::typescript(self, bound)?;
         // @ref LLP 3000.007#20.2 — the generated API's ESM boundary is rebuilt with its artifacts, not imposed on existing scripts.
         let package = dir.join("package.json");
         if std::fs::read_to_string(&package).ok().as_deref() != Some(GENERATED_PACKAGE) {

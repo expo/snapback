@@ -97,14 +97,11 @@ Check business compatibility separately: old payment code may accept payment whi
 
 This proof assumes v1 declares `readItem(item)` returning `items[item]` and `editItem(item)` with `row = items[item]! else NOT_FOUND`; v2 adds `newOnly` and writes an enum value v1 cannot hold. Keep the bearer session in `headers`:
 ```js
-await cli('rollback', deployment, '--to', '1');
-const absent = await fetch(url + '/q/newOnly', {method:'POST', headers, body:'{"args":{}}'});
-assert.equal(absent.status, 404);
-assert.equal((await absent.json()).denied.code, 'E_OP');
+await cli('rollback', deployment, '--to', '1'); const absent = await fetch(url + '/q/newOnly', {method:'POST', headers, body:'{"args":{}}'});
+assert.equal(absent.status, 404); assert.equal((await absent.json()).denied.code, 'E_OP');
 assert.equal((await post('/m/editItem', {item})).why.code, 'NOT_FOUND');
 assert.equal((await post('/q/readItem', {item})).data, null);
-await cli('rollback', deployment, '--to', 'latest');
-assert.equal((await post('/q/readItem', {item})).data.status, 'new');
+await cli('rollback', deployment, '--to', 'latest'); assert.equal((await post('/q/readItem', {item})).data.status, 'new');
 ```
 
 Preview names missing operations, changed rule clauses, absent schedules and populated removed tables: dormant holds no longer enforce their safeguards. A changed job body is named separately; an unchanged job that compiles differently after a dependency change gets a note. Captures from the original read-through lifetime stay dormant with columns; restoring the same capture definition restores them. New rows without those captures still need safe audience correspondence.
@@ -112,9 +109,12 @@ Preview names missing operations, changed rule clauses, absent schedules and pop
 Receipts and previews count storage by kind: `1 row, 2 cells, 0 index entries dormant`. Dormant rows cover their retained cells; standalone cell counts/samples belong only to active rows. Bytes/assets follow the same disjoint ownership. Samples are labelled and unique within each kind/path, for example `rows notes [A]; cells notes.color [B, C]`. A retained index definition represents logical entries to rebuild, not a dormant physical index. A widening note describes values later writes could use; a compatibility WARNING counts only current values the selected release cannot hold. Compatible forward has no such warning.
 
 ## Clients across rollback
-Generated required fields and operations describe the schema checked when the client was built. Rolling the server back does not rebuild that client. Choose a release-matched frontend: in a separate copy of the selected immutable source, run `snapback4 check`, rebuild the frontend against that generated API and deploy it alongside the backend. Keep the immutable deployment source intact. An Expo/Exact runtime change also needs a device rebuild; JavaScript reload alone does not rebuild it.
+Save the baseline .q files with their original names under versions/v1 outside snapback/ and create `snapback/client-compatibility.json` containing `{"baseline":"versions/v1","since_release":2}`. `check`/`dev` emit added row/result fields and existing-operation parameters as optional, labelled "Since release 2", retaining older result value domains. This is your release label, not server generation; ordinary types stay required without opt-in. Use `row.color ?? "none"` for the baseline fallback.
 
-For one frontend spanning both releases, author a compatibility boundary at the response: validate newer fields at runtime before using them, and render their older-release fallback. A v2 generated required `color` field can be absent under v1; TypeScript requiredness is no runtime guarantee. For example, `typeof row.color === 'string' ? row.color : 'none'` supplies the old-release fallback. Before exposing a newer workflow, check the authenticated served operation catalog (`GET /`) for its operation, and still handle `E_OP` if a switch races that check. Handle authored lookup guard refusals separately from bare-query null. Do not replace a missing safeguard with a frontend type assertion. Test both directions with the same frontend and bearer session, asserting field fallbacks, missing-operation handling, business checks and restored original values.
+`useRelease()` from snapback4/react follows the authenticated catalog even when query gates are closed: loading, denied, or `{generation, operations, tables}` with public argument/field shapes. Generated `api.op.available(release)` is false while unready or when name/kind/argument signatures differ. This checks capability, not authorization or unchanged business semantics; still handle E_OP/E_INPUT and authored guard refusals when a switch races it. The SDK withdraws old metadata on observed generations, polls while subscribed, and returns loading offline/on catalog failure; account retirement/close withdraws it. Keep draft state above generation-sensitive read/action gates; remount only the gated children. Dormant means unavailable on this release, not deleted. Test v2 → v1 → v2 with one frontend: field fallbacks, missing operations, retained drafts and restored values. Alternatively check selected immutable source in a separate copy and rebuild its matching frontend. Preserve deployment source; Expo/Exact runtime changes also require a device rebuild.
+
+## Bridge a safety gate before rollback
+`rollback --check` names selected operations with dormant read dependencies, table counts and sample ids: release 1's `book` cannot see a dormant `grounding` row. These are conservative dependency warnings, not predicate matches. Counts describe the preview snapshot; later writes can change activation. Deploy a bridge preserving the safety table, widened value domain, read audience and mutation `require`. Migrate/repair newer rows while the guard executes; prove the blocked booking/payment still refuses; then contract source. If old source cannot enforce it, pause the workflow: retained storage cannot supply absent logic. SURF owns general lifecycle prose; KIT owns guide testing's packaged proof recipe.
 
 ## Trigger a deployed job
 A running serve accepts `POST /jobs/<job>` with a full service token; the job executes as the system on its FIFO queue and server clock. Every full service seat can trigger system jobs, so provision these tokens only to trusted operators. Guest/account sessions, read-scoped tokens and personas cannot use this door. `POST /dev/jobs/<job>` remains development-only.
