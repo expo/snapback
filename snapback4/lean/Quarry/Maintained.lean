@@ -83,6 +83,17 @@ theorem adoptedSequence_preserves_digest (legacy digest counters) :
     sequenceHighWater digest counters ≤ adoptedSequenceHighWater legacy digest counters :=
   Nat.le_max_right _ _
 
+/-- A surviving aggregate row fixes the physical parent that rebuilt rows and
+typed references address. Counter-only inference applies only without that
+row evidence. This abstracts map precedence, not SQL tuple decoding. -/
+def adoptedSequenceParent (rowParent? : Option (List Nat))
+    (counterOnlyParent : List Nat) : List Nat :=
+  rowParent?.getD counterOnlyParent
+
+theorem adoptedSequenceParent_row_wins (rowParent counterOnlyParent) :
+    adoptedSequenceParent (some rowParent) counterOnlyParent = rowParent := by
+  rfl
+
 example : adoptedSequenceHighWater [91, 55, 93] (maintainedIdV1 [.int 7])
     [([91, 55, 93], 9), (maintainedIdV1 [.int 7], 4)] = 9 := by decide
 

@@ -18,6 +18,7 @@ open Quarry
 #print axioms adoptMaintainedV1_values
 #print axioms adoptedSequence_preserves_legacy
 #print axioms adoptedSequence_preserves_digest
+#print axioms adoptedSequenceParent_row_wins
 #print axioms run_deterministic
 #print axioms sortRows_perm
 #print axioms candidates_perm

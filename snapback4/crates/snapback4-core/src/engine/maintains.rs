@@ -122,6 +122,11 @@ fn settle_legacy_maintained_ids(
         for (target, rows) in legacy {
             let target_ids = next_ids.entry(target.clone()).or_default();
             for (old, key) in rows {
+                // A surviving aggregate row is the authoritative parent that
+                // rebuild and row-reference rewriting will address. An
+                // independently decoded counter-only dependency must not
+                // redirect that map when a referenced target is absent.
+                if base.get(target).is_some_and(|ids| ids.contains_key(old)) { continue; }
                 let key: Vec<_> = key.iter().map(|(kind, value)| {
                     let mut value = value.clone();
                     rewrite_legacy_maintained_reference(kind, &mut value, &ids);

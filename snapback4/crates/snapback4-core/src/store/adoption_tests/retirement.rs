@@ -283,6 +283,59 @@ fn counter_only_aggregate_reference_chains_rekey_to_the_final_digest() {
 }
 
 #[test]
+fn surviving_aggregate_identity_wins_over_a_counter_only_dependency() {
+    const SOURCE: &str = "table aEntries:\n  key: int\n  public\nview aTotals: count aEntries by .key\n  public\ntable bEntries:\n  parent: aTotals\n  public\nview bTotals: count bEntries by .parent\n  public\ntable cEntries:\n  parent: bTotals\n  public\nview cTotals: count cEntries by .parent\n  public\ntable sequenced:\n  parent: bTotals\n  ordinal: sequence by parent\n  public\n";
+    let mut e = open(SOURCE);
+    let digest_a = crate::schema::maintained_id(&[Value::Int(5)]);
+    e.seed_at([
+        ("aEntries".into(), object([("id", Value::Id("a".into())), ("key", Value::Int(5))])),
+        ("bEntries".into(), object([("id", Value::Id("b".into())), ("parent", Value::Id(digest_a.clone()))])),
+    ], 0).unwrap();
+    let legacy_a = crate::value::canonical_json(&[Value::Int(5)]);
+    let digest_b = crate::schema::maintained_id(&[Value::Id(digest_a.clone())]);
+    let legacy_b = crate::value::canonical_json(&[Value::Id(legacy_a.clone())]);
+    let dangling_b = crate::schema::maintained_id(&[Value::Id(legacy_a.clone())]);
+    let legacy_c = crate::value::canonical_json(&[Value::Id(legacy_b.clone())]);
+    let digest_c = crate::schema::maintained_id(&[Value::Id(dangling_b.clone())]);
+    let redirected_c = crate::schema::maintained_id(&[Value::Id(digest_b.clone())]);
+    let schema = e.schema().clone();
+    let tx = e.store_mut().transaction().unwrap();
+    tx.delete("aTotals", &schema.tables["aTotals"], &tx.get("aTotals", &digest_a).unwrap().unwrap()).unwrap();
+    tx.delete("aEntries", &schema.tables["aEntries"], &tx.get("aEntries", "a").unwrap().unwrap()).unwrap();
+    let old_source = tx.get("bEntries", "b").unwrap().unwrap();
+    let mut next_source = old_source.clone();
+    if let Value::Row(fields) | Value::Map(fields) = &mut next_source {
+        fields.insert("parent".into(), Value::Id(legacy_a.clone()));
+    }
+    tx.put("bEntries", &schema.tables["bEntries"], &next_source, Some(&old_source)).unwrap();
+    let mut target = tx.get("bTotals", &digest_b).unwrap().unwrap();
+    tx.delete("bTotals", &schema.tables["bTotals"], &target).unwrap();
+    if let Value::Row(fields) | Value::Map(fields) = &mut target {
+        fields.insert("id".into(), Value::Id(legacy_b.clone()));
+        fields.insert("parent".into(), Value::Id(legacy_a.clone()));
+    }
+    tx.put("bTotals", &schema.tables["bTotals"], &target, None).unwrap();
+    tx.set_sequence("bTotals", &legacy_b, 7).unwrap();
+    tx.set_sequence("cTotals", &legacy_c, 11).unwrap();
+    tx.commit().unwrap();
+    e.store().conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
+
+    let next = compile(SOURCE);
+    e.adopt_at(next.schema, next.programs, 1).unwrap();
+    let tx = e.store_mut().transaction().unwrap();
+    assert!(tx.get("bTotals", &dangling_b).unwrap().is_some());
+    assert_eq!(tx.sequence_value("bTotals", &legacy_b).unwrap(), 0);
+    assert_eq!(tx.sequence_value("bTotals", &dangling_b).unwrap(), 7, "counter custody follows the surviving rebuilt parent");
+    assert_eq!(tx.sequence_value("bTotals", &digest_b).unwrap(), 0, "the absent dependency cannot redirect custody");
+    assert_eq!(tx.sequence_value("cTotals", &legacy_c).unwrap(), 0);
+    assert_eq!(tx.sequence_value("cTotals", &digest_c).unwrap(), 11, "counter-only dependents inherit the authoritative surviving parent map");
+    assert_eq!(tx.sequence_value("cTotals", &redirected_c).unwrap(), 0);
+    tx.rollback().unwrap();
+    e.seed_at([("sequenced".into(), object([("id", Value::Id("next".into())), ("parent", Value::Id(dangling_b))]))], 2).unwrap();
+    assert_eq!(e.store().rows("sequenced").unwrap()[0].field("ordinal"), Ok(&Value::Int(8)));
+}
+
+#[test]
 fn sequence_identity_rekey_rolls_back_with_the_adoption_writer() {
     let mut store = Store::memory().unwrap();
     let legacy = crate::value::canonical_json(&[Value::Int(7)]);
