@@ -94,6 +94,23 @@ theorem adoptedSequenceParent_row_wins (rowParent counterOnlyParent) :
     adoptedSequenceParent (some rowParent) counterOnlyParent = rowParent := by
   rfl
 
+/-! SQL adoption supplies the predecessor column-admission verdict. This
+model does not duplicate text formats, identity bounds or storage decoding;
+it states the custody decision after that independent boundary has judged the
+decoded canonical tuple. -/
+
+def adoptedSequenceCounterKey (predecessorAdmits : Bool)
+    (legacy digest : List Nat) : List Nat :=
+  if predecessorAdmits then digest else legacy
+
+theorem adoptedSequenceCounterKey_rejected_stays_opaque (legacy digest) :
+    adoptedSequenceCounterKey false legacy digest = legacy := by
+  rfl
+
+theorem adoptedSequenceCounterKey_admitted_migrates (legacy digest) :
+    adoptedSequenceCounterKey true legacy digest = digest := by
+  rfl
+
 example : adoptedSequenceHighWater [91, 55, 93] (maintainedIdV1 [.int 7])
     [([91, 55, 93], 9), (maintainedIdV1 [.int 7], 4)] = 9 := by decide
 

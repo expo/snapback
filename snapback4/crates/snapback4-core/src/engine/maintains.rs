@@ -51,21 +51,68 @@ fn rewrite_legacy_maintained_reference(
 }
 
 #[cfg(feature = "sqlite")]
-type LegacyIdentities = Vec<(String, Vec<(String, Vec<(crate::schema::ColumnType, Value)>)>)>;
+#[derive(Clone)]
+struct LegacyGroupField {
+    kind: crate::schema::ColumnType,
+    table: String,
+    field: String,
+    text: Vec<(u32, Option<crate::schema::TextFormat>)>,
+}
 
 #[cfg(feature = "sqlite")]
-type LegacyIdentityMap = BTreeMap<String, BTreeMap<String, Vec<(crate::schema::ColumnType, Value)>>>;
+impl LegacyGroupField {
+    fn admits(&self, value: &Value) -> bool {
+        crate::engine::validate::validate_column(&self.table, &self.field, &self.kind, Some(value)).is_ok()
+            && self.text.iter().all(|(min, format)| match value {
+                Value::String(text) => crate::engine::validate::validate_text(
+                    &format!("{}.{}", self.table, self.field), text, *min, *format).is_ok(),
+                _ => true,
+            })
+    }
+}
+
+#[cfg(feature = "sqlite")]
+fn legacy_group_fields(
+    schema: &crate::schema::Schema,
+    fallback: Option<&crate::schema::Schema>,
+    maintain: &Maintain,
+) -> Vec<LegacyGroupField> {
+    let source = schema.table(&maintain.source).or_else(|| fallback.and_then(|schema| schema.table(&maintain.source)))
+        .expect("validated maintain source");
+    let target = schema.table(&maintain.target).or_else(|| fallback.and_then(|schema| schema.table(&maintain.target)))
+        .expect("validated maintain target");
+    maintain.by.iter().zip(maintain.group_fields()).map(|(logical, target_field)| {
+        let source_field = maintain.aliases.get(logical).unwrap_or(logical);
+        let text = (!maintain.computed.contains_key(logical) && source.columns.contains_key(source_field)).then(|| source.constraints.iter().filter_map(|constraint| {
+            match constraint {
+                crate::schema::Constraint::Text { field, min, format } if field == source_field => Some((*min, *format)),
+                _ => None,
+            }
+        }).collect()).unwrap_or_default();
+        LegacyGroupField {
+            kind: target.columns[&target_field].clone(),
+            table: maintain.source.clone(),
+            field: source_field.clone(),
+            text,
+        }
+    }).collect()
+}
+
+#[cfg(feature = "sqlite")]
+type LegacyIdentities = Vec<(String, Vec<(String, Vec<(LegacyGroupField, Value)>)>)>;
+
+#[cfg(feature = "sqlite")]
+type LegacyIdentityMap = BTreeMap<String, BTreeMap<String, Vec<(LegacyGroupField, Value)>>>;
 
 #[cfg(feature = "sqlite")]
 fn decode_legacy_sequence_identity(
     old: &str,
-    kinds: &[crate::schema::ColumnType],
+    fields: &[LegacyGroupField],
 ) -> Option<Vec<Value>> {
     let values = crate::json_codec::from_text::<Vec<Value>>(old).ok()?;
-    (values.len() == kinds.len()
+    (values.len() == fields.len()
         && crate::value::canonical_json(&values) == old
-        && kinds.iter().zip(&values).all(|(kind, value)|
-            crate::engine::validate::fits(kind, Some(value))))
+        && fields.iter().zip(&values).all(|(field, value)| field.admits(value)))
         .then_some(values)
 }
 
@@ -73,18 +120,18 @@ fn decode_legacy_sequence_identity(
 fn collect_sequence_identity_dependencies(
     kind: &crate::schema::ColumnType,
     value: &Value,
-    definitions: &BTreeMap<String, Vec<crate::schema::ColumnType>>,
+    definitions: &BTreeMap<String, Vec<LegacyGroupField>>,
     identities: &mut LegacyIdentityMap,
 ) {
     match (kind, value) {
         (crate::schema::ColumnType::Ref { table }, Value::Id(old)) => {
-            let Some(kinds) = definitions.get(table) else { return };
+            let Some(fields) = definitions.get(table) else { return };
             if identities.get(table).is_some_and(|ids| ids.contains_key(old)) { return; }
-            let Some(values) = decode_legacy_sequence_identity(old, kinds) else { return };
-            let key: Vec<_> = kinds.iter().cloned().zip(values).collect();
+            let Some(values) = decode_legacy_sequence_identity(old, fields) else { return };
+            let key: Vec<_> = fields.iter().cloned().zip(values).collect();
             identities.entry(table.clone()).or_default().insert(old.clone(), key.clone());
-            for (kind, value) in &key {
-                collect_sequence_identity_dependencies(kind, value, definitions, identities);
+            for (field, value) in &key {
+                collect_sequence_identity_dependencies(&field.kind, value, definitions, identities);
             }
         }
         (crate::schema::ColumnType::Optional(inner), value) =>
@@ -99,14 +146,14 @@ fn collect_sequence_identity_dependencies(
 fn insert_sequence_identity(
     target: &str,
     old: String,
-    key: Vec<(crate::schema::ColumnType, Value)>,
-    definitions: &BTreeMap<String, Vec<crate::schema::ColumnType>>,
+    key: Vec<(LegacyGroupField, Value)>,
+    definitions: &BTreeMap<String, Vec<LegacyGroupField>>,
     identities: &mut LegacyIdentityMap,
 ) {
     if identities.get(target).is_some_and(|ids| ids.contains_key(&old)) { return; }
     identities.entry(target.to_owned()).or_default().insert(old, key.clone());
-    for (kind, value) in &key {
-        collect_sequence_identity_dependencies(kind, value, definitions, identities);
+    for (field, value) in &key {
+        collect_sequence_identity_dependencies(&field.kind, value, definitions, identities);
     }
 }
 
@@ -127,9 +174,9 @@ fn settle_legacy_maintained_ids(
                 // independently decoded counter-only dependency must not
                 // redirect that map when a referenced target is absent.
                 if base.get(target).is_some_and(|ids| ids.contains_key(old)) { continue; }
-                let key: Vec<_> = key.iter().map(|(kind, value)| {
+                let key: Vec<_> = key.iter().map(|(field, value)| {
                     let mut value = value.clone();
-                    rewrite_legacy_maintained_reference(kind, &mut value, &ids);
+                    rewrite_legacy_maintained_reference(&field.kind, &mut value, &ids);
                     value
                 }).collect();
                 let next = maintained_id(&key);
@@ -291,17 +338,13 @@ impl Runner<'_> {
     #[cfg(feature = "sqlite")]
     pub(crate) fn rewrite_legacy_maintained_references(&mut self, maintains: &[Maintain], previous: Option<&crate::schema::Schema>, activation_tx: Option<&crate::store::Tx<'_>>) -> Result<u64, RuntimeError> {
         let mut legacy: LegacyIdentities = Vec::new();
-        let mut definitions = BTreeMap::<String, Vec<crate::schema::ColumnType>>::new();
+        let mut definitions = BTreeMap::<String, Vec<LegacyGroupField>>::new();
         for maintain in maintains.iter().filter(|maintain| maintain.private.is_none() && maintain.row_key.is_none()) {
-            let target = &self.schema.tables[&maintain.target];
-            definitions.insert(maintain.target.clone(), maintain.group_fields().into_iter()
-                .map(|field| target.columns[&field].clone()).collect());
+            definitions.insert(maintain.target.clone(), legacy_group_fields(self.schema, None, maintain));
         }
         if let Some(previous) = previous {
             for maintain in previous.maintains.iter().filter(|maintain| maintain.private.is_none() && maintain.row_key.is_none()) {
-                let target = &previous.tables[&maintain.target];
-                definitions.insert(maintain.target.clone(), maintain.group_fields().into_iter()
-                    .map(|field| target.columns[&field].clone()).collect());
+                definitions.insert(maintain.target.clone(), legacy_group_fields(previous, Some(self.schema), maintain));
             }
         }
         let mut sequence_identity_map = LegacyIdentityMap::new();
@@ -314,12 +357,7 @@ impl Runner<'_> {
             let identity_maintain = identity_schema.maintain_for(&maintain.target)
                 .filter(|old| old.private.is_none() && old.row_key.is_none())
                 .unwrap_or(maintain);
-            let identity_target = identity_schema.table(&maintain.target)
-                .unwrap_or_else(|| &self.schema.tables[&maintain.target]);
-            let fields: Vec<_> = identity_maintain.group_fields().into_iter().map(|field| {
-                let kind = identity_target.columns.get(&field).expect("validated maintain group").clone();
-                (field, kind)
-            }).collect();
+            let fields = legacy_group_fields(identity_schema, Some(self.schema), identity_maintain);
             let mut rows = Vec::new();
             let mut bounds = Bounds::default();
             loop {
@@ -332,19 +370,18 @@ impl Runner<'_> {
                         .filter(|key| key.len() == fields.len());
                     let values = match address {
                         Some(key) => key,
-                        None => fields.iter().map(|(field, _)| Ok(row.field(field)?.clone()))
+                        None => identity_maintain.group_fields().iter().map(|field| Ok(row.field(field)?.clone()))
                             .collect::<Result<Vec<_>, RuntimeError>>()?,
                     };
-                    let key: Vec<_> = fields.iter().zip(values).map(|((_, kind), value)| (kind.clone(), value)).collect();
+                    let key: Vec<_> = fields.iter().cloned().zip(values).collect();
                     rows.push((old, key));
                 }
             }
             legacy.push((maintain.target.clone(), rows));
             for old in self.tx.sequence_ids(&maintain.target)? {
-                let kinds: Vec<_> = fields.iter().map(|(_, kind)| kind.clone()).collect();
-                let values = decode_legacy_sequence_identity(&old, &kinds);
+                let values = decode_legacy_sequence_identity(&old, &fields);
                 if let Some(values) = values {
-                    let key = fields.iter().zip(values).map(|((_, kind), value)| (kind.clone(), value)).collect();
+                    let key = fields.iter().cloned().zip(values).collect();
                     insert_sequence_identity(&maintain.target, old, key, &definitions, &mut sequence_identity_map);
                 }
             }
@@ -359,14 +396,11 @@ impl Runner<'_> {
             for maintain in previous.maintains.iter().filter(|maintain|
                 maintain.private.is_none() && maintain.row_key.is_none()
                     && !maintains.iter().any(|current| current.target == maintain.target)) {
-                let target = &previous.tables[&maintain.target];
-                let fields: Vec<_> = maintain.group_fields().into_iter().map(|field|
-                    (field.clone(), target.columns[&field].clone())).collect();
+                let fields = legacy_group_fields(previous, None, maintain);
                 for old in self.tx.sequence_ids(&maintain.target)? {
-                    let kinds: Vec<_> = fields.iter().map(|(_, kind)| kind.clone()).collect();
-                    let values = decode_legacy_sequence_identity(&old, &kinds);
+                    let values = decode_legacy_sequence_identity(&old, &fields);
                     if let Some(values) = values {
-                        let key = fields.iter().zip(values).map(|((_, kind), value)| (kind.clone(), value)).collect();
+                        let key = fields.iter().cloned().zip(values).collect();
                         insert_sequence_identity(&maintain.target, old, key, &definitions, &mut sequence_identity_map);
                     }
                 }

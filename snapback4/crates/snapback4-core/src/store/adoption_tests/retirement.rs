@@ -228,6 +228,50 @@ fn identity_adoption_rekeys_sequence_history_without_reusing_deleted_ordinals() 
 }
 
 #[test]
+fn sequence_identity_adoption_keeps_invalid_canonical_groups_opaque() {
+    const SOURCE: &str = "table owners:\n  public\ntable entries:\n  label: text 3..20 format handle\n  owner: owners\n  public\nview labelTotals: count entries by .label\n  public\nview ownerTotals: count entries by .owner\n  public\ntable labelSequence:\n  parent: labelTotals\n  ordinal: sequence by parent\n  public\ntable ownerSequence:\n  parent: ownerTotals\n  ordinal: sequence by parent\n  public\n";
+    let mut e = open(SOURCE);
+    let valid = crate::value::canonical_json(&[Value::String("valid_1".into())]);
+    let invalid_control = crate::value::canonical_json(&[Value::String("\u{1}".into())]);
+    let invalid_format = crate::value::canonical_json(&[Value::String("Not_A_Handle".into())]);
+    let invalid_reference = crate::value::canonical_json(&[Value::Id("x".repeat(136))]);
+    let valid_digest = crate::schema::maintained_id(&[Value::String("valid_1".into())]);
+    let control_digest = crate::schema::maintained_id(&[Value::String("\u{1}".into())]);
+    let format_digest = crate::schema::maintained_id(&[Value::String("Not_A_Handle".into())]);
+    let reference_digest = crate::schema::maintained_id(&[Value::Id("x".repeat(136))]);
+    let tx = e.store_mut().transaction().unwrap();
+    tx.set_sequence("labelTotals", &valid, 5).unwrap();
+    tx.set_sequence("labelTotals", &invalid_control, 6).unwrap();
+    tx.set_sequence("labelTotals", &invalid_format, 7).unwrap();
+    tx.set_sequence("ownerTotals", &invalid_reference, 8).unwrap();
+    tx.commit().unwrap();
+    e.store().conn().execute("DELETE FROM _meta WHERE key=?1", [crate::schema::MAINTAINED_ID_META]).unwrap();
+
+    let next = compile(SOURCE);
+    e.adopt_at(next.schema, next.programs, 1).unwrap();
+    let tx = e.store_mut().transaction().unwrap();
+    assert_eq!(tx.sequence_value("labelTotals", &valid).unwrap(), 0);
+    assert_eq!(tx.sequence_value("labelTotals", &valid_digest).unwrap(), 5, "a fully admitted predecessor group migrates");
+    for (parent, old, digest, high) in [
+        ("labelTotals", &invalid_control, &control_digest, 6),
+        ("labelTotals", &invalid_format, &format_digest, 7),
+        ("ownerTotals", &invalid_reference, &reference_digest, 8),
+    ] {
+        assert_eq!(tx.sequence_value(parent, old).unwrap(), high, "invalid canonical tuple retains opaque custody");
+        assert_eq!(tx.sequence_value(parent, digest).unwrap(), 0, "invalid canonical tuple does not create digest custody");
+    }
+    tx.commit().unwrap();
+
+    e.seed_at([
+        ("labelSequence".into(), object([("id", Value::Id("control".into())), ("parent", Value::Id(invalid_control))])),
+        ("labelSequence".into(), object([("id", Value::Id("format".into())), ("parent", Value::Id(invalid_format))])),
+    ], 2).unwrap();
+    let label_rows = e.store().rows("labelSequence").unwrap();
+    assert_eq!(label_rows.iter().find(|row| row.field("id") == Ok(&Value::Id("control".into()))).unwrap().field("ordinal"), Ok(&Value::Int(7)));
+    assert_eq!(label_rows.iter().find(|row| row.field("id") == Ok(&Value::Id("format".into()))).unwrap().field("ordinal"), Ok(&Value::Int(8)));
+}
+
+#[test]
 fn removing_an_aggregate_normalizes_retained_sequence_custody_before_marking_the_store() {
     const SOURCE: &str = "table entries:\n  bucket: int\n  public\nview totals: count entries by .bucket\n  public\ntable sequenced:\n  total: totals\n  ordinal: sequence by total\n  unique total, ordinal\n  public\n";
     const WITHOUT_AGGREGATE: &str = "table entries:\n  bucket: int\n  public\n";
