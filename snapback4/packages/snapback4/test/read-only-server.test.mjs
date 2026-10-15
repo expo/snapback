@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync } from 'node:child_process';
-import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -41,6 +41,8 @@ function runOracle(input, api) {
 }
 test('Phase-2 oracle: fresh read-only Bob login and generated pagination leave delivery unchanged; live ephemeral adoption converges', { timeout: hangBudget(20) }, async t => {
   const { url, dir } = await server(t, undefined, schema);
+  mkdirSync(join(dir, 'node_modules'));
+  symlinkSync(resolve(import.meta.dirname, '..'), join(dir, 'node_modules/snapback4'), 'dir');
   const apiPath = join(dir, 'snapback/generated/api.ts'), { api } = await import(apiPath);
   const alice = await signup(url, 'alice@read.test', password), bob = await signup(url, 'bob@read.test', password);
   assert.ok(alice.ok && bob.ok);
