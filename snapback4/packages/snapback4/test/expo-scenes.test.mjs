@@ -39,6 +39,14 @@ test('chat prebuild adopts Expo scenes and retains linking and status bar config
       const installed = path.dirname(require.resolve(`${name}/package.json`));
       fs.cpSync(installed, path.join(modules, name), { recursive: true });
     }
+    const script = path.join(modules, 'expo-modules-jsi/apple/scripts/build-xcframework.sh');
+    // Normalize a copy from a workspace that has already run the plugin.
+    // Every test run must exercise the patch writer, including on the Mac.
+    const ownPatch = '\n    # Snapback4: bind ExpoModulesJSI slices to the selected Xcode SDK\n    echo "XCODE_VERSION=$(xcodebuild -version)"';
+    fs.writeFileSync(script, fs.readFileSync(script, 'utf8').replace(ownPatch, ''));
+    const originalScript = fs.readFileSync(script, 'utf8'), originalMode = fs.statSync(script).mode & 0o777;
+    const sharedCacheFile = path.join(project, 'upstream-cache.sh');
+    fs.linkSync(script, sharedCacheFile);
     fs.writeFileSync(path.join(project, 'package.json'), JSON.stringify(packageJSON));
     fs.writeFileSync(path.join(project, 'app.json'), JSON.stringify(app));
     const generated = build();
@@ -55,8 +63,10 @@ test('chat prebuild adopts Expo scenes and retains linking and status bar config
     assert.ok(generated.info.CFBundleURLTypes.some(row => row.CFBundleURLSchemes.includes('snapback4chat')));
     assert.match(generated.delegate, /app.application\(UIApplication.shared, open: context.url/);
     assert.match(generated.delegate, /app.application\(UIApplication.shared, continue: activity/);
-    const script = path.join(modules, 'expo-modules-jsi/apple/scripts/build-xcframework.sh');
+    assert.equal(fs.readFileSync(sharedCacheFile, 'utf8'), originalScript, 'prebuild preserves the shared dependency inode');
+    assert.equal(fs.statSync(script).mode & 0o777, originalMode, 'replacement preserves the executable mode');
     const patched = fs.readFileSync(script, 'utf8');
+    assert.notEqual(patched, originalScript, 'exercise the patch writer on every run');
     assert.match(patched, /XCODE_VERSION=\$\(xcodebuild -version\)/);
     assert.deepEqual(build(), generated, 'repeated prebuild preserves the scene output');
     assert.equal(fs.readFileSync(script, 'utf8'), patched, 'cache patch is idempotent');

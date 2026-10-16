@@ -41,6 +41,7 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 const fs = require('node:fs');
 const path = require('node:path');
 const { createRequire } = require('node:module');
+const { randomUUID } = require('node:crypto');
 const cacheMarker = '# Snapback4: bind ExpoModulesJSI slices to the selected Xcode SDK';
 function withJsiSdkCache(config) {
   return withDangerousMod(config, ['ios', config => {
@@ -53,7 +54,14 @@ function withJsiSdkCache(config) {
     if (source.split(anchor).length !== 2) {
       throw new Error('snapback4-expo/plugin cannot patch this ExpoModulesJSI cache script; use the qualified Expo 57.0.30 toolchain');
     }
-    fs.writeFileSync(script, source.replace(anchor, anchor + '\n    ' + cacheMarker + '\n    echo "XCODE_VERSION=$(xcodebuild -version)"'));
+    // Bun can hardlink installed files to its shared cache. Replace only this
+    // project's directory entry; never truncate the shared dependency inode.
+    const temporary = script + '.snapback4-' + randomUUID();
+    try {
+      fs.writeFileSync(temporary, source.replace(anchor, anchor + '\n    ' + cacheMarker + '\n    echo "XCODE_VERSION=$(xcodebuild -version)"'), { flag: 'wx' });
+      fs.chmodSync(temporary, fs.statSync(script).mode & 0o777);
+      fs.renameSync(temporary, script);
+    } finally { fs.rmSync(temporary, { force: true }); }
     return config;
   }]);
 }

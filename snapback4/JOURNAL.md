@@ -95844,3 +95844,12 @@ private Release attempt refused before compilation as designed; the next uses
 that exact phase. Correct the cache regression's empty-array fixture for the
 Mac's Bash 3 (upstream's real source arrays were already nonempty). Mac package
 and preparation regressions now pass 22/22; Linux regressions also pass.
+
+### EXPOPIN shared package-cache custody
+
+The installed Linux JSI script has two hardlinks; truncating it would mutate
+Bun's shared cached inode. Change the patch writer to a same-directory temporary
+file and atomic rename, preserving its mode. The generated script bytes and
+Xcode hash semantics stay identical. The prebuild regression now creates a
+hardlinked cache alias and requires its bytes to remain original after patching.
+The Mac's installed script has one link; earlier Mac runs did not share that inode.
