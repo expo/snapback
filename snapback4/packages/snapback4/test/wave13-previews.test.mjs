@@ -202,7 +202,7 @@ test('optional defaults do not invent historical backfills in preview, cold or h
   assert.deepEqual(JSON.parse(run('deploy',deployment,'--json').stdout).backfills,[]);
 });
 
-test('removing an unconsulted narrowing column can restore a probe row and must change guard dependencies', {timeout:hangBudget(4)}, async t => {
+test('removing an unconsulted narrowing column keeps probe guards quiet while storage retention is explicit', {timeout:hangBudget(4)}, async t => {
   const {schema,deployment,run}=fixture(t);
   const source=`use identity guests
 table gates:
@@ -223,7 +223,8 @@ mutation book(item: gates):
   const dropped=source.replace("  state: enum('hold', 'inspection')\n",'').replace(", state: 'inspection'",'');
   writeFileSync(schema,dropped);
   const preview=run('deploy',deployment,'--check').stdout;
-  assert.match(preview,/gates changed: 1 guard unproved across book/);
+  assert.doesNotMatch(preview,/gates changed: .*guards? unproved across book/);
+  assert.match(preview,/gates\.state/);
   run('deploy',deployment);
   assert.equal((await host.post('/m/book',{item:'gate'})).state,'sent');
   await host.stop();
@@ -259,7 +260,9 @@ test('row-presence guards and field guards ignore new unconsulted defaulted colu
   writeFileSync(schema,source.replace('  body: text <=80',"  body: text <=80\n  label: text <=20 default 'label'"));
   assert.doesNotMatch(run('deploy',deployment,'--check').stdout,/WARNING|publish.require/);
   writeFileSync(schema,source.replace('  body: text <=80','  body: text <=90'));
-  assert.match(run('deploy',deployment,'--check').stdout,/notes changed: 2 guards unproved across publish/);
+  const widened=run('deploy',deployment,'--check').stdout;
+  assert.doesNotMatch(widened,/notes changed: .*guards? unproved across publish/);
+  assert.match(widened,/notes\.body admits values outside release 1/);
 });
 
 test('same-transaction writes are guard inputs only when they reach a consulted table', t => {
@@ -339,7 +342,7 @@ query total():
   const plan=JSON.parse(run('deploy',deployment,'--check','--json').stdout);
   assert.ok(plan.hazards.some(h=>h.startsWith('queries/counts total read holds: active table population 1 → 0')),JSON.stringify(plan.hazards));
   assert.ok(plan.hazards.some(h=>h.includes('safety dependencies on holds: `book`')),JSON.stringify(plan.hazards));
-  assert.ok(plan.hazards.some(h=>h.includes('holds changed: 1 guard unproved across book')),JSON.stringify(plan.hazards));
+  assert.ok(!plan.hazards.some(h=>h.includes('holds changed: 1 guard unproved across book')),JSON.stringify(plan.hazards));
   run('deploy',deployment);
   assert.equal((await host.post('/m/book',{})).state,'sent');
   assert.equal((await host.post('/q/total',{})).data.holdCount,0);

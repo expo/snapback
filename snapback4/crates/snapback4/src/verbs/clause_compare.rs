@@ -1,5 +1,5 @@
 //! Conservative propositional implication for narration, never admission.
-// @ref LLP 3000.000.000#12.2 — uncertainty stays a warning.
+// @ref LLP 3000.000.000#14-wave-14-rollback-narration — implication remains conservative while displayed Boolean grouping stays explicit.
 use snapback4_core::schema::RuleExpr;
 use snapback4_lang::{ast::{Expr, Literal}, print::expression};
 use std::collections::BTreeSet;
@@ -57,6 +57,21 @@ pub(super) fn compare(old: &Formula, new: &Formula) -> Change {
         new_implies_old &= b!=Truth::Yes || a==Truth::Yes;
     }
     match (old_implies_new,new_implies_old) { (true,true)=>Change::Same,(false,true)=>Change::Tightens,(true,false)=>Change::Loosens,_=>Change::Unknown }
+}
+/// Canonical rule text keeps Boolean precedence visible even though the stored
+/// rule tree no longer retains redundant source parentheses.
+pub(super) fn display_rule(value: &RuleExpr) -> String {
+    fn render(value: &RuleExpr, parent: u8) -> String {
+        let priority=match value {RuleExpr::Or(_)=>1,RuleExpr::And(_)=>2,RuleExpr::Not(_)=>3,_=>4};
+        let text=match value {
+            RuleExpr::And(parts)=>parts.iter().map(|part|render(part,priority)).collect::<Vec<_>>().join(" and "),
+            RuleExpr::Or(parts)=>parts.iter().map(|part|render(part,priority)).collect::<Vec<_>>().join(" or "),
+            RuleExpr::Not(part)=>format!("not {}",render(part,priority)),
+            other=>other.quarry(),
+        };
+        if priority<parent {format!("({text})")} else {text}
+    }
+    render(value,0)
 }
 fn equality(a: String,b: String, negated: bool, maybe: bool) -> Formula {
     let name = if a <= b { format!("{a}={b}") } else { format!("{b}={a}") };

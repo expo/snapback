@@ -1,5 +1,5 @@
 //! Schema inputs actually consulted by guards, independent of unrelated writes.
-// @ref LLP 3000.000.000#13-wave-13-preview-decisions — dependency changes are grouped, never inferred from whole-schema inequality.
+// @ref LLP 3000.000.000#14-wave-14-rollback-narration — dependencies carry only consulted column domains; forward widening is monotone.
 use snapback4_core::{Schema, ir, schema::{RuleExpr, RuleTerm}};
 use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
@@ -8,6 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(super) struct Dependencies(BTreeMap<String, Value>, NullReferences);
 type NullReferences = BTreeSet<(String,String)>;
 impl Dependencies {
+    #[cfg(test)]
     pub fn changed(&self, next: &Self) -> BTreeSet<String> {
         self.0.keys().chain(next.0.keys()).filter(|key| {
             let (a,b)=(self.0.get(*key),next.0.get(*key));
@@ -20,12 +21,22 @@ impl Dependencies {
         })
             .map(|key| key.split('.').next().unwrap().to_owned()).collect()
     }
+    pub fn changed_directional(&self, next: &Self, current: &Schema, target: &Schema) -> BTreeSet<String> {
+        self.0.keys().chain(next.0.keys()).filter(|key| {
+            let (a,b)=(self.0.get(*key),next.0.get(*key));
+            a!=b && !key.split_once(".domain.").is_some_and(|(table,column)|domain_widens(current,target,table,column))
+        }).map(|key|key.split('.').next().unwrap().to_owned()).collect()
+    }
     fn column(&mut self, schema: &Schema, table: &str, column: &str) {
         let t = schema.table(table);
         self.0.insert(format!("{table}.column.{column}"), json!([
-            t.and_then(|t| t.columns.get(column)), t.and_then(|t| t.defaults.get(column)),
-            t.and_then(|t| t.written_by.get(column)), t.and_then(|t| t.maintained.get(column)),
-            t.and_then(|t| t.recorded.get(column))]));
+            t.is_some_and(|t|t.columns.contains_key(column)), t.and_then(|t|t.defaults.get(column)),
+            t.and_then(|t|t.written_by.get(column)), t.and_then(|t|t.maintained.get(column)),
+            t.and_then(|t|t.recorded.get(column))]));
+        self.0.insert(format!("{table}.domain.{column}"),json!([
+            t.and_then(|t|t.columns.get(column)),
+            t.and_then(|t|t.constraints.iter().find(|constraint|matches!(constraint,snapback4_core::schema::Constraint::Text {field,..} if field==column)))
+        ]));
         for maintain in schema.maintains.iter().filter(|m|m.private.as_ref().is_some_and(|owner|owner.table==table && owner.column==column)) {self.maintain(schema,maintain);}
     }
     fn maintain(&mut self, schema: &Schema, maintain: &snapback4_core::schema::Maintain) {
@@ -54,8 +65,6 @@ impl Dependencies {
         self.0.insert(format!("{name}.metadata"),json!([timelines,families,schema.delivery.iter().filter(|d|d.table==name).collect::<Vec<_>>(),schema.receipt_dependencies.get(name)]));
         for t in timelines {for source in [&t.authors[0],&t.posts[0],&t.reposts[0],&t.edges[0]] {if schema.table(source).is_some() {self.population(schema,source);}}}
         for f in families {for source in [&f.scope,&f.messages,&f.members,&f.runs] {if schema.table(source).is_some() {self.population(schema,source);}}}
-        self.0.insert(format!("{name}.domains"), json!(table.columns.iter().filter(|(column,_)|!self.1.contains(&(name.into(),(*column).clone()))).collect::<BTreeMap<_,_>>()));
-        self.0.insert(format!("{name}.textConstraints"), json!(table.constraints.iter().filter(|c|matches!(c,snapback4_core::schema::Constraint::Text {..})).collect::<Vec<_>>()));
         // Any typed reference can join the reference-closed dormant population,
         // even when it is not a read-through authority declaration.
         fn referenced(kind: &snapback4_core::schema::ColumnType, out: &mut BTreeSet<String>) {
@@ -182,25 +191,54 @@ impl Dependencies {
                 if let Some(access) = fields.get("Field") {
                     self.expression(schema, &access["base"], bindings, visited, access["name"].as_str()); return;
                 }
+                if let Some(builtin)=fields.get("Builtin") {
+                    let args=builtin["args"].as_array().expect("serialized builtin arguments");
+                    if let Ok(kind)=serde_json::from_value::<ir::Builtin>(builtin["builtin"].clone()) {match kind {
+                        ir::Builtin::ExtremumOf {..} | ir::Builtin::Sum if args.len()==2 => {
+                            self.expression(schema,&args[0],bindings,visited,None);
+                            let source=resolved(&args[0],bindings,&mut BTreeSet::new());
+                            let mut inner=bindings.clone();inner.insert("$filter".into(),source);
+                            self.expression(schema,&args[1],&inner,visited,None);return;
+                        },
+                        ir::Builtin::Extremum {field,..} | ir::Builtin::Group {field,..} | ir::Builtin::OptionalField {field} => {
+                            self.expression(schema,&args[0],bindings,visited,Some(&field));return;
+                        },
+                        ir::Builtin::Sort {keys} => {
+                            for key in keys {self.expression(schema,&args[0],bindings,visited,Some(&key.field));}
+                            if let Some(column)=field {self.expression(schema,&args[0],bindings,visited,Some(column));}
+                            return;
+                        },
+                        ir::Builtin::First | ir::Builtin::Last | ir::Builtin::At | ir::Builtin::Slice => {
+                            self.expression(schema,&args[0],bindings,visited,field);
+                            for arg in &args[1..] {self.expression(schema,arg,bindings,visited,None);}return;
+                        },
+                        _ => (),
+                    }}
+                }
                 if let Some(read) = fields.get("Get").or_else(|| fields.get("Exists")) {
                     let table = read["table"].as_str().unwrap();
                     self.population(schema, table); self.index(schema, table, read["index"].as_str().unwrap());
                     if fields.contains_key("Get") {
                         if let Some(column) = field { if column!="$presence" {self.column(schema, table, column);} }
-                        else if let Some(t) = schema.table(table) { for column in t.columns.keys() { self.column(schema, table, column); } }
                     }
                     self.expression(schema, &read["key"], bindings, visited, None);
                     return;
                 }
-                // Scans/merges/recursion carry table/index pairs. Their filters,
-                // ranges and projections are visited below; retain all row columns
-                // where a lowered expression has no point-read projection.
+                if let Some(scan)=fields.get("Scan").and_then(Value::as_object) {
+                    let source=Value::Object(scan.iter().filter(|(name,_)|name.as_str()!="filter").map(|(name,value)|(name.clone(),value.clone())).collect());
+                    self.expression(schema,&source,bindings,visited,field);
+                    if let Some(filter)=scan.get("filter").filter(|value|!value.is_null()) {
+                        let mut inner=bindings.clone();inner.insert("$filter".into(),source);
+                        self.expression(schema,filter,&inner,visited,None);
+                    }
+                    return;
+                }
+                // Scans/merges/recursion carry table/index pairs. Filters and
+                // projections visited below add only the fields they consult.
                 if let Some(table) = fields.get("table").and_then(Value::as_str) {
                     if let Some(index) = fields.get("index").and_then(Value::as_str) {
-                        self.population(schema, table); self.index(schema, table, index);
-                        if !fields.contains_key("key") {
-                            if let Some(t) = schema.table(table) { for column in t.columns.keys() { self.column(schema, table, column); } }
-                        }
+                        self.population(schema,table);self.index(schema,table,index);
+                        if let Some(column)=field.filter(|column|*column!="$presence") {self.column(schema,table,column);}
                     }
                 }
                 for value in fields.values() { self.expression(schema, value, bindings, visited, None); }
@@ -211,6 +249,32 @@ impl Dependencies {
     }
 }
 
+fn domain_widens(current: &Schema,target: &Schema,table: &str,column: &str) -> bool {
+    use snapback4_core::schema::{ColumnType,Constraint};
+    fn kind(old: &ColumnType,new: &ColumnType) -> bool {
+        let list=|kind: &ColumnType|match kind {ColumnType::List {max,..}=>Some((0,*max)),ColumnType::ListRange {min,max,..}=>Some((*min,*max)),_=>None};
+        if let (Some((amin,amax)),Some((bmin,bmax)))=(list(old),list(new)) {
+            let (ColumnType::List {of:a,..}|ColumnType::ListRange {of:a,..},ColumnType::List {of:b,..}|ColumnType::ListRange {of:b,..})=(old,new) else {unreachable!()};
+            return bmin<=amin && bmax>=amax && kind(a,b);
+        }
+        match (old,new) {
+            (ColumnType::Optional(a),ColumnType::Optional(b))=>kind(a,b),(a,ColumnType::Optional(b))=>kind(a,b),
+            (ColumnType::Text {max:a},ColumnType::Text {max:b})|(ColumnType::Bytes {max:a},ColumnType::Bytes {max:b})|(ColumnType::Json {max_bytes:a},ColumnType::Json {max_bytes:b})|(ColumnType::Image {max:a,..},ColumnType::Image {max:b,..})|(ColumnType::Video {max:a},ColumnType::Video {max:b})=>b>=a,
+            (ColumnType::File {max:a,types:at},ColumnType::File {max:b,types:bt})=>b>=a && snapback4_core::assets::FILE_TYPES.iter().all(|t|!snapback4_core::assets::file_accepts(at,t)||snapback4_core::assets::file_accepts(bt,t)),
+            (ColumnType::IntRange {..},ColumnType::Int)=>true,
+            (ColumnType::IntRange {min:amin,max:amax},ColumnType::IntRange {min:bmin,max:bmax})=>bmin<=amin&&bmax>=amax,
+            (ColumnType::Enum {variants:a},ColumnType::Enum {variants:b})=>a.iter().all(|v|b.contains(v)),
+            _=>old==new,
+        }
+    }
+    fn text(table: &snapback4_core::schema::Table,column: &str) -> (u32,Option<snapback4_core::schema::TextFormat>) {
+        table.constraints.iter().find_map(|constraint|match constraint {Constraint::Text {field,min,format} if field==column=>Some((*min,*format)),_=>None}).unwrap_or((0,None))
+    }
+    let Some((old,new))=current.table(table).zip(target.table(table)) else {return false;};
+    let Some((old_kind,new_kind))=old.columns.get(column).zip(new.columns.get(column)) else {return false;};
+    let ((old_min,old_format),(new_min,new_format))=(text(old,column),text(new,column));
+    kind(old_kind,new_kind)&&new_min<=old_min&&(new_format==old_format||new_format.is_none())
+}
 // Null-only optional references cannot make the retained probe population
 // depend on their parent. Explicit reads/keys still collect the column normally.
 pub(super) fn null_references(store: &snapback4_core::Store,current: &Schema,target: &Schema) -> Result<NullReferences,String> {
@@ -529,21 +593,21 @@ pub(super) fn changes_scoped(current: &Schema,before: &ir::Program,target: &Sche
         }
         let arg_change=arguments_changed(before,after,guards(current,before,null_refs).into_iter().chain(guards(target,after,null_refs)).filter_map(|mut g|g.0.remove("compiled guard")));
         old.0.remove("compiled guard");new.0.remove("compiled guard");
-        let mut changed=old.changed(&new);if arg_change {changed.insert("arguments".into());}
+        let mut changed=old.changed_directional(&new,current,target);if arg_change {changed.insert("arguments".into());}
         return vec![changed];
     }
-    compare_guards(before,after,guards(current,before,null_refs),guards(target,after,null_refs))
+    compare_guards(current,target,before,after,guards(current,before,null_refs),guards(target,after,null_refs))
 }
 
 pub(super) fn independent_changes(current: &Schema,before: &ir::Program,target: &Schema,after: &ir::Program,old_sites: &BTreeSet<String>,new_sites: &BTreeSet<String>,null_refs: &NullReferences) -> Vec<BTreeSet<String>> {
-    compare_guards(before,after,selected_guards(current,before,null_refs,old_sites),selected_guards(target,after,null_refs,new_sites))
+    compare_guards(current,target,before,after,selected_guards(current,before,null_refs,old_sites),selected_guards(target,after,null_refs,new_sites))
 }
 
-fn compare_guards(before: &ir::Program,after: &ir::Program,old: Vec<Dependencies>,new: Vec<Dependencies>) -> Vec<BTreeSet<String>> {
+fn compare_guards(current: &Schema,target: &Schema,before: &ir::Program,after: &ir::Program,old: Vec<Dependencies>,new: Vec<Dependencies>) -> Vec<BTreeSet<String>> {
     (0..old.len().max(new.len())).map(|i| {
         let (Some(a),Some(b))=(old.get(i),new.get(i)) else {return BTreeSet::from(["compiled guard".into()]);};
         let arg_change=arguments_changed(before,after,[a.0.get("compiled guard").cloned().unwrap_or(Value::Null),b.0.get("compiled guard").cloned().unwrap_or(Value::Null)].into_iter());
-        let mut changed=a.changed(b);if arg_change {changed.insert("arguments".into());}changed
+        let mut changed=a.changed_directional(b,current,target);if arg_change {changed.insert("arguments".into());}changed
     }).collect()
 }
 
@@ -596,6 +660,28 @@ mod tests {
         assert_eq!(changes(&schema,&program,&target,&program,true),vec![BTreeSet::from(["targets".into()])]);
         let mut target=schema.clone();target.tables.get_mut("targets").unwrap().rules.read=RuleExpr::Deny;
         assert_eq!(changes(&schema,&program,&target,&program,true),vec![BTreeSet::from(["targets".into()])]);
+    }
+    #[test]
+    fn scan_filter_fields_keep_changed_defaults_as_guard_inputs() {
+        let source="table gates:\n  blocked: bool default true\n  public\n  online only\nmutation book():\n  require count(gates where .blocked) = 0 else BLOCKED\n  return true\n";
+        let before=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
+        assert!(before.diagnostics.is_empty(),"{:?}",before.diagnostics);
+        let target=snapback4_lang::compile(&[("schema.q".into(),source.replace("default true","default false"))]);
+        assert!(target.diagnostics.is_empty(),"{:?}",target.diagnostics);
+        let old=&before.programs.iter().find(|program|program.program.name=="book").unwrap().program;
+        let new=&target.programs.iter().find(|program|program.program.name=="book").unwrap().program;
+        assert_eq!(changes(&before.schema,old,&target.schema,new,true),vec![BTreeSet::from(["gates".into()])]);
+    }
+    #[test]
+    fn aggregate_projection_fields_keep_changed_defaults_as_guard_inputs() {
+        let source="table gates:\n  score: int default 0\n  public\n  online only\nmutation book():\n  page = gates first 10 by .id\n  require (max(page, .score) ?? 0) < 10 else LIMIT\n  return true\n";
+        let before=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
+        assert!(before.diagnostics.is_empty(),"{:?}",before.diagnostics);
+        let target=snapback4_lang::compile(&[("schema.q".into(),source.replace("default 0","default 20"))]);
+        assert!(target.diagnostics.is_empty(),"{:?}",target.diagnostics);
+        let old=&before.programs.iter().find(|program|program.program.name=="book").unwrap().program;
+        let new=&target.programs.iter().find(|program|program.program.name=="book").unwrap().program;
+        assert_eq!(changes(&before.schema,old,&target.schema,new,true),vec![BTreeSet::from(["gates".into()])]);
     }
     #[test]
     fn consulted_timeline_metadata_changes_without_polluting_ordinary_tables() {

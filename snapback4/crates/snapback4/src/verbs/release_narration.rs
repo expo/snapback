@@ -1,6 +1,6 @@
 //! Facts about the current store and a directional release pair.
 // @ref LLP 3000.000.000#11-wave-11-factual-release-narration — source changes, dependency changes and absent behavior are separate facts.
-// @ref LLP 3000.000.000#12.2 — effective image rules and lexical guard context govern directional narration.
+// @ref LLP 3000.000.000#14-wave-14-rollback-narration — rollback names lost safety/confidentiality and keeps Boolean grouping visible.
 use crate::project::Project;
 use snapback4_core::{Schema, Store, successor::{self, Change}};
 use snapback4_lang::lexer::{self, Kind};
@@ -95,7 +95,7 @@ fn declarations(project: &Project) -> Result<BTreeMap<String, Vec<(Kind, String)
     Ok(out)
 }
 
-pub(super) fn behavior(store_path: &Path, store: &Store, current: &Schema, target: &Schema, before_programs: &BTreeMap<String, snapback4_core::ir::Program>, after_programs: &BTreeMap<String, snapback4_core::ir::Program>, candidate: &Project, previous_release: Option<u64>, target_label: &str) -> Result<(Vec<String>, Vec<String>), String> {
+pub(super) fn behavior(store_path: &Path, store: &Store, current: &Schema, target: &Schema, before_programs: &BTreeMap<String, snapback4_core::ir::Program>, after_programs: &BTreeMap<String, snapback4_core::ir::Program>, candidate: &Project, previous_release: Option<u64>, target_label: &str, rollback: bool) -> Result<(Vec<String>, Vec<String>), String> {
     let null_refs=super::release_dependencies::null_references(store,current,target)?;
     let old_project = previous_release.and_then(|id| store_path.parent().map(|dir| Project { root: dir.join("releases").join(id.to_string()) }));
     let source_before = old_project.as_ref().and_then(|p| declarations(p).ok());
@@ -142,7 +142,7 @@ pub(super) fn behavior(store_path: &Path, store: &Store, current: &Schema, targe
             let before_judged=if effect==snapback4_core::schema::Effect::Update {old.update_rule_judged()} else {std::borrow::Cow::Borrowed(before)};
             let after_judged=if effect==snapback4_core::schema::Effect::Update {next.update_rule_judged()} else {std::borrow::Cow::Borrowed(after)};
             let changed_dependencies = super::release_dependencies::rule(current, name, &before_judged, &after_judged, &null_refs)
-                .changed(&super::release_dependencies::rule(target, name, &before_judged, &after_judged, &null_refs));
+                .changed_directional(&super::release_dependencies::rule(target, name, &before_judged, &after_judged, &null_refs),current,target);
             let dependencies_stable = changed_dependencies.is_empty();
             if before_judged == after_judged {
                 if !dependencies_stable {
@@ -151,7 +151,12 @@ pub(super) fn behavior(store_path: &Path, store: &Store, current: &Schema, targe
                 continue;
             }
             let change = if dependencies_stable { clauses::compare(&clauses::rule(&before_judged), &clauses::rule(&after_judged)) } else { Change::Unknown };
-            let line = format!("{target_label} {} {name}.{effect}; old: {} | new: {}", match change { Change::Tightens => "tightens", Change::Loosens => "loosens", Change::Same => "keeps equivalent", Change::Unknown => "changes (implication unproved)" }, before.quarry(), after.quarry());
+            let line=if rollback && change==Change::Loosens {
+                let lost=if effect==snapback4_core::schema::Effect::Read {"confidentiality"} else {"safety rule"};
+                format!("{target_label} loosens {name}.{effect}; old: {} | new: {}; rollback users lose current {lost}; preserve the current {} in a bridge release before activation",clauses::display_rule(before),clauses::display_rule(after),if effect==snapback4_core::schema::Effect::Read {"read rule/audience"} else {"rule"})
+            } else {
+                format!("{target_label} {} {name}.{effect}; old: {} | new: {}",match change {Change::Tightens=>"tightens",Change::Loosens=>"loosens",Change::Same=>"keeps equivalent",Change::Unknown=>"changes (implication unproved)"},clauses::display_rule(before),clauses::display_rule(after))
+            };
             if matches!(change,Change::Same | Change::Tightens) { notes.push(line); } else { warnings.push(line); }
         }
     }
@@ -163,6 +168,10 @@ pub(super) fn behavior(store_path: &Path, store: &Store, current: &Schema, targe
             if before.kind != snapback4_lang::ast::ProgramKind::Mutation { continue; }
             let (old_lines, _) = requirements(&before, false);
             let (new_lines, _) = requirements(after, false);
+            let guards = |p: &snapback4_lang::ast::ProgramDecl| p.prelude.iter().chain(&p.body).filter_map(|s| match s {
+                snapback4_lang::ast::Stmt::Require {condition,code,message,site,..}=>Some((condition.clone(),code.clone(),message.clone(),site.to_string())), _=>None
+            }).collect::<Vec<_>>();
+            let old_guards=guards(&before);let new_guards=guards(after);
             let exact_changes = before_programs.get(&name).zip(after_programs.get(&name)).map(|(old,new)|
                 super::release_dependencies::changes_scoped(current, old, target, new, true, &null_refs));
             // An unused binding or statement position can change the explanatory
@@ -172,7 +181,15 @@ pub(super) fn behavior(store_path: &Path, store: &Store, current: &Schema, targe
                 before_programs.get(&name).zip(after_programs.get(&name)).map(|(old,new)|
                     super::release_dependencies::changes_scoped(current, old, target, new, false, &null_refs))
             };
-            let stable = changed_dependencies.as_ref().is_some_and(|changes|changes.iter().all(BTreeSet::is_empty));
+            // When a trailing requirement is added, compare the compiled old
+            // guards with the reused target prefix. This retains expanded helper
+            // and filter evidence while ignoring only the genuinely new suffix.
+            let reused_implementation_stable = before_programs.get(&name).zip(after_programs.get(&name)).is_some_and(|(old,new)| {
+                let extra_new_sites=new_guards.iter().skip(old_guards.len()).map(|guard|guard.3.clone()).collect();
+                super::release_dependencies::independent_changes(current,old,target,new,&BTreeSet::new(),&extra_new_sites,&null_refs).iter().all(BTreeSet::is_empty)
+            });
+            let stable = changed_dependencies.as_ref().is_some_and(|changes|changes.iter().all(BTreeSet::is_empty))
+                && (old_lines==new_lines || reused_implementation_stable);
             let (_,old_formula) = requirements(&before, stable);
             let (_,new_formula) = requirements(after, stable);
             if old_lines.is_empty() && new_lines.is_empty() {
@@ -196,19 +213,15 @@ pub(super) fn behavior(store_path: &Path, store: &Store, current: &Schema, targe
                 old_formula.zip(new_formula).map(|(a,b)|clauses::compare(&a,&b)).unwrap_or(Change::Unknown)
             } else { Change::Unknown };
             // Refusal code/message changes are observable even for equivalent predicates.
-            let guards = |p: &snapback4_lang::ast::ProgramDecl| p.prelude.iter().chain(&p.body).filter_map(|s| match s {
-                snapback4_lang::ast::Stmt::Require {condition,code,message,..}=>Some((condition.clone(),code.clone(),message.clone())), _=>None
-            }).collect::<Vec<_>>();
-            let old_guards=guards(&before);let new_guards=guards(after);
             let args=before.args.iter().map(|a|a.name.clone()).collect();
-            let contract_same=old_guards.len()==new_guards.len() && old_guards.iter().zip(&new_guards).all(|((a,code,msg),(b,next_code,next_msg))| {
+            let contract_same=old_guards.len()==new_guards.len() && old_guards.iter().zip(&new_guards).all(|((a,code,msg,_),(b,next_code,next_msg,_))| {
                 code==next_code && msg==next_msg && clauses::require(a,&args,stable).zip(clauses::require(b,&args,stable)).is_some_and(|(a,b)|clauses::compare(&a,&b)==Change::Same)
             });
             // Admission tightening alone does not preserve earlier refusal codes.
             // Prove each old first-failure region still reaches its same refusal.
             let tightening_contract = old_guards.len()<=new_guards.len() && {
                 let (mut old_prefix,mut new_prefix)=(Vec::new(),Vec::new());
-                old_guards.iter().zip(&new_guards).all(|((a,code,msg),(b,next_code,next_msg))| {
+                old_guards.iter().zip(&new_guards).all(|((a,code,msg,_),(b,next_code,next_msg,_))| {
                     let Some((a,b))=clauses::require(a,&args,stable).zip(clauses::require(b,&args,stable)) else {return false;};
                     let old_failure=clauses::Formula::And(old_prefix.iter().cloned().chain([clauses::Formula::Not(Box::new(a.clone()))]).collect());
                     let new_failure=clauses::Formula::And(new_prefix.iter().cloned().chain([clauses::Formula::Not(Box::new(b.clone()))]).collect());
@@ -229,7 +242,12 @@ pub(super) fn behavior(store_path: &Path, store: &Store, current: &Schema, targe
                     }
                 }
             }
-            let line = format!("{target_label} {} {name}.require; old: {} | new: {}", match change { Change::Tightens => "tightens", Change::Loosens => "loosens", Change::Same => "keeps equivalent", _ => "changes (implication unproved)" }, if old_lines.is_empty() { "allow".into() } else { old_lines.join("; ") }, if new_lines.is_empty() { "allow".into() } else { new_lines.join("; ") });
+            let (old_text,new_text)=(if old_lines.is_empty() {"allow".into()} else {old_lines.join("; ")},if new_lines.is_empty() {"allow".into()} else {new_lines.join("; ")});
+            let line=if rollback && change==Change::Loosens {
+                format!("{target_label} loosens {name}.require; old: {old_text} | new: {new_text}; rollback users lose a current safety guard; preserve the current guard in a bridge release or pause this workflow before activation")
+            } else {
+                format!("{target_label} {} {name}.require; old: {old_text} | new: {new_text}",match change {Change::Tightens=>"tightens",Change::Loosens=>"loosens",Change::Same=>"keeps equivalent",_=>"changes (implication unproved)"})
+            };
             if matches!(change,Change::Same | Change::Tightens) { notes.push(line); } else { warnings.push(line); }
         }
     }
