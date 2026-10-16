@@ -54,3 +54,31 @@ test('wasm field-authority refusals carry the owner-specific repair and rules gu
     } finally { device.free(); }
   }
 });
+
+// @ref LLP 3000.000.001#4-verification — exercise the shipped WASM allocator, not a host-language replacement.
+test('WASM predictions mint in allocation order across equal milliseconds and rollback', () => {
+  const table = {
+    columns: { id: 'Id', label: { Text: { max: 40 } } },
+    indexes: { byId: { components: [{ Column: 'id' }], unique: true } },
+    rules: { read: 'Allow', insert: 'Allow', update: 'Deny', delete: 'Deny' },
+    sync: { audience: 'Public' },
+  };
+  const mutation = { name: 'add', kind: 'Mutation', args: { label: { Text: { max: 40 } } }, body: [
+    { Insert: { table: 'entries', row: { Object: { id: { Input: 'NewId' }, label: { Variable: 'label' } } } } },
+  ] };
+  const device = new WebDevice(JSON.stringify({ generation: 1, schema: { tables: { entries: table } }, programs: [mutation] }), '[]');
+  const request = value => JSON.parse(device.call(JSON.stringify(value)));
+  try {
+    const applied = request({ op: 'apply', first: true, page: { snapshot: true, events: [], watermark: 1, more: false, generation: 1 } });
+    assert.ok('ok' in applied, JSON.stringify(applied));
+    const ids = [];
+    for (let n = 0; n < 16; n++) {
+      const reply = request({ op: 'predict', name: 'add', viewer: 'alice', args: { label: `row${n}` }, now: n < 8 ? 2000 : 1000 });
+      assert.equal(reply.ok?.new_ids?.length, 1, JSON.stringify(reply));
+      ids.push(reply.ok.new_ids[0]);
+    }
+    assert.deepEqual(ids, [...ids].sort());
+    assert.equal(new Set(ids).size, ids.length);
+    assert.ok(ids.every(id => id.slice(0, 10) === ids[0].slice(0, 10)), 'clock rollback retains the logical timestamp');
+  } finally { device.free(); }
+});
