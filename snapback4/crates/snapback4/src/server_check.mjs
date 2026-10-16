@@ -103,6 +103,21 @@ errors.push(...ts.getPreEmitDiagnostics(program));
 // Source imports must survive private preparation and relocation. Packages and
 // builtins are host dependencies; local modules belong to this project.
 const projectRoot = realpathSync(root);
+function watchRuntimeFailure(base) {
+  const watch = path => {
+    for (let candidate = resolve(path); candidate.startsWith(root + sep) || candidate.startsWith(projectRoot + sep); candidate = dirname(candidate)) {
+      // Directories are watch hints, not source-copy candidates. Project
+      // stamps stat them afresh; creation under them wakes a failed check.
+      observe(candidate, true);
+    }
+  };
+  watch(base);
+  try {
+    const pkg = JSON.parse(system.readFile(resolve(base, "package.json")) ?? "null");
+    if (typeof pkg?.main === "string") watch(resolve(base, pkg.main));
+  } catch { /* A malformed package remains the runtime-resolution refusal. */ }
+}
+
 const sourceQueue = [...program.getSourceFiles()], inspected = new Set();
 for (let index = 0; index < sourceQueue.length; index++) {
   const source = sourceQueue[index];
@@ -124,7 +139,7 @@ for (let index = 0; index < sourceQueue.length; index++) {
           // Node executes. Observe and walk that implementation graph too.
           let runtime;
           try { runtime = createRequire(source.fileName).resolve(spec); }
-          catch { problem = "local runtime module is missing; provide the executable file as well as its declarations"; }
+          catch { watchRuntimeFailure(resolve(dirname(source.fileName), spec)); problem = "local runtime module is missing; provide the executable file as well as its declarations"; }
           if (runtime) system.fileExists(runtime); // records the executable, even when types hide it
           system.fileExists(resolve(dirname(source.fileName), spec, "package.json"));
           if (runtime && !runtime.split(sep).includes("node_modules")) {
@@ -133,7 +148,7 @@ for (let index = 0; index < sourceQueue.length; index++) {
             else {
               // Runtime-only JS inherits package type from these scopes even
               // when the TypeScript program never loaded that implementation.
-              for (let scope = dirname(runtime); scope === projectRoot || scope.startsWith(projectRoot + sep); scope = dirname(scope)) {
+              for (let scope = dirname(actual); scope === projectRoot || scope.startsWith(projectRoot + sep); scope = dirname(scope)) {
                 system.fileExists(resolve(scope, "package.json"));
                 if (scope === projectRoot) break;
               }

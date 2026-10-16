@@ -4,7 +4,7 @@ import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,symlinkSync} fro
 import {join,resolve} from 'node:path';
 import {createConnection} from 'node:net';
 import {setTimeout as sleep} from 'node:timers/promises';
-import {cli,startServe,waitForFresh} from '../dist/proof.js';
+import {cli,startServe,startDev,waitForFresh} from '../dist/proof.js';
 const root=resolve(import.meta.dirname,'../../..');
 process.env.SNAPBACK4_BIN ??= join(root,'target/debug/snapback4');
 function fixture(t,source='query alive():\n  return true\n') {
@@ -129,12 +129,12 @@ test('relative CommonJS directory imports capture package main behind a separate
 });
 
 test('runtime-only imports retain their nested package type', {timeout:60000},async t=>{
- const cwd=fixture(t);mkdirSync(join(cwd,'src/dist'),{recursive:true});
+ const cwd=fixture(t);mkdirSync(join(cwd,'src/dist'),{recursive:true});mkdirSync(join(cwd,'temporary'));symlinkSync(join(cwd,'temporary'),join(cwd,'temporary-alias'));
  writeFileSync(join(cwd,'src/helper.d.ts'),'export declare const marker: string;\n');
  writeFileSync(join(cwd,'src/helper.js'),`import value from './dist/runtime.js';export const marker=value;\n`);
  writeFileSync(join(cwd,'src/dist/package.json'),'{"type":"commonjs"}');writeFileSync(join(cwd,'src/dist/runtime.js'),'module.exports="SURF4_PACKAGE_TYPE";\n');
  writeFileSync(join(cwd,'snapback/server.mjs'),`import {marker} from '../src/helper.js';console.log(marker);setInterval(()=>{},1000);\n`);
- await ok(['deploy','deployment'],cwd);const host=await startServe('deployment',{cwd});try{await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_PACKAGE_TYPE'),'runtime package type omitted',()=>readFileSync(host.logs.stderr,'utf8'))}finally{await host.stop();}
+ const deployed=await cli(['deploy','deployment'],{cwd,env:{TMPDIR:join(cwd,'temporary-alias')}});assert.equal(deployed.code,0,deployed.stdout+deployed.stderr);const host=await startServe('deployment',{cwd});try{await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_PACKAGE_TYPE'),'runtime package type omitted',()=>readFileSync(host.logs.stderr,'utf8'))}finally{await host.stop();}
 });
 test('declarations cannot conceal a missing runtime module; explicit type-only imports stay legal', {timeout:60000},async t=>{
  const cwd=fixture(t);mkdirSync(join(cwd,'src'));writeFileSync(join(cwd,'src/types.d.ts'),'export declare const marker: string;\n');
@@ -142,4 +142,23 @@ test('declarations cannot conceal a missing runtime module; explicit type-only i
  const absent=await cli(['deploy','deployment'],{cwd});assert.notEqual(absent.code,0);assert.match(absent.stderr,/local runtime module is missing/);
  writeFileSync(join(cwd,'snapback/server.ts'),`import type {marker} from '../src/types.js';console.log('SURF4_TYPE_ONLY');setInterval(()=>{},1000);\n`);
  await ok(['deploy','deployment'],cwd);const host=await startServe('deployment',{cwd});try{await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_TYPE_ONLY'),'type-only import wrongly refused',()=>readFileSync(host.logs.stderr,'utf8'))}finally{await host.stop();}
+});
+
+test('dev recovers when a missing declaration-hidden runtime file is created', {timeout:120000},async t=>{
+ const cwd=fixture(t);mkdirSync(join(cwd,'src'));writeFileSync(join(cwd,'src/types.d.ts'),'export declare const marker: string;\n');
+ writeFileSync(join(cwd,'snapback/server.mjs'),`console.log('SURF4_WATCH_FIRST');setInterval(()=>{},1000);\n`);
+ const host=await startDev({cwd});try{
+  await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_WATCH_FIRST'),'initial dev worker not ready',()=>readFileSync(host.logs.stderr,'utf8'));
+  writeFileSync(join(cwd,'snapback/server.mjs'),`import {marker} from '../src/types.js';console.log(marker);setInterval(()=>{},1000);\n`);
+  await until(()=>readFileSync(host.logs.stderr,'utf8').includes('local runtime module is missing'),'missing runtime was not refused',()=>readFileSync(host.logs.stderr,'utf8'));
+  writeFileSync(join(cwd,'src/types.js'),'export const marker="SURF4_WATCH_RECOVERED";\n');
+  await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_WATCH_RECOVERED'),'new runtime file did not wake dev',()=>readFileSync(host.logs.stderr,'utf8'));
+ }finally{await host.stop();}
+});
+test('inline type specifiers retain Node 24 runtime imports, unlike import type declarations',()=>{
+ // This is the actual loader's stripping primitive, not tsc emit semantics.
+ const {stripTypeScriptTypes}=process.getBuiltinModule('node:module');
+ assert.match(stripTypeScriptTypes(`import { type Marker } from './types.js';`),/import/);
+ assert.match(stripTypeScriptTypes(`export { type Marker } from './types.js';`),/export/);
+ assert.equal(stripTypeScriptTypes(`import type { Marker } from './types.js';`).trim(),'');
 });
