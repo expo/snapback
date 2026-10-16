@@ -4,7 +4,7 @@
 //! a reference is probed through, lowers the action into the schema, refuses
 //! what a column cannot carry, checks that a delete's cascade fits its
 //! program, and names every delete whose behavior the restrict default changed.
-// @ref LLP 3000.039#2 — restrict is the default; cascade and set null need a cap on the reference.
+// @ref LLP 3000.036.002#10 — restrict is default; reachable delete sources require cascade and set-null reference caps.
 use super::catalog::Catalog;
 use super::intent_walk as walk;
 use crate::{ast::*, diag::Diagnostic};
