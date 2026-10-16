@@ -1,0 +1,88 @@
+{
+  "implementationCommit": "7931f43149dc8aaf3337fc7ecf2e71d306f3cff3",
+  "baseline": "59fb4ead1b",
+  "run": "one complete canonical client pass; scoped reruns resolve initial failures",
+  "poolSummaries": [
+    {
+      "finished": 400,
+      "total": 400,
+      "failedFiles": 8,
+      "tests": {
+        "tests": 7535,
+        "pass": 7470,
+        "fail": 8,
+        "cancelled": 1,
+        "skipped": 56,
+        "todo": 0
+      }
+    },
+    {
+      "finished": 2,
+      "total": 2,
+      "failedFiles": 0,
+      "tests": {
+        "tests": 81,
+        "pass": 81,
+        "fail": 0,
+        "cancelled": 0,
+        "skipped": 0,
+        "todo": 0
+      }
+    }
+  ],
+  "initialFailedFiles": [
+    "packages/snapback4/test/api-index.test.mjs",
+    "packages/snapback4/test/event-slot-capability.test.mjs",
+    "packages/snapback4/test/event-slots.test.mjs",
+    "packages/snapback4/test/pubfix29b.test.mjs",
+    "packages/snapback4/test/readme-examples.test.mjs",
+    "packages/snapback4/test/server-e2e.test.mjs",
+    "packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "packages/snapback4/test/export-background.test.mjs"
+  ],
+  "scopedReruns": {
+    "api-index": "affected-final-pool.log: assertions and file passed",
+    "event-slot-capability and event-slots": "event-slot-retest.log: passed after Rust trace producer",
+    "pubfix29b": "pubfix-and-recipes-retest.log: passed with explicit --no-memory",
+    "readme-examples": "affected-final-pool.log: passed after declarations/index/call coverage repairs",
+    "delivery-fault-matrix": "await-census.log: classification passed; all original fault cases passed in full run",
+    "server-e2e worker crash": "worker-retest.log: passed isolated with original bound",
+    "export-background retention non-macOS": "export-retention-retest.log: passed isolated with original bound"
+  },
+  "unresolvedProductFailures": [],
+  "rootPreconditions": [
+    "competitive-checkpoint generated startReply.args.schema.json",
+    "todo-v2 generated Contract setCompleted.mutation.ts",
+    "todo-v2 generated Contract runtime-links.ts"
+  ],
+  "publicationQualified": false,
+  "completion": {
+    "clientPoolExit": 1,
+    "modelsExit": 0,
+    "totalFiles": 402,
+    "concurrency": 24
+  },
+  "commitBinding": "Full pass ran during implementation; final semantic deltas have scoped reruns. Not an exact-commit publication receipt.",
+  "sequenceCountsVerified": {
+    "appSessionPerTier": 5000,
+    "onlineClient": 3000
+  },
+  "finalAffectedPass": {
+    "files": 13,
+    "assertionsPassed": 189,
+    "assertionsFailed": 0,
+    "initialCleanupFailure": "proof regression pipe holder outlived its file; fixture now observes holder exit without signalling its PID",
+    "cleanupRerun": {
+      "files": 2,
+      "testsPassed": 26,
+      "failed": 0
+    },
+    "fileOutcomesAfterRerun": "13/13 passed"
+  },
+  "macFinalCleanup": {
+    "file": "proof.test.mjs",
+    "passed": 21,
+    "failed": 0,
+    "log": "mac-proof-cleanup-final.log"
+  }
+}

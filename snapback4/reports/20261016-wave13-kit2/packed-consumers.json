@@ -4,11 +4,11 @@
   "artifacts": [
     {
       "path": "/tmp/kit2-work/packs/snapback4-0.4.29.tgz",
-      "sha256": "1135895ffe80b5268775aa2d438c64315de2edff1904e7e336708f33fa398f7e"
+      "sha256": "670d6567a9827335f6982ca41cb6b8daac1bd080966e0bb0a2cd488c4ccbf2e9"
     },
     {
       "path": "/tmp/kit2-work/packs/snapback4-linux-x64-0.4.29.tgz",
-      "sha256": "de7f9928cb4ae8340c1d5ea8a2b1a5d34d09df52257edb17d46a8e5c61f33679"
+      "sha256": "9660a13adfe003bd9519e710e93c799dfffff1058250e9093ba2d657c743d14f"
     },
     {
       "path": "/tmp/kit2-work/packs/snapback4-expo-0.4.29.tgz",
@@ -21,56 +21,56 @@
       "proof": "frontend:proof",
       "attempt": 1,
       "status": "passed",
-      "elapsedMs": 5363
+      "elapsedMs": 2331
     },
     {
       "kind": "web",
       "proof": "day2:proof",
       "attempt": 1,
       "status": "passed",
-      "elapsedMs": 2154
+      "elapsedMs": 1155
     },
     {
       "kind": "web",
       "proof": "frontend:proof",
       "attempt": 2,
       "status": "passed",
-      "elapsedMs": 4965
+      "elapsedMs": 2198
     },
     {
       "kind": "web",
       "proof": "day2:proof",
       "attempt": 2,
       "status": "passed",
-      "elapsedMs": 2810
+      "elapsedMs": 1085
     },
     {
       "kind": "expo",
       "proof": "frontend:proof",
       "attempt": 1,
       "status": "passed",
-      "elapsedMs": 2538
+      "elapsedMs": 2792
     },
     {
       "kind": "expo",
       "proof": "day2:proof",
       "attempt": 1,
       "status": "passed",
-      "elapsedMs": 1053
+      "elapsedMs": 1238
     },
     {
       "kind": "expo",
       "proof": "frontend:proof",
       "attempt": 2,
       "status": "passed",
-      "elapsedMs": 2406
+      "elapsedMs": 2626
     },
     {
       "kind": "expo",
       "proof": "day2:proof",
       "attempt": 2,
       "status": "passed",
-      "elapsedMs": 949
+      "elapsedMs": 1017
     }
   ]
 }

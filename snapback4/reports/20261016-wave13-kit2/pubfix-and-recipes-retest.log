@@ -1,0 +1,25 @@
+✔ H9 renderedText opts into substring matching for a row with more than the needle (4559.89744ms)
+✔ H9 P12 a trusted click that writes nothing settles E_WITNESS_NO_WRITE and rearming settles the old promise (2912.101388ms)
+✔ D1 every UI starter frontend proof and launcher refuses one port before starting children (1849.124459ms)
+✔ H2 web-shell help lists the verb and has no filesystem side effects (451.739506ms)
+✔ H3 retired todo recipe explains the supported starter and writes nothing (35.724958ms)
+✔ H7 missing optional Playwright gives a coded install command; help needs no peer (468.739232ms)
+✔ H8 run, doctor, clock advance and reset discover a persisted dev on a non-default port (710.521666ms)
+✔ README TypeScript examples compile and call every public function (11954.895803ms)
+ℹ 60 README blocks; 102 public functions; 11947.17 ms
+✔ the React entry index names every function snapback4/react exports (2.850533ms)
+✔ Queries teach predicate reads and engine-chosen scope lanes (37.463965ms)
+✔ Expo Go README session store preserves encoded SecureStore keys and round-trips a session (55.97738ms)
+✔ W9a expiry client form drops deadlines locally and keeps null lifetimes (50.277135ms)
+✔ W10b typing guidance hides a short-lived server answer before the next answer (38.64812ms)
+✔ client card composer clears after a fresh sent result and preserves concurrent edits (187.588048ms)
+✔ client card composer disables only denied or fresh non-revalidating absent membership (74.271125ms)
+✔ profile screen waits for proven existence and uses each replacement (11.458759ms)
+ℹ tests 16
+ℹ suites 0
+ℹ pass 16
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13856.57453

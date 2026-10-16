@@ -1,0 +1,30 @@
+Switched to branch 'kit2-cleanup-final'
+✔ runtime port range is inclusive, validated, and never cached (1.06375ms)
+✔ native and static bind beyond an occupied port; identity and independent logs (457.958792ms)
+✔ exhausted range and missing export fail with bounded cleanup (292.956042ms)
+✔ static host serves wasm correctly and refuses escaped symlink assets (143.526458ms)
+✔ saved-source deploy, preview, hot forward, rollback and fixture test never change working bytes (790.359084ms)
+✔ cli awaits close, separates output and returns refusal status (121.814584ms)
+✔ ANSI and blank ready lines, early exit, stalled readiness and TERM escalation (246.084167ms)
+✔ cleanup bounds stalled actions and continues after errors (42.886042ms)
+✔ exit sweep kills registered child, not a neighboring child (115.790625ms)
+✔ Vite uses the project's config and bound identity (304.370084ms)
+✔ browser helpers use fresh text, stable values and RN keystrokes (566.166541ms)
+✔ SIGKILLed driver closes frontend liveness and sweeps its whole private group (273.124042ms)
+✔ saved schemas typecheck server companions against private candidate API without replacing working types (2214.144083ms)
+✔ ready PID and served marker mismatches refuse instead of adopting another identity (427.291958ms)
+✔ secret stdout stays in memory; token CLI automatically selects secret capture (284.136875ms)
+✔ startDev args preserve memory isolation unless a store is explicit (277.156667ms)
+✔ waitForServer waits for authoritative projection and diagnoses unchanged truth (153.135917ms)
+✔ proof browser navigation arms witness before application registration (316.702625ms)
+✔ --no-memory is consumed by the kit and retains dev rows across restarts (276.17675ms)
+✔ proof witness injection survives HTTP redirect destinations (160.021333ms)
+✔ secret capture releases its pipe when an exited tool leaves a descendant holding stdout (6216.387459ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13790.870584
