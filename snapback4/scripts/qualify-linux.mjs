@@ -10,6 +10,8 @@ import { artifact, cleanSource, clientManifest, digest, json, linuxRustFlags, li
 import { checkElf } from "./check-elf.mjs";
 import { proveStarters } from "./publication-starters.mjs";
 import { proveDay2 } from "./publication-day2.mjs";
+import { proveProduction } from "./publication-production.mjs";
+import { proveClientRecipes } from "./publication-client-recipes.mjs";
 import { proveGeneratedProofs } from "./publication-frontend-proofs.mjs";
 import { prootProof } from "./qualify-linux-proot.mjs";
 export function containerRuntime(probeRuntime = name => spawnSync(name, ["info"], { stdio: "ignore", timeout: 15_000 })) {
@@ -95,6 +97,10 @@ export async function qualify(args = process.argv.slice(2)) {
     // browser proof; both execute the same retained client/platform bytes.
     const day2Proof = await proveDay2(client, tarball, out);
     save(join(out, "day2-proof.json"), day2Proof);
+    const productionProofs = await proveProduction(client, tarball, expo, out);
+    save(join(out, "production-proofs.json"), productionProofs);
+    const clientRecipes = await proveClientRecipes(client, tarball, out);
+    save(join(out, "client-recipes.json"), clientRecipes);
     const frontendProofs = await proveGeneratedProofs(client, tarball, expo, out);
     save(join(out, "frontend-proofs.json"), frontendProofs);
     // Browser execution stays on the Linux host: clean userspaces qualify the
