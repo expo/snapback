@@ -283,7 +283,7 @@ for(const f of fixtures)test(`published 0.2.33 capability fence: ${f.name}`,{
   // New engine also refuses unknown capabilities when reopening persisted state.
   const db=new DatabaseSync(store);
   const storedSchema=JSON.parse(db.prepare('SELECT schema FROM _generations ORDER BY generation DESC LIMIT 1').get().schema);
-  markers(storedSchema,f.capabilities??[f.name]);
+  markers(storedSchema,f.storedCapabilities??f.capabilities??[f.name]);
   Object.values(storedSchema.tables).flatMap(t=>t.constraints).find(c=>c?.Capabilities).Capabilities.push('future-derivation');
   db.prepare('UPDATE _generations SET schema=? WHERE generation=(SELECT MAX(generation) FROM _generations)').run(JSON.stringify(storedSchema));
   db.exec('DROP TABLE IF EXISTS _effect_keys');db.close();

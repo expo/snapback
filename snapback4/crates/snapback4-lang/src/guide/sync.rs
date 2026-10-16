@@ -261,13 +261,13 @@ head. Reconnect probes carry the identity and head, checked before local
 freshness returns; a matching identity needs no extra sync.
 
 ### Device versions, own keys and online only
-Backends using maintained columns, recorded attribution or declared timelines require 0.3 devices.
-The engine derives their capability requirements from the schema. Published
-0.2.33 devices refuse installation, generation adoption and kept-backend reopening
-with an unknown `Capabilities` enum variant; 0.2.33 engines refuse to open or serve
-these stored schemas. Update devices before deploying such a backend. Current
-engines and devices refuse unknown requirements with `E_SCHEMA_CAPABILITY`,
-including when an explicit backend would replace an unsupported kept backend.
+The engine derives device capabilities from the schema; upgrade engines and devices together.
+Published 0.2.33 devices refuse marked backends at installation, adoption and reopening with an unknown `Capabilities` enum variant;
+0.2.33 engines refuse to open or serve their stored schemas. Update devices before deploying such a backend.
+Ordinary maintained aggregates require `maintained-id-sha256-v1` for their 64-character digest ids; older devices refuse before interpretation.
+A maintained column's private aggregate stays on the server: its device projection requires `maintained-column`,
+with no digest marker unless another ordinary aggregate remains. Priced source writes also require reservation v1/v2 markers.
+Current engines and devices refuse unknown requirements with `E_SCHEMA_CAPABILITY`, including when an explicit backend would replace an unsupported kept backend.
 Downgrading a device below the store's version is unsupported.
 
 `with own keys .principal` after a public window acquires all of this viewer's

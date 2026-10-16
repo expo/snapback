@@ -1,3 +1,4 @@
+import {recordedCompatibility} from './helpers/schema-capability-fixtures.mjs';
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState } from './helpers/wait.mjs';
 import { hangBudget } from './helpers/wait.mjs';
@@ -15,22 +16,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const binary = process.env.SNAPBACK4_BIN ?? join(root, 'target/debug/snapback4');
 const legacy = process.env.SNAPBACK4_F2_LEGACY_BIN;
-const source = `use personas alice
-table posts:
-  authorId: principal
-  immutable authorId
-  read <- allow
-  sync public
-table likes:
-  postId: posts
-  immutable postId
-  read <- allow
-  sync public
-maintain totals: count likes by postId.authorId
-  read <- allow
-query totals():
-  return totals first 10 by byGroup
-`;
+const source = recordedCompatibility.source;
 
 test('published 0.2.33 rejects F2 stores, serving, backend opening and device adoption', {
   skip: !legacy && 'set SNAPBACK4_F2_LEGACY_BIN to the published 0.2.33 platform binary', timeout: hangBudget(14),
@@ -70,7 +56,7 @@ test('published 0.2.33 rejects F2 stores, serving, backend opening and device ad
   rejected(run(legacy,['device',join(dir,'old-open/device.sqlite'),'backend.json']));
   const constraints = Object.values(backend.schema.tables).flatMap(table => table.constraints);
   assert.ok(!constraints.some(c => c === 'Recorded' || c === 'Capabilities'));
-  assert.deepEqual(constraints.filter(c => c?.Capabilities), [{Capabilities:['recorded-attribution']}]);
+  assert.deepEqual(constraints.filter(c => c?.Capabilities), [{Capabilities:recordedCompatibility.capabilities}]);
   const stripped = structuredClone(backend);
   for (const table of Object.values(stripped.schema.tables)) table.constraints = table.constraints.filter(c => !c?.Capabilities);
   assert.ok(Object.values(stripped.schema.tables).every(table => !table.constraints.some(c => c === 'Recorded' || c === 'Capabilities' || c?.Capabilities)));

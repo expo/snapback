@@ -12,7 +12,7 @@ import {join} from 'node:path';
 import {server,binary} from './helpers/app-server.mjs';
 import {processDevice} from '../dist/native.js';
 const engine=await processDevice({binary,dir:process.cwd()}).engineInfo();
-import {fixtures} from './helpers/schema-capability-fixtures.mjs';
+import {fixtures,additionalMarkerFixtures} from './helpers/schema-capability-fixtures.mjs';
 
 function dump(path) {
   const db=new DatabaseSync(path,{readOnly:true});
@@ -43,7 +43,13 @@ for(const f of fixtures)test(`refused native open and adoption preserve the ${f.
   const prior=await request(old.url,'/schema'), candidate=await request(next.url,'/schema');
   candidate.generation=prior.generation+1;
   const capabilities=Object.values(candidate.schema.tables).flatMap(table=>table.constraints??[]).filter(c=>c?.Capabilities).flatMap(c=>c.Capabilities);
-  for(const capability of f.capabilities)assert.ok(capabilities.includes(capability),`${f.name}: ${capability}`);
+  assert.deepEqual(capabilities,f.capabilities,`${f.name}: exact derived marker set (also checked by the Darwin published fence)`);
+  // The stored server schema retains private maintains that /schema projects
+  // away. Check both derivations on Linux, even when the legacy fence skips.
+  const store=new DatabaseSync(join(next.dir,'.snapback4/store.sqlite'),{readOnly:true});
+  let stored;try { stored=JSON.parse(store.prepare('SELECT schema FROM _generations ORDER BY generation DESC LIMIT 1').get().schema); } finally {store.close();}
+  const storedCapabilities=Object.values(stored.tables).flatMap(table=>table.constraints??[]).flatMap(c=>c?.Capabilities??[]);
+  assert.deepEqual(storedCapabilities,f.storedCapabilities??f.capabilities,`${f.name}: exact stored marker set`);
   const future=structuredClone(candidate);
   Object.values(future.schema.tables).flatMap(table=>table.constraints??[]).find(c=>c?.Capabilities).Capabilities.push('future-derivation');
   const page=await request(old.url,'/sync',{from:0,limit:10000,pending:[]});
@@ -72,4 +78,11 @@ for(const f of fixtures)test(`refused native open and adoption preserve the ${f.
     assert.match(rejected.stdout+rejected.stderr,/E_SCHEMA_CAPABILITY/);
     assert.equal(dump(path),beforeOpen,`${mode}: rejected open leaves every table and row`);
   }
+});
+
+for(const f of additionalMarkerFixtures)test(`historical fence marker pin matches current projection: ${f.name}`,{timeout:hangBudget(2)},async t=>{
+  const host=await server(t,undefined,f.source);
+  const backend=await request(host.url,'/schema');
+  const capabilities=Object.values(backend.schema.tables).flatMap(table=>table.constraints??[]).flatMap(c=>c?.Capabilities??[]);
+  assert.deepEqual(capabilities,f.capabilities,`${f.name}: marker set derives from its current schema, not the old fence snapshot`);
 });
