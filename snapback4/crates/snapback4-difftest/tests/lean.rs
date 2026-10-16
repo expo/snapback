@@ -1526,8 +1526,9 @@ fn aggregate_identity_generator_checks_bounded_digest_shape_outside_oracle_verdi
 fn two_frozen_millisecond_mutations_keep_mint_order_in_the_lean_oracle() {
     if !model_built() { return; }
     let source = "table entries:\n  label: text\n  read <- allow\n  insert <- allow\n  sync\nmutation add(label: text):\n  return insert entries { label: label }\nquery ordered():\n  return entries first 10 by .id\n";
-    let bound = snapback4_lang::compile(&[("mint.q".into(), source.into())]);
-    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    // Use the same schema.q entry module as lean::module: another file stem
+    // intentionally namespaces the native operations (for example mint.add).
+    let bound = execute::compile(source).unwrap();
     let mut engine = snapback4_core::Engine::memory(bound.schema, bound.programs.into_iter().map(|p|p.program)).unwrap();
     let mut rows = Vec::new();
     for label in ["first", "second"] {
