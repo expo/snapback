@@ -4,6 +4,22 @@ These compiled recipes express roles, copied audiences, consent, publication, li
 
 ```quarry
 use personas alice, bob, carol
+table ownRuleRecords:
+  owner: principal
+  unique owner
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  online only
+mutation ownRuleRecord():
+  return insert ownRuleRecords { owner: viewer }
+query ownRuleRecordBy(owner: principal):
+  return ownRuleRecords[owner = owner]
+```
+
+## Composite role grants
+
+```quarry
+use personas alice, bob, carol
 
 table roles:
   principal: principal
@@ -34,7 +50,6 @@ mutation grant(who: principal, role: enum('coordinator', 'commander')):
   return insert roles { principal: who, role }
 ```
 
-## Composite role grants
 
 When one principal may hold several independent roles, make the pair unique. Every point probe then supplies both columns. A bare `exists roles[viewer]` is deliberately refused: under `unique principal, role` it names every role row for that principal, not one row. Prefer the named spelling in policy; the full positional spelling, such as `roles[viewer, 'commander']`, has the same meaning. Spell an “any staff role” grant as the `or` of the exact roles that grant it.
 

@@ -1,5 +1,9 @@
 # Snapback 4 behavior changes
 
+## 0.4.31
+
+- Authorization: developer refusals distinguish mutation `require` from the table's insert/update/delete rule and quote the clause from the executing generation. `check` detects contradictory insert/delete caller gates and mixed caller branches that do not establish table authority, without assuming roles are disjoint. Rule recipes cover current-parent rosters through an atomic maintained copy, private waitlists with public occupancy, expiring membership pages, union cold-start cost, separate public/private image placements and own-or-staff reads. `guide rules` distinguishes bare rule probes from inherited parent authority and runs an upsert refusal-ladder example. Live-parent language remains an RFC in review; captured `read through` semantics are unchanged.
+
 ## 0.4.30
 
 - Saved releases: `deploy --schema` resolves compatibility baselines from the original project, preserves module names and deduplicates enum/value unions. Prefer `versions/v1/schema.q`, original-name modules and `versions/v1/fixtures/`; directory and complete-file inputs remain supported. Saved tests prefer contemporary fixtures, name fallback skips and keep explicit fixture selection strict. Deploy/rollback previews group actual guard dependencies and lead with query/count population losses, dependent dormancy and safety effects; literal backfills include exact active-row counts. A bridge-release recipe preserves safety logic as well as data.

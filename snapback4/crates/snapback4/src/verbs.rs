@@ -769,7 +769,7 @@ pub fn run(options: &Options) -> i32 {
                 WriteState::Failed { why, current } => {
                     let body = json!({ "state": "failed", "why": why, "current": current.map(|c| wire::to_json(&c)) });
                     println!("{}", if options.json { body.to_string() } else { format!("failed {why}") });
-                    run_refusal::print(run_refusal::local(&trace, &bound.refusal_sites), Some(source.files()));
+                    run_refusal::print(run_refusal::for_refusal(&trace, &bound.refusal_sites, &why), Some(source.files()));
                     1
                 }
             },

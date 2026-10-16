@@ -68,6 +68,72 @@ struct Env {
     references: BTreeMap<String, String>,
     values: BTreeMap<String, String>,
     rows: BTreeMap<String, (String, BTreeMap<String, String>)>,
+    gates: Vec<(String, Option<Vec<GateBranch>>)>,
+}
+// @ref LLP 3000.036.002#12 — positive caller probes prove physical probes;
+// missing proof never means different roles are disjoint.
+type Probe = (String, BTreeMap<String, String>);
+#[derive(Clone)]
+struct GateBranch { probes: Vec<Probe>, facts: Facts }
+fn probe(catalog: &Catalog, expr: &Expr, env: &Env, image: Option<&BTreeMap<String, String>>) -> Option<Probe> {
+    let Expr::Exists { read, .. } = expr else { return None };
+    let info = catalog.tables.get(&read.table)?;
+    let positional: Vec<_> = read.keys.iter().filter(|key| key.column.is_none()).collect();
+    let mut pins = BTreeMap::new();
+    if !positional.is_empty() {
+        // Only viewer has an unambiguous principal type here. Raw id and
+        // reference arguments have the binder's intrinsic-id precedence;
+        // never guess a unique ID-valued column from its width.
+        if positional.iter().any(|key| !matches!(&key.value, Expr::Name { name, .. } if name == "viewer")) { return None; }
+        let indexes: Vec<_> = info.indexes.iter().filter(|index| index.unique && index.is_plain()
+            && index.columns.len() == positional.len()
+            && index.columns.iter().all(|column| info.columns.get(column).is_some_and(|ty| matches!(ty.kind, TypeKind::Principal) && !ty.optional))
+            && read.index.as_ref().is_none_or(|name| name == &index.name)).collect();
+        let [index] = indexes.as_slice() else { return None };
+        for (column, key) in index.columns.iter().zip(positional) { pins.insert(column.clone(), key.value.clone()); }
+    }
+    for key in read.keys.iter().filter(|key| key.column.is_some()) {
+        let column = key.column.as_ref()?;
+        if pins.get(column).is_some_and(|old| crate::print::expression(old) != crate::print::expression(&key.value)) { return None; }
+        pins.insert(column.clone(), key.value.clone());
+    }
+    if read.filter.is_some() || read.range.is_some() || read.matching.is_some() { return None; }
+    Some((read.table.clone(), pins.iter().map(|(column, value)| Some((column.clone(), term(value, env, image)?))).collect::<Option<_>>()?))
+}
+fn probe_branches(catalog: &Catalog, expr: &Expr, env: &Env) -> Option<Vec<GateBranch>> {
+    match expr {
+        Expr::Binary { op, left, right, .. } if op == "or" => {
+            let mut a = probe_branches(catalog, left, env)?;
+            a.extend(probe_branches(catalog, right, env)?);
+            (a.len() <= LIMIT).then_some(a)
+        }
+        Expr::Binary { op, left, right, .. } if op == "and" => {
+            let a = probe_branches(catalog, left, env)?;
+            let b = probe_branches(catalog, right, env)?;
+            if a.len().saturating_mul(b.len()) > LIMIT { return None; }
+            Some(a.into_iter().flat_map(|a| b.iter().map(move |b| GateBranch {
+                probes: a.probes.iter().chain(&b.probes).cloned().collect(),
+                facts: combine(a.facts.clone(), b.facts.clone(), true),
+            })).collect())
+        }
+        _ => Some(vec![GateBranch { probes: probe(catalog, expr, env, None).into_iter().collect(), facts: predicate(expr, env, None, true, false) }]),
+    }
+}
+fn gate_note(catalog: &Catalog, p: &ProgramDecl, table: &str, rule: &RuleDecl, image: &BTreeMap<String, String>, env: &Env, facts: &Facts, site: &crate::Site) -> Option<Diagnostic> {
+    if !possible(facts) { return None; }
+    let need = probe(catalog, &rule.value, env, Some(image))?;
+    let proves = |branch: &GateBranch| branch.probes.iter().any(|have| have.0 == need.0 && need.1.iter().all(|(key, value)| have.1.get(key) == Some(value)));
+    let viable = |branch: &&GateBranch| possible(&combine(facts.clone(), branch.facts.clone(), true));
+    let (gate, _) = env.gates.iter().find(|(_, branches)| {
+        let Some(branches) = branches else { return false };
+        let branches: Vec<_> = branches.iter().filter(viable).collect();
+        branches.iter().any(|b| proves(b)) && branches.iter().any(|b| !proves(b))
+    })?;
+    if env.gates.iter().any(|(_, branches)| branches.as_ref().is_some_and(|branches| {
+        let branches: Vec<_> = branches.iter().filter(viable).collect();
+        !branches.is_empty() && branches.iter().all(|b| proves(b))
+    })) { return None; }
+    Some(Diagnostic::new(site, "N_REQUIRE_REFUSED", format!("{}: mutation require `{gate}` has a caller branch that does not establish {table}'s table {effect} rule `{rule_text}` at {rule_site}; those callers may pass require and still be refused by table authority. Roles can overlap; this is a missing authority proof, not a claim that the audiences are disjoint", p.name, effect = rule.effect.word(), rule_text = crate::print::expression(&rule.value), rule_site = rule.site), "require the table's role in every admitted branch, or deliberately widen the table write rule; a mutation require never grants table authority. See: guide rule-recipes own-or-staff").guide("rule-recipes"))
 }
 fn term(expr: &Expr, env: &Env, row: Option<&BTreeMap<String, String>>) -> Option<String> {
     match expr {
@@ -337,7 +403,7 @@ fn visit(
         }
         for e in &es {
             if let Expr::Write {
-                op: WriteOp::Update | WriteOp::Upsert,
+                op: op @ (WriteOp::Insert | WriteOp::Update | WriteOp::Upsert | WriteOp::Delete),
                 table,
                 keys,
                 fields,
@@ -353,12 +419,13 @@ fn visit(
                 {
                     continue;
                 }
-                let Some(rule) = info.decl.rules.iter().find(|r| r.effect == Effect::Update) else {
+                let effect = match op { WriteOp::Insert => Effect::Insert, WriteOp::Delete => Effect::Delete, _ => Effect::Update };
+                let Some(rule) = info.decl.rules.iter().find(|r| r.effect == effect) else {
                     continue;
                 };
-                let Some(image) = row(catalog, table, keys, &env) else {
-                    continue;
-                };
+                let image = if matches!(op, WriteOp::Insert) {
+                    info.columns.keys().map(|column| (column.clone(), format!("insert-unknown:{site}:{column}"))).collect()
+                } else if let Some(image) = row(catalog, table, keys, &env) { image } else { continue };
                 let mut next = image.clone();
                 for field in fields {
                     let value = field.value.clone().unwrap_or_else(|| Expr::Name {
@@ -371,6 +438,8 @@ fn visit(
                             .unwrap_or_else(|| format!("next-unknown:{}:{}", site, field.name)),
                     );
                 }
+                let image = if matches!(op, WriteOp::Insert) { next.clone() } else { image };
+                if let Some(note) = gate_note(catalog, p, table, rule, &image, &env, &facts, site) { out.push(note); }
                 let (authority, failing_image) = if let [old_alias, next_alias] = rule.bindings.as_slice() {
                     let mut images = env.clone();
                     images
@@ -380,6 +449,8 @@ fn visit(
                         .rows
                         .insert(next_alias.clone(), (table.clone(), next));
                     (predicate(&rule.value, &images, None, true, true), "named transition (old/next)")
+                } else if rule.bindings.is_empty() && matches!(op, WriteOp::Insert | WriteOp::Delete) {
+                    (predicate(&rule.value, &env, Some(&image), true, true), if matches!(op, WriteOp::Insert) { "insert image" } else { "delete image" })
                 } else if rule.bindings.is_empty() {
                     let old = predicate(&rule.value, &env, Some(&image), true, true);
                     let next = predicate(&rule.value, &env, Some(&next), true, true);
@@ -410,14 +481,16 @@ fn visit(
                     ) {
                         "update arm of this upsert"
                     } else {
-                        "update"
+                        effect.word()
                     };
-                    let rewrite = if rule.bindings.is_empty() {
+                    let rewrite = if matches!(op, WriteOp::Insert | WriteOp::Delete) {
+                        format!("amend the table {} rule or caller gate; require decides intent, not table authority; see: guide rule-recipes role-workflow", effect.word())
+                    } else if rule.bindings.is_empty() {
                         format!("amend the table update rule or caller gate; require decides intent, not table authority. If the policy should judge only the pre-write state, choose `{}`; this changes authority, so keep every intended next-image constraint. see: guide rule-recipes update-images", super::rule_operator::old_update_source(&rule.value))
                     } else {
                         "amend the named table transition or caller gate; require decides intent, not table authority. see: guide rule-recipes update-images".into()
                     };
-                    out.push(Diagnostic::new(site, "N_WRITE_DENIED", format!("{}: table authorization layer, {failing_image}: no caller satisfying the preceding require/branch conditions can pass {table}'s update rule at {}; the {arm} cannot pass that rule", p.name, rule.site), rewrite).guide("rule-recipes"));
+                    out.push(Diagnostic::new(site, "N_WRITE_DENIED", format!("{}: table authorization layer, {failing_image}: no caller satisfying the preceding require/branch conditions can pass {table}'s {} rule at {}; the {arm} cannot pass that rule", p.name, effect.word(), rule.site), rewrite).guide("rule-recipes"));
                 }
             }
         }
@@ -463,6 +536,7 @@ fn visit(
                 // rebinding conservatively drops all facts to avoid alias reuse.
                 if env.values.contains_key(alias) || env.rows.contains_key(alias) {
                     facts = unknown();
+                    env.gates.clear();
                 }
                 env.values.remove(alias);
                 env.rows.remove(alias);
@@ -486,6 +560,8 @@ fn visit(
             }
         }
         if let Stmt::Require { condition, .. } = s {
+            let branches = probe_branches(catalog, condition, &env);
+            env.gates.push((crate::print::expression(condition), branches));
             facts = combine(facts, predicate(condition, &env, None, true, false), true);
         }
         if effects > 0 {

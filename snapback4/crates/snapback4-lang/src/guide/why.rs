@@ -74,6 +74,7 @@ pub(super) fn detail(code: &str) -> Option<&'static str> {
         "E_QUARRY_UNSUPPORTED" => include_str!("why/E_QUARRY_UNSUPPORTED.md"),
         "E_QUARRY_WRITE_TESTS" => include_str!("why/E_QUARRY_WRITE_TESTS.md"),
         "E_QUERY_HELD" => include_str!("why/E_QUERY_HELD.md"),
+        "E_FIELD_AUTHORITY" => include_str!("why/E_FIELD_AUTHORITY.md"),
         "E_RULE" => include_str!("why/E_RULE.md"),
         "E_SERVER_REQUIRED" => include_str!("why/E_SERVER_REQUIRED.md"),
         "E_SHAPE_EXCEEDS_METER" => include_str!("why/E_SHAPE_EXCEEDS_METER.md"),

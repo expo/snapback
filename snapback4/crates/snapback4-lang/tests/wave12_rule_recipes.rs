@@ -67,7 +67,7 @@ fn every_recipe_compiles_in_its_own_snippet_class() {
     let blocks = guide::quarry(guide::card("rule-recipes").unwrap());
     assert_eq!(
         blocks.len(),
-        29,
+        36,
         "each standalone recipe has its own compilation class"
     );
     for s in blocks {
