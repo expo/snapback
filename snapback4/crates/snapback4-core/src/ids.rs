@@ -13,9 +13,11 @@ pub struct Mint(std::sync::Arc<std::sync::Mutex<Option<u128>>>);
 
 /// Monotonic ULID mode. Clock rollback retains the greatest observed timestamp;
 /// equal timestamps increment the 80-bit suffix, refusing instead of wrapping.
+/// Signed host samples before the Unix epoch normalize to zero, as before.
 // @ref LLP 3000.000.001#2-contract — order belongs to one live minting context
 pub fn mint(now_ms: i64, state: &mut Mint) -> Result<String, crate::RuntimeError> {
-    if !(0..=(1_i64 << 48) - 1).contains(&now_ms) {
+    let now_ms = now_ms.max(0);
+    if now_ms > (1_i64 << 48) - 1 {
         return Err(crate::RuntimeError::Input("id time must be from 0 through 2^48-1 milliseconds".into()));
     }
     let mut last = state.0.lock().map_err(|_| crate::RuntimeError::Store("id mint context poisoned".into()))?;
@@ -140,9 +142,27 @@ mod tests {
     #[test]
     fn invalid_timestamps_refuse_without_changing_state() {
         let mut state = Mint::default();
-        for now in [-1, 1_i64 << 48] { assert!(mint(now, &mut state).is_err()); }
+        for now in [1_i64 << 48, i64::MAX] { assert!(mint(now, &mut state).is_err()); }
         assert!(state.0.lock().unwrap().is_none());
         assert_eq!(minted_at(&mint((1_i64 << 48) - 1, &mut state).unwrap()), Some((1_i64 << 48) - 1));
+    }
+
+    #[test]
+    fn negative_host_clocks_normalize_before_monotonic_comparison() {
+        let mut state = Mint::default();
+        let mut previous = mint(i64::MIN, &mut state).unwrap();
+        assert_eq!(minted_at(&previous), Some(0));
+        for now in [-100, -1, 0] {
+            let next = mint(now, &mut state).unwrap();
+            assert!(previous < next);
+            assert_eq!(minted_at(&next), Some(0));
+            previous = next;
+        }
+        let positive = mint(1, &mut state).unwrap();
+        assert!(previous < positive);
+        let backdated = mint(i64::MIN, &mut state).unwrap();
+        assert!(positive < backdated);
+        assert_eq!(minted_at(&backdated), Some(1));
     }
 
     #[test]

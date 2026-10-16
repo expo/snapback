@@ -81,3 +81,5 @@ open Quarry
 #print axioms Quarry.Mint.same_or_rollback_order
 
 #print axioms Quarry.Mint.advanced_clock_order
+
+#print axioms Quarry.Mint.nonpositive_host_clock_normalizes

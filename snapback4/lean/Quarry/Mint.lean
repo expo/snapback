@@ -42,6 +42,22 @@ theorem advanced_clock_order {previous now entropy value : Nat}
   · cases allocated
     exact Nat.lt_add_right entropy before
 
+/-- The Rust interpreter keeps its signed host-clock compatibility. The public
+JavaScript mint API separately rejects negative values before host allocation. -/
+def normalizeHostTime (now : Int) : Nat := now.toNat
+
+def nextHost (previous : Nat) (now : Int) (entropy : Nat) : Option Nat :=
+  next previous (normalizeHostTime now) entropy
+
+/-- Backdated samples take the epoch-zero branch before monotonic allocation. -/
+theorem nonpositive_host_clock_normalizes {now : Int} (h : now ≤ 0) :
+    normalizeHostTime now = 0 := Int.toNat_eq_zero.mpr h
+
+example : normalizeHostTime (-9223372036854775808) = 0 := by decide
+example : nextHost 7 (-100) 42 = some 8 := by decide
+example : nextHost (1000 * suffixLimit + 7) (-100) 42 = some (1000 * suffixLimit + 8) := by decide
+example : nextHost (suffixLimit - 1) (-100) 42 = none := by decide
+
 -- The second independent mutation in the same millisecond.
 example : next (1000 * suffixLimit + 7) 1000 42 = some (1000 * suffixLimit + 8) := by decide
 -- Carry propagates within the 80-bit field, without advancing logical time.
