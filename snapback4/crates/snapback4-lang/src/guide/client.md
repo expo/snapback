@@ -34,8 +34,7 @@ Membership: no horizon, the conversation's own group and messages' audience prov
 Keep drafts and receipts above rows; [write journal, password form and typed list props](CLIENT-AND-OPERATIONS.md). `waitSeconds:0` returns custody; keep the original id, never auto-resend.
 
 ## An online role form across releases
-
-Own createApp({url,writes:"online",sessionStore:localStorageSessionStore()}) outside render; mount under AppProvider. Authorization: RULES4; compatibility: DAY4.
+Create the app once outside render with createApp({url,writes:"online",sessionStore:localStorageSessionStore()}); mount this signed-in screen under AppProvider.
 ```tsx
 import { useEffect, useState } from "react"; import { isPresent, matchReadList, sentResult, useAppReady, useMutation, useQuery, useRelease } from "snapback4/react"; import { api } from "../snapback/generated/api";
 export function StaffWorkspace({team}: {team: string}) {

@@ -66,8 +66,8 @@ fn dry_run_lists_removals_and_rewrites_without_changing_files() {
     assert!(dir.text("src/App.tsx").contains("usePersonaApp"));
 }
 #[test]
-fn preview_flags_require_adapt_and_cannot_be_combined() {
-    for args in [vec!["init", "--dry-run"], vec!["init", "--apply"], vec!["init", "--adapt", "--dry-run", "--apply"], vec!["init", "--expo", "--online"], vec!["init", "--web", "--online", "--template", "chat"]] {
+fn applying_requires_adapt_and_preview_cannot_be_combined_with_apply() {
+    for args in [vec!["init", "--apply"], vec!["init", "--adapt", "--dry-run", "--apply"], vec!["init", "--expo", "--online"], vec!["init", "--web", "--online", "--template", "chat"]] {
         let dir = Project::new(); let result = dir.run(&args);
         assert_eq!(result.status.code(), Some(2), "{args:?}: {result:?}");
         assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);

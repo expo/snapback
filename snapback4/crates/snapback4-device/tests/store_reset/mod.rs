@@ -19,7 +19,7 @@ fn same_store_restore(host: &mut dyn HostDyn, observe: &str) {
     let page = json!({ "snapshot": false, "events": [], "watermark": 1, "more": false, "store_id": capture["store_id"], "requested_watermark": 4, "captured_watermark": 4 });
     let refusal = device.call(json!({ "op": observe, "page": page }));
     assert_eq!(refusal["denied"]["code"], "E_STORE_RESTORE", "{refusal}");
-    assert_eq!(refusal["denied"]["message"], "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox");
+    assert_eq!(refusal["denied"]["message"], "the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox");
     assert_ne!(refusal["denied"]["retryable"], true);
     assert_eq!(query(&mut *device, "all", "alice", json!({}), 1)["denied"]["code"], "E_STORE_RESTORE");
     assert_eq!(state(&mut *device).0, 4);

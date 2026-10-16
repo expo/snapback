@@ -23,6 +23,7 @@ mod release_files;
 mod project;
 mod serve;
 mod dev_worker;
+mod worker_graph;
 mod dev_replay;
 mod dev_clock;
 mod dev_hosts;

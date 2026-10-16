@@ -184,6 +184,21 @@ export async function proveStarters(client, platform, expo, directory, browserPr
       assert.ok(existsSync(join(cwd, "dist/index.html")), `${kind} produced a web page`);
     };
     await build();
+    if (template) {
+      const screen = join(cwd, template === "social" ? "app/_layout.tsx" : kind === "web" ? "src/App.tsx" : "App.tsx");
+      assert.match(readFileSync(screen, "utf8"), /useAppReady\(\)/, `${id} gates writers with useAppReady`);
+    }
+    // Read the recipe from the installed binary, then execute its fence unchanged.
+    const surfaceCard = join(cwd, "surface-card.md");
+    await run(process.execPath, ["--input-type=commonjs", "-e", `require('node:fs').writeFileSync(${JSON.stringify(surfaceCard)},require('node:child_process').execFileSync(${JSON.stringify(cli)},['guide','release-json','--full'],{encoding:'utf8',timeout:30000}));`], cwd);
+    const recipe = readFileSync(surfaceCard, "utf8").match(/```js\n([\s\S]*?)\n```/);
+    assert.ok(recipe, "packed release-json card carries its executable recipe");
+    const surfaceProof = join(cwd, "surface-proof.mjs");
+    writeFileSync(surfaceProof, recipe[1] + `
+import assert from 'node:assert/strict';
+assert.ok(host.url);const inspected=JSON.parse((await cli(['releases','deployment','latest','--json'])).stdout);for(const key of ['release','previous_active','latest','generation','revision','events','events_after','items','items_after','workers','selected'])assert.ok(key in inspected,key);assert.equal(inspected.selected.current,true);
+`);
+    await run(process.execPath, [surfaceProof], cwd);
     const frontendProofs = browserProofs ? await proveFrontendTwice(run, cwd, starter) : [];
     if (template || id === "web-online") {
       results.push({ starter: id, kind, template, fixtureGuide: browserProofs ? "passed" : "not-run-build-only", status: "passed", typecheck: "passed", build: "passed", frontendProofs });

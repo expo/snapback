@@ -615,7 +615,7 @@ fn hidden_filtered_keyed_overflow_residual_is_value_free_and_atomic() {
     assert!(matches!(a.state, WriteState::Sent { .. }));
     let WriteState::Failed { why, current } = b.state else { panic!("selected contribution must overflow") };
     assert_eq!(why.code, "E_OVERFLOW");
-    assert_eq!(why.message, "E_OVERFLOW: maintain totals.value overflowed");
+    assert_eq!(why.message, "maintain totals.value overflowed");
     assert!(current.is_none());
     selected.assert_unchanged();
     assert_eq!(excluded.committed["posts"].iter().find(|row| row.field("id").unwrap() == &Value::Id("hidden".into())).unwrap().field("score").unwrap(), &Value::Int(2));

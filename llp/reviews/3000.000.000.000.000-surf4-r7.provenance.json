@@ -1,0 +1,18 @@
+{
+  "recordedAt": "2026-10-16T21:55:10.862858+00:00",
+  "reviewedProductTip": "7e922ba801",
+  "base": "4ef9f77fb3",
+  "briefSha256": "66b838de6b8d38a8775d5adb84f9a11ca14290172a5843fe8aa0dfe6196fc8df",
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "freshSession": true,
+    "verdict": "NOT READY"
+  },
+  "muse": {
+    "model": "muse-spark-1.3-contributor",
+    "reasoning": "high",
+    "verdict": "READY",
+    "fallback": "script-managed Meta fallback"
+  }
+}

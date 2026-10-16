@@ -1,8 +1,9 @@
 // The CLI embeds this checker. Resolve the application's installed compiler;
 // never download a package or execute the application's TypeScript to check it.
-import { createRequire } from "node:module";
-import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
-import { dirname, resolve, sep } from "node:path";
+import { createRequire, isBuiltin } from "node:module";
+import { mkdirSync, readFileSync, renameSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { dirname, resolve, sep, isAbsolute } from "node:path";
+import { pathToFileURL, fileURLToPath } from "node:url";
 
 const root = resolve(process.argv[1]);
 const entry = resolve(process.argv[2]);
@@ -100,6 +101,84 @@ const host = ts.createCompilerHost(compilerOptions);
 Object.assign(host, observed(host));
 const program = ts.createProgram([entry], compilerOptions, host);
 errors.push(...ts.getPreEmitDiagnostics(program));
+// Source imports must survive private preparation and relocation. Packages and
+// builtins are host dependencies; local modules belong to this project.
+const projectRoot = realpathSync(root);
+function watchRuntimeFailure(base) {
+  const watch = path => {
+    for (let candidate = resolve(path); candidate.startsWith(root + sep) || candidate.startsWith(projectRoot + sep); candidate = dirname(candidate)) {
+      // Directories are watch hints, not source-copy candidates. Project
+      // stamps stat them afresh; creation under them wakes a failed check.
+      observe(candidate, true);
+    }
+  };
+  watch(base);
+  try {
+    const pkg = JSON.parse(system.readFile(resolve(base, "package.json")) ?? "null");
+    if (typeof pkg?.main === "string") watch(resolve(base, pkg.main));
+  } catch { /* A malformed package remains the runtime-resolution refusal. */ }
+}
+
+const sourceQueue = [...program.getSourceFiles()], inspected = new Set();
+for (let index = 0; index < sourceQueue.length; index++) {
+  const source = sourceQueue[index];
+  if (inspected.has(source.fileName)) continue;
+  inspected.add(source.fileName);
+  if (!(source.fileName.startsWith(root + sep) || source.fileName.startsWith(projectRoot + sep)) || source.fileName.split(sep).includes("node_modules")) continue;
+  function visit(node) {
+    const specifier = (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) ? node.moduleSpecifier
+      : ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || ts.isIdentifier(node.expression) && node.expression.text === "require") ? node.arguments[0] : undefined;
+    const typeOnly = source.isDeclarationFile || node.isTypeOnly || ts.isImportDeclaration(node) && node.importClause?.isTypeOnly;
+    if (specifier && ts.isStringLiteralLike(specifier)) {
+      const spec = specifier.text;
+      let problem;
+      if (isAbsolute(spec) || spec.startsWith("file:")) problem = "use a project-relative import instead of an absolute/file URL import; deploy captures project source";
+      else if (!isBuiltin(spec)) {
+        const module = ts.resolveModuleName(spec, source.fileName, compilerOptions, host).resolvedModule;
+        if (!typeOnly) {
+          // A .d.ts can satisfy TypeScript without loading the JavaScript that
+          // Node executes. Observe and walk that implementation graph too.
+          let runtime;
+          try {
+            const required = ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "require";
+            const resolved = required ? createRequire(source.fileName).resolve(spec) : import.meta.resolve(spec, pathToFileURL(source.fileName).href);
+            if (!isBuiltin(resolved)) {
+              runtime = resolved.startsWith("file:") ? fileURLToPath(resolved) : resolved;
+              if (!statSync(runtime).isFile()) throw Error("runtime module is a directory");
+            }
+          }
+          catch { if (runtime) watchRuntimeFailure(runtime); if (spec.startsWith(".")) watchRuntimeFailure(resolve(dirname(source.fileName), spec)); problem = "local runtime module is missing; provide the executable file as well as its declarations"; runtime = undefined; }
+          if (runtime) system.fileExists(runtime); // records the executable, even when types hide it
+          system.fileExists(resolve(dirname(source.fileName), spec, "package.json"));
+          if (runtime && !runtime.split(sep).includes("node_modules")) {
+            const actual = realpathSync(runtime);
+            if (!actual.startsWith(projectRoot + sep) && spec.startsWith(".")) problem = "local server implementations must remain inside the project; install external code as a package";
+            else if (actual.startsWith(projectRoot + sep)) {
+              // Runtime-only JS inherits package type from these scopes even
+              // when the TypeScript program never loaded that implementation.
+              for (let scope = dirname(actual); scope === projectRoot || scope.startsWith(projectRoot + sep); scope = dirname(scope)) {
+                system.fileExists(resolve(scope, "package.json"));
+                if (scope === projectRoot) break;
+              }
+              if (!inspected.has(runtime) && /\.[cm]?[jt]s$/.test(runtime) && !/\.d\.[cm]?ts$/.test(runtime)) {
+                const text = system.readFile(runtime);
+                if (text !== undefined) sourceQueue.push(ts.createSourceFile(runtime, text, ts.ScriptTarget.Latest, true));
+              }
+            }
+          }
+        }
+        if (spec.startsWith(".") && module && !module.resolvedFileName.split(sep).includes("node_modules")) {
+          const actual = realpathSync(module.resolvedFileName);
+          if (!actual.startsWith(projectRoot + sep)) problem = "local server imports must remain inside the project; move the module into the app or install it as a package";
+        }
+      }
+      if (problem) errors.push({category:ts.DiagnosticCategory.Error,code:0,file:source,start:specifier.getStart(source),length:specifier.getWidth(source),messageText:problem});
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+}
+
 // Publish even on a failed check, atomically, so the watcher can observe a fix
 // without adopting the invalid generation. Ignore metadata's own mtime.
 const watchFile = resolve(generated, "server-watch.json");

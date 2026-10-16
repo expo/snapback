@@ -204,7 +204,7 @@ Mutation arguments and results are not recorded. Supervised child sessions
 last at most one day; the host replaces the child within that window and
 revokes the previous child's family at startup, including after SIGKILL.
 `dev` prefers `snapback/server.ts`, `.mts` or `.mjs`, then legacy `worker.*`;
-`dev --worker` is refused. `serve --worker` needs an explicitly deployed entry.
+`dev --worker` is refused. Serve starts the captured conventional entry automatically; `serve --worker` overrides it.
 
 Mint with `snapback4 token --service operator --release <dir>` on the server
 host, as the store owner, while `serve <dir>` is running or stopped. For dev,
@@ -670,12 +670,14 @@ Successful adoption fences that child's service session before new work can
 be claimed, including its already-waiting polls; stopping the process is not
 the authorization boundary. Manually provisioned service seats are unaffected.
 
-Both `dev` and `serve --worker <entry>` construct an explicit environment from
+Both `dev` and `serve` construct an explicit environment from
 runtime variables and declared secrets, and redact their values in child
 stdout/stderr, including across chunks. A missing secret refuses startup.
-`deploy` does not yet package the server's TypeScript import graph: provision
-that entry and its dependencies explicitly for `serve --worker`. This is not
-a bundled-release or publication claim.
+`deploy` captures the conventional server/worker entry and its checked project
+import graph beside the generated registry. `serve` starts that immutable copy;
+`--worker` selects an operator-provided override. Install dependencies on the
+host; node_modules are not release source. Use SNAPBACK_PROJECT_DIR for resource
+paths: the working root in dev, the active immutable release root in serve.
 
 Deploying a backend that uses maintained columns, recorded attribution or declared timelines requires
 0.3 devices. Its schema carries engine-derived capability requirements: published

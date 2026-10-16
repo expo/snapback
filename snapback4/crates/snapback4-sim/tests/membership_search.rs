@@ -230,7 +230,8 @@ fn refusal_counts_authorized_keys_exactly_without_hidden_memberships() {
         let mut e = setup(4,1);
         e.set_ceilings(ceilings);
         let before = e.query("newest",cx("cof",None)).unwrap_err();
-        assert!(before.message.starts_with(&format!("E_SEARCH_OPEN: {count} authorized membership keys discovered{unfinished};")), "{before:?}");
+        assert_eq!(before.code, "E_SEARCH_OPEN");
+        assert!(before.message.starts_with(&format!("{count} authorized membership keys discovered{unfinished};")), "{before:?}");
         e.set_ceilings(Ceilings::default());
         e.seed_at((0..100).map(|n| ("members".into(),object([
             ("id",id(&format!("hidden{n}"))),("room",id(&format!("hidden{n}"))),("principal",id("bob"))

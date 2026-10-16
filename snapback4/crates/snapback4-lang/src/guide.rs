@@ -66,7 +66,7 @@ mod indexes;
 mod types;
 pub use discovery::{FULL_LINES, piped, alias_landing, aliases, find, listing, nearest, overview, overview_and_first_section, section, section_index, sections};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "rule-recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "deploy", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet", "changes", "production"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "rule-recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "deploy", "release-json", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet", "changes", "production"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
@@ -95,7 +95,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("exports", "api"), ("imports", "api"), ("subpaths", "api"), ("api reference", "api"), ("signatures", "api"),
     ("mutation", "writes"), ("mutations", "writes"),
     ("schedule", "jobs"), ("schedules", "jobs"), ("cron", "jobs"),
-    // @ref LLP 3000.007#20.1 — wave 4: the shapes builders assembled from several cards open one compiled recipe.
+    // @ref LLP 3000.007#20.1 — the shapes builders assembled from several cards open one compiled recipe.
     ("recipe", "recipes"), ("roles", "recipes"), ("role", "recipes"), ("admin", "deploy"), ("rbac", "recipes"),
     ("composite role", "rule-recipes"), ("composite roles", "rule-recipes"), ("blind writer", "rule-recipes"), ("hidden parent", "rule-recipes"),
     ("not before", "rule-recipes"), ("timed disclosure", "rule-recipes"),
@@ -112,10 +112,10 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("predict", "prediction"), ("predictable", "prediction"), ("offline", "prediction"),
     ("optimistic", "prediction"), ("pending", "prediction"),
     ("pagination", "reads"), ("paging", "reads"), ("cursor", "reads"), ("next", "reads"),
-    // @ref LLP 3000.007#20.1 — wave 5: words builders tried (`guide queries`, `language --section loops`).
+    // @ref LLP 3000.007#20.1 — words builders tried (`guide queries`, `language --section loops`).
     ("query", "reads"), ("queries", "reads"), ("loop", "language"), ("loops", "language"),
     ("insert", "writes"), ("update", "writes"), ("upsert", "writes"), ("delete", "writes"),
-    // @ref LLP 3000.007#20.1 — wave 7: section words builders guessed (`--section statements`, `react`, `money`).
+    // @ref LLP 3000.007#20.1 — section words builders guessed (`--section statements`, `react`, `money`).
     ("statements", "writes"), ("statement", "writes"), ("money", "types"), ("currency", "types"),
     ("household", "sharing"), ("households", "sharing"), ("multi-tenant", "sharing"), ("tenant", "sharing"), ("membership", "sharing"),
     ("sealed", "expire"), ("sealed bid", "expire"), ("sealed bids", "expire"), ("blind", "expire"), ("reveal", "expire"),
@@ -153,7 +153,7 @@ pub const ALIASES: &[(&str, &str)] = &[
 /// section (with a line naming it; `--full` still prints the card), and
 /// `--section <alias>` or `--find <alias>` inside that card land there when
 /// no heading or line holds the word. Each entry is (alias, heading words).
-// @ref LLP 3000.007#20.1 — wave 6: `guide pagination` opened the reads card's index, and `--section pagination` found nothing.
+// @ref LLP 3000.007#20.1 — `guide pagination` opened the reads card's index, and `--section pagination` found nothing.
 pub const ALIAS_SECTIONS: &[(&str, &str)] = &[
     ("identity", "Deploy and password identity"), ("password", "Deploy and password identity"),
     ("signin", "Deploy and password identity"), ("login", "Deploy and password identity"),
@@ -210,7 +210,7 @@ pub fn quarry(text: &str) -> Vec<String> {
 /// The language card's core program; its server opt-in block is separate.
 /// The program is printed in parts under `###` headings in Details (so
 /// `--section loops` finds its part); the parts, in order, are one program.
-// @ref LLP 3000.007#20.1 — wave 5: the 470-line program is split under findable headings and reassembled here.
+// @ref LLP 3000.007#20.1 — the 470-line program is split under findable headings and reassembled here.
 pub fn language() -> String {
     let details = LANGUAGE.split_once("\n## Details\n").expect("the language card has Details").1;
     let details = details.split_once("\n## With `use server`").expect("Details ends at the server opt-in").0;
@@ -258,6 +258,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
         "ephemeral" => include_str!("guide/ephemeral.md"),
         "wire" => include_str!("guide/wire.md"),
         "deploy" => include_str!("guide/deploy.md"),
+        "release-json" => include_str!("guide/release-json.md"),
         "from-sql" => include_str!("guide/from_sql.md"),
         "app" => app::CARD,
         "recipes" => include_str!("guide/recipes.md"),

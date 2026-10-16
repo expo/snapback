@@ -141,7 +141,7 @@ fn d01_old_descriptor_refused_and_paved_token_bytes_unchanged() {
             } else {
                 let error = q("feed", ctx(Some(old.clone()))).unwrap_err();
                 assert_eq!(error.code, "E_INPUT");
-                assert_eq!(error.message, "E_INPUT: cursor: cursor token describes a different table, index, order, or suffix");
+                assert_eq!(error.message, "cursor: cursor token describes a different table, index, order, or suffix");
             }
         });
     }

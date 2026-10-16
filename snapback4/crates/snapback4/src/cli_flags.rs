@@ -124,7 +124,9 @@ pub(crate) fn help(verb: &str) -> String {
             (_, "section") => " — select a heading, topic or section number",
             (_, "find") => " — search every word (a|b or a OR b matches either)",
             (_, "as") => " — select a persona or principal for the operation/proof",
-            (_, "port") => " — backend port (0 chooses a free port; A-B tries an inclusive range)",
+            ("dev" | "serve", "port") => " — backend port (0 chooses a free port; A-B tries an inclusive range)",
+            ("init" | "new", "port") => " — backend port, 1–65535 (frontend defaults to the next port)",
+            (_, "port") => " — running backend port, 1–65535",
             (_, "port-range") => " — inclusive range for backend and frontend ports",
             (_, "web-port") => " — frontend port, overriding the next-port default",
             (_, "bind") => " — listening IP address (default 127.0.0.1)",
@@ -159,7 +161,7 @@ pub(crate) fn help(verb: &str) -> String {
             (_, "day2") => " — opt in to saved-release sources, fixtures and day2:proof",
             (_, "production") => " — preview identity and service-seat roster provisioning; --adapt required, --apply writes",
             (_, "adapt") => " — preview fitting unmodified starter files to the current schema",
-            (_, "dry-run") => " — preview the starter adaptation without writing files",
+            (_, "dry-run") => " — preview the scaffold or adaptation without writing files",
             (_, "apply") => " — apply the starter adaptation plan",
             (_, "cost") => " — print read/write plans and scale summary",
             (_, "residency") => " — report device-held data, measured with --fixture and --as",
@@ -246,7 +248,8 @@ pub(crate) fn synopsis(verb: &str) -> String {
 pub(crate) fn top_help() -> String {
     let mut out = String::from("snapback4 — the scale-to-zero backend with a partition on every device\n\n");
     for verb in VERBS { out.push_str(&format!("  {}\n      {}\n", synopsis(verb), match *verb {
-        "init"|"new"=>"Create a schema or a web/Expo starter; init --adapt fits an existing starter.",
+        "init"=>"Create a schema or a web/Expo starter; init --adapt fits an existing starter.",
+        "new"=>"Create a full reference app: --template social, or chat with --web/--expo.",
         "check"=>"Compile the schema, check store adoption, write client types and report readiness.",
         "device"=>"Run the native device JSON protocol over stdin/stdout.", "types"=>"Compile and write generated client types.",
         "dev"=>"Serve a development backend; print its URL on stdout, readiness and refusals on stderr.",
@@ -295,6 +298,24 @@ mod surface_tests {
         for suffix in [vec!["--as","alice"], vec!["--emit-lean","source.q","--cost"],vec!["--emit-lean","source.q","--store","db"],vec!["--store","db","--release","1","--fix"],vec!["--store","db","--release","1","--fixture","fixtures"]] {
             let args=std::iter::once("check").chain(suffix).map(String::from).collect::<Vec<_>>();
             assert!(validate(&args).unwrap_err().starts_with("E_INPUT:"),"{args:?}");
+        }
+    }
+}
+
+#[cfg(test)]
+mod surface_parser_tests {
+    #[test]
+    fn every_flag_round_trips_through_options_with_its_declared_arity() {
+        for command in super::commands() {
+            for flag in &command.flags {
+                let mut args = vec![command.verb.clone(), format!("--{}", flag.name)];
+                if !flag.value.is_empty() { args.push("surf4-value".into()); }
+                let parsed = crate::verbs::parse(&args);
+                if flag.name == "json" { assert!(parsed.json); continue; }
+                assert_eq!(parsed.flags.get(&flag.name).map(String::as_str), Some(if flag.value.is_empty() { "" } else { "surf4-value" }), "{} --{}", command.verb, flag.name);
+                assert!(parsed.positionals.is_empty(), "{} --{}", command.verb, flag.name);
+                assert_eq!(super::switch(&flag.name), flag.value.is_empty(), "{} --{}", command.verb, flag.name);
+            }
         }
     }
 }

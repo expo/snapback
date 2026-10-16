@@ -1,0 +1,21 @@
+{
+  "recordedAt": "2026-10-16T21:58:42.925375+00:00",
+  "reviewedProductTip": "461ca2611f",
+  "base": "4ef9f77fb3",
+  "briefSha256": "3cee1a436e0276f494e23fd7675d1232728dabc800434a8d9238c7fe6ae2529c",
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "freshSession": true,
+    "verdict": "READY",
+    "output": "3000.000.000.000.000-surf4-r8.codex.md"
+  },
+  "muse": {
+    "model": "muse-spark-1.3-contributor",
+    "reasoning": "high",
+    "verdict": "READY",
+    "output": "3000.000.000.000.000-surf4-r8.muse.md",
+    "fallback": "script-managed Meta fallback"
+  },
+  "laterDelta": "f0a623f9cf and 4ad79d393d only align test assertions and standalone test crate wiring; no implementation change; dd9080ca3a changes only publication help/lint validation, focused tests, and historical source comments; no runtime behavior; ac705fb393 fixes the clean Ubuntu Node pin, tests the supported major, aligns JSON message assertions and adds design-reference comments; no runtime behavior change"
+}

@@ -1,6 +1,6 @@
 # Deploy: upgrade, real accounts and schema evolution
 
-A release is immutable source over one durable store. Deploy from the app directory:
+A release is immutable source over one durable store. JSON fields, bounded ready waits and worker roots: `guide release-json`. Deploy from the app directory:
 
 ```sh
 bunx snapback4 check

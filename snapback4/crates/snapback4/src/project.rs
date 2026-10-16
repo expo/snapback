@@ -211,8 +211,13 @@ impl Project {
     // @ref LLP 3000.009#10.2 — A2 type errors are reported at check.
     pub fn check_server(&self) -> Result<(), String> {
         let Some(entry) = self.server_source() else { return Ok(()); };
+        self.check_entry(&entry)
+    }
+
+    pub(crate) fn check_entry(&self, entry: &Path) -> Result<(), String> {
+        if entry.file_name().is_some_and(|name| name.to_string_lossy().starts_with("worker.")) { return crate::worker_graph::check(self, entry); }
         let mut child = std::process::Command::new(node())
-            .arg("--max-old-space-size=256").arg("--input-type=module").arg("-e")
+            .arg("--max-old-space-size=256").arg("--experimental-import-meta-resolve").arg("--input-type=module").arg("-e")
             .arg(include_str!("server_check.mjs")).arg(&self.root).arg(entry)
             .current_dir(&self.root).stdin(std::process::Stdio::null()).stdout(std::process::Stdio::piped()).stderr(std::process::Stdio::piped())
             .spawn().map_err(|e| format!("E_SERVER_TOOLCHAIN: cannot start Node 24 to check server handlers: {e}"))?;

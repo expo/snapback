@@ -70,7 +70,7 @@ pub fn init(options: &Options) -> i32 {
     if options.flags.contains_key("day2") && !(social || options.flags.contains_key("web") || options.flags.contains_key("expo")) {
         eprintln!("E_INPUT: --day2 adds saved-release proofs to a UI starter; use `snapback4 init --web --day2` or `snapback4 init --expo --day2`"); return 2;
     }
-    if options.positionals.len() > 1 || (modes > 1 && !online_web) || options.flags.contains_key("recipe") || options.flags.contains_key("dry-run") || options.flags.contains_key("apply") {
+    if options.positionals.len() > 1 || (modes > 1 && !online_web) || options.flags.contains_key("recipe") || options.flags.contains_key("apply") {
         eprintln!("{usage}");
         return 2;
     }
@@ -258,6 +258,12 @@ pub fn init(options: &Options) -> i32 {
         eprintln!("E_INIT_CONFLICT: no files written{first}\n  {}\n  rewrite: {recipe}reconcile any listed package.json entries first. Do not init into another directory and copy it over: that overwrites your files", conflicts.join("\n  "));
         return 1;
     }
+    if options.flags.contains_key("dry-run") {
+        println!("init: preview only; {} files in {}", files.len(), dir.display());
+        for (name, _) in &files { println!("  {name}"); }
+        println!("No files written; rerun without --dry-run to create this starter.");
+        return 0;
+    }
     let readme = files.iter().find(|(name, _)| name.starts_with("README.")).map(|(name, _)| *name);
     let mut created = Vec::new();
     let mut write = || -> std::io::Result<()> {
@@ -345,7 +351,7 @@ pub fn init(options: &Options) -> i32 {
             Some(_) => {},
         }
     }
-    if web || expo { println!("\x1b[1mnpm install\x1b[0m"); }
+    if web || expo { println!("npm install"); }
     0
 }
 

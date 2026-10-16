@@ -40,6 +40,7 @@ A query over hidden rows is complete and empty when the pinned scope uniformly
 refuses its viewer. A nonuniform scan can still be partial with no visible
 rows. Test the complete flag as well as the count; do not expect E_RULE for a
 hidden page. For a compiled role workflow see: `guide rule-recipes role-workflow`.
+Use `guide client` for client recipes and the proof helper contracts below.
 
 ## Fixtures and cases
 
@@ -374,7 +375,7 @@ no business assertions only when their bytes match a shipped template: preview
 `init --adapt`, then run `init --adapt --apply`. Custom proofs own their saved
 paths; deleted unreferenced day-two scaffolding stays deleted. Frontend advice
 about missing build steps or npx servers is explicitly heuristic.
-SURF3 owns the deploy help synopsis; source layout is documented here and in guide deploy.
+Source layout is documented here and in guide deploy.
 Selected-source companions build/check their generated signatures privately;
 native dependency paths are rebased into that private build while its own
 source and generated types stay isolated. `guide deploy` covers deploy/rollback narration and business compatibility.
