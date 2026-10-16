@@ -127,3 +127,19 @@ test('relative CommonJS directory imports capture package main behind a separate
  await ok(['deploy','deployment'],cwd);writeFileSync(join(cwd,'src/lib.js'),'throw Error("mutable package main");\n');
  const host=await startServe('deployment',{cwd});try{await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_CJS_MAIN'),'package main omitted',()=>readFileSync(host.logs.stderr,'utf8'))}finally{await host.stop();}
 });
+
+test('runtime-only imports retain their nested package type', {timeout:60000},async t=>{
+ const cwd=fixture(t);mkdirSync(join(cwd,'src/dist'),{recursive:true});
+ writeFileSync(join(cwd,'src/helper.d.ts'),'export declare const marker: string;\n');
+ writeFileSync(join(cwd,'src/helper.js'),`import value from './dist/runtime.js';export const marker=value;\n`);
+ writeFileSync(join(cwd,'src/dist/package.json'),'{"type":"commonjs"}');writeFileSync(join(cwd,'src/dist/runtime.js'),'module.exports="SURF4_PACKAGE_TYPE";\n');
+ writeFileSync(join(cwd,'snapback/server.mjs'),`import {marker} from '../src/helper.js';console.log(marker);setInterval(()=>{},1000);\n`);
+ await ok(['deploy','deployment'],cwd);const host=await startServe('deployment',{cwd});try{await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_PACKAGE_TYPE'),'runtime package type omitted',()=>readFileSync(host.logs.stderr,'utf8'))}finally{await host.stop();}
+});
+test('declarations cannot conceal a missing runtime module; explicit type-only imports stay legal', {timeout:60000},async t=>{
+ const cwd=fixture(t);mkdirSync(join(cwd,'src'));writeFileSync(join(cwd,'src/types.d.ts'),'export declare const marker: string;\n');
+ writeFileSync(join(cwd,'snapback/server.ts'),`import {marker} from '../src/types.js';console.log(marker);setInterval(()=>{},1000);\n`);
+ const absent=await cli(['deploy','deployment'],{cwd});assert.notEqual(absent.code,0);assert.match(absent.stderr,/local runtime module is missing/);
+ writeFileSync(join(cwd,'snapback/server.ts'),`import type {marker} from '../src/types.js';console.log('SURF4_TYPE_ONLY');setInterval(()=>{},1000);\n`);
+ await ok(['deploy','deployment'],cwd);const host=await startServe('deployment',{cwd});try{await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_TYPE_ONLY'),'type-only import wrongly refused',()=>readFileSync(host.logs.stderr,'utf8'))}finally{await host.stop();}
+});
