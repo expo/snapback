@@ -287,6 +287,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_CLIENT", "E_CLIENT means a client exception prevented the expected write or asset outcome."),
     ("N_CLOCK_STORE_AHEAD", "recent commit stamps are more than five seconds ahead of the current clock"),
     ("E_CLOCK_DEV_ONLY", "`serve` refuses clock flags and the control endpoint with E_CLOCK_DEV_ONLY."),
+    ("E_CLOCK_INTERRUPTED", "E_CLOCK_INTERRUPTED means time advanced but shutdown interrupted the drain."),
     ("E_CLOCK_INPUT", "Backward/zero advances and invalid values refuse E_CLOCK_INPUT."),
     ("E_CLOSED", "E_CLOSED means the client closed while a request was in flight."),
     ("E_CONFLICT", "E_CONFLICT means a conditional update found that the row changed."),

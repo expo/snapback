@@ -664,7 +664,8 @@ card/time/1:checkIn | checkins/insert | {"Eq":[{"Field":"person"},"Viewer"]} | r
 card/time/1:checkIn | eligible
 card/time/3:subscribe | never
 card/types/1:createProfile | never
-card/wire/1:addExpense | never
+card/wire/1:add | never
+card/wire/2:addExpense | never
 card/writes/1:checkin | never
 card/writes/1:createRoom | eligible
 card/writes/1:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule

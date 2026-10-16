@@ -650,6 +650,19 @@ Image capture in a browser uses the same upload path:
   }} />
 ```
 
+For a file picker beside a Save button, upload on selection, store only the
+successful asset id in component state, and let Save place that id synchronously.
+Arm beginForm for the Save button with that id in its expected arguments; after
+clicking, assert formResult().state is sent before checking the rendered row.
+Selection itself uploads bytes but proves no durable row write.
+
+An upload inside the clicked handler also works: import witnessForm from
+snapback4/witness-web, call witnessForm(app,event,async mutate => ...) before any
+await, then await client.upload and call the supplied mutate with the generated
+placement operation and the uploaded id. That explicit handler claim survives
+awaited uploads; an unrelated app.mutate cannot borrow it. It does not retry the
+upload or the write. The testing card documents its bounds and reason enum.
+
 The row write can refuse independently of upload. Keep the receipt and error
 in the form owner; raw `POST /assets` returns `{ asset, generation }`.
 

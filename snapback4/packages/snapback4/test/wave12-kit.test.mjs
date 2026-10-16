@@ -58,7 +58,7 @@ test('H8 witness claims the trusted button form submit, preserving canonical nul
   writeFileSync(join(cwd,'dist/index.html'),`<form><button type="submit">Save</button></form><script type="module">
 import {registerWebWitness} from './bridge.js';
 const op={kind:'mutation',name:'save'},client={viewer:()=> 'dev:alice',onWrite:()=>()=>{},mutate:async()=>({state:'sent',id:'submitted',seq:1})};
-const app={client,ready:Promise.resolve(),mutate:async(...a)=>{await Promise.resolve();return client.mutate(...a)}};
+const app={client,ready:Promise.resolve({ok:true}),mutate:async(...a)=>{await Promise.resolve();return client.mutate(...a)}};
 registerWebWitness(app,{save:op});document.querySelector('form').onsubmit=e=>{e.preventDefault();void app.mutate(op,{optional:null,title:'new'})};</script>`);
   const web=await kit.startStatic('dist',{cwd});
   try { await kit.withBrowser({logsDir:join(root,'target/kit12-browser-logs'),executablePath:process.env.CHROME},async context=>{
@@ -136,7 +136,7 @@ if (!baseline) test('unclaimable events, operations and arguments settle with re
  let calls=0;
  const listeners=new Set();
  const client={viewer:()=> 'dev:a',onWrite:fn=>{listeners.add(fn);return()=>listeners.delete(fn)},mutate:async()=>{calls++;return{state:'sent',id:'write',seq:1}}};
- const app={client,ready:Promise.resolve(),mutate:(...args)=>client.mutate(...args)};
+ const app={client,ready:Promise.resolve({ok:true}),mutate:(...args)=>client.mutate(...args)};
  registerWebWitness(app,{save:op,other});
  for(const reason of ['event','operation','arguments']){
   window.__snapback4Witness.beginForm('save',{x:null},button);

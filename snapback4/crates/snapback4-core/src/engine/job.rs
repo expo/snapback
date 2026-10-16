@@ -401,19 +401,30 @@ impl Engine {
     /// twice for one period; a schedule seen for the first time fires from
     /// its next boundary. Returns the names fired.
     pub fn fire_schedules(&mut self, now: i64) -> Result<Vec<String>, RuntimeError> {
-        self.fire_schedule_range(now, 0..self.schema.schedules.len())
+        self.fire_schedule_range(now, 0..self.schema.schedules.len(), None)
     }
 
     /// One atomic schedule boundary, so the host can release its writer between
     /// schedules. A changed/shortened schema is revisited on the next tick.
     pub fn fire_schedule_at(&mut self, now: i64, index: usize) -> Result<Vec<String>, RuntimeError> {
-        self.fire_schedule_range(now, index..index.saturating_add(1))
+        self.fire_schedule_range(now, index..index.saturating_add(1), None)
     }
 
-    fn fire_schedule_range(&mut self, now: i64, range: std::ops::Range<usize>) -> Result<Vec<String>, RuntimeError> {
+    /// Admit one historical period on the current clock. In particular an
+    /// action's deadline begins at admission, not at the historical boundary.
+    // @ref LLP 3000.007#20.12.1 — period identity and admission time are distinct during explicit catch-up.
+    pub fn fire_schedule_boundary_at(&mut self, now: i64, index: usize, boundary: i64) -> Result<Vec<String>, RuntimeError> {
+        let schedule = self.schema.schedules.get(index).ok_or_else(|| RuntimeError::Input("unknown schedule index".into()))?;
+        if schedule.boundary(boundary) != boundary || boundary > schedule.boundary(now) {
+            return Err(RuntimeError::Input("schedule window must end at an elapsed boundary".into()));
+        }
+        self.fire_schedule_range(now, index..index.saturating_add(1), Some(boundary))
+    }
+
+    fn fire_schedule_range(&mut self, now: i64, range: std::ops::Range<usize>, selected: Option<i64>) -> Result<Vec<String>, RuntimeError> {
         let mut fired = Vec::new();
         for schedule in self.schema.schedules.get(range).unwrap_or(&[]).to_vec() {
-            let boundary = schedule.boundary(now);
+            let boundary = selected.unwrap_or_else(|| schedule.boundary(now));
             let key = format!("schedule:{}", schedule.name);
             let shape_key = format!("schedule-shape:{}", schedule.name);
             let shape = digest(&schedule);

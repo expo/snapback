@@ -46,12 +46,12 @@ function TodoList({ todos, toggle, remove }: { todos: UsePage<typeof api.list>; 
     {isLoading(todos.read) && <Text>Loading…</Text>}
     {isDenied(todos.read) && <Text style={{ color: "crimson" }}>Not available: {todos.read.denied.message}</Text>}
     {existence(todos.read) === "absent" && <Text>No tasks yet.</Text>}
-    {todos.items.map(todo => <View key={todo.id} style={{ flexDirection: "row", alignItems: "center", gap: 8, opacity: todo.pending ? 0.6 : 1 }}>
+    <View testID="todo-results">{todos.items.map(todo => <View key={todo.id} style={{ flexDirection: "row", alignItems: "center", gap: 8, opacity: todo.pending ? 0.6 : 1 }}>
       <Pressable style={{ flex: 1 }} onPress={() => void toggle.run({ todoId: todo.id })}>
         <Text style={{ textDecorationLine: todo.done ? "line-through" : "none" }}>{todo.done ? "☑" : "☐"} {todo.title}</Text>
       </Pressable>
       <Button title="Delete" onPress={() => void remove.run({ todoId: todo.id })} />
-    </View>)}
+    </View>)}</View>
     {todos.hasMore && <Button title="Show more" onPress={todos.loadMore} />}
   </>;
 }

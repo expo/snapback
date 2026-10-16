@@ -97,8 +97,8 @@ export function installCustomWriteScenario(cwd,kind) {
   const original=readFileSync(screen,"utf8"), proof=readFileSync(proofPath,"utf8");
   assert.equal(original.split("<FirstRead />").length-1,1,"custom qualification needs one generated Home read slot");
   assert.ok(original.includes("function Home()") && !original.includes("function ProofWrite()"),"custom qualification needs a fresh Home");
-  const needle="renderedText(page, new RegExp(title))";
-  assert.equal(proof.split(needle).length-1,1,"custom qualification needs the generated assertion slot");
+  const needle=/const within = [^\n;]+;/g;
+  assert.equal([...proof.matchAll(needle)].length,1,"custom qualification needs the generated scope slot");
   const imports=`import {useState as proofState} from 'react';\nimport {useMutation as proofMutation,useQuery as proofQuery} from 'snapback4/react';\n`
     +(kind === "expo" ? `import {TextInput as ProofTextInput} from 'react-native';\n` : '');
   const body=kind === "web"
@@ -106,7 +106,7 @@ export function installCustomWriteScenario(cwd,kind) {
     : `<View nativeID="proof-rows"><ProofTextInput accessibilityLabel="Task" value={draft} onChangeText={setDraft}/><Button title="Add" onPress={()=>void writer.run({title:draft})}/><Text>{"data" in rows?JSON.stringify(rows.data):""}</Text></View>`;
   const component=`\nfunction ProofWrite(){const [draft,setDraft]=proofState("");const writer=proofMutation(api.add),rows=proofQuery(api.mine,{});return ${body};}\n`;
   const source=imports+original.replace("<FirstRead />","<FirstRead /><ProofWrite />")+component;
-  const assertion=proof.replace(needle,'renderedText(page, new RegExp(title), { within: page.locator("#proof-rows") })');
+  const assertion=proof.replace(needle,'const within = page.locator("#proof-rows");');
   writeFileSync(screen,source);writeFileSync(proofPath,assertion);
 }
 

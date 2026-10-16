@@ -390,6 +390,7 @@ impl<'r> Runner<'r> {
         if !self.tx.time_audience_pending(table_name, id)? { return Ok(false); }
         if refuse_pending {
             self.query_unavailable = true;
+            self.pending_opening = Some((table_name.to_owned(), id.to_owned()));
             return Err(RuntimeError::TimeAudiencePending);
         }
         Ok(true)
@@ -440,6 +441,7 @@ impl<'r> Runner<'r> {
             let pending = self.tx.time_audience_pending(table_name, id)?;
             if pending {
                 self.query_unavailable = true;
+                self.pending_opening = Some((table_name.to_owned(), id.to_owned()));
                 return Err(RuntimeError::TimeAudiencePending);
             }
             false

@@ -638,7 +638,7 @@ fn expo_files() -> Vec<(&'static str, String)> {
     let config: Value = serde_json::from_str(include_str!("../../../../apps/chat-expo/app.json")).unwrap();
     let client = include_str!("init/expo-client.ts");
     let inbox = include_str!("../../../../apps/chat-expo/src/Inbox.tsx").replace("../../chat/snapback/generated/api", "../snapback/generated/api");
-    let thread = include_str!("../../../../apps/chat-expo/src/Thread.tsx").replace("../../chat/snapback/generated/api", "../snapback/generated/api");
+    let thread = include_str!("../../../../apps/chat-expo/src/Thread.tsx").replace("../../chat/snapback/generated/api", "../snapback/generated/api").replace("<FlatList inverted", "<FlatList testID=\"thread-results\" inverted");
     // @ref LLP 3000.009.000#3 — the Expo starter teaches the core; the reference app's invitation worker is optional server work.
     let schema = core_expo_schema(include_str!("../../../../apps/chat/snapback/schema.q"));
     vec![

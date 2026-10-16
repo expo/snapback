@@ -118,7 +118,7 @@ fn run_presented(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(
         let explicit = case.get("expect").and_then(Json::as_str);
         let expect = explicit.unwrap_or(match program.kind { ProgramKind::Query if never_complete.is_some() => "ok", ProgramKind::Query => "complete", _ => "sent" });
         let label = case.get("label").and_then(Json::as_str).map(|l| format!(" — {l}")).unwrap_or_default();
-        let mut raw_args = substitute_arguments(case.get("args").cloned().unwrap_or_else(|| json!({})), &saved).map_err(|why| format!("{at}: {why}"))?;
+        let mut raw_args = substitute_arguments(case.get("args").cloned().unwrap_or_else(|| json!({})), &saved, &program.args).map_err(|why| format!("{at}: {why}"))?;
         super::test_fixture::argument_times(&program.args, &mut raw_args, now).map_err(|why| format!("{at}: {why}"))?;
         let expected_data = case.get("data").cloned().map(|data| substitute(data, &saved)).transpose().map_err(|why| format!("{at}: {why}"))?;
         let expected_match = case.get("match").cloned().map(|data| substitute(data, &saved)).transpose().map_err(|why| format!("{at}: {why}"))?;
@@ -371,8 +371,23 @@ fn match_set(expected: &Json, answer: &Json) -> bool {
 fn substitute(value: Json, saved: &BTreeMap<String, Json>) -> Result<Json, String> {
     substitution(value, saved, false)
 }
-fn substitute_arguments(value: Json, saved: &BTreeMap<String, Json>) -> Result<Json, String> {
-    substitution(value, saved, true)
+fn substitute_arguments(value: Json, saved: &BTreeMap<String, Json>, types: &BTreeMap<String, snapback4_core::ir::ArgType>) -> Result<Json, String> {
+    use snapback4_core::ir::ArgType;
+    fn argument(value: Json, saved: &BTreeMap<String, Json>, kind: Option<&ArgType>) -> Result<Json, String> {
+        match (kind, value) {
+            (Some(ArgType::Optional(inner)), value) => argument(value, saved, Some(inner)),
+            (Some(ArgType::List { of, .. } | ArgType::ListRange { of, .. }), Json::Array(items)) =>
+                Ok(Json::Array(items.into_iter().map(|item| argument(item, saved, of.as_deref())).collect::<Result<_, _>>()?)),
+            (kind, value) => substitution(value, saved, matches!(kind, Some(ArgType::Id | ArgType::Ref { .. } | ArgType::Principal | ArgType::Cursor | ArgType::Image { .. } | ArgType::Video { .. } | ArgType::File { .. }))),
+        }
+    }
+    match value {
+        Json::Object(fields) => Ok(Json::Object(fields.into_iter().map(|(name, value)| {
+            let value = argument(value, saved, types.get(&name))?;
+            Ok((name, value))
+        }).collect::<Result<_, String>>()?)),
+        other => substitute(other, saved),
+    }
 }
 fn substitution(value: Json, saved: &BTreeMap<String, Json>, arguments: bool) -> Result<Json, String> {
     Ok(match value {
@@ -386,6 +401,9 @@ fn substitution(value: Json, saved: &BTreeMap<String, Json>, arguments: bool) ->
             for part in parts {
                 current = current.get(part).ok_or_else(|| format!("E_FIXTURE_ALIAS: {text}: the saved answer has no field {part}"))?;
                 fields += 1;
+            }
+            if fields == 0 && current.is_null() {
+                return Err(format!("E_FIXTURE_ALIAS: {text}: the saved value is null (the lookup found no readable row); assert the earlier result before reusing it"));
             }
             // An argument names a row by its id: a bare `$name` for a saved
             // row (an insert's answer) means that row's id.
@@ -407,11 +425,16 @@ mod saved_alias_tests {
         for name in ["", "r.1", "$r1"] { assert!(validate(&json!({"op":"add", "save":name})).unwrap_err().contains("save alias")); }
         let saved = [("r1".into(), json!({"id":"real-row-id", "text":"hello", "nested":{"n":2}}))].into();
         assert_eq!(substitute(json!({"row":"$r1", "text":"$r1.text", "nested":["$r1.nested.n"]}), &saved).unwrap(), json!({"row":"real-row-id", "text":"hello", "nested":[2]}));
-        let refused = substitute_arguments(json!({"row":"r1"}), &saved).unwrap_err();
+        let refused = substitute_arguments(json!({"row":"r1"}), &saved, &[("row".into(), snapback4_core::ir::ArgType::Id)].into()).unwrap_err();
         assert_eq!(substitute(json!({"status":"r1"}), &saved).unwrap(), json!({"status":"r1"}));
         assert!(refused.contains("r1") && refused.contains("$r1"), "{refused}");
         assert!(substitute(json!("$missing"), &saved).unwrap_err().contains("nothing was saved as missing"));
         assert!(substitute(json!("$r1.absent"), &saved).unwrap_err().contains("no field absent"));
+        let nulls = [("empty".into(), Json::Null), ("row".into(), json!({"owner":null}))].into();
+        for alias in ["$empty"] { assert!(substitute(json!(alias), &nulls).unwrap_err().contains(alias)); }
+        assert_eq!(substitute(json!("$row.owner"), &nulls).unwrap(), Json::Null);
+        let types = [("status".into(), snapback4_core::ir::ArgType::Enum { variants: vec!["r1".into()] }), ("text".into(), snapback4_core::ir::ArgType::Text { min:0, max:40, format:None })].into();
+        assert_eq!(substitute_arguments(json!({"status":"r1","text":"r1"}), &saved, &types).unwrap(), json!({"status":"r1","text":"r1"}));
         assert_eq!(substitute(json!({"text":{"$literal":"r1"}, "money":"$$50", "ordinary":"price $50"}), &saved).unwrap(), json!({"text":"r1", "money":"$50", "ordinary":"price $50"}));
     }
 }
@@ -445,7 +468,7 @@ mod rel3_tests {
         let root = std::env::temp_dir().join(format!("rel3-case-{}", std::process::id()));
         std::fs::create_dir_all(&root).unwrap();
         let path = root.join(FILE);
-        std::fs::write(&path, "{\"op\":\"add\",\"args\":{\"title\":\"Ash\"},\"save\":\"ash\"}\n{\"op\":\"row\",\"args\":{\"id\":\"$ash\"},\"data\":{\"id\":\"$ash\",\"title\":\"$ash.title\"},\"match\":{\"title\":\"Ash\"}}\n{\"op\":\"clock\",\"args\":{\"at\":\"now-1s\"},\"data\":123456789}\n{\"op\":\"clockArg\",\"args\":{\"at\":\"now+1h\"},\"data\":127056789}\n").unwrap();
+        std::fs::write(&path, "{\"op\":\"add\",\"args\":{\"title\":\"Ash\"},\"expect\":\"ok\",\"save\":\"ash\"}\n{\"op\":\"row\",\"args\":{\"id\":\"$ash\"},\"data\":{\"id\":\"$ash\",\"title\":\"$ash.title\"},\"match\":{\"title\":\"Ash\"}}\n{\"op\":\"clock\",\"args\":{\"at\":\"now-1s\"},\"data\":123456789}\n{\"op\":\"clockArg\",\"args\":{\"at\":\"now+1h\"},\"data\":127056789}\n").unwrap();
         assert_eq!(run(&mut engine, &bound, root.to_str().unwrap(), &[], 123456789).unwrap(), (4, 0));
         let explicit = explicit(root.to_str().unwrap(), &bound, 123456789);
         assert_eq!(explicit[3].args.as_ref().unwrap()["at"], json!(127056789));
