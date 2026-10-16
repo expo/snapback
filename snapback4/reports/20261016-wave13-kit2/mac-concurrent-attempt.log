@@ -1,0 +1,66 @@
+Switched to branch 'kit2-final8'
+$ tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/
+✔ published role/release form preserves drafts and selection; revocation gates reads and writes; accounts reset state (10242.922542ms)
+✖ H9 renderedText opts into substring matching for a row with more than the needle (8306.1445ms)
+✔ H9 P12 a trusted click that writes nothing settles E_WITNESS_NO_WRITE and rearming settles the old promise (2903.17ms)
+✔ runtime port range is inclusive, validated, and never cached (1.102917ms)
+✔ native and static bind beyond an occupied port; identity and independent logs (353.774875ms)
+✔ exhausted range and missing export fail with bounded cleanup (395.096291ms)
+✔ static host serves wasm correctly and refuses escaped symlink assets (499.337459ms)
+✔ saved-source deploy, preview, hot forward, rollback and fixture test never change working bytes (1706.739125ms)
+✔ cli awaits close, separates output and returns refusal status (191.687292ms)
+✔ ANSI and blank ready lines, early exit, stalled readiness and TERM escalation (359.139292ms)
+✔ cleanup bounds stalled actions and continues after errors (42.304209ms)
+✔ exit sweep kills registered child, not a neighboring child (205.110542ms)
+✔ Vite uses the project's config and bound identity (357.274042ms)
+✔ browser helpers use fresh text, stable values and RN keystrokes (2117.530166ms)
+✔ SIGKILLed driver closes frontend liveness and sweeps its whole private group (583.328417ms)
+✔ saved schemas typecheck server companions against private candidate API without replacing working types (3603.059375ms)
+✔ ready PID and served marker mismatches refuse instead of adopting another identity (549.15175ms)
+✔ secret stdout stays in memory; token CLI automatically selects secret capture (383.566708ms)
+✔ startDev args preserve memory isolation unless a store is explicit (376.383083ms)
+✔ waitForServer waits for authoritative projection and diagnoses unchanged truth (157.034125ms)
+✔ proof browser navigation arms witness before application registration (412.994083ms)
+✔ --no-memory is consumed by the kit and retains dev rows across restarts (284.864292ms)
+✔ proof witness injection survives HTTP redirect destinations (785.47975ms)
+✔ default web starter guest proves a visible labelled form and ships a favicon (10757.630125ms)
+✔ default web starter alice proves a visible labelled form and ships a favicon (7831.923208ms)
+✔ visible-form arming ignores old sent state, isolates the clicked mutation and cleans repeated observers (2.131708ms)
+✔ form proof rejects matching background writes with a broken button (2106.953917ms)
+✔ form proof accepts click-owned app mutation (874.75925ms)
+✔ a later background requestSubmit never inherits a broken button click (837.52825ms)
+✔ clicked dispatch provenance: microtask (924.442917ms)
+✔ clicked dispatch provenance: nested-submit (1015.589333ms)
+✔ clicked dispatch provenance: script-click (1055.003125ms)
+✔ clicked dispatch provenance: nested-script-click (2027.016875ms)
+✔ unapproved App calls preserve supported options from prototypes, non-enumerable fields and private getters (2.001625ms)
+✔ abandoned arms, rearmed pending writes and settlement deadlines release witness custody (0.885917ms)
+✔ H8 custom-schema generated proof refuses success without a write (2235.07925ms)
+✔ H8 withBrowser honors caller Playwright (3645.869209ms)
+﹣ H8 withBrowser opens no TCP listener (0.117042ms) # Listener snapshot requires Linux /proc; caller Playwright still runs on this host
+✔ H8 witness claims the trusted button form submit, preserving canonical null arguments (5064.356875ms)
+✔ init preserves package identity, reports current range, and adapt is read-only by default (164.72825ms)
+✔ proof.cli runs JS wrapper verbs (92.85425ms)
+✔ rendered evidence excludes textareas and scopes freshness; frontPage activates (288.636125ms)
+✔ unclaimable events, operations and arguments settle with reasons; pending is never terminal (1.782584ms)
+✔ day2 caller source arguments override npm defaults and malformed argument lists refuse (258.976417ms)
+✔ adapt migrates recognized legacy literal scripts/config and preserves explicit defaults (73.349042ms)
+✔ single-port ranges remain valid for schema-only init; UI init refuses before writes (31.592083ms)
+✔ native window aliases without a browser location do not install a web witness (0.500459ms)
+ℹ tests 47
+ℹ suites 0
+ℹ pass 45
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 1
+ℹ todo 0
+ℹ duration_ms 27576.742
+
+✖ failing tests:
+
+test at packages/snapback4/test/proof-contract.test.mjs:17:1
+✖ H9 renderedText opts into substring matching for a row with more than the needle (8306.1445ms)
+  Error: browser close timed out after 5000 ms
+      at Timeout.<anonymous> (file:///Users/ccheever/projects/snapback-ws-kit2/snapback4/packages/snapback4/dist/proof-process.js:26:49)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)

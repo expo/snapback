@@ -204,7 +204,7 @@ the initial app.ready barrier. pending is custody, not a terminal result.
 
 Eight rules keep proofs honest:
 
-- Log to files, never pipes. A descendant holding a pipe can hide completion.
+- Log to files, never pipes, for server output. A descendant holding a pipe can hide completion. Secret command stdout uses bounded memory capture, whose read end closes on deadline.
 - Wait for a fresh signal for each write: its terminal receipt, changed write id,
   or unique new value. `waitForFresh(locator, previous)` rejects unchanged text.
 - Receipts live outside components that unmount. The generated proof arms the

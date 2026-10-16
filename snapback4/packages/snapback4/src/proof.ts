@@ -87,6 +87,7 @@ export async function command(binary: string, args: readonly string[], options: 
     if (run.error()) throw run.error();
     return { code: run.child.exitCode, signal: run.child.signalCode, stdout: run.stdout(), stderr: logText(run.logs.stderr), logs: run.logs };
   } catch (error) { await stopChild(run.child, deadline(options.stopTimeoutMs, 5000)); throw error; }
+  finally { run.child.stdout?.destroy(); } // Secret capture must not pin the driver after a deadline.
 }
 async function successful(args: string[], options: ProofOptions) {
   const result = await cli(args, options);

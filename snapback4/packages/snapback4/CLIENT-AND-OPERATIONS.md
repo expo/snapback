@@ -4112,4 +4112,3 @@ export function SharedList<T extends {id: string}>({page, remove, label}: {page:
     <button disabled={!page.hasMore} onClick={page.loadMore}>More</button></>; }
 ```
 Pass usePage(api.list) and useMutation(api.remove). Match page.read, render page.items. `absent` can be an authorised empty list; query myMembership for roles. createClient takes generated handles (api.op), never names.
-

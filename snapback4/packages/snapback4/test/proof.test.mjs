@@ -262,3 +262,15 @@ test("proof witness injection survives HTTP redirect destinations", async t => {
     assert.equal(new URL(page.url()).searchParams.get('api'),'kept');
   });}finally{await new Promise(resolve=>server.close(resolve));}
 });
+
+
+test("secret capture releases its pipe when an exited tool leaves a descendant holding stdout", async t => {
+  const cwd=fixture(t),module=fileURLToPath(new URL('../dist/proof.js',import.meta.url));
+  const script=join(cwd,'driver.mjs'),marker=join(cwd,'desc-ready');
+  writeFileSync(script, `import {command} from ${JSON.stringify(module)};
+try {await command(process.execPath,['-e',\`require('node:child_process').spawn(process.execPath,['-e','setTimeout(()=>{},6000)'],{stdio:['ignore',1,2]});require('node:fs').writeFileSync(${JSON.stringify(marker)},'ready');process.exit(0)\`],{cwd:${JSON.stringify(cwd)},secret:true,timeoutMs:1000});process.exitCode=1;}
+catch(error){if(!/timed out/.test(error.message))throw error;}`);
+  const child=spawn(process.execPath,[script],{stdio:'ignore'});t.after(()=>{if(child.exitCode===null&&child.signalCode===null)child.kill('SIGKILL')});
+  await bounded(new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',code=>{try{assert.equal(code,0);resolve();}catch(error){reject(error)}})}),5000,'secret driver exit');
+  assert.equal(readFileSync(marker,'utf8'),'ready','the tool exited after spawning the pipe holder, before its deadline');
+});
