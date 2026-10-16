@@ -69,10 +69,18 @@ pub fn explicit(fixture: &str, bound: &Bound, now: i64) -> Vec<Explicit> {
 /// Runs every case; prints one line each and returns (passed, failed).
 /// `sources` are the compiled files, to quote a refusing clause's line.
 pub fn run(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String, String)], now: i64) -> Result<(usize, usize), String> {
-    run_observed(engine, bound, fixture, sources, now, false, |_, _| {})
+    run_verbose(engine, bound, fixture, sources, now, false)
 }
 
-pub(super) fn run_observed(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String, String)], now: i64, quiet: bool, mut observed: impl FnMut(&str, &str)) -> Result<(usize, usize), String> {
+pub(super) fn run_verbose(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String, String)], now: i64, verbose: bool) -> Result<(usize, usize), String> {
+    run_presented(engine, bound, fixture, sources, now, false, verbose, |_, _| {})
+}
+
+pub(super) fn run_observed(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String, String)], now: i64, quiet: bool, observed: impl FnMut(&str, &str)) -> Result<(usize, usize), String> {
+    run_presented(engine, bound, fixture, sources, now, quiet, false, observed)
+}
+
+fn run_presented(engine: &mut Engine, bound: &Bound, fixture: &str, sources: &[(String, String)], now: i64, quiet: bool, verbose: bool, mut observed: impl FnMut(&str, &str)) -> Result<(usize, usize), String> {
     macro_rules! case_line { ($($args:tt)*) => { if !quiet { println!($($args)*); } }; }
     let path = Path::new(fixture).join(FILE);
     let text = match std::fs::read_to_string(&path) {
@@ -194,7 +202,10 @@ pub(super) fn run_observed(engine: &mut Engine, bound: &Bound, fixture: &str, so
             case_line!("      FAIL {at} {op} ({persona}) → {shown}{label}: {}", problems.join("; "));
         }
         if program.kind == ProgramKind::Query && trace.hidden() > 0 { case_line!("           hidden: {} (encountered row images filtered by read rules)", trace.hidden()); }
-        for note in notes { case_line!("           {note}"); }
+        for note in notes {
+            let note = if verbose { note } else { crate::presentation::abbreviate_quoted(&note) };
+            case_line!("           {note}");
+        }
     }
     Ok((passed, failed))
 }

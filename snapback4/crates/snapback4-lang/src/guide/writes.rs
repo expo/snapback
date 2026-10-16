@@ -16,7 +16,9 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
 
 `insert` creates a row; `if absent` returns null on a readable key collision.
 `update` patches; `if` tests the old row.
-`upsert` inserts/patches; `delete` removes the row: NOT_FOUND when absent
+`upsert` inserts/patches; immutable fields belong on insert or in the target key.
+E_QUARRY_IMMUTABLE refuses unproved immutable patch values at check time.
+`delete` removes the row: NOT_FOUND when absent
 (guard with `if exists t[id]:`); references obey `on delete` (recipes).
 Omitted optional arguments are null. `{ c: x }` clears `c` when `x` is omitted; `x ?? row.c` keeps it (Details).
 Write results contain omitted optional columns as null and defaults as values;
@@ -250,6 +252,11 @@ a constraint across all guests.
 References default to `restrict`; a live child causes E_REFERENCED. Alternatives:
 bounded `cascade`, optional `set null`, or `keep`. Cascades recurse under a
 cap/unique key per parent; keep/restrict history and audit rows.
+An unbounded action with no admitting delete rule, delete operation, expiry or
+reachable cascade needs no cap yet (N_CASCADE_DORMANT). Adding a delete source
+rechecks it. Choose the product limit; E_CASCADE_BOUND prints the joint engine
+ceiling and heap formula. An unconditional whole-group child-delete loop before
+its parent delete silences N_DELETE_RESTRICTED; a first-N preview does not.
 
 ## Server-arrival order within a conversation
 
