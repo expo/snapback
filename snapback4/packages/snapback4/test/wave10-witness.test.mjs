@@ -129,3 +129,27 @@ test('unapproved App calls preserve supported options from prototypes, non-enume
   }
   assert.equal(idReads,1);assert.equal(waitReads,1);
 });
+
+test('abandoned arms, rearmed pending writes and settlement deadlines release witness custody', async t => {
+  const {registerWebWitness}=await import('../dist/witness-web.js');
+  const oldWindow=Object.getOwnPropertyDescriptor(globalThis,'window'),oldDocument=Object.getOwnPropertyDescriptor(globalThis,'document');
+  const events=new Map(),listeners=new Set(),button={},op={kind:'mutation',name:'add'};
+  const window={location:{search:'?witness=web'}};
+  Object.defineProperty(globalThis,'window',{configurable:true,value:window});
+  Object.defineProperty(globalThis,'document',{configurable:true,value:{addEventListener:(name,fn)=>events.set(name,fn),removeEventListener:name=>events.delete(name)}});
+  t.after(()=>{if(oldWindow)Object.defineProperty(globalThis,'window',oldWindow);else delete globalThis.window;if(oldDocument)Object.defineProperty(globalThis,'document',oldDocument);else delete globalThis.document});
+  t.mock.timers.enable({apis:['setTimeout']});
+  let calls=0;
+  const original=async()=>{calls++;return{state:'pending',id:'original'}};
+  const client={mutate:original,onWrite:fn=>{listeners.add(fn);return()=>listeners.delete(fn)}};
+  const app={client,mutate:original,ready:Promise.resolve({ok:true})};registerWebWitness(app,{add:op});
+  const bridge=window.__snapback4Witness;
+  bridge.beginForm('add',{},button);const abandoned=bridge.formResult();t.mock.timers.tick(30000);
+  assert.equal((await abandoned).why.code,'E_WITNESS_NO_WRITE');assert.equal(events.size,0);assert.equal(client.mutate,original);
+  bridge.beginForm('add',{},button);
+  const click={isTrusted:true,composedPath:()=>[button]};window.event=click;events.get('click')(click);
+  await client.mutate(op,{});const pending=bridge.formResult();assert.equal(listeners.size,1);
+  bridge.beginForm('add',{},button);assert.equal((await pending).why.code,'E_WITNESS_UNCLAIMED');assert.equal(listeners.size,0);
+  window.event=click;events.get('click')(click);await client.mutate(op,{});const stalled=bridge.formResult();t.mock.timers.tick(30000);
+  assert.equal((await stalled).why.code,'E_WITNESS_SENT');assert.equal(listeners.size,0);assert.equal(events.size,0);assert.equal(calls,2,'proof expiry never cancels or resubmits writes');
+});

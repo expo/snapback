@@ -179,14 +179,14 @@ export async function waitForServer<T>(read: () => Promise<T>, accepts: (value: 
   const timeoutMs = deadline(options.timeoutMs, 30_000), end = performance.now() + timeoutMs;
   let last: T | undefined;
   while (performance.now() < end) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      const value = await bounded(Promise.resolve().then(read), Math.max(1, end - performance.now()), options.label ?? "server truth");
+      const value = await Promise.race([Promise.resolve().then(read), new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(Error(`${options.label ?? "server truth"} timed out after ${timeoutMs} ms; last=${JSON.stringify(last)}`)), Math.max(1, end - performance.now()));
+      })]);
       last = value;
       if (accepts(value)) return value;
-    } catch (error) {
-      if (performance.now() >= end - 1) throw Error(`${options.label ?? "server truth"} timed out after ${timeoutMs} ms; last=${JSON.stringify(last)}`, { cause: error });
-      throw error;
-    }
+    } finally { clearTimeout(timer); }
     await new Promise(resolve => setTimeout(resolve, Math.min(25, Math.max(1, end - performance.now()))));
   }
   throw Error(`${options.label ?? "server truth"} timed out after ${timeoutMs} ms; last=${JSON.stringify(last)}`);

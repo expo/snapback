@@ -764,3 +764,10 @@ matchRead(read,{loading:()=>0,absent:()=>0,partial:()=>0,present:row=>row.id});`
   assert.deepEqual(result.codes,[2345],result.text);
   assert.match(result.text,/matchRead requires denied/);
 });
+
+
+test('isPresent classifies only the present arm without changing the read', async () => {
+  const {isPresent}=await import('../dist/contract.js');
+  for(const read of [{loading:true},{denied:{code:'NO'}},{data:null,existence:'absent'},{data:null,existence:'partial'},{data:[],existence:'partial'}])assert.equal(isPresent(read),false);
+  for(const value of [false,0,{id:'one'},['one']])assert.equal(isPresent({data:value,existence:'present'}),true);
+});
