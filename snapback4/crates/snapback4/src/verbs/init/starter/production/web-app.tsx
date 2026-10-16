@@ -74,7 +74,7 @@ function Workspace() {
       <Teams selected={teamId} choose={setTeamId} />
       {teamId && <Team key={teamId} teamId={teamId} principal={principal} setPrincipal={setPrincipal} role={role} setRole={setRole}
         selectedPrincipal={selectedPrincipal} selectPrincipal={setSelectedPrincipal} invite={() => void invite.run({ teamId, principal: principal.trim() as Principal, role })} inviteAvailable={api.invite.available(release)} />}
-    </> : <p>{"denied" in release ? "Not available" : "loading" in release ? "Checking release…" : "Not available on this release. Your drafts are kept."}</p>}
+    </> : <p>{"denied" in release ? "Not available" : "generation" in release ? "Not available on this release. Your drafts are kept." : "Checking release…"}</p>}
   </main>;
 }
 

@@ -558,6 +558,7 @@ fn ordinary_starters_still_check_and_preserve_their_server_opt_in() {
             assert!(!document.server && document.actions.is_empty() && document.routes.is_empty());
             assert!(document.schedules.iter().all(|schedule| schedule.target != "invite"));
             for (path, bytes) in snapshot(&dir.0) {
+                if path.starts_with(dir.0.join("recipes/production")) { continue; }
                 assert!(!path.file_name().unwrap().to_string_lossy().starts_with("worker."));
                 if let Some(bytes) = bytes { assert!(!String::from_utf8_lossy(&bytes).contains("invite"), "{}", path.display()); }
             }
@@ -611,7 +612,11 @@ fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
         }
         let texts = starter_texts(&dir.0);
         // Three kit scripts replace builder-owned process orchestration.
-        assert!(texts.len() <= 28, "{flag}: {} files", texts.len());
+        let app_files = texts.iter().filter(|(path, _)| !path.starts_with(dir.0.join("recipes/production"))).count();
+        assert!(app_files <= 28, "{flag}: {app_files} application files");
+        for recipe in ["schema.q", "App.tsx", "client.ts", "fixtures/test.cases.jsonl"] {
+            assert!(dir.0.join("recipes/production").join(recipe).is_file(), "missing runnable recipe {recipe}");
+        }
         let schema = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();
         let bound = snapback4_lang::compile(&[("schema.q".into(), schema)]);
         assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);
