@@ -244,7 +244,7 @@ test('preparation rejects wrong HBC versions and escaping outputs before issuing
     write(path.join(project, 'javascript.txt'), 'A');
     write(path.join(project, 'app.json'), { expo: { newArchEnabled: true } });
     write(path.join(project, 'package-lock.json'), { packages: {} });
-    for (const [name, version] of Object.entries({ expo: '57.0.22', 'react-native': '0.86.3', '@expo/fingerprint': '0.20.13', 'hermes-compiler': 'test' })) {
+    for (const [name, version] of Object.entries({ expo: '57.0.30', 'react-native': '0.86.3', '@expo/fingerprint': '0.20.14', 'hermes-compiler': 'test' })) {
       write(path.join(project, 'node_modules', name, 'package.json'), { version, bin: 'cli.js' });
     }
     write(path.join(project, 'node_modules/hermes-compiler/hermesc/osx-bin/hermesc'), 'compiler');

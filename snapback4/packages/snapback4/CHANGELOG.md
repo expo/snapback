@@ -1,5 +1,9 @@
 # Snapback 4 behavior changes
 
+## 0.4.30
+
+- Expo starters and snapback4-expo now use Expo 57.0.30 / expo-modules-core 57.0.23; native preparation accepts Xcode 27.1 as well as 27.0 with matching iOS SDKs. Regenerate iOS and rebuild the native app after upgrading. Qualification records the producing Xcode build and iOS SDK.
+
 ## 0.4.29
 
 - CLI repairs: web-shell appears in help and accepts both help spellings without files or builds; retired init recipes explain --web/--expo and --template chat. witness web loads the optional playwright-core peer only when running, with an install command if missing. clock advance and reset discover the persisted dev's port, with --port overriding it. Starter frontend proofs refuse a one-port range before launching; day-two/backend-only proofs still accept one port. Implicit downgrade refusal now names the registry's version and installed version clearly.

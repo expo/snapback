@@ -31,7 +31,7 @@ SQLite and the native-query Wasm host. The earlier module measured 1.7 MB
 linked and about a millisecond per call; those measurements predate the
 native-query host.
 
-The pinned Expo 57.0.22 apps list `snapback4-expo/plugin` in app.json's
+The pinned Expo 57.0.30 apps list `snapback4-expo/plugin` in app.json's
 `plugins`. Keep that entry when generating iOS: it supplies the scene lifecycle
 required by Xcode 27, shared by the reference chat app and both starters.
 After adding it, run `npx expo prebuild --platform ios`, rebuild Release and

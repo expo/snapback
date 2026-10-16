@@ -26,11 +26,11 @@
     "export-ios.mjs"
   ],
   "peerDependencies": {
-    "expo": "*",
+    "expo": ">=57.0.30 <58",
     "snapback4": "*"
   },
   "devDependencies": {
-    "expo-modules-core": "*",
+    "expo-modules-core": "57.0.23",
     "typescript": "5.9.3"
   },
   "bin": {

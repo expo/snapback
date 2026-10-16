@@ -103,7 +103,7 @@ try {
   }
   const req = createRequire(path.join(project, 'package.json'));
   const version = name => req(`${name}/package.json`).version;
-  if (version('expo') !== '57.0.22' || version('react-native') !== '0.86.3' || version('@expo/fingerprint') !== '0.20.13') fail('E_WITNESS_BUILD', 'this preparation adapter requires Expo 57.0.22, RN 0.86.3 and @expo/fingerprint 0.20.13; use installed-app mode');
+  if (version('expo') !== '57.0.30' || version('react-native') !== '0.86.3' || version('@expo/fingerprint') !== '0.20.14') fail('E_WITNESS_BUILD', 'this preparation adapter requires Expo 57.0.30, RN 0.86.3 and @expo/fingerprint 0.20.14; use installed-app mode');
   let exportKey;
   if (exported) {
     const identity = toolIdentity(command, project);
@@ -137,8 +137,8 @@ try {
   const toolchain = { node: process.version, xcode: command('xcode-version', 'xcodebuild', ['-version'], project), sdk: command('sdk-version', 'xcrun', ['--sdk', 'iphonesimulator', '--show-sdk-version'], project),
     sdkBuild: command('sdk-build', 'xcrun', ['--sdk', 'iphonesimulator', '--show-sdk-build-version'], project), pod: command('pod-version', 'pod', ['--version'], project),
     runtime: JSON.parse(command('runtime', 'xcrun', ['simctl', 'list', 'runtimes', '--json'], project)).runtimes.map(({ identifier, version, buildversion }) => ({ identifier, version, buildversion })), architecture: 'arm64' };
-  const nativeFingerprint = { version: '0.20.13', options: fingerprintOptions, fingerprint };
-  if (!toolchain.xcode.startsWith('Xcode 27.0\n') || toolchain.sdk !== '27.0') fail('E_WITNESS_BUILD', 'this adapter is qualified for Xcode 27.0 / iOS simulator SDK 27.0 only; use installed-app mode');
+  const nativeFingerprint = { version: '0.20.14', options: fingerprintOptions, fingerprint };
+  if (!['27.0', '27.1'].some(v => toolchain.xcode.startsWith(`Xcode ${v}\n`) && toolchain.sdk === v)) fail('E_WITNESS_BUILD', 'this adapter requires Xcode / iOS simulator SDK 27.0 or 27.1 with matching versions; use installed-app mode');
   let nativeClosure = null;
   // Stable private path permits warm Xcode intermediates. A project lease in
   // the Rust parent excludes competing writers; each run retains its inputs.

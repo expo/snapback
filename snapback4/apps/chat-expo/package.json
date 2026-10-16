@@ -10,7 +10,7 @@
     "ios:dev": "expo run:ios"
   },
   "dependencies": {
-    "expo": "57.0.22",
+    "expo": "57.0.30",
     "expo-dev-client": "~57.0.19",
     "expo-secure-store": "~57.0.4",
     "expo-sqlite": "57.0.3",

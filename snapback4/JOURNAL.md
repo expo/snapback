@@ -95808,3 +95808,16 @@ test-binary spawn; Mac dry run 6 passed `== 0 failure(s) in 9145 s` after dry
 run 5's known `run_admission` log race. One `--resume` published the platforms
 and client, then Expo. Clean installs on Linux and the Mac print `snapback4 0.4.29`
 and pass `init` + `check`. Details: `reports/20261015-publication-0.4.29/REPORT.md`.
+
+## 2026-10-16 — EXPOPIN: refresh the SDK 57 toolchain for Xcode 27.1
+
+The reference Expo app owns the plain/chat/social manifests, now on Expo
+57.0.30/core 57.0.23, RN 0.86.3, Babel 57.0.16 and fingerprint 0.20.14.
+The native package declares the qualified SDK 57 peer floor; SDK 58's new RN
+is a separate migration. Keep the published scene plugin across all starters.
+The preparation adapter admits matched Xcode/SDK 27.0 and 27.1 and continues
+recording installed-product provenance. On the M5 scratch clone the updated
+reference Release app builds with default precompiled Expo modules on Xcode
+27.1 (27A9275); full native/starter and older-Xcode controls follow in the
+EXPOPIN report. Version remains 0.4.29 for Integration 14 to cut 0.4.30.
+No publication tree, older Xcode installation, version, or remote branch is changed.
