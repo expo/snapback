@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, Pressable, Text, TextInput, View } from "react-native";
-import { isAbsent, isDenied, isFailed, isLoading } from "snapback4/contract";
+import { existence, isDenied, isFailed, isLoading } from "snapback4/contract";
 import { useAuth, useLink, useMutation, usePage, useSignedInViewer, type UseMutation, type UsePage } from "snapback4/react";
 import { api } from "./snapback/generated/api";
 import { tier } from "./src/client";
@@ -45,7 +45,7 @@ function TodoList({ todos, toggle, remove }: { todos: UsePage<typeof api.list>; 
   return <>
     {isLoading(todos.read) && <Text>Loading…</Text>}
     {isDenied(todos.read) && <Text style={{ color: "crimson" }}>Not available: {todos.read.denied.message}</Text>}
-    {isAbsent(todos.read) && <Text>No tasks yet.</Text>}
+    {existence(todos.read) === "absent" && <Text>No tasks yet.</Text>}
     {todos.items.map(todo => <View key={todo.id} style={{ flexDirection: "row", alignItems: "center", gap: 8, opacity: todo.pending ? 0.6 : 1 }}>
       <Pressable style={{ flex: 1 }} onPress={() => void toggle.run({ todoId: todo.id })}>
         <Text style={{ textDecorationLine: todo.done ? "line-through" : "none" }}>{todo.done ? "☑" : "☐"} {todo.title}</Text>

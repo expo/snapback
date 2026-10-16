@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { isAbsent, isDenied, isFailed, isLoading } from "snapback4/contract";
+import { existence, isDenied, isFailed, isLoading } from "snapback4/contract";
 import { useAuth, useLink, useMutation, usePage, useSignedInViewer, type UseMutation, type UsePage } from "snapback4/react";
 import { api } from "../snapback/generated/api.ts";
 
@@ -47,7 +47,7 @@ function TodoList({ todos, toggle, remove }: { todos: UsePage<typeof api.list>; 
   return <>
     {isLoading(todos.read) && <p>Loading…</p>}
     {isDenied(todos.read) && <p role="alert">Not available: {todos.read.denied.message}</p>}
-    {isAbsent(todos.read) && <p>No tasks yet.</p>}
+    {existence(todos.read) === "absent" && <p>No tasks yet.</p>}
     <ul>
       {todos.items.map(todo => <li key={todo.id} className={todo.pending ? "pending" : undefined}>
         <label>
