@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AppProvider, useAppReady, useAuth, useMutation, usePage, usePersonaApp, useQuery, useRelease, useSignedInViewer } from "snapback4/react";
 import { isFailed, matchRead, matchReadList, type ArgsOf, type Principal } from "snapback4/contract";
 import { api } from "../snapback/generated/api.ts";
-import { app, openApp, personas } from "./client.ts";
+import { app, openApp, personas, url } from "./client.ts";
 
 type TeamId = ArgsOf<typeof api.roster>["teamId"];
 
@@ -10,10 +10,21 @@ type TeamId = ArgsOf<typeof api.roster>["teamId"];
 // device and clears account-owned drafts. Production offers accounts only.
 export function App() {
   const [persona, setPersona] = useState<string | null>(null);
-  const personaApp = usePersonaApp(persona, openApp);
+  // Even loopback may host serve: only the server's development declaration
+  // enables persona controls. Pending, failed and non-development reads hide them.
+  const [development, setDevelopment] = useState(false);
+  useEffect(() => {
+    let current = true;
+    void fetch(`${url}/auth/config`, { method: "GET" })
+      .then(response => response.ok ? response.json() : null)
+      .then(config => { if (current) setDevelopment(config?.development === true); })
+      .catch(() => { if (current) setDevelopment(false); });
+    return () => { current = false; };
+  }, []);
+  const personaApp = usePersonaApp(development ? persona : null, openApp);
   return <>
     <nav><button onClick={() => setPersona(null)}>Password or guest account</button>
-      {personas.map(name => <button key={name} onClick={() => setPersona(name)}>Dev: {name}</button>)}
+      {development && personas.map(name => <button key={name} onClick={() => setPersona(name)}>Dev: {name}</button>)}
     </nav>
     {persona && !personaApp ? <p>Opening persona…</p> : <AppProvider app={personaApp ?? app}><Account /></AppProvider>}
   </>;

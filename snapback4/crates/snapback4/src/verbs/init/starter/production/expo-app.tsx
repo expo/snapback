@@ -1,18 +1,29 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button, SafeAreaView, ScrollView, Text, TextInput, View } from "react-native";
 import { AppProvider, useAppReady, useAuth, useMutation, usePage, usePersonaApp, useQuery, useRelease, useSignedInViewer } from "snapback4/react";
 import { isFailed, matchRead, matchReadList, type ArgsOf, type Principal } from "snapback4/contract";
 import { api } from "./snapback/generated/api";
-import { app, openApp, personas } from "./src/client";
+import { app, openApp, personas, url } from "./src/client";
 
 type TeamId = ArgsOf<typeof api.roster>["teamId"];
 
 export function App() {
   const [persona, setPersona] = useState<string | null>(null);
-  const personaApp = usePersonaApp(persona, openApp);
+  // Even loopback may host serve: only the server's development declaration
+  // enables persona controls. Pending, failed and non-development reads hide them.
+  const [development, setDevelopment] = useState(false);
+  useEffect(() => {
+    let current = true;
+    void fetch(`${url}/auth/config`, { method: "GET" })
+      .then(response => response.ok ? response.json() : null)
+      .then(config => { if (current) setDevelopment(config?.development === true); })
+      .catch(() => { if (current) setDevelopment(false); });
+    return () => { current = false; };
+  }, []);
+  const personaApp = usePersonaApp(development ? persona : null, openApp);
   return <SafeAreaView style={{ flex: 1 }}><ScrollView contentContainerStyle={{ padding: 24, gap: 12 }}>
     <Button title="Password or guest account" onPress={() => setPersona(null)} />
-    {personas.map(name => <Button key={name} title={`Dev: ${name}`} onPress={() => setPersona(name)} />)}
+    {development && personas.map(name => <Button key={name} title={`Dev: ${name}`} onPress={() => setPersona(name)} />)}
     {persona && !personaApp ? <Text>Opening persona…</Text> : <AppProvider app={personaApp ?? app}><Account /></AppProvider>}
   </ScrollView></SafeAreaView>;
 }

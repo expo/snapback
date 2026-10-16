@@ -26,13 +26,16 @@ for (const platform of ['web', 'expo']) test(`${platform} production screen keep
   const dir = mkdtempSync(join(tmpdir(), 'sb4-production-ui-')); let server, browser;
   t.after(async () => { try { await browser?.close(); } finally { try { await server?.close(); } finally { rmSync(dir, { recursive: true, force: true }); } } });
   let source = readFileSync(process.env[`SNAPBACK4_PRODUCTION_${platform.toUpperCase()}_APP`] ?? join(starter, `production/${platform}-app.tsx`), 'utf8');
-  source = source.replace(/^import \{ api \}.*;\n/m, 'import { api } from "./api";\n').replace(/^import \{ app, openApp, personas \}.*;\n/m, '').replace('function Workspace()', 'export function Workspace()');
+  source = source.replace(/^import \{ api \}.*;\n/m, 'import { api } from "./api";\n').replace(/^import \{ app, openApp, personas(?:, url)? \}.*;\n/m, 'import { app, openApp, personas, url } from "./client-mock";\n').replace('function Workspace()', 'export function Workspace()');
   writeFileSync(join(dir, 'workspace.tsx'), source);
+  writeFileSync(join(dir, 'client-mock.ts'), `export const lifecycle=[];
+const snapshot={state:'signed-out',viewer:null};const make=name=>{const record={name,closes:0};lifecycle.push(record);return{client:{},ready:Promise.resolve({ok:true}),auth:{getSnapshot:()=>snapshot,onChange:()=>()=>{}},close:async()=>{record.closes++}}};
+export const app=make('session'),openApp=name=>make(name),personas=['alice','bob'],url='http://127.0.0.1:4400';`);
   writeFileSync(join(dir, 'api.ts'), `const op=(name,kind)=>({name,kind,available:r=>'generation' in r && name in r.operations});export const api=Object.fromEntries(['myTeams','myRole','roster','createTeam','invite'].map(n=>[n,op(n,['createTeam','invite'].includes(n)?'mutation':'query')]));`);
   writeFileSync(join(dir, 'native.tsx'), `import React from 'react';export const View=({children})=><div>{children}</div>,Text=({children})=><span>{children}</span>,SafeAreaView=View,ScrollView=View;export const Button=({title,onPress,disabled})=><button disabled={disabled} onClick={onPress}>{title}</button>;export const TextInput=({accessibilityLabel,onChangeText,value,...props})=><input aria-label={accessibilityLabel} value={value} onChange={e=>onChangeText(e.target.value)}/>;`);
   writeFileSync(join(dir, 'index.html'), '<div id="root"></div><script type="module" src="/harness.tsx"></script>');
   writeFileSync(join(dir, 'harness.tsx'), `
-import React,{act} from 'react';import {createRoot} from 'react-dom/client';import {AppProvider} from 'snapback4/react';import {Workspace} from './workspace';
+import React,{act} from 'react';import {createRoot} from 'react-dom/client';import {AppProvider} from 'snapback4/react';import {Workspace,App as RecipeApp} from './workspace';import {lifecycle} from './client-mock';
 window.IS_REACT_ACT_ENVIRONMENT=true;
 const ready=data=>({data,complete:true,existence:data===null||Array.isArray(data)&&!data.length?'absent':'present',fresh:true,cut:null,next:null});
 let role=ready({role:'admin',principal:'dev:alice'}),roster=ready([{id:'a',principal:'dev:alice',role:'admin'},{id:'b',principal:'dev:bob',role:'member'}]);
@@ -44,9 +47,13 @@ const readyTeams=ready([{id:'membership',teamId:'team',role:'admin'}]),auth={sta
 const app={client,ready:Promise.resolve({ok:true}),auth:{getSnapshot:()=>auth,onChange:()=>()=>{},logout:async()=>({ok:true})}};
 const root=createRoot(document.querySelector('#root'));window.start=async()=>{await act(async()=>root.render(<React.StrictMode><AppProvider app={app}><Workspace/></AppProvider></React.StrictMode>));window.IS_REACT_ACT_ENVIRONMENT=false;};
 window.publish=async patch=>{window.IS_REACT_ACT_ENVIRONMENT=true;await act(async()=>{if(patch.release)release=patch.release;if(patch.role)role=patch.role;if(patch.roster)roster=patch.roster;for(const fn of releaseListeners)fn();for(const r of records)for(const fn of r.subs)fn();});window.IS_REACT_ACT_ENVIRONMENT=false;};
+let accountGeneration=0,configRequests=[];
+window.showAccount=async()=>{window.IS_REACT_ACT_ENVIRONMENT=true;configRequests=[];window.fetch=(url,options)=>new Promise((yes,no)=>configRequests.push({url,options,yes,no}));await act(async()=>root.render(<React.StrictMode><RecipeApp key={++accountGeneration}/></React.StrictMode>));window.IS_REACT_ACT_ENVIRONMENT=false;};
+window.finishConfig=async(value,failed=false,status=200)=>{window.IS_REACT_ACT_ENVIRONMENT=true;await act(async()=>{for(const r of configRequests)failed?r.no(Error('config unavailable')):r.yes({ok:status===200,json:async()=>value});});window.IS_REACT_ACT_ENVIRONMENT=false;};
+window.inspectConfig=()=>({requests:configRequests.map(r=>({url:r.url,method:r.options.method})),lifecycle});
 window.inspect=()=>({writes,records:[...records].map(r=>r.op.name)});window.finish=()=>{window.IS_REACT_ACT_ENVIRONMENT=true;return act(async()=>root.unmount());};
 `);
-  server = await createBrowserServer({ root: dir, configFile: false, logLevel: 'error', server: { host: '127.0.0.1', port: 0, fs: { allow: [root, dir] } }, resolve: { alias: [
+  server = await createBrowserServer({ root: dir, configFile: false, logLevel: 'error', server: { host: '127.0.0.1', port: 0, fs: { allow: [root, dir, clientDist] } }, resolve: { alias: [
     { find: 'snapback4/react', replacement: join(clientDist, 'react.js') }, { find: 'snapback4/contract', replacement: join(clientDist, 'contract.js') }, { find: 'react-native', replacement: join(dir, 'native.tsx') },
   ] } });
   await server.listen(); const { chromium } = require('playwright-core');
@@ -75,5 +82,24 @@ window.inspect=()=>({writes,records:[...records].map(r=>r.op.name)});window.fini
   assert.equal(await page.getByText('No members.', { exact: true }).count(), 1); assert.equal(await page.getByRole('button', { name: 'Invite', exact: true }).count(), 0);
   await publish({ roster: { data: [], existence: 'partial', complete: false, cut: 'offline', next: null, fresh: false } });
   assert.equal(await page.getByText('Roster incomplete (0 known); reconnect.', { exact: true }).count(), 1); assert.equal(await page.getByText('No members.', { exact: true }).count(), 0);
+  // The source's actual App starts hidden, uses GET, and trusts only the
+  // server's boolean development declaration even on a loopback backend.
+  for (const config of [{development:false},{development:'true'},{development:true},null]) {
+    await page.evaluate(() => window.showAccount());
+    assert.equal(await page.getByRole('button', {name:'Dev: alice',exact:true}).count(), 0, 'pending config hides personas');
+    await page.evaluate(value => window.finishConfig(value, value === null), config);
+    assert.equal(await page.getByRole('button', {name:'Dev: alice',exact:true}).count(), config?.development === true ? 1 : 0);
+    const state = await page.evaluate(() => window.inspectConfig());
+    assert.ok(state.requests.length > 0); assert.ok(state.requests.every(r => r.method === 'GET' && r.url.endsWith('/auth/config')));
+  }
+  await page.evaluate(() => window.showAccount());
+  await page.evaluate(() => window.finishConfig({development:true}));
+  await page.getByRole('button', {name:'Dev: alice',exact:true}).click();
+  await page.getByRole('button', {name:'Dev: bob',exact:true}).click();
+  await page.getByRole('button', {name:'Password or guest account',exact:true}).click();
+  await page.waitForFunction(() => window.inspectConfig().lifecycle.filter(r => r.name !== 'session').every(r => r.closes === 1));
+  const lifecycle = (await page.evaluate(() => window.inspectConfig())).lifecycle;
+  assert.ok(lifecycle.some(r => r.name === 'alice') && lifecycle.some(r => r.name === 'bob'));
+  assert.equal(lifecycle.find(r => r.name === 'session').closes, 0, 'session client remains available after switching back');
   await page.evaluate(() => window.finish()); assert.deepEqual(errors, []);
 });
