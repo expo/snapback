@@ -45,7 +45,7 @@ pub(super) fn engine_at(project: &Project, bound: &Bound, options: &Options, now
                 continue;
             }
             // @ref LLP 3000.011.003.000#7.4 — the starter's own unmodified sample is skipped loudly; a project's file for a missing table still refuses.
-            if super::init::starter_fixture(&name).is_some_and(|starter| std::fs::read_to_string(&path).is_ok_and(|text| text == starter)) {
+            if !options.flags.contains_key("source") && super::init::starter_fixture(&name).is_some_and(|starter| std::fs::read_to_string(&path).is_ok_and(|text| text == starter)) {
                 eprintln!("test: WARNING: skipped {} — the todo starter's unmodified sample rows for a `{table}` table your snapback/*.q does not declare; `snapback4 init --adapt` removes it and the starter's other leftovers", path.display());
                 continue;
             }

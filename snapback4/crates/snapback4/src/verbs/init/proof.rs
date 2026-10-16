@@ -18,10 +18,7 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, 
     for (name, text) in files.iter_mut() {
         if *name == "vite.config.mts" { *text = runtime_vite(text, backend, frontend); }
     }
-    // Social keeps account controls on its Profile tab; prove the actual route.
-    let mut proof = include_str!("frontend-proof.mjs").replace("// TEMPLATE_READY", if options.flags.get("template").is_some_and(|template| template == "social") {
-        "await page.getByText(\"Profile\", { exact: true }).click();"
-    } else { "" });
+    let proof = frontend_proof(include_str!("frontend-proof.mjs"), options.flags.get("template").map(String::as_str), web);
     let dir = options.positionals.first().map(std::path::Path::new).unwrap_or_else(|| std::path::Path::new("."));
     let sources = if let Ok(Some(own)) = super::own_schema(dir) {
         own.files.iter().filter_map(|name| std::fs::read_to_string(dir.join("snapback").join(name)).ok().map(|text| (name.clone(), text))).collect::<Vec<_>>()
@@ -49,26 +46,6 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, 
             files.push((path, text));
         }
     }
-    if options.flags.get("template").is_some_and(|template| template == "social") {
-        proof = proof.replace("getByLabel(\"Task\"", "getByLabel(\"Display name\"")
-            .replace("name: \"Add\"", "name: \"Save profile\"")
-            .replace("beginForm(\"add\", { title }", "beginForm(\"saveProfile\", { name: title }");
-    } else if options.flags.get("template").is_some_and(|template| template == "chat") {
-        proof = proof.replace("    const task =", r#"    const viewer = await page.evaluate(() => window.__snapback4Witness.viewer());
-    const seeded = await fetch(`${dev.url}/seed`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify([
-      { table: "conversations", row: { id: "proof-room", title: "Proof room", creatorId: viewer } },
-      { table: "memberships", row: { id: "proof-member", conversationId: "proof-room", principal: viewer, role: "admin", joinedAt: Date.now() } }
-    ]) });
-    assert.ok(seeded.ok, await seeded.text());
-    await page.getByText("Proof room", { exact: true }).click();
-    const task ="#)
-            .replace("page.getByLabel(\"Task\", { exact: true })", "page.getByPlaceholder(\"Message\", { exact: true })")
-            .replace("name: \"Add\"", "name: \"Send\"")
-            .replace("beginForm(\"add\", { title }", "beginForm(\"send\", { conversationId: \"proof-room\", body: title }");
-        // Chat receipts echo drafts. Restrict evidence to its message display.
-        if web { proof = proof.replace("renderedText(page, new RegExp(title))", "renderedText(page, new RegExp(title), { within: page.getByRole(\"region\", { name: \"Thread\" }) })"); }
-    }
-    proof = proof.replace("BUILD_SCRIPT", if web { "build" } else { "build:web" });
     files.push(("scripts/frontend-proof.mjs", proof));
     files.push(("scripts/day2-proof.mjs", include_str!("day2-proof.mjs").to_owned()));
     files.push(("scripts/launch.mjs", include_str!("launch.mjs").replace("BACKEND", &backend.to_string()).replace("FRONTEND", &frontend.to_string())));
@@ -90,6 +67,42 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, 
         *text = pretty(&package);
         let _ = name;
     }
+}
+
+fn frontend_proof(source: &str, template: Option<&str>, web: bool) -> String {
+    // Social keeps account controls on its Profile tab; prove the actual route.
+    let mut proof = source.replace("// TEMPLATE_READY", if template == Some("social") {
+        "await page.getByText(\"Profile\", { exact: true }).click();"
+    } else { "" });
+    if template == Some("social") {
+        proof = proof.replace("getByLabel(\"Task\"", "getByLabel(\"Display name\"")
+            .replace("name: \"Add\"", "name: \"Save profile\"")
+            .replace("beginForm(\"add\", { title }", "beginForm(\"saveProfile\", { name: title }");
+    } else if template == Some("chat") {
+        proof = proof.replace("    const task =", r#"    const viewer = await page.evaluate(() => window.__snapback4Witness.viewer());
+    const seeded = await fetch(`${dev.url}/seed`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify([
+      { table: "conversations", row: { id: "proof-room", title: "Proof room", creatorId: viewer } },
+      { table: "memberships", row: { id: "proof-member", conversationId: "proof-room", principal: viewer, role: "admin", joinedAt: Date.now() } }
+    ]) });
+    assert.ok(seeded.ok, await seeded.text());
+    await page.getByText("Proof room", { exact: true }).click();
+    const task ="#)
+            .replace("page.getByLabel(\"Task\", { exact: true })", "page.getByPlaceholder(\"Message\", { exact: true })")
+            .replace("name: \"Add\"", "name: \"Send\"")
+            .replace("beginForm(\"add\", { title }", "beginForm(\"send\", { conversationId: \"proof-room\", body: title }");
+        // Chat receipts echo drafts. Restrict evidence to its message display.
+        if web { proof = proof.replace("renderedText(page, new RegExp(title))", "renderedText(page, new RegExp(title), { within: page.getByRole(\"region\", { name: \"Thread\" }) })"); }
+    }
+    proof = proof.replace("BUILD_SCRIPT", if web { "build" } else { "build:web" });
+    proof
+}
+
+fn previous_frontend(dir: &std::path::Path, web: bool) -> Option<Option<&'static str>> {
+    let text = std::fs::read_to_string(dir.join("scripts/frontend-proof.mjs")).ok()?;
+    [None, Some("chat"), Some("social")].into_iter().find(|template| {
+        [include_str!("previous/frontend-proof-0.4.28.mjs"), include_str!("previous/frontend-proof-0.4.29.mjs")]
+            .iter().any(|source| text == frontend_proof(source, *template, web))
+    })
 }
 
 /// Adapt adds missing proof infrastructure, preserving files and script names
@@ -152,8 +165,14 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema) -> std::io::Re
             if normalized == reference { config_changes.push(("vite.config.mts", runtime_vite(&current, backend, numbers.first().copied().unwrap_or(5173)))); }
         }
     }
+    let inherited_frontend = previous_frontend(dir, web);
+    if let Some(template) = inherited_frontend {
+        if let Some((_, text)) = generated.iter_mut().find(|(name, _)| *name == "scripts/frontend-proof.mjs") {
+            *text = frontend_proof(include_str!("frontend-proof.mjs"), template, web);
+        }
+    }
     let mut additions: Vec<_> = generated.into_iter().skip(1)
-        .filter(|(name, _)| !dir.join(name).exists() || (*name == "scripts/frontend-proof.mjs" && std::fs::read_to_string(dir.join(name)).ok().is_some_and(|text| text == include_str!("previous/frontend-proof-0.4.28.mjs").replace("// TEMPLATE_READY", "") || text == include_str!("previous/frontend-proof-0.4.29.mjs").replace("// TEMPLATE_READY", ""))) || (*name == "scripts/day2-proof.mjs" && std::fs::read_to_string(dir.join(name)).ok().is_some_and(|text| text == include_str!("previous/day2-proof-0.4.28.mjs") || text == include_str!("previous/day2-proof-0.4.29.mjs")))) .collect();
+        .filter(|(name, _)| !dir.join(name).exists() || (*name == "scripts/frontend-proof.mjs" && inherited_frontend.is_some()) || (*name == "scripts/day2-proof.mjs" && std::fs::read_to_string(dir.join(name)).ok().is_some_and(|text| text == include_str!("previous/day2-proof-0.4.28.mjs") || text == include_str!("previous/day2-proof-0.4.29.mjs")))) .collect();
     additions.extend(config_changes);
     if package != original { additions.push(("package.json", pretty(&package))); }
     Ok(additions)
@@ -194,4 +213,41 @@ process.env.VITE_SNAPBACK_URL ??= `http://127.0.0.1:${{backendPort}}`;
     // All generated configurations have literal ports; preserve unrelated config.
     for port in [frontend, 5173, 4173] { result = result.replace(&format!("port: {port}"), "port: frontendPort"); }
     format!("{header}{result}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn historical_frontend_templates_keep_assertions_and_gain_their_own_build() {
+        for (version, source) in [
+            (28, include_str!("previous/frontend-proof-0.4.28.mjs")),
+            (29, include_str!("previous/frontend-proof-0.4.29.mjs")),
+        ] {
+            for web in [false, true] {
+                for template in [None, Some("chat"), Some("social")] {
+                    let dir = std::env::temp_dir().join(format!("day3-historical-proof-{}-{version}-{web}-{template:?}", std::process::id()));
+                    std::fs::create_dir_all(dir.join("snapback")).unwrap();
+                    std::fs::create_dir_all(dir.join("scripts")).unwrap();
+                    let screen = if web { "src/App.tsx" } else { "App.tsx" };
+                    std::fs::create_dir_all(dir.join(screen).parent().unwrap()).unwrap();
+                    std::fs::write(dir.join(screen), "// screen").unwrap();
+                    std::fs::write(dir.join("package.json"), r#"{"scripts":{}}"#).unwrap();
+                    std::fs::write(dir.join("snapback/schema.q"), "query alive():\n  return true\n").unwrap();
+                    let path = dir.join("scripts/frontend-proof.mjs");
+                    std::fs::write(&path, frontend_proof(source, template, web)).unwrap();
+                    let own = super::super::own_schema(&dir).unwrap().unwrap();
+                    let changes = plan(&dir, &own).unwrap();
+                    let updated = &changes.iter().find(|(name, _)| *name == "scripts/frontend-proof.mjs").unwrap().1;
+                    assert_eq!(updated, &frontend_proof(include_str!("frontend-proof.mjs"), template, web));
+                    assert!(updated.contains(if web { "[\"run\", \"build\"]" } else { "[\"run\", \"build:web\"]" }));
+                    if template == Some("social") { assert!(updated.contains("Save profile") && updated.contains("getByText(\"Profile\"")); }
+                    if template == Some("chat") { assert!(updated.contains("Proof room") && updated.contains("name: \"Send\"")); }
+                    std::fs::write(path, format!("{}\n// app-owned assertion\n", frontend_proof(source, template, web))).unwrap();
+                    assert!(!plan(&dir, &own).unwrap().iter().any(|(name, _)| *name == "scripts/frontend-proof.mjs"));
+                    std::fs::remove_dir_all(dir).unwrap();
+                }
+            }
+        }
+    }
 }

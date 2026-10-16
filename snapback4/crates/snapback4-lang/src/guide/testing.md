@@ -208,7 +208,7 @@ release switch alone proves no business invariant.
 `rollback(dir, target)` requires an immutable release number or `latest`.
 Neither swaps working files. `testSource("versions/v1")` and
 `test --source versions/v1` default to versions/v1/fixtures/. For a standalone
-versions/v1.q, the contemporary directory is versions/v1-fixtures/. An explicit
+versions/v1.q, the contemporary directory is versions/v1-fixtures/. For saved-source tests, explicit
 `--fixture dir` always wins and validates every row and case strictly.
 Without contemporary fixtures, saved-source testing validates only working
 fixture files whose tables the saved source declares; it names skipped table

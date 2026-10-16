@@ -169,3 +169,12 @@ fn every_baseline_failure_reports_absolute_location_and_original_root() {
         assert!(text.contains(app.0.join("versions/v1").to_str().unwrap()) && text.contains("resolved from") && text.contains("snapback/client-compatibility.json") && text.contains("project root"), "{result:?}");
     }
 }
+#[test]
+fn explicit_saved_source_fixtures_never_skip_even_exact_starter_sample_rows() {
+    let app = App::new(); app.write("snapback/schema.q", V1); app.write("versions/v1/schema.q", V1);
+    app.write("chosen/todos.jsonl", include_str!("../src/verbs/init/starter/fixtures/todos.jsonl"));
+    let output = app.run(&["test", "--source", "versions/v1", "--fixture", "chosen"]);
+    assert!(!output.status.success(), "{output:?}");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("todos.jsonl") && stderr.contains("nothing was run"), "{output:?}");
+}
