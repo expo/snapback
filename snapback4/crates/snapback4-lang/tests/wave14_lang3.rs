@@ -86,6 +86,11 @@ fn proven_rosters_survive_unrelated_writes_but_not_roster_changes() {
     assert!(!checked(&after_delete).notes.iter().any(|n|n.code=="N_UNREADABLE_PROBE"));
     let b=checked(&source.replace("  update docs[d] { n: 1 }","  delete staff[viewer]"));
     assert!(b.notes.iter().any(|n|n.code=="N_UNREADABLE_PROBE"));
+    for revoke in ["base revoke", "base { ...revoke }"] {
+        let shaped=source.replace("mutation m(d: docs):", "shape revoke = { gone: delete staff[viewer] }\nmutation m(d: docs):")
+            .replace("  update docs[d] { n: 1 }", &format!("  base = {{ n: 1 }}\n  revoked = {revoke}"));
+        assert!(checked(&shaped).notes.iter().any(|n|n.code=="N_UNREADABLE_PROBE"));
+    }
 }
 #[test]
 fn private_parent_cap_rewrite_keeps_all_original_audiences() {
@@ -159,4 +164,47 @@ fn the_actual_pre_wave_private_composite_upsert_refuses_only_the_changing_clock(
     let uncertain=source.replace("mutation react(post: posts, emoji: text 1..20)","mutation react(post: posts, emoji: text 1..20, at: time)")
         .replace("emoji, at: now", "emoji, at");
     assert!(checked(&uncertain).notes.iter().any(|n|n.code=="N_IMMUTABLE_PATCH"));
+}
+
+#[test]
+fn lookup_and_reference_advice_follow_the_exact_successful_point() {
+    let source="table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  owner: principal\n  n: int\n  read <- .owner = viewer\n  update <- exists staff[viewer]\n  online only\nmutation m(d: docs):\n  require exists staff[viewer] else NO\n  update docs[d] { n: 1 }\n  return null\n";
+    assert!(checked(source).notes.iter().any(|n|n.code=="N_LOOKUP_HIDDEN"));
+    let guarded=source.replace("  update docs[d]", "  require exists docs[d] else NOT_FOUND\n  update docs[d]");
+    assert!(!checked(&guarded).notes.iter().any(|n|n.code=="N_LOOKUP_HIDDEN"));
+    for guard in ["row = docs[d] ! else NOT_FOUND", "require exists docs[id = d, owner = viewer] else NOT_FOUND"] {
+        let exact=guarded.replace("require exists docs[d] else NOT_FOUND",guard);
+        assert!(!checked(&exact).notes.iter().any(|n|n.code=="N_LOOKUP_HIDDEN"));
+    }
+    let wrong=guarded.replace("m(d: docs)", "m(d: docs, other: docs)")
+        .replace("require exists docs[d]", "require exists docs[other]");
+    assert!(checked(&wrong).notes.iter().any(|n|n.code=="N_LOOKUP_HIDDEN"));
+    let rebound=guarded.replace("m(d: docs)", "m(d: docs, other: docs)")
+        .replace("  require exists docs[d]", "  key = d\n  require exists docs[key]")
+        .replace("  update docs[d]", "  key = other\n  update docs[key]");
+    assert!(checked(&rebound).notes.iter().any(|n|n.code=="N_LOOKUP_HIDDEN"));
+    let nested=guarded.replace("update docs[d] { n: 1 }", "update docs[d] { n: (update docs[d] { n: 2 }).n ?? 0 }");
+    assert!(checked(&nested).notes.iter().any(|n|n.code=="N_LOOKUP_HIDDEN"));
+    for later in ["update docs[other] { n: 2 }", "key = other\n  update docs[key] { n: 2 }", "update docs[other] { n: (update docs[other] { n: 2 }).n ?? 0 }"] {
+        let two=guarded.replace("m(d: docs)", "m(d: docs, other: docs)")
+            .replace("  require exists docs[d]", "  key = d\n  require exists docs[key]")
+            .replace("  update docs[d]", "  update docs[key]")
+            .replace("  return null", &format!("  {later}\n  return null"));
+        let b=checked(&two);
+        let notes=b.notes.iter().filter(|n|n.code=="N_LOOKUP_HIDDEN").collect::<Vec<_>>();
+        assert_eq!(notes.len(),1,"{two}\n{:?}",b.notes);
+        let line=two.lines().enumerate().filter(|(_,line)|line.contains("update docs[")).last().unwrap().0+1;
+        assert_eq!(notes[0].site.line as usize,line,"the note must name the later unguarded write");
+    }
+    let refs="table parents:\n  n: int\n  public\n  update <- allow\n  online only\ntable children:\n  parent: parents\n  public\n  insert <- allow\n  online only\nmutation m(p: parents):\n  return insert children { parent: p }\n";
+    assert!(checked(refs).notes.iter().any(|n|n.code=="N_REFERENCE_UNCHECKED"));
+    let updated=refs.replace("  return insert", "  update parents[p] { n: 1 }\n  return insert");
+    assert!(!checked(&updated).notes.iter().any(|n|n.code=="N_REFERENCE_UNCHECKED"));
+    let helper=refs.replace("mutation m(p: parents):", "fn touch(p: parents):\n  update parents[p] { n: 1 }\n  return null\nmutation m(p: parents):")
+        .replace("  return insert", "  touch(p)\n  return insert");
+    assert!(!checked(&helper).notes.iter().any(|n|n.code=="N_REFERENCE_UNCHECKED"));
+    let conditional=helper.replace("touch(p: parents)","touch(p: parents, ok: bool)")
+        .replace("  update parents[p] { n: 1 }", "  if ok:\n    update parents[p] { n: 1 }")
+        .replace("m(p: parents)","m(p: parents, ok: bool)").replace("  touch(p)","  touch(p, ok)");
+    assert!(checked(&conditional).notes.iter().any(|n|n.code=="N_REFERENCE_UNCHECKED"));
 }
