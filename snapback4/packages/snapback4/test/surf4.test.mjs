@@ -107,3 +107,12 @@ test('JavaScript implementations hidden by declarations retain their runtime imp
  await ok(['deploy','deployment'],cwd);writeFileSync(join(cwd,'src/value.js'),'throw Error("mutable implementation");\n');
  const host=await startServe('deployment',{cwd});try{await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_RUNTIME_GRAPH'),'declaration hid runtime graph',()=>readFileSync(host.logs.stderr,'utf8'))}finally{await host.stop();}
 });
+
+test('temporary-root aliases preserve captured outside imports after relocation', {timeout:60000},async t=>{
+ const cwd=fixture(t);mkdirSync(join(cwd,'temporary'));symlinkSync(join(cwd,'temporary'),join(cwd,'temporary-alias'));
+ writeFileSync(join(cwd,'helper.mjs'),'export const marker="SURF4_TEMP_ALIAS";\n');
+ writeFileSync(join(cwd,'snapback/server.mjs'),`import {marker} from '../helper.mjs';console.log(marker);setInterval(()=>{},1000);\n`);
+ const deployed=await cli(['deploy','deployment'],{cwd,env:{TMPDIR:join(cwd,'temporary-alias')}});assert.equal(deployed.code,0,deployed.stdout+deployed.stderr);
+ writeFileSync(join(cwd,'helper.mjs'),'throw Error("working source");\n');
+ const host=await startServe('deployment',{cwd});try{await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_TEMP_ALIAS'),'temporary alias dropped imports',()=>readFileSync(host.logs.stderr,'utf8'))}finally{await host.stop();}
+});

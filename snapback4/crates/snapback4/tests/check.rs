@@ -1568,7 +1568,7 @@ fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
         let (_, default) = guide(&[keyword]);
         if card.lines().count() > snapback4_lang::guide::FULL_LINES {
             let (title, body)=full.split_once('\n').unwrap();
-            assert!(default.starts_with(title) && default.ends_with(body), "{keyword}: piped output preserves the complete card body");
+            assert!(default.starts_with(&format!("{title}\n{body}")), "{keyword}: piped output preserves the complete card body");
             let canonical = snapback4_lang::guide::resolve(keyword).unwrap_or(keyword);
             assert!(default.contains(&format!("{canonical}: ")), "{keyword}: piped output adds its canonical index");
             let section_flag = if snapback4_lang::guide::sections(card).is_empty() { "--full" } else { "--section" };

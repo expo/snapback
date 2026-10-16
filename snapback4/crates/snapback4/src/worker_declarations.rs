@@ -169,7 +169,12 @@ pub(crate) fn package_entry(project: &Project, stage: &Path) -> Result<(), Strin
         let dependencies: Vec<Dependency> = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
         let root = project.root.canonicalize().map_err(|e| e.to_string())?;
         let relative: Vec<Dependency> = dependencies.into_iter().filter_map(|(path, state)| {
-            let relative = path.strip_prefix(&root).ok()?;
+            // macOS's temporary path may spell /var while the pinned root is
+            // /private/var. Normalize ancestors without following the leaf.
+            let located = path.parent().zip(path.file_name())
+                .and_then(|(parent, name)| parent.canonicalize().ok().map(|parent| parent.join(name)))
+                .unwrap_or(path);
+            let relative = located.strip_prefix(&root).ok()?;
             if relative.components().any(|part| part.as_os_str() == "node_modules") { return None; }
             // Stat data is checker-local evidence, not executable release identity.
             Some((relative.to_owned(), state.map(|_| ("captured".into(), "captured".into()))))
