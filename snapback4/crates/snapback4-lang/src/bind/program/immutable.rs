@@ -11,6 +11,10 @@ impl Binder<'_> {
         let stable = self.scopes.iter().flat_map(|scope|scope.values()).filter(|binding|binding.parameter).map(|binding|binding.runtime.clone()).collect::<BTreeSet<_>>();
         let components = key.key.iter().map(|value| resolve(value, prior, 32, &stable)).collect::<Vec<_>>();
         let target = components.iter().cloned().collect::<Option<Vec<_>>>();
+        // A fresh, unused component of this unique identity cannot conflict.
+        // Its payload initializes a row; immutable equality is never tested.
+        if upsert && key.key.iter().zip(&components).any(|(raw,value)|
+            matches!(raw,Expr::Input(Input::NewId)) || value.as_ref().is_some_and(|value|fresh_capture(value,prior))) { return Ok(()); }
         let stored = inserted_target(info, index, target.as_deref(), prior, &stable);
         // A hidden target ignores immutable fields. A value mismatch alone
         // cannot prove refusal when some callers may not read the target.

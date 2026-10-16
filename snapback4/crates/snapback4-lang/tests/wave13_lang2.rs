@@ -515,3 +515,12 @@ fn job_viewer_blocks_invalidate_literal_object_and_freshness_proofs() {
         immutable_note(&format!("{base}job change():\n  for p in profiles:\n    key = {{ code: 1 }}\n    as p.principal:\n      key = {{ code: {value} }}\n    update entries[code = key.code] {{ code: 1 }}\n"));
     }
 }
+
+#[test]
+fn upserts_with_proven_fresh_unused_identities_are_insert_only_and_quiet() {
+    let source = format!("{IMMUTABLE}mutation create():\n  key = new\n  upsert entries[key] {{ owner: viewer, frozen: 'first', token: new, at: now, body: 'saved' }}\n  return null\n");
+    quiet(&source);
+    let mut e = engine(&source);
+    let out = e.mutate("create",Some("create"),Context::new("alice",Default::default()).with_ids(vec!["entry".into(),"token".into()])).unwrap();
+    assert!(matches!(out.state,snapback4_core::WriteState::Sent { .. }),"{out:?}");
+}

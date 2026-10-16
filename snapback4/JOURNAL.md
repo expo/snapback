@@ -95855,3 +95855,8 @@ Opaque expression blocks can assign caller locals even without table writes
 proofs now stop at those barriers. Native/simulator regressions execute both
 the equal and differing literal cases and check that a stored id read inside
 `as` never inherits the freshness of an overwritten local.
+
+A proven fresh unused component of an upsert's unique identity establishes an
+insert-only operation. Its initial immutable values stay quiet, including a
+second minted id and creation clock. Ordinary insert constraints still apply;
+a write or opaque effect after the capture prevents claiming this absence.
