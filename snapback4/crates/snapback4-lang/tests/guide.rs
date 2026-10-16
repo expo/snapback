@@ -1153,19 +1153,21 @@ fn the_listing_fits_a_screen_and_aliases_have_their_own_command() {
 // piped `guide <card>` (an agent's tool) also prints the first section; the
 // terminal form keeps the short index.
 #[test]
-fn a_piped_overview_carries_the_first_section_and_the_terminal_one_the_index() {
+fn terminal_and_compatibility_overviews_carry_the_first_nonempty_section() {
     for name in KEYWORDS {
         let text = card(name).unwrap();
         let (Some(short), Some(piped)) = (guide::overview(name, text), guide::overview_and_first_section(name, text)) else { continue };
         assert_eq!(short, piped, "{name}: terminal overview also carries the first section");
         assert!(piped.lines().count() <= 150, "{name}: {} lines piped", piped.lines().count());
-        let first = &guide::sections(text)[0];
+        let sections = guide::sections(text);
+        let (number, first) = sections.iter().enumerate().find(|(_, section)| text.lines().skip(section.2 + 1).take(section.3 - section.2 - 1).any(|line| !line.trim().is_empty())).unwrap();
+        let number = number + 1;
         let heading = text.lines().nth(first.2).unwrap();
-        assert!(piped.contains(&format!("\n\n{heading}\n")), "{name}: section 1 ({heading}) is printed");
+        assert!(piped.contains(&format!("\n\n{heading}\n")), "{name}: section {number} ({heading}) is printed");
         let (opening, index) = piped.split_once("\n\nSections of guide ").unwrap();
         assert!(opening.contains(heading) && index.ends_with(&format!("--full prints all {} lines", text.lines().count())), "{name}");
         assert!(short.starts_with(text.lines().next().unwrap()) && piped.starts_with(text.lines().next().unwrap()));
-        if first.3 - first.2 > 80 { assert!(piped.contains(&format!("… section 1 ({}) continues for ", first.1)) && piped.contains(&format!("snapback4 guide {name} --section 1")), "{name}: a long first section says how to read the rest"); }
+        if first.3 - first.2 > 80 { assert!(piped.contains(&format!("… section {number} ({}) continues for ", first.1)) && piped.contains(&format!("snapback4 guide {name} --section {number}")), "{name}: a long first section says how to read the rest"); }
     }
 }
 
