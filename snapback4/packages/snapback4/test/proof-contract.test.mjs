@@ -12,7 +12,7 @@ const witnessSource = readFileSync(join(dist, 'witness-web.js'), 'utf8');
 async function browser(t, run) {
   const cwd = mkdtempSync(join(tmpdir(), 'kit2-contract-'));
   t.after(() => rmSync(cwd, {recursive:true,force:true}));
-  await kit.withBrowser({cwd, executablePath:chromiumExecutable()}, async context => run(await context.newPage()));
+  await kit.withBrowser({cwd, executablePath:process.env.CHROME ?? chromiumExecutable()}, async context => run(await context.newPage()));
 }
 test('H9 renderedText opts into substring matching for a row with more than the needle', {timeout:30000}, async t => browser(t, async page => {
   await page.setContent('<section aria-label="Rows"><p>Proof needle — more row text</p><input value="Proof needle"></section>');
