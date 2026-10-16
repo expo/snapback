@@ -683,7 +683,7 @@ fn w3_hidden_maintain_overflow_never_serializes_the_retained_contribution() {
         seed(&mut e, "records", vec![row("target", "lookup", "alice", contribution, "A"), row("balance", "balance", "alice", snapback4_core::value::I53_MAX, "B")]);
         let (_, observation) = observed(&mut e, "move", "bob", json!({"key":"lookup"}), "same");
         assert_eq!(observation.body()["why"]["code"], "E_OVERFLOW");
-        assert_eq!(observation.body()["why"]["message"], "E_OVERFLOW: maintain totals.value overflowed");
+        assert_eq!(observation.body()["why"]["message"], "maintain totals.value overflowed");
         observation.assert_unchanged();
         observations.push(observation);
     }
@@ -793,7 +793,7 @@ fn w3_live_aggregate_overflow_uses_the_same_value_free_refusal() {
             json!({"id":"a","group":"g","amount":snapback4_core::value::I53_MAX,"until":null}), json!({"id":"b","group":"g","amount":contribution,"until":null})]);
         let (_, observation) = observed(&mut e, "live", "bob", json!({}), "same");
         assert_eq!(observation.body()["why"]["code"], "E_OVERFLOW");
-        assert_eq!(observation.body()["why"]["message"], "E_OVERFLOW: maintain sums.value overflowed");
+        assert_eq!(observation.body()["why"]["message"], "maintain sums.value overflowed");
         observations.push(observation);
     }
     equal_observations(&observations);

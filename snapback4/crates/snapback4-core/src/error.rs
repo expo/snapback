@@ -256,6 +256,7 @@ impl RuntimeError {
         !self.is_store_failure()
     }
 
+    // @ref LLP 3000.000.000.000.000#7 — structured messages omit the code rendered by Refusal Display.
     pub fn refusal(&self) -> Refusal {
         let text = self.to_string();
         let prefix = format!("{}: ", self.code());

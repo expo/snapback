@@ -1,4 +1,5 @@
 //! Low-level worker capture needs Node, without imposing a TypeScript toolchain.
+// @ref LLP 3000.000.000.000.000#7 — capture the runtime closure while keeping the Node-only worker toolchain.
 use crate::project::Project;
 use std::{collections::{BTreeMap, BTreeSet}, path::{Path, PathBuf}, process::{Command, Stdio}, io::Read, time::{Duration, Instant}};
 use oxc_ast::ast::{Argument, CallExpression, ExportAllDeclaration, ExportFromDeclaration, Expression, ImportDeclaration, ImportExpression, ImportOrExportKind, TSType};

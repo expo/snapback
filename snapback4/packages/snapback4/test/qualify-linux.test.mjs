@@ -411,3 +411,8 @@ test('listener evidence refuses malformed named records and empty or incomplete 
   const frontend=structuredClone(evidence);frontend[0].frontendProofs[0].listenerAudit=change(audit());assert.throws(()=>validateStarterProofs(frontend),/proof/);
  }
 });
+
+
+test("every clean distribution can execute the Node 24 worker contract", () => {
+  for (const distribution of prootDistributions) assert.equal(Number(distribution.node.split(".")[0]), 24, distribution.base);
+});
