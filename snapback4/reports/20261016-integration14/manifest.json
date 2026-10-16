@@ -1,6 +1,6 @@
 {
   "checkpoint": "pre-LANG2; no release qualification claim",
-  "capturedAt": "2026-10-16T15:12:06.295119+00:00",
+  "capturedAt": "2026-10-16T16:32:15.635281+00:00",
   "laneReports": {
     "day3": {
       "path": "/home/ccheever/projects/sb4-w13-day3/WORKSTREAM-REPORT.md",
@@ -28,7 +28,41 @@
       "branchHead": "f6c7e6d747aec3663322f66925cadc5210fc91d1"
     }
   },
-  "fullRuns": "in progress; final logs will follow",
+  "fullRuns": {
+    "native": {
+      "status": "passed",
+      "command": "cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast",
+      "environment": {
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0"
+      },
+      "log": "cargo-full-4.log.gz",
+      "productCommit": "37ac4b8730800202425f55d2b4ff53304ae45609"
+    },
+    "client": {
+      "status": "passed",
+      "files": 407,
+      "pooledFiles": 405,
+      "modelFiles": 2,
+      "pooledTests": 7649,
+      "pooledPassed": 7593,
+      "pooledSkipped": 56,
+      "modelTests": 81,
+      "modelPassed": 81,
+      "failures": 0,
+      "log": "client-full-3.log.gz",
+      "globalBinary": "snapback4/target/debug/snapback4",
+      "testOnlyFollowupCommit": "3fcad43718974bc4d8f16651f5bcc237731d73e3"
+    },
+    "earlierRuns": {
+      "cargo-full-1": "failed; all four failed tests repaired before final full run",
+      "cargo-full-2": "interrupted to incorporate fixes",
+      "cargo-full-3": "interrupted to incorporate fixes",
+      "client-full-1": "failed; integration assertions and mocks repaired",
+      "client-full-2": "interrupted to incorporate legacy Expo assertion fix"
+    }
+  },
   "wasm": {
     "raw": 2355193,
     "gzip": 717515,
@@ -44,5 +78,49 @@
       "bun exact.mjs test web"
     ],
     "testsPassed": 2
-  }
+  },
+  "rootChecks": {
+    "inventories": "passed",
+    "guide": "22 passed, 0 skipped/precondition failures",
+    "refs": "550 LLPs, 11958 refs, 0 errors/unchecked",
+    "docsBudget": "passed, README317/320"
+  },
+  "survey": {
+    "schemas": 100,
+    "passed": 100,
+    "findings": 298,
+    "originalHashesUnchanged": true,
+    "rules3ComparableNotesBefore": 317,
+    "rules3ComparableNotesAfter": 296,
+    "removedFixtureArgumentDrift": 21,
+    "newlyHydrated087Notes": 2,
+    "LANG2": "pending authorized merge"
+  },
+  "linuxPacked": {
+    "status": "passed",
+    "mode": "consumer-only",
+    "publicationQualified": false,
+    "routes": [
+      "ubuntu24.04-proot",
+      "alpine-proot"
+    ],
+    "frontendProofs": 12,
+    "starterProofs": 6,
+    "allMergedH9": "passed"
+  },
+  "mac": {
+    "status": "passed all corrected full targets and platform-sensitive pool",
+    "correctedFullTargetTests": 317,
+    "clientFiles": 53,
+    "clientPassed": 910,
+    "clientSkipped": 14,
+    "initialFiveCrateRun": "7 failures; fixed and affected targets fully rerun",
+    "wholeFiveCrateRerunAfterFixes": false
+  },
+  "deferred": [
+    "LANG2 merge pending coordinator authorization",
+    "P17/P18/capability/upgrade release prose",
+    "0.4.30 bump",
+    "post-LANG2 required reruns and final version-bound pack/upgrade/Exact"
+  ]
 }
