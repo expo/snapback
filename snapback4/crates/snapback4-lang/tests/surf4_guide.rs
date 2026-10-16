@@ -21,3 +21,15 @@ fn blind_update_explanations_agree() {
     let rules = guide::card("rules").unwrap();
     assert!(rules.contains("A blind update or upsert-patch needs no read rule"));
 }
+
+#[test]
+fn release_json_reference_is_discoverable_without_growing_the_deploy_card() {
+    let deploy = guide::card("deploy").unwrap();
+    assert!(deploy.lines().count() <= 150);
+    assert!(deploy.contains("guide release-json"));
+    let reference = guide::card("release-json").unwrap();
+    for field in ["release", "previous_active", "latest", "generation", "revision", "native_digest", "events_after", "items_after", "workers", "selected"] {
+        assert!(reference.contains(field), "missing release JSON field {field}");
+    }
+    assert!(reference.contains("startServe") && reference.contains("timeoutMs"));
+}
