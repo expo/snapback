@@ -11,6 +11,7 @@ mod starter;
 mod adapt;
 mod ports;
 mod proof;
+mod proof_advice;
 pub(crate) use adapt::{report as starter_leftovers, report_json as starter_leftovers_json};
 
 fn usage() -> String { format!("usage: {}", crate::cli_flags::synopsis("init")) }
@@ -19,12 +20,12 @@ pub fn init(options: &Options) -> i32 {
     let usage = usage();
     // @ref LLP 3000.011.003.000#7.2 — the init-first path: fit the starter already written to the schema written since.
     if options.flags.contains_key("adapt") {
-        if options.positionals.len() > 1 || options.flags.keys().any(|flag| !matches!(flag.as_str(), "adapt" | "web" | "expo" | "dry-run" | "apply")) {
+        if options.positionals.len() > 1 || options.flags.keys().any(|flag| !matches!(flag.as_str(), "adapt" | "web" | "expo" | "dry-run" | "apply" | "day2")) {
             eprintln!("{usage}\n  --adapt fits the starter files init wrote to your snapback/*.q; it takes no other starter flags");
             return 2;
         }
         if options.flags.contains_key("dry-run") && options.flags.contains_key("apply") { eprintln!("E_INPUT: --dry-run and --apply are mutually exclusive"); return 2; }
-        return adapt::adapt(options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new(".")), options.flags.contains_key("dry-run"), options.flags.contains_key("apply"));
+        return adapt::adapt(options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new(".")), options.flags.contains_key("dry-run"), options.flags.contains_key("apply"), options.flags.contains_key("day2"));
     }
     let template = options.flags.get("template").map(String::as_str);
     let modes = ["online", "expo", "web"].iter().filter(|flag| options.flags.contains_key(**flag)).count();
@@ -54,6 +55,13 @@ pub fn init(options: &Options) -> i32 {
         return 2;
     }
     let online_web = modes == 2 && options.flags.contains_key("online") && options.flags.contains_key("web");
+    if options.flags.contains_key("expo") && options.flags.contains_key("online") {
+        eprintln!("{usage}\nE_INPUT: --expo already selects the online client in Expo Go and for schemas without synced tables; --online is the backend/web starter selection. Use `snapback4 init --expo`, then declare online-only tables for an entirely online app.");
+        return 2;
+    }
+    if options.flags.contains_key("day2") && !(social || options.flags.contains_key("web") || options.flags.contains_key("expo")) {
+        eprintln!("E_INPUT: --day2 adds saved-release proofs to a UI starter; use `snapback4 init --web --day2` or `snapback4 init --expo --day2`"); return 2;
+    }
     if options.positionals.len() > 1 || (modes > 1 && !online_web) || options.flags.contains_key("recipe") || options.flags.contains_key("dry-run") || options.flags.contains_key("apply") {
         eprintln!("{usage}");
         return 2;

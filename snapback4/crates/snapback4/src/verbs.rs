@@ -32,6 +32,7 @@ pub(crate) const CASES_FILE: &str = test_cases::FILE;
 mod adoption;
 mod package_versions;
 mod check_surface;
+mod saved_fixture_drift;
 mod upgrade_history;
 #[cfg(test)]
 mod hand_tests;
@@ -282,6 +283,9 @@ pub fn check(options: &Options) -> i32 {
         Ok(bound) => bound,
         Err(code) => return code,
     };
+    for warning in saved_fixture_drift::warnings(&project) {
+        eprintln!("check: WARNING: saved fixture drift: {warning}");
+    }
     if options.flags.contains_key("fix") && bound.diagnostics.is_empty() {
         if let Err(error) = fix_fixtures::run(&project, &bound, options) { eprintln!("check --fix: {error}"); return 2; }
     }

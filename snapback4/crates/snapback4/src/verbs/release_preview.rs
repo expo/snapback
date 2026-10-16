@@ -57,6 +57,7 @@ pub(super) fn preview(
     let mut hazards=Vec::new();
     let mut notes=Vec::new();
     let prior:Option<(String,String)>=store.conn().query_row("SELECT schema,programs FROM _generations WHERE generation=(SELECT CAST(value AS INTEGER) FROM _meta WHERE key='generation')",[],|r|Ok((r.get(0)?,r.get(1)?))).ok();
+    let prior_schema=prior.as_ref().map(|(schema,_)|serde_json::from_str::<snapback4_core::Schema>(schema).map_err(|e|e.to_string())).transpose()?;
     if let Some((schema,programs))=prior {
         let prior:snapback4_core::Schema=serde_json::from_str(&schema).map_err(|e|e.to_string())?;
         steps=snapback4_core::successor::classify(&prior,&candidate_schema);
@@ -67,7 +68,8 @@ pub(super) fn preview(
             if let Some(warning) = line.strip_prefix("WARNING ") { hazards.push(warning.to_owned()); }
             else { notes.push(line.trim_start_matches("note: ").to_owned()); }
         }
-        let (behavior_warnings, behavior_notes) = super::release_narration::behavior(store_path, &store, &prior, &candidate_schema, &programs, &candidate_programs, &project, held["release"].as_u64(), &target_label)?;
+        let rollback=!options.flags.contains_key("deploy-direction");
+        let (behavior_warnings, behavior_notes) = super::release_narration::behavior(store_path, &store, &prior, &candidate_schema, &programs, &candidate_programs, &project, held["release"].as_u64(), &target_label, rollback)?;
         hazards.extend(behavior_warnings); notes.extend(behavior_notes);
         for name in prior.tables.keys().filter(|name|!candidate_schema.tables.contains_key(*name) && prior.maintain_for(name).is_none() && prior.tables[*name].ephemeral.is_none()) {
             let count:u64=store.conn().query_row("SELECT COUNT(*) FROM r WHERE t=(SELECT num FROM _catalog WHERE name=?1)",[name],|r|r.get::<_,i64>(0).map(|n|n as u64)).map_err(|e|e.to_string())?;
@@ -95,7 +97,7 @@ pub(super) fn preview(
     )
     .map_err(|e| e.to_string())?;
     let items: Vec<snapback4_core::store::DormantItem> = serde_json::from_value(planned["items"].clone()).map_err(|e| e.to_string())?;
-    let mut effects = super::release_safeguards::warnings(engine.store(), &candidate_schema, &candidate_programs, &items, release)?;
+    let mut effects = super::release_safeguards::warnings(engine.store(),prior_schema.as_ref(),&candidate_schema,&candidate_programs,&items,release,!options.flags.contains_key("deploy-direction"))?;
     effects.append(&mut hazards); hazards=effects;
     for fill in &engine.store().adoption_report.backfills { notes.push(format!("backfill: {fill}; confirm these historical values before selecting release {release}")); }
     steps.retain(|step|!step.message.contains("engine capture"));

@@ -155,6 +155,7 @@ pub(crate) fn help(verb: &str) -> String {
             (_, "web") => " — generate a Vite and React web starter",
             (_, "expo") => " — generate an Expo starter",
             (_, "skip-existing") => " — keep existing files and generate only missing ones",
+            (_, "day2") => " — opt in to saved-release sources, fixtures and day2:proof",
             (_, "adapt") => " — preview fitting unmodified starter files to the current schema",
             (_, "dry-run") => " — preview the starter adaptation without writing files",
             (_, "apply") => " — apply the starter adaptation plan",

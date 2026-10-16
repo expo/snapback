@@ -1,0 +1,127 @@
+{
+  "full-cargo": {
+    "sha256": "3e72265ea24416c13f0e37f22eefa1ff4728266659b03200c1ef3ac1ca019f99",
+    "rawBytes": 99898,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/full-cargo.log.gz"
+  },
+  "mac-final-tests": {
+    "sha256": "b276bd9ceaa46a357c9cbd6a1384856a6fc1c99ab9881e904fb92fd893facbd0",
+    "rawBytes": 31679,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/mac-final-tests.log.gz"
+  },
+  "full-cargo-r2": {
+    "sha256": "6005f3df335c868c6a45c400b7757ffc391b9cc01a953a253707d2f90f961a3a",
+    "rawBytes": 597290,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/full-cargo-r2.log.gz"
+  },
+  "lang-sim-final": {
+    "sha256": "59b3c6bdf0e11b682ebfe242b013749e02955bf819e47366b046653d4dd00c50",
+    "rawBytes": 269184,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/lang-sim-final.log.gz"
+  },
+  "core-device-docs-final": {
+    "sha256": "eea7ffc7026e630fc094cc974970018c2e97853238bf8989e6408791fc085e0b",
+    "rawBytes": 3592,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/core-device-docs-final.log.gz"
+  },
+  "final-affected-rust": {
+    "sha256": "f9a7bf97c417aeb39db61eea365651da76cf1bd0937e4c10e7684d3180fc7e87",
+    "rawBytes": 16248,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/final-affected-rust.log.gz"
+  },
+  "client-final-r2": {
+    "sha256": "efba0ce0a96d5c2ee9bc5bd4f7b4aa30020000a7960ec03b266b56ed9cd3625b",
+    "rawBytes": 13687,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/client-final-r2.log.gz"
+  },
+  "mac-final-r2": {
+    "sha256": "f0ae069c7bec473c46441cc09c2aca5505d63197ba2be67e042b238d2d220edd",
+    "rawBytes": 20533,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/mac-final-r2.log.gz"
+  },
+  "mac-node-final": {
+    "sha256": "37f17fde709ad03d59bfa077db556ab24d4f9ca8f5c5e315544f625d4c12ea43",
+    "rawBytes": 7830,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/mac-node-final.log.gz"
+  },
+  "mac-preview-final": {
+    "sha256": "0bdc27fe32725b609915cbb68228f6c90bfe4a075c572f5a985998bf2788140d",
+    "rawBytes": 23782,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/mac-preview-final.log.gz"
+  },
+  "mac-residency-final": {
+    "sha256": "ae2f729274fae084ec35162c638a7fd46bb5696581f465ccea3a432bd0f2b3b2",
+    "rawBytes": 7863,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/mac-residency-final.log.gz"
+  },
+  "digest-registry-final": {
+    "sha256": "87980326b35d8e225b21b2575b9201b9d93a25ad28a0fdf93f72172b3175ced4",
+    "rawBytes": 5672,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/digest-registry-final.log.gz"
+  },
+  "docs-budget-final": {
+    "sha256": "9e6d0a2ecb3f58ba93531c711e86681fde7e314595f4281bf84eccc6fcd33abd",
+    "rawBytes": 4990,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/docs-budget-final.log.gz"
+  },
+  "ref-check-final": {
+    "sha256": "7be405aa18e0a286345eb0a3c7b5f7a69a478c8942887cd565e5f48125108edf",
+    "rawBytes": 81,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/ref-check-final.log.gz"
+  },
+  "ref-check-delivery": {
+    "sha256": "6611a7d885811f31c1359ba4ee1aa002a33174b713c00577a327bd27364b8026",
+    "rawBytes": 81,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/ref-check-delivery.log.gz"
+  },
+  "root-checks": {
+    "sha256": "d32cd95df2990b4704db4178abccc55fc1e210c88dd32bb6e7e073dd72a48631",
+    "rawBytes": 6830,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/root-checks.log.gz"
+  },
+  "guide-check": {
+    "sha256": "a77c7461d069588c81222d66588e02bf21dca7fb125a85aeb88994f4ee1db888",
+    "rawBytes": 21365,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/guide-check.log.gz"
+  },
+  "prepare-client-final": {
+    "sha256": "c92b2aea62105d10cf610e80e54b330b23d1a0bcecb22783327b11939a0f04c0",
+    "rawBytes": 10951,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/prepare-client-final.log.gz"
+  },
+  "prepare-client-final-r2": {
+    "sha256": "095af4e1383c65f4a9de677c1c32696a06c4300084f50e91f5ed1ddb92cb2f49",
+    "rawBytes": 11140,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/prepare-client-final-r2.log.gz"
+  },
+  "qualify-linux-final": {
+    "sha256": "7b69554cda4a24e257b9c74e8e96394b2a33ba4ac3ba7ce70af3c99746fac0e7",
+    "rawBytes": 7775,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/qualify-linux-final.log.gz"
+  },
+  "qualify-linux-final-r2": {
+    "sha256": "9227f8075ebce85f8e78825ef7bb607f196c5ca2111deb96b532f4cf08579b2e",
+    "rawBytes": 183360,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/qualify-linux-final-r2.log.gz"
+  },
+  "prepare-client-final-r3": {
+    "sha256": "9c041f08450a132e0afaf095a4d082cd2c197307de00c31d5ad96eb5b36e9ae2",
+    "rawBytes": 11140,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/prepare-client-final-r3.log.gz"
+  },
+  "numeric-flag-final": {
+    "sha256": "c45451cc962b314d2b2f7e3a0fc6fad129840ac3fb1bbc831b99d8a1aa890e73",
+    "rawBytes": 387,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/numeric-flag-final.log.gz"
+  },
+  "help-final": {
+    "sha256": "894c8db1bb9709acb223bac6800740b39670e7e80a7e0b75fea08bf6188ba72e",
+    "rawBytes": 49,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/help-final.log.gz"
+  },
+  "mac-numeric-final": {
+    "sha256": "00eac35866b596bfa60796b65002b6cf7e7ca91d816991cdcd145ee7b71fc0e6",
+    "rawBytes": 386,
+    "log": "snapback4/reports/20261016-wave14-day4/validation/mac-numeric-final.log.gz"
+  }
+}

@@ -1,0 +1,198 @@
+[
+  {
+    "file": "frontend",
+    "sha256": "a9ae01b38bf8e90c248f4ccbfc1b182953b99b03379c0463e8e7e8585826e1ea",
+    "template": null,
+    "version": "0.4.28",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "23123a592494ed11b0a14f78e89465aee8d40d889fd6816a2d38f22acedae36b",
+    "template": "chat",
+    "version": "0.4.28",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "d7d3248ef0029a6b1a03b2a7c3272b60fc9457023cdf49bc13223369c62e6a77",
+    "template": "social",
+    "version": "0.4.28",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "a9ae01b38bf8e90c248f4ccbfc1b182953b99b03379c0463e8e7e8585826e1ea",
+    "template": null,
+    "version": "0.4.28",
+    "web": true
+  },
+  {
+    "file": "frontend",
+    "sha256": "23123a592494ed11b0a14f78e89465aee8d40d889fd6816a2d38f22acedae36b",
+    "template": "chat",
+    "version": "0.4.28",
+    "web": true
+  },
+  {
+    "file": "frontend",
+    "sha256": "d7d3248ef0029a6b1a03b2a7c3272b60fc9457023cdf49bc13223369c62e6a77",
+    "template": "social",
+    "version": "0.4.28",
+    "web": true
+  },
+  {
+    "file": "day2",
+    "sha256": "4ced61e413210c32730c276d3e8d6b2a16efd009bb9b0146dd3883e2bd7e0b64",
+    "template": null,
+    "version": "0.4.28",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "204e4f855f579645376ae57f17f3a3dc5ec455257f33e5162915f908ac8921ce",
+    "template": null,
+    "version": "0.4.29",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "c6ff6f7a90a667ade64d5e9e22814f5a559d2a16970d9c1f36985f796b2e9aca",
+    "template": "chat",
+    "version": "0.4.29",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "7e831727528cbad55efb61abe87cfdb9f576e00c925dcf86a7eb8a8fc0658fab",
+    "template": "social",
+    "version": "0.4.29",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "204e4f855f579645376ae57f17f3a3dc5ec455257f33e5162915f908ac8921ce",
+    "template": null,
+    "version": "0.4.29",
+    "web": true
+  },
+  {
+    "file": "frontend",
+    "sha256": "84a62a772ef50f509ffafd8571fd24d7f9bf3f11b27de240cf3ffd0f2e5d7faa",
+    "template": "chat",
+    "version": "0.4.29",
+    "web": true
+  },
+  {
+    "file": "frontend",
+    "sha256": "7e831727528cbad55efb61abe87cfdb9f576e00c925dcf86a7eb8a8fc0658fab",
+    "template": "social",
+    "version": "0.4.29",
+    "web": true
+  },
+  {
+    "file": "day2",
+    "sha256": "829936501e3eb9aac85ca741083b09240b1d183c16b413dadfaaa27e1e9cb511",
+    "template": null,
+    "version": "0.4.29",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "eea5d3ec3f189bb703b1f79fd71f71ee39b2adb62a400c57a29b19a46772d7de",
+    "template": null,
+    "version": "0.4.30",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "4222f462e0e56da928ce6ee8f567a7ef13083c5c5f73cf415b98d5147b053bf8",
+    "template": "chat",
+    "version": "0.4.30",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "d681821c49a7b57dc3c5d8caf11c897fa58d31a6fb963d0225af2d59788a784c",
+    "template": "social",
+    "version": "0.4.30",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "d2746603c8d2400941262e871b03725792e5c235f851fc88610ca64fff9c943a",
+    "template": null,
+    "version": "0.4.30",
+    "web": true
+  },
+  {
+    "file": "frontend",
+    "sha256": "aab29caf6f66c73e236e3b63ee4342bcdf9ebe49d524fc1d79a093100a34cb4b",
+    "template": "chat",
+    "version": "0.4.30",
+    "web": true
+  },
+  {
+    "file": "frontend",
+    "sha256": "65deada764a4fe1ac21e7a31aef778aedccfb45562415e73c72ef96ab490ba30",
+    "template": "social",
+    "version": "0.4.30",
+    "web": true
+  },
+  {
+    "file": "day2",
+    "sha256": "ec4adbc1ca5196105985c79bcd506d7f4bc7beca98a94e4115c60f1f07f26e7d",
+    "template": null,
+    "version": "0.4.30",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "eea5d3ec3f189bb703b1f79fd71f71ee39b2adb62a400c57a29b19a46772d7de",
+    "template": null,
+    "version": "0.4.31",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "4222f462e0e56da928ce6ee8f567a7ef13083c5c5f73cf415b98d5147b053bf8",
+    "template": "chat",
+    "version": "0.4.31",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "d681821c49a7b57dc3c5d8caf11c897fa58d31a6fb963d0225af2d59788a784c",
+    "template": "social",
+    "version": "0.4.31",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "d2746603c8d2400941262e871b03725792e5c235f851fc88610ca64fff9c943a",
+    "template": null,
+    "version": "0.4.31",
+    "web": true
+  },
+  {
+    "file": "frontend",
+    "sha256": "aab29caf6f66c73e236e3b63ee4342bcdf9ebe49d524fc1d79a093100a34cb4b",
+    "template": "chat",
+    "version": "0.4.31",
+    "web": true
+  },
+  {
+    "file": "frontend",
+    "sha256": "65deada764a4fe1ac21e7a31aef778aedccfb45562415e73c72ef96ab490ba30",
+    "template": "social",
+    "version": "0.4.31",
+    "web": true
+  },
+  {
+    "file": "day2",
+    "sha256": "546d786c11a45de1e939fd37d0aa6c525a76bfb7dd777bdf9ce2a8b37f7ea0b9",
+    "template": null,
+    "version": "0.4.31",
+    "web": false
+  }
+]

@@ -37,6 +37,7 @@ const two = one.replace("  title: text <=80", "  title: text <=80\n  color: text
 for (const [version, source] of [["v1", one], ["v2", two]]) {
   mkdirSync("versions/" + version + "/fixtures", {recursive:true});
   writeFileSync("versions/" + version + "/schema.q", source);
+  writeFileSync("versions/" + version + "/fixtures/test.cases.jsonl", JSON.stringify({op:"list",count:1,match:[{title:"fixture"}]})+"\n");
   writeFileSync("versions/" + version + "/fixtures/notes.jsonl", '{"id":"fixture-note","title":"fixture"}\n');
 }
 mkdirSync("snapback", {recursive:true});

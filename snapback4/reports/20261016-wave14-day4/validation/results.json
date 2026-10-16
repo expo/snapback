@@ -1,0 +1,81 @@
+{
+  "source": "ac6bae74929b0e627b7e0ca724ec1b949f562687",
+  "version": "0.4.30",
+  "publicationQualified": false,
+  "fiveCrateCommand": {
+    "exitCode": 124,
+    "timeoutSeconds": 3600,
+    "completedTestBinaries": 223,
+    "passedCases": 3786,
+    "failedCases": 5,
+    "ignoredCases": 29,
+    "completedCrates": [
+      "snapback4",
+      "snapback4-core",
+      "snapback4-device"
+    ],
+    "failedTargetsReconciledByFinalRuns": [
+      "check: 103 passed",
+      "day3: 20 passed",
+      "init_dx3: 7 passed"
+    ]
+  },
+  "remainingCrates": {
+    "crates": [
+      "snapback4-lang",
+      "snapback4-sim"
+    ],
+    "exitCode": 0,
+    "completedTestBinaries": 200,
+    "passedCases": 2814,
+    "failedCases": 0,
+    "ignoredCases": 21
+  },
+  "coreDeviceDoctests": {
+    "exitCode": 0
+  },
+  "affectedLinuxNode": {
+    "sixFileRun": {
+      "passed": 78,
+      "failed": 0
+    },
+    "numericFlagFollowup": {
+      "passed": 3,
+      "failed": 0
+    }
+  },
+  "affectedMac": {
+    "day3": 20,
+    "day4": 6,
+    "init_dx3": 7,
+    "releaseDependencies": 9,
+    "sixFileNode": 78,
+    "finalPreviewNode": 48,
+    "residencyRegression": 1,
+    "numericFlagFollowup": 3,
+    "failedAfterCorrections": 0
+  },
+  "consumerQualification": {
+    "exitCode": 0,
+    "source": "ac6bae74929b0e627b7e0ca724ec1b949f562687",
+    "day4H9Modes": 5,
+    "frontendAttempts": 12,
+    "userspaces": [
+      "ubuntu:24.04",
+      "alpine"
+    ]
+  },
+  "rootChecks": {
+    "bunFrozenInstall": "passed",
+    "ensureWorkspaceHoist": "passed",
+    "checkInventories": "missing inherited generated demo/Contract artifacts",
+    "checkGuide": {
+      "passed": 19,
+      "contentFailures": 0,
+      "preconditions": 3
+    },
+    "refCheck": "passed",
+    "docsBudget": "passed",
+    "diffCheck": "passed"
+  }
+}

@@ -1,0 +1,684 @@
+[
+  {
+    "lane": "002-day2-pawn-ticket-desk",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "004-day2-lease-takeover-board",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "006-day2-accountant-access-windows",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "008-day2-yearbook-photo-consents",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "010-day2-sponsor-read-approvals",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "012-day2-classroom-observation-notes",
+    "check": {
+      "code": 0,
+      "advice": [
+        "info: day2:proof passes no saved versions; run `snapback4 init --adapt`, then `snapback4 init --adapt --apply`"
+      ]
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "  extend package.json \u2014 inherited proof infrastructure",
+        "    scripts.day2:proof: \"node scripts/day2-proof.mjs\" \u2192 \"node scripts/day2-proof.mjs versions/v1 versions/v2\"",
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "014-day2-guarantor-pledges",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "016-day2-spoiler-shield-groups",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "018-day2-offer-letter-advisors",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "020-day2-shared-rolodex-notes",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "022-day2-audit-evidence-requests",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "024-day2-guest-curator-takeovers",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "026-day2-vendor-subdelegation",
+    "check": {
+      "code": 0,
+      "advice": [
+        "info: day2:proof passes no saved versions; run `snapback4 init --adapt`, then `snapback4 init --adapt --apply`"
+      ]
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "  extend package.json \u2014 inherited proof infrastructure",
+        "    scripts.day2:proof: \"node scripts/day2-proof.mjs\" \u2192 \"node scripts/day2-proof.mjs versions/v1 versions/v2\"",
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "028-day2-proxy-assignments",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "030-day2-contractor-site-windows",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "032-day2-expiring-team-notes",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "034-day2-access-receipts-log",
+    "check": {
+      "code": 0,
+      "advice": [
+        "info: day2:proof passes no saved versions; run `snapback4 init --adapt`, then `snapback4 init --adapt --apply`"
+      ]
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "  extend package.json \u2014 inherited proof infrastructure",
+        "    scripts.day2:proof: \"node scripts/day2-proof.mjs\" \u2192 \"node scripts/day2-proof.mjs versions/v1 versions/v2\"",
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "036-day2-performance-report-routing",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "038-day2-whiteboard-rooms",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "040-day2-audience-reactions",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "042-day2-live-trip-pins",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "044-day2-mind-map-jam",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "046-day2-bughouse-pairs",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "048-day2-planning-poker-rooms",
+    "check": {
+      "code": 0,
+      "advice": [
+        "info: day2:proof passes no saved versions; run `snapback4 init --adapt`, then `snapback4 init --adapt --apply`"
+      ]
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "  extend package.json \u2014 inherited proof infrastructure",
+        "    scripts.day2:proof: \"node scripts/day2-proof.mjs\" \u2192 \"node scripts/day2-proof.mjs versions/v1 versions/v2\"",
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "050-day2-battle-map-fog",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "052-day2-live-budget-meeting",
+    "check": {
+      "code": 0,
+      "advice": [
+        "info: starter proof infrastructure needs updating; run `snapback4 init --adapt` to preview, then `snapback4 init --adapt --apply`"
+      ]
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "  add versions/v1/schema.q \u2014 missing proof infrastructure",
+        "  add versions/v1/fixtures/.gitkeep \u2014 missing proof infrastructure",
+        "  add versions/v2/schema.q \u2014 missing proof infrastructure",
+        "  add versions/v2/fixtures/.gitkeep \u2014 missing proof infrastructure",
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "054-day2-write-in-sprints",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "056-day2-unconference-grid",
+    "check": {
+      "code": 0,
+      "advice": [
+        "info: day2:proof passes no saved versions; run `snapback4 init --adapt`, then `snapback4 init --adapt --apply`"
+      ]
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "  extend package.json \u2014 inherited proof infrastructure",
+        "    scripts.day2:proof: \"node scripts/day2-proof.mjs\" \u2192 \"node scripts/day2-proof.mjs versions/v1 versions/v2\"",
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "058-day2-precinct-poll-book",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "060-day2-rig-safety-walkdown",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "062-day2-auction-lot-walk",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "064-day2-field-sales-orders",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "066-day2-sale-barn-weighins",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "068-day2-claim-photo-packets",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "070-day2-vintage-photo-id",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "072-day2-speech-video-feedback",
+    "check": {
+      "code": 0,
+      "advice": [
+        "info: starter: 1 file left from `snapback4 init` that does not fit your schema"
+      ]
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "074-day2-thrift-resale-listings",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "076-day2-podcast-rough-cuts",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "078-day2-herbarium-scans",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "080-day2-fuel-price-board",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "082-day2-public-collections",
+    "check": {
+      "code": 0,
+      "advice": [
+        "info: day2:proof passes no saved versions; run `snapback4 init --adapt`, then `snapback4 init --adapt --apply`"
+      ]
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "  extend package.json \u2014 inherited proof infrastructure",
+        "    scripts.day2:proof: \"node scripts/day2-proof.mjs\" \u2192 \"node scripts/day2-proof.mjs versions/v1 versions/v2\"",
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "084-day2-policy-handbook-acks",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "086-day2-expiring-album-links",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "088-day2-heat-complaint-log",
+    "check": {
+      "code": 1,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "090-day2-piano-tuning-routes",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "092-day2-shot-list-coordination",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "094-day2-conduct-incident-intake",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "096-day2-bowling-handicaps",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "098-day2-listener-voicemail",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  },
+  {
+    "lane": "100-day2-pen-name-contest",
+    "check": {
+      "code": 0,
+      "advice": []
+    },
+    "adapt": {
+      "code": 0,
+      "advice": [
+        "init --adapt: no write scenario: replace the Home assertions"
+      ]
+    }
+  }
+]

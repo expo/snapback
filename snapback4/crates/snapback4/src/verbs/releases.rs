@@ -396,6 +396,9 @@ pub fn rollback(options: &Options) -> i32 {
                 .ok_or("nothing to roll back to")?;
             selectable(&dir, previous)?;
             let bound = bound_at(dir.join("releases").join(previous.to_string()))?;
+            // @ref LLP 3000.000.000#14-wave-14-rollback-narration — resolve bare/latest selection visibly before any preview or live activation.
+            let target_line=format!("resolved rollback target: release {previous} (current release {active})");
+            if options.json {eprintln!("{target_line}");} else {println!("{target_line}");}
             check_change(&dir, Some(active), &bound, options, Some(previous))?;
             if options.flags.contains_key("check") {
                 return super::release_preview::preview(&dir.join("store.sqlite"),dir.join("releases").join(previous.to_string()),previous,options);

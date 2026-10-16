@@ -1,5 +1,5 @@
 //! Snapshot populations and conservative operation dependencies, grouped by table.
-// @ref LLP 3000.000.000#13-wave-13-preview-decisions — effects precede schema mechanics; never invent query results.
+// @ref LLP 3000.000.000#14-wave-14-rollback-narration — rollback names changed populations and quotas before schema mechanics.
 use snapback4_core::{Schema, Store, Value, ir, schema::ColumnType, store::DormantItem};
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -46,7 +46,7 @@ fn refs(kind: &ColumnType, value: &Value, out: &mut Vec<(String,String)>) {
     }
 }
 
-pub(super) fn warnings(store: &Store, schema: &Schema, programs: &BTreeMap<String, ir::Program>, items: &[DormantItem], release: u64) -> Result<Vec<String>,String> {
+pub(super) fn warnings(store: &Store, current: Option<&Schema>, schema: &Schema, programs: &BTreeMap<String, ir::Program>, items: &[DormantItem], release: u64, rollback: bool) -> Result<Vec<String>,String> {
     let mut query_readers = BTreeMap::<String,BTreeSet<String>>::new();
     let mut gates = BTreeMap::<String,BTreeSet<String>>::new();
     for (name, program) in programs {
@@ -55,13 +55,26 @@ pub(super) fn warnings(store: &Store, schema: &Schema, programs: &BTreeMap<Strin
     }
     let conn=store.conn();
     let mut warnings=Vec::new();
+    let mut rollback_summaries=Vec::new();
     // Table populations are facts; arbitrary args/viewers/predicates are not.
     for (table, operations) in &query_readers {
         let (before,after,lost):(i64,i64,i64)=conn.query_row("SELECT (SELECT count(*) FROM preview_active WHERE name=?1),(SELECT count(*) FROM r JOIN _catalog c ON c.num=r.t WHERE c.name=?1),(SELECT count(*) FROM preview_active p WHERE p.name=?1 AND NOT EXISTS(SELECT 1 FROM r WHERE r.t=p.t AND r.id=p.id))",[table],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).map_err(|e|e.to_string())?;
         if lost>0 {
             warnings.push(format!("queries/counts {} read {table}: active table population {before} → {after}, {lost} active {} {}; verify filtered results and progress denominators before selecting release {release} (dependency, not a query-result count)",operations.iter().cloned().collect::<Vec<_>>().join(", "),if lost==1 {"row"} else {"rows"},if lost==1 {"leaves"} else {"leave"}));
         }
+        if rollback && before!=after {rollback_summaries.push(format!("rollback users get release {release}'s {table} population: {before} → {after} active rows for queries/counts {}; verify results, denominators and quota use, or preserve the current value domain and dependents in a bridge release before activation",operations.iter().cloned().collect::<Vec<_>>().join(", ")));}
     }
+    if rollback {if let Some(current)=current {
+        fn caps(schema: &Schema,table: &str) -> Vec<String> {
+            schema.table(table).into_iter().flat_map(|table|&table.constraints).filter_map(|constraint|match constraint {
+                snapback4_core::schema::Constraint::Cap {by,max}=>Some(format!("cap {max} by {}",by.join(", "))),_=>None,
+            }).collect()
+        }
+        for table in current.tables.keys().filter(|table|schema.table(table).is_some()) {
+            let (before,after)=(caps(current,table),caps(schema,table));
+            if before!=after {rollback_summaries.push(format!("rollback users get release {release}'s quotas on {table}: current [{}] → target [{}]; verify the active population fits the intended limits, or preserve current quotas in a bridge release before activation",before.join("; "),after.join("; ")));}
+        }
+    }}
     // Only actual before-active rows retained dormant can be dependent losses.
     let mut statement=conn.prepare("SELECT p.name,p.id,p.data FROM preview_active p WHERE NOT EXISTS(SELECT 1 FROM r WHERE r.t=p.t AND r.id=p.id) AND (EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=p.t AND n.id=p.id) OR EXISTS(SELECT 1 FROM _dormant_rows n WHERE n.t=p.t AND n.id=p.id)) ORDER BY p.name,p.id").map_err(|e|e.to_string())?;
     let lost=statement.query_map([],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?,r.get::<_,String>(2)?))).map_err(|e|e.to_string())?;
@@ -92,5 +105,6 @@ pub(super) fn warnings(store: &Store, schema: &Schema, programs: &BTreeMap<Strin
             warnings.push(format!("release {release}'s safety dependencies on {table}: {} cannot see {count} dormant {table} {} (sample ids [{}]); verify refusal cases and preserve this gate in a bridge release or pause the workflow (guide deploy; dependency, not a predicate match)", operations.iter().map(|s|format!("`{s}`")).collect::<Vec<_>>().join(", "),if count==1 {"row"} else {"rows"},samples.into_iter().take(5).collect::<Vec<_>>().join(", ")));
         }
     }
+    warnings.extend(rollback_summaries);
     Ok(warnings)
 }
