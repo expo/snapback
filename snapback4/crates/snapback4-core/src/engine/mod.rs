@@ -180,7 +180,7 @@ pub struct Context {
     /// Ids the caller minted for this run, consumed in order by `new`.
     pub new_ids: VecDeque<String>,
     entropy: u64,
-    minter: Option<crate::ids::Mint>,
+    minter: crate::ids::Mint,
     /// Every id consumed by this execution, including newly minted ids.
     pub(crate) minted_ids: Vec<String>,
     /// The server's live registry behind `connected[p]`, when there is one.
@@ -190,7 +190,7 @@ pub struct Context {
 
 impl Context {
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { #[cfg(feature = "sqlite")] refusal_trace: None, #[cfg(feature = "server-search")] search_retained_order: None, #[cfg(feature = "server-search")] search_retained_candidates: Vec::new(), retained_search: false, read_spent: None, viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minter: None, minted_ids: Vec::new(), presence: None }
+        Self { #[cfg(feature = "sqlite")] refusal_trace: None, #[cfg(feature = "server-search")] search_retained_order: None, #[cfg(feature = "server-search")] search_retained_candidates: Vec::new(), retained_search: false, read_spent: None, viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minter: crate::ids::Mint::default(), minted_ids: Vec::new(), presence: None }
     }
 
     #[cfg(feature = "sqlite")]
@@ -244,7 +244,7 @@ impl Context {
 
     /// Attach the live host's mint stream; supplied replay ids remain untouched.
     pub fn with_minter(mut self, minter: crate::ids::Mint) -> Self {
-        self.minter = Some(minter);
+        self.minter = minter;
         self
     }
 
@@ -254,7 +254,7 @@ impl Context {
 
     pub(crate) fn mint(&mut self) -> Result<String, crate::RuntimeError> {
         let id = if let Some(id) = self.new_ids.pop_front() { id } else {
-            crate::ids::mint(self.now.unwrap_or(0), self.minter.get_or_insert_default())?
+            crate::ids::mint(self.now.unwrap_or(0), &mut self.minter)?
         };
         self.minted_ids.push(id.clone());
         Ok(id)
@@ -941,7 +941,7 @@ impl Engine {
             context.presence = self.presence.clone();
         }
         context.entropy = self.entropy;
-        context.minter = Some(self.minter.clone());
+        context.minter = self.minter.clone();
         let ceilings = self.ceilings;
         let viewer = context.viewer.clone();
         let now = context.now.unwrap_or(0);
