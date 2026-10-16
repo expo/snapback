@@ -98,14 +98,18 @@ query page(c: cursor ?):
 ";
     for (name, source) in [("fixed", fixed), ("vacancy", vacancy)] {
         let (_, backend) = compile(source);
-        assert!(backend.schema.required_capabilities().contains("branch-pages-v4"), "{name}");
+        let capabilities = backend.schema.required_capabilities();
+        // A total unique filtered point may now fit the already shipped v3
+        // validator; richer residual/vacancy interpretations still require v4.
+        let fence = if capabilities.contains("branch-pages-v4") { "branch-pages-v4" } else { "branch-pages-v3" };
+        assert!(capabilities.contains(fence), "{name}: {capabilities:?}");
         let required = snapback4_core::device_protocol::compatibility(&backend.schema.public_projection());
         let mut old = snapback4_core::device_protocol::DeviceEngine::current();
         old.version = "0.4.28-page4".into();
-        old.capabilities.retain(|capability| capability != "branch-pages-v4");
+        old.capabilities.retain(|capability| capability != fence);
         let refusal = snapback4_core::device_protocol::check(Some(&old), &required).unwrap_err();
         assert_eq!(refusal.code, "E_DEVICE_VERSION", "{name}");
-        assert!(refusal.message.contains("branch-pages-v4"), "{name}: {refusal:?}");
+        assert!(refusal.message.contains(fence), "{name}: {refusal:?}");
     }
     let (_, product_backend) = compile(product);
     assert!(!product_backend.schema.required_capabilities().contains("branch-pages-v4"),

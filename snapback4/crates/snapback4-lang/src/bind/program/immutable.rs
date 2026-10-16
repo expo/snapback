@@ -17,7 +17,7 @@ impl Binder<'_> {
             let snapshot = if let (Some(Expr::Field { base, name }), Some(target)) = (&value, &target) {
                 name == column && match base.as_ref() {
                     Expr::Get(read) => read.table == info.decl.name && (
-                        read.index == key.index && read.key.iter().map(|value| resolve(value, prior, 32)).collect::<Option<Vec<_>>>().as_ref() == Some(target)
+                        read.index == key.index && &read.key == target
                         || key.index == "byId" && *target == vec![ir::field((**base).clone(), "id")]),
                     _ => false,
                 }
@@ -46,8 +46,8 @@ fn resolve(expr: &Expr, prior: &[Stmt], fuel: usize) -> Option<Expr> {
                     if matches!(value, Expr::Input(Input::NewId)) { return Some(Expr::Variable(format!("$immutableCapture:{name}:{at}"))); }
                     return resolve(value, &prior[..at], fuel - 1);
                 }
-                if ir::effects::Effects::writes_in(std::slice::from_ref(statement)) { return Some(expr.clone()); }
-                if matches!(statement, Stmt::If { .. } | Stmt::For { .. }) { return Some(expr.clone()); }
+                if ir::effects::Effects::writes_in(std::slice::from_ref(statement)) { return None; }
+                if matches!(statement, Stmt::If { .. } | Stmt::For { .. }) { return None; }
             }
             expr.clone()
         }

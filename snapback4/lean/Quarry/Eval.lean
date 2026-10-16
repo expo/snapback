@@ -692,7 +692,8 @@ def vacancyDecided (sch : Schema) (td : TableDecl) : Bool :=
     | .not (.probe t point key) =>
         (sch.table? t).any fun source =>
           let varying := key.filter fun p => match p.2 with | .col .self _ => true | _ => false
-          varying.length == 1
+          (varying.map (·.2)).eraseDups.length == 1
+            && (varying.filter fun p => point.contains p.1).length == 1
             && key.all (fun p => p.2.fixedExpr.isSome || varying.contains p)
             && point.all (fun c => key.any (·.1 == c))
             && (point == ["id"] || source.uniques.contains point)

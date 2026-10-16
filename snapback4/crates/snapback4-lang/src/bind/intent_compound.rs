@@ -211,11 +211,12 @@ pub(super) fn vacancy(tables: &Tables, synthesized: &BTreeSet<(String, String)>,
         let Expr::Exists { read: probe, .. } = value.as_ref() else { return false };
         if op != "not" || probe.range.is_some() || probe.filter.is_some() || probe.matching.is_some()
             || !probe.seeks.is_empty() { return false; }
-        let varying = probe.keys.iter().filter(|key| intent::column(&key.value).is_some()).count();
+        let varying = probe.keys.iter().filter_map(|key| intent::column(&key.value)).collect::<BTreeSet<_>>().len();
         if varying != 1 || probe.keys.iter().any(|key| intent::column(&key.value).is_none() && !fixed_key_total(&key.value)) { return false; }
         let Some(target) = tables.get(&probe.table) else { return false };
         let Some(columns) = point_columns(tables, synthesized, table, probe) else { return false };
-        target.indexes.iter().any(|index| target.total_unique(index) && index.columns.iter().all(|column| columns.contains(column)))
+        target.indexes.iter().any(|index| target.total_unique(index) && index.columns.iter().all(|column| columns.contains(column))
+            && probe.keys.iter().zip(&columns).filter(|(key,column)| index.columns.contains(column) && intent::column(&key.value).is_some()).count() == 1)
     });
     let mut candidate = requests.clone(); let errors = candidate.error_count();
     let mut system = read.clone(); candidate.read(tables, &mut system, false);

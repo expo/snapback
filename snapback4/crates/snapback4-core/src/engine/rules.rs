@@ -676,11 +676,18 @@ pub(super) fn bounded_walk_price(schema: &Schema, lane: &crate::ir::MergeLane) -
 }
 
 pub fn legacy_vacancy_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
+    if lane.source.is_some() || lane.scan.filter.is_some() || !lane.scan.prefix.is_empty() { return false; }
     let Some(outer) = schema.table(&lane.scan.table) else { return false };
-    lane.scan.filter.is_none() && lane.scan.prefix.is_empty() && outer.rules.read.disjuncts().iter().any(|rule| {
+    if outer.sync.is_some() { return false; }
+    outer.rules.read.disjuncts().iter().any(|rule| {
         let RuleExpr::Not(inner) = rule else { return false };
-        let RuleExpr::Exists { key, equalities, .. } = inner.as_ref() else { return false };
-        key == &[RuleTerm::Field("id".into())] && equalities.is_empty()
+        let RuleExpr::Exists { table, index, key, equalities, .. } = inner.as_ref() else { return false };
+        let Some(target) = schema.table(table) else { return false };
+        let Some(point) = target.index(index) else { return false };
+        equalities.is_empty() && key == &[RuleTerm::Field("id".into())]
+            && point.unique && point.is_plain() && point.components.len() == 1
+            && point.components[0].column().is_some_and(|column|
+                target.columns.get(column).is_some_and(|kind| !kind.is_optional()))
     })
 }
 
@@ -694,7 +701,8 @@ fn vacancy_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
         let Some(target) = schema.table(table) else { return false };
         let Some(point) = target.index(index) else { return false };
         let terms = key.iter().chain(equalities.iter().map(|(_, value)| value)).collect::<Vec<_>>();
-        terms.iter().filter(|term| matches!(term, RuleTerm::Field(_))).count() == 1
+        key.iter().filter(|term| matches!(term, RuleTerm::Field(_))).count() == 1
+            && terms.iter().filter_map(|term| if let RuleTerm::Field(field) = term { Some(field) } else { None }).collect::<BTreeSet<_>>().len() == 1
             && terms.iter().all(|term| matches!(term, RuleTerm::Field(_) | RuleTerm::Viewer | RuleTerm::Literal(_)))
             && point.unique && point.is_plain() && point.components.len() == key.len()
             && point.components.iter().all(|component| component.column().is_some_and(|column|

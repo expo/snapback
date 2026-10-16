@@ -232,3 +232,24 @@ fn immutable_compound_operands_resolve_in_their_capture_time_environment() {
     let source = "table entries:\n  code: int\n  unique code\n  immutable code\n  public\n  update <- allow\n  online only\nmutation change():\n  n = 1\n  saved = n + 1\n  n = 2\n  update entries[code = saved] { code: n + 1 }\n  return null\n";
     refusal(source,"E_QUARRY_IMMUTABLE");
 }
+
+#[test]
+fn snapshot_identity_cannot_resolve_an_opaque_branch_key_again_at_the_write() {
+    let source = "table entries:\n  frozen: int\n  immutable frozen\n  public\n  update <- allow\n  online only\nmutation change(a: entries, b: entries, flag: bool):\n  k = a\n  if flag:\n    k = b\n  s = entries[k] ! else NOT_FOUND\n  k = a\n  update entries[k] { frozen: s.frozen }\n  return null\n";
+    refusal(source,"E_QUARRY_IMMUTABLE");
+}
+
+#[test]
+fn historical_vacancy_admission_requires_the_actual_unique_point() {
+    let source = "table old:\n  item: entries\n  unique item\n  read <- deny\n  online only\ntable holds:\n  item: entries\n  principal: principal\n  copied: entries\n  unique item, principal\n  read <- deny\n  online only\ntable entries:\n  read <- not exists old[item = .id] or not exists holds[item = .id, principal = viewer, copied = .id]\n  online only\nquery available(c: cursor ?):\n  return entries first 10 by .id after c\n";
+    let mut b = checked(source);
+    let lane = snapback4_core::ir::body_merges(&b.programs[0].program.body)[0].lanes.iter().find(|lane|lane.vacancy()).unwrap().clone();
+    assert!(snapback4_core::engine::rules::legacy_vacancy_branch(&b.schema,&lane));
+    // Source refuses a nonunique rule point already. Core compatibility must
+    // independently decline the same externally supplied schema shape.
+    for index in b.schema.tables.get_mut("old").unwrap().indexes.values_mut().filter(|index|index.columns()==vec!["item".to_owned()]) { index.unique = false; }
+    assert!(!snapback4_core::engine::rules::legacy_vacancy_branch(&b.schema,&lane));
+    let compound = checked(&source.replace("not exists old[item = .id] or ",""));
+    assert!(compound.schema.required_capabilities().contains("branch-pages-v5"));
+    assert!(!compound.notes.iter().any(|note|note.code=="N_NEVER_COMPLETE"));
+}

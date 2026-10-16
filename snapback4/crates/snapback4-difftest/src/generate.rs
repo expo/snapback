@@ -704,6 +704,10 @@ pub fn lang2(seed: u64, shape: u64) -> Case {
             let access = case.program.tables.iter_mut().find(|table| table.name == "access").unwrap();
             access.keys.retain(|(name, _, _)| name == "byItem");
             access.keys[0].1 = vec!["item".into(), "principal".into()];
+            access.columns.push(Column { name: "copied".into(), ty: Type::Reference("items".into()) });
+            for (table,row) in &mut case.rows {
+                if table == "access" { row["copied"] = row["item"].clone(); }
+            }
         }
         1 => {
             case.program.tables[0].caps = vec![(100, Vec::new())];

@@ -115,7 +115,7 @@ impl Rule {
             Self::ProductScope => "(.owner = viewer or .helper = viewer) and (.status = 'open' or .status = 'active')",
             Self::FixedPerRow => "((exists roles[.bucket, viewer] and exists seats[.bucket, viewer]) and exists permits[viewer]) and exists access[.id, .bucket, viewer]",
             Self::Vacancy => "not exists access[item = .id] or .owner = viewer",
-            Self::NegativeMembership => "not exists access[item = .id, principal = viewer, bucket = 0] or .owner = viewer",
+            Self::NegativeMembership => "not exists access[item = .id, principal = viewer, copied = .id, bucket = 0] or .owner = viewer",
             Self::VacancyImplicitId => "not exists items[id = .id] or .owner = viewer",
             Self::RepeatedPartyMembership => ".owner = viewer or .owner = viewer or exists access[.bucket, viewer]",
         }
