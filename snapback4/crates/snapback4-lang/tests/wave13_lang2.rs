@@ -302,3 +302,30 @@ fn lean_keeps_sync_presence_and_names_unmodelled_readthrough() {
         Ok(module) => panic!("read-through was silently accepted: {}",module.schema),
     }
 }
+
+#[test]
+fn lifetime_free_external_rule_ties_still_fetch_one_raw_witness() {
+    use snapback4_core::schema::Constraint;
+    let source = "table logs:\n  msg: int\n  unique msg\n  read <- deny\ntable entries:\n  msg: int\n  a: int\n  b: int\n  cap 2\n  read <- .a = .b and exists logs[msg = .msg]\nquery list(c: cursor ?):\n  return entries first 2 by .id after c\n";
+    // Source points require replica-independent identity.
+    refusal(&source.replace("  unique msg", "  by byMsg: msg"), "E_QUARRY_POINT_KEY");
+    let mut b = checked(source);
+    // Raw rule IR also permits a full plain nonunique existence key. It
+    // checks a single raw witness, not each tied row's read rule.
+    assert!(!b.schema.tables["entries"].residency.online_only);
+    let logs = b.schema.tables.get_mut("logs").unwrap();
+    for index in logs.indexes.values_mut().filter(|i| i.columns() == ["msg"]) { index.unique = false; }
+    logs.constraints.retain(|c| !matches!(c, Constraint::Unique { index } if logs.indexes[index].columns() == ["msg"]));
+    let lane = snapback4_core::ir::body_merges(&b.programs[0].program.body)[0].lanes[0].clone();
+    assert!(snapback4_core::engine::rules::bounded_branch(&b.schema, &lane));
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    e.seed((0..1000).map(|n| ("logs".into(), object([("id",id(&format!("w{n}"))), ("msg",Value::Int(1))]))).chain([
+        ("entries".into(),object([("id",id("a")),("msg",Value::Int(1)),("a",Value::Int(1)),("b",Value::Int(1))])),
+        ("entries".into(),object([("id",id("b")),("msg",Value::Int(2)),("a",Value::Int(1)),("b",Value::Int(2))])),
+    ])).unwrap();
+    // Fixed price 6 plus sentinel: enumerating the thousand hidden witnesses
+    // would exhaust this pool. One indexed raw witness completes.
+    e.set_ceilings(snapback4_core::Ceilings { examined: 7, ..Default::default() });
+    let r = query(&mut e,"list","alice", &[("c",Value::Null)]);
+    assert!(r.complete && r.data.as_array().unwrap().len() == 1, "{r:?}");
+}
