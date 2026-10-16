@@ -59,7 +59,7 @@ pub(super) fn warnings(store: &Store, schema: &Schema, programs: &BTreeMap<Strin
     for (table, operations) in &query_readers {
         let (before,after,lost):(i64,i64,i64)=conn.query_row("SELECT (SELECT count(*) FROM preview_active WHERE name=?1),(SELECT count(*) FROM r JOIN _catalog c ON c.num=r.t WHERE c.name=?1),(SELECT count(*) FROM preview_active p WHERE p.name=?1 AND NOT EXISTS(SELECT 1 FROM r WHERE r.t=p.t AND r.id=p.id))",[table],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?))).map_err(|e|e.to_string())?;
         if lost>0 {
-            warnings.push(format!("queries/counts {} read {table}: active table population {before} → {after}, {lost} active rows leave; verify filtered results and progress denominators before selecting release {release} (dependency, not a query-result count)",operations.iter().cloned().collect::<Vec<_>>().join(", ")));
+            warnings.push(format!("queries/counts {} read {table}: active table population {before} → {after}, {lost} active {} {}; verify filtered results and progress denominators before selecting release {release} (dependency, not a query-result count)",operations.iter().cloned().collect::<Vec<_>>().join(", "),if lost==1 {"row"} else {"rows"},if lost==1 {"leaves"} else {"leave"}));
         }
     }
     // Only actual before-active rows retained dormant can be dependent losses.
@@ -81,7 +81,7 @@ pub(super) fn warnings(store: &Store, schema: &Schema, programs: &BTreeMap<Strin
         if !parents.is_empty() {let group=dependents.entry(name).or_default();group.0+=1;group.1.extend(parents);}
     }
     for (table,(count,parents)) in dependents {
-        warnings.push(format!("dependent {table}: {count} active rows go dormant with parent tables {}; preserve these linked records in a bridge or accept their absence in release {release}",parents.into_iter().collect::<Vec<_>>().join(", ")));
+        warnings.push(format!("dependent {table}: {count} active {} {} dormant with parent tables {}; preserve these linked records in a bridge or accept their absence in release {release}",if count==1 {"row"} else {"rows"},if count==1 {"goes"} else {"go"},parents.into_iter().collect::<Vec<_>>().join(", ")));
     }
     let mut inventory=BTreeMap::<String,(u64,BTreeSet<String>)>::new();
     for item in items.iter().filter(|i|i.rows>0 && matches!(i.kind.as_str(),"rows"|"table")) {

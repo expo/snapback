@@ -95783,3 +95783,24 @@ regressions. The copied prewave13 Exact device and online apps each passed both
 web tests with types emitted by this branch. Version remains 0.4.29; no device
 code changed. Reviews and final verification are in WORKSTREAM-REPORT.md; no
 push or publication is authorized or performed.
+
+## 2026-10-16 — PREV: previews lead with user effects
+
+Wave-13 R2/F1/DT7 is implemented under LLP 3000.000.000 §13. Unchanged guards
+compare consulted inputs rather than the whole schema; dependency-only changes
+are counted across affected guards. The walk preserves lexical/control inputs,
+prior writes, later loop iterations/exits, delete policies, maintained sources
+and scoped timeline/receipt metadata. Stable program exists supports directional
+proof; Unknown and changed refusal contracts retain warnings. Previews lead with
+query/count population changes, linked dormant rows and grouped safety
+dependencies, then storage/schema mechanics. Exact literal fills appear in
+preview and cold/hot deploy receipts after restoration; optional null and dormant
+rows never invent a fill. Guide deploy puts the safety bridge beside widening.
+
+The H9 zero-warning additive control fails on 0.4.29 with three warnings. Five
+read-only farm lanes have copied before/after deploy and rollback evidence.
+Muse's final design review and fresh Codex source review are both READY; verbatim
+reviews are in llp/reviews/3000.000.000-prev-* and exact verification/results in
+WORKSTREAM-REPORT.md and reports/20261016-prev/. Runtime admission, retention,
+identity, sync, expiry and version numbers do not change. No origin push or
+publication is performed; Mac qualification uses only the named scratch clone.

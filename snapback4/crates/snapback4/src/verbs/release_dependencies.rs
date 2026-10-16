@@ -47,7 +47,12 @@ impl Dependencies {
         let key = format!("{name}.population");
         if self.0.contains_key(&key) { return; }
         let Some(table) = schema.table(name) else { self.0.insert(key, Value::Null); return; };
-        self.0.insert(key, json!([table.through, table.not_before, table.expire, table.ephemeral]));
+        self.0.insert(key, json!([table.through, table.not_before, table.expire, table.ephemeral, table.on_delete]));
+        let timelines:Vec<_>=schema.timelines.iter().filter(|t|t.owned.contains(name)||t.mapped.contains(name)||[&t.authors[0],&t.posts[0],&t.reposts[0],&t.edges[0]].into_iter().any(|table|table.as_str()==name)).collect();
+        let families:Vec<_>=schema.receipts.iter().filter(|f|[&f.scope,&f.messages,&f.members,&f.runs].into_iter().any(|table|table.as_str()==name)).collect();
+        self.0.insert(format!("{name}.metadata"),json!([timelines,families,schema.delivery.iter().filter(|d|d.table==name).collect::<Vec<_>>(),schema.receipt_dependencies.get(name)]));
+        for t in timelines {for source in [&t.authors[0],&t.posts[0],&t.reposts[0],&t.edges[0]] {if schema.table(source).is_some() {self.population(schema,source);}}}
+        for f in families {for source in [&f.scope,&f.messages,&f.members,&f.runs] {if schema.table(source).is_some() {self.population(schema,source);}}}
         self.0.insert(format!("{name}.domains"), json!(table.columns));
         self.0.insert(format!("{name}.textConstraints"), json!(table.constraints.iter().filter(|c|matches!(c,snapback4_core::schema::Constraint::Text {..})).collect::<Vec<_>>()));
         // Any typed reference can join the reference-closed dormant population,
@@ -105,6 +110,7 @@ impl Dependencies {
         match value {
             Value::Object(fields) => {
                 if fields.contains_key("Literal") { return; }
+                if let Some(table)=fields.get("ReceiptSettled").and_then(|r|r["table"].as_str()) {self.population(schema,table);}
                 if let Some(object) = fields.get("Object").and_then(Value::as_object) {
                     for value in object.values() {self.expression(schema,value,bindings,visited,None);}
                     return;
@@ -204,6 +210,11 @@ fn guards(schema: &Schema, program: &ir::Program) -> Vec<Dependencies> {
         let mut context=context.to_vec();
         let mut effects=inherited_effects.to_vec();
         for stmt in stmts {
+            // Effects execute against the incoming lexical environment; a branch
+            // join may overwrite the very condition that controlled its write.
+            let wrapper=ir::Program {name:String::new(),kind:ir::ProgramKind::Mutation,args:BTreeMap::new(),read_time_granularity_ms:None,body:vec![stmt.clone()],returned_shapes:BTreeMap::new(),native:false};
+            let writes=ir::write_tables(&wrapper).into_iter().map(|(table,_)|table).collect::<BTreeSet<_>>();
+            let effect_inputs=(!writes.is_empty()).then(||resolved(&json!(stmt),&bindings,&mut BTreeSet::new()));
             match stmt {
                 ir::Stmt::Const {name,value} | ir::Stmt::Let {name,value} | ir::Stmt::Assign {name,value} => {
                     bindings.insert(name.clone(), resolved(&json!(value),&bindings,&mut BTreeSet::new()));
@@ -216,7 +227,18 @@ fn guards(schema: &Schema, program: &ir::Program) -> Vec<Dependencies> {
                     deps.0.insert("auth".into(), json!(schema.auth));
                     let condition=json!(condition);
                     for value in context.iter().chain(std::iter::once(&condition)) { deps.expression(schema, value, &bindings, &mut BTreeSet::new(), None); }
-                    let prior:Vec<_>=effects.iter().filter(|(tables,_)|tables.iter().any(|table|deps.0.keys().any(|key|key.starts_with(&format!("{table}."))))).map(|(_,value)|value).collect();
+                    let mut retained=BTreeSet::new();
+                    loop {
+                        let mut added=false;
+                        for (i,(tables,value)) in effects.iter().enumerate().rev() {
+                            if !retained.contains(&i) && tables.iter().any(|table|deps.0.keys().any(|key|key.starts_with(&format!("{table}.")))) {
+                                retained.insert(i);added=true;
+                                deps.expression(schema,value,&bindings,&mut BTreeSet::new(),None);
+                            }
+                        }
+                        if !added {break;}
+                    }
+                    let prior:Vec<_>=retained.iter().map(|i|&effects[*i].1).collect();
                     deps.0.insert("compiled guard".into(), resolved(&json!([context,condition,code,message,prior]),&bindings,&mut BTreeSet::new()));
                     out.push(deps);
                 },
@@ -235,20 +257,48 @@ fn guards(schema: &Schema, program: &ir::Program) -> Vec<Dependencies> {
                     if yes_stops || no_stops {context.push(json!({"reachability":condition,"thenStops":yes_stops,"elseStops":no_stops}));}
                 },
                 ir::Stmt::For {binding,domain,body:stmts} => {
-                    let mut context=context.to_vec(); context.push(resolved(&json!(domain),&bindings,&mut BTreeSet::new()));
+                    let mut loop_context=context.clone(); loop_context.push(resolved(&json!(domain),&bindings,&mut BTreeSet::new()));
                     let mut inner=bindings.clone();inner.insert(binding.clone(),json!(domain));
-                    let after=body(out,schema,stmts,&inner,&context,&effects);
+                    fn carried(stmts: &[ir::Stmt], context: &[Value], out: &mut BTreeMap<String,Vec<Value>>, exits: &mut Vec<Value>) {
+                        for stmt in stmts {match stmt {
+                            ir::Stmt::Const {name,value} | ir::Stmt::Let {name,value} | ir::Stmt::Assign {name,value}=>out.entry(name.clone()).or_default().push(json!([context,value])),
+                            ir::Stmt::Push {target,value}=>out.entry(target.clone()).or_default().push(json!([context,value])),
+                            ir::Stmt::If {condition,then_body,else_body}=>{
+                                let mut branch=context.to_vec();branch.push(json!({"then":condition}));carried(then_body,&branch,out,exits);
+                                let mut branch=context.to_vec();branch.push(json!({"else":condition}));carried(else_body,&branch,out,exits);
+                            },
+                            ir::Stmt::For {binding,domain,body}=>{
+                                out.entry(binding.clone()).or_default().push(json!(domain));
+                                let mut context=context.to_vec();context.push(json!(domain));carried(body,&context,out,exits);
+                            },
+                            ir::Stmt::Return(_) | ir::Stmt::Break | ir::Stmt::Continue=>exits.push(json!({"when":context,"exit":match stmt {ir::Stmt::Return(_)=>"return",ir::Stmt::Break=>"break",_=>"continue"}})),
+                            _=>(),
+                        }
+                        if stops(std::slice::from_ref(stmt)) {break;}
+                        }
+                    }
+                    let mut assignments=BTreeMap::new();let mut exits=Vec::new();carried(stmts,&[],&mut assignments,&mut exits);
+                    for (name,values) in assignments {
+                        inner.insert(name.clone(),json!({"loopCarried":[bindings.get(&name),values]}));
+                    }
+                    let exits=resolved(&json!(exits),&inner,&mut BTreeSet::new());
+                    if exits.as_array().is_some_and(|values|!values.is_empty()) {loop_context.push(exits.clone());context.push(json!({"loopExit":domain,"controls":exits}));}
+                    let mut loop_effects=effects.clone();
+                    for stmt in stmts {
+                        let wrapper=ir::Program {name:String::new(),kind:ir::ProgramKind::Mutation,args:BTreeMap::new(),read_time_granularity_ms:None,body:vec![stmt.clone()],returned_shapes:BTreeMap::new(),native:false};
+                        let writes=ir::write_tables(&wrapper).into_iter().map(|(table,_)|table).collect::<BTreeSet<_>>();
+                        if !writes.is_empty() {loop_effects.push((writes,resolved(&json!(stmt),&inner,&mut BTreeSet::new())));}
+                    }
+                    let after=body(out,schema,stmts,&inner,&loop_context,&loop_effects);
                     for name in bindings.keys().cloned().collect::<Vec<_>>() {
                         if bindings.get(&name)!=after.get(&name) {
-                            bindings.insert(name.clone(),json!({"loop":context.last(),"before":bindings.get(&name),"after":after.get(&name)}));
+                            bindings.insert(name.clone(),json!({"loop":loop_context,"before":bindings.get(&name),"after":after.get(&name)}));
                         }
                     }
                 },
                 _ => (),
             }
-            let wrapper=ir::Program {name:String::new(),kind:ir::ProgramKind::Mutation,args:BTreeMap::new(),read_time_granularity_ms:None,body:vec![stmt.clone()],returned_shapes:BTreeMap::new(),native:false};
-            let writes=ir::write_tables(&wrapper).into_iter().map(|(table,_)|table).collect::<BTreeSet<_>>();
-            if !writes.is_empty() {effects.push((writes,resolved(&json!(stmt),&bindings,&mut BTreeSet::new())));}
+            if let Some(inputs)=effect_inputs {effects.push((writes,inputs));}
             if stops(std::slice::from_ref(stmt)) {break;}
         }
         bindings
@@ -262,6 +312,7 @@ fn arguments_changed(before: &ir::Program, after: &ir::Program, guards: impl Ite
             Value::Object(fields)=> {
                 if fields.contains_key("Literal") {return;}
                 if let Some(name)=fields.get("Variable").and_then(Value::as_str) {names.insert(name.into());}
+                if let Some(name)=fields.get("ArgList").and_then(|arg|arg["name"].as_str()) {names.insert(name.into());}
                 for value in fields.values() {variables(value,names);}
             },
             Value::Array(values)=>for value in values {variables(value,names);}, _=>(),
@@ -290,4 +341,40 @@ pub(super) fn changes(current: &Schema, before: &ir::Program, target: &Schema, a
         let arg_change=arguments_changed(before,after,[a.0.get("compiled guard").cloned().unwrap_or(Value::Null),b.0.get("compiled guard").cloned().unwrap_or(Value::Null)].into_iter());
         let mut changed=a.changed(b);if arg_change {changed.insert("arguments".into());}changed
     }).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn compile(source: &str) -> Schema {
+        let bound=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
+        assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);bound.schema
+    }
+    fn population(schema: &Schema, name: &str) -> Dependencies {
+        let mut deps=Dependencies::default();deps.population(schema,name);deps
+    }
+    #[test]
+    fn consulted_timeline_metadata_changes_without_polluting_ordinary_tables() {
+        let mut schema=compile(include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/../snapback4-lang/tests/fixtures/timeline-v2.q")));
+        let source=schema.timelines[0].posts[0].clone();
+        let before=population(&schema,&source);
+        schema.timelines[0].author_cap+=1;
+        assert!(!before.changed(&population(&schema,&source)).is_empty());
+        let ordinary=compile("table ordinary:\n  value: int\n  public\n  online only\n").tables.remove("ordinary").unwrap();
+        schema.tables.insert("ordinary".into(),ordinary);
+        let before=population(&schema,"ordinary");schema.timelines[0].author_cap+=1;
+        assert!(before.changed(&population(&schema,"ordinary")).is_empty());
+    }
+    #[test]
+    fn consulted_receipt_delivery_and_field_closure_metadata_changes() {
+        let mut schema=compile(include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/../snapback4-lang/tests/fixtures/receipts/social.q")));
+        let table=schema.receipts[0].messages.clone();
+        let before=population(&schema,&table);schema.receipts[0].seen_field.push_str("changed");
+        assert!(!before.changed(&population(&schema,&table)).is_empty());
+        let before=population(&schema,&table);schema.receipt_dependencies.entry(table.clone()).or_default().insert("changed".into());
+        assert!(!before.changed(&population(&schema,&table)).is_empty());
+        let table=schema.delivery[0].table.clone();let before=population(&schema,&table);
+        schema.delivery[0].fingerprint.push_str("changed");
+        assert!(!before.changed(&population(&schema,&table)).is_empty());
+    }
 }

@@ -260,7 +260,10 @@ impl Store {
         if let Some(previous) = &previous {
             for (name, table) in &schema.tables {
                 let fills: Vec<_> = table.defaults.iter().filter_map(|(column, default)| {
-                    if previous.table(name).and_then(|t| t.defaults.get(column)) == Some(default) { return None; }
+                    let same_interpretation=previous.table(name).is_some_and(|old|
+                        old.defaults.get(column)==Some(default) && old.columns.get(column).is_some_and(|kind|!kind.is_optional())
+                        && !old.maintained.contains_key(column) && !old.engine_field(column));
+                    if same_interpretation { return None; }
                     if table.columns[column].is_optional() || table.maintained.contains_key(column) || table.engine_field(column) { return None; }
                     match default { crate::schema::ColumnDefault::Literal(value) => Some((column, value)), _ => None }
                 }).collect();
@@ -272,7 +275,7 @@ impl Store {
                 })?;
                 for ((column,value),count) in fills.into_iter().zip(counts).filter(|(_,count)| *count > 0) {
                     let value = match value { Value::String(text) => format!("'{}'", text.replace('\\', "\\\\").replace('\'', "\\'").replace('\n', "\\n").replace('\r', "\\r")), value => crate::wire::to_json(value).to_string() };
-                    report.backfills.push(format!("{name}.{column} ← {value} on {count} rows"));
+                    report.backfills.push(format!("{name}.{column} ← {value} on {count} {}",if count==1 {"row"} else {"rows"}));
                 }
             }
         }

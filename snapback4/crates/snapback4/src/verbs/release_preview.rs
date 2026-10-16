@@ -126,9 +126,10 @@ pub(super) fn preview(
     if options.json {
         println!("{}",serde_json::to_string_pretty(&serde_json::json!({"preview":true,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report.summary(),"backfills":engine.store().adoption_report.backfills})).unwrap());
     } else {
-        println!("preview: release {release} would be current as generation {}; {}; live release unchanged", engine.generation(), snapback4_core::store::adoption_report::AdoptionReport::dormant(&items));
+        println!("preview: release {release} would be current as generation {}; live release unchanged", engine.generation());
         for hazard in hazards {println!("  WARNING {hazard}");}
         for note in notes {println!("  note: {note}");}
+        println!("  storage: {}",snapback4_core::store::adoption_report::AdoptionReport::dormant(&items));
         for step in steps {println!("  {}: {}",step.path,step.message);}
         for item in &items {
             println!("  {}: {} {} dormant (restored on compatible forward); sample ids [{}]", item.key, item.rows, item.unit(), item.sample_ids.join(", "));

@@ -189,13 +189,25 @@ pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, bef
             let contract_same=old_guards.len()==new_guards.len() && old_guards.iter().zip(&new_guards).all(|((a,code,msg),(b,next_code,next_msg))| {
                 code==next_code && msg==next_msg && clauses::require(a,&args,stable).zip(clauses::require(b,&args,stable)).is_some_and(|(a,b)|clauses::compare(&a,&b)==Change::Same)
             });
-            let change = if change==Change::Same && !contract_same {Change::Unknown} else {change};
+            // Admission tightening alone does not preserve earlier refusal codes.
+            // Prove each old first-failure region still reaches its same refusal.
+            let tightening_contract = old_guards.len()<=new_guards.len() && {
+                let (mut old_prefix,mut new_prefix)=(Vec::new(),Vec::new());
+                old_guards.iter().zip(&new_guards).all(|((a,code,msg),(b,next_code,next_msg))| {
+                    let Some((a,b))=clauses::require(a,&args,stable).zip(clauses::require(b,&args,stable)) else {return false;};
+                    let old_failure=clauses::Formula::And(old_prefix.iter().cloned().chain([clauses::Formula::Not(Box::new(a.clone()))]).collect());
+                    let new_failure=clauses::Formula::And(new_prefix.iter().cloned().chain([clauses::Formula::Not(Box::new(b.clone()))]).collect());
+                    old_prefix.push(a);new_prefix.push(b);
+                    code==next_code && msg==next_msg && matches!(clauses::compare(&old_failure,&new_failure),Change::Same|Change::Loosens)
+                })
+            };
+            let change = if change==Change::Same && !contract_same || change==Change::Tightens && !tightening_contract {Change::Unknown} else {change};
             let line = format!("{target_label} {} {name}.require; old: {} | new: {}", match change { Change::Tightens => "tightens", Change::Loosens => "loosens", Change::Same => "keeps equivalent", _ => "changes (implication unproved)" }, if old_lines.is_empty() { "allow".into() } else { old_lines.join("; ") }, if new_lines.is_empty() { "allow".into() } else { new_lines.join("; ") });
             if matches!(change,Change::Same | Change::Tightens) { notes.push(line); } else { warnings.push(line); }
         }
     }
     for (dependencies,(count,operations)) in dependency_groups {
-        warnings.push(format!("{} changed: {count} guards unproved across {}; verify their refusal cases before selecting {target_label}", dependencies.into_iter().collect::<Vec<_>>().join(", "), operations.into_iter().collect::<Vec<_>>().join(", ")));
+        warnings.push(format!("{} changed: {count} {} unproved across {}; verify their refusal cases before selecting {target_label}", dependencies.into_iter().collect::<Vec<_>>().join(", "), if count==1 {"guard"} else {"guards"}, operations.into_iter().collect::<Vec<_>>().join(", ")));
     }
     for warning in &mut warnings {
         if warning.contains("guards unproved") {continue;}
@@ -205,7 +217,7 @@ pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, bef
     }
     for note in &mut notes {
         note.push_str(if note.contains("tightens") { "; confirm newly refused cases are intended" }
-            else if note.contains("keeps equivalent") { "; no guard change needs approval" }
+            else if note.contains("keeps equivalent") { "; no guard-specific action needed" }
             else { "; verify the scheduled result if these dependencies matter" });
     }
     warnings.sort(); warnings.dedup(); notes.sort(); notes.dedup();

@@ -85,6 +85,16 @@ Widened enum values, or short codes a loose release wrote, become dormant rows w
 
 Check business compatibility separately: old payment code may accept payment while a new review row is dormant. Pause that workflow or deploy a bridge preserving its checks. Old source cannot supply absent product logic. An absent operation returns 404 `{denied:{code:"E_OP",…},generation:G}`; a mutation's incompatible arguments return 200 `{state:"failed",why:{code:"E_INPUT",…},generation:G}`.
 
+## Bridge a safety gate before rollback
+Use this beside the enum-widening rollback recipe above. Suppose v2 added `grounding.state = 'inspection'`; v1 holds only `'clear'`/`'hold'`. Selecting v1 hides that row and its children, so v1's `book` guard may allow a booking that v2 blocks.
+
+1. Start from the old UI/operations, but keep v2's widened `grounding.state` domain, safety table, read audience and booking `require`. Save this complete source as `versions/bridge/schema.q` and deploy it with `deploy ./deployment --schema versions/bridge/schema.q --check`, then without `--check`. DAY3 owns the saved-source/baseline layout; KIT2 owns the packaged day-two proof recipe.
+2. While the gate still runs, migrate each inspection to a truthful old-domain hold through an authorized bridge mutation. Do not relabel it clear just to satisfy v1. Keep linked metadata until its parent can be safely represented; if v1 cannot invalidate newer metadata, keep that behavior in the bridge too.
+3. Prove the same booking/payment still refuses for the blocked case and that the named lists/counts preserve the intended business denominator. Re-run the final old-source preview against the repaired live population.
+4. Select v1 only when those checks pass. If the old source cannot preserve the invariant, keep the bridge or pause that workflow. Retained storage cannot supply absent logic.
+
+`rollback --check` groups safety dependencies by dormant table with counts, affected operations and bounded sample ids. They are dependency warnings, not predicate matches. Counts describe the preview snapshot; later writes can change activation.
+
 ## What the old release sees
 | Request after rollback | Result |
 |---|---|
@@ -114,16 +124,6 @@ Receipts and previews count storage by kind: `1 row, 2 cells, 0 index entries do
 Save the baseline .q files with their original names under versions/v1 outside snapback/ and create `snapback/client-compatibility.json` containing `{"baseline":"versions/v1","since_release":2}`. `check`/`dev` emit added row/result fields and existing-operation parameters as optional, labelled "Since release 2", retaining older result value domains. This is your release label, not server generation; ordinary types stay required without opt-in. Use `row.color ?? "none"` for the baseline fallback.
 
 `useRelease()` from snapback4/react follows the authenticated catalog even when query gates are closed: loading, denied, or `{generation, operations, tables}` with public argument/field shapes. Generated `api.op.available(release)` is false while unready or when name/kind/argument signatures differ. This checks capability, not authorization or unchanged business semantics; still handle E_OP/E_INPUT and authored guard refusals when a switch races it. The SDK withdraws old metadata on observed generations, polls while subscribed, and returns loading offline/on catalog failure; account retirement/close withdraws it. Keep draft state above generation-sensitive read/action gates; remount only the gated children. Dormant means unavailable on this release, not deleted. Test v2 → v1 → v2 with one frontend: field fallbacks, missing operations, retained drafts and restored values. Alternatively check selected immutable source in a separate copy and rebuild its matching frontend. Preserve deployment source; Expo/Exact runtime changes also require a device rebuild.
-
-## Bridge a safety gate before rollback
-Use this beside the enum-widening rollback recipe above. Suppose v2 added `grounding.state = 'inspection'`; v1 holds only `'clear'`/`'hold'`. Selecting v1 hides that row and its children, so v1's `book` guard may allow a booking that v2 blocks.
-
-1. Start from the old UI/operations, but keep v2's widened `grounding.state` domain, safety table, read audience and booking `require`. Save this complete source as `versions/bridge/schema.q` and deploy it with `deploy ./deployment --schema versions/bridge/schema.q --check`, then without `--check`. DAY3 owns the saved-source/baseline layout; KIT2 owns the packaged day-two proof recipe.
-2. While the gate still runs, migrate each inspection to a truthful old-domain hold through an authorized bridge mutation. Do not relabel it clear just to satisfy v1. Keep linked metadata until its parent can be safely represented; if v1 cannot invalidate newer metadata, keep that behavior in the bridge too.
-3. Prove the same booking/payment still refuses for the blocked case and that the named lists/counts preserve the intended business denominator. Re-run the final old-source preview against the repaired live population.
-4. Select v1 only when those checks pass. If the old source cannot preserve the invariant, keep the bridge or pause that workflow. Retained storage cannot supply absent logic.
-
-`rollback --check` groups safety dependencies by dormant table with counts, affected operations and bounded sample ids. They are dependency warnings, not predicate matches. Counts describe the preview snapshot; later writes can change activation.
 
 ## Trigger a deployed job
 A running serve accepts `POST /jobs/<job>` with a full service token; the job executes as the system on its FIFO queue and server clock. Every full service seat can trigger system jobs, so provision these tokens only to trusted operators. Guest/account sessions, read-scoped tokens and personas cannot use this door. `POST /dev/jobs/<job>` remains development-only.

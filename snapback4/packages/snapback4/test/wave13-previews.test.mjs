@@ -79,6 +79,9 @@ test('H9 additive preview-noise budget: unchanged probe guards print zero WARNIN
   const rollback=run('rollback',deployment,'--to','1','--check').stdout;
   assert.equal((rollback.match(/WARNING/g)??[]).length,0,rollback);
   assert.doesNotMatch(rollback,/\.require/);
+  const guide=run('guide','deploy').stdout;
+  assert.ok(guide.indexOf('## Rollback after widening') < guide.indexOf('## Bridge a safety gate'));
+  assert.ok(guide.indexOf('## Bridge a safety gate') < guide.indexOf('## What the old release sees'));
 });
 
 test('changed probe dependencies group guards once; unused probe columns and unrelated writes stay silent', t => {
@@ -142,9 +145,9 @@ test('DT7 golden preview: query/count populations, dormant dependents, then grou
   await host.stop();
   const plan=JSON.parse(run('rollback',deployment,'--to','1','--check','--json').stdout);
   assert.deepEqual(plan.hazards.slice(0,4),[
-    'queries/counts childList read children: active table population 1 → 0, 1 active rows leave; verify filtered results and progress denominators before selecting release 1 (dependency, not a query-result count)',
-    'queries/counts dayCount, legsList read parents: active table population 1 → 0, 1 active rows leave; verify filtered results and progress denominators before selecting release 1 (dependency, not a query-result count)',
-    'dependent children: 1 active rows go dormant with parent tables parents; preserve these linked records in a bridge or accept their absence in release 1',
+    'queries/counts childList read children: active table population 1 → 0, 1 active row leaves; verify filtered results and progress denominators before selecting release 1 (dependency, not a query-result count)',
+    'queries/counts dayCount, legsList read parents: active table population 1 → 0, 1 active row leaves; verify filtered results and progress denominators before selecting release 1 (dependency, not a query-result count)',
+    'dependent children: 1 active row goes dormant with parent tables parents; preserve these linked records in a bridge or accept their absence in release 1',
     "release 1's safety dependencies on parents: `book`, `pay` cannot see 1 dormant parents row (sample ids [p]); verify refusal cases and preserve this gate in a bridge release or pause the workflow (guide deploy; dependency, not a predicate match)",
   ]);
   const text=run('rollback',deployment,'--to','1','--check').stdout;
@@ -220,7 +223,7 @@ mutation book(item: gates):
   const dropped=source.replace("  state: enum('hold', 'inspection')\n",'').replace(", state: 'inspection'",'');
   writeFileSync(schema,dropped);
   const preview=run('deploy',deployment,'--check').stdout;
-  assert.match(preview,/gates changed: 1 guards unproved across book/);
+  assert.match(preview,/gates changed: 1 guard unproved across book/);
   run('deploy',deployment);
   assert.equal((await host.post('/m/book',{item:'gate'})).state,'sent');
   await host.stop();
@@ -242,7 +245,7 @@ mutation approve():
   writeFileSync(schema,source.replace('mutation edit():','mutation edit(unused: bool ?):'));
   assert.doesNotMatch(run('deploy',deployment,'--check').stdout,/WARNING|edit.require/);
   writeFileSync(schema,source.replace('  immutable principal\n  public','  immutable principal\n  read <- .principal = viewer'));
-  assert.match(run('deploy',deployment,'--check').stdout,/delegates changed: 1 guards unproved across approve/);
+  assert.match(run('deploy',deployment,'--check').stdout,/delegates changed: 1 guard unproved across approve/);
 });
 
 test('row-presence guards and field guards ignore new unconsulted defaulted columns', t => {
@@ -273,7 +276,7 @@ mutation unrelated():
   writeFileSync(schema,source);run('deploy',deployment);
   writeFileSync(schema,source.replace("insert roles {principal: viewer, role: 'captain'}", "insert roles {principal: viewer, role: 'crew'}").replace("body: 'first'","body: 'second'"));
   const plan=run('deploy',deployment,'--check').stdout;
-  assert.match(plan,/compiled guard changed: 1 guards unproved across prepare/);
+  assert.match(plan,/compiled guard changed: 1 guard unproved across prepare/);
   assert.doesNotMatch(plan,/unrelated.require|across unrelated/);
 });
 
@@ -296,7 +299,7 @@ mutation accumulated():
 `;
   writeFileSync(schema,source);run('deploy',deployment);
   writeFileSync(schema,source.replaceAll('    ok = false','    ok = true'));
-  assert.match(run('deploy',deployment,'--check').stdout,/compiled guard changed: 1 guards unproved across branch/);
+  assert.match(run('deploy',deployment,'--check').stdout,/compiled guard changed: 1 guard unproved across branch/);
   writeFileSync(schema,source.replace('  public\n  online only\ntable notes:',"  read <- deny\n  online only\ntable notes:"));
   const changed=run('deploy',deployment,'--check').stdout;
   assert.match(changed,/roles changed: 4 guards unproved across accumulated, add, edit, remove/);
@@ -336,9 +339,199 @@ query total():
   const plan=JSON.parse(run('deploy',deployment,'--check','--json').stdout);
   assert.ok(plan.hazards.some(h=>h.startsWith('queries/counts total read holds: active table population 1 → 0')),JSON.stringify(plan.hazards));
   assert.ok(plan.hazards.some(h=>h.includes('safety dependencies on holds: `book`')),JSON.stringify(plan.hazards));
-  assert.ok(plan.hazards.some(h=>h.includes('holds changed: 1 guards unproved across book')),JSON.stringify(plan.hazards));
+  assert.ok(plan.hazards.some(h=>h.includes('holds changed: 1 guard unproved across book')),JSON.stringify(plan.hazards));
   run('deploy',deployment);
   assert.equal((await host.post('/m/book',{})).state,'sent');
   assert.equal((await host.post('/q/total',{})).data.holdCount,0);
   await host.stop();
+});
+
+test('earlier conditional writes retain their own read dependencies transitively', t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe+`table permissions:
+  principal: principal
+  unique principal
+  public
+  online only
+mutation prepareRole():
+  if exists permissions[viewer]:
+    insert roles {principal: viewer, role: 'captain'}
+  require exists roles[principal = viewer, role = 'captain'] else NO
+  return true
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  writeFileSync(schema,source.replace('  unique principal\n  public','  unique principal\n  read <- deny'));
+  assert.match(run('deploy',deployment,'--check').stdout,/permissions changed: 1 guard unproved across prepareRole/);
+});
+
+test('loop guards depend on the element type of used argument lists', t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe+`mutation fromList(values: [int] <=3):
+  for value in values:
+    require value >= 0 else NEGATIVE
+  return true
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  writeFileSync(schema,source.replace('[int] <=3','[int 0..10] <=3'));
+  assert.match(run('deploy',deployment,'--check').stdout,/arguments changed: 1 guard unproved across fromList/);
+});
+
+test('tightening preserves warnings for changed codes/messages and first-failure regions', t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe+`mutation guarded(ok: bool, extra: bool, third: bool):
+  require ok else OLD
+  return true
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  writeFileSync(schema,source.replace('require ok else OLD','require ok and extra else NEW'));
+  const renamed=run('deploy',deployment,'--check').stdout;
+  assert.match(renamed,/WARNING.*guarded.require.*OLD.*NEW/);
+  assert.doesNotMatch(renamed,/note:.*tightens guarded.require/);
+  const ordered=source.replace('require ok else OLD','require ok else FIRST\n  require extra else SECOND');
+  writeFileSync(schema,ordered);run('deploy',deployment);
+  writeFileSync(schema,ordered.replace('require ok else FIRST','require ok and third else FIRST'));
+  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*guarded.require/);
+});
+
+test('optional-null narrowing retains rows dormant and never invents a literal backfill', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  writeFileSync(schema,safety);run('deploy',deployment);
+  const host=await serve(t,deployment);assert.equal((await host.post('/m/parent',{id:'legacy'})).state,'sent');
+  const optional=safety.replace("state: enum('clear', 'hold')", "state: enum('clear', 'hold')\n  color: text <=10 ? default 'red'");
+  writeFileSync(schema,optional);run('deploy',deployment);
+  assert.equal((await host.post('/q/legsList',{})).data[0].color,null);
+  writeFileSync(schema,optional.replace("text <=10 ? default 'red'","text <=10 default 'red'"));
+  const projected=JSON.parse(run('deploy',deployment,'--check','--json').stdout);
+  assert.deepEqual(projected.backfills,[]);
+  assert.ok(projected.plan.items.some(i=>i.path==='parents' && i.rows===1),JSON.stringify(projected.plan.items));
+  assert.deepEqual(JSON.parse(run('deploy',deployment,'--json').stdout).backfills,[]);
+  assert.deepEqual((await host.post('/q/legsList',{})).data,[]);await host.stop();
+});
+
+test('later loop iterations include carried guard assignments', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe+`mutation repeated(values: [int] <=2):
+  ok = true
+  for value in values:
+    require ok else BLOCKED
+    ok = false
+  return true
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);
+  assert.equal((await host.post('/m/repeated',{values:[1,2]})).why.code,'BLOCKED');
+  writeFileSync(schema,source.replace('    ok = false','    ok = true'));
+  assert.match(run('deploy',deployment,'--check').stdout,/compiled guard changed: 1 guard unproved across repeated/);
+  run('deploy',deployment);
+  assert.equal((await host.post('/m/repeated',{values:[1,2]})).state,'sent');await host.stop();
+});
+
+test('earlier deletes include reference cascade/keep policies used by a later guard', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=`use identity guests
+table parents:
+  value: int
+  public
+  insert <- allow
+  delete <- allow
+  online only
+table children:
+  parent: parents on delete cascade
+  unique parent
+  public
+  insert <- allow
+  online only
+mutation seed():
+  insert parents {id: 'p', value: 1}
+  insert children {id: 'c', parent: 'p'}
+mutation remove():
+  delete parents['p']
+  require exists children[id = 'c'] else MISSING
+  return true
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);assert.equal((await host.post('/m/seed',{})).state,'sent');
+  assert.equal((await host.post('/m/remove',{})).why.code,'MISSING');
+  writeFileSync(schema,source.replace('on delete cascade','on delete keep'));
+  assert.match(run('deploy',deployment,'--check').stdout,/children changed: 1 guard unproved across remove/);
+  run('deploy',deployment);assert.equal((await host.post('/m/remove',{})).state,'sent');await host.stop();
+});
+
+test('conditional loop-carried assignments retain their control reads through local bindings', t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe+`table permissions:
+  principal: principal
+  unique principal
+  public
+  online only
+mutation conditional(values: [int] <=2):
+  ok = true
+  for value in values:
+    require ok else BLOCKED
+    permission = exists permissions[viewer]
+    if permission:
+      ok = false
+  return true
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  writeFileSync(schema,source.replace('  unique principal\n  public','  unique principal\n  read <- deny'));
+  assert.match(run('deploy',deployment,'--check').stdout,/permissions changed: 1 guard unproved across conditional/);
+});
+
+test('an effect retains its incoming condition when both branches overwrite that binding', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe.replace('  public\n  online only\ntable notes:', '  public\n  insert <- allow\n  delete <- allow\n  online only\ntable notes:')+`table permissions:
+  principal: principal
+  unique principal
+  public
+  insert <- allow
+  online only
+mutation permit():
+  return insert permissions {principal: viewer}
+mutation clear():
+  role = roles[principal = viewer, role = 'captain']! else MISSING
+  delete roles[role.id]
+mutation prepareRole():
+  permission = exists permissions[viewer]
+  if permission:
+    insert roles {principal: viewer, role: 'captain'}
+    permission = false
+  else:
+    permission = false
+  require exists roles[principal = viewer, role = 'captain'] else NO
+  return true
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);assert.equal((await host.post('/m/permit',{})).state,'sent');
+  assert.equal((await host.post('/m/prepareRole',{})).state,'sent');assert.equal((await host.post('/m/clear',{})).state,'sent');
+  writeFileSync(schema,source.replace('  unique principal\n  public','  unique principal\n  read <- deny'));
+  assert.match(run('deploy',deployment,'--check').stdout,/permissions changed: 1 guard unproved across prepareRole/);
+  run('deploy',deployment);assert.equal((await host.post('/m/prepareRole',{})).why.code,'NO');await host.stop();
+});
+
+test('loop exit conditions remain dependencies of later iteration guards', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe+`table permissions:
+  principal: principal
+  unique principal
+  public
+  insert <- allow
+  online only
+mutation permit():
+  return insert permissions {principal: viewer}
+mutation repeated(values: [int] <=2):
+  ok = true
+  for value in values:
+    require ok else BLOCKED
+    if exists permissions[viewer]:
+      return true
+    ok = false
+  return true
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);assert.equal((await host.post('/m/permit',{})).state,'sent');
+  assert.equal((await host.post('/m/repeated',{values:[1,2]})).state,'sent');
+  writeFileSync(schema,source.replace('  unique principal\n  public','  unique principal\n  read <- deny'));
+  assert.match(run('deploy',deployment,'--check').stdout,/permissions changed: 1 guard unproved across repeated/);
+  run('deploy',deployment);assert.equal((await host.post('/m/repeated',{values:[1,2]})).why.code,'BLOCKED');await host.stop();
 });
