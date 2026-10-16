@@ -37,7 +37,8 @@ pub(super) fn decided(schema: &Schema, program: &Program) -> BTreeSet<String> {
     let singles = counts.into_iter().filter_map(|(name,count)|(count == 1).then_some(name)).collect();
     let conditions = short_circuit_bindings(&program.body);
     let mut counts = BTreeMap::new(); assignment_counts(&program.body,&mut counts);
-    if counts.iter().any(|(name,count)| *count>1 && !conditions.contains_key(name)) { return BTreeSet::new(); }
+    if counts.iter().any(|(name,count)| *count>1 && !conditions.contains_key(name))
+        || conditions.values().any(|value| reconstructed_rebound(value,&counts)) { return BTreeSet::new(); }
     let mut proof = Proof { schema, singles, inputs, conditions, sites: BTreeMap::new() };
     proof.body(&program.body, Yes, Snapshots::new());
     proof.sites.into_iter().filter_map(|(site,good)|good.then_some(site)).collect()
@@ -121,6 +122,9 @@ impl Proof<'_> {
 }
 fn present(name: &str) -> Formula { not(compare(&crate::ir::var(name), &Expr::Literal(Value::Null), &Snapshots::new())) }
 fn compare(left: &Expr, right: &Expr, snapshots: &Snapshots) -> Formula {
+    // Repeated syntax is an identity only for stable lexical values. Reads,
+    // fresh ids and builtin evaluation never supply comparison identities.
+    if !symbolic(left) || !symbolic(right) { return Limit; }
     let (a,b) = (left.clone(),right.clone());
     if a == b { return Yes; }
     if let (Expr::Literal(a),Expr::Literal(b)) = (&a,&b) { return if a==b {Yes} else {No}; }
@@ -187,7 +191,14 @@ fn entails(have: &Formula, need: &Formula) -> bool {
     let mut names=BTreeSet::new();atoms(have,&mut names);atoms(need,&mut names);
     if names.len()>12 {return false;}
     let names=names.into_iter().collect::<Vec<_>>();
-    (0..1u32<<names.len()).all(|mask|!eval(have,&names,mask)||eval(need,&names,mask))
+    let mut inhabited=false;
+    for mask in 0..1u32<<names.len() {
+        if eval(have,&names,mask) {
+            inhabited=true;
+            if !eval(need,&names,mask) {return false;}
+        }
+    }
+    inhabited
 }
 
 // Expression blocks and pair-return sinks can assign enclosing locals. They
@@ -202,7 +213,8 @@ fn stable_body(body: &[Stmt]) -> bool {
 }
 fn stable_expr(expr:&Expr)->bool {
     match expr {
-        Expr::Literal(_)|Expr::Variable(_)|Expr::Input(_)=>true,
+        Expr::Literal(_)|Expr::Variable(_)|Expr::Input(Input::Viewer|Input::Now|Input::ReadTime)=>true,
+        Expr::Input(Input::NewId)=>false,
         Expr::Field {base,..}|Expr::Unary {value:base,..}=>stable_expr(base),
         Expr::Binary {left,right,..}=>stable_expr(left)&&stable_expr(right),
         Expr::Array(values)=>values.iter().all(stable_expr),
@@ -217,5 +229,27 @@ fn stable_expr(expr:&Expr)->bool {
             && scan.after.as_deref().is_none_or(stable_expr)&&scan.before.as_deref().is_none_or(stable_expr)
             && scan.range.is_none()&&scan.filter.as_deref().is_none_or(stable_expr),
         Expr::Block {..}|Expr::Merge(_)=>false,
+    }
+}
+
+fn symbolic(expr:&Expr)->bool {
+    match expr {
+        Expr::Literal(_)|Expr::Variable(_)|Expr::Input(Input::Viewer|Input::Now|Input::ReadTime)=>true,
+        Expr::Field {base,..}|Expr::Unary {value:base,..}=>symbolic(base),
+        Expr::Binary {left,right,..}=>symbolic(left)&&symbolic(right),
+        Expr::Array(items)=>items.iter().all(symbolic),
+        Expr::Object(fields)=>fields.values().all(symbolic),
+        _=>false,
+    }
+}
+// Reconstructed conditions may depend only on once-bound values, never on
+// the previous/future value of themselves or another assigned temporary.
+fn reconstructed_rebound(expr:&Expr,counts:&BTreeMap<String,usize>)->bool {
+    match expr {
+        Expr::Variable(name)=>counts.get(name).is_some_and(|count|*count>1),
+        Expr::Field {base,..}|Expr::Unary {value:base,..}=>reconstructed_rebound(base,counts),
+        Expr::Binary {left,right,..}=>reconstructed_rebound(left,counts)||reconstructed_rebound(right,counts),
+        Expr::Literal(_)|Expr::Input(_)=>false,
+        _=>true,
     }
 }

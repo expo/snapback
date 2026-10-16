@@ -19,7 +19,7 @@ fn secrets_stay_hidden(mut schema:snapback4_core::schema::Schema,mut program:ir:
     let mut rows=vec![("secrets".into(),object([("id",Value::Id("secret".into())),("payload",Value::String("must not escape".into()))]))];
     if hidden {rows.push(("anchors".into(),object([("id",Value::Id("a".into())),("owner",Value::Id("other".into()))])));}
     e.seed(rows).unwrap();
-    let answer=e.query("q",Context::new("viewer",[("p".into(),Value::Id("a".into())),("other".into(),Value::Id("other".into()))].into())).unwrap();
+    let answer=e.query("q",Context::new("viewer",[("p".into(),Value::Id("a".into())),("other".into(),Value::Id("other".into()))].into()).with_ids(["new-a".into(),"new-b".into()])).unwrap();
     assert_eq!(answer.data,Value::Array(vec![]),"{answer:?}");
 }
 #[test]
@@ -67,4 +67,29 @@ fn an_argument_cannot_shadow_a_reconstructed_short_circuit_temporary() {
         Stmt::Let {name:"b".into(),value:Expr::Literal(Value::Bool(false))},
         Stmt::If {condition:ir::var("b"),then_body:vec![Stmt::Assign {name:"b".into(),value:Expr::Literal(Value::Bool(true))}],else_body:vec![]},Stmt::Return(Expr::Scan(scan))];
     assert!(snapback4_core::engine::rules::snapshot_decided_scans(&schema,&p).is_empty());
+}
+
+#[test]
+fn two_fresh_id_evaluations_are_never_a_stable_identity() {
+    let (schema,p,scan)=setup();
+    secrets_stay_hidden(schema,p,vec![anchor("a"),require(eq(B::Ne,Expr::Input(Input::NewId),Expr::Input(Input::NewId))),Stmt::Return(Expr::Scan(scan))],false);
+}
+#[test]
+fn a_reconstruction_cannot_reference_its_previous_value() {
+    let (schema,p,scan)=setup();
+    let body=vec![anchor("a"),Stmt::Let {name:"b".into(),value:Expr::Literal(Value::Bool(false))},
+        Stmt::If {condition:Expr::Unary {op:ir::UnaryOp::Not,value:Box::new(ir::var("b"))},then_body:vec![Stmt::Assign {name:"b".into(),value:eq(B::Eq,ir::var("b"),Expr::Literal(Value::Bool(false)))}],else_body:vec![]},
+        require(ir::var("b")),require(eq(B::Ne,ir::var("b"),Expr::Literal(Value::Bool(false)))),Stmt::Return(Expr::Scan(scan))];
+    secrets_stay_hidden(schema,p,body,false);
+}
+#[test]
+fn a_reconstruction_cannot_reference_another_temporaries_later_value() {
+    let (schema,p,scan)=setup();
+    let no=Expr::Literal(Value::Bool(false));
+    let invert=|name:&str|Expr::Unary {op:ir::UnaryOp::Not,value:Box::new(ir::var(name))};
+    let body=vec![anchor("a"),Stmt::Let {name:"c".into(),value:no.clone()},Stmt::Let {name:"b".into(),value:no.clone()},
+        Stmt::If {condition:invert("b"),then_body:vec![Stmt::Assign {name:"b".into(),value:ir::var("c")}],else_body:vec![]},
+        Stmt::If {condition:invert("c"),then_body:vec![Stmt::Assign {name:"c".into(),value:Expr::Literal(Value::Bool(true))}],else_body:vec![]},
+        require(eq(B::Eq,ir::var("b"),no)),require(invert("b")),Stmt::Return(Expr::Scan(scan))];
+    secrets_stay_hidden(schema,p,body,false);
 }
