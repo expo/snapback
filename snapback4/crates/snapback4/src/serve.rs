@@ -931,7 +931,7 @@ fn handle(mut request: Request, shared: &Shared) {
         let personas = lock(&shared.bound).personas.clone();
         let status = lock(&shared.adoption);
         let now = shared.now();
-        return respond_timed(request, shared, 200, json!({"instance":shared.dev_identity.as_ref().map(|i| &i.instance), "initialStoreId":shared.dev_identity.as_ref().map(|i| &i.initial_store_id), "pid":std::process::id(), "wrapperPid":crate::supervisor::pid(), "storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":now, "clockOffsetMs":now - snapback4_core::now_ms(), "personas":personas, "scheduling":crate::thread_priority::diagnostics(), "fileDescriptors":crate::host_limits::diagnostics()}));
+        return respond_timed(request, shared, 200, json!({"instance":shared.dev_identity.as_ref().map(|i| &i.instance), "initialStoreId":shared.dev_identity.as_ref().map(|i| &i.initial_store_id), "pid":std::process::id(), "wrapperPid":crate::supervisor::pid(), "storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":now, "clockOffsetMs":now - snapback4_core::now_ms(), "skewMs":now - snapback4_core::now_ms(), "personas":personas, "scheduling":crate::thread_priority::diagnostics(), "fileDescriptors":crate::host_limits::diagnostics()}));
     }
     if method == Method::Get && path == "/dev/clock/status" { return maintenance::clock_status(request, shared); }
     if method == Method::Options {
@@ -1039,9 +1039,9 @@ fn handle(mut request: Request, shared: &Shared) {
     let request_now = if (method == Method::Get && path == "/changes")
         || (method == Method::Post && (path == "/sync" || path.starts_with("/q/") || path.starts_with("/m/")))
     {
-        match shared.advance_time_audiences() {
+        match shared.advance_time_audiences().map_err(|error| error.refusal()) {
             Ok(now) => Some(now),
-            Err(error) => return reject(request, 503, error.refusal()),
+            Err(refusal) => return reject(request, 503, refusal),
         }
     } else { None };
     if operation && !shared.personas {crate::release_requests::Scope::admit(&shared.release_requests,||*lock(&shared.generation));}
@@ -1270,8 +1270,10 @@ fn handle(mut request: Request, shared: &Shared) {
                     }
                     context.search_retained_order = Some((order, payload.get("searchRetainedMore").and_then(Json::as_bool).unwrap_or(false)));
                 }
+                let settlement_started = Instant::now();
+                let (outcome, cut, metadata, reads_presence, query_generation, search_current, scopes, decoration_paths) = loop {
                 let reader = shared.reader();
-                let (outcome, cut, metadata, reads_presence, query_generation, search_current, scopes, decoration_paths) = match reader {
+                let evaluated = match reader {
                     Ok((epoch, mut reader)) => {
                         // Take identity from the same reader that evaluates the query,
                         // never from an engine that may have replaced it meanwhile.
@@ -1279,7 +1281,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         #[cfg(test)]
                         test_work(&shared.query_wait);
                         let reads_presence = presence_of(&reader);
-                        let context = dev_refusals::response::context(context, reader.refusal_sites.clone(), &reader);
+                        let context = dev_refusals::response::context(context.clone(), reader.refusal_sites.clone(), &reader);
                         let query_generation = reader.generation();
                         let decoration_paths = reader.program(&op).filter(|_| reader.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
                         let scopes = read_scopes::dependencies(&reader, &op, &context);
@@ -1298,6 +1300,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let mut engine = lock(&shared.engine);
                         let metadata = response_head(&mut engine);
                         let reads_presence = presence_of(&engine);
+                        let mut context = context.clone();
                         if shared.personas { context = dev_refusals::response::context(context, Arc::new(lock(&shared.bound).refusal_sites.clone()), &engine); }
                         let query_generation = engine.generation();
                         let decoration_paths = engine.program(&op).filter(|_| engine.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
@@ -1306,6 +1309,28 @@ fn handle(mut request: Request, shared: &Shared) {
                         let scopes = read_scopes::complete(scopes, engine.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
                         (outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths)
                     },
+                };
+                if let Some((table, id)) = evaluated.0.as_ref().ok().and_then(|outcome| outcome.pending_opening.as_ref()) {
+                    if settlement_started.elapsed() >= Duration::from_secs(30) || crate::lifecycle::stopping() {
+                        let mut why = Refusal::new("E_QUERY_RETRY", "client", "timed disclosure did not settle within the query wait; retry the query").guide("client");
+                        why.retryable = true;
+                        return respond_timed(request, shared, 503, json!({"denied":why}));
+                    }
+                    let mut engine = lock(&shared.engine);
+                    let now = match engine.materialize_time_audience_at(table, id, context.now.unwrap_or_else(|| shared.now())) {
+                        Ok(now) => now,
+                        Err(error) => return respond_timed(request, shared, 503, json!({"denied":error.refusal()})),
+                    };
+                    shared.refresh_time_audience_clock(&engine, now);
+                    shared.durable_committed(&engine);
+                    drop(engine);
+                    if let Err(why) = session_identity::principal_of(&request, shared) {
+                        return respond_timed(request, shared, 401, json!({"denied":why}));
+                    }
+                    std::thread::yield_now();
+                    continue;
+                }
+                break evaluated;
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match outcome {

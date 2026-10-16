@@ -305,6 +305,9 @@ pub struct QueryOutcome {
     /// placeholder; client transports publish loading, never a ready null.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub unavailable: bool,
+    /// Host-only publication dependency; never part of a wire or device reply.
+    #[serde(skip)]
+    pub pending_opening: Option<(String, String)>,
     pub complete: bool,
     pub cut: Option<ReadCut>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -768,7 +771,7 @@ impl Engine {
                 };
                 runner.charge_output(&data)?;
                 let (delivery, delivery_meter) = match manifest { DeliveryManifest::Build => runner.delivery_manifest(&data), DeliveryManifest::Skip => (None, None) };
-                let outcome = QueryOutcome { decoration_expiry: None, search_rows: None, search_scopes: None, delivery, delivery_meter, ephemeral: version, unavailable: runner.query_unavailable, complete: !runner.query_unavailable && runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
+                let outcome = QueryOutcome { decoration_expiry: None, search_rows: None, search_scopes: None, delivery, delivery_meter, ephemeral: version, unavailable: runner.query_unavailable, pending_opening: runner.pending_opening.clone(), complete: !runner.query_unavailable && runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
                 drop(runner);
                 drop(layered); drop(hub);
                 tx.rollback()?;
@@ -814,7 +817,7 @@ impl Engine {
             #[cfg(feature = "server-search")] search_scopes: runner.search_scopes.take(),
             #[cfg(not(feature = "server-search"))] search_scopes: None,
             delivery, delivery_meter, ephemeral: version,
-            unavailable: runner.query_unavailable,
+            unavailable: runner.query_unavailable, pending_opening: runner.pending_opening.clone(),
             complete: !runner.query_unavailable && runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_overflow && !runner.value_source_incomplete && !runner.page_position_lost() && !runner.timeline_pending,
             cut: runner.read_cut(),
             capped_at: runner.meter.capped_at.clone(),

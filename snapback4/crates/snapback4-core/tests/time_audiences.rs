@@ -924,3 +924,26 @@ fn opening_admission_refuses_private_delivery_witness_walks_before_adoption() {
     assert!(error.to_string().contains("probe-free read rule"), "{error}");
     assert_eq!(engine.store().conn().query_row("SELECT count(*) FROM _time_openings", [], |row| row.get::<_, i64>(0)).unwrap(), 0);
 }
+
+#[test]
+fn kit3_pending_dependency_is_private_and_targeted_materialization_revalidates_it() {
+    let mut engine = engine_at(0);
+    engine.seed_at([announcement("a", 1000, 5000, "first"), announcement("b", 1000, 5000, "second"), announcement("c", 1000, 5000, "third")], 0).unwrap();
+    // The query's ordinary prelude publishes a. Reading c encounters its own
+    // pending dependency, which is a host value and never serialized.
+    let pending = one(&mut engine, "c", 1000);
+    assert!(pending.unavailable);
+    assert_eq!(pending.pending_opening, Some(("announcements".into(), "c".into())));
+    let serialized = serde_json::to_value(&pending).unwrap();
+    assert!(serialized.get("pending_opening").is_none());
+    engine.materialize_time_audience_at("announcements", "c", 1000).unwrap();
+    // b was not drained as collateral work: it is still the next due entry.
+    assert_eq!(engine.next_time_audience_at().unwrap(), Some(1000));
+    let ready = one(&mut engine, "c", 1000);
+    assert!(!ready.unavailable && ready.complete);
+    assert_eq!(ready.data.field("body").unwrap().as_str().unwrap(), "third");
+    // An obsolete dependency cannot move a rescheduled row into the past.
+    engine.seed_at([announcement("future", 3000, 5000, "future")], 1000).unwrap();
+    engine.materialize_time_audience_at("announcements", "future", 2000).unwrap();
+    assert!(one(&mut engine, "future", 2000).data.is_null());
+}

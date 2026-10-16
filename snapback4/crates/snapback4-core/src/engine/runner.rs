@@ -208,6 +208,7 @@ pub struct Runner<'a> {
     pub(super) scalar_unavailable: bool,
     /// An interrupted evaluation's null placeholder is not an application value.
     pub(crate) query_unavailable: bool,
+    pub(crate) pending_opening: Option<(String, String)>,
     /// A lane-discovery source was truncated before all values were known.
     /// Declared answer bounds do not set this (LLP 3000.027 §2).
     pub(crate) page_overflow: bool,
@@ -379,7 +380,7 @@ impl<'a> Runner<'a> {
             shape_cursors: BTreeMap::new(),
             non_uniform: false,
             scalar_unavailable: false,
-            query_unavailable: false,
+            query_unavailable: false, pending_opening: None,
             page_overflow: false,
             discovering_values: false,
             value_source_incomplete: false,

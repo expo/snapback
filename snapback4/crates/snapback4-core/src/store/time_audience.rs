@@ -62,6 +62,11 @@ impl Tx<'_> {
         Ok(())
     }
 
+    pub(crate) fn selected_time_audience(&self, table: &str, id: &str, now: i64) -> Result<Option<Opening>, RuntimeError> {
+        Ok(self.conn().query_row("SELECT at, t, id FROM _time_openings WHERE t = ?1 AND id = ?2 AND at <= ?3",
+            params![table, id, now], |row| Ok(Opening { at: row.get(0)?, table: row.get(1)?, id: row.get(2)? })).optional()?)
+    }
+
     pub(crate) fn remove_time_audience(&self, table: &str, id: &str) -> Result<(), RuntimeError> {
         if self.server {
             self.conn()
