@@ -706,7 +706,8 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                     let plain = format!("exists {table}[{}]", key.join(", "));
                     let Some(extra) = equalities.iter().map(|(c, t)| term(t).map(|v| format!("{c} = {v}"))).collect::<Option<Vec<_>>>() else { return false };
                     let named = target.columns().iter().zip(&key).map(|(c, v)| format!("{c} = {v}"))
-                        .chain(extra).collect::<Vec<_>>().join(", ");
+                        .chain(extra.iter().cloned()).collect::<Vec<_>>().join(", ");
+                    let mixed = format!("exists {table}[{}]",key.iter().cloned().chain(extra).collect::<Vec<_>>().join(", "));
                     // Positional spellings with multiple compatible index widths
                     // are not evidence for this particular raw-rule key.
                     let source = schema.table(table).unwrap();
@@ -715,7 +716,8 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                             && source.columns.get(&target.columns()[0]) == Some(&snapback4_core::schema::ColumnType::Principal)
                             && source.indexes.values().filter(|candidate| candidate.unique && candidate.columns().len() == 1
                                 && source.columns.get(&candidate.columns()[0]) == Some(&snapback4_core::schema::ColumnType::Principal)).count() == 1;
-                    (equalities.is_empty() && unambiguous && known.contains(&plain)) || known.contains(&format!("exists {table}[{named}]"))
+                    (unambiguous && (known.contains(&mixed) || equalities.is_empty() && known.contains(&plain)))
+                        || known.contains(&format!("exists {table}[{named}]"))
                 },
                 _ => false,
             }

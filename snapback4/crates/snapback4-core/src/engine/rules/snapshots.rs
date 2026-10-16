@@ -75,8 +75,9 @@ impl Proof<'_> {
                     if self.singles.contains(name) && !matches!(name.as_str(),"$filter"|"$project") && let Expr::Get(read) = value
                         && read.key.iter().all(|key| matches!(key,Expr::Literal(_)|Expr::Input(Input::Viewer))
                             || matches!(key,Expr::Variable(name) if self.inputs.contains(name)))
-                        && self.ordinary(&read.table) && self.schema.table(&read.table).and_then(|t|t.index(&read.index))
-                            .is_some_and(|index|index.unique && index.is_plain() && index.components.len()==read.key.len()) {
+                        && self.ordinary(&read.table) && self.schema.table(&read.table).is_some_and(|table|table.index(&read.index)
+                            .is_some_and(|index|index.unique && index.is_plain() && index.components.len()==read.key.len()
+                                && index.components.iter().all(|part|part.key_type(table).is_some_and(|kind|!kind.is_optional())))) {
                         snapshots.insert(name.clone(),read.clone());
                     }
                 }

@@ -78,6 +78,9 @@ fn proven_rosters_survive_unrelated_writes_but_not_roster_changes() {
     let source="table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  delete <- allow\n  online only\ntable docs:\n  owner: principal\n  n: int\n  read <- .owner = viewer or exists staff[viewer]\n  update <- exists staff[viewer]\n  online only\ntable pictures:\n  doc: docs\n  unique doc\n  read <- exists staff[viewer]\n  online only\nmutation m(d: docs):\n  require exists staff[viewer] else NO\n  update docs[d] { n: 1 }\n  if exists pictures[doc = d]:\n    return true\n  return false\n";
     let b=checked(source);
     assert!(!b.notes.iter().any(|n|matches!(n.code.as_str(),"N_UNREADABLE_PROBE"|"N_LOOKUP_HIDDEN")),"{:?}",b.notes);
+    let role=source.replace("  unique principal\n", "  role: enum('clerk','other')\n  unique principal\n")
+        .replace("exists staff[viewer]", "exists staff[viewer, role = 'clerk']");
+    assert!(!checked(&role).notes.iter().any(|n|matches!(n.code.as_str(),"N_UNREADABLE_PROBE"|"N_LOOKUP_HIDDEN")));
     let after_delete=source.replace("  update <- exists staff[viewer]\n", "  update <- exists staff[viewer]\n  delete <- exists staff[viewer]\n")
         .replace("  update docs[d] { n: 1 }", "  update docs[d] { n: 1 }\n  if exists docs[d]:\n    delete docs[d]");
     assert!(!checked(&after_delete).notes.iter().any(|n|n.code=="N_UNREADABLE_PROBE"));
@@ -146,4 +149,14 @@ fn second_cascading_parent_names_the_edge_design_alternative() {
     let d=b.diagnostics.iter().find(|d|d.code=="E_CASCADE_BOUND").unwrap();
     assert!(d.rewrite.contains("make one edge `restrict` or drop the column"),"{d}");
     assert!(!d.rewrite.contains("Heap =")&&d.details.as_deref().is_some_and(|s|s.contains("Heap =")));
+}
+#[test]
+fn the_actual_pre_wave_private_composite_upsert_refuses_only_the_changing_clock() {
+    let source=include_str!("fixtures/wave14-p18.q");
+    refuses(source,"E_QUARRY_IMMUTABLE");
+    let mutable_only=source.replace("emoji, at: now", "emoji");
+    assert!(!checked(&mutable_only).notes.iter().any(|n|n.code=="N_IMMUTABLE_PATCH"));
+    let uncertain=source.replace("mutation react(post: posts, emoji: text 1..20)","mutation react(post: posts, emoji: text 1..20, at: time)")
+        .replace("emoji, at: now", "emoji, at");
+    assert!(checked(&uncertain).notes.iter().any(|n|n.code=="N_IMMUTABLE_PATCH"));
 }
