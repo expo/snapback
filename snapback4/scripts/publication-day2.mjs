@@ -25,7 +25,7 @@ export function checkExpoPorts(cwd, output, low, high) {
   const pkg = JSON.parse(readFileSync(join(cwd, "package.json")));
   assert.equal(pkg.scripts.backend, "node scripts/launch.mjs backend");
   assert.equal(pkg.scripts.web, "node scripts/launch.mjs expo-web");
-  assert.equal(pkg.dependencies.expo, "57.0.22", "Expo is pinned before installing adapter peers");
+  assert.equal(pkg.dependencies.expo, "57.0.30", "Expo is pinned before installing adapter peers");
 }
 
 export const day2Consumer = String.raw`
