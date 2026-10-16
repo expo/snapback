@@ -120,6 +120,12 @@ impl Dependencies {
         match value {
             Value::Object(fields) => {
                 if fields.contains_key("Literal") { return; }
+                if let Some(result)=fields.get("writeResult").or_else(||fields.get("insertResult")).and_then(Value::as_array) {
+                    for input in result {
+                        self.expression(schema,input,bindings,visited,if input.get("Get").is_some() {field} else {None});
+                    }
+                    return;
+                }
                 if let Some(write)=fields.get("WriteTarget") {
                     for name in ["target","patch"] {self.expression(schema,&write[name],bindings,visited,None);}
                     if let Some(condition)=write.get("condition").filter(|value|!value.is_null()) {

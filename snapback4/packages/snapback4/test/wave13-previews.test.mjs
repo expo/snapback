@@ -693,6 +693,8 @@ mutation resultGuard():
   writeFileSync(schema,source);run('deploy',deployment);
   const host=await serve(t,deployment);assert.equal((await host.post('/m/seedNote',{})).state,'sent');
   assert.equal((await host.post('/m/resultGuard',{})).state,'sent');
+  writeFileSync(schema,source.replace('  body: text <=80', "  body: text <=80\n  label: text <=20 default 'none'"));
+  assert.doesNotMatch(run('deploy',deployment,'--check').stdout,/WARNING|resultGuard.require/);
   writeFileSync(schema,source.replace("{body: 'safe'}","{body: 'blocked'}"));
   assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*changes \(implication unproved\) resultGuard.require/);
   run('deploy',deployment);assert.equal((await host.post('/m/resultGuard',{})).why.code,'BLOCKED');await host.stop();
