@@ -476,4 +476,3 @@ pub(super) fn serve_requests(
         }
     }
 }
-

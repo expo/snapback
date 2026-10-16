@@ -180,7 +180,16 @@
   },
   "scopeNotes": [
     "Mac tests ran only in ~/sb4-ws-surf4 on macstudio-charlie-apt101-a.",
-    "The only product-tree change after the qualified source is the corrected membership-search test assertion; runtime and guide bytes are unchanged.",
+    "After the qualified snapshot, only the corrected membership-search test assertion and removal of a trailing empty line in serve_start.rs changed product-tree files; runtime/guide logic is unchanged.",
     "No listed implementation item deferred. Root generated-artifact preconditions remain outside the Snapback 4 fence."
-  ]
+  ],
+  "procfsRegression": {
+    "failedLog": "snapback4/target/surf4-procfs-repro/failed.stderr.log",
+    "failedSha256": "68dd93a148bdcaf0b734abf2bacd5cb27a886945b04e69690f89f7bc77ba74d1",
+    "fixedLog": "snapback4/target/surf4-procfs-repro/fixed.stderr.log",
+    "fixedSha256": "941cc4ddd9e222b12c5859e59a04035ebaa152ef469fdbcf2ad46c8cf533b273",
+    "actualNodeWorkerStarted": true,
+    "socketClosedNormally": true,
+    "guestProcfsAbsent": true
+  }
 }
