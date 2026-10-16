@@ -21,6 +21,11 @@ function qualify(t, scenario = {}) {
   writeFileSync(join(root, "scripts/publication-day2.mjs"), `export async function proveDay2() {
     return { status: "passed", savedSourceCompatibility: "passed", expoPrintedWrittenPorts: "passed", previewNoise: "passed", helperContracts: "passed", fixtureAgreement: "passed" };
   }`);
+  writeFileSync(join(root, "scripts/publication-day4.mjs"), `export async function proveDay4() { return { status: "passed" }; }`);
+  writeFileSync(join(root, "scripts/publication-rules.mjs"), `export function proveRules() {
+    if (${JSON.stringify(scenario.rulesFail ?? false)}) throw Error('deliberately failing packed rule recipes');
+    return { status: "passed" };
+  }`);
   writeFileSync(join(root, "scripts/publication-production.mjs"), `export async function proveProduction() {
     if (${JSON.stringify(scenario.productionFail ?? false)}) throw Error('deliberately failing packed production proof');
     return { status: "passed", realAccounts: "passed", fixture: "packed-production" };
@@ -178,7 +183,7 @@ cp.execFileSync = (cmd,args,opts={}) => {
 };
 cp.spawnSync = (cmd,args,opts={}) => {
   log(cmd,args);
-  if (args?.includes("--help")) return {status: 0, stdout: readFileSync(join(root, "packages/snapback4/CHANGELOG.md"), "utf8").match(/--[a-z][a-z-]*/g).join(" ")};
+  if (args?.includes("--help")) return {status: 0, stdout: readFileSync(join(root, "packages/snapback4/CHANGELOG.md"), "utf8").match(/--[a-z][a-z0-9-]*/g).join(" ")};
   if(cmd === "bash") { writeFileSync(opts.stdio[1], "== " + (scenario.suiteFail ? 1 : 0) + " failure(s) in 2 s\\n"); return {status: scenario.suiteFail ? 1 : 0}; }
   return {status: scenario.noRuntime || scenario.proot ? 1 : 0};
 };
@@ -225,6 +230,8 @@ test("Linux qualification receipt binds source, toolchain, suite, both container
 function assertAdditionalProofReports(r) {
   assert.deepEqual(json(join(r.root, "out/production-proofs.json")), { status: "passed", realAccounts: "passed", fixture: "packed-production" });
   assert.deepEqual(json(join(r.root, "out/client-recipes.json")), { status: "passed", fixture: "packed-client-recipes" });
+  assert.deepEqual(json(join(r.root, "out/rule-recipes.json")), { status: "passed" });
+  assert.deepEqual(json(join(r.root, "out/day4-proof.json")), { status: "passed" });
 }
 
 for (const consumerOnly of [false, true]) for (const [refusal, message] of [
@@ -444,4 +451,12 @@ test('listener evidence refuses malformed named records and empty or incomplete 
 
 test("every clean distribution can execute the Node 24 worker contract", () => {
   for (const distribution of prootDistributions) assert.equal(Number(distribution.node.split(".")[0]), 24, distribution.base);
+});
+
+for (const consumerOnly of [false, true]) test(`packed rules refusal prevents ${consumerOnly ? 'consumer evidence' : 'qualification receipt'}`, t => {
+  const r = qualify(t, { consumerOnly, rulesFail: true });
+  assert.notEqual(r.status, 0);
+  assert.match(r.stderr, /deliberately failing packed rule recipes/);
+  assert.equal(r.receipt, null);
+  assert.equal(existsSync(join(r.root, "out/consumer.json")), false);
 });

@@ -26,12 +26,21 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
     invoke('tar', ['-xzf', join(dir, result[0].filename), '-C', destination, '--strip-components=1'], dir);
     return join(dir,result[0].filename);
   };
-  const clientTarball=pack(join(root, 'packages/snapback4'), join(nodeModules,'snapback4'));
+  const unpack = (tarball, destination) => {
+    mkdirSync(destination, {recursive:true});
+    invoke('tar', ['-xzf', tarball, '-C', destination, '--strip-components=1'], dir);
+    return tarball;
+  };
+  const clientTarball = process.env.SNAPBACK4_RULES_CLIENT_TARBALL
+    ? unpack(process.env.SNAPBACK4_RULES_CLIENT_TARBALL, join(nodeModules,'snapback4'))
+    : pack(join(root, 'packages/snapback4'), join(nodeModules,'snapback4'));
   const nativeName = `snapback4-${process.platform}-${process.arch}`;
   const nativeSource = join(dir, 'native'); mkdirSync(nativeSource);
   copyFileSync(join(root, 'packages', nativeName, 'package.json'), join(nativeSource, 'package.json'));
   copyFileSync(binary, join(nativeSource, 'snapback4'));
-  const nativeTarball=pack(nativeSource, join(nodeModules,nativeName));
+  const nativeTarball = process.env.SNAPBACK4_RULES_PLATFORM_TARBALL
+    ? unpack(process.env.SNAPBACK4_RULES_PLATFORM_TARBALL, join(nodeModules,nativeName))
+    : pack(nativeSource, join(nodeModules,nativeName));
   invoke('npm',['install','--ignore-scripts','--omit=optional','--no-audit','--no-fund',clientTarball,nativeTarball],dir,env);
   const cliPath = join(nodeModules, 'snapback4/bin/snapback4.js');
   const guide = name => invoke(process.execPath, [cliPath, 'guide', name, '--full'], dir, env);
