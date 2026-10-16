@@ -183,12 +183,16 @@ pub(crate) fn register(
         temporary,
         pid: std::process::id(),
     };
+    let bytes = serde_json::to_vec(&identity).map_err(|e| error(&dir, e))?;
+    if bytes.len() as u64 > BYTES {
+        return Err(error(&dir, "serialized registration exceeds the 8192-byte discovery limit"));
+    }
     let pending = dir.join(format!("{}.pending", identity.instance));
     let path = dir.join(format!("{}.json", identity.instance));
     let mut file = snapback4_core::private_fs::file(&pending, true).map_err(|e| error(&dir, e))?;
     let publish = (|| -> std::io::Result<()> {
         file.lock()?;
-        serde_json::to_writer(&mut file, &identity)?;
+        file.write_all(&bytes)?;
         file.flush()?;
         fs::rename(&pending, &path)
     })();
@@ -216,6 +220,20 @@ impl Identity {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn oversized_registration_refuses_before_publishing_an_undiscoverable_host() {
+        let root = std::env::temp_dir().join(format!("sb4-dev-registry-size-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(&root).unwrap();
+        let root = root.canonicalize().unwrap();
+        let error = register(&root, "127.0.0.1:1".parse().unwrap(), "s".repeat(BYTES as usize), true).err().expect("oversized registration must refuse");
+        assert!(error.contains("8192-byte discovery limit"), "{error}");
+        assert_eq!(fs::read_dir(root.join(".snapback4/dev-hosts")).unwrap().count(), 0);
+        let registration = register(&root, "127.0.0.1:1".parse().unwrap(), "store".into(), true).unwrap();
+        assert_eq!(live(&root).unwrap()[0].instance, registration.identity.instance);
+        drop(registration);
+        fs::remove_dir_all(root).unwrap();
+    }
     #[test]
     fn bounded_stale_cleanup_reclaims_valid_records_but_never_invalid_files() {
         let root = std::env::temp_dir().join(format!("sb4-dev-registry-{}", std::process::id()));
