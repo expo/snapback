@@ -1,0 +1,16 @@
+{
+  "baseline": {
+    "commit": "4ef9f77fb3",
+    "binary": "/tmp/day4-baseline-0.4.30",
+    "sha256": "7f08fd5a2e362fd9db2be6e37f95eae41b566d2b923d7f88839722f3ec0fbf79"
+  },
+  "candidate": "Final local CLI, then independently requalified from the fresh packed tarball.",
+  "modes": [
+    "custom",
+    "removed",
+    "legacy",
+    "optin",
+    "template"
+  ],
+  "expectedBaseline": "custom, removed, legacy fail assertions that the DAY4 candidate passes."
+}

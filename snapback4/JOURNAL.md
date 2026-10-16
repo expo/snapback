@@ -96138,3 +96138,23 @@ Budget723,660 B is exactly gzip+500 B, whole-artifact +6,446 B gzip over
 0.4.29; strict family/absence audits pass, with no runtime ceiling increase
 or independent feature attribution. This is integration evidence, not a
 publication record; all final checks are recorded in WORKSTREAM-REPORT.md.
+
+
+## 2026-10-16 — Wave 14 DAY4: truthful proof and rollback advice
+
+Starter proof ownership now uses the complete emitted proof digest census from
+0.4.28 onward. Custom proofs keep their own source arguments; removed
+unreferenced day-two scaffolding records an opt-out. UI init opts into day-two
+sources/fixtures with --day2. Adapt captures current sources in new directories
+and preserves flat legacy evidence. Saved-source proof results count authored
+business cases separately from query sweeps and require explicit fixture-only
+intent for zero-case validation. Saved fixture drift is read-only inspection.
+
+Previews narrow dependencies to consulted domains, retain actual filter and
+field defaults, and prove supported added trailing requirements as tightening.
+Rollback identifies lost current safety/confidentiality, changed populations
+and quotas, bridge choices and the resolved immutable target before activation.
+The governing amendments are proof-kit §11 and retained-release §14. Review
+records and qualification are under reports/20261016-wave14-day4 and the
+worktree's WORKSTREAM-REPORT.md. REG owns the proof-host missing-dist failure;
+PROD owns the production adapt flag; their changes are intentionally separate.

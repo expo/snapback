@@ -1,0 +1,44 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
++ actual - expected
+
+  'use identity guests\n' +
+    'table notes:\n' +
++   '  title: text <=40\n' +
+-   '  title: text <=80\n' +
+    "  public 'shared'\n" +
+    '  insert <- allow\n' +
+    'query list():\n' +
+    '  return notes first 10 by .id\n' +
+    'mutation add(title: text <=80):\n' +
+
+    at file:///tmp/day4-local-consumer-final/day4.mjs:39:9
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5) {
+  generatedMessage: true,
+  code: 'ERR_ASSERTION',
+  actual: 'use identity guests\n' +
+    'table notes:\n' +
+    '  title: text <=40\n' +
+    "  public 'shared'\n" +
+    '  insert <- allow\n' +
+    'query list():\n' +
+    '  return notes first 10 by .id\n' +
+    'mutation add(title: text <=80):\n' +
+    '  return insert notes {title}\n',
+  expected: 'use identity guests\n' +
+    'table notes:\n' +
+    '  title: text <=80\n' +
+    "  public 'shared'\n" +
+    '  insert <- allow\n' +
+    'query list():\n' +
+    '  return notes first 10 by .id\n' +
+    'mutation add(title: text <=80):\n' +
+    '  return insert notes {title}\n',
+  operator: 'strictEqual',
+  diff: 'simple'
+}
+
+Node.js v24.13.1

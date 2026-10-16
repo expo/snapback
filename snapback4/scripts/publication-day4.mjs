@@ -65,8 +65,10 @@ if(mode==='custom'){
  let text=readFileSync(join(cwd,'scripts/day2-proof.mjs'),'utf8');assert.equal(text,template);
  text=text.replace(/  assert.fail\(.*\);/, BUSINESS_CHECK);
  writeFileSync(join(cwd,'scripts/day2-proof.mjs'),text);
- const result=await command('npm',['run','day2:proof','--','versions/v1','versions/v2','./deploy'],{cwd});
+ const result=await command('npm',['run','day2:proof','--','./deploy'],{cwd});
  assert.equal(result.code,0,result.stdout+result.stderr);assert.ok(existsSync(join(cwd,'deploy/store.sqlite')));
+ const explicit=await command('npm',['run','day2:proof','--','versions/v1','versions/v2','./deploy-explicit'],{cwd});
+ assert.equal(explicit.code,0,explicit.stdout+explicit.stderr);assert.ok(existsSync(join(cwd,'deploy-explicit/store.sqlite')));
  const again=await command('npm',['run','day2:proof','--','versions/v1','versions/v2','./deploy'],{cwd});
  assert.notEqual(again.code,0);assert.match(again.stderr,/destination already exists/);
 }else throw Error('unknown DAY4 mode '+mode);

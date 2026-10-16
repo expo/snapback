@@ -1,0 +1,41 @@
+{
+  "round": 1,
+  "scope": "proof",
+  "sourceSnapshot": {
+    "llp/3000.011.003.000.000-packaged-proof-kit.rfc.md": "40c2e8b38147f93218680630c49a1aad4943343cdcdeba713035ebfe2f688b0f",
+    "snapback4/crates/snapback4/src/verbs/init.rs": "a1bcfc2f67a621816552e4874dfcd4ff03a87be7e7abd205ada4b6aa907444f5",
+    "snapback4/crates/snapback4/src/verbs/init/adapt.rs": "f256698c65b716315556ce11bc0bda6ac3a74dfdfc969712f3db689247d480a3",
+    "snapback4/crates/snapback4/src/verbs/init/proof.rs": "9bee445b5151d782daa5e94de2d7883b1c5ff082ff0f04269deb13078129559e",
+    "snapback4/crates/snapback4/src/verbs/init/day2-proof.mjs": "13cdc0b9f5f9c9ffa1a16de773e41a905619768326652746516a64511377e41b",
+    "snapback4/crates/snapback4/src/verbs/init/proof_advice.rs": "f9af180aaaa80d777be27228b8535a9140588574b6c0dff362b1a2a8e5b2ae84",
+    "snapback4/crates/snapback4/src/verbs/init/proof-digests.json": "b0395dd942e7100cd74277ca00526577a0190b43db2eeb2b4892035474922de6",
+    "snapback4/crates/snapback4/src/verbs/testing.rs": "9bb89131e6c43f8a9c3aad53b4a40dfc2aad4406eaeb1baa0c7d0050b9c60f81",
+    "snapback4/crates/snapback4/src/verbs/saved_fixture_drift.rs": "205b9bcf74d11d8095ca4933ad24b2778bc0a36043681fc41f3468f173dfdd9b",
+    "snapback4/packages/snapback4/src/proof.ts": "f558ac3401dd711eb77cca8bc41cd156e2931e5dbdf269b2cd7be3083fb913da",
+    "snapback4/crates/snapback4/tests/day3.rs": "3123d120a4c0466fd92759b40b69092e637ab70fbcf46c6669a46e0461ed08d7",
+    "snapback4/crates/snapback4/tests/day4.rs": "950fc1e3bd62187d67a59946e6f5ff9057f0feab1e62c6275278ba5e82b059e9",
+    "snapback4/packages/snapback4/test/day4-proofs.test.mjs": "9ca6329c91367a0be2cf2d94822a0aaff4ef9d914a845b6d7948df5802bde444",
+    "snapback4/scripts/publication-day4.mjs": "865472e854089be65970f11f62c269e8b2e04d270e64bd7c9ff8399b898c3ff8"
+  },
+  "mutuallyBlind": true,
+  "reviewers": [
+    {
+      "family": "muse",
+      "model": "muse-spark-1.3-contributor",
+      "reasoningEffort": "high",
+      "command": "timeout 1800 /home/ccheever/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file llp/reviews/3000.011.003.000.000-day4-r1.brief.md",
+      "transcriptSha256": "d58148ae48dce030016fc9fd95de52acf9704b2abed3ff7bb8025142793d44ec",
+      "transcript": "snapback4/reports/20261016-wave14-day4/proof-r1-muse.transcript.gz",
+      "verdict": "NOT READY"
+    },
+    {
+      "family": "codex",
+      "model": "gpt-6.1-sol",
+      "reasoningEffort": "high",
+      "command": "timeout 1800 codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < llp/reviews/3000.011.003.000.000-day4-r1.brief.md",
+      "transcriptSha256": "36d526782cba5cac550725779c9b6e97db0c3a0240880219500e60938d67bc99",
+      "transcript": "snapback4/reports/20261016-wave14-day4/proof-r1-codex.transcript.gz",
+      "verdict": "NOT READY"
+    }
+  ]
+}
