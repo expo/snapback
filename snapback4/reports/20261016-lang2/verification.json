@@ -1,0 +1,75 @@
+{
+  "workstream": "LANG2",
+  "date": "2026-10-16",
+  "finalProductCommit": "09325115e5",
+  "fullWorkspace": {
+    "log": "/tmp/lang2-wave13/cargo-delivery.log",
+    "passed": 6367,
+    "failed": 2,
+    "ignored": 45,
+    "exit": 101,
+    "failedTargets": [
+      "snapback4-lang/residency_notes",
+      "snapback4-sim/write_authority"
+    ],
+    "disposition": "Both earlier compiled fixture expectations corrected; final complete affected-target rerun passed."
+  },
+  "finalAffectedRerun": {
+    "log": "/tmp/lang2-wave13/cargo-affected-closeout.log",
+    "passed": 79,
+    "failed": 0,
+    "exit": 0
+  },
+  "difftestCrate": {
+    "passed": 94,
+    "failed": 0
+  },
+  "lang2DifferentialCases": {
+    "count": 36,
+    "lanes": [
+      "native",
+      "Lean",
+      "device-memory",
+      "device-SQLite"
+    ],
+    "hosts": [
+      "Linux",
+      "Darwin"
+    ],
+    "newSignatures": 0
+  },
+  "lean": {
+    "theoremsAudited": 73,
+    "examplesPassed": 116,
+    "oracleFixturesPassed": 7
+  },
+  "client": {
+    "broadPassed": 71,
+    "finalCapabilityVersionPassed": 17,
+    "failed": 0
+  },
+  "wasm": {
+    "sourceCommit": "b54f51aff2",
+    "dirty": false,
+    "raw": 2370874,
+    "gzip": 722776,
+    "brotli": 545033,
+    "budget": 723276,
+    "headroom": 500
+  },
+  "reviews": {
+    "section": "LLP 3000.036.002 \u00a710",
+    "sha256": "99482b766c80245c60bcd5f664607bd22e302512e5a2d9f28d3f88b708d3b611",
+    "muse": "READY",
+    "codex": "READY",
+    "round": 15
+  },
+  "rootChecks": {
+    "refCheck": "PASS",
+    "snapback4DocsBudget": "PASS 320/320 lines",
+    "checkInventories": "PRECONDITION: missing generated Snapback 1 demo artifacts",
+    "checkGuide": "19 pass, 0 content failures, 3 preconditions: missing generated Snapback 1 demo artifacts"
+  },
+  "versionBumped": false,
+  "pushedToOrigin": false
+}

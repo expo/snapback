@@ -1,7 +1,7 @@
 {
   "workstream": "LANG2",
   "date": "2026-10-16",
-  "sourceCommit": "80b2f846b5",
+  "sourceCommit": "09325115e5",
   "beforeCommit": "59fb4ead1b",
   "count": 100,
   "beforePass": 100,
@@ -70,7 +70,7 @@
   },
   "rawCensusDigests": {
     "before.json": "ee6a0ee9de4ac9fa7dcef037dbb22059359387d3601007042b7fa1f06163f703",
-    "after-final.json": "d36fb184d3acf4048eb8b7f649f127bdf42a06975d7943cdb113638e97cbd334"
+    "after-handoff.json": "cb5096b50194de90b1bb56d7024b69724d4d649dd13f68a1cf83a67e55fb8bf9"
   },
   "lanes": [
     {
