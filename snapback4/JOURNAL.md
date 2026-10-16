@@ -95853,3 +95853,15 @@ file and atomic rename, preserving its mode. The generated script bytes and
 Xcode hash semantics stay identical. The prebuild regression now creates a
 hardlinked cache alias and requires its bytes to remain original after patching.
 The Mac's installed script has one link; earlier Mac runs did not share that inode.
+
+### EXPOPIN final consumer snapshot and legacy scene fixture
+
+The 2cd9965ef6 prepared client/Expo artifacts pass consumer-only Linux
+qualification: all twelve loaded-host frontend proofs, all six starters and
+both clean distributions. This is not a publication receipt. The canonical
+client pool then exposes the old scene-only VM fixture's missing
+withDangerousMod registration stub. Keep that fixture focused on scene
+callbacks, using real Node builtins, and require the iOS cache-mod callback to
+register. Its isolated rerun passes all eight cases; the actual cache mod is
+covered by real prebuild/hardlink tests on both OSes. No published package
+bytes change in this fixture-only followup.

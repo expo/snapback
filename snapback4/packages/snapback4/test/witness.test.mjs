@@ -114,9 +114,11 @@ test('starter scene plugin migrates the installed Expo template, keeps its provi
   assert.equal(template.status, 0, template.stderr);
   let appMod, infoMod;
   const module = { exports: {} };
-  vm.runInNewContext(readFileSync(new URL('../../snapback4-expo/plugin.cjs', import.meta.url), 'utf8'), { module, require: () => ({
+  vm.runInNewContext(readFileSync(new URL('../../snapback4-expo/plugin.cjs', import.meta.url), 'utf8'), { module, require: name => name === 'expo/config-plugins' ? {
     withAppDelegate: (c, fn) => { appMod = fn; return c; }, withInfoPlist: (c, fn) => { infoMod = fn; return c; },
-  }) });
+    // This fixture exercises scene callbacks; real prebuild covers the SDK-cache mod.
+    withDangerousMod: (c, [platform, fn]) => { assert.equal(platform, 'ios'); assert.equal(typeof fn, 'function'); return c; },
+  } : req(name) });
   module.exports({});
   const config = { modResults: { language: 'swift', contents: template.stdout } };
   appMod(config);
