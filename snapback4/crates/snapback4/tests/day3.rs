@@ -202,3 +202,19 @@ fn actual_router_social_starter_repairs_inherited_proofs_without_touching_routes
     assert!(app.text("package.json").contains("day2-proof.mjs versions/v1 versions/v2"));
     assert_eq!(app.text("app/_layout.tsx"), route); assert_eq!(app.text("src/Profile.tsx"), profile);
 }
+#[test]
+fn every_ui_template_uses_its_written_backend_and_launcher_in_the_quick_start() {
+    for flags in [vec!["--web"], vec!["--web", "--online"], vec!["--expo"], vec!["--web", "--template", "chat"], vec!["--expo", "--template", "chat"], vec!["--template", "social"]] {
+        let app = App::new(); let mut args = vec!["init"]; args.extend(flags.clone());
+        let output = ok(app.command(&args).env("PORT_LO", "29120").env("PORT_HI", "29129").output().unwrap());
+        assert!(output.contains("http://127.0.0.1:29120"), "{flags:?}: {output}");
+        for file in ["src/client.ts", "README.md", "scripts/launch.mjs"] {
+            let text = app.text(file);
+            assert!(!text.contains("127.0.0.1:4400") && !text.contains("localhost:4400"), "{flags:?}: {file}: {text}");
+        }
+        let readme = app.text("README.md");
+        assert!(readme.contains("npm run backend"), "{flags:?}: {readme}");
+        assert!(!readme.lines().any(|line| line.trim().starts_with("npx snapback4 dev")), "{flags:?}: {readme}");
+        assert!(!readme.contains("`npx snapback4 dev`"), "{flags:?}: {readme}");
+    }
+}
