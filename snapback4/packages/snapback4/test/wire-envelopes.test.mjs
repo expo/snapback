@@ -95,8 +95,8 @@ test('KIT3 guide wire literal query/mutation success/refusal, point objects and 
   }
   const path=join(root,'crates/snapback4-lang/src/guide/wire.md');
   let guide=readFileSync(path,'utf8');
-  const block='<!-- KIT3 WIRE BEGIN -->\n```quarry\n'+wireRecipe+'```\n\n```json\n'+'{\n'+Object.entries(examples).map(([key,value])=>'  '+JSON.stringify(key)+': '+JSON.stringify(value)).join(',\n')+'\n}' +'\n```\n<!-- KIT3 WIRE END -->';
-  if(process.env.KIT3_UPDATE_WIRE==='1'){guide=guide.replace(/<!-- KIT3 WIRE BEGIN -->[\s\S]*?<!-- KIT3 WIRE END -->/,()=>block);writeFileSync(path,guide);}
-  const saved=guide.match(/<!-- KIT3 WIRE BEGIN -->\n```quarry\n([\s\S]*?)```\n\n```json\n([\s\S]*?)\n```\n<!-- KIT3 WIRE END -->/);
+  const block='<!-- WIRE ENVELOPES BEGIN -->\n```quarry\n'+wireRecipe+'```\n\n```json\n'+'{\n'+Object.entries(examples).map(([key,value])=>'  '+JSON.stringify(key)+': '+JSON.stringify(value)).join(',\n')+'\n}' +'\n```\n<!-- WIRE ENVELOPES END -->';
+  if(process.env.KIT3_UPDATE_WIRE==='1'){guide=guide.replace(/<!-- WIRE ENVELOPES BEGIN -->[\s\S]*?<!-- WIRE ENVELOPES END -->/,()=>block);writeFileSync(path,guide);}
+  const saved=guide.match(/<!-- WIRE ENVELOPES BEGIN -->\n```quarry\n([\s\S]*?)```\n\n```json\n([\s\S]*?)\n```\n<!-- WIRE ENVELOPES END -->/);
   assert.ok(saved,'guide wire contains generated fixture and envelopes');assert.equal(saved[1],wireRecipe);assert.deepEqual(JSON.parse(saved[2]),examples);
 });

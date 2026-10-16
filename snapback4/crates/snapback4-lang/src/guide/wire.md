@@ -51,7 +51,7 @@ A point lookup (`one`) returns one object or null, never a one-element list.
 A view scan (`countRows`) returns list rows with `value`; a keyed aggregate
 lookup returns its scalar value. Query and mutation envelopes are distinct.
 
-<!-- KIT3 WIRE BEGIN -->
+<!-- WIRE ENVELOPES BEGIN -->
 ```quarry
 use personas alice, bob
 table notes:
@@ -83,7 +83,7 @@ mutation add(title: text <=80):
   "/q/countRows alice": {"status":200,"body":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":[{"owner":"dev:alice","value":1}],"next":null,"nextExpiry":null,"seq":1,"store_id":"store1","tables":["noteCounts"],"viewer":"dev:alice","meter":{"cut":null,"examined":1,"heapBytes":1165,"indexEntries":0,"outputBytes":66,"probes":0,"rowsWritten":0,"steps":13}}}
 }
 ```
-<!-- KIT3 WIRE END -->
+<!-- WIRE ENVELOPES END -->
 
 ## Operations
 
