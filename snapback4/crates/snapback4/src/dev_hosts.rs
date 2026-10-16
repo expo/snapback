@@ -185,7 +185,10 @@ pub(crate) fn register(
     };
     let bytes = serde_json::to_vec(&identity).map_err(|e| error(&dir, e))?;
     if bytes.len() as u64 > BYTES {
-        return Err(error(&dir, "serialized registration exceeds the 8192-byte discovery limit"));
+        return Err(error(
+            &dir,
+            "serialized registration exceeds the 8192-byte discovery limit",
+        ));
     }
     let pending = dir.join(format!("{}.pending", identity.instance));
     let path = dir.join(format!("{}.json", identity.instance));
@@ -222,15 +225,32 @@ mod tests {
     use super::*;
     #[test]
     fn oversized_registration_refuses_before_publishing_an_undiscoverable_host() {
-        let root = std::env::temp_dir().join(format!("sb4-dev-registry-size-{}", std::process::id()));
+        let root =
+            std::env::temp_dir().join(format!("sb4-dev-registry-size-{}", std::process::id()));
         let _ = fs::remove_dir_all(&root);
         fs::create_dir_all(&root).unwrap();
         let root = root.canonicalize().unwrap();
-        let error = register(&root, "127.0.0.1:1".parse().unwrap(), "s".repeat(BYTES as usize), true).err().expect("oversized registration must refuse");
+        let error = register(
+            &root,
+            "127.0.0.1:1".parse().unwrap(),
+            "s".repeat(BYTES as usize),
+            true,
+        )
+        .err()
+        .expect("oversized registration must refuse");
         assert!(error.contains("8192-byte discovery limit"), "{error}");
-        assert_eq!(fs::read_dir(root.join(".snapback4/dev-hosts")).unwrap().count(), 0);
-        let registration = register(&root, "127.0.0.1:1".parse().unwrap(), "store".into(), true).unwrap();
-        assert_eq!(live(&root).unwrap()[0].instance, registration.identity.instance);
+        assert_eq!(
+            fs::read_dir(root.join(".snapback4/dev-hosts"))
+                .unwrap()
+                .count(),
+            0
+        );
+        let registration =
+            register(&root, "127.0.0.1:1".parse().unwrap(), "store".into(), true).unwrap();
+        assert_eq!(
+            live(&root).unwrap()[0].instance,
+            registration.identity.instance
+        );
         drop(registration);
         fs::remove_dir_all(root).unwrap();
     }
