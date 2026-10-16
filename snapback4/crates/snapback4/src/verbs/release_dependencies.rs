@@ -67,7 +67,17 @@ impl Dependencies {
         }
         let mut parents=BTreeSet::new();for kind in table.columns.values() {referenced(kind,&mut parents);}
         for parent in parents {self.population(schema,&parent);}
-        self.0.insert(format!("{name}.read"), json!(table.rules.read));
+        fn read_semantics(rule: &RuleExpr) -> RuleExpr {
+            match rule {
+                RuleExpr::Public {..}=>RuleExpr::Public {reason:String::new()},
+                RuleExpr::And(parts)=>RuleExpr::And(parts.iter().map(read_semantics).collect()),
+                RuleExpr::Or(parts)=>RuleExpr::Or(parts.iter().map(read_semantics).collect()),
+                RuleExpr::Not(part)=>RuleExpr::Not(Box::new(read_semantics(part))),
+                rule=>rule.clone(),
+            }
+        }
+        // Public's explanation is operator prose, not a probe input.
+        self.0.insert(format!("{name}.read"), json!(read_semantics(&table.rules.read)));
         self.rule(schema, name, &table.rules.read);
         for column in [&table.not_before, &table.expire].into_iter().flatten() { self.column(schema, name, column); }
         if let Some(parent) = &table.through {
@@ -189,12 +199,27 @@ pub(super) fn rule(schema: &Schema, owner: &str, rule: &RuleExpr, other: &RuleEx
 fn resolved(value: &Value, bindings: &BTreeMap<String,Value>, visiting: &mut BTreeSet<String>) -> Value {
     match value {
         Value::Object(fields) => {
+            // Literal values and authored field maps are data, never IR sites.
+            if fields.contains_key("Literal") {return value.clone();}
+            if let Some(object)=fields.get("Object").and_then(Value::as_object) {
+                return json!({"Object":object.iter().map(|(name,value)|(name.clone(),resolved(value,bindings,visiting))).collect::<serde_json::Map<String,Value>>()});
+            }
+            if let Some(shape)=fields.get("Shape") {
+                let fields=shape["fields"].as_object().unwrap().iter().map(|(name,value)|(name.clone(),resolved(value,bindings,visiting))).collect::<serde_json::Map<String,Value>>();
+                return json!({"Shape":{"base":resolved(&shape["base"],bindings,visiting),"fields":fields}});
+            }
             if let Some(name)=fields.get("Variable").and_then(Value::as_str) {
                 if let Some(bound)=bindings.get(name) {
                     if visiting.insert(name.into()) {let result=resolved(bound,bindings,visiting);visiting.remove(name);return result;}
                 }
             }
-            Value::Object(fields.iter().filter(|(k,_)|k.as_str()!="site").map(|(k,v)|(k.clone(),resolved(v,bindings,visiting))).collect())
+            // Only recognized read/scan/recurse, merge and Require records
+            // carry ignorable location keys. Unknown records keep every field.
+            let location=fields.get("site").is_some_and(|site|site.is_string()||site.is_null()) &&
+                (fields.get("table").is_some_and(Value::is_string) && fields.get("index").is_some_and(Value::is_string)
+                 || fields.get("code").is_some_and(Value::is_string) && fields.contains_key("condition")
+                 || fields.get("lanes").is_some_and(Value::is_array));
+            Value::Object(fields.iter().filter(|(k,_)|!location || k.as_str()!="site").map(|(k,v)|(k.clone(),resolved(v,bindings,visiting))).collect())
         },
         Value::Array(items)=>Value::Array(items.iter().map(|v|resolved(v,bindings,visiting)).collect()),
         value=>value.clone(),
@@ -202,7 +227,10 @@ fn resolved(value: &Value, bindings: &BTreeMap<String,Value>, visiting: &mut BTr
 }
 
 fn guards(schema: &Schema, program: &ir::Program) -> Vec<Dependencies> {
-    fn body(out: &mut Vec<Dependencies>, schema: &Schema, stmts: &[ir::Stmt], inherited: &BTreeMap<String, Value>, context: &[Value], inherited_effects: &[(BTreeSet<String>,Value)]) -> BTreeMap<String,Value> {
+    selected_guards(schema,program,&BTreeSet::new())
+}
+fn selected_guards(schema: &Schema, program: &ir::Program, excluded: &BTreeSet<String>) -> Vec<Dependencies> {
+    fn body(out: &mut Vec<Dependencies>, schema: &Schema, stmts: &[ir::Stmt], inherited: &BTreeMap<String, Value>, context: &[Value], inherited_effects: &[(BTreeSet<String>,Value)], excluded: &BTreeSet<String>) -> (BTreeMap<String,Value>,Vec<(BTreeSet<String>,Value)>) {
         fn stops(stmts: &[ir::Stmt]) -> bool {
             stmts.iter().any(|stmt|match stmt {ir::Stmt::Return(_) | ir::Stmt::Break | ir::Stmt::Continue=>true,ir::Stmt::If {then_body,else_body,..}=>stops(then_body)&&stops(else_body),_=>false})
         }
@@ -214,7 +242,7 @@ fn guards(schema: &Schema, program: &ir::Program) -> Vec<Dependencies> {
             // join may overwrite the very condition that controlled its write.
             let wrapper=ir::Program {name:String::new(),kind:ir::ProgramKind::Mutation,args:BTreeMap::new(),read_time_granularity_ms:None,body:vec![stmt.clone()],returned_shapes:BTreeMap::new(),native:false};
             let writes=ir::write_tables(&wrapper).into_iter().map(|(table,_)|table).collect::<BTreeSet<_>>();
-            let effect_inputs=(!writes.is_empty()).then(||resolved(&json!(stmt),&bindings,&mut BTreeSet::new()));
+            let effect_inputs=(!writes.is_empty() && !matches!(stmt,ir::Stmt::If {..}|ir::Stmt::For {..})).then(||resolved(&json!([context,stmt]),&bindings,&mut BTreeSet::new()));
             match stmt {
                 ir::Stmt::Const {name,value} | ir::Stmt::Let {name,value} | ir::Stmt::Assign {name,value} => {
                     bindings.insert(name.clone(), resolved(&json!(value),&bindings,&mut BTreeSet::new()));
@@ -222,7 +250,7 @@ fn guards(schema: &Schema, program: &ir::Program) -> Vec<Dependencies> {
                 ir::Stmt::Push {target,value} => {
                     bindings.insert(target.clone(),json!({"append":[bindings.get(target),resolved(&json!(value),&bindings,&mut BTreeSet::new())]}));
                 },
-                ir::Stmt::Require {condition,code,message,..} => {
+                ir::Stmt::Require {condition,code,message,site} => {
                     let mut deps=Dependencies::default();
                     deps.0.insert("auth".into(), json!(schema.auth));
                     let condition=json!(condition);
@@ -240,13 +268,15 @@ fn guards(schema: &Schema, program: &ir::Program) -> Vec<Dependencies> {
                     }
                     let prior:Vec<_>=retained.iter().map(|i|&effects[*i].1).collect();
                     deps.0.insert("compiled guard".into(), resolved(&json!([context,condition,code,message,prior]),&bindings,&mut BTreeSet::new()));
-                    out.push(deps);
+                    if !site.as_ref().is_some_and(|site|excluded.contains(site)) {out.push(deps);}
                 },
                 ir::Stmt::If {condition,then_body,else_body} => {
                     let condition=resolved(&json!(condition),&bindings,&mut BTreeSet::new());
-                    let mut branch=context.clone(); branch.push(condition.clone());
-                    let yes=body(out,schema,then_body,&bindings,&branch,&effects);
-                    let no=body(out,schema,else_body,&bindings,&branch,&effects);
+                    let mut branch=context.clone(); branch.push(json!({"then":condition}));
+                    let (yes,yes_effects)=body(out,schema,then_body,&bindings,&branch,&effects,excluded);
+                    *branch.last_mut().unwrap()=json!({"else":condition});
+                    let (no,no_effects)=body(out,schema,else_body,&bindings,&branch,&effects,excluded);
+                    for effect in yes_effects.into_iter().chain(no_effects) {if !effects.contains(&effect) {effects.push(effect);}}
                     let (yes_stops,no_stops)=(stops(then_body),stops(else_body));
                     for name in yes.keys().chain(no.keys()).cloned().collect::<BTreeSet<_>>() {
                         let (a,b)=(yes.get(&name),no.get(&name));
@@ -283,13 +313,11 @@ fn guards(schema: &Schema, program: &ir::Program) -> Vec<Dependencies> {
                     }
                     let exits=resolved(&json!(exits),&inner,&mut BTreeSet::new());
                     if exits.as_array().is_some_and(|values|!values.is_empty()) {loop_context.push(exits.clone());context.push(json!({"loopExit":domain,"controls":exits}));}
-                    let mut loop_effects=effects.clone();
-                    for stmt in stmts {
-                        let wrapper=ir::Program {name:String::new(),kind:ir::ProgramKind::Mutation,args:BTreeMap::new(),read_time_granularity_ms:None,body:vec![stmt.clone()],returned_shapes:BTreeMap::new(),native:false};
-                        let writes=ir::write_tables(&wrapper).into_iter().map(|(table,_)|table).collect::<BTreeSet<_>>();
-                        if !writes.is_empty() {loop_effects.push((writes,resolved(&json!(stmt),&inner,&mut BTreeSet::new())));}
-                    }
-                    let after=body(out,schema,stmts,&inner,&loop_context,&loop_effects);
+                    // Collect individual writes with their own incoming bindings and
+                    // branch controls, then expose them to later iterations.
+                    let (_,loop_effects)=body(&mut Vec::new(),schema,stmts,&inner,&loop_context,&effects,excluded);
+                    let (after,after_effects)=body(out,schema,stmts,&inner,&loop_context,&loop_effects,excluded);
+                    for effect in after_effects {if !effects.contains(&effect) {effects.push(effect);}}
                     for name in bindings.keys().cloned().collect::<Vec<_>>() {
                         if bindings.get(&name)!=after.get(&name) {
                             bindings.insert(name.clone(),json!({"loop":loop_context,"before":bindings.get(&name),"after":after.get(&name)}));
@@ -301,9 +329,9 @@ fn guards(schema: &Schema, program: &ir::Program) -> Vec<Dependencies> {
             if let Some(inputs)=effect_inputs {effects.push((writes,inputs));}
             if stops(std::slice::from_ref(stmt)) {break;}
         }
-        bindings
+        (bindings,effects)
     }
-    let mut out=Vec::new();body(&mut out,schema,&program.body,&BTreeMap::new(),&[],&[]);out
+    let mut out=Vec::new();body(&mut out,schema,&program.body,&BTreeMap::new(),&[],&[],excluded);out
 }
 
 fn arguments_changed(before: &ir::Program, after: &ir::Program, guards: impl Iterator<Item=Value>) -> bool {
@@ -311,6 +339,13 @@ fn arguments_changed(before: &ir::Program, after: &ir::Program, guards: impl Ite
         match value {
             Value::Object(fields)=> {
                 if fields.contains_key("Literal") {return;}
+                if let Some(object)=fields.get("Object").and_then(Value::as_object) {
+                    for value in object.values() {variables(value,names);}return;
+                }
+                if let Some(shape)=fields.get("Shape") {
+                    variables(&shape["base"],names);
+                    if let Some(object)=shape["fields"].as_object() {for value in object.values() {variables(value,names);}}return;
+                }
                 if let Some(name)=fields.get("Variable").and_then(Value::as_str) {names.insert(name.into());}
                 if let Some(name)=fields.get("ArgList").and_then(|arg|arg["name"].as_str()) {names.insert(name.into());}
                 for value in fields.values() {variables(value,names);}
@@ -334,10 +369,16 @@ pub(super) fn changes(current: &Schema, before: &ir::Program, target: &Schema, a
         let mut changed=old.changed(&new);if arg_change {changed.insert("arguments".into());}
         return vec![changed];
     }
-    let (mut old,mut new)=(guards(current,before),guards(target,after));
-    if old.len()!=new.len() {return vec![BTreeSet::from(["compiled guard".into()])];}
-    old.iter_mut().zip(&mut new).map(|(a,b)| {
-        if !compare_implementation {a.0.remove("compiled guard");b.0.remove("compiled guard");}
+    compare_guards(before,after,guards(current,before),guards(target,after))
+}
+
+pub(super) fn independent_changes(current: &Schema,before: &ir::Program,target: &Schema,after: &ir::Program,old_sites: &BTreeSet<String>,new_sites: &BTreeSet<String>) -> Vec<BTreeSet<String>> {
+    compare_guards(before,after,selected_guards(current,before,old_sites),selected_guards(target,after,new_sites))
+}
+
+fn compare_guards(before: &ir::Program,after: &ir::Program,old: Vec<Dependencies>,new: Vec<Dependencies>) -> Vec<BTreeSet<String>> {
+    (0..old.len().max(new.len())).map(|i| {
+        let (Some(a),Some(b))=(old.get(i),new.get(i)) else {return BTreeSet::from(["compiled guard".into()]);};
         let arg_change=arguments_changed(before,after,[a.0.get("compiled guard").cloned().unwrap_or(Value::Null),b.0.get("compiled guard").cloned().unwrap_or(Value::Null)].into_iter());
         let mut changed=a.changed(b);if arg_change {changed.insert("arguments".into());}changed
     }).collect()

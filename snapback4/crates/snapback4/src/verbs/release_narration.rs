@@ -162,12 +162,26 @@ pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, bef
             if before.kind != snapback4_lang::ast::ProgramKind::Mutation { continue; }
             let (old_lines, _) = requirements(&before, false);
             let (new_lines, _) = requirements(after, false);
-            let changed_dependencies = before_programs.get(&name).zip(after_programs.get(&name)).map(|(old,new)|
-                super::release_dependencies::changes(current, old, target, new, old_lines==new_lines));
+            let exact_changes = before_programs.get(&name).zip(after_programs.get(&name)).map(|(old,new)|
+                super::release_dependencies::changes(current, old, target, new, true));
+            // An unused binding or statement position can change the explanatory
+            // source context without changing any compiled guard input.
+            if before.kind==after.kind && guard_clauses(&before)==guard_clauses(after) && exact_changes.as_ref().is_some_and(|changes|changes.iter().all(BTreeSet::is_empty)) {continue;}
+            let changed_dependencies = if old_lines==new_lines {exact_changes} else {
+                before_programs.get(&name).zip(after_programs.get(&name)).map(|(old,new)|
+                    super::release_dependencies::changes(current, old, target, new, false))
+            };
             let stable = changed_dependencies.as_ref().is_some_and(|changes|changes.iter().all(BTreeSet::is_empty));
             let (_,old_formula) = requirements(&before, stable);
             let (_,new_formula) = requirements(after, stable);
-            if old_lines.is_empty() && new_lines.is_empty() { continue; }
+            if old_lines.is_empty() && new_lines.is_empty() {
+                // Helpers and asserted reads can lower to guards without a
+                // caller-authored require. Their compiled evidence still counts.
+                for changed in changed_dependencies.unwrap_or_default().into_iter().filter(|c|!c.is_empty()) {
+                    let group=dependency_groups.entry(changed).or_default();group.0+=1;group.1.insert(name.clone());
+                }
+                continue;
+            }
             if old_lines==new_lines && before.kind==after.kind {
                 if stable { continue; }
                 let changes=changed_dependencies.unwrap_or_else(||vec![BTreeSet::from(["unavailable saved dependency evidence".into()])]);
@@ -202,6 +216,18 @@ pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, bef
                 })
             };
             let change = if change==Change::Same && !contract_same || change==Change::Tightens && !tightening_contract {Change::Unknown} else {change};
+            if matches!(change,Change::Same|Change::Tightens) {
+                // The authored implication proof covers these leading clauses
+                // only. Helpers and asserted reads keep independent evidence.
+                let sites=|p: &snapback4_lang::ast::ProgramDecl| p.prelude.iter().chain(&p.body).filter_map(|stmt|match stmt {
+                    snapback4_lang::ast::Stmt::Require {site,..}=>Some(site.to_string()),_=>None,
+                }).collect();
+                if let Some((old,new))=before_programs.get(&name).zip(after_programs.get(&name)) {
+                    for changed in super::release_dependencies::independent_changes(current,old,target,new,&sites(&before),&sites(after)).into_iter().filter(|c|!c.is_empty()) {
+                        let group=dependency_groups.entry(changed).or_default();group.0+=1;group.1.insert(name.clone());
+                    }
+                }
+            }
             let line = format!("{target_label} {} {name}.require; old: {} | new: {}", match change { Change::Tightens => "tightens", Change::Loosens => "loosens", Change::Same => "keeps equivalent", _ => "changes (implication unproved)" }, if old_lines.is_empty() { "allow".into() } else { old_lines.join("; ") }, if new_lines.is_empty() { "allow".into() } else { new_lines.join("; ") });
             if matches!(change,Change::Same | Change::Tightens) { notes.push(line); } else { warnings.push(line); }
         }
@@ -234,6 +260,22 @@ fn authored_programs(project: &Project) -> Result<BTreeMap<String,snapback4_lang
         }
     }
     Ok(out)
+}
+// Compare authored clauses/control paths without unused lexical bindings or
+// statement offsets. The compiled fingerprint still decides used value inputs.
+fn guard_clauses(program: &snapback4_lang::ast::ProgramDecl) -> Vec<String> {
+    use snapback4_lang::{ast::Stmt,print::expression};
+    fn collect(stmts: &[Stmt], path: &str, out: &mut Vec<String>) {
+        for stmt in stmts {match stmt {
+            Stmt::Require {condition,code,message,..}=>out.push(format!("{path}: {} else {code} {message:?}",expression(condition))),
+            Stmt::If {condition,then_body,else_body,..}=> {
+                let at=format!("{path}/if {}",expression(condition));collect(then_body,&format!("{at}/then"),out);collect(else_body,&format!("{at}/else"),out);
+            },
+            Stmt::For {name,domain,body,..}=>collect(body,&format!("{path}/for {name} in {}",expression(domain)),out),
+            Stmt::As {principal,body,..}=>collect(body,&format!("{path}/as {}",expression(principal)),out),_=>(),
+        }}
+    }
+    let mut out=Vec::new();collect(&program.prelude,"prelude",&mut out);collect(&program.body,"body",&mut out);out
 }
 fn requirements(program: &snapback4_lang::ast::ProgramDecl, stable_probes: bool) -> (Vec<String>,Option<super::clause_compare::Formula>) {
     use snapback4_lang::ast::Stmt;

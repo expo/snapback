@@ -535,3 +535,107 @@ mutation repeated(values: [int] <=2):
   assert.match(run('deploy',deployment,'--check').stdout,/permissions changed: 1 guard unproved across repeated/);
   run('deploy',deployment);assert.equal((await host.post('/m/repeated',{values:[1,2]})).why.code,'BLOCKED');await host.stop();
 });
+
+test('unused lexical bindings and guard positions do not invent dependency changes', t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe.replace('mutation edit():\n', 'mutation edit():\n  unused = 1\n');
+  writeFileSync(schema,source);run('deploy',deployment);
+  writeFileSync(schema,source.replace('unused = 1','unused = 2'));
+  assert.doesNotMatch(run('deploy',deployment,'--check').stdout,/WARNING|edit.require/);
+  writeFileSync(schema,source.replace('unused = 1\n','unused = 1\n  another = 2\n'));
+  assert.doesNotMatch(run('deploy',deployment,'--check').stdout,/WARNING|edit.require/);
+});
+
+test('moving an unchanged guard between then and else retains its control change warning', t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe+`mutation branchGuard(flag: bool):
+  if flag:
+    require false else BLOCKED
+  return true
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  writeFileSync(schema,source.replace('  if flag:\n    require false else BLOCKED','  if flag:\n    unused = 1\n  else:\n    require false else BLOCKED'));
+  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*branchGuard.require/);
+});
+
+test('authored object fields named site remain guard inputs', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe+`mutation objectGuard():
+  gate = {site: false}
+  require gate.site else BLOCKED
+  return true
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);assert.equal((await host.post('/m/objectGuard',{})).why.code,'BLOCKED');
+  writeFileSync(schema,source.replace('{site: false}','{site: true}'));
+  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*objectGuard.require/);
+  run('deploy',deployment);assert.equal((await host.post('/m/objectGuard',{})).state,'sent');await host.stop();
+});
+
+test('changing a public rule explanation does not invent changed probe dependencies', t => {
+  const {schema,deployment,run}=fixture(t);
+  writeFileSync(schema,probe);run('deploy',deployment);
+  writeFileSync(schema,probe.replace('  public\n  online only\ntable notes:', "  public 'Roles are readable by every signed-in caller.'\n  online only\ntable notes:"));
+  assert.doesNotMatch(run('deploy',deployment,'--check').stdout,/WARNING|\.require/);
+});
+
+test('authored fields named Literal do not hide used argument types', t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe+`mutation objectArg(value: int):
+  gate = {Literal: value}
+  require gate.Literal >= 0 else BLOCKED
+  return true
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  writeFileSync(schema,source.replace('value: int):','value: int 0..10):'));
+  assert.match(run('deploy',deployment,'--check').stdout,/arguments changed: 1 guard unproved across objectArg/);
+});
+
+test('helper-expanded guards remain visible without a caller-authored require', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe+`fn gate():
+  require false else BLOCKED
+  return true
+mutation helperOnly():
+  return gate()
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);assert.equal((await host.post('/m/helperOnly',{})).why.code,'BLOCKED');
+  writeFileSync(schema,source.replace('require false else BLOCKED','require true else BLOCKED'));
+  assert.match(run('deploy',deployment,'--check').stdout,/compiled guard changed: 1 guard unproved across helperOnly/);
+  run('deploy',deployment);assert.equal((await host.post('/m/helperOnly',{})).state,'sent');await host.stop();
+});
+
+test('an equivalent caller rewrite does not hide a changed helper refusal', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe+`fn gate():
+  require false else BLOCKED
+  return true
+mutation combined(ok: bool):
+  require ok else NO
+  return gate()
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);assert.equal((await host.post('/m/combined',{ok:true})).why.code,'BLOCKED');
+  writeFileSync(schema,source.replace('require ok else NO','require not not ok else NO').replace('require false else BLOCKED','require true else BLOCKED'));
+  const preview=run('deploy',deployment,'--check').stdout;
+  assert.match(preview,/keeps equivalent combined.require/);
+  assert.match(preview,/WARNING.*compiled guard changed: 1 guard unproved across combined/);
+  run('deploy',deployment);assert.equal((await host.post('/m/combined',{ok:true})).state,'sent');await host.stop();
+});
+
+test('a shared branch retains only writes affecting a consulted population', t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe.replace('  public\n  online only\ntable notes:', '  public\n  insert <- allow\n  online only\ntable notes:')+`mutation shared(flag: bool):
+  if flag:
+    insert roles {principal: viewer, role: 'captain'}
+    insert notes {body: 'one'}
+  require exists roles[principal = viewer, role = 'captain'] else NO
+  return true
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  writeFileSync(schema,source.replace("insert notes {body: 'one'}\n  require", "insert notes {body: 'two'}\n  require"));
+  assert.doesNotMatch(run('deploy',deployment,'--check').stdout,/WARNING|shared.require/);
+  writeFileSync(schema,source.replace("insert roles {principal: viewer, role: 'captain'}", "insert roles {principal: viewer, role: 'crew'}"));
+  assert.match(run('deploy',deployment,'--check').stdout,/compiled guard changed: 1 guard unproved across shared/);
+});
