@@ -178,3 +178,27 @@ fn explicit_saved_source_fixtures_never_skip_even_exact_starter_sample_rows() {
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("todos.jsonl") && stderr.contains("nothing was run"), "{output:?}");
 }
+#[test]
+fn actual_router_social_starter_repairs_inherited_proofs_without_touching_routes() {
+    let app = App::new(); ok(app.run(&["init", "--template", "social"]));
+    assert!(app.0.join("app/_layout.tsx").exists() && !app.0.join("App.tsx").exists());
+    let route = app.text("app/_layout.tsx"); let profile = app.text("src/Profile.tsx");
+    let previous = include_str!("../src/verbs/init/previous/frontend-proof-0.4.29.mjs")
+        .replace("// TEMPLATE_READY", "await page.getByText(\"Profile\", { exact: true }).click();")
+        .replace("getByLabel(\"Task\"", "getByLabel(\"Display name\"")
+        .replace("name: \"Add\"", "name: \"Save profile\"")
+        .replace("beginForm(\"add\", { title }", "beginForm(\"saveProfile\", { name: title }");
+    app.write("scripts/frontend-proof.mjs", &previous);
+    let mut package: serde_json::Value = serde_json::from_str(&app.text("package.json")).unwrap();
+    package["scripts"]["day2:proof"] = "node scripts/day2-proof.mjs".into();
+    app.write("package.json", &serde_json::to_string_pretty(&package).unwrap());
+    assert!(ok(app.run(&["check"])).contains("day2:proof passes no saved versions"));
+    let preview = ok(app.run(&["init", "--adapt"]));
+    assert!(preview.contains("replace scripts/frontend-proof.mjs"), "{preview}");
+    assert_eq!(app.text("scripts/frontend-proof.mjs"), previous, "preview writes nothing");
+    ok(app.run(&["init", "--adapt", "--apply"]));
+    let proof = app.text("scripts/frontend-proof.mjs");
+    assert!(proof.contains("[\"run\", \"build:web\"]") && proof.contains("Save profile") && proof.contains("getByText(\"Profile\""), "{proof}");
+    assert!(app.text("package.json").contains("day2-proof.mjs versions/v1 versions/v2"));
+    assert_eq!(app.text("app/_layout.tsx"), route); assert_eq!(app.text("src/Profile.tsx"), profile);
+}

@@ -109,13 +109,15 @@ fn previous_frontend(dir: &std::path::Path, web: bool) -> Option<Option<&'static
 /// already owned by the application. It never runs a package manager.
 pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema) -> std::io::Result<Vec<(&'static str, String)>> {
     let web = dir.join("src/App.tsx").is_file();
-    if !web && !dir.join("App.tsx").is_file() { return Ok(Vec::new()); }
+    let router = dir.join("app/_layout.tsx").is_file();
+    if !web && !dir.join("App.tsx").is_file() && !router { return Ok(Vec::new()); }
     let shape = super::starter::Shape { title: super::title(dir), password: own.identity.is_some_and(|(p, g)| p && !g),
         personas: own.identity.is_none().then(|| own.personas.clone()).filter(|p| !p.is_empty()),
         body: super::starter::Body::Home(None), offline: own.offline.clone() };
     let path = dir.join("package.json");
     let text = std::fs::read_to_string(&path)?;
     let mut package: Value = serde_json::from_str(&text).map_err(std::io::Error::other)?;
+    if router && !web && !dir.join("App.tsx").is_file() && package["main"] != "expo-router/entry" { return Ok(Vec::new()); }
     let original = package.clone();
     let backend = package["scripts"]["backend"].as_str().and_then(|s| s.strip_prefix("snapback4 dev --port ")).and_then(|s| s.parse::<u16>().ok())
 .or_else(|| launcher_port(dir, "backend")).unwrap_or(4400);
@@ -124,7 +126,7 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema) -> std::io::Re
         .or_else(|| std::fs::read_to_string(dir.join("vite.config.mts")).ok().and_then(|s| s.split_once("server: { port: ").and_then(|(_, rest)| rest.split(|c: char| !c.is_ascii_digit()).next()).and_then(|n| n.parse::<u16>().ok())))
         ).unwrap_or(if backend != 4400 { backend.saturating_add(1) } else if web { 5173 } else { 8081 });
     let mut generated = vec![("package.json", pretty(&package))];
-    files(&mut generated, &Options { positionals: vec![dir.to_string_lossy().into_owned()], flags: Default::default(), json: false }, backend, frontend, web, &shape);
+    files(&mut generated, &Options { positionals: vec![dir.to_string_lossy().into_owned()], flags: if router { [("template".into(), "social".into())].into() } else { Default::default() }, json: false }, backend, frontend, web, &shape);
     // A saved version is immutable application evidence. Never fill its missing
     // fixture files from today's working release during an adaptation.
     generated.retain(|(name, _)| !name.starts_with("versions/") || {
