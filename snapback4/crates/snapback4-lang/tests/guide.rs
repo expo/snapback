@@ -521,6 +521,19 @@ fn clean(label: &str, source: &str) -> snapback4_lang::Bound {
         assert!(notes.iter().all(|note| note.message.starts_with("query search")), "{label}: {:?}", bound.notes);
         return bound;
     }
+    // The timed-peer recipe intentionally preserves a hidden-target upsert's
+    // runtime deadline equality. Pin its one documented uncertainty, not a
+    // general immutable-note exemption.
+    if quarry(card("rule-recipes").unwrap()).iter().any(|block| block == source
+        && block.contains("mutation reportWords(") && block.contains("table peerCounts:")) {
+        assert_eq!(bound.notes.len(), 1, "{label}: {:?}", bound.notes);
+        let note = &bound.notes[0];
+        assert_eq!(note.code, "N_IMMUTABLE_PATCH");
+        assert!(note.message.contains("peerCounts.opensAt"), "{note:?}");
+        assert!(note.message.contains("equals the stored value"), "{note:?}");
+        assert!(card("rule-recipes").unwrap().contains("runtime equality"));
+        return bound;
+    }
     // LLP 3000.017 requires the ephemeral recipe to teach this server-only note.
     let unexpected: Vec<_> = notes.into_iter().filter(|note| !(source.contains("ephemeral ") && note.code == "N_EPHEMERAL_SERVER")).cloned().collect();
     assert!(unexpected.is_empty(), "{label} compiles with notes:\n{}", list(&unexpected));

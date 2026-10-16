@@ -349,6 +349,11 @@ query finalWords(sprint: sprints):
   return total
 ```
 
+`N_IMMUTABLE_PATCH` on `peerCounts.opensAt` is intentional: updates retain the
+stored deadline through runtime equality. The row stays hidden until opening;
+branching on its readable lookup cannot distinguish an existing hidden row.
+
+
 The 100 writers per sprint cap is an explicit product limit, shared by the
 private and peer rows. The final query covers that entire capped group.
 LANG2 owns completeness-planner improvements.

@@ -1,0 +1,12 @@
+{
+  "schemas": 100,
+  "passing": 100,
+  "refusals": 0,
+  "findings": 315,
+  "immutableNotes": 29,
+  "immutableLanes": 18,
+  "allOriginalHashesUnchanged": true,
+  "LANG2": "Every per-lane/code language-note count matches after removing all21 fixture-drift notes; four search findings counted separately",
+  "RULES3": "Comparable99 baseline317 ->296 before LANG2; hydrated087 adds2 baseline notes; final LANG2 advice changes yield315 findings",
+  "perLaneMismatches": []
+}

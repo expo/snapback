@@ -54,7 +54,16 @@ fn subset(actual: &Value, wanted: &Value) -> bool {
 }
 fn exercise(name: &str, marker: &str) {
     let source = source(marker); let b = compile(&[("schema.q".into(), source.clone())]);
-    assert!(b.diagnostics.is_empty() && b.notes.is_empty(), "{name}: {:?} {:?}", b.diagnostics, b.notes);
+    assert!(b.diagnostics.is_empty(), "{name}: {:?}", b.diagnostics);
+    if name == "owner-now" {
+        // @ref LLP 3000.036.002#10 — uncertain hidden-target patches keep runtime equality.
+        assert_eq!(b.notes.len(), 1, "{name}: {:?}", b.notes);
+        assert_eq!(b.notes[0].code, "N_IMMUTABLE_PATCH");
+        assert!(b.notes[0].message.contains("peerCounts.opensAt"));
+        assert!(b.notes[0].message.contains("equals the stored value"));
+    } else {
+        assert!(b.notes.is_empty(), "{name}: {:?}", b.notes);
+    }
     let p = Project::new(name, &format!("{source}\nquery rules3Clock():\n  return now\n"));
     let fixtures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/rules3").join(name);
     let out = Command::new(BIN).current_dir(&p.0).args(["test", "--as", "alice", "--fixture"]).arg(&fixtures).output().unwrap();
