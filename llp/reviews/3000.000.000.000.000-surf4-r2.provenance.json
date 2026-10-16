@@ -1,0 +1,20 @@
+{
+  "recordedAt": "2026-10-16T21:25:22.114466+00:00",
+  "base": "4ef9f77fb3",
+  "reviewedProductTip": "a2ed3f3cfd",
+  "briefSha256": "00224243377370ff583b4bcf21af802c8a07ed760018beb5869270dab95c9c21",
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "freshSession": true,
+    "verdict": "NOT READY",
+    "output": "3000.000.000.000.000-surf4-r2.codex.md"
+  },
+  "muse": {
+    "model": "muse-spark-1.3-contributor",
+    "reasoning": "high",
+    "verdict": "READY",
+    "output": "3000.000.000.000.000-surf4-r2.muse.md",
+    "fallback": "script-managed Meta fallback"
+  }
+}
