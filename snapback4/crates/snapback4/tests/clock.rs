@@ -1103,3 +1103,56 @@ fn kit3_first_http_query_materializes_only_the_live_dependencies_it_encounters()
     assert!(reply.get("loading").is_none() && reply.get("pending_opening").is_none(), "{reply}");
     assert!(!reply.to_string().contains("must stay private"));
 }
+
+#[test]
+fn kit3_each_boundary_action_deadlines_start_at_admission() {
+    let f = Fixture::new("kit3-actions");
+    fs::write(f.0.join("snapback/schema.q"), "use server\nuse personas alice\naction ping(periodStart: time, periodEnd: time) deadline 1m <- viewer = 'service:clock'\nschedule pulse every 1m as service:clock: ping\n").unwrap();
+    let host = f.start(&["dev", "--no-watch"]);
+    let advanced = host.post("/dev/clock/advance", json!({"duration":"5m","eachBoundary":true}));
+    assert_eq!(advanced["schedules"][0]["firedWindows"].as_array().unwrap().len(), 5, "{advanced}");
+    let store = rusqlite::Connection::open(f.0.join(".snapback4/store.sqlite")).unwrap();
+    let (count, failed, earliest): (i64, i64, i64) = store.query_row("SELECT COUNT(*), SUM(state = 'failed'), MIN(deadline) FROM _requests", [], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))).unwrap();
+    assert_eq!(count, 5); assert_eq!(failed, 0);
+    assert!(earliest >= advanced["now"].as_i64().unwrap() + 60_000);
+}
+
+#[test]
+fn kit3_large_clock_report_uses_complete_http_and_runnable_no_argument_commands() {
+    let f = Fixture::new("kit3-large-report");
+    let host = f.start(&["dev", "--no-watch"]);
+    let port = host.address.rsplit(':').next().unwrap();
+    let output = f.command(&["clock", "advance", "1000m", "--port", port]);
+    assert!(output.stdout.len() > 65_536, "fixture must exercise the former transport ceiling");
+    let reply = output_json(output);
+    assert_eq!(reply["advancedMs"], 60_000_000);
+    let skipped = reply["schedules"][0]["skippedBoundaries"].as_array().unwrap();
+    assert_eq!(skipped.len(), 499);
+    assert_eq!(skipped[0]["command"], "snapback4 run tick '{}'");
+    let replay = f.command(&["run", "tick", "{}"]);
+    assert!(replay.status.success(), "{}", String::from_utf8_lossy(&replay.stderr));
+}
+
+#[test]
+fn kit3_http_transitive_opening_dependencies_ignore_never_live_worlds() {
+    let mut paired = Vec::new();
+    for never_live in [false, true] {
+        let f = Fixture::new(if never_live {"kit3-transitive-never"} else {"kit3-transitive-absent"});
+        fs::write(f.0.join("snapback/schema.q"), "use personas alice\ntable grants:\n  ticket: int\n  opens: time\n  until: time ?\n  unique ticket\n  not before .opens\n  expire at .until\n  public 'scheduled grant'\n  online only\ntable tasks:\n  ticket: int\n  read <- exists grants[ticket = .ticket]\n  online only\nquery all():\n  return tasks first 100 by .id\nquery clock():\n  return now\n").unwrap();
+        let host = f.start(&["dev", "--no-watch"]);
+        let now = host.query("clock").as_i64().unwrap();
+        let mut seed = Vec::new();
+        for n in 0..20 {
+            seed.push(json!({"table":"grants","row":{"id":format!("g{n:02}"),"ticket":n,"opens":now+1000,"until":null}}));
+            seed.push(json!({"table":"tasks","row":{"id":format!("t{n:02}"),"ticket":n}}));
+        }
+        if never_live { seed.push(json!({"table":"grants","row":{"id":"secret-never","ticket":99,"opens":now+1000,"until":now+500}})); }
+        let seeded = host.post("/seed", json!(seed)); assert!(seeded.get("denied").is_none(), "{seeded}");
+        host.post("/dev/clock/advance", json!({"duration":"2s"}));
+        let reply = host.post("/q/all", json!({"args":{}}));
+        assert!(reply.get("loading").is_none() && reply.get("denied").is_none(), "{reply}");
+        assert_eq!(reply["data"].as_array().unwrap().len(), 20);
+        paired.push(json!({"data":reply["data"],"complete":reply["complete"],"meter":reply["meter"]}));
+    }
+    assert_eq!(paired[0], paired[1], "never-live occupants change neither answer nor query meter");
+}

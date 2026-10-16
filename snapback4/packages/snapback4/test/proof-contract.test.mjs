@@ -68,8 +68,9 @@ test('KIT3 explicit form claim survives slow uploads and never grants an unrelat
   writeFileSync(join(cwd,'dist/index.html'),`<button>Add</button><script type="module">
 import {registerWebWitness,witnessForm} from './bridge.js';
 const op={kind:'mutation',name:'add'};
-const client={mutate:async(op,args)=>({state:'sent',id:'write',result:args}),onWrite:()=>()=>{},upload:async()=>{await new Promise(r=>setTimeout(r,1100));return {ok:true,asset:{id:'asset'}}}};
-const app={client,mutate:(...args)=>client.mutate(...args),ready:Promise.resolve({ok:true})};
+window.writes=0;window.delay=1100;
+const client={mutate:async(op,args)=>{window.writes++;return {state:'sent',id:'write',result:args}},onWrite:()=>()=>{},upload:async()=>{await new Promise(r=>setTimeout(r,window.delay));return {ok:true,asset:{id:'asset'}}}};
+const app={client,mutate:(...args)=>client.mutate(...args),ready:new URLSearchParams(location.search).has('unready')?new Promise(()=>{}):Promise.resolve({ok:true})};
 window.app=app;window.mode='claim';registerWebWitness(app,{add:op});
 document.querySelector('button').onclick=event=>{
   if(window.mode==='wrong') return app.mutate(op,{secret:'must not enter proof logs'});
@@ -86,6 +87,10 @@ document.querySelector('button').onclick=event=>{
   const arm=()=>page.evaluate(()=>window.__snapback4Witness.beginForm('add',{},document.querySelector('button')));
   await arm(); await page.getByRole('button').click();
   assert.equal((await page.evaluate(()=>window.__snapback4Witness.formResult())).state,'sent');
+  await page.evaluate(()=>window.delay=2200);await arm();await page.getByRole('button').click();
+  await page.waitForTimeout(100);await page.getByRole('button').click();
+  assert.equal((await page.evaluate(()=>window.__snapback4Witness.formResult())).state,'sent','second click does not reinstall a no-write timer');
+  await page.waitForFunction(()=>window.writes===3);await page.evaluate(()=>window.delay=1100);
   await page.evaluate(()=>window.mode='competing'); await arm(); await page.getByRole('button').click();
   const competing=await page.evaluate(()=>window.__snapback4Witness.formResult());
   assert.equal(competing.why.code,'E_WITNESS_UNCLAIMED'); assert.equal(competing.why.reason,'event');
@@ -96,15 +101,19 @@ document.querySelector('button').onclick=event=>{
   await page.evaluate(()=>{window.old=window.__snapback4Witness.formResult();window.__snapback4Witness.beginForm('add',{},document.querySelector('button'));});
   assert.equal((await page.evaluate(()=>window.old)).why.code,'E_WITNESS_NO_WRITE');
   assert.equal((await page.evaluate(()=>window.__snapback4Witness.formResult())).why.reason,'event');
+  await page.goto(host.url+'/?witness=web&unready=1');await page.waitForFunction(()=>window.__snapback4Witness);
+  await page.evaluate(()=>window.mode='nothing');await arm();await page.getByRole('button').click();
+  assert.equal((await page.evaluate(()=>window.__snapback4Witness.formResult())).why.reason,'not-ready');
 }));
 test('KIT3 starter SVG box click and scoped text recipe run literally', {timeout:30000}, async t => browser(t, async page => {
   const source=readFileSync(new URL('../../../crates/snapback4/src/verbs/init/frontend-proof.mjs',import.meta.url),'utf8');
   const body=source.match(/async function clickSvg\(page, control\) \{([\s\S]*?)\n\}/)[1];
   const clickSvg=new Function('assert',`return async function(page,control){${body}}`)(assert);
-  await page.setContent(`<svg width="160" height="80"><foreignObject width="160" height="80"><button style="width:160px;height:80px" onclick="document.querySelector('section p').textContent='fresh saved'">Save</button></foreignObject></svg><section aria-label="Rows"><p>old</p></section><p>fresh saved</p>`);
+  await page.setContent(`<svg width="160" height="80"><foreignObject width="160" height="80"><button style="width:160px;height:80px" onclick="document.querySelector('section p').textContent='fresh saved'">Save</button></foreignObject></svg><section aria-label="Rows"><p>old</p></section><p>fresh saved</p><label>Choice<select><option value="a">Alpha</option><option value="b">Beta</option></select></label>`);
   const within=page.getByRole('region',{name:'Rows'});
   await clickSvg(page,page.locator('svg'));
   assert.equal(await kit.waitForFresh(kit.renderedText(page,/fresh saved/,{within}),null,1000),'fresh saved');
+  const select=page.getByText('Choice',{exact:false}).locator('select');await kit.selectByValue(select,'b');assert.equal(await select.inputValue(),'b');
 }));
 
 test('KIT3 dev.now reads the current served clock across advance and reset', {timeout:30000}, async t => {

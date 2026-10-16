@@ -83,13 +83,17 @@ pub fn saved_boundaries(engine: &Engine) -> Vec<Option<i64>> {
 // @ref LLP 3000.007#20.12.1 — explicit crossed windows share a bounded enumeration in both modes.
 pub fn crossed_boundaries(engine: &Engine, before: &[Option<i64>], now: i64) -> Result<Vec<(usize, i64)>, snapback4_core::Refusal> {
     let mut boundaries = Vec::new();
+    let mut report_bytes = 0usize;
     for (index, schedule) in engine.schema().schedules.iter().enumerate() {
         let Some(old) = before.get(index).copied().flatten() else { continue; };
         let end = schedule.boundary(now);
+        report_bytes = report_bytes.saturating_add(2048 + 8 * (schedule.name.len() + schedule.target.len()));
         if old >= end { continue; }
         if schedule.periods_between(old, end) > (10_000 - boundaries.len()) as i64 {
             return Err(crate::dev_clock::input("advance crosses more than 10000 schedule windows; use a smaller duration"));
         }
+        report_bytes = report_bytes.saturating_add((schedule.periods_between(old, end) as usize).saturating_mul(1024 + 8 * schedule.target.len()));
+        if report_bytes > 32 << 20 { return Err(crate::dev_clock::input("schedule window report exceeds its byte budget; use a smaller duration")); }
         let mut boundary = schedule.next(old);
         while boundary <= end {
             boundaries.push((index, boundary));
@@ -143,8 +147,12 @@ pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String]
                 let mut at = schedule.next(old.unwrap());
                 while at < end {
                     let mut item = window(at);
-                    let args = serde_json::json!({"periodStart": schedule.previous(at), "periodEnd": at});
-                    item["command"] = format!("snapback4 run {} '{}'", schedule.target, args).into();
+                    let mut args = serde_json::Map::new();
+                    if let Some(program) = engine.program(&schedule.target) {
+                        if program.args.contains_key("periodStart") { args.insert("periodStart".into(), schedule.previous(at).into()); }
+                        if program.args.contains_key("periodEnd") { args.insert("periodEnd".into(), at.into()); }
+                    }
+                    item["command"] = format!("snapback4 run {} '{}'", schedule.target, serde_json::Value::Object(args)).into();
                     windows.push(item); at = schedule.next(at);
                 }
                 entry["skippedBoundaries"] = windows.into();

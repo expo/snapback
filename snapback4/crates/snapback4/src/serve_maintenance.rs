@@ -394,7 +394,7 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         let mut crossed = Vec::new();
         if each_boundary {
             for (index, at) in boundaries {
-                crossed.extend(engine_work(shared, |engine, _| engine.fire_schedule_at(at, index))?);
+                crossed.extend(engine_work(shared, |engine, _| engine.fire_schedule_boundary_at(now, index, at))?);
             }
         }
         let mut work = work(shared, true, 0)?;

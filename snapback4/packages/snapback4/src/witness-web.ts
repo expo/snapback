@@ -2,6 +2,8 @@
 import type { App } from "./app.js";
 import type { Mutation, Write } from "./contract.js";
 
+export type WitnessReason = "not-ready" | "returned-early" | "event" | "arguments";
+
 type Operations = Record<string, unknown>;
 export function registerWebWitness(app: App, api: Operations): void {
   if (typeof window === "undefined" || typeof window.location?.search !== "string") return;
@@ -44,6 +46,7 @@ export function registerWebWitness(app: App, api: Operations): void {
       // Chromium's active event ties admission to this actual control's handler.
       // Timers, input autosaves and previously-started writes cannot claim it.
       const capture = (event: Event) => {
+        if (handlerClaimed) return; // A later click cannot restart the held handler timer.
         if (!event.isTrusted) { click = undefined; submit = undefined; clearTimeout(clickTimer); return; }
         if (event.isTrusted && event.composedPath().includes(button)) {
           click = event; submit = undefined; clickedReady = ready;

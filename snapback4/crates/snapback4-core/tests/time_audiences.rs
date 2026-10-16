@@ -945,5 +945,5 @@ fn kit3_pending_dependency_is_private_and_targeted_materialization_revalidates_i
     // An obsolete dependency cannot move a rescheduled row into the past.
     engine.seed_at([announcement("future", 3000, 5000, "future")], 1000).unwrap();
     engine.materialize_time_audience_at("announcements", "future", 2000).unwrap();
-    assert!(one(&mut engine, "future", 2000).data.is_null());
+    assert_eq!(one(&mut engine, "future", 2000).data, Value::Null);
 }
