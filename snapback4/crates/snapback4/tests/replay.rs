@@ -353,15 +353,16 @@ fn w7c_service_token_output_names_its_owning_store() {
         assert!(out.status.success(), "{out:?}");
         let stdout = String::from_utf8(out.stdout).unwrap();
         assert_eq!(stdout.lines().count(), 1);
+        let record: serde_json::Value = serde_json::from_str(&stdout).unwrap();
+        let token = record["token"].as_str().unwrap();
         let own = Store::open(&path).unwrap();
         let other = Store::open(&other).unwrap();
         let now = snapback4_core::now_ms();
-        assert_eq!(snapback4_core::identity::resolve(&own, stdout.trim(), now).unwrap().unwrap().0, "service:audit");
-        assert!(snapback4_core::identity::resolve(&other, stdout.trim(), now).unwrap().is_none());
-        let stderr = String::from_utf8(out.stderr).unwrap();
+        assert_eq!(snapback4_core::identity::resolve(&own, token, now).unwrap().unwrap().0, "service:audit");
+        assert!(snapback4_core::identity::resolve(&other, token, now).unwrap().is_none());
+        assert!(out.stderr.is_empty());
         let reported = if args.contains(&"--release") { path } else { path.canonicalize().unwrap() };
-        assert!(stderr.contains(&format!("store: {}", reported.display())), "{stderr}");
-        assert!(stderr.contains("this token belongs only to this store"), "{stderr}");
+        assert_eq!(record["store"], reported.to_string_lossy().as_ref());
     }
 }
 

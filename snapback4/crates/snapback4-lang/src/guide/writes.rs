@@ -30,6 +30,28 @@ Retry an intent with its minted write id.
 
 Receipt gaps: `guide sequences`.
 
+## Optional references
+
+Validate an optional parent only when supplied, then write the validated id:
+
+```quarry
+table folders:
+  owner: principal
+  read <- .owner = viewer
+table notes:
+  owner: principal
+  folder: folders ?
+  read <- .owner = viewer
+  insert <- .owner = viewer
+mutation createNote(folder: folders ?):
+  if folder != null:
+    parent = folders[folder] ! else FOLDER_NOT_FOUND
+    require parent.owner = viewer else FOLDER_FORBIDDEN
+  return insert notes { owner: viewer, folder }
+```
+
+The lookup uses the caller's read rule. Null means no reference, so no lookup runs.
+
 ## Limits
 
 - Hidden targets do not disclose refusal details: NOT_FOUND.

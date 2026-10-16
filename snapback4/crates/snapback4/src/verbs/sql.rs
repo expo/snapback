@@ -28,7 +28,7 @@ pub fn sql(options: &Options) -> i32 {
 }
 
 fn inspect(options: &Options) -> Result<()> {
-    let [statement] = options.positionals.as_slice() else { return Err(("E_INPUT", format!("usage: snapback4 sql '<SELECT …> | \\dt | \\d table' [--release dir] [--limit N] [--json|--json-objects]; {CATALOG_HINT}"))); };
+    let [statement] = options.positionals.as_slice() else { return Err(("E_INPUT", format!("usage: {}; {CATALOG_HINT}", crate::cli_flags::synopsis("sql")))); };
     if let Some(flag) = misplaced_flag(statement) {
         return Err(("E_INPUT", format!("{flag} is inside the SQL argument; put CLI options after its closing quote: snapback4 sql 'SELECT …' {flag}{}", if flag == "--release" { " <dir>" } else if flag == "--limit" { " N" } else { "" })));
     }

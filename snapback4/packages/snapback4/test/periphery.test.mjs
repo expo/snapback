@@ -46,7 +46,7 @@ for (const mode of ["dev", "serve"]) test(`${mode}: offline and live piped token
   }
   if (mode === "dev") run("test", "--residency");
   const releaseFlags = mode === "serve" ? ["--release", release] : [];
-  const mint = phase => [[], ["--days", "1"], ["--days=2", "--service=worker"], ["--json"]]
+  const mint = phase => [[], ["--days", "1"], ["--days=2", "--service=worker"], ["--quiet"], ["--json"]]
     .map(flags => ({ phase, flags, minted: run("token", "--service", "worker", ...releaseFlags, ...flags) }));
   const tokens = mint("offline");
   const invalid = invoke("token", "--service", "bad name", ...releaseFlags);
@@ -82,16 +82,24 @@ for (const mode of ["dev", "serve"]) test(`${mode}: offline and live piped token
     };
     tokens.push(...mint("live"));
     for (const { phase, flags, minted } of tokens) {
-      const match = minted.stdout.match(/^([A-Za-z0-9_-]{43})\n$/);
-      assert.ok(match, "stdout must contain only the base64url token and one newline");
-      const token = match[1];
-      assert.equal(minted.stdout, `${token}\n`);
-      const [status, ownership, end] = minted.stderr.split("\n");
-      assert.match(status, /^token: a session for service:worker until \d+ — printed once; keep it where the worker keeps secrets$/);
       const store = mode === "serve" ? join(release, "store.sqlite") : realpathSync(join(dir, ".snapback4/store.sqlite"));
-      assert.equal(ownership, `store: ${store} — this token belongs only to this store; each isolated store needs its own`);
-      assert.equal(end, "");
-      assert.equal(minted.stderr.split("\n").length, 3);
+      let token;
+      if (flags.includes("--json")) {
+        const record=JSON.parse(minted.stdout);token=record.token;
+        assert.equal(record.principal,"service:worker");assert.equal(record.store,store);assert.ok(record.expiresAt>Date.now());
+        assert.equal(minted.stderr,"");
+      } else {
+        const match = minted.stdout.match(/^([A-Za-z0-9_-]{43})\n$/);
+        assert.ok(match, "stdout must contain only the base64url token and one newline");
+        token=match[1];
+        if (flags.includes("--quiet")) assert.equal(minted.stderr,"");
+        else {
+          const [status, ownership, end] = minted.stderr.split("\n");
+          assert.match(status, /^token: a session for service:worker until \d+; printed once; keep it where the worker keeps secrets$/);
+          assert.equal(ownership, `store: ${store}; this token belongs only to this store; each isolated store needs its own`);
+          assert.equal(end, ""); assert.equal(minted.stderr.split("\n").length, 3);
+        }
+      }
       assert.ok(!minted.stderr.includes(token), "the token is printed only once");
       const { session } = await post("/auth/session", token, { principal: "member:captured", kind: "member", days: 1 });
       assert.equal(session.principal, "member:captured");

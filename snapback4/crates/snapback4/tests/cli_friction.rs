@@ -219,7 +219,7 @@ fn each_verb_has_its_own_help() {
     assert!(help(&["init", "--help"]).contains("without overwriting"));
     // Verbs without a page print their own lines from the full help.
     let data = help(&["data", "--help"]);
-    assert!(data.starts_with("  data <table>") && !data.contains("  dev ["), "{data}");
+    assert!(data.starts_with("snapback4 data <table>") && !data.contains("  dev ["), "{data}");
     assert!(full.contains("snapback4 <verb> --help"), "{full}");
 }
 
@@ -1101,4 +1101,70 @@ fn surf_custom_entry_reference_is_not_labelled_an_unused_smoke_helper() {
     let output=project.run(&["check"]);
     assert!(output.status.success(),"{}",text(&output));
     assert!(!text(&output).contains("info: src/native-smoke.ts"),"{}",text(&output));
+}
+
+#[test]
+fn surf3_check_and_test_agree_on_relative_times_and_malformed_fixture_errors() {
+    let project = Project::new("use personas alice\nquery clock(at: time, optional: time ?, times: [time] <=4):\n  return at\n");
+    project.write("fixtures/test.cases.jsonl", "{\"op\":\"clock\",\"args\":{\"at\":\"now+2h\",\"optional\":\"now-1h\",\"times\":[\"now\",\"now+1ms\"]}}\n");
+    let output = project.run(&["test"]);
+    assert!(output.status.success(), "{}", text(&output));
+    let output = project.run(&["check", "--json"]);
+    assert!(output.status.success(), "{}", text(&output));
+    assert!(!text(&output).contains("N_FIXTURE_ARGUMENT_DRIFT"), "{}", text(&output));
+    for time in ["now+wat", "now+0h", "now+9007199254740991w"] {
+        project.write("fixtures/test.cases.jsonl", &format!("{{\"op\":\"clock\",\"args\":{{\"at\":\"{time}\",\"times\":[]}},\"expect\":\"E_INPUT\"}}\n"));
+        for args in [&["test"][..], &["check", "--json"][..]] {
+            let output = project.run(args);
+            assert!(!output.status.success(), "{time}: {}", text(&output));
+            assert!(text(&output).contains("E_FIXTURE_TIME"), "{}", text(&output));
+            assert!(!text(&output).contains("N_FIXTURE_ARGUMENT_DRIFT"), "{}", text(&output));
+        }
+    }
+}
+
+#[test]
+fn surf3_enum_assertions_do_not_shadow_aliases_and_match_set_checks_multiplicity() {
+    let project = Project::new("use personas alice\ntable notes:\n  state: enum('draft', 'published')\n  public 'fixture'\n  insert <- allow\n  online only\nmutation add(state: enum('draft', 'published')):\n  insert notes { state }\nquery all():\n  return notes first 10\n");
+    project.write("fixtures/test.cases.jsonl", "{\"op\":\"add\",\"args\":{\"state\":\"draft\"},\"save\":\"draft\"}\n{\"op\":\"add\",\"args\":{\"state\":\"published\"}}\n{\"op\":\"all\",\"matchSet\":[{\"state\":\"published\"},{\"state\":\"draft\",\"id\":\"$draft\"}]}\n");
+    let output = project.run(&["test"]);
+    assert!(output.status.success(), "{}", text(&output));
+    project.write("fixtures/test.cases.jsonl", "{\"op\":\"add\",\"args\":{\"state\":\"draft\"},\"save\":\"draft\",\"match\":{\"state\":\"draft\"}}\n{\"op\":\"all\",\"matchSet\":[{},{}]}\n");
+    let output = project.run(&["test"]);
+    assert!(!output.status.success() && text(&output).contains("matchSet differs"), "{}", text(&output));
+}
+
+#[test]
+fn surf3_sweep_personas_are_per_query_validated_and_globally_overridable() {
+    let project = Project::new("use personas alice, carol\nquery hr():\n  require viewer = 'dev:carol' else HR_ONLY\n  return 1\nquery employee():\n  return 2\n");
+    project.write("fixtures/test.sweep.json", "{\"hr\":[\"carol\"],\"employee\":[\"alice\"]}");
+    let output = project.run(&["test"]);
+    assert!(output.status.success(), "{}", text(&output));
+    let output = text(&output);
+    assert!(output.contains("hr (carol)") && output.contains("employee (alice)"), "{output}");
+    assert!(!output.contains("hr (alice)") && !output.contains("employee (carol)"), "{output}");
+    let output = project.run(&["test", "--as", "carol"]);
+    assert!(output.status.success() && text(&output).contains("employee (carol)"), "{}", text(&output));
+    for matrix in ["{\"typo\":[\"alice\"]}", "{\"hr\":[]}", "{\"hr\":[\"stranger\"]}", "{\"hr\":[\"carol\",\"carol\"]}", "{\"hr\":\"carol\"}"] {
+        project.write("fixtures/test.sweep.json", matrix);
+        let output = project.run(&["test"]);
+        assert!(!output.status.success() && text(&output).contains("test.sweep.json"), "{matrix}: {}", text(&output));
+    }
+}
+
+#[test]
+fn surf3_reset_relative_times_share_the_reset_clock_and_bad_times_are_atomic() {
+    let project = Project::new("use personas alice\ntable events:\n  at: time\n  note: text <=40\n  public 'fixture'\n  online only\nquery one(id: events):\n  return events[id]\n");
+    let (_dev, url) = project.dev(0);
+    let row = |time: &str| serde_json::json!({"table":"events","row":{"id":"e","at":time,"note":"now+2h"}});
+    let (_, reply) = http(&url, "POST", "/dev/reset", None, &serde_json::json!({"seed":[row("now+2h")]}).to_string());
+    assert!(reply["reset"].as_bool() == Some(true), "{reply}");
+    let (_, got) = http(&url, "POST", "/q/one", Some("alice"), r#"{"args":{"id":"e"}}"#);
+    let at = got["data"]["at"].as_i64().unwrap();
+    assert!((at - reply["now"].as_i64().unwrap() - 7_200_000).abs() < 1000, "{got} {reply}");
+    assert_eq!(got["data"]["note"], "now+2h");
+    let (_, reply) = http(&url, "POST", "/dev/reset", None, &serde_json::json!({"seed":[row("now+bad")],"clock":"reset"}).to_string());
+    assert_eq!(reply["denied"]["code"], "E_FIXTURE_TIME", "{reply}");
+    let (_, got) = http(&url, "POST", "/q/one", Some("alice"), r#"{"args":{"id":"e"}}"#);
+    assert_eq!(got["data"]["at"], at);
 }

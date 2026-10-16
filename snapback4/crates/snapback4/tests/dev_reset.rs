@@ -178,6 +178,6 @@ fn serve_refuses_reset_like_seed() {
         assert_eq!(reply["denied"]["code"], "E_AUTH", "{path}: {reply}");
     }
     let refused = project.run(&["reset", "--release", "release"]);
-    assert_eq!(refused.status.code(), Some(1));
-    assert!(String::from_utf8_lossy(&refused.stderr).contains("E_AUTH"));
+    assert_eq!(refused.status.code(), Some(2));
+    assert!(String::from_utf8_lossy(&refused.stderr).contains("E_INPUT"));
 }

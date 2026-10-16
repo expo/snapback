@@ -76,7 +76,7 @@ pub(crate) fn repeated_identity(
     };
     Diagnostic::new(
         site,
-        "E_QUARRY_SYNTAX",
+        "E_QUARRY_IDENTITY_DUPLICATE",
         format!("`use identity` is project-wide: {} already declared at {first_site}; this repeated declaration names {}", methods(first), methods(repeated)),
         "keep one declaration: `use identity` (password and guests), `use identity password`, or `use identity guests`",
     )

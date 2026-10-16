@@ -213,7 +213,11 @@ const FIRST_SECTION_LINES: usize = 80;
 
 /// Non-TTY reads print the full card; callers can select --section or --find.
 // @ref LLP 3000.011.003.000#9 — an agent reads the complete card without a hidden truncation boundary.
-pub fn piped(_name: &str, card: &str) -> String { card.to_owned() }
+pub fn piped(name: &str, card: &str) -> String {
+    if card.lines().count() <= FULL_LINES { return card.to_owned(); }
+    let (title, rest) = card.split_once('\n').unwrap_or((card, ""));
+    format!("{title}\n\n{}\n{rest}", section_index(name, card))
+}
 
 /// The last paragraph boundary (a blank line outside a fence) in
 /// `lines[from..to]` at or before `limit`, as an absolute line number.

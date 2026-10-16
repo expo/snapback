@@ -40,7 +40,11 @@ For this unbound application mint, an absent or non-string `kind` defaults to
 
 `snapback4 token --service ranker [--days 365] [--release <dir>]` prints,
 once, a bearer session for the principal `service:ranker`.
-The token and one newline are the whole of stdout (even with `--json`), with prose on stderr, so capture it with `TOKEN=$(npx snapback4 token --service ranker)`.
+The default prints the token plus one newline on stdout and usage details on stderr.
+Use `TOKEN=$(npx snapback4 token --service ranker --quiet)` for token-only output
+with no successful stderr. `--json` instead prints one object containing `token`,
+`principal`, `expiresAt` (milliseconds) and `store`, with no successful stderr;
+--quiet and --json are mutually exclusive. Capture stdout separately from stderr.
 The owning store is printed on stderr: the project's `.snapback4/store.sqlite`,
 or `<dir>/store.sqlite` with `--release <dir>`. A token belongs only to that
 store; mint one for each isolated audit or proof store after starting its dev
