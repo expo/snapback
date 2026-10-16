@@ -55,6 +55,7 @@ test('H7 missing optional Playwright gives a coded install command; help needs n
   const cwd = fixture(t);
   mkdirSync(join(cwd,'bin')); mkdirSync(join(cwd,'dist'));
   writeFileSync(join(cwd,'package.json'),'{"type":"module"}');
+  for (const helper of ['cli-usage.js','cli-commands.json']) writeFileSync(join(cwd,'bin',helper),readFileSync(join(root,'packages/snapback4/bin',helper)));
   writeFileSync(join(cwd,'bin/witness-web.js'),readFileSync(join(root,'packages/snapback4/bin/witness-web.js')));
   writeFileSync(join(cwd,'dist/client.js'),'export const idFrom = () => "unused";');
   for (const flag of ['--help','-h']) okay(spawnSync(process.execPath,['bin/witness-web.js',flag],{cwd,encoding:'utf8'}));

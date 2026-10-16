@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // @ref LLP 3000.011.003.000#8 — prove the exported app's SDK write, never an optimistic row.
+import { synopsis } from './cli-usage.js';
 import { createServer } from 'node:http';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import { existsSync, globSync } from 'node:fs';
@@ -192,7 +193,7 @@ async function run(o) {
 }
 try {
   const o = options(process.argv.slice(2));
-  if (!o) console.log('usage: snapback4 witness web [dist] [--url URL] [--as PERSONA | --email EMAIL --password-env NAME] [--mutation NAME --args JSON] [--field LABEL --value TEXT --button LABEL] [--port-range A-B] [--timeout 30]\nSet SNAPBACK4_CHROMIUM to a Chromium executable. Run build:web first. Register the app with registerWebWitness(app, api) from snapback4/witness-web (starters do). An omitted --url starts an owned, fresh dev --memory.');
+  if (!o) console.log(`usage: ${synopsis('witness')}\nSet SNAPBACK4_CHROMIUM to a Chromium executable. Run build:web first. Register the app with registerWebWitness(app, api) from snapback4/witness-web (starters do). An omitted --url starts an owned, fresh dev --memory.`);
   else await run(o);
 } catch (error) {
   // Playwright call logs can contain fill(password). Never print foreign exception text.

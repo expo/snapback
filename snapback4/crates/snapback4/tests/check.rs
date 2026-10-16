@@ -1435,7 +1435,9 @@ fn maintained_column_inspection_is_public_and_missing_storage_reads_zero() {
     assert!(data.status.success(),"{data:?}");
     let data_json=parsed(&data);
     for result in [&data,&sql] {assert!(!String::from_utf8_lossy(&result.stdout).contains(&private));}
-    for field in ["likeCount","selected","total"] {assert_eq!(data_json[field],json!(0),"{data_json}");}
+    assert_eq!(data_json.as_array().unwrap().len(),1);
+    assert_eq!(data_json[0]["id"],json!("p"));
+    for field in ["likeCount","selected","total"] {assert_eq!(data_json[0][field],json!(0),"{data_json}");}
     for command in ["data","why"] {
         let result=p.run(&[command,&private]);
         assert!(!result.status.success());
@@ -1564,7 +1566,12 @@ fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
         let card = snapback4_lang::guide::card(keyword).unwrap();
         assert_eq!(full.trim_end().lines().count(), card.trim_end().lines().count(), "{keyword} --full prints the whole card");
         let (_, default) = guide(&[keyword]);
-        assert_eq!(default, full, "{keyword}: piped output prints the complete card");
+        if card.lines().count() > snapback4_lang::guide::FULL_LINES {
+            let (title, body)=full.split_once('\n').unwrap();
+            assert!(default.starts_with(title) && default.ends_with(body), "{keyword}: piped output preserves the complete card body");
+            assert!(default.contains(&format!("{keyword}: ")) && default.contains(&format!("snapback4 guide {keyword} --section")), "{keyword}: piped output adds its section index");
+            for (_,heading,_,_) in snapback4_lang::guide::sections(card) {assert!(default.contains(&heading),"{keyword}: {heading}");}
+        } else { assert_eq!(default, full, "{keyword}: short card prints in full"); }
     }
     // Sections resolve by number, any case, prefix and words; a miss names what mentions the words.
     let (_, by_name) = guide(&["types", "--section", "Engine-assigned per-parent sequences"]);

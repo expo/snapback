@@ -1,34 +1,20 @@
 //! Validate the complete command before any project, store or host work.
 // @ref LLP 3000.000.000.000.000#4-cli-surface-contracts — admission, every synopsis and flag help share this command table.
-const SWITCHES: &[&str] = &["quiet", "list", "help", "initialize", "environment-skip", "background", "if-present", "check", "engine-info", "json", "json-objects", "trace-empty", "latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "resume-clock", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "restore-dormant", "allow-feed-adoption", "i-understand-cleartext", "skip-existing", "sections", "adapt", "dry-run", "apply", "full", "smoke", "prime", "relaunch", "restart", "wait"];
-
-pub(crate) fn allowed(verb: &str) -> &'static str {
-    match verb {
-        "init" | "new" => "online expo web template recipe port port-range web-port skip-existing adapt dry-run apply prefix authors edges public-profiles public-posts public-follows public-reposts",
-        "check" => "cost residency fix json verbose store fixture as emit-lean release",
-        "device" => "engine-info",
-        "types" => "",
-        "dev" => "port bind no-watch fresh memory replay hold-effects hold-schedules clock-offset resume-clock trace-empty verbose i-understand-cleartext long-waits long-waits-per-principal claim-waits",
-        "deploy" => "schema check verbose json restore-dormant allow-feed-adoption allow-destructive",
-        "rollback" => "verbose json check to allow-feed-adoption allow-destructive",
-        "prune" => "allow-destructive json",
-        "releases" => "after items-after event json",
-        "serve" => "port bind worker i-understand-cleartext long-waits long-waits-per-principal claim-waits",
-        "run" => "as port now json release token-env",
-        "clock" => "port release",
-        "reset" => "port seed clock",
-        "test" => "source fixture as residency verbose json",
-        "why" => "verbose release values instance store",
-        "guide" => "list full sections section find",
-        "data" => "release limit json",
-        "sql" => "release limit json json-objects",
-        "token" => "service days release quiet json",
-        "doctor" => "url latency reset json instance release",
-        "upgrade" => "to json",
-        "witness" => "email password-env mutation initialize environment-skip background if-present as url token restart runs query args artifacts timeout json build export smoke udid port bundle-id segment prime relaunch wait repack app-project field value button port-range",
-        _ => "",
-    }
+use std::sync::OnceLock;
+#[derive(serde::Deserialize)]
+struct Flag { name: String, value: String, #[serde(default)] retired: bool }
+#[derive(serde::Deserialize)]
+struct Command { verb: String, positional: String, flags: Vec<Flag>, #[serde(skip)] allowed: String }
+fn commands() -> &'static [Command] {
+    static TABLE: OnceLock<Vec<Command>> = OnceLock::new();
+    TABLE.get_or_init(|| {
+        let mut commands: Vec<Command> = serde_json::from_str(include_str!("../../../packages/snapback4/bin/cli-commands.json")).expect("embedded command table");
+        for command in &mut commands { command.allowed = command.flags.iter().map(|flag|flag.name.as_str()).collect::<Vec<_>>().join(" "); }
+        commands
+    })
 }
+fn command(verb: &str) -> Option<&'static Command> { commands().iter().find(|command|command.verb==verb) }
+pub(crate) fn allowed(verb: &str) -> &'static str { command(verb).map_or("", |command| command.allowed.as_str()) }
 
 pub fn validate(args: &[String]) -> Result<(), String> {
     let verb = args.first().map(String::as_str).unwrap_or("");
@@ -50,7 +36,7 @@ pub fn validate(args: &[String]) -> Result<(), String> {
             // Witness arguments may contain bearer material even in a flag name.
             return Err(if verb == "witness" { "E_INPUT: witness has an unknown flag; see guide witness".into() } else { format!("E_INPUT: {verb} takes no --{name}") });
         }
-        if SWITCHES.contains(&name) {
+        if switch(name) {
             if inline.is_some() { return Err(format!("E_INPUT: {verb} --{name} takes no value")); }
         } else if inline.is_none() {
             // Retired spellings route to their existing no-work explanation,
@@ -67,21 +53,26 @@ pub fn validate(args: &[String]) -> Result<(), String> {
         }
     }
     let has = |name: &str| args.iter().skip(1).any(|arg| arg == &format!("--{name}") || arg.starts_with(&format!("--{name}=")));
-    if verb == "check" && has("release") && !has("store") { return Err("E_INPUT: check --release requires --store <path>".into()); }
+    if verb == "check" {
+        if has("release") && !has("store") { return Err("E_INPUT: check --release requires --store <path>".into()); }
+        if has("as") && !has("residency") { return Err("E_INPUT: check --as requires --residency".into()); }
+        let incompatible = if has("emit-lean") { Some(("--emit-lean", &["cost","residency","fix","verbose","store","fixture","as","release"][..])) }
+            else if has("release") { Some(("--store --release", &["cost","residency","fix","fixture","as"][..])) } else { None };
+        if let Some((mode,flags)) = incompatible {
+            if let Some(flag) = flags.iter().find(|flag|has(flag)) { return Err(format!("E_INPUT: check {mode} does not accept --{flag}")); }
+        }
+    }
+    if verb == "test" && has("verbose") && !has("residency") { return Err("E_INPUT: test --verbose requires --residency".into()); }
+    if verb == "run" && has("token-env") && !has("release") { return Err("E_INPUT: run --token-env requires --release".into()); }
     if verb == "why" && has("instance") && crate::verbs::parse(args).positionals.first().map(String::as_str) != Some("recent") { return Err("E_INPUT: why --instance requires why recent".into()); }
     if verb == "token" && has("quiet") && has("json") { return Err("E_INPUT: token takes either --quiet or --json".into()); }
     Ok(())
 }
 
 fn retired(verb: &str, name: &str) -> bool {
-    match verb {
-        "init" | "new"=>matches!(name,"recipe"|"prefix"|"authors"|"edges"|"public-profiles"|"public-posts"|"public-follows"|"public-reposts"),
-        "witness"=>matches!(name,"repack"|"app-project"),
-        _=>false,
-    }
+    command(verb).is_some_and(|command|command.flags.iter().any(|flag|flag.name==name && flag.retired))
 }
-
-pub fn switch(name: &str) -> bool { SWITCHES.contains(&name) }
+pub fn switch(name: &str) -> bool { name=="help" || commands().iter().flat_map(|command|&command.flags).any(|flag|flag.name==name && flag.value.is_empty()) }
 
 #[cfg(test)]
 mod integration_tests {
@@ -99,17 +90,8 @@ mod integration_tests {
     }
 }
 
-fn value(verb: &str, name: &str) -> &'static str {
-    match (verb,name) {
-        (_,name) if switch(name)=>"", (_,"schema"|"source"|"emit-lean")=>" file.q",
-        (_,"find"|"section")=>" words", (_,"port-range")=>" A-B",
-        ("dev"|"serve","port")=>" N|A-B", (_,"port"|"web-port"|"days"|"limit"|"long-waits"|"long-waits-per-principal"|"claim-waits"|"runs"|"timeout")=>" N",
-        ("upgrade","to")=>" version", (_,"to")=>" N|latest", ("check","release")=>" N|latest",
-        (_,"release"|"fixture"|"artifacts")=>" dir", (_,"as")=>" persona|principal",
-        (_,"store"|"worker"|"build"|"export")=>" path", (_,"url")=>" URL",
-        (_,"service")=>" name", (_,"token-env"|"password-env")=>" NAME",
-        _=>" VALUE",
-    }
+fn value(verb: &str, name: &str) -> String {
+    command(verb).and_then(|command|command.flags.iter().find(|flag|flag.name==name)).filter(|flag|!flag.value.is_empty()).map(|flag|format!(" {}",flag.value)).unwrap_or_default()
 }
 
 /// Generated from the same flag table used before dispatch and side effects.
@@ -214,6 +196,7 @@ pub(crate) fn help(verb: &str) -> String {
             (_, "relaunch") => " — relaunch the app for the installed proof",
             (_, "field") => " — accessible field label for browser form input",
             (_, "value") => " — value to enter in the labelled browser field",
+            (_, "base") => " — absolute URL directory for the offline shell, for example / or /chat/",
             (_, "button") => " — accessible button label that submits the proof form",
             _ => " — command option",
         };
@@ -232,7 +215,10 @@ mod projection_tests {
                 assert!(page.lines().any(|line|line.trim_start().starts_with(&format!("--{name}"))),"{verb}: {name}");
                 let args = if super::switch(name) { vec![verb.into(), format!("--{name}")] } else { vec![verb.into(), format!("--{name}"), "value".into()] };
                 let mut args = args;
+                if verb == "check" && name == "as" { args.push("--residency".into()); }
                 if verb == "check" && name == "release" { args.extend(["--store".into(), "value".into()]); }
+                if verb == "test" && name == "verbose" { args.push("--residency".into()); }
+                if verb == "run" && name == "token-env" { args.extend(["--release".into(), "value".into()]); }
                 if verb == "why" && name == "instance" { args.insert(1, "recent".into()); }
                 assert!(super::validate(&args).is_ok(),"{args:?}");
                 if super::retired(verb,name) { assert!(page.lines().find(|line|line.trim_start().starts_with(&format!("--{name} "))).unwrap().contains("retired spelling")); }
@@ -243,15 +229,9 @@ mod projection_tests {
 
 /// One synopsis for top-level help, per-verb help and usage errors. Flags come
 /// directly from the admission table, including value arity and retired forms.
-pub(crate) const VERBS: &[&str] = &["init","new","check","device","types","dev","deploy","rollback","prune","releases","serve","run","clock","reset","test","why","guide","data","sql","token","doctor","upgrade","witness"];
+pub(crate) const VERBS: &[&str] = &["init","new","check","device","types","dev","deploy","rollback","prune","releases","serve","run","clock","reset","test","why","guide","data","sql","token","doctor","upgrade","witness","web-shell"];
 pub(crate) fn synopsis(verb: &str) -> String {
-    let positional = match verb {
-        "init" => " [dir]", "new" => " <dir>", "device" => " <store.sqlite> [backend.json]",
-        "deploy"|"rollback"|"prune"|"serve" => " <dir>", "releases" => " <dir> [N|latest]",
-        "run" => " <operation> [json-args]", "clock" => " advance <duration>",
-        "why" => " <E_CODE|recent|operation|table|id>", "guide" => " [keyword|aliases]",
-        "upgrade" => " [version]", "data" => " <table>", "sql" => " <SELECT>", "witness" => " <web|acquire|ios|status>", _ => "",
-    };
+    let positional = command(verb).map(|command|command.positional.as_str()).filter(|position|!position.is_empty()).map(|position|format!(" {position}")).unwrap_or_default();
     let mut out = format!("snapback4 {verb}{positional}");
     for name in allowed(verb).split_whitespace().filter(|name| !retired(verb,name)) {
         let value = value(verb, name);
@@ -277,9 +257,9 @@ pub(crate) fn top_help() -> String {
         "token"=>"Mint a service seat's bearer; --quiet is token-only, --json returns metadata.",
         "doctor"=>"Inspect backend health or latency; --json returns a machine-readable report.",
         "upgrade"=>"Upgrade core and installed adapters together; --to permits an explicit downgrade.",
-        "witness"=>"Prove browser writes, device acquisition or installed iOS behavior.", _=>"",
+        "witness"=>"Prove browser writes, device acquisition or installed iOS behavior.", "web-shell"=>"Install an offline shell for a static web export (npm wrapper).", _=>"",
     })); }
-    out.push_str("  snapback4 web-shell <dir> [--base /] (npm wrapper)\n  snapback4 --version\n\nsnapback4 <verb> --help explains each flag, output and exit codes.");
+    out.push_str("  snapback4 --version\n\nsnapback4 <verb> --help explains each flag, output and exit codes.");
     out
 }
 
@@ -289,6 +269,7 @@ mod surface_tests {
     #[test]
     fn every_help_and_usage_projects_the_same_synopsis() {
         let top = top_help();
+        assert_eq!(commands().iter().map(|command|command.verb.as_str()).collect::<Vec<_>>(), VERBS);
         for verb in VERBS {
             let synopsis = synopsis(verb);
             assert!(top.lines().any(|line| line.trim() == synopsis), "{verb}");
@@ -303,9 +284,13 @@ mod surface_tests {
     }
     #[test]
     fn ignored_flags_refuse_before_any_work() {
-        for args in [vec!["check","--url","notaurl"],vec!["check","--release","1"],vec!["types","--json"],vec!["why","E_INPUT","--json"],vec!["why","E_INPUT","--instance","x"],vec!["reset","--release","x"],vec!["serve","x","--resume-clock"],vec!["serve","x","--now","1"],vec!["serve","x","--clock-offset","1"],vec!["serve","x","--replay"]] {
+        for args in [vec!["check","--url","notaurl"],vec!["check","--release","1"],vec!["types","--json"],vec!["test","--json"],vec!["test","--verbose"],vec!["doctor","--instance","x"],vec!["run","x","--token-env","SECRET"],vec!["why","E_INPUT","--json"],vec!["why","E_INPUT","--instance","x"],vec!["reset","--release","x"],vec!["serve","x","--resume-clock"],vec!["serve","x","--now","1"],vec!["serve","x","--clock-offset","1"],vec!["serve","x","--replay"]] {
             assert!(validate(&args.iter().map(|s|s.to_string()).collect::<Vec<_>>()).unwrap_err().starts_with("E_INPUT:"), "{args:?}");
         }
         assert!(validate(&["why","--instance","x","recent"].map(String::from)).is_ok());
+        for suffix in [vec!["--as","alice"], vec!["--emit-lean","source.q","--cost"],vec!["--emit-lean","source.q","--store","db"],vec!["--store","db","--release","1","--fix"],vec!["--store","db","--release","1","--fixture","fixtures"]] {
+            let args=std::iter::once("check").chain(suffix).map(String::from).collect::<Vec<_>>();
+            assert!(validate(&args).unwrap_err().starts_with("E_INPUT:"),"{args:?}");
+        }
     }
 }

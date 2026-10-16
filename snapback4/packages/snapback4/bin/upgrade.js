@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // @ref LLP 3000.011.003.000#8 — resolve once, pin core and adapters to that same release.
+import { synopsis } from './cli-usage.js';
 import { readFileSync, existsSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createRequire } from 'node:module';
@@ -8,7 +9,7 @@ import { previousVersion, installedVersion, acknowledgeVersion, compareVersions,
 
 function run() {
   const args = process.argv.slice(2).flatMap(arg => arg.startsWith('--to=') ? ['--to', arg.slice(5)] : [arg]);
-  if (args.length === 1 && args[0] === '--help') { console.log('usage: snapback4 upgrade [--to <version>] [--json]\nUpgrade snapback4 and every installed snapback4-expo adapter with npm, bun or pnpm; keep exact pins. Default: latest; refuses downgrades unless --to is explicit. Rebuild native apps after changing the adapter.'); return; }
+  if (args.length === 1 && args[0] === '--help') { console.log(`usage: ${synopsis('upgrade')}\nUpgrade snapback4 and every installed snapback4-expo adapter with npm, bun or pnpm; keep exact pins. Default: latest; refuses downgrades unless --to is explicit. Rebuild native apps after changing the adapter.`); return; }
   const json = args.includes('--json');
   const input = args.filter(arg => arg !== '--json');
   const explicit = input[0] === '--to';

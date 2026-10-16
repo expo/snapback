@@ -146,7 +146,7 @@ Where it runs:
   --now <t>       pin the clock for a local run (milliseconds, or +2h from now)
   --json          one JSON object on stdout
 
-A job runs whole as the system (--as is ignored). Exit 0 sent/complete, 1
+A job runs whole as the system; explicit --as refuses E_INPUT. Exit 0 sent/complete, 1
 refused (the refusing clause and its site are printed), 2 cannot run.";
 
 const TEST: &str = "Runs fixture cases in order, then sweeps every query as each persona and prints
@@ -223,6 +223,7 @@ pub fn page(verb: &str) -> Option<String> {
         "reset" => "Empty a running development store through POST /dev/reset. --seed reseeds in the same transaction; --clock reset returns to wall time. Production releases refuse this door.",
         "clock" => "Advance a running development backend's clock, sweep expiry and run due jobs. --port targets a specific dev. Production releases refuse clock control.",
         "token" => "Mint a bearer session for a service seat. Default: token and newline on stdout, usage on stderr. --quiet suppresses successful stderr; --json prints {token, principal, expiresAt, store} with no successful stderr. --quiet and --json are mutually exclusive. A token belongs only to its owning store.",
+        "web-shell" => "Install an offline service worker for a static web export (npm wrapper). Export index.html first; --base selects an absolute URL directory such as / or /chat/.",
         "witness" => "Browser executable: set SNAPBACK4_CHROMIUM (or CHROME) to Chromium. Build the static export first and register the app with registerWebWitness(app, api) from snapback4/witness-web. web exercises a visible form; acquire proves native acquisition and retained restart; ios exercises an installed application; status inspects background proof.",
         "" => return None,
         verb if crate::cli_flags::VERBS.contains(&verb) => "See the flags below and snapback4 guide for recipes.",

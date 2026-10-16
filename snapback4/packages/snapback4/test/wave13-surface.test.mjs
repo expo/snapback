@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { synopsis } from '../bin/cli-usage.js';
 import { startServe, withBrowser } from '../dist/proof.js';
 import { registerWebWitness } from '../dist/witness-web.js';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
@@ -19,11 +20,12 @@ const okay = r => assert.equal(r.status, 0, r.stdout + r.stderr);
 const schema = `use identity guests\ntable notes:\n  title: text <=80\n  public 'shared'\n  insert <- allow\nquery list():\n  return notes first 20 by .id\nmutation add(title: text <=80):\n  return insert notes { title }\n`;
 test('H1/H4/H5 help agrees and ignored flags refuse before filesystem work', t => {
   const cwd = fixture(t), top = invoke(cwd, ['--help']); okay(top);
-  for (const verb of ['init','new','check','device','types','dev','deploy','rollback','prune','releases','serve','run','clock','reset','test','why','guide','data','sql','token','doctor','upgrade','witness']) {
+  for (const verb of ['init','new','check','device','types','dev','deploy','rollback','prune','releases','serve','run','clock','reset','test','why','guide','data','sql','token','doctor','upgrade','witness','web-shell']) {
     const help = invoke(cwd, [verb,'--help']); okay(help);
     assert.ok(top.stdout.split('\n').map(s=>s.trim()).includes(help.stdout.split('\n')[0]), verb);
+    assert.equal(help.stdout.split('\n')[0],synopsis(verb),verb);
   }
-  for (const flags of [['serve','deploy','--now','1'], ['serve','deploy','--resume-clock'], ['serve','deploy','--replay'], ['serve','deploy','--clock-offset','1'], ['check','--url','notaurl'], ['check','--release','1'], ['types','--json'], ['why','E_INPUT','--json'], ['why','E_INPUT','--instance','a'], ['reset','--release','deploy']]) {
+  for (const flags of [['serve','deploy','--now','1'], ['serve','deploy','--resume-clock'], ['serve','deploy','--replay'], ['serve','deploy','--clock-offset','1'], ['check','--url','notaurl'], ['check','--release','1'], ['types','--json'], ['test','--json'], ['test','--verbose'], ['doctor','--instance','x'], ['run','x','--token-env','SECRET'], ['why','E_INPUT','--json'], ['why','E_INPUT','--instance','a'], ['reset','--release','deploy'], ['check','--as','alice'], ['check','--emit-lean','one.q','--fix'], ['check','--store','store.sqlite','--release','1','--cost']]) {
     const r = invoke(cwd, flags); assert.equal(r.status, 2, r.stderr); assert.match(r.stderr,/E_INPUT:/);
   }
   assert.deepEqual(readdirSync(cwd), []);
@@ -77,4 +79,21 @@ test('guide topic aliases select sections and full long cards carry a section in
   }
   const long=invoke(cwd,['guide','deploy']);okay(long);assert.match(long.stdout,/deploy: \d+ lines/);assert.match(long.stdout,/guide deploy --section/);
   const social=fixture(t);const initialized=invoke(social,['new','.','--template','social']);okay(initialized);assert.doesNotMatch(initialized.stdout,/init --expo --port/);
+});
+
+test('helper help shares the command table and web-shell needs no native binary', t => {
+  const cwd=fixture(t), env={...process.env,SNAPBACK4_BIN:'/missing-native-for-help'};
+  for(const [file,args,verb] of [['web-shell.js',[], 'web-shell'],['upgrade.js',[], 'upgrade'],['witness-web.js',[], 'witness']]) {
+    const entry=join(root,'packages/snapback4/bin',file);
+    const script=file==='web-shell.js' ? ['--input-type=module','-e',`import {runWebShell} from ${JSON.stringify(new URL('../bin/web-shell.js',import.meta.url).href)}; await runWebShell(['--help']);`] : [entry,'--help'];
+    const result=spawnSync(process.execPath,script,{cwd,encoding:'utf8',env});okay(result);
+    assert.equal(result.stdout.split('\n')[0],`usage: ${synopsis(verb)}`);
+  }
+  const wrapper=spawnSync(process.execPath,[join(root,'packages/snapback4/bin/snapback4.js'),'web-shell','--help'],{cwd,encoding:'utf8',env});okay(wrapper);assert.match(wrapper.stdout,/offline service worker/);
+  assert.deepEqual(readdirSync(cwd),[]);
+});
+test('explicit persona on a system job refuses before creating a store',t=>{
+  const cwd=fixture(t);mkdirSync(join(cwd,'snapback'));writeFileSync(join(cwd,'snapback/schema.q'),schema+`\njob touch():\n  for note in notes:\n    update notes[note.id] { title: 'changed' }\n`);
+  const result=invoke(cwd,['run','touch','--as','alice']);assert.equal(result.status,2,result.stderr);assert.match(result.stderr,/E_INPUT:.*takes no --as/);
+  assert.deepEqual(readdirSync(cwd),['snapback']);
 });
