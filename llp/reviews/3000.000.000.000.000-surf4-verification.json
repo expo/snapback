@@ -1,0 +1,186 @@
+{
+  "recordedAt": "2026-10-16T23:31:01.059767+00:00",
+  "base": "4ef9f77fb3",
+  "branch": "sb4-w14-surf4",
+  "implementationTip": "86b19cfd9faff158b2cfd8c17802ccf6188a72cc",
+  "publication": {
+    "pushed": false,
+    "published": false,
+    "versionBumped": false,
+    "version": "0.4.30",
+    "targetRelease": "0.4.31"
+  },
+  "reviews": {
+    "surface": {
+      "revision": "461ca2611f",
+      "codex": "READY",
+      "muse": "READY",
+      "round": 8
+    },
+    "workerExecutable": {
+      "revision": "2bb710bfbf",
+      "codex": "READY",
+      "muse": "READY",
+      "round": 9
+    }
+  },
+  "fullFiveCrates": {
+    "command": "timeout 5400 env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test --no-fail-fast -p snapback4-core -p snapback4-lang -p snapback4 -p snapback4-sim -p snapback4-device -- --test-threads=8",
+    "allTargetsCompleted": true,
+    "exitCode": 101,
+    "log": "snapback4/target/surf4-five-crates-final-r2.log",
+    "logSha256": "61eb014bdc74352fd4e50c5cadaa52d5d93a7a73cb4c7eb5c29287f24727e976",
+    "failedTargets": [
+      "snapback4-device/device",
+      "snapback4-lang/guide",
+      "snapback4-lang/surf4_guide",
+      "snapback4-sim/membership_search",
+      "snapback4-sim/write_authority"
+    ],
+    "resolution": "All five complete failed targets corrected and passed on rerun; no unresolved affected product-test failure. Suite source moved during implementation, so this is not a publication suite receipt."
+  },
+  "correctedTargets": [
+    {
+      "target": "device-file",
+      "passed": 440,
+      "failed": 0,
+      "log": "snapback4/target/surf4-device-file-final.log",
+      "logSha256": "07148113829898fbd3d33a0d2b5afacf97be533cc5278bbd4c549f56b9a9ac5c"
+    },
+    {
+      "target": "guide",
+      "passed": 125,
+      "failed": 0,
+      "log": "snapback4/target/surf4-guide-all-final.log",
+      "logSha256": "b4e78f6dbc18a0318206a5e88ef4cb7b0f408a12e3c885a1dbd73dc4e99edef0"
+    },
+    {
+      "target": "surf4-guide",
+      "passed": 4,
+      "failed": 0,
+      "log": "snapback4/target/surf4-guide-all-final.log",
+      "logSha256": "b4e78f6dbc18a0318206a5e88ef4cb7b0f408a12e3c885a1dbd73dc4e99edef0"
+    },
+    {
+      "target": "membership-search",
+      "passed": 24,
+      "failed": 0,
+      "log": "snapback4/target/surf4-membership-final.log",
+      "logSha256": "03ceb80680210c66d08607791978a36c31ee74d9a4c8b458cea2ca8a13852826"
+    },
+    {
+      "target": "write-authority",
+      "passed": 35,
+      "failed": 0,
+      "log": "snapback4/target/surf4-sim-authority-final.log",
+      "logSha256": "c3a7c024b5a4684411e97356c0b5449c9b98b85e31e4f8a9ba5e080468741da1"
+    }
+  ],
+  "affectedRust": {
+    "linux": {
+      "passed": 506,
+      "failed": 0,
+      "ignored": 5,
+      "log": "snapback4/target/surf4-rust-executable2bb.log"
+    },
+    "mac": {
+      "passed": 50,
+      "failed": 0,
+      "log": "/tmp/surf4-mac-rust-executable2bb.log"
+    }
+  },
+  "affectedClients": {
+    "linuxInitial": {
+      "passed": 171,
+      "failed": 0,
+      "log": "snapback4/target/surf4-client-stable.log"
+    },
+    "linuxAfterExecutableFix": {
+      "passed": 129,
+      "failed": 0,
+      "log": "snapback4/target/surf4-client-delivery.log"
+    },
+    "macAfterExecutableFix": {
+      "passed": 129,
+      "failed": 0,
+      "log": "/tmp/surf4-mac-client-executable2bb.log"
+    }
+  },
+  "publicationHarnessTests": {
+    "passed": 42,
+    "failed": 0,
+    "log": "snapback4/target/surf4-publication-contracts-final.log"
+  },
+  "packedQualification": {
+    "command": "qualify-linux.mjs --consumer-only --client target/surf4-pack-reviewed/snapback4-0.4.30.tgz --expo target/surf4-pack-reviewed/snapback4-expo-0.4.30.tgz --out target/surf4-qualify-reviewed",
+    "exitCode": 0,
+    "source": "a32bfd3266cc0cf893eb88a833a484061337e846",
+    "record": "snapback4/target/surf4-qualify-reviewed/consumer.json",
+    "recordSha256": "009a2caabba1c6445d6de1086537b25ae9b2e889e5bad3d72e06c2b903bbcf3c",
+    "clientIntegrity": "sha512-gMOsIgLlgv2D7g7ayT0BrYLVJ5laUrgkTnZp3hhPlHQ0R3j+pwsDsbKotVsX/WreDNp+D/rUpGu9pQcpWmHKAw==",
+    "expoIntegrity": "sha512-02goQLiDAwJgXWHdjTgvryLmJSkW7l8IGC+lpA0eYqxQir7xhFSsJwoJubOxKFdvw33Chh2u3P6PRT9CnT0cDQ==",
+    "platform": {
+      "name": "snapback4-linux-x64",
+      "version": "0.4.30",
+      "filename": "snapback4-linux-x64-0.4.30.tgz",
+      "integrity": "sha512-wxytbHi3Cv12tnQzqy4w0slChLtKyhFIAFAcT+ENw3Yrc25owWFAjfG/F3DAZWIFuKMl3yhtw9LRigLVRaJlnQ==",
+      "bytes": 12260541
+    },
+    "binarySha256": "5e7859a59fc70fd6cb7fb7c3eb6c8cbbddc73256704d102f43980d7f1f31af39",
+    "route": "proot",
+    "distributions": [
+      {
+        "base": "ubuntu:24.04",
+        "node": "24.13.1",
+        "status": "passed"
+      },
+      {
+        "base": "alpine",
+        "node": "24.18.1",
+        "status": "passed"
+      }
+    ],
+    "hostStarters": 6,
+    "packedGuideExecutions": 18,
+    "hostFrontendPasses": 28,
+    "publicationQualified": false,
+    "suite": "not-run by qualifier; explicitly forbidden scripts/test.sh was not invoked",
+    "retainedPlatformTarball": "snapback4/target/surf4-qualify-reviewed/snapback4-linux-x64-0.4.30.tgz",
+    "retainedClientTarball": "snapback4/target/surf4-pack-reviewed/snapback4-0.4.30.tgz"
+  },
+  "rootChecks": {
+    "inventory": {
+      "exitCode": 1,
+      "cause": "Inherited missing Snapback 1 competitive-checkpoint and todo-v2 generated guide artifacts",
+      "log": "/tmp/surf4-inventories.log"
+    },
+    "guide": {
+      "exitCode": 1,
+      "passed": 19,
+      "failed": 0,
+      "preconditions": 3,
+      "cause": "Same inherited generated artifacts",
+      "log": "/tmp/surf4-guide.log"
+    }
+  },
+  "referenceCheck": {
+    "exitCode": 0,
+    "llpDocuments": 550,
+    "references": 11361,
+    "errors": 0,
+    "unchecked": 0,
+    "log": "/tmp/surf4-ref-delivery.log"
+  },
+  "docsBudget": {
+    "exitCode": 0,
+    "readmeLines": 317,
+    "limit": 320,
+    "selfContainmentTestsPassed": 1,
+    "log": "snapback4/target/surf4-docs-delivery.log"
+  },
+  "scopeNotes": [
+    "Mac tests ran only in ~/sb4-ws-surf4 on macstudio-charlie-apt101-a.",
+    "The only product-tree change after the qualified source is the corrected membership-search test assertion; runtime and guide bytes are unchanged.",
+    "No listed implementation item deferred. Root generated-artifact preconditions remain outside the Snapback 4 fence."
+  ]
+}
