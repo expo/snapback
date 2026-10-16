@@ -115,7 +115,7 @@ test('witness and upgrade input refusals are early and actionable', t => {
   const invalid = run(bin, ['upgrade', '--bogus'], dir); assert.equal(invalid.status, 2); assert.match(invalid.stderr, /E_INPUT: upgrade takes no --bogus/);
 });
 
-for (const identity of ['use identity password', 'use personas alice']) test(`Expo ${identity} emits a compiling device-less browser client`, t => {
+for (const identity of ['use identity password', 'use personas alice']) test(`Expo ${identity} emits a compiling online client for every platform`, t => {
   const dir = mkdtempSync(join(root, 'target/dx-expo-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(join(dir, 'snapback')); writeFileSync(join(dir, 'snapback/schema.q'), source(identity));
   success(run(bin, ['init', '--expo'], dir));
@@ -123,7 +123,7 @@ for (const identity of ['use identity password', 'use personas alice']) test(`Ex
   success(run(bin, ['check'], dir));
   success(run(join(root, 'node_modules/.bin/tsc'), ['--noEmit'], dir));
   const client = readFileSync(join(dir, 'src/client.ts'), 'utf8');
-  assert.ok(!client.includes('webDevice') && client.includes('nativeDevice'));
+  assert.ok(!client.includes('webDevice') && !client.includes('nativeDevice') && client.includes('writes: "online"'));
   const readme = readFileSync(join(dir, 'README.md'), 'utf8');
   if (identity.includes('password')) assert.ok(readme.includes('Sign up or sign in') && !readme.includes('Continue as a guest'));
 });
