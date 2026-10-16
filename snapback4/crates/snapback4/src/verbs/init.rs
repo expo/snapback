@@ -37,7 +37,7 @@ pub fn init(options: &Options) -> i32 {
         Some(_) => false,
     };
     if !template_ok || (template.is_some() && options.flags.contains_key("recipe")) {
-        eprintln!("{usage}\n  templates: social (no client flags), chat (--web or --expo)");
+        eprintln!("{usage}\n  templates: --template social (no client flags), --template chat (--web or --expo)");
         return 2;
     }
     let social = template == Some("social");

@@ -537,7 +537,8 @@ fn usage_stderr_never_recommends_the_retired_installer() {
         let expected = if flags.contains(&"--help") { 0 } else { 2 };
         assert_eq!(output.status.code(), Some(expected), "{flags:?}: {output:?}");
         let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
-        assert!(text.contains("init [dir] [--online|--expo|--web [--online]]"), "{text}");
+        assert!(text.contains("snapback4 init [dir]"), "{text}");
+        for flag in ["--online","--expo","--web"] {assert!(text.contains(flag),"{text}");}
         assert!(text.lines().filter(|line| line.contains("--recipe")).all(|line| line.contains("retired spelling")), "{text}");
         assert_eq!(snapshot(&dir.0), before);
     }
@@ -1269,7 +1270,7 @@ fn init_names_the_one_flag_that_moves_both_ports() {
     assert!(stdout.contains("http://127.0.0.1:20010") && stdout.contains("http://localhost:20011") && !stdout.contains("sets the backend to N"), "{stdout}");
     let dir = Dir::new();
     let stdout = String::from_utf8_lossy(&dir.init(&["--expo"]).stdout).into_owned();
-    assert!(stdout.contains("`init --expo --port N` sets the client's URL"), "{stdout}");
+    assert!(stdout.contains("`--port N` sets the client's backend URL") && !stdout.contains("init --expo --port N"), "{stdout}");
     let help = Command::new(BIN).args(["init", "--help"]).output().unwrap();
     let help = String::from_utf8_lossy(&help.stdout);
     assert!(help.contains("--port N") && help.contains("the page on N+1") && help.contains("one flag moves all of them"), "{help}");

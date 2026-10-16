@@ -84,7 +84,7 @@ fn main() -> ExitCode {
             0
         }
         "new" if !options.flags.contains_key("template") => {
-            eprintln!("Choose a template: social or chat\nusage: {}\nFor a small starter use snapback4 init <dir> --web (or --expo); for schema-only setup use snapback4 init <dir>.", cli_flags::synopsis("new"));
+            eprintln!("Choose a template: --template social, or --template chat with --web or --expo\nusage: {}\nFor a small starter use snapback4 init <dir> --web (or --expo); for schema-only setup use snapback4 init <dir>.", cli_flags::synopsis("new"));
             2
         }
         "init" | "new" => verbs::init(&options),
