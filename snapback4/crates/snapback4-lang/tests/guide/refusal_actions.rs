@@ -2,6 +2,11 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_QUARRY_STATEMENT", &["Bind an assertion or read to a local", "return it when it is the result"]),
+    ("E_QUARRY_FANOUT", &["Declare a cap", "A first-N preview cannot stand in for every row"]),
+    ("E_QUARRY_IMMUTABLE", &["Omit it from the patch", "Intervening writes or uncertain control flow prevent snapshot proof"]),
+    ("N_CASCADE_DORMANT", &["choose a product limit", "externally supplied deletes still need a complete prepaid reservation"]),
+
     ("N_LOOKUP_NEVER_VISIBLE", &["Authorize the read", "write by key"]),
     ("N_SYNC_EMPTY", &["bound the public sync and read the window unfiltered, then filter in the client", "whole acquisition can establish coverage"]),
 

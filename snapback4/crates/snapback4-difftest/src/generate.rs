@@ -133,8 +133,6 @@ fn binary(op: Bin, a: Expr, b: Expr) -> Expr {
 /// The base case for `seed`, widened (`crate::widen`) from an independent
 /// stream: a seed whose widening draws nothing is the base case unchanged.
 pub fn generate(seed: u64) -> Case {
-    let mut extra = Rng::new(seed ^ 0x5731_334c_414e_4732);
-    if extra.pick(64) == 0 { return lang2(seed, extra.pick(3)); }
     crate::widen::widen(base(seed))
 }
 pub fn base(seed: u64) -> Case {

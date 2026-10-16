@@ -221,16 +221,7 @@ read. In `test.cases.jsonl` the default expectation passes it (write
 `"expect": "capped"` to pin it); a client renders the rows and shows
 `readPresentation(read).incomplete` as "there may be more", not as an error.
 
-Online-only ordinary tables with an enforced whole-table or pinned-group cap
-can also exhaust a private rule-filtered population, including role-plus-parent
-rules. The engine reserves the entire authorization walk before candidate
-access; insufficient capacity stays incomplete. Expiring outer tables, timed
-or maintained probe targets, reference hops, private field ownership and
-null-exempt set-null caps keep the fallback. Indexed negative membership may
-use one varying row field and fixed viewer/literal key components; the original
-rule is checked on each candidate. These plans require branch-pages-v5.
-A copied parent field alone is no stored dependency; keep the explicit scope
-predicates, and use the note's same-caller query where no complete proof exists.
+Bounded online-only groups and exact negative points can complete (branch-pages-v5).
 
 ## Operations
 

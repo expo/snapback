@@ -52,6 +52,12 @@ fn baseline_golden_and_ownership_switch_agree_byte_for_byte(part: usize, count: 
     let mut admissions = 0;
     let mut executions = 0;
     for (name, record) in &enabled {
+        if let Some(refused) = record.ir.strip_prefix("source-refused:") {
+            let diagnostics: Vec<Diagnostic> = serde_json::from_str(refused).unwrap();
+            assert!(diagnostics.iter().any(|d|d.code == "E_QUARRY_IMMUTABLE"));
+            assert_eq!(record.ir,disabled[name].ir,"{name}: static admission must not depend on ownership");
+            continue;
+        }
         // W13h adds serialized marks only for canonical returned query shapes.
         // Keep the historical statement bytes under the original golden, and
         // still compare the entire marked IR between ownership-on/off below.

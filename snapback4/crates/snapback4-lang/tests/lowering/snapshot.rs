@@ -74,7 +74,17 @@ fn snapshot_shard(inputs: BTreeMap<String, Sources>, binder: Bind, measure: bool
                 if key == NL_SOURCE && NL_REFUSED.contains(&decl.name.as_str()) {
                     assert!(bound.is_none() && diagnostics[before..].iter().any(|d| d.code == "E_QUARRY_POINT_KEY"), "{key}/{}: {:?}", decl.name, &diagnostics[before..]);
                 }
-                let Some(bound) = bound else { assert!(!key.starts_with("generated-"), "{key}: {diagnostics:?}"); continue; };
+                let Some(bound) = bound else {
+                    assert!(!key.starts_with("generated-"), "{key}: {diagnostics:?}");
+                    // P18 changes source admission, not historical runtime IR.
+                    // Retain the census key and compare the precise refusal in
+                    // both ownership arms instead of erasing the old golden.
+                    if matches!(decl.kind, snapback4_lang::ast::ProgramKind::Mutation | snapback4_lang::ast::ProgramKind::Query)
+                        && diagnostics[before..].iter().any(|d|d.code == "E_QUARRY_IMMUTABLE") {
+                        records.insert(format!("{key}:{}", decl.name), Record { ir: format!("source-refused:{}",serde_json::to_string(&diagnostics[before..]).unwrap()), admission: vec![], observations: vec![] });
+                    }
+                    continue;
+                };
                 let program = bound.program;
                 if program.native || program.kind == ProgramKind::Job { continue; }
                 let name = format!("{key}:{}", program.name);

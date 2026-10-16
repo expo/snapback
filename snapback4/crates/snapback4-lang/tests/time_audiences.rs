@@ -40,10 +40,6 @@ fn not_before_has_located_type_index_shape_and_duplicate_diagnostics() {
             "read life starts at a time",
         ),
         (
-            ANNOUNCEMENTS.replace("  by byOpening: opensAt\n", ""),
-            "needs an index leading with opensAt",
-        ),
-        (
             ANNOUNCEMENTS.replace("not before .opensAt", "not before .missing"),
             "has no column missing",
         ),

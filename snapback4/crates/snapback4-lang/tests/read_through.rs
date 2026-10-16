@@ -360,7 +360,17 @@ fn parent_missing_hidden_and_upsert_target_refusals_have_equal_meters() {
     let source = format!(
         "{MODEL}\nmutation put(id: id, parent: parents):\n  upsert children[id] {{ parent, body: 'hello', until: null }}\n"
     );
-    let b = bound(&source);
+    let rejected = snapback4_lang::compile(&[("schema.q".into(),source.clone())]);
+    assert!(rejected.diagnostics.iter().any(|d|d.code=="E_QUARRY_IMMUTABLE"));
+    let mut b = bound(&source.replace("{ parent, body:", "{ body:"));
+    for program in &mut b.programs {
+        if program.program.name == "put" {
+            for statement in &mut program.program.body {
+                if let snapback4_core::ir::Stmt::WriteTarget { patch: snapback4_core::ir::Expr::Object(fields), .. } = statement { fields.insert("parent".into(),snapback4_core::ir::Expr::Variable("parent".into())); }
+            }
+        }
+    }
+
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     sent(
         &mut e,

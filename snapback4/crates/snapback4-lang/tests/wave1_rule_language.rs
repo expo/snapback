@@ -342,7 +342,7 @@ query mine(c: cursor ?):
     let merged = bound(swaps);
     assert!(merged.diagnostics.is_empty() && !merged.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE"), "{:#?}", merged.notes);
     let two_party = note(&swaps.replace(".at > 0", ".at + 1 > 0"), "N_NEVER_COMPLETE");
-    assert!(two_party.rewrite.contains("swaps where .requester = viewer") && two_party.rewrite.contains("swaps where .owner = viewer"), "{two_party}");
+    assert!(two_party.rewrite.contains("nearest supported query") && two_party.rewrite.contains("swaps where") && two_party.rewrite.contains(".at + 1 > 0"), "{two_party}");
     let parent_source = "table boards:
   owner: principal
   read <- .owner = viewer

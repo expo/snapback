@@ -192,7 +192,8 @@ impl Requests {
         // other equalities filter that row rather than widening its key.
         if self.lane && read.matching.is_none() && read.computed.is_empty() {
             if let Some(index) = table.indexes.iter().filter(|index| table.total_unique(index)
-                && index.columns.iter().all(|column| pins.contains_key(column)))
+                && index.columns.iter().all(|column| pins.contains_key(column))
+                && read.order_keys.iter().all(|column| index.columns.contains(column)))
                 .min_by_key(|index| (index.columns.len(), &index.name)) {
                 let mut point = BTreeMap::new();
                 for column in &index.columns { point.insert(column.clone(), pins.remove(column).unwrap()); }

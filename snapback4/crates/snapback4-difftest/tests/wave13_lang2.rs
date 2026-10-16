@@ -6,7 +6,7 @@ fn generated_lang2_plans_have_no_new_native_device_or_lean_signatures() {
     lean::refresh().unwrap();
     assert!(lean::oracle_path().is_file(), "LANG2 qualification requires the Lean oracle");
     let mut files = devices::Files::new().unwrap();
-    for seed in 0..8 {
+    for seed in (0..8).chain([281]) {
         for shape in 0..3 {
             let case = generate::lang2(seed,shape);
             let source = case.program.source();

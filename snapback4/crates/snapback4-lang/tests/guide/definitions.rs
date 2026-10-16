@@ -137,6 +137,11 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_QUARRY_STATEMENT", "A non-final expression must perform a write."),
+    ("E_QUARRY_FANOUT", "An atomic mutation must bound the whole population it changes."),
+    ("E_QUARRY_IMMUTABLE", "An update patch or an upsert conflict arm supplies an immutable column without proving the stored value."),
+    ("N_CASCADE_DORMANT", "This unbounded cascade or set-null edge has no declared source that can delete its parent."),
+
     ("N_LOOKUP_NEVER_VISIBLE", "nullable point lookup is always null"),
     ("N_SYNC_EMPTY", "a cursorless device page filters a public, unbounded synced table by a reference"),
 

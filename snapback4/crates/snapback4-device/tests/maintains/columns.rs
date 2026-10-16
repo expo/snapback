@@ -238,7 +238,8 @@ fn recorded_projection<H: Host>(mut host: H) {
         .replacen("  at: time", "  parentId: posts ? on delete keep\n  immutable parentId\n  at: time", 1)
         .replace("selected: count likes where .active by postId", "selected: count likes where postId.parentId = null by postId")
         .replace("  active: bool", "  immutable postId\n  active: bool")
-        .replace("update likes[id] { postId }", "update likes[id] {}");
+        .replace("update likes[id] { postId }", "update likes[id] {}")
+        .replace("{ postId, active, amount }", "{ active, amount }");
     let (mut server, mut backend) = compile(&source);
     backend.schema = backend.schema.public_projection();
     assert!(backend.schema.maintains.is_empty());

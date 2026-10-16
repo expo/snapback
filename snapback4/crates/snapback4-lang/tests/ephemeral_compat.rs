@@ -142,6 +142,14 @@ fn durable_schema_and_types_keep_base_bytes() {
     let refused = snapback4_lang::compile(&[("schema.q".into(), include_str!("fixtures/repair-probe.q").into())]);
     assert!(refused.diagnostics.iter().any(|d| d.code == "E_QUARRY_POINT_KEY"));
     assert!(expected.remove("repair-probe.q").is_some());
+    // P18's fixture uses explicit insert/update arms for immutable fields.
+    // Only its operation-site metadata changes; keep every schema/type byte.
+    let current: serde_json::Value = serde_json::from_str(&actual["never-predict.q"].0).unwrap();
+    let record = &mut expected.get_mut("never-predict.q").unwrap().0;
+    let mut prior: serde_json::Value = serde_json::from_str(record).unwrap();
+    assert!(current["operations"].as_object().unwrap().values().all(|fact| fact["predicts"] == "never"));
+    prior["operations"] = current["operations"].clone();
+    *record = serde_json::to_string(&serde_json::from_value::<snapback4_core::Schema>(prior).unwrap()).unwrap();
     assert_eq!(actual.keys().collect::<Vec<_>>(), expected.keys().collect::<Vec<_>>());
     // @ref LLP 3000.013#2.2 — DX3 removes null only for these proved-stable
     // mutation returns. Keep the historical JSON captures and every other

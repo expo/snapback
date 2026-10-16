@@ -31,7 +31,7 @@ mutation addNote(body: text):
   return insert notes { owner: viewer, body }
 ```
 
-A row surviving `where .x != null` carries a present `.x` into its loop or shape. A phase flag alone does not prove another field is present.
+`where .x != null` narrows that row in loops and shapes.
 
 Tables have an implicit `id`. `query` pages newest first; pass `next` as `c`. `addNote` inserts atomically with default time.
 `not before .opensAt` sets a stored lower read lifetime; null is unbounded. With `expire at`, rows live in `[opensAt, expiresAt)`. See `guide timed disclosure`.

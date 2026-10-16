@@ -391,9 +391,17 @@ fn canonical(mut arms: Vec<Audience>) -> Vec<Audience> {
 // @ref LLP 3000.036.000.000#8 — windowed/expiring union arms are refused rather than partially delivered.
 fn bind_union(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, arms: Vec<Audience>) -> Fallible<Sync> {
     if sync.horizon.is_some() {
-        return Err(sync_error(&sync.site,
-            "union audiences cannot have `last N by ...`",
-            "sync  -- bare sync infers this schema's complete union audience; remove last N by. Or use online only and keep this read rule and queries").guide("sharing"));
+        let timed = info.decl.expire.is_some() || info.decl.ephemeral.is_some() || info.through.as_ref().is_some_and(|t|t.expiring)
+            || arms.iter().any(|arm| if let Audience::Target { table, .. } = arm {
+                catalog.tables.get(table).is_some_and(|scope| scope.decl.expire.is_some() || scope.through.as_ref().is_some_and(|t|t.expiring))
+            } else { false });
+        let source = match &sync.audience {
+            SyncAudience::Inferred { .. } => sync.audience.arm(),
+            _ => format!("sync to {}",sync.audience.arm()),
+        };
+        let repair = if timed { "online only  -- keep this read rule, expiry and queries".into() }
+            else { format!("{source}  -- remove last N by; retain this schema's audience and recipient. Or use online only") };
+        return Err(sync_error(&sync.site, "union audiences cannot have `last N by ...`", repair).guide("sharing"));
     }
     let scopes = std::iter::once(info.decl.name.as_str()).chain(arms.iter().filter_map(|arm| match arm {
         Audience::Target { table, .. } => Some(table.as_str()), _ => None,

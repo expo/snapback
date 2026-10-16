@@ -67,7 +67,7 @@ fn admitted_writes_jobs_and_owned_field_patches_are_not_noted() {
     // and the owned remainder passes field authority without the update rule.
     let immutable = TABLES.replace("  seen: int default 0 written by .owner\n", "  seen: int default 0 written by .owner\n  immutable owner\n");
     let bound = compile(&[("schema.q".into(), format!("{immutable}mutation see(m: marks, n: int):\n  update marks[m] {{ owner: viewer, seen: n }}\n"))]);
-    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.diagnostics.iter().any(|d|d.code=="E_QUARRY_IMMUTABLE"), "{:?}", bound.diagnostics);
     assert!(bound.notes.iter().all(|note| note.code != "N_WRITE_DENIED"), "{:?}", bound.notes);
     // `false` binds to deny like `deny`.
     let literal = notes_in(&TABLES.replace("update <- deny", "update <- false"), "mutation submit(o: orders):\n  update orders[o] { submitted: true }\n");
