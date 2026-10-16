@@ -416,7 +416,8 @@ fn m3_a_non_predicting_pass_over_a_hidden_prefix_does_not_abort_when_a_query_wou
     let helper = format!("{SOURCE}\nfn countVisible():\n  n = 0\n  for r in records[viewer] first 10 by byOwner:\n    n = n + 1\n  return n\nmutation checked(key: text <=80): server\n  return update records[key = key] {{amount: 0}} if countVisible() = 1\n");
     let mut e = world(&helper, true, 7);
     assert_eq!(call(&mut e, "checked", "alice", json!({"key":"lookup"}), "helper").reply(Some("helper"))["state"], "sent");
-    let unpinned = helper.replace("records[viewer] first 10", "records[] first 10");
+    // Isolate fanout admission from the separate immutable-source refusals.
+    let unpinned = helper.replace("records[viewer] first 10", "records[] first 10").replace("  immutable frozen\n", "");
     assert!(snapback4_lang::compile(&[("schema.q".into(), unpinned)]).diagnostics.iter().any(|d| d.code == "E_STRUCTURAL_FANOUT"));
     let mut bodies = Vec::new();
     for hidden in [0, 100, 10_000] {
