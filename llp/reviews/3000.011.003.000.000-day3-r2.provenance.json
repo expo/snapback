@@ -1,0 +1,12 @@
+{
+  "reviewer": "fresh codex exec",
+  "model": "gpt-6.1-sol",
+  "reasoningEffort": "high",
+  "date": "2026-10-16",
+  "command": "codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox --output-last-message /tmp/day3-review-r2-sol.md - < brief",
+  "isolation": "fresh mutually blind session, no other review/report access",
+  "verbatimFinalSha256": "22073cf1c9eed60541f7832ccb42d1bcd0b84d92fe12621f7f499b9cae846be2",
+  "runnerLog": "/tmp/day3-review-r2-sol.log",
+  "verdict": "NOT READY",
+  "disposition": "explicit saved fixture starter exception removed; exact historical template variants gain build step, with regressions"
+}

@@ -16,6 +16,16 @@ use std::collections::BTreeSet;
 
 impl Runner<'_> {
     pub(super) fn apply_reference_actions(&mut self, table_name: &str, old: &Value) -> Result<(), RuntimeError> {
+        self.reference_actions(table_name, old, false)
+    }
+
+    // Recovery has no later root-delete hook to preflight physical read-through
+    // retention. Include that root before the first child action can write.
+    pub(in crate::engine) fn apply_missing_reference_actions(&mut self, table_name: &str, identity: &Value) -> Result<(), RuntimeError> {
+        self.reference_actions(table_name, identity, true)
+    }
+
+    fn reference_actions(&mut self, table_name: &str, old: &Value, missing_root: bool) -> Result<(), RuntimeError> {
         let schema = self.schema;
         if !schema.is_referenced(table_name) { return Ok(()); }
         let Some(price) = schema.delete_reservation(table_name) else {
@@ -63,7 +73,7 @@ impl Runner<'_> {
         if owns_device_allowance { self.device_allowance = meter.take(); }
         let prepaid = self.tx.reference_prepaid(true);
         let action = std::mem::replace(&mut self.engine_action, true);
-        let result = self.reference_closure(table_name, old);
+        let result = self.reference_closure(table_name, old, missing_root);
         self.engine_action = action;
         self.tx.reference_prepaid(prepaid);
         self.meter = if owns_device_allowance {
@@ -77,7 +87,7 @@ impl Runner<'_> {
 
     /// Steps 3–6. The walk holds identities, never images: each child scan
     /// streams `PAGE` rows per seek, and every write rereads its row current.
-    fn reference_closure(&mut self, root_table: &str, root: &Value) -> Result<(), RuntimeError> {
+    fn reference_closure(&mut self, root_table: &str, root: &Value, missing_root: bool) -> Result<(), RuntimeError> {
         let schema = self.schema;
         let mut seen: BTreeSet<(String, String)> = BTreeSet::from([(root_table.to_owned(), root.field("id")?.as_str()?.to_owned())]);
         // (Vectors, not maps: the web device pays for every new collection type.)
@@ -123,7 +133,7 @@ impl Runner<'_> {
         // child. Decide that blocker before set-null writes begin, so expiry
         // can retain this root and continue without relying on transaction
         // rollback to undo a partial closure.
-        for (table, id) in visits.iter().skip(1) {
+        for (table, id) in visits.iter().skip(if missing_root { 0 } else { 1 }) {
             if self.physical_children_outside(table, id, &seen)? {
                 return Err(self.parent_has_children(table));
             }

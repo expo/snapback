@@ -26,7 +26,25 @@ pub(super) fn result(current: &Ty, old: Option<&Ty>, since: Option<u64>) -> Stri
         (Ty::List(a, _) | Ty::Collection(a, _), Ty::List(b, _) | Ty::Collection(b, _)) => format!("Array<{}>", result(a, Some(b), since)),
         // Nominal rows expand through Rows; value unions retain old enum/value domains.
         (Ty::Row(a), Ty::Row(b)) | (Ty::Page(a, _), Ty::Page(b, _)) if a == b => ty_ts(current),
-        _ => format!("({} | {})", ty_ts(current), baseline_type(old)),
+        (Ty::Enum(a), Ty::Enum(b)) => {
+            let mut variants = a.clone();
+            for variant in b { if !variants.contains(variant) { variants.push(variant.clone()); } }
+            ty_ts(&Ty::Enum(variants))
+        }
+        _ => {
+            fn atoms(ty: &Ty, baseline: bool, out: &mut Vec<String>) {
+                let mut add = |text| { if !out.contains(&text) { out.push(text); } };
+                match ty {
+                    Ty::Optional(inner) => { atoms(inner, baseline, out); if !out.iter().any(|atom| atom == "null") { out.push("null".into()); } }
+                    Ty::Enum(variants) => for variant in variants { add(string_literal(variant)); },
+                    _ => add(if baseline { baseline_type(ty) } else { ty_ts(ty) }),
+                }
+            }
+            let mut union = Vec::new(); atoms(current, false, &mut union); atoms(old, true, &mut union);
+            // Plain strings already include every enum literal, even through an optional.
+            if union.iter().any(|atom| atom == "string") { union.retain(|atom| !atom.starts_with('"')); }
+            union.join(" | ")
+        },
     }
 }
 
@@ -64,4 +82,15 @@ pub(super) fn baseline_rows(bound: &Bound, out: &mut String) {
         out.push_str(&format!("  {}: Omit<BaselineRows[{}], {}>;\n", property(name), string_literal(name), if fields.is_empty() { "never" } else { &fields }));
     }
     out.push_str("};\n\n");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn value_unions_deduplicate_through_optional_and_string_domains() {
+        assert_eq!(result(&Ty::Text(80), Some(&Ty::Optional(Box::new(Ty::Text(40)))), Some(2)), "string | null");
+        assert_eq!(result(&Ty::Enum(vec!["open".into(), "held".into()]), Some(&Ty::Optional(Box::new(Ty::Enum(vec!["open".into(), "closed".into()])))), Some(2)), "\"open\" | \"held\" | \"closed\" | null");
+        assert_eq!(result(&Ty::Enum(vec!["open".into()]), Some(&Ty::Text(40)), Some(2)), "string");
+    }
 }

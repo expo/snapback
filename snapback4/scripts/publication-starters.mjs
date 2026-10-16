@@ -6,7 +6,7 @@ import { loadavg } from "node:os";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
 import { resolve, join } from "node:path";
 
 // The live keeper alone signals its own group. Closing its private pipe also
@@ -73,6 +73,7 @@ export async function proveFrontendTwice(run, cwd, starter) {
     const tracerVersion = auditEnabled ? (await import("./proof-listener-audit.mjs")).requireListenerTracer() : undefined;
     const proofLogs = join(cwd, `proof-logs-${attempt}`);
     try {
+      rmSync(join(cwd, "dist"), { recursive: true, force: true });
       await run(auditEnabled ? "strace" : process.execPath, [...(auditEnabled ? ["-f", "-q", "-z", "-yy", "-e", "trace=listen", "-e", "signal=none", "-o", trace, process.execPath] : []), "scripts/frontend-proof.mjs"], cwd, { PORT_LO: String(low), PORT_HI: String(high), SNAPBACK4_PROOF_LOGS: proofLogs });
       const listenerAudit = auditEnabled ? (await import("./proof-listener-audit.mjs")).auditListenerTrace(readFileSync(trace, "utf8"), low, high) : { status: "not-run", reason: "listener audit belongs to Linux qualification" };
       if (auditEnabled) { assert.equal(listenerAudit.status, "passed"); assert.ok(listenerAudit.samples > 0); listenerAudit.tracerVersion = tracerVersion; }

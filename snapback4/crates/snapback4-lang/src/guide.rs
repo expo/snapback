@@ -422,6 +422,17 @@ query expiringStories(c: cursor ?):
   return stories where .authorId = viewer after c last 20 by .id { id, body, expiresAt }
 ```
 
+Sweeps apply declared reference actions while the parent image remains.
+Parents already physically swept by 0.4.28 cannot trigger these actions on upgrade.
+
+E_EXPIRY_ORPHAN means a stored reference points to a physically missing expiring parent.
+`doctor` reports these references, which may also be deliberately dangling data.
+After backup/review, stop the host and run
+`snapback4 doctor --repair-expiry-orphan table:id` (add `--release dir` for deployed
+storage). It applies the current schema's cascade/set-null actions atomically,
+retaining keep references; restrict/read-through blockers refuse.
+It never reconstructs a parent or silently deletes dangling rows at adoption.
+
 `not before .opensAt` and `expire at .expiresAt` define `[opensAt, expiresAt)`;
 `guide timed disclosure` has the compiled recipe.
 

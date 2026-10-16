@@ -6,7 +6,7 @@ query and three mutations. It works offline and syncs when the link returns.
 ```sh
 npm install
 npx snapback4 check      # compiles snapback/schema.q, writes snapback/generated/api.ts
-npx snapback4 dev        # serves http://127.0.0.1:4400 and reloads on save
+npm run backend         # serves http://127.0.0.1:4400 and reloads on save
 npm run dev              # in a second terminal: http://localhost:5173
 ```
 
@@ -32,7 +32,7 @@ returns.
   with `useQuery`. Props name hook results by operation (`UsePage<typeof
   api.list>`, `UseQuery<…>`, `UseMutation<…>`), and `useSignedInViewer()` is
   the viewer below the sign-in. After you replace the schema,
-  `npx snapback4 init --adapt` swaps this screen for a `Home` that compiles
+  `npx snapback4 init --adapt` previews; `npx snapback4 init --adapt --apply` swaps this screen for a `Home` that compiles
   against any schema, while it is unmodified.
 - `src/styles.css`, `index.html` (titled after this directory) and
   `vite.config.mts`: yours to change; `.mts` keeps Vite's config ESM even when

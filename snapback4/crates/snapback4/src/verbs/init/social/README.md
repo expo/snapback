@@ -6,7 +6,7 @@ profile screens. Backend forms and generated types: `snapback/schema.q`, `check`
 ```sh
 npm install
 npx snapback4 check
-npx snapback4 dev
+npm run backend
 # In another terminal:
 npm start
 # or npm run web, npm run ios:dev

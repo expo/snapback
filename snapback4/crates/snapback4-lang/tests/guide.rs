@@ -86,7 +86,7 @@ fn w11r1c_residency_fact_cards_require_verbose() {
 #[test]
 fn w11r1c_first_screen_generates_types_and_starts_the_backend() {
     let path = README.split_once("### 1. Create and run the backend").unwrap().1.split_once("### 2.").unwrap().0;
-    for text in ["npx snapback4 check", "npx snapback4 dev", "npm install"] {
+    for text in ["npx snapback4 check", "npm run backend", "npm install"] {
         assert!(path.contains(text), "step 1 omits {text}");
     }
 }
@@ -134,7 +134,7 @@ fn w14b_first_account_screen_is_self_contained() {
     let readme = include_str!("../../../packages/snapback4/README.md");
     let path = readme.split_once("## Reference map").expect("one optional reference map").0;
     for text in [
-        "npx snapback4 init --expo", "npm install", "npx snapback4 check", "npx snapback4 dev",
+        "npx snapback4 init --expo", "npm install", "npx snapback4 check", "npm run backend",
         "use identity password", "table profiles:", "unique handle", "avatar: image",
         "query handleAvailable(", "query myProfile(", "mutation saveProfile(",
         "signup(", "login(", "createApp(", "useAuth()", "AppProvider", "sessionStore",

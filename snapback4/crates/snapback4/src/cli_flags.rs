@@ -22,7 +22,7 @@ pub(crate) fn allowed(verb: &str) -> &'static str {
         "data" => "release limit json",
         "sql" => "release limit json json-objects",
         "token" => "service days release json",
-        "doctor" => "url latency reset json instance release",
+        "doctor" => "url latency reset json instance release repair-expiry-orphan",
         "upgrade" => "to json",
         "witness" => "email password-env mutation initialize environment-skip background if-present as url token restart runs query args artifacts timeout json build export smoke udid port bundle-id segment prime relaunch wait repack app-project field value button port-range",
         _ => "",
@@ -105,6 +105,7 @@ pub(crate) fn help(verb: &str) -> String {
         let description = match (verb, name) {
             ("deploy", "schema") => " — deploy a saved complete source; keep it outside snapback/",
             ("test", "source") => " — test a saved complete source; keep it outside snapback/",
+            ("doctor", "repair-expiry-orphan") => " — offline recovery of one physically missing expiring parent, table:id; stop its host and back up first (guide expire)",
             (_, "help") => " — print this verb's help (-h also works)",
             _ if retired(verb,name) => " — retired spelling; the command explains its replacement before work",
             _ => "",

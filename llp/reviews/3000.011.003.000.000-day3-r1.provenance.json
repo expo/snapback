@@ -1,0 +1,13 @@
+{
+  "reviewer": "fresh codex exec",
+  "model": "gpt-6.1-sol",
+  "reasoningEffort": "high",
+  "date": "2026-10-16",
+  "command": "codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < brief",
+  "sourceReportedByReviewer": "through b626e5f700 plus worktree delta",
+  "isolation": "fresh session; instructed not to read other reviews or report",
+  "verbatimFinalSha256": "e79eb4cba10d0b5e8e19d500d6ab8bc8f8996b56959b204c2f3fe0a1172a9c8a",
+  "runnerLog": "/tmp/day3-review-r1-sol.txt",
+  "verdict": "NOT READY",
+  "disposition": "saved-directory immutability and baseline error provenance repaired, regression tests added"
+}

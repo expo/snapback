@@ -60,6 +60,8 @@ pub(crate) mod columns;
 #[cfg(feature = "sqlite")]
 pub mod delivery;
 mod expiry;
+#[cfg(feature = "sqlite")]
+mod expiry_orphans;
 mod field_authority;
 #[cfg(test)]
 #[cfg(feature = "sqlite")]

@@ -108,7 +108,7 @@ fn readme(dir: &Path, own: &OwnSchema, todos: bool, found: &mut Vec<Leftover>, m
         // The offline paragraph names the schema's synced tables when init
         // wrote it; any of them (or 0.4.22's unconditional claim) still matches.
         let masked = starter::without_offline(&text);
-        let explicit_online = read(dir, "src/client.ts").is_some_and(|client| client.contains("writes: \"online\""));
+        let explicit_online = platform == Platform::Web && read(dir, "src/client.ts").is_some_and(|client| client.contains("writes: \"online\""));
         let matched = ports.into_iter().find(|&(port, web_port)| {
             [(Body::Todos, false), (Body::Home(None), false), (Body::Home(None), true)].iter()
                 .any(|(body, personas)| [false, true].iter().any(|password| [false, true].iter().any(|online| {
@@ -209,7 +209,7 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
     let explicit_online = platform == Platform::Web && client.contains("writes: \"online\"");
     let client_shape = normalized(&client);
     let matches_client = |reference: &str, personas: bool| [reference, starter::previous_client(platform, personas)].iter().any(|reference|
-        client_shape == normalized(reference) || client_shape == normalized(&starter::web_client((*reference).to_owned(), &journal_shape)) || client_shape == normalized(&starter::online_web_client((*reference).to_owned())));
+        client_shape == normalized(reference) || client_shape == normalized(&starter::web_client((*reference).to_owned(), &journal_shape)) || client_shape == normalized(&starter::online_web_client((*reference).to_owned())) || client_shape == normalized(&starter::expo_client((*reference).to_owned(), &journal_shape)));
     let current = [Body::Todos, Body::Home(first_read(&app))].into_iter().find_map(|body| [false, true].into_iter().find_map(|previous| {
         let screens = |personas: Option<&[String]>, password| if previous { starter::previous_screens(platform, personas, &body, password) } else { starter::identity_screens(platform, personas, &body, password) };
         let (guest_app, guest_client) = screens(None, false);
@@ -238,7 +238,7 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
         }
     };
     let (app_text, mut client_text) = starter::identity_screens(platform, wanted_sign_in.personas(), &wanted_body, wanted_sign_in == SignIn::Password);
-    client_text = if explicit_online { starter::online_web_client(client_text) } else { starter::web_client(client_text, &own.offline) };
+    client_text = if explicit_online { starter::online_web_client(client_text) } else if platform == Platform::Expo { starter::expo_client(client_text, &own.offline) } else { starter::web_client(client_text, &own.offline) };
     let client_changed = client_shape != normalized(&client_text);
     if wanted_sign_in == sign_in && app == app_text && wanted_body == body && !client_changed { return true; }
     let mut reasons = Vec::new();
@@ -306,9 +306,27 @@ fn port_of(client: &str) -> Option<&str> {
     (digits > 0).then(|| &client[at..at + digits])
 }
 
+fn proof_advice(dir: &Path) -> Vec<String> {
+    let mut advice = Vec::new();
+    if let Ok(Some(own)) = super::own_schema(dir) {
+        match super::proof::plan(dir, &own) {
+            Ok(changes) if !changes.is_empty() => {
+                let package: serde_json::Value = std::fs::read_to_string(dir.join("package.json")).ok().and_then(|text| serde_json::from_str(&text).ok()).unwrap_or_default();
+                if package["scripts"]["day2:proof"] == "node scripts/day2-proof.mjs" {
+                    advice.push("info: day2:proof passes no saved versions; run `snapback4 init --adapt`, then `snapback4 init --adapt --apply`".into());
+                } else { advice.push("info: starter proof infrastructure needs updating; run `snapback4 init --adapt` to preview, then `snapback4 init --adapt --apply`".into()); }
+            }
+            Err(error) => advice.push(format!("info: cannot inspect starter proof infrastructure: {error}")),
+            _ => {}
+        }
+    }
+    advice
+}
+
 /// One `check` line, or none: the leftovers and the command that fixes them.
 pub(crate) fn report(dir: &Path) -> Option<String> {
-    let (found, advice) = leftovers(dir);
+    let (found, mut advice) = leftovers(dir);
+    advice.extend(proof_advice(dir));
     if found.is_empty() && advice.is_empty() { return None; }
     if found.is_empty() && advice.iter().all(|line| line.starts_with("info:")) { return Some(advice.join("\n")); }
     let mut lines = Vec::new();
@@ -317,14 +335,15 @@ pub(crate) fn report(dir: &Path) -> Option<String> {
     if !found.is_empty() {
         lines.push("  fix: snapback4 init --adapt (removes or rewrites only these files, which still match the starter; your own files are never touched)".into());
     }
-    Some(format!("starter: {} left from `snapback4 init` that {} not fit your schema\n{}",
+    Some(format!("info: starter: {} left from `snapback4 init` that {} not fit your schema\n{}",
         if found.is_empty() { "a screen".to_owned() } else { format!("{} file{}", found.len(), if found.len() == 1 { "" } else { "s" }) },
         if found.len() == 1 || found.is_empty() { "does" } else { "do" }, lines.join("\n")))
 }
 
 /// The same, for `check --json`: `null` when nothing is left over.
 pub(crate) fn report_json(dir: &Path) -> serde_json::Value {
-    let (found, advice) = leftovers(dir);
+    let (found, mut advice) = leftovers(dir);
+    advice.extend(proof_advice(dir));
     if found.is_empty() && advice.is_empty() { return serde_json::Value::Null; }
     serde_json::json!({
         "files": found.iter().map(|leftover| serde_json::json!({ "path": leftover.path, "why": leftover.why, "adapt": if leftover.rewrite.is_some() { "rewrite" } else { "remove" } })).collect::<Vec<_>>(),
@@ -349,8 +368,16 @@ pub(super) fn adapt(dir: &Path, dry_run: bool, apply: bool) -> i32 {
         println!("init --adapt: planned changes (only unmodified starter files):");
         for change in &found { println!("  {} {} — {}", if change.rewrite.is_some() { "rewrite" } else { "remove" }, change.path, change.why); }
     }
-    for (path, _) in &proof {
-        println!("  {} {} — missing proof infrastructure", if *path == "package.json" { "extend" } else { "add" }, path);
+    for (path, body) in &proof {
+        let exists = dir.join(path).exists();
+        println!("  {} {} — {} proof infrastructure", if *path == "package.json" { "extend" } else if exists { "replace" } else { "add" }, path, if exists { "inherited" } else { "missing" });
+        if *path == "package.json" {
+            let old: serde_json::Value = std::fs::read_to_string(dir.join(path)).ok().and_then(|text| serde_json::from_str(&text).ok()).unwrap_or_default();
+            let new: serde_json::Value = serde_json::from_str(body).unwrap();
+            for (key, value) in new["scripts"].as_object().unwrap() {
+                if old["scripts"][key] != *value { println!("    scripts.{key}: {} → {value}", old["scripts"][key]); }
+            }
+        }
     }
     if !modified.is_empty() { println!("init --adapt: application-owned or modified files stay unchanged: {}", modified.join(", ")); }
     if dry_run || !apply {
