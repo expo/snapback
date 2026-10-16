@@ -1172,3 +1172,19 @@ fn kit3_retained_search_overlap_waits_for_the_same_pending_publication() {
     assert_eq!(reply["data"].as_array().unwrap().len(), 8, "{reply}");
     assert_eq!(reply["searchCurrent"], json!(["n7"]));
 }
+
+#[test]
+fn kit3_held_schedules_still_preflight_report_size_without_releasing_the_hold() {
+    let f = Fixture::new("kit3-held-report");
+    let mut source = SOURCE.replace("schedule ticking every 2m: tick\n", "");
+    for n in 0..4200 { source.push_str(&format!("schedule held{n} every 2m: tick\n")); }
+    fs::write(f.0.join("snapback/schema.q"), source).unwrap();
+    let host = f.start(&["dev", "--no-watch", "--hold-schedules"]);
+    let now = host.query("time").as_i64().unwrap();
+    let created = host.post("/m/counter", json!({"args":{}})); assert_eq!(created["state"], "sent");
+    let refused = host.post("/dev/clock/advance", json!({"duration":"1h","eachBoundary":true}));
+    assert_eq!(refused["denied"]["code"], "E_CLOCK_INPUT", "{refused}");
+    assert!(refused["denied"]["message"].as_str().unwrap().contains("byte budget"));
+    assert!(host.query("time").as_i64().unwrap() < now + 60_000, "failed preflight must not advance time");
+    assert_eq!(host.query("counters")[0]["n"], 0, "the hold and queued state stay unchanged");
+}

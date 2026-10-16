@@ -82,13 +82,14 @@ pub fn saved_boundaries(engine: &Engine) -> Vec<Option<i64>> {
 
 /// Preflight is bounded before the clock or worker leases change.
 // @ref LLP 3000.007#20.12.1 — explicit crossed windows share a bounded enumeration in both modes.
-pub fn crossed_boundaries(engine: &Engine, before: &[Option<i64>], now: i64) -> Result<Vec<(usize, i64)>, snapback4_core::Refusal> {
+pub fn crossed_boundaries(engine: &Engine, before: &[Option<i64>], now: i64, held: bool) -> Result<Vec<(usize, i64)>, snapback4_core::Refusal> {
     let mut boundaries = Vec::new();
     let mut report_bytes = 0usize;
     for (index, schedule) in engine.schema().schedules.iter().enumerate() {
         // JSON may escape every error byte; count that bound per schedule.
         report_bytes = report_bytes.saturating_add(2048 + 6 * (REPORT_ERROR_BYTES + 3) + 8 * (schedule.name.len() + schedule.target.len()));
-        if report_bytes > 32 << 20 { return Err(crate::dev_clock::input("schedule window report exceeds its byte budget; use a smaller duration")); }
+        if report_bytes > 32 << 20 { return Err(crate::dev_clock::input("schedule report exceeds its byte budget; reduce the declared schedules")); }
+        if held { continue; }
         let Some(old) = before.get(index).copied().flatten() else { continue; };
         let end = schedule.boundary(now);
         if old >= end { continue; }
@@ -256,7 +257,7 @@ mod tests {
         let mut engine = Engine::new_at(snapback4_core::Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p|p.program), 0).unwrap();
         engine.fire_schedules(0).unwrap();
         let before = saved_boundaries(&engine);
-        assert_eq!(crossed_boundaries(&engine, &before, 60_000).unwrap().len(), 500);
+        assert_eq!(crossed_boundaries(&engine, &before, 60_000, false).unwrap().len(), 500);
         let fired = engine.fire_schedules(60_000).unwrap();
         let message = "🧪\n\\".repeat(30_000);
         engine.store().conn().execute("UPDATE _jobs SET error = ?1 WHERE id = (SELECT id FROM _jobs ORDER BY created_at DESC, id DESC LIMIT 1)", [&message]).unwrap();

@@ -373,7 +373,7 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         let mut clock = lock(&shared.clock);
         let mut next = clock.clone();
         let now = next.advance(milliseconds)?;
-        let boundaries = if shared.hold_schedules { Vec::new() } else { crate::dev_clock_store::crossed_boundaries(&engine, &before, now)? };
+        let boundaries = crate::dev_clock_store::crossed_boundaries(&engine, &before, now, shared.hold_schedules)?;
         lock(&shared.maintenance).advancing = true;
         engine.advance_worker_leases_at(milliseconds, clock.now()).map_err(|e| e.refusal())?;
         *clock = next;
