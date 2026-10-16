@@ -43,6 +43,7 @@ fn unique_membership_lanes_filter_one_point_and_continue_in_merge_order() {
 fn dormant_cascades_need_bounds_only_after_a_delete_source_appears() {
     let source = "table parents:\n  public\n  online only\ntable children:\n  parent: parents on delete cascade\n  public\n  online only\n";
     let b = checked(source);
+    assert!(b.notes.iter().any(|note| note.code == "N_CASCADE_DORMANT"));
     Engine::memory(b.schema, []).unwrap();
     for active in [source.replace("table parents:\n", "table parents:\n  delete <- allow\n"),
         source.replace("table parents:\n", "table parents:\n  until: time\n  expire at .until\n"),
@@ -213,4 +214,21 @@ fn external_ir_deletes_cannot_activate_unbounded_dormant_actions() {
     let program = Program { body: vec![Stmt::Return(Expr::Block { body: vec![delete], value: Box::new(Expr::Literal(Value::Null)) })], ..program };
     let error = snapback4_core::engine::admission::check(&b.schema,&program).unwrap_err();
     assert!(error.to_string().contains("E_CASCADE_BOUND"),"{error}");
+}
+
+#[test]
+fn external_bounded_predicates_cannot_smuggle_reads_into_the_fixed_draw() {
+    use snapback4_core::ir::*;
+    let b = checked("table entries:\n  a: int\n  b: int\n  cap 2\n  read <- .a = .b\n  online only\nquery list(c: cursor ?):\n  return entries first 2 by .id after c\n");
+    let merges = body_merges(&b.programs[0].program.body);
+    let mut lane = merges[0].lanes[0].clone();
+    assert!(snapback4_core::engine::rules::bounded_branch(&b.schema,&lane));
+    lane.scan.filter = Some(Box::new(Expr::Exists(Read { site: "external".into(), table: "entries".into(), index: "byId".into(), key: vec![Expr::Literal(id("hidden"))], provenance: KeyProvenance::Shape })));
+    assert!(!snapback4_core::engine::rules::bounded_branch(&b.schema,&lane));
+}
+
+#[test]
+fn immutable_compound_operands_resolve_in_their_capture_time_environment() {
+    let source = "table entries:\n  code: int\n  unique code\n  immutable code\n  public\n  update <- allow\n  online only\nmutation change():\n  n = 1\n  saved = n + 1\n  n = 2\n  update entries[code = saved] { code: n + 1 }\n  return null\n";
+    refusal(source,"E_QUARRY_IMMUTABLE");
 }

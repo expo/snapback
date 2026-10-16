@@ -1,4 +1,4 @@
-6 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
+5 advisory notes — check passed; notes never block dev, test or deploy (most consequential first; check --verbose explains each, snapback4 why <CODE> one):
 review — can cost correctness or completeness:
 note: schema.q:52:5 — N_REFERENCE_UNCHECKED: review: this reference argument is never looked up. mutation membership stores argument group directly in members.group, but never looks up groups[group]: a reference accepts any well-formed id even when the row is absent — snapback4 why N_REFERENCE_UNCHECKED
 note: schema.q:1:1 — N_NO_PRODUCTION_WRITER: fix: add a production bootstrap writer. groups: no production writer can bootstrap this root; members depend on it; fixtures and /seed are dev-only — snapback4 why N_NO_PRODUCTION_WRITER

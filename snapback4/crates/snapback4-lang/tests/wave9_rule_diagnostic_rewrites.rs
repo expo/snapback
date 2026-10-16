@@ -325,8 +325,10 @@ fn wave13_boolean_and_joint_cap_guidance_rechecks_after_the_prescribed_edit() {
     let source = "table parents:\n  public\n  delete <- allow\n  online only\ntable children:\n  parent: parents on delete cascade\n  public\n  online only\ntable leaves:\n  parent: parents ? on delete set null\n  public\n  online only\n";
     let d = refusal(source,"E_CASCADE_BOUND");
     let mut repaired = source.to_owned();
-    for snippet in d.rewrite.split('`').skip(1).step_by(2).filter(|s|s.starts_with("cap ")) {
-        let table = d.rewrite.split(&format!("`{snippet}` on ")).nth(1).unwrap().split_whitespace().next().unwrap();
+    let pieces = d.rewrite.split('`').collect::<Vec<_>>();
+    for at in (1..pieces.len()).step_by(2).filter(|at|pieces[*at].starts_with("cap ")) {
+        let snippet = pieces[at];
+        let table = pieces[at+1].strip_prefix(" on ").unwrap().split_whitespace().next().unwrap();
         let heading = format!("table {table}:\n");
         repaired = repaired.replace(&heading,&format!("{heading}  {snippet}\n"));
     }
