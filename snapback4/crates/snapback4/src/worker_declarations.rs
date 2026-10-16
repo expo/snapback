@@ -213,8 +213,9 @@ impl Snapshot {
             output.set_permissions(source.metadata()?.permissions())?;
             Ok(())
         })?;
-        link_package_scopes(&Self::package_root(project)?.join("snapback"), &schema_stage)?;
         Self::checked_imports(&root, &project_root, &stage)?;
+        // External checked imports keep their own nearest package scopes too.
+        link_package_scopes(&Self::package_root(project)?, &stage)?;
         owned.entry = schema_stage.join(source.file_name().ok_or_else(|| io::Error::other("worker entry has no filename"))?);
         if !owned.entry.is_file() { return Err(io::Error::other("automatic worker entry is absent")); }
         Ok(owned)
