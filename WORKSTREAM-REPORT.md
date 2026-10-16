@@ -6,7 +6,7 @@ Worktree: `sb4-w13-lang2`, based on `59fb4ead1b` (0.4.29). No version bump and n
 
 - P10: total unique membership keys become filtered point lanes; extra equalities remain residual predicates. Generated intent reads report the originating source query.
 - P17: action caps are required only for reachable delete roots (rules, programs/helpers, expiry and cascades). Dormant uncapped actions get `N_CASCADE_DORMANT`. External IR admission independently checks all delete footprints, including nested expression blocks and jobs. Cap guidance says product limit and prints the engine's joint heap formula.
-- P18 (coordinator revision): `E_QUARRY_IMMUTABLE` refuses proven changes and fresh clock/id patterns; `N_IMMUTABLE_PATCH` explains uncertain supplied values and readable runtime equality. Same-author upserts remain accepted. Proven key/current-snapshot/local-insert equality stays quiet; unrelated opaque fields do not erase facts. Hidden immutable fields retain their established suppression. Source runtime fixtures for uncertain writes are restored. Lean now models immutable equality/hidden stripping; 48 generated cases exercise native/model/both-device outcomes.
+- P18 (coordinator revision): `E_QUARRY_IMMUTABLE` refuses proven changes and fresh clock/id patterns; `N_IMMUTABLE_PATCH` explains uncertain supplied values and readable runtime equality. Same-author upserts remain accepted. Proven key/current-snapshot/local-insert equality stays quiet; unrelated opaque fields do not erase facts. Hidden immutable fields retain their established suppression. Source runtime fixtures for uncertain writes are restored. Proven insert-only upserts stay quiet; opaque lexical effects invalidate mutable proof facts. Lean now models immutable equality/hidden stripping; 64 generated P18 cases exercise native/model/both-device outcomes.
 - Diagnostics: schema-shaped sync horizon guidance, source-level structural fanout guidance, nullable Boolean operand locations, distinct statement-position code, stable job cursor guidance preserving mutable predicates, and `desc after` converted to `last … after`.
 - Notes: whole finite caps/finite unique alternatives silence `N_NO_CURSOR`; reference argument guidance checks existence without a fabricated binding; structurally ordered complete child deletions silence restrict notes; hidden roster guidance is applied and checked in the golden; long quoted expansions abbreviate outside verbose output.
 - Language: conjunctive `.x != null` narrows row snapshots in loops and shapes; asserted immutable parent fields plus live require facts prove private count access; writes invalidate those proofs, including parent delete/rebirth. `not before` infers its required boundary index.
@@ -41,7 +41,7 @@ Per-item tests: `wave13_lang2` covers P10/P17/P18, all three language additions,
 |---|---|---|
 | P10 unique membership and source locations | `1dc5d57700`, `3f034013ee`, `62204cc8eb` | Point-lane merge/cursor regression; existing page3/page4 and simulator membership suites; Mac planner/golden run |
 | P17 declared deletion bounds and heap repair | `3f034013ee`, `80b2f846b5` | Dormant/activation/external-IR/cycle regressions; 32 reference-action cases; 36 generated cases across native, Lean and both device stores; Linux/Mac |
-| P18 precise immutable diagnostics | `3f034013ee`, `d16c025fa5`, `2fa3518d59`, `7b2051eec4` | Captured/compound/branch/spread/snapshot tests; rewrite recheck; 35 preserved runtime write-authority tests on Linux/Mac; final 100-schema census |
+| P18 precise immutable diagnostics | `2ceeeb958b`, `395c0f40b0`, `b6dd19bab1`, `b0ae656327`, `07010dd12d`, `8e11cb7edb`, `06d1a2553f`, `cf917e7395` | Captured/compound/branch/spread/snapshot tests; rewrite recheck; 35 preserved runtime write-authority tests on Linux/Mac; final 100-schema census |
 | Schema-shaped diagnostic rewrites | `1dc5d57700`, `d16c025fa5`, `7b2051eec4` | All 11 rewrite-golden cases, including sync recipients, Boolean operands, statement position, fanout, cursor jobs and descending pages |
 | Cursor/reference/restrict/hidden notes and long output | `1dc5d57700`, `3f034013ee`, `62204cc8eb` | Whole-cap/finite-alternative and ordered-delete regressions; applied reference/hidden suggestions; CLI compact/verbose checks |
 | Non-null narrowing, private counts, not-before indexes | `3f034013ee`, `2fa3518d59`, `7b2051eec4` | Positive/negative row-snapshot, authority invalidation and inferred-index regressions; simulator and device execution |
@@ -50,7 +50,7 @@ Per-item tests: `wave13_lang2` covers P10/P17/P18, all three language additions,
 
 ## Verification ledger
 
-Full workspace testing ran to completion with `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 SNAPBACK4_REQUIRE_LEAN=1 cargo test --workspace --no-fail-fast` (`/tmp/lang2-wave13/cargo-delivery.log`). It recorded **6,367 passed, 2 failed, 45 ignored** (existing measurements, exhaustive campaigns, subprocess workers and frozen-baseline fixtures). The two failures were earlier compiled fixture versions: `residency_notes::branch_merge_capped_group_accounts_for_every_participating_lane` and `write_authority::m3_a_non_predicting_pass_over_a_hidden_prefix_does_not_abort_when_a_query_would_not`. Both are corrected in the final source. The final combined rerun of both complete affected targets passed **79/79, 0 failed**, exit 0 (`/tmp/lang2-wave13/cargo-affected-closeout.log`: 44 residency-note tests and 35 write-authority tests). All other workspace targets passed, including all 94 differential tests.
+The initial pre-coordinator workspace testing ran to completion with `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 SNAPBACK4_REQUIRE_LEAN=1 cargo test --workspace --no-fail-fast` (`/tmp/lang2-wave13/cargo-delivery.log`). It recorded **6,367 passed, 2 failed, 45 ignored** (existing measurements, exhaustive campaigns, subprocess workers and frozen-baseline fixtures). The two failures were earlier compiled fixture versions: `residency_notes::branch_merge_capped_group_accounts_for_every_participating_lane` and `write_authority::m3_a_non_predicting_pass_over_a_hidden_prefix_does_not_abort_when_a_query_would_not`. Both are corrected in the final source. The final combined rerun of both complete affected targets passed **79/79, 0 failed**, exit 0 (`/tmp/lang2-wave13/cargo-affected-closeout.log`: 44 residency-note tests and 35 write-authority tests). All other workspace targets passed, including all 94 differential tests.
 
 The workspace invocation began before the last transitive P17 correction. Final affected tests after that graph-only correction passed 86 language/simulator/reference-action cases and all 36 generated native/Lean/device cases on Linux and Mac. Later cursor wording and fixture isolation retain the reviewed runtime semantics. Unchanged expensive targets were not rerun merely to bind every result to a newer HEAD.
 
@@ -68,7 +68,7 @@ Frozen lowering census: **11/11 passed** (`lowering-final.log`); still-admitted 
 
 ## Independent semantic reviews
 
-The final amendment §10 SHA256 is `99482b766c80245c60bcd5f664607bd22e302512e5a2d9f28d3f88b708d3b611`. Both fresh independent reviewers returned **READY** for that exact revision:
+The pre-coordinator amendment §10 SHA256 is `99482b766c80245c60bcd5f664607bd22e302512e5a2d9f28d3f88b708d3b611`. Both fresh independent reviewers returned **READY** for that exact revision:
 
 - Muse: `llp/reviews/3000.036.002-lang2-r15-muse.md`.
 - Codex: `llp/reviews/3000.036.002-lang2-r15-codex.md`.
@@ -90,7 +90,12 @@ Clean final source measurement at `b54f51aff2` (`wasm-final-clean.log`): **2,370
 
 Per-lane machine record: `snapback4/reports/20261016-lang2/schema-census.json`.
 
-The before and after census was rerun on all 100 private copies. Baseline 0.4.29: **100/100 pass**. Revised P18: **100/100 pass, zero refusals**. No previously passing schema gains any refusal. The former 23 blanket refusals across 17 lanes are superseded; uncertain patches now produce **28 N_IMMUTABLE_PATCH notes across those same 17 lanes** (some statements contain multiple immutable fields).
+The before and after census was rerun on all 100 private copies. Baseline 0.4.29: **100/100 pass**. Revised P18: **100/100 pass, zero refusals**. No previously passing schema gains any refusal. The former 23 blanket refusals across 17 lanes are superseded; uncertain patches now produce **29 N_IMMUTABLE_PATCH notes across 18 lanes** (some statements contain multiple immutable fields).
+
+| Refusal code | Before | After |
+|---|---:|---:|
+| E_QUARRY_IMMUTABLE | 0 | 0 |
+| Other refusal codes | 0 | 0 |
 
 Remaining refusal lanes: **none**. Lane052's final `reactions` schema declares `immutable link, comment, author`; `at` is mutable. Its former refusal was `reactions.link`, now an uncertainty note. Its `at: now` is valid. A separate declared-immutable timestamp regression refuses the fresh clock pattern; no evidence schema was edited.
 
@@ -101,7 +106,7 @@ Remaining refusal lanes: **none**. Lane052's final `reactions` schema declares `
 | N_DELETE_RESTRICTED | 1 | 1 |
 | N_EPHEMERAL_SERVER | 2 | 2 |
 | N_FIXTURE_ARGUMENT_DRIFT | 21 | 21 |
-| N_IMMUTABLE_PATCH | 0 | 28 |
+| N_IMMUTABLE_PATCH | 0 | 29 |
 | N_LOOKUP_HIDDEN | 5 | 5 |
 | N_MAINTAIN_AUTHORIZATION | 2 | 2 |
 | N_MAINTAIN_DELTA | 7 | 7 |
@@ -116,7 +121,7 @@ Remaining refusal lanes: **none**. Lane052's final `reactions` schema declares `
 | N_VACUOUS_RULE | 1 | 1 |
 | N_WIDE_MERGE | 3 | 2 |
 
-Every refusal code has count zero before and after. JSON retains per-lane notes, sites, rewrites and raw-census hashes. Evidence copies' schema sources match the read-only originals.
+The final conservative opaque-expression barrier adds one uncertainty note for lane060's `courtroomStats.courtroom` (`schema.q:83:59`), bringing the final total to 29/18; earlier review snapshots recorded 28/17. Every refusal code has count zero before and after. JSON retains per-lane notes, sites, rewrites and raw-census hashes. Evidence copies' schema sources match the read-only originals.
 
 ## Deferrals
 
@@ -124,19 +129,35 @@ Repository-root inventory/guide qualification needs the missing Snapback 1 compe
 
 ## P18 coordinator revision closeout (2026-10-16)
 
-- `2ceeeb958b`: precise refusal/note/quiet split; per-field exact insert proofs; capture and constant analysis; hidden-target preservation; model, generator, simulator, device and rewrite tests; guide writes/why and 0.4.30 changes.
-- `b6589becdc`: keep the updated guide within its 12,810-word cap.
-- Literal inference is deliberately limited to a pinned key or an exact successful local insert. Other source writers cannot constrain historical/seeded/adopted rows; those cases get the note. Prior writes conservatively make clocks uncertain across nested branches, loops and helper expansion.
-- Fresh reviews and final qualification results are recorded below when complete; the older review digest above qualifies the pre-coordinator revision only.
+The requested split is implemented. A static refusal requires proof of a changing immutable value on a readable conflict. Unknown values such as `viewer` receive `N_IMMUTABLE_PATCH`, naming the field, explaining readable runtime equality, and retaining the omission rewrite. Proven key/current-snapshot/local-insert equality and fresh, unconsumed insert-only identities stay quiet. Private/hidden/lifetime-masked targets retain the runtime's immutable-field suppression. Source-writer literals alone cannot constrain historical, seeded or adopted rows. Opaque lexical effects invalidate mutable identity, object, snapshot and freshness facts.
 
-- `395c0f40b0`: preserve enclosing writes, independently resolve compound-key components, and replace the obsolete refusal census.
-- `b6dd19bab1`: loop-carried and guarded clocks receive notes; zero offsets retain equality; immutable snapshot and exact-insert facts precede clock diagnostics.
-- Final affected Linux scope: **305 passed, 0 failed** (`p18-affected-final.log`), including **39 native + 39 simulator** source regressions. Final Mac scope: **307 passed, 0 failed**, including the two differential tests (`p18-mac-clock-final.log`). Linux differential rerun: **2 passed**, **84 generated cases** (48 P18 + 36 existing LANG2), no new native/device/Lean signatures (`p18-difftest-final.log`).
-- Lean: **75 audited theorems**, **116/116 examples**, **7 oracle fixtures**; Linux `p18-lean.log`, Mac `p18-mac-qualified.log`. Readable immutable equality and hidden-field stripping are now represented in the model.
-- Client typecheck passed. Four affected client files: **35 passed, 0 failed, 7 skipped** (`p18-client-closeout.log`, run from the package directory). The first root-directory invocation lacked the default Node type lookup; the correct package-directory rerun passed without code changes.
-- Native CLI crate full run: **1,195 passed, 0 failed, 15 ignored** (`p18-cli-tests.log`). The other five-crate full run remains in progress while this evidence is assembled.
-- Wasm remeasured on Linux: **2,370,874 B raw / 722,776 B gzip**, unchanged; **723,276 B budget = gzip + 500 B**. P18 changes source diagnostics/model only. Mac scratch build: **2,371,136 B raw / 722,418 B gzip**, within the canonical Linux budget (`p18-mac-qualified.log`).
-- Root inventory/guide checks were rerun: the same missing Snapback 1 competitive-checkpoint/todo-v2 generated artifacts remain the only preconditions (guide: **19 passed, 0 content failures, 3 preconditions**). `ref-check` and docs budget passed; guide text is exactly **12,810 words**, README **320/320 lines**.
+Implementation commits:
 
-- Final amended P18 reviews: **Muse READY + fresh Codex READY**, round 4, same §10 SHA256 `7c0cf7b93ea8d6540e2bf3d7e6289ac5476d202785795448cee7563ba735afee`. Verbatim artifacts: `llp/reviews/3000.036.002-p18-r4-muse.md` and `llp/reviews/3000.036.002-p18-r4-codex.md`. Earlier rounds are retained with their original provenance/verdicts. These supersede the pre-coordinator digest for P18.
-- `b0ae656327`: journal correction and explicit generated device outcome assertions. Each store must predict/refuse all 40 public P18 cases; the 8 hidden online-only cases must queue and remain unavailable locally, recorded as exclusions rather than passes. Both new differential tests passed again on Linux and Mac (`p18-device-classes-final.log`, `p18-mac-device-proof.log`). Native/model still compare all 48 P18 cases, including the hidden runtime boundary. No new signatures.
+- `2ceeeb958b`: precise split, model/generator/device/simulator coverage, restored source runtime fixtures, guide writes/why and 0.4.30 changes.
+- `b6589becdc`: guide word-budget correction.
+- `395c0f40b0`: capture-time enclosing-write and independent compound-key proofs.
+- `b6dd19bab1`: guarded/loop-carried clock uncertainty and zero-offset equality.
+- `b0ae656327`: journal correction and explicit generated device outcome assertions.
+- `07010dd12d`: historical round-4 review/census records, superseded by the final round below.
+- `8e11cb7edb`: readable-conflict requirement, lifetime/private-owner coverage and 64 P18 differential cases; restore original simulator source fixtures with notes.
+- `06d1a2553f`: invalidate proofs across opaque lexical effects, including executed job `as` local reassignment.
+- `cf917e7395`: proven insert-only fresh identities stay quiet; final semantic revision.
+
+Final qualification:
+
+- Linux affected scope: **344 passed, 0 failed**, including **43 native + 43 simulator** shared source regressions, device cases, guide and rewrite golden (`p18-insert-affected-final.log`). Mac scratch clone: **346 passed, 0 failed**, including the differential tests (`p18-mac-insert-final.log`). Linux differential tests: **2 passed**, **100 generated cases** (64 P18 + 36 existing LANG2), **no new native/device/Lean signatures** (`p18-insert-difftest-final.log`).
+- Device assertions are explicit for each store: all 40 public P18 cases compare prediction/refusal; 8 deny/online-only cases queue and record a local-read exclusion; 16 private/unopened cases queue and compare settled convergence. Excluded local observations are not counted as passing predictions.
+- Opaque job-viewer and frozen lowering targets: **18 + 11 = 29 passed**, preserving historical admitted IR/meter signatures (`p18-opaque-jobs-lowering.log`).
+- Full core/lang/device/sim/difftest run completed: **5,173 passed, 15 failed, 30 ignored**, exit 101 (`p18-full-five.log`). The failures were two earlier-compiled targets: guide word count (1 failure) and the simulator expiring helper's obsolete static-error assertion (14 failures). Both complete corrected targets passed **125 + 30 = 155 tests**, exit 0 (`p18-full-failed-target.log`, `p18-reviews-closeout.log`). No affected failure remains open. The separate full CLI crate passed **1,195 tests, 0 failed, 15 ignored** (`p18-cli-tests.log`).
+- Lean: **75 audited theorems**, **116/116 examples**, **7 oracle fixtures**, on Linux and Mac (`p18-lean.log`, `p18-mac-qualified.log`). The model represents readable immutable equality and hidden-field stripping. Existing source-only mint/job-as syntax boundaries remain: native/simulator execute those source regressions; generated explicit-id programs compare the corresponding runtime insert/conflict laws. Unsupported syntax is not counted as model evidence.
+- Client typecheck passed; four affected client files passed **35 tests, 0 failed, 7 intentional skips** (`p18-client-closeout.log`, package-directory invocation).
+- Wasm remeasured: Linux **2,370,874 B raw / 722,776 B gzip**, unchanged. Budget **723,276 B = measured gzip + 500 B**; reason: P18 changes source diagnostics/model and leaves the production device engine unchanged. Mac scratch build **2,371,136 B raw / 722,418 B gzip**, within the canonical Linux budget.
+- Docs budget passed: README **320/320 lines**, named self-containment test passed, and guide text fits **12,810 words**. Root frozen dependency installation and workspace hoist completed; final root checks ran after installation: inventory exits 1 for the missing Snapback 1 competitive-checkpoint/todo-v2 generated artifacts; guide exits 1 with **19 passed, 0 content failures, 3 missing-artifact preconditions** (`p18-root-inventories-qualified.log`, `p18-root-guide-qualified.log`). These inherited prerequisites remain outside this lane.
+
+Both fresh round-8 independent reviewers returned **READY** on final LLP 3000.036.002 §10 SHA256 `4d88f70fefb981fcb9af986abf69ca6189c05fae6b25138b54478043f499f2e3`. Verbatim responses and provenance: `llp/reviews/3000.036.002-p18-r8-muse.md` and `llp/reviews/3000.036.002-p18-r8-codex.md`. Earlier artifacts remain historical and do not substitute for these final reviews.
+
+Final census: **100/100 before and after, zero refusals, 29 immutable notes in 18 lanes**. Remaining refusal lanes: **none**. Lane052's `at` is mutable in the supplied final schema; its immutable `link` gets a note. A separate declared-immutable timestamp regression covers the intended clock refusal. No read-only evidence schema was modified. The machine record includes all per-code and per-lane results.
+
+No version bump or origin push. Mac transport targeted only the authorized scratch clone. No P18 implementation deferral remains.
+
+Final `./ref-check` and `git diff --check` pass; source evidence copies remain byte-identical to their read-only originals.

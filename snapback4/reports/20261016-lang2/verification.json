@@ -1,28 +1,39 @@
 {
   "workstream": "LANG2",
   "date": "2026-10-16",
-  "finalProductCommit": "09325115e5",
+  "finalProductCommit": "cf917e7395",
   "fullWorkspace": {
-    "log": "/tmp/lang2-wave13/cargo-delivery.log",
-    "passed": 6367,
-    "failed": 2,
-    "ignored": 45,
+    "log": "/tmp/lang2-wave13/p18-full-five.log",
+    "crates": [
+      "snapback4-core",
+      "snapback4-lang",
+      "snapback4-device",
+      "snapback4-sim",
+      "snapback4-difftest"
+    ],
+    "passed": 5173,
+    "failed": 15,
+    "ignored": 30,
     "exit": 101,
     "failedTargets": [
-      "snapback4-lang/residency_notes",
-      "snapback4-sim/write_authority"
+      "snapback4-lang/guide (earlier compiled 12813-word guide; corrected final 12810-word target passed all125)",
+      "snapback4-sim/reviews (obsolete helper required static errors; restored original source with notes, all30 passed)"
     ],
-    "disposition": "Both earlier compiled fixture expectations corrected; final complete affected-target rerun passed."
+    "disposition": "Complete affected-target closeouts passed; no open failure. Final proof refinements also run in latest affected scope."
   },
   "finalAffectedRerun": {
-    "log": "/tmp/lang2-wave13/cargo-affected-closeout.log",
-    "passed": 79,
+    "passed": 155,
     "failed": 0,
+    "logs": [
+      "/tmp/lang2-wave13/p18-full-failed-target.log",
+      "/tmp/lang2-wave13/p18-reviews-closeout.log"
+    ],
     "exit": 0
   },
   "difftestCrate": {
     "passed": 94,
-    "failed": 0
+    "failed": 0,
+    "scope": "Pre-coordinator full crate run; current P18 campaign below"
   },
   "lang2DifferentialCases": {
     "count": 36,
@@ -39,7 +50,7 @@
     "newSignatures": 0
   },
   "lean": {
-    "theoremsAudited": 73,
+    "theoremsAudited": 75,
     "examplesPassed": 116,
     "oracleFixturesPassed": 7
   },
@@ -62,33 +73,39 @@
     "sha256": "99482b766c80245c60bcd5f664607bd22e302512e5a2d9f28d3f88b708d3b611",
     "muse": "READY",
     "codex": "READY",
-    "round": 15
+    "round": 15,
+    "scope": "Pre-coordinator LANG2 amendment; superseded for P18 by p18CoordinatorRevision.reviews"
   },
   "rootChecks": {
     "refCheck": "PASS",
     "snapback4DocsBudget": "PASS 320/320 lines",
     "checkInventories": "PRECONDITION: missing generated Snapback 1 demo artifacts",
-    "checkGuide": "19 pass, 0 content failures, 3 preconditions: missing generated Snapback 1 demo artifacts"
+    "checkGuide": "19 pass, 0 content failures, 3 preconditions: missing generated Snapback 1 demo artifacts",
+    "frozenInstall": "PASS /tmp/lang2-wave13/p18-root-install-final.log",
+    "workspaceHoist": "PASS /tmp/lang2-wave13/p18-root-hoist-final.log",
+    "checkInventoriesLog": "/tmp/lang2-wave13/p18-root-inventories-qualified.log",
+    "checkGuideLog": "/tmp/lang2-wave13/p18-root-guide-qualified.log",
+    "rootCheckExit": 1
   },
   "versionBumped": false,
   "pushedToOrigin": false,
   "p18CoordinatorRevision": {
-    "sourceCommit": "395c0f40b0",
-    "status": "qualification running; supersedes old P18 census and reviews",
+    "sourceCommit": "cf917e7395",
+    "status": "Implemented, tested, both fresh round-8 reviews READY; final records complete",
     "census": {
       "beforePass": 100,
       "afterPass": 100,
       "refusals": {},
-      "immutableNotes": 28,
-      "lanes": 17
+      "immutableNotes": 29,
+      "lanes": 18
     },
     "nativeSemanticTests": {
-      "passed": 39,
+      "passed": 43,
       "failed": 0,
-      "log": "/tmp/lang2-wave13/p18-clock-final.log"
+      "log": "/tmp/lang2-wave13/p18-insert-only.log"
     },
     "generatedCases": {
-      "p18": 48,
+      "p18": 64,
       "previousLANG2": 36,
       "nativeDeviceLeanSignatures": 0
     },
@@ -97,6 +114,87 @@
       "examples": 116,
       "fixtures": 7
     },
-    "reviews": "fresh Muse and Codex rounds running; prior READY digest applies only before the coordinator ruling"
+    "reviews": {
+      "round": 8,
+      "digest": "4d88f70fefb981fcb9af986abf69ca6189c05fae6b25138b54478043f499f2e3",
+      "muse": "READY",
+      "codex": "READY",
+      "artifacts": [
+        "llp/reviews/3000.036.002-p18-r8-muse.md",
+        "llp/reviews/3000.036.002-p18-r8-codex.md"
+      ]
+    },
+    "linuxAffected": {
+      "passed": 344,
+      "failed": 0,
+      "log": "/tmp/lang2-wave13/p18-insert-affected-final.log"
+    },
+    "macAffectedWithDifftest": {
+      "passed": 346,
+      "failed": 0,
+      "log": "/tmp/lang2-wave13/p18-mac-insert-final.log"
+    },
+    "client": {
+      "passed": 35,
+      "failed": 0,
+      "skipped": 7,
+      "typecheck": true,
+      "log": "/tmp/lang2-wave13/p18-client-closeout.log"
+    },
+    "cliFull": {
+      "passed": 1195,
+      "failed": 0,
+      "ignored": 15,
+      "log": "/tmp/lang2-wave13/p18-cli-tests.log"
+    },
+    "wasm": {
+      "raw": 2370874,
+      "gzip": 722776,
+      "budget": 723276,
+      "reason": "Source diagnostics/model revision leaves native device engine unchanged; canonical Linux gzip + exactly 500 B.",
+      "macRaw": 2371136,
+      "macGzip": 722418
+    },
+    "explicitDeviceOutcomes": {
+      "casesPerStore": 64,
+      "comparedPredictionOrRefusal": 40,
+      "queuedOnlineOnlyExclusions": 8,
+      "passed": true,
+      "linuxLog": "/tmp/lang2-wave13/p18-insert-difftest-final.log",
+      "macLog": "/tmp/lang2-wave13/p18-mac-insert-final.log",
+      "queuedPrivateOrUnopenedWithComparedConvergence": 16
+    },
+    "simulatorSemanticTests": {
+      "passed": 43,
+      "failed": 0,
+      "source": "Shared source regression file, executed through simulator"
+    },
+    "difftest": {
+      "passed": 2,
+      "failed": 0,
+      "cases": 100,
+      "newSignatures": 0,
+      "log": "/tmp/lang2-wave13/p18-insert-difftest-final.log"
+    },
+    "opaqueJobsAndFrozenLowering": {
+      "passed": 29,
+      "failed": 0,
+      "jobViewer": 18,
+      "frozenLowering": 11,
+      "log": "/tmp/lang2-wave13/p18-opaque-jobs-lowering.log"
+    },
+    "modelBoundary": "Source-only mint/job-as proof syntax retains the existing Lean emitter fragment. Native/simulator execute those source regressions; generated explicit-id cases compare the immutable conflict/insert denotations, hidden stripping, queue decisions and convergence. Unsupported source syntax is not counted as model evidence."
+  },
+  "preCoordinatorFullWorkspace": {
+    "log": "/tmp/lang2-wave13/cargo-delivery.log",
+    "passed": 6367,
+    "failed": 2,
+    "ignored": 45,
+    "exit": 101,
+    "failedTargets": [
+      "snapback4-lang/residency_notes",
+      "snapback4-sim/write_authority"
+    ],
+    "disposition": "Both earlier compiled fixture expectations corrected; final complete affected-target rerun passed."
   }
 }

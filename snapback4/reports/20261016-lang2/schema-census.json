@@ -1,7 +1,7 @@
 {
   "workstream": "LANG2",
   "date": "2026-10-16",
-  "sourceCommit": "b6dd19bab1",
+  "sourceCommit": "cf917e7395",
   "beforeCommit": "59fb4ead1b",
   "count": 100,
   "beforePass": 100,
@@ -54,7 +54,7 @@
     "N_DELETE_RESTRICTED": 1,
     "N_EPHEMERAL_SERVER": 2,
     "N_FIXTURE_ARGUMENT_DRIFT": 21,
-    "N_IMMUTABLE_PATCH": 28,
+    "N_IMMUTABLE_PATCH": 29,
     "N_LOOKUP_HIDDEN": 5,
     "N_MAINTAIN_AUTHORIZATION": 2,
     "N_MAINTAIN_DELTA": 7,
@@ -71,7 +71,7 @@
   },
   "rawCensusDigests": {
     "before": "b8032468171d1a6a357b5c6c6cb9926e52e9123772a6eb046d4c0a8e0123985e",
-    "after": "c660c6102b85ebe56b42366ef4cf95687d2243754f18f8a189271e764f679c63"
+    "after": "4f48d06d74c671e49e585db9c3323f686ec4619a225b6a5e8ea206ded9865c79"
   },
   "lanes": [
     {
@@ -1163,9 +1163,24 @@
       "beforeExit": 0,
       "afterExit": 0,
       "beforeNotes": {},
-      "afterNotes": {},
+      "afterNotes": {
+        "N_IMMUTABLE_PATCH": 1
+      },
       "refusals": [],
-      "immutableNotes": []
+      "immutableNotes": [
+        {
+          "code": "N_IMMUTABLE_PATCH",
+          "guide": "writes",
+          "mechanical": false,
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless courtroomStats.courtroom equals the stored value; omit courtroom from the patch if another value may update this row",
+          "rewrite": "omit courtroom from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
+          "site": {
+            "col": 59,
+            "file": "schema.q",
+            "line": 83
+          }
+        }
+      ]
     },
     {
       "lane": "061-auction-lot-walk",
@@ -1836,7 +1851,7 @@
       ]
     }
   ],
-  "coordinatorRevision": "Uncertain immutable patches are notes; only proven-changing/fresh clock or id patterns refuse.",
+  "coordinatorRevision": "Readable-conflict proof required for refusal; unknown patches receive notes, equal and proven insert-only upserts stay quiet. Opaque lexical effects invalidate mutable identity/snapshot/freshness facts.",
   "supersedes": {
     "sourceCommit": "09325115e5",
     "afterPass": 83,
@@ -1844,5 +1859,6 @@
       "E_QUARRY_IMMUTABLE": 23
     }
   },
-  "lane052": "reactions.at is mutable; immutable link, comment, author. The uncertain link patch gets N_IMMUTABLE_PATCH; no clock refusal applies."
+  "lane052": "reactions.at is mutable; immutable link, comment, author. The uncertain link patch gets N_IMMUTABLE_PATCH; no clock refusal applies.",
+  "finalCensusDelta": "29 notes in 18 lanes. Earlier review snapshots report 28/17; final conservative opaque-expression analysis adds courtroomStats.courtroom in lane 060 (schema.q:83:59), with no refusal."
 }
