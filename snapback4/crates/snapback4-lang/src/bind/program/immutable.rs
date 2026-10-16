@@ -66,7 +66,7 @@ impl Binder<'_> {
 fn inserted_target(info: &TableInfo, index: &ast::IndexDecl, target: Option<&[Expr]>, prior: &[Stmt], stable: &BTreeSet<String>) -> Option<BTreeMap<String, Expr>> {
     let target = target?;
     for (at, statement) in prior.iter().enumerate().rev() {
-        if matches!(statement, Stmt::If { .. } | Stmt::For { .. }) { return None; }
+        if !transparent(statement) { return None; }
         if !ir::effects::Effects::writes_in(std::slice::from_ref(statement)) { continue; }
         let Stmt::Insert { table, row } = statement else { return None };
         if table != &info.decl.name { return None; }
@@ -110,7 +110,7 @@ fn fresh_capture(value: &Expr, prior: &[Stmt]) -> bool {
     let Some(at) = name.strip_prefix("$immutableCapture:").and_then(|name|name.rsplit(':').next()).and_then(|at|at.parse::<usize>().ok()) else { return false };
     // A prior write may already have stored this capture.
     !prior[at..].iter().any(|statement| ir::effects::Effects::writes_in(std::slice::from_ref(statement))
-        || matches!(statement, Stmt::If { .. } | Stmt::For { .. }))
+        || !transparent(statement))
 }
 
 fn different(old: &Expr, new: &Expr) -> bool {
@@ -130,16 +130,54 @@ fn constant(value: &Expr) -> Option<Value> {
     })
 }
 
+/// Expression blocks may assign caller locals (not just write tables).
+/// Unknown scans/merges can contain setup blocks too. Never cross them with
+/// a lexical identity/freshness proof merely because their table effects are read-only.
+fn transparent(statement: &Stmt) -> bool {
+    fn value(expr: &Expr) -> bool { transparent_expr(expr,32) }
+    fn read(read: &Read) -> bool { read.key.iter().all(value) }
+    match statement {
+        Stmt::Const { value: expr, .. } | Stmt::Let { value: expr, .. } | Stmt::Assign { value: expr, .. } => value(expr),
+        Stmt::Require { condition, .. } => value(condition),
+        Stmt::Check { condition, current } => value(condition) && read(current),
+        Stmt::Insert { row, .. } | Stmt::InsertIfAbsent { row, .. } => value(row),
+        Stmt::Update { key, patch, .. } => value(key) && value(patch),
+        Stmt::Upsert { key, row, .. } => value(key) && value(row),
+        Stmt::WriteTarget { target, patch, condition, .. } => condition.is_none() && read(target) && value(patch),
+        Stmt::Delete { key, .. } => value(key),
+        Stmt::DeleteTarget { target } => read(target),
+        Stmt::Emit { payload, once, .. } => value(payload) && once.as_ref().is_none_or(value),
+        Stmt::Return(expr) => value(expr),
+        _ => false,
+    }
+}
+fn transparent_expr(expr: &Expr, fuel: usize) -> bool {
+    if fuel == 0 { return false; }
+    let child = |expr: &Expr| transparent_expr(expr,fuel-1);
+    match expr {
+        Expr::Literal(_) | Expr::Variable(_) | Expr::Input(_) => true,
+        Expr::Field { base, .. } | Expr::Unary { value: base, .. } => child(base),
+        Expr::Array(values) => values.iter().all(child),
+        Expr::Object(fields) => fields.values().all(child),
+        Expr::Shape { base, fields } => child(base) && fields.values().all(child),
+        Expr::Binary { left, right, .. } => child(left) && child(right),
+        Expr::Builtin { builtin: Builtin::JobAs, .. } => false,
+        Expr::Builtin { args, .. } => args.iter().all(child),
+        Expr::Get(read) | Expr::Exists(read) => read.key.iter().all(child),
+        Expr::Block { .. } | Expr::Scan(_) | Expr::Merge(_) => false,
+    }
+}
+
 /// Select a lexical object's field before interpreting its siblings.
 fn object<'a>(expr: &'a Expr, prior: &'a [Stmt], fuel: usize) -> Option<(&'a BTreeMap<String,Expr>, &'a [Stmt])> {
     if fuel == 0 { return None; }
     match expr {
-        Expr::Object(fields) => Some((fields, prior)),
+        Expr::Object(fields) => transparent_expr(expr,32).then_some((fields, prior)),
         Expr::Variable(name) => {
             for (at, statement) in prior.iter().enumerate().rev() {
+                if !transparent(statement) { return None; }
                 if let Stmt::Let { name: slot, value } | Stmt::Const { name: slot, value } | Stmt::Assign { name: slot, value } = statement
                     && slot == name { return object(value, &prior[..at], fuel-1); }
-                if matches!(statement, Stmt::If { .. } | Stmt::For { .. }) { return None; }
             }
             None
         }
@@ -155,12 +193,12 @@ fn scalar(expr: &Expr, prior: &[Stmt], fuel: usize, stable: &BTreeSet<String>) -
         Expr::Variable(name) => {
             if stable.contains(name) { return Some(expr.clone()); }
             for (at, statement) in prior.iter().enumerate().rev() {
+                if !transparent(statement) { return None; }
                 if let Stmt::Let { name: slot, value } | Stmt::Const { name: slot, value } | Stmt::Assign { name: slot, value } = statement
                     && slot == name {
                     if matches!(value, Expr::Input(Input::NewId)) { return Some(Expr::Variable(format!("$immutableCapture:{name}:{at}"))); }
                     return scalar(value, &prior[..at], fuel - 1, stable);
                 }
-                if matches!(statement, Stmt::If { .. } | Stmt::For { .. }) { return None; }
             }
             expr.clone()
         }
@@ -186,10 +224,10 @@ fn resolve(expr: &Expr, prior: &[Stmt], fuel: usize, stable: &BTreeSet<String>) 
         Expr::Variable(name) => {
             if stable.contains(name) { return Some(expr.clone()); }
             for (at, statement) in prior.iter().enumerate().rev() {
+                if !transparent(statement) { return None; }
                 if let Stmt::Let { name: slot, value } | Stmt::Const { name: slot, value } | Stmt::Assign { name: slot, value } = statement
                     && slot == name { return resolve(value, &prior[..at], fuel - 1, stable); }
                 if ir::effects::Effects::writes_in(std::slice::from_ref(statement)) { return None; }
-                if matches!(statement, Stmt::If { .. } | Stmt::For { .. }) { return None; }
             }
             expr.clone()
         }

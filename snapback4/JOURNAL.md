@@ -95849,3 +95849,9 @@ an inactive target readable. The new pinned-clock regression covers an
 unopened success and an opened immutable refusal; generated P18 coverage now
 has 64 cases, including private-owner and unopened-public queues with explicit
 post-settlement comparison classes.
+
+Opaque expression blocks can assign caller locals even without table writes
+(job `as` is one example). Immutable key/value, object, snapshot and minted-id
+proofs now stop at those barriers. Native/simulator regressions execute both
+the equal and differing literal cases and check that a stored id read inside
+`as` never inherits the freshness of an overwritten local.

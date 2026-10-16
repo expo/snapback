@@ -495,3 +495,23 @@ fn public_but_unopened_targets_may_ignore_the_immutable_clock() {
     let snapback4_core::WriteState::Failed { why, .. } = visible.state else { panic!("{visible:?}") };
     assert_eq!(why.code,"E_CONSTRAINT");
 }
+
+#[test]
+fn job_viewer_blocks_invalidate_literal_object_and_freshness_proofs() {
+    let base = "table profiles:\n  principal: principal\n  public\n  online only\ntable entries:\n  code: int\n  token: id\n  unique code\n  immutable code, token\n  public\n  update <- allow\n  online only\n";
+    for (before,inside,patch) in [("code = 1","code = 2","code: 2"),("code = 2","code = 1","code: 2")] {
+        let source = format!("{base}job change():\n  for p in profiles:\n    {before}\n    as p.principal:\n      {inside}\n    update entries[code = code] {{ {patch} }}\n");
+        immutable_note(&source);
+        let mut e = engine(&source);
+        let code = if inside == "code = 2" { 2 } else { 1 };
+        e.seed([("profiles".into(),object([("id",id("p")),("principal",id("alice"))])),
+            ("entries".into(),object([("id",id("e")),("code",Value::Int(code)),("token",id("old"))]))]).unwrap();
+        let run = e.run_job("change",Default::default(),0).unwrap();
+        if code == 2 { assert_eq!(run.state,snapback4_core::engine::job::JobState::Done,"{run:?}"); }
+        else { assert_eq!(run.state,snapback4_core::engine::job::JobState::Parked,"{run:?}"); assert!(run.error.unwrap().starts_with("E_CONSTRAINT")); }
+    }
+    immutable_note(&format!("{base}job change():\n  for p in profiles:\n    token = new\n    as p.principal:\n      row = entries[code = 1] ! else NOT_FOUND\n      token = row.token\n    update entries[code = 1] {{ token }}\n"));
+    for value in [1,2] {
+        immutable_note(&format!("{base}job change():\n  for p in profiles:\n    key = {{ code: 1 }}\n    as p.principal:\n      key = {{ code: {value} }}\n    update entries[code = key.code] {{ code: 1 }}\n"));
+    }
+}
