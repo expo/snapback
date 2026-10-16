@@ -245,7 +245,8 @@ pub(crate) fn synopsis(verb: &str) -> String {
 pub(crate) fn top_help() -> String {
     let mut out = String::from("snapback4 — the scale-to-zero backend with a partition on every device\n\n");
     for verb in VERBS { out.push_str(&format!("  {}\n      {}\n", synopsis(verb), match *verb {
-        "init"|"new"=>"Create a schema or a web/Expo starter; init --adapt fits an existing starter.",
+        "init"=>"Create a schema or a web/Expo starter; init --adapt fits an existing starter.",
+        "new"=>"Create a full reference app: --template social, or chat with --web/--expo.",
         "check"=>"Compile the schema, check store adoption, write client types and report readiness.",
         "device"=>"Run the native device JSON protocol over stdin/stdout.", "types"=>"Compile and write generated client types.",
         "dev"=>"Serve a development backend; print its URL on stdout, readiness and refusals on stderr.",

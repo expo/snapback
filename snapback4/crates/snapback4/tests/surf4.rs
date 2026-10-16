@@ -45,6 +45,8 @@ fn new_help_is_about_templates_and_social_dry_run_writes_nothing() {
     let app = App::new();
     let new = success(app.run(&["new", "--help"])); let init = success(app.run(&["init", "--help"]));
     assert!(new.contains("Choose a full reference template")); assert_ne!(new, init);
+    let top = success(app.run(&["--help"]));
+    assert!(top.contains("Create a full reference app:"));
     let preview = success(app.run(&["new", "social", "--template", "social", "--dry-run"]));
     assert!(preview.contains("preview only") && preview.contains("app/_layout.tsx"), "{preview}");
     assert!(!app.0.join("social").exists());
