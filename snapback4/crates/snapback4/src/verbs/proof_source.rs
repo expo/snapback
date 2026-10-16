@@ -65,7 +65,6 @@ impl Candidate {
             copy_tree(&original.native_dir(), &candidate.project.native_dir()).map_err(|e| e.to_string())?;
             rebase_tree(&candidate.project.native_dir(), &original.native_dir()).map_err(|e| format!("saved-source native snapshot: {e}"))?;
         }
-        if original.root.join("package.json").is_file() { std::fs::copy(original.root.join("package.json"), candidate.project.root.join("package.json")).map_err(|e| e.to_string())?; }
         #[cfg(unix)] {
             // Dependencies are host installation bytes, as in ordinary release
             // workers. Source and generated contracts remain private copies.
