@@ -29,15 +29,54 @@ fn inheritance(fd: libc::c_int, inherit: bool) -> std::io::Result<()> {
     Ok(())
 }
 
-pub(super) fn executable() -> std::path::PathBuf {
-    let executable = std::env::current_exe().expect("running executable");
+// @ref LLP 3000.000.000.000.000#7 — kernel executable identity works without procfs; argv[0] never authorizes a watchdog.
+fn running_executable(current: std::io::Result<std::path::PathBuf>) -> std::io::Result<std::path::PathBuf> {
+    current.or_else(|error| {
+        #[cfg(target_os = "linux")]
+        {
+            use std::os::unix::ffi::OsStrExt;
+            // AT_EXECFN is supplied by the kernel's exec loader, independent of
+            // mutable argv[0], PATH, or application-controlled environment.
+            let pointer = unsafe { libc::getauxval(libc::AT_EXECFN) } as *const libc::c_char;
+            if !pointer.is_null() {
+                let bytes = unsafe { std::ffi::CStr::from_ptr(pointer) }.to_bytes();
+                let path = std::path::Path::new(std::ffi::OsStr::from_bytes(bytes));
+                if let Ok(path) = path.canonicalize() { return Ok(path); }
+            }
+        }
+        Err(error)
+    })
+}
+
+pub(super) fn executable() -> std::io::Result<std::path::PathBuf> {
+    let executable = running_executable(std::env::current_exe())?;
     // Unit fixtures host the production supervisor inside Rust's test runner,
     // whose main cannot dispatch CLI verbs. The suite builds this sibling CLI
     // first (as do the crate's integration-test targets).
     #[cfg(test)]
-    { executable.parent().unwrap().parent().unwrap().join("snapback4") }
+    { Ok(executable.parent().unwrap().parent().unwrap().join("snapback4")) }
     #[cfg(not(test))]
-    { executable }
+    { Ok(executable) }
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod tests {
+    use super::*;
+    #[test]
+    fn kernel_executable_fallback_ignores_spoofed_argv_zero() {
+        let actual = std::env::current_exe().unwrap();
+        if std::env::var_os("SNAPBACK4_SURF4_EXEC_PROBE").is_some() {
+            assert_eq!(std::env::args().next().unwrap(), "not-the-running-executable");
+            let missing_proc = Err(std::io::Error::new(std::io::ErrorKind::NotFound, "procfs absent"));
+            assert_eq!(running_executable(missing_proc).unwrap(), actual);
+            return;
+        }
+        let result = std::process::Command::new(actual).arg0("not-the-running-executable")
+            .args(["--exact", "dev_worker::process::tests::kernel_executable_fallback_ignores_spoofed_argv_zero", "--nocapture"])
+            .env("SNAPBACK4_SURF4_EXEC_PROBE", "1").output().unwrap();
+        assert!(result.status.success(), "{}{}", String::from_utf8_lossy(&result.stdout), String::from_utf8_lossy(&result.stderr));
+        assert!(String::from_utf8_lossy(&result.stdout).contains("1 passed"));
+    }
 }
 
 pub(crate) fn watchdog(args: &[String]) -> u8 {

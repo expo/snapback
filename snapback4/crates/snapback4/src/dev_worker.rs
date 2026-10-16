@@ -739,7 +739,16 @@ impl DevWorker {
                 return;
             }
         };
-        let mut child_command = command(&process::executable());
+        let executable = match process::executable() {
+            Ok(path) => path,
+            Err(error) => {
+                snapback4_core::diagnostic!("snapback4 worker: cannot locate the supervisor executable: {error}");
+                self.close_child_session();
+                self.retry_later();
+                return;
+            }
+        };
+        let mut child_command = command(&executable);
         process::isolate(&mut child_command);
         child_command
             .arg("--internal-worker-watchdog")
