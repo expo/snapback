@@ -1,0 +1,28 @@
+{
+  "source": "59fb4ead1ba18569369523bba55b56713cc275e9",
+  "sourceTrees": {
+    "snapback4-core": "793f7e311fc9262bc881d844815d52646897eb53",
+    "snapback4-device": "d6d0d697bcd027f8c05ab0ae4804dec626edde86"
+  },
+  "version": "0.4.29",
+  "published": false,
+  "qualification": "Framework rebuilt; Release app and native witness pending.",
+  "xcframework": {
+    "ios/Snapback4Device.xcframework/Info.plist": "20038f99c8c5db5438234379bf35ce34dc2b9b148dc83452bcff362397d85d0d",
+    "ios/Snapback4Device.xcframework/ios-arm64/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "ios/Snapback4Device.xcframework/ios-arm64/Headers/snapback4.h": "7e4091eaf831da964f23a2cb5ca2f46596c56849e35d3174b8007083f90fdb12",
+    "ios/Snapback4Device.xcframework/ios-arm64/libsnapback4_device.a": "2cabfabf50018160e14af5e49539ff4c6800f8d8970227e8d326a4dbc7dd499f",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/module.modulemap": "da9d1aaa9f3574cc0f0bc917a680c3574b954dd6f85b3c6d68d33be720cb3329",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/Headers/snapback4.h": "7e4091eaf831da964f23a2cb5ca2f46596c56849e35d3174b8007083f90fdb12",
+    "ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a": "1b7be500ed692783321e4e78f2f5276f524d3c92c0545cfb776f4732f76319af"
+  },
+  "toolchain": {
+    "node": "v24.18.0",
+    "bun": "1.4.2",
+    "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "xcode": "Xcode 27.1\nBuild version 27A9275",
+    "os": "ProductName:\t\tmacOS\nProductVersion:\t\t27.0.1\nBuildVersion:\t\t26A434",
+    "cpu": "Apple M5 Max"
+  },
+  "preparedAt": "2026-10-16T07:19:01.800577+00:00"
+}

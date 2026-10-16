@@ -95967,3 +95967,27 @@ monotonic mint contexts, native refusal attribution and expiry recovery have
 no independent byte attribution or runtime ceiling change. LANG2 and the
 final version remain pending and will be measured again. Shared test-verb
 code preserves saved contemporary fixtures and per-query sweep personas.
+
+## 2026-10-16 — 0.4.29 published (snapback4, both platforms, snapback4-expo)
+
+`snapback4`, `snapback4-darwin-arm64`, `snapback4-linux-x64` and
+`snapback4-expo` 0.4.29 are published from `59fb4ead1b` (Integration 13,
+PUBFIX29, PUBFIX29b) after wave 13's go-ahead; all four `latest` = 0.4.29:
+
+| Package | Registry integrity |
+|---|---|
+| `snapback4` | `sha512-2tfDLDnpuMzENef+nAR2VQ5kkUCfhxjmxNvtjDCfLNim9mqblA5joZtVzPBbudFTQ7sIiMYftCFStjVEKUHISQ==` |
+| `snapback4-darwin-arm64` | `sha512-Zj962ikgpZxyu7MzqO5LvvV+Rr/+yXL1A/zO2NjZi3ySDMtdwJY/0eyvjVJEvlWk11nGeF1BpvZbHrLrV/kkVg==` |
+| `snapback4-linux-x64` | `sha512-S9aoo0/zOpyasdIEv8Gux+MffquIzov4fXaB6WezYu5R+tozgF38tNxZkcGOxiDBFQ1ojrYGInQMmz5dhk+lzA==` |
+| `snapback4-expo` | `sha512-vQUYCVHmb+ODNpPn1b9A1CDZ0PcMoQCNKntrLPcYgSP+E08Kl4sYBoClJ9dSOBHN/FaR51N2GQbwNGgNNywijA==` |
+
+The M5's Xcode updated itself to 27.1, on which Expo SDK 57.0.22 does not build
+(ticket `issues/20261016-snapback4-expo-sdk-57-does-not-build-on-xcode-27.1.md`).
+Per the ruling, Xcode 27.0 was copied beside it from the Mac Studio; the Expo
+witness app was built with 27.0 against the unchanged 27.1-built xcframework,
+keeping the prepared Expo bytes the Linux and Darwin proofs had qualified. Linux
+passed its second full pool (`== 0 failure(s) in 2608 s`) after a missing
+test-binary spawn; Mac dry run 6 passed `== 0 failure(s) in 9145 s` after dry
+run 5's known `run_admission` log race. One `--resume` published the platforms
+and client, then Expo. Clean installs on Linux and the Mac print `snapback4 0.4.29`
+and pass `init` + `check`. Details: `reports/20261015-publication-0.4.29/REPORT.md`.

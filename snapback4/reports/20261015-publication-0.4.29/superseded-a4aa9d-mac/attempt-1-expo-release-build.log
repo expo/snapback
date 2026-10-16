@@ -1,0 +1,53 @@
+Expo Autolinking module resolution enabled
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+iOS Bundled 1893ms apps/chat-expo/index.js (731 modules)
+Writing bundle output to: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/9z1z0207ptf/main.jsbundle
+Done writing bundle output
+› Planning build
+› Preparing Pods/React-timing-React-timing_privacy » ResourceBundle-React-timing_privacy-React-timing-Info.plist
+› Executing react-native Pods/hermes-engine » [CP-User] [Hermes] Replace Hermes for the right configuration, if needed
+› Executing react-native Pods/ReactNativeDependencies » [CP-User] [RNDeps] Replace React Native Dependencies for the right configuration, if needed
+› Preparing Pods/ExpoFileSystem-ExpoFileSystem_privacy » ResourceBundle-ExpoFileSystem_privacy-ExpoFileSystem-Info.plist
+› Preparing expo-constants Pods/EXConstants-EXConstants » ResourceBundle-EXConstants-EXConstants-Info.plist
+› Preparing Pods/EXConstants-ExpoConstants_privacy » ResourceBundle-ExpoConstants_privacy-EXConstants-Info.plist
+› Executing react-native Pods/React-Core-prebuilt » [CP-User] [RNCore] Replace React Native Core for the right configuration, if needed
+› Preparing Pods/React-cxxreact-React-cxxreact_privacy » ResourceBundle-React-cxxreact_privacy-React-cxxreact-Info.plist
+› Preparing Pods/React-Core-React-Core_privacy » ResourceBundle-React-Core_privacy-React-Core-Info.plist
+› Executing react-native Pods/React-RCTFBReactNativeSpec » [CP-User] [RN]Check FBReactNativeSpec
+› Executing expo-modules-jsi Pods/ExpoModulesJSI » [CP-User] Build ExpoModulesJSI xcframework
+› Executing expo-modules-core Pods/ExpoModulesCore » [CP-User] [Expo] Switch ExpoModulesCore XCFramework for build configuration
+› Executing expo-modules-core Pods/ExpoModulesWorklets » [CP-User] [Expo] Switch ExpoModulesWorklets XCFramework for build configuration
+› Executing expo-font Pods/ExpoFont » [CP-User] [Expo] Switch ExpoFont XCFramework for build configuration
+› Executing expo-file-system Pods/ExpoFileSystem » [CP-User] [Expo] Switch ExpoFileSystem XCFramework for build configuration
+› Executing expo-constants Pods/EXConstants » [CP-User] Generate app.config for prebuilt Constants.manifest
+› Executing snapback4-expo Pods/Snapback4Expo » [CP] Copy XCFrameworks
+› Preparing Pods/expo-dev-menu-EXDevMenu » ResourceBundle-EXDevMenu-expo-dev-menu-Info.plist
+› Preparing Pods/expo-dev-launcher-EXDevLauncher » ResourceBundle-EXDevLauncher-expo-dev-launcher-Info.plist
+› Packaging snapback4-expo Pods/Snapback4Expo » libSnapback4Expo.a
+⚠️  Script has ambiguous dependencies causing it to run on every build.
+   To fix, go to: Xcode » Snapback4chat/Snapback4chat » Build Phases » '[Expo Dev Launcher] Strip Local Network Keys for Release'
+   Either: Uncheck "Based on dependency analysis", or select output files to trigger the script
+
+› Executing Snapback4chat » [Expo] Configure project
+› Preparing Snapback4chat » Info.plist
+⚠️  class 'Snapback4OpenException' must restate inherited '@unchecked Sendable' conformance
+   └─/Users/ccheever/projects/snapback-pub-0428/snapback4/packages/snapback4-expo/ios/Snapback4Module.swift:119:22
+› Linking   Snapback4chat » Snapback4chat
+› Executing Snapback4chat » Bundle React Native code and images
+    Eager bundle does not match new options, bundling again.
+⚠️  search path '/var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v27.1.266.1.t77mPW/Metal.xctoolchain/usr/lib/swift/iphonesimulator' not found
+   └─/Users/ccheever/projects/snapback-pub-0428/snapback4/apps/chat-expo/ios/Snapback4chat.xcodeproj: Snapback4chat: ld
+› Executing Snapback4chat » [CP] Copy Pods Resources
+› Executing Snapback4chat » [Expo Dev Launcher] Strip Local Network Keys for Release
+› Generating debug Snapback4chat » Snapback4chat.app.dSYM
+› Signing   Snapback4chat » Snapback4chat.app
+› Build Succeeded
+
+› 0 error(s), and 4 warning(s)
+
+Copied to /Users/ccheever/projects/snapback-pub-0428/snapback4/target/expo-release/Snapback4chat.app
+
+✓ Build complete
+Binary: /Users/ccheever/projects/snapback-pub-0428/snapback4/target/expo-release/Snapback4chat.app

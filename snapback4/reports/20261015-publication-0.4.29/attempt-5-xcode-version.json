@@ -1,0 +1,12 @@
+{
+  "step": "xcode-version",
+  "command": [
+    "xcodebuild",
+    "-version"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0428/snapback4",
+  "start": 1792161363.057947,
+  "end": 1792161363.2889931,
+  "seconds": 0.231,
+  "exit": 0
+}
