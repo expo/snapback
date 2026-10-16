@@ -16,7 +16,7 @@ const fixture = t => {
 };
 const invoke = (cwd, args) => spawnSync(binary, args, { cwd, encoding: 'utf8', timeout: 30_000 });
 const okay = r => assert.equal(r.status, 0, r.stdout + r.stderr);
-const schema = `use identity guests\ntable notes:\n  title: text <=80\n  public 'shared'\nquery list():\n  return notes first 20 by .id\nmutation add(title: text <=80):\n  return insert notes { title }\n`;
+const schema = `use identity guests\ntable notes:\n  title: text <=80\n  public 'shared'\n  insert <- allow\nquery list():\n  return notes first 20 by .id\nmutation add(title: text <=80):\n  return insert notes { title }\n`;
 test('H1/H4/H5 help agrees and ignored flags refuse before filesystem work', t => {
   const cwd = fixture(t), top = invoke(cwd, ['--help']); okay(top);
   for (const verb of ['init','new','check','device','types','dev','deploy','rollback','prune','releases','serve','run','clock','reset','test','why','guide','data','sql','token','doctor','upgrade','witness']) {
@@ -75,6 +75,6 @@ test('guide topic aliases select sections and full long cards carry a section in
     const result=invoke(cwd,['guide',word]);okay(result);assert.match(result.stdout,new RegExp('section .*'+heading));
     assert.ok(result.stdout.length<invoke(cwd,['guide',word,'--full']).stdout.length,word);
   }
-  const long=invoke(cwd,['guide','deploy']);okay(long);assert.match(long.stdout,/Sections of guide deploy/);assert.match(long.stdout,/guide deploy --section/);
+  const long=invoke(cwd,['guide','deploy']);okay(long);assert.match(long.stdout,/deploy: \d+ lines/);assert.match(long.stdout,/guide deploy --section/);
   const social=fixture(t);const initialized=invoke(social,['new','.','--template','social']);okay(initialized);assert.doesNotMatch(initialized.stdout,/init --expo --port/);
 });
