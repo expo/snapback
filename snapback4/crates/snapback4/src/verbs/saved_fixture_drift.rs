@@ -4,10 +4,10 @@
 //! historical case may mutate its memory engine, and `check` must remain an
 //! inspection of files against the schema they were saved with.
 // @ref LLP 3000.011.003.000.000#11-wave-14-truthful-starter-custody-day4 — saved fixture drift is structural, read-only evidence.
-use super::{Options, Project, proof_source, test_cases, test_fixture};
+use super::{Options, Project, proof_source, test_cases, test_fixture, test_sweep};
 use serde_json::Value as Json;
 use snapback4_core::{
-    engine::validate::validate_row,
+    engine::validate::{validate_arg, validate_row},
     ir::{ArgType, ProgramKind},
     schema::{ColumnType, materialize_optional_fields},
     value::Value,
@@ -70,6 +70,7 @@ pub(super) fn warnings(project: &Project) -> Vec<String> {
         }
         inspect_rows(project, &fixture, &bound, &mut warnings);
         inspect_cases(project, &fixture, &bound, &mut warnings);
+        inspect_sweep(project, &fixture, &bound, &mut warnings);
     }
     warnings
 }
@@ -246,6 +247,21 @@ fn inspect_rows(
     }
 }
 
+fn inspect_sweep(
+    project: &Project,
+    fixture: &Path,
+    bound: &snapback4_lang::Bound,
+    warnings: &mut Vec<String>,
+) {
+    let fixture_name = fixture.to_string_lossy().into_owned();
+    if let Err(error) = test_sweep::load(Some(&fixture_name), bound) {
+        warnings.push(format!(
+            "{}: {error}",
+            shown(project, &fixture.join(test_sweep::FILE))
+        ));
+    }
+}
+
 fn inspect_cases(
     project: &Project,
     fixture: &Path,
@@ -341,7 +357,14 @@ fn inspect_cases(
                 continue;
             }
             let value = &one.as_object().unwrap()[name];
-            if let Err(error) = wire::from_json(kind, value) {
+            let decoded = match wire::from_json(kind, value) {
+                Ok(decoded) => decoded,
+                Err(error) => {
+                    warnings.push(format!("{at}: operation `{op}` argument `{name}` does not match the saved schema: {error}"));
+                    continue;
+                }
+            };
+            if let Err(error) = validate_arg(&bound.schema, kind, &decoded, name) {
                 warnings.push(format!("{at}: operation `{op}` argument `{name}` does not match the saved schema: {error}"));
             }
         }

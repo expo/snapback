@@ -202,3 +202,102 @@ fn check_accepts_omitted_sequences_and_warns_when_fixture_supplies_them() {
     assert!(!stderr.contains("items.jsonl:1"), "{stderr}");
     assert!(!stderr.contains("lists.jsonl:1"), "{stderr}");
 }
+
+#[test]
+fn check_validates_every_saved_sweep_without_executing_it() {
+    let app = App::new();
+    app.write("snapback/schema.q", SOURCE);
+    for version in 1..=4 {
+        app.write(&format!("versions/v{version}/schema.q"), SOURCE);
+    }
+    app.write(
+        "versions/v1/fixtures/test.sweep.json",
+        "{\"removedQuery\":[\"alice\"]}\n",
+    );
+    app.write(
+        "versions/v2/fixtures/test.sweep.json",
+        "{\"list\":[\"bob\"]}\n",
+    );
+    app.write(
+        "versions/v3/fixtures/test.sweep.json",
+        "{\"list\":\"alice\"}\n",
+    );
+    app.write(
+        "versions/v4/fixtures/test.sweep.json",
+        "{\"list\":[\"alice\"]}\n",
+    );
+
+    let checked = app.run(&["check"]);
+    assert!(checked.status.success(), "{checked:?}");
+    let stderr = String::from_utf8_lossy(&checked.stderr);
+    let sweep = stderr
+        .lines()
+        .filter(|line| line.contains("test.sweep.json"))
+        .collect::<Vec<_>>();
+    assert_eq!(sweep.len(), 3, "{stderr}");
+    assert!(
+        sweep.iter().any(|line| line.contains("versions/v1/")
+            && line.contains("removedQuery is not a declared query")),
+        "{stderr}"
+    );
+    assert!(
+        sweep
+            .iter()
+            .any(|line| line.contains("versions/v2/")
+                && line.contains("persona bob is not declared")),
+        "{stderr}"
+    );
+    assert!(
+        sweep
+            .iter()
+            .any(|line| line.contains("versions/v3/") && line.contains("expected")),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("versions/v4/fixtures/test.sweep.json"));
+}
+
+#[test]
+fn check_validates_saved_case_argument_constraints() {
+    let app = App::new();
+    let source = "use personas alice\nquery bounded(status: enum('draft', 'published'), title: text 2..5, score: int 1..3, tags: [text <=3] 1..2):\n  return null\n";
+    app.write("snapback/schema.q", source);
+    app.write("versions/v1/schema.q", source);
+    let cases = concat!(
+        "{\"op\":\"bounded\",\"args\":{\"status\":\"archived\",\"title\":\"hello\",\"score\":3,\"tags\":[\"abc\"]}}\n",
+        "{\"op\":\"bounded\",\"args\":{\"status\":\"draft\",\"title\":\"x\",\"score\":3,\"tags\":[\"abc\"]}}\n",
+        "{\"op\":\"bounded\",\"args\":{\"status\":\"draft\",\"title\":\"longer\",\"score\":3,\"tags\":[\"abc\"]}}\n",
+        "{\"op\":\"bounded\",\"args\":{\"status\":\"draft\",\"title\":\"hello\",\"score\":0,\"tags\":[\"abc\"]}}\n",
+        "{\"op\":\"bounded\",\"args\":{\"status\":\"draft\",\"title\":\"hello\",\"score\":4,\"tags\":[\"abc\"]}}\n",
+        "{\"op\":\"bounded\",\"args\":{\"status\":\"draft\",\"title\":\"hello\",\"score\":3,\"tags\":[]}}\n",
+        "{\"op\":\"bounded\",\"args\":{\"status\":\"draft\",\"title\":\"hello\",\"score\":3,\"tags\":[\"a\",\"b\",\"c\"]}}\n",
+        "{\"op\":\"bounded\",\"args\":{\"status\":\"draft\",\"title\":\"hello\",\"score\":3,\"tags\":[\"long\"]}}\n",
+        "{\"op\":\"bounded\",\"args\":{\"status\":\"draft\",\"title\":\"ok\",\"score\":1,\"tags\":[\"a\"]}}\n",
+        "{\"op\":\"bounded\",\"args\":{\"status\":\"published\",\"title\":\"hello\",\"score\":3,\"tags\":[\"abc\",\"x\"]}}\n",
+        "{\"op\":\"bounded\",\"args\":{\"status\":\"archived\",\"title\":\"x\",\"score\":9,\"tags\":[]},\"expect\":\"E_INPUT\"}\n"
+    );
+    app.write("versions/v1/fixtures/test.cases.jsonl", cases);
+
+    let checked = app.run(&["check"]);
+    assert!(checked.status.success(), "{checked:?}");
+    let stderr = String::from_utf8_lossy(&checked.stderr);
+    let drift = stderr
+        .lines()
+        .filter(|line| line.contains("test.cases.jsonl"))
+        .collect::<Vec<_>>();
+    assert_eq!(drift.len(), 8, "{stderr}");
+    for line in 1..=8 {
+        assert!(
+            drift.iter().any(
+                |warning| warning.contains(&format!("test.cases.jsonl:{line}:"))
+                    && warning.contains("E_INPUT")
+            ),
+            "line {line}: {stderr}"
+        );
+    }
+    for accepted in 9..=11 {
+        assert!(
+            !stderr.contains(&format!("test.cases.jsonl:{accepted}:")),
+            "line {accepted}: {stderr}"
+        );
+    }
+}
