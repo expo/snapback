@@ -95812,3 +95812,22 @@ device stores, simulator, Linux/Mac and the copied 100-schema census are
 recorded in LANG2's WORKSTREAM-REPORT.md. The 0.4.30 guide changes entry belongs
 to this lane; RULES3 owns broader authorization recipes. No version bump or
 publication is part of this workstream.
+
+## 2026-10-16 — LANG2 P18 coordinator correction: uncertain patches retain runtime equality
+
+This supersedes the preceding LANG2 entry's blanket refusal of unproved
+immutable payloads. Same-author upserts are valid existing applications:
+`N_IMMUTABLE_PATCH` now names the column and readable runtime equality guard.
+`E_QUARRY_IMMUTABLE` is limited to proved changes or fresh clock/id patterns;
+exact key, current snapshot and local successful-insert equality stay quiet.
+Guarded, reused and loop-carried clocks remain uncertain; zero offsets preserve
+identity. Historical/seeded/adopted values are not inferred from other source
+writers. The native runtime and its hidden immutable suppression are unchanged.
+
+Lean now models readable immutable equality and hidden-field stripping.
+Source/simulator regressions, generated native/model/device cases and the
+Linux/Mac tests are recorded in WORKSTREAM-REPORT.md. The revised census passes
+all 100 original schemas with zero added refusals and 28 immutable notes across
+17 lanes. Lane052's final reactions.at is mutable; its former refusal concerned
+link. No evidence schema was edited. Fresh amendment reviews are recorded under
+llp/reviews/3000.036.002-p18-*, independently of the earlier LANG2 reviews.
