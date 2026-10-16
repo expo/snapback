@@ -177,8 +177,15 @@ test('maintenance sleep: successor keeps the sample accepted before launch',{tim
     f.setClock(2000);lease.child.stdin.end();await lease.exit;
     f.resume('kick-locked');assert.equal((await observer.exit)[0],1,observer.stderr);
     const next=read(f.file('maintenance-next.json'));
-    assert.notEqual(next.process.pid,old.process.pid,'exercise the actual successor start');
-    await until(()=>!alive(next.process.pid),'successor exits after checking the inherited intent');
+    assert.equal(next?.state,'pending','the actual successor launch was recorded');
+    // A successor rejects inherited sleep before reading its launch gate. It
+    // may already have exited when the parent captures its live-only identity.
+    if(next.process!==null) {
+      assert.notEqual(next.process.pid,old.process.pid,'exercise the actual successor start');
+      await until(()=>!alive(next.process.pid),'successor exits after checking the inherited intent');
+    }
+    await until(()=>{try{return fs.readFileSync(f.file('maintenance.log'),'utf8').includes('host slept during pending evidence retention');}catch{return false;}},
+      'the spawned successor itself rejected the inherited sleep sample');
     await maintenanceEvidence(f,'sleep-successor-start');
     assert.ok(!read(f.file('maintenance-done.json')),'a successor must reject the inherited intent after sleep');
     assert.ok(fs.existsSync(f.file('maintenance-request.json')));
