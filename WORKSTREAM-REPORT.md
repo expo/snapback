@@ -17,7 +17,7 @@ The only branch transfers were to the explicitly commissioned Mac scratch clone
 | Owner now / peers at deadline | Private current count and timed peer projection update atomically. Deadline is immutable; final total is bounded by the explicit 100-writer product cap and guarded until opening. Owner updates before opening and peer/final reads after the boundary are tested. | `afd096cf7a`, `c929166df8` |
 | Grant expiry / owner visibility | Separate owner-only audit survives grant expiry, while the expired grant disappears for both owner and accountant. Owner retains the ledger; accountant loses access. | `afd096cf7a` |
 | Role workflow | Host drafts and sees rates, manager edits, sponsor approves; the table transition independently locks approved scripts and protects sponsor-only decisions. | `afd096cf7a` |
-| Two rule layers / update images | Rules writes section opens with intent vs table authority. E_RULE names the table authorization layer; N_WRITE_DENIED identifies old, next, combined old/next, or named transition where the bounded proof can distinguish them. Developer E_RULE phase records the failed image without another probe. Hidden client targets remain NOT_FOUND; generic hidden-collision ambiguity is preserved. | `1a6ee44ac4`, `c929166df8`, `ad7d5d45fc` |
+| Two rule layers / update images | Rules writes section opens with intent vs table authority. E_RULE names the table authorization layer; N_WRITE_DENIED identifies old, next, combined old/next, or named transition where the bounded proof can distinguish them. Developer E_RULE phase records the failed image without another probe. Hidden client targets remain NOT_FOUND; generic hidden-collision ambiguity is preserved. | `1a6ee44ac4`, `c929166df8`, `ad7d5d45fc`, `68641c2a8a` |
 | Refusal ladder | Rules/testing state decode → asserted hidden lookup → table rule → require, qualified by authored statement order. HTTP tests cover E_INPUT, hidden asserted/nullable lookup, blind hidden update, readable E_RULE, require-first, and rollback on a later require; uniformly hidden pages are complete and empty. | `1a6ee44ac4`, `c929166df8` |
 | Actionable recipe pointers | Refusals/help name the matching recipes. `guide rule-recipes NAME` opens the named tested section, using the existing selector; eight CLI selector tests cover it. | `2c2c21098c` |
 | Open language decisions | LLP 3000.036 §23 records universal relation quantifiers, union-sync horizons, read-through children of unions, and publication as one construct, with exact evidence lanes and current recipes. LLP 3000.036.002 §10 governs diagnostics and evaluation fidelity. | `afd096cf7a`, `1a6ee44ac4`, `2c2c21098c`, `ad7d5d45fc` |
@@ -36,8 +36,10 @@ the amendments with the code. Round 1 was NOT READY: consent's unnamed image
 rule, refusal-message attribution and accounting evidence were corrected.
 Both round 2 reviewers returned READY at `d71507f2db`. Both final round 3
 reviewers returned READY for `ad7d5d45fc`, including native-only opt-in image
-attribution, named recipe navigation and the census delta. All verbatim reviews,
-model/command/snapshot provenance and the first Codex full transcript are under
+attribution, named recipe navigation and the census delta. The subsequent empty-roster hint preservation at `68641c2a8a` received a fourth
+paired READY review and passes all 36 affected tests on Linux and Mac. Its
+extended existing regression fails before the fix and passes afterward. All
+verbatim reviews, model/command/snapshot provenance and full Codex transcripts are under
 `llp/reviews/3000.036.002-rules3-r*`.
 
 The existing authoring census gains 21 mutation occurrences: 20 server-only
@@ -113,7 +115,7 @@ Raw results, comparison script and summary are in
   487 publication leaves, 162 pages / 1,937 snippets). Initial fresh-tree
   missing demo caches were regenerated using scripts/check-generated-artifacts;
   that prescribed generator also passes with no tracked root projection drift.
-- `./ref-check`: passes; final closeout rerun pending.
+- `./ref-check`: final closeout passes (548 documents, zero errors/unchecked).
 - Full Rust workspace (all requested crates plus difftest/native): final run
   pending. Earlier qualification caught a guide-byte overflow (fixed without
   raising the budget) and one route-saturation 503 under concurrent load.

@@ -95811,3 +95811,9 @@ and the same known missing-TypeScript refusal in lane 087; no clean schema
 gained a refusal. The workstream report contains final verification and the
 open language decisions. This lane adds a 0.4.30 changes entry without bumping
 the version or pushing to origin.
+
+RULES3 closeout also preserves existing empty-roster seed hints beside the new
+private image phase. The original clause remains the lookup identity, as it
+already is for source sites. The extended existing HTTP regression fails
+before and passes after; all 36 affected tests pass on Linux and Mac, and the
+focused fourth pair of independent reviews both returns READY at 68641c2a8a.
