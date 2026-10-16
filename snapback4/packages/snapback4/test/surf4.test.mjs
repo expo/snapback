@@ -90,7 +90,7 @@ test('schema-local installed dependency keeps its precedence in private checking
 test('external checked imports retain nested package precedence when serving', {timeout:60000},async t=>{
  const cwd=fixture(t);
  for(const [directory,marker] of [['node_modules','WRONG_ROOT_PACKAGE'],['src/node_modules','SURF4_NESTED_PACKAGE']]){
-  const pkg=join(cwd,directory,'surface-dependency');mkdirSync(pkg,{recursive:true});writeFileSync(join(pkg,'package.json'),JSON.stringify({name:'surface-dependency',type:'module',exports:'./index.js'}));writeFileSync(join(pkg,'index.js'),`export const marker="${marker}";\n`);
+  const pkg=join(cwd,directory,'surface-dependency');mkdirSync(pkg,{recursive:true});writeFileSync(join(pkg,'package.json'),JSON.stringify({name:'surface-dependency',type:'module',exports:'./index.js'}));writeFileSync(join(pkg,'index.js'),`export const marker="${marker}";\n`);writeFileSync(join(pkg,'index.d.ts'),'export declare const marker: string;\n');
  }
  writeFileSync(join(cwd,'src/helper.mjs'),`export {marker} from 'surface-dependency';\n`);
  writeFileSync(join(cwd,'snapback/server.mjs'),`import {marker} from '../src/helper.mjs';console.log(marker);setInterval(()=>{},1000);\n`);
