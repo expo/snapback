@@ -122,6 +122,8 @@ export async function proveProduction(client, platform, expo, directory) {
     starters.push({ kind, cwd, status: "passed", commands, schema: "compiled", savedTests: "passed", typecheck: "passed", build: "passed" });
   }
   const [web, native] = starters;
+  writeFileSync(join(web.cwd, "production-accounts.mjs"), productionAccounts);
+  await run(process.execPath, ["production-accounts.mjs"], web.cwd);
   await run(process.execPath, ["--test", join(root, "packages/snapback4/test/production-starters.test.mjs")], root, {
     SNAPBACK4_PRODUCTION_WEB_APP: join(web.cwd, "recipes/production/App.tsx"),
     SNAPBACK4_PRODUCTION_EXPO_APP: join(native.cwd, "recipes/production/App.tsx"),
@@ -142,8 +144,63 @@ export async function proveProduction(client, platform, expo, directory) {
     assert.deepEqual(snapshot(original), before, "copying does not modify original sources");
     adaptation.push({ kind: "evidence copy", ...proveProductionAdaptation(cli, cwd, env, { original }) });
   }
-  return { status: "passed", starters, browserRecipes: "passed", adaptation };
+  return { status: "passed", starters, realAccounts: "passed", browserRecipes: "passed", adaptation };
 }
+
+// Node 24 executes the consumer-generated api.ts directly. All application
+// operations and auth/process helpers come from the installed packed package.
+export const productionAccounts = String.raw`
+import assert from "node:assert/strict";
+import {signup} from "snapback4/auth";
+import {createClient} from "snapback4/client";
+import {startDev, bounded, cleanup} from "snapback4/proof";
+import {api} from "./snapback/generated/api.ts";
+const clients=[];
+let dev;
+const request=(input,init={})=>fetch(input,{...init,signal:AbortSignal.any([
+  ...(init.signal?[init.signal]:[]),AbortSignal.timeout(10000)])});
+const query=(client,op,args)=>bounded(client.query(op,args),30000,op.name);
+const mutate=(client,op,args)=>bounded(client.mutate(op,args),30000,op.name);
+try {
+  dev=await startDev({args:["--no-watch"],timeoutMs:30000});
+  async function account(name){
+    const signed=await bounded(signup(dev.url,name+"@production.example","production-proof-password",request),15000,"signup "+name);
+    assert.equal(signed.ok,true,"password signup succeeds");
+    const client=createClient({url:dev.url,session:signed.session,fetch:request});clients.push(client);
+    assert.ok(!signed.session.principal.startsWith("dev:"),"signup creates a real account principal");
+    const teams=await query(client,api.myTeams,{});
+    assert.deepEqual(teams.data,[],"signup grants no team membership");
+    assert.equal(teams.existence,"absent");assert.equal(teams.complete,true);
+    const missingRole=await query(client,api.myRole,{teamId:"not-enrolled-team"});
+    assert.equal(missingRole.denied?.code,"NOT_MEMBER","signup grants no roster role");
+    return client;
+  }
+  const alice=await account("alice"),bob=await account("bob"),outsider=await account("outsider");
+  const created=await mutate(alice,api.createTeam,{title:"Production account team"});
+  assert.equal(created.state,"sent");assert.ok(created.result?.id,"creation returns a fresh team result");
+  const teamId=created.result.id;
+  const ownRole=await query(alice,api.myRole,{teamId});
+  assert.equal(ownRole.data?.role,"admin","creating a team explicitly grants its creator admin");
+  assert.equal(ownRole.data?.principal,alice.viewer());
+  for(const client of [bob,outsider]){
+    assert.equal((await query(client,api.myRole,{teamId})).denied?.code,"NOT_MEMBER");
+    assert.equal((await query(client,api.roster,{teamId})).denied?.code,"NOT_MEMBER","uninvited accounts cannot enumerate the roster");
+    const forged=await mutate(client,api.invite,{teamId,principal:client.viewer(),role:"admin"});
+    assert.equal(forged.state,"failed");assert.equal(forged.why.code,"NOT_ADMIN","signup cannot self-grant a role");
+  }
+  const invited=await mutate(alice,api.invite,{teamId,principal:bob.viewer(),role:"member"});
+  assert.equal(invited.state,"sent");
+  const bobRole=await query(bob,api.myRole,{teamId});
+  assert.equal(bobRole.data?.role,"member","the authorized invitation grants only its selected role");
+  const roster=await query(bob,api.roster,{teamId});
+  assert.deepEqual(roster.data.map(row=>[row.principal,row.role]).sort(),[[alice.viewer(),"admin"],[bob.viewer(),"member"]].sort());
+  const escalation=await mutate(bob,api.invite,{teamId,principal:outsider.viewer(),role:"admin"});
+  assert.equal(escalation.state,"failed");assert.equal(escalation.why.code,"NOT_ADMIN");
+  assert.equal((await query(outsider,api.roster,{teamId})).denied?.code,"NOT_MEMBER");
+  assert.deepEqual((await query(outsider,api.myTeams,{})).data,[]);
+  console.log("packed production accounts passed: signup grants no role, creator admin, principal invitation member, outsider denied");
+} finally {await cleanup(...clients.map(client=>()=>client.close()),()=>dev?.stop());}
+`;
 
 const personaRoster = `
 table staff:
