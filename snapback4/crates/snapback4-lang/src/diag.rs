@@ -38,6 +38,9 @@ pub struct Diagnostic {
     pub code: String,
     pub message: String,
     pub rewrite: String,
+    /// Reservation evidence retained for JSON and check --verbose.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub details: Option<String>,
     /// Exact Quarry source that may replace the diagnostic's authored
     /// expression or rule. Most rewrites are design guidance and leave this
     /// unset; golden tests compile only this compiler-emitted source.
@@ -67,7 +70,12 @@ impl Diagnostic {
     pub fn new(site: &Site, code: &str, message: impl Into<String>, rewrite: impl Into<String>) -> Self {
         let code = code.to_owned();
         let guide = guide_for(&code).to_owned();
-        Self { site: site.clone(), code, message: message.into(), rewrite: rewrite.into(), source_rewrite: None, source_rewrite_kind: None, guide, mechanical: false, cascade_of: None, read_repair: None, verified_edit: None }
+        Self { site: site.clone(), code, message: message.into(), rewrite: rewrite.into(), details: None, source_rewrite: None, source_rewrite_kind: None, guide, mechanical: false, cascade_of: None, read_repair: None, verified_edit: None }
+    }
+
+    pub fn details(mut self, details: impl Into<String>) -> Self {
+        self.details = Some(details.into());
+        self
     }
 
     /// The CLI must match this original source before applying `rewrite`.

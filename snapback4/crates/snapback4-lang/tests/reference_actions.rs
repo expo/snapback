@@ -507,8 +507,9 @@ fn check_refuses_what_a_column_cannot_carry() {
     let missing_bound = snapback4_lang::compile(&[("schema.q".into(), format!("{base}table kids:\n  parent: parents on delete cascade\n  read <- allow\n"))]);
     let bound = missing_bound.diagnostics.iter().find(|diagnostic| diagnostic.code == "E_CASCADE_BOUND")
         .unwrap_or_else(|| panic!("{:#?}", missing_bound.diagnostics));
-    assert!(bound.message.contains("cap N by parent") && bound.message.contains("unique parent"), "{bound:#?}");
-    assert!(bound.rewrite.contains("unique parent"), "{bound:#?}");
+    assert!(bound.message.contains("product bound"), "{bound:#?}");
+    assert!(bound.rewrite.starts_with("apply `cap ") && bound.rewrite.contains("this is a product limit you choose"), "{bound:#?}");
+    assert!(bound.details.as_deref().is_some_and(|details| details.contains("cap N by parent") && details.contains("unique parent")), "{bound:#?}");
     let cases = [
         ("table kids:\n  parent: parents on delete cascade\n  read <- allow\n", "E_CASCADE_BOUND"),
         ("table kids:\n  parent: parents on delete set null\n  cap 5 by parent\n  read <- allow\n", "E_REFERENCE_ACTION"),

@@ -110,7 +110,7 @@ query queue(c: cursor ?):\n  return tickets last 50 by .at after c\nquery queue2
     let lines: Vec<_> = plain.lines().collect();
     let note = lines.iter().position(|line| line.contains(" — N_NEVER_COMPLETE — verdict:")).unwrap();
     assert_eq!(lines[note + 1], "  who: callers admitted by `exists staff[viewer]` have a complete page", "{plain}");
-    assert_eq!(lines[note + 2], "  what: pin every read-rule scope or handle `complete: false` as more rows may exist; check --verbose shows the proof and checked repair", "{plain}");
+    assert_eq!(lines[note + 2], "  what: query queue: missing pin .owner; choose the intended audience without dropping other readers; check --verbose shows the checked repair", "{plain}");
     assert!(!lines[note + 3].starts_with("  "), "the default completeness note is exactly verdict/who/what: {plain}");
     assert!(!plain.contains("  rewrite:") && !plain.contains("query mySessionsAsTutor"), "{plain}");
 

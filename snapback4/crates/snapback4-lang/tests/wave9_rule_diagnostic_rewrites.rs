@@ -280,8 +280,10 @@ fn wave13_rewrites_apply_to_the_authors_schema_and_recheck() {
 
     let source = "table entries:\n  owner: principal\n  reporter: principal\n  read <- .owner = viewer or .reporter = viewer\n  sync last 20 by .id\n";
     let d = refusal(source,"E_SYNC");
-    assert!(d.rewrite.starts_with("sync  --") && !d.rewrite.contains(".principal"), "{d}");
-    check(&source.replace("sync last 20 by .id", &d.rewrite));
+    let replacement=d.rewrite.lines().nth(1).unwrap().trim();
+    assert_eq!(replacement,"sync","{d}");
+    assert!(d.rewrite.contains("every authorized row") && !d.rewrite.contains(".principal"), "{d}");
+    check(&source.replace("sync last 20 by .id", replacement));
 
     let source = "table entries:\n  public\n  online only\nmutation checkEntry(entry: entries):\n  entries[entry] ! else NOT_FOUND\n  return null\n";
     let d = refusal(source, "E_QUARRY_STATEMENT");
@@ -340,14 +342,16 @@ fn wave13_boolean_and_joint_cap_guidance_rechecks_after_the_prescribed_edit() {
     }
     let b = compile(&[("schema.q".into(),repaired)]);
     assert!(b.diagnostics.is_empty(),"{:?}\n{d}",b.diagnostics);
-    assert!(d.rewrite.contains("Heap =") && d.rewrite.contains("product limit"));
+    assert!(d.details.as_deref().is_some_and(|details|details.contains("Heap =")) && d.rewrite.contains("product limit"));
+    assert!(!d.rewrite.contains("Heap ="));
 }
 
 #[test]
 fn union_window_repair_retains_the_authors_named_recipient() {
     let source = "table crew:\n  owner: principal\n  who: principal\n  unique owner, who\n  immutable owner, who\n  read <- exists crew[.owner, viewer]\n  insert <- exists crew[.owner, viewer]\n  sync by .who\ntable docs:\n  owner: principal\n  read <- .owner = viewer or exists crew[.owner, viewer]\n  sync by .who last 2 by .id\n";
     let d = refusal(source,"E_SYNC");
-    assert!(d.rewrite.starts_with("sync by .who"),"{d}");
-    let b = compile(&[("schema.q".into(),source.replace("sync by .who last 2 by .id",&d.rewrite))]);
+    let replacement=d.rewrite.lines().nth(1).unwrap().trim();
+    assert_eq!(replacement,"sync by .who","{d}");
+    let b = compile(&[("schema.q".into(),source.replace("sync by .who last 2 by .id",replacement))]);
     assert!(b.diagnostics.is_empty(),"{:?}\n{d}",b.diagnostics);
 }

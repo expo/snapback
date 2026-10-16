@@ -1,0 +1,190 @@
+{
+  "language": {
+    "completedTargets": 157,
+    "passed": 2091,
+    "failed": 0,
+    "ignored": 14,
+    "exit": 0
+  },
+  "device-simulation": {
+    "completedTargets": 147,
+    "passed": 2311,
+    "failed": 0,
+    "ignored": 11,
+    "exit": 0
+  },
+  "core-doc": {
+    "completedTargets": 1,
+    "passed": 17,
+    "failed": 0,
+    "ignored": 0,
+    "exit": 0
+  },
+  "cli-unit": {
+    "completedTargets": 14,
+    "passed": 467,
+    "failed": 0,
+    "ignored": 5,
+    "exit": 0
+  },
+  "cli-check": {
+    "completedTargets": 2,
+    "passed": 115,
+    "failed": 0,
+    "ignored": 0,
+    "exit": 0
+  },
+  "focused": {
+    "completedTargets": 3,
+    "passed": 38,
+    "failed": 0,
+    "ignored": 1,
+    "exit": 0
+  },
+  "sync-matrix": {
+    "completedTargets": 1,
+    "passed": 8,
+    "failed": 0,
+    "ignored": 0,
+    "exit": 0
+  },
+  "guide": {
+    "completedTargets": 1,
+    "passed": 125,
+    "failed": 0,
+    "ignored": 0,
+    "exit": 0
+  },
+  "device-simulation-lib": {
+    "completedTargets": 2,
+    "passed": 81,
+    "failed": 0,
+    "ignored": 0,
+    "exit": 0
+  },
+  "device-simulation-doc": {
+    "completedTargets": 2,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0,
+    "exit": 0
+  },
+  "docs-budget": {
+    "completedTargets": 1,
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0,
+    "exit": 0
+  },
+  "combinedFiveCrates": {
+    "exit": 124,
+    "timeoutSeconds": 3600,
+    "coverage": "completed CLI + core; device and simulation completed separately with exit 0; language final rerun exit 0",
+    "report": "five-crates-timeout.json"
+  },
+  "coverageByCrate": {
+    "snapback4": {
+      "passed": 1247,
+      "ignored": 15,
+      "source": "combined complete CLI segment; later CLI units/check/notes rerun green"
+    },
+    "snapback4-core": {
+      "passed": 743,
+      "ignored": 5,
+      "docPassed": 17,
+      "source": "combined complete core segment plus core-doc"
+    },
+    "snapback4-lang": {
+      "passed": 2091,
+      "ignored": 14,
+      "exit": 0
+    },
+    "snapback4-device": {
+      "passed": 1562,
+      "ignored": 4,
+      "exit": 0
+    },
+    "snapback4-sim": {
+      "passed": 749,
+      "ignored": 7,
+      "exit": 0
+    }
+  },
+  "rootChecks": {
+    "inventories": {
+      "exit": 1,
+      "reason": "three ignored legacy generated-artifact prerequisites"
+    },
+    "guide": {
+      "exit": 1,
+      "passed": 19,
+      "contentFailed": 0,
+      "preconditions": 3
+    },
+    "refCheck": {
+      "exit": 0,
+      "documents": 550,
+      "refs": 11365
+    },
+    "docsBudget": {
+      "exit": 0,
+      "readmeLines": 317,
+      "budget": 320,
+      "selfContainmentPassed": 1
+    }
+  },
+  "differentials": {
+    "native": {
+      "cases": 20000,
+      "exit": 0,
+      "newSignatures": 0
+    },
+    "devices": {
+      "seeds": "0\u2013999",
+      "exit": 0,
+      "newSignatures": 0
+    },
+    "lean": {
+      "cases": 20000,
+      "exit": 1,
+      "disagreements": 130,
+      "baselineSignatures": 4,
+      "newSignatures": 0
+    }
+  },
+  "clients": {
+    "passed": 42,
+    "failed": 0,
+    "exit": 0
+  },
+  "schemaSurvey": {
+    "beforePassed": 100,
+    "afterPassed": 100,
+    "beforeNotes": 371,
+    "afterNotes": 357
+  },
+  "packed": {
+    "checkCheatsheetAndFourWhyPages": 0,
+    "diagnosticCasesPassed": 5,
+    "binaryOverride": false,
+    "platformQualification": "locally packed Linux native test binary; not publication/static-musl qualification"
+  },
+  "wasm": {
+    "cleanSource": "b7a4a60213",
+    "raw": 2372437,
+    "gzip": 723160,
+    "brotli": 545311,
+    "budget": 723660,
+    "headroom": 500,
+    "familyAndAbsenceAudit": "pass"
+  },
+  "finalImplementationReview": {
+    "round": 8,
+    "codex": "READY",
+    "muse": "READY",
+    "provenance": "../../../llp/reviews/3000.036.002-lang3-r8.provenance.json"
+  },
+  "deviceTailAttempt": {
+    "status": "cancelled duplicate; not qualification"
+  }
+}

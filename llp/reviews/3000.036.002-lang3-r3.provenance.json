@@ -1,0 +1,21 @@
+{
+  "at": "2026-10-16T21:44:03.141796+00:00",
+  "coreSnapshotSha256": "666143f5995ff271186f6a046dcc641a86bf3a82e574efb5481b45da3befccd5",
+  "brief": "3000.036.002-lang3-r3.brief.md",
+  "families": {
+    "codex": {
+      "stdoutSha256": "3fb4003593e962636cec318f1c0a172139266677d6764eea2f1cc7bc34951f98",
+      "command": "timeout 1800 codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < brief",
+      "review": "3000.036.002-lang3-r3.codex.md",
+      "verdict": "READY (implementation soundness)"
+    },
+    "muse": {
+      "stdoutSha256": "9900b5c9b89ab362918d7d24a4c6053886319f8684440c690b9eaa7cec4c641e",
+      "command": "timeout 1800 ~/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file brief",
+      "review": "3000.036.002-lang3-r3.muse.md",
+      "verdict": "READY (implementation soundness)"
+    }
+  },
+  "qualification": "separate from implementation verdict; test receipts in workstream report",
+  "headAtRecording": "7a0af20fb66ff109a9335ac8169323387838059b"
+}

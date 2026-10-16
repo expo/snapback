@@ -1,0 +1,61 @@
+[
+  {
+    "case": "cascade-default",
+    "args": [
+      "check"
+    ],
+    "expectedExit": 1,
+    "actualExit": 1,
+    "source": "table parents:\n  public\n  delete <- allow\n  online only\ntable kids:\n  parent: parents on delete cascade\n  public\n  online only\n",
+    "stdout": "",
+    "stderr": "check: 1 problem\nschema.q:6:19 \u2014 E_CASCADE_BOUND: delete parents needs a product bound\n  rewrite: apply `cap 845 by parent` on kids together; this is a product limit you choose, so select a smaller cap if your product permits fewer children. For one-to-one children use a unique reference; otherwise make the edge `restrict` and delete children first in a job. Reservation breakdown: check --verbose\n  guide: writes\n\n"
+  },
+  {
+    "case": "cascade-verbose",
+    "args": [
+      "check",
+      "--verbose"
+    ],
+    "expectedExit": 1,
+    "actualExit": 1,
+    "source": "table parents:\n  public\n  delete <- allow\n  online only\ntable kids:\n  parent: parents on delete cascade\n  public\n  online only\n",
+    "stdout": "",
+    "stderr": "check: 1 problem\nschema.q:6:19 \u2014 E_CASCADE_BOUND: delete parents needs a product bound\n  rewrite: apply `cap 845 by parent` on kids together; this is a product limit you choose, so select a smaller cap if your product permits fewer children. For one-to-one children use a unique reference; otherwise make the edge `restrict` and delete children first in a job. Reservation breakdown: check --verbose\n  details: kids.parent needs `cap N by parent` or plain single-column `unique parent`; choose a product limit, not an engine tuning number; the engine allows up to 845 per unbounded edge in this joint recipe. For that limit apply `cap 845 by parent` on kids together: the whole delete (including the root) reserves 846 / 1024 rows written and 16769768 / 16777216 heap bytes, with all indexes, derived writes and event images priced together. Heap = root write heap + retained event images + 384 \u00d7 (cascade identities + 1 root + 4 child-id slots + largest set-null group) + max(child write heap, four-row child page, read-through probe scratch). A count-maintained source commonly reserves 3 \u00d7 its rows (the row plus its old and new aggregate groups), not one row per child; for a one-to-one relation use `unique parent` on kids instead; keep `on delete restrict` and delete the child rows first in a job (`for row in <child>:`), then delete the parents row; choose caps only if they are product limits (guide writes)\n  guide: writes\n\n"
+  },
+  {
+    "case": "p18-clock",
+    "args": [
+      "check",
+      "--json"
+    ],
+    "expectedExit": 1,
+    "actualExit": 1,
+    "source": "use identity\nuse personas alice, bob\n\ntable posts:\n  title: text <= 100\n  read <- allow\n  insert <- allow\n  online only\n\ntable reactions:\n  post: posts\n  owner: principal\n  emoji: text <= 20\n  at: time default now\n  immutable post, owner, at\n  unique post, owner\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  update <- .owner = viewer\n  online only\n\nquery mine(c: cursor ?):\n  return reactions where .owner = viewer after c first 100 by .id\n\nmutation addPost(title: text 1..100):\n  return insert posts { title }\n\nmutation react(post: posts, emoji: text 1..20):\n  return upsert reactions[post, viewer] { post, owner: viewer, emoji, at: now }\n",
+    "stdout": "{\"ok\":false,\"problems\":[{\"code\":\"E_QUARRY_IMMUTABLE\",\"guide\":\"writes\",\"mechanical\":false,\"message\":\"reactions.at is immutable; a fresh clock value changes the original timestamp on a later conflict\",\"rewrite\":\"omit at from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present\",\"site\":{\"col\":71,\"file\":\"schema.q\",\"line\":29}}]}\n",
+    "stderr": ""
+  },
+  {
+    "case": "p18-uncertain",
+    "args": [
+      "check",
+      "--json"
+    ],
+    "expectedExit": 0,
+    "actualExit": 0,
+    "source": "use identity\nuse personas alice, bob\n\ntable posts:\n  title: text <= 100\n  read <- allow\n  insert <- allow\n  online only\n\ntable reactions:\n  post: posts\n  owner: principal\n  emoji: text <= 20\n  at: time default now\n  immutable post, owner, at\n  unique post, owner\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  update <- .owner = viewer\n  online only\n\nquery mine(c: cursor ?):\n  return reactions where .owner = viewer after c first 100 by .id\n\nmutation addPost(title: text 1..100):\n  return insert posts { title }\n\nmutation react(post: posts, emoji: text 1..20, at: time):\n  return upsert reactions[post, viewer] { post, owner: viewer, emoji, at }\n",
+    "stdout": "{\"acquisition\":null,\"fieldAuthority\":[],\"followingHistory\":[],\"heldQueries\":[],\"ms\":3,\"native\":null,\"notes\":[{\"code\":\"N_IMMUTABLE_PATCH\",\"guide\":\"writes\",\"mechanical\":false,\"message\":\"on conflict, this upsert is refused at runtime on a readable target unless reactions.at equals the stored value; omit at from the patch if another value may update this row\",\"rewrite\":\"omit at from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present\",\"site\":{\"col\":71,\"file\":\"schema.q\",\"line\":29}},{\"code\":\"N_REFERENCE_UNCHECKED\",\"guide\":\"types\",\"mechanical\":false,\"message\":\"mutation react stores argument post directly in reactions.post, but never looks up posts[post]: a reference accepts any well-formed id even when the row is absent\",\"rewrite\":\"add `require exists posts[post] else NOT_FOUND` before the write; keep the direct id only when dangling references are intentional\",\"site\":{\"col\":10,\"file\":\"schema.q\",\"line\":29}}],\"ok\":true,\"operations\":3,\"plans\":null,\"predictionSummary\":\"2 mutations are server-run (online app: no action): addPost (writes online-only table posts), react (writes online-only table reactions); 1 mutation has insert arms that never predict: react (reactions is online only; held updates \u2014 unique post, owner: unchanged by this patch; no new coverage needed) \u2014 snapback4 why <op>\",\"residency\":null,\"rowViews\":[],\"scale\":null,\"scaleSummary\":\"scale: 3 of 3 operations are constant; 0 grow with data \u2014 `check --cost` gives the certificate\",\"search\":[],\"sequences\":[],\"starterLeftovers\":null,\"synced\":0,\"tables\":2,\"views\":0}\n",
+    "stderr": ""
+  },
+  {
+    "case": "p18-omit",
+    "args": [
+      "check",
+      "--json"
+    ],
+    "expectedExit": 0,
+    "actualExit": 0,
+    "source": "use identity\nuse personas alice, bob\n\ntable posts:\n  title: text <= 100\n  read <- allow\n  insert <- allow\n  online only\n\ntable reactions:\n  post: posts\n  owner: principal\n  emoji: text <= 20\n  at: time default now\n  immutable post, owner, at\n  unique post, owner\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  update <- .owner = viewer\n  online only\n\nquery mine(c: cursor ?):\n  return reactions where .owner = viewer after c first 100 by .id\n\nmutation addPost(title: text 1..100):\n  return insert posts { title }\n\nmutation react(post: posts, emoji: text 1..20):\n  return upsert reactions[post, viewer] { post, owner: viewer, emoji }\n",
+    "stdout": "{\"acquisition\":null,\"fieldAuthority\":[],\"followingHistory\":[],\"heldQueries\":[],\"ms\":3,\"native\":null,\"notes\":[{\"code\":\"N_REFERENCE_UNCHECKED\",\"guide\":\"types\",\"mechanical\":false,\"message\":\"mutation react stores argument post directly in reactions.post, but never looks up posts[post]: a reference accepts any well-formed id even when the row is absent\",\"rewrite\":\"add `require exists posts[post] else NOT_FOUND` before the write; keep the direct id only when dangling references are intentional\",\"site\":{\"col\":10,\"file\":\"schema.q\",\"line\":29}}],\"ok\":true,\"operations\":3,\"plans\":null,\"predictionSummary\":\"2 mutations are server-run (online app: no action): addPost (writes online-only table posts), react (writes online-only table reactions); 1 mutation has insert arms that never predict: react (reactions is online only; held updates \u2014 unique post, owner: unchanged by this patch; no new coverage needed) \u2014 snapback4 why <op>\",\"residency\":null,\"rowViews\":[],\"scale\":null,\"scaleSummary\":\"scale: 3 of 3 operations are constant; 0 grow with data \u2014 `check --cost` gives the certificate\",\"search\":[],\"sequences\":[],\"starterLeftovers\":null,\"synced\":0,\"tables\":2,\"views\":0}\n",
+    "stderr": ""
+  }
+]

@@ -1,0 +1,26 @@
+{
+  "at": "2026-10-16T22:31:42.030624+00:00",
+  "brief": "3000.036.002-lang3-r8.brief.md",
+  "implementationDigests": {
+    "snapback4/crates/snapback4-core/src/engine/rules/snapshots.rs": "666143f5995ff271186f6a046dcc641a86bf3a82e574efb5481b45da3befccd5",
+    "snapback4/crates/snapback4-lang/src/bind/auth_lints.rs": "83f204a00b7d9213042d7e982fa20873596671be9636414c68b3a8e90cbcd784",
+    "snapback4/crates/snapback4-lang/src/bind/reference_arguments.rs": "bbde0e76bf323e1d86533f579587845c42fa461c15266f531d6145d02c8848fb",
+    "snapback4/crates/snapback4-lang/tests/wave14_lang3.rs": "2549ab4756a270ff5331a0c6133fa29011e96a22a98a25a10b19e7b25b98e5a5",
+    "snapback4/crates/snapback4-lang/tests/wave6_rule_language.rs": "6215f5cb6175455c9d49db4a93a2c42fb1fddd76e203f280cac5533dcd5208a5"
+  },
+  "families": {
+    "codex": {
+      "review": "3000.036.002-lang3-r8.codex.md",
+      "stdoutSha256": "4ef5a08b323abdfef390be5a7291dea092a497a0cf9d4a477944c9c329a28954",
+      "verdict": "READY (implementation soundness)",
+      "command": "timeout 1800 codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < brief"
+    },
+    "muse": {
+      "review": "3000.036.002-lang3-r8.muse.md",
+      "stdoutSha256": "0594822ef3fe164effa6656b3d8ec1081ed76ff9d9dc51a415841b1bed06277b",
+      "verdict": "READY (implementation soundness)",
+      "command": "timeout 1800 ~/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file brief"
+    }
+  },
+  "qualification": "separate execution receipts; this provenance does not certify unfinished test runs"
+}
