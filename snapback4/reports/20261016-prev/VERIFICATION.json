@@ -13,7 +13,7 @@
     "repair": "deploy card 150 physical lines; exact bridge input registered; guide 125/125 PASS",
     "remaining_command": "cargo test -p snapback4-lang -p snapback4-sim --no-fail-fast",
     "remaining": "PASS, 197 targets, 2720 passed, 21 declared ignored",
-    "final_focused": "4 dependency/context/preservation tests and 1 clause-comparison test PASS",
+    "final_focused": "4 dependency/context/preservation tests PASS on Linux and Darwin; 1 clause-comparison test PASS on Linux",
     "cargo_environment": [
       "CARGO_INCREMENTAL=0",
       "CARGO_PROFILE_DEV_DEBUG=0",
@@ -28,7 +28,7 @@
   },
   "reviews": {
     "codex": "round 20 READY",
-    "muse": "round 6 READY; test existence caveat confirmed by executable controls"
+    "muse": "round 8 READY on complete source; round 6 also READY"
   },
   "h9_baseline": "0.4.29 FAILS as required: 3 WARNINGs vs expected 0",
   "farm_lanes": [
@@ -38,5 +38,6 @@
     "020",
     "084"
   ],
-  "publication": "No origin push, version bump or publication; this qualifies PREV only."
+  "publication": "No origin push, version bump or publication; this qualifies PREV only.",
+  "focused_test_commit": "6a2dbc7fdb"
 }

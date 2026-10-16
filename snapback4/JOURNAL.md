@@ -95813,3 +95813,9 @@ private null-reference proof decodes active/retained values and captures, keeps
 explicit dependencies, and preserves populated/restorable reference warnings.
 The H9 baseline failure, DT7 golden, five copied farm previews and exact commands
 are recorded under reports/20261016-prev/ and WORKSTREAM-REPORT.md.
+
+Supplementary PREV review closed: complete-inline Muse round 8 is READY after
+the excerpt-only round 7 requested missing wiring/effect/backfill evidence. The
+explicit null-proof preservation test passes with the three metadata/context
+controls on both Linux and Darwin; production semantics remain those of
+20aee130b3. Verbatim reviews and all briefs remain in the qualification bundle.
