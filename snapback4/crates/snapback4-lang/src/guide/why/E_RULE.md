@@ -1,13 +1,5 @@
 # Rules — E_RULE
 
-This is the table authorization layer. A mutation's require decides intent;
-each write still passes its table rule. An unnamed update judges old and next;
-private developer evidence in why recent names its failing image, while hidden
-targets keep NOT_FOUND. For a deliberate pre-write transition see:
-guide rule-recipes update-images. For independently enforced roles see:
-guide rule-recipes role-workflow. For source-owned publication writes see:
-guide rule-recipes source-publication.
-
 `insert` and `insert ... if absent` return E_RULE when the insert rule denies
 the viewer. A unique clash with a hidden row returns E_RULE for either insert
 form. For a readable secondary unique clash without a custom refusal, ordinary
@@ -35,8 +27,8 @@ the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
 
-A mutation's writes pass the table's rules as the caller; only jobs run as the
-system. Under `dev`, `snapback4 why recent` prints each refusal and parked job:
+Require decides intent; each write passes table rules as caller. Jobs run as
+system. See: guide rule-recipes update-images. Under `dev`, `snapback4 why recent` prints each refusal and parked job:
 operation, code, request/job ID, Unix time, and the refusing clause with its
 site. Replays and uninstrumented paths say `cause not instrumented`. Records describe only
 the named request/job.
