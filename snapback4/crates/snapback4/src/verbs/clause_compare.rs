@@ -97,6 +97,19 @@ pub(super) fn require(value: &Expr, args: &BTreeSet<String>, stable_probes: bool
     fn scalar(e: &Expr, args: &BTreeSet<String>) -> bool {
         match e { Expr::Name { name,.. } => args.contains(name) || matches!(name.as_str(),"viewer" | "now"), Expr::Literal { .. } => true, _ => false }
     }
+    // A probe is one propositional atom only when all of its authored inputs
+    // are visible here. Calls can hide changed helpers and therefore stay
+    // outside the implication proof even when their compiled sites are reused.
+    fn probe_input(e: &Expr, args: &BTreeSet<String>) -> bool {
+        match e {
+            Expr::Focal { .. } | Expr::Literal { .. } => true,
+            Expr::Name { .. } => scalar(e,args),
+            Expr::Member { base,.. } => probe_input(base,args),
+            Expr::Unary { value,.. } => probe_input(value,args),
+            Expr::Binary { left,right,.. } => probe_input(left,args) && probe_input(right,args),
+            _ => false,
+        }
+    }
     Some(match value {
         Expr::Literal { value: Literal::Bool(true),.. } => Formula::Yes,
         Expr::Literal { value: Literal::Bool(false),.. } => Formula::No,
@@ -109,7 +122,13 @@ pub(super) fn require(value: &Expr, args: &BTreeSet<String>, stable_probes: bool
             if matches!(op.as_str(),"=" | "!=") { equality(expression(left),expression(right),op == "!=",false) }
             else { Formula::Atom(expression(value)) }
         },
-        Expr::Exists { read,.. } if stable_probes && read.keys.iter().all(|key| scalar(&key.value,args)) => Formula::Atom(expression(value)),
+        Expr::Exists { read,.. } if stable_probes
+            && read.keys.iter().all(|key|scalar(&key.value,args))
+            && read.seeks.iter().all(|seek|probe_input(&seek.value,args))
+            && read.filter.as_deref().is_none_or(|filter|probe_input(filter,args))
+            && read.matching.as_deref().is_none_or(|matching|probe_input(matching,args))
+            && read.range.as_ref().and_then(|range|range.cursor.as_deref()).is_none_or(|cursor|probe_input(cursor,args))
+            && read.computed.is_empty() => Formula::Atom(expression(value)),
         Expr::Name { .. } if scalar(value,args) => Formula::Atom(expression(value)),
         _ => return None,
     })

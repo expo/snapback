@@ -158,9 +158,17 @@ impl Dependencies {
                     return;
                 }
                 if let Some(shape) = fields.get("Shape") {
-                    self.expression(schema,&shape["base"],bindings,visited,None);
+                    // The base supplies row identity/presence plus retained and
+                    // pending provenance. Projected values below name every
+                    // application field the shape actually reads.
+                    self.expression(schema,&shape["base"],bindings,visited,Some("$presence"));
                     if let Some(object)=shape["fields"].as_object() {for value in object.values() {self.expression(schema,value,bindings,visited,None);}}
                     return;
+                }
+                if fields.contains_key("branch") && fields.contains_key("then") && fields.contains_key("else") {
+                    self.expression(schema,&fields["branch"],bindings,visited,None);
+                    self.expression(schema,&fields["then"],bindings,visited,field);
+                    self.expression(schema,&fields["else"],bindings,visited,field);return;
                 }
                 if let Some(binary)=fields.get("Binary") {
                     if matches!(binary["op"].as_str(),Some("Eq"|"Ne")) {
@@ -220,6 +228,7 @@ impl Dependencies {
                     self.population(schema, table); self.index(schema, table, read["index"].as_str().unwrap());
                     if fields.contains_key("Get") {
                         if let Some(column) = field { if column!="$presence" {self.column(schema, table, column);} }
+                        else if let Some(definition)=schema.table(table) {for column in definition.columns.keys() {self.column(schema,table,column);}}
                     }
                     self.expression(schema, &read["key"], bindings, visited, None);
                     return;
@@ -258,7 +267,9 @@ fn domain_widens(current: &Schema,target: &Schema,table: &str,column: &str) -> b
             return bmin<=amin && bmax>=amax && kind(a,b);
         }
         match (old,new) {
-            (ColumnType::Optional(a),ColumnType::Optional(b))=>kind(a,b),(a,ColumnType::Optional(b))=>kind(a,b),
+            // Required -> optional changes how physically absent legacy cells
+            // read (a literal default becomes null), so it is not monotone here.
+            (ColumnType::Optional(a),ColumnType::Optional(b))=>kind(a,b),
             (ColumnType::Text {max:a},ColumnType::Text {max:b})|(ColumnType::Bytes {max:a},ColumnType::Bytes {max:b})|(ColumnType::Json {max_bytes:a},ColumnType::Json {max_bytes:b})|(ColumnType::Image {max:a,..},ColumnType::Image {max:b,..})|(ColumnType::Video {max:a},ColumnType::Video {max:b})=>b>=a,
             (ColumnType::File {max:a,types:at},ColumnType::File {max:b,types:bt})=>b>=a && snapback4_core::assets::FILE_TYPES.iter().all(|t|!snapback4_core::assets::file_accepts(at,t)||snapback4_core::assets::file_accepts(bt,t)),
             (ColumnType::IntRange {..},ColumnType::Int)=>true,
@@ -682,6 +693,47 @@ mod tests {
         let old=&before.programs.iter().find(|program|program.program.name=="book").unwrap().program;
         let new=&target.programs.iter().find(|program|program.program.name=="book").unwrap().program;
         assert_eq!(changes(&before.schema,old,&target.schema,new,true),vec![BTreeSet::from(["gates".into()])]);
+    }
+    #[test]
+    fn whole_row_gets_keep_all_field_defaults_as_guard_inputs() {
+        let source="table gates:\n  blocked: bool default true\n  public\n  online only\nmutation book(a: gates, b: gates):\n  require gates[a] = gates[b] else BLOCKED\n  return true\n";
+        let before=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
+        assert!(before.diagnostics.is_empty(),"{:?}",before.diagnostics);
+        let target=snapback4_lang::compile(&[("schema.q".into(),source.replace("default true","default false"))]);
+        assert!(target.diagnostics.is_empty(),"{:?}",target.diagnostics);
+        let old=&before.programs.iter().find(|program|program.program.name=="book").unwrap().program;
+        let new=&target.programs.iter().find(|program|program.program.name=="book").unwrap().program;
+        assert_eq!(changes(&before.schema,old,&target.schema,new,true),vec![BTreeSet::from(["gates".into()])]);
+    }
+    #[test]
+    fn shapes_consult_only_projected_fields_from_their_row_base() {
+        let source="table gates:\n  unused: bool default true\n  public\n  online only\nmutation book(id: gates):\n  row = gates[id]! else MISSING\n  card = row {id}\n  require card.id = id else WRONG\n  return true\n";
+        let before=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
+        let target=snapback4_lang::compile(&[("schema.q".into(),source.replace("default true","default false"))]);
+        assert!(before.diagnostics.is_empty()&&target.diagnostics.is_empty(),"{:?} {:?}",before.diagnostics,target.diagnostics);
+        let old=&before.programs.iter().find(|program|program.program.name=="book").unwrap().program;
+        let new=&target.programs.iter().find(|program|program.program.name=="book").unwrap().program;
+        assert!(changes(&before.schema,old,&target.schema,new,true).iter().all(BTreeSet::is_empty));
+    }
+    #[test]
+    fn optionalization_and_row_fallbacks_keep_interpreted_field_inputs() {
+        let optional="table gates:\n  flag: bool default true\n  public\n  online only\nmutation book(id: gates):\n  row = gates[id]! else MISSING\n  require row.flag = true else BLOCKED\n  return true\n";
+        let before=snapback4_lang::compile(&[("schema.q".into(),optional.into())]);
+        let target=snapback4_lang::compile(&[("schema.q".into(),optional.replace("bool default true","bool ? default true"))]);
+        assert!(before.diagnostics.is_empty()&&target.diagnostics.is_empty(),"{:?} {:?}",before.diagnostics,target.diagnostics);
+        let old=&before.programs.iter().find(|program|program.program.name=="book").unwrap().program;
+        let new=&target.programs.iter().find(|program|program.program.name=="book").unwrap().program;
+        let changed:Vec<_>=changes(&before.schema,old,&target.schema,new,true).into_iter().filter(|set|!set.is_empty()).collect();
+        assert_eq!(changed,vec![BTreeSet::from(["gates".into()])]);
+
+        let fallback="table gates:\n  blocked: bool default true\n  public\n  online only\nmutation book(a: gates, b: gates):\n  row = (gates[a] ?? gates[b])! else NOT_FOUND\n  require row.blocked = false else BLOCKED\n  return true\n";
+        let before=snapback4_lang::compile(&[("schema.q".into(),fallback.into())]);
+        let target=snapback4_lang::compile(&[("schema.q".into(),fallback.replace("default true","default false"))]);
+        assert!(before.diagnostics.is_empty()&&target.diagnostics.is_empty(),"{:?} {:?}",before.diagnostics,target.diagnostics);
+        let old=&before.programs.iter().find(|program|program.program.name=="book").unwrap().program;
+        let new=&target.programs.iter().find(|program|program.program.name=="book").unwrap().program;
+        let changed:Vec<_>=changes(&before.schema,old,&target.schema,new,true).into_iter().filter(|set|!set.is_empty()).collect();
+        assert_eq!(changed,vec![BTreeSet::from(["gates".into()])]);
     }
     #[test]
     fn consulted_timeline_metadata_changes_without_polluting_ordinary_tables() {

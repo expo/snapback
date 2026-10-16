@@ -169,7 +169,7 @@ pub(super) fn behavior(store_path: &Path, store: &Store, current: &Schema, targe
             let (old_lines, _) = requirements(&before, false);
             let (new_lines, _) = requirements(after, false);
             let guards = |p: &snapback4_lang::ast::ProgramDecl| p.prelude.iter().chain(&p.body).filter_map(|s| match s {
-                snapback4_lang::ast::Stmt::Require {condition,code,message,site,..}=>Some((condition.clone(),code.clone(),message.clone(),site.to_string())), _=>None
+                snapback4_lang::ast::Stmt::Require {condition,code,message,..}=>Some((condition.clone(),code.clone(),message.clone())), _=>None
             }).collect::<Vec<_>>();
             let old_guards=guards(&before);let new_guards=guards(after);
             let exact_changes = before_programs.get(&name).zip(after_programs.get(&name)).map(|(old,new)|
@@ -181,15 +181,7 @@ pub(super) fn behavior(store_path: &Path, store: &Store, current: &Schema, targe
                 before_programs.get(&name).zip(after_programs.get(&name)).map(|(old,new)|
                     super::release_dependencies::changes_scoped(current, old, target, new, false, &null_refs))
             };
-            // When a trailing requirement is added, compare the compiled old
-            // guards with the reused target prefix. This retains expanded helper
-            // and filter evidence while ignoring only the genuinely new suffix.
-            let reused_implementation_stable = before_programs.get(&name).zip(after_programs.get(&name)).is_some_and(|(old,new)| {
-                let extra_new_sites=new_guards.iter().skip(old_guards.len()).map(|guard|guard.3.clone()).collect();
-                super::release_dependencies::independent_changes(current,old,target,new,&BTreeSet::new(),&extra_new_sites,&null_refs).iter().all(BTreeSet::is_empty)
-            });
-            let stable = changed_dependencies.as_ref().is_some_and(|changes|changes.iter().all(BTreeSet::is_empty))
-                && (old_lines==new_lines || reused_implementation_stable);
+            let stable = changed_dependencies.as_ref().is_some_and(|changes|changes.iter().all(BTreeSet::is_empty));
             let (_,old_formula) = requirements(&before, stable);
             let (_,new_formula) = requirements(after, stable);
             if old_lines.is_empty() && new_lines.is_empty() {
@@ -214,14 +206,14 @@ pub(super) fn behavior(store_path: &Path, store: &Store, current: &Schema, targe
             } else { Change::Unknown };
             // Refusal code/message changes are observable even for equivalent predicates.
             let args=before.args.iter().map(|a|a.name.clone()).collect();
-            let contract_same=old_guards.len()==new_guards.len() && old_guards.iter().zip(&new_guards).all(|((a,code,msg,_),(b,next_code,next_msg,_))| {
+            let contract_same=old_guards.len()==new_guards.len() && old_guards.iter().zip(&new_guards).all(|((a,code,msg),(b,next_code,next_msg))| {
                 code==next_code && msg==next_msg && clauses::require(a,&args,stable).zip(clauses::require(b,&args,stable)).is_some_and(|(a,b)|clauses::compare(&a,&b)==Change::Same)
             });
             // Admission tightening alone does not preserve earlier refusal codes.
             // Prove each old first-failure region still reaches its same refusal.
             let tightening_contract = old_guards.len()<=new_guards.len() && {
                 let (mut old_prefix,mut new_prefix)=(Vec::new(),Vec::new());
-                old_guards.iter().zip(&new_guards).all(|((a,code,msg,_),(b,next_code,next_msg,_))| {
+                old_guards.iter().zip(&new_guards).all(|((a,code,msg),(b,next_code,next_msg))| {
                     let Some((a,b))=clauses::require(a,&args,stable).zip(clauses::require(b,&args,stable)) else {return false;};
                     let old_failure=clauses::Formula::And(old_prefix.iter().cloned().chain([clauses::Formula::Not(Box::new(a.clone()))]).collect());
                     let new_failure=clauses::Formula::And(new_prefix.iter().cloned().chain([clauses::Formula::Not(Box::new(b.clone()))]).collect());

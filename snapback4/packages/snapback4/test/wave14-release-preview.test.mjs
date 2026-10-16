@@ -66,6 +66,8 @@ mutation grouped(a: bool, b: bool, c: bool):
   assert.match(preview, /note: release 2 tightens grouped\.require/);
   assert.match(preview, /require \(a and \(b or c\)\) else BASE 'base refusal'/);
   run('deploy', deployment);
+  const rollback = JSON.parse(run('rollback', deployment, '--to', '1', '--check', '--json').stdout);
+  assert.ok(rollback.hazards.some(line => line.includes('loosens grouped.require') && line.includes('rollback users lose a current safety guard') && line.includes('bridge release')), JSON.stringify(rollback.hazards));
   writeFileSync(schema, v2.replace("BASE 'base refusal'", "RENAMED 'changed refusal'"));
   const changed = run('deploy', deployment, '--check').stdout;
   assert.match(changed, /WARNING.*grouped\.require.*BASE.*RENAMED/);
@@ -150,6 +152,44 @@ mutation add():
   await host.stop();
   writeFileSync(schema, guarded.replace('default 0', 'default 20'));
   assert.match(run('deploy', deployment, '--check').stdout, /gates changed: 1 guard unproved across limit/);
+});
+
+test('optional absence and row fallback defaults remain consulted dependencies', { timeout: hangBudget(4) }, async t => {
+  const { schema, deployment, run } = fixture(t);
+  const legacy = `use identity guests
+table gates:
+  public
+  insert <- allow
+  online only
+mutation add():
+  return insert gates {id: 'gate'}
+`;
+  const guarded = legacy.replace('table gates:\n', 'table gates:\n  flag: bool default true\n  blocked: bool default true\n') + `mutation optionalGuard(id: gates):
+  row = gates[id]! else MISSING
+  require row.flag = true else FLAG
+  return true
+mutation fallback(a: gates, b: gates):
+  row = (gates[a] ?? gates[b])! else NOT_FOUND
+  require row.blocked = false else BLOCKED
+  return true
+`;
+  writeFileSync(schema, legacy); run('deploy', deployment);
+  let host = await serve(t, deployment);
+  assert.equal((await host.post('/m/add', {})).state, 'sent');
+  await host.stop();
+  writeFileSync(schema, guarded); run('deploy', deployment);
+  host = await serve(t, deployment);
+  assert.equal((await host.post('/m/optionalGuard', {id:'gate'})).state, 'sent');
+  assert.equal((await host.post('/m/fallback', {a:'gate', b:'missing'})).why.code, 'BLOCKED');
+  await host.stop();
+  const target = guarded.replace('flag: bool default true', 'flag: bool ? default true').replace('blocked: bool default true', 'blocked: bool default false');
+  writeFileSync(schema, target);
+  assert.match(run('deploy', deployment, '--check').stdout, /gates changed: 2 guards unproved across fallback, optionalGuard/);
+  run('deploy', deployment);
+  host = await serve(t, deployment);
+  assert.equal((await host.post('/m/optionalGuard', {id:'gate'})).why.code, 'FLAG');
+  assert.equal((await host.post('/m/fallback', {a:'gate', b:'missing'})).state, 'sent');
+  await host.stop();
 });
 
 test('rollback says what users get back and prints its resolved target first', { timeout: hangBudget(4) }, async t => {
