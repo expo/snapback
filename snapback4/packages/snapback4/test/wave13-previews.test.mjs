@@ -639,3 +639,26 @@ test('a shared branch retains only writes affecting a consulted population', t =
   writeFileSync(schema,source.replace("insert roles {principal: viewer, role: 'captain'}", "insert roles {principal: viewer, role: 'crew'}"));
   assert.match(run('deploy',deployment,'--check').stdout,/compiled guard changed: 1 guard unproved across shared/);
 });
+
+for (const filter of [false,true]) for (const caller of [false,true]) test(`aggregate expression-block helper refusals remain visible (filter: ${filter}, caller requirement: ${caller})`, {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe+`table gates:
+  value: int
+  public
+  insert <- allow
+  online only
+fn gate(value: int):
+  require false else BLOCKED
+  return ${filter?'value > 0':'value'}
+mutation seedGate():
+  return insert gates {value: 1}
+mutation projected(ok: bool):
+${caller?'  require ok else NO\n':''}  return ${filter?'max(gates where gate(.value), .value)':'max(gates, gate(.value))'}
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);assert.equal((await host.post('/m/seedGate',{})).state,'sent');
+  assert.equal((await host.post('/m/projected',{ok:true})).why.code,'BLOCKED');
+  writeFileSync(schema,source.replace('require false else BLOCKED','require true else BLOCKED').replace('require ok else NO','require not not ok else NO'));
+  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*compiled guard changed: 1 guard unproved across projected/);
+  run('deploy',deployment);assert.equal((await host.post('/m/projected',{ok:true})).state,'sent');await host.stop();
+});
