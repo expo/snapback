@@ -96,3 +96,14 @@ test('external checked imports retain nested package precedence when serving', {
  writeFileSync(join(cwd,'snapback/server.mjs'),`import {marker} from '../src/helper.mjs';console.log(marker);setInterval(()=>{},1000);\n`);
  await ok(['check'],cwd);await ok(['deploy','deployment'],cwd);const host=await startServe('deployment',{cwd});try{await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_NESTED_PACKAGE'),'nested package precedence lost',()=>readFileSync(host.logs.stderr,'utf8'));assert.doesNotMatch(readFileSync(host.logs.stderr,'utf8'),/WRONG_ROOT_PACKAGE/)}finally{await host.stop();}
 });
+
+test('JavaScript implementations hidden by declarations retain their runtime import closure', {timeout:60000},async t=>{
+ const cwd=fixture(t);mkdirSync(join(cwd,'src'));
+ writeFileSync(join(cwd,'src/helper.d.ts'),'export declare const marker: string;\n');
+ writeFileSync(join(cwd,'src/helper.js'),`export {marker} from './value.js';\n`);
+ writeFileSync(join(cwd,'src/value.d.ts'),'export declare const marker: string;\n');
+ writeFileSync(join(cwd,'src/value.js'),'export const marker="SURF4_RUNTIME_GRAPH";\n');
+ writeFileSync(join(cwd,'snapback/server.mjs'),`import {marker} from '../src/helper.js';console.log(marker);setInterval(()=>{},1000);\n`);
+ await ok(['deploy','deployment'],cwd);writeFileSync(join(cwd,'src/value.js'),'throw Error("mutable implementation");\n');
+ const host=await startServe('deployment',{cwd});try{await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_RUNTIME_GRAPH'),'declaration hid runtime graph',()=>readFileSync(host.logs.stderr,'utf8'))}finally{await host.stop();}
+});

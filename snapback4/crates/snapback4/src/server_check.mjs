@@ -103,7 +103,11 @@ errors.push(...ts.getPreEmitDiagnostics(program));
 // Source imports must survive private preparation and relocation. Packages and
 // builtins are host dependencies; local modules belong to this project.
 const projectRoot = realpathSync(root);
-for (const source of program.getSourceFiles()) {
+const sourceQueue = [...program.getSourceFiles()], inspected = new Set();
+for (let index = 0; index < sourceQueue.length; index++) {
+  const source = sourceQueue[index];
+  if (inspected.has(source.fileName)) continue;
+  inspected.add(source.fileName);
   if (!source.fileName.startsWith(root + sep) || source.fileName.split(sep).includes("node_modules")) continue;
   function visit(node) {
     const specifier = (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) ? node.moduleSpecifier
@@ -114,6 +118,19 @@ for (const source of program.getSourceFiles()) {
       if (isAbsolute(spec) || spec.startsWith("file:")) problem = "use a project-relative import instead of an absolute/file URL import; deploy captures project source";
       else if (spec.startsWith(".")) {
         const module = ts.resolveModuleName(spec, source.fileName, compilerOptions, host).resolvedModule;
+        // A .d.ts can satisfy TypeScript without loading the JavaScript that
+        // Node executes. Observe and walk that implementation graph too.
+        const declarationRuntime = module?.resolvedFileName.replace(/\.d\.(ts|mts|cts)$/, (_, kind) => kind === "mts" ? ".mjs" : kind === "cts" ? ".cjs" : ".js");
+        const literal = resolve(dirname(source.fileName), spec);
+        const runtime = [literal, declarationRuntime].find(path => path && /\.(?:[cm]?[jt]s|json)$/.test(path) && !/\.d\.[cm]?ts$/.test(path) && system.fileExists(path));
+        if (runtime && !runtime.split(sep).includes("node_modules")) {
+          const actual = realpathSync(runtime);
+          if (!actual.startsWith(projectRoot + sep)) problem = "local server implementations must remain inside the project; install external code as a package";
+          else if (!inspected.has(runtime) && !runtime.endsWith(".json")) {
+            const text = system.readFile(runtime);
+            if (text !== undefined) sourceQueue.push(ts.createSourceFile(runtime, text, ts.ScriptTarget.Latest, true));
+          }
+        }
         if (module && !module.resolvedFileName.split(sep).includes("node_modules")) {
           const actual = realpathSync(module.resolvedFileName);
           if (!actual.startsWith(projectRoot + sep)) problem = "local server imports must remain inside the project; move the module into the app or install it as a package";
