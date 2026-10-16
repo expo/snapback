@@ -23,6 +23,7 @@ pub(crate) use init::without_design_references;
 pub use sql::sql;
 mod residency;
 mod test_fixture;
+mod expiry_orphans;
 mod proof_source;
 mod test_cases;
 /// A fixture directory's case file: not a table's rows.
@@ -878,6 +879,7 @@ fn effect_health(engine: &snapback4_core::Engine, now: i64) -> Result<(BTreeMap<
 }
 
 pub fn doctor(options: &Options) -> i32 {
+    if options.flags.contains_key("repair-expiry-orphan") { return expiry_orphans::repair(options); }
     if options.flags.contains_key("latency") || options.flags.contains_key("reset") { return latency::doctor(options); }
     let started = Instant::now();
     let mut lines = Vec::new();
@@ -1008,6 +1010,10 @@ pub fn doctor(options: &Options) -> i32 {
             }
             match snapback4_core::Engine::open(store) {
                 Ok(mut engine) => {
+                    match expiry_orphans::findings(&mut engine, options) {
+                        Ok(findings) => { if !findings.is_empty() { ok = false; lines.extend(findings); } }
+                        Err(error) => { ok = false; lines.push(format!("expiry    inspection failed: {error}")); }
+                    }
                     match crate::dev_clock_store::ahead(&engine, now) {
                         Ok(Some(note)) => lines.push(note),
                         Ok(None) => lines.push("clock     no commit stamps ahead of the current clock in the latest 64 commits (>5000ms)".into()),

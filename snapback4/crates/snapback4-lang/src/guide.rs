@@ -402,6 +402,14 @@ The HTTP /seed development door already runs through the host. `check`, `data`,
 
 Expiry makes a row invisible when its declared deadline passes.
 The server then deletes it and syncs the deletion to devices holding it.
+Sweeps apply declared reference actions while the parent image remains.
+Parents already physically swept by 0.4.28 cannot trigger these actions on upgrade.
+`doctor` reports E_EXPIRY_ORPHAN for references to missing expiring parents;
+these may also be deliberately dangling data. After backup/review, stop the host
+and run `snapback4 doctor --repair-expiry-orphan table:id` (add `--release dir`
+for deployed storage). It applies the current schema's cascade/set-null actions
+atomically, retaining keep references; restrict/read-through blockers refuse.
+It never reconstructs a parent or silently deletes dangling rows at adoption.
 
 ```quarry
 table stories:

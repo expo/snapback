@@ -1,4 +1,5 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_EXPIRY_ORPHAN", "doctor found references to a physically missing expiring parent; old expiry and deliberate dangling data are indistinguishable. Review and back up, stop the host, then use doctor --repair-expiry-orphan table:id; guide expire."),
     ("N_SYNC_EMPTY", "family advice — a device-planned filtered page over unbounded sync has no bounded acquisition proof for an empty filtered partition. It can stay loading until coverage is established. Bound sync and read its window unfiltered before filtering in the client, or call through app.online.query / useOnline().query for server history. This is coverage advice, not a claim that every empty read stalls. guide sync."),
     ("E_FOLLOWING_INPUT", "invalid Following opening, arguments or protocol envelope. Use the generated useFollowing binding; guide feeds."),
     ("E_FOLLOWING_DECLARATION", "this query has no admitted Following history projection. Use a descending Following page with bounded ordinary card point reads; guide feeds."),
