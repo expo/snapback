@@ -203,7 +203,8 @@ fn offline_doctor_reports_its_inherited_limit_without_raising_it() {
         assert!(text.contains("inherited by doctor") && text.contains("soft=1024"), "{text}");
         assert!(text.contains("server raises its soft limit at startup"), "{text}");
         assert_eq!(text.contains("E_HTTP_LIMIT"), hard_low, "{text}");
-        assert_eq!(text.contains("restart"), hard_low, "{text}");
+        let host = text.lines().find(|line| line.contains("inherited by doctor")).unwrap();
+        assert_eq!(host.contains("restart"), hard_low, "{text}");
         assert!(!text.contains("startup soft="), "{text}");
     }
 }
