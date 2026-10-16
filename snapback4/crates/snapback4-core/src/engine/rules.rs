@@ -1377,9 +1377,9 @@ mod lifetime_tests {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "sqlite"))]
 #[path = "rules_reference.rs"]
 mod reference;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "sqlite"))]
 pub(super) use reference::evaluate as evaluate_reference;
