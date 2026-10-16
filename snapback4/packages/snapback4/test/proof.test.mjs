@@ -39,6 +39,7 @@ test("native and static bind beyond an occupied port; identity and independent l
 test("exhausted range and missing export fail with bounded cleanup", async t => {
   const cwd = fixture(t), held = createServer(), port = await bind(held); t.after(() => held.close());
   await assert.rejects(startDev({ cwd, env: { PORT_LO: String(port), PORT_HI: String(port) }, timeoutMs: 5000 }), /before ready/);
+  await assert.rejects(startStatic("dist", { cwd, timeoutMs: 5000 }), /startStatic: .*dist does not exist; frontend proofs build their own dist \(await command\("npm", \["run", "build"\]\)\)/);
   for (let attempt = 0; attempt < 3; attempt++) await assert.rejects(startStatic("snapback", { cwd, timeoutMs: 5000 }), /index.html/);
 });
 test("static host serves wasm correctly and refuses escaped symlink assets", async t => {

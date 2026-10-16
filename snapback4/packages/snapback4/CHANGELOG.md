@@ -2,6 +2,8 @@
 
 ## 0.4.31
 
+- `startStatic` names a missing export directory and gives the awaited frontend build step before starting a proof host.
+
 - Proof fixture loading works without credentials on persona-only dev apps. `loadFixtures` also accepts `persona` or `headers` on both reads and preserves E_AUTH; `startDev` returns `personas`. The field-type catalog is dev-only; serve refuses it.
 
 ## 0.4.30
