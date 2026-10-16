@@ -82,7 +82,9 @@ pub fn test(options: &Options) -> i32 {
         let verbose = options.flags.contains_key("verbose");
         if let Err(error) = residency::measure(&mut engine, &bound, &personas, verbose) { eprintln!("residency measurement failed: {error}"); return 1; }
         if !verbose {
-            println!("{CASE_SUMMARY} {{\"run\":0,\"skipped\":{skipped_business_cases}}}");
+            if options.flags.contains_key("source") {
+                println!("{CASE_SUMMARY} {{\"run\":0,\"skipped\":{skipped_business_cases}}}");
+            }
             return 0;
         }
     }
