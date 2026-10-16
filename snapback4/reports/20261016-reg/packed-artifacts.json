@@ -1,0 +1,10 @@
+{
+  "snapback4/target/reg-packed-router/snapback4-0.4.30.tgz": {
+    "sha512": "557b17c8e928319c42d1f701572d926c4f1b89f0b90ec871c530c400f930fe245dc8e8fcbdd4124cc692fc9b5401c306f25f5220513dd954f382361d7e6b7f2f",
+    "bytes": 1277264
+  },
+  "snapback4/target/reg-packed-router/snapback4-expo-0.4.30.tgz": {
+    "sha512": "a36b1b97eff6aee3460c1f275887626a1cb9968bd64bf5f9755e9a8120058d99b31acbf109065cd53d9b44a241a2c883c5eb8e7b5c11fa3a370b9fb0f5112bb6",
+    "bytes": 6357645
+  }
+}

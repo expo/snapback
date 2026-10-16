@@ -16,7 +16,7 @@ const fetchIdentity = async (url: string, timeoutMs: number) => {
   const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
   return { response, body: await response.json() as Record<string, unknown> };
 };
-async function nativeHost(verb: "dev" | "serve", prefix: string[], options: ProofOptions): Promise<ProofHost> {
+async function nativeHost(verb: "dev" | "serve", prefix: string[], options: ProofOptions): Promise<ProofHost & { personas?: string[] }> {
   const env = { ...process.env, ...options.env }, id = randomUUID();
   const ports = portRange(env), timeout = deadline(options.timeoutMs, 30_000);
   const args = [...(options.args ?? [])];
@@ -31,21 +31,24 @@ async function nativeHost(verb: "dev" | "serve", prefix: string[], options: Proo
     }, timeout);
     const { response, body } = await fetchIdentity(`${url}/auth/config`, timeout);
     if (!response.ok || body.proof_id !== id) throw Error("proof served identity mismatch");
+    let personas: string[] = [];
     if (verb === "dev") {
       const status = await fetchIdentity(`${url}/dev/status`, timeout);
       if (status.body.pid !== run.child.pid) throw Error("proof dev PID mismatch");
+      if (!Array.isArray(status.body.personas) || !status.body.personas.every(name => typeof name === "string")) throw Error("proof dev personas missing");
+      personas = status.body.personas;
     }
-    return { url, pid: run.child.pid!, logs: run.logs, stop: () => stopChild(run.child, deadline(options.stopTimeoutMs, 5000)) };
+    return { url, ...(verb === "dev" ? { personas } : {}), pid: run.child.pid!, logs: run.logs, stop: () => stopChild(run.child, deadline(options.stopTimeoutMs, 5000)) };
   } catch (error) { await stopChild(run.child, deadline(options.stopTimeoutMs, 5000)); throw error; }
 }
 /** The array form preserves the former startDev(args) recipe. */
-export function startDev(options: ProofOptions | readonly string[] = {}): Promise<ProofHost> {
+export function startDev(options: ProofOptions | readonly string[] = {}): Promise<ProofHost & { personas: string[] }> {
   const opts: ProofOptions = Array.isArray(options) ? { args: options } : options as ProofOptions;
   const args = [...(opts.args ?? [])];
   const persistent = args.some(arg => arg === "--store" || arg.startsWith("--store=") || arg === "--no-memory");
   if (persistent && args.includes("--memory")) throw new TypeError("proof startDev: --memory conflicts with --store/--no-memory");
   // --no-memory is a proof option; native dev already persists by default.
-  return nativeHost("dev", [], { ...opts, args: [...args.filter(arg => arg !== "--no-memory"), ...(persistent || args.includes("--memory") ? [] : ["--memory"])] });
+  return nativeHost("dev", [], { ...opts, args: [...args.filter(arg => arg !== "--no-memory"), ...(persistent || args.includes("--memory") ? [] : ["--memory"])] }) as Promise<ProofHost & { personas: string[] }>;
 }
 export function startServe(deployDir: string, options: ProofOptions | readonly string[] = {}): Promise<ProofHost> {
   if (typeof deployDir !== "string" || !deployDir.trim()) throw Object.assign(new TypeError("E_PROOF_USAGE: startServe(deployDir, options) requires a deployment directory as its first argument"), { code: "E_PROOF_USAGE" });

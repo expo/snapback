@@ -1,5 +1,13 @@
 # Snapback 4 behavior changes
 
+## 0.4.31
+
+- Expo upgrades align `expo` and installed Expo packages from Expo's alignment manifest and the adapter's required floors (core 57.0.23 takes precedence over older Expo recommendations), preserving exact pins and dependency sections. Router apps also pin the SDK-supported Reanimated/Worklets pair, including fresh social starters, so optional peers cannot drift to an incompatible Worklets. Use `npx snapback4@latest upgrade` to run the new helper even from an older installation. The direct install line is `npm install --save-exact snapback4@0.4.31 snapback4-expo@0.4.31`. Expo >=57.0.22 <58 plus expo-modules-core >=57.0.23 <58 is supported; RN 0.86.3 and its React peer floor make adapter-first installs resolve; init plus npm install pins React/React DOM 19.2.3 for the starter. Regenerate iOS and rebuild after changing native dependencies.
+
+- `startStatic` names a missing export directory and gives the awaited frontend build step before starting a proof host.
+
+- Proof fixture loading works without credentials on persona-only dev apps. `loadFixtures` also accepts `persona` or `headers` on both reads and preserves E_AUTH; `startDev` returns `personas`. The field-type catalog is dev-only; serve refuses it.
+
 ## 0.4.30
 
 - Saved releases: `deploy --schema` resolves compatibility baselines from the original project, preserves module names and deduplicates enum/value unions. Prefer `versions/v1/schema.q`, original-name modules and `versions/v1/fixtures/`; directory and complete-file inputs remain supported. Saved tests prefer contemporary fixtures, name fallback skips and keep explicit fixture selection strict. Deploy/rollback previews group actual guard dependencies and lead with query/count population losses, dependent dormancy and safety effects; literal backfills include exact active-row counts. A bridge-release recipe preserves safety logic as well as data.

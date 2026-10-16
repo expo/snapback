@@ -120,7 +120,10 @@ await fetch(`${dev.url}/dev/reset`, {
 
 The helper resolves typed relative times against one dev clock from bounded
 catalog/status requests (timeoutMs defaults to 10 seconds). Options `now` and
-`cwd` override clock/project. Reload after schema edits. Reset validates rows;
+`cwd` override clock/project. Without credentials it reads the dev-only catalog;
+`serve` refuses this door. `startDev` also returns `personas`. To authenticate both
+reads, pass `{ url: dev.url, persona: dev.personas[0] }`, or `headers` with your
+Authorization header. Reload after schema edits. Reset validates rows;
 inspect its reply for `denied`. `/seed` and `/dev/reset` accept relative times
 directly; `"clock":"reset"` uses the prospective wall clock atomically.
 

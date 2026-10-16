@@ -1,0 +1,26 @@
+{
+  "/home/ccheever/sb4-loop/dist/0.4.29/snapback4-linux-x64-0.4.29.tgz": {
+    "sha512": "82a427fbc8d2dd9722fff04012ae6409d14a9f8d67f24b896c41b0aadfd2a63170ea4565be725ab6ed11c39b1ff620d18db08807095000b2c7a348554bf3cb90",
+    "bytes": 12226765
+  },
+  "/home/ccheever/sb4-loop/dist/0.4.29/snapback4-0.4.29.tgz": {
+    "sha512": "69afb11f03f32c0cb20bd05c335f1ea1544a522fc68924ddae28605e34a247c1cbc9d90d8f1ba0532ec1a60d5bb8f21765066390ea098014916894b6ce169f79",
+    "bytes": 1258560
+  },
+  "/home/ccheever/sb4-loop/dist/0.4.29/snapback4-expo-0.4.29.tgz": {
+    "sha512": "c32f6e6ff65993bd946324fedfadd80eb531ddd4fd4c6e7aa214ecb57aad03b1b518eefcf41565caa704c2e48e53f11198fa4b46c1f2bd6cd578ee25235498ee",
+    "bytes": 5787430
+  },
+  "/home/ccheever/sb4-loop/dist/0.4.30/snapback4-expo-0.4.30.tgz": {
+    "sha512": "ef7c8d02b6888fb7207eae9bb723c5d14967bd4a59dc45cd70a39c4c6582b6c5464fdecb487b66c9d909e194617e3f95515e96fa361b7bd86cd1f80239c08fcd",
+    "bytes": 5788226
+  },
+  "/home/ccheever/sb4-loop/dist/0.4.30/snapback4-0.4.30.tgz": {
+    "sha512": "5c6ed6bd0b26484bcebd6a164bda865fcc0749462c60f9e26598a344f35a887e600b477bbde08a24e0025f7553491847ba10990a965a9b1ce42f07885933830a",
+    "bytes": 1275103
+  },
+  "/home/ccheever/sb4-loop/dist/0.4.30/snapback4-linux-x64-0.4.30.tgz": {
+    "sha512": "aa41d72b58a768fd02ad0c4f3692fc598af5a1a9cd2654f643a09909acd26f8b39f1c8a31d6e59cee273a14e1648553591c9708a3ebba7db6726917607a13fae",
+    "bytes": 12467790
+  }
+}

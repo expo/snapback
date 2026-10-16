@@ -9,7 +9,7 @@ pub(super) fn files() -> Vec<(&'static str, String)> {
     let mut value: Value = serde_json::from_str(&package.1).unwrap();
     value["name"] = json!("snapback4-social-starter");
     value["main"] = json!("expo-router/entry");
-    for (name, version) in [("expo-router", "57.0.23"), ("expo-image-picker", "~57.0.17"), ("expo-linking", "~57.0.10"), ("react-native-screens", "~4.26.0"), ("react-native-safe-area-context", "~5.7.0")] {
+    for (name, version) in [("expo-router", "57.0.23"), ("react-native-reanimated", "4.5.1"), ("react-native-worklets", "0.10.1"), ("expo-image-picker", "~57.0.17"), ("expo-linking", "~57.0.10"), ("react-native-screens", "~4.26.0"), ("react-native-safe-area-context", "~5.7.0")] {
         value["dependencies"][name] = json!(version);
     }
     value["scripts"]["web"] = json!("expo start --web");

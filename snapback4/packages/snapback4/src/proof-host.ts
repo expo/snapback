@@ -11,6 +11,7 @@ if (!directory || !ports || !["static", "vite"].includes(kind!)) throw Error("in
 // @ref LLP 3000.011.003.000.000#8 — missing-export errors flush before keeper cleanup.
 // Validate the static export before creating a keeper: an error must flush
 // before group cleanup can terminate this host.
+if (kind === "static" && !existsSync(directory)) throw Error(`startStatic: ${directory} does not exist; frontend proofs build their own dist (await command("npm", ["run", "build"]))`);
 const root = realpathSync(directory);
 if (kind === "static" && !existsSync(join(root, "index.html"))) throw Error(`static proof needs ${join(root, "index.html")}; build the app first`);
 // The driver owns this pipe: kernel EOF survives a SIGKILLed driver. Closing

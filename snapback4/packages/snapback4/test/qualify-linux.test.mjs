@@ -17,6 +17,7 @@ function qualify(t, scenario = {}) {
   for (const file of ["check-verb-help.mjs", "qualify-linux.mjs", "qualify-linux-proot.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-artifacts.mjs", "publication-roundtrip.mjs", "publication-starters.mjs", "publication-frontend-proofs.mjs", "proof-listener-audit.mjs", "test-command-owner.mjs", "test-owned-command.mjs", "test-command-group.mjs", "build-linux-musl.sh"]) copyFileSync(new URL(`../../../scripts/${file}`, import.meta.url), join(root, "scripts", file));
   copyFileSync(new URL("../CHANGELOG.md", import.meta.url), join(root, "packages/snapback4/CHANGELOG.md"));
   writeFileSync(join(root, "scripts/proof-listener-audit.mjs"), `export function requireListenerTracer(){ ${scenario.tracerFail ? "throw Error('E_PROOF_LISTENER: strace 6.8 required')" : "return 'strace -- version 6.16'"} }`);
+  writeFileSync(join(root, "scripts/publication-regressions.mjs"), `export async function proveExpoUpgrades(){return [{mode:'literal-install',status:'passed'},{mode:'upgrade',status:'passed'}];}`);
   writeFileSync(join(root, "scripts/publication-day2.mjs"), `export async function proveDay2() {
     return { status: "passed", savedSourceCompatibility: "passed", expoPrintedWrittenPorts: "passed", previewNoise: "passed", helperContracts: "passed", fixtureAgreement: "passed" };
   }`);
