@@ -1,5 +1,18 @@
 # Release inspection JSON
 
+A release inspector describes the active deployment and its retained source. Read this record before choosing a release or continuing an inspection page.
+
+```js
+import { cli, startServe, cleanup } from "snapback4/proof";
+await cli(["deploy", "deployment"]);
+const host = await startServe("deployment", { timeoutMs: 30000 });
+try {
+  console.log((await cli(["releases", "deployment", "latest", "--json"])).stdout);
+} finally { await cleanup(() => host.stop()); }
+```
+
+## Fields
+
 `releases <dir> --json` prints the same JSON object as plain `releases`.
 These names use underscores; the active identity is `release`, not `current`.
 
