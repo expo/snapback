@@ -129,6 +129,7 @@ process.once("SIGINT", () => stop.abort());
 `;
 const imports = `import { server } from "./generated/server.ts"; import { startServer } from "snapback4/server";
 import { ParkStep } from "snapback4/server";
+import { Retry } from "snapback4/worker";
 import { api } from "./generated/api.ts";
 import { appendFileSync, writeFileSync } from "node:fs";
 import { setTimeout as delay } from "node:timers/promises";
@@ -327,13 +328,15 @@ await worker.done;
 test("scheduled generated action runs under its declared service seat", { timeout: hangBudget(3) }, async t => {
   const p = project(t, `${notes}
 use server
-action tick(periodStart: time, periodEnd: time) returns {} <- viewer = 'service:clock'
+action tick(periodStart: time, periodEnd: time) returns {} retry 3 backoff 1s <- viewer = 'service:clock'
 schedule pulse every 1m as service:clock: tick
 `, `${imports}
 const worker = server(startServer, {actions:{async tick(args, ctx) {
-  const written = await ctx.mutate(api.save, {body:"scheduled"}, {id:ctx.writeIdFor("scheduled")});
+  const writeId = ctx.writeIdFor("scheduled");
+  const written = await ctx.mutate(api.save, {body:"scheduled"}, {id:writeId});
+  if (written.state === "pending") throw new Retry("reconcile the same scheduled write id");
   const read = await ctx.query(api.mine, {});
-  appendFileSync(process.cwd() + "/scheduled.jsonl", JSON.stringify({principal:ctx.principal, args, written, read}) + "\\n", {flush:true});
+  appendFileSync(process.cwd() + "/scheduled.jsonl", JSON.stringify({principal:ctx.principal, args, writeId, written, read}) + "\\n", {flush:true});
   return {};
 }}}, ${options});
 export default worker; await worker.done;
@@ -343,8 +346,13 @@ export default worker; await worker.done;
   const records = await until(() => lines(join(p.directory, "scheduled.jsonl")).length ? lines(join(p.directory, "scheduled.jsonl")) : undefined, "scheduled action executes");
   assert.equal(records[0].principal, "service:clock");
   assert.equal(records[0].args.periodEnd - records[0].args.periodStart, 60_000);
-  assert.equal(records[0].written.state, "sent"); assert.equal(records[0].written.result.owner, "service:clock");
+  assert.equal(records[0].written.state, "sent");
+  assert.equal(records[0].written.id, records[0].writeId);
+  // A reconciled write may be a replay without historical result fields.
+  // Current server truth must still prove the single service-owned row.
+  if (!records[0].written.replayed) assert.equal(records[0].written.result.owner, "service:clock");
   assert.equal(records[0].read.data.length, 1); assert.equal(records[0].read.data[0].body, "scheduled");
+  assert.equal(records[0].read.data[0].owner, "service:clock");
 });
 
 test("raw HTTP settlement validates declared results terminally and never reclaims them", { timeout: hangBudget(10) }, async t => {
