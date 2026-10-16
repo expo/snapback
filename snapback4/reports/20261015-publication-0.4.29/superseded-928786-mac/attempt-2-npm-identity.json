@@ -1,0 +1,12 @@
+{
+  "step": "npm-identity",
+  "command": [
+    "npm",
+    "whoami"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0428/snapback4",
+  "start": 1792120423.87068,
+  "end": 1792120424.642439,
+  "seconds": 0.772,
+  "exit": 0
+}

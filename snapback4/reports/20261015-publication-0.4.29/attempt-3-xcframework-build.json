@@ -1,0 +1,14 @@
+{
+  "step": "xcframework-build",
+  "command": [
+    "env",
+    "CARGO_INCREMENTAL=0",
+    "bash",
+    "scripts/build-xcframework.sh"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0428/snapback4",
+  "start": 1792135133.2958841,
+  "end": 1792135141.140503,
+  "seconds": 7.845,
+  "exit": 0
+}

@@ -1,0 +1,12 @@
+{
+  "step": "expo-registry-wait",
+  "command": [
+    "node",
+    "/Users/ccheever/sb4-pub-0429/helpers-0.4.29/expo-registry-wait.mjs"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0428/snapback4",
+  "start": 1792162038.187829,
+  "end": 1792162537.088794,
+  "seconds": 498.901,
+  "exit": 0
+}

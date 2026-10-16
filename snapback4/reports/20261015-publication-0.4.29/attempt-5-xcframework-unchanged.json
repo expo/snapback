@@ -1,0 +1,13 @@
+{
+  "step": "xcframework-unchanged",
+  "command": [
+    "python3",
+    "-c",
+    "import json,hashlib,pathlib;q=json.load(open(\"reports/20261015-expo-0.4.29/qualified.json\"));p=pathlib.Path(\"packages/snapback4-expo\");bad=[k for k,v in q[\"xcframework\"].items() if hashlib.sha256((p/k).read_bytes()).hexdigest()!=v];print(\"xcframework unchanged since attempt 4 (Xcode 27.1):\",not bad,bad);exit(1 if bad else 0)"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0428/snapback4",
+  "start": 1792161363.341551,
+  "end": 1792161363.39761,
+  "seconds": 0.056,
+  "exit": 0
+}

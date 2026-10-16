@@ -1,0 +1,87 @@
+- Creating native directory (./ios)
+✔ Created native directory
+- Updating package.json
+✔ Updated package.json | no changes
+- Running prebuild
+✔ Finished prebuild
+- Installing CocoaPods...
+✔ Installed CocoaPods
+Expo Autolinking module resolution enabled
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+iOS Bundled 3190ms apps/chat-expo/index.js (731 modules)
+Writing bundle output to: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/ebvlrachfa7/main.jsbundle
+Done writing bundle output
+› Planning build
+› Preparing Pods/React-timing-React-timing_privacy » ResourceBundle-React-timing_privacy-React-timing-Info.plist
+› Preparing Pods/React-cxxreact-React-cxxreact_privacy » ResourceBundle-React-cxxreact_privacy-React-cxxreact-Info.plist
+› Preparing Pods/React-Core-React-Core_privacy » ResourceBundle-React-Core_privacy-React-Core-Info.plist
+› Preparing Pods/EXConstants-ExpoConstants_privacy » ResourceBundle-ExpoConstants_privacy-EXConstants-Info.plist
+› Executing react-native Pods/hermes-engine » [CP-User] [Hermes] Replace Hermes for the right configuration, if needed
+› Executing react-native Pods/ReactNativeDependencies » [CP-User] [RNDeps] Replace React Native Dependencies for the right configuration, if needed
+› Preparing expo-constants Pods/EXConstants-EXConstants » ResourceBundle-EXConstants-EXConstants-Info.plist
+› Preparing Pods/ExpoFileSystem-ExpoFileSystem_privacy » ResourceBundle-ExpoFileSystem_privacy-ExpoFileSystem-Info.plist
+› Copying   ExpoFileSystem/ExpoFileSystem_privacy.bundle/PrivacyInfo.xcprivacy ➜ ../../node_modules/expo-file-system/ios/PrivacyInfo.xcprivacy
+› Preparing Pods/expo-dev-menu-EXDevMenu » ResourceBundle-EXDevMenu-expo-dev-menu-Info.plist
+› Preparing Pods/expo-dev-launcher-EXDevLauncher » ResourceBundle-EXDevLauncher-expo-dev-launcher-Info.plist
+› Executing react-native Pods/hermes-engine » [CP] Copy XCFrameworks
+› Executing react-native Pods/ReactNativeDependencies » [CP] Copy XCFrameworks
+› Compiling expo-json-utils Pods/EXJSONUtils » EXJSONUtils-dummy.m
+› Compiling expo-json-utils Pods/EXJSONUtils » NSDictionary+EXJSONUtils.m
+› Compiling expo-dev-menu-interface Pods/expo-dev-menu-interface » expo-dev-menu-interface-dummy.m
+› Compiling expo-dev-menu-interface Pods/expo-dev-menu-interface » expo-dev-menu-interface-dummy.m
+› Executing react-native Pods/React-Core-prebuilt » [CP-User] [RNCore] Replace React Native Core for the right configuration, if needed
+› Packaging expo-json-utils Pods/EXJSONUtils » libEXJSONUtils.a
+› Packaging expo-dev-menu-interface Pods/expo-dev-menu-interface » libexpo-dev-menu-interface.a
+› Packaging expo-dev-menu-interface Pods/expo-dev-menu-interface » libexpo-dev-menu-interface.a
+› Executing expo-dev-menu-interface Pods/expo-dev-menu-interface » Copy generated compatibility header
+› Compiling expo-json-utils Pods/EXJSONUtils » NSDictionary+EXJSONUtils.m
+› Compiling expo-json-utils Pods/EXJSONUtils » EXJSONUtils-dummy.m
+› Packaging expo-json-utils Pods/EXJSONUtils » libEXJSONUtils.a
+› Executing react-native Pods/React-Core-prebuilt » [CP] Copy XCFrameworks
+› Executing react-native Pods/React-RCTFBReactNativeSpec » [CP-User] [RN]Check FBReactNativeSpec
+› Executing expo-modules-jsi Pods/ExpoModulesJSI » [CP-User] Build ExpoModulesJSI xcframework
+› Executing @snapback4/chat-expo Pods/ReactCodegen » [CP-User] Generate Specs
+› Compiling @expo/log-box Pods/ExpoLogBox » ExpoRedBoxSwap.mm
+› Compiling @expo/log-box Pods/ExpoLogBox » ExpoRedBoxSwap.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTUnstableModulesRequiringMainQueueSetupProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTModulesConformingToProtocolsProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTThirdPartyComponentsProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTModuleProviders.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTUnstableModulesRequiringMainQueueSetupProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTModuleProviders.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTModulesConformingToProtocolsProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » RCTThirdPartyComponentsProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactAppDependencyProvider » RCTAppDependencyProvider.mm
+› Compiling @expo/log-box Pods/ExpoLogBox » ExpoLogBox-dummy.m
+› Compiling @expo/log-box Pods/ExpoLogBox » ExpoLogBox-dummy.m
+› Packaging @expo/log-box Pods/ExpoLogBox » libExpoLogBox.a
+› Packaging @expo/log-box Pods/ExpoLogBox » libExpoLogBox.a
+› Executing @expo/log-box Pods/ExpoLogBox » Copy generated compatibility header
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » ReactCodegen-dummy.m
+› Compiling @snapback4/chat-expo Pods/ReactCodegen » ReactCodegen-dummy.m
+› Executing expo-modules-jsi Pods/ExpoModulesJSI » [CP] Copy XCFrameworks
+❌  cannot find type '__ObjC::expo' in scope
+   └─[app]/XCFrameworkIntermediates/ExpoModulesJSI/ExpoModulesJSI.framework/Modules/ExpoModulesJSI.swiftmodule/x86_64-apple-ios-simulator.swiftinterface:733:19
+❌  failed to build module 'ExpoModulesJSI' for importation due to the errors above; the textual interface may be broken by project issues or a compiler bug
+   └─/Users/ccheever/projects/snapback-pub-0428/snapback4/node_modules/expo-modules-core/ios/Core/Arguments/AnyArgument.swift:3:8
+❌  cannot find type '__ObjC::expo' in scope
+   └─[app]/XCFrameworkIntermediates/ExpoModulesJSI/ExpoModulesJSI.framework/Modules/ExpoModulesJSI.swiftmodule/arm64-apple-ios-simulator.swiftinterface:733:19
+› Compiling @snapback4/chat-expo Pods/ReactAppDependencyProvider » ReactAppDependencyProvider-dummy.m
+› Packaging @snapback4/chat-expo Pods/ReactCodegen » libReactCodegen.a
+› Packaging @snapback4/chat-expo Pods/ReactCodegen » libReactCodegen.a
+› Packaging @snapback4/chat-expo Pods/ReactAppDependencyProvider » libReactAppDependencyProvider.a
+› Compiling @snapback4/chat-expo Pods/ReactAppDependencyProvider » RCTAppDependencyProvider.mm
+› Compiling @snapback4/chat-expo Pods/ReactAppDependencyProvider » ReactAppDependencyProvider-dummy.m
+› Packaging @snapback4/chat-expo Pods/ReactAppDependencyProvider » libReactAppDependencyProvider.a
+⚠️  Script has ambiguous dependencies causing it to run on every build.
+   To fix, go to: Xcode » Snapback4chat/Snapback4chat » Build Phases » '[Expo Dev Launcher] Strip Local Network Keys for Release'
+   Either: Uncheck "Based on dependency analysis", or select output files to trigger the script
+
+❌  failed to build module 'ExpoModulesJSI' for importation due to the errors above; the textual interface may be broken by project issues or a compiler bug
+   └─/Users/ccheever/projects/snapback-pub-0428/snapback4/node_modules/expo-modules-core/ios/Core/Arguments/AnyArgument.swift:3:8
+
+› 4 error(s), and 1 warning(s)
+
+CommandError: Failed to build iOS project. "xcodebuild" exited with error code 65.
