@@ -674,7 +674,8 @@ fn check_references(tx: &Tx<'_>, next: &Schema) -> Result<(), RuntimeError> {
                         if let Some(parent) = tx.get(&through.parent, parent_id)? {
                             let parent =
                                 crate::schema::row_image(&parent, &next.tables[&through.parent]);
-                            if through.fields.iter().any(|(capture, field)| {
+                            // @ref LLP 3000.014.000#71-dormant-restoration-identities-are-a-relation — live policy restamps current inputs after preserving parent lifetime.
+                            if through.live.is_none() && through.fields.iter().any(|(capture, field)| {
                                 row.field(capture)
                                     .ok()
                                     .is_some_and(|value| Some(value) != parent.field(field).ok())

@@ -71,7 +71,7 @@ Upserts and `insert … if absent` need complete child-group coverage to prove a
 
 Use ordinary nonexpiring endpoints/probes and bounded plain indexes. Chains, derived/private/receipt endpoints and writing reference actions refuse. Sync requires one exact all-current/until-revoked audience; other whole rules work online.
 
-`N_LIVE_PARENT_COST` means fixed fanout exceeds ordinary ceilings. Reduce caps or row/index bounds, or maintain manually.
+`N_LIVE_PARENT_COST` means fixed fanout exceeds ordinary ceilings. Reduce caps or row/index bounds, or maintain manually. Parent writes queue on devices.
 
 Parent/roster changes invalidate; matching copies and child coverage prove authority. Adoption validates copies; restoration uses current parents. Rebuild for `live-parent-copy-v1`. Bulk calls share one job account. See `guide rule-recipes current-roster`.
 
