@@ -95783,3 +95783,24 @@ regressions. The copied prewave13 Exact device and online apps each passed both
 web tests with types emitted by this branch. Version remains 0.4.29; no device
 code changed. Reviews and final verification are in WORKSTREAM-REPORT.md; no
 push or publication is authorized or performed.
+
+### 2026-10-16 — SURF3: monotonic mint contexts
+
+LLP 3000.000.001 records the per-live-context mint order, clock-rollback
+high-water mark and overflow refusal. Separate engine/device/JS-module
+instances and restarts have no shared allocation order. The frozen-clock
+server/device regression passes on both memory and SQLite, through direct
+prediction and durable admission. Lean's supplemental mint model proves
+same/regressed-clock and advancing-clock order; `lean/check.sh` passes its
+75 theorem audits, 115 row examples and seven oracle fixtures.
+
+Final locked WASM measurement: 2,354,746 B raw / 717,156 B gzip /
+541,686 B Brotli, +442 B gzip from the 716,714 B 0.4.29 baseline. The
+717,214 B budget stays unchanged, with 58 B remaining. Strict serde-family
+and server/Unicode-table absence audits pass. The metric truthfully records
+`dirty=true` because concurrent CLI review edits were present; the measured
+core/device source was frozen. Brotli used Node 24.13.1's zlib quality 11
+through a temporary CLI wrapper because the host has no `brotli` executable.
+An optional lazy-context allocation experiment exceeded the budget by 41 B
+and was reverted; the final artifact retains the original shared-context
+implementation and its measured bytes.
