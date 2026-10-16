@@ -27,6 +27,7 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, 
         own.files.iter().filter_map(|name| std::fs::read_to_string(dir.join("snapback").join(name)).ok().map(|text| (name.clone(), text))).collect::<Vec<_>>()
     } else { files.iter().find(|(name, _)| *name == "snapback/schema.q").map(|(_, text)| vec![("schema.q".to_owned(), text.clone())]).unwrap_or_default() };
     for version in ["v1", "v2"] {
+        if dir.join("versions").join(version).exists() { continue; }
         // Init is a one-shot CLI operation. Destinations live for this invocation's
         // plan, whose existing interface uses static generated names.
         for (name, text) in &sources {

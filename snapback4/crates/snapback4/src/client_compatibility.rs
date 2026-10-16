@@ -19,13 +19,15 @@ pub(crate) fn typescript(project: &Project, bound: &Bound) -> io::Result<String>
     let config: Configuration = serde_json::from_str(&text).map_err(|e| bad(e.to_string()))?;
     if config.since_release == 0 { return Err(bad("since_release must be a positive release label".into())); }
     let path = project.root.join(&config.baseline);
+    let absolute = std::path::absolute(&path)?;
+    let origin = format!("resolved from {} at project root {}", project.root.join("snapback/client-compatibility.json").display(), project.root.display());
+    let baseline_error = |message| bad(format!("baseline {}: {message} ({origin})", absolute.display()));
     if !path.exists() {
-        let absolute = std::path::absolute(&path)?;
-        return Err(bad(format!("baseline {} does not exist (resolved from {} at project root {})", absolute.display(), project.root.join("snapback/client-compatibility.json").display(), project.root.display())));
+        return Err(bad(format!("baseline {} does not exist ({origin})", absolute.display())));
     }
-    let sources = sources(&path).map_err(|e| bad(e.to_string()))?;
+    let sources = sources(&path).map_err(|e| baseline_error(e.to_string()))?;
     let baseline = snapback4_lang::compile(&sources);
-    if !baseline.diagnostics.is_empty() { return Err(bad(format!("saved baseline does not compile: {:?}", baseline.diagnostics))); }
+    if !baseline.diagnostics.is_empty() { return Err(baseline_error(format!("saved baseline does not compile: {:?}", baseline.diagnostics))); }
     Ok(snapback4_lang::emit::typescript_spanning(bound, &baseline, config.since_release))
 }
 

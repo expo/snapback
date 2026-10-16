@@ -136,3 +136,36 @@ fn doctor_reports_and_repairs_missing_expiry_parent_using_stored_schema() {
     assert!(engine.store().rows("children").unwrap().is_empty());
     assert_eq!(app.text("snapback/schema.q"), "invalid working source");
 }
+#[test]
+fn adapting_never_extends_historical_versions_with_current_modules_or_fixtures() {
+    let app = App::new(); ok(app.run(&["init", "--web"]));
+    fn tree(path: &std::path::Path) -> Vec<(PathBuf, Vec<u8>)> {
+        let mut found = Vec::new();
+        for entry in fs::read_dir(path).unwrap() {
+            let entry = entry.unwrap();
+            if entry.path().is_dir() { found.extend(tree(&entry.path())); }
+            else { found.push((entry.path(), fs::read(entry.path()).unwrap())); }
+        }
+        found.sort(); found
+    }
+    let before = tree(&app.0.join("versions"));
+    app.write("snapback/newer.q", "query added():\n  return true\n");
+    app.write("fixtures/newer.jsonl", "{\"id\":\"later fixture\"}\n");
+    ok(app.run(&["init", "--adapt", "--apply"]));
+    assert_eq!(tree(&app.0.join("versions")), before);
+    ok(app.run(&["init", "--web", "--skip-existing"]));
+    assert_eq!(tree(&app.0.join("versions")), before);
+}
+#[test]
+fn every_baseline_failure_reports_absolute_location_and_original_root() {
+    let app = App::new(); app.write("snapback/schema.q", V1);
+    app.write("snapback/client-compatibility.json", "{\"baseline\":\"versions/v1\",\"since_release\":2}");
+    fs::create_dir_all(app.0.join("versions/v1")).unwrap();
+    for invalid_source in [None, Some("invalid saved source")] {
+        if let Some(source) = invalid_source { app.write("versions/v1/schema.q", source); }
+        let result = app.run(&["check"]);
+        assert!(!result.status.success());
+        let text = String::from_utf8_lossy(&result.stderr);
+        assert!(text.contains(app.0.join("versions/v1").to_str().unwrap()) && text.contains("resolved from") && text.contains("snapback/client-compatibility.json") && text.contains("project root"), "{result:?}");
+    }
+}
