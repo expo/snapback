@@ -2,7 +2,7 @@ import { useNativeSmokeGuest } from "../src/native-smoke";
 import { useState } from "react";
 import { Button, Text, TextInput, View } from "react-native";
 import { Stack } from "expo-router";
-import { AppProvider, useAuth } from "snapback4/react";
+import { AppProvider, useAppReady, useAuth } from "snapback4/react";
 import { app, tier } from "../src/client";
 
 export default function RootLayout() {
@@ -11,6 +11,7 @@ export default function RootLayout() {
 function Account() {
   useNativeSmokeGuest();
   const auth = useAuth();
+  const ready = useAppReady();
   const [email, setEmail] = useState(""), [password, setPassword] = useState("");
   const [problem, setProblem] = useState(""), [busy, setBusy] = useState(false);
   async function signIn(kind: "guest" | "login" | "signup") {
@@ -21,6 +22,7 @@ function Account() {
   }
   if (auth.state === "restoring") return <Text>Restoring account…</Text>;
   // The signed-in route follows identity, never a profile/inbox query.
+  if (auth.state === "signed-in" && !ready) return <Text>{auth.why?.message ?? "Opening your account…"}</Text>;
   if (auth.state === "signed-in") return <Stack>
     <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
     <Stack.Screen name="conversation/[id]" options={{ title: "Conversation" }} />

@@ -2,7 +2,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-const ownership = /\b(?:DX\d*|HAND\d*|NARR\d*|PROOF\d*|QDIAG\d*|PAGE\d*|EX\d+)\s+owns\b|\bin (?:its|the) workstream\b/gi;
+const ownership = /\b(?:RULES\d+|KIT\d+|SURF\d+|LANG\d+|DAY\d+)\b|\bREG\s+owns\b|\bwave[- ]\d+\s+lanes\b|\b(?:DX\d*|HAND\d*|NARR\d*|PROOF\d*|QDIAG\d*|PAGE\d*|EX\d+)\s+owns\b|\bin (?:its|the) workstream\b/g;
 export function docLeaks(text) {
   return Array.from(text.matchAll(ownership), match => ({
     line: text.slice(0, match.index).split('\n').length, text: match[0],

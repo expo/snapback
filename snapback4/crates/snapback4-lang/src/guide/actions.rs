@@ -155,9 +155,9 @@ its value out of Quarry, generated files and logs.
 with the same restart backoff and shutdown. Its environment contains only
 `PATH`, `HOME`, `TMPDIR`, `LANG`, `LC_ALL`, `TZ`, the supplied
 `SNAPBACK_URL`, `SNAPBACK_SERVICE_TOKEN` and `SNAPBACK_WORKER_LEDGER`, declared
-secrets and an internal supervision marker. Parent `NODE_OPTIONS` is not copied. The path may
-name the application's `server.ts`; deployment does not automatically package
-its TypeScript import graph. The service:worker token is minted
+secrets and an internal supervision marker. Parent `NODE_OPTIONS` is not copied. Without --worker, serve starts the captured conventional server/worker entry.
+Deployment captures its checked project import graph and generated registry; installed
+Node packages remain host dependencies. --worker explicitly overrides that entry. The service:worker token is minted
 for each child and never printed by serve. Each child session lasts at most
 one day; the supervisor replaces the child within that window. Clean exits
 revoke its family. Startup revokes the previous supervised child's family,

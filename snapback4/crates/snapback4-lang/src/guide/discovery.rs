@@ -197,7 +197,7 @@ fn index_lines(card: &str, found: &[(usize, String, usize, usize)]) -> String {
 /// section index (and the ways to read more again). `None` when the card
 /// prints whole.
 // @ref LLP 3000.007#20.1 — the run-on hint sits under the title, so a short opening never reads as the whole card (wave 4).
-pub fn overview(name: &str, card: &str) -> Option<String> { overview_with(name, card, false) }
+pub fn overview(name: &str, card: &str) -> Option<String> { overview_with(name, card, true) }
 
 /// The same overview with the card's first section printed between the
 /// opening and the index: what `guide <card>` prints when stdout is not a
@@ -216,7 +216,7 @@ const FIRST_SECTION_LINES: usize = 80;
 pub fn piped(name: &str, card: &str) -> String {
     if card.lines().count() <= FULL_LINES { return card.to_owned(); }
     let (title, rest) = card.split_once('\n').unwrap_or((card, ""));
-    format!("{title}\n\n{}\n{rest}", section_index(name, card))
+    format!("{title}\n{rest}\n\n{}", section_index(name, card))
 }
 
 /// The last paragraph boundary (a blank line outside a fence) in

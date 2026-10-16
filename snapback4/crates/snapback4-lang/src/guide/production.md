@@ -78,7 +78,7 @@ function AccountScreen(){
    `serve` reports false and refuses personas. Do not derive a role from a
    selector, query string or principal prefix: read the application's roster.
 5. Use the authorized directory and shared-principal controls below, then run
-   the account/outsider/restart acceptance at the end of this card. KIT2 owns
+   the account/outsider/restart acceptance at the end of this card. See
    the full auth-form and proof-kit recipes in `guide client`/`guide testing`.
 
 ## Password UI and auth transitions

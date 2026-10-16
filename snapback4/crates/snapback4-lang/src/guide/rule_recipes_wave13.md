@@ -1,8 +1,7 @@
 
 ## Offline roster with a supervisor
 
-Use `guide rule-recipes offline-roster` for a field roster (wave-13 lanes 057,
-059, 063). Put workers and supervisors in one membership table with a role.
+Use `guide rule-recipes offline-roster` for a field roster. Put workers and supervisors in one membership table with a role.
 Enroll a supervisor in each precinct they need offline; this is explicit access,
 not a second group audience. A county-wide supervisor query stays online and
 reads the same rows without acquiring every precinct. Provision the first
@@ -10,7 +9,7 @@ supervisor through the operator seat; never let workers grant themselves roles.
 Bare union sync holds all authorized rows after acquisition; it has no history
 window. An online adapter without a device does not acquire those rows.
 Union horizons and read-through children of unions remain open language work.
-Completeness-planner changes belong to LANG2.
+Use `check` to inspect each query's completeness class.
 
 ```quarry
 use personas alice, bob, carol
@@ -356,7 +355,7 @@ branching on its readable lookup cannot distinguish an existing hidden row.
 
 The 100 writers per sprint cap is an explicit product limit, shared by the
 private and peer rows. The final query covers that entire capped group.
-LANG2 owns completeness-planner improvements.
+Use `check` to inspect each query's completeness class.
 
 ## Grant expiry versus owner visibility
 

@@ -40,7 +40,7 @@ A query over hidden rows is complete and empty when the pinned scope uniformly
 refuses its viewer. A nonuniform scan can still be partial with no visible
 rows. Test the complete flag as well as the count; do not expect E_RULE for a
 hidden page. For a compiled role workflow see: `guide rule-recipes role-workflow`.
-Proof-kit helper contracts and client recipes are owned by KIT2.
+Use `guide client` for client recipes and the proof helper contracts below.
 
 ## Fixtures and cases
 
@@ -306,7 +306,7 @@ Use `--fixture <contemporary-dir>` for a complete business suite. With no fixtur
 at all it announces a query sweep only. Shared-table rows remain strictly checked;
 unknown fields do not disappear. check reports inherited day2:proof scripts with
 no saved arguments: preview `init --adapt`, then run `init --adapt --apply`.
-SURF3 owns the deploy help synopsis; source layout is documented here and in guide deploy.
+Source layout is documented here and in `guide deploy`.
 Selected-source companions build/check their generated signatures privately;
 native dependency paths are rebased into that private build while its own
 source and generated types stay isolated. `guide deploy` covers deploy/rollback narration and business compatibility.

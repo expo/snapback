@@ -1157,7 +1157,7 @@ fn a_piped_overview_carries_the_first_section_and_the_terminal_one_the_index() {
     for name in KEYWORDS {
         let text = card(name).unwrap();
         let (Some(short), Some(piped)) = (guide::overview(name, text), guide::overview_and_first_section(name, text)) else { continue };
-        assert!(short.lines().count() <= 70, "{name}: the terminal overview fits a window");
+        assert_eq!(short, piped, "{name}: terminal overview also carries the first section");
         assert!(piped.lines().count() <= 150, "{name}: {} lines piped", piped.lines().count());
         let first = &guide::sections(text)[0];
         let heading = text.lines().nth(first.2).unwrap();
@@ -1584,7 +1584,7 @@ fn a_piped_card_prints_whole() {
         let printed = guide::piped(name, text);
         if text.lines().count() > guide::FULL_LINES {
             assert!(printed.contains(&guide::section_index(name, text)), "{name}");
-            assert!(printed.ends_with(text.split_once('\n').unwrap().1), "{name}: whole body survives");
+            assert!(printed.starts_with(text), "{name}: whole body precedes the index");
         } else { assert_eq!(printed, text); }
     }
 }

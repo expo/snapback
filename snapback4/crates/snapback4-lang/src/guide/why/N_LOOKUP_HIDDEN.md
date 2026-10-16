@@ -1,3 +1,14 @@
 # N_LOOKUP_HIDDEN
 
-A mutation finds a row under its read rule before the write rule runs. `check` notes N_LOOKUP_HIDDEN when an update or delete rule admits a role (`exists drivers[viewer]`) that no read-rule disjunct uses, and a mutation writes that table by key: a holder who reads the row no other way gets NOT_FOUND. Let the role read the rows it acts on (`read <- … or .status = 'requested' and exists drivers[viewer]`). If the holders always read the row another way, the role only widens the write rule for them and nothing changes.
+Read access is required for a program's own lookup before a write, such as
+`let row = tasks[task] ! else NOT_FOUND`. If that row is hidden, this lookup
+refuses before any later write rule runs. A nullable lookup returns null.
+Guard or remove the lookup, or deliberately admit the reader when the operation
+needs those contents. Do not widen read access solely to permit a blind patch.
+
+A direct `update tasks[task] { ... }` or upsert patch can change an unreadable
+row when its update rule admits the old and next images; success returns null
+if the result stays unreadable. A denied hidden target returns NOT_FOUND.
+An update condition requires a readable target. See `guide rules` and
+`why NOT_FOUND` for disclosure and immutable-column behavior. Prove the intended
+role with fixture and HTTP cases before changing its read audience.

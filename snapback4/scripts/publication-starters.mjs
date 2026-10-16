@@ -147,6 +147,15 @@ export async function proveStarters(client, platform, expo, directory, browserPr
       assert.ok(existsSync(join(cwd, "dist/index.html")), `${kind} produced a web page`);
     };
     await build();
+    if (template) {
+      const screen = join(cwd, template === "social" ? "app/_layout.tsx" : kind === "web" ? "src/App.tsx" : "App.tsx");
+      assert.match(readFileSync(screen, "utf8"), /useAppReady\(\)/, `${id} gates writers with useAppReady`);
+    }
+    const surfaceProof = join(cwd, "surface-proof.mjs");
+    writeFileSync(surfaceProof, `import assert from 'node:assert/strict';import {startServe,cleanup,cli} from 'snapback4/proof';
+assert.equal((await cli(['deploy','surface-deployment'])).code,0);const host=await startServe('surface-deployment',{timeoutMs:30000});try{assert.ok(host.url);const r=await cli(['releases','surface-deployment','latest','--json']);const j=JSON.parse(r.stdout);for(const key of ['release','previous_active','latest','generation','revision','events','events_after','items','items_after','workers','selected'])assert.ok(key in j,key);assert.equal(j.selected.current,true);}finally{await cleanup(()=>host.stop());}
+`);
+    await run(process.execPath, [surfaceProof], cwd);
     const frontendProofs = browserProofs ? await proveFrontendTwice(run, cwd, starter) : [];
     if (template || id === "web-online") {
       results.push({ starter: id, kind, template, status: "passed", typecheck: "passed", build: "passed", frontendProofs });

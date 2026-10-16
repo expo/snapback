@@ -1,5 +1,12 @@
 # Snapback 4 behavior changes
 
+## 0.4.31
+
+- Serve starts captured conventional server/worker entries with their project imports, warns about unhandled actions/routes, labels active/working schema hashes and reports graceful socket closure. Help documents the bounded proof-kit ready wait, worker seats and resource roots.
+- CLI help describes port forms accurately, drops the unsupported clock --release flag, and starter dry runs preview without writing. Init output is plain under redirection. Upgrade prints a project action before release history and clearer downgrade refusals.
+- Doctor JSON includes structured expiry-orphan findings. Refusals avoid doubled codes; proof logs explain secret stdout suppression and fresh-text timeouts name the overall deadline.
+- Guide section numbers share their selection index, long cards open with content, and published text excludes internal work labels. Chat and social starters gate writers on useAppReady.
+
 ## 0.4.30
 
 - Saved releases: `deploy --schema` resolves compatibility baselines from the original project, preserves module names and deduplicates enum/value unions. Prefer `versions/v1/schema.q`, original-name modules and `versions/v1/fixtures/`; directory and complete-file inputs remain supported. Saved tests prefer contemporary fixtures, name fallback skips and keep explicit fixture selection strict. Deploy/rollback previews group actual guard dependencies and lead with query/count population losses, dependent dormancy and safety effects; literal backfills include exact active-row counts. A bridge-release recipe preserves safety logic as well as data.
