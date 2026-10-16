@@ -19,7 +19,7 @@ pub(crate) use environment::validate_environment;
 mod declarations;
 #[path = "worker_process.rs"]
 pub(crate) mod process;
-pub(crate) use declarations::{package, package_entry, link_dependencies};
+pub(crate) use declarations::{package, package_entry, link_dependencies, private_scope};
 pub(crate) fn declared(
     project: &Project,
 ) -> Result<std::collections::BTreeMap<String, PathBuf>, String> {

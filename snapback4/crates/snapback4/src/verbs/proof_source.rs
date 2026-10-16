@@ -40,8 +40,8 @@ pub(super) fn project(options: &Options, flag: &str) -> Result<Project, String> 
 
 /// A private companion build uses the selected schema's generated contracts.
 /// Packaging still records the original host installation, never this scratch.
-pub(super) struct Candidate { pub project: Project }
-impl Drop for Candidate { fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.project.root); } }
+pub(super) struct Candidate { pub project: Project, cleanup: std::path::PathBuf }
+impl Drop for Candidate { fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.cleanup); } }
 impl Candidate {
     pub(super) fn prepare(original: &Project, stage: &Path, bound: &snapback4_lang::Bound) -> Result<Self, String> {
         use std::sync::atomic::{AtomicUsize, Ordering};
@@ -49,7 +49,8 @@ impl Candidate {
         let root = std::env::temp_dir().join(format!("snapback4-saved-source-{}-{}", std::process::id(), SERIAL.fetch_add(1, Ordering::Relaxed)));
         std::fs::create_dir(&root).map_err(|e| e.to_string())?;
         #[cfg(unix)] snapback4_core::private_fs::directory(&root).map_err(|e| e.to_string())?;
-        let candidate = Self { project: Project { root } };
+        let mut candidate = Self { project: Project { root: root.clone() }, cleanup: root };
+        candidate.project.root = crate::dev_worker::private_scope(original, &candidate.cleanup)?;
         // The worker snapshotter captures the actual import closure and refuses
         // symlinks. Copy those captured bytes, not an unbounded application tree.
         copy_tree(stage, &candidate.project.root).map_err(|e| e.to_string())?;
@@ -64,12 +65,6 @@ impl Candidate {
         if !crate::native::declared(bound).is_empty() && original.native_manifest().exists() {
             copy_tree(&original.native_dir(), &candidate.project.native_dir()).map_err(|e| e.to_string())?;
             rebase_tree(&candidate.project.native_dir(), &original.native_dir()).map_err(|e| format!("saved-source native snapshot: {e}"))?;
-        }
-        #[cfg(unix)] {
-            // Dependencies are host installation bytes, as in ordinary release
-            // workers. Source and generated contracts remain private copies.
-            let dependencies = original.root.ancestors().map(|root| root.join("node_modules")).find(|path| path.is_dir());
-            if let Some(dependencies) = dependencies { std::os::unix::fs::symlink(dependencies, candidate.project.root.join("node_modules")).map_err(|e| e.to_string())?; }
         }
         crate::dev_worker::link_dependencies(original, &candidate.project.root)?;
         if let Some(entry) = crate::dev_worker::source(&candidate.project) { candidate.project.check_entry(&entry)?; }

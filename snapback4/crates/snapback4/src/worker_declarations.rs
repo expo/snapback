@@ -140,6 +140,20 @@ pub(crate) fn package(project: &Project, stage: &Path) -> Result<(), String> {
 
 }
 
+pub(crate) fn private_scope(project: &Project, root: &Path) -> Result<PathBuf, String> {
+    package_scopes(&Snapshot::package_root(project).map_err(|e|e.to_string())?, root.to_owned()).map_err(|e|e.to_string())
+}
+fn package_scopes(package_root: &Path, mut stage: PathBuf) -> io::Result<PathBuf> {
+    for ancestor in package_root.ancestors().collect::<Vec<_>>().into_iter().rev() {
+        stage = stage.join("scope"); std::fs::create_dir(&stage)?;
+        if ancestor.join("node_modules").is_dir() {
+            std::os::unix::fs::symlink(ancestor.join("node_modules"), stage.join("node_modules"))?;
+        }
+        copy_package(&File::open(ancestor)?, &stage)?;
+    }
+    Ok(stage)
+}
+
 pub(crate) fn link_dependencies(project: &Project, stage: &Path) -> Result<(), String> {
     link_package_scopes(&Snapshot::package_root(project).map_err(|e| e.to_string())?, stage).map_err(|e| e.to_string())
 }
@@ -292,16 +306,8 @@ impl Snapshot {
         // Reproduce Node's ancestor package search in private directories.
         // This works for immutable releases too: no writes to project source.
         let project_root = project.root.canonicalize()?;
-        let mut stage = owned.root.clone();
         let package_root = Self::package_root(project)?;
-        for ancestor in package_root.ancestors().collect::<Vec<_>>().into_iter().rev() {
-            stage = stage.join("scope");
-            std::fs::create_dir(&stage)?;
-            if ancestor.join("node_modules").is_dir() {
-                std::os::unix::fs::symlink(ancestor.join("node_modules"), stage.join("node_modules"))?;
-            }
-            copy_package(&File::open(ancestor)?, &stage)?;
-        }
+        let stage = package_scopes(&package_root, owned.root.clone())?;
         // Preserve schema-local package precedence as well as module type,
         // using the same trusted host-dependency links as the ancestor scopes.
         // Entry/helper custody still belongs to collect's no-follow copies.
