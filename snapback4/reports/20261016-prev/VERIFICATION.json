@@ -1,0 +1,43 @@
+{
+  "source_commit": "20aee130b3",
+  "base_commit": "59fb4ead1b",
+  "package_version": "0.4.29 (unchanged; integration owns 0.4.30)",
+  "clients": {
+    "tests": 112,
+    "linux": "PASS, Node 24.13.1",
+    "darwin": "PASS, Node 24.13.1, authorized M5 scratch clone"
+  },
+  "rust": {
+    "command": "cargo test --workspace",
+    "initial": "CLI/core/device/difftest green; stopped at 2 introduced guide failures",
+    "repair": "deploy card 150 physical lines; exact bridge input registered; guide 125/125 PASS",
+    "remaining_command": "cargo test -p snapback4-lang -p snapback4-sim --no-fail-fast",
+    "remaining": "PASS, 197 targets, 2720 passed, 21 declared ignored",
+    "final_focused": "4 dependency/context/preservation tests PASS on Linux and Darwin; 1 clause-comparison test PASS on Linux",
+    "cargo_environment": [
+      "CARGO_INCREMENTAL=0",
+      "CARGO_PROFILE_DEV_DEBUG=0",
+      "CARGO_PROFILE_TEST_DEBUG=0"
+    ]
+  },
+  "gates": {
+    "ref-check": "PASS, 548 LLP documents, 0 errors/unchecked",
+    "docs-budget": "PASS, README 320/320 and named self-containment test",
+    "root-inventories": "PASS, 365 package tests, 35 script tests, 31 demos, 487 publication leaves, 162 guide pages",
+    "root-guide": "PASS, 22 checks, 0 failures/skips/preconditions"
+  },
+  "reviews": {
+    "codex": "round 20 READY",
+    "muse": "round 8 READY on complete source; round 6 also READY"
+  },
+  "h9_baseline": "0.4.29 FAILS as required: 3 WARNINGs vs expected 0",
+  "farm_lanes": [
+    "006",
+    "014",
+    "016",
+    "020",
+    "084"
+  ],
+  "publication": "No origin push, version bump or publication; this qualifies PREV only.",
+  "focused_test_commit": "6a2dbc7fdb"
+}

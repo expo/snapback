@@ -106,7 +106,7 @@ test('guide and probe agree on widen, tighten, require, SIGTERM, rollback and fo
   assert.match(generated,/Unwrap with isReady\(read\) && read.data, or matchRead/);
 });
 
-test('changed nested/local requirements and changed dependency definitions stay warnings', {timeout:hangBudget(4)}, async t => {
+test('changed nested guards warn while unrelated body-column edits preserve rule implication', {timeout:hangBudget(4)}, async t => {
   const {schema,deployment,run}=fixture(t);
   const nested=initial.replace('  update notes[note]',"  if body = 'blocked':\n    require false else BLOCKED\n  update notes[note]");
   writeFileSync(schema,nested);run('deploy',deployment);
@@ -115,7 +115,7 @@ test('changed nested/local requirements and changed dependency definitions stay 
   writeFileSync(schema,initial);run('deploy',deployment);
   const changed=initial.replace('update <- allow','update <- .owner = viewer').replace('body: text 1..80','body: text 1..100');
   writeFileSync(schema,changed);
-  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*implication unproved.*notes.update/);
+  assert.match(run('deploy',deployment,'--check').stdout,/note:.*tightens notes.update/);
 });
 
 test('missing reference Unknown cannot suppress a loosening warning as Boolean equivalence', {timeout:hangBudget(4)}, async t => {

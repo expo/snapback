@@ -1324,7 +1324,7 @@ query one(id: grounding):
       const before=state(join(deployment,'store.sqlite'));
       const preview=JSON.parse(run('rollback',deployment,'--to','1','--check','--json'));
       assert.deepEqual(state(join(deployment,'store.sqlite')),before);
-      assert.ok(preview.hazards.some(h=>h.includes("release 1's `book` cannot see 1 dormant grounding row")),JSON.stringify(preview));
+      assert.ok(preview.hazards.some(h=>h.includes("release 1's safety dependencies on grounding: `book` cannot see 1 dormant grounding row")),JSON.stringify(preview));
       assert.ok(!preview.hazards.some(h=>h.includes("`newOnly` cannot see")));
       run('rollback',deployment,'--to','1'); await waitGeneration(3);
       assert.equal(operationAvailable(client.release.getSnapshot(),'newOnly','query',{}),false);

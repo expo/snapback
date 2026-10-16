@@ -4,6 +4,7 @@ use std::time::{Duration, Instant};
 #[derive(Default, Debug)]
 pub struct AdoptionReport {
     pub changes:Vec<String>,
+    pub backfills: Vec<String>,
     pub phases: Vec<(&'static str, Duration)>,
     /// Nested attribution, not additional time to add to `phases`.
     pub details: Vec<(String, Duration)>,

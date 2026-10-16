@@ -4,6 +4,7 @@
 
 - DAY3: saved-source deploy resolves compatibility baselines from the original project; missing baselines name their absolute location. Compatibility enum/value unions deduplicate. Save versions/v1/schema.q and original-name modules with versions/v1/fixtures/; use versions/v1 for --schema, testSource and the baseline. Saved tests prefer contemporary fixtures and name fallback skips. Inherited day2:proof scripts are detected by check and repaired by init --adapt --apply; day-two proofs require a business assertion and frontend proofs build their own dist.
 - DAY3: init bakes PORT_LO/PORT_HI defaults and prints exactly the ports written; runtime launcher overrides remain supported. Expo scaffolding pins before adapter peer resolution and zero-sync clients use the online tier. Doctor reports E_EXPIRY_ORPHAN for possibly orphaned expiry references and prints an explicit offline repair command after review/backup; missing parents are never guessed to be expiry victims.
+- Deploy/rollback previews lead with query/count population changes, linked rows going dormant and grouped safety dependencies. Unchanged probe guards stay silent across unrelated additive changes; changed dependencies are counted across affected guards. Preview and deploy receipts name literal backfills and exact active-row counts. `guide deploy` adds a bridge-release recipe for preserving safety gates and dependent metadata before rollback.
 
 ## 0.4.29
 

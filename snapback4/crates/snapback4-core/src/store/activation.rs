@@ -256,6 +256,29 @@ impl Store {
         } else { None };
         #[cfg(test)]
         let previous = if self.full_adoption { None } else { previous };
+        // @ref LLP 3000.000.000#13-wave-13-preview-decisions — report interpreted literal fills from the committed candidate population.
+        if let Some(previous) = &previous {
+            for (name, table) in &schema.tables {
+                let fills: Vec<_> = table.defaults.iter().filter_map(|(column, default)| {
+                    let same_interpretation=previous.table(name).is_some_and(|old|
+                        old.defaults.get(column)==Some(default) && old.columns.get(column).is_some_and(|kind|!kind.is_optional())
+                        && !old.maintained.contains_key(column) && !old.engine_field(column));
+                    if same_interpretation { return None; }
+                    if table.columns[column].is_optional() || table.maintained.contains_key(column) || table.engine_field(column) { return None; }
+                    match default { crate::schema::ColumnDefault::Literal(value) => Some((column, value)), _ => None }
+                }).collect();
+                if fills.is_empty() || schema.maintain_for(name).is_some() || table.ephemeral.is_some() { continue; }
+                let mut counts = vec![0u64; fills.len()];
+                walk(&tx, catalog[name], |_, row| {
+                    for (i,(column,_)) in fills.iter().enumerate() { if row.field(column).is_err() { counts[i] += 1; } }
+                    Ok(())
+                })?;
+                for ((column,value),count) in fills.into_iter().zip(counts).filter(|(_,count)| *count > 0) {
+                    let value = match value { Value::String(text) => format!("'{}'", text.replace('\\', "\\\\").replace('\'', "\\'").replace('\n', "\\n").replace('\r', "\\r")), value => crate::wire::to_json(value).to_string() };
+                    report.backfills.push(format!("{name}.{column} ← {value} on {count} {}",if count==1 {"row"} else {"rows"}));
+                }
+            }
+        }
         let plans = super::activation_plan::plans(schema, if population_changed {None} else {previous.as_ref()});
         if let Some(previous)=&previous {
             for step in crate::successor::classify(previous,schema) {

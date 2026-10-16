@@ -78,22 +78,23 @@ pub(super) fn rule(value: &RuleExpr) -> Formula {
     }
 }
 /// Compare only leading unconditional argument/viewer/now requirements.
-pub(super) fn require(value: &Expr, args: &BTreeSet<String>) -> Option<Formula> {
+pub(super) fn require(value: &Expr, args: &BTreeSet<String>, stable_probes: bool) -> Option<Formula> {
     fn scalar(e: &Expr, args: &BTreeSet<String>) -> bool {
         match e { Expr::Name { name,.. } => args.contains(name) || matches!(name.as_str(),"viewer" | "now"), Expr::Literal { .. } => true, _ => false }
     }
     Some(match value {
         Expr::Literal { value: Literal::Bool(true),.. } => Formula::Yes,
         Expr::Literal { value: Literal::Bool(false),.. } => Formula::No,
-        Expr::Unary { op,value,.. } if op == "not" => Formula::Not(Box::new(require(value,args)?)),
+        Expr::Unary { op,value,.. } if op == "not" => Formula::Not(Box::new(require(value,args,stable_probes)?)),
         Expr::Binary { op,left,right,.. } if op == "and" || op == "or" => {
-            let parts = vec![require(left,args)?,require(right,args)?];
+            let parts = vec![require(left,args,stable_probes)?,require(right,args,stable_probes)?];
             if op == "and" { Formula::And(parts) } else { Formula::Or(parts) }
         },
         Expr::Binary { op,left,right,.. } if scalar(left,args) && scalar(right,args) => {
             if matches!(op.as_str(),"=" | "!=") { equality(expression(left),expression(right),op == "!=",false) }
             else { Formula::Atom(expression(value)) }
         },
+        Expr::Exists { read,.. } if stable_probes && read.keys.iter().all(|key| scalar(&key.value,args)) => Formula::Atom(expression(value)),
         Expr::Name { .. } if scalar(value,args) => Formula::Atom(expression(value)),
         _ => return None,
     })

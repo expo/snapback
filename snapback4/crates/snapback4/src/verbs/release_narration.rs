@@ -38,11 +38,11 @@ pub(super) fn compatibility(store: &Store, current: &Schema, target: &Schema, cu
         let (name, column) = path.split_once('.').unwrap();
         let (count, values) = store.rollback_incompatible_values(current, target, name, column).map_err(|e| e.to_string())?;
         if count > 0 {
-            lines.push(format!("WARNING {path}: {count} {} {} {}, which {target_label} cannot hold; {} dormant on this switch and {} restored on compatible forward",
+            lines.push(format!("WARNING {path}: {count} {} {} {}, which {target_label} cannot hold; {} dormant on this switch and {} restored on compatible forward; accept their absence or preserve these values in a bridge release",
                 if count == 1 { "row" } else { "rows" }, if count == 1 { "holds" } else { "hold" }, values.join(", "),
                 if count == 1 { "it becomes" } else { "they become" }, if count == 1 { "is" } else { "are" }));
         } else {
-            lines.push(format!("note: {path}: no stored values are incompatible with {target_label}"));
+            lines.push(format!("note: {path}: no stored values are incompatible with {target_label}; no value repair is needed for this switch"));
         }
     }
     for path in if include_future { narrower(target, current) } else { BTreeSet::new() } {
@@ -54,7 +54,7 @@ pub(super) fn compatibility(store: &Store, current: &Schema, target: &Schema, cu
                 variants.iter().filter(|v| !old.contains(v)).map(|v| snapback4_lang::print::quote(v)).collect::<Vec<_>>().join(", "),
             _ => format!("values outside release {current_release}'s column declaration"),
         };
-        lines.push(format!("note: {path} admits {admission}; rows that later use those values become dormant on rollback to release {current_release}"));
+        lines.push(format!("note: {path} admits {admission}; rows that later use those values become dormant on rollback to release {current_release}; keep this value domain in a bridge if those rows must stay available"));
     }
     Ok(lines)
 }
@@ -95,7 +95,8 @@ fn declarations(project: &Project) -> Result<BTreeMap<String, Vec<(Kind, String)
     Ok(out)
 }
 
-pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, before_programs: &BTreeMap<String, snapback4_core::ir::Program>, after_programs: &BTreeMap<String, snapback4_core::ir::Program>, candidate: &Project, previous_release: Option<u64>, target_label: &str) -> Result<(Vec<String>, Vec<String>), String> {
+pub(super) fn behavior(store_path: &Path, store: &Store, current: &Schema, target: &Schema, before_programs: &BTreeMap<String, snapback4_core::ir::Program>, after_programs: &BTreeMap<String, snapback4_core::ir::Program>, candidate: &Project, previous_release: Option<u64>, target_label: &str) -> Result<(Vec<String>, Vec<String>), String> {
+    let null_refs=super::release_dependencies::null_references(store,current,target)?;
     let old_project = previous_release.and_then(|id| store_path.parent().map(|dir| Project { root: dir.join("releases").join(id.to_string()) }));
     let source_before = old_project.as_ref().and_then(|p| declarations(p).ok());
     let source_after = declarations(candidate)?;
@@ -132,6 +133,7 @@ pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, bef
     for name in before_programs.keys().filter(|n| !after_programs.contains_key(*n)) {
         warnings.push(format!("{target_label} lacks operation {name}"));
     }
+    let mut dependency_groups: BTreeMap<BTreeSet<String>, (usize, BTreeSet<String>)> = BTreeMap::new();
     use super::clause_compare::{self as clauses, Change};
     for (name, old) in &current.tables {
         let Some(next) = target.table(name) else { continue; };
@@ -139,27 +141,15 @@ pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, bef
             let (before, after) = (old.rules.for_effect(effect), next.rules.for_effect(effect));
             let before_judged=if effect==snapback4_core::schema::Effect::Update {old.update_rule_judged()} else {std::borrow::Cow::Borrowed(before)};
             let after_judged=if effect==snapback4_core::schema::Effect::Update {next.update_rule_judged()} else {std::borrow::Cow::Borrowed(after)};
-            if before_judged == after_judged { continue; }
-            // Probes and typed references can change interpretation with their
-            // dependencies. Suppress no warning unless all non-rule schema
-            // inputs and every other table remain identical.
-            let mut stable = old.clone();
-            *match effect {
-                snapback4_core::schema::Effect::Read=>&mut stable.rules.read,
-                snapback4_core::schema::Effect::Insert=>&mut stable.rules.insert,
-                snapback4_core::schema::Effect::Update=>&mut stable.rules.update,
-                snapback4_core::schema::Effect::Delete=>&mut stable.rules.delete,
-            } = after.clone();
-            // The image-binding flag is represented by the judged rule above.
-            if effect==snapback4_core::schema::Effect::Update {stable.update_transition=next.update_transition;}
-            let mut probes=Vec::new();
-            snapback4_core::engine::rules::probe_sites(&before_judged,&mut probes);
-            snapback4_core::engine::rules::probe_sites(&after_judged,&mut probes);
-            let self_reference=probes.iter().any(|(table,_)|table==name);
-            let dependencies_stable = !self_reference && stable == *next && current.tables.iter().all(|(n,t)| n == name || target.table(n) == Some(t))
-                && current.auth == target.auth && current.maintains == target.maintains
-                && current.timelines == target.timelines && current.delivery == target.delivery
-                && current.receipts == target.receipts && current.receipt_dependencies == target.receipt_dependencies;
+            let changed_dependencies = super::release_dependencies::rule(current, name, &before_judged, &after_judged, &null_refs)
+                .changed(&super::release_dependencies::rule(target, name, &before_judged, &after_judged, &null_refs));
+            let dependencies_stable = changed_dependencies.is_empty();
+            if before_judged == after_judged {
+                if !dependencies_stable {
+                    let group=dependency_groups.entry(changed_dependencies).or_default();group.0+=1;group.1.insert(format!("{name}.{effect}"));
+                }
+                continue;
+            }
             let change = if dependencies_stable { clauses::compare(&clauses::rule(&before_judged), &clauses::rule(&after_judged)) } else { Change::Unknown };
             let line = format!("{target_label} {} {name}.{effect}; old: {} | new: {}", match change { Change::Tightens => "tightens", Change::Loosens => "loosens", Change::Same => "keeps equivalent", Change::Unknown => "changes (implication unproved)" }, before.quarry(), after.quarry());
             if matches!(change,Change::Same | Change::Tightens) { notes.push(line); } else { warnings.push(line); }
@@ -171,16 +161,40 @@ pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, bef
         for (name, before) in old {
             let Some(after) = next.get(&name) else { continue; };
             if before.kind != snapback4_lang::ast::ProgramKind::Mutation { continue; }
-            let (old_lines, old_formula) = requirements(&before);
-            let (new_lines, new_formula) = requirements(after);
-            let same_args = before.args.iter().map(|a|(&a.name,&a.type_)).eq(after.args.iter().map(|a|(&a.name,&a.type_)));
-            if old_lines.is_empty() && new_lines.is_empty() { continue; }
-            let pure = old_formula.is_some() && new_formula.is_some() && same_args && before.kind==after.kind && current.auth==target.auth;
-            let dependencies_unchanged = source_before.as_ref().and_then(|s|s.get(&name)).zip(source_after.get(&name)).is_some_and(|(a,b)|a==b)
-                && before_programs.get(&name)==after_programs.get(&name) && current==target;
-            if old_lines==new_lines && (pure || dependencies_unchanged) {continue;}
-            let dependency_change=old_lines==new_lines;
-            let change = if same_args && before.kind == after.kind && current.auth == target.auth { old_formula.zip(new_formula).map(|(a,b)|clauses::compare(&a,&b)).unwrap_or(Change::Unknown) } else { Change::Unknown };
+            let (old_lines, _) = requirements(&before, false);
+            let (new_lines, _) = requirements(after, false);
+            let exact_changes = before_programs.get(&name).zip(after_programs.get(&name)).map(|(old,new)|
+                super::release_dependencies::changes_scoped(current, old, target, new, true, &null_refs));
+            // An unused binding or statement position can change the explanatory
+            // source context without changing any compiled guard input.
+            if before.kind==after.kind && guard_clauses(&before)==guard_clauses(after) && exact_changes.as_ref().is_some_and(|changes|changes.iter().all(BTreeSet::is_empty)) {continue;}
+            let changed_dependencies = if old_lines==new_lines {exact_changes} else {
+                before_programs.get(&name).zip(after_programs.get(&name)).map(|(old,new)|
+                    super::release_dependencies::changes_scoped(current, old, target, new, false, &null_refs))
+            };
+            let stable = changed_dependencies.as_ref().is_some_and(|changes|changes.iter().all(BTreeSet::is_empty));
+            let (_,old_formula) = requirements(&before, stable);
+            let (_,new_formula) = requirements(after, stable);
+            if old_lines.is_empty() && new_lines.is_empty() {
+                // Helpers and asserted reads can lower to guards without a
+                // caller-authored require. Their compiled evidence still counts.
+                for changed in changed_dependencies.unwrap_or_default().into_iter().filter(|c|!c.is_empty()) {
+                    let group=dependency_groups.entry(changed).or_default();group.0+=1;group.1.insert(name.clone());
+                }
+                continue;
+            }
+            if old_lines==new_lines && before.kind==after.kind {
+                if stable { continue; }
+                let changes=changed_dependencies.unwrap_or_else(||vec![BTreeSet::from(["unavailable saved dependency evidence".into()])]);
+                for changed in changes.into_iter().filter(|c|!c.is_empty()) {
+                    let group = dependency_groups.entry(changed).or_default();
+                    group.0 += 1; group.1.insert(name.clone());
+                }
+                continue;
+            }
+            let change = if stable && before.kind == after.kind {
+                old_formula.zip(new_formula).map(|(a,b)|clauses::compare(&a,&b)).unwrap_or(Change::Unknown)
+            } else { Change::Unknown };
             // Refusal code/message changes are observable even for equivalent predicates.
             let guards = |p: &snapback4_lang::ast::ProgramDecl| p.prelude.iter().chain(&p.body).filter_map(|s| match s {
                 snapback4_lang::ast::Stmt::Require {condition,code,message,..}=>Some((condition.clone(),code.clone(),message.clone())), _=>None
@@ -188,12 +202,50 @@ pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, bef
             let old_guards=guards(&before);let new_guards=guards(after);
             let args=before.args.iter().map(|a|a.name.clone()).collect();
             let contract_same=old_guards.len()==new_guards.len() && old_guards.iter().zip(&new_guards).all(|((a,code,msg),(b,next_code,next_msg))| {
-                code==next_code && msg==next_msg && clauses::require(a,&args).zip(clauses::require(b,&args)).is_some_and(|(a,b)|clauses::compare(&a,&b)==Change::Same)
+                code==next_code && msg==next_msg && clauses::require(a,&args,stable).zip(clauses::require(b,&args,stable)).is_some_and(|(a,b)|clauses::compare(&a,&b)==Change::Same)
             });
-            let change = if change==Change::Same && !contract_same {Change::Unknown} else {change};
-            let line = format!("{target_label} {} {name}.require; old: {} | new: {}", match change { Change::Tightens => "tightens", Change::Loosens => "loosens", Change::Same => "keeps equivalent", _ if dependency_change => "changes (guard dependencies changed; implication unproved)", _ => "changes (implication unproved)" }, if old_lines.is_empty() { "allow".into() } else { old_lines.join("; ") }, if new_lines.is_empty() { "allow".into() } else { new_lines.join("; ") });
+            // Admission tightening alone does not preserve earlier refusal codes.
+            // Prove each old first-failure region still reaches its same refusal.
+            let tightening_contract = old_guards.len()<=new_guards.len() && {
+                let (mut old_prefix,mut new_prefix)=(Vec::new(),Vec::new());
+                old_guards.iter().zip(&new_guards).all(|((a,code,msg),(b,next_code,next_msg))| {
+                    let Some((a,b))=clauses::require(a,&args,stable).zip(clauses::require(b,&args,stable)) else {return false;};
+                    let old_failure=clauses::Formula::And(old_prefix.iter().cloned().chain([clauses::Formula::Not(Box::new(a.clone()))]).collect());
+                    let new_failure=clauses::Formula::And(new_prefix.iter().cloned().chain([clauses::Formula::Not(Box::new(b.clone()))]).collect());
+                    old_prefix.push(a);new_prefix.push(b);
+                    code==next_code && msg==next_msg && matches!(clauses::compare(&old_failure,&new_failure),Change::Same|Change::Loosens)
+                })
+            };
+            let change = if change==Change::Same && !contract_same || change==Change::Tightens && !tightening_contract {Change::Unknown} else {change};
+            if matches!(change,Change::Same|Change::Tightens) {
+                // The authored implication proof covers these leading clauses
+                // only. Helpers and asserted reads keep independent evidence.
+                let sites=|p: &snapback4_lang::ast::ProgramDecl| p.prelude.iter().chain(&p.body).filter_map(|stmt|match stmt {
+                    snapback4_lang::ast::Stmt::Require {site,..}=>Some(site.to_string()),_=>None,
+                }).collect();
+                if let Some((old,new))=before_programs.get(&name).zip(after_programs.get(&name)) {
+                    for changed in super::release_dependencies::independent_changes(current,old,target,new,&sites(&before),&sites(after),&null_refs).into_iter().filter(|c|!c.is_empty()) {
+                        let group=dependency_groups.entry(changed).or_default();group.0+=1;group.1.insert(name.clone());
+                    }
+                }
+            }
+            let line = format!("{target_label} {} {name}.require; old: {} | new: {}", match change { Change::Tightens => "tightens", Change::Loosens => "loosens", Change::Same => "keeps equivalent", _ => "changes (implication unproved)" }, if old_lines.is_empty() { "allow".into() } else { old_lines.join("; ") }, if new_lines.is_empty() { "allow".into() } else { new_lines.join("; ") });
             if matches!(change,Change::Same | Change::Tightens) { notes.push(line); } else { warnings.push(line); }
         }
+    }
+    for (dependencies,(count,operations)) in dependency_groups {
+        warnings.push(format!("{} changed: {count} {} unproved across {}; verify their refusal cases before selecting {target_label}", dependencies.into_iter().collect::<Vec<_>>().join(", "), if count==1 {"guard"} else {"guards"}, operations.into_iter().collect::<Vec<_>>().join(", ")));
+    }
+    for warning in &mut warnings {
+        if warning.contains("guards unproved") || warning.contains("guard unproved") {continue;}
+        warning.push_str(if warning.contains("lacks operation") { "; preserve callers in a bridge or accept this operation being unavailable" }
+            else if warning.contains("schedule") || warning.contains("job ") { "; verify scheduled work before selecting this release" }
+            else { "; verify allowed and refused cases before selecting this release" });
+    }
+    for note in &mut notes {
+        note.push_str(if note.contains("tightens") { "; confirm newly refused cases are intended" }
+            else if note.contains("keeps equivalent") { "; no guard-specific action needed" }
+            else { "; verify the scheduled result if these dependencies matter" });
     }
     warnings.sort(); warnings.dedup(); notes.sort(); notes.dedup();
     Ok((warnings, notes))
@@ -210,7 +262,23 @@ fn authored_programs(project: &Project) -> Result<BTreeMap<String,snapback4_lang
     }
     Ok(out)
 }
-fn requirements(program: &snapback4_lang::ast::ProgramDecl) -> (Vec<String>,Option<super::clause_compare::Formula>) {
+// Compare authored clauses/control paths without unused lexical bindings or
+// statement offsets. The compiled fingerprint still decides used value inputs.
+fn guard_clauses(program: &snapback4_lang::ast::ProgramDecl) -> Vec<String> {
+    use snapback4_lang::{ast::Stmt,print::expression};
+    fn collect(stmts: &[Stmt], path: &str, out: &mut Vec<String>) {
+        for stmt in stmts {match stmt {
+            Stmt::Require {condition,code,message,..}=>out.push(format!("{path}: {} else {code} {message:?}",expression(condition))),
+            Stmt::If {condition,then_body,else_body,..}=> {
+                let at=format!("{path}/if {}",expression(condition));collect(then_body,&format!("{at}/then"),out);collect(else_body,&format!("{at}/else"),out);
+            },
+            Stmt::For {name,domain,body,..}=>collect(body,&format!("{path}/for {name} in {}",expression(domain)),out),
+            Stmt::As {principal,body,..}=>collect(body,&format!("{path}/as {}",expression(principal)),out),_=>(),
+        }}
+    }
+    let mut out=Vec::new();collect(&program.prelude,"prelude",&mut out);collect(&program.body,"body",&mut out);out
+}
+fn requirements(program: &snapback4_lang::ast::ProgramDecl, stable_probes: bool) -> (Vec<String>,Option<super::clause_compare::Formula>) {
     use snapback4_lang::ast::Stmt;
     use super::clause_compare::{self as clauses,Formula};
     fn collect(body: &[Stmt], path: &str, inherited: &[String], lines: &mut Vec<String>) -> Vec<String> {
@@ -235,7 +303,7 @@ fn requirements(program: &snapback4_lang::ast::ProgramDecl) -> (Vec<String>,Opti
     for stmt in program.prelude.iter().chain(&program.body) {
         if let Stmt::Require {condition,..}=stmt {
             if !prefix { formulas=None; }
-            if let Some(parts)=&mut formulas { if let Some(formula)=clauses::require(condition,&args) {parts.push(formula);} else {formulas=None;} }
+            if let Some(parts)=&mut formulas { if let Some(formula)=clauses::require(condition,&args,stable_probes) {parts.push(formula);} else {formulas=None;} }
         } else { prefix=false; }
     }
     // Nested requirements cannot be replaced by a conjunction.

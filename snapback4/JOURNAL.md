@@ -95783,3 +95783,39 @@ regressions. The copied prewave13 Exact device and online apps each passed both
 web tests with types emitted by this branch. Version remains 0.4.29; no device
 code changed. Reviews and final verification are in WORKSTREAM-REPORT.md; no
 push or publication is authorized or performed.
+
+## 2026-10-16 — PREV: previews lead with user effects
+
+Wave-13 R2/F1/DT7 is implemented under LLP 3000.000.000 §13. Unchanged guards
+compare consulted inputs rather than the whole schema; dependency-only changes
+are counted across affected guards. The walk preserves lexical/control inputs,
+prior writes, later loop iterations/exits, delete policies, maintained sources
+and scoped timeline/receipt metadata. Stable program exists supports directional
+proof; Unknown and changed refusal contracts retain warnings. Previews lead with
+query/count population changes, linked dormant rows and grouped safety
+dependencies, then storage/schema mechanics. Exact literal fills appear in
+preview and cold/hot deploy receipts after restoration; optional null and dormant
+rows never invent a fill. Guide deploy puts the safety bridge beside widening.
+
+The H9 zero-warning additive control fails on 0.4.29 with three warnings. Five
+read-only farm lanes have copied before/after deploy and rollback evidence.
+Muse's final design review and fresh Codex source review are both READY; verbatim
+reviews are in llp/reviews/3000.000.000-prev-* and exact verification/results in
+WORKSTREAM-REPORT.md and reports/20261016-prev/. Runtime admission, retention,
+identity, sync, expiry and version numbers do not change. No origin push or
+publication is performed; Mac qualification uses only the named scratch clone.
+
+PREV closeout, 2026-10-16: fresh Muse round 6 and Codex round 20 mark the final
+§13 snapshot-proof refinement READY. Linux and Darwin each pass 112 release and
+platform client tests; all six Rust workspace crates have complete target
+coverage after repairing the deploy card's budget/example registration. The
+private null-reference proof decodes active/retained values and captures, keeps
+explicit dependencies, and preserves populated/restorable reference warnings.
+The H9 baseline failure, DT7 golden, five copied farm previews and exact commands
+are recorded under reports/20261016-prev/ and WORKSTREAM-REPORT.md.
+
+Supplementary PREV review closed: complete-inline Muse round 8 is READY after
+the excerpt-only round 7 requested missing wiring/effect/backfill evidence. The
+explicit null-proof preservation test passes with the three metadata/context
+controls on both Linux and Darwin; production semantics remain those of
+20aee130b3. Verbatim reviews and all briefs remain in the qualification bundle.

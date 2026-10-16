@@ -1,0 +1,38 @@
+✖ H9 additive preview-noise budget: unchanged probe guards print zero WARNINGs in both directions (80.334476ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 137.210923
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/wave13-previews.test.mjs:71:1
+✖ H9 additive preview-noise budget: unchanged probe guards print zero WARNINGs in both directions (80.334476ms)
+  AssertionError [ERR_ASSERTION]: preview: release 2 would be current as generation 2; 0 rows, 0 cells, 0 index entries dormant; live release unchanged
+    tables.notes.columns.status: column notes.status changes from enum('draft') to enum('draft', 'live')
+    tables.notes.columns.color: column notes.color is added with default "none"; rows written before it read "none"
+    tables.audit: table audit is added
+    WARNING release 2 changes (guard dependencies changed; implication unproved) add.require; old: body/0: require exists roles[principal = viewer, role = 'captain'] else NO | new: body/0: require exists roles[principal = viewer, role = 'captain'] else NO
+    WARNING release 2 changes (guard dependencies changed; implication unproved) edit.require; old: body/0: require exists roles[principal = viewer, role = 'captain'] else NO | new: body/0: require exists roles[principal = viewer, role = 'captain'] else NO
+    WARNING release 2 changes (guard dependencies changed; implication unproved) remove.require; old: body/0: require exists roles[principal = viewer, role = 'captain'] else NO | new: body/0: require exists roles[principal = viewer, role = 'captain'] else NO
+    note: notes.status admits 'live'; rows that later use those values become dormant on rollback to release 1
+  
+  
+  3 !== 0
+  
+      at TestContext.<anonymous> (file:///home/ccheever/projects/sb4-w13-prev/snapback4/packages/snapback4/test/wave13-previews.test.mjs:76:10)
+      at Test.runInAsyncScope (node:async_hooks:214:14)
+      at Test.run (node:internal/test_runner/test:1103:25)
+      at Test.start (node:internal/test_runner/test:1000:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 3,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

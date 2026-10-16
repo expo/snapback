@@ -1252,6 +1252,7 @@ mod releases;
 mod release_safeguards;
 mod release_preview;
 mod release_narration;
+mod release_dependencies;
 mod clause_compare;
 pub use releases::{deploy, prune, releases, rollback, serve_release};
 pub(crate) use releases::release_bind;
