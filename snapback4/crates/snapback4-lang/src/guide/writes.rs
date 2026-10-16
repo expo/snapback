@@ -17,7 +17,7 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
 `insert` creates rows; `if absent` returns null on readable collisions.
 `update` patches; `if` tests the old row; `upsert` inserts/patches.
 `delete` refuses NOT_FOUND when absent (guard `if exists t[id]:`); references obey `on delete`.
-Omitted optionals are null: `{ c: x }` clears omitted `x`; `x ?? row.c` keeps it.
+Omitted optionals are null: `{ c: x }` clears `c` for omitted `x`; `x ?? row.c` preserves it.
 Results materialize nulls/defaults; updates retain unchanged fields, without prediction dependencies.
 Owned/sequence/receipt fields retain projection/settlement rules.
 E_MAINTAINED_COLUMN_RESULT requires an authorized maintained-column reread.
