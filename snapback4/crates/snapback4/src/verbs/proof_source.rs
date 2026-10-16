@@ -9,6 +9,9 @@ pub(super) fn sources(project: &Project, options: &Options, flag: &str) -> Resul
         None => project.sources().map_err(|e| e.to_string()),
         Some(file) => {
             let path = Path::new(file);
+            if path.is_dir() {
+                return crate::client_compatibility::sources(path).map_err(|e| e.to_string());
+            }
             let name = path.file_name().and_then(|s| s.to_str()).ok_or("saved source needs a UTF-8 file name")?;
             if !name.ends_with(".q") { return Err("saved source must be a complete Quarry .q file".into()); }
             let text = std::fs::read_to_string(path).map_err(|e| format!("cannot read saved source {file}: {e}"))?;
@@ -69,7 +72,7 @@ impl Candidate {
                 else { return Err("saved-source server imports must be regular files".into()); }
             }
         }
-        candidate.project.write_generated(bound).map_err(|e| e.to_string())?;
+        candidate.project.write_generated_from(bound, original).map_err(|e| e.to_string())?;
         if !crate::native::declared(bound).is_empty() && original.native_manifest().exists() {
             copy_tree(&original.native_dir(), &candidate.project.native_dir()).map_err(|e| e.to_string())?;
             rebase_tree(&candidate.project.native_dir(), &original.native_dir()).map_err(|e| format!("saved-source native snapshot: {e}"))?;
@@ -131,6 +134,15 @@ mod tests {
         std::fs::write(&file, "not a Quarry backend").unwrap();
         let bound = compile(&sources(&project, &options, "schema").unwrap(), &options, "schema");
         assert!(!bound.diagnostics.is_empty()); assert!(bound.diagnostics.iter().all(|d| d.site.file == file.to_str().unwrap()));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+    #[test]
+    fn missing_baseline_names_original_absolute_location() {
+        let root = dir("missing-baseline"); let project = Project { root: root.clone() };
+        std::fs::write(root.join("snapback/client-compatibility.json"), r#"{"baseline":"versions/v1","since_release":2}"#).unwrap();
+        let bound = snapback4_lang::compile(&[("schema.q".into(), "query alive():\n  return true\n".into())]);
+        let error = project.write_generated(&bound).unwrap_err().to_string();
+        assert!(error.contains(root.join("versions/v1").to_str().unwrap()) && error.contains("does not exist (resolved from") && error.contains("snapback/client-compatibility.json"), "{error}");
         std::fs::remove_dir_all(root).unwrap();
     }
     #[test]

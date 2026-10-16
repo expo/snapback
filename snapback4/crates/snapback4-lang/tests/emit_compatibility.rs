@@ -29,7 +29,7 @@ fn baseline_retains_old_enum_domains_and_new_operation_required_arguments() {
     let api = emit::typescript_spanning(&new, &old, 2);
     assert!(api.contains("newOnly: Query<{ text: string }, string>"), "{api}");
     assert!(!api.contains("text?:"));
-    assert!(api.contains("(\"new\" | \"common\" | \"old\" | \"common\")"), "{api}");
+    assert!(api.contains("\"new\" | \"common\" | \"old\""), "{api}");
 }
 
 #[test]
@@ -58,4 +58,15 @@ fn field_hidden_in_either_release_remains_optional_in_spanning_rows() {
     let api=emit::typescript_spanning(&new,&old,2);
     assert!(api.contains("    secret?: string;"),"{api}");
     assert!(emit::typescript_spanning(&old,&new,2).contains("    secret?: string;"));
+}
+
+#[test]
+fn spanning_domains_deduplicate_enum_variants_and_equal_ts_values() {
+    let source = "table notes:\n  status: enum('open', 'closed')\n  amount: int\n  public 'shared'\nquery list():\n  return notes first 20 by .id\n";
+    let old = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    let new = snapback4_lang::compile(&[("schema.q".into(), source.replace("'open', 'closed'", "'open', 'closed', 'held'").replace("amount: int", "amount: int 0..100"))]);
+    assert!(old.diagnostics.is_empty() && new.diagnostics.is_empty(), "{:?}", new.diagnostics);
+    let api = snapback4_lang::emit::typescript_spanning(&new, &old, 2);
+    assert!(api.contains("status: \"open\" | \"closed\" | \"held\";"), "{api}");
+    assert!(!api.contains("number | number"), "{api}");
 }

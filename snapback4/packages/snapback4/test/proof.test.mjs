@@ -56,7 +56,10 @@ test("saved-source deploy, preview, hot forward, rollback and fixture test never
   const v1 = join(cwd, "versions/v1.q"), v2 = join(cwd, "versions/v2.q");
   writeFileSync(v1, schema); writeFileSync(v2, schema.replace("title: text <=80", "title: text <=80\n  color: text <=20 default 'blue'"));
   writeFileSync(join(cwd, "snapback/schema.q"), "invalid current working source");
-  const one = await deploy("deploy", v1, { cwd }); assert.equal(one.code, 0);
+  mkdirSync(join(cwd, "versions/v1"), { recursive: true });
+  writeFileSync(join(cwd, "versions/v1/schema.q"), schema);
+  writeFileSync(join(cwd, "snapback/client-compatibility.json"), JSON.stringify({ baseline: "versions/v1", since_release: 2 }));
+  const one = await deploy("deploy", "versions/v1", { cwd }); assert.equal(one.code, 0);
   const preview = await cli(["deploy", "deploy", "--schema", v2, "--check"], { cwd }); assert.equal(preview.code, 0, preview.stderr);
   const serve = await startServe("deploy", { cwd });
   try {

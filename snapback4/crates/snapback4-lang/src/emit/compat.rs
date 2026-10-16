@@ -26,7 +26,15 @@ pub(super) fn result(current: &Ty, old: Option<&Ty>, since: Option<u64>) -> Stri
         (Ty::List(a, _) | Ty::Collection(a, _), Ty::List(b, _) | Ty::Collection(b, _)) => format!("Array<{}>", result(a, Some(b), since)),
         // Nominal rows expand through Rows; value unions retain old enum/value domains.
         (Ty::Row(a), Ty::Row(b)) | (Ty::Page(a, _), Ty::Page(b, _)) if a == b => ty_ts(current),
-        _ => format!("({} | {})", ty_ts(current), baseline_type(old)),
+        (Ty::Enum(a), Ty::Enum(b)) => {
+            let mut variants = a.clone();
+            for variant in b { if !variants.contains(variant) { variants.push(variant.clone()); } }
+            ty_ts(&Ty::Enum(variants))
+        }
+        _ => {
+            let (current, old) = (ty_ts(current), baseline_type(old));
+            if current == old { current } else { format!("({current} | {old})") }
+        },
     }
 }
 

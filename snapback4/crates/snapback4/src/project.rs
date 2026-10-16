@@ -180,10 +180,16 @@ impl Project {
 
     /// Write `snapback/generated/api.ts` from a clean compile.
     pub fn write_generated(&self, bound: &Bound) -> std::io::Result<PathBuf> {
+        self.write_generated_from(bound, self)
+    }
+
+    /// Resolve app-owned compatibility sources at their original project root,
+    /// even when generated contracts belong to a private saved-source build.
+    pub(crate) fn write_generated_from(&self, bound: &Bound, original: &Project) -> std::io::Result<PathBuf> {
         let dir = self.generated_dir();
         std::fs::create_dir_all(&dir)?;
         let path = dir.join("api.ts");
-        let text = crate::client_compatibility::typescript(self, bound)?;
+        let text = crate::client_compatibility::typescript(original, bound)?;
         // @ref LLP 3000.007#20.2 — the generated API's ESM boundary is rebuilt with its artifacts, not imposed on existing scripts.
         let package = dir.join("package.json");
         if std::fs::read_to_string(&package).ok().as_deref() != Some(GENERATED_PACKAGE) {
