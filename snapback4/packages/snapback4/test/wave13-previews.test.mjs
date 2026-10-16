@@ -680,3 +680,20 @@ ${caller?'  require ok else NO\n':''}  return update notes['n'] {body: 'after'} 
   assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*compiled guard changed: 1 guard unproved across conditionalUpdate/);
   run('deploy',deployment);assert.equal((await host.post('/m/conditionalUpdate',{ok:true})).state,'sent');await host.stop();
 });
+
+test('guards using write results retain patch and read dependencies', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe.replace('  insert <- allow\n  online only\nmutation add', '  insert <- allow\n  update <- allow\n  online only\nmutation add')+`mutation seedNote():
+  return insert notes {id: 'n', body: 'before'}
+mutation resultGuard():
+  r = update notes['n'] {body: 'safe'}
+  require r.body != 'blocked' else BLOCKED
+  return true
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);assert.equal((await host.post('/m/seedNote',{})).state,'sent');
+  assert.equal((await host.post('/m/resultGuard',{})).state,'sent');
+  writeFileSync(schema,source.replace("{body: 'safe'}","{body: 'blocked'}"));
+  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*changes \(implication unproved\) resultGuard.require/);
+  run('deploy',deployment);assert.equal((await host.post('/m/resultGuard',{})).why.code,'BLOCKED');await host.stop();
+});

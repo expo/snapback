@@ -327,6 +327,14 @@ fn selected_guards(schema: &Schema, program: &ir::Program, excluded: &BTreeSet<S
                 ir::Stmt::Const {name,value} | ir::Stmt::Let {name,value} | ir::Stmt::Assign {name,value} => {
                     bindings.insert(name.clone(), resolved(&json!(value),&bindings,&mut BTreeSet::new()));
                 },
+                ir::Stmt::WriteTarget {target,patch,upsert,condition,result:Some(name)} => {
+                    let value=resolved(&json!({"writeResult":[{"Get":target},patch,upsert,condition]}),&bindings,&mut BTreeSet::new());
+                    bindings.insert(name.clone(),value);
+                },
+                ir::Stmt::InsertIfAbsent {table,row,result} => {
+                    let value=resolved(&json!({"insertResult":[{"Get":{"table":table,"index":"byId","key":[]}},row]}),&bindings,&mut BTreeSet::new());
+                    bindings.insert(result.clone(),value);
+                },
                 ir::Stmt::Push {target,value} => {
                     bindings.insert(target.clone(),json!({"append":[bindings.get(target),resolved(&json!(value),&bindings,&mut BTreeSet::new())]}));
                 },
