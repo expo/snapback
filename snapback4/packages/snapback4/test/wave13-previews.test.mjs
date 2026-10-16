@@ -753,3 +753,25 @@ mutation discardedResult():
   assert.match(run('deploy',deployment,'--check').stdout,/notes changed: 1 guard unproved across discardedResult/);
   run('deploy',deployment);assert.equal((await host.post('/m/discardedResult',{})).why.code,'DUP');await host.stop();
 });
+
+test('discarded conditional writes retain old-field default dependencies', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe.replace('  body: text <=80', '  body: text <=80\n  flag: bool default false').replace('  insert <- allow\n  online only\nmutation add', '  insert <- allow\n  update <- allow\n  online only\nmutation add')+`mutation seedNote():
+  return insert notes {id: 'n', body: 'before'}
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);assert.equal((await host.post('/m/seedNote',{})).state,'sent');
+  const candidate=source.replace('  flag: bool default false', "  flag: bool default false\n  mode: text <=10 default 'go'")+`mutation conditionalDefault():
+  update notes[id = 'n'] {flag: true} if .mode = 'go'
+  require notes[id = 'n'].flag = true else BLOCKED
+  require false else PROBED
+  return true
+`;
+  writeFileSync(schema,candidate);run('deploy',deployment);
+  assert.equal((await host.post('/m/conditionalDefault',{})).why.code,'PROBED');
+  writeFileSync(schema,candidate.replace("mode: text <=10 default 'go'","mode: text <=10 default 'stop'"));
+  assert.match(run('deploy',deployment,'--check').stdout,/notes changed: 1 guard unproved across conditionalDefault/);
+  run('deploy',deployment);
+  const result=await host.post('/m/conditionalDefault',{});
+  assert.equal(result.state,'failed',JSON.stringify(result));assert.equal(result.why.code,'E_CONFLICT');await host.stop();
+});

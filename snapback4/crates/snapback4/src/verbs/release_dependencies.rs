@@ -120,6 +120,15 @@ impl Dependencies {
         match value {
             Value::Object(fields) => {
                 if fields.contains_key("Literal") { return; }
+                if let Some(write)=fields.get("WriteTarget") {
+                    for name in ["target","patch"] {self.expression(schema,&write[name],bindings,visited,None);}
+                    if let Some(condition)=write.get("condition").filter(|value|!value.is_null()) {
+                        let mut inner=bindings.clone();inner.insert(condition["old"].as_str().expect("condition old binding").into(),json!({"Get":write["target"]}));
+                        let block=json!({"Block":{"body":condition["setup"],"value":condition["value"]}});
+                        self.expression(schema,&block,&inner,&mut BTreeSet::new(),field);
+                    }
+                    return;
+                }
                 if let Some(table)=fields.get("insertTarget").and_then(Value::as_str).or_else(|| fields.get("InsertIfAbsent").and_then(|insert|insert["table"].as_str())) {
                     self.population(schema,table);
                     if let Some(definition)=schema.table(table) {
