@@ -43,18 +43,18 @@ export interface DevHost extends ProofHost {
   now(): Promise<number>;
 }
 /** The array form preserves the former startDev(args) recipe. */
-export async function startDev(options: ProofOptions | readonly string[] = {}): Promise<DevHost> {
+export function startDev(options: ProofOptions | readonly string[] = {}): Promise<DevHost> {
   const opts: ProofOptions = Array.isArray(options) ? { args: options } : options as ProofOptions;
   const args = [...(opts.args ?? [])];
   const persistent = args.some(arg => arg === "--store" || arg.startsWith("--store=") || arg === "--no-memory");
   if (persistent && args.includes("--memory")) throw new TypeError("proof startDev: --memory conflicts with --store/--no-memory");
   // --no-memory is a proof option; native dev already persists by default.
-  const host = await nativeHost("dev", [], { ...opts, args: [...args.filter(arg => arg !== "--no-memory"), ...(persistent || args.includes("--memory") ? [] : ["--memory"])] });
-  return { ...host, now: async () => {
+  const host = nativeHost("dev", [], { ...opts, args: [...args.filter(arg => arg !== "--no-memory"), ...(persistent || args.includes("--memory") ? [] : ["--memory"])] });
+  return host.then(host => ({ ...host, now: async () => {
     const { response, body } = await fetchIdentity(`${host.url}/dev/status`, deadline(opts.timeoutMs, 10_000));
     if (!response.ok || typeof body.now !== "number") throw Error("proof dev clock unavailable");
     return body.now;
-  } };
+  } }));
 }
 export function startServe(deployDir: string, options: ProofOptions | readonly string[] = {}): Promise<ProofHost> {
   if (typeof deployDir !== "string" || !deployDir.trim()) throw Object.assign(new TypeError("E_PROOF_USAGE: startServe(deployDir, options) requires a deployment directory as its first argument"), { code: "E_PROOF_USAGE" });
