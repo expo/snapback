@@ -1,0 +1,42 @@
+✔ run settlement owns a per-intent observer: sent, early receipt, concurrent calls and no read subscribers (2.381732ms)
+✔ run settlement owns a per-intent observer: failed, early receipt, concurrent calls and no read subscribers (0.258778ms)
+✔ sentResult and compact matchRead preserve null, replay and empty-list meanings (0.255413ms)
+✔ why: E_BOUND parks until start and calls onDeliveryRefused exactly once (9.261849ms)
+✔ why: next start sends the refused report with a new id and succeeds (1.445838ms)
+✔ why: no E_BOUND retry during the session on time, reconnect, publication or recollection (1.814651ms)
+✔ why: multi-position refusal survives interval eviction with adjacent clean coverage (185.134184ms)
+✔ why: multi-position refusal survives group eviction with adjacent clean coverage (1.970154ms)
+✔ why: reset(false) preserves refusal suppression until start (1.56744ms)
+✔ why: interval eviction and recollection cannot resend before start (124.575248ms)
+✔ why: group eviction and recollection cannot resend before start (0.958938ms)
+✔ denied: E_BOUND parks until start and calls onDeliveryRefused exactly once (1.607301ms)
+✔ denied: next start sends the refused report with a new id and succeeds (0.687111ms)
+✔ denied: no E_BOUND retry during the session on time, reconnect, publication or recollection (0.714562ms)
+✔ denied: multi-position refusal survives interval eviction with adjacent clean coverage (112.520411ms)
+✔ denied: multi-position refusal survives group eviction with adjacent clean coverage (0.839389ms)
+✔ denied: reset(false) preserves refusal suppression until start (0.834672ms)
+✔ denied: interval eviction and recollection cannot resend before start (107.66649ms)
+✔ denied: group eviction and recollection cannot resend before start (1.070456ms)
+✔ headless: E_BOUND parks until start and calls onDeliveryRefused exactly once (0.82086ms)
+✔ headless: next start sends the refused report with a new id and succeeds (0.69972ms)
+✔ headless: no E_BOUND retry during the session on time, reconnect, publication or recollection (1.33349ms)
+✔ headless: multi-position refusal survives interval eviction with adjacent clean coverage (178.550021ms)
+✔ headless: multi-position refusal survives group eviction with adjacent clean coverage (1.448502ms)
+✔ headless: reset(false) preserves refusal suppression until start (0.973389ms)
+✔ headless: interval eviction and recollection cannot resend before start (188.57153ms)
+✔ headless: group eviction and recollection cannot resend before start (1.376625ms)
+✔ ordinary E_INPUT refusal has the same eviction and next-start behavior (2.645988ms)
+✔ wasm publication eviction and recollection preserve the start-only refusal (2106.423173ms)
+✔ a retried refusal CAS notifies once after commit (1.425267ms)
+✔ start-only suppression is scoped by fingerprint, group and store (4.102533ms)
+✔ E_STORE_RESTORE takes precedence over a report's original refusal (1.07995ms)
+✔ E_STORE_REPLACED takes precedence over a report's original refusal (1.171347ms)
+✔ guide testing full HTTP bodies match real routes, including null returns, refusals and omitted ids (179.462329ms)
+ℹ tests 34
+ℹ suites 0
+ℹ pass 34
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3222.734928

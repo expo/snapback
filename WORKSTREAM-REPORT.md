@@ -38,14 +38,19 @@ Both round 2 reviewers returned READY at `d71507f2db`. Both final round 3
 reviewers returned READY for `ad7d5d45fc`, including native-only opt-in image
 attribution, named recipe navigation and the census delta. The subsequent empty-roster hint preservation at `68641c2a8a` received a fourth
 paired READY review and passes all 36 affected tests on Linux and Mac. Its
-extended existing regression fails before the fix and passes afterward. All
+extended existing regression fails before the fix and passes afterward.
+The final guide/diagnostic contract revision `d5e5c0f01e` also received paired
+READY reviews (round 5). Muse flagged the adjacent exact-repair snapshot;
+`5bf653ad0f` keeps that source unchanged and moves its pointer into the message,
+with the original regression extended to assert the pointer. All
 verbatim reviews, model/command/snapshot provenance and full Codex transcripts are under
 `llp/reviews/3000.036.002-rules3-r*`.
 
 Supporting qualification commits: `d71507f2db` keeps the original guide budget,
 `a8b4f5efc6` fences SQLite-only test helpers, and `97108e3c09` strengthens
 HTTP assertions to require complete answers. Review/report records are in
-`6573708c0a`, `eec7146151`, and `2cc0658f1a`.
+`6573708c0a`, `eec7146151`, and `2cc0658f1a`. Guide placement and final
+contract repairs are in `4de7e80db6`, `d5e5c0f01e`, and `5bf653ad0f`.
 
 The existing authoring census gains 21 mutation occurrences: 20 server-only
 and one eligible roster delete. It removes no previous occurrence or private
@@ -104,18 +109,25 @@ and summary are in `snapback4/reports/wave13-rules3/`.
   selectors and static old/next attribution tests pass. Existing 21 recipes stay
   in the compilation census (29 blocks total). Full-suite follow-up passes all
   125 guide, three denied-write, 13 prior-recipe and three RULES3 tests, plus
-  nine membership-path and 18 MP reproduction tests. Read-through repairs keep
-  their exact executable source; the named recipe pointer lives in the message. Historical public
+  nine membership-path, 18 MP reproduction and five wave-10 expressiveness
+  tests. The simulator forgery regression passes with the layer prefix.
+  Read-through repairs keep their exact executable source; the named recipe
+  pointer lives in the message. Historical public
   refusal evidence is retained; the current expectation adds only the reviewed
   generic layer label and static recipe rewrite, and still compares all private
   cause envelopes byte-for-byte. All original guide size ceilings remain.
+- Final consolidated Linux rerun: all 176 affected language tests in seven
+  files pass together, plus all 36 CLI developer-refusal and RULES3 HTTP tests.
 - Engine: frozen pre-change compound traversal comparison and real Runner
   traced/untraced × implicit/explicit old+next parity pass, including public
   probe ceilings, physical allowance exhaustion, finite witness deadlines and
   non-readable/unknown verdicts.
 - Mac: initial 65 affected tests pass; final rerun passes 27 dev-refusals + nine
   recipe/ladder/selector tests + three real accounting/traversal tests. Scratch
-  clone only; no publication worktree.
+  clone only; no publication worktree. Across the language follow-ups, all
+  176 affected cases pass across the seven files after generating SDK distribution
+  files in the scratch clone. The missing-package-file setup failure is
+  retained in the evidence; the final 125 guide tests all pass.
 - Affected clients: 34 tests pass across client-recipes, wire-envelopes and
   delivery-refusal. Additional write-authority and RX rule-hop suites pass ten
   tests (both WASM and process clients); four historical 0.4.13 upgrade tests
@@ -131,9 +143,24 @@ and summary are in `snapback4/reports/wave13-rules3/`.
   missing demo caches were regenerated using scripts/check-generated-artifacts;
   that prescribed generator also passes with no tracked root projection drift.
 - `./ref-check`: final closeout passes (548 documents, zero errors/unchecked).
-- Full Rust workspace (all requested crates plus difftest/native): final run
-  pending. Earlier qualification caught a guide-byte overflow (fixed without
-  raising the budget) and one route-saturation 503 under concurrent load.
+- Full Rust workspace completed: `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0
+  CARGO_PROFILE_TEST_DEBUG=0 cargo test --workspace --no-fail-fast` ran all five
+  requested crates plus difftest/native, 396 test targets and six doctest crates.
+  That invocation exits 101: ten assertions failed across six targets. Every
+  failure is resolved: denied_writes (3), guide (125), membership_paths (9),
+  mp_reproduction (18), wave10_rules_expressiveness (5) pass on rerun, and the
+  simulator forgery regression passes exactly. All other full-run targets pass;
+  normal opt-in/measurement/child-process ignores remain. Full run and precise
+  follow-up commands/results are preserved in `qualification.json`. The costly
+  unchanged matrices were not repeated after diagnostic/text-contract fixes.
+  There are no unresolved affected failures.
+- Earlier superseded runs caught the guide-byte overflow (fixed within the
+  original ceiling) and one route-saturation 503 under concurrent load. The
+  final full run passes that route test, as do three isolated repetitions.
+- Final source checks rerun after the diagnostic fixes: inventories PASS,
+  guide 22/22 PASS, docs budget PASS, ref-check PASS, and diff whitespace PASS.
+  Linux final CLI rebuild and final 100-schema census also pass with the same
+  single known copied-lane toolchain refusal.
 
 ## Scope boundaries / deferrals
 

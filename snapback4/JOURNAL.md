@@ -95817,3 +95817,16 @@ private image phase. The original clause remains the lookup identity, as it
 already is for source sites. The extended existing HTTP regression fails
 before and passes after; all 36 affected tests pass on Linux and Mac, and the
 focused fourth pair of independent reviews both returns READY at 68641c2a8a.
+
+RULES3 final qualification completed the full Rust workspace, including its
+unchanged generated device, allocation, revocation and union matrices. Ten
+assertions in six targets were corrected and rerun green: diagnostic prefixes,
+guide budgets/definition selection, exact read-through repairs and the frozen
+public envelope's intentional generic help additions. The original full-run
+exit 101 and all passing follow-ups are preserved, rather than claiming that
+single invocation was green. All 176 affected language cases pass on Linux
+and Mac after building SDK artifacts in the Mac scratch clone; 44 affected
+client cases pass, with four optional historical-package cases skipped.
+Guide/inventory/reference/doc-budget checks pass. The final diagnostic-contract
+revision received another paired READY review; its adjacent exact-repair
+observation is fixed by keeping the recipe pointer in the refusal message.

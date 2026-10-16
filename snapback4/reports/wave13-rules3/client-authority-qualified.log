@@ -1,0 +1,24 @@
+(node:3909294) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+﹣ published 0.4.13 zero-hop upgrade keeps backend bytes, acquisition and images on native and wasm (0.602665ms) # set RX_PUBLISHED_ROOT to verified extracted snapback4 and the host platform 0.4.13 packages
+﹣ published 0.4.13 one-hop upgrade keeps backend bytes, acquisition and images on native and wasm (0.111137ms) # set RX_PUBLISHED_ROOT to verified extracted snapback4 and the host platform 0.4.13 packages
+﹣ published 0.4.13 rejects RX chain on initial device open, persisted reopen and engine store (0.083515ms) # set RX_PUBLISHED_ROOT to verified extracted snapback4 and the host platform 0.4.13 packages
+﹣ published 0.4.13 rejects RX final on initial device open, persisted reopen and engine store (0.070826ms) # set RX_PUBLISHED_ROOT to verified extracted snapback4 and the host platform 0.4.13 packages
+✔ wasm: table membership and live chains govern actual client mutations (731.714686ms)
+✔ process: table membership and live chains govern actual client mutations (243.199958ms)
+✔ check --cost and why list each prepaid hop, including final obligations (43.334194ms)
+✔ write authority: /m replay keeps only execution identity after hidden writes, dropped replies and revocation (173.79761ms)
+✔ write authority: the client sends a queued unheld upsert without planting a pending row (5142.132082ms)
+✔ write authority: check --cost prints the bounded uniform pass and its examined ceiling (132.51368ms)
+✔ write authority: a lost readable key-collision reply cannot recover its key after revocation (140.523345ms)
+✔ replay card: online keeps a lost response's same-id receipt and fresh result (395.584365ms)
+✔ replay card: local keeps a lost response's same-id receipt and fresh result (1156.515175ms)
+✔ online sign-out revokes its bearer and clears the client even without a link (1.778618ms)
+ℹ tests 14
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 4
+ℹ todo 0
+ℹ duration_ms 7260.090041

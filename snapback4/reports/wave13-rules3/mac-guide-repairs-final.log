@@ -1,0 +1,259 @@
+$ tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:292:13
+    |
+292 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-core` (lib) generated 9 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling snapback4-lang v0.4.29 (/Users/ccheever/projects/snapback-ws-rules3/snapback4/crates/snapback4-lang)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:463:51
+    |
+463 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+warning: unused variable: `handle_index`
+   --> crates/snapback4-lang/tests/guide.rs:600:9
+    |
+600 |     let handle_index = bound.schema.tables["profiles"].indexes.iter().find(|(_, index)| index.unique && index.columns() == ["handle...
+    |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_handle_index`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (test "guide") generated 1 warning (run `cargo fix --test "guide" -p snapback4-lang` to apply 1 suggestion)
+    Finished `test` profile [optimized] target(s) in 15.58s
+     Running tests/guide.rs (target/debug/deps/guide-72c59f3305a1d852)
+
+running 125 tests
+test client::loading_or_absent_opens_client ... ok
+test client::missing_row_question_opens_client ... ok
+test client::membership_wording_covers_pending_predictions_and_withdrawals ... ok
+test client::connection_presence_keeps_its_card ... ok
+test calibration_effects_jobs_and_seed_cards_explain_replay_flags ... ok
+test client::published::client_teaches_sdk_delivery_and_screen_seen ... ok
+test client::native_smoke_is_the_milestone_path_with_honest_limits ... ok
+test client::witness_card_explains_scene_adoption_and_product_toolchain ... ok
+test client::unknown_membership_offline_opens_interactions ... ok
+test client::client_aliases_keep_typing_on_ephemeral ... ok
+test definitions::assets_once_contract_retains_metadata_and_renders_opened ... ok
+test composition_card_is_reachable_and_keeps_the_routing_boundary ... ok
+test definitions::expiring_cap_why_states_live_occupancy_and_bounded_recount ... ok
+test definitions::expiring_mutation_programs_card_states_prediction_class ... ok
+test a_piped_card_prints_whole ... ok
+test client::headless_password_recipe_stays_on_auth_and_seed_without_growing_the_card ... ok
+test definitions::delivery_bound_guidance_requires_start_only_recovery ... ok
+test definitions::search_membership_heading_is_a_separate_output_line ... ok
+test definitions::delivery_bound_rfc_acceptance_requires_start_only_recovery ... ok
+test definitions::expiring_scalar_why_states_null_query_cut_and_atomic_mutation_refusal ... ok
+test definitions::why_rule_carries_the_target_visibility_contract ... ok
+test definitions::heaviest_account_aliases_reach_the_executable_acquisition_recipe ... ok
+test definitions::receipts_migrates_the_history_walking_hook_that_does_not_scale ... ok
+test definitions::why_bound_defines_the_ceiling_and_withheld_count ... ok
+test definitions::receipts_teaches_sdk_delivery_and_keeps_only_the_seen_hook ... ok
+test client::published::published_path_guard_rejects_astras_counterexample_and_unlisted_files ... ok
+test expire_card_explains_maintained_value_order_refusal_and_rewrites ... ok
+test a_piped_overview_carries_the_first_section_and_the_terminal_one_the_index ... ok
+test client::existence_card_and_starters_teach_the_sdk_words ... ok
+test client::w13e_every_chat_search_has_ordinary_and_explicit_narrower_scopes ... ok
+test definitions::every_card_separates_headings_from_prose ... ok
+test familiar::cards_meet_word_targets_and_preserve_every_original_compiled_block ... ok
+test feeds::builder_path_precedes_internals_and_older_spellings ... ok
+test familiar::the_rosetta_card_is_reachable_and_covers_the_requested_idioms ... ok
+test familiar::check_output_guidance_distinguishes_summaries_from_verbose_details ... ok
+test digest_recipe_is_atomic_bounded_and_reachable_from_the_orientation ... ok
+test client::published_text_needs_no_checkout_or_lane_reports ... ok
+test feeds::older_spelling_exemption_respects_headings_and_fenced_samples ... ok
+test feeds::owner_key_sign_out_preserves_the_replica_without_lending_its_proof ... ok
+test calibration_guide_words_and_replay_holds_are_discoverable ... ok
+test client::published::published_file_references_resolve_against_package_contents ... ok
+test every_alias_targets_a_keyword_and_nearest_uses_aliases ... ok
+test definitions::w11_every_registered_code_quotes_its_definition ... ok
+test feeds::retirement_census_rejects_installers_helpers_and_projection_examples ... ok
+test feeds_card_states_background_contract_and_keeps_recipe_refusals ... ok
+test following_cards_pin_examinations ... ok
+test following_cards_scope_older_recipe_measurements ... ok
+test guessed_section_words_land_on_one_section_even_in_another_card ... ok
+test host_unicode_refusal_explains_the_repair_and_search_contract ... ok
+test every_guide_keyword_a_diagnostic_names_is_a_card ... ok
+test deploy::deploy_recipe_bootstraps_an_admin_without_a_public_privilege_race ... ok
+test feeds::refusal_and_usage_sources_do_not_recommend_the_retired_installer ... ok
+test language_following_uses_the_declaration ... ok
+test every_alias_is_a_section_or_find_word_inside_its_card ... ok
+test natural_words_find_their_cards ... ok
+test arrival_recipe_orders_ties_and_retries_then_pages ... ok
+test password_policy_and_guest_choice_are_on_the_card ... ok
+test feeds::published_following_unrepost_hides_the_delivered_event ... ok
+test familiar::every_moved_fact_has_its_why_or_details_home ... ok
+test every_emitted_code_is_explained ... ok
+test recovery::cancellation_definition_reconciles_recorded_step_keys ... ok
+test prediction_card_compiles_clean ... ok
+test feeds::followups::published_global_filters_originals_and_preserves_independent_reposts ... ok
+test rollback::every_packaged_card_has_consistent_release_rollback_claims ... ok
+test direct_and_merged_cursor_generation_contracts_are_distinct ... ok
+test feeds::published_following_unrepost_uses_the_reposting_viewer ... ok
+test feeds::cards_readmes_and_templates_do_not_teach_the_retired_recipe ... ok
+test intent::language_intent_views_predicates_search_and_durations_run ... ok
+test intent::rules_opening_inherits_message_authority_lifetime_and_sync ... ok
+test intent::published_digest_streams_past_the_old_limit_and_once_survives_reopen ... ok
+test onboarding_recipe_recovers_a_taken_handle_for_the_same_principal ... ok
+test feeds::followups::every_rolling_rank_page_matches_sort_filter_oracle ... ok
+test recovery::asset_placement_requires_upload_ownership ... ok
+test start::every_card_introduces_the_feature_before_examples_and_reference_details ... ok
+test start::openings_fit_without_growing_the_eight_reference_cards ... ok
+test start::start_is_the_same_eight_openings_in_order_with_registered_mistakes ... ok
+test structural_admission_cards_name_every_host_and_the_web_trust_boundary ... ok
+test surf::farm_conceptual_section_words_land_without_a_miss ... ok
+test surf::surf_cards_match_current_auth_rules_assets_and_protocol ... ok
+test the_cards_state_the_engines_numbers_and_families ... ok
+test the_keywords_are_one_list ... ok
+test feeds::followups::legacy_global_projection_retries_removal_and_rollback_are_atomic ... ok
+test recovery::cancelled_effect_keeps_distinct_stored_step_keys ... ok
+test the_listing_fits_a_screen_and_aliases_have_their_own_command ... ok
+test the_language_card_also_compiles_as_a_module_with_qualified_schedules ... ok
+test the_template_compiles_clean ... ok
+test time_waiting_cards_point_to_cli_and_http_clock_controls ... ok
+test the_readme_quarry_compiles_clean ... ok
+test w10a_readme_opening_is_one_way_into_the_published_surface ... ok
+test every_card_compiles_clean ... ok
+test w10r2_common_refusal_examples_have_clean_repairs ... ok
+test w11_every_registered_code_has_a_dedicated_section ... ok
+test w11r1c_first_screen_generates_types_and_starts_the_backend ... ok
+test w11r1c_residency_fact_cards_require_verbose ... ok
+test w11r2_native_boundary_sentence_matches_both_published_copies ... ok
+test set_state_recipe_predicts_first_like_and_repeated_set_and_clear ... ok
+test w14a_compact_reads_and_wide_note_qualify_word_expansion_and_continuation ... ok
+test w11r2_recipe_refusals_have_reserved_names_and_dedicated_sections ... ok
+test w7c_meter_store_readiness_and_aggregate_discovery_are_on_the_cards ... ok
+test w14b_first_account_screen_is_self_contained ... ok
+test w9a_held_search_leads_with_coverage_then_cost_then_refusal ... ok
+test w9a_reads_and_refusals_explain_hidden_pages_and_readable_membership ... ok
+test rules::admitted_hidden_updates ... ok
+test w9r1b_diagnostic_card_overrides_the_code_default ... ok
+test wave10_dx::docs_use_engine_file_types_period_boundaries_and_projection_identity ... ok
+test w9a_expiry_cards_explain_and_select_the_readers_deadline ... ok
+test w9b_every_code_has_bounded_card_context_and_a_full_card_command ... ok
+test writes_card_explains_the_whole_upsert_insert_proof ... ok
+test w10a_effect_and_job_names_are_explained_where_a_module_declares_both ... ok
+test w10b_typing_card_compiles_and_expires_at_the_deadline ... ok
+test the_language_card_compiles_and_runs ... ok
+test rules::insert_rule_refusals ... ok
+test rules::missing_update_and_incomplete_upsert ... ok
+test wave10_dx::upgrade_card_version_and_nullable_count_are_bound_to_the_emitted_surface ... ok
+test wave9_dx::jobs_catch_up_sweep_includes_rows_before_the_latest_period_and_repeats ... ok
+test maintained_column_notes_do_not_spread_to_existing_cards_recipes_or_templates ... ok
+test rules::insert_collision_visibility ... ok
+test rules::update_rule_refusals ... ok
+test rules::update_conditions ... ok
+test rules::delete_rule_refusals ... ok
+test rules::declared_unique_refusal_does_not_disclose_hidden_collision ... ok
+test rules::update_collision_visibility ... ok
+test feeds::legacy_complete_feeds_program_runs_at_clique_size ... ok
+test feeds::published_following_matches_the_builder_contract ... ok
+test receipts_card_ticks_follow_the_recipient_set ... ok
+
+test result: ok. 125 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.56s
+
+     Running tests/membership_paths.rs (target/debug/deps/membership_paths-132e8be56ce92ab2)
+
+running 9 tests
+test nullable_unique_membership_source_keeps_the_original_scan ... ok
+test explicit_through_can_name_its_authored_sync_path ... ok
+test mismatched_audiences_keep_sync_code_and_schema_specific_repair ... ok
+test path_refusals_are_targeted_and_repairs_compile ... ok
+test generated_paths_have_identical_schema_programs_and_residency ... ok
+test eight_component_source_unique_omits_its_logical_id_suffix ... ok
+test one_row_source_selects_an_admitted_unique_before_residuals ... ok
+test total_unique_membership_source_uses_its_implicit_row_id ... ok
+test one_row_source_unique_projects_an_ordinary_parent_field ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.20s
+
+     Running tests/wave10_rules_expressiveness.rs (target/debug/deps/wave10_rules_expressiveness-754292af3311e886)
+
+running 5 tests
+test timed_disclosure_is_discoverable_from_language_time_and_expiry ... ok
+test mutable_read_through_diagnostic_explains_both_audience_histories ... ok
+test timed_disclosure_recipe_separates_read_lifetime_from_write_deadline ... ok
+test blind_writer_recipe_checks_the_parent_without_reading_it ... ok
+test composite_role_recipe_uses_full_probes_and_supports_two_roles ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+

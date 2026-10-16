@@ -1,0 +1,191 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on build directory
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: trait `MustBeShareDummy` is never used
+   --> vendor/tiny_http/src/lib.rs:168:7
+    |
+168 | trait MustBeShareDummy: Sync + Send {}
+    |       ^^^^^^^^^^^^^^^^
+    |
+    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `tiny_http` (lib) generated 1 warning
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:292:13
+    |
+292 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: `snapback4-core` (lib) generated 9 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling snapback4-lang v0.4.29 (/home/ccheever/projects/sb4-w13-rules3/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.29 (/home/ccheever/projects/sb4-w13-rules3/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:463:51
+    |
+463 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+   Compiling snapback4 v0.4.29 (/home/ccheever/projects/sb4-w13-rules3/snapback4/crates/snapback4)
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:115:30
+    |
+115 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+   --> crates/snapback4/src/serve_routes.rs:131:30
+    |
+131 | ...   let collected = {let mut engine=lock(&shared.engine);crate::release_requests::stamp(engine.generation());engine.route_request...
+    |                            ----^^^^^^
+    |                            |
+    |                            help: remove this `mut`
+
+warning: method `push` is never used
+  --> crates/snapback4/src/dev_refusal_console.rs:22:12
+   |
+16 | impl Console {
+   | ------------ method in this implementation
+...
+22 |     pub fn push(&mut self, record: Value, identity: &Value, out: &mut impl Write) {
+   |            ^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: function `human_period` is never used
+   --> crates/snapback4/src/verbs.rs:847:4
+    |
+847 | fn human_period(ms: u64) -> String {
+    |    ^^^^^^^^^^^^
+
+warning: `snapback4` (bin "snapback4") generated 4 warnings (run `cargo fix --bin "snapback4" -p snapback4` to apply 2 suggestions)
+    Finished `test` profile [optimized] target(s) in 29.62s
+     Running tests/dev_refusals.rs (target/debug/deps/dev_refusals-bd9d31f8ad027d7e)
+
+running 27 tests
+test quiet::empty_read_card_is_served_by_both_verbs ... ok
+test fixture_queries_print_hidden_counts_and_persona_arguments_have_the_same_guard ... ok
+test point_answer_corruption_is_rejected_even_with_a_moving_sequence ... ok
+test round3::composed_missing_row_is_present_and_does_not_emit_empty_read ... ok
+test hidden_query_count_is_dev_console_only ... ok
+test round3::filtered_sync_and_reads_keep_the_named_timed_refusal_and_explain_scope ... ok
+test a_stale_temporary_save_does_not_wedge_later_evidence ... ok
+test round3::owner_only_asset_refusal_replaces_an_earlier_mutation_cause ... ok
+test why_rechecks_liveness_after_reading_the_snapshot ... ok
+test round3::scheduled_parked_job_replaces_an_earlier_request_in_the_same_stream ... ok
+test ephemeral_and_action_http_doors_apply_dev_principal_guards_and_seat_clauses ... ok
+test bare_persona_arguments_refuse_only_on_the_dev_door ... ok
+test simultaneous_fresh_instances_are_selected_and_stale_or_mismatched_records_rejected ... ok
+test shutdown::sigint_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_without_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigint_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test shutdown::sigterm_with_worker_flushes_refusals_while_a_poll_is_held ... ok
+test quiet::many_empty_reads_are_silent_and_do_not_advance_evidence ... ok
+test real_query_exhaustion_supersedes_previous_refusal_and_capture_names_its_actual_phase ... ok
+test writer_evicts_the_oldest_of_more_than_32_records ... ok
+test quiet::tracing_records_unknown_empties_without_console_noise ... ok
+test dev_reports_source_locally_and_production_keeps_the_same_caller_refusal ... ok
+test an_empty_persona_roster_has_a_dev_only_seed_hint_that_clears_after_seeding ... ok
+test uninstrumented_refusals_replays_and_empty_reads_replace_older_causes ... ok
+test blocked_stderr_cannot_block_responses_or_later_mutations ... ok
+test quiet::real_refusals_keep_individual_records_and_print_one_counted_line ... ok
+test empty_read_evidence_is_top_level_proved_and_opt_in_only ... ok
+
+test result: ok. 27 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.19s
+
+     Running tests/wave13_rules.rs (target/debug/deps/wave13_rules-b278392ef7fe3a13)
+
+running 9 tests
+test diagnostic_recipe_selectors_open_the_named_recipe ... ok
+test mutable_workflow_fixtures_and_http ... ok
+test grant_expiry_fixtures_and_http ... ok
+test refusal_ladder_and_developer_image_evidence_over_http ... ok
+test role_workflow_fixtures_and_http ... ok
+test owner_now_fixtures_and_http ... ok
+test source_publication_fixtures_and_http ... ok
+test offline_roster_fixtures_and_http ... ok
+test quantified_consent_fixtures_and_http ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+

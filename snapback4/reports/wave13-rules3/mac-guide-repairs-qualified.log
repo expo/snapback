@@ -1,0 +1,5 @@
+Previous HEAD position was d5e5c0f01e Keep rule help bounded and its suggested repairs executable
+HEAD is now at 5bf653ad0f Preserve exact read-through repairs beside recipe guidance
+packages/snapback4/src/web-wasm.ts(2,18): error TS2307: Cannot find module './wasm/snapback4_device.js' or its corresponding type declarations.
+packages/snapback4/src/web-worker-runtime.ts(2,27): error TS2307: Cannot find module './wasm/snapback4_device.js' or its corresponding type declarations.
+packages/snapback4/src/web.ts(25,27): error TS2307: Cannot find module './wasm/snapback4_device.js' or its corresponding type declarations.
