@@ -1,0 +1,507 @@
+[
+  {
+    "lane": "004-day2-lease-takeover-board",
+    "removed": [
+      {
+        "code": "N_NEVER_COMPLETE",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query viewingsFor: truly partial absence evidence: the page over viewingRequests[..] by read or declaration on viewingRequests (listing, at, id) at schema.q:126:10 is never `complete` \u2014 the read rule `.owner = viewer or .landlord = viewer or .applicant = viewer and exists applications[.listing, .applicant, status = 'finalist']` reads .applicant, .landlord, .owner, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"; it answers `complete: false` even when every row the caller may read is there \u2014 test.cases.jsonl: the default passes it (or write `\"expect\": \"capped\"`); a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; analyzer limitation: no verified complete form for this read (`.applicant = viewer and exists applications[.listing, .applicant, status = 'finalist']` reads a column the page does not pin and is not a `.column = viewer` party, so no pin selects its rows); keep the query and expect `capped` (check --verbose)",
+        "rewrite": "nearest supported query, preserving every authorized caller (the copied fields are not an enforced stored dependency):\nquery viewingsFor(listing: listings):\n  return viewingRequests where .listing = listing last 100 by .at\nHandle complete: false and continue its cursor. Keep explicit parent/child scope equalities when that narrower scope is what the screen requests; a viewer pin is not an equivalent repair. For parent-scoped history, reading listings[listing] alone does not prove a copied child audience. If the whole parent audience is intended, declare read through .listing; for a parent-owner branch, declare exists listings[.listing, owner = viewer] in the child's read rule and guard its page with require exists listings[listing, owner = viewer] else FORBIDDEN (guide recipes).",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 125
+        }
+      }
+    ],
+    "added": [
+      {
+        "code": "N_NEVER_COMPLETE",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query viewingsFor: truly partial absence evidence: the page over viewingRequests[..] by read or declaration on viewingRequests (listing, at, id) at schema.q:126:10 is never `complete` \u2014 the read rule `.owner = viewer or .landlord = viewer or .applicant = viewer and exists applications[.listing, .applicant, status = 'finalist']` reads .applicant, .landlord, .owner, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"; it answers `complete: false` even when every row the caller may read is there \u2014 test.cases.jsonl: the default passes it (or write `\"expect\": \"capped\"`); a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; the complete form is to add `cap 100 by listing` to table viewingRequests only if that is a product limit you choose; keep query viewingsFor and its exact read rule unchanged. The bounded authorized walk exhausts that parent group for the same audience, including every existing read-rule branch; do not substitute the parent's broader audience. Existing data must fit the cap before adoption (check --verbose)",
+        "rewrite": "add `cap 100 by listing` to table viewingRequests only if that is a product limit you choose; keep query viewingsFor and its exact read rule unchanged. The bounded authorized walk exhausts that parent group for the same audience, including every existing read-rule branch; do not substitute the parent's broader audience. Existing data must fit the cap before adoption",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 125
+        }
+      }
+    ]
+  },
+  {
+    "lane": "007-docket-deadline-calendar",
+    "removed": [
+      {
+        "code": "N_NEVER_COMPLETE",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query auditFor: analyzer limitation: the page over audit[..] by read or declaration on audit (deadline, at, id) at schema.q:137:10 is never `complete` except for callers `exists staff[viewer, role = 'partner']` admits \u2014 the read rule `exists matters[.matter, lead = viewer] or exists matters[.matter, support = viewer] or exists staff[viewer, role = 'partner']` reads .matter, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"; test.cases.jsonl: run it as a caller `exists staff[viewer, role = 'partner']` admits to expect `complete`, and expect `capped` (the default passes either) for the rest; a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; analyzer limitation: no verified complete form for this read (`exists matters[.matter, lead = viewer]` reads a column the page does not pin and is not a `.column = viewer` party, so no pin selects its rows); keep the query and expect `capped` (check --verbose)",
+        "rewrite": "nearest supported query, preserving every authorized caller (the copied fields are not an enforced stored dependency):\nquery auditFor(deadline: deadlines):\n  d = deadlines[deadline] ! else NOT_FOUND\n  return audit where .deadline = deadline last 50 by .at\nHandle complete: false and continue its cursor. Keep explicit parent/child scope equalities when that narrower scope is what the screen requests; a viewer pin is not an equivalent repair.",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 135
+        }
+      }
+    ],
+    "added": [
+      {
+        "code": "N_NEVER_COMPLETE",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query auditFor: analyzer limitation: the page over audit[..] by read or declaration on audit (deadline, at, id) at schema.q:137:10 is never `complete` except for callers `exists staff[viewer, role = 'partner']` admits \u2014 the read rule `exists matters[.matter, lead = viewer] or exists matters[.matter, support = viewer] or exists staff[viewer, role = 'partner']` reads .matter, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"; test.cases.jsonl: run it as a caller `exists staff[viewer, role = 'partner']` admits to expect `complete`, and expect `capped` (the default passes either) for the rest; a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; the complete form is to add `cap 50 by deadline` to table audit only if that is a product limit you choose; keep query auditFor and its exact read rule unchanged. The bounded authorized walk exhausts that parent group for the same audience, including every existing read-rule branch; do not substitute the parent's broader audience. Existing data must fit the cap before adoption (check --verbose)",
+        "rewrite": "add `cap 50 by deadline` to table audit only if that is a product limit you choose; keep query auditFor and its exact read rule unchanged. The bounded authorized walk exhausts that parent group for the same audience, including every existing read-rule branch; do not substitute the parent's broader audience. Existing data must fit the cap before adoption",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 135
+        }
+      }
+    ]
+  },
+  {
+    "lane": "012-day2-classroom-observation-notes",
+    "removed": [
+      {
+        "code": "N_CONDITIONAL_COMPLETE",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query teacherDirectory: analyzer limitation for other callers: the page over teachers[..] by read or declaration on teachers (school, name, id) at schema.q:96:12 is `complete` for callers `viewer = 'service:ops' or exists staff[viewer, role = 'observer', school = .school]` admits, and otherwise remains capped \u2014 the read rule `.principal = viewer or exists staff[viewer, role = 'observer', school = .school] or viewer = 'service:ops'` reads .principal, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"; `exists staff[viewer, role = 'observer', school = .school]` is decided by the scan's pins, so the server decides the page once, with the pinned values, for a caller it admits, and answers `complete` (an `if` or `require` on it is followed); test.cases.jsonl: run it as a caller `viewer = 'service:ops' or exists staff[viewer, role = 'observer', school = .school]` admits to expect `complete`, and expect `capped` (the default passes either) for the rest; a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; analyzer limitation: no verified complete form for this read (`exists staff[viewer, role = 'observer', school = .school]` is decided by the page's pins, but no branch the query can write tests it the same way for every caller); keep the query and expect `capped` (check --verbose)",
+        "rewrite": "pin .principal with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read. As code: add `and .principal = viewer` to the page's where (keeping its current pins); this narrows the answer to that scope \u2014 only for a screen meant for that scope alone: every other reader the rule admits loses their rows; analyzer limitation: no verified complete form for this read: `exists staff[viewer, role = 'observer', school = .school]` is decided by the page's pins, but no branch the query can write tests it the same way for every caller; keep the query as written and expect `complete: false` (`capped`; test.cases.jsonl's default passes it). This does not rule out an author-written branched query; for callers `viewer = 'service:ops'` admits (staff), this page is decided once and answers `complete: true`; everyone else pages their own rows with complete: false \u2014 in test.cases.jsonl run it as staff to expect complete, and expect `capped` for the others; for callers `exists staff[viewer, role = 'observer', school = .school]` admits with the pinned values, this page is decided once and answers `complete: true` (an `if` or `require` on that probe is followed)",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 93
+        }
+      },
+      {
+        "code": "N_NEVER_COMPLETE",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query followUpsFor: truly partial absence evidence: the page over followUps[..] by read or declaration on followUps (observation, teacher, createdAt, id) at schema.q:111:12 is never `complete` \u2014 the read rule `.observer = viewer or .teacher = viewer and exists observations[.observation, held = true]` reads .observer, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"; `.teacher = viewer and exists observations[.observation, held = true]` is decided by the scan's pins, but its holders cannot read the row it probes, so it does not decide the page: `complete: false` for them too; it answers `complete: false` even when every row the caller may read is there \u2014 test.cases.jsonl: the default passes it (or write `\"expect\": \"capped\"`); a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; analyzer limitation: no verified complete form for this read (`.teacher = viewer and exists observations[.observation, held = true]` is decided by the page's pins, but no branch the query can write tests it the same way for every caller); keep the query and expect `capped` (check --verbose)",
+        "rewrite": "nearest supported query, preserving every authorized caller (the copied fields are not an enforced stored dependency):\nquery followUpsFor(observationId: observations):\n  o = observations[observationId]\n  if o != null and o.observer = viewer:\n    return followUps where .observation = observationId and .observer = viewer first 50 by .createdAt\n  if o != null and o.held = true:\n    return followUps where .observation = o.id and .teacher = o.teacher first 50 by .createdAt\n  return followUps where .observation = observationId and .observer = viewer and .teacher = viewer first 50 by .createdAt\nHandle complete: false and continue its cursor. Keep explicit parent/child scope equalities when that narrower scope is what the screen requests; a viewer pin is not an equivalent repair.",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 106
+        }
+      }
+    ],
+    "added": []
+  },
+  {
+    "lane": "019-four-h-project-records",
+    "removed": [
+      {
+        "code": "N_CONDITIONAL_COMPLETE",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query recordBooks: analyzer limitation for other callers: the page over books[..] by read or declaration on books (club, id) at schema.q:79:12 is `complete` for callers `exists leaders[viewer, club = .club]` admits, and otherwise remains capped \u2014 the read rule `.owner = viewer or .parent = viewer or exists leaders[viewer, club = .club]` reads .owner, .parent, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"; `exists leaders[viewer, club = .club]` is decided by the scan's pins, so the server decides the page once, with the pinned values, for a caller it admits, and answers `complete` (an `if` or `require` on it is followed); test.cases.jsonl: run it as a caller `exists leaders[viewer, club = .club]` admits to expect `complete`, and expect `capped` (the default passes either) for the rest; a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; analyzer limitation: no verified complete form for this read (`exists leaders[viewer, club = .club]` is decided by the page's pins, but no branch the query can write tests it the same way for every caller); keep the query and expect `capped` (check --verbose)",
+        "rewrite": "pin .owner, .parent with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read. As code: add `and .owner = viewer and .parent = viewer` to the page's where (keeping its current pins); this narrows the answer to that scope \u2014 only for a screen meant for that scope alone: every other reader the rule admits loses their rows; analyzer limitation: no verified complete form for this read: `exists leaders[viewer, club = .club]` is decided by the page's pins, but no branch the query can write tests it the same way for every caller; keep the query as written and expect `complete: false` (`capped`; test.cases.jsonl's default passes it). This does not rule out an author-written branched query; for callers `exists leaders[viewer, club = .club]` admits with the pinned values, this page is decided once and answers `complete: true` (an `if` or `require` on that probe is followed)",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 76
+        }
+      }
+    ],
+    "added": []
+  },
+  {
+    "lane": "042-day2-live-trip-pins",
+    "removed": [
+      {
+        "code": "N_CONDITIONAL_COMPLETE",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query visiblePins: analyzer limitation for other callers: the page over locations[..] by read or declaration on locations (day, trip, id) at schema.q:146:12 is `complete` for callers `exists trips[.trip, organizer = viewer]` admits, and otherwise remains capped \u2014 the read rule `.member = viewer or exists trips[.trip, organizer = viewer] or .mode = 'group' and exists memberships[.trip, viewer] or .mode = 'subset' and exists pinShares[.trip, .member, .day, viewer]` reads .member, .mode, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"; `exists trips[.trip, organizer = viewer]` is decided by the scan's pins, so the server decides the page once, with the pinned values, for a caller it admits, and answers `complete` (an `if` or `require` on it is followed); test.cases.jsonl: run it as a caller `exists trips[.trip, organizer = viewer]` admits to expect `complete`, and expect `capped` (the default passes either) for the rest; a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; analyzer limitation: no verified complete form for this read (`.mode = 'group' and exists memberships[.trip, viewer]` reads a column the page does not pin and is not a `.column = viewer` party, so no pin selects its rows); keep the query and expect `capped` (check --verbose)",
+        "rewrite": "pin .member, .mode with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read. As code: first declare `mode: enum('group', 'subset', 'hidden')` among visiblePins's arguments, then add `and .member = viewer and .mode = mode` to the page's where (keeping its current pins); this narrows the answer to that scope \u2014 only for a screen meant for that scope alone: every other reader the rule admits loses their rows; analyzer limitation: no verified complete form for this read: `.mode = 'group' and exists memberships[.trip, viewer]` reads a column the page does not pin and is not a `.column = viewer` party, so no pin selects its rows; keep the query as written and expect `complete: false` (`capped`; test.cases.jsonl's default passes it). This does not rule out an author-written branched query; for callers `exists trips[.trip, organizer = viewer]` admits with the pinned values, this page is decided once and answers `complete: true` (an `if` or `require` on that probe is followed)",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 143
+        }
+      }
+    ],
+    "added": [
+      {
+        "code": "N_CONDITIONAL_COMPLETE",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query visiblePins: analyzer limitation for other callers: the page over locations[..] by read or declaration on locations (day, trip, id) at schema.q:146:12 is `complete` for callers `exists trips[.trip, organizer = viewer]` admits, and otherwise remains capped \u2014 the read rule `.member = viewer or exists trips[.trip, organizer = viewer] or .mode = 'group' and exists memberships[.trip, viewer] or .mode = 'subset' and exists pinShares[.trip, .member, .day, viewer]` reads .member, .mode, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"; `exists trips[.trip, organizer = viewer]` is decided by the scan's pins, so the server decides the page once, with the pinned values, for a caller it admits, and answers `complete` (an `if` or `require` on it is followed); test.cases.jsonl: run it as a caller `exists trips[.trip, organizer = viewer]` admits to expect `complete`, and expect `capped` (the default passes either) for the rest; a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; the complete form is to add `cap 50 by trip` to table locations only if that is a product limit you choose; keep query visiblePins and its exact read rule unchanged. The bounded authorized walk exhausts that parent group for the same audience, including every existing read-rule branch; do not substitute the parent's broader audience. Existing data must fit the cap before adoption (check --verbose)",
+        "rewrite": "add `cap 50 by trip` to table locations only if that is a product limit you choose; keep query visiblePins and its exact read rule unchanged. The bounded authorized walk exhausts that parent group for the same audience, including every existing read-rule branch; do not substitute the parent's broader audience. Existing data must fit the cap before adoption",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 143
+        }
+      }
+    ]
+  },
+  {
+    "lane": "049-impound-release-desk",
+    "removed": [
+      {
+        "code": "N_LOOKUP_HIDDEN",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "mutation releaseVehicle: the update rule of vehicles (schema.q:21:3) admits the role `exists staff[viewer, role = 'attendant']`, which no disjunct of its read rule `.owner = viewer or .company = viewer or exists staff[viewer, role = 'clerk']` (schema.q:20:3) uses; the update looks the row up first under the read rule, so a holder of that role who reads the row no other way gets NOT_FOUND before the update rule runs",
+        "rewrite": "if the role's holders act on rows they cannot otherwise read, let them read those rows (`read <- .owner = viewer or .company = viewer or exists staff[viewer, role = 'clerk'] or exists staff[viewer, role = 'attendant']`, or narrower, such as `\u2026 or .status = 'open' and exists staff[viewer, role = 'attendant']`); if they always read the row another way, the role only widens the update rule for them and nothing changes",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 125
+        }
+      },
+      {
+        "code": "N_UNREADABLE_PROBE",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "reviewDocuments: this probe reads releaseQueue under its read rule `exists staff[viewer, role = 'attendant'] or exists staff[viewer, role = 'clerk']` (schema.q:50:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows).",
+        "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+        "site": {
+          "col": 15,
+          "file": "schema.q",
+          "line": 117
+        }
+      },
+      {
+        "code": "N_REFERENCE_UNCHECKED",
+        "guide": "types",
+        "mechanical": false,
+        "message": "mutation releaseVehicle stores argument vehicle directly in releases.vehicle, but never looks up vehicles[vehicle]: a reference accepts any well-formed id even when the row is absent",
+        "rewrite": "add `require exists vehicles[vehicle] else NOT_FOUND` before the write; keep the direct id only when dangling references are intentional",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 127
+        }
+      }
+    ],
+    "added": []
+  },
+  {
+    "lane": "052-day2-live-budget-meeting",
+    "removed": [
+      {
+        "code": "N_IMMUTABLE_PATCH",
+        "guide": "writes",
+        "mechanical": false,
+        "message": "on conflict, this upsert is refused at runtime on a readable target unless allocations.meeting equals the stored value; omit meeting from the patch if another value may update this row",
+        "rewrite": "omit meeting from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
+        "site": {
+          "col": 42,
+          "file": "schema.q",
+          "line": 124
+        }
+      }
+    ],
+    "added": []
+  },
+  {
+    "lane": "059-poster-session-gallery",
+    "removed": [
+      {
+        "code": "N_IMMUTABLE_PATCH",
+        "guide": "writes",
+        "mechanical": false,
+        "message": "on conflict, this upsert is refused at runtime on a readable target unless scores.conference equals the stored value; omit conference from the patch if another value may update this row",
+        "rewrite": "omit conference from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
+        "site": {
+          "col": 49,
+          "file": "schema.q",
+          "line": 138
+        }
+      },
+      {
+        "code": "N_NEVER_COMPLETE",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query scoresForPoster: analyzer limitation: the page over scores[..] by read or declaration on scores (poster, id) at schema.q:102:10 is never `complete` except for callers `exists organizers[viewer]` admits \u2014 the read rule `.judge = viewer or exists organizers[viewer] or exists posters[.poster, presenter = viewer] and exists conferences[.conference, awardsReleased = true]` reads .conference, .judge, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"; test.cases.jsonl: run it as a caller `exists organizers[viewer]` admits to expect `complete`, and expect `capped` (the default passes either) for the rest; a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; analyzer limitation: no verified complete form for this read (`exists posters[.poster, presenter = viewer] and exists conferences[.conference, awardsReleased = true]` reads a column the page does not pin and is not a `.column = viewer` party, so no pin selects its rows); keep the query and expect `capped` (check --verbose)",
+        "rewrite": "nearest supported query, preserving every authorized caller (the copied fields are not an enforced stored dependency):\nquery scoresForPoster(poster: posters, c: cursor ?):\n  return scores where .poster = poster first 50 by .id after c\nHandle complete: false and continue its cursor. Keep explicit parent/child scope equalities when that narrower scope is what the screen requests; a viewer pin is not an equivalent repair. For parent-scoped history, reading posters[poster] alone does not prove a copied child audience. If the whole parent audience is intended, declare read through .poster; for a parent-owner branch, declare exists posters[.poster, presenter = viewer] in the child's read rule and guard its page with require exists posters[poster, presenter = viewer] else FORBIDDEN (guide recipes).",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 101
+        }
+      }
+    ],
+    "added": [
+      {
+        "code": "N_NEVER_COMPLETE",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query scoresForPoster: analyzer limitation: the page over scores[..] by read or declaration on scores (poster, id) at schema.q:102:10 is never `complete` except for callers `exists organizers[viewer]` admits \u2014 the read rule `.judge = viewer or exists organizers[viewer] or exists posters[.poster, presenter = viewer] and exists conferences[.conference, awardsReleased = true]` reads .conference, .judge, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"; test.cases.jsonl: run it as a caller `exists organizers[viewer]` admits to expect `complete`, and expect `capped` (the default passes either) for the rest; a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; the complete form is to add `cap 50 by poster` to table scores only if that is a product limit you choose; keep query scoresForPoster and its exact read rule unchanged. The bounded authorized walk exhausts that parent group for the same audience, including every existing read-rule branch; do not substitute the parent's broader audience. Existing data must fit the cap before adoption (check --verbose)",
+        "rewrite": "add `cap 50 by poster` to table scores only if that is a product limit you choose; keep query scoresForPoster and its exact read rule unchanged. The bounded authorized walk exhausts that parent group for the same audience, including every existing read-rule branch; do not substitute the parent's broader audience. Existing data must fit the cap before adoption",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 101
+        }
+      }
+    ]
+  },
+  {
+    "lane": "062-day2-auction-lot-walk",
+    "removed": [
+      {
+        "code": "N_IMMUTABLE_PATCH",
+        "guide": "writes",
+        "mechanical": false,
+        "message": "on conflict, this upsert is refused at runtime on a readable target unless reserves.auction equals the stored value; omit auction from the patch if another value may update this row",
+        "rewrite": "omit auction from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
+        "site": {
+          "col": 37,
+          "file": "schema.q",
+          "line": 151
+        }
+      }
+    ],
+    "added": []
+  },
+  {
+    "lane": "070-day2-vintage-photo-id",
+    "removed": [
+      {
+        "code": "N_NEVER_COMPLETE",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query identifications: truly partial absence evidence: the page over suggestions[..] by read or declaration on suggestions (photo, at, id) at schema.q:91:10 is never `complete` \u2014 the read rule `exists photos[.photo] and .author = viewer or exists photos[.photo, owner = viewer] or .decision = 'accepted'` reads .author, .decision, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"; it answers `complete: false` even when every row the caller may read is there \u2014 test.cases.jsonl: the default passes it (or write `\"expect\": \"capped\"`); a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; the complete form is the pin (check --verbose)",
+        "rewrite": "pin .author, .decision with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read. As code: first declare `decision: enum('pending', 'accepted', 'rejected')` among identifications's arguments, then add `and .author = viewer and .decision = decision` to the page's where (keeping its current pins); this narrows the answer to that scope For parent-scoped history, reading photos[photo] alone does not prove a copied child audience. If the whole parent audience is intended, declare read through .photo; for a parent-owner branch, declare exists photos[.photo, owner = viewer] in the child's read rule and guard its page with require exists photos[photo, owner = viewer] else FORBIDDEN (guide recipes).",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 90
+        }
+      }
+    ],
+    "added": [
+      {
+        "code": "N_NEVER_COMPLETE",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query identifications: truly partial absence evidence: the page over suggestions[..] by read or declaration on suggestions (photo, at, id) at schema.q:91:10 is never `complete` \u2014 the read rule `exists photos[.photo] and .author = viewer or exists photos[.photo, owner = viewer] or .decision = 'accepted'` reads .author, .decision, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"; it answers `complete: false` even when every row the caller may read is there \u2014 test.cases.jsonl: the default passes it (or write `\"expect\": \"capped\"`); a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; the complete form is to add `cap 50 by photo` to table suggestions only if that is a product limit you choose; keep query identifications and its exact read rule unchanged. The bounded authorized walk exhausts that parent group for the same audience, including every existing read-rule branch; do not substitute the parent's broader audience. Existing data must fit the cap before adoption (check --verbose)",
+        "rewrite": "add `cap 50 by photo` to table suggestions only if that is a product limit you choose; keep query identifications and its exact read rule unchanged. The bounded authorized walk exhausts that parent group for the same audience, including every existing read-rule branch; do not substitute the parent's broader audience. Existing data must fit the cap before adoption",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 90
+        }
+      }
+    ]
+  },
+  {
+    "lane": "077-practicum-placements",
+    "removed": [
+      {
+        "code": "N_NEVER_COMPLETE",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query evalsFor: truly partial absence evidence: the page over evaluations[..] by read or declaration on evaluations (candidate, id) at schema.q:72:10 is never `complete` except for callers `exists staff[viewer, role = 'director'] or exists staff[viewer, role = 'mentor'] or exists staff[viewer, role = 'supervisor']` admits \u2014 the read rule `.author = viewer or exists staff[viewer, role = 'director'] or exists staff[viewer, role = 'mentor'] or exists staff[viewer, role = 'supervisor'] or exists candidates[.candidate, principal = viewer] and exists evaluations[.candidate, 'mentor', .kind] and exists evaluations[.candidate, 'supervisor', .kind]` reads .author, .kind, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"; test.cases.jsonl: run it as a caller `exists staff[viewer, role = 'director'] or exists staff[viewer, role = 'mentor'] or exists staff[viewer, role = 'supervisor']` admits to expect `complete`, and expect `capped` (the default passes either) for the rest; a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; analyzer limitation: no verified complete form for this read (`exists candidates[.candidate, principal = viewer] and exists evaluations[.candidate, 'mentor', .kind] and exists evaluations[.candidate, 'supervisor', .kind]` reads a column the page does not pin and is not a `.column = viewer` party, so no pin selects its rows); keep the query and expect `capped` (check --verbose)",
+        "rewrite": "pin .author, .kind with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read. As code: first declare `kind: enum('midterm', 'final')` among evalsFor's arguments, then add `and .author = viewer and .kind = kind` to the page's where (keeping its current pins); this narrows the answer to that scope \u2014 only for a screen meant for that scope alone: every other reader the rule admits loses their rows; analyzer limitation: no verified complete form for this read: `exists candidates[.candidate, principal = viewer] and exists evaluations[.candidate, 'mentor', .kind] and exists evaluations[.candidate, 'supervisor', .kind]` reads a column the page does not pin and is not a `.column = viewer` party, so no pin selects its rows; keep the query as written and expect `complete: false` (`capped`; test.cases.jsonl's default passes it). This does not rule out an author-written branched query; for callers `exists staff[viewer, role = 'director'] or exists staff[viewer, role = 'mentor'] or exists staff[viewer, role = 'supervisor']` admits (staff), this page is decided once and answers `complete: true`; everyone else pages their own rows with complete: false \u2014 in test.cases.jsonl run it as staff to expect complete, and expect `capped` for the others For parent-scoped history, reading candidates[candidate] alone does not prove a copied child audience. If the whole parent audience is intended, declare read through .candidate; for a parent-owner branch, declare exists candidates[.candidate, principal = viewer] in the child's read rule and guard its page with require exists candidates[candidate, principal = viewer] else FORBIDDEN (guide recipes).",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 71
+        }
+      }
+    ],
+    "added": [
+      {
+        "code": "N_NEVER_COMPLETE",
+        "guide": "reads",
+        "mechanical": false,
+        "message": "query evalsFor: truly partial absence evidence: the page over evaluations[..] by read or declaration on evaluations (candidate, id) at schema.q:72:10 is never `complete` except for callers `exists staff[viewer, role = 'director'] or exists staff[viewer, role = 'mentor'] or exists staff[viewer, role = 'supervisor']` admits \u2014 the read rule `.author = viewer or exists staff[viewer, role = 'director'] or exists staff[viewer, role = 'mentor'] or exists staff[viewer, role = 'supervisor'] or exists candidates[.candidate, principal = viewer] and exists evaluations[.candidate, 'mentor', .kind] and exists evaluations[.candidate, 'supervisor', .kind]` reads .author, .kind, which the scan does not pin, so the server cannot tell \"no more\" from \"more you may not read\"; test.cases.jsonl: run it as a caller `exists staff[viewer, role = 'director'] or exists staff[viewer, role = 'mentor'] or exists staff[viewer, role = 'supervisor']` admits to expect `complete`, and expect `capped` (the default passes either) for the rest; a client shows the rows it has and treats `complete: false` as \"there may be more\", not an error; the complete form is to add `cap 50 by candidate` to table evaluations only if that is a product limit you choose; keep query evalsFor and its exact read rule unchanged. The bounded authorized walk exhausts that parent group for the same audience, including every existing read-rule branch; do not substitute the parent's broader audience. Existing data must fit the cap before adoption (check --verbose)",
+        "rewrite": "add `cap 50 by candidate` to table evaluations only if that is a product limit you choose; keep query evalsFor and its exact read rule unchanged. The bounded authorized walk exhausts that parent group for the same audience, including every existing read-rule branch; do not substitute the parent's broader audience. Existing data must fit the cap before adoption",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 71
+        }
+      }
+    ]
+  },
+  {
+    "lane": "090-day2-piano-tuning-routes",
+    "removed": [
+      {
+        "code": "N_LOOKUP_HIDDEN",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "mutation assignTech: the update rule of visits (schema.q:63:3) admits the role `exists staff[viewer]`, which no disjunct of its read rule `.client = viewer or .technician = viewer or exists staff[viewer, role = 'owner'] or exists grants[.piano, viewer]` (schema.q:61:3) uses; the update looks the row up first under the read rule, so a holder of that role who reads the row no other way gets NOT_FOUND before the update rule runs",
+        "rewrite": "if the role's holders act on rows they cannot otherwise read, let them read those rows (`read <- .client = viewer or .technician = viewer or exists staff[viewer, role = 'owner'] or exists grants[.piano, viewer] or exists staff[viewer]`, or narrower, such as `\u2026 or .status = 'open' and exists staff[viewer]`); if they always read the row another way, the role only widens the update rule for them and nothing changes",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 155
+        }
+      },
+      {
+        "code": "N_LOOKUP_HIDDEN",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "mutation recordVisit: the update rule of visits (schema.q:63:3) admits the role `exists staff[viewer]`, which no disjunct of its read rule `.client = viewer or .technician = viewer or exists staff[viewer, role = 'owner'] or exists grants[.piano, viewer]` (schema.q:61:3) uses; the update looks the row up first under the read rule, so a holder of that role who reads the row no other way gets NOT_FOUND before the update rule runs",
+        "rewrite": "if the role's holders act on rows they cannot otherwise read, let them read those rows (`read <- .client = viewer or .technician = viewer or exists staff[viewer, role = 'owner'] or exists grants[.piano, viewer] or exists staff[viewer]`, or narrower, such as `\u2026 or .status = 'open' and exists staff[viewer]`); if they always read the row another way, the role only widens the update rule for them and nothing changes",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 165
+        }
+      },
+      {
+        "code": "N_LOOKUP_HIDDEN",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "mutation requestReschedule: the update rule of visits (schema.q:63:3) admits the role `exists staff[viewer]`, which no disjunct of its read rule `.client = viewer or .technician = viewer or exists staff[viewer, role = 'owner'] or exists grants[.piano, viewer]` (schema.q:61:3) uses; the update looks the row up first under the read rule, so a holder of that role who reads the row no other way gets NOT_FOUND before the update rule runs",
+        "rewrite": "if the role's holders act on rows they cannot otherwise read, let them read those rows (`read <- .client = viewer or .technician = viewer or exists staff[viewer, role = 'owner'] or exists grants[.piano, viewer] or exists staff[viewer]`, or narrower, such as `\u2026 or .status = 'open' and exists staff[viewer]`); if they always read the row another way, the role only widens the update rule for them and nothing changes",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 175
+        }
+      },
+      {
+        "code": "N_LOOKUP_HIDDEN",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "mutation confirmReschedule: the update rule of visits (schema.q:63:3) admits the role `exists staff[viewer]`, which no disjunct of its read rule `.client = viewer or .technician = viewer or exists staff[viewer, role = 'owner'] or exists grants[.piano, viewer]` (schema.q:61:3) uses; the update looks the row up first under the read rule, so a holder of that role who reads the row no other way gets NOT_FOUND before the update rule runs",
+        "rewrite": "if the role's holders act on rows they cannot otherwise read, let them read those rows (`read <- .client = viewer or .technician = viewer or exists staff[viewer, role = 'owner'] or exists grants[.piano, viewer] or exists staff[viewer]`, or narrower, such as `\u2026 or .status = 'open' and exists staff[viewer]`); if they always read the row another way, the role only widens the update rule for them and nothing changes",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 184
+        }
+      },
+      {
+        "code": "N_LOOKUP_HIDDEN",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "mutation cancelVisit: the update rule of visits (schema.q:63:3) admits the role `exists staff[viewer]`, which no disjunct of its read rule `.client = viewer or .technician = viewer or exists staff[viewer, role = 'owner'] or exists grants[.piano, viewer]` (schema.q:61:3) uses; the update looks the row up first under the read rule, so a holder of that role who reads the row no other way gets NOT_FOUND before the update rule runs",
+        "rewrite": "if the role's holders act on rows they cannot otherwise read, let them read those rows (`read <- .client = viewer or .technician = viewer or exists staff[viewer, role = 'owner'] or exists grants[.piano, viewer] or exists staff[viewer]`, or narrower, such as `\u2026 or .status = 'open' and exists staff[viewer]`); if they always read the row another way, the role only widens the update rule for them and nothing changes",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 190
+        }
+      },
+      {
+        "code": "N_LOOKUP_HIDDEN",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "mutation setVisitDuration: the update rule of visits (schema.q:63:3) admits the role `exists staff[viewer]`, which no disjunct of its read rule `.client = viewer or .technician = viewer or exists staff[viewer, role = 'owner'] or exists grants[.piano, viewer]` (schema.q:61:3) uses; the update looks the row up first under the read rule, so a holder of that role who reads the row no other way gets NOT_FOUND before the update rule runs",
+        "rewrite": "if the role's holders act on rows they cannot otherwise read, let them read those rows (`read <- .client = viewer or .technician = viewer or exists staff[viewer, role = 'owner'] or exists grants[.piano, viewer] or exists staff[viewer]`, or narrower, such as `\u2026 or .status = 'open' and exists staff[viewer]`); if they always read the row another way, the role only widens the update rule for them and nothing changes",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 230
+        }
+      }
+    ],
+    "added": [
+      {
+        "code": "N_LOOKUP_HIDDEN",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "mutation recordVisit: this required lookup of visits uses its read rule `.client = viewer or .technician = viewer or exists staff[viewer, role = 'owner'] or exists grants[.piano, viewer]`; the update rule (schema.q:63:3) admits `exists staff[viewer]`, which no read-rule disjunct uses. A holder who reads the row no other way receives NOT_FOUND at this lookup, even though the table admits their update; a blind mutable update is not a program read",
+        "rewrite": "if the role's holders are intended to pass this required lookup, let them read the intended rows (`read <- .client = viewer or .technician = viewer or exists staff[viewer, role = 'owner'] or exists grants[.piano, viewer] or exists staff[viewer]`, or narrower, such as `\u2026 or .status = 'open' and exists staff[viewer]`); otherwise keep the lookup as the reader-only gate",
+        "site": {
+          "col": 7,
+          "file": "schema.q",
+          "line": 159
+        }
+      },
+      {
+        "code": "N_LOOKUP_HIDDEN",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "mutation requestReschedule: this required lookup of visits uses its read rule `.client = viewer or .technician = viewer or exists staff[viewer, role = 'owner'] or exists grants[.piano, viewer]`; the update rule (schema.q:63:3) admits `exists staff[viewer]`, which no read-rule disjunct uses. A holder who reads the row no other way receives NOT_FOUND at this lookup, even though the table admits their update; a blind mutable update is not a program read",
+        "rewrite": "if the role's holders are intended to pass this required lookup, let them read the intended rows (`read <- .client = viewer or .technician = viewer or exists staff[viewer, role = 'owner'] or exists grants[.piano, viewer] or exists staff[viewer]`, or narrower, such as `\u2026 or .status = 'open' and exists staff[viewer]`); otherwise keep the lookup as the reader-only gate",
+        "site": {
+          "col": 7,
+          "file": "schema.q",
+          "line": 170
+        }
+      },
+      {
+        "code": "N_LOOKUP_HIDDEN",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "mutation confirmReschedule: this required lookup of visits uses its read rule `.client = viewer or .technician = viewer or exists staff[viewer, role = 'owner'] or exists grants[.piano, viewer]`; the update rule (schema.q:63:3) admits `exists staff[viewer]`, which no read-rule disjunct uses. A holder who reads the row no other way receives NOT_FOUND at this lookup, even though the table admits their update; a blind mutable update is not a program read",
+        "rewrite": "if the role's holders are intended to pass this required lookup, let them read the intended rows (`read <- .client = viewer or .technician = viewer or exists staff[viewer, role = 'owner'] or exists grants[.piano, viewer] or exists staff[viewer]`, or narrower, such as `\u2026 or .status = 'open' and exists staff[viewer]`); otherwise keep the lookup as the reader-only gate",
+        "site": {
+          "col": 7,
+          "file": "schema.q",
+          "line": 179
+        }
+      },
+      {
+        "code": "N_LOOKUP_HIDDEN",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "mutation cancelVisit: this required lookup of visits uses its read rule `.client = viewer or .technician = viewer or exists staff[viewer, role = 'owner'] or exists grants[.piano, viewer]`; the update rule (schema.q:63:3) admits `exists staff[viewer]`, which no read-rule disjunct uses. A holder who reads the row no other way receives NOT_FOUND at this lookup, even though the table admits their update; a blind mutable update is not a program read",
+        "rewrite": "if the role's holders are intended to pass this required lookup, let them read the intended rows (`read <- .client = viewer or .technician = viewer or exists staff[viewer, role = 'owner'] or exists grants[.piano, viewer] or exists staff[viewer]`, or narrower, such as `\u2026 or .status = 'open' and exists staff[viewer]`); otherwise keep the lookup as the reader-only gate",
+        "site": {
+          "col": 7,
+          "file": "schema.q",
+          "line": 188
+        }
+      }
+    ]
+  },
+  {
+    "lane": "091-summit-register-book",
+    "removed": [
+      {
+        "code": "N_UNREADABLE_PROBE",
+        "guide": "rules",
+        "mechanical": false,
+        "message": "hidePost: this probe reads photos under its read rule `.owner = viewer or exists rangers[viewer] or .shared = true and not (.hidden = true)` (schema.q:52:3); rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows).",
+        "rewrite": "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended",
+        "site": {
+          "col": 13,
+          "file": "schema.q",
+          "line": 100
+        }
+      }
+    ],
+    "added": []
+  },
+  {
+    "lane": "095-litter-pick-order",
+    "removed": [
+      {
+        "code": "N_IMMUTABLE_PATCH",
+        "guide": "writes",
+        "mechanical": false,
+        "message": "on conflict, this upsert is refused at runtime on a readable target unless weights.litter equals the stored value; omit litter from the patch if another value may update this row",
+        "rewrite": "omit litter from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
+        "site": {
+          "col": 47,
+          "file": "schema.q",
+          "line": 145
+        }
+      }
+    ],
+    "added": []
+  },
+  {
+    "lane": "097-giving-circle-pitches",
+    "removed": [
+      {
+        "code": "N_IMMUTABLE_PATCH",
+        "guide": "writes",
+        "mechanical": false,
+        "message": "on conflict, this upsert is refused at runtime on a readable target unless feedback.owner equals the stored value; omit owner from the patch if another value may update this row",
+        "rewrite": "omit owner from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
+        "site": {
+          "col": 45,
+          "file": "schema.q",
+          "line": 130
+        }
+      }
+    ],
+    "added": []
+  }
+]

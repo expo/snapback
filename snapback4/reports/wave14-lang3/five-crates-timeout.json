@@ -1,0 +1,10 @@
+{
+  "exit": 124,
+  "timeoutSeconds": 3600,
+  "completedTargets": 177,
+  "completedPassed": 3238,
+  "completedFailed": 0,
+  "completedIgnored": 24,
+  "unfinished": "snapback4-device row_view_disclosure generated_pairs_admission_outbox_and_settlement_on_both_devices; resumed through full device/sim run",
+  "coverage": "complete CLI and core targets before the timeout; remaining crates qualified separately"
+}

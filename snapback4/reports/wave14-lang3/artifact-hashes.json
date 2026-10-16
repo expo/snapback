@@ -1,0 +1,9 @@
+{
+  "/tmp/sb4-lang3-baseline": "afccf440016b2c6dc3e39a588cb78092a274d8df59061d3cfdfc1bc2163543be",
+  "snapback4/target/release/snapback4-difftest": "20e05d8a298d3a5edd256d7c3986fa2b1118ec0f8e5f461de0b6248cdd2f68ea",
+  "snapback4/crates/snapback4-core/src/engine/rules/snapshots.rs": "666143f5995ff271186f6a046dcc641a86bf3a82e574efb5481b45da3befccd5",
+  "snapback4/target/debug/snapback4": "615d2e764fc21c82008e9a4537a21c9d1d429a266bbb7e0b6c6cf675d2dec938",
+  "packed locally staged Linux test compiler": "615d2e764fc21c82008e9a4537a21c9d1d429a266bbb7e0b6c6cf675d2dec938",
+  "auth_lints.rs": "83f204a00b7d9213042d7e982fa20873596671be9636414c68b3a8e90cbcd784",
+  "reference_arguments.rs": "bbde0e76bf323e1d86533f579587845c42fa461c15266f531d6145d02c8848fb"
+}

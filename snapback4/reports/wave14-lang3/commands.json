@@ -1,0 +1,15 @@
+{
+  "five-crates": "timeout 3600 env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=6 cargo test --no-fail-fast -p snapback4 -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim",
+  "native": "timeout 1800 target/release/snapback4-difftest run --seed 0 --cases 20000 --workers 6 --out /tmp/sb4-lang3-final-native",
+  "devices": "timeout 1800 target/release/snapback4-difftest run-devices --seed 0 --cases 1000 --workers 6 --out /tmp/sb4-lang3-final-devices",
+  "lean": "timeout 1800 target/release/snapback4-difftest run-lean --seed 0 --cases 20000 --workers 6 --out /tmp/sb4-lang3-final-lean",
+  "clients": "timeout 600 env SNAPBACK4_BIN=<worktree>/snapback4/target/debug/snapback4 node --test test/server-check.test.mjs test/page-authority.test.mjs test/read-existence-integration.test.mjs test/page-ready.test.mjs test/page-cut.test.mjs test/read-through-upsert.test.mjs test/wave11-guide-types.test.mjs",
+  "docs-budget": "timeout 600 env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 node scripts/docs-budget.mjs (cwd snapback4)",
+  "inventories": "timeout 900 node scripts/check-inventories.mjs (cwd repository root)",
+  "root-guide": "timeout 900 node scripts/check-guide.mjs (cwd repository root)",
+  "ref-check": "timeout 300 ./ref-check --verbose",
+  "wasm": "timeout 1800 env PATH=<private Node Brotli wrapper>:$PATH CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=4 bash scripts/measure-wasm.sh",
+  "full-language-final": "timeout 3600 env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=6 cargo test --no-fail-fast -p snapback4-lang",
+  "device-simulation-final": "timeout 3600 env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=6 cargo test --no-fail-fast -p snapback4-device -p snapback4-sim",
+  "core-doc": "timeout 1800 env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test --doc -p snapback4-core"
+}

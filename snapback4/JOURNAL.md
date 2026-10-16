@@ -96138,3 +96138,40 @@ Budget723,660 B is exactly gzip+500 B, whole-artifact +6,446 B gzip over
 0.4.29; strict family/absence audits pass, with no runtime ceiling increase
 or independent feature attribution. This is integration evidence, not a
 publication record; all final checks are recorded in WORKSTREAM-REPORT.md.
+
+
+## 2026-10-17 — LANG3 wave 14: readable snapshots and truthful diagnostics
+
+For 0.4.31 (integration bumps the version), held readable point snapshots and
+continuing audience branches can prove exact online pages complete. The core
+rederives the sufficient proof from arbitrary IR, bounded by twelve atoms and
+1,024 formula nodes; stale bindings, volatile ids, nullable keys and implicit
+bindings decline. Private parent-cap advice keeps every existing audience.
+Finite enum alternatives/early returns narrow safely; sort retains a complete
+population while slices do not. P18 private readable conflict keys receive the
+existing proven-change/fresh-clock refusal; unknown/hidden values retain notes.
+Immutable-parent guards retain runtime equality and stop repeating advice.
+
+Hidden-lookup advice now names actual required read gates and their authored
+refusal code. A blind mutable update is not a program read; runtime regressions
+prove the distinction. Completed point/role witnesses filter each occurrence,
+including assertions in requirements, before grouping; helper/shape/spread and
+reference-action effects invalidate evidence. Inline and mandatory helper point
+updates count as lookup attempts, never existence proof. Cascade edits lead with
+the product choice; terminal arithmetic is verbose, with JSON evidence retained.
+Literal sync repairs, reserved names and grouped cursor notes complete LANG3.
+
+LLP 3000.036.002 §12 records the amendment. Fresh Codex and Muse round 8 both
+READY on matching final digests; every received review is retained verbatim.
+All five crates are covered: combined run completed CLI/core before its one-hour
+timeout; full language and device/simulation reruns pass. Language 2,091,
+device 1,562 and simulation 749 tests pass; core docs 17 and affected clients 42
+pass. Native20k and device0–999 have no disagreement; Lean20k reproduces only
+four existing signatures. The 100-schema survey stays 100/100, notes371→357,
+with every delta explained. Packed local-client/compiler checks cover updated
+help, cascade rendering and the actual P18 cases. Clean web measurement is
+2,372,437 B raw /723,160 B gzip /545,311 B Brotli, budget723,660 B = gzip+500.
+ref-check and docs-budget pass. Root inventories/guide report three missing
+legacy Snapback1 generated-file prerequisites, not LANG3 content failures.
+Receipts and scope limits: reports/wave14-lang3/ and WORKSTREAM-REPORT.md.
+No push, version bump, Mac claim or publication qualification is made here.
