@@ -68,7 +68,7 @@ query list():
   assert.match(first, /^user:/);
   assert.equal(signedIn.stdout.trim(), first, "login recovers the guide's account");
   await assert.rejects(run("signup"), error => {
-    assert.match(error.stderr, /E_AUTH: that email already has an account; sign in instead/);
+    assert.match(error.stderr, /Error: that email already has an account; sign in instead/);
     assert.equal(error.stdout, "");
     assert.equal(error.stderr.includes(password), false);
     return true;

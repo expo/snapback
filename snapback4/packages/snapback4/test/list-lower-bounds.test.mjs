@@ -13,17 +13,17 @@ for (const tier of ['process', 'wasm']) test(`${tier}: createGroup list minimum 
   const empty = await client.mutate(mutation('createGroup'), { peers: [] });
   assert.equal(empty.state, 'failed', JSON.stringify(empty));
   assert.equal(empty.why.code, 'E_INPUT');
-  assert.equal(empty.why.message, 'E_INPUT: peers needs at least 1 item; got 0');
+  assert.equal(empty.why.message, 'peers needs at least 1 item; got 0');
   for (const n of [1, 49, 50]) {
     const reply = await client.mutate(mutation('createGroup'), { peers: Array(n).fill('dev:alice') });
     assert.equal(reply.state, n <= 49 ? 'sent' : 'failed', JSON.stringify(reply));
-    if (n === 50) assert.equal(reply.why.message, 'E_INPUT: peers has more than 49 items');
+    if (n === 50) assert.equal(reply.why.message, 'peers has more than 49 items');
   }
   await client.sync(); host.pauseSync();
   for (const [op, args, message] of [
-    ['createGroup', { peers: [] }, 'E_INPUT: peers needs at least 1 item; got 0'],
-    ['createGroup', { peers: Array(50).fill('dev:alice') }, 'E_INPUT: peers has more than 49 items'],
-    ['built', { n: 0 }, 'E_INPUT: groups.peers needs at least 1 item; got 0'],
+    ['createGroup', { peers: [] }, 'peers needs at least 1 item; got 0'],
+    ['createGroup', { peers: Array(50).fill('dev:alice') }, 'peers has more than 49 items'],
+    ['built', { n: 0 }, 'groups.peers needs at least 1 item; got 0'],
   ]) {
     const reply = await host.core.call({ op: 'predict', name: op, viewer: 'dev:bob', args, now: 100, newIds: ['prediction'] });
     const denial = reply.denied ?? reply.ok?.denied;
