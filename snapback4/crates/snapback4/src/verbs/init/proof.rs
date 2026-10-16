@@ -117,7 +117,8 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema) -> std::io::Re
     let path = dir.join("package.json");
     let text = std::fs::read_to_string(&path)?;
     let mut package: Value = serde_json::from_str(&text).map_err(std::io::Error::other)?;
-    if router && !web && !dir.join("App.tsx").is_file() && package["main"] != "expo-router/entry" { return Ok(Vec::new()); }
+    let router = router && !web && package["main"] == "expo-router/entry";
+    if !web && !dir.join("App.tsx").is_file() && !router { return Ok(Vec::new()); }
     let original = package.clone();
     let backend = package["scripts"]["backend"].as_str().and_then(|s| s.strip_prefix("snapback4 dev --port ")).and_then(|s| s.parse::<u16>().ok())
 .or_else(|| launcher_port(dir, "backend")).unwrap_or(4400);
