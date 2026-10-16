@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "directory": "/home/ccheever/projects/sb4-w14-day4/snapback4/target/publication/qualification-day4-final-r2/day2-compatibility",
+  "savedSourceCompatibility": "passed",
+  "expoPrintedWrittenPorts": "passed",
+  "previewNoise": "passed",
+  "helperContracts": "passed",
+  "fixtureAgreement": "passed"
+}

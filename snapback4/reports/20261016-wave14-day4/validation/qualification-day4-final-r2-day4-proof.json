@@ -1,0 +1,25 @@
+{
+  "status": "passed",
+  "checks": [
+    {
+      "mode": "custom",
+      "status": "passed"
+    },
+    {
+      "mode": "removed",
+      "status": "passed"
+    },
+    {
+      "mode": "legacy",
+      "status": "passed"
+    },
+    {
+      "mode": "optin",
+      "status": "passed"
+    },
+    {
+      "mode": "template",
+      "status": "passed"
+    }
+  ]
+}
