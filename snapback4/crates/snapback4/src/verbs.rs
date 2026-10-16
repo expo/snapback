@@ -895,6 +895,7 @@ pub fn doctor(options: &Options) -> i32 {
     let mut ok = true;
     let mut storage: Option<snapback4_core::store::Sizes> = None;
     let mut latency_snapshot = None;
+    let mut findings = Vec::new();
     let version = env!("CARGO_PKG_VERSION");
     let project = match work_records::project(options) { Ok(project) => project, Err(error) => { eprintln!("doctor: {error}"); return 1; } };
     lines.push(format!("project   {}", project.root.display()));
@@ -1020,7 +1021,7 @@ pub fn doctor(options: &Options) -> i32 {
             match snapback4_core::Engine::open(store) {
                 Ok(mut engine) => {
                     match expiry_orphans::findings(&mut engine, options) {
-                        Ok(findings) => { if !findings.is_empty() { ok = false; lines.extend(findings); } }
+                        Ok(found) => { if !found.is_empty() { ok = false; lines.extend(found.iter().map(|finding| format!("expiry    {}: {}", finding["code"].as_str().unwrap(), finding["message"].as_str().unwrap()))); findings.extend(found); } }
                         Err(error) => { ok = false; lines.push(format!("expiry    inspection failed: {error}")); }
                     }
                     match crate::dev_clock_store::ahead(&engine, now) {
@@ -1088,7 +1089,7 @@ pub fn doctor(options: &Options) -> i32 {
         lines.push(format!("personas  {}", personas.join(", ")));
     }
     if options.json {
-        println!("{}", json!({ "ok": ok, "lines": lines, "storage": storage, "latency": latency_snapshot, "ms": started.elapsed().as_millis() }));
+        println!("{}", json!({ "ok": ok, "lines": lines, "findings": findings, "storage": storage, "latency": latency_snapshot, "ms": started.elapsed().as_millis() }));
     } else {
         println!("snapback4 {version}");
         for line in lines {

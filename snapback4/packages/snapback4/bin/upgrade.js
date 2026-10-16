@@ -55,7 +55,7 @@ try {
     catch { throw Error('E_UPGRADE: package manager returned no exact core version'); }
   }
   if (typeof version !== 'string' || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) throw Error('E_UPGRADE: registry returned no exact core version');
-  if (!explicit && installed && compareVersions(version, installed) < 0) throw Error(`E_UPGRADE: the registry’s ${target ?? "latest"} is ${version}, which is older than the installed ${installed}; refusing a downgrade. Use --to ${version} to request it explicitly.`);
+  if (!explicit && installed && compareVersions(version, installed) < 0) throw Error(`E_UPGRADE: requested ${version} is older than installed ${installed}; refusing a downgrade. Use --to ${version} to request it explicitly.`);
   // Check the adapter release before any install changes package.json.
   for (const name of targets) invoke(pm === 'bun' ? ['info', `${name}@${version}`, 'version', '--json'] : ['view', `${name}@${version}`, 'version', '--json'], true);
   if (previous) acknowledgeVersion(root, previous);
@@ -98,6 +98,7 @@ try {
   for (const name of targets) if (!dependencies.some(key => after[key]?.[name] === version)) throw Error(`E_UPGRADE: ${name} was not pinned to ${version}`);
   const exact = existsSync(join(root, 'exact.mjs')) || existsSync(join(root, 'exact.json')) || dependencies.some(key => Object.keys(pkg[key] ?? {}).some(name => /^exact2?(?:$|[-/])/.test(name)));
   if (exact) log('Exact device rebuild: bun exact.mjs snapback --rebuild'); // HS owns this command and the pairing gate.
+  log(`project ${pkg.name ?? root}: ${targets.map(name => `${name}@${version}`).join(', ')}; regenerate with check, run acceptance tests${targets.includes('snapback4-expo') ? '; rebuild the native app' : ''}`);
   let history = '', checkedFacts = null;
   if (!schema) {
     try {

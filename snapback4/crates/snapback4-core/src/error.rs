@@ -257,7 +257,10 @@ impl RuntimeError {
     }
 
     pub fn refusal(&self) -> Refusal {
-        let mut refusal = Refusal::new(self.code(), self.family(), self.to_string());
+        let text = self.to_string();
+        let prefix = format!("{}: ", self.code());
+        let message = text.strip_prefix(&prefix).unwrap_or(&text);
+        let mut refusal = Refusal::new(self.code(), self.family(), message);
         match self {
             #[cfg(feature = "sqlite")]
             Self::Structural { code: "E_DELIVERY_BINDING", .. } => {

@@ -181,7 +181,8 @@ export async function waitForFresh(locator: Locator, previous: string | null, op
       text = count ? await bounded(locator.textContent({ timeout: Math.max(1, Math.min(1000, end - performance.now())) }), Math.max(1, end - performance.now()), "locator text") : null;
       if (text && text !== previous) return text;
     } catch (error) {
-      detail = String(error);
+      detail = error instanceof Error && (error.name === "TimeoutError" || /timed out after/.test(error.message))
+        ? "locator observation exceeded the remaining proof deadline" : String(error);
       // A strictness/selector error needs its original repair, not a timeout.
       if (error instanceof Error && error.name !== "TimeoutError" && !/timed out after/.test(error.message)) throw error;
     }

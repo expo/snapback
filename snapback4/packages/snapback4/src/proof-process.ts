@@ -1,6 +1,6 @@
 // @ref LLP 3000.011.003.000.000#1 — direct children, file logs and bounded cleanup own proof orchestration.
 import { spawn, type ChildProcess } from "node:child_process";
-import { closeSync, mkdirSync, openSync, readFileSync } from "node:fs";
+import { closeSync, mkdirSync, openSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { randomUUID } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -96,10 +96,11 @@ export function logged(command: string, args: readonly string[], options: ProofO
   const cwd = resolve(options.cwd ?? "."), id = randomUUID();
   const directory = logsDir(options); mkdirSync(directory, { recursive: true, mode: 0o700 });
   const logs = { stdout: join(directory, `${id}.stdout.log`), stderr: join(directory, `${id}.stderr.log`) };
-  const out = openSync(logs.stdout, "wx", 0o600), err = openSync(logs.stderr, "wx", 0o600);
+  if (options.secret) writeFileSync(logs.stdout, "stdout withheld: secret command (returned only to caller)\n", { flag: "wx", mode: 0o600 });
+  const out = options.secret ? undefined : openSync(logs.stdout, "wx", 0o600), err = openSync(logs.stderr, "wx", 0o600);
   let child: ChildProcess;
-  try { child = spawn(command, [...args], { cwd, detached: options.detached ?? false, env: { ...(options.env ?? process.env), SNAPBACK4_PROOF_LAUNCH: id }, stdio: [options.livenessPipe ? "pipe" : "ignore", options.secret ? "pipe" : out, err] }); }
-  finally { closeSync(out); closeSync(err); }
+  try { child = spawn(command, [...args], { cwd, detached: options.detached ?? false, env: { ...(options.env ?? process.env), SNAPBACK4_PROOF_LAUNCH: id }, stdio: [options.livenessPipe ? "pipe" : "ignore", options.secret ? "pipe" : out!, err] }); }
+  finally { if (out !== undefined) closeSync(out); closeSync(err); }
   // Secret stdout never reaches a file, even briefly. Callers still receive it.
   let stdout = "";
   child.stdout?.setEncoding("utf8");

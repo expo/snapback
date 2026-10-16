@@ -196,7 +196,8 @@ test("secret stdout stays in memory; token CLI automatically selects secret capt
   assert.equal(logsDir({cwd}), join(cwd, "logs"));
   const result = await command(process.execPath, ["-e", "console.log('private bearer'); console.error('diagnostic')"], {cwd, secret:true});
   assert.equal(result.stdout, "private bearer\n");
-  assert.equal(readFileSync(result.logs.stdout, "utf8"), "");
+  assert.match(readFileSync(result.logs.stdout, "utf8"), /^stdout withheld: secret command/);
+  assert.doesNotMatch(readFileSync(result.logs.stdout, "utf8"), /private bearer/);
   assert.equal(readFileSync(result.logs.stderr, "utf8"), "diagnostic\n");
   const original=process.env.SNAPBACK4_BIN;
   const fake=join(cwd,'token.mjs');
@@ -205,7 +206,8 @@ test("secret stdout stays in memory; token CLI automatically selects secret capt
   try {
     const token = await cli(['token'], {cwd});
     assert.equal(token.code,0);assert.equal(token.stdout,'minted bearer\n');
-    assert.equal(readFileSync(token.logs.stdout,'utf8'),'');
+    assert.match(readFileSync(token.logs.stdout,'utf8'),/^stdout withheld: secret command/);
+    assert.doesNotMatch(readFileSync(token.logs.stdout,'utf8'),/minted bearer/);
   } finally { if(original===undefined)delete process.env.SNAPBACK4_BIN;else process.env.SNAPBACK4_BIN=original; }
 });
 test("startDev args preserve memory isolation unless a store is explicit", async t => {

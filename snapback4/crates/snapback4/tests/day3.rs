@@ -129,6 +129,12 @@ fn doctor_reports_and_repairs_missing_expiry_parent_using_stored_schema() {
     assert!(!finding.status.success());
     let text = String::from_utf8_lossy(&finding.stdout);
     assert!(text.contains("E_EXPIRY_ORPHAN") && text.contains("--repair-expiry-orphan 'parents:p'"), "{finding:?}");
+    let json = app.run(&["doctor", "--json"]);
+    let health: serde_json::Value = serde_json::from_slice(&json.stdout).unwrap();
+    let orphan = &health["findings"][0];
+    assert_eq!(orphan["code"], "E_EXPIRY_ORPHAN");
+    assert_eq!(orphan["table"], "parents"); assert_eq!(orphan["id"], "p");
+    assert!(orphan["repair"].as_str().unwrap().contains("--repair-expiry-orphan 'parents:p'"));
     let repaired = ok(app.run(&["doctor", "--repair-expiry-orphan", "parents:p"]));
     assert!(repaired.contains("1 rows written"), "{repaired}");
     assert!(ok(app.run(&["doctor", "--repair-expiry-orphan", "parents:p"])).contains("0 rows written"));
