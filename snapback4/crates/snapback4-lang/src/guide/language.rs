@@ -648,8 +648,7 @@ query timelineHome(c: cursor ?):
 
 ## Field authority
 
-Column modifiers give one field an owner and choose its read visibility.
-See `guide rules` for Clique's membership and `markRead` recipe.
+Column modifiers choose a field's owner/visibility; `guide rules` covers membership and `markRead`.
 
 ```quarry
 table marks:
@@ -810,7 +809,5 @@ mutation react(message: messages, emoji: text <=32) predicts:
   upsert reactions[message, viewer] { emoji }
 ```
 
-This inherits `read through .message` semantics. `guide sync` covers three hops,
-immutable required references, lifetime and E_READ_THROUGH / E_SYNC repairs;
-`guide prediction` covers acquired coverage and rollback.
+This inherits `read through .message`; `guide sync` covers lifetime, three-hop immutable references and E_READ_THROUGH/E_SYNC repairs; `guide prediction` covers coverage/rollback.
 "##;

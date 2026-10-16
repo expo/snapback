@@ -1,18 +1,15 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub(super) const CARD: &str = r##"# Shapes
 
-Shapes choose the fields returned from a row or page.
-Name a shape to reuse the same result layout across reads.
+Shapes select returned fields and reuse result layouts.
 
 ```quarry
 query nestedRoster(c: cursor ?):
   return members where .principal = viewer first 20 by .roomId after c { roomId, roster: members[roomId = .roomId], room: rooms[.roomId] { name } }
 ```
 
-The outer page selects your memberships.
-The named inner key binds that membership's room before reading its roster.
-`room` expands the reference into an object, or null when missing or hidden.
-Inside each `where`, `.` denotes that read's own row.
+The outer page selects your memberships; its named inner key binds each room's roster.
+`room` expands to an object, or null if missing/hidden. Each `where` binds its own `.` row.
 
 ## Limits
 

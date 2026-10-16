@@ -1,8 +1,7 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub(super) const CARD: &str = r##"# Programs
 
-Queries read data; mutations change it in one transaction.
-Jobs run background work, and helpers share logic between programs.
+Queries read; mutations write atomically; jobs run background work; helpers share logic.
 
 ```quarry
 query programForms(roomId: rooms):                             -- reads only; the last expression, or `return`, is the result, typed onto api.ts

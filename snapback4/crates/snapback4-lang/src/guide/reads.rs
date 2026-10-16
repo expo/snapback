@@ -128,10 +128,9 @@ chats list. The expiring-rows recipe above is for durable disappearing messages.
 
 ## Measure live propagation
 
-Mounted reads wake from `/changes`, sync and re-evaluate affected queries, including parent and authorization dependencies.
-Measure two signed-in clients with queries mounted: record sender invocation, `sent` acknowledgement, changed `observe` snapshot, React `useLayoutEffect` and image `onLoad` separately.
-Acknowledgement follows commit; `waitSeconds: 0` measures custody. Inspect `/changes`, `/sync` and query requests in Network to separate transport from application work.
-Measure media separately; repeat 20+ times, idle and loaded.
+Mounted reads wake from `/changes`, sync and re-evaluate affected queries, including parent/authorization dependencies.
+With two signed-in clients, separately time invocation, `sent` acknowledgement, changed `observe`, React `useLayoutEffect` and image `onLoad`.
+Acknowledgement follows commit; `waitSeconds: 0` measures custody. Network traces distinguish transport/application work. Repeat 20+ times, idle and loaded.
 
 ## Nullable predicates and enum lanes
 

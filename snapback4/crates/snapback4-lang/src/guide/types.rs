@@ -1,7 +1,7 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub(super) const CARD: &str = r##"# Types
 
-Types bound columns, arguments, text, lists and uploads.
+Types bound columns and arguments.
 
 ```quarry
 table profiles:
@@ -15,11 +15,7 @@ mutation createProfile(name: text 1..80):
   return insert profiles { owner: viewer, name }
 ```
 
-Minted IDs sort by allocation order within one live engine, device or JavaScript
-module instance, including equal milliseconds and clock rollback. Across devices,
-restarts or separate instances, same-time suffix order is arbitrary. Use an explicit
-order column for application-wide chronology; IDs are public identities, never secrets.
-During rollback the encoded timestamp retains the previous logical millisecond.
+Minted IDs increase within one live engine/device/JavaScript module instance, including same-millisecond allocations and clock rollback. On rollback, encoded timestamps retain the previous logical millisecond. Across devices, restarts or separate instances, suffix order is arbitrary. Use an explicit order column for application-wide chronology. IDs are public identities, never secrets.
 
 Reference contexts project required rows’ `.id`. Media: decimal KB/MB/GB.
 
