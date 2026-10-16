@@ -558,6 +558,26 @@ mod tests {
         let mut deps=Dependencies::default();deps.population(schema,name);deps
     }
     #[test]
+    fn null_population_proof_preserves_explicit_column_index_and_rule_inputs() {
+        let schema=compile("table teams:\n  value: int\n  public\n  online only\ntable roles:\n  team: teams ?\n  by byTeam: team, id\n  public\n  online only\n");
+        let nulls=BTreeSet::from([("roles".into(),"team".into())]);
+        let mut implicit=Dependencies(BTreeMap::new(),nulls.clone());implicit.population(&schema,"roles");
+        assert!(!implicit.0.contains_key("roles.column.team"));
+        assert!(!implicit.0.keys().any(|key|key.starts_with("teams.")));
+        for input in ["column","index","rule"] {
+            let mut explicit=Dependencies(BTreeMap::new(),nulls.clone());
+            match input {
+                "column"=>explicit.column(&schema,"roles","team"),
+                "index"=>explicit.index(&schema,"roles","byTeam"),
+                _=>explicit.rule(&schema,"roles",&RuleExpr::Eq(RuleTerm::Field("team".into()),RuleTerm::Literal(snapback4_core::Value::Null))),
+            }
+            assert!(explicit.0.contains_key("roles.column.team"),"{input}");
+            let mut target=schema.clone();target.tables.get_mut("roles").unwrap().columns.remove("team");
+            let mut changed=Dependencies(BTreeMap::new(),nulls.clone());changed.column(&target,"roles","team");
+            assert!(explicit.changed(&changed).contains("roles"),"{input}");
+        }
+    }
+    #[test]
     fn merge_projection_guards_keep_target_inputs_separate_from_discovery() {
         let bound=snapback4_lang::compile(&[("schema.q".into(),"table discovery:\n  value: int\n  public\n  online only\ntable targets:\n  value: int default 1\n  public\n  online only\nquery discover():\n  return discovery first 1 by .id\nquery target():\n  return targets first 1 by .id\n".into())]);
         assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
