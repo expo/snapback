@@ -268,13 +268,22 @@ test("check reports generated-type write failures and data refuses malformed lim
   assert.match(unknown.stderr, /no table nosuchtable; tables: items/);
 });
 
-test("run says when a job ignores --as and executes as the system", (t) => {
-  const { schema, invoke, run } = fixture(t);
+test("run refuses an explicit job persona before dispatch and jobs execute as the system without --as", (t) => {
+  const { app, schema, invoke, run } = fixture(t);
   writeFileSync(schema, source.replace("  insert <- allow", "  insert <- allow\n  update <- allow") + "job sweep():\n  chunk row in items first 1 by byId:\n    update items[row.id] { body: row.body }\n");
   run("check");
+  run("run", "add", "--as", "alice");
+  const jobs = () => {
+    const db = new DatabaseSync(join(app, ".snapback4/store.sqlite"), { readOnly: true });
+    try { return db.prepare("SELECT count(*) AS n FROM _jobs").get().n; } finally { db.close(); }
+  };
+  assert.equal(jobs(), 0);
   const result = invoke("run", "sweep", "--as", "alice");
-  assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stderr, /--as is ignored.*system/);
+  assert.equal(result.status, 2, result.stderr);
+  assert.match(result.stderr, /E_INPUT:.*takes no --as.*system/);
+  assert.equal(jobs(), 0, "the refused persona never dispatches a job");
+  assert.equal(JSON.parse(run("run", "sweep", "--json")).state, "done");
+  assert.equal(jobs(), 1, "omitting the persona dispatches one system job");
 });
 
 // @ref LLP 3000.008.004#4-operational-completeness-on-the-supported-target — a stopped full-release copy is a new, isolated recovery boundary.

@@ -149,7 +149,8 @@ test("new requires an explicit template and names what init creates", t => {
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   const result = spawnSync(binary, ["new", dir], { encoding: "utf8" });
   assert.equal(result.status, 2);
-  assert.match(result.stderr, /Choose a template: social/);
+  assert.match(result.stderr, /Choose a template: --template social/);
+  assert.match(result.stderr, /--template chat with --web or --expo/);
   assert.match(result.stderr, /schema-only setup use snapback4 init/);
   assert.deepEqual(readdirSync(dir), []);
 });
@@ -512,7 +513,8 @@ test("guide aliases send schedules, DMs and Expo readers to their owning cards",
     }
   }
   const native = spawnSync(binary, ["guide", "native"], { encoding: "utf8" }).stdout;
-  assert.match(native.split("\n\n")[1], /Expo client.*guide client.*guide witness/);
+  assert.match(native, /Expo client[^\n]*guide client[^\n]*guide witness/);
+  assert.match(native, /native: \d+ lines; snapback4 guide native --section/);
 });
 
 test("social proposal associations are durable, account/backend scoped and preserve every send's arguments", async t => {
