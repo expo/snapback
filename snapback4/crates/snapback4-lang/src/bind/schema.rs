@@ -346,9 +346,12 @@ fn bind_sync(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, rule: &RuleEx
     let implied = infer_arms(catalog, info, sync, rule, source, principal)?;
     if arms.len() != implied.len() || !arms.iter().all(|arm| implied.contains(arm)) {
         let spelled = |arms: &[Audience]| core::Sync { audience: arms[0].clone(), horizon: None, also: arms[1..].iter().map(|audience| core::SyncArm { audience: audience.clone(), horizon: None }).collect() }.line();
-        let rewrite = super::through::sync_repair(catalog, info).unwrap_or_else(|| if implied.len() > 1 {
-            format!("sync  -- infer the union from the read rule: `{}`; each arm is one whole disjunct (guide sharing)", spelled(&implied))
-        } else { "sync  -- infer the audience from the read rule".into() });
+        let rewrite = super::through::sync_repair(catalog, info).unwrap_or_else(|| {
+            let bare = implied.iter().any(|arm| matches!(arm,Audience::Target {table,prefix,..} if prefix.is_empty()
+                && catalog.tables.get(table).is_some_and(|target|target.columns.values().filter(|ty|ty.kind==TypeKind::Principal && !ty.optional).count()==1)));
+            let replacement = if bare { "sync".into() } else { spelled(&implied) };
+            format!("replace the whole sync line with:\n  {replacement}\nThis preserves every audience in the read rule{}",if sync.horizon.is_some() { "; the union has no horizon, so every authorized row is acquired; choose `online only` if that is too large" } else { "" })
+        });
         return Err(sync_error(&sync.site, format!("the sync audience disagrees with the read rule `{source}`"), rewrite));
     }
     // The rule's order is the bound order, however the line spells the arms.
@@ -400,7 +403,7 @@ fn bind_union(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, arms: Vec<Au
             _ => format!("sync to {}",sync.audience.arm()),
         };
         let repair = if timed { "online only  -- keep this read rule, expiry and queries".into() }
-            else { format!("{source}  -- remove last N by; retain this schema's audience and recipient. Or use online only") };
+            else { format!("replace the whole sync line with:\n  {source}\nThis removes the horizon and keeps every authorized row; choose `online only` instead when full acquisition is too large") };
         return Err(sync_error(&sync.site, "union audiences cannot have `last N by ...`", repair).guide("sharing"));
     }
     let scopes = std::iter::once(info.decl.name.as_str()).chain(arms.iter().filter_map(|arm| match arm {
@@ -1175,7 +1178,7 @@ table messages:
         // @ref LLP 3000.036.000.000#2.1 — two parties are a union now; naming one of them is a disagreement whose rewrite is the union.
         let two = sync(".claimant = viewer or .postedBy = viewer", "sync to .claimant");
         assert!(two.message.contains("`read <- .claimant = viewer or .postedBy = viewer`"), "{}", two.message);
-        assert!(two.rewrite.contains("`sync to .claimant or .postedBy`"), "{}", two.rewrite);
+        assert!(two.rewrite.contains("\n  sync to .claimant or .postedBy\n"), "{}", two.rewrite);
         let source = "table claims:\n  claimant: principal\n  postedBy: principal\n  read <- .claimant = viewer or .postedBy = viewer\n  insert <- .postedBy = viewer\n  sync\n";
         assert!(crate::compile(&[("schema.q".into(), source.into())]).diagnostics.is_empty());
         // A disjunct that names no reader is still refused with the split.

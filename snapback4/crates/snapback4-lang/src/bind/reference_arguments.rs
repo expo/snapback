@@ -305,6 +305,17 @@ fn flow_expression(
             record_write(
                 catalog, arguments, flow, *op, table, fields, site, candidates,
             );
+            // @ref LLP 3000.036.002#12 — a successful point update also looked up its target.
+            if *op == WriteOp::Update {
+                let mut read = super::auth_lints::empty_read(table, site);
+                read.keys = keys.clone();
+                for (argument, target) in arguments {
+                    if flow.inputs.contains(argument) && target == table
+                        && read_checks_target_id(schema, &read, argument, target) {
+                        flow.checked.insert(argument.clone());
+                    }
+                }
+            }
         }
         Expr::Merge(merge) => {
             if let Some(value) = &merge.matching {

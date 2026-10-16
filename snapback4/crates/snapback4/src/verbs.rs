@@ -149,7 +149,11 @@ pub(crate) fn problem_reports(bound: &Bound, explain_repeats: bool, verbose: boo
             hidden += 1;
             continue;
         }
-        shown_diagnostics.push(diagnostic.clone());
+        let mut diagnostic = diagnostic.clone();
+        if verbose && let Some(details) = &diagnostic.details {
+            diagnostic.rewrite.push_str(&format!("\n  details: {details}"));
+        }
+        shown_diagnostics.push(diagnostic);
     }
     let reports = diagnostic_reports(&shown_diagnostics, "", explain_repeats).into_iter()
         .map(|report| if verbose { report } else { crate::presentation::abbreviate_quoted(&report) }).collect();
@@ -232,7 +236,11 @@ fn completeness_note(note: &snapback4_lang::Diagnostic) -> Option<[String; 3]> {
         None if note.code == "N_CONDITIONAL_COMPLETE" => "who: callers admitted by the pinned parent guard have a complete page".into(),
         None => "who: no caller group is proved complete by this page".into(),
     };
-    let what = if note.rewrite.starts_with("add `cap ") {
+    let subject = note.message.split(": ").next().unwrap_or("query");
+    let missing = note.message.split("` reads ").nth(1).and_then(|tail| tail.split_once(", which the scan does not pin").map(|(columns,_)| columns));
+    let what = if let Some(columns) = missing {
+        format!("what: {subject}: missing pin {columns}; choose the intended audience without dropping other readers; check --verbose shows the checked repair")
+    } else if note.rewrite.starts_with("add `cap ") {
         format!("what: {}", note.rewrite)
     } else {
         "what: pin every read-rule scope or handle `complete: false` as more rows may exist; check --verbose shows the proof and checked repair".into()

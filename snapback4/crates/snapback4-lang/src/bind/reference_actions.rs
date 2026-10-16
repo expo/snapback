@@ -131,7 +131,7 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &m
         let missing=schema.tables.keys().filter(|table|super::cascade_repair::reaches(schema,&parent,table)).flat_map(|table|schema.referencing(table))
             .filter(|r|r.action.writes() && schema.reference_cap(r.child,r.column).is_none())
             .map(|r|format!("{}.{} needs `cap N by {}` or plain single-column `unique {}`",r.child,r.column,r.column,r.column)).collect::<Vec<_>>().join("; ");
-        diagnostics.push(Diagnostic::new(&site,"E_CASCADE_BOUND",format!("delete {parent}: {missing}; all children share one reservation"),super::cascade_repair::recipe(schema,&parent,false)).guide("writes"));
+        diagnostics.push(Diagnostic::new(&site,"E_CASCADE_BOUND",format!("delete {parent} needs a product bound"),super::cascade_repair::recipe(schema,&parent,false)).details(format!("{missing}; {}", super::cascade_repair::evidence(schema,&parent,false))).guide("writes"));
     }
     // Structural cycles are independent of whether a finite reservation is
     // available: a dormant descendant may deliberately have no cap yet.
@@ -202,8 +202,9 @@ pub(super) fn sites(catalog: &Catalog, schema: &core::Schema, diagnostics: &mut 
                     let chain = schema.referencing(&parent).into_iter().filter(|r| r.action.writes())
                         .map(|r| format!("{}.{} ({}, cap {})", r.child, r.column, r.action.words(), schema.reference_cap(r.child, r.column).unwrap_or(0))).collect::<Vec<_>>().join(", ");
                     diagnostics.push(Diagnostic::new(&site, "E_CASCADE_BOUND",
-                        format!("{word} {}: `delete {parent}[…]` reserves {over} for what it deletes or clears through {chain}, whether or not those rows exist, so the {word} can never commit", program.name),
-                        super::cascade_repair::recipe(schema, &parent, program.kind == ProgramKind::Job)).guide("writes"));
+                        format!("{word} {}: delete {parent} cannot fit the declared product caps", program.name),
+                        super::cascade_repair::recipe(schema, &parent, program.kind == ProgramKind::Job))
+                        .details(format!("reserves {over} through {chain}, whether or not those rows exist; {}", super::cascade_repair::evidence(schema, &parent, program.kind == ProgramKind::Job))).guide("writes"));
                 }
                 // The delete reaches every table its cascades reach; their undeclared
                 // references refuse it too.

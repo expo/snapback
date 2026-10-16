@@ -1236,7 +1236,11 @@ impl<'r> Runner<'r> {
                 }
                 None => false,
             } };
-        let always_visible = always_visible || granted;
+        #[cfg(feature = "server-search")]
+        let captured = !self.device && self.snapshot_decided.contains(&scan.site);
+        #[cfg(not(feature = "server-search"))]
+        let captured = false;
+        let always_visible = always_visible || granted || captured;
         if !visibility.uniform && !always_visible && !self.merge_vacancy && !(self.device && table.sync.is_some()) {
             self.non_uniform = true; self.components.note(|frame| frame.non_uniform = true);
         }

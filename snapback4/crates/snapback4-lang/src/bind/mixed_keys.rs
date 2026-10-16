@@ -48,7 +48,7 @@ pub(super) fn keys<'a>(table: &TableInfo, parts: &'a [KeyPart], index: Option<&s
                 format!("{}[{}]", table.decl.name, named.join(", "))
             } else { format!("{}[id = <id>, {}]", table.decl.name, parts[prefix..].iter().map(spelling).collect::<Vec<_>>().join(", ")) };
             return Err(Diagnostic::new(site, "E_QUARRY_POSITIONAL_SCAN",
-                format!("{} needs one full declared unique key with non-null columns before named tests; {prefix} positional components match {} keys; declared keys: {descriptions}", table.decl.name, candidates.len()), rewrite.clone())
+                format!("{} does not have a full positional unique key before its named tests; do not mix positional and named keys in this read; use the fully named replacement; {prefix} positional components match {} keys; declared keys: {descriptions}", table.decl.name, candidates.len()), rewrite.clone())
                 .source_rewrite(crate::diag::SourceRewriteKind::MixedKey, rewrite).guide("reads"));
         }
     };

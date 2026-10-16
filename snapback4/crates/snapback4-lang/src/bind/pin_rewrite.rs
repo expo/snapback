@@ -226,3 +226,28 @@ pub(super) fn prefix_decided(table: &Table, pinned: &std::collections::BTreeSet<
         !fields.is_empty() && fields.iter().all(|field| pinned.contains(field))
     }).cloned().collect()
 }
+
+/// A finite private parent group can keep its exact audience, including all
+/// owner/landlord/member alternatives, using the existing exhaustion plan.
+// @ref LLP 3000.036.002#12 — never replace a private child rule with a broader parent audience.
+pub(super) fn parent_cap_repair(catalog: &super::catalog::Catalog, schema: &Schema,
+    bound: &super::BoundProgram, scan: &Scan) -> Option<String> {
+    let table = schema.table(&scan.table)?;
+    if table.sync.is_some() || scan.merge_site.is_some() { return None; }
+    let site = &bound.sources.get(&scan.site)?.0;
+    let (authored,_,_,_) = catalog.source.read(site)?;
+    if authored.index.is_some() || !authored.keys.is_empty() || authored.range.is_none()
+        || authored.filter.as_deref().is_some_and(|filter| !super::intent_branches::total(filter)) { return None; }
+    let index = table.index(&scan.index)?;
+    let reference = index.columns().into_iter().take(scan.prefix.len()).find(|column|
+        matches!(table.columns.get(column),Some(ColumnType::Ref {..})))?;
+    let cap = u32::try_from(scan.take.maximum()).ok()?.max(1);
+    let mut trial = schema.clone();
+    trial.tables.get_mut(&scan.table)?.constraints.push(snapback4_core::schema::Constraint::Cap {by:vec![reference.clone()],max:cap});
+    let lane = snapback4_core::ir::MergeLane {guard:None,distinct:None,branch:Some(snapback4_core::ir::BOUNDED_LANE.into()),
+        project:None,setup:vec![],scan:scan.clone(),source:None,binding:"row".into()};
+    let mut probes=Vec::new();snapback4_core::engine::rules::probe_sites(&table.rules.read,&mut probes);
+    if !snapback4_core::engine::rules::bounded_branch(&trial,&lane)
+        || (u64::from(cap)+1).saturating_mul(1+probes.len() as u64)>=snapback4_core::Ceilings::default().examined {return None;}
+    Some(format!("add `cap {cap} by {reference}` to table {} only if that is a product limit you choose; keep query {} and its exact read rule unchanged. The bounded authorized walk exhausts that parent group for the same audience, including every existing read-rule branch; do not substitute the parent's broader audience. Existing data must fit the cap before adoption",scan.table,bound.program.name))
+}

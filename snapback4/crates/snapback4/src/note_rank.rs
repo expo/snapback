@@ -16,7 +16,7 @@ pub(crate) enum Tier {
 
 pub(crate) fn tier(code: &str) -> Tier {
     match code {
-        "N_PERSONA_PRINCIPAL" | "N_UNREADABLE_PROBE" | "N_NO_PRODUCTION_WRITER" | "N_FIXTURE_ARGUMENT_DRIFT" | "N_REFERENCE_UNCHECKED" | "N_MAINTAIN_AUTHORIZATION" | "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_LOOKUP_NEVER_VISIBLE" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
+        "N_IMMUTABLE_PATCH" | "N_PERSONA_PRINCIPAL" | "N_UNREADABLE_PROBE" | "N_NO_PRODUCTION_WRITER" | "N_FIXTURE_ARGUMENT_DRIFT" | "N_REFERENCE_UNCHECKED" | "N_MAINTAIN_AUTHORIZATION" | "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_LOOKUP_NEVER_VISIBLE" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
         | "N_CLOCK_STORE_AHEAD" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "N_MAINTAIN_DELTA"
         | "N_SEARCH_UNSCOPED" | "N_SEARCH_OPEN" | "N_TIMELINE_PROFILE_CAP" => Tier::Review,
         // @ref LLP 3000.036#13.4 — a cursorless `first N` is what the declaration says: the first N rows (wave 3 #7).
@@ -53,6 +53,7 @@ pub(crate) fn verdict(code: &str, summary: &str, form: bool) -> &'static str {
         "N_LOOKUP_HIDDEN" => "review: some writers get NOT_FOUND",
         "N_PROBE_ONLY_READ" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" => "review: who can read this",
         "N_VACUOUS_RULE" => "review: who can write this",
+        "N_IMMUTABLE_PATCH" => "review: readable conflicts require the original immutable value",
         "N_NO_CURSOR" => "no action for a top-N list",
         _ => match tier(code) {
             Tier::Review => "review",
@@ -124,6 +125,15 @@ pub(crate) fn render(notes: Vec<Note>) -> Vec<String> {
         let (note, count) = &unique[i];
         let group = tier(&note.code);
         if current != Some(group) { flush(&mut lines, &mut repeats); lines.push(heading(group).to_owned()); current = Some(group); }
+        if note.code == "N_NO_CURSOR" {
+            if !shown_codes.contains(&note.code) {
+                let subjects = unique.iter().filter(|(n,_)| n.code == "N_NO_CURSOR").map(|(n,_)|
+                    format!("{} ({})", subject(&n.summary), n.site)).collect::<Vec<_>>().join("; ");
+                lines.push(format!("note: N_NO_CURSOR: no action for a top-N list. Pages without continuation: {subjects}; if the screen pages, add `c: cursor ?` and `after c`"));
+                shown_codes.push(note.code.clone());
+            }
+            continue;
+        }
         let times = if *count > 1 { format!(" (×{count} at this site)") } else { String::new() };
         let new_form = note.form.as_ref().is_some_and(|(lead, _)| !shown_forms.contains(lead));
         if shown_codes.contains(&note.code) && !new_form {

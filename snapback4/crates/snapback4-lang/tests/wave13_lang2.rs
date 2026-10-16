@@ -57,7 +57,7 @@ fn dormant_cascades_need_bounds_only_after_a_delete_source_appears() {
         format!("{source}mutation remove(p: parents):\n  delete parents[p]\n  return null\n"),
         format!("{source}job remove():\n  for p in parents:\n    delete parents[p.id]\n")] {
         let d = refusal(&active, "E_CASCADE_BOUND");
-        assert!(d.rewrite.contains("product limit") && d.rewrite.contains("Heap ="), "{d}");
+        assert!(d.rewrite.contains("product limit") && d.details.as_deref().is_some_and(|text| text.contains("Heap =")), "{d}");
     }
     let active = source.replace("table parents:\n", "table parents:\n  delete <- allow\n").replace("  parent: parents on delete cascade\n", "  parent: parents on delete cascade\n  cap 3 by parent\n");
     checked(&active);

@@ -1,5 +1,11 @@
 # Snapback 4 behavior changes
 
+## 0.4.31
+
+- Quarry diagnostics name the query and missing completeness pin. Readable held-parent snapshots and surviving audience branches can prove an online page complete; copied child audiences remain explicit. Private parent-group rewrites preserve every audience branch and identify optional product caps.
+- Enum guards narrow through `or` and early returns. Sorting retains an already proved complete capped population; slicing still does not. Private owner-key upserts receive proven-change/fresh-clock refusals when the key proves readability; uncertain and hidden conflicts retain notes. Stable immutable-parent derivations stay quiet, with runtime equality unchanged. `N_IMMUTABLE_PATCH` is a correctness review note.
+- Delete-bound diagnostics lead with the product edit; reservation arithmetic is under `check --verbose` and JSON details. Mixed keys name positional/named mixing, sync repairs print replacement lines, proven roster/reference context reduces notes, and top-N/cursor notes group their subjects. The cheatsheet names reserved bindings. Authorization recipes/refusal layers are tracked by RULES4; null fixture-alias diagnostics by KIT3.
+
 ## 0.4.30
 
 - Saved releases: `deploy --schema` resolves compatibility baselines from the original project, preserves module names and deduplicates enum/value unions. Prefer `versions/v1/schema.q`, original-name modules and `versions/v1/fixtures/`; directory and complete-file inputs remain supported. Saved tests prefer contemporary fixtures, name fallback skips and keep explicit fixture selection strict. Deploy/rollback previews group actual guard dependencies and lead with query/count population losses, dependent dormancy and safety effects; literal backfills include exact active-row counts. A bridge-release recipe preserves safety logic as well as data.

@@ -1,0 +1,70 @@
+//! The core must rederive source proofs safely for arbitrary IR too.
+use snapback4_core::{Context, Engine, Value, value::object, ir::{self, Expr, Stmt, Input, BinaryOp as B, Read, KeyProvenance}};
+use snapback4_lang::compile;
+fn setup() -> (snapback4_core::schema::Schema, ir::Program, ir::Scan) {
+    let b=compile(&[("schema.q".into(),"table anchors:\n  owner: principal\n  public\n  online only\ntable secrets:\n  payload: text\n  read <- deny\n  online only\nquery q(p: anchors, other: principal):\n  return secrets first 50 by .id\n".into())]);
+    assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    let p=b.programs.into_iter().next().unwrap().program;
+    let scan=ir::scans(&p)[0].clone();
+    (b.schema,p,scan)
+}
+fn anchor(name:&str) -> Stmt { Stmt::Let {name:name.into(),value:Expr::Get(Read {site:"capture".into(),table:"anchors".into(),index:"byId".into(),key:vec![ir::var("p")],provenance:KeyProvenance::Arg})} }
+fn eq(op:B,a:Expr,b:Expr)->Expr {Expr::Binary {op,left:Box::new(a),right:Box::new(b)}}
+fn require(condition:Expr)->Stmt {Stmt::Require {condition,code:"NO".into(),site:None,message:None}}
+fn secrets_stay_hidden(mut schema:snapback4_core::schema::Schema,mut program:ir::Program,body:Vec<Stmt>, hidden:bool) {
+    if hidden {schema.tables.get_mut("anchors").unwrap().rules.read=snapback4_core::schema::RuleExpr::Eq(snapback4_core::schema::RuleTerm::Field("owner".into()),snapback4_core::schema::RuleTerm::Viewer);}
+    program.body=body;
+    assert!(snapback4_core::engine::rules::snapshot_decided_scans(&schema,&program).is_empty());
+    let mut e=Engine::memory(schema,[program]).unwrap();
+    let mut rows=vec![("secrets".into(),object([("id",Value::Id("secret".into())),("payload",Value::String("must not escape".into()))]))];
+    if hidden {rows.push(("anchors".into(),object([("id",Value::Id("a".into())),("owner",Value::Id("other".into()))])));}
+    e.seed(rows).unwrap();
+    let answer=e.query("q",Context::new("viewer",[("p".into(),Value::Id("a".into())),("other".into(),Value::Id("other".into()))].into())).unwrap();
+    assert_eq!(answer.data,Value::Array(vec![]),"{answer:?}");
+}
+#[test]
+fn contradictory_facts_from_different_binding_versions_never_authorize() {
+    let (schema,p,scan)=setup();
+    let body=vec![anchor("a"),Stmt::Let {name:"x".into(),value:Expr::Input(Input::Viewer)},
+        require(eq(B::Eq,ir::var("x"),Expr::Input(Input::Viewer))),
+        Stmt::Assign {name:"x".into(),value:ir::var("other")},
+        require(eq(B::Ne,ir::var("x"),Expr::Input(Input::Viewer))),Stmt::Return(Expr::Scan(scan))];
+    secrets_stay_hidden(schema,p,body,false);
+}
+#[test]
+fn missing_and_hidden_snapshot_ids_are_null_not_the_requested_key() {
+    for hidden in [false,true] {
+        let (schema,p,scan)=setup();
+        secrets_stay_hidden(schema,p,vec![anchor("a"),require(eq(B::Ne,ir::field(ir::var("a"),"id"),ir::var("p"))),Stmt::Return(Expr::Scan(scan))],hidden);
+    }
+}
+#[test]
+fn a_short_circuit_setup_is_not_its_final_boolean_value() {
+    let (schema,p,scan)=setup();
+    let body=vec![anchor("a"),Stmt::Let {name:"b".into(),value:Expr::Literal(Value::Bool(true))},
+        Stmt::If {condition:ir::var("b"),then_body:vec![Stmt::Let {name:"rows".into(),value:Expr::Scan(scan)},Stmt::Assign {name:"b".into(),value:Expr::Literal(Value::Bool(false))}],else_body:vec![]},Stmt::Return(ir::var("rows"))];
+    secrets_stay_hidden(schema,p,body,false);
+}
+#[test]
+fn implicit_row_bindings_cannot_supply_a_capture() {
+    for name in ["$filter","$project"] {
+        let (schema,mut p,scan)=setup();
+        p.body=vec![anchor(name),require(eq(B::Ne,ir::field(ir::var(name),"id"),ir::var("p"))),Stmt::Return(Expr::Scan(scan))];
+        assert!(snapback4_core::engine::rules::snapshot_decided_scans(&schema,&p).is_empty());
+    }
+}
+#[test]
+fn every_occurrence_of_an_ir_site_must_be_proved() {
+    let (schema,p,scan)=setup();
+    let body=vec![anchor("a"),Stmt::If {condition:Expr::Literal(Value::Bool(false)),then_body:vec![Stmt::Return(Expr::Scan(scan.clone()))],else_body:vec![]},Stmt::Return(Expr::Scan(scan))];
+    secrets_stay_hidden(schema,p,body,false);
+}
+#[test]
+fn an_argument_cannot_shadow_a_reconstructed_short_circuit_temporary() {
+    let (schema,mut p,scan)=setup();
+    p.args.insert("b".into(),ir::ArgType::Bool);
+    p.body=vec![anchor("a"),require(eq(B::Eq,ir::var("b"),Expr::Literal(Value::Bool(true)))),
+        Stmt::Let {name:"b".into(),value:Expr::Literal(Value::Bool(false))},
+        Stmt::If {condition:ir::var("b"),then_body:vec![Stmt::Assign {name:"b".into(),value:Expr::Literal(Value::Bool(true))}],else_body:vec![]},Stmt::Return(Expr::Scan(scan))];
+    assert!(snapback4_core::engine::rules::snapshot_decided_scans(&schema,&p).is_empty());
+}

@@ -216,7 +216,7 @@ fn notes_stay_short_and_verbose_explains_each_code_once() {
             assert!(output.status.success(), "{output:?}");
             let text = String::from_utf8(output.stdout).unwrap();
             // Repeats of a code share one line naming each query (wave 6 #25).
-            assert_eq!(text.matches("note: ").count(), if verbose { count + 1 } else { count.min(2) + 1 }, "{text}");
+            assert_eq!(text.matches("note: ").count(), if verbose { count + 1 } else { 2 }, "{text}");
             if !verbose && count > 1 { assert!((1..count).all(|i| text.contains(&format!("query page{i} ("))), "{text}"); }
             assert_eq!(text.matches("  guide: reads").count(), if verbose { count } else { 0 });
             assert_eq!(text.matches("  why: snapback4 why N_NO_CURSOR").count(), if verbose { count } else { 0 });
@@ -1770,4 +1770,31 @@ fn compatibility_baselines_preserve_module_identities_for_directories_and_single
     fs::write(p.0.join("snapback/client-compatibility.json"),r#"{"baseline":"versions/empty","since_release":2}"#).unwrap();
     let output=p.run(&["check"]); assert!(!output.status.success());
     assert!(String::from_utf8_lossy(&output.stderr).contains("no Quarry .q sources"));
+}
+
+#[test]
+fn w14_cascade_product_rewrite_precedes_verbose_reservation_evidence() {
+    let p=Project::new();
+    p.source("table parents:\n  public\n  delete <- allow\n  online only\ntable children:\n  parent: parents on delete cascade\n  public\n  online only\n");
+    let plain=p.run(&["check"]);
+    assert!(!plain.status.success());
+    let plain=String::from_utf8(plain.stderr).unwrap();
+    assert!(plain.contains("E_CASCADE_BOUND")&&plain.contains("this is a product limit you choose"),"{plain}");
+    assert!(!plain.contains("Heap =")&&!plain.contains("heap bytes"),"{plain}");
+    let verbose=p.run(&["check","--verbose"]);
+    assert!(!verbose.status.success());
+    let verbose=String::from_utf8(verbose.stderr).unwrap();
+    assert!(verbose.contains("Heap =")&&verbose.contains("heap bytes"),"{verbose}");
+    let json=parsed(&p.run(&["check","--json"]));
+    assert!(json["problems"].as_array().unwrap().iter().any(|p|p["code"]=="E_CASCADE_BOUND"&&p["details"].as_str().is_some_and(|d|d.contains("Heap ="))));
+}
+#[test]
+fn w14_conditional_completeness_default_names_the_query_and_missing_pin() {
+    let p=Project::new();
+    p.source("table owners:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  owner: principal\n  n: int\n  read <- .owner = viewer or exists owners[viewer]\n  online only\nquery overview(c: cursor ?):\n  return docs where .n + 1 > 0 first 50 by .id after c\n");
+    let output=p.run(&["check"]);
+    assert!(output.status.success(),"{output:?}");
+    let text=String::from_utf8(output.stdout).unwrap();
+    assert!(text.contains("query overview: missing pin .owner"),"{text}");
+    assert!(text.contains("N_CONDITIONAL_COMPLETE")||text.contains("N_NEVER_COMPLETE"),"{text}");
 }

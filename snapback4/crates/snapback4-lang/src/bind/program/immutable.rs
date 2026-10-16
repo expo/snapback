@@ -20,7 +20,10 @@ impl Binder<'_> {
         // cannot prove refusal when some callers may not read the target.
         let comparable = self.schema.table(&info.decl.name).is_some_and(|table|
             table.through.is_none() && table.ephemeral.is_none() && !table.read_lifetime_sensitive()
-            && (self.caller_kind == ProgramKind::Job || table.rules.read.is_uniformly_readable()));
+            && (self.caller_kind == ProgramKind::Job || table.rules.read.is_uniformly_readable()
+                || { let pins = index.columns.iter().zip(&components).filter_map(|(name,value)| Some((name,value.as_ref()?))).collect();
+                    snapback4_core::engine::rules::prefix_visibility(&info.decl.name, table, &table.rules.read, &pins).decided_true
+                }));
         for (column, supplied) in patch {
             if !info.decl.immutable.iter().any(|(fields, _)| fields.contains(column)) { continue; }
             let value = resolve(supplied, prior, 32, &stable);
@@ -35,7 +38,7 @@ impl Binder<'_> {
                 }
             } else { false };
             let known = pinned.or_else(|| stored.as_ref()?.get(column));
-            if snapshot || known.zip(value.as_ref()).is_some_and(|(old, new)| old == new || constant(old).zip(constant(new)).is_some_and(|(old,new)|old==new)) { continue; }
+            if snapshot || immutable_parent(self.schema, info, index, &components, column, value.as_ref()) || known.zip(value.as_ref()).is_some_and(|(old, new)| old == new || constant(old).zip(constant(new)).is_some_and(|(old,new)|old==new)) { continue; }
             let field_site = fields.iter().find(|field| &field.name == column).map_or(site, |field| &field.site);
             let rewrite = format!("omit {column} from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present");
             let differing = known.zip(value.as_ref()).is_some_and(|(old, new)| different(old, new));
@@ -247,5 +250,20 @@ fn resolve(expr: &Expr, prior: &[Stmt], fuel: usize, stable: &BTreeSet<String>) 
         Expr::Array(values) => Expr::Array(values.iter().map(|value|resolve(value,prior,fuel-1,stable)).collect::<Option<_>>()?),
         Expr::Object(fields) => Expr::Object(fields.iter().map(|(name,value)|Some((name.clone(),resolve(value,prior,fuel-1,stable)?))).collect::<Option<_>>()?),
         _ => return None,
+    })
+}
+
+// @ref LLP 3000.036.002#12 — stable parent derivations are intentional equality guards,
+// not attempted mutable edits; runtime equality still checks historical rows.
+fn immutable_parent(schema: &snapback4_core::schema::Schema, info: &TableInfo, index: &ast::IndexDecl,
+    components: &[Option<Expr>], column: &str, value: Option<&Expr>) -> bool {
+    let Some(Expr::Field { base, name }) = value else { return false };
+    let Expr::Get(read) = base.as_ref() else { return false };
+    let Some(parent) = schema.table(&read.table) else { return false };
+    if !parent.immutable_fields().any(|field| field == name) || read.index != "byId" || read.key.len() != 1 { return false; }
+    index.columns.iter().zip(components).any(|(reference, key)| {
+        key.as_ref() == read.key.first() && info.decl.immutable.iter().any(|(fields,_)| fields.contains(reference))
+            && matches!(info.columns.get(reference).map(|ty| &ty.kind), Some(ast::TypeKind::Ref { table }) if table == &read.table)
+            && column != reference
     })
 }

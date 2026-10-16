@@ -925,6 +925,46 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
         });
         (writes, binds)
     }
+    // @ref LLP 3000.036.002#12 — unrelated writes cannot revoke a proven roster.
+    // Helpers, maintenance and row-derived facts keep the old barrier.
+    // Deletes include every schema-declared cascade/set-null destination.
+    fn preserve_rosters(catalog: &Catalog, schema: &Schema, statements: &[Stmt], known: &mut BTreeSet<String>) {
+        let mut written = BTreeSet::new();
+        let mut opaque = false;
+        let mut copy = statements.to_vec();
+        super::intent_walk::statements(&mut copy, &mut |expr| match expr {
+            Expr::Write { op: WriteOp::Delete, table, .. } => {
+                let mut todo=vec![table.clone()]; let mut visited=BTreeSet::new();
+                while let Some(parent)=todo.pop() {
+                    if !visited.insert(parent.clone()) {continue;}
+                    written.insert(parent.clone());
+                    for edge in schema.referencing(&parent) {
+                        if edge.action.writes() {todo.push(edge.child.into());}
+                    }
+                }
+            },
+            Expr::Write { table, .. } => { written.insert(table.clone()); },
+            Expr::Call { name, .. } if catalog.functions.contains_key(name) => opaque = true,
+            _ => {},
+        });
+        if opaque { known.clear(); return; }
+        known.retain(|fact| {
+            let (doc, errors) = crate::parser::parse_document("fact.q", &format!("query fact():\n  return {fact}\n"));
+            if !errors.is_empty() { return false; }
+            let Some(Stmt::Return { value: Expr::Exists { read, .. }, .. }) = doc.programs.first().and_then(|p| p.body.first()) else { return false };
+            fn safe(schema: &Schema, name: &str, written: &BTreeSet<String>, seen: &mut BTreeSet<String>) -> bool {
+                if written.contains(name) { return false; }
+                if !seen.insert(name.into()) { return true; }
+                let Some(table) = schema.table(name) else { return false };
+                if table.through.is_some() || table.ephemeral.is_some() || schema.maintain_for(name).is_some() || !table.maintained.is_empty() { return false; }
+                let mut dependencies = BTreeSet::new();
+                read_dependencies(&table.rules.read, &mut dependencies);
+                dependencies.iter().all(|name| safe(schema, name, written, seen))
+            }
+            read.keys.iter().all(|key| matches!(key.value, Expr::Name { .. } | Expr::Literal { .. }))
+                && safe(schema, &read.table, &written, &mut BTreeSet::new())
+        });
+    }
     fn effectful(catalog: &Catalog, value: &Expr) -> bool {
         effects(catalog, &[Stmt::Expr { value: value.clone(), site: value.site().clone() }], &mut BTreeSet::new()).0
     }
@@ -1025,6 +1065,14 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                 else { index.columns.len() == read.keys.len() })
     }
     fn expression_guard_node(catalog: &Catalog, schema: &Schema, program: &str, expr: &Expr, known: &BTreeSet<String>, global: &BTreeSet<String>, system: bool, observe_prefix: bool, visiting: &mut BTreeSet<String>, notes: &mut Vec<Diagnostic>) {
+        if let Expr::Write { op: WriteOp::Update | WriteOp::Delete, table, keys, site, .. } = expr {
+            let mut read = empty_read(table, site);
+            read.keys = keys.clone();
+            let witness = Expr::Exists { read: read.clone(), site: site.clone() };
+            if readable(catalog, schema, &read, known) || known.contains(&fact_text(&witness)) {
+                notes.retain(|note| !(note.code == "N_LOOKUP_HIDDEN" && note.site == *site));
+            }
+        }
         if !observe_prefix {
             for input in guarded_inputs(catalog, expr) {
                 input_guards(catalog, schema, program, &input, known, global, system, visiting, notes);
@@ -1178,7 +1226,9 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                     let one = vec![statement.clone()];
                     let wrote = effects(catalog, &one, &mut BTreeSet::new()).0;
                     // Operand order can hide the grant before a later condition in this expression.
-                    if wrote && !matches!(statement, Stmt::Bind { value, .. } | Stmt::Expr { value, .. } | Stmt::Return { value, .. } if ordered_call(catalog, value)) { known.clear(); }
+                    if wrote && !matches!(statement, Stmt::Bind { value, .. } | Stmt::Expr { value, .. } | Stmt::Return { value, .. } if ordered_call(catalog, value)) {
+                        preserve_rosters(catalog, schema, &one, &mut known);
+                    }
                     match statement {
                         Stmt::Bind { value, names, .. } => expression_guards(catalog, schema, program, value, &known, global, system, observe_prefix || names.iter().any(|name| guard_names.contains(name)), visiting, notes),
                         Stmt::Expr { value, .. } | Stmt::Return { value, .. } => expression_guards(catalog, schema, program, value, &known, global, system, observe_prefix, visiting, notes),
@@ -1188,10 +1238,10 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                         }
                         _ => {}
                     }
-                    if wrote { known.clear(); }
-                    else if let Stmt::Bind { names, .. } = statement {
+                    if wrote { preserve_rosters(catalog, schema, &one, &mut known); }
+                    if let Stmt::Bind { names, .. } = statement {
                         invalidate(names, &mut known);
-                        if let Stmt::Bind { value, .. } = statement { lookup_fact(catalog, schema, names, value, &mut known); }
+                        if !wrote && let Stmt::Bind { value, .. } = statement { lookup_fact(catalog, schema, names, value, &mut known); }
                     }
                     if matches!(statement, Stmt::Return { .. }) { break; }
                 }

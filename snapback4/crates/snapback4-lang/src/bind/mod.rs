@@ -844,7 +844,9 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                 lane.grant() || lane.system() || lane.membership() || lane.guarded() || lane.exhaustive())
                 .map(|lane| &lane.scan as *const _)).collect();
 
+        let snapshot_decided = snapback4_core::engine::rules::snapshot_decided_scans(schema, &bound.program);
         for scan in snapback4_core::ir::scans(&bound.program) {
+            if snapshot_decided.contains(&scan.site) { continue; }
             if proof_lanes.contains(&(scan as *const _)) { continue; }
             if inferred_search.is_some() && scan.prefix.iter().any(|key| matches!(key, snapback4_core::ir::IndexKeyExpr::WordPrefix(_))) { continue; }
             let Some(table) = schema.table(&scan.table) else { continue };
@@ -894,7 +896,8 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                 .sources
                 .get(&scan.site)
                 .and_then(|(site, _)| catalog.membership_cap_repairs.get(&site.to_string()))
-                .cloned();
+                .cloned()
+                .or_else(|| pin_rewrite::parent_cap_repair(catalog, schema, bound, scan));
             // @ref LLP 3000.036#18 — a runtime parent guard can certify the page for its holders.
             let conditional = snapback4_core::engine::rules::page_guard_decision(schema, scan).is_some_and(|guard| {
                 let mut fields = std::collections::BTreeSet::new(); guard.fields(&mut fields); !fields.is_empty()

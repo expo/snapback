@@ -223,6 +223,8 @@ pub struct Runner<'a> {
     /// authority. Online-only and horizon reads may need the server.
     pub(crate) device: bool,
     pub(super) query_program: bool,
+    #[cfg(feature = "server-search")]
+    pub(super) snapshot_decided: BTreeSet<String>,
     /// Prediction deduplicates keys within this attempt, never in the server ledger.
     pub(super) effect_once_keys: BTreeSet<String>,
     pub(crate) event_free: bool,
@@ -388,6 +390,8 @@ impl<'a> Runner<'a> {
             word_cut_at: None,
             device: false,
             query_program: false,
+            #[cfg(feature = "server-search")]
+            snapshot_decided: BTreeSet::new(),
             effect_once_keys: BTreeSet::new(),
             event_free: false,
             #[cfg(feature = "sqlite")]
@@ -432,6 +436,8 @@ impl<'a> Runner<'a> {
     }
 
     pub fn run(&mut self, program: &Program) -> Result<Value, RuntimeError> {
+        #[cfg(feature = "server-search")]
+        { self.snapshot_decided = if self.device { BTreeSet::new() } else { super::rules::snapshot_decided_scans(self.schema, program) }; }
         self.reserve_bounded_plans(program)?;
         if let Some(value) = self.run_decorated_search(program)? { return Ok(value); }
         self.insert_uses = (program.kind != ProgramKind::Query).then(|| effects::Effects::variable_uses(&program.body));
