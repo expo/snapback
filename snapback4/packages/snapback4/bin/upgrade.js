@@ -80,7 +80,13 @@ try {
     let bundled;
     try { if (unpack.status !== 0) throw Error(); bundled = JSON.parse(unpack.stdout); }
     catch { throw Error(`E_UPGRADE: Expo ${expo} has no readable alignment manifest`); }
-    for (const name of Object.keys(bundled)) if (dependencies.some(section => pkg[section]?.[name])) {
+    const aligned = new Set(dependencies.flatMap(section => Object.keys(pkg[section] ?? {})));
+    // Router's wildcard optional peers otherwise select an incompatible Worklets.
+    if (aligned.has('expo-router')) for (const name of ['react-native-reanimated', 'react-native-worklets']) {
+      if (!(name in bundled)) throw Error(`E_UPGRADE: Expo ${expo} has no Router alignment for ${name}`);
+      aligned.add(name);
+    }
+    for (const name of Object.keys(bundled)) if (aligned.has(name)) {
       const range = bundled[name];
       const exact = typeof range === 'string' && /^[~^]?(\d+\.\d+\.\d+)$/.exec(range)?.[1];
       if (!exact) throw Error(`E_UPGRADE: Expo alignment for ${name} has no exact supported pin: ${range}`);

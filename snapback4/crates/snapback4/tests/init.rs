@@ -1446,3 +1446,12 @@ fn adapt_adds_missing_proof_files_and_preserves_application_proofs() {
     assert_eq!(package["scripts"]["frontend:proof"], "my-custom-proof");
     assert_eq!(fs::read_to_string(dir.0.join("scripts/frontend-proof.mjs")).unwrap(), "// application-owned proof\n");
 }
+
+#[test]
+fn social_pins_the_sdk_supported_router_animation_peers() {
+    let dir = Dir::new();
+    assert!(dir.init(&["--template", "social"]).status.success());
+    let package: Value = serde_json::from_slice(&fs::read(dir.0.join("package.json")).unwrap()).unwrap();
+    assert_eq!(package["dependencies"]["react-native-reanimated"], "4.5.1");
+    assert_eq!(package["dependencies"]["react-native-worklets"], "0.10.1");
+}
