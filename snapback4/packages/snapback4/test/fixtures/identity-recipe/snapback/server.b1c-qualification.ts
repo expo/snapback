@@ -1,6 +1,6 @@
 import { oidcHandlers } from "snapback4/identity";
 import { api } from "./generated/api.ts";
-import { server } from "./generated/server.ts";
+import { server } from "./generated/server.ts"; import { startServer } from "snapback4/server";
 import { qualificationFetch } from "./qualification-fetch.ts";
 
 // Test instrument only: qualify-b1c.mjs copies this over server.ts in its
@@ -20,7 +20,7 @@ const oidc = oidcHandlers({
   },
 });
 
-export default server(
+export default server(startServer,
   { actions: { beginOidc: oidc.begin, completeOidc: oidc.complete } },
   { fetch: qualificationFetch, lease: 1, wait: 1, batch: 1, statusIntervalMs: 50 },
 );

@@ -1,6 +1,6 @@
 import { oidcHandlers } from "snapback4/identity";
 import { api } from "./generated/api.ts";
-import { server } from "./generated/server.ts";
+import { server } from "./generated/server.ts"; import { startServer } from "snapback4/server";
 import { invitationIssuanceHandler } from "./invitation-issuance/issue-invitation.ts";
 
 const oidc = oidcHandlers({
@@ -28,7 +28,7 @@ const issueInvitation = invitationIssuanceHandler({
   subject: "Your organization invitation",
 });
 
-export default server({ actions: {
+export default server(startServer, { actions: {
   beginOidc: oidc.begin,
   completeOidc: oidc.complete,
   issueInvitation,

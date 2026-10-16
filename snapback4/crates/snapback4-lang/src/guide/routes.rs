@@ -37,10 +37,10 @@ needs a handler; undeclared names refuse. Actions and routes can each be omitted
 only when none are declared; a supplied empty registry accepts no handlers.
 
 ```ts
-import { server } from "./generated/server.ts";
+import { server } from "./generated/server.ts"; import { startServer } from "snapback4/server";
 
 // reports and billing are the application's provider adapters.
-export default server({ routes: {
+export default server(startServer, { routes: {
   async exportReport(req, ctx) {
     const bytes = await req.rawBody();
     return new Response(await reports.export(bytes, ctx), { status: 200 });

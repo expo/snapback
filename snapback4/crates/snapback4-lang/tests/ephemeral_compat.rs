@@ -319,7 +319,7 @@ fn strip_reference_actions(text: &str) -> String {
 // validate and remove REL3's SDK import/member/descriptor and SURF's unwrap hint.
 fn strip_client_metadata(types: &str, bound: &snapback4_lang::Bound) -> String {
     use snapback4_core::ProgramKind;
-    const IMPORTS: &str = "import { operationAvailable } from \"snapback4/contract\";\nimport type { ReleaseSnapshot } from \"snapback4/contract\";\n\n";
+    const IMPORTS: &str = include_str!("../src/emit/availability.ts");
     const MEMBER: &str = " & { available(release: ReleaseSnapshot): boolean }";
     assert_eq!(types.matches(IMPORTS).count(), 1);
     const UNWRAP: &str = " Unwrap with isReady(read) && read.data, or matchRead(read, handlers) from snapback4/contract (also snapback4/react).";

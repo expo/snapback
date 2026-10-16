@@ -217,7 +217,9 @@ fn generated_route_handlers_typecheck_against_the_real_runtime() {
         });
         std::fs::write(scratch.0.join(format!("{file}.ts")), generated).unwrap();
     }
-    std::fs::write(scratch.0.join("check.ts"), include_str!("fixtures/routes-handlers.ts")).unwrap();
+    let checks = include_str!("fixtures/routes-handlers.ts").replace("\"snapback4/server\"",
+        &serde_json::to_string(&workspace.join("packages/snapback4/src/server.ts").to_string_lossy()).unwrap());
+    std::fs::write(scratch.0.join("check.ts"), checks).unwrap();
     let tsc = workspace.join("node_modules/typescript/bin/tsc");
     assert!(tsc.exists(), "the emitted-TypeScript check needs the existing snapback4 Bun dependencies");
     let result = Command::new("node").arg(tsc).args(["--noEmit", "--strict", "--skipLibCheck", "--allowImportingTsExtensions", "--target", "es2023", "--module", "esnext", "--moduleResolution", "bundler", "--types", "node", "--typeRoots"])

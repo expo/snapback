@@ -1,6 +1,7 @@
 import { hangBudget } from './helpers/wait.mjs';
 // Compiler-to-runtime acceptance: an effect-only application needs no server directive.
 import test from "node:test";
+import { startServer } from "../dist/server.js";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
@@ -45,7 +46,7 @@ mutation send():
   for (const mode of ["retry", "cancel", "authority", "contract-mismatch"]) await t.test(mode, async () => {
     const stop = new AbortController(), paths = [], errors = [], attempts = [], observations = [], statusCodes = [], steps = new Map();
     let claims = 0, failures = 0, providerCalls = 0, settled = 0, handlerCalls = 0;
-    const worker = server({ effects: { async mail(payload, ctx) {
+    const worker = server(startServer, { effects: { async mail(payload, ctx) {
       handlerCalls++;
       assert.deepEqual(payload, { to: "member@example.test" });
       assert.deepEqual(Object.keys(ctx.secrets), ["MAIL_KEY"]);

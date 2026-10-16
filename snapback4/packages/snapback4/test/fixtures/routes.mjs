@@ -40,7 +40,7 @@ query mine():
 `;
 
 export function entry(routes, { setup = "", lease = 10, wait = 1, actions } = {}) {
-  return `import { server } from "./generated/server.ts";
+  return `import { server } from "./generated/server.ts"; import { startServer } from "snapback4/server";
 import { api } from "./generated/api.ts";
 import { type RouteRequest, type VerificationContext, type ServerContext, ParkStep, ServerError } from "snapback4/server";
 import { GiveUp, Retry } from "snapback4/worker";
@@ -65,7 +65,7 @@ async function save<S extends string>(ctx: ServerContext<S>, body: string) {
   return result;
 }
 ${setup}
-const worker = server({${actions === undefined ? "" : `actions:${actions},`}routes:${routes}}, {signal:stop.signal, lease:${lease}, wait:${wait}, batch:1, statusIntervalMs:50});
+const worker = server(startServer, {${actions === undefined ? "" : `actions:${actions},`}routes:${routes}}, {signal:stop.signal, lease:${lease}, wait:${wait}, batch:1, statusIntervalMs:50});
 export default worker;
 record("ready", {pid:process.pid});
 await worker.done;

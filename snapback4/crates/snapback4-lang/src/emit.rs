@@ -34,7 +34,8 @@ fn typescript_inner(bound: &Bound, compatibility: Option<(&Bound, u64)>) -> Stri
     let following = if bound.schema.timelines.is_empty() { "" } else { "FollowingQuery, " };
     let receipts = if bound.schema.receipts.is_empty() { "" } else { "ReceiptFamily, " };
     out.push_str(&format!("import type {{ {action}Cursor, {ephemeral}Mutation, {receipts}{following}Query }} from \"snapback4/contract\";\n\n"));
-    out.push_str("import { operationAvailable } from \"snapback4/contract\";\nimport type { ReleaseSnapshot } from \"snapback4/contract\";\n\n");
+    // @ref LLP 3000.000.000.000#3-generated-compatibility — generated modules have no package runtime dependency.
+    out.push_str(include_str!("emit/availability.ts"));
     out.push_str("export type Rows = {\n");
     for (name, table) in bound.schema.visible_tables() {
         out.push_str(&format!("  {}: {{\n", property(name)));

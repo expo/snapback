@@ -1,3 +1,4 @@
+import { startServer } from "snapback4/server";
 // Compile-time assertions consume the real generated server modules and SDK.
 import { server as mixed, type Routes, type Actions, manifest } from "./mixed.ts";
 import { server as empty } from "./empty.ts";
@@ -48,11 +49,11 @@ const routes: Routes = {
   ["__proto__"]: () => new Response(),
 };
 
-mixed({ actions, routes, effects: { notify: async () => null } });
+mixed(startServer, { actions, routes, effects: { notify: async () => null } });
 // @ts-expect-error Declared actions cannot be omitted when routes are present.
-mixed({ routes });
+mixed(startServer, { routes });
 // @ts-expect-error Declared routes cannot be omitted when actions are present.
-mixed({ actions });
+mixed(startServer, { actions });
 // @ts-expect-error Every declared route needs a handler.
 const missing: Routes = { session: routes.session, provider: routes.provider };
 // @ts-expect-error Provider routes require a verifier and a handler.
@@ -62,26 +63,26 @@ const invalidVerifier: Routes["provider"]["verify"] = () => "yes";
 // @ts-expect-error A plain JSON object is not a route Response.
 const invalidResponse: Routes["session"] = () => ({ accepted: true });
 // @ts-expect-error Unknown route keys do not publish a handler.
-mixed({ actions, routes: { ...routes, extra: () => new Response() } });
+mixed(startServer, { actions, routes: { ...routes, extra: () => new Response() } });
 
-empty({});
-empty({ actions: {}, routes: {}, effects: {} });
+empty(startServer, {});
+empty(startServer, { actions: {}, routes: {}, effects: {} });
 // @ts-expect-error An empty action registry accepts no handler.
-empty({ actions: { invented: () => ({}) } });
+empty(startServer, { actions: { invented: () => ({}) } });
 // @ts-expect-error An empty route registry accepts no handler.
-empty({ routes: { invented: () => new Response() } });
+empty(startServer, { routes: { invented: () => new Response() } });
 // @ts-expect-error An empty effect registry accepts no handler.
-empty({ effects: { invented: async () => null } });
-actionOnly({ actions: { send: () => ({}) } });
+empty(startServer, { effects: { invented: async () => null } });
+actionOnly(startServer, { actions: { send: () => ({}) } });
 // @ts-expect-error The action-only server still requires its action.
-actionOnly({});
+actionOnly(startServer, {});
 // @ts-expect-error An action-only server cannot add an undeclared route.
-actionOnly({ actions: { send: () => ({}) }, routes: { invented: () => new Response() } });
-routeOnly({ routes: { session: () => new Response() } });
+actionOnly(startServer, { actions: { send: () => ({}) }, routes: { invented: () => new Response() } });
+routeOnly(startServer, { routes: { session: () => new Response() } });
 // @ts-expect-error Route-only servers require their declared route.
-routeOnly({});
+routeOnly(startServer, {});
 // @ts-expect-error A route-only server cannot add an undeclared action.
-routeOnly({ routes: { session: () => new Response() }, actions: { invented: () => ({}) } });
+routeOnly(startServer, { routes: { session: () => new Response() }, actions: { invented: () => ({}) } });
 const method: "POST" = manifest.routes.provider.method;
 const service: "service:billing" = manifest.routes.provider.service;
 const session: null = manifest.routes.session.service;

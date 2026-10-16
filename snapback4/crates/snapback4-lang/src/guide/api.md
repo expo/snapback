@@ -48,4 +48,4 @@ Expo: `snapback4-expo` exports `nativeDevice`, `nativeAvailable` and `saveAsset`
 Each subpath's code and types ship under `node_modules/snapback4/dist/`: `snapback4/react` is `dist/react.js`
 beside `dist/react.d.ts`, and `snapback4/bin-path` is `dist/bin-path.js`. The CLI is `node_modules/.bin/snapback4`.
 
-Release compatibility: `snapback4/react` exports `useRelease`; `snapback4/contract` exports `operationAvailable`. Generated handles call the latter. `guide deploy` covers the saved-baseline opt-in.
+Release compatibility: `snapback4/react` exports `useRelease`; `snapback4/contract` exports `operationAvailable`. Generated handles inline the same check once per file; generated modules import only package types. Generated `server(startServer, handlers, options?)` takes the runtime imported by your application from `snapback4/server`. `guide deploy` covers the saved-baseline opt-in.

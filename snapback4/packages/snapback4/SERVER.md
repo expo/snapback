@@ -407,7 +407,7 @@ name. For Google, omit `development` and use HTTPS values:
 ```ts
 import { oidcHandlers } from "snapback4/identity";
 import { api } from "./generated/api.ts";
-import { server } from "./generated/server.ts";
+import { server } from "./generated/server.ts"; import { startServer } from "snapback4/server";
 
 const oidc = oidcHandlers({
   issuer: "https://accounts.google.com",
@@ -423,7 +423,7 @@ const oidc = oidcHandlers({
   },
 });
 
-export default server({
+export default server(startServer, {
   actions: { beginOidc: oidc.begin, completeOidc: oidc.complete },
 });
 ```
@@ -622,7 +622,7 @@ cancellation cannot retract accepted provider work.
 actions and routes. Import its `server` function in the application's server entry:
 
 ```ts
-import { server } from "./generated/server.ts";
+import { server } from "./generated/server.ts"; import { startServer } from "snapback4/server";
 import { api } from "./generated/api.ts";
 import { GiveUp } from "snapback4/worker";
 
@@ -631,7 +631,7 @@ declare const model: {
   lookupResult(key: string): Promise<string>;
 };
 
-export default server({
+export default server(startServer, {
   actions: {
     async summarize({ doc, revision }, ctx) {
       const source = await ctx.query(api.documentAt, { doc, revision });
@@ -895,7 +895,7 @@ appear in the client API or public action registry. Empty action/route maps may
 be omitted; a supplied empty map accepts no undeclared handler.
 
 ```ts
-import { server } from "./generated/server.ts";
+import { server } from "./generated/server.ts"; import { startServer } from "snapback4/server";
 import { api } from "./generated/api.ts";
 import { GiveUp, Retry } from "snapback4/worker";
 
@@ -905,7 +905,7 @@ declare const billing: {
   decode(body: Uint8Array): unknown;
 };
 
-export default server({ routes: {
+export default server(startServer, { routes: {
   async reportDownload(req, ctx) {
     // Runs under the caller's live session and ordinary read rules.
     return new Response(await reports.export(await req.rawBody(), ctx));

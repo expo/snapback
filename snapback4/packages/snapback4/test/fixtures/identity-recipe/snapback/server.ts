@@ -1,6 +1,6 @@
 import { oidcHandlers } from "snapback4/identity";
 import { api } from "./generated/api.ts";
-import { server } from "./generated/server.ts";
+import { server } from "./generated/server.ts"; import { startServer } from "snapback4/server";
 
 // Actual-provider qualification fixture. The confidential secret is declared
 // in Quarry and supplied only as OIDC_CLIENT_SECRET to the supervised runtime.
@@ -19,4 +19,4 @@ const oidc = oidcHandlers({
   },
 });
 
-export default server({ actions: { beginOidc: oidc.begin, completeOidc: oidc.complete } });
+export default server(startServer, { actions: { beginOidc: oidc.begin, completeOidc: oidc.complete } });

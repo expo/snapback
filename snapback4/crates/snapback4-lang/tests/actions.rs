@@ -74,7 +74,7 @@ fn work_settings_bind_for_actions_and_effects_with_legacy_defaults() {
     assert!(server.contains("legacy?: (payload: unknown, ctx: EffectContext<never>)"), "{server}");
     assert!(server.contains("effects?: Effects"));
     assert!(!server.contains("EffectHandler"));
-    assert!(server.contains("return startServer(manifest, handlers, options)"));
+    assert!(server.contains("return start(manifest, handlers, options)"));
     assert!(!server.contains("ctx.sql"));
 }
 

@@ -127,7 +127,7 @@ const stop = new AbortController();
 process.once("SIGTERM", () => stop.abort());
 process.once("SIGINT", () => stop.abort());
 `;
-const imports = `import { server } from "./generated/server.ts";
+const imports = `import { server } from "./generated/server.ts"; import { startServer } from "snapback4/server";
 import { ParkStep } from "snapback4/server";
 import { api } from "./generated/api.ts";
 import { appendFileSync, writeFileSync } from "node:fs";
@@ -138,7 +138,7 @@ const options = `{ signal: stop.signal, lease: 1, wait: 1, batch: 1, statusInter
 test("check validates generated handler returns, arguments and declared secrets without executing the entry", { timeout: hangBudget(1) }, t => {
   const source = "use server\naction echo(message: text <=80) returns { value: text <=80 } secrets [MAIL_KEY]\n";
   const p = project(t, source);
-  const entry = body => `import { server } from "./generated/server.ts";\nthrow Error("typechecking must not execute the entry");\nexport default server({actions:{echo:${body}}});\n`;
+  const entry = body => `import { server } from "./generated/server.ts"; import { startServer } from "snapback4/server";\nthrow Error("typechecking must not execute the entry");\nexport default server(startServer, {actions:{echo:${body}}});\n`;
   for (const [name, handler] of [
     ["return", "async ({message}, ctx) => ({value: 42})"],
     ["arguments", "async ({missing}, ctx) => ({value: missing})"],
@@ -179,7 +179,7 @@ query mine():
 test("dev watches checked imports and configs outside snapback and keeps the last good worker through failed checks", { timeout: hangBudget(19) }, async t => {
   const p = project(t, "use server\nuse personas alice\naction inspect() returns { value: text <=80 }\n", `${imports}
 import { value } from "../src/provider.ts";
-const worker = server({actions:{async inspect() { return {value:value()}; }}}, ${options});
+const worker = server(startServer, {actions:{async inspect() { return {value:value()}; }}}, ${options});
 export default worker; await worker.done;
 `);
   const provider = join(p.directory, "src/provider.ts");
@@ -261,7 +261,7 @@ async function splitLog(stream: NodeJS.WriteStream, sink: string, value: string)
   await write(value.slice(11, 24)); await delay(20);
   await write(value.slice(24) + "\\n[redaction:" + sink + ":end]\\n");
 }
-const worker = server({actions:{
+const worker = server(startServer, {actions:{
   async inspect({body}, ctx) {
     const id = ctx.writeIdFor("save");
     const first = await ctx.mutate(api.save, {body}, {id});
@@ -330,7 +330,7 @@ use server
 action tick(periodStart: time, periodEnd: time) returns {} <- viewer = 'service:clock'
 schedule pulse every 1m as service:clock: tick
 `, `${imports}
-const worker = server({actions:{async tick(args, ctx) {
+const worker = server(startServer, {actions:{async tick(args, ctx) {
   const written = await ctx.mutate(api.save, {body:"scheduled"}, {id:ctx.writeIdFor("scheduled")});
   const read = await ctx.query(api.mine, {});
   appendFileSync(process.cwd() + "/scheduled.jsonl", JSON.stringify({principal:ctx.principal, args, written, read}) + "\\n", {flush:true});
@@ -375,7 +375,7 @@ test("cancellation and admitting-session revocation abort an in-flight context b
 use server
 action wait() returns {} cancellation allow
 `, `${imports}
-const worker = server({actions:{async wait(_, ctx) {
+const worker = server(startServer, {actions:{async wait(_, ctx) {
   writeFileSync(process.cwd() + "/started-" + ctx.invocation.id + ".json", JSON.stringify({id:ctx.invocation.id, pid:process.pid}));
   if (!ctx.invocation.signal.aborted) await new Promise<void>(resolve => ctx.invocation.signal.addEventListener("abort", () => resolve(), {once:true}));
   const attempted = await ctx.mutate(api.save, {body:"must not land"});
@@ -474,7 +474,7 @@ use server
 action work(mode: enum('done', 'reconcile', 'park', 'changed', 'before', 'lookup-timeout', 'lookup-5xx', 'lookup-unreadable')) returns { value: text <=80, attempt: int, writeId: text <=26 } secrets [TEST_PROVIDER_URL] retry 4 backoff 1s
 `, `${imports}
 appendFileSync(process.cwd() + "/worker-starts.jsonl", JSON.stringify({pid:process.pid}) + "\\n", {flush:true});
-const worker = server({actions:{async work({mode}, ctx) {
+const worker = server(startServer, {actions:{async work({mode}, ctx) {
   const writeId = ctx.writeIdFor("save");
   const write = await ctx.mutate(api.save, {body:mode}, {id:writeId});
   appendFileSync(process.cwd() + "/attempts.jsonl", JSON.stringify({mode, id:ctx.invocation.id, attempt:ctx.invocation.attempt, writeId, write, pid:process.pid}) + "\\n", {flush:true});
@@ -627,7 +627,7 @@ use server
 action send() returns { value: text <=80 } secrets [TEST_PROVIDER_URL] retry 4 backoff 1s
 `, `${imports}
 appendFileSync(process.cwd() + "/operator-worker-starts.jsonl", JSON.stringify({pid:process.pid}) + "\\n", {flush:true});
-const worker = server({actions:{async send(_, ctx) {
+const worker = server(startServer, {actions:{async send(_, ctx) {
   appendFileSync(process.cwd() + "/operator-attempts.jsonl", JSON.stringify({id:ctx.invocation.id, attempt:ctx.invocation.attempt, pid:process.pid}) + "\\n", {flush:true});
   const result = await ctx.step("provider", {intent:"send-once"}, async (key):Promise<{value:string}> => {
     appendFileSync(process.cwd() + "/operator-step-callbacks.jsonl", JSON.stringify({id:ctx.invocation.id, attempt:ctx.invocation.attempt, key, pid:process.pid}) + "\\n", {flush:true});
@@ -704,7 +704,7 @@ test("serve uses the same generated contract and declared environment across a s
   const secret = "serve-a2-secret-value";
   const p = project(t, "use server\nuse identity\naction echo(message: text <=80) returns { value: text <=80, principal: principal } secrets [MAIL_KEY]\n", `${imports}
 appendFileSync(new URL("../serve-starts.jsonl", import.meta.url), JSON.stringify({pid:process.pid, declared:process.env.MAIL_KEY === ${JSON.stringify(secret)}, unrelated:process.env.A2_PARENT_ONLY ?? null, keys:Object.keys(process.env).sort()}) + "\\n", {flush:true});
-const worker = server({actions:{async echo({message},ctx) { return {value:message,principal:ctx.principal}; }}}, ${options});
+const worker = server(startServer, {actions:{async echo({message},ctx) { return {value:message,principal:ctx.principal}; }}}, ${options});
 export default worker; await worker.done;
 `);
   const f = await p.start({ serve: true, env: { MAIL_KEY: secret, A2_PARENT_ONLY: "must-not-reach-serve-child" } });

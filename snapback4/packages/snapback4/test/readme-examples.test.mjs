@@ -66,7 +66,7 @@ import type { RouteRequest, ServerContext, VerificationContext } from "snapback4
 import type { Worker } from "snapback4/worker";
 type MaybePromise<T> = T | Promise<T>;
 export declare const manifest: import("snapback4/server").ServerManifest;
-export declare function server(handlers: {
+export declare function server(start: typeof import("snapback4/server").startServer, handlers: {
   actions?: {
     beginOidc?: (args: OidcBeginArguments, ctx: ServerContext<"OIDC_CLIENT_SECRET">) => MaybePromise<OidcBeginResult>;
     completeOidc?: (args: OidcCompleteArguments, ctx: ServerContext<"OIDC_CLIENT_SECRET">) => MaybePromise<OidcSession>;

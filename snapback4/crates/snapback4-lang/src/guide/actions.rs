@@ -36,8 +36,8 @@ when offline).
 
 ```ts
 // snapback/server.ts; mail is the application's provider adapter.
-import { server } from "./generated/server.ts";
-export default server({ actions: {
+import { server } from "./generated/server.ts"; import { startServer } from "snapback4/server";
+export default server(startServer, { actions: {
   async invite({ email }, ctx) {
     const sent = await ctx.step("invite", { email }, key =>
       mail.invite(email, { apiKey: ctx.secrets.MAIL_API_KEY, idempotencyKey: key }));
