@@ -134,7 +134,7 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
                     continue;
                 }
                 let rewrite = if issue.message.contains("needs required group keys") { "remove `?` from every content and audience group column named by this sync" } else { "make the sync audience exactly match the table's read rule" };
-                diagnostics.push(Diagnostic::new(&site, "E_SYNC", issue.message, rewrite).guide("sync"));
+                diagnostics.push(Diagnostic::new(&site, "E_SYNC", issue.message, format!("{rewrite}; for staff plus member audiences see: guide rule-recipes offline-roster")).guide("sync"));
             } else {
                 diagnostics.push(Diagnostic::new(&site, "E_SCHEMA_CONSTRAINT", issue.message, "fix the declaration named by this message").guide("indexes"));
             }

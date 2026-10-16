@@ -19,6 +19,23 @@ E_FIXTURE_ALIAS means a saved alias or path could not resolve. Use an earlier ca
 
 E_FIXTURE_TIME means a relative fixture time is malformed or out of range. Use `now` or `now±duration` with positive integral ms/s/m/h/d/w. Relative conversion applies only to typed time leaves; text/JSON strings stay literal.
 
+## Refusal ladder
+
+Supply every valid argument when testing authorization: decode (`E_INPUT`)
+runs before the body. For a body ordered lookup → write → require, a hidden
+asserted lookup refuses `NOT_FOUND`, a readable denied table write refuses
+`E_RULE`, and only then can the later `require` emit its code. After decoding,
+statements execute in authored order; put a require first to have it decide
+first. Nullable hidden lookups return null; assertions use their authored
+`else` code. Hidden denied update/delete targets retain NOT_FOUND. Earlier
+writes roll back when a later require refuses.
+
+A query over hidden rows is complete and empty when the pinned scope uniformly
+refuses its viewer. A nonuniform scan can still be partial with no visible
+rows. Test the complete flag as well as the count; do not expect E_RULE for a
+hidden page. For a compiled role workflow see: `guide rule-recipes role-workflow`.
+Proof-kit helper contracts and client recipes are owned by KIT2.
+
 ## Fixtures and cases
 
 `test` uses ./fixtures; `--fixture dir` overrides it. A fixture directory has

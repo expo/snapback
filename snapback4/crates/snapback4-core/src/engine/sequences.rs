@@ -120,6 +120,15 @@ impl Runner<'_> {
         })
     }
 
+    pub(super) fn evaluate_update_rule(&mut self, allowance: &Authorization, name: &str, rule: &RuleExpr, both: bool, old: Option<&Value>, next: &Value) -> Result<(bool, &'static str), RuntimeError> {
+        let next_provisional = self.device && self.is_provisional(name, next)?;
+        let old_provisional = old.map(|row| self.is_provisional(name, row)).transpose()?.unwrap_or(false);
+        let viewer = self.context.viewer.clone();
+        super::rules::evaluate_update(rule, both, &viewer, old, next, &mut SequenceProbe {
+            runner: self, allowance, table: name, old: old_provisional, next: next_provisional,
+        })
+    }
+
     pub(super) fn observe_sequence_columns(&mut self, name: &str, row: &Value, fields: &[String], inserting: bool) -> Result<(), RuntimeError> {
         if self.device && fields.iter().any(|field| self.schema.tables[name].sequences.contains_key(field)) {
             self.provisional_sequence_read |= inserting || self.is_provisional(name, row)?;

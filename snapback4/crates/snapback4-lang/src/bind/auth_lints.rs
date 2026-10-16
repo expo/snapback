@@ -360,8 +360,8 @@ fn denied_counters(catalog: &Catalog, schema: &Schema, mutations: &[&ProgramDecl
             if !ordinary { continue; }
             let site = rule_site(catalog, &name, Effect::Update).map(|s| format!(" ({s})")).unwrap_or_default();
             notes.push(Diagnostic::new(&write_site, "N_WRITE_DENIED",
-                format!("mutation {}: `{}` is a counter it keeps on {name}, but {name}'s update rule `{}`{site} admits only that role, and {} does not require it: every other caller is refused E_RULE at this write", program.name, field.name, table.rules.update.quarry(), program.name),
-                format!("keep the count from the rows the callers write instead, as a maintained view the engine keeps as the system (`view <name>: sum <rows> of .<amount> by .<reference to {name}>`, or `count <rows> by .<reference>`, read as `<name>[id]` and tested in `require`; guide maintains), and drop the column; or `require` the role first in {} with your own code if only its holders should call it", program.name)).guide("rules"));
+                format!("table authorization layer (update old/next images): mutation {}: `{}` is a counter it keeps on {name}, but {name}'s update rule `{}`{site} admits only that role, and {} does not require it: every other caller is refused E_RULE at this write", program.name, field.name, table.rules.update.quarry(), program.name),
+                format!("keep the count from the rows the callers write instead, as a maintained view the engine keeps as the system (`view <name>: sum <rows> of .<amount> by .<reference to {name}>`, or `count <rows> by .<reference>`, read as `<name>[id]` and tested in `require`; guide maintains), and drop the column; or `require` the role first in {} with your own code if only its holders should call it; see: guide rule-recipes quantified-consent", program.name)).guide("rules"));
         }
     }
 }

@@ -280,7 +280,7 @@ impl RuntimeError {
             Self::Require { code, site, message } => {
                 refusal.rule = Some(code.clone());
                 refusal.site = site.clone();
-                refusal.message = message.clone().unwrap_or_else(|| format!("the program refused with {code}"));
+                refusal.message = message.clone().unwrap_or_else(|| format!("the mutation/query require layer refused with {code}"));
                 refusal.guide = Some("programs".into());
             }
             #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]
@@ -357,7 +357,12 @@ impl RuntimeError {
             Self::Structural { code: "E_RULE", message } => { refusal.message = message.clone(); refusal.guide = Some("rules".into()); }
             Self::Rule { table, effect } | Self::AuthorizationBudget { table, effect } => {
                 // @ref LLP 3000.007#8 — explain the hidden-collision idiom without disclosing a row
-                refusal.message = format!("{table}'s {effect} rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a row you cannot read holds this key (a unique key or cap group), or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count");
+                refusal.message = format!("table authorization layer: {table}'s {effect} rule does not admit this viewer, or a sequence insert requires read authority independent of its ordinal, or a row you cannot read holds this key (a unique key or cap group), or authorization cannot be established within its physical work allowance; to write into another principal's row use `upsert` under an `update` rule, or let a `maintain` keep the count");
+                refusal.rewrite = Some(if *effect == Effect::Update {
+                    "a mutation require decides intent; the table update rule still judges old and next. For an intended pending-to-withdrawn transition use `update (old, next) <- old.owner = viewer and old.state = 'pending'`; choose the policy deliberately. The failing image is developer-only in `why recent`; see: guide rule-recipes update-images"
+                } else {
+                    "a mutation require decides intent; each write still passes its table rule; see: guide rule-recipes role-workflow"
+                }.into());
                 refusal.guide = Some("rules".into());
             }
             Self::Constraint(message) => {

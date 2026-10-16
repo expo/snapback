@@ -135,6 +135,17 @@ query reacted(message: messages, c: cursor ?):
 ```
 
 ### Row rules, probes and rule spelling
+
+A mutation's `require` decides intent; each write still passes its table's rule.
+An unnamed update rule judges old and next. For a deliberate pre-write gate,
+use `update (old, next) <- old.owner = viewer and old.state = 'pending'`;
+that permits leaving pending, so constrain next too when the policy needs it.
+`N_WRITE_DENIED` identifies the table layer and the contradictory image.
+`E_RULE` identifies table authorization; `why recent` privately names the
+failing old/next image (or the named transition). Hidden targets retain
+`NOT_FOUND`, with no image or clause exposed to the caller.
+See: `guide rule-recipes update-images`.
+
 A view grouped directly by the parent reference is read by key, such as
 `totals[issue]`; scanning its groups is refused. An unknown parent or unknown
 child coverage leaves that device count incomplete, never an invented zero.
@@ -218,6 +229,22 @@ A readable aggregate view over a hidden source is a declared read channel: its
 delta can disclose the old contribution. `N_MAINTAIN_DELTA` notes potentially
 wider update authority under a separately readable aggregate view. Restrict its
 read audience or source write authority if that delta is private.
+
+### Refusal ladder
+
+For a body written as asserted lookup → write → require, the ladder is:
+decode (`E_INPUT`) → hidden lookup (`NOT_FOUND`) → table rule (`E_RULE` on a
+readable denied target) → the authored `require` code. After decoding, actual
+statement order decides: a require before a write runs first; a later require
+cannot replace an earlier refusal. A nullable hidden lookup returns null;
+an asserted lookup uses its authored `else` code, conventionally NOT_FOUND.
+Hidden update/delete denial stays NOT_FOUND. Mutations roll back earlier writes.
+
+A query over hidden rows is complete and empty when its scope uniformly
+refuses the viewer. A nonuniform scan may be partial even with zero visible
+rows; an empty list alone proves neither access nor physical absence.
+See: `guide rule-recipes role-workflow` for independently enforced table and
+mutation authority, and `guide refusals` for write-internal ordering.
 
 ### Disclosure: aggregates, assets and maintained columns
 Omitted asset columns keep their placement. An explicit asset id on a row you

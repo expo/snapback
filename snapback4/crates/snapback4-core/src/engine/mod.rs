@@ -1378,3 +1378,6 @@ pub fn seat_refusal(schema:&Schema,error:&RuntimeError,viewer:&str)->Refusal {
     }
     why
 }
+
+#[cfg(test)]
+mod update_image_tests;

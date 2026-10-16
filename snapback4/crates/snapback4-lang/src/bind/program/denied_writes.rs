@@ -54,6 +54,6 @@ impl Binder<'_> {
             },
         };
         if self.notes.iter().any(|note| note.code == "N_WRITE_DENIED" && note.site == *site) { return; }
-        self.notes.push(Diagnostic::new(site, "N_WRITE_DENIED", message, rewrite).guide("rules"));
+        self.notes.push(Diagnostic::new(site, "N_WRITE_DENIED", format!("table authorization layer: {message}"), format!("{rewrite}; see: guide rule-recipes role-workflow")).guide("rules"));
     }
 }

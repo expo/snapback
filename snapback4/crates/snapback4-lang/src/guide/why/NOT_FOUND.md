@@ -43,3 +43,8 @@ NOT_FOUND there and a later `require … else CODE` or the table's delete rule
 never runs: a moderator who must delete others' rows needs a read rule that
 admits moderators, or a `delete posts[post]` by id with no lookup first, which
 the delete rule judges directly (`guide refusals`).
+
+For a public removal request over a private source, look up its readable
+publication; see: guide rule-recipes source-publication. For a mutable parent
+privacy flag, see: guide rule-recipes mutable-workflow. Grant expiry hides the
+grant from its owner too; see: guide rule-recipes grant-expiry.
