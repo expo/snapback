@@ -95804,3 +95804,12 @@ reviews are in llp/reviews/3000.000.000-prev-* and exact verification/results in
 WORKSTREAM-REPORT.md and reports/20261016-prev/. Runtime admission, retention,
 identity, sync, expiry and version numbers do not change. No origin push or
 publication is performed; Mac qualification uses only the named scratch clone.
+
+PREV closeout, 2026-10-16: fresh Muse round 6 and Codex round 20 mark the final
+§13 snapshot-proof refinement READY. Linux and Darwin each pass 112 release and
+platform client tests; all six Rust workspace crates have complete target
+coverage after repairing the deploy card's budget/example registration. The
+private null-reference proof decodes active/retained values and captures, keeps
+explicit dependencies, and preserves populated/restorable reference warnings.
+The H9 baseline failure, DT7 golden, five copied farm previews and exact commands
+are recorded under reports/20261016-prev/ and WORKSTREAM-REPORT.md.

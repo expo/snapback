@@ -1,0 +1,262 @@
+Independent DESIGN review of this RFC amendment. All relevant text is inline: do not use tools, inspect previous reviews or demand additional product surfaces. Review the commissioned operator narration: factual dependency-scoped guard comparison, effects ordered by user impact, correct interpreted backfills. Current preview is a privileged local operator command; query/count includes point/list/maintained/asset-producing queries, caps remain adoption refusals and SQL inspection shares active populations. Return READY or NOT READY with only material semantic concerns. Implementer Codex, 2026-10-16.
+
+Existing governing text:
+## 9. Implementation record
+
+The core implements dormant tables/cells/index definitions and reference-lifetime evidence, partial restoration, required-value/enum/unique/cap refusal populations, prune/history, release-only format fencing, revision CAS and native digest in activation_hash. Nineteen focused retention regressions pass, including activation-time expiry, assets, typed audit pagination and ownership refusal.
+
+The host implements the private same-owner transport, prepared native/worker custody, atomic live engine publication, reader fencing, revision-bound worker preparation, named-worker mutation and database-authoritative crash recovery. Seven focused hot-activation tests and four transport tests pass; the complete host unit suite passes (393 tests plus four existing ignored). All 23 release CLI/client integration tests pass, including an already-connected native-only client, concurrent traffic, hot narrowing refusal and process death before/after commit. Restoring full tables installs the identity scan before read-through adoption. Historical recorded attribution (including nulls), parent bindings and captured deadlines survive restoration; only physically missing captures are filled, and effective deadlines recompute under the candidate. An older release may make a through reference mutable; restoration refuses if its current parent table/id differs from the retained binding. Both naming orders of joint parent/child retirement, an unswept expired attribution target, effective deadline visibility, partial capture deletion/reuse and older retargeting are regressions. A test-only publication barrier permits an owned subprocess kill after commit and before runtime/pointer/reply publication, followed by database-authoritative recovery and retained forward restoration. Named secret selections are validated in immutable preparation before commit. The device and simulator exercise delayed old snapshots and audiences on both stores. SERVER.md owns the lifecycle semantics, the evolution card supplies the schema bridge, and the OPS deploy card is a one-line pointer. Final full quality results and commits are recorded in WORKSTREAM-REPORT.md. No publication is claimed.
+
+
+Final complete core/lang/device/simulator command finished with exit 0. The 159-case consolidated client scope finished with 158 passing, one existing optional 0.2.32 interoperability skip and zero failures against an immutable built CLI. Final CLI, web/package and ref-check results are recorded in WORKSTREAM-REPORT.md. Internal name reservation is limited to `_dormant_` and `_release_`: established application underscore naming remains supported, while catalog-number resolution into r/i isolates physical internal tables. Both independent amendment reviewers returned READY. The implemented RFC is archived by removing its current/ link; this file remains at its permanent path.
+
+## 8. Integration with the loop (2026-10-12)
+
+Referential actions are selected with the active schema (LLP 3000.039). A
+cascade/restrict declared only on a retired table/column is inactive while that
+storage is dormant. The existing active-delete hook invalidates dormant edges;
+restoration refuses E_ADOPT after deletion/reuse instead of applying a retired
+action. If the reference remains active, the selected release's action applies,
+including its default restrict. Retention cannot bypass active reference validation.
+
+Union audiences (LLP 3000.036.000.000) and merged pages (LLP 3000.036.001) use
+the ordinary generation reset and acquisition path. Reordered old pages refuse
+E_GENERATION; a membership removed while the group arm is inactive cannot return
+on roll forward. Activation's extracted builder preserves the audience-epoch
+update for changed group declarations and the calendar schedule validity check.
+
+Browser journal custody (LLP 3000.013.000 §17) remains tied to store and principal,
+not release generation. Captured ids survive forward/rollback; current programs
+rejudge an unexecuted intent, and receipts replay an executed one at most once.
+A login epoch changes only with its authority, while personas retain epoch 0.
+Serve refuses personas; the persona browser regression exercises the same
+schema-generation changes through dev adoption, in both source directions.
+OPS's deploy card retains account/admin/migration/port recipes and points to
+SERVER.md#release-lifecycle for hot activation, retention, explicit restore/prune
+and recovery. These are integration clarifications of implemented behavior.
+
+An external database symlink does not move the control socket: it belongs to
+the serving deployment's immutable-source directory. Another deployment sharing
+that database is excluded rather than allowed to select its own source through
+the first owner's socket. Its E_STORE_BUSY retains the canonical owner address
+(or address-pending CLI holder), with the stop/retry remedy. Token forwarding
+continues to use the canonical database owner. Both serving aliases are tested.
+
+
+### Control socket portability qualification (2026-10-12)
+
+The §5.1 fix is implemented in 6d734776ae (short private address),
+bb3f4f0ac4 (ownership-scoped control join) and 0d5d042e57 (total input
+deadline and exact socket permissions). Fresh Codex and Muse final reviews
+return READY for the full product delta through 0d5d042e57. All six verbatim
+responses, provenance and dispositions are retained under llp/reviews/; the
+earlier Codex shutdown findings were reproduced and corrected, not waived.
+
+Final requested `cargo test -p snapback4 --no-fail-fast` passes on Linux
+(1,093 passed, zero failed, 11 existing ignored) and Darwin arm64 (1,129
+passed, zero failed, 11 existing ignored), across 43 top-level target groups
+on each host. Counts exclude nested subprocess summaries. Each host also
+passes all nine named targets (267 tests), the focused release filter (42
+passed, one existing ignored) and serving unit scope (179 passed, four
+existing ignored); these reruns are not added to full-suite totals.
+
+Darwin uses the default `/var/folders/.../T/` TMPDIR. The verification shell
+uses a 10,240 descriptor limit: the initial 256-descriptor shell failed the
+unrelated overload harness's two concurrent sets of 130 sockets. With the
+limit raised, the complete unchanged overload target and full suite pass.
+Both platforms pass frozen dependency installation, CLI/wasm/package builds
+and the wasm budget. The dedicated Mac verification worktree is
+`~/projects/snapback-fix-sock`; the publication worktrees are untouched.
+No GitHub push, publication, capability promotion or budget change is claimed.
+Full commands, logs and the remaining documented fail-closed cases are in
+WORKSTREAM-REPORT.md.
+## 9. Wave 9 release lifecycle amendment
+
+Implementer: REL, 2026-10-12. This supersedes §3's narrowing refusal and §5's exposed request-generation race for release serving. HAND owns device version negotiation; DX owns production-writer diagnostics and starter/password UI.
+
+### 9.1 Per-row narrowed-value dormancy
+
+Each actual release activation, including roll-forward and equal-schema/program-only/native-only selection, runs the row-visibility closure. A visibility change advances generation even if execution hashes are equal, so devices replace their population; identical-source deploy no-ops do not activate. The closure removes authoritative rows whose **present** values do not fit the candidate column type or text constraint (asset leaves include ledger-backed kind, byte bound and file MIME allow-list, recursively through optionals/lists) into `_dormant_narrow_rows(t,id,data,definition,reason)`. Store format advances to `snapback4-release-store-3`; this binary opens format 2 and upgrades only during committed activation. Absent new required fields remain E_ADOPT. Engine metadata and maintained cache fields are not a narrowing trigger. Store the full authoritative image and its source table definition (merge restored whole-table and column definitions before classifying restored values), with interpreted old literal defaults and nulls, before projection. Restore any retained image that fits the candidate, splitting omitted columns into existing dormant cells. Restoration is automatic even on deploy; this is an existing row lifetime, not reuse of a removed schema name. No fallback syntax ships: the declared policy is hidden rows, never value substitution.
+
+Visibility is a fixed point: a row with a non-null reference (including nested/list references) to a dormant narrowed row is also dormant. This covers authorization parents and memberships. Active programs, rules, point reads, lists, counts, caps, maintained views, assets and application SQL see only active r/i. Tentative restore-and-rehide work does not count as a visibility change; compute population change from newly hidden rows and successfully restored rows in the final closed population. All dependent physical indexes and aggregates rebuild when rows enter or leave dormancy, including otherwise unchanged tables. Sync generation replacement clears base/index images and acquisition, then reacquires only that same active population. This supersedes the device literal-default image-retention optimization: an additive default can restore a dormant cell whose actual value is incompatible, so schema shape alone cannot certify an old image. Same-generation attachment and identical-source no-ops preserve images; outbox custody survives generation replacement. HAND owns the shipped-device compatibility floor; DX owns updates to client/evolution guide text. A reference lookup to a dormant id is absent. Preserve LLP 3000.039 §1/§4.4: references validate a nominal id, not target existence. A new write may carry a dormant id just as it may carry an unknown/hidden id; read-through or explicit require/insert rules decide target admission. Such a write remains active under the old release until the next adoption's reference-closure pass, but grants no parent-derived authority. Never probe dormancy selectively at the reference write boundary, which would be an existence oracle. Dormant rows contribute neither to uniqueness nor caps. Restoration uses the same set-null cap exemption as ordinary writes; null-exempt groups are never counted by adoption or successor assessment. Their ids remain reserved: inserts cannot replace them and return the same E_RULE as a hidden live identity conflict, without row contents or a special dormant code. Updates/deletes by old programs see an absent row; active updates retain unrelated dormant cells. Dormant uniqueness keys are not reserved: old writes may cause a constraint conflict on forward, which E_ADOPT reports with executable application SQL; resolve that conflict under the current release when those rows are active. If both conflict rows are dormant, deploy a bridge with compatible widened types and the conflicting index non-unique/cap increased using --restore-dormant, restore both, repair with authorized mutations, then reinstate the constraint. Neither row silently wins; activation refuses atomically. Diagnostics include this bridge and application SQL, with values only in privileged operator output (§3). Type incompatibility alone never blocks switching.
+
+At one pinned activation time, retire affected expired predecessor read-through rows under their old deadlines before narrowed hiding; retirement uses the ordinary authoritative delete to invalidate dependent evidence and remove dormant cells. Then restore candidate-compatible images, hide the incompatible/reference-dependent population, rebuild all physical r/i and _cap_counts/maintained caches, and validate before publication. Counts, sums and private parent-column mirrors all use this order. Reference closure removes at least one active row per iteration, terminates on the finite store even with nominal cycles, and any non-null element of a nested/list reference can hide its row. Null has no edge; a missing ordinary nominal target alone does not trigger hiding, while an absent target schema or narrowed-dormant target does. Capture dormant reference lifetime evidence before hiding; hiding is not deletion. Actual parent deletion invalidates evidence. Transferring a retained whole row or cell into narrowed dormancy preserves its existing bound/unbound/deleted evidence; it must never recapture a replacement parent. On candidate restoration, evidence invalidated by an actual deletion keeps a row dormant only if its reference/capture column is candidate-visible. An initially dangling nominal keep reference captures invalid=2 (unbound), distinct from invalid=1 (deleted captured lifetime); it may restore without inventing a lifetime. Deletion invalidates only bound (invalid=0) edges. Omitted reference cells and evidence stay retained for future restoration. A narrowed row never rebinds a deleted visible parent. Restored read-through images retain their historical captures and must pass the existing audience/deadline safety check. Whole-table restoration keeps the full source image through lifetime retirement and narrowed classification; ordinary candidate projection follows that boundary. Before projecting a narrowed image, evaluate retirement against its retained source definition/deadline, including direct expiry without read-through; removing read-through or expiry cannot revive an expired source lifetime. Actual retirement deletes the narrowed image, dependent captured evidence and its retained asset homes. Rows whose target table is absent stay dormant. Dormant rows run no jobs/expiry until reactivation. Assets remain retained but inaccessible. `prune --allow-destructive` drops narrowed images, associated dormant cells and lifetime evidence and releases only their asset homes; the preview names counts/bytes/sample ids. Inventory uses `rows:<table>` typed keys and audit items record before_rows, after_rows, restored_rows and bounded before_sample_ids in the activation transaction, including partial column/row restorations whose typed key remains. Per-table narrowed restoration counters distinguish restore-and-hide swaps with equal totals; summary restored_items includes partial restorations. Restoration identity sets are held transactionally and counted against final surviving r only after all read-through/cache activation phases. Column restored counts are recorded from cells actually consumed into surviving candidate rows, not inferred from inventory decreases; expiry/deletion may remove cells without restoring them. There is no automatic collection.
+
+### 9.2 Exact preview and operator vocabulary
+
+`rollback <dir> --to N --check` and `check --store <path> --release N` execute candidate adoption on a private SQLite snapshot created by VACUUM INTO through a read-only source connection. This is disk-backed, uses the exact adoption builder/validation, and never changes the live source, pointer, events or generation. SQLite supports VACUUM INTO on a read-only source; it acquires a coherent WAL read snapshot without the source writer lock. BUSY/disk failures refuse with retry advice, never fall back to copying sidecars. The temporary directory is owner-only and removed on success, refusal and ordinary unwinding. Process kill/crash may leave a private preview directory; operators can remove snapback4-release-preview-* leftovers when no preview uses them. The live format, including format 2, is never upgraded by preview. The snapshot may require disk/time proportional to the store; it provides a point-in-time plan, not a write freeze. The output enumerates the full candidate inventory and totals every narrowed population, not just the first sixteen status items; it includes any E_ADOPT refusal. Preview prepares the candidate native content identity but never starts workers or effects.
+
+Deploy warns when type widening (including image/video byte bounds and file MIME/byte sets) admits values the previous release refuses; rollback also warns when its selected target admits values the current release refuses. All E_ADOPT inspect SQL uses quoted application table identifiers accepted by `sql`, including Quarry names that are SQL keywords; internal dormant inventory is inspected through `releases`. `latest` denotes the highest complete immutable source release, independently of current release and monotone generation. Complete here means a numeric directory with nonempty source that compiles; empty permanently reserved crash directories are skipped. Native preparation still validates a selected release before activation. Packaging and comparing the content digest precedes allocating a numeric release. Identical packaged source is a no-op: no new release directory, activation revision, audit or generation. A no-op is not an activation and therefore does not advance §5's activation revision. Widening warnings go to stderr, are advisory, and do not change a successful exit status. `releases <dir>` adds a JSON latest field; `releases <dir> [N|latest]` adds selected source id/digest/currentness without changing the authoritative current identity or activating; `rollback --to latest` and preview `--release latest` accept it. Command completion follows in-memory publication and prints `release N is current as generation G`.
+
+### 9.3 HTTP admission and reporting
+
+Integration 6: the generation footer shares the 16 MiB response budget; footer overflow replaces the partial payload with the ordinary bounded E_BOUND envelope. Unauthenticated 401 responses disclose no generation. The generation header is exposed through CORS on JSON, native and asset responses.
+
+Buffer bounded request bytes before final release admission. A fair release request lease then spans each one-shot /q and /m's release-dependent lookup, typed argument decoding, execution and reply-identity capture. Release it before serialization/socket output, including every refusal/replay path. A scoped cleanup releases it on unwinding/early exits. Queued exclusive activation prevents new shared admissions, avoiding writer starvation. Release activation takes the exclusive lease across adoption and publication. Acquire it before engine/bound/readers locks. Sync and held polls retain their existing generation negotiation and wake behavior, so a long poll cannot block release publication. The guard admits concurrent readers; activation may pause new operations while it waits for current ones. Dev retains predecessor snapshot reading during adoption. Each engine JSON reply carries `generation`; custom application route bodies remain byte-owned by the application and carry the header. query, schema and sync envelopes that already specify their pinned generation retain that value; replay and generic refusals use the admitted request generation. Authentication, asset preparation/admission (including early refusals), durable actions/effects, service minting and ephemeral work share an engine-work accessor that stamps under the actual producer lock after buffered intake. Authentication enablement is rechecked against that same engine schema at credential collection/mint, including after KDF; successful ancillary credential checks and commit notifications do not relabel a captured result. Bound-only/raw metadata captures its own bundle identity. Durable actions stamp the engine that admits or collects after buffered intake, without holding a release lease during worker waits. Raw native/asset/following/application-route responses use the header, without modifying owned bytes. Stamp it while holding the engine that authorizes/collects the result, after body intake; a request-arrival stamp alone cannot label a later engine generation. The HTTP X-Snapback-Generation header carries the same value. Stream/asset replies use the header. Unknown operations return 404 denied E_OP; typed mutation argument decoding and range failures return 200 failed E_INPUT (with the request id when supplied); query argument failures and malformed JSON retain their 400 denied input envelope. No one-shot release operation exposes adoption loading images or E_GENERATION.
+
+Default adoption output is one measured receipt line; phase/cache details are exposed with --verbose/--json. The check adoption reporter emits N_ADOPTION_PAUSE only when estimated work exceeds one second (explicit verbose/json retains the small-store estimate). Large unestimated work is still described in verbose output; no estimate is an SLO. guide deploy owns rollback-after-widening, business compatibility and persona-to-password onboarding text, with pointers to DX-owned first-writer checks/starters.
+
+
+### 9.4 Round-one review dispositions
+
+Muse (muse-spark-1.3-contributor, high) and a fresh GPT-6.1-sol (high) found the initial amendment NOT READY. Their verbatim records are under llp/reviews. Adopted: finite reference closure and rebuild ordering; ordinary hidden-id refusal; concrete bridge repair when both unique conflicts are dormant; VACUUM read-snapshot/error/crash semantics; precise latest/no-op/warning vocabulary; input buffering and reply lease release before socket I/O. GPT's nominal-reference objection is resolved by preserving LLP 3000.039's no-existence-check law. Its lifetime objections are resolved by separating initially dangling evidence, ignoring candidate-omitted edges, and retiring predecessor expiry before hiding. Round-two reviewers receive the revised amendment and implementation independently.
+
+
+Round two: Muse READY; GPT NOT READY on four implementation gaps. Fixed and tested: prune/inventory asset homes now match retained row identities, equal-schema activations rerun closure and force a generation plus cache rebuild on population change, typed mutation decoding uses the promised failed envelope, and previews enumerate all inventory items. The GPT example alleging enum string rejection in wire::from_json was not accurate (the function converts text, and the engine validates the enum), but the broader wrong-shape/extra-argument envelope finding was valid and was fixed; the stress test now asserts the old-release enum failure unconditionally. Added focused tests for partial restoration/prune, legacy format-2 deletion evidence, equal-schema nominal references, mutation decoding and large inventories. Round three reviews the clarified amendment and these deltas independently.
+
+
+Round three: Muse READY; GPT NOT READY on two additional restoration cases. Fixed: restored whole-table/column images now participate in closure even when absent from the immediate predecessor, using their retained source definitions; a tentative restore immediately hidden again does not advance generation. Regressions cover restore into a narrower table/column followed by another retirement/forward cycle, and equal-content reselection of a hidden parent/child with no visibility change. Round four independently checks the final amended rules and implementation.
+
+
+Round four: Muse READY; GPT NOT READY on three combined cases. Fixed and tested: retained lifetime evidence survives transfer into narrowed storage (whole tables and cells, including deleted/reused parents), partial restorations remain explicit in paged audit items, and following/route responses stamp the executing/collecting engine generation after intake. Maintained cache fields are excluded from narrowing classification, as §9.1 states. A deterministic following request/intake switch regression joins the HTTP load test. Round five independently checks these corrections and the final revision.
+
+
+Round five: Muse READY; GPT NOT READY on an audit decrease caused by expiry being mislabeled as restoration. Fixed with explicit committed column-consumption counters and an expiry regression. An additional device check found that the former literal-default image-retention optimization could present a now-dormant restored value under its fallback default. Generation replacement now always clears base/acquisition before reacquiring, on native and wasm, with a retired-column/literal-default regression on both stores; same-generation attachments and durable intents remain intact. Round six reviews these final corrections independently.
+
+Round six: Muse READY; GPT NOT READY on disappearing column inventory keys bypassing consumption counts. Disappearing row/column keys now use the same actual restoration counters; whole-table restoration counts only original ids surviving in the final active population; removed-without-restoration items do not inflate restored_items. The expiry regression covers both omitted and reintroduced columns.
+
+Round seven: Muse READY; GPT found expired narrowed images losing source deadlines when read-through is removed, initially dangling keep references misclassified during original whole-table capture, and action replies using intake generation. Fixed source-image retirement before projection, unbound classification at the original capture boundary, and action admission/collection stamps; regression coverage added. Audit counts and adoption receipts now use final surviving restoration identities after every activation phase.
+
+Round nine: Muse READY; GPT found premature whole-table projection losing source deadlines, the source-image predicate omitting direct-expiry removal, and missing query arguments using the runtime 200 status. Preserved whole source images through classification, retired restored source lifetimes before hiding/projection (direct and inherited), and normalized query input refusals to the specified 400 envelope. New regressions cover expired and live full-table transfers and missing/non-object query args.
+
+Round ten: Muse READY; GPT found asset byte/kind/MIME incompatibilities bypassing dormancy and later refusing activation. Classification now shares the existing ledger-backed asset validator for scalar/optional/list leaves on hiding and restoration. Author also verified a legal table named values broke unquoted inspection SQL; every hint now quotes the table identifier, with a live SQL regression. MEDIA retains upload/outbox ownership; this is release adoption only.
+
+Round eleven: Muse READY; GPT found auth/guest minting under a new engine with the intake generation label. Producer capture is now shared across authentication and remaining worker/metadata paths, with intake-switch regressions. Explicit releases N/latest inspection fulfills the literal selector request in addition to the latest listing field.
+
+Round twelve: Muse READY; GPT found null-exempt cap groups counted in adoption/assessment and upload preparation refusals missing producer capture. Reused the existing table cap exemption at both grouping sites and the shared producer accessor at every upload admission call. Regressions cover exempt/non-exempt restoration and a real Expect: 100-continue upload switched during intake.
+
+### 12.2 Clause comparison
+
+Implementer: Codex for Charlie Cheever, SURF, 2026-10-14, target 0.4.29.
+This amends section 11's warning narration only. No rule, adoption, rollback,
+retention, visibility or protocol admission semantics change.
+
+Compare the actual judged rules for each effect, including omitted/default
+rules. For updates use the engine's update_rule_judged: unnamed mutable-field
+rules judge old and next; immutable/id-only inputs use its single-image
+refinement. Named transitions judge their explicit images
+(LLP 3000.007 section 8). Canonical Field/NextField terms load the same next
+image; OldField stays distinct. The update-transition flag is represented by
+this effective rule. Render the authored old and new clauses side by side. Propositional implication handles
+allow/public/deny, conjunction, disjunction, negation, symmetric equality
+and its inequality complement. Reference equality and probe atoms preserve the runtime Unknown verdict.
+Negation/conjunction/disjunction use the same three-valued truth tables and
+implication compares Readable admission only. Scalar equality is total; other
+predicates remain independent atoms;
+no ordering, database population, constraints or role-inhabitation proof is
+invented. At most twelve distinct atoms and 4096 mixed Boolean/three-valued valuations
+are enumerated; either limit leaves implication unproved.
+Equivalent formulas get a note. A target that implies the old clause and
+whose reverse implication fails in this abstraction gets a tightening note;
+this proves no broader admission, not an inhabited strict difference.
+Loosening and unproved implication keep WARNING. Rollback uses exactly the
+same directional comparison, so selecting an old wider rule warns.
+
+Suppress a rule warning only when its table's other effects and non-rule definition and all
+other existing table definitions are unchanged, along with auth, maintained
+views, timelines, delivery, receipts and receipt dependencies. Probe/reference atoms otherwise
+may have different meanings. Self-table probes/references cannot claim stable
+meaning while that table rule is changing and keep the warning. Authored mutation requirements are previewed with
+paths and old/new predicates, refusal codes and messages, including nested
+if/for/as requirements. Only a leading unconditional requirement prefix over
+unchanged arguments, viewer, now and literals receives an implication proof;
+Program equality on decoded scalar arguments is total, including null; it
+does not use the reference/probe Unknown verdict. A nullable-argument live
+regression checks that boundary. Locals, reads, functions, nested control flow and later requirements remain
+unproved. Changed argument types or identity populations remain unproved. Equivalent
+leading predicates with pairwise-equivalent predicates at each ordered
+refusal code/message get a note; conjunction equivalence alone cannot prove
+first-failure behavior. Unproved guards whose program/dependencies changed
+retain a warning even if their printed clause is identical. Lexical bindings
+are printed beside dependent guards. Equivalent predicates with
+changed refusal codes/messages remain WARNING. Missing saved source never
+fabricates an old requirement. Removed operations retain their own warning.
+
+Acceptance covers widening, tightening, adding a requirement, SIGTERM,
+rollback and forward against one durable deployment, paired with guide text.
+Additional controls cover reordering, complementary equality, unknown changes,
+the atom bound and schema dependency changes. REL3 owns dormant-visibility
+counts; SURF owns clause comparison narration. Operator warnings are facts
+about the preview snapshot, never an authorization decision.
+
+
+
+Amendment under review:
+## 13. Wave 13 preview decisions
+
+PREV, implemented by Codex on 2026-10-16, amends §12.2 and REL3 §4.
+Only narration changes; admission, retention, adoption and sync remain as before.
+
+A guard is silent when its authored clause/refusal/context and argument types
+are unchanged and its consulted schema inputs are unchanged. Dependency
+comparison follows the compiled guard's reads, lexical inputs and enclosing
+control flow, including branch joins, list accumulation, expanded function
+bodies and earlier writes to consulted populations. Unrelated writes and unused
+arguments are excluded. Maintained parent fields lead to their private maintain
+and source population, in both guard comparison and user-effect narration;
+whole-schema inequality is never the comparison. Point existence
+uses its selected key/index columns, read rule and transitive probes/reference
+hops, auth, and population visibility (through, opening, expiry, derivations).
+Field reads also consult their column type, default and field authority.
+A changed unused table or operation, or an additive unconsulted probe column,
+is not evidence of a guard change. Existing value-domain changes and column
+removals on a consulted population remain dependencies: they may hide or restore
+rows, including through the reference-closed population and delete policies.
+Loop-carried assignments/effects are included beyond the first iteration.
+Consulted timeline, delivery and receipt metadata/field closures are compared
+per population; unrelated metadata is excluded. Optional defaults read
+as null under the existing interpreter and are not reported as literal fills. Changed dependencies with identical clauses are grouped by
+changed dependency set, counting guards and listing affected operations once;
+implication remains unproved and the operator must verify refusal cases.
+Leading unconditional `exists` on scalar args/viewer/now/literals is a Boolean
+atom only under unchanged dependencies. Unknown reference rules, nested/later
+guards and first-failure refusal associations retain §12.2's conservative cut.
+Both clauses' field dependencies are compared under both schemas before a rule
+implication is certified. Tightening a requirement is a note only if each old
+first-failure region still reaches the same refusal code/message; changed
+refusal contracts and unproved associations remain warnings. Earlier effects
+include their own read/control dependencies transitively, and argument-list
+loop domains retain the used argument's type. First-failure proofs use the same
+supported formula fragment: reference/unsupported/unstable-probe uncertainty
+stays Unknown; only stable program existence is a Boolean atom. Narration never
+grants admission.
+
+Exact previews remain privileged operator output under §3/§9.1; row ids,
+samples and values are never added to application responses. Exact previews
+lead with user effects, in this order: query/count read dependencies
+whose table active population shrinks (including point reads, lists and reads
+of maintained values, not just aggregate queries); reference dependents lost with parents;
+then mutation/job and written-rule safety dependencies that cannot see dormant
+rows. Each category groups by table and lists operations once. Population counts
+are table counts, not invented per-viewer query results, predicate matches or
+business denominators. Point/list/asset-producing queries and maintained reads
+share that first category; caps remain real adoption refusals/steps, and SQL
+inspection shares the selected active table populations under §9.1. No arbitrary
+query or SQL execution is claimed. Dependent counts use actual lost row/reference identities
+from the private before/after snapshot. Existing dormant inventory, samples and
+PUBFIX28's disjoint row/cell/index ownership stay authoritative. Earlier dormant
+storage is not reported as newly lost active rows. Warnings ask the operator to
+accept changed results/denominators, preserve dependents, or preserve a gate in a
+bridge/pause the workflow. Schema steps and other counted notes follow effects.
+
+Deploy receipts and previews report literal-default backfills as
+`table.column ← value on N rows`: active candidate rows that lack the physical
+field and gain its interpreted literal value on this switch. This is schema
+interpretation, not a claim of physical writes. A fitting retained row/cell
+image restored before interpretation is an explicit candidate value and is not
+a backfill. Whole-table and standalone-cell restoration precede this count;
+only fields still physically omitted in active candidate rows qualify. Existing explicit values,
+standalone dormant cells and dormant rows do not count. Receipt facts are
+computed inside successful activation, including hot activation; previews use
+the same report. Changing a default can affect legacy absent fields and is
+reported too. A type change alone does not imply a fill: optional-null rows
+retained dormant by narrowing are excluded. Unchanged absence interpretation
+and fresh empty tables do not invent work.
+
+The deploy guide puts a concrete bridge sequence beside enum widening: preserve
+value domain, audience and safety checks, migrate/repair, prove refusal, then
+contract. H9's additive probe case has zero WARNINGs and fails on 0.4.29.
+Golden previews cover all three user-effect categories, plus grouped changed
+probe dependencies and populated backfills. PREV's report records five copied
+farm lanes before/after. DAY3 owns saved-source/client-baseline composition;
+KIT2 owns proof helper and frontend recipes; SURF3 owns general CLI/help prose.
