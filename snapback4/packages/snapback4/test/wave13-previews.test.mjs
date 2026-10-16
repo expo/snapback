@@ -30,7 +30,7 @@ async function serve(t, deployment) {
     try { await closed; } finally { clearTimeout(timer); }
   };
   t.after(stop);
-  await waitFor(() => { assert.equal(child.exitCode, null, out() + err); return /SNAPBACK4_READY/.test(err); }, 'serve readiness', { diagnostics: () => out() + err });
+  await waitFor(() => { assert.equal(child.exitCode, null, out() + err); return /SNAPBACK4_READY/.test(err) && /http:\/\/127\.0\.0\.1:\d+/.test(out()); }, 'serve readiness', { diagnostics: () => out() + err });
   const url = out().match(/http:\/\/127\.0\.0\.1:\d+/)[0];
   const signIn = await (await fetch(url + '/auth/guest', { method: 'POST', body: '{}' })).json();
   const headers = { authorization: `Bearer ${signIn.session.token}`, 'content-type': 'application/json' };
@@ -734,4 +734,22 @@ mutation uniqueResult():
   writeFileSync(schema,source.replace('  body: text <=80','  body: text <=80\n  unique body'));
   assert.match(run('deploy',deployment,'--check').stdout,/notes changed: 1 guard unproved across uniqueResult/);
   run('deploy',deployment);assert.equal((await host.post('/m/uniqueResult',{})).why.code,'DUP');await host.stop();
+});
+
+test('discarded insert-if-absent results retain secondary uniqueness for later probes', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe+`mutation seedNote():
+  return insert notes {id: 'n', body: 'same'}
+mutation discardedResult():
+  insert notes {id: 'candidate', body: 'same'} if absent
+  require exists notes[id = 'candidate'] else DUP
+  require false else PROBED
+  return true
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);assert.equal((await host.post('/m/seedNote',{})).state,'sent');
+  assert.equal((await host.post('/m/discardedResult',{})).why.code,'PROBED');
+  writeFileSync(schema,source.replace('  body: text <=80','  body: text <=80\n  unique body'));
+  assert.match(run('deploy',deployment,'--check').stdout,/notes changed: 1 guard unproved across discardedResult/);
+  run('deploy',deployment);assert.equal((await host.post('/m/discardedResult',{})).why.code,'DUP');await host.stop();
 });

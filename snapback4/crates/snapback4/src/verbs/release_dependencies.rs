@@ -120,7 +120,7 @@ impl Dependencies {
         match value {
             Value::Object(fields) => {
                 if fields.contains_key("Literal") { return; }
-                if let Some(table)=fields.get("insertTarget").and_then(Value::as_str) {
+                if let Some(table)=fields.get("insertTarget").and_then(Value::as_str).or_else(|| fields.get("InsertIfAbsent").and_then(|insert|insert["table"].as_str())) {
                     self.population(schema,table);
                     if let Some(definition)=schema.table(table) {
                         self.0.insert(format!("{table}.unique"),json!(definition.indexes.iter().filter(|(_,index)|index.unique).collect::<BTreeMap<_,_>>()));
