@@ -139,7 +139,7 @@ mod tests {
         for (name, kind) in &table.columns {
             if table.engine_field(name) { fields.insert(name.clone(), if matches!(kind.required(), crate::schema::ColumnType::Time) { Value::Int(10) } else { Value::Null }); }
         }
-        tx.put("captures", &table, &Value::Row(fields), None).unwrap(); tx.commit().unwrap();
+        tx.put("captures", &table, &Value::Row(fields.into()), None).unwrap(); tx.commit().unwrap();
         let seq = engine.store.seq().unwrap();
         assert_eq!(engine.repair_expiry_orphan("parents", "p", 20).unwrap_err().code(), "E_PARENT_HAS_CHILDREN");
         assert_eq!(engine.store.seq().unwrap(), seq);
