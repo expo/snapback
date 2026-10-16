@@ -1184,7 +1184,7 @@ fn surf3_static_literal_escapes_agree_with_execution_and_typed_times() {
 
 #[test]
 fn surf3_reset_retires_future_time_audience_floor_before_reseed() {
-    let project = Project::new("use personas alice\ntable events:\n  opens: time default now\n  note: text <=40\n  not before .opens\n  public 'fixture'\n  online only\nquery one(id: events):\n  return events[id]\n");
+    let project = Project::new("use personas alice\ntable events:\n  opens: time default now\n  note: text <=40\n  not before .opens\n  by byOpens: opens\n  public 'fixture'\n  online only\nquery one(id: events):\n  return events[id]\n");
     let (_dev, url) = project.dev(0);
     let (_, advanced) = http(&url, "POST", "/dev/clock/advance", None, r#"{"duration":"25h"}"#);
     assert!(advanced["denied"].is_null(), "{advanced}");

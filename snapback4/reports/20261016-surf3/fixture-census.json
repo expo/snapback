@@ -1,0 +1,508 @@
+{
+  "binary": "/home/ccheever/projects/sb4-w13-surf3/snapback4/target/debug/snapback4",
+  "total": 100,
+  "passingTests": 100,
+  "drift": [],
+  "cases": [
+    {
+      "app": "001-pawn-ticket-desk",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "002-day2-kite-flight-lanes",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "003-lease-takeover-board",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "004-day2-lecture-note-relay",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "005-accountant-access-windows",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "006-day2-map-veto-rooms",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "007-yearbook-photo-consents",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "008-day2-drawing-telephone",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "009-sponsor-read-approvals",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "010-day2-courtside-stat-crew",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "011-classroom-observation-notes",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "012-day2-build-day-board",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "013-guarantor-pledges",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "014-day2-overnight-relay-vans",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "015-spoiler-shield-groups",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "016-day2-paint-by-number-wall",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "017-offer-letter-advisors",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "018-day2-safe-walk-escorts",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "019-shared-rolodex-notes",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "020-day2-cost-estimate-delphi",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "021-audit-evidence-requests",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "022-day2-wedding-toast-order",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "023-guest-curator-takeovers",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "024-day2-anonymous-exit-interviews",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "025-vendor-subdelegation",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "026-day2-benefits-open-enrollment",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "027-proxy-assignments",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "028-day2-reference-check-requests",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "029-contractor-site-windows",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "030-day2-worldbuilding-atlas",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "031-expiring-team-notes",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "032-day2-community-mediation",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "033-access-receipts-log",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "034-day2-thesis-draft-circle",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "035-performance-report-routing",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "036-day2-allergy-passport-links",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "037-whiteboard-rooms",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "038-day2-home-vitals-circle",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "039-audience-reactions",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "040-day2-murder-mystery-host",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "041-live-trip-pins",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "042-day2-heirloom-division-picks",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "043-mind-map-jam",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "044-day2-house-sitter-briefing",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "045-bughouse-pairs",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "046-day2-dataset-embargo-ledger",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "047-planning-poker-rooms",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "048-day2-blind-cycle-counts",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "049-battle-map-fog",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "050-day2-venue-tech-riders",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "051-live-budget-meeting",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "052-day2-portfolio-review-links",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "053-write-in-sprints",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "054-day2-street-naming-proposals",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "055-unconference-grid",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "056-day2-secret-dice-log",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "057-precinct-poll-book",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "058-day2-lien-waiver-collection",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "059-rig-safety-walkdown",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "060-day2-court-watch-notes",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "061-auction-lot-walk",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "062-day2-cave-survey-notebook",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "063-field-sales-orders",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "064-day2-passage-watch-bill",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "065-sale-barn-weighins",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "066-day2-fossil-dig-grid",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "067-claim-photo-packets",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "068-day2-damage-assessment-walks",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "069-vintage-photo-id",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "070-day2-rural-route-notes",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "071-speech-video-feedback",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "072-day2-bedtime-story-recordings",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "073-thrift-resale-listings",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "074-day2-tattoo-flash-claims",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "075-podcast-rough-cuts",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "076-day2-layaway-ledger",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "077-herbarium-scans",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "078-day2-dog-license-renewals",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "079-fuel-price-board",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "080-day2-class-pet-weekends",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "081-public-collections",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "082-day2-open-water-swim-tags",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "083-policy-handbook-acks",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "084-day2-neighborhood-business-directory",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "085-expiring-album-links",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "086-day2-bottle-split-shares",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "087-heat-complaint-log",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "088-day2-hotel-linen-counts",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "089-piano-tuning-routes",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "090-day2-communities-of-interest-maps",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "091-shot-list-coordination",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "092-day2-reef-bleaching-surveys",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "093-conduct-incident-intake",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "094-day2-maintainer-funding-splits",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "095-bowling-handicaps",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "096-day2-award-nomination-committee",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "097-listener-voicemail",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "098-day2-stream-overlay-controls",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "099-pen-name-contest",
+      "state": "agree",
+      "checkStatus": 0
+    },
+    {
+      "app": "100-day2-derby-bout-lineups",
+      "state": "agree",
+      "checkStatus": 0
+    }
+  ]
+}
