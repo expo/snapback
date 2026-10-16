@@ -1,6 +1,11 @@
 # Testing: fixtures and the packaged proof kit
 
 Prove backend behavior with fixtures and the rendered UI with the packaged proof kit.
+Raw HTTP starts with JSON envelopes: POST /q/name `{args:{...}}`, POST /m/name
+`{id:"stable-intent-id",args:{...}}`, POST /a/name `{id:"stable-action-id",args:{...}}`.
+Keep the same id on an ambiguous retry. A mutation/action id identifies the attempt;
+`result.id` identifies a returned row. Query data is under `data`, writes under `result`;
+actions have their own lifecycle (`guide actions`), not a mutation receipt.
 Starters generate frontend:proof and day2:proof, and the kit owns server and browser lifecycles.
 
 ```js
@@ -110,14 +115,23 @@ try {
 The kit spawns binaries directly, binds the first free port in PORT_LO..PORT_HI
 at run time (or an OS-assigned port with neither set), strips ANSI ready lines,
 asserts served identity and owns bounded cleanup. Each child logs separate
-stdout/stderr files outside application sources by default (`logsDir()` uses the OS temporary directory).
+stdout/stderr files in `<cwd>/logs` by default. These survive the harness's
+TMPDIR cleanup (H6); set `logsDir` outside a source-discovery directory if your
+tool treats every file under cwd as source (for example, an Exact app/ root).
 Set `logsDir` explicitly to retain a chosen artifact directory. `startServe(deployDir)` serves a deployment;
 `startVite(dir)` serves the app's Vite config; `startStatic(dir)` serves built
-output, including wasm. Never spawn npx or shell wrappers for proof hosts.
+output, including wasm. Spawn servers with the kit or the binary, never `npx`:
+killing the npx wrapper leaves the server holding your pipe.
+`startDev({args})` still adds --memory unless --store or --no-memory is explicit.
 `startDev(args)` and `stopChild(ChildProcess | {url, stop})` remain supported.
 `cli(args)` dispatches every published verb through the installed JS wrapper, including web-shell,
 awaits close and returns `{code, stdout, stderr, logs}`; assert code
-when expecting success. `withBrowser({ chromium })` uses the caller’s Playwright (including @playwright/test);
+when expecting success. `cli(["token", ...])` never persists stdout: its bearer is
+returned in memory only. Use `{secret:true}` with cli/command for other secret
+stdout; stderr remains a log, so the invoked tool must keep secrets off stderr.
+`withBrowser` automatically adds `witness=web` to top-level HTTP(S) navigations
+before the app registers; raw Playwright callers add the flag themselves.
+`withBrowser({ chromium })` uses the caller’s Playwright (including @playwright/test);
 playwright-core is an optional peer required when using browsers. Chromium launches over
 a pipe, with no WebSocket listener. Set CHROME to an installed Chromium; root or a recognized
 unavailable sandbox selects --no-sandbox. Ordinary hosts first use the sandbox.
@@ -128,8 +142,23 @@ has no content-derived accessible name, so never getByRole('status', {name}).
 `selectByValue(locator, value)` uses a stable option value, not a label regex.
 Never wait for networkidle: live queries hold long polls. Wait for the control.
 
-`renderedText(page, text, { within: container })` excludes inputs and textareas.
-`waitForFresh(locator, previous, { within: container, timeoutMs: 30000 })` scopes a fresh signal.
+`renderedText(page, text, { exact: true, within: container })` excludes inputs and
+textareas. Strings match the entire rendered text by default. Use
+`renderedText(page, "verification", {exact:false})` or
+`renderedText(page, /verification/)` for a row that contains more text.
+`within` is optional. RN-web may split one logical row across nested nodes,
+producing multiple matches: scope to its container, then use `.first()` only
+when those nodes prove the same row. A strictness error means scope is ambiguous.
+Decorative glyphs contribute to accessible names: use aria-hidden for icons or
+an explicit aria-label. A wrapped select label can absorb option text; prefer
+an explicit label/for pair and selectByValue. Run frontPage before screenshots.
+`waitForFresh(locator, previous, { within: container, timeoutMs: 30000 })` scopes
+a fresh signal; both options are optional. Timeout names the locator, last count
+and text, and absent versus present-but-unchanged. Old text and editable values
+prove nothing. After a terminal receipt, poll the authoritative projection:
+`await waitForServer(() => client.query(api.list, {}), read => "data" in read && read.fresh && read.data.some(row => row.id === createdId), {label:"committed row"})`.
+Import waitForServer from snapback4/proof. Each poll and the whole wait are bounded;
+its deadline reports the last answer. A poll timeout never means the write failed.
 `await frontPage(page)` brings the page forward before `await page.screenshot(...)`.
 
 E_WITNESS_DISABLED means claiming is not armed. Add &witness=web to the proof URL.
@@ -152,7 +181,17 @@ Timers or later requestSubmit calls do not inherit a prior click.
 formResult() returns a Promise of { state, id, seq?, result?, why?, mutation }.
 Require state === "sent" before asserting the rendered business result.
 An unclaimable durable write settles failed/E_WITNESS_UNCLAIMED with event/operation/arguments detail.
-Keep the promise outside components that may unmount; rearming cancels observation.
+Keep the promise outside components that may unmount. Four terminal outcomes:
+- sent: claimed write committed (a replay may omit its historical result);
+- failed with the app refusal: claimed write was refused;
+- failed/E_WITNESS_UNCLAIMED: event, operation or arguments did not match;
+- failed/E_WITNESS_NO_WRITE: armed click produced no durable mutation (handler returned early, or app was not ready).
+No write fails 1 second after the trusted click, on re-arm, or after a 30-second
+abandoned arm. A claimed write still pending at 30 seconds fails the proof with
+E_WITNESS_SENT; inspect its original intent id, never infer a server refusal.
+Re-arm settles the old promise and releases observation; it never cancels a write.
+Gate the form with useAppReady() before typing/clicking; auth alone can precede
+the initial app.ready barrier. pending is custody, not a terminal result.
 
 Eight rules keep proofs honest:
 

@@ -6,7 +6,7 @@ import { join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
 import { fileURLToPath } from "node:url";
-import { cli, startDev, startServe, startStatic, startVite, deploy, rollback, testSource, stopChild, cleanup, bounded, portRange, withBrowser, fillRN, statusText, waitForFresh, selectByValue, sandboxUnavailable } from "../dist/proof.js";
+import { cli, startDev, startServe, startStatic, startVite, deploy, rollback, testSource, stopChild, cleanup, bounded, portRange, withBrowser, fillRN, statusText, waitForFresh, selectByValue, sandboxUnavailable, logsDir, command, waitForServer } from "../dist/proof.js";
 import { logged, ready } from "../dist/proof-process.js";
 const root = fileURLToPath(new URL("../../../", import.meta.url));
 process.env.SNAPBACK4_BIN ??= join(root, "target/debug/snapback4");
@@ -30,7 +30,7 @@ test("native and static bind beyond an occupied port; identity and independent l
     assert.ok(Number(new URL(dev.url).port) > port); assert.equal((await (await fetch(dev.url + "/dev/status")).json()).pid, dev.pid);
     web = await startStatic("dist", { cwd, env }); assert.notEqual(web.url, dev.url);
     assert.equal(await (await fetch(web.url)).text(), "<h1>owned</h1>");
-    for (const log of Object.values(dev.logs)) assert.ok(log.startsWith(tmpdir()), "default logs stay outside app sources");
+    for (const log of Object.values(dev.logs)) assert.ok(log.startsWith(join(cwd, "logs")), "default logs survive temp-root harness cleanup");
     assert.match(readFileSync(dev.logs.stderr, "utf8"), /SNAPBACK4_READY/);
   } finally { await cleanup(() => web?.stop(), () => stopChild(dev)); }
 });
@@ -184,4 +184,39 @@ test("ready PID and served marker mismatches refuse instead of adopting another 
   } finally {
     if (original === undefined) delete process.env.SNAPBACK4_BIN; else process.env.SNAPBACK4_BIN = original;
   }
+});
+
+
+test("secret stdout stays in memory; token CLI automatically selects secret capture", async t => {
+  const cwd = fixture(t);
+  assert.equal(logsDir({cwd}), join(cwd, "logs"));
+  const result = await command(process.execPath, ["-e", "console.log('private bearer'); console.error('diagnostic')"], {cwd, secret:true});
+  assert.equal(result.stdout, "private bearer\n");
+  assert.equal(readFileSync(result.logs.stdout, "utf8"), "");
+  assert.equal(readFileSync(result.logs.stderr, "utf8"), "diagnostic\n");
+  const original=process.env.SNAPBACK4_BIN;
+  const fake=join(cwd,'token.mjs');
+  writeFileSync(fake, `#!${process.execPath}\nconsole.log('minted bearer')`, {mode:0o755});
+  process.env.SNAPBACK4_BIN=fake;
+  try {
+    const token = await cli(['token'], {cwd});
+    assert.equal(token.code,0);assert.equal(token.stdout,'minted bearer\n');
+    assert.equal(readFileSync(token.logs.stdout,'utf8'),'');
+  } finally { if(original===undefined)delete process.env.SNAPBACK4_BIN;else process.env.SNAPBACK4_BIN=original; }
+});
+test("startDev args preserve memory isolation unless a store is explicit", async t => {
+  const cwd=fixture(t);
+  for (const args of [['--port','0'], []]) {
+    const host=await startDev({cwd,args});
+    try {
+      const list=await (await fetch(host.url+'/q/list',{method:'POST',headers:{'content-type':'application/json','x-snapback-persona':'alice'},body:'{"args":{}}'})).json();
+      assert.deepEqual(list.data,[]);
+      await fetch(host.url+'/seed',{method:'POST',headers:{'content-type':'application/json'},body:'[{"table":"notes","row":{"id":"one","title":"seed"}}]'});
+    } finally {await host.stop();}
+  }
+});
+test("waitForServer waits for authoritative projection and diagnoses unchanged truth", async () => {
+  let reads=0;
+  assert.equal(await waitForServer(async()=>++reads, value=>value===3, {timeoutMs:1000}),3);
+  await assert.rejects(waitForServer(async()=>({pending:true}),()=>false,{timeoutMs:50,label:'committed row'}), /committed row.*last=.*pending/);
 });

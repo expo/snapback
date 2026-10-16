@@ -2,7 +2,6 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { closeSync, mkdirSync, openSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
 import { setTimeout as sleep } from "node:timers/promises";
 import { stripVTControlCharacters } from "node:util";
@@ -21,6 +20,8 @@ export interface ProofOptions {
   timeoutMs?: number;
   stopTimeoutMs?: number;
   logsDir?: string;
+  /** Keep stdout in memory only (stderr remains diagnostic evidence). */
+  secret?: boolean;
   /** Internal: a frontend keeper owns this private process group. */
   detached?: boolean;
   /** Internal: the frontend observes parent death through stdin EOF. */
@@ -87,9 +88,9 @@ export function portRange(env: NodeJS.ProcessEnv = process.env): string {
   }
   return `${Number(low)}-${Number(high)}`;
 }
-/** Default logs never become application source inputs (including Exact app/). */
+/** App-local evidence survives harness cleanup of its temporary root. */
 export function logsDir(options: Pick<ProofOptions, "cwd" | "logsDir"> = {}): string {
-  return options.logsDir === undefined ? join(tmpdir(), "snapback4-proof-logs") : resolve(options.cwd ?? ".", options.logsDir);
+  return resolve(options.cwd ?? ".", options.logsDir ?? "logs");
 }
 export function logged(command: string, args: readonly string[], options: ProofOptions = {}) {
   const cwd = resolve(options.cwd ?? "."), id = randomUUID();
@@ -97,14 +98,18 @@ export function logged(command: string, args: readonly string[], options: ProofO
   const logs = { stdout: join(directory, `${id}.stdout.log`), stderr: join(directory, `${id}.stderr.log`) };
   const out = openSync(logs.stdout, "wx", 0o600), err = openSync(logs.stderr, "wx", 0o600);
   let child: ChildProcess;
-  try { child = spawn(command, [...args], { cwd, detached: options.detached ?? false, env: { ...(options.env ?? process.env), SNAPBACK4_PROOF_LAUNCH: id }, stdio: [options.livenessPipe ? "pipe" : "ignore", out, err] }); }
+  try { child = spawn(command, [...args], { cwd, detached: options.detached ?? false, env: { ...(options.env ?? process.env), SNAPBACK4_PROOF_LAUNCH: id }, stdio: [options.livenessPipe ? "pipe" : "ignore", options.secret ? "pipe" : out, err] }); }
   finally { closeSync(out); closeSync(err); }
+  // Secret stdout never reaches a file, even briefly. Callers still receive it.
+  let stdout = "";
+  child.stdout?.setEncoding("utf8");
+  child.stdout?.on("data", chunk => { stdout += chunk; });
   register(child);
   child.stdin?.on("error", () => {});
   let error: Error | undefined;
   child.on("error", value => { error = value; });
   const closed = new Promise<void>(resolve => child.once("close", () => resolve()));
-  return { child, logs, id, closed, error: () => error };
+  return { child, logs, id, closed, stdout: () => options.secret ? stdout : logText(logs.stdout), error: () => error };
 }
 export const logText = (path: string): string => readFileSync(path, "utf8");
 export async function ready(run: ReturnType<typeof logged>, parse: (line: string) => string | undefined, timeoutMs: number): Promise<string> {
