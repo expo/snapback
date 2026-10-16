@@ -1,0 +1,23 @@
+{
+  "originalExactHead": "80db4d8e2e365c203dfa6cbe5324e74177b1f7de",
+  "privateExact": "/home/ccheever/sb4-loop/prewave14/exact2",
+  "app": "/home/ccheever/sb4-loop/prewave14/hello",
+  "cargoPathChanges": [
+    "snapback4-core = { path = \"/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core\", version = \"=0.4.29\", default-features = false }",
+    "snapback4-device = { path = \"/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-device\", version = \"=0.4.29\", default-features = false }",
+    "snapback4-lang = { path = \"/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang\", version = \"=0.4.29\" }",
+    "snapback4-device = { workspace = true, features = [\"native\"] }",
+    "snapback4-core = { workspace = true, features = [\"sqlite\", \"native\", \"server-search\"] }",
+    "snapback4-lang.workspace = true"
+  ],
+  "clientSha256": "e8dc6589362ad6183f8842ef5b9864b423114f1d57437f8dcea11326c1371912",
+  "commands": [
+    "bun exact.mjs snapback",
+    "bun exact.mjs test web"
+  ],
+  "env": {
+    "SNAPBACK4_BIN": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "CHROME": "Playwright Chromium from ~/.cache/ms-playwright"
+  },
+  "result": "2 passed, 0 failed"
+}

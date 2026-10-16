@@ -1,0 +1,1069 @@
+{
+  "binarySha256": "0989d347e49e0bb0b1c026ae7d38c8a0b7061b0778274644e20dba464429af78",
+  "total": 100,
+  "passed": 100,
+  "codes": {
+    "N_CONDITIONAL_COMPLETE": 11,
+    "N_DELETE_NEEDS_READ": 1,
+    "N_DELETE_RESTRICTED": 1,
+    "N_EPHEMERAL_SERVER": 2,
+    "N_LOOKUP_HIDDEN": 5,
+    "N_MAINTAIN_AUTHORIZATION": 2,
+    "N_MAINTAIN_DELTA": 7,
+    "N_NEVER_COMPLETE": 19,
+    "N_NO_CURSOR": 144,
+    "N_NO_HORIZON": 12,
+    "N_NO_PRODUCTION_WRITER": 50,
+    "N_PATCH_CLEARS": 2,
+    "N_SEARCH_SHAPE": 1,
+    "N_SEARCH_UNSCOPED": 1,
+    "N_SEARCH_WORDS": 2,
+    "N_SPARSE_FILTER": 16,
+    "N_SYNC_ORDER": 5,
+    "N_UNREADABLE_PROBE": 13,
+    "N_VACUOUS_RULE": 1,
+    "N_WIDE_MERGE": 3
+  },
+  "failures": [],
+  "rows": [
+    {
+      "lane": "001-pawn-ticket-desk",
+      "status": 0,
+      "codes": {
+        "N_CONDITIONAL_COMPLETE": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "3f62cdd53796864e277ecbd79883bf4eae59cf1b0cf983bd846070395c43e9e8"
+      }
+    },
+    {
+      "lane": "002-day2-kite-flight-lanes",
+      "status": 0,
+      "codes": {},
+      "hashes": {
+        "snapback/schema.q": "95a956e915a03b0def37429422c90c0dc7053e6aefc4b99d672048f23d17209b"
+      }
+    },
+    {
+      "lane": "003-lease-takeover-board",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 5,
+        "N_NEVER_COMPLETE": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "dbd4a640c100c929633ba09bf732ed8839ff927f734210cad00608a93808930c"
+      }
+    },
+    {
+      "lane": "004-day2-lecture-note-relay",
+      "status": 0,
+      "codes": {
+        "N_EPHEMERAL_SERVER": 1,
+        "N_NO_CURSOR": 4,
+        "N_UNREADABLE_PROBE": 2
+      },
+      "hashes": {
+        "snapback/schema.q": "3193dc1fa584cbdfcdda93c7a439970878b924e5f743849a2ca5ca9b1d26dca8"
+      }
+    },
+    {
+      "lane": "005-accountant-access-windows",
+      "status": 0,
+      "codes": {
+        "N_NEVER_COMPLETE": 2,
+        "N_UNREADABLE_PROBE": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "d2121af219177e44a09a86bb15b2b3d2e54c8467c3d9db9c92ccecfaae4fce5a"
+      }
+    },
+    {
+      "lane": "006-day2-map-veto-rooms",
+      "status": 0,
+      "codes": {},
+      "hashes": {
+        "snapback/schema.q": "be1f85d97b00cf652486cf78a8c837e16d3281ee7817154a946103eb99aa4fbb"
+      }
+    },
+    {
+      "lane": "007-yearbook-photo-consents",
+      "status": 0,
+      "codes": {
+        "N_NEVER_COMPLETE": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "242a58b3af06be80fef313baa43b71f93eeb2120befd6423d481b856ec72018a"
+      }
+    },
+    {
+      "lane": "008-day2-drawing-telephone",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "6402c259ebdec0710c3f9bd035293edd692b421e06693d389d3a1feb9c10315c"
+      }
+    },
+    {
+      "lane": "009-sponsor-read-approvals",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 6,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "e5377f32e4f46666a4fee89d17f2556acf9f9e0215b9dc67f01065f0de8723cc"
+      }
+    },
+    {
+      "lane": "010-day2-courtside-stat-crew",
+      "status": 0,
+      "codes": {},
+      "hashes": {
+        "snapback/schema.q": "9d7b699915e310537ffe90ad2bbf02ac371c01abae03d761629e79a686834052"
+      }
+    },
+    {
+      "lane": "011-classroom-observation-notes",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 1,
+        "N_CONDITIONAL_COMPLETE": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "929886ed47faab22243d517fba8174faef16fc487cad8ac616310dad5b49f8aa"
+      }
+    },
+    {
+      "lane": "012-day2-build-day-board",
+      "status": 0,
+      "codes": {},
+      "hashes": {
+        "snapback/schema.q": "d3157497f303c6dbf9165a10f06123984fa167aac80dd2fd42c96c78d157409d"
+      }
+    },
+    {
+      "lane": "013-guarantor-pledges",
+      "status": 0,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "b20c7b07e6b71099cec81919f51a430dc93335e1b13b177dd6ab3cd3de576bf5"
+      }
+    },
+    {
+      "lane": "014-day2-overnight-relay-vans",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 6,
+        "N_UNREADABLE_PROBE": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "5188cd4c465d6396f654cf9d93856f4c2ed7c5586f3888e84be223ad5d5ae034"
+      }
+    },
+    {
+      "lane": "015-spoiler-shield-groups",
+      "status": 0,
+      "codes": {
+        "N_CONDITIONAL_COMPLETE": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "b2a7efb41c766765586f2ae3fe31cf04db31419fb083ed888339a2208133f460"
+      }
+    },
+    {
+      "lane": "016-day2-paint-by-number-wall",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 2
+      },
+      "hashes": {
+        "snapback/schema.q": "477009f9a98062fa7d354e9e09fc64889b374fa436722833b58d111f85202deb"
+      }
+    },
+    {
+      "lane": "017-offer-letter-advisors",
+      "status": 0,
+      "codes": {
+        "N_SPARSE_FILTER": 1,
+        "N_NO_CURSOR": 3,
+        "N_CONDITIONAL_COMPLETE": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "4a52a61d1f0e7f02fb36e5858bf60d027cb86a8becc5ac8838371a0651ff2204"
+      }
+    },
+    {
+      "lane": "018-day2-safe-walk-escorts",
+      "status": 0,
+      "codes": {
+        "N_MAINTAIN_DELTA": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "f2b83c045a59f27059820176664876875e7a2ad82f92ae1f976e74b3fa314fe1"
+      }
+    },
+    {
+      "lane": "019-shared-rolodex-notes",
+      "status": 0,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "4c83816d9f0438b6759c7b65e01409f3f0674790d5640da3e4fd98c2f5350a94"
+      }
+    },
+    {
+      "lane": "020-day2-cost-estimate-delphi",
+      "status": 0,
+      "codes": {},
+      "hashes": {
+        "snapback/schema.q": "d300327c956c9ccc3039d8193e40809fd43488d96200df46fbf6206f980b77a8"
+      }
+    },
+    {
+      "lane": "021-audit-evidence-requests",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 3,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "c3e408fd74b2174c1b3d502491c726d8aaaaa3e5ac2b8715487e5018a7288bd2"
+      }
+    },
+    {
+      "lane": "022-day2-wedding-toast-order",
+      "status": 0,
+      "codes": {
+        "N_MAINTAIN_DELTA": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "c3b1c2fdf5ca2514addd84206c78bc3a7193b901e3cedb4449790c6882a72b56"
+      }
+    },
+    {
+      "lane": "023-guest-curator-takeovers",
+      "status": 0,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "aadb4086368f985d784fb6cd8e60378d9a21a11ef46d99a28d1ef9991cc203c7"
+      }
+    },
+    {
+      "lane": "024-day2-anonymous-exit-interviews",
+      "status": 0,
+      "codes": {},
+      "hashes": {
+        "snapback/schema.q": "6051b9e2c901a49436b2bfc041f12763f9ca68eef09e52367a37fb1b534ab7ba"
+      }
+    },
+    {
+      "lane": "025-vendor-subdelegation",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "847d3164bc01b6629298a25a709dac873bf0fbda17624ef3724fef2cbfdded88"
+      }
+    },
+    {
+      "lane": "026-day2-benefits-open-enrollment",
+      "status": 0,
+      "codes": {},
+      "hashes": {
+        "snapback/schema.q": "f88798a606ef0a1a295eb3a94172b711aa901d4477029ae6f73224268962e01a"
+      }
+    },
+    {
+      "lane": "027-proxy-assignments",
+      "status": 0,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "d4f9a7bfcc2fb2474a9a711cfefa166f4a3af43460d3d93d7e3ebab56bdcd1fe"
+      }
+    },
+    {
+      "lane": "028-day2-reference-check-requests",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 4,
+        "N_NEVER_COMPLETE": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "036aa5b6c419c53a1637579ead2eb9047bb18842b0421062f11c39ed9e4a5a20"
+      }
+    },
+    {
+      "lane": "029-contractor-site-windows",
+      "status": 0,
+      "codes": {
+        "N_SPARSE_FILTER": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "dc6692f6c9467afaaee267414d5e9eccef09dbfdc1ac23f535ee31b0c3388717"
+      }
+    },
+    {
+      "lane": "030-day2-worldbuilding-atlas",
+      "status": 0,
+      "codes": {},
+      "hashes": {
+        "snapback/schema.q": "64327290f67a4dfe35a8468412491c69919e1ad9fc6fcad2190c96405196c961"
+      }
+    },
+    {
+      "lane": "031-expiring-team-notes",
+      "status": 0,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "afcc7bd1b555d7192e16343dff2ad0e0e64d9f9fde1786f50d369c09d5db44f4"
+      }
+    },
+    {
+      "lane": "032-day2-community-mediation",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 4,
+        "N_MAINTAIN_DELTA": 2
+      },
+      "hashes": {
+        "snapback/schema.q": "5bb0dcd5ca13158edbc6c836b72a6220a5b13a4cb54b615cba785a411c446728"
+      }
+    },
+    {
+      "lane": "033-access-receipts-log",
+      "status": 0,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "d4db694e7361b0245fe2450d1ddd583ff701f43bf5fcf3dbe129af8b2212ab85"
+      }
+    },
+    {
+      "lane": "034-day2-thesis-draft-circle",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 9,
+        "N_NEVER_COMPLETE": 2,
+        "N_UNREADABLE_PROBE": 3,
+        "N_MAINTAIN_DELTA": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "84af43b3a3339075c6674e95c02aad0733b0ef18083d0c23fa86b48b5d3946e6"
+      }
+    },
+    {
+      "lane": "035-performance-report-routing",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 4,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "27858ef34221333e1f7c5a854505fe7fabae26881256f30431ce19ba13ab4c27"
+      }
+    },
+    {
+      "lane": "036-day2-allergy-passport-links",
+      "status": 0,
+      "codes": {},
+      "hashes": {
+        "snapback/schema.q": "2cd982c602f774c07c20e7d853dbed81604bf4b226438d7e268a0239d94db467"
+      }
+    },
+    {
+      "lane": "037-whiteboard-rooms",
+      "status": 0,
+      "codes": {
+        "N_SPARSE_FILTER": 1,
+        "N_EPHEMERAL_SERVER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "54771dcb9eda3e4781ff4fbfb6b449c538ef86520ad7282a273527a2dfb9da5c"
+      }
+    },
+    {
+      "lane": "038-day2-home-vitals-circle",
+      "status": 0,
+      "codes": {
+        "N_PATCH_CLEARS": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "3fa2ba2f14dc146ba00461ea023130ba17200021858c2eb1bb0d45210336c129"
+      }
+    },
+    {
+      "lane": "039-audience-reactions",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 8,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "9cf0c68f96ce5eb7f439ad33e6e103823cc570a33c956271e5c041d396675d38"
+      }
+    },
+    {
+      "lane": "040-day2-murder-mystery-host",
+      "status": 0,
+      "codes": {
+        "N_NEVER_COMPLETE": 1,
+        "N_CONDITIONAL_COMPLETE": 3
+      },
+      "hashes": {
+        "snapback/schema.q": "87db5247bfc5cc5ed37fcbcd390b4f888ee10d152554d108088aac32c1a6f0a7"
+      }
+    },
+    {
+      "lane": "041-live-trip-pins",
+      "status": 0,
+      "codes": {
+        "N_SPARSE_FILTER": 1,
+        "N_CONDITIONAL_COMPLETE": 2,
+        "N_UNREADABLE_PROBE": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "08a0ac937011d01647c168ce935926d1319a1c476c6b4e5df185c7c777a78301"
+      }
+    },
+    {
+      "lane": "042-day2-heirloom-division-picks",
+      "status": 0,
+      "codes": {},
+      "hashes": {
+        "snapback/schema.q": "6bd72d8c86b44b28f70240c19ec29469bf0d1c1d01f55d982c4754d456a17254"
+      }
+    },
+    {
+      "lane": "043-mind-map-jam",
+      "status": 0,
+      "codes": {
+        "N_DELETE_RESTRICTED": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "ec98b50d5dc3e54892f6d159a78cef36211bd953c9ec90dd3bc3f2fbe95f28c2"
+      }
+    },
+    {
+      "lane": "044-day2-house-sitter-briefing",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 8
+      },
+      "hashes": {
+        "snapback/schema.q": "f50c728a7db4444f5221eda503bfdf5b4aeaa129ef38c39cbfaedd30f426bd10"
+      }
+    },
+    {
+      "lane": "045-bughouse-pairs",
+      "status": 0,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "413d3c32967ce1d6c96a56a23ce9cf0bfd626d44ee39deb9eb10abb9caeb506b"
+      }
+    },
+    {
+      "lane": "046-day2-dataset-embargo-ledger",
+      "status": 0,
+      "codes": {
+        "N_SPARSE_FILTER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "b64d9ea5d7c5741df19eead0898fcfea548664180504f67255aff3af2240b559"
+      }
+    },
+    {
+      "lane": "047-planning-poker-rooms",
+      "status": 0,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "6aae43abf49e35bb8cad6fc2b4a7d2e9633d61418cabb75134774fb806c1c27a"
+      }
+    },
+    {
+      "lane": "048-day2-blind-cycle-counts",
+      "status": 0,
+      "codes": {},
+      "hashes": {
+        "snapback/schema.q": "50a76c3fc97f39a8a81e7c6e2bcc4c058c023923003eb7a9b5de2c7022b3c6fc"
+      }
+    },
+    {
+      "lane": "049-battle-map-fog",
+      "status": 0,
+      "codes": {
+        "N_NEVER_COMPLETE": 2,
+        "N_PATCH_CLEARS": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "f83233b5fbdc2a377b6f22f840df3fdd340c016c2b9109cbda6b5613e2481444"
+      }
+    },
+    {
+      "lane": "050-day2-venue-tech-riders",
+      "status": 0,
+      "codes": {
+        "N_VACUOUS_RULE": 1,
+        "N_UNREADABLE_PROBE": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "9fe6390cfb1ca29d98b0cbaf3392e886f53f559f1ba28e90fde2af0702f0e6f8"
+      }
+    },
+    {
+      "lane": "051-live-budget-meeting",
+      "status": 0,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "9712e757b4c1b6227a14eccc50081907f0313594ac8b93cdbf5609eabc05f627"
+      }
+    },
+    {
+      "lane": "052-day2-portfolio-review-links",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 3,
+        "N_NEVER_COMPLETE": 2,
+        "N_CONDITIONAL_COMPLETE": 1,
+        "N_UNREADABLE_PROBE": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "56a29ef41f26206dc034fa7b21e904d62bac43a6a6552e9a087482fe9946166c"
+      }
+    },
+    {
+      "lane": "053-write-in-sprints",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 4,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "15c14747345b69ce3eded622f5add7bbc24dd91a9983c1e9e8c618c41d4bc67e"
+      }
+    },
+    {
+      "lane": "054-day2-street-naming-proposals",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 8
+      },
+      "hashes": {
+        "snapback/schema.q": "01208a44e277da8d92d22fadddd5dac0e5588a0131cd926f363a60d9c5a2cdf4"
+      }
+    },
+    {
+      "lane": "055-unconference-grid",
+      "status": 0,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 3
+      },
+      "hashes": {
+        "snapback/schema.q": "ab7b5939250187a50ba51dca3420270c0eafa57316e347877f4cdf08a08acc76"
+      }
+    },
+    {
+      "lane": "056-day2-secret-dice-log",
+      "status": 0,
+      "codes": {},
+      "hashes": {
+        "snapback/schema.q": "5909d23ca4a49dd1dec35442f98e0238cabe7ce0df8025795dfa67ce31d19c09"
+      }
+    },
+    {
+      "lane": "057-precinct-poll-book",
+      "status": 0,
+      "codes": {
+        "N_SPARSE_FILTER": 1,
+        "N_WIDE_MERGE": 2,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "e9343f1743f8d2eb049ebb51c4761846ef8db630199bf02c92a9cccdad716adc"
+      }
+    },
+    {
+      "lane": "058-day2-lien-waiver-collection",
+      "status": 0,
+      "codes": {
+        "N_MAINTAIN_AUTHORIZATION": 2
+      },
+      "hashes": {
+        "snapback/schema.q": "66181bc28abf9e93ee067d9a0d993005b7fe23d082b5a358130bc7d7ec5c3abf"
+      }
+    },
+    {
+      "lane": "059-rig-safety-walkdown",
+      "status": 0,
+      "codes": {
+        "N_NO_HORIZON": 1,
+        "N_NO_CURSOR": 4,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "62b62dbb2b8cb3c35363ce54d6c515c63ff940b682ec2d0cb8b7345e016d5d35"
+      }
+    },
+    {
+      "lane": "060-day2-court-watch-notes",
+      "status": 0,
+      "codes": {},
+      "hashes": {
+        "snapback/schema.q": "02434006274884e5eea0eee15a6b57e905de2801b8b26509e25604f6d26258ef"
+      }
+    },
+    {
+      "lane": "061-auction-lot-walk",
+      "status": 0,
+      "codes": {
+        "N_NO_HORIZON": 3,
+        "N_NO_CURSOR": 8,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "b739fe5a5cbcd3524b5e72666239b7fa2b777c09ab6c48e374d6b279399d0594"
+      }
+    },
+    {
+      "lane": "062-day2-cave-survey-notebook",
+      "status": 0,
+      "codes": {},
+      "hashes": {
+        "snapback/schema.q": "88047fc0d813d701ec10d95598bf49296399e1ecd6cd45a0a8c228e74b7c3111"
+      }
+    },
+    {
+      "lane": "063-field-sales-orders",
+      "status": 0,
+      "codes": {
+        "N_NO_HORIZON": 3,
+        "N_NO_CURSOR": 4,
+        "N_NEVER_COMPLETE": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "31efe9ce1070f7d84620f34e8663c57e38b483c2a947787ba0a9f2b34e88350a"
+      }
+    },
+    {
+      "lane": "064-day2-passage-watch-bill",
+      "status": 0,
+      "codes": {
+        "N_NO_HORIZON": 1,
+        "N_NO_CURSOR": 3,
+        "N_SYNC_ORDER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "cafa0a832c616c193a3ae1bec4ea712f5abacc7986c89d412a879a3aa2d0365a"
+      }
+    },
+    {
+      "lane": "065-sale-barn-weighins",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 2,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "203d67b14ada05383422c547f412402063b415e9cce90223772d864b48e3a7d2"
+      }
+    },
+    {
+      "lane": "066-day2-fossil-dig-grid",
+      "status": 0,
+      "codes": {
+        "N_NO_HORIZON": 2
+      },
+      "hashes": {
+        "snapback/schema.q": "41fdd25c44d11cee9f86e6893c0e5222b7e406b41852d197c2ade74aa96fd156"
+      }
+    },
+    {
+      "lane": "067-claim-photo-packets",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 6,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "7885afdedb62f0f6e89e7f0c1a5bb070e3ba08f5e6f135623c82b7a9a7de1a28"
+      }
+    },
+    {
+      "lane": "068-day2-damage-assessment-walks",
+      "status": 0,
+      "codes": {
+        "N_MAINTAIN_DELTA": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "cf369ec14939d1619aff1b140ecb6b5a48362d58cb4e7ff12020d26428a54be1"
+      }
+    },
+    {
+      "lane": "069-vintage-photo-id",
+      "status": 0,
+      "codes": {
+        "N_NEVER_COMPLETE": 3,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "4b4a5128623eabf6450fbb1c8628b9c98b6a3a828a1a2dcdf23d879a2885cc20"
+      }
+    },
+    {
+      "lane": "070-day2-rural-route-notes",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 3,
+        "N_UNREADABLE_PROBE": 2
+      },
+      "hashes": {
+        "snapback/schema.q": "45bb9a2e5bb15eddf8aa4c8ee026ec3a0cadb1094caa4b59f2145f1766c12cc9"
+      }
+    },
+    {
+      "lane": "071-speech-video-feedback",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 1,
+        "N_CONDITIONAL_COMPLETE": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "5e4b073229bf7d12416b999f32a8c6afd80304716e33bebf902b2ef733a8de00"
+      }
+    },
+    {
+      "lane": "072-day2-bedtime-story-recordings",
+      "status": 0,
+      "codes": {
+        "N_SPARSE_FILTER": 1,
+        "N_NEVER_COMPLETE": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "dfd9f15172a3f8649a5cc855b06affc08bbbeda30eb9c52dd5c3b2e09d966d25"
+      }
+    },
+    {
+      "lane": "073-thrift-resale-listings",
+      "status": 0,
+      "codes": {
+        "N_SPARSE_FILTER": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "138f7faafaeb42d577d4139e541fc0cbca47fcab619c9d24c98d779f2fe39d0f"
+      }
+    },
+    {
+      "lane": "074-day2-tattoo-flash-claims",
+      "status": 0,
+      "codes": {},
+      "hashes": {
+        "snapback/schema.q": "587399197227ccf552060179fcd855a077362c9ee5feea1576a3b93424b5409a"
+      }
+    },
+    {
+      "lane": "075-podcast-rough-cuts",
+      "status": 0,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "82a055dbe26a37b7ce8e11edca3cb3d3fd486a848da579ec0dbdf3d0cabb569a"
+      }
+    },
+    {
+      "lane": "076-day2-layaway-ledger",
+      "status": 0,
+      "codes": {},
+      "hashes": {
+        "snapback/schema.q": "9bc04e4b5278d7ae269ac33f5842354651e2b0cf629fe5f6cd1c705a11aff4d7"
+      }
+    },
+    {
+      "lane": "077-herbarium-scans",
+      "status": 0,
+      "codes": {
+        "N_MAINTAIN_DELTA": 1,
+        "N_DELETE_NEEDS_READ": 1,
+        "N_NO_PRODUCTION_WRITER": 1,
+        "N_SEARCH_SHAPE": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "524f19ca5285c5612e0847cf0fd808b0b5cbe20f767b10e34771e0a381b1e24f"
+      }
+    },
+    {
+      "lane": "078-day2-dog-license-renewals",
+      "status": 0,
+      "codes": {
+        "N_NO_HORIZON": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "1b212f0c62a62d7a18db7ae5e926d2988010e514851eea7a3db753ec4b8b23ed"
+      }
+    },
+    {
+      "lane": "079-fuel-price-board",
+      "status": 0,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "6750b576bd8b053670def973b8daf95dffe512c5ada6869befb9ca873b953da7"
+      }
+    },
+    {
+      "lane": "080-day2-class-pet-weekends",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 4
+      },
+      "hashes": {
+        "snapback/schema.q": "211e29cf32db34af17cd5adaf2ddcd9651a178726c96f2f7e7a84fbf15397da3"
+      }
+    },
+    {
+      "lane": "081-public-collections",
+      "status": 0,
+      "codes": {
+        "N_NEVER_COMPLETE": 1,
+        "N_NO_PRODUCTION_WRITER": 1,
+        "N_SEARCH_UNSCOPED": 1,
+        "N_SEARCH_WORDS": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "4ff0e4d3e77459145a77e8c1dd27bb96bcf3257e3f426d5149aea5d2905f972f"
+      }
+    },
+    {
+      "lane": "082-day2-open-water-swim-tags",
+      "status": 0,
+      "codes": {
+        "N_SPARSE_FILTER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "448c21f3a1f8364314100cb3d6ac4171cc2cd6a705eb09c0aaa2686c3f2f95a9"
+      }
+    },
+    {
+      "lane": "083-policy-handbook-acks",
+      "status": 0,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "7c7bbff2aa3abd96d50eac3d8efd4f7a1704469346aa6cdfd37073c5631aeb53"
+      }
+    },
+    {
+      "lane": "084-day2-neighborhood-business-directory",
+      "status": 0,
+      "codes": {
+        "N_SPARSE_FILTER": 3
+      },
+      "hashes": {
+        "snapback/schema.q": "c0147df598e6dab69ba8a73247caf5f09cde622fdab9b376a9ef36f1d8e4e83b"
+      }
+    },
+    {
+      "lane": "085-expiring-album-links",
+      "status": 0,
+      "codes": {
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "05cb9579f8d34f9b263ccf4eb93d00e1eb92d9fd2a3b088e9d7b2d59668d922a"
+      }
+    },
+    {
+      "lane": "086-day2-bottle-split-shares",
+      "status": 0,
+      "codes": {},
+      "hashes": {
+        "snapback/schema.q": "c3a588a01d0bd563d1b815b55d084863de2aa56dbb8b0bcdf113d9a810d8ca2c"
+      }
+    },
+    {
+      "lane": "087-heat-complaint-log",
+      "status": 0,
+      "codes": {
+        "N_NEVER_COMPLETE": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "2071c970ef37f27d7f894324ca48354190402b11bd1a723107604ace032f4e80"
+      }
+    },
+    {
+      "lane": "088-day2-hotel-linen-counts",
+      "status": 0,
+      "codes": {
+        "N_UNREADABLE_PROBE": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "e2a7e5c53b805116d9b677a54b280d608ed3daae9aff0023f95dcee7bae981f4"
+      }
+    },
+    {
+      "lane": "089-piano-tuning-routes",
+      "status": 0,
+      "codes": {
+        "N_SPARSE_FILTER": 1,
+        "N_LOOKUP_HIDDEN": 5,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "a18ba6181035bd03fa8f5f0b23a8769f4fa3a56892a6e4102098b93217a9ab63"
+      }
+    },
+    {
+      "lane": "090-day2-communities-of-interest-maps",
+      "status": 0,
+      "codes": {},
+      "hashes": {
+        "snapback/schema.q": "a82193ebeff8c2c8de81a73f865e23be20001645ca4d17ebc58b6f4d5c2326ad"
+      }
+    },
+    {
+      "lane": "091-shot-list-coordination",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "9566cbe0f04c33dfb65e194b8df289ff44da74c4bfec32c0e42f7fb7cc0df807"
+      }
+    },
+    {
+      "lane": "092-day2-reef-bleaching-surveys",
+      "status": 0,
+      "codes": {
+        "N_SPARSE_FILTER": 2,
+        "N_NO_HORIZON": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "dd926612bc038cc3f91c6833a58e81a842456143ded8c3841d25facb6bae2733"
+      }
+    },
+    {
+      "lane": "093-conduct-incident-intake",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "ccf9ac2913ad1b6018d6636d02bb0e5306f687b5caeda275524f9189283c04c9"
+      }
+    },
+    {
+      "lane": "094-day2-maintainer-funding-splits",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 4
+      },
+      "hashes": {
+        "snapback/schema.q": "58ac1e3fcadf7cab908b939a5ccaeb670e40a2f6d589dee360255f760b059ccb"
+      }
+    },
+    {
+      "lane": "095-bowling-handicaps",
+      "status": 0,
+      "codes": {
+        "N_SPARSE_FILTER": 1,
+        "N_NO_CURSOR": 9,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "db732e3941a4609aebb9aafec4a5d4debdaf54d48b0020dd3e591b5684cf37c0"
+      }
+    },
+    {
+      "lane": "096-day2-award-nomination-committee",
+      "status": 0,
+      "codes": {
+        "N_SYNC_ORDER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "d055fa4cb02bc3462601098f99796983e46b2f33cf9a3df38c32dc99bc98c060"
+      }
+    },
+    {
+      "lane": "097-listener-voicemail",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 3,
+        "N_NO_PRODUCTION_WRITER": 1,
+        "N_SEARCH_WORDS": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "02238651a39c051dfc529959f40991d8ffd033370253f2a002a078a3a3737494"
+      }
+    },
+    {
+      "lane": "098-day2-stream-overlay-controls",
+      "status": 0,
+      "codes": {
+        "N_SYNC_ORDER": 3
+      },
+      "hashes": {
+        "snapback/schema.q": "de4e72ae8f3fb3b8176b3a7d21e9e7c15ad99f812d7544e5a466d23ebdcc69f4"
+      }
+    },
+    {
+      "lane": "099-pen-name-contest",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 1,
+        "N_WIDE_MERGE": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "hashes": {
+        "snapback/schema.q": "b8dc3bba03609bd191044962f83d8eb95ce2f6592d5e43ad329989a07f6a8e15"
+      }
+    },
+    {
+      "lane": "100-day2-derby-bout-lineups",
+      "status": 0,
+      "codes": {
+        "N_NO_CURSOR": 6
+      },
+      "hashes": {
+        "snapback/schema.q": "c82298efb168227c726fcc89301b004ba4927d6ebd8c1d57ed6d9d69c1eb260d"
+      }
+    }
+  ]
+}
