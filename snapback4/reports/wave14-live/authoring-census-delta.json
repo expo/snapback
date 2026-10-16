@@ -1,0 +1,10 @@
+{
+  "before": 810,
+  "after": 813,
+  "normalized_added": [
+    "card/rule-recipes/#:addLiveRosterFile | eligible",
+    "card/rule-recipes/#:addLiveRosterFile | liveRosterFiles/insert | {\"Or\":[{\"Exists\":{\"table\":\"liveDepartmentRoster\",\"index\":\"$intent:byDepartmentPrincipal:8d5f034b70aa33a7\",\"key\":[{\"Field\":\"$folder.department\"},\"Viewer\"],\"provenance\":\"Shape\"}},{\"Eq\":[\"Viewer\",{\"Literal\":{\"Id\":\"service:ops\"}}]}]} | read rule",
+    "card/rule-recipes/#:transferLiveRosterFolder | never"
+  ],
+  "normalized_removed": []
+}

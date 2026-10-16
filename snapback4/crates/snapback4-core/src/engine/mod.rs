@@ -1067,7 +1067,8 @@ impl Engine {
         let tx = self.store.transaction()?;
         let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
         let seq = tx.next_seq()?;
-        let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+        let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(if crate::schema::live::has_live(&self.schema) {Ceilings::job()}else{Ceilings::unbounded()}, Cut::Abort), seq);
+        if crate::schema::live::has_live(&self.schema) {runner.reserve_bulk_source(table)?;}
         let removed = match runner.delete(table, id) {
             Ok(()) => 1,
             Err(RuntimeError::Require { .. }) => 0,

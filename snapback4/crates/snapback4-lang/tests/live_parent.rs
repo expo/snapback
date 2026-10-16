@@ -402,6 +402,8 @@ fn complete_or_parent_rule_and_extra_probe_equalities_stay_live_online() {
     for who in ["bob", "carol", "dave"] {
         assert!(visible(&mut e, who));
     }
+    e.seed_delete("staff","s").unwrap();
+    assert!(!visible(&mut e,"carol"));assert!(visible(&mut e,"bob"));
     let bad = source.replace(
         "  role: enum('head', 'other')",
         "  role: enum('head', 'other')\n  until: time ?\n  expire at .until",
@@ -506,4 +508,17 @@ fn bulk_duplicate_images_replace_indexes_and_cap_failures_roll_back() {
     assert!(e.load_trusted(rows).is_err());
     assert!(visible(&mut e, "carol"));
     assert!(!visible(&mut e, "mallory"));
+}
+
+#[test]
+fn live_parent_deletion_cannot_cross_a_physical_child_lifetime() {
+    let source=SOURCE.replace("  update <- allow\n  sync", "  update <- allow\n  delete <- allow\n  sync");
+    let mut e=seeded(&source,"alice",false);
+    let out=e.mutate("removeProject",None,Context::new("alice",[("project".into(),Value::Id("p".into()))].into())).unwrap();
+    assert!(matches!(out.state,WriteState::Failed{ref why,..} if why.code=="E_PARENT_HAS_CHILDREN"),"{out:?}");
+    assert!(visible(&mut e,"alice"));
+    e.seed_delete("tasks","c").unwrap();e.seed_delete("projects","p").unwrap();
+    let rows=[("projects",json!({"id":"p","owner":"mallory"})),("tasks",json!({"id":"c","project":"p","body":"private"}))].into_iter()
+        .map(|(n,row)|(n.into(),wire::row_from_json(&e.schema().tables[n],&row).unwrap())).collect::<Vec<_>>();
+    e.seed(rows).unwrap();assert!(visible(&mut e,"mallory"));assert!(!visible(&mut e,"alice"));
 }
