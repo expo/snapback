@@ -1,0 +1,13 @@
+{
+  "builtApp": "/Users/ccheever/projects/snapback-ws-expopin/snapback4/target/expo-release271-final/Snapback4chat.app",
+  "installedApp": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/26672FD7-E3CA-4C1F-972D-696156FF4B02/data/Containers/Bundle/Application/E62ADAFF-8869-4C9E-865D-6BCA0F84C3BD/Snapback4chat.app",
+  "builtExecutableSha256": "c0640d9ddbc35fce80b5dacf3531dfce66bd7e12a4e26269f010ee6fb33d6bc0",
+  "installedExecutableSha256": "c0640d9ddbc35fce80b5dacf3531dfce66bd7e12a4e26269f010ee6fb33d6bc0",
+  "installedMatches": true,
+  "xcodeBuild": "27A9275",
+  "sdk": "iphonesimulator27.1",
+  "builtArchive": "/Users/ccheever/projects/snapback-ws-expopin/snapback4/packages/snapback4-expo/ios/Snapback4Device.xcframework/ios-arm64-simulator/libsnapback4_device.a",
+  "builtArchiveSha256": "072c373e29d081ab138f83f8ed2f466388bf8810466efcd880ddb008a8aeac27",
+  "linkedArchive": "/Users/ccheever/Library/Developer/Xcode/DerivedData/Snapback4chat-dbzcvofwdfnaekgohamhimvpgilm/Build/Products/Release-iphonesimulator/XCFrameworkIntermediates/Snapback4Expo/libsnapback4_device.a",
+  "linkedMatches": true
+}

@@ -1,9 +1,9 @@
 # Snapback 4: the pinned Expo SDK (57.0.22) does not build on Xcode 27.1 / iOS 27.1 SDK
 
-**Status:** Open
+**Status:** Resolved (2026-10-16)
 **Date:** 2026-10-16
 **Scope:** Snapback 4 `apps/chat-expo` Expo native witness, `snapback4-expo` qualification, Expo starters
-**Owner:** Unassigned
+**Owner:** EXPOPIN workstream
 
 ## Observation
 
@@ -64,3 +64,36 @@ the Xcode 27.1 SDK; update `bun.lock` and the starter templates; then qualify th
 Expo witness with `/Applications/Xcode.app` 27.1 (and keep a 27.0 run if older Xcode
 support is claimed). Drop the `~/Applications/Xcode-27.0.app` override from the
 publication kit once 27.1 passes.
+
+
+## Resolution — 2026-10-16
+
+Expo 57.0.30 / core 57.0.23, RN 0.86.3, Babel 57.0.16 and fingerprint
+0.20.14 now govern the reference application and every Expo starter. The native
+package declares the supported Expo floor and exact core development pin; the
+independent Bun lock is updated. The shared config plugin repairs
+[Expo's SDK-switch JSI cache bug](https://github.com/expo/expo/issues/50365) by
+including the selected Xcode build in the upstream hash. It is idempotent,
+refuses unknown script forms, and atomically replaces the script without
+mutating Bun's shared cache inode. Keep the existing scene lifecycle plugin.
+
+Current Xcode 27.1 (27A9275) builds the reference Release application with
+precompiled Expo modules and passes the publication's offline/restart witness.
+Fresh plain and social starters pass private own-Release smoke and web export.
+Xcode 27.0 builds and runs the same patched dependency tree, then the return
+to 27.1 passes. Receipts record each producing Xcode build and iOS SDK.
+The bounded adapter admits matching 27.0/27.1 pairs and the exact new Constants
+manifest phase; arbitrary scripts still refuse.
+
+Linux prepared-pack consumer proofs pass on the host, Ubuntu 24.04 and Alpine;
+client models, affected tests and guide checks pass. The canonical client pool's
+only red was a legacy scene-unit mock; its corrected full-file rerun passes.
+The original failed pool record is retained, alongside the passing rerun.
+Unrelated root caps/missing generated Snapback 1 artifact checks are disclosed.
+
+Implementation: 507edf88ce, db99df07e8, d21839d9d7, 2cd9965ef6; test fixture
+followup 526e4042ce. Full commands, artifact integrities, attempts, upstream
+issue text and provenance: [EXPOPIN report](../../snapback4/reports/20261016-expopin/REPORT.md).
+
+No version bump or push; Integration 14 owns 0.4.30 and publication. No
+publication worktree or older Xcode installation was modified.
