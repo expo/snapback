@@ -73,9 +73,11 @@ const client={mutate:async(op,args)=>{window.writes++;return {state:'sent',id:'w
 const app={client,mutate:(...args)=>client.mutate(...args),ready:new URLSearchParams(location.search).has('unready')?new Promise(()=>{}):Promise.resolve({ok:true})};
 window.app=app;window.mode='claim';registerWebWitness(app,{add:op});
 document.querySelector('button').onclick=event=>{
+  if(window.mode==='stale') return window.staleClaim(op,{});
   if(window.mode==='wrong') return app.mutate(op,{secret:'must not enter proof logs'});
   if(window.mode==='nothing') return;
   return witnessForm(app,event,async mutate=>{
+    window.lastClaim=mutate;
     const uploaded=await client.upload();
     if(window.mode==='competing') await app.mutate(op,{});
     return mutate(op,{});
@@ -87,7 +89,7 @@ document.querySelector('button').onclick=event=>{
   const arm=()=>page.evaluate(()=>window.__snapback4Witness.beginForm('add',{},document.querySelector('button')));
   await arm(); await page.getByRole('button').click();
   assert.equal((await page.evaluate(()=>window.__snapback4Witness.formResult())).state,'sent');
-  await page.evaluate(()=>window.delay=2200);await arm();await page.getByRole('button').click();
+  await page.evaluate(()=>{window.staleClaim=window.lastClaim;window.delay=2200;});await arm();await page.getByRole('button').click();
   await page.waitForTimeout(100);await page.getByRole('button').click();
   assert.equal((await page.evaluate(()=>window.__snapback4Witness.formResult())).state,'sent','second click does not reinstall a no-write timer');
   await page.waitForFunction(()=>window.writes===3);await page.evaluate(()=>window.delay=1100);
@@ -101,6 +103,8 @@ document.querySelector('button').onclick=event=>{
   await page.evaluate(()=>{window.old=window.__snapback4Witness.formResult();window.__snapback4Witness.beginForm('add',{},document.querySelector('button'));});
   assert.equal((await page.evaluate(()=>window.old)).why.code,'E_WITNESS_NO_WRITE');
   assert.equal((await page.evaluate(()=>window.__snapback4Witness.formResult())).why.reason,'event');
+  await page.evaluate(()=>window.mode='stale');await arm();await page.getByRole('button').click();
+  assert.equal((await page.evaluate(()=>window.__snapback4Witness.formResult())).why.reason,'event','an old closure cannot borrow a new trusted click');
   await page.goto(host.url+'/?witness=web&unready=1');await page.waitForFunction(()=>window.__snapback4Witness);
   await page.evaluate(()=>window.mode='nothing');await arm();await page.getByRole('button').click();
   assert.equal((await page.evaluate(()=>window.__snapback4Witness.formResult())).why.reason,'not-ready');

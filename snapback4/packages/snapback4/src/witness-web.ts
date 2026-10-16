@@ -4,6 +4,8 @@ import type { Mutation, Write } from "./contract.js";
 
 export type WitnessReason = "not-ready" | "returned-early" | "event" | "arguments";
 
+const handlerClaim = Symbol("witness explicit handler claim");
+
 type Operations = Record<string, unknown>;
 export function registerWebWitness(app: App, api: Operations): void {
   if (typeof window === "undefined" || typeof window.location?.search !== "string") return;
@@ -71,8 +73,9 @@ export function registerWebWitness(app: App, api: Operations): void {
         ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical((value as Record<string, unknown>)[key])])) : value;
       const execute = async (original: Function, receiver: unknown, op: Mutation<any, any>, args: Record<string, unknown>, options?: any): Promise<Write> => {
         const durable = operations.some(value => (value as Mutation<any, any>).name === op.name);
-        const eventMatches = !!click && (window.event === click || (!!submit && window.event === submit))
-          || handlerClaimed && options?.[handlerToken] === true;
+        const eventMatches = options?.[handlerClaim] !== undefined
+          ? handlerClaimed && options[handlerClaim] === handlerToken
+          : !!click && (window.event === click || (!!submit && window.event === submit));
         const argsMatch = expected == null || JSON.stringify(canonical(expected)) === JSON.stringify(canonical(args));
         const eligible = !claimed && eventMatches && !options?.[outsideClick] && durable && (!name || name === op.name) && argsMatch;
         let forwarded = options;
@@ -123,7 +126,7 @@ export function registerWebWitness(app: App, api: Operations): void {
         handlerClaimed = true; clearTimeout(noWriteTimer);
         return {
           mutate: ((op: Mutation<any, any>, args: Record<string, unknown>, options?: any) =>
-            app.mutate(op, args, { ...options, [handlerToken]: true })) as App["mutate"],
+            app.mutate(op, args, { ...options, [handlerClaim]: handlerToken })) as App["mutate"],
           done: () => { if (!claimed) noWrite(); },
         };
       };

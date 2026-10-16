@@ -1122,12 +1122,12 @@ fn kit3_large_clock_report_uses_complete_http_and_runnable_no_argument_commands(
     let f = Fixture::new("kit3-large-report");
     let host = f.start(&["dev", "--no-watch"]);
     let port = host.address.rsplit(':').next().unwrap();
-    let output = f.command(&["clock", "advance", "1000m", "--port", port]);
+    let output = f.command(&["clock", "advance", "2000m", "--port", port]);
     assert!(output.stdout.len() > 65_536, "fixture must exercise the former transport ceiling");
     let reply = output_json(output);
-    assert_eq!(reply["advancedMs"], 60_000_000);
+    assert_eq!(reply["advancedMs"], 120_000_000);
     let skipped = reply["schedules"][0]["skippedBoundaries"].as_array().unwrap();
-    assert_eq!(skipped.len(), 499);
+    assert_eq!(skipped.len(), 999);
     assert_eq!(skipped[0]["command"], "snapback4 run tick '{}'");
     let replay = f.command(&["run", "tick", "{}"]);
     assert!(replay.status.success(), "{}", String::from_utf8_lossy(&replay.stderr));
@@ -1155,4 +1155,19 @@ fn kit3_http_transitive_opening_dependencies_ignore_never_live_worlds() {
         paired.push(json!({"data":reply["data"],"complete":reply["complete"],"meter":reply["meter"]}));
     }
     assert_eq!(paired[0], paired[1], "never-live occupants change neither answer nor query meter");
+}
+
+#[test]
+fn kit3_retained_search_overlap_waits_for_the_same_pending_publication() {
+    let f = Fixture::new("kit3-retained-opening");
+    fs::write(f.0.join("snapback/schema.q"), "use personas alice\ntable notes:\n  opens: time\n  body: text <=100\n  search body\n  not before .opens\n  public 'timed search fixture'\n  online only\nquery search(q: text <=100, c: cursor ?):\n  return notes matching q first 10 by .id after c\nquery clock():\n  return now\n").unwrap();
+    let host = f.start(&["dev", "--no-watch"]);
+    let now = host.query("clock").as_i64().unwrap();
+    let rows: Vec<_> = (0..8).map(|n| json!({"table":"notes","row":{"id":format!("n{n}"),"opens":now+1000,"body":"coffee"}})).collect();
+    let seeded = host.post("/seed", json!(rows)); assert!(seeded.get("denied").is_none(), "{seeded}");
+    host.post("/dev/clock/advance", json!({"duration":"2s"}));
+    let reply = host.post("/q/search", json!({"args":{"q":"coffee","c":null},"searchRetained":["n7"]}));
+    assert!(reply.get("denied").is_none() && reply.get("loading").is_none(), "{reply}");
+    assert_eq!(reply["data"].as_array().unwrap().len(), 8, "{reply}");
+    assert_eq!(reply["searchCurrent"], json!(["n7"]));
 }

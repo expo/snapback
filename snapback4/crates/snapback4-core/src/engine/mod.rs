@@ -790,8 +790,12 @@ impl Engine {
                 .ok_or_else(|| {
                     RuntimeError::Input("this query does not support retained search overlap".into())
                 })?;
-            *_current = Some(runner.search_overlap(&descriptor, ids)?);
-            if let Some((order, _)) = &runner.context.search_retained_order {
+            *_current = match runner.search_overlap(&descriptor, ids) {
+                Ok(current) => Some(current),
+                Err(RuntimeError::TimeAudiencePending) => { runner.query_unavailable = true; None },
+                Err(error) => return Err(error.into()),
+            };
+            if !runner.query_unavailable && let Some((order, _)) = &runner.context.search_retained_order {
                 if order.len() != ids.len() { return Err(RuntimeError::Input("retained search keys must match candidate IDs".into()).into()); }
                 let current: std::collections::BTreeSet<_> = _current.as_ref().unwrap().iter().collect();
                 runner.meter.heap((ids.len() * 160) as u64)?;
@@ -799,14 +803,14 @@ impl Engine {
                 runner.context.search_retained_candidates = ids.iter().zip(order).map(|(id, at)| (id.clone(), *at, current.contains(id))).collect();
             }
         }
-        let data = match runner.run_server_query(&program) {
+        let data = if runner.query_unavailable { Value::Null } else { match runner.run_server_query(&program) {
             Ok(value) => value,
             Err(RuntimeError::TimeAudiencePending) => {
                 runner.query_unavailable = true;
                 Value::Null
             }
             Err(error) => return Err(error.into()),
-        };
+        } };
         runner.charge_output(&data)?;
         let next = if runner.query_unavailable { None } else { runner.outcome_next_cursor()? };
         // `complete` is a class, not a count: a query with a scan the prefix
