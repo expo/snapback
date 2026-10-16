@@ -1,0 +1,113 @@
+
+added 6 packages in 8s
+init: wrote 20 files in . — Vite + React todos, offline-capable — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+[1mnpm install[0m
+
+added 26 packages in 6s
+check: ok — 1 table (1 synced), 4 operations, no problems, 19.1 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+vite v8.3.0 building client environment for production...
+transforming...
+✓ 135 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    0.44 kB │ gzip:   0.28 kB
+dist/assets/web-worker-entry-CtDbjH9M.js          25.02 kB
+dist/assets/snapback4_device_bg-GqeogKaG.wasm  2,353.73 kB │ gzip: 729.07 kB
+dist/assets/index-D1mLdyLc.css                     0.36 kB │ gzip:   0.24 kB
+dist/assets/index-pVp-RKae.js                    591.32 kB │ gzip: 188.18 kB
+
+✓ built in 845ms
+web-shell: 6 files at /; wrote snapback4-sw.js
+
+> snapback4-web-starter@0.1.0 frontend:proof
+> node scripts/frontend-proof.mjs
+
+frontend:proof passed
+
+> snapback4-web-starter@0.1.0 day2:proof
+> node scripts/day2-proof.mjs versions/v1.q versions/v2.q
+
+day2:proof passed: deploy, hot upgrade, rollback and forward; sources unchanged
+
+> snapback4-web-starter@0.1.0 frontend:proof
+> node scripts/frontend-proof.mjs
+
+frontend:proof passed
+
+> snapback4-web-starter@0.1.0 day2:proof
+> node scripts/day2-proof.mjs versions/v1.q versions/v2.q
+
+day2:proof passed: deploy, hot upgrade, rollback and forward; sources unchanged
+
+added 6 packages in 4s
+init: wrote 21 files in . — Expo todos: native when available, online in Expo Go — next: `npm install`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, metro-wasm-transformer.cjs, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, native-smoke.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, versions/{v1.q, v2.q}, scripts/{frontend-proof.mjs, day2-proof.mjs, launch.mjs}
+init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together
+[1mnpm install[0m
+
+added 502 packages in 15s
+check: ok — 1 table (1 synced), 4 operations, no problems, 9.0 ms
+check --verbose for explanations, rewrites and execution details; why <op> for one operation
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+| (node:3322834) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+| (node:3322834) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+| (Use `node --trace-warnings ...` to show where the warning was created)
+Web Bundled 9868ms index.js (329 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.ed66732008423212c7166e96391fc760.wasm (2.4MB)
+
+› web bundles (2):
+_expo/static/js/web/index-0b5e4ff65e0fb1a0bfad8b7c4bea449e.js (840KB)
+_expo/static/js/web/web-worker-entry-099a6e1ca5735bcf4ac8304f781b7993.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 5 files at /; wrote snapback4-sw.js
+
+> snapback4-expo-starter@0.0.1 frontend:proof
+> node scripts/frontend-proof.mjs
+
+frontend:proof passed
+
+> snapback4-expo-starter@0.0.1 day2:proof
+> node scripts/day2-proof.mjs versions/v1.q versions/v2.q
+
+day2:proof passed: deploy, hot upgrade, rollback and forward; sources unchanged
+
+> snapback4-expo-starter@0.0.1 frontend:proof
+> node scripts/frontend-proof.mjs
+
+frontend:proof passed
+
+> snapback4-expo-starter@0.0.1 day2:proof
+> node scripts/day2-proof.mjs versions/v1.q versions/v2.q
+
+day2:proof passed: deploy, hot upgrade, rollback and forward; sources unchanged
+[{"kind":"web","proof":"frontend:proof","attempt":1,"status":"passed","elapsedMs":2331},{"kind":"web","proof":"day2:proof","attempt":1,"status":"passed","elapsedMs":1155},{"kind":"web","proof":"frontend:proof","attempt":2,"status":"passed","elapsedMs":2198},{"kind":"web","proof":"day2:proof","attempt":2,"status":"passed","elapsedMs":1085},{"kind":"expo","proof":"frontend:proof","attempt":1,"status":"passed","elapsedMs":2792},{"kind":"expo","proof":"day2:proof","attempt":1,"status":"passed","elapsedMs":1238},{"kind":"expo","proof":"frontend:proof","attempt":2,"status":"passed","elapsedMs":2626},{"kind":"expo","proof":"day2:proof","attempt":2,"status":"passed","elapsedMs":1017}]

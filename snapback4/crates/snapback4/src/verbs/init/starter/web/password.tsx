@@ -1,12 +1,14 @@
 import { useState } from "react";
-import { AppProvider, useAuth } from "snapback4/react";
+import { AppProvider, useAuth, useAppReady } from "snapback4/react";
 import { app } from "./client.ts";
 
 export function App() { return <AppProvider app={app}><Account /></AppProvider>; }
 function Account() {
   const auth = useAuth();
+  const ready = useAppReady();
   const [email, setEmail] = useState(""), [password, setPassword] = useState(""), [problem, setProblem] = useState(""), [busy, setBusy] = useState(false);
   if (auth.state === "restoring") return <p>Restoring your session…</p>;
+  if (auth.state === "signed-in" && !ready) return <p>{auth.why?.message ?? "Opening…"}</p>;
   if (auth.state === "signed-in") return <Todos />;
   async function submit(signup: boolean) {
     setBusy(true); setProblem("");

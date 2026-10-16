@@ -1,0 +1,38 @@
+✖ H9 renderedText opts into substring matching for a row with more than the needle (611.042973ms)
+✖ H9 P12 a trusted click that writes nothing settles E_WITNESS_NO_WRITE and rearming settles the old promise (3098.665968ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3776.908306
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/proof-contract.test.mjs:17:1
+✖ H9 renderedText opts into substring matching for a row with more than the needle (611.042973ms)
+  AssertionError [ERR_ASSERTION]: explicit substring matches the whole rendered row
+  
+  0 !== 1
+  
+      at file:///home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/proof-contract.test.mjs:22:10
+      at async Module.withBrowser (file:///tmp/kit2-work/baseline-dist/proof.js:156:20)
+      at async browser (file:///home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/proof-contract.test.mjs:15:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at snapback4/packages/snapback4/test/proof-contract.test.mjs:28:1
+✖ H9 P12 a trusted click that writes nothing settles E_WITNESS_NO_WRITE and rearming settles the old promise (3098.665968ms)
+  Error: no-write result timed out after 2500 ms
+      at Timeout.<anonymous> (file:///tmp/kit2-work/baseline-dist/proof-process.js:27:49)
+      at listOnTimeout (node:internal/timers:605:17)
+      at process.processTimers (node:internal/timers:541:7)

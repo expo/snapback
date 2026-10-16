@@ -1,0 +1,2094 @@
+-- client file start: packages/snapback4/test/proof.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/proof-contract.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/wave10-witness.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/wave12-kit.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: H8 custom-schema generated proof refuses success without a write
+ok 1 - H8 custom-schema generated proof refuses success without a write
+  ---
+  duration_ms: 1286.224297
+  type: 'test'
+  ...
+# Subtest: H8 withBrowser honors caller Playwright
+ok 2 - H8 withBrowser honors caller Playwright
+  ---
+  duration_ms: 154.454282
+  type: 'test'
+  ...
+# Subtest: H8 withBrowser opens no TCP listener
+ok 3 - H8 withBrowser opens no TCP listener
+  ---
+  duration_ms: 157.140164
+  type: 'test'
+  ...
+# Subtest: H8 witness claims the trusted button form submit, preserving canonical null arguments
+ok 4 - H8 witness claims the trusted button form submit, preserving canonical null arguments
+  ---
+  duration_ms: 695.47439
+  type: 'test'
+  ...
+# Subtest: init preserves package identity, reports current range, and adapt is read-only by default
+ok 5 - init preserves package identity, reports current range, and adapt is read-only by default
+  ---
+  duration_ms: 91.731926
+  type: 'test'
+  ...
+# Subtest: proof.cli runs JS wrapper verbs
+ok 6 - proof.cli runs JS wrapper verbs
+  ---
+  duration_ms: 41.114246
+  type: 'test'
+  ...
+# Subtest: rendered evidence excludes textareas and scopes freshness; frontPage activates
+ok 7 - rendered evidence excludes textareas and scopes freshness; frontPage activates
+  ---
+  duration_ms: 321.22538
+  type: 'test'
+  ...
+# Subtest: unclaimable events, operations and arguments settle with reasons; pending is never terminal
+ok 8 - unclaimable events, operations and arguments settle with reasons; pending is never terminal
+  ---
+  duration_ms: 2.563187
+  type: 'test'
+  ...
+# Subtest: day2 caller source arguments override npm defaults and malformed argument lists refuse
+ok 9 - day2 caller source arguments override npm defaults and malformed argument lists refuse
+  ---
+  duration_ms: 104.69399
+  type: 'test'
+  ...
+# Subtest: adapt migrates recognized legacy literal scripts/config and preserves explicit defaults
+ok 10 - adapt migrates recognized legacy literal scripts/config and preserves explicit defaults
+  ---
+  duration_ms: 52.009989
+  type: 'test'
+  ...
+# Subtest: single-port ranges remain valid for schema-only init; UI init refuses before writes
+ok 11 - single-port ranges remain valid for schema-only init; UI init refuses before writes
+  ---
+  duration_ms: 14.315065
+  type: 'test'
+  ...
+# Subtest: native window aliases without a browser location do not install a web witness
+ok 12 - native window aliases without a browser location do not install a web witness
+  ---
+  duration_ms: 0.945899
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3169.92456
+-- process inspection: {"snapshots":3,"unrelatedRows":3744}
+-- client file ok: packages/snapback4/test/wave12-kit.test.mjs (3485 ms)
+-- client file start: packages/snapback4/test/kit2-client-react.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: H9 renderedText opts into substring matching for a row with more than the needle
+ok 1 - H9 renderedText opts into substring matching for a row with more than the needle
+  ---
+  duration_ms: 2653.187818
+  type: 'test'
+  ...
+# Subtest: H9 P12 a trusted click that writes nothing settles E_WITNESS_NO_WRITE and rearming settles the old promise
+ok 2 - H9 P12 a trusted click that writes nothing settles E_WITNESS_NO_WRITE and rearming settles the old promise
+  ---
+  duration_ms: 1609.643041
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4343.344167
+-- process inspection: {"snapshots":3,"unrelatedRows":3806}
+-- client file ok: packages/snapback4/test/proof-contract.test.mjs (4636 ms)
+-- client file start: packages/snapback4/test/read-types.test.mjs; stall bound 900000 ms
+TAP version 13
+# 2:19:55 PM [vite] (client) [console.error] An update to StaffWorkspace inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:19:55 PM [vite] (client) [console.error] An update to StaffWorkspace inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:19:55 PM [vite] (client) [console.error] An update to Login inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# Subtest: published role/release form preserves drafts and selection; revocation gates reads and writes; accounts reset state
+ok 1 - published role/release form preserves drafts and selection; revocation gates reads and writes; accounts reset state
+  ---
+  duration_ms: 1111.224441
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1203.424289
+-- process inspection: {"snapshots":3,"unrelatedRows":3737}
+-- client file ok: packages/snapback4/test/kit2-client-react.test.mjs (1494 ms)
+-- client file start: packages/snapback4/test/wave11-guide-types.test.mjs; stall bound 900000 ms
+
+TEST_FILE_LEAK: packages/snapback4/test/proof.test.mjs; 8697 ms elapsed; stall bound 900000 ms; 60 ms without progress; last progress test:complete: /home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/proof.test.mjs
+last output:
+TAP version 13
+# Subtest: runtime port range is inclusive, validated, and never cached
+ok 1 - runtime port range is inclusive, validated, and never cached
+  ---
+  duration_ms: 1.127002
+  type: 'test'
+  ...
+# Subtest: native and static bind beyond an occupied port; identity and independent logs
+ok 2 - native and static bind beyond an occupied port; identity and independent logs
+  ---
+  duration_ms: 158.01046
+  type: 'test'
+  ...
+# Subtest: exhausted range and missing export fail with bounded cleanup
+ok 3 - exhausted range and missing export fail with bounded cleanup
+  ---
+  duration_ms: 266.839546
+  type: 'test'
+  ...
+# Subtest: static host serves wasm correctly and refuses escaped symlink assets
+ok 4 - static host serves wasm correctly and refuses escaped symlink assets
+  ---
+  duration_ms: 105.030365
+  type: 'test'
+  ...
+# Subtest: saved-source deploy, preview, hot forward, rollback and fixture test never change working bytes
+ok 5 - saved-source deploy, preview, hot forward, rollback and fixture test never change working bytes
+  ---
+  duration_ms: 537.165874
+  type: 'test'
+  ...
+# Subtest: cli awaits close, separates output and returns refusal status
+ok 6 - cli awaits close, separates output and returns refusal status
+  ---
+  duration_ms: 84.006271
+  type: 'test'
+  ...
+# Subtest: ANSI and blank ready lines, early exit, stalled readiness and TERM escalation
+ok 7 - ANSI and blank ready lines, early exit, stalled readiness and TERM escalation
+  ---
+  duration_ms: 168.31166
+  type: 'test'
+  ...
+# Subtest: cleanup bounds stalled actions and continues after errors
+ok 8 - cleanup bounds stalled actions and continues after errors
+  ---
+  duration_ms: 41.696911
+  type: 'test'
+  ...
+# Subtest: exit sweep kills registered child, not a neighboring child
+ok 9 - exit sweep kills registered child, not a neighboring child
+  ---
+  duration_ms: 62.365231
+  type: 'test'
+  ...
+# Subtest: Vite uses the project's config and bound identity
+ok 10 - Vite uses the project's config and bound identity
+  ---
+  duration_ms: 345.408995
+  type: 'test'
+  ...
+# Subtest: browser helpers use fresh text, stable values and RN keystrokes
+ok 11 - browser helpers use fresh text, stable values and RN keystrokes
+  ---
+  duration_ms: 542.583764
+  type: 'test'
+  ...
+# Subtest: SIGKILLed driver closes frontend liveness and sweeps its whole private group
+ok 12 - SIGKILLed driver closes frontend liveness and sweeps its whole private group
+  ---
+  duration_ms: 212.478758
+  type: 'test'
+  ...
+# Subtest: saved schemas typecheck server companions against private candidate API without replacing working types
+ok 13 - saved schemas typecheck server companions against private candidate API without replacing working types
+  ---
+  duration_ms: 3336.706907
+  type: 'test'
+  ...
+# Subtest: ready PID and served marker mismatches refuse instead of adopting another identity
+ok 14 - ready PID and served marker mismatches refuse instead of adopting another identity
+  ---
+  duration_ms: 119.762023
+  type: 'test'
+  ...
+# Subtest: secret stdout stays in memory; token CLI automatically selects secret capture
+ok 15 - secret stdout stays in memory; token CLI automatically selects secret capture
+  ---
+  duration_ms: 86.13884
+  type: 'test'
+  ...
+# Subtest: startDev args preserve memory isolation unless a store is explicit
+ok 16 - startDev args preserve memory isolation unless a store is explicit
+  ---
+  duration_ms: 338.656107
+  type: 'test'
+  ...
+# Subtest: waitForServer waits for authoritative projection and diagnoses unchanged truth
+ok 17 - waitForServer waits for authoritative projection and diagnoses unchanged truth
+  ---
+  duration_ms: 152.552697
+  type: 'test'
+  ...
+# Subtest: proof browser navigation arms witness before application registration
+ok 18 - proof browser navigation arms witness before application registration
+  ---
+  duration_ms: 353.105243
+  type: 'test'
+  ...
+# Subtest: --no-memory is consumed by the kit and retains dev rows across restarts
+ok 19 - --no-memory is consumed by the kit and retains dev rows across restarts
+  ---
+  duration_ms: 277.068915
+  type: 'test'
+  ...
+# Subtest: proof witness injection survives HTTP redirect destinations
+ok 20 - proof witness injection survives HTTP redirect destinations
+  ---
+  duration_ms: 247.26919
+  type: 'test'
+  ...
+# Subtest: secret capture releases its pipe when an exited tool leaves a descendant holding stdout
+ok 21 - secret capture releases its pipe when an exited tool leaves a descendant holding stdout
+  ---
+  duration_ms: 1044.977107
+  type: 'test'
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 21
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8583.267151
+
+owned processes: []
+TAP version 13
+# Subtest: runtime port range is inclusive, validated, and never cached
+ok 1 - runtime port range is inclusive, validated, and never cached
+  ---
+  duration_ms: 1.127002
+  type: 'test'
+  ...
+# Subtest: native and static bind beyond an occupied port; identity and independent logs
+ok 2 - native and static bind beyond an occupied port; identity and independent logs
+  ---
+  duration_ms: 158.01046
+  type: 'test'
+  ...
+# Subtest: exhausted range and missing export fail with bounded cleanup
+ok 3 - exhausted range and missing export fail with bounded cleanup
+  ---
+  duration_ms: 266.839546
+  type: 'test'
+  ...
+# Subtest: static host serves wasm correctly and refuses escaped symlink assets
+ok 4 - static host serves wasm correctly and refuses escaped symlink assets
+  ---
+  duration_ms: 105.030365
+  type: 'test'
+  ...
+# Subtest: saved-source deploy, preview, hot forward, rollback and fixture test never change working bytes
+ok 5 - saved-source deploy, preview, hot forward, rollback and fixture test never change working bytes
+  ---
+  duration_ms: 537.165874
+  type: 'test'
+  ...
+# Subtest: cli awaits close, separates output and returns refusal status
+ok 6 - cli awaits close, separates output and returns refusal status
+  ---
+  duration_ms: 84.006271
+  type: 'test'
+  ...
+# Subtest: ANSI and blank ready lines, early exit, stalled readiness and TERM escalation
+ok 7 - ANSI and blank ready lines, early exit, stalled readiness and TERM escalation
+  ---
+  duration_ms: 168.31166
+  type: 'test'
+  ...
+# Subtest: cleanup bounds stalled actions and continues after errors
+ok 8 - cleanup bounds stalled actions and continues after errors
+  ---
+  duration_ms: 41.696911
+  type: 'test'
+  ...
+# Subtest: exit sweep kills registered child, not a neighboring child
+ok 9 - exit sweep kills registered child, not a neighboring child
+  ---
+  duration_ms: 62.365231
+  type: 'test'
+  ...
+# Subtest: Vite uses the project's config and bound identity
+ok 10 - Vite uses the project's config and bound identity
+  ---
+  duration_ms: 345.408995
+  type: 'test'
+  ...
+# Subtest: browser helpers use fresh text, stable values and RN keystrokes
+ok 11 - browser helpers use fresh text, stable values and RN keystrokes
+  ---
+  duration_ms: 542.583764
+  type: 'test'
+  ...
+# Subtest: SIGKILLed driver closes frontend liveness and sweeps its whole private group
+ok 12 - SIGKILLed driver closes frontend liveness and sweeps its whole private group
+  ---
+  duration_ms: 212.478758
+  type: 'test'
+  ...
+# Subtest: saved schemas typecheck server companions against private candidate API without replacing working types
+ok 13 - saved schemas typecheck server companions against private candidate API without replacing working types
+  ---
+  duration_ms: 3336.706907
+  type: 'test'
+  ...
+# Subtest: ready PID and served marker mismatches refuse instead of adopting another identity
+ok 14 - ready PID and served marker mismatches refuse instead of adopting another identity
+  ---
+  duration_ms: 119.762023
+  type: 'test'
+  ...
+# Subtest: secret stdout stays in memory; token CLI automatically selects secret capture
+ok 15 - secret stdout stays in memory; token CLI automatically selects secret capture
+  ---
+  duration_ms: 86.13884
+  type: 'test'
+  ...
+# Subtest: startDev args preserve memory isolation unless a store is explicit
+ok 16 - startDev args preserve memory isolation unless a store is explicit
+  ---
+  duration_ms: 338.656107
+  type: 'test'
+  ...
+# Subtest: waitForServer waits for authoritative projection and diagnoses unchanged truth
+ok 17 - waitForServer waits for authoritative projection and diagnoses unchanged truth
+  ---
+  duration_ms: 152.552697
+  type: 'test'
+  ...
+# Subtest: proof browser navigation arms witness before application registration
+ok 18 - proof browser navigation arms witness before application registration
+  ---
+  duration_ms: 353.105243
+  type: 'test'
+  ...
+# Subtest: --no-memory is consumed by the kit and retains dev rows across restarts
+ok 19 - --no-memory is consumed by the kit and retains dev rows across restarts
+  ---
+  duration_ms: 277.068915
+  type: 'test'
+  ...
+# Subtest: proof witness injection survives HTTP redirect destinations
+ok 20 - proof witness injection survives HTTP redirect destinations
+  ---
+  duration_ms: 247.26919
+  type: 'test'
+  ...
+# Subtest: secret capture releases its pipe when an exited tool leaves a descendant holding stdout
+ok 21 - secret capture releases its pipe when an exited tool leaves a descendant holding stdout
+  ---
+  duration_ms: 1044.977107
+  type: 'test'
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 21
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 8583.267151
+-- process inspection: {"snapshots":4,"unrelatedRows":4917}
+-- client file FAIL: packages/snapback4/test/proof.test.mjs (8915 ms)
+-- client file start: packages/snapback4/test/readme-examples.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: README TypeScript examples compile and call every public function
+ok 1 - README TypeScript examples compile and call every public function
+  ---
+  duration_ms: 3295.330737
+  type: 'test'
+  ...
+# 60 README blocks; 102 public functions; 3292.91 ms
+# Subtest: the React entry index names every function snapback4/react exports
+ok 2 - the React entry index names every function snapback4/react exports
+  ---
+  duration_ms: 1.701053
+  type: 'test'
+  ...
+# Subtest: Queries teach predicate reads and engine-chosen scope lanes
+ok 3 - Queries teach predicate reads and engine-chosen scope lanes
+  ---
+  duration_ms: 12.456735
+  type: 'test'
+  ...
+# Subtest: Expo Go README session store preserves encoded SecureStore keys and round-trips a session
+ok 4 - Expo Go README session store preserves encoded SecureStore keys and round-trips a session
+  ---
+  duration_ms: 17.612163
+  type: 'test'
+  ...
+# Subtest: W9a expiry client form drops deadlines locally and keeps null lifetimes
+ok 5 - W9a expiry client form drops deadlines locally and keeps null lifetimes
+  ---
+  duration_ms: 10.053369
+  type: 'test'
+  ...
+# Subtest: W10b typing guidance hides a short-lived server answer before the next answer
+ok 6 - W10b typing guidance hides a short-lived server answer before the next answer
+  ---
+  duration_ms: 7.832505
+  type: 'test'
+  ...
+# Subtest: client card composer clears after a fresh sent result and preserves concurrent edits
+ok 7 - client card composer clears after a fresh sent result and preserves concurrent edits
+  ---
+  duration_ms: 31.887307
+  type: 'test'
+  ...
+# Subtest: client card composer disables only denied or fresh non-revalidating absent membership
+ok 8 - client card composer disables only denied or fresh non-revalidating absent membership
+  ---
+  duration_ms: 17.305323
+  type: 'test'
+  ...
+# Subtest: profile screen waits for proven existence and uses each replacement
+ok 9 - profile screen waits for proven existence and uses each replacement
+  ---
+  duration_ms: 2.712901
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3885.105819
+-- process inspection: {"snapshots":3,"unrelatedRows":3723}
+-- client file ok: packages/snapback4/test/readme-examples.test.mjs (4159 ms)
+-- client file start: packages/snapback4/test/api-index.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: default web starter guest proves a visible labelled form and ships a favicon
+ok 1 - default web starter guest proves a visible labelled form and ships a favicon
+  ---
+  duration_ms: 3075.005481
+  type: 'test'
+  ...
+# Subtest: default web starter alice proves a visible labelled form and ships a favicon
+ok 2 - default web starter alice proves a visible labelled form and ships a favicon
+  ---
+  duration_ms: 4163.160585
+  type: 'test'
+  ...
+# Subtest: visible-form arming ignores old sent state, isolates the clicked mutation and cleans repeated observers
+ok 3 - visible-form arming ignores old sent state, isolates the clicked mutation and cleans repeated observers
+  ---
+  duration_ms: 2.4386
+  type: 'test'
+  ...
+# Subtest: form proof rejects matching background writes with a broken button
+ok 4 - form proof rejects matching background writes with a broken button
+  ---
+  duration_ms: 670.55351
+  type: 'test'
+  ...
+# Subtest: form proof accepts click-owned app mutation
+ok 5 - form proof accepts click-owned app mutation
+  ---
+  duration_ms: 677.056409
+  type: 'test'
+  ...
+# Subtest: a later background requestSubmit never inherits a broken button click
+ok 6 - a later background requestSubmit never inherits a broken button click
+  ---
+  duration_ms: 671.786048
+  type: 'test'
+  ...
+# Subtest: clicked dispatch provenance: microtask
+ok 7 - clicked dispatch provenance: microtask
+  ---
+  duration_ms: 655.649218
+  type: 'test'
+  ...
+# Subtest: clicked dispatch provenance: nested-submit
+ok 8 - clicked dispatch provenance: nested-submit
+  ---
+  duration_ms: 700.052189
+  type: 'test'
+  ...
+# Subtest: clicked dispatch provenance: script-click
+ok 9 - clicked dispatch provenance: script-click
+  ---
+  duration_ms: 744.590893
+  type: 'test'
+  ...
+# Subtest: clicked dispatch provenance: nested-script-click
+ok 10 - clicked dispatch provenance: nested-script-click
+  ---
+  duration_ms: 1661.37189
+  type: 'test'
+  ...
+# Subtest: unapproved App calls preserve supported options from prototypes, non-enumerable fields and private getters
+ok 11 - unapproved App calls preserve supported options from prototypes, non-enumerable fields and private getters
+  ---
+  duration_ms: 3.263558
+  type: 'test'
+  ...
+# Subtest: abandoned arms, rearmed pending writes and settlement deadlines release witness custody
+ok 12 - abandoned arms, rearmed pending writes and settlement deadlines release witness custody
+  ---
+  duration_ms: 2.341564
+  type: 'test'
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13142.259108
+-- process inspection: {"snapshots":3,"unrelatedRows":3690}
+-- client file ok: packages/snapback4/test/wave10-witness.test.mjs (13432 ms)
+-- client file start: packages/snapback4/test/react.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: guide api has a row for every subpath, and each name it lists is exported there
+ok 1 - guide api has a row for every subpath, and each name it lists is exported there
+  ---
+  duration_ms: 1121.15109
+  type: 'test'
+  ...
+# Subtest: guide api's Expo names are the Expo package's exports
+ok 2 - guide api's Expo names are the Expo package's exports
+  ---
+  duration_ms: 0.406711
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1507.319169
+-- process inspection: {"snapshots":3,"unrelatedRows":3714}
+-- client file ok: packages/snapback4/test/api-index.test.mjs (1778 ms)
+-- client file start: packages/snapback4/test/release-react.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: useRelease withdraws unavailable features across rollback and recovery while retaining the shell draft
+ok 1 - useRelease withdraws unavailable features across rollback and recovery while retaining the shell draft
+  ---
+  duration_ms: 1152.339384
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1242.59364
+-- process inspection: {"snapshots":3,"unrelatedRows":3723}
+-- client file ok: packages/snapback4/test/release-react.test.mjs (1520 ms)
+-- client file start: packages/snapback4/test/screen-lifetimes-react.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: journal storage listener belongs to the last shared owner
+ok 1 - journal storage listener belongs to the last shared owner
+  ---
+  duration_ms: 1.791819
+  type: 'test'
+  ...
+# Subtest: useSignedInViewer returns the signed-in viewer and refuses E_AUTH outside a signed-in gate
+ok 2 - useSignedInViewer returns the signed-in viewer and refuses E_AUTH outside a signed-in gate
+  ---
+  duration_ms: 28.474956
+  type: 'test'
+  ...
+# Subtest: React hooks and reference-app lifetimes
+    # Subtest: the receipts card leaves delivery to the SDK and never acquires catch-up pages by itself
+    ok 1 - the receipts card leaves delivery to the SDK and never acquires catch-up pages by itself
+      ---
+      duration_ms: 20.871354
+      type: 'test'
+      ...
+    # Subtest: the receipts card leaves delivery to the SDK and reports only visible settled rows
+    ok 2 - the receipts card leaves delivery to the SDK and reports only visible settled rows
+      ---
+      duration_ms: 10.96718
+      type: 'test'
+      ...
+    # Subtest: the receipts card requires current membership and resets on withdrawal and hidden remount
+    ok 3 - the receipts card requires current membership and resets on withdrawal and hidden remount
+      ---
+      duration_ms: 7.079085
+      type: 'test'
+      ...
+    # Subtest: useSeen shares two Strict Mode screens and obeys the explicit viewport on both hosts
+    ok 4 - useSeen shares two Strict Mode screens and obeys the explicit viewport on both hosts
+      ---
+      duration_ms: 3.286171
+      type: 'test'
+      ...
+    # Subtest: useNow hides a server-answered row at its deadline and after a clock advance
+    ok 5 - useNow hides a server-answered row at its deadline and after a clock advance
+      ---
+      duration_ms: 14.795125
+      type: 'test'
+      ...
+    # Subtest: AppProvider switches real clients, resets account state and routes existing mutation/query hooks
+    ok 6 - AppProvider switches real clients, resets account state and routes existing mutation/query hooks
+      ---
+      duration_ms: 71.604746
+      type: 'test'
+      ...
+    # Subtest: failed receipt saves settle pending-write hooks and stay settled after remount
+    ok 7 - failed receipt saves settle pending-write hooks and stay settled after remount
+      ---
+      duration_ms: 22.035751
+      type: 'test'
+      ...
+    # Subtest: two online owners notify both pending-write hooks when the shared journal settles once
+    ok 8 - two online owners notify both pending-write hooks when the shared journal settles once
+      ---
+      duration_ms: 292.675704
+      type: 'test'
+      ...
+    # Subtest: usePersonaApp opens one app per persona, closes the previous on switch and unmount, and never shows a stale app
+    ok 9 - usePersonaApp opens one app per persona, closes the previous on switch and unmount, and never shows a stale app
+      ---
+      duration_ms: 5.604832
+      type: 'test'
+      ...
+    # Subtest: skip: a skipped useQuery or usePage reads nothing and opens the read when skip turns off
+    ok 10 - skip: a skipped useQuery or usePage reads nothing and opens the read when skip turns off
+      ---
+      duration_ms: 4.473714
+      type: 'test'
+      ...
+    # Subtest: useQuery owns observations through Strict Mode, equivalent arguments and unmount
+    ok 11 - useQuery owns observations through Strict Mode, equivalent arguments and unmount
+      ---
+      duration_ms: 3.801966
+      type: 'test'
+      ...
+    # Subtest: useMutation passes admission options and saved identity; custody clears inFlight
+    ok 12 - useMutation passes admission options and saved identity; custody clears inFlight
+      ---
+      duration_ms: 3.862156
+      type: 'test'
+      ...
+    # Subtest: useMutation survives replay, rejection, concurrent writes and an obsolete lifetime
+    ok 13 - useMutation survives replay, rejection, concurrent writes and an obsolete lifetime
+      ---
+      duration_ms: 6.187316
+      type: 'test'
+      ...
+    # Subtest: useMutation terminal run survives unmount without query subscribers
+    ok 14 - useMutation terminal run survives unmount without query subscribers
+      ---
+      duration_ms: 3.052541
+      type: 'test'
+      ...
+    # Subtest: useMutation preserves fresh null and direct, queued and early replay receipts
+    ok 15 - useMutation preserves fresh null and direct, queued and early replay receipts
+      ---
+      duration_ms: 2.122065
+      type: 'test'
+      ...
+    # Subtest: W5c acquisition and pending writes survive remount, receipt races and client replacement
+    ok 16 - W5c acquisition and pending writes survive remount, receipt races and client replacement
+      ---
+      duration_ms: 3.940114
+      type: 'test'
+      ...
+    # Subtest: useAction tracks concurrent results, retry ids and obsolete lifetimes
+    ok 17 - useAction tracks concurrent results, retry ids and obsolete lifetimes
+      ---
+      duration_ms: 2.626111
+      type: 'test'
+      ...
+    # Subtest: useViewer subscribes and useAsset has empty and failed outcomes
+    ok 18 - useViewer subscribes and useAsset has empty and failed outcomes
+      ---
+      duration_ms: 3.192421
+      type: 'test'
+      ...
+    # Subtest: useAsset never commits a previous id, client or principal's handle
+    ok 19 - useAsset never commits a previous id, client or principal's handle
+      ---
+      duration_ms: 3.904179
+      type: 'test'
+      ...
+    # Subtest: unmounting one avatar hook preserves another hook for the same id
+    ok 20 - unmounting one avatar hook preserves another hook for the same id
+      ---
+      duration_ms: 6.434467
+      type: 'test'
+      ...
+    # Subtest: useAsset effect lifetime survives Activity and initial StrictMode replay
+    ok 21 - useAsset effect lifetime survives Activity and initial StrictMode replay
+      ---
+      duration_ms: 5.042287
+      type: 'test'
+      ...
+    # Subtest: useAsset recovers transport errors on focus and reconnect, never denials or consumed views
+    ok 22 - useAsset recovers transport errors on focus and reconnect, never denials or consumed views
+      ---
+      duration_ms: 7.321378
+      type: 'test'
+      ...
+    # Subtest: useAsset retains the empty stream diagnosis when a busy thread delivers both deadlines
+    ok 23 - useAsset retains the empty stream diagnosis when a busy thread delivers both deadlines
+      ---
+      duration_ms: 28.533624
+      type: 'test'
+      ...
+    # Subtest: useAsset retains the restart stream diagnosis when a busy thread delivers both deadlines
+    ok 24 - useAsset retains the restart stream diagnosis when a busy thread delivers both deadlines
+      ---
+      duration_ms: 31.998984
+      type: 'test'
+      ...
+    # Subtest: useAsset retains the partial stream diagnosis when a busy thread delivers both deadlines
+    ok 25 - useAsset retains the partial stream diagnosis when a busy thread delivers both deadlines
+      ---
+      duration_ms: 31.917852
+      type: 'test'
+      ...
+    # Subtest: useAsset diagnoses empty and restarted streams before abort, and opaque waits before expiry
+    ok 26 - useAsset diagnoses empty and restarted streams before abort, and opaque waits before expiry
+      ---
+      duration_ms: 12.979139
+      type: 'test'
+      ...
+    # Subtest: useAsset names a held session before any request and diagnoses it without replay
+    ok 27 - useAsset names a held session before any request and diagnoses it without replay
+      ---
+      duration_ms: 4.658181
+      type: 'test'
+      ...
+    # Subtest: useAsset converts a synchronous custom-reader throw into a typed error
+    ok 28 - useAsset converts a synchronous custom-reader throw into a typed error
+      ---
+      duration_ms: 2.836186
+      type: 'test'
+      ...
+    # Subtest: useAsset preserves real admission cooldown through focus and reconnect
+    ok 29 - useAsset preserves real admission cooldown through focus and reconnect
+      ---
+      duration_ms: 18.319113
+      type: 'test'
+      ...
+    # Subtest: useAsset remembers one recovery event while busy without looping
+    ok 30 - useAsset remembers one recovery event while busy without looping
+      ---
+      duration_ms: 3.195816
+      type: 'test'
+      ...
+    # Subtest: useAsset with a bearer before viewer discovery fetches only once
+    ok 31 - useAsset with a bearer before viewer discovery fetches only once
+      ---
+      duration_ms: 3.252711
+      type: 'test'
+      ...
+    # Subtest: usePage rebinds insertion, deletion and reorder boundaries and aggregates read state
+    ok 32 - usePage rebinds insertion, deletion and reorder boundaries and aggregates read state
+      ---
+      duration_ms: 5.496609
+      type: 'test'
+      ...
+    # Subtest: usePage keeps the oldest stale timestamp across fresh and stale pages
+    ok 33 - usePage keeps the oldest stale timestamp across fresh and stale pages
+      ---
+      duration_ms: 3.878691
+      type: 'test'
+      ...
+    # Subtest: keep hooks preserve loaded pages and an editor during re-reads, then accept refusal and reset
+    ok 34 - keep hooks preserve loaded pages and an editor during re-reads, then accept refusal and reset
+      ---
+      duration_ms: 88.30542
+      type: 'test'
+      ...
+    # Subtest: online observations clear pages during fetches and on unavailable settlement, refusal and close
+    ok 35 - online observations clear pages during fetches and on unavailable settlement, refusal and close
+      ---
+      duration_ms: 62.396606
+      type: 'test'
+      ...
+    # Subtest: usePage treats every non-array ready value as loading and keeps the earlier pages
+    ok 36 - usePage treats every non-array ready value as loading and keeps the earlier pages
+      ---
+      duration_ms: 11.578337
+      type: 'test'
+      ...
+    # Subtest: usePage keeps the ready prefix while replacing an in-flight suffix
+    ok 37 - usePage keeps the ready prefix while replacing an in-flight suffix
+      ---
+      duration_ms: 3.41129
+      type: 'test'
+      ...
+    # Subtest: usePage keeps loaded pages while another loads and withdraws them on a first-page reset
+    ok 38 - usePage keeps loaded pages while another loads and withdraws them on a first-page reset
+      ---
+      duration_ms: 7.903902
+      type: 'test'
+      ...
+    # Subtest: web app closes asynchronous opens before/after cleanup and ignores obsolete failures
+    ok 39 - web app closes asynchronous opens before/after cleanup and ignores obsolete failures
+      ---
+      duration_ms: 9.217354
+      type: 'test'
+      ...
+    # Subtest: Expo app closes asynchronous opens before/after cleanup and ignores obsolete failures
+    ok 40 - Expo app closes asynchronous opens before/after cleanup and ignores obsolete failures
+      ---
+      duration_ms: 9.417734
+      type: 'test'
+      ...
+    # Subtest: web sign-out reports completion only after durable clearing and offers retry on failure
+    ok 41 - web sign-out reports completion only after durable clearing and offers retry on failure
+      ---
+      duration_ms: 14.860823
+      type: 'test'
+      ...
+    # Subtest: useQuery lingering remount has data in its first committed render
+    ok 42 - useQuery lingering remount has data in its first committed render
+      ---
+      duration_ms: 15.382677
+      type: 'test'
+      ...
+    # Subtest: useQuery lingering remount has data in its first committed render through the app facade
+    ok 43 - useQuery lingering remount has data in its first committed render through the app facade
+      ---
+      duration_ms: 7.688329
+      type: 'test'
+      ...
+    # Subtest: usePage lingering remount has data in its first committed render
+    ok 44 - usePage lingering remount has data in its first committed render
+      ---
+      duration_ms: 6.933896
+      type: 'test'
+      ...
+    # Subtest: usePage lingering remount has data in its first committed render through the app facade
+    ok 45 - usePage lingering remount has data in its first committed render through the app facade
+      ---
+      duration_ms: 6.652294
+      type: 'test'
+      ...
+    # Subtest: useQuery createApp remount first commits the lingering answer during a held re-read
+    ok 46 - useQuery createApp remount first commits the lingering answer during a held re-read
+      ---
+      duration_ms: 22.392447
+      type: 'test'
+      ...
+    # Subtest: usePage createApp remount first commits the lingering answer during a held re-read
+    ok 47 - usePage createApp remount first commits the lingering answer during a held re-read
+      ---
+      duration_ms: 21.742732
+      type: 'test'
+      ...
+    # Subtest: web composer preserves edits, immediate failure and offline admission
+    ok 48 - web composer preserves edits, immediate failure and offline admission
+      ---
+      duration_ms: 36.102433
+      type: 'test'
+      ...
+    # Subtest: Expo composer preserves edits, immediate failure and offline admission
+    ok 49 - Expo composer preserves edits, immediate failure and offline admission
+      ---
+      duration_ms: 32.359576
+      type: 'test'
+      ...
+    # Subtest: web submit owns a fresh field and storage failure keeps the draft
+    ok 50 - web submit owns a fresh field and storage failure keeps the draft
+      ---
+      duration_ms: 4.939223
+      type: 'test'
+      ...
+    # Subtest: Expo submit owns a fresh field and storage failure keeps the draft
+    ok 51 - Expo submit owns a fresh field and storage failure keeps the draft
+      ---
+      duration_ms: 7.978164
+      type: 'test'
+      ...
+    # Subtest: Expo composer uses membership presence without losing its draft
+    ok 52 - Expo composer uses membership presence without losing its draft
+      ---
+      duration_ms: 7.68907
+      type: 'test'
+      ...
+    # Subtest: Expo observes every saved ID across reload, late refusal, unknown receipt and account switch
+    ok 53 - Expo observes every saved ID across reload, late refusal, unknown receipt and account switch
+      ---
+      duration_ms: 22.658226
+      type: 'test'
+      ...
+    # Subtest: Expo read gaps preserve the composer while hiding protected rows; inbox distinguishes empty and incomplete
+    ok 54 - Expo read gaps preserve the composer while hiding protected rows; inbox distinguishes empty and incomplete
+      ---
+      duration_ms: 11.782724
+      type: 'test'
+      ...
+    # Subtest: web composer fences old account callbacks and preserves saved write identities
+    ok 55 - web composer fences old account callbacks and preserves saved write identities
+      ---
+      duration_ms: 3.550118
+      type: 'test'
+      ...
+    # Subtest: receipt notifications read one pending list for ten thousand message hooks
+    ok 56 - receipt notifications read one pending list for ten thousand message hooks
+      ---
+      duration_ms: 462.605718
+      type: 'test'
+      ...
+    # Subtest: pending-write lists filter, update, fence old reads, and release StrictMode subscriptions
+    ok 57 - pending-write lists filter, update, fence old reads, and release StrictMode subscriptions
+      ---
+      duration_ms: 5.010279
+      type: 'test'
+      ...
+    # Subtest: web receipt labels separate admission, restoration and unknown; late refusal offers text
+    ok 58 - web receipt labels separate admission, restoration and unknown; late refusal offers text
+      ---
+      duration_ms: 5.159293
+      type: 'test'
+      ...
+    # Subtest: Expo receipt labels separate admission, restoration and unknown; late refusal offers text
+    ok 59 - Expo receipt labels separate admission, restoration and unknown; late refusal offers text
+      ---
+      duration_ms: 4.474235
+      type: 'test'
+      ...
+    # Subtest: saved write restoration ends on reject or live outcome and restarts for another id
+    ok 60 - saved write restoration ends on reject or live outcome and restarts for another id
+      ---
+      duration_ms: 1.879211
+      type: 'test'
+      ...
+    # Subtest: web room loading keeps the same input and legacy intents disclose missing text
+    ok 61 - web room loading keeps the same input and legacy intents disclose missing text
+      ---
+      duration_ms: 7.346085
+      type: 'test'
+      ...
+    # Subtest: pending items release unowned resource payloads without reloading unrelated pending writes
+    ok 62 - pending items release unowned resource payloads without reloading unrelated pending writes
+      ---
+      duration_ms: 14.75825
+      type: 'test'
+      ...
+    # Subtest: pending items online retirement: confirmed row retires success permanently
+    ok 63 - pending items online retirement: confirmed row retires success permanently
+      ---
+      duration_ms: 11.115682
+      type: 'test'
+      ...
+    # Subtest: pending items online retirement: prediction never retires success
+    ok 64 - pending items online retirement: prediction never retires success
+      ---
+      duration_ms: 10.626007
+      type: 'test'
+      ...
+    # Subtest: pending state uses covering read sequence when another writer supersedes success
+    ok 65 - pending state uses covering read sequence when another writer supersedes success
+      ---
+      duration_ms: 13.158719
+      type: 'test'
+      ...
+    # Subtest: pending state value equality without covering read evidence cannot retire success
+    ok 66 - pending state value equality without covering read evidence cannot retire success
+      ---
+      duration_ms: 10.533699
+      type: 'test'
+      ...
+    # Subtest: round2: pending state rejects a saved covering read after a real bearer reset
+    ok 67 - round2: pending state rejects a saved covering read after a real bearer reset
+      ---
+      duration_ms: 16.158952
+      type: 'test'
+      ...
+    # Subtest: shared online journal updates A's hook on B's admission and settlement after remount
+    ok 68 - shared online journal updates A's hook on B's admission and settlement after remount
+      ---
+      duration_ms: 26.562055
+      type: 'test'
+      ...
+# 2:20:07 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:07 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:07 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:07 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+    # Subtest: shared online journal invalidates pending hooks across browser tabs
+    ok 69 - shared online journal invalidates pending hooks across browser tabs
+      ---
+      duration_ms: 355.577998
+      type: 'test'
+      ...
+# 2:20:08 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+    # Subtest: closing the last journal owner during admission still invalidates another tab
+    ok 70 - closing the last journal owner during admission still invalidates another tab
+      ---
+      duration_ms: 270.932751
+      type: 'test'
+      ...
+# 2:20:08 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:08 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:08 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:08 PM [vite] (client) [console.error] An update to List inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+    # Subtest: clearing localStorage in another tab invalidates the journal hook
+    ok 71 - clearing localStorage in another tab invalidates the journal hook
+      ---
+      duration_ms: 248.079041
+      type: 'test'
+      ...
+    1..71
+ok 3 - React hooks and reference-app lifetimes
+  ---
+  duration_ms: 3782.865419
+  type: 'test'
+  ...
+1..3
+# tests 74
+# suites 0
+# pass 74
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4284.647464
+-- process inspection: {"snapshots":3,"unrelatedRows":3720}
+-- client file ok: packages/snapback4/test/react.test.mjs (4562 ms)
+-- client file start: packages/snapback4/test/read-presentation-react.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: client and production published TSX uses the typed Write union, state gates and both read fallbacks
+ok 1 - client and production published TSX uses the typed Write union, state gates and both read fallbacks
+  ---
+  duration_ms: 12536.837901
+  type: 'test'
+  ...
+# Subtest: packaged browser image capture narrows upload before placing its asset
+ok 2 - packaged browser image capture narrows upload before placing its asset
+  ---
+  duration_ms: 1720.438158
+  type: 'test'
+  ...
+# Subtest: the published production composer validates and clears only its fresh receipt draft
+ok 3 - the published production composer validates and clears only its fresh receipt draft
+  ---
+  duration_ms: 4.930459
+  type: 'test'
+  ...
+1..3
+# tests 3
+# suites 0
+# pass 3
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 14846.375656
+-- process inspection: {"snapshots":3,"unrelatedRows":3714}
+-- client file ok: packages/snapback4/test/wave11-guide-types.test.mjs (15130 ms)
+TAP version 13
+# Subtest: published Expo recipe: Strict Mode, withdrawal, denied membership, and account/resource/backend keys
+    # Subtest: published quote waits for point evidence, handles uncertainty, and withdraws protected text
+    ok 1 - published quote waits for point evidence, handles uncertainty, and withdraws protected text
+      ---
+      duration_ms: 170.437415
+      type: 'test'
+      ...
+    # Subtest: nonempty ready → loading removes protected content and preserves draft/focus
+    ok 2 - nonempty ready → loading removes protected content and preserves draft/focus
+      ---
+      duration_ms: 12.365969
+      type: 'test'
+      ...
+    # Subtest: nonempty ready → denied removes protected content and preserves draft/focus
+    ok 3 - nonempty ready → denied removes protected content and preserves draft/focus
+      ---
+      duration_ms: 12.035022
+      type: 'test'
+      ...
+    # Subtest: delayed admission cannot clear a deleted and retyped identical draft
+    ok 4 - delayed admission cannot clear a deleted and retyped identical draft
+      ---
+      duration_ms: 64.222355
+      type: 'test'
+      ...
+    # Subtest: admission refusal keeps submitted text available to edit without erasing the new draft
+    ok 5 - admission refusal keeps submitted text available to edit without erasing the new draft
+      ---
+      duration_ms: 87.887844
+      type: 'test'
+      ...
+    # Subtest: settlement refusal keeps submitted text available to edit without erasing the new draft
+    ok 6 - settlement refusal keeps submitted text available to edit without erasing the new draft
+      ---
+      duration_ms: 100.145951
+      type: 'test'
+      ...
+    1..6
+ok 1 - published Expo recipe: Strict Mode, withdrawal, denied membership, and account/resource/backend keys
+  ---
+  duration_ms: 1658.204065
+  type: 'test'
+  ...
+1..1
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2065.95311
+-- process inspection: {"snapshots":3,"unrelatedRows":3713}
+-- client file ok: packages/snapback4/test/read-presentation-react.test.mjs (2341 ms)
+TAP version 13
+# L1-L3 mounted measurements {"recipe":{"observations":22,"owners":23,"points":20,"rows":0,"history":1,"opens":46,"closes":23},"hidden":{"observations":0,"owners":0,"points":0,"rows":0,"history":0,"opens":174,"closes":174}}
+# Subtest: screen recipe: Strict Mode, bounded owners, scope resets, neutral placeholders and sibling cleanup
+ok 1 - screen recipe: Strict Mode, bounded owners, scope resets, neutral placeholders and sibling cleanup
+  ---
+  duration_ms: 1782.194907
+  type: 'test'
+  ...
+# 2:20:10 PM [vite] (client) [console.error] An update to Conversation inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:10 PM [vite] (client) [console.error] An update to Conversation inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:10 PM [vite] (client) [console.error] An update to Conversation inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:10 PM [vite] (client) [console.error] An update to Conversation inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:10 PM [vite] (client) [console.error] An update to Conversation inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:10 PM [vite] (client) [console.error] An update to Conversation inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:10 PM [vite] (client) [console.error] An update to Conversation inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:10 PM [vite] (client) [console.error] An update to Conversation inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:10 PM [vite] (client) [console.error] An update to Conversation inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:10 PM [vite] (client) [console.error] An update to Conversation inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:10 PM [vite] (client) [console.error] An update to Conversation inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:10 PM [vite] (client) [console.error] An update to Conversation inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# Subtest: complete before conversation preserves edit across backgrounding
+ok 2 - complete before conversation preserves edit across backgrounding
+  ---
+  duration_ms: 1286.21619
+  type: 'test'
+  ...
+# 2:20:11 PM [vite] (client) [console.error] An update to Conversation inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# Subtest: complete before conversation preserves attachment across backgrounding
+ok 3 - complete before conversation preserves attachment across backgrounding
+  ---
+  duration_ms: 1144.944666
+  type: 'test'
+  ...
+# 2:20:13 PM [vite] (client) [console.error] An update to Conversation inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:13 PM [vite] (client) [console.error] An update to Conversation inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:13 PM [vite] (client) [console.error] An update to Conversation inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:13 PM [vite] (client) [console.error] An update to Conversation inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# Subtest: complete before conversation preserves refusal across backgrounding
+ok 4 - complete before conversation preserves refusal across backgrounding
+  ---
+  duration_ms: 1640.178213
+  type: 'test'
+  ...
+# 2:20:14 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:14 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:14 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:14 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:14 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:14 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:15 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:15 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:15 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:15 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:15 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:15 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# Subtest: complete after conversation preserves edit across backgrounding
+ok 5 - complete after conversation preserves edit across backgrounding
+  ---
+  duration_ms: 1648.287739
+  type: 'test'
+  ...
+# 2:20:16 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# Subtest: complete after conversation preserves attachment across backgrounding
+ok 6 - complete after conversation preserves attachment across backgrounding
+  ---
+  duration_ms: 1358.885379
+  type: 'test'
+  ...
+# 2:20:17 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:17 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:17 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:17 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# Subtest: complete after conversation preserves refusal across backgrounding
+ok 7 - complete after conversation preserves refusal across backgrounding
+  ---
+  duration_ms: 1480.408598
+  type: 'test'
+  ...
+# Subtest: bounded starter restores a refused send
+ok 8 - bounded starter restores a refused send
+  ---
+  duration_ms: 1235.88316
+  type: 'test'
+  ...
+# Subtest: bounded starter restores a refused send while hidden
+ok 9 - bounded starter restores a refused send while hidden
+  ---
+  duration_ms: 1223.712973
+  type: 'test'
+  ...
+# Subtest: recipe recovery is fenced by account, backend/client and conversation ownership
+ok 10 - recipe recovery is fenced by account, backend/client and conversation ownership
+  ---
+  duration_ms: 1352.234254
+  type: 'test'
+  ...
+# 2:20:22 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:22 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:23 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:23 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:23 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:23 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:23 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:23 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:23 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:23 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:23 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:23 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# Subtest: after recovery is fenced by account, backend/client and conversation ownership
+ok 11 - after recovery is fenced by account, backend/client and conversation ownership
+  ---
+  duration_ms: 1724.214264
+  type: 'test'
+  ...
+# Subtest: complete pilot quote jump mounts page 4 and scrolls without requesting a fifth page
+ok 12 - complete pilot quote jump mounts page 4 and scrolls without requesting a fifth page
+  ---
+  duration_ms: 1639.631569
+  type: 'test'
+  ...
+# 2:20:26 PM [vite] (client) [console.error] An update to OnceViewer inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# Subtest: real starter OnceViewer rechecks before consuming a selected photo
+ok 13 - real starter OnceViewer rechecks before consuming a selected photo
+  ---
+  duration_ms: 1399.729733
+  type: 'test'
+  ...
+# 2:20:27 PM [vite] (client) [console.error] An update to ConversationBody inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# Subtest: complete pilot removes an open photo in every commit across a coalesced generation withdrawal
+ok 14 - complete pilot removes an open photo in every commit across a coalesced generation withdrawal
+  ---
+  duration_ms: 1454.453819
+  type: 'test'
+  ...
+# 2:20:30 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:30 PM [vite] (client) [console.error] An update to ConversationDraft inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# Complete pilot measurements {"before":{"observations":407,"owners":806,"points":201,"rows":200,"history":1,"opens":1658,"closes":852},"after":{"observations":67,"owners":87,"points":41,"rows":20,"history":1,"opens":3433,"closes":3346},"afterWide":{"observations":127,"owners":167,"points":81,"rows":40,"history":1,"opens":3593,"closes":3426},"hidden":{"observations":0,"owners":0,"points":0,"rows":0,"history":0,"opens":3593,"closes":3593}}
+# Subtest: full pilot observations and owner resets are measured with mounted composer and rows
+ok 15 - full pilot observations and owner resets are measured with mounted composer and rows
+  ---
+  duration_ms: 2405.792943
+  type: 'test'
+  ...
+# 2:20:31 PM [vite] (client) [console.error] An update to ConversationBody inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:31 PM [vite] (client) [console.error] An update to ConversationBody inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:31 PM [vite] (client) [console.error] An update to ConversationBody inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:31 PM [vite] (client) [console.error] An update to ConversationBody inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:31 PM [vite] (client) [console.error] An update to StableMessage inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:31 PM [vite] (client) [console.error] An update to Bubble inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:31 PM [vite] (client) [console.error] An update to Bubble inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:31 PM [vite] (client) [console.error] An update to Bubble inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:31 PM [vite] (client) [console.error] An update to Bubble inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:31 PM [vite] (client) [console.error] An update to Bubble inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:31 PM [vite] (client) [console.error] An update to Bubble inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:31 PM [vite] (client) [console.error] An update to ConversationBody inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:31 PM [vite] (client) [console.error] An update to Bubble inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:31 PM [vite] (client) [console.error] An update to Bubble inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:31 PM [vite] (client) [console.error] An update to Bubble inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:32 PM [vite] (client) [console.error] An update to ConversationBody inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:32 PM [vite] (client) [console.error] An update to StableMessage inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:32 PM [vite] (client) [console.error] An update to Bubble inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:32 PM [vite] (client) [console.error] An update to Bubble inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:32 PM [vite] (client) [console.error] An update to Bubble inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:32 PM [vite] (client) [console.error] An update to Bubble inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:32 PM [vite] (client) [console.error] An update to Bubble inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:32 PM [vite] (client) [console.error] An update to Bubble inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:32 PM [vite] (client) [console.error] An update to Bubble inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:32 PM [vite] (client) [console.error] An update to Bubble inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:32 PM [vite] (client) [console.error] An update to Bubble inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:32 PM [vite] (client) [console.error] An update to ConversationBody inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:32 PM [vite] (client) [console.error] An update to ConversationBody inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:32 PM [vite] (client) [console.error] An update to ConversationBody inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# 2:20:32 PM [vite] (client) [console.error] An update to ConversationBody inside a test was not wrapped in act(...).
+# When testing, code that causes React state updates should be wrapped into act(...):
+# act(() => {
+#   /* fire events that update state */
+# });
+# /* assert on the output */
+# This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+# Subtest: complete pilot hides open photo before every commit of real wasm program-generation adoption
+ok 16 - complete pilot hides open photo before every commit of real wasm program-generation adoption
+  ---
+  duration_ms: 1828.955771
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 16
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 25124.544388
+-- process inspection: {"snapshots":3,"unrelatedRows":3696}
+-- client file ok: packages/snapback4/test/screen-lifetimes-react.test.mjs (25448 ms)
+TAP version 13
+# Subtest: AssetState accepts pre-wait loading literals and optional progress from both imports
+ok 1 - AssetState accepts pre-wait loading literals and optional progress from both imports
+  ---
+  duration_ms: 2191.856221
+  type: 'test'
+  ...
+# Subtest: Astra consumer: a generic row reader accepts Read<T extends Row>
+ok 2 - Astra consumer: a generic row reader accepts Read<T extends Row>
+  ---
+  duration_ms: 1498.39979
+  type: 'test'
+  ...
+# Subtest: ready literals require the discriminant
+ok 3 - ready literals require the discriminant
+  ---
+  duration_ms: 1277.622076
+  type: 'test'
+  ...
+# Subtest: matchRead rejects every omitted state and never falls back for denied or partial
+ok 4 - matchRead rejects every omitted state and never falls back for denied or partial
+  ---
+  duration_ms: 3336.783456
+  type: 'test'
+  ...
+# Subtest: matchRead narrows each handler, preserves metadata and infers mixed return types from both imports
+ok 5 - matchRead narrows each handler, preserves metadata and infers mixed return types from both imports
+  ---
+  duration_ms: 474.915775
+  type: 'test'
+  ...
+# Subtest: presentation accepts generic covariant reads and cannot authorize or narrow their data
+ok 6 - presentation accepts generic covariant reads and cannot authorize or narrow their data
+  ---
+  duration_ms: 342.902336
+  type: 'test'
+  ...
+# Subtest: awaited query excludes loading, including existence, while observe retains it
+ok 7 - awaited query excludes loading, including existence, while observe retains it
+  ---
+  duration_ms: 1413.360802
+  type: 'test'
+  ...
+# Subtest: Astra nullable consumer: absent arrays cannot be assigned to null
+ok 8 - Astra nullable consumer: absent arrays cannot be assigned to null
+  ---
+  duration_ms: 1528.594974
+  type: 'test'
+  ...
+# Subtest: Read is covariant and every narrowed arm retains its result type
+ok 9 - Read is covariant and every narrowed arm retains its result type
+  ---
+  duration_ms: 1320.145585
+  type: 'test'
+  ...
+# Subtest: pending items declarations preserve the row/intent union and typed operation arguments
+ok 10 - pending items declarations preserve the row/intent union and typed operation arguments
+  ---
+  duration_ms: 389.144144
+  type: 'test'
+  ...
+# Subtest: receipt family preserves mapped operation types and useSeen requires explicit visibility
+ok 11 - receipt family preserves mapped operation types and useSeen requires explicit visibility
+  ---
+  duration_ms: 1845.036053
+  type: 'test'
+  ...
+# Subtest: the card words import from the modules that return them; UseMutation names a hook by its operation
+ok 12 - the card words import from the modules that return them; UseMutation names a hook by its operation
+  ---
+  duration_ms: 467.531256
+  type: 'test'
+  ...
+# Subtest: guards take mixed reads and writes; op helpers name rows; React imports the App types; signed-in narrows the viewer
+ok 13 - guards take mixed reads and writes; op helpers name rows; React imports the App types; signed-in narrows the viewer
+  ---
+  duration_ms: 597.090468
+  type: 'test'
+  ...
+# Subtest: UseQuery, UsePage and UseAction name hook results for props; useSignedInViewer is never null
+ok 14 - UseQuery, UsePage and UseAction name hook results for props; useSignedInViewer is never null
+  ---
+  duration_ms: 3053.137196
+  type: 'test'
+  ...
+# Subtest: a page passed to a guard fails in one line that names the page type
+ok 15 - a page passed to a guard fails in one line that names the page type
+  ---
+  duration_ms: 502.699984
+  type: 'test'
+  ...
+# Subtest: isFailed takes a hook and tests its last outcome; a fallback without denied or partial names the fix
+ok 16 - isFailed takes a hook and tests its last outcome; a fallback without denied or partial names the fix
+  ---
+  duration_ms: 2021.397074
+  type: 'test'
+  ...
+# Subtest: sentResult returns a fresh sent result and undefined for every other outcome
+ok 17 - sentResult returns a fresh sent result and undefined for every other outcome
+  ---
+  duration_ms: 0.255764
+  type: 'test'
+  ...
+# Subtest: present and partial payloads index, iterate and destructure like the plain result type
+ok 18 - present and partial payloads index, iterate and destructure like the plain result type
+  ---
+  duration_ms: 2843.246033
+  type: 'test'
+  ...
+# Subtest: Outcome names every write, signal and action outcome; isFailed narrows unknown and still refuses reads
+ok 19 - Outcome names every write, signal and action outcome; isFailed narrows unknown and still refuses reads
+  ---
+  duration_ms: 2865.926987
+  type: 'test'
+  ...
+# Subtest: otherwiseAll routes denied, partial and every unnamed state to one fallback, spelled at the call site
+ok 20 - otherwiseAll routes denied, partial and every unnamed state to one fallback, spelled at the call site
+  ---
+  duration_ms: 4719.32614
+  type: 'test'
+  ...
+# Subtest: matchRead takes a usePage result whole, typed as page.read
+ok 21 - matchRead takes a usePage result whole, typed as page.read
+  ---
+  duration_ms: 2936.656718
+  type: 'test'
+  ...
+# Subtest: useQuery and usePage take { skip } beside { keep }, and a skipped read is still a Read
+ok 22 - useQuery and usePage take { skip } beside { keep }, and a skipped read is still a Read
+  ---
+  duration_ms: 2988.929802
+  type: 'test'
+  ...
+# Subtest: matchReadList infers typed list data and mixed returns, while denial remains mandatory
+ok 23 - matchReadList infers typed list data and mixed returns, while denial remains mandatory
+  ---
+  duration_ms: 483.373341
+  type: 'test'
+  ...
+# Subtest: guide shared list recipe typechecks against PageHook and WriteHook
+ok 24 - guide shared list recipe typechecks against PageHook and WriteHook
+  ---
+  duration_ms: 557.597475
+  type: 'test'
+  ...
+# Subtest: guide useAuth member list typechecks against the emitted React declaration
+ok 25 - guide useAuth member list typechecks against the emitted React declaration
+  ---
+  duration_ms: 401.431846
+  type: 'test'
+  ...
+# Subtest: principal-sharing invitation UI compiles against its actual generated production API
+ok 26 - principal-sharing invitation UI compiles against its actual generated production API
+  ---
+  duration_ms: 488.578602
+  type: 'test'
+  ...
+# Subtest: isPresent narrows nullable points and mixed read unions from contract and React
+ok 27 - isPresent narrows nullable points and mixed read unions from contract and React
+  ---
+  duration_ms: 390.349353
+  type: 'test'
+  ...
+# Subtest: missing denied without otherwise reports its explicit repair
+ok 28 - missing denied without otherwise reports its explicit repair
+  ---
+  duration_ms: 358.514816
+  type: 'test'
+  ...
+# Subtest: isPresent classifies only the present arm without changing the read
+ok 29 - isPresent classifies only the present arm without changing the read
+  ---
+  duration_ms: 0.316875
+  type: 'test'
+  ...
+1..29
+# tests 29
+# suites 0
+# pass 29
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 41854.891834
+-- process inspection: {"snapshots":3,"unrelatedRows":3687}
+-- client file ok: packages/snapback4/test/read-types.test.mjs (42123 ms)
+-- client files: 13/13; failed 1; tests {"tests":189,"pass":189,"fail":0,"cancelled":0,"skipped":0,"todo":0}

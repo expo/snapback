@@ -1,0 +1,183 @@
+-- client file start: packages/snapback4/test/proof.test.mjs; stall bound 900000 ms
+-- client file start: packages/snapback4/test/test-platform-audit.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: client sources gate Linux APIs, including imported test helpers
+ok 1 - client sources gate Linux APIs, including imported test helpers
+  ---
+  duration_ms: 2079.427594
+  type: 'test'
+  ...
+# Subtest: platform guard catches direct and transitive versions of the publication regression
+ok 2 - platform guard catches direct and transitive versions of the publication regression
+  ---
+  duration_ms: 1.754542
+  type: 'test'
+  ...
+# Subtest: platform guard honors a Linux gate for an imported named callback
+ok 3 - platform guard honors a Linux gate for an imported named callback
+  ---
+  duration_ms: 0.276715
+  type: 'test'
+  ...
+# Subtest: platform guard detects the original listenerSnapshot default /proc argument
+ok 4 - platform guard detects the original listenerSnapshot default /proc argument
+  ---
+  duration_ms: 0.262444
+  type: 'test'
+  ...
+# Subtest: platform guard accepts scoped skips, branches, returns and portable helpers
+ok 5 - platform guard accepts scoped skips, branches, returns and portable helpers
+  ---
+  duration_ms: 0.657546
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 2318.521307
+-- process inspection: {"snapshots":3,"unrelatedRows":3624}
+-- client file ok: packages/snapback4/test/test-platform-audit.test.mjs (2585 ms)
+TAP version 13
+# Subtest: runtime port range is inclusive, validated, and never cached
+ok 1 - runtime port range is inclusive, validated, and never cached
+  ---
+  duration_ms: 1.076045
+  type: 'test'
+  ...
+# Subtest: native and static bind beyond an occupied port; identity and independent logs
+ok 2 - native and static bind beyond an occupied port; identity and independent logs
+  ---
+  duration_ms: 182.982658
+  type: 'test'
+  ...
+# Subtest: exhausted range and missing export fail with bounded cleanup
+ok 3 - exhausted range and missing export fail with bounded cleanup
+  ---
+  duration_ms: 193.216143
+  type: 'test'
+  ...
+# Subtest: static host serves wasm correctly and refuses escaped symlink assets
+ok 4 - static host serves wasm correctly and refuses escaped symlink assets
+  ---
+  duration_ms: 99.815995
+  type: 'test'
+  ...
+# Subtest: saved-source deploy, preview, hot forward, rollback and fixture test never change working bytes
+ok 5 - saved-source deploy, preview, hot forward, rollback and fixture test never change working bytes
+  ---
+  duration_ms: 533.015265
+  type: 'test'
+  ...
+# Subtest: cli awaits close, separates output and returns refusal status
+ok 6 - cli awaits close, separates output and returns refusal status
+  ---
+  duration_ms: 72.293407
+  type: 'test'
+  ...
+# Subtest: ANSI and blank ready lines, early exit, stalled readiness and TERM escalation
+ok 7 - ANSI and blank ready lines, early exit, stalled readiness and TERM escalation
+  ---
+  duration_ms: 167.234928
+  type: 'test'
+  ...
+# Subtest: cleanup bounds stalled actions and continues after errors
+ok 8 - cleanup bounds stalled actions and continues after errors
+  ---
+  duration_ms: 41.445529
+  type: 'test'
+  ...
+# Subtest: exit sweep kills registered child, not a neighboring child
+ok 9 - exit sweep kills registered child, not a neighboring child
+  ---
+  duration_ms: 60.422865
+  type: 'test'
+  ...
+# Subtest: Vite uses the project's config and bound identity
+ok 10 - Vite uses the project's config and bound identity
+  ---
+  duration_ms: 239.058019
+  type: 'test'
+  ...
+# Subtest: browser helpers use fresh text, stable values and RN keystrokes
+ok 11 - browser helpers use fresh text, stable values and RN keystrokes
+  ---
+  duration_ms: 543.263722
+  type: 'test'
+  ...
+# Subtest: SIGKILLed driver closes frontend liveness and sweeps its whole private group
+ok 12 - SIGKILLed driver closes frontend liveness and sweeps its whole private group
+  ---
+  duration_ms: 191.829462
+  type: 'test'
+  ...
+# Subtest: saved schemas typecheck server companions against private candidate API without replacing working types
+ok 13 - saved schemas typecheck server companions against private candidate API without replacing working types
+  ---
+  duration_ms: 3034.895594
+  type: 'test'
+  ...
+# Subtest: ready PID and served marker mismatches refuse instead of adopting another identity
+ok 14 - ready PID and served marker mismatches refuse instead of adopting another identity
+  ---
+  duration_ms: 124.025481
+  type: 'test'
+  ...
+# Subtest: secret stdout stays in memory; token CLI automatically selects secret capture
+ok 15 - secret stdout stays in memory; token CLI automatically selects secret capture
+  ---
+  duration_ms: 78.760591
+  type: 'test'
+  ...
+# Subtest: startDev args preserve memory isolation unless a store is explicit
+ok 16 - startDev args preserve memory isolation unless a store is explicit
+  ---
+  duration_ms: 276.501161
+  type: 'test'
+  ...
+# Subtest: waitForServer waits for authoritative projection and diagnoses unchanged truth
+ok 17 - waitForServer waits for authoritative projection and diagnoses unchanged truth
+  ---
+  duration_ms: 150.826155
+  type: 'test'
+  ...
+# Subtest: proof browser navigation arms witness before application registration
+ok 18 - proof browser navigation arms witness before application registration
+  ---
+  duration_ms: 358.147602
+  type: 'test'
+  ...
+# Subtest: --no-memory is consumed by the kit and retains dev rows across restarts
+ok 19 - --no-memory is consumed by the kit and retains dev rows across restarts
+  ---
+  duration_ms: 276.941623
+  type: 'test'
+  ...
+# Subtest: proof witness injection survives HTTP redirect destinations
+ok 20 - proof witness injection survives HTTP redirect destinations
+  ---
+  duration_ms: 263.782046
+  type: 'test'
+  ...
+# Subtest: secret capture releases its pipe when an exited tool leaves a descendant holding stdout
+ok 21 - secret capture releases its pipe when an exited tool leaves a descendant holding stdout
+  ---
+  duration_ms: 6117.668011
+  type: 'test'
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 21
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 13096.787637
+-- process inspection: {"snapshots":3,"unrelatedRows":3622}
+-- client file ok: packages/snapback4/test/proof.test.mjs (13359 ms)
+-- client files: 2/2; failed 0; tests {"tests":26,"pass":26,"fail":0,"cancelled":0,"skipped":0,"todo":0}

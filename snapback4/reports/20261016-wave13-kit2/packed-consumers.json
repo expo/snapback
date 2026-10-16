@@ -1,0 +1,76 @@
+{
+  "publicationQualified": false,
+  "reason": "KIT2 scoped packed consumer checks, debug native binary; no publication",
+  "artifacts": [
+    {
+      "path": "/tmp/kit2-work/packs/snapback4-0.4.29.tgz",
+      "sha256": "670d6567a9827335f6982ca41cb6b8daac1bd080966e0bb0a2cd488c4ccbf2e9"
+    },
+    {
+      "path": "/tmp/kit2-work/packs/snapback4-linux-x64-0.4.29.tgz",
+      "sha256": "9660a13adfe003bd9519e710e93c799dfffff1058250e9093ba2d657c743d14f"
+    },
+    {
+      "path": "/tmp/kit2-work/packs/snapback4-expo-0.4.29.tgz",
+      "sha256": "f5f16ae4404628d8a27b6c259c76b38268c7d4b72b3ec754caace27497a48624"
+    }
+  ],
+  "results": [
+    {
+      "kind": "web",
+      "proof": "frontend:proof",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 2331
+    },
+    {
+      "kind": "web",
+      "proof": "day2:proof",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 1155
+    },
+    {
+      "kind": "web",
+      "proof": "frontend:proof",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 2198
+    },
+    {
+      "kind": "web",
+      "proof": "day2:proof",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 1085
+    },
+    {
+      "kind": "expo",
+      "proof": "frontend:proof",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 2792
+    },
+    {
+      "kind": "expo",
+      "proof": "day2:proof",
+      "attempt": 1,
+      "status": "passed",
+      "elapsedMs": 1238
+    },
+    {
+      "kind": "expo",
+      "proof": "frontend:proof",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 2626
+    },
+    {
+      "kind": "expo",
+      "proof": "day2:proof",
+      "attempt": 2,
+      "status": "passed",
+      "elapsedMs": 1017
+    }
+  ]
+}

@@ -41,7 +41,11 @@ async function nativeHost(verb: "dev" | "serve", prefix: string[], options: Proo
 /** The array form preserves the former startDev(args) recipe. */
 export function startDev(options: ProofOptions | readonly string[] = {}): Promise<ProofHost> {
   const opts: ProofOptions = Array.isArray(options) ? { args: options } : options as ProofOptions;
-  return nativeHost("dev", [], { ...opts, args: opts.args ?? ["--memory"] });
+  const args = [...(opts.args ?? [])];
+  const persistent = args.some(arg => arg === "--store" || arg.startsWith("--store=") || arg === "--no-memory");
+  if (persistent && args.includes("--memory")) throw new TypeError("proof startDev: --memory conflicts with --store/--no-memory");
+  // --no-memory is a proof option; native dev already persists by default.
+  return nativeHost("dev", [], { ...opts, args: [...args.filter(arg => arg !== "--no-memory"), ...(persistent || args.includes("--memory") ? [] : ["--memory"])] });
 }
 export function startServe(deployDir: string, options: ProofOptions | readonly string[] = {}): Promise<ProofHost> {
   if (typeof deployDir !== "string" || !deployDir.trim()) throw Object.assign(new TypeError("E_PROOF_USAGE: startServe(deployDir, options) requires a deployment directory as its first argument"), { code: "E_PROOF_USAGE" });
@@ -75,7 +79,7 @@ export function startVite(dir: string, options: ProofOptions = {}): Promise<Proo
 export interface CliResult { code: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string; logs: ProofHost["logs"] }
 /** Waits for close (stdio drained), never merges the two streams. Nonzero is returned for refusal assertions. */
 export function cli(args: readonly string[], options: ProofOptions = {}): Promise<CliResult> {
-  return command(process.execPath, [fileURLToPath(new URL("../bin/snapback4.js", import.meta.url)), ...args], options);
+  return command(process.execPath, [fileURLToPath(new URL("../bin/snapback4.js", import.meta.url)), ...args], { ...options, secret: options.secret || args[0] === "token" });
 }
 /** A bounded directly spawned build/tool command, with the same file logs. */
 export async function command(binary: string, args: readonly string[], options: ProofOptions = {}): Promise<CliResult> {
@@ -83,8 +87,9 @@ export async function command(binary: string, args: readonly string[], options: 
   try {
     await bounded(run.closed, deadline(options.timeoutMs, 120_000), "proof cli close");
     if (run.error()) throw run.error();
-    return { code: run.child.exitCode, signal: run.child.signalCode, stdout: logText(run.logs.stdout), stderr: logText(run.logs.stderr), logs: run.logs };
+    return { code: run.child.exitCode, signal: run.child.signalCode, stdout: run.stdout(), stderr: logText(run.logs.stderr), logs: run.logs };
   } catch (error) { await stopChild(run.child, deadline(options.stopTimeoutMs, 5000)); throw error; }
+  finally { run.child.stdout?.destroy(); } // Secret capture must not pin the driver after a deadline.
 }
 async function successful(args: string[], options: ProofOptions) {
   const result = await cli(args, options);
@@ -142,6 +147,14 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
     let context: BrowserContext | undefined;
     try {
       context = await browser.newContext();
+      // Init scripts run on each document, including HTTP redirect destinations,
+      // before any application script samples its URL.
+      await context.addInitScript(() => {
+        if (window.top !== window || !/^https?:$/.test(location.protocol)) return;
+        const url = new URL(location.href);
+        url.searchParams.set("witness", "web");
+        history.replaceState(history.state, "", url.href);
+      });
       context.setDefaultTimeout(30_000); context.setDefaultNavigationTimeout(30_000);
       return await proof(context);
     } finally {
@@ -150,28 +163,48 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
     }
   } finally { closeSync(err); }
 }
-/** Match rendered text, excluding editable values. Scope to the evidence container. */
-export function renderedText(page: Page, text: string | RegExp, options: { within?: Locator } = {}): Locator {
-  return (options.within ?? page).getByText(text, { exact: true }).and(page.locator(":not(input):not(textarea)"));
+/** Strings match exactly by default; use exact:false or a RegExp for a row with more text. Excludes editable values. */
+export function renderedText(page: Page, text: string | RegExp, options: { within?: Locator; exact?: boolean } = {}): Locator {
+  return (options.within ?? page).getByText(text, { exact: options.exact ?? true }).and(page.locator(":not(input):not(textarea)"));
 }
 /** Activate before taking a screenshot, particularly on loaded shared hosts. */
 export async function frontPage(page: Page): Promise<Page> { await page.bringToFront(); return page; }
 export { logsDir } from "./proof-process.ts";
-export async function waitForFresh(locator: Locator, previous: string | null, timeoutMs: number | { within: Locator; timeoutMs?: number } = 30_000): Promise<string> {
-  if (typeof timeoutMs !== "number") { locator = timeoutMs.within.locator(locator); timeoutMs = timeoutMs.timeoutMs ?? 30_000; }
-  const end = performance.now() + deadline(timeoutMs, 30_000);
+export async function waitForFresh(locator: Locator, previous: string | null, options: number | { within?: Locator; timeoutMs?: number } = 30_000): Promise<string> {
+  const timeoutMs = deadline(typeof options === "number" ? options : options.timeoutMs, 30_000);
+  if (typeof options !== "number" && options.within) locator = options.within.locator(locator);
+  const end = performance.now() + timeoutMs;
+  let count = 0, text: string | null = null, detail = "";
   while (performance.now() < end) {
-    if (await bounded(locator.count(), Math.max(1, end - performance.now()), "no fresh signal (locator count)")) {
-      try {
-        const text = await bounded(locator.textContent({ timeout: Math.max(1, Math.min(1000, end - performance.now())) }), Math.max(1, end - performance.now()), "no fresh signal (text)");
-        if (text && text !== previous) return text;
-      } catch (error) {
-        if (!(error instanceof Error) || error.name !== "TimeoutError") throw error;
-      }
+    try {
+      count = await bounded(locator.count(), Math.max(1, end - performance.now()), "locator count");
+      text = count ? await bounded(locator.textContent({ timeout: Math.max(1, Math.min(1000, end - performance.now())) }), Math.max(1, end - performance.now()), "locator text") : null;
+      if (text && text !== previous) return text;
+    } catch (error) {
+      detail = String(error);
+      // A strictness/selector error needs its original repair, not a timeout.
+      if (error instanceof Error && error.name !== "TimeoutError" && !/timed out after/.test(error.message)) throw error;
     }
-    await new Promise(resolve => setTimeout(resolve, 25));
+    await new Promise(resolve => setTimeout(resolve, Math.min(25, Math.max(1, end - performance.now()))));
   }
-  throw Error(`no fresh signal after ${timeoutMs} ms (previous: ${JSON.stringify(previous)})`);
+  throw Error(`no fresh signal after ${timeoutMs} ms: ${String(locator)}; last count=${count}, text=${JSON.stringify(text)}; ${count ? "present but unchanged" : "absent"}; previous=${JSON.stringify(previous)}${detail ? `; ${detail}` : ""}`);
+}
+/** Poll authoritative server truth after a receipt; a pending prediction is not a commit. */
+export async function waitForServer<T>(read: () => Promise<T>, accepts: (value: T) => boolean, options: { timeoutMs?: number; label?: string } = {}): Promise<T> {
+  const timeoutMs = deadline(options.timeoutMs, 30_000), end = performance.now() + timeoutMs;
+  let last: T | undefined;
+  while (performance.now() < end) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const value = await Promise.race([Promise.resolve().then(read), new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(Error(`${options.label ?? "server truth"} timed out after ${timeoutMs} ms; last=${JSON.stringify(last)}`)), Math.max(1, end - performance.now()));
+      })]);
+      last = value;
+      if (accepts(value)) return value;
+    } finally { clearTimeout(timer); }
+    await new Promise(resolve => setTimeout(resolve, Math.min(25, Math.max(1, end - performance.now()))));
+  }
+  throw Error(`${options.label ?? "server truth"} timed out after ${timeoutMs} ms; last=${JSON.stringify(last)}`);
 }
 export async function fillRN(locator: Locator, text: string): Promise<void> {
   await locator.focus(); await locator.press("ControlOrMeta+A"); await locator.press("Backspace");

@@ -95936,3 +95936,23 @@ Lean 76 theorem audits/115 examples/7 fixtures, and actual shipped-WASM 3/3 pass
 The final measured artifact is 2354702 B raw /717039 B gzip /541719 B Brotli,
 175 B under the unchanged 717214 B budget, 325 B gzip above 0.4.29. This supersedes the
 initial 717156 B gzip measurement above; strict family/absence audits still pass.
+
+### 2026-10-16 — Wave 13 KIT2: evidence, forms and client recipes
+
+Fix lists #3/#10/#11: proof evidence defaults to app-local logs, secret stdout
+never reaches a file, memory dev remains the proof default with custom args,
+and browser init scripts arm witness pages through redirects. Empty clicks,
+abandoned arms, re-arms and unsettled claimed writes now have bounded outcomes;
+claim time starts its own receipt allowance. Text matching is explicit and
+freshness failures name observed evidence. Server-truth polls use app.online.
+
+useAppReady waits for initial opening and current signed-in admission; later
+sign-in recovers initial failure/rejection. Provider account keys use React
+state and viewer identity, preserving null-viewer restoration while fencing
+app/account changes. The client card keeps its existing reading budget by
+moving duplicate password/generic-list recipes into the published reference;
+its compiled role/release and guest screens remain on the card. isPresent
+narrows non-null disclosed data, and missing-denied diagnostics name the repair.
+Governing amendments: proof-kit §9 and client-intent §6.10. Detailed review and
+qualification evidence is in reports/20261016-wave13-kit2 and the workstream
+report. No version was bumped and nothing was published.

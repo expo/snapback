@@ -1,0 +1,81 @@
+1:34:23 PM [vite] (client) [console.error] An update to StaffWorkspace inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+1:34:23 PM [vite] (client) [console.error] An update to StaffWorkspace inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+1:34:23 PM [vite] (client) [console.error] An update to Login inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+✔ published role/release form preserves drafts and selection; revocation gates reads and writes; accounts reset state (3410.657401ms)
+✔ AssetState accepts pre-wait loading literals and optional progress from both imports (8297.209715ms)
+✔ Astra consumer: a generic row reader accepts Read<T extends Row> (1651.770876ms)
+✔ ready literals require the discriminant (1943.165788ms)
+✔ matchRead rejects every omitted state and never falls back for denied or partial (4747.971787ms)
+✔ matchRead narrows each handler, preserves metadata and infers mixed return types from both imports (618.368162ms)
+✔ presentation accepts generic covariant reads and cannot authorize or narrow their data (501.156412ms)
+✔ awaited query excludes loading, including existence, while observe retains it (2333.176593ms)
+✔ Astra nullable consumer: absent arrays cannot be assigned to null (2642.487495ms)
+✔ Read is covariant and every narrowed arm retains its result type (2168.693747ms)
+✔ pending items declarations preserve the row/intent union and typed operation arguments (634.594628ms)
+✔ receipt family preserves mapped operation types and useSeen requires explicit visibility (3133.893093ms)
+✔ the card words import from the modules that return them; UseMutation names a hook by its operation (458.097691ms)
+✔ guards take mixed reads and writes; op helpers name rows; React imports the App types; signed-in narrows the viewer (401.067697ms)
+✔ UseQuery, UsePage and UseAction name hook results for props; useSignedInViewer is never null (7481.068623ms)
+✔ a page passed to a guard fails in one line that names the page type (1160.443951ms)
+✔ isFailed takes a hook and tests its last outcome; a fallback without denied or partial names the fix (4131.012371ms)
+✔ sentResult returns a fresh sent result and undefined for every other outcome (0.392929ms)
+✔ present and partial payloads index, iterate and destructure like the plain result type (7772.095102ms)
+✔ Outcome names every write, signal and action outcome; isFailed narrows unknown and still refuses reads (5882.103004ms)
+✔ otherwiseAll routes denied, partial and every unnamed state to one fallback, spelled at the call site (10602.230144ms)
+✔ matchRead takes a usePage result whole, typed as page.read (9076.593245ms)
+✔ useQuery and usePage take { skip } beside { keep }, and a skipped read is still a Read (9477.499516ms)
+✔ matchReadList infers typed list data and mixed returns, while denial remains mandatory (966.40019ms)
+✔ guide shared list recipe typechecks against PageHook and WriteHook (1839.322617ms)
+✔ guide useAuth member list typechecks against the emitted React declaration (1139.654455ms)
+✔ principal-sharing invitation UI compiles against its actual generated production API (1462.583642ms)
+✔ isPresent narrows nullable points and mixed read unions from contract and React (847.423121ms)
+✔ missing denied without otherwise reports its explicit repair (941.43111ms)
+✔ isPresent classifies only the present arm without changing the read (0.445629ms)
+✔ README TypeScript examples compile and call every public function (9690.067152ms)
+ℹ 60 README blocks; 102 public functions; 9687.05 ms
+✔ the React entry index names every function snapback4/react exports (1.800552ms)
+✔ Queries teach predicate reads and engine-chosen scope lanes (13.541342ms)
+✔ Expo Go README session store preserves encoded SecureStore keys and round-trips a session (16.499661ms)
+✔ W9a expiry client form drops deadlines locally and keeps null lifetimes (10.931585ms)
+✔ W10b typing guidance hides a short-lived server answer before the next answer (11.668722ms)
+✔ client card composer clears after a fresh sent result and preserves concurrent edits (44.150408ms)
+✔ client card composer disables only denied or fresh non-revalidating absent membership (20.759194ms)
+✔ profile screen waits for proven existence and uses each replacement (2.964019ms)
+✔ client and production published TSX uses the typed Write union, state gates and both read fallbacks (22247.805741ms)
+✔ packaged browser image capture narrows upload before placing its asset (2960.275234ms)
+✔ the published production composer validates and clears only its fresh receipt draft (6.684972ms)
+ℹ tests 42
+ℹ suites 0
+ℹ pass 42
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 93915.889261

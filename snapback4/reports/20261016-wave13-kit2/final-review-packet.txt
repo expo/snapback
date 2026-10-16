@@ -1,0 +1,787 @@
+Independent review of complete KIT2 amendments plus their implementation. Return READY or NOT READY and material findings only. No edits, tests, tools, other reviews or delegated agents. Packet is self-contained. This concerns proof tooling, initial app admission readiness, React account ownership and pure read guards; no wire/language/auth/custody-protocol semantics change. Read guard inputs are typed Read; nullable data is distinct from a nullable read reference. Each claimed write receives a separate full 30-second allowance starting at claim. The app boundary uses derived React state (no memo cache identity). Final guide recipes remain compiled and browser-tested.
+
+
+llp/3000.011.003.000.000-packaged-proof-kit.rfc.md
+## 9. Wave 13: durable evidence and bounded empty clicks (KIT2)
+
+Implementer: KIT2, 2026-10-16, authorized by fix list #3 and H9.
+This amendment replaces conflicting §8 defaults; it changes no wire, language,
+authorization, adoption, sync, identifier or expiry semantics.
+
+- `renderedText(page,text,{exact=true,within?})` uses Playwright's text matching,
+  excludes input/textarea, and supports substring strings and RegExp rows.
+  RN-web split nodes require deliberate container scope or `.first()` when
+  they represent the same row. `waitForFresh` permits an omitted container;
+  its bounded failure includes locator, last count/text and absent/unchanged.
+- Logs default to `<cwd>/logs`: H6 deletes the harness TMPDIR, so printing a
+  temporary path would not preserve failed evidence. Exact app/ callers whose
+  source discovery includes logs choose an explicit artifact directory outside
+  that source root. Fresh private files and direct-child custody are unchanged.
+  `cli` detects the token verb and captures stdout in memory; `secret:true`
+  does the same for cli/command. Secret stdout never touches disk, including
+  partial/failed output. Stderr remains diagnostic evidence: tools must keep
+  secrets off stderr. API results still return stdout to the caller.
+- `startDev` appends --memory even with custom arguments, unless --store
+  (including --store=...) or --no-memory is explicit. Native store policy is
+  unchanged. --no-memory is consumed by the kit to select native dev's default
+  persistent store; conflicting --memory refuses. --store, if supplied, remains
+  a native flag and its native validation applies (current dev refuses it; use
+  --no-memory for cwd/.snapback4/store.sqlite). Browser contexts created by
+  `withBrowser` add witness=web to each top-level HTTP(S) document with an init
+  script before application scripts, including redirect destinations; no
+  production browser or bare Playwright context changes.
+- `beginForm` retains trusted click/synchronous-submit provenance and exact
+  canonical arguments. An arm with no durable invocation settles failed with
+  E_WITNESS_NO_WRITE and message "armed click produced no durable mutation
+  (form handler returned early, or the app was not ready)": 1 second after the
+  trusted click, immediately on re-arm, or 30 seconds after an abandoned arm.
+  A first durable invocation with wrong provenance/operation/arguments remains
+  failed/E_WITNESS_UNCLAIMED and still runs normally. A claimed pending write
+  has a separate 30-second proof deadline starting at claim (E_WITNESS_SENT);
+  arming time never consumes settlement allowance. This is no server refusal.
+  Re-arm settles a claimed unsettled observation E_WITNESS_UNCLAIMED, releases
+  timers/wrappers/listeners, and never cancels or retries the actual write.
+  Four documented terminal paths are sent, app refusal, unclaimed invocation,
+  and no invocation; pending custody itself is never proof success.
+- `waitForServer(read,accepts,{timeoutMs=30000,label?})` bounds each poll and
+  the whole wait, returning the accepted authoritative projection. Its deadline
+  names the label and last value. It neither declares settlement nor retries
+  writes; callers assert the write's sent receipt first. A read exception
+  propagates rather than being mistaken for an unchanged answer.
+
+H9 regressions load either candidate or baseline 0.4.29 modules: a row with
+more text than its needle, and a trusted click with no write. Candidate must
+pass and both baseline controls must fail. Affected proof/witness files run on
+Linux and Darwin; no Linux-only inspection is added to the published helper.
+Client readiness and account boundaries are amended in LLP 3000.013 §6.10.
+The existing delivery-await census records the new proof.ts waits as proof-only
+orchestration: no SDK delivery/recovery call graph or fault recipe changes.
+
+
+llp/3000.013-quarry-states-intent.rfc.md
+### 6.10 Wave 13: ready forms and stable account shells (KIT2)
+
+Implementer: KIT2, 2026-10-16; authorized fix lists #10/#11 and #3 readiness.
+No authentication, session, disclosure or write-custody protocol changes.
+`useAppReady()` under AppProvider waits for this app's initial `ready` to
+settle and requires current auth signed-in without an E_ADMISSION-family
+refusal. SDK opening failures publish signed-out or an admission refusal;
+readiness stays false. Successful later sign-in clears that refusal, so a
+transient initial restoration failure never permanently disables the form,
+including when the provider mounts after recovery. A new app instance starts
+false; a retired promise cannot publish into its replacement. Readiness is not
+online status, permission, or an acknowledgement of a later write. Forms/proofs
+gate initial writable content on it without interpreting partially opened
+persona clients. Surface auth.why while writes cannot be admitted.
+
+AppProvider resets account-owned React state on app identity or viewer changes,
+not auth-state text alone. Restoring and signed-out both have null viewer, so
+that transition preserves sign-in inputs. Entering or leaving an account still
+resets state. A replacement app resets even with the same viewer (including a
+backend switch). Starters render editable authentication controls only while
+signed-out, restoration placeholders otherwise, and readiness gates writers.
+
+The compiled client card's online role/release form keeps drafts and selection
+above loading/capability branches. A sticky last role labels its shell only;
+current role evidence and generated availability gate protected child reads and
+Save. Denied/absent evidence closes the gate; loading/partial never grants
+permission. Resource changes key the shell. Account/backend changes use the
+provider boundary. The browser proof exercises withdrawal, generation switch,
+explicit revocation, input identity, selections and account/app replacement.
+
+`isPresent(read)` is a pure generic guard for the ready `present` arm and
+excludes `data: null`, preserving mixed `Read` unions. Its typed input is a
+`Read`, not a nullable read reference; null/undefined references defensively return false. `isReady` still includes
+nullable absent/partial. No read classification changes. Missing `denied`
+without `otherwise` joins the existing inference diagnostic path and names
+`denied: why => …` / `otherwiseAll`, while still refusing the call. All five
+handler names remain loading, denied, absent, partial and present. A complete
+empty list is absent; otherwiseAll also receives denied. Lists demonstrate
+matchReadList explicitly. Since-release optional fields normalize with `??`
+at React rendering/Exact property boundaries. A public guest page explicitly
+supplies browser session custody and a read-only client; roster authorization
+belongs to RULES3, compatibility generation to DAY3.
+
+
+proof.ts
+// @ref LLP 3000.011.003.000.000#1 — the packaged proof kit owns hosts; builders own assertions.
+import { mkdirSync, openSync, closeSync, writeSync } from "node:fs";
+import { join } from "node:path";
+import { randomUUID } from "node:crypto";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
+import type { BrowserContext, BrowserType, LaunchOptions, Locator, Page } from "playwright-core";
+import { resolveBinary } from "./bin-path.ts";
+import { bounded, deadline, logged, logText, portRange, ready, stopChild, type ProofHost, type ProofOptions, logsDir } from "./proof-process.ts";
+export { bounded, cleanup, stopChild, portRange } from "./proof-process.ts";
+export type { ProofHost, ProofOptions } from "./proof-process.ts";
+
+const fetchIdentity = async (url: string, timeoutMs: number) => {
+  const response = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
+  return { response, body: await response.json() as Record<string, unknown> };
+};
+async function nativeHost(verb: "dev" | "serve", prefix: string[], options: ProofOptions): Promise<ProofHost> {
+  const env = { ...process.env, ...options.env }, id = randomUUID();
+  const ports = portRange(env), timeout = deadline(options.timeoutMs, 30_000);
+  const args = [...(options.args ?? [])];
+  if (!args.includes("--port")) args.push("--port", ports);
+  const run = logged(resolveBinary(), [verb, ...prefix, ...args], { ...options, env: { ...env, SNAPBACK4_PROOF_ID: id, SNAPBACK4_SUPERVISOR_PID: String(process.pid) } });
+  try {
+    const url = await ready(run, line => {
+      const match = line.match(/^SNAPBACK4_READY verb=(dev|serve) generation=\d+ url=(http:\/\/[^ ]+) pid=(\d+)(?: |$)/);
+      if (!match) return;
+      if (match[1] !== verb || Number(match[3]) !== run.child.pid) throw Error("proof ready identity mismatch");
+      return match[2];
+    }, timeout);
+    const { response, body } = await fetchIdentity(`${url}/auth/config`, timeout);
+    if (!response.ok || body.proof_id !== id) throw Error("proof served identity mismatch");
+    if (verb === "dev") {
+      const status = await fetchIdentity(`${url}/dev/status`, timeout);
+      if (status.body.pid !== run.child.pid) throw Error("proof dev PID mismatch");
+    }
+    return { url, pid: run.child.pid!, logs: run.logs, stop: () => stopChild(run.child, deadline(options.stopTimeoutMs, 5000)) };
+  } catch (error) { await stopChild(run.child, deadline(options.stopTimeoutMs, 5000)); throw error; }
+}
+/** The array form preserves the former startDev(args) recipe. */
+export function startDev(options: ProofOptions | readonly string[] = {}): Promise<ProofHost> {
+  const opts: ProofOptions = Array.isArray(options) ? { args: options } : options as ProofOptions;
+  const args = [...(opts.args ?? [])];
+  const persistent = args.some(arg => arg === "--store" || arg.startsWith("--store=") || arg === "--no-memory");
+  if (persistent && args.includes("--memory")) throw new TypeError("proof startDev: --memory conflicts with --store/--no-memory");
+  // --no-memory is a proof option; native dev already persists by default.
+  return nativeHost("dev", [], { ...opts, args: [...args.filter(arg => arg !== "--no-memory"), ...(persistent || args.includes("--memory") ? [] : ["--memory"])] });
+}
+export function startServe(deployDir: string, options: ProofOptions | readonly string[] = {}): Promise<ProofHost> {
+  return nativeHost("serve", [resolve(options && !Array.isArray(options) ? (options as ProofOptions).cwd ?? "." : ".", deployDir)],
+    Array.isArray(options) ? { args: options } : options as ProofOptions);
+}
+async function frontend(kind: "static" | "vite", dir: string, options: ProofOptions): Promise<ProofHost> {
+  const env = { ...process.env, ...options.env }, ports = portRange(env), timeout = deadline(options.timeoutMs, 30_000);
+  const cwd = resolve(options.cwd ?? ".");
+  const directory = resolve(cwd, dir);
+  // Vite is resolved from the app, never the proof package's development dependencies.
+  const vite = kind === "vite" ? createRequire(resolve(directory, "package.json")).resolve("vite") : "";
+  const run = logged(process.execPath, [fileURLToPath(new URL("./proof-host.js", import.meta.url)), kind, directory, ports, vite], { ...options, env, detached: process.platform !== "win32", livenessPipe: true });
+  try {
+    const url = await ready(run, line => {
+      const match = line.match(/^SNAPBACK4_PROOF_READY (\{.*\})$/);
+      if (!match) return;
+      const data = JSON.parse(match[1]!);
+      if (data.pid !== run.child.pid || data.kind !== kind) throw Error("proof frontend PID mismatch");
+      return data.url as string;
+    }, timeout);
+    const response = await fetch(url, { signal: AbortSignal.timeout(timeout) });
+    if (response.headers.get("x-snapback4-proof") !== String(run.child.pid) + ":" + run.id) throw Error("proof frontend identity mismatch");
+    await response.body?.cancel();
+    return { url, pid: run.child.pid!, logs: run.logs, stop: () => stopChild(run.child, deadline(options.stopTimeoutMs, 5000)) };
+  } catch (error) { await stopChild(run.child, deadline(options.stopTimeoutMs, 5000)); throw error; }
+}
+export function startStatic(dir: string, options: ProofOptions = {}): Promise<ProofHost> { return frontend("static", dir, options); }
+export function startVite(dir: string, options: ProofOptions = {}): Promise<ProofHost> { return frontend("vite", dir, options); }
+
+export interface CliResult { code: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string; logs: ProofHost["logs"] }
+/** Waits for close (stdio drained), never merges the two streams. Nonzero is returned for refusal assertions. */
+export function cli(args: readonly string[], options: ProofOptions = {}): Promise<CliResult> {
+  return command(process.execPath, [fileURLToPath(new URL("../bin/snapback4.js", import.meta.url)), ...args], { ...options, secret: options.secret || args[0] === "token" });
+}
+/** A bounded directly spawned build/tool command, with the same file logs. */
+export async function command(binary: string, args: readonly string[], options: ProofOptions = {}): Promise<CliResult> {
+  const run = logged(binary, args, { ...options, env: { ...process.env, ...options.env } });
+  try {
+    await bounded(run.closed, deadline(options.timeoutMs, 120_000), "proof cli close");
+    if (run.error()) throw run.error();
+    return { code: run.child.exitCode, signal: run.child.signalCode, stdout: run.stdout(), stderr: logText(run.logs.stderr), logs: run.logs };
+  } catch (error) { await stopChild(run.child, deadline(options.stopTimeoutMs, 5000)); throw error; }
+}
+async function successful(args: string[], options: ProofOptions) {
+  const result = await cli(args, options);
+  if (result.code !== 0) throw Error(`proof CLI failed (${result.code}): ${result.stderr}; logs: ${result.logs.stderr}`);
+  return result;
+}
+export function deploy(dir: string, schema: string, options: ProofOptions = {}) {
+  if (!schema) throw Error("proof deploy requires an explicit saved schema file");
+  return successful(["deploy", dir, "--schema", schema, ...(options.args ?? [])], options);
+}
+export function rollback(dir: string, to: number | "latest", options: ProofOptions = {}) {
+  if (to !== "latest" && (!Number.isSafeInteger(to) || to < 1)) throw Error("proof rollback requires an explicit immutable release target");
+  return successful(["rollback", dir, "--to", String(to), ...(options.args ?? [])], options);
+}
+export function testSource(source: string, options: ProofOptions = {}) {
+  if (!source) throw Error("proof testSource requires an explicit saved source file");
+  return successful(["test", "--source", source, ...(options.args ?? [])], options);
+}
+
+export function sandboxUnavailable(error: unknown): boolean {
+  return /No usable sandbox|Running as root without --no-sandbox|Failed to move to new namespace|SUID sandbox|sandbox.*Operation not permitted|Failed to unshare.*Operation not permitted/i.test(String(error));
+}
+export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions, "cwd" | "logsDir"> & { chromium?: BrowserType }, proof: (context: BrowserContext) => Promise<T>): Promise<T> {
+  const directory = logsDir(options); mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const err = openSync(join(directory, `${randomUUID()}.browser.stderr.log`), "wx", 0o600);
+  const { chromium: suppliedChromium, executablePath, cwd: _cwd, logsDir: _logs, ...other } = options;
+  const caller = suppliedChromium ?? (await import("playwright-core")).chromium;
+  const launch = { ...other, ...(executablePath === undefined ? {} : { executablePath }), timeout: deadline(options.timeout, 30_000), logger: {
+    isEnabled: () => true,
+    log: (name: string, severity: string, message: string | Error) => { writeSync(err, `${name} ${severity}: ${String(message)}\n`); },
+  } };
+  const args = [...(options.args ?? [])];
+  if (process.getuid?.() === 0 && !args.includes("--no-sandbox")) args.push("--no-sandbox");
+  // Playwright owns its browser child over a pipe, including parent-exit cleanup.
+  // No WebSocket server or TCP debugging port is opened.
+  let browser;
+  try {
+    try { browser = await caller.launch({ ...launch, args, chromiumSandbox: !args.includes("--no-sandbox") }); }
+    catch (error) {
+      if (args.includes("--no-sandbox") || !sandboxUnavailable(error)) throw error;
+      browser = await caller.launch({ ...launch, args: [...args, "--no-sandbox"], chromiumSandbox: false });
+    }
+    let context: BrowserContext | undefined;
+    try {
+      context = await browser.newContext();
+      // Init scripts run on each document, including HTTP redirect destinations,
+      // before any application script samples its URL.
+      await context.addInitScript(() => {
+        if (window.top !== window || !/^https?:$/.test(location.protocol)) return;
+        const url = new URL(location.href);
+        url.searchParams.set("witness", "web");
+        history.replaceState(history.state, "", url.href);
+      });
+      context.setDefaultTimeout(30_000); context.setDefaultNavigationTimeout(30_000);
+      return await proof(context);
+    } finally {
+      try { if (context) await bounded(context.close(), 5000, "browser context close"); }
+      finally { await bounded(browser.close(), 5000, "browser close"); }
+    }
+  } finally { closeSync(err); }
+}
+/** Strings match exactly by default; use exact:false or a RegExp for a row with more text. Excludes editable values. */
+export function renderedText(page: Page, text: string | RegExp, options: { within?: Locator; exact?: boolean } = {}): Locator {
+  return (options.within ?? page).getByText(text, { exact: options.exact ?? true }).and(page.locator(":not(input):not(textarea)"));
+}
+/** Activate before taking a screenshot, particularly on loaded shared hosts. */
+export async function frontPage(page: Page): Promise<Page> { await page.bringToFront(); return page; }
+export { logsDir } from "./proof-process.ts";
+export async function waitForFresh(locator: Locator, previous: string | null, options: number | { within?: Locator; timeoutMs?: number } = 30_000): Promise<string> {
+  const timeoutMs = deadline(typeof options === "number" ? options : options.timeoutMs, 30_000);
+  if (typeof options !== "number" && options.within) locator = options.within.locator(locator);
+  const end = performance.now() + timeoutMs;
+  let count = 0, text: string | null = null, detail = "";
+  while (performance.now() < end) {
+    try {
+      count = await bounded(locator.count(), Math.max(1, end - performance.now()), "locator count");
+      text = count ? await bounded(locator.textContent({ timeout: Math.max(1, Math.min(1000, end - performance.now())) }), Math.max(1, end - performance.now()), "locator text") : null;
+      if (text && text !== previous) return text;
+    } catch (error) {
+      detail = String(error);
+      // A strictness/selector error needs its original repair, not a timeout.
+      if (error instanceof Error && error.name !== "TimeoutError" && !/timed out after/.test(error.message)) throw error;
+    }
+    await new Promise(resolve => setTimeout(resolve, Math.min(25, Math.max(1, end - performance.now()))));
+  }
+  throw Error(`no fresh signal after ${timeoutMs} ms: ${String(locator)}; last count=${count}, text=${JSON.stringify(text)}; ${count ? "present but unchanged" : "absent"}; previous=${JSON.stringify(previous)}${detail ? `; ${detail}` : ""}`);
+}
+/** Poll authoritative server truth after a receipt; a pending prediction is not a commit. */
+export async function waitForServer<T>(read: () => Promise<T>, accepts: (value: T) => boolean, options: { timeoutMs?: number; label?: string } = {}): Promise<T> {
+  const timeoutMs = deadline(options.timeoutMs, 30_000), end = performance.now() + timeoutMs;
+  let last: T | undefined;
+  while (performance.now() < end) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const value = await Promise.race([Promise.resolve().then(read), new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(Error(`${options.label ?? "server truth"} timed out after ${timeoutMs} ms; last=${JSON.stringify(last)}`)), Math.max(1, end - performance.now()));
+      })]);
+      last = value;
+      if (accepts(value)) return value;
+    } finally { clearTimeout(timer); }
+    await new Promise(resolve => setTimeout(resolve, Math.min(25, Math.max(1, end - performance.now()))));
+  }
+  throw Error(`${options.label ?? "server truth"} timed out after ${timeoutMs} ms; last=${JSON.stringify(last)}`);
+}
+export async function fillRN(locator: Locator, text: string): Promise<void> {
+  await locator.focus(); await locator.press("ControlOrMeta+A"); await locator.press("Backspace");
+  await locator.pressSequentially(text);
+}
+export function statusText(page: Page, text: string | RegExp = /^(?:Ready|pending|sent|failed)$/): Locator { return page.getByText(text, { exact: true }); }
+export async function selectByValue(locator: Locator, value: string): Promise<void> { await locator.selectOption({ value }); }
+
+
+proof-process.ts
+// @ref LLP 3000.011.003.000.000#1 — direct children, file logs and bounded cleanup own proof orchestration.
+import { spawn, type ChildProcess } from "node:child_process";
+import { closeSync, mkdirSync, openSync, readFileSync } from "node:fs";
+import { join, resolve } from "node:path";
+import { randomUUID } from "node:crypto";
+import { setTimeout as sleep } from "node:timers/promises";
+import { stripVTControlCharacters } from "node:util";
+
+const children = new Set<ChildProcess>();
+process.once("exit", () => { for (const child of children) child.kill("SIGKILL"); });
+export function register(child: ChildProcess): void {
+  children.add(child);
+  child.once("exit", () => children.delete(child));
+  child.on("error", () => children.delete(child));
+}
+export interface ProofOptions {
+  cwd?: string;
+  env?: NodeJS.ProcessEnv;
+  args?: readonly string[];
+  timeoutMs?: number;
+  stopTimeoutMs?: number;
+  logsDir?: string;
+  /** Keep stdout in memory only (stderr remains diagnostic evidence). */
+  secret?: boolean;
+  /** Internal: a frontend keeper owns this private process group. */
+  detached?: boolean;
+  /** Internal: the frontend observes parent death through stdin EOF. */
+  livenessPipe?: boolean;
+}
+export interface ProofHost {
+  url: string;
+  pid: number;
+  logs: { stdout: string; stderr: string };
+  stop(): Promise<void>;
+}
+export function deadline(ms: number | undefined, fallback: number): number {
+  const value = ms ?? fallback;
+  if (!Number.isFinite(value) || value < 1) throw new RangeError("proof timeout must be positive and finite");
+  return value;
+}
+export async function bounded<T>(work: Promise<T>, ms: number, label: string): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([work, new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(Error(`${label} timed out after ${ms} ms`)), ms);
+    })]);
+  } finally { clearTimeout(timer); }
+}
+/** Attempts every cleanup, even if a preceding step fails or stalls. */
+export async function cleanup(...steps: Array<(() => unknown | Promise<unknown>) | undefined>): Promise<void> {
+  const errors: unknown[] = [];
+  for (const step of steps) if (step) {
+    try { await bounded(Promise.resolve().then(step), 10_000, "proof cleanup"); }
+    catch (error) { errors.push(error); }
+  }
+  if (errors.length) throw new AggregateError(errors, "proof cleanup failed");
+}
+export async function stopChild(child: ChildProcess | Pick<ProofHost, "url" | "stop">, graceMs = 5000): Promise<void> {
+  deadline(graceMs, 5000);
+  if (child && "url" in child && typeof child.url === "string" && typeof child.stop === "function") {
+    await bounded(Promise.resolve().then(() => child.stop()), graceMs + 5000, "host stop"); return;
+  }
+  if (!child || !("kill" in child) || typeof child.kill !== "function" || typeof child.once !== "function"
+      || !(child.exitCode === null || typeof child.exitCode === "number")
+      || !(child.signalCode === null || typeof child.signalCode === "string")) {
+    throw new TypeError("stopChild needs a ChildProcess or { url, stop }");
+  }
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  let done!: () => void;
+  const exited = new Promise<void>(resolve => { done = resolve; });
+  child.once("exit", done);
+  child.once("error", done);
+  try {
+    child.kill("SIGTERM");
+    try { await bounded(exited, graceMs, "SIGTERM"); }
+    catch {
+      child.kill("SIGKILL");
+      await bounded(exited, 5000, "SIGKILL reap");
+    }
+  } finally { child.removeListener("exit", done); child.removeListener("error", done); }
+}
+export function portRange(env: NodeJS.ProcessEnv = process.env): string {
+  const low = env.PORT_LO, high = env.PORT_HI;
+  if (low === undefined && high === undefined) return "0";
+  if (!low || !high || !/^\d+$/.test(low) || !/^\d+$/.test(high)
+      || Number(low) < 1 || Number(high) > 65535 || Number(low) > Number(high)) {
+    throw Error("PORT_LO and PORT_HI must both specify an inclusive range, 1 <= low <= high <= 65535");
+  }
+  return `${Number(low)}-${Number(high)}`;
+}
+/** App-local evidence survives harness cleanup of its temporary root. */
+export function logsDir(options: Pick<ProofOptions, "cwd" | "logsDir"> = {}): string {
+  return resolve(options.cwd ?? ".", options.logsDir ?? "logs");
+}
+export function logged(command: string, args: readonly string[], options: ProofOptions = {}) {
+  const cwd = resolve(options.cwd ?? "."), id = randomUUID();
+  const directory = logsDir(options); mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const logs = { stdout: join(directory, `${id}.stdout.log`), stderr: join(directory, `${id}.stderr.log`) };
+  const out = openSync(logs.stdout, "wx", 0o600), err = openSync(logs.stderr, "wx", 0o600);
+  let child: ChildProcess;
+  try { child = spawn(command, [...args], { cwd, detached: options.detached ?? false, env: { ...(options.env ?? process.env), SNAPBACK4_PROOF_LAUNCH: id }, stdio: [options.livenessPipe ? "pipe" : "ignore", options.secret ? "pipe" : out, err] }); }
+  finally { closeSync(out); closeSync(err); }
+  // Secret stdout never reaches a file, even briefly. Callers still receive it.
+  let stdout = "";
+  child.stdout?.setEncoding("utf8");
+  child.stdout?.on("data", chunk => { stdout += chunk; });
+  register(child);
+  child.stdin?.on("error", () => {});
+  let error: Error | undefined;
+  child.on("error", value => { error = value; });
+  const closed = new Promise<void>(resolve => child.once("close", () => resolve()));
+  return { child, logs, id, closed, stdout: () => options.secret ? stdout : logText(logs.stdout), error: () => error };
+}
+export const logText = (path: string): string => readFileSync(path, "utf8");
+export async function ready(run: ReturnType<typeof logged>, parse: (line: string) => string | undefined, timeoutMs: number): Promise<string> {
+  const end = performance.now() + timeoutMs;
+  let outAt = 0, errAt = 0;
+  while (performance.now() < end) {
+    if (run.error()) throw run.error();
+    if (run.child.exitCode !== null || run.child.signalCode !== null) {
+      throw Error(`proof child exited before ready (${run.child.exitCode ?? run.child.signalCode}); ${run.logs.stderr}\n${logText(run.logs.stderr).slice(-4000)}`);
+    }
+    for (const [path, offset, stream] of [[run.logs.stdout, outAt, "out"], [run.logs.stderr, errAt, "err"]] as const) {
+      const text = logText(path);
+      const complete = text.lastIndexOf("\n") + 1;
+      for (const line of text.slice(offset, complete).split("\n")) {
+        const url = parse(stripVTControlCharacters(line).trim());
+        if (url) return url;
+      }
+      if (stream === "out") outAt = complete; else errAt = complete;
+    }
+    await sleep(25);
+  }
+  throw Error(`proof child ready timed out after ${timeoutMs} ms; logs: ${run.logs.stdout}, ${run.logs.stderr}`);
+}
+
+
+witness-web.ts
+// @ref LLP 3000.011.003.000#8 — a browser proof calls the app's own authenticated client.
+import type { App } from "./app.js";
+import type { Mutation, Write } from "./contract.js";
+
+type Operations = Record<string, unknown>;
+export function registerWebWitness(app: App, api: Operations): void {
+  if (typeof window === "undefined" || typeof window.location?.search !== "string") return;
+  const enabled = new URLSearchParams(window.location.search).get("witness") === "web";
+  const armed = () => { if (!enabled) throw Error("E_WITNESS_DISABLED: add &witness=web"); };
+  const operations: unknown[] = [];
+  const walk = (value: Operations) => { for (const entry of Object.values(value)) {
+    if (entry && typeof entry === "object") {
+      if ("kind" in entry && entry.kind === "mutation" && !("ephemeral" in entry && entry.ephemeral === true)) operations.push(entry);
+      else if (!("kind" in entry)) walk(entry as Operations);
+    }
+  } };
+  walk(api);
+  let form: { terminal: Promise<unknown>; cancel: () => void } | undefined;
+  Object.defineProperty(window, "__snapback4Witness", { configurable: true, value: {
+    ready: () => app.ready,
+    viewer: () => app.client?.viewer(),
+    beginForm: (name: string | undefined, expected: Record<string, unknown> | null | undefined, button: Element) => {
+      armed();
+      if (!app.client) throw Error("E_WITNESS_AUTH: no signed-in client");
+      form?.cancel();
+      const client = app.client, originalClient = client.mutate, originalApp = app.mutate;
+      let click: Event | undefined, submit: Event | undefined, clickTimer: ReturnType<typeof setTimeout> | undefined, claimed = false, cancelObserver = () => {};
+      const outsideClick = Symbol("witness outside clicked dispatch");
+      let resolve!: (write: unknown) => void;
+      const terminal = new Promise(answer => { resolve = answer; });
+      let settled = false, noWriteTimer: ReturnType<typeof setTimeout> | undefined;
+      const noWrite = () => finish({ state: "failed", mutation: name, why: { code: "E_WITNESS_NO_WRITE", message: "armed click produced no durable mutation (form handler returned early, or the app was not ready)" } });
+      const finish = (write: unknown) => {
+        if (settled) return;
+        settled = true; clearTimeout(expiry); clearTimeout(noWriteTimer); restore(); cancelObserver(); resolve(write);
+      };
+      // Bound even an abandoned arm or a claimed write that never settles.
+      const receiptExpired = () => finish({ state: "failed", mutation: name, why: { code: "E_WITNESS_SENT", message: "claimed write did not settle within 30000 ms; inspect its original intent id" } });
+      let expiry = setTimeout(noWrite, 30_000);
+      // Chromium's active event ties admission to this actual control's handler.
+      // Timers, input autosaves and previously-started writes cannot claim it.
+      const capture = (event: Event) => {
+        if (!event.isTrusted) { click = undefined; submit = undefined; clearTimeout(clickTimer); return; }
+        if (event.isTrusted && event.composedPath().includes(button)) {
+          click = event; submit = undefined;
+          clearTimeout(noWriteTimer);
+          noWriteTimer = setTimeout(() => { if (!claimed) noWrite(); }, 1000);
+          clearTimeout(clickTimer);
+          clickTimer = setTimeout(() => { click = undefined; submit = undefined; }, 0);
+        }
+      };
+      const captureSubmit = (event: Event) => {
+        if (click && event.isTrusted && (event as SubmitEvent).submitter === button) submit = event;
+      };
+      document.addEventListener("click", capture, true);
+      document.addEventListener("submit", captureSubmit, true);
+      const restore = () => {
+        if (client.mutate === clientWrapper) client.mutate = originalClient;
+        if (app.mutate === appWrapper) app.mutate = originalApp;
+        document.removeEventListener("click", capture, true);
+        document.removeEventListener("submit", captureSubmit, true); clearTimeout(clickTimer);
+      };
+      const canonical = (value: unknown): unknown => Array.isArray(value) ? value.map(canonical) : value && typeof value === "object"
+        ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical((value as Record<string, unknown>)[key])])) : value;
+      const execute = async (original: Function, receiver: unknown, op: Mutation<any, any>, args: Record<string, unknown>, options?: any): Promise<Write> => {
+        const durable = operations.some(value => (value as Mutation<any, any>).name === op.name);
+        const eventMatches = !!click && (window.event === click || (!!submit && window.event === submit));
+        const argsMatch = expected == null || JSON.stringify(canonical(expected)) === JSON.stringify(canonical(args));
+        const eligible = !claimed && eventMatches && !options?.[outsideClick] && durable && (!name || name === op.name) && argsMatch;
+        let forwarded = options;
+        if (!eligible && receiver === app && durable) {
+          const { id, waitSeconds, ...other } = options ?? {};
+          forwarded = { ...other, id, waitSeconds, [outsideClick]: true };
+        }
+        const invoke = () => original.call(receiver, op, args, forwarded) as Promise<Write>;
+        if (!eligible) {
+          if (!claimed && durable) {
+            claimed = true; restore();
+            const reason = !eventMatches || options?.[outsideClick] ? "event: expected the armed click or its synchronous submit"
+              : name && name !== op.name ? `operation: expected ${name}, got ${op.name}`
+              : `arguments: expected ${JSON.stringify(canonical(expected))}, got ${JSON.stringify(canonical(args))}`;
+            finish({ state: "failed", mutation: op.name, why: { code: "E_WITNESS_UNCLAIMED", message: reason } });
+          }
+          return invoke();
+        }
+        claimed = true; restore(); clearTimeout(expiry); clearTimeout(noWriteTimer);
+        // A late click receives its own complete settlement allowance.
+        expiry = setTimeout(receiptExpired, 30_000);
+        let id: string | undefined, early: Write[] = [];
+        const stop = client.onWrite(write => {
+          // Native clients publish terminal receipts; foreign adapters must not
+          // turn a pending notification into terminal proof evidence either.
+          if ((write as Write).state === "pending") return;
+          if (id === undefined) { early.push(write); if (early.length > 256) early.shift(); }
+          else if (write.id === id) { stop(); finish({ ...write, mutation: op.name }); }
+        });
+        cancelObserver = stop;
+        try {
+          const write = await invoke();
+          id = write.id;
+          const receipt = write.state === "pending" ? early.find(value => value.id === id && value.state !== "pending") : write;
+          early = [];
+          if (receipt) { stop(); finish({ ...receipt, mutation: op.name }); }
+          return write;
+        } catch (error) { stop(); finish({ state: "failed", why: { code: "E_WITNESS_WEB" } }); throw error; }
+      };
+      // Hooks submit through client; forms using app.mutate enter before its readiness await.
+      const clientWrapper = ((op: Mutation<any, any>, args: Record<string, unknown>, options?: any) => execute(originalClient, client, op, args, options)) as typeof client.mutate;
+      const appWrapper = ((op: Mutation<any, any>, args: Record<string, unknown>, options?: any) => execute(originalApp, app, op, args, options)) as typeof app.mutate;
+      client.mutate = clientWrapper; app.mutate = appWrapper;
+      form = { terminal, cancel: () => { if (!claimed) noWrite(); else finish({ state: "failed", mutation: name, why: { code: "E_WITNESS_UNCLAIMED", message: "rearmed before the claimed write settled; inspect its original intent id" } }); } };
+    },
+    formResult: () => form?.terminal,
+    mutate: async (name: string | undefined, args: Record<string, unknown>, id: string) => {
+      armed();
+      const operation = operations.find(value => !name || (value as { name: string }).name === name);
+      if (!operation) throw Error("E_WITNESS_MUTATION: no matching durable mutation; pass --mutation with a generated API name (ephemeral signals do not prove stored writes)");
+      if (!app.client) throw Error("E_WITNESS_AUTH: the app has no signed-in client");
+      let observed: unknown;
+      let settle: ((write: unknown) => void) | undefined;
+      const stop = app.client.onWrite(write => { if (write.id === id) { observed = write; settle?.(write); } });
+      try {
+        const write = await app.mutate(operation as Mutation<any, any>, args, { id, waitSeconds: 0 });
+        if (write.state !== "pending") return write;
+        return observed ?? await new Promise(resolve => { settle = resolve; });
+      } finally { stop(); }
+    },
+  } });
+}
+
+
+react.tsx
+const ClientContext = createContext<Client | null>(null);
+
+const AppContext = createContext<App | null>(null);
+
+/** Own the app outside render; changing accounts replaces the client context. */
+export function AppProvider({ app, children }: { app: App; children: ReactNode }) {
+  const snapshot = useSyncExternalStore(app.auth.onChange, app.auth.getSnapshot, app.auth.getSnapshot);
+  const [boundary, setBoundary] = useState(() => ({ app, generation: 0 }));
+  // Account identity is state, never a memo cache that React may discard.
+  if (boundary.app !== app) setBoundary({ app, generation: boundary.generation + 1 });
+  return <AppContext.Provider value={app}><ClientContext.Provider value={app.client}>
+    <AppAccount key={`${boundary.generation}:${snapshot.viewer ?? ""}`}>{children}</AppAccount>
+  </ClientContext.Provider></AppContext.Provider>;
+}
+
+// Remount account-owned component state, including drafts and asset handles.
+function AppAccount({ children }: { children: ReactNode }) { return children; }
+
+export function useAuth(): AuthSnapshot & Pick<AppAuth, "signup" | "login" | "guest" | "logout" | "logoutEverywhere"> {
+  const app = useContext(AppContext);
+  if (!app) throw new Error("useAuth: no <AppProvider> above this component");
+  const snapshot = useSyncExternalStore(app.auth.onChange, app.auth.getSnapshot, app.auth.getSnapshot);
+  return { ...snapshot, signup: app.auth.signup, login: app.auth.login, guest: app.auth.guest,
+    logout: app.auth.logout, logoutEverywhere: app.auth.logoutEverywhere };
+}
+
+/** Initial opening has finished and the current signed-in account admits writes.
+ * This is admission readiness, not network availability or permission. */
+export function useAppReady(): boolean {
+  const app = useContext(AppContext);
+  if (!app) throw new Error("useAppReady: no <AppProvider> above this component");
+  const auth = useSyncExternalStore(app.auth.onChange, app.auth.getSnapshot, app.auth.getSnapshot);
+  const [opened, setOpened] = useState<App | null>(null);
+  useEffect(() => {
+    let active = true;
+    const finished = () => { if (active) setOpened(app); };
+    void app.ready.then(finished, finished);
+    return () => { active = false; };
+  }, [app]);
+  return opened === app && auth.state === "signed-in" && !auth.why?.code.startsWith("E_ADMISSION");
+}
+
+
+
+contract.ts
+export function isReady<R extends Read<unknown>>(read: R): read is Extract<R, { readonly data: unknown }> {
+  return "data" in read;
+}
+/** Narrow to disclosed non-null data; isReady alone still includes absent/partial null. */
+export function isPresent<R extends Read<unknown>>(read: R): read is Extract<R, { readonly existence: "present" }> {
+  return read != null && "data" in read && read.existence === "present";
+}
+export interface ReadMatchHandlers<T, R = unknown> {
+  loading: (read: Extract<Read<T>, { loading: true }>) => R;
+  denied: (why: Refusal, read: Extract<Read<T>, { denied: Refusal }>) => R;
+  absent: (read: Absent<T>) => R;
+  partial: (data: T, read: Partial<T>) => R;
+  present: (data: Present<T>["data"], read: Present<T>) => R;
+}
+
+/** `otherwise` covers omitted loading/absent/present handlers only.
+ * Denial and uncertain emptiness always require an explicit decision. */
+export type ReadMatchFallbackHandlers<T, R = unknown> =
+  Pick<ReadMatchHandlers<T, R>, "denied" | "partial"> & {
+    [K in "loading" | "absent" | "present"]?: ReadMatchHandlers<T, R>[K];
+  } & { otherwise: (read: Extract<Read<T>, { loading: true }> | Absent<T> | Present<T>) => R };
+
+/** A handler set with `otherwise` while it still lacks `denied` or `partial`:
+ * accepted for inference only, so the missing decision is named below. */
+type ReadMatchIncomplete<T> = { [K in keyof ReadMatchHandlers<T>]?: ReadMatchHandlers<T>[K] } & Pick<ReadMatchFallbackHandlers<T>, "otherwise">;
+type MissingDenied<T> = Omit<ReadMatchHandlers<T>, "denied"> & { denied?: never };
+/** The error a fallback without `denied`/`partial` reports: the property's
+ * type is the fix. LLP 3000.031 §8 keeps both decisions explicit; an
+ * `otherwise` built by `otherwiseAll` is that decision, so it needs neither. */
+type FallbackDecisions<H> = H extends { otherwise: OtherwiseAll<unknown> } ? unknown
+  : H extends { otherwise: unknown }
+  ? ("denied" extends keyof H ? unknown : { denied: "otherwise skips denied: add denied: why => …, or replace otherwise with ...otherwiseAll(fallback) to send denied and partial there too" })
+    & ("partial" extends keyof H ? unknown : { partial: "otherwise skips partial: add partial: data => …, or replace otherwise with ...otherwiseAll(fallback) to send denied and partial there too" })
+  : "denied" extends keyof H ? unknown : { denied: "matchRead requires denied: why => … (or ...otherwiseAll(fallback))" };
+
+/** What `matchRead` accepts: a read, or a `usePage` result (it reads `page.read`). */
+type Matchable<T> = Read<T> | { readonly read: Read<T>; readonly loadMore: () => void };
+
+/** Render the current read, preserving its narrowed data and metadata.
+ * Pass no type arguments: T comes from the read and the result is the union of
+ * the handlers' returns. `present`/`partial` receive data; `otherwise` receives
+ * the read itself (narrow with `isReady`). Denied and partial stay explicit:
+ * to route them to the fallback too, say so with one spread, in any position,
+ * `matchRead(read, { ...otherwiseAll(() => "…"), present: rows => … })`; a
+ * handler the call names always wins over it.
+ * Pure dispatch: no reclassification, subscription, retention or permission.
+ * A `usePage` result may be passed whole (its `read` is matched); present
+ * pages may still be incomplete.
+ * @ref LLP 3000.031#8 — explicit denied/partial decisions even with a fallback.
+ */
+// @ref LLP 3000.013#6.6 — an omitted denied/partial with `otherwise` fails naming the fix, not a Pick<> dump.
+// @ref LLP 3000.013#6.7 — NoInfer wraps the whole handler set, never T inside it: `NoInfer<T> & ({} | undefined)` never simplified, so present rows refused `rows[0]` and `for…of`.
+// @ref LLP 3000.013#6.8 — a page hook is matched by its read: `matchRead(page, …)` was the most common miss.
+export function matchRead<T, H extends NoInfer<ReadMatchHandlers<T> | ReadMatchFallbackHandlers<T> | ReadMatchIncomplete<T> | MissingDenied<T>>>(
+  read: Matchable<T>, handlers: H & FallbackDecisions<H>,
+): ReturnType<Extract<H[keyof H], (...args: never[]) => unknown>>;
+
+
+guide client
+# Client: answers stay on screen
+
+**Start here:** `useQuery`/`usePage`, `matchRead`/`readPresentation`; composers/receipts above rows. `useFollowing` (`guide feeds`).
+
+```tsx
+import { matchRead, readPresentation, usePage } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+export function Inbox() { const page = usePage(api.inboxCards, {}), status = readPresentation(page.read); return <>{matchRead(page.read, { loading: () => "Loading…", denied: why => why.message,
+    absent: () => "No conversations", partial: () => "Partial results", present: rows => `${rows.length} conversations` })}
+    {status.incomplete && "Results may be incomplete"}{page.items.map(row => <p key={row.id}>{row.title} ({row.memberCount})</p>)}<button disabled={!page.hasMore} onClick={page.loadMore}>More</button></>;
+}
+```
+
+- `E_OFFLINE`: unavailable; reconnect.
+- `E_QUERY_RETRY`: four rounds exhausted; retry the read.
+
+## Reference
+`Write`: pending custody, sent fresh result, sent replay without result, or failed with why. Clear only on sentResult; undefined is not success.
+```tsx
+import { useState } from "react"; import { matchRead, sentResult, useAppReady, useMutation, useQuery } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+export function Composer({conversationId}:{conversationId:string}) {
+  const [draft,setDraft]=useState(""),[submitted,setSubmitted]=useState("");
+  const ready=useAppReady(),send=useMutation(api.send),member=useQuery(api.myMembership,{conversationId});
+  const blocked=matchRead(member,{denied:()=>true,absent:read=>read.fresh&&!read.revalidating,partial:()=>false,otherwise:()=>false});
+  async function submit(){const text=draft.trim();if(!ready||blocked||!text||text.length>2000)return;setSubmitted(text);const write=await send.run({conversationId,body:text});if(sentResult(write)!==undefined)setDraft(current=>current.trim()===text?"":current);}
+  return <><input value={draft} onChange={e=>setDraft(e.target.value)}/>
+    <button disabled={!ready||send.inFlight||blocked} onClick={()=>void submit()}>Send</button>
+    {send.last?.state==="failed"&&submitted&&<p role="alert">Not sent: {submitted} <button onClick={()=>setDraft(current=>current?current+" "+submitted:submitted)}>Edit</button> <button onClick={()=>setSubmitted("")}>Dismiss</button></p>}</>;
+}
+```
+Membership: no horizon, the conversation's own group and messages' audience prove presence/absence unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. `existence(member) === "absent"` blocks only when fresh and non-revalidating; denied blocks; loading/partial never disable. Never add `with own keys` to admin-written memberships.
+Keep drafts and receipts above rows; [write journal, password form and typed list props](CLIENT-AND-OPERATIONS.md). `waitSeconds:0` returns custody; keep the original id, never auto-resend.
+
+## An online role form across releases
+Use createApp({url,writes:"online",sessionStore:localStorageSessionStore()}) inside AppProvider after sign-in. RULES3 owns roster authorization; DAY3 owns compatibility generation.
+```tsx
+import { useEffect, useState } from "react";
+import { isPresent, matchReadList, sentResult, useAppReady, useMutation, useQuery, useRelease } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+export function StaffWorkspace({team}: {team: string}) {
+  const ready = useAppReady(), release = useRelease();
+  const role = useQuery(api.myRole, {team});
+  const [draft, setDraft] = useState(""), [selected, setSelected] = useState("");
+  const [lastStaff, setLastStaff] = useState(false);
+  const staff = isPresent(role) && role.data.role === "staff";
+  const uncertain = "loading" in role || ("data" in role && role.existence === "partial");
+  useEffect(() => { if (!uncertain) setLastStaff(staff); }, [uncertain, staff]);
+  const shell = uncertain ? lastStaff : staff;
+  const available = api.addStaffNote.available(release) && api.staffNotes.available(release);
+  const add = useMutation(api.addStaffNote);
+  async function submit() {
+    const title = draft.trim();
+    if (!ready || !staff || !available || !title || !selected) return;
+    const write = await add.run({team, title, category:selected});
+    if (sentResult(write) !== undefined) setDraft(current => current === draft ? "" : current);
+  }
+  return <section aria-label="Staff workspace"><p>{shell ? "Staff workspace" : "Staff access required"}</p>
+    <label>Note<input value={draft} onChange={e => setDraft(e.target.value)} /></label>
+    <label htmlFor="category">Category</label><select id="category" value={selected} onChange={e => setSelected(e.target.value)}><option value="">Choose</option><option value="general">General</option></select>
+    <button disabled={!ready || !staff || !available || add.inFlight} onClick={() => void submit()}>Save note</button>
+    {staff && available ? <StaffRows team={team} /> : <p>Waiting for staff capabilities</p>}
+    {add.last?.state === "failed" && <p role="alert">{add.last.why.message}</p>}
+  </section>;
+}
+function StaffRows({team}: {team:string}) {
+  const rows = useQuery(api.staffNotes, {team});
+  return <>{matchReadList(rows, {denied: why => <p role="alert">{why.message}</p>, absent: () => <p>No notes</p>,
+    present: notes => <ul>{notes.map(row => <li key={row.id}>{row.title} — {row.priority ?? "normal"}</li>)}</ul>,
+    otherwise: () => <p>Updating notes…</p>})}</>;
+}
+```
+Mount `<StaffWorkspace key={team} team={team}/>`: drafts/selections survive loading and generation changes, but resource/account/backend changes reset them. The sticky role labels the shell only; current role and availability gate reads/Save. Server rules still decide permission. A "Since release N" field stays optional: use `row.priority ?? "normal"` at React render and Exact required-property boundaries.
+
+## A public guest page
+The schema admits guests (`use identity`/`use identity guests`) and public reads. No device/password is needed; browser session custody is required.
+```tsx
+import { createApp } from "snapback4/app";
+import { localStorageSessionStore } from "snapback4/auth";
+import { AppProvider, matchReadList, useAuth, useQuery } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+const guestApp = createApp({url:"http://127.0.0.1:4400", readOnly:true, sessionStore:localStorageSessionStore()});
+export function GuestPage() { return <AppProvider app={guestApp}><GuestGate /></AppProvider>; }
+function GuestGate() {
+  const auth = useAuth();
+  if (auth.state === "restoring") return <p>Restoring…</p>;
+  if (auth.state === "signed-out") return <><button onClick={() => void auth.guest()}>Continue as a guest</button><p role="alert">{auth.why?.message}</p></>;
+  return <PublicNotes />;
+}
+function PublicNotes() {
+  const notes = useQuery(api.publicNotes, {});
+  return <>{matchReadList(notes, {denied: why => <p role="alert">{why.message}</p>, absent: () => <p>No public notes</p>,
+    present: rows => <ul>{rows.map(row => <li key={row.id}>{row.title}</li>)}</ul>, otherwise: () => <p>Loading…</p>})}</>;
+}
+```
+
+## React hooks and auth decisions
+Render editable sign-in controls only while signed-out, Restoring… otherwise. AppProvider resets on app/viewer changes; restoring → signed-out preserves the null-viewer form. `useAppReady()` waits for initial app.ready and current signed-in auth without an admission refusal; gate writers/proof input. Successful later sign-in recovers from initial failure. Readiness is neither connectivity nor permission; surface auth.why.
+`useAuth()` members: `state`, `viewer`, `why`, `signup(email, password)`, `login(email, password)`, `guest()`, `logout()`, `logoutEverywhere()`. `signOut()` belongs to the client. Expo session store: secureStoreSessionStore(SecureStore); password form: [reference](CLIENT-AND-OPERATIONS.md#password-react-and-expo).
+`matchRead` handlers: `loading(read)`, `denied(why,read)`, `absent(read)`, `partial(data,read)`, `present(data,read)`. `otherwise` covers omitted loading/absent/present; otherwiseAll also takes denied/partial. A complete empty list is absent; `absent` can be an authorised empty list. `matchReadList` handles lists; `isPresent(read)` excludes null, while `isReady(read)` still permits null; `existence(read)` and `read.existence` classify.
+`loading`: keep shells; `denied`: show refusal; `present`: render; `absent`: proven empty; `partial`: uncertain. Offline absent is absence at the acquired watermark. Hidden/missing rows are indistinguishable. `readPresentation` notices never grant permission. Render page.items, follow hasMore/loadMore. Unknown counts never hide conversations.
+`query(op,args)` settles ready/denied within 30 seconds. Unavailable offline reads give immediate `E_OFFLINE`. After four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Retention, RowOf/ArgsOf/ResultOf and {skip}: [reference](CLIENT-AND-OPERATIONS.md). Share/paginate: eight active, eight queued observation attempts; direct queries and timed presence refreshes use separate paths.
+Browser createApp: no sync → journal; sync → webDevice(); online writes: writes:"online". Native: nativeDevice; Expo Go online. Every milestone: npm run export:ios; proof in the background: witness status --wait. Rebuild npm run native:smoke. Acquisition/offline reopen/reconnect/write replay: guide witness.
+useOnline: server reads/ephemeral/actions; durable writes: app.mutate. SDK owns delivery reporting; screen owns visible `seen` reporting. useSeen owns receipt retries (guide receipts). Read-only clients: guide read-only. Media: OFFLINE-UPLOADS.md. Never wait for networkidle; assert fresh sent before rendered output (guide testing).
+Keyed counts: hidden key → null; authorized missing count group → 0; public count → number. Choose count ?? 0 explicitly.

@@ -9,11 +9,14 @@ import { sentResult } from '../dist/contract.js';
 import { spawnSync } from 'node:child_process';
 const root = resolve(import.meta.dirname, '..');
 const guide = resolve(root, '../../crates/snapback4-lang/src/guide');
-const api = `import type { Query, Mutation, Cursor } from './src/contract.ts';
+const api = `import type { Query, Mutation, Cursor, ReleaseSnapshot } from './src/contract.ts';
 declare const api: {
   inboxCards: Query<{c?:Cursor|null}, {id:string;title:string;memberCount:number}[]>;
   directory: Query<{c?:Cursor|null}, {principal:string;displayName:string}[]>;
-  staffNotes: Query<{}, {id:string;title:string}[]>;
+  staffNotes: Query<{team:string}, {id:string;title:string;priority?:string}[]> & {available(release:ReleaseSnapshot):boolean};
+  myRole: Query<{team:string}, {role:'staff'|'member'}|null>;
+  addStaffNote: Mutation<{team:string;title:string;category:string}, {id:string}> & {available(release:ReleaseSnapshot):boolean};
+  publicNotes: Query<{}, {id:string;title:string}[]>;
   myMembership: Query<{conversationId:string}, {id:string}|null>;
   enroll: Mutation<{team:string;principal:string}, unknown>;
   register: Mutation<{displayName:string}, {principal:string;displayName:string}>;
@@ -74,7 +77,7 @@ test('the published production composer validates and clears only its fresh rece
   ]) {
     for (const newerDraft of [false, true]) {
       let settle, calls = 0;
-      const context = { draft:'  Hello  ', blocked:false, conversationId:'c', sentResult,
+      const context = { draft:'  Hello  ', ready:true, blocked:false, conversationId:'c', sentResult,
         setSubmitted: () => {}, setDraft: change => {context.draft = change(context.draft);},
         send:{},
       };
@@ -89,7 +92,7 @@ test('the published production composer validates and clears only its fresh rece
     }
   }
   for(const [draft,blocked] of [['   ',false],['x'.repeat(2001),false],['Hello',true]]){
-    const context={draft,blocked,send:{run:()=>{throw Error('invalid form submitted');}},sentResult};
+    const context={draft,blocked,ready:true,send:{run:()=>{throw Error('invalid form submitted');}},sentResult};
     await vm.runInNewContext('('+submitSource+')',context)();
   }
 });

@@ -28,12 +28,23 @@ export function registerWebWitness(app: App, api: Operations): void {
       const outsideClick = Symbol("witness outside clicked dispatch");
       let resolve!: (write: unknown) => void;
       const terminal = new Promise(answer => { resolve = answer; });
+      let settled = false, noWriteTimer: ReturnType<typeof setTimeout> | undefined;
+      const noWrite = () => finish({ state: "failed", mutation: name, why: { code: "E_WITNESS_NO_WRITE", message: "armed click produced no durable mutation (form handler returned early, or the app was not ready)" } });
+      const finish = (write: unknown) => {
+        if (settled) return;
+        settled = true; clearTimeout(expiry); clearTimeout(noWriteTimer); restore(); cancelObserver(); resolve(write);
+      };
+      // Bound even an abandoned arm or a claimed write that never settles.
+      const receiptExpired = () => finish({ state: "failed", mutation: name, why: { code: "E_WITNESS_SENT", message: "claimed write did not settle within 30000 ms; inspect its original intent id" } });
+      let expiry = setTimeout(noWrite, 30_000);
       // Chromium's active event ties admission to this actual control's handler.
       // Timers, input autosaves and previously-started writes cannot claim it.
       const capture = (event: Event) => {
         if (!event.isTrusted) { click = undefined; submit = undefined; clearTimeout(clickTimer); return; }
         if (event.isTrusted && event.composedPath().includes(button)) {
           click = event; submit = undefined;
+          clearTimeout(noWriteTimer);
+          noWriteTimer = setTimeout(() => { if (!claimed) noWrite(); }, 1000);
           clearTimeout(clickTimer);
           clickTimer = setTimeout(() => { click = undefined; submit = undefined; }, 0);
         }
@@ -68,15 +79,20 @@ export function registerWebWitness(app: App, api: Operations): void {
             const reason = !eventMatches || options?.[outsideClick] ? "event: expected the armed click or its synchronous submit"
               : name && name !== op.name ? `operation: expected ${name}, got ${op.name}`
               : `arguments: expected ${JSON.stringify(canonical(expected))}, got ${JSON.stringify(canonical(args))}`;
-            resolve({ state: "failed", mutation: op.name, why: { code: "E_WITNESS_UNCLAIMED", message: reason } });
+            finish({ state: "failed", mutation: op.name, why: { code: "E_WITNESS_UNCLAIMED", message: reason } });
           }
           return invoke();
         }
-        claimed = true; restore();
+        claimed = true; restore(); clearTimeout(expiry); clearTimeout(noWriteTimer);
+        // A late click receives its own complete settlement allowance.
+        expiry = setTimeout(receiptExpired, 30_000);
         let id: string | undefined, early: Write[] = [];
         const stop = client.onWrite(write => {
+          // Native clients publish terminal receipts; foreign adapters must not
+          // turn a pending notification into terminal proof evidence either.
+          if ((write as Write).state === "pending") return;
           if (id === undefined) { early.push(write); if (early.length > 256) early.shift(); }
-          else if (write.id === id) { stop(); resolve({ ...write, mutation: op.name }); }
+          else if (write.id === id) { stop(); finish({ ...write, mutation: op.name }); }
         });
         cancelObserver = stop;
         try {
@@ -84,15 +100,15 @@ export function registerWebWitness(app: App, api: Operations): void {
           id = write.id;
           const receipt = write.state === "pending" ? early.find(value => value.id === id && value.state !== "pending") : write;
           early = [];
-          if (receipt) { stop(); resolve({ ...receipt, mutation: op.name }); }
+          if (receipt) { stop(); finish({ ...receipt, mutation: op.name }); }
           return write;
-        } catch (error) { stop(); resolve({ state: "failed", why: { code: "E_WITNESS_WEB" } }); throw error; }
+        } catch (error) { stop(); finish({ state: "failed", why: { code: "E_WITNESS_WEB" } }); throw error; }
       };
       // Hooks submit through client; forms using app.mutate enter before its readiness await.
       const clientWrapper = ((op: Mutation<any, any>, args: Record<string, unknown>, options?: any) => execute(originalClient, client, op, args, options)) as typeof client.mutate;
       const appWrapper = ((op: Mutation<any, any>, args: Record<string, unknown>, options?: any) => execute(originalApp, app, op, args, options)) as typeof app.mutate;
       client.mutate = clientWrapper; app.mutate = appWrapper;
-      form = { terminal, cancel: () => { restore(); cancelObserver(); } };
+      form = { terminal, cancel: () => { if (!claimed) noWrite(); else finish({ state: "failed", mutation: name, why: { code: "E_WITNESS_UNCLAIMED", message: "rearmed before the claimed write settled; inspect its original intent id" } }); } };
     },
     formResult: () => form?.terminal,
     mutate: async (name: string | undefined, args: Record<string, unknown>, id: string) => {

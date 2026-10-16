@@ -9,6 +9,12 @@ const dev = await startDev();
 try { console.log(dev.url); } finally { await cleanup(() => dev.stop()); }
 ```
 
+Raw HTTP starts with JSON envelopes: POST /q/name `{args:{...}}`, POST /m/name
+`{id:"stable-intent-id",args:{...}}`, POST /a/name `{id:"stable-action-id",args:{...}}`.
+Keep the same id on an ambiguous retry. A mutation/action id identifies the attempt;
+`result.id` identifies a returned row. Query data is under `data`, writes under `result`;
+actions have their own lifecycle (`guide actions`), not a mutation receipt.
+
 The generated frontend:proof builds its own dist with build (web) or build:web (Expo web).
 After replacing the starter screen, replace its business assertions too.
 `init --adapt` previews only and writes nothing; use the printed `--apply` command.
@@ -150,14 +156,26 @@ try {
 The kit spawns binaries directly, binds the first free port in PORT_LO..PORT_HI
 at run time (or an OS-assigned port with neither set), strips ANSI ready lines,
 asserts served identity and owns bounded cleanup. Each child logs separate
-stdout/stderr files outside application sources by default (`logsDir()` uses the OS temporary directory).
+stdout/stderr files in `<cwd>/logs` by default. These survive the harness's
+TMPDIR cleanup (H6); set `logsDir` outside a source-discovery directory if your
+tool treats every file under cwd as source (for example, an Exact app/ root).
 Set `logsDir` explicitly to retain a chosen artifact directory. `startServe(deployDir)` serves a deployment;
 `startVite(dir)` serves the app's Vite config; `startStatic(dir)` serves built
-output, including wasm. Never spawn npx or shell wrappers for proof hosts.
+output, including wasm. Spawn servers with the kit or the binary, never `npx`:
+killing the npx wrapper leaves the server holding your pipe.
+`startDev({args})` still adds --memory unless --store or --no-memory is explicit.
+The kit consumes --no-memory to use native dev's persistent `.snapback4/store.sqlite`;
+--memory with a persistence flag refuses. --store is forwarded to native validation
+(current dev refuses it; choose --no-memory for its project store).
 `startDev(args)` and `stopChild(ChildProcess | {url, stop})` remain supported.
 `cli(args)` dispatches every published verb through the installed JS wrapper, including web-shell,
 awaits close and returns `{code, stdout, stderr, logs}`; assert code
-when expecting success. `withBrowser({ chromium })` uses the caller’s Playwright (including @playwright/test);
+when expecting success. `cli(["token", ...])` never persists stdout: its bearer is
+returned in memory only. Use `{secret:true}` with cli/command for other secret
+stdout; stderr remains a log, so the invoked tool must keep secrets off stderr.
+`withBrowser` automatically adds `witness=web` to top-level HTTP(S) navigations
+with an init script before app scripts, including redirect destinations; raw Playwright callers add the flag themselves.
+`withBrowser({ chromium })` uses the caller’s Playwright (including @playwright/test);
 playwright-core is an optional peer required when using browsers. Chromium launches over
 a pipe, with no WebSocket listener. Set CHROME to an installed Chromium; root or a recognized
 unavailable sandbox selects --no-sandbox. Ordinary hosts first use the sandbox.
@@ -168,11 +186,31 @@ has no content-derived accessible name, so never getByRole('status', {name}).
 `selectByValue(locator, value)` uses a stable option value, not a label regex.
 Never wait for networkidle: live queries hold long polls. Wait for the control.
 
-`renderedText(page, text, { within: container })` excludes inputs and textareas.
-`waitForFresh(locator, previous, { within: container, timeoutMs: 30000 })` scopes a fresh signal.
+`renderedText(page, text, { exact: true, within: container })` excludes inputs and
+textareas. Strings match the entire rendered text by default. Use
+`renderedText(page, "verification", {exact:false})` or
+`renderedText(page, /verification/)` for a row that contains more text.
+`within` is optional. RN-web may split one logical row across nested nodes,
+producing multiple matches: scope to its container, then use `.first()` only
+when those nodes prove the same row. A strictness error means scope is ambiguous.
+Decorative glyphs contribute to accessible names: use aria-hidden for icons or
+an explicit aria-label. A wrapped select label can absorb option text; prefer
+an explicit label/for pair and selectByValue. Run frontPage before screenshots.
+`waitForFresh(locator, previous, { within: container, timeoutMs: 30000 })` scopes
+a fresh signal; both options are optional. Timeout names the locator, last count
+and text, and absent versus present-but-unchanged. Old text and editable values
+prove nothing. After a terminal receipt, poll the authoritative projection:
+`await waitForServer(() => app.online.query(api.list, {}), read => "data" in read && read.fresh && read.data.some(row => row.id === createdId), {label:"committed row"})`.
+Import waitForServer from snapback4/proof. Supply app.online or raw HTTP server
+reads; a local device query can contain predictions and is not server truth. Each poll and the whole wait are bounded;
+its deadline reports the last answer. A poll timeout never means the write failed.
 `await frontPage(page)` brings the page forward before `await page.screenshot(...)`.
 
 E_WITNESS_DISABLED means claiming is not armed. Add &witness=web to the proof URL.
+
+E_WITNESS_SENT means the write failed, stayed pending or timed out. Inspect the refusal; pending is not success. A proof timeout never cancels a write.
+
+E_WITNESS_NO_WRITE means the armed click produced no durable mutation. Check the form handler and useAppReady() before clicking; a proof failure never cancels a write.
 
 E_WITNESS_UNCLAIMED means the armed durable write's event, operation or arguments did not match. Inspect the reason in formResult; the application write still runs normally.
 
@@ -192,11 +230,21 @@ Timers or later requestSubmit calls do not inherit a prior click.
 formResult() returns a Promise of { state, id, seq?, result?, why?, mutation }.
 Require state === "sent" before asserting the rendered business result.
 An unclaimable durable write settles failed/E_WITNESS_UNCLAIMED with event/operation/arguments detail.
-Keep the promise outside components that may unmount; rearming cancels observation.
+Keep the promise outside components that may unmount. Four terminal outcomes:
+- sent: claimed write committed (a replay may omit its historical result);
+- failed with the app refusal: claimed write was refused;
+- failed/E_WITNESS_UNCLAIMED: event, operation or arguments did not match;
+- failed/E_WITNESS_NO_WRITE: armed click produced no durable mutation (handler returned early, or app was not ready).
+No write fails 1 second after the trusted click, on re-arm, or after a 30-second
+abandoned arm. A claimed write still pending at 30 seconds fails the proof with
+E_WITNESS_SENT; inspect its original intent id, never infer a server refusal.
+Re-arm settles the old promise and releases observation; it never cancels a write.
+Gate the form with useAppReady() before typing/clicking; auth alone can precede
+the initial app.ready barrier. pending is custody, not a terminal result.
 
 Eight rules keep proofs honest:
 
-- Log to files, never pipes. A descendant holding a pipe can hide completion.
+- Log to files, never pipes, for server output. A descendant holding a pipe can hide completion. Secret command stdout uses bounded memory capture, whose read end closes on deadline.
 - Wait for a fresh signal for each write: its terminal receipt, changed write id,
   or unique new value. `waitForFresh(locator, previous)` rejects unchanged text.
 - Receipts live outside components that unmount. The generated proof arms the

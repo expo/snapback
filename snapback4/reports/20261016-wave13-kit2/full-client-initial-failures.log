@@ -1,0 +1,296 @@
+not ok 1 - guide api has a row for every subpath, and each name it lists is exported there
+  ---
+  duration_ms: 1210.332081
+  type: 'test'
+  location: '/home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/api-index.test.mjs:34:1'
+  failureType: 'testCodeFailure'
+  error: 'snapback4/contract exports isPresent; add it to its row in crates/snapback4-lang/src/guide/api.md'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/api-index.test.mjs:47:39)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1103:25)
+    Test.start (node:internal/test_runner/test:1000:17)
+    startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17)
+  ...
+# Subtest: guide api's Expo names are the Expo package's exports
+ok 2 - guide api's Expo names are the Expo package's exports
+  ---
+  duration_ms: 0.548231
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 1
+# fail 1
+# cancelled 0
+# skipped 0
+
+not ok 1 - /home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/event-slot-capability.test.mjs
+  ---
+  duration_ms: 235.966315
+  type: 'test'
+  location: '/home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/event-slot-capability.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 292.291226
+-- process inspection: {"snapshots":3,"unrelatedRows":4191}
+-- client file FAIL: packages/snapback4/test/event-slot-capability.test.mjs (1236 ms)
+-- client file start: packages/snapback4/test/event-slots.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: schema retries retire a known obsolete durable answer before adoption completes
+ok 1 - schema retries retire a known obsolete durable answer before adoption completes
+  ---
+  duration_ms: 724.278521
+  type: 'test'
+  ...
+# Subtest: schema retries still deliver durable inserts during initial discovery
+ok 2 - schema retries still deliver durable inserts during initial discovery
+
+not ok 1 - /home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/event-slots.test.mjs
+  ---
+  duration_ms: 405.164753
+  type: 'test'
+  location: '/home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/event-slots.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 432.761195
+-- process inspection: {"snapshots":3,"unrelatedRows":4210}
+-- client file FAIL: packages/snapback4/test/event-slots.test.mjs (1065 ms)
+-- client file start: packages/snapback4/test/expired-server-watch.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: online mutation: concurrent same-id calls with identical arguments keep their own cleanup outcomes
+ok 1 - online mutation: concurrent same-id calls with identical arguments keep their own cleanup outcomes
+  ---
+  duration_ms: 385.846592
+  type: 'test'
+  ...
+# Subtest: online mutation: concurrent same-id calls with different arguments keep their own cleanup outcomes
+ok 2 - online mutation: concurrent same-id calls with different arguments keep their own cleanup outcomes
+
+not ok 5 - H8 run, doctor, clock advance and reset discover a persisted dev on a non-default port
+  ---
+  duration_ms: 174.444543
+  type: 'test'
+  location: '/home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/pubfix29b.test.mjs:66:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    cannot reach dev at 127.0.0.1:4400: Connection refused (os error 111)
+    
+    
+    1 !== 0
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: 0
+  actual: 1
+  operator: 'strictEqual'
+  stack: |-
+    okay (file:///home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/pubfix29b.test.mjs:18:31)
+    TestContext.<anonymous> (file:///home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/pubfix29b.test.mjs:74:54)
+    process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 4
+# fail 1
+# cancelled 0
+# skipped 0
+# todo 0
+
+not ok 1 - README TypeScript examples compile and call every public function
+  ---
+  duration_ms: 3864.249285
+  type: 'test'
+  location: '/home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/readme-examples.test.mjs:84:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + [
+    +   "README.md:5401 (block starts at 5396): TS2339: Property 'myRole' does not exist on type '{ cards: FollowingQuery<{ c?: Cursor | null; }, { post: string; actor: string; at: number; repost: boolean; }[]>; history: Query<{ conversation: string; c?: Cursor | null; }, { ...; }[]>; ... 32 more ...; applyBillingEvent: Mutation<...>; }'.",
+    +   "README.md:5405 (block starts at 5396): TS18048: 'role.data' is possibly 'undefined'.",
+    +   "README.md:5405 (block starts at 5396): TS2339: Property 'role' does not exist on type '{}'.",
+    +   "README.md:5410 (block starts at 5396): TS2551: Property 'addStaffNote' does not exist on type '{ cards: FollowingQuery<{ c?: Cursor | null; }, { post: string; actor: string; at: number; repost: boolean; }[]>; history: Query<{ conversation: string; c?: Cursor | null; }, { ...; }[]>; ... 32 more ...; applyBillingEvent: Mutation<...>; }'. Did you mean 'staffNotes'?",
+    +   "README.md:5410 (block starts at 5396): TS2339: Property 'available' does not exist on type 'Query<{}, { id: string; title: string; }[]>'.",
+    +   "README.md:5411 (block starts at 5396): TS2551: Property 'addStaffNote' does not exist on type '{ cards: FollowingQuery<{ c?: Cursor | null; }, { post: string; actor: string; at: number; repost: boolean; }[]>; history: Query<{ conversation: string; c?: Cursor | null; }, { ...; }[]>; ... 32 more ...; applyBillingEvent: Mutation<...>; }'. Did you mean 'staffNotes'?",
+    +   "README.md:5416 (block starts at 5396): TS2345: Argument of type 'Signal<unknown>' is not assignable to parameter of type 'Write<unknown> | null | undefined'.\n" +
+    +     `  Type '{ readonly state: "sent"; readonly id: string; readonly result: unknown; }' is not assignable to type 'Write<unknown> | null | undefined'.\n` +
+    +     `    Property 'seq' is missing in type '{ readonly state: "sent"; readonly id: string; readonly result: unknown; }' but required in type '{ readonly state: "sent"; readonly id: string; readonly seq: number; readonly replayed?: false; readonly result: unknown; }'.`,
+    +   "README.md:5429 (block starts at 5396): TS2339: Property 'priority' does not exist on type '{ id: string; title: string; }'.",
+    +   "README.md:5466 (block starts at 5453): TS2339: Property 'publicNotes' does not exist on type '{ cards: FollowingQuery<{ c?: Cursor | null; }, { post: string; actor: string; at: number; repost: boolean; }[]>; history: Query<{ conversation: string; c?: Cursor | null; }, { ...; }[]>; ... 32 more ...; applyBillingEvent: Mutation<...>; }'.",
+    +   "README.md:5467 (block starts at 5453): TS2345: Argument of type 'Read<unknown>' is not assignable to parameter of type 'Matchable<readonly unknown[]>'.\n" +
+    +     "  Type 'Present<unknown>' is not assignable to type 'Matchable<readonly unknown[]>'.\n" +
+    +     "    Type 'Present<unknown>' is not assignable to type '{ readonly loading: true; } | { readonly denied: Refusal; } | Present<readonly unknown[]> | { readonly read: Read<readonly unknown[]>; readonly loadMore: () => void; }'.\n" +
+    +     "      Type 'Present<unknown>' is not assignable to type 'Present<readonly unknown[]>' with 'exactOptionalPropertyTypes: true'. Consider adding 'undefined' to the types of the target's properties.\n" +
+    +     "        Type 'unknown' is not assignable to type 'readonly unknown[]'.",
+    +   "README.md:5468 (block starts at 5453): TS18046: 'row' is of type 'unknown'.",
+    +   "README.md:5468 (block starts at 5453): TS18046: 'row' is of type 'unknown'.",
+    +   'proof.waitForServer needs a call in a README ts/tsx block'
+    + ]
+    - []
+
+not ok 2 - the React entry index names every function snapback4/react exports
+  ---
+  duration_ms: 2.743453
+  type: 'test'
+  location: '/home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/readme-examples.test.mjs:155:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    Expected values to be strictly deep-equal:
+    + actual - expected
+    
+    + [
+    +   'useAppReady',
+    +   'isPresent'
+    + ]
+    - []
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+  actual:
+    0: 'useAppReady'
+    1: 'isPresent'
+  operator: 'deepStrictEqual'
+  stack: |-
+    TestContext.<anonymous> (file:///home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/readme-examples.test.mjs:162:10)
+    Test.runInAsyncScope (node:async_hooks:214:14)
+    Test.run (node:internal/test_runner/test:1103:25)
+    Test.processPendingSubtests (node:internal/test_runner/test:785:18)
+    Test.postRun (node:internal/test_runner/test:1232:19)
+    Test.run (node:internal/test_runner/test:1160:12)
+    async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3)
+  ...
+
+not ok 7 - actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes
+  ---
+  duration_ms: 140135.065262
+  type: 'test'
+  location: '/home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/server-e2e.test.mjs:24:55'
+  failureType: 'testTimeoutFailure'
+  error: 'test timed out after 140000ms'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: parked action operator disposition records known provider acceptance without resuming original work
+ok 8 - parked action operator disposition records known provider acceptance without resuming original work
+  ---
+  duration_ms: 6811.029808
+  type: 'test'
+  ...
+# Subtest: serve uses the same generated contract and declared environment across a supervised restart
+ok 9 - serve uses the same generated contract and declared environment across a supervised restart
+  ---
+  duration_ms: 6367.294282
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 8
+# fail 0
+# cancelled 1
+# skipped 0
+# todo 0
+# duration_ms 195248.449117
+-- process inspection: {"snapshots":3,"unrelatedRows":4303}
+-- client file FAIL: packages/snapback4/test/server-e2e.test.mjs (195829 ms)
+
+not ok 1 - every delivery await is explicitly classified
+  ---
+  duration_ms: 1019.615714
+  type: 'test'
+  location: '/home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs:68:1'
+  failureType: 'testCodeFailure'
+  error: |-
+    new or changed await needs delivery reachability classification, including outside existing helper scopes
+    + actual - expected
+    ... Skipped lines
+    
+      {
+        'acquisition.ts': {
+          count: 0,
+          sha256: '4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945'
+        },
+    ...
+        'proof.ts': {
+    +     count: 32,
+    +     sha256: '569e4f8f860a60853713c804bc5a9eea74d5d287af37a988cbc605b1aad630ad'
+    -     count: 29,
+    -     sha256: '47e313c568eadb10f836a37d5eac8489b8771940e06e8063c44474a974fc44cf'
+        },
+        'query-custody.ts': {
+          count: 1,
+          sha256: 'c8a795b4cf3c5f622500bca28e008a254ab73ac03b924d8a0fbd3fd40a261946'
+        },
+    
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected:
+    acquisition.ts:
+
+not ok 65 - failed Expo exports and dead wrapper journals never occupy keep slots (non-macOS)
+  ---
+  duration_ms: 124911.665013
+  type: 'test'
+  location: '/home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/export-background.test.mjs:6:39'
+  failureType: 'testCodeFailure'
+  error: 'coalesced maintenance queue drained'
+  code: 'ERR_ASSERTION'
+  name: 'AssertionError'
+  expected: true
+  actual: false
+  operator: '=='
+  stack: |-
+    until (file:///home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/export-background.test.mjs:30:12)
+    async observedMaintenance (file:///home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/helpers/maintenance-evidence.mjs:64:9)
+    async maintenanceIdle (file:///home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/export-background.test.mjs:764:3)
+    async TestContext.<anonymous> (file:///home/ccheever/projects/sb4-w13-kit2/snapback4/packages/snapback4/test/export-background.test.mjs:1198:5)
+    async Test.run (node:internal/test_runner/test:1110:7)
+    async Test.processPendingSubtests (node:internal/test_runner/test:785:7)
+  ...
+# Subtest: failed Expo exports and dead wrapper journals never occupy keep slots (background)
+ok 66 - failed Expo exports and dead wrapper journals never occupy keep slots (background)
+  ---
+  duration_ms: 14789.955789
+  type: 'test'
+  ...
+# Subtest: repeated raced retention-lock deferrals stay pending and restore the bound after release
+ok 67 - repeated raced retention-lock deferrals stay pending and restore the bound after release
+  ---
+  duration_ms: 12284.85739
+  type: 'test'
+  ...

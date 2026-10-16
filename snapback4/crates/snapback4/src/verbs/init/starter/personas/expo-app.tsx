@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Button, SafeAreaView, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { AppProvider, useAuth, usePersonaApp } from "snapback4/react";
+import { AppProvider, useAuth, useAppReady, usePersonaApp } from "snapback4/react";
 import { smokeSegment } from "snapback4-expo/witness";
 import { openApp, personas } from "./src/client";
 
@@ -25,6 +25,8 @@ function Personas() {
 // Every read and write runs as the persona; there is no session to restore.
 function Account({ leave, children }: { leave: () => void; children: ReactNode }) {
   const auth = useAuth();
+  const ready = useAppReady();
+  if (auth.state === "signed-in" && !ready) return <Text>{auth.why?.message ?? "Opening…"}</Text>;
   if (auth.state === "signed-in") return children;
   return <View style={{ padding: 24, gap: 12 }}>
     <Text>{auth.state === "restoring" ? "Opening…" : auth.why?.message ?? "Signed out"}</Text>

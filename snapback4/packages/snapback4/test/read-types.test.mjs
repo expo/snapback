@@ -703,7 +703,7 @@ test('matchReadList infers typed list data and mixed returns, while denial remai
 
 test('guide shared list recipe typechecks against PageHook and WriteHook', async () => {
   const {readFileSync}=await import('node:fs');
-  const card=readFileSync(new URL('../../../crates/snapback4-lang/src/guide/client.md',import.meta.url),'utf8');
+  const card=readFileSync(new URL('../CLIENT-AND-OPERATIONS.md',import.meta.url),'utf8');
   const code=card.split('## Shared list and write props')[1].split('```tsx\n')[1].split('```')[0].replace('"snapback4/react"','"./dist/react.js"');
   const result=check(code,undefined,'tsx');assert.deepEqual(result.codes,[],result.text);
   assert.doesNotMatch(card,/members:.*`session`/);
@@ -755,4 +755,31 @@ test('device-less identity options require a store while persona and device form
     declare const device: import('./src/local.ts').DeviceOpener;
     createApp({url:'http://localhost:4400', device});`);
   assert.deepEqual(valid.codes, [], valid.text);
+});
+
+test('isPresent narrows nullable points and mixed read unions from contract and React', () => {
+  const result=check(`import {isPresent, type Read} from './dist/contract.js';
+import {isPresent as reactPresent} from './dist/react.js';
+declare const row: Read<{id:string}|null>;
+if(isPresent(row)){ const id:string=row.data.id; }
+if(reactPresent(row)){ const id:string=row.data.id; }
+declare const mixed: Read<{id:string}|null>|Read<{name:string}|null>;
+if(isPresent(mixed)){ const value: {id:string}|{name:string}=mixed.data; }
+function generic<T>(read:Read<T|null>){if(isPresent(read)){const value:T=read.data;return value;}}
+`);
+  assert.deepEqual(result.codes,[],result.text);
+});
+test('missing denied without otherwise reports its explicit repair', () => {
+  const result=check(`import {matchRead,type Read} from './dist/contract.js';
+declare const read:Read<{id:string}|null>;
+matchRead(read,{loading:()=>0,absent:()=>0,partial:()=>0,present:row=>row.id});`);
+  assert.deepEqual(result.codes,[2345],result.text);
+  assert.match(result.text,/matchRead requires denied/);
+});
+
+
+test('isPresent classifies only the present arm without changing the read', async () => {
+  const {isPresent}=await import('../dist/contract.js');
+  for(const read of [null,undefined,{loading:true},{denied:{code:'NO'}},{data:null,existence:'absent'},{data:null,existence:'partial'},{data:[],existence:'partial'}])assert.equal(isPresent(read),false);
+  for(const value of [false,0,{id:'one'},['one']])assert.equal(isPresent({data:value,existence:'present'}),true);
 });

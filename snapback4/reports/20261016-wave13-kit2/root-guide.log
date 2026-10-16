@@ -1,0 +1,150 @@
+[guide-check] warning: GAP REVIEW WARNING: row 'backend.structured-stored-fields' expired on 2026-08-25; owner: LLP 0115 CV-4b; pointer: issues/shelved/20260727-backend-bakeoff-improvement-program.md
+[guide-check] warning: GAP REVIEW WARNING: row 'backend.identity-columns' expired on 2026-09-15; owner: LLP 0191 identity Decision; pointer: issues/shelved/20260808-numeric-identity-default-columns.md
+[guide-check] warning: GAP REVIEW WARNING: row 'backend.bounded-children-v1' expired on 2026-09-30; owner: Charlie; pointer: issues/shelved/20260727-backend-bakeoff-improvement-program.md
+[guide-check] warning: GAP REVIEW WARNING: row 'backend.write-activity-v1' expired on 2026-09-30; owner: Charlie; pointer: issues/shelved/20260727-backend-bakeoff-improvement-program.md
+[guide-check] warning: GAP REVIEW WARNING: row 'backend.handler-typescript' expired on 2026-09-15; owner: LLP 0246; pointer: issues/shelved/20260812-0246-remaining-rollouts-stacked-on-0237.md
+[guide-check] warning: GAP REVIEW WARNING: row 'backend.sequences' expired on 2026-09-30; owner: Charlie; pointer: issues/shelved/20260825-guide-gap-sequence-publication-targets.md
+[guide-check] warning: GAP REVIEW WARNING: row 'assets.media-collection.v1' expired on 2026-08-26; owner: LLP 0239 R3; pointer: issues/shelved/20260815-finish-media-happy-path.md
+[guide-check] warning: GAP REVIEW WARNING: row 'assets.media-command.v1' expired on 2026-09-02; owner: LLP 0239 R4; pointer: issues/shelved/20260815-finish-media-happy-path.md
+[guide-check] warning: GAP REVIEW WARNING: row 'backend.notifications' expired on 2026-09-06; owner: Charlie; pointer: issues/shelved/20260825-guide-gap-first-class-notifications.md
+[guide-check] warning: GAP REVIEW WARNING: row 'sync.offline-js-arm-protected' expired on 2026-08-26; owner: orchestrator; pointer: issues/shelved/20260801-js-arm-integrated-authenticated-restart-witness.md
+[guide-check] warning: GAP REVIEW WARNING: row 'sync.settlement-bounded-skew' expired on 2026-08-28; owner: LLP 0155 Stage 2; pointer: issues/shelved/20260802-0133-receipt-wire-coordination.md
+[guide-check] warning: GAP REVIEW WARNING: row 'auth.first-party-social-providers' expired on 2026-09-21; owner: issues/shelved/20260808-wave4-identity-program.md; pointer: issues/shelved/20260808-wave4-identity-program.md
+[guide-check] warning: GAP REVIEW WARNING: row 'auth.field-masking' expired on 2026-09-04; owner: LLP 0235; pointer: issues/shelved/20260821-0235-field-masking-productization.md
+[guide-check] warning: GAP REVIEW WARNING: row 'clients.non-js' expired on 2026-09-02; owner: Charlie; pointer: issues/shelved/20260825-guide-gap-kotlin-dart-clients.md
+[guide-check] warning: GAP REVIEW WARNING: row 'clients.poll-hosted' expired on 2026-09-04; owner: Charlie; pointer: issues/shelved/20260728-hosted-lifecycle-carrier-and-custody-gap.md
+[guide-check] warning: GAP REVIEW WARNING: row 'clients.compose-existing-app' expired on 2026-09-12; owner: unassigned; pointer: issues/shelved/20260808-guide-gap-compose-snapback-into-existing-app.md
+[guide-check] warning: GAP REVIEW WARNING: row 'operating.agent-safe-storage' expired on 2026-09-08; owner: Charlie; pointer: issues/shelved/20260803-agent-safe-storage-acceptance-tail.md
+[guide-check] warning: GAP REVIEW WARNING: row 'operating.declaration-conformance' expired on 2026-09-10; owner: ccheever; pointer: issues/shelved/20260803-0146-d1-d3-tranche.md
+[guide-check] warning: guide/auth/agent-principals.md: authorities changed since review at sha256:4b8a139980… (current sha256:e844c9df0e…)
+[guide-check] warning: guide/auth/app-identity-binding.md: authorities changed since review at sha256:12089a8cc4… (current sha256:8aa5090406…)
+[guide-check] warning: guide/auth/logical-transfer.md: authorities changed since review at sha256:177cfb52b7… (current sha256:3d28d428be…)
+[guide-check] warning: guide/auth/native-apps.md: authorities changed since review at sha256:c6922b6105… (current sha256:182e982561…)
+[guide-check] warning: guide/auth/passwords.md: authorities changed since review at sha256:bb6b12280d… (current sha256:667fe39d96…)
+[guide-check] warning: guide/auth/protecting-data.md: authorities changed since review at sha256:f73ec7e0c4… (current sha256:7afa30fe70…)
+[guide-check] warning: guide/auth/scoped-roles.md: authorities changed since review at sha256:780bb9188d… (current sha256:57f4313618…)
+[guide-check] warning: guide/auth/sessions-and-principals.md: authorities changed since review at sha256:e9a5e7e368… (current sha256:f98cb650d5…)
+[guide-check] warning: guide/auth/targets.md: authorities changed since review at sha256:0f2146b5e3… (current sha256:4991796bfe…)
+[guide-check] warning: guide/backend/actions-and-fetch.md: authorities changed since review at sha256:63ee41d271… (current sha256:4584a43bef…)
+[guide-check] warning: guide/backend/assets.md: authorities changed since review at sha256:d8478f180e… (current sha256:3729da1cf7…)
+[guide-check] warning: guide/backend/cron.md: authorities changed since review at sha256:193d82a23f… (current sha256:c9deb416e2…)
+[guide-check] warning: guide/backend/declarative-plans.md: authorities changed since review at sha256:391f5bef50… (current sha256:88c833ab89…)
+[guide-check] warning: guide/backend/expo-push.md: authorities changed since review at sha256:1b03a6d605… (current sha256:52f833b817…)
+[guide-check] warning: guide/backend/external-api.md: authorities changed since review at sha256:5221bd4e16… (current sha256:7148412f64…)
+[guide-check] warning: guide/backend/familiar-profile.md: authorities changed since review at sha256:3d3e817a21… (current sha256:a3af1ebc5b…)
+[guide-check] warning: guide/backend/handler-runtime.md: authorities changed since review at sha256:3a2d76c659… (current sha256:453a0fad61…)
+[guide-check] warning: guide/backend/jobs.md: authorities changed since review at sha256:6d95641bb0… (current sha256:c60634f452…)
+[guide-check] warning: guide/backend/media-happy-paths.md: authorities changed since review at sha256:f0f9617cae… (current sha256:ba87093f08…)
+[guide-check] warning: guide/backend/migrations.md: authorities changed since review at sha256:0845678e9f… (current sha256:64de07216c…)
+[guide-check] warning: guide/backend/mutations.md: authorities changed since review at sha256:180e2869cb… (current sha256:e645304adb…)
+[guide-check] warning: guide/backend/queries.md: authorities changed since review at sha256:34f211c81e… (current sha256:43f1f93e9b…)
+[guide-check] warning: guide/backend/query-costs.md: authorities changed since review at sha256:0ef57f1c87… (current sha256:b316904280…)
+[guide-check] warning: guide/backend/relational-queries.md: authorities changed since review at sha256:a51f3ecd3f… (current sha256:718834dc28…)
+[guide-check] warning: guide/backend/schema-evolution.md: authorities changed since review at sha256:ab0a227067… (current sha256:b7a0bfd133…)
+[guide-check] warning: guide/backend/sequences.md: authorities changed since review at sha256:339769af56… (current sha256:393674209f…)
+[guide-check] warning: guide/backend/snapshot-batches.md: authorities changed since review at sha256:21e047f9a0… (current sha256:e6723f78cc…)
+[guide-check] warning: guide/backend/standard-patterns.md: authorities changed since review at sha256:60f16a302d… (current sha256:8ec776aafc…)
+[guide-check] warning: guide/backend/streamed-actions.md: authorities changed since review at sha256:e0fd6cecbe… (current sha256:d1ffb7a049…)
+[guide-check] warning: guide/backend/text-search.md: authorities changed since review at sha256:5e680f348c… (current sha256:5722e30bca…)
+[guide-check] warning: guide/backend/trusted-runtime-values.md: authorities changed since review at sha256:6919f120fb… (current sha256:2a712fb353…)
+[guide-check] warning: guide/backend/vector-search.md: authorities changed since review at sha256:39af92584e… (current sha256:63048556dd…)
+[guide-check] warning: guide/backend/versioned-seeds.md: authorities changed since review at sha256:d7472d809b… (current sha256:5190997a71…)
+[guide-check] warning: guide/capabilities.md: authorities changed since review at sha256:3200869a52… (current sha256:fb0789f73f…)
+[guide-check] warning: guide/clients/app-cli.md: authorities changed since review at sha256:81f4c4ce55… (current sha256:52bf6c4bd8…)
+[guide-check] warning: guide/clients/contract-adapter.md: authorities changed since review at sha256:07e25fc91a… (current sha256:e901ae9f70…)
+[guide-check] warning: guide/clients/framework-bindings.md: authorities changed since review at sha256:ef95f794e1… (current sha256:2e0a5f1350…)
+[guide-check] warning: guide/clients/headless.md: authorities changed since review at sha256:6b002186d9… (current sha256:66d2a0285a…)
+[guide-check] warning: guide/clients/react-expo.md: authorities changed since review at sha256:b351212b2a… (current sha256:30e2bb6330…)
+[guide-check] warning: guide/clients/react.md: authorities changed since review at sha256:0bf525eefc… (current sha256:6ca9be4f78…)
+[guide-check] warning: guide/clients/surfaces.md: authorities changed since review at sha256:3f24f88bcf… (current sha256:b33d07f651…)
+[guide-check] warning: guide/clients/swift.md: authorities changed since review at sha256:bb3cab052a… (current sha256:652cdea29e…)
+[guide-check] warning: guide/conventions.md: authorities changed since review at sha256:636aab1ee1… (current sha256:d5496e52f2…)
+[guide-check] warning: guide/deploying/cloudflare.md: authorities changed since review at sha256:1c337a2cb1… (current sha256:b05b893454…)
+[guide-check] warning: guide/deploying/hosted-control.md: authorities changed since review at sha256:6cb04e0ad7… (current sha256:ef2e623d52…)
+[guide-check] warning: guide/deploying/index.md: authorities changed since review at sha256:b8d0b1c8db… (current sha256:a75cc75f9b…)
+[guide-check] warning: guide/deploying/releases.md: authorities changed since review at sha256:f85a68b553… (current sha256:10199c3e0f…)
+[guide-check] warning: guide/getting-started/generated-artifacts.md: authorities changed since review at sha256:4da054aa2f… (current sha256:ff1254679d…)
+[guide-check] warning: guide/getting-started/the-authoring-loop.md: authorities changed since review at sha256:4ca8545d1f… (current sha256:ee6d5a3a69…)
+[guide-check] warning: guide/getting-started/your-first-backend.md: authorities changed since review at sha256:4d9ebe710b… (current sha256:80f6f626c6…)
+[guide-check] warning: guide/index.md: authorities changed since review at sha256:0776ae1ed8… (current sha256:c80046a3cd…)
+[guide-check] warning: guide/operating/admin-console.md: authorities changed since review at sha256:dafdda17e3… (current sha256:a48e67c5b4…)
+[guide-check] warning: guide/operating/agent-controls.md: authorities changed since review at sha256:9a942c8dd0… (current sha256:ff674cd718…)
+[guide-check] warning: guide/operating/backup-and-copy.md: authorities changed since review at sha256:fd7ebe8e26… (current sha256:c19f1302d0…)
+[guide-check] warning: guide/operating/data-patch.md: authorities changed since review at sha256:a8646ba81d… (current sha256:0ef0c9deab…)
+[guide-check] warning: guide/operating/diagnostics.md: authorities changed since review at sha256:1c25648b54… (current sha256:df073b9228…)
+[guide-check] warning: guide/operating/error-tracking.md: authorities changed since review at sha256:2945c7d8f8… (current sha256:28f74e13ff…)
+[guide-check] warning: guide/operating/host-ops.md: authorities changed since review at sha256:e276d9f43b… (current sha256:4589d046bf…)
+[guide-check] warning: guide/operating/instance-forks.md: authorities changed since review at sha256:e111ece982… (current sha256:fc65b18929…)
+[guide-check] warning: guide/operating/network-profiles.md: authorities changed since review at sha256:430e7d2de7… (current sha256:819d966705…)
+[guide-check] warning: guide/operating/observability.md: authorities changed since review at sha256:e3e7036266… (current sha256:4924f95bb9…)
+[guide-check] warning: guide/operating/replication.md: authorities changed since review at sha256:9b727f6437… (current sha256:7df1da739b…)
+[guide-check] warning: guide/operating/secrets-and-config.md: authorities changed since review at sha256:c00bd2ab81… (current sha256:dd9288ef41…)
+[guide-check] warning: guide/protocol/client-protocol.md: authorities changed since review at sha256:be072dcbd2… (current sha256:b31d1ee989…)
+[guide-check] warning: guide/realtime/ephemeral-state.md: authorities changed since review at sha256:c5511fceb5… (current sha256:c9b9dc4227…)
+[guide-check] warning: guide/realtime/live-queries.md: authorities changed since review at sha256:129507c458… (current sha256:ad847a2380…)
+[guide-check] warning: guide/realtime/snapshot-bundles.md: authorities changed since review at sha256:6d5cd59fd7… (current sha256:5c6bfd4a36…)
+[guide-check] warning: guide/recipes/activity-presence.md: authorities changed since review at sha256:5c41400693… (current sha256:0c27490038…)
+[guide-check] warning: guide/recipes/auth-transition-writes.md: authorities changed since review at sha256:147f274f19… (current sha256:2881950f95…)
+[guide-check] warning: guide/recipes/browser-auth.md: authorities changed since review at sha256:447ad2cfdb… (current sha256:8413c2f841…)
+[guide-check] warning: guide/recipes/capability-links.md: authorities changed since review at sha256:dc636112af… (current sha256:1b717a6102…)
+[guide-check] warning: guide/recipes/chunked-semijoin-feed.md: authorities changed since review at sha256:b8739e9379… (current sha256:ef673be5ae…)
+[guide-check] warning: guide/recipes/coming-from-convex-and-supabase.md: authorities changed since review at sha256:ce7e2b3148… (current sha256:c5b3bb8b1e…)
+[guide-check] warning: guide/recipes/fixed-origin-development.md: authorities changed since review at sha256:292afba7d5… (current sha256:014094958c…)
+[guide-check] warning: guide/recipes/hidden-hands.md: authorities changed since review at sha256:43d4e382c6… (current sha256:8d0f3db7ea…)
+[guide-check] warning: guide/recipes/membership-roster-projection.md: authorities changed since review at sha256:6b7e76ab01… (current sha256:2e4c68f8bc…)
+[guide-check] warning: guide/recipes/messaging-convergence.md: authorities changed since review at sha256:cdbb68320c… (current sha256:82ed0563d0…)
+[guide-check] warning: guide/recipes/multi-persona-clients.md: authorities changed since review at sha256:60c8b0cc72… (current sha256:16ff2c003b…)
+[guide-check] warning: guide/recipes/optimistic-create.md: authorities changed since review at sha256:2b48998455… (current sha256:31773c63cf…)
+[guide-check] warning: guide/recipes/optimistic-toggle.md: authorities changed since review at sha256:8ffcd72132… (current sha256:0e9f12cd93…)
+[guide-check] warning: guide/recipes/paged-list.md: authorities changed since review at sha256:cfa8b56a1c… (current sha256:6065d06364…)
+[guide-check] warning: guide/recipes/presence-cursors.md: authorities changed since review at sha256:a7db97c928… (current sha256:e2533e7db5…)
+[guide-check] warning: guide/recipes/provider-lifecycle.md: authorities changed since review at sha256:cb5e02859a… (current sha256:42ffe4dfad…)
+[guide-check] warning: guide/recipes/read-receipts.md: authorities changed since review at sha256:33603a0cf4… (current sha256:297d082693…)
+[guide-check] warning: guide/recipes/scheduled-expiry.md: authorities changed since review at sha256:c9190e6d13… (current sha256:6bbec623e8…)
+[guide-check] warning: guide/recipes/sessions-fixture-install.md: authorities changed since review at sha256:31512f6cc2… (current sha256:3c34ba4ab3…)
+[guide-check] warning: guide/recipes/split-sensitive-fields.md: authorities changed since review at sha256:63d23e482a… (current sha256:4e8ea4bd16…)
+[guide-check] warning: guide/recipes/time-windowed-live-reads.md: authorities changed since review at sha256:78e85af15f… (current sha256:df128c5f9d…)
+[guide-check] warning: guide/recipes/typing-indicators.md: authorities changed since review at sha256:f3312eca75… (current sha256:4fc43692bc…)
+[guide-check] warning: guide/recipes/view-once-media.md: authorities changed since review at sha256:6c2222b689… (current sha256:91cbef23ef…)
+[guide-check] warning: guide/start/crud-dashboard.md: authorities changed since review at sha256:fec37765ca… (current sha256:4206e51f98…)
+[guide-check] warning: guide/start/expo-chat.md: authorities changed since review at sha256:e69e107f77… (current sha256:3c532e74c3…)
+[guide-check] warning: guide/start/familiar-react.md: authorities changed since review at sha256:7c7cec8fdb… (current sha256:b5659bd4fa…)
+[guide-check] warning: guide/start/index.md: authorities changed since review at sha256:bd97fffef9… (current sha256:03bb393cd7…)
+[guide-check] warning: guide/start/media-feed.md: authorities changed since review at sha256:50a482a3bf… (current sha256:8b2516f573…)
+[guide-check] warning: guide/start/mental-model.md: authorities changed since review at sha256:bd97fffef9… (current sha256:03bb393cd7…)
+[guide-check] warning: guide/start/react.md: authorities changed since review at sha256:9e2e713ea9… (current sha256:32b07d2c34…)
+[guide-check] warning: guide/start/todo-contract.md: authorities changed since review at sha256:775cff5217… (current sha256:118e9c827b…)
+[guide-check] warning: guide/surface-map.md: authorities changed since review at sha256:ecc5fe3900… (current sha256:26c5e17eda…)
+[guide-check] warning: guide/sync/offline-and-retention.md: authorities changed since review at sha256:338c67399e… (current sha256:05f02c8542…)
+[guide-check] warning: guide/testing/acceptance.md: authorities changed since review at sha256:4b19959c43… (current sha256:58829e64a1…)
+[guide-check] warning: guide/testing/large-fixtures.md: authorities changed since review at sha256:05ade0a595… (current sha256:d7ed7433e0…)
+[guide-check] warning: guide/testing/verify.md: authorities changed since review at sha256:359ad5ef75… (current sha256:d038ae70fd…)
+[guide-check] status list:
+[guide-check] PASS — guide shell/CLI source binding
+[guide-check] PASS — diagnostics registry
+[guide-check] PASS — symbol registry
+[guide-check] PASS — asset client minimal example packed typecheck
+[guide-check] PASS — auth settlement packed proof
+[guide-check] PASS — multi-persona clients packed vertical contract
+[guide-check] PRECONDITION (generated demo artifacts unavailable) — guide corpus
+[guide-check]   precondition: guide/backend/trusted-runtime-values.md: examples path does not exist: demos/competitive-checkpoint/snapback/generated/operations/startReply.args.schema.json — run `./scripts/check-generated-artifacts` first (it regenerates every committed demo backend, including any SNAPBACK_OUTBOUND_ACTIONS-gated ones per scripts/generated-artifact-policy.mjs)
+[guide-check] PRECONDITION (generated demo artifacts unavailable) — snippet transclusions
+[guide-check]   precondition: guide/backend/trusted-runtime-values.md:81: snippet source does not exist: demos/competitive-checkpoint/snapback/generated/operations/startReply.args.schema.json — run `./scripts/check-generated-artifacts` first (it regenerates every committed demo backend, including any SNAPBACK_OUTBOUND_ACTIONS-gated ones per scripts/generated-artifact-policy.mjs)
+[guide-check]   precondition: guide/clients/contract-adapter.md:72: snippet source does not exist: demos/todo-v2/snapback/generated/contract/setCompleted.mutation.ts — this is Exact/Contract-generated output; run `bun install --frozen-lockfile --cwd demos/<name>/surfaces/contract && bun demos/<name>/tests/acceptance/contract.mjs` first (see scripts/verify-local-proof's exact-<name>-install/-contract jobs)
+[guide-check]   precondition: guide/clients/contract-adapter.md:81: snippet source does not exist: demos/todo-v2/snapback/generated/contract/runtime-links.ts — this is Exact/Contract-generated output; run `bun install --frozen-lockfile --cwd demos/<name>/surfaces/contract && bun demos/<name>/tests/acceptance/contract.mjs` first (see scripts/verify-local-proof's exact-<name>-install/-contract jobs)
+[guide-check] PASS — guide links
+[guide-check] PASS — guide reachability
+[guide-check] PASS — capability index parsing
+[guide-check] PASS — capability and surface joins
+[guide-check] PASS — published-closure fence
+[guide-check] PASS — bootstrap command resolvability
+[guide-check] PASS — authority freshness
+[guide-check] PASS — control-catalog Guide projection
+[guide-check] PASS — Rosetta record
+[guide-check] PASS — first-read profiles
+[guide-check] PASS — retrieval-eval static routing
+[guide-check] PASS — generated API cold signatures
+[guide-check] PRECONDITION (generated demo artifacts unavailable) — guide manifest and MCP projection
+[guide-check]   precondition: guide/guide-manifest.generated.json: comparison requires the missing generated demo artifacts; materialize those preconditions before attributing manifest drift
+[guide-check] PASS — guide flat projections
+[guide-check] FAILED — 19 passed, 0 failed, 0 skipped, 3 preconditions; 162 pages, 1934 snippets, 174 routes + 51 host-ops joined, 121 warnings

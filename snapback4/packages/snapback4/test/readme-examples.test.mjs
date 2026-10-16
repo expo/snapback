@@ -21,7 +21,7 @@ const publicSources = Object.entries(pkg.exports).filter(([key]) => key !== "./c
 
 // Each block is a separate module: no ambient client/api/any can hide a broken example.
 // The generated module stands for the app's schema; package imports always reach real source.
-const apiStub = `import type { Query, FollowingQuery, Mutation, Ephemeral, Action, Cursor, ReceiptFamily } from "snapback4/contract";
+const apiStub = `import type { Query, FollowingQuery, Mutation, Ephemeral, Action, Cursor, ReceiptFamily, ReleaseSnapshot } from "snapback4/contract";
 import type { OidcTransactionOperations } from "snapback4/identity";
 type Message = { id: string; body: string | null; photo?: { id: string } | null };
 export declare const api: {
@@ -30,7 +30,10 @@ export declare const api: {
   messageReceipts: Query<{ conversation: string; c?: Cursor | null }, { id: string; receipt: string }[]>;
   receiptFamilies: { chat: ReceiptFamily<{ id: string; joinedOrdinal: number; deliveredOrdinal: number; seenOrdinal: number }, "conversation", "through"> };
   myMembership: Query<{ conversationId: string }, { id: string } | null>;
-  staffNotes: Query<{}, { id: string; title: string }[]>;
+  staffNotes: Query<{team?:string}, { id: string; title: string; priority?:string }[]> & {available(release:ReleaseSnapshot):boolean};
+  myRole: Query<{team:string}, {role:'staff'|'member'}|null>;
+  addStaffNote: Mutation<{team:string;title:string;category:string}, {id:string}> & {available(release:ReleaseSnapshot):boolean};
+  publicNotes: Query<{}, {id:string;title:string}[]>;
   add: Mutation<{ title: string }, null>;
   members: Query<{ conversationId: string }, { id: string }[]>;
   inboxCards: Query<{ c?: Cursor | null }, { id: string; title: string; memberCount: number }[]>;
@@ -268,7 +271,7 @@ test("client card composer clears after a fresh sent result and preserves concur
       target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
     })}\nComposer;`, {
       api: { send: {}, myMembership: {} }, useMutation: () => send,
-      existence, matchRead, sentResult, isReady: read => "data" in read, useQuery: () => readyRead({ data: { id: "me" }, complete: true, cut: null, fresh: true }),
+      existence, matchRead, sentResult, useAppReady:()=>true, isReady: read => "data" in read, useQuery: () => readyRead({ data: { id: "me" }, complete: true, cut: null, fresh: true }),
       useState: () => slot++ === 0 ? [draft, update => { draft = typeof update === "function" ? update(draft) : update; }] : [saved, update => { saved = typeof update === "function" ? update(saved) : update; }],
       React: { Fragment: "fragment", createElement: (type, props, ...children) => ({ type, props, children }) },
     });
@@ -315,7 +318,7 @@ test("client card composer disables only denied or fresh non-revalidating absent
     const Composer = runInNewContext(`${ts.transpile(source.replace("export ", ""), {
       target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
     })}\nComposer;`, {
-      api: { send: {}, myMembership: {} }, existence, matchRead, sentResult, isReady: read => "data" in read, useQuery: () => member,
+      api: { send: {}, myMembership: {} }, existence, matchRead, sentResult, useAppReady:()=>true, isReady: read => "data" in read, useQuery: () => member,
       useState: () => ['hello', () => {}],
       useMutation: () => ({ inFlight: false, run: async () => { called = true; return { state: 'pending' }; } }),
       React: { Fragment: 'fragment', createElement: (type, props, ...children) => ({ type, props, children }) },

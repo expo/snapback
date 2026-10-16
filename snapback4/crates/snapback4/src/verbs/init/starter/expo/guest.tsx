@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button, SafeAreaView, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { AppProvider, useAuth } from "snapback4/react";
+import { AppProvider, useAuth, useAppReady } from "snapback4/react";
 import { app } from "./src/client";
 import { useNativeSmokeGuest } from "./src/native-smoke";
 
@@ -15,8 +15,10 @@ export function App() {
 function Account() {
   useNativeSmokeGuest();
   const auth = useAuth();
+  const ready = useAppReady();
   const [problem, setProblem] = useState("");
   if (auth.state === "restoring") return <Text style={{ padding: 24 }}>Restoring your session…</Text>;
+  if (auth.state === "signed-in" && !ready) return <Text>{auth.why?.message ?? "Opening…"}</Text>;
   if (auth.state === "signed-in") return <Todos />;
   const signIn = async () => {
     const result = await auth.guest();
