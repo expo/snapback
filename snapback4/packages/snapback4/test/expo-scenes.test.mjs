@@ -65,11 +65,11 @@ test('chat prebuild adopts Expo scenes and retains linking and status bar config
     const hashFunction = patched.slice(patched.indexOf('compute_hash() {'), patched.indexOf('# Resolves the xcodebuild destination'));
     const hashFor = xcode => {
       const result = spawnSync('bash', ['-c', `set -euo pipefail
-SOURCE_DIRS=(); SOURCE_FILES=("$TEST_SCRIPT")
+SOURCE_DIRS=("$TEST_SOURCE_DIR"); SOURCE_FILES=("$TEST_SCRIPT")
 xcrun() { echo 'Apple Swift version 6.4'; }
 xcodebuild() { echo "$TEST_XCODE"; }
 ${hashFunction}
-compute_hash`], { encoding: 'utf8', env: { ...process.env, TEST_XCODE: xcode, TEST_SCRIPT: script } });
+compute_hash`], { encoding: 'utf8', env: { ...process.env, TEST_XCODE: xcode, TEST_SCRIPT: script, TEST_SOURCE_DIR: path.dirname(script) } });
       assert.equal(result.status, 0, result.stderr);
       return result.stdout.trim();
     };

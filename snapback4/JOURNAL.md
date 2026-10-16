@@ -95834,3 +95834,13 @@ The scene fixture now keeps dependency copies private and executes the real
 upstream hash function: equal Swift strings and different Xcode builds must
 produce distinct keys. This is a cache identity repair, with no interop-mode
 or native module API change.
+
+### EXPOPIN cold npm preparation
+
+A fresh npm-installed plain starter exposed one changed SDK 57.0.30 Constants
+manifest build phase in the bounded native audit. Admit only its measured hash,
+with a regression that still rejects appended custom shell code. The first
+private Release attempt refused before compilation as designed; the next uses
+that exact phase. Correct the cache regression's empty-array fixture for the
+Mac's Bash 3 (upstream's real source arrays were already nonempty). Mac package
+and preparation regressions now pass 22/22; Linux regressions also pass.
