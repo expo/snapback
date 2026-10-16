@@ -108,3 +108,16 @@ pub(super) fn explain(options: &Options, id: &str) -> Result<bool, String> {
     }
     Ok(found)
 }
+
+/// Keep successfully settled attempts visible even when they requeued for retry.
+pub(super) fn handler_failures(conn: &Connection) -> rusqlite::Result<Vec<String>> {
+    let mut lines = Vec::new();
+    for (table, kind, name) in [("_requests", "action", "name"), ("_outbox", "effect", "effect")] {
+        let exists: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?1)", [table], |row| row.get(0))?;
+        if !exists { continue; }
+        let mut query = conn.prepare(&format!("SELECT id, {name}, state, attempts, error FROM {table} WHERE error IS NOT NULL ORDER BY at DESC, id DESC LIMIT 3"))?;
+        let records = query.query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?, row.get::<_, i64>(3)?, row.get::<_, String>(4)?)))?;
+        for record in records { let (id, name, state, attempts, error) = record?; lines.push(format!("{kind}    {name} {id} {state} after {attempts} attempt(s): {}", serde_json::to_string(&error).unwrap_or_default())); }
+    }
+    Ok(lines)
+}

@@ -220,7 +220,10 @@ pub(super) fn settle(request: Request, shared: &Shared, path: &str, body: &str) 
     let Some(id) = decode_id(id) else { return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "the action id must be percent-encoded UTF-8") })); };
     let answer = producing_engine(shared).settle_action(&id, &worker, &token, settled, shared.now());
     match answer {
-        Ok(run) => { shared.durable_committed(&lock(&shared.engine)); respond(request, 200, json!({ "ok": true, "request": outcome(&run, false) })); }
+        Ok(run) => {
+            if !done && shared.personas { snapback4_core::diagnostic!("snapback4: action {} {} attempt {} settled {}: {}", run.action, run.id, run.attempt, run.state, serde_json::to_string(&run.error).unwrap_or_default()); }
+            shared.durable_committed(&lock(&shared.engine)); respond(request, 200, json!({ "ok": true, "request": outcome(&run, false) }));
+        }
         Err(error) => { let why = failure(&error); respond(request, if why.retryable { 503 } else { 200 }, json!({ "denied": why })); }
     }
 }

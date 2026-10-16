@@ -225,7 +225,10 @@ pub(super) fn post(request: Request, shared: &Shared, path: &str, body: &str) {
     };
     if outcome.is_ok() { shared.durable_committed(&lock(&shared.engine)); }
     match outcome {
-        Ok(run) => respond(request, 200, json!({ "ok": true, "effect": effect_json(&run) })),
+        Ok(run) => {
+            if !done && shared.personas { snapback4_core::diagnostic!("snapback4: effect {} {} attempt {} settled {}: {}", run.effect, run.id, run.attempts, run.state, serde_json::to_string(&run.error).unwrap_or_default()); }
+            respond(request, 200, json!({ "ok": true, "effect": effect_json(&run) }))
+        },
         Err(error) => answer_error(request, error),
     }
 }

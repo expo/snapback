@@ -97,6 +97,8 @@ export interface WorkerOptions {
   readonly fetch?: typeof fetch;
   /** Stops the loop when aborted. */
   readonly signal?: AbortSignal;
+  /** Every failed handler attempt (including successfully recorded retries),
+   * settlement and polling failures. Error text is redacted before delivery. */
   readonly onError?: (error: unknown) => void;
   /** Lifecycle hook for a supervisor sharing authentication with other loops. */
   readonly onAuthFailure?: () => void;
@@ -199,9 +201,9 @@ export function runWorker(options: WorkerOptions): Worker {
         return;
       }
       if (ledger && stop.signal.aborted) return;
-      let recorded = false;
-      try { recorded = await settle(effect, { error: message(error), retry: !(error instanceof GiveUp) }); }
-      finally { if (!recorded) report(error); }
+      try { await settle(effect, { error: message(error), retry: !(error instanceof GiveUp) }); }
+      // @ref LLP 3000.009#5.2 — recording a failed attempt must not hide its failure.
+      finally { report(error); }
     }
   };
   const performAction = async (request: ActionRequest) => {
@@ -361,17 +363,15 @@ export function runGeneratedEffects(options: WorkerOptions, registry: Readonly<R
       return;
     }
     if (outcome.kind === "active-error") {
-      let recorded = false;
-      try { recorded = await settle(effect, { error: outcome.error, retry: outcome.retry }); }
-      finally { if (!recorded) report(new Error(outcome.error)); }
+      try { await settle(effect, { error: outcome.error, retry: outcome.retry }); }
+      finally { report(new Error(effectMessage(effect, outcome.error))); }
       return;
     }
     try { await settle(effect, { result: outcome.result === undefined ? null : outcome.result }); }
     catch (error) {
       if (stop.signal.aborted) throw error;
-      let recorded = false;
-      try { recorded = await settle(effect, { error: effectMessage(effect, error), retry: true }); }
-      finally { if (!recorded) report(new Error(effectMessage(effect, error))); }
+      try { await settle(effect, { error: effectMessage(effect, error), retry: true }); }
+      finally { report(new Error(effectMessage(effect, error))); }
     }
   };
   const loop = async (name: string, registration: GeneratedEffectRegistration) => {
