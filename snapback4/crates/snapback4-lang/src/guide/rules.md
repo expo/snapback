@@ -136,16 +136,6 @@ query reacted(message: messages, c: cursor ?):
 
 ### Row rules, probes and rule spelling
 
-A mutation's `require` decides intent; each write still passes its table's rule.
-An unnamed update rule judges old and next. For a deliberate pre-write gate,
-use `update (old, next) <- old.owner = viewer and old.state = 'pending'`;
-that permits leaving pending, so constrain next too when the policy needs it.
-`N_WRITE_DENIED` identifies the table layer and the contradictory image.
-`E_RULE` identifies table authorization; `why recent` privately names the
-failing old/next image (or the named transition). Hidden targets retain
-`NOT_FOUND`, with no image or clause exposed to the caller.
-See: `guide rule-recipes update-images`.
-
 A view grouped directly by the parent reference is read by key, such as
 `totals[issue]`; scanning its groups is refused. An unknown parent or unknown
 child coverage leaves that device count incomplete, never an invented zero.
@@ -190,6 +180,18 @@ become `update <-`, and `remove <-` becomes `delete <-`. For `write <-`,
 declare separate insert, update and delete rules for the operations intended.
 
 ### What a refused write returns: E_RULE, NOT_FOUND, E_UNIQUE, E_CONSTRAINT
+
+A mutation's `require` decides intent; each write still passes its table's rule.
+An unnamed update rule judges old and next. For a deliberate pre-write gate,
+use `update (old, next) <- old.owner = viewer and old.state = 'pending'`;
+that permits leaving pending, so constrain next too when the policy needs it.
+`N_WRITE_DENIED` identifies the table layer and the contradictory image.
+`E_RULE` identifies table authorization; `why recent` privately names the
+failing old/next image (or the named transition). Hidden targets retain
+`NOT_FOUND`, with no image or clause exposed to the caller.
+See: `guide rule-recipes update-images`.
+
+
 For update/upsert, "readable" means the read rule admits the old row in the
 pre-write state, before the patch or any of its effects. The engine resolves
 id and unique-key targets privately; the update rule judges old and next.

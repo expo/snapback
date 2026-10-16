@@ -42,6 +42,11 @@ extended existing regression fails before the fix and passes afterward. All
 verbatim reviews, model/command/snapshot provenance and full Codex transcripts are under
 `llp/reviews/3000.036.002-rules3-r*`.
 
+Supporting qualification commits: `d71507f2db` keeps the original guide budget,
+`a8b4f5efc6` fences SQLite-only test helpers, and `97108e3c09` strengthens
+HTTP assertions to require complete answers. Review/report records are in
+`6573708c0a`, `eec7146151`, and `2cc0658f1a`.
+
 The existing authoring census gains 21 mutation occurrences: 20 server-only
 and one eligible roster delete. It removes no previous occurrence or private
 write site and adds no eligible private insert/update site.
@@ -84,8 +89,9 @@ mistake, corrected during the run.)
 | N_VACUOUS_RULE | 1 | 1 |
 | N_WIDE_MERGE | 3 | 3 |
 
-Raw results, comparison script and summary are in
-`snapback4/reports/wave13-rules3/`.
+The after census was rerun with the final rebuilt CLI including the seed-hint
+correction. Raw results, comparison script, copied-input hashes, binary hashes
+and summary are in `snapback4/reports/wave13-rules3/`.
 
 ## Verification
 
@@ -105,7 +111,10 @@ Raw results, comparison script and summary are in
   recipe/ladder/selector tests + three real accounting/traversal tests. Scratch
   clone only; no publication worktree.
 - Affected clients: 34 tests pass across client-recipes, wire-envelopes and
-  delivery-refusal.
+  delivery-refusal. Additional write-authority and RX rule-hop suites pass ten
+  tests (both WASM and process clients); four historical 0.4.13 upgrade tests
+  skip because their optional RX_PUBLISHED_ROOT package fixtures are absent.
+  Total: 44 passed, four optional historical tests skipped, zero failures.
 - WASM/SDK final build passes: 2,354,227 raw bytes, 717,006 gzip bytes against
   717,214; no budget increase. The first experiment exceeded by 674 bytes;
   moving opt-in developer attribution out of the web artifact fixed it.
