@@ -48,29 +48,18 @@ pub struct Options {
     pub json: bool,
 }
 
-/// Shared dev target for control verbs: an explicit port wins, otherwise
-/// inspect the persisted store owner's address through doctor's validated host
-/// lookup. run also resolves the same store owner before forwarding.
-pub(crate) fn dev_address(options: &Options) -> Result<std::net::SocketAddr, String> {
-    use std::net::{Ipv4Addr, SocketAddr};
-    if let Some(text) = options.flags.get("port") {
-        let port = text.parse::<u16>().ok().filter(|n| *n > 0)
-            .ok_or("E_INPUT: --port must be an integer in 1..65535")?;
-        return Ok(SocketAddr::from((Ipv4Addr::LOCALHOST, port)));
+/// Explicit control ports remain an intentional selection; otherwise discover
+/// a unique, identity-validated project host (persisted or temporary).
+pub(crate) fn dev_address(options: &Options) -> Result<(std::net::SocketAddr, Option<String>), String> {
+    if let Some(text)=options.flags.get("port") {
+        let port=text.parse::<u16>().ok().filter(|n|*n>0).ok_or("E_INPUT: --port must be an integer in 1..65535")?;
+        return Ok((std::net::SocketAddr::from((std::net::Ipv4Addr::LOCALHOST,port)),None));
     }
-    let cwd = std::env::current_dir().map_err(|error| error.to_string())?;
-    let project = Project::locate(&cwd).ok_or("E_INPUT: cannot discover dev outside a project; pass --port N using the port dev printed")?;
-    let host = if let Some(host) = adoption::host(&project, options)? { host }
-    else {
-        // A temporary host has no store owner record. The ordinary default is
-        // usable only after the same project/identity validation as doctor.
-        let mut probe = options.clone();
-        probe.flags.insert("url".into(), "http://127.0.0.1:4400".into());
-        adoption::host(&project, &probe).map_err(|error| format!("{error}; for dev --memory or a custom port, pass --port N using the port dev printed"))?
-            .ok_or("E_INPUT: no running dev discovered; pass --port N using the port dev printed")?
-    };
-    host["address"].as_str().ok_or("dev did not report an address")?
-        .parse().map_err(|error| format!("invalid dev address: {error}"))
+    let cwd=std::env::current_dir().map_err(|e|e.to_string())?;
+    let project=Project::locate(&cwd).ok_or("E_INPUT: cannot discover dev outside a project; pass --port N using the port dev printed")?;
+    let host=adoption::host(&project,options)?.ok_or("E_INPUT: no running dev discovered for this project; start dev or pass --port N using the port dev printed")?;
+    let address=host["address"].as_str().ok_or("dev did not report an address")?.parse().map_err(|e|format!("invalid dev address: {e}"))?;
+    Ok((address,host["instance"].as_str().map(str::to_owned)))
 }
 
 pub fn parse(args: &[String]) -> Options {

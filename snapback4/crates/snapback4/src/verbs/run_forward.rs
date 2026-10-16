@@ -144,13 +144,20 @@ pub(crate) fn exchange(address: SocketAddr, method: &str, route: &str, persona: 
     exchange_authorized(address,method,route,persona,None,body,wait)
 }
 fn exchange_authorized(address:SocketAddr,method:&str,route:&str,persona:Option<&str>,bearer:Option<&str>,body:&str,wait:Duration)->std::io::Result<(u16,Json)> {
+    exchange_inner(address,method,route,persona,bearer,None,body,wait)
+}
+pub(crate) fn exchange_dev(address:SocketAddr,route:&str,instance:Option<&str>,body:&str,wait:Duration)->std::io::Result<(u16,Json)> {
+    exchange_inner(address,"POST",route,None,None,instance,body,wait)
+}
+fn exchange_inner(address:SocketAddr,method:&str,route:&str,persona:Option<&str>,bearer:Option<&str>,instance:Option<&str>,body:&str,wait:Duration)->std::io::Result<(u16,Json)> {
     let mut stream = TcpStream::connect_timeout(&address, Duration::from_secs(2))?;
     stream.set_read_timeout(Some(wait))?;
     stream.set_write_timeout(Some(Duration::from_secs(10)))?;
     let persona = persona.map(|p| format!("x-snapback-persona: {p}\r\n")).unwrap_or_default();
     let authorization=bearer.map(|token|format!("Authorization: Bearer {token}\r\n")).unwrap_or_default();
+    let instance=instance.map(|i|format!("x-snapback-dev-instance: {i}\r\n")).unwrap_or_default();
     // HTTP/1.0 with Connection: close keeps the reply length-delimited by EOF.
-    write!(stream, "{method} {route} HTTP/1.0\r\nHost: {address}\r\n{persona}{authorization}Content-Type: application/json\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{body}", body.len())?;
+    write!(stream, "{method} {route} HTTP/1.0\r\nHost: {address}\r\n{persona}{authorization}{instance}Content-Type: application/json\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{body}", body.len())?;
     let mut response = Vec::new();
     stream.take(REPLY_LIMIT).read_to_end(&mut response)?;
     let text = String::from_utf8(response).map_err(std::io::Error::other)?;

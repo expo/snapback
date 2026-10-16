@@ -171,7 +171,7 @@ fn refused(fixture: &Fixture, args: &[&str]) -> String {
 }
 
 #[test]
-fn doctor_inspects_fresh_and_memory_at_the_printed_url_without_records() {
+fn doctor_discovers_fresh_and_memory_and_also_accepts_the_printed_url() {
     for flag in ["--fresh", "--memory"] {
         let fixture = Fixture::new(flag);
         let host = fixture.start_with(&[flag]);
@@ -193,11 +193,9 @@ fn doctor_inspects_fresh_and_memory_at_the_printed_url_without_records() {
         assert!(text.contains("/q/idle: n=0"), "{text}");
         let reset = answer(&fixture, &["doctor", "--latency", "--reset", "--json", "--url", &url]);
         assert_eq!(reset["operations"]["/q/fast"]["n"], 0);
-        let missing = refused(&fixture, &["doctor", "--latency"]);
-        assert!(missing.contains("--url") && missing.contains("printed at startup"), "{missing}");
-        let ordinary = fixture.command(&["doctor"]);
-        let text = String::from_utf8_lossy(&ordinary.stdout);
-        assert!(text.contains("--url") && text.contains("printed at startup"), "{text}");
+        assert_eq!(answer(&fixture, &["doctor", "--latency", "--json"])["operations"]["/q/fast"]["n"], 0);
+        let ordinary=success(fixture.command(&["doctor"]));
+        assert!(ordinary.contains("temporary dev store"), "{ordinary}");
         drop(host);
         refused(&fixture, &["doctor", "--latency", "--url", &url]);
         no_discovery_record(&fixture);
@@ -219,7 +217,10 @@ fn doctor_discovers_persisted_host_and_url_selects_a_simultaneous_temporary_host
     persisted.request("POST", "/q/fast", json!({"args":{}}));
     persisted.latency_after("/q/fast", 1);
     fresh.latency_after("/q/idle", 1);
-    let normal = answer(&fixture, &["doctor", "--json"]);
+    let ambiguous=refused(&fixture, &["doctor", "--json"]);
+    assert!(ambiguous.contains("multiple live dev hosts") && ambiguous.contains(&fresh.address) && ambiguous.contains(&persisted.address), "{ambiguous}");
+    let persisted_url=format!("http://{}",persisted.address);
+    let normal = answer(&fixture, &["doctor", "--json", "--url", &persisted_url]);
     assert_eq!(normal["latency"]["operations"]["/q/fast"]["n"], 1);
     assert_eq!(normal["latency"]["operations"]["/q/idle"]["n"], 0);
     assert!(normal["storage"].is_object());
@@ -231,7 +232,7 @@ fn doctor_discovers_persisted_host_and_url_selects_a_simultaneous_temporary_host
         &format!("temporary dev store {};", fresh_id.as_str().unwrap()))));
     let reset = answer(&fixture, &["doctor", "--latency", "--reset", "--json", "--url", &url]);
     assert_eq!(reset["operations"]["/q/idle"]["n"], 0);
-    assert_eq!(answer(&fixture, &["doctor", "--latency", "--json"])["operations"]["/q/fast"]["n"], 1);
+    assert_eq!(answer(&fixture, &["doctor", "--latency", "--json", "--url", &persisted_url])["operations"]["/q/fast"]["n"], 1);
 }
 
 #[test]
@@ -258,7 +259,7 @@ fn doctor_checks_the_servers_project_before_read_or_reset_for_both_address_sourc
 }
 
 #[test]
-fn doctor_rejects_a_stale_serve_lock_store_identity() {
+fn doctor_ignores_stale_serve_lock_when_live_registration_identifies_the_memory_host() {
     let fixture = Fixture::new("stale-store");
     drop(fixture.start());
     let fresh = fixture.start_with(&["--fresh"]);
@@ -266,9 +267,10 @@ fn doctor_rejects_a_stale_serve_lock_store_identity() {
     fs::write(fixture.0.join(".snapback4/serve.lock"), format!("{}\nhttp://{}\n", fresh.address.rsplit(':').next().unwrap(), fresh.address)).unwrap();
     let before = fresh.latency_after("/q/fast", 1);
     for args in [vec!["doctor", "--json"], vec!["doctor", "--latency", "--reset", "--json"]] {
-        assert!(refused(&fixture, &args).contains("different store"));
+        assert!(fixture.command(&args).status.success());
     }
-    assert_eq!(fresh.request("GET", "/dev/latency", Value::Null), before);
+    assert_eq!(before["operations"]["/q/fast"]["n"], 1);
+    assert_eq!(fresh.request("GET", "/dev/latency", Value::Null)["operations"]["/q/fast"]["n"], 0);
 }
 
 #[test]

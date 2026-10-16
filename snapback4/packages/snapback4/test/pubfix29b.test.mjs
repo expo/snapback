@@ -82,3 +82,16 @@ test('H8 run, doctor, clock advance and reset discover a persisted dev on a non-
   okay(invoke(cwd,['clock','advance','+1s','--port',new URL(dev.url).port]));
   okay(invoke(cwd,['reset','--clock','reset','--port',new URL(dev.url).port]));
 });
+
+test('H8 clock and reset discover a memory dev on its actual custom port', { timeout: 30_000 }, async t => {
+  const cwd=fixture(t);mkdirSync(join(cwd,'snapback'));
+  writeFileSync(join(cwd,'snapback/schema.q'),"use personas alice\nquery hello():\n  return now\n");
+  const dev=await startDev({cwd,args:['--memory','--no-watch'],env:{SNAPBACK4_BIN:binary,PORT_LO:undefined,PORT_HI:undefined}});
+  t.after(()=>dev.stop());
+  assert.notEqual(new URL(dev.url).port,'4400');
+  okay(invoke(cwd,['doctor']));
+  okay(invoke(cwd,['clock','advance','+2h']));
+  assert.ok((await (await fetch(dev.url+'/dev/status')).json()).clockOffsetMs >= 7_199_000);
+  okay(invoke(cwd,['reset','--clock','reset']));
+  assert.ok(Math.abs((await (await fetch(dev.url+'/dev/status')).json()).clockOffsetMs)<5000);
+});

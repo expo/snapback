@@ -212,8 +212,9 @@ calling operations that use them: a fresh dev has no admins or memberships.
 
 POST it to `/seed` to upsert without resetting;
 changing an immutable field refuses E_CONSTRAINT. Both doors are dev-only.
-Advance time without sleeping with `snapback4 clock advance +2h` (add `--port N`
-for another dev), or POST `/dev/clock/advance` with `{"duration":"+2h"}`.
+Advance time without sleeping with `snapback4 clock advance +2h`: it discovers
+a unique live dev for this project, including a memory host on a custom port
+(add `--port N` to select among simultaneous hosts), or POST `/dev/clock/advance` with `{"duration":"+2h"}`.
 Clock controls are dev-only; `guide clock` covers status, reset and restart.
 
 ## Day-two proofs with immutable sources

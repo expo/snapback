@@ -8,6 +8,7 @@ fn a_request_after_engine_poison_still_serves() {
     let clock = Arc::new(Mutex::new(crate::dev_clock::Clock::new(true, 0).unwrap()));
     let authoritative_now = lock(&clock).now();
     let shared = Arc::new(Shared {
+        dev_identity: None,
         release_requests: Arc::new(crate::release_requests::Gate::default()),
         following: Mutex::new(snapback4_core::engine::following_history::Reader::new().unwrap()),
         project: std::env::current_dir().unwrap(), release_root: Mutex::new(None), temporary: true,

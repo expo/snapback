@@ -78,6 +78,7 @@ pub struct Shared {
     project: std::path::PathBuf,
     pub(crate) release_root: Mutex<Option<std::path::PathBuf>>,
     temporary: bool,
+    dev_identity: Option<crate::dev_hosts::Identity>,
     ephemeral: Arc<snapback4_core::engine::ephemeral::Hub>,
     ephemeral_rate: ephemeral::Rate,
     wake: Mutex<ephemeral::Wake>,
@@ -911,6 +912,15 @@ fn handle(mut request: Request, shared: &Shared) {
     if path.starts_with("/dev/clock") && !shared.personas {
         return respond_timed(request, shared, 403, json!({ "denied": refusal_json(&crate::dev_clock::release()) }));
     }
+    // Discovered control requests bind to the inspected serving instance.
+    // A listener replaced between GET status and POST cannot receive the action.
+    if method==Method::Post && matches!(path.as_str(), "/dev/clock/advance"|"/dev/reset"|"/dev/latency/reset") {
+        match single_header(&request,"x-snapback-dev-instance") {
+            Ok(None)=>{},
+            Ok(Some(instance)) if shared.dev_identity.as_ref().is_some_and(|i| i.instance==instance)=>{},
+            _=>return respond_timed(request,shared,409,json!({"denied":refusal_json(&Refusal::new("E_INPUT","input","dev instance changed since discovery; rerun the command to select the live host"))})),
+        }
+    }
     if (method == Method::Get && path == "/dev/latency") || (method == Method::Post && path == "/dev/latency/reset") {
         return latency::endpoint(request, shared, method == Method::Post);
     }
@@ -921,7 +931,7 @@ fn handle(mut request: Request, shared: &Shared) {
         let personas = lock(&shared.bound).personas.clone();
         let status = lock(&shared.adoption);
         let now = shared.now();
-        return respond_timed(request, shared, 200, json!({"pid":std::process::id(), "wrapperPid":crate::supervisor::pid(), "storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":now, "clockOffsetMs":now - snapback4_core::now_ms(), "personas":personas, "scheduling":crate::thread_priority::diagnostics(), "fileDescriptors":crate::host_limits::diagnostics()}));
+        return respond_timed(request, shared, 200, json!({"instance":shared.dev_identity.as_ref().map(|i| &i.instance), "initialStoreId":shared.dev_identity.as_ref().map(|i| &i.initial_store_id), "pid":std::process::id(), "wrapperPid":crate::supervisor::pid(), "storeId":status.store_id, "project":shared.project, "temporary":shared.temporary, "generation":generation, "adoption":status.failure, "now":now, "clockOffsetMs":now - snapback4_core::now_ms(), "personas":personas, "scheduling":crate::thread_priority::diagnostics(), "fileDescriptors":crate::host_limits::diagnostics()}));
     }
     if method == Method::Get && path == "/dev/clock/status" { return maintenance::clock_status(request, shared); }
     if method == Method::Options {

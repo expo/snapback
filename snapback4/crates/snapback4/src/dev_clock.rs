@@ -104,12 +104,13 @@ pub fn command(options: &crate::verbs::Options) -> i32 {
             return Err(input(format!("usage: {}", crate::cli_flags::synopsis("clock"))).to_string());
         }
         duration(&options.positionals[1]).map_err(|e| e.to_string())?;
-        let address = crate::verbs::dev_address(options)?;
+        let (address, instance) = crate::verbs::dev_address(options)?;
+        let instance = instance.map(|i|format!("x-snapback-dev-instance: {i}\r\n")).unwrap_or_default();
         let mut stream = TcpStream::connect_timeout(&address, Duration::from_secs(5)).map_err(|e| format!("cannot reach dev at {address}: {e}; for dev --memory or a custom port, pass `snapback4 clock advance {} --port N` using the port dev printed", options.positionals[1]))?;
         stream.set_read_timeout(Some(Duration::from_secs(60))).map_err(|e| e.to_string())?;
         stream.set_write_timeout(Some(Duration::from_secs(5))).map_err(|e| e.to_string())?;
         let body = serde_json::json!({"duration":options.positionals[1]}).to_string();
-        write!(stream, "POST /dev/clock/advance HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}", body.len()).map_err(|e| e.to_string())?;
+        write!(stream, "POST /dev/clock/advance HTTP/1.1\r\nHost: {address}\r\n{instance}Connection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}", body.len()).map_err(|e| e.to_string())?;
         let mut answer = String::new();
         stream.take(65_536).read_to_string(&mut answer).map_err(|e| e.to_string())?;
         let (headers, body) = answer.split_once("\r\n\r\n").ok_or("dev returned an incomplete HTTP response")?;

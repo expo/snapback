@@ -16,7 +16,7 @@ pub fn command(options: &crate::verbs::Options) -> i32 {
 fn run(options: &crate::verbs::Options) -> Result<Json, String> {
     if options.flags.contains_key("release") { return Err("E_AUTH: reset empties a running dev's store; snapback4 serve never resets a release\n  guide: testing".into()); }
     if !options.positionals.is_empty() { return Err(usage()); }
-    let address = crate::verbs::dev_address(options)?;
+    let (address, instance) = crate::verbs::dev_address(options)?;
     let mut body = serde_json::Map::new();
     if let Some(seed) = options.flags.get("seed") { body.insert("seed".into(), Json::Array(rows(Path::new(seed))?)); }
     match options.flags.get("clock").map(String::as_str) {
@@ -24,7 +24,7 @@ fn run(options: &crate::verbs::Options) -> Result<Json, String> {
         Some("reset") => { body.insert("clock".into(), json!("reset")); }
         Some(other) => return Err(format!("E_CLOCK_INPUT: --clock takes `reset` (back to wall time), not {other:?}\n{}", usage())),
     }
-    let (status, reply) = crate::verbs::run_forward::exchange(address, "POST", "/dev/reset", None, &Json::Object(body).to_string(), Duration::from_secs(60))
+    let (status, reply) = crate::verbs::run_forward::exchange_dev(address, "/dev/reset", instance.as_deref(), &Json::Object(body).to_string(), Duration::from_secs(60))
         .map_err(|error| format!("cannot reach a dev at {address}: {error}; start `snapback4 dev` (or pass the --port it printed)"))?;
     if let Some(denied) = reply.get("denied") {
         return Err(format!("{}: {}\n  guide: {}", denied["code"].as_str().unwrap_or("E_INPUT"), denied["message"].as_str().unwrap_or("reset refused; nothing was reset"),

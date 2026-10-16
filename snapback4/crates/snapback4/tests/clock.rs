@@ -892,3 +892,89 @@ fn the_time_cards_look_back_sweep_catches_up_coalesced_boundaries() {
     assert!(closer["skippedPeriods"].as_i64().unwrap() > 100, "one run stands for every coalesced minute: {advanced}");
     assert_eq!(host.query("open"), json!([]), "rows due in skipped periods are closed too");
 }
+
+#[test]
+fn clock_discovers_custom_port_memory_and_survives_reset_identity_rotation() {
+    let f=Fixture::new("discover-memory");
+    let host=f.start(&["dev","--memory","--no-watch","--hold-schedules"]);
+    let before=host.query("time").as_i64().unwrap();
+    let advanced=output_json(f.command(&["clock","advance","+2h","--json"]));
+    assert!(advanced["now"].as_i64().unwrap()>=before+7_200_000,"{advanced}");
+    let identity=host.request("GET","/dev/status",Value::Null);
+    host.post("/dev/reset",json!({}));
+    let after=host.request("GET","/dev/status",Value::Null);
+    assert_ne!(identity["storeId"],after["storeId"]);
+    assert_eq!(identity["initialStoreId"],after["initialStoreId"]);
+    output_json(f.command(&["clock","advance","1s","--json"]));
+}
+
+#[test]
+fn clock_ignores_crashed_records_and_startup_reclaims_them() {
+    let f=Fixture::new("discover-stale");
+    let stale=f.start(&["dev","--memory","--no-watch","--hold-schedules"]);
+    let dir=f.0.join(".snapback4/dev-hosts");
+    let path=fs::read_dir(&dir).unwrap().next().unwrap().unwrap().path();
+    drop(stale); // SIGKILL leaves its immutable registration.
+    assert!(path.exists());
+    let missing=f.command(&["clock","advance","1s"]);
+    assert!(!missing.status.success());
+    let _live=f.start(&["dev","--memory","--no-watch","--hold-schedules"]);
+    assert!(!path.exists());
+    output_json(f.command(&["clock","advance","1s","--json"]));
+}
+
+#[test]
+fn clock_refuses_ambiguous_memory_and_persisted_hosts_without_mutating_either() {
+    for persisted in [false,true] {
+        let f=Fixture::new(&format!("discover-multiple-{persisted}"));
+        let a=if persisted {f.start(&["dev","--no-watch","--hold-schedules"])} else {f.start(&["dev","--memory","--no-watch","--hold-schedules"])};
+        let b=f.start(&["dev","--memory","--no-watch","--hold-schedules"]);
+        let before_a=a.request("GET","/dev/status",Value::Null)["clockOffsetMs"].as_i64().unwrap();
+        let before_b=b.request("GET","/dev/status",Value::Null)["clockOffsetMs"].as_i64().unwrap();
+        let out=f.command(&["clock","advance","2h"]);
+        assert!(!out.status.success());
+        let error=String::from_utf8_lossy(&out.stderr);
+        assert!(error.contains("multiple live dev hosts") && error.contains(&a.address) && error.contains(&b.address),"{error}");
+        assert!((a.request("GET","/dev/status",Value::Null)["clockOffsetMs"].as_i64().unwrap()-before_a).abs()<100);
+        assert!((b.request("GET","/dev/status",Value::Null)["clockOffsetMs"].as_i64().unwrap()-before_b).abs()<100);
+        output_json(f.command(&["clock","advance","1s","--port",b.address.rsplit(':').next().unwrap(),"--json"]));
+    }
+}
+
+#[test]
+fn clock_ignores_live_registration_with_wrong_project_or_reused_instance() {
+    use std::fs::OpenOptions;
+    let f=Fixture::new("discover-forged");
+    let other=Fixture::new("discover-foreign");
+    let foreign=other.start(&["dev","--memory","--no-watch","--hold-schedules"]);
+    let local=f.start(&["dev","--memory","--no-watch","--hold-schedules"]);
+    let dir=f.0.join(".snapback4/dev-hosts");
+    for entry in fs::read_dir(&dir).unwrap() {fs::remove_file(entry.unwrap().path()).unwrap();}
+    for project_matches in [false,true] {
+        let instance=if project_matches {"wronginstance"} else {"wrongproject"};
+        let path=dir.join(format!("{instance}.json"));
+        let target=if project_matches {&local} else {&foreign};
+        let mut record=target.request("GET","/dev/status",Value::Null);
+        let record=json!({"instance":instance,"initialStoreId":record["initialStoreId"].take(),"project":if project_matches {json!(f.0.canonicalize().unwrap())}else{record["project"].take()},"address":target.address,"temporary":true,"pid":record["pid"].take()});
+        fs::write(&path,record.to_string()).unwrap();
+        let held=OpenOptions::new().read(true).write(true).open(&path).unwrap();held.lock().unwrap();
+        let out=f.command(&["clock","advance","2h"]);
+        assert!(!out.status.success());
+        assert!(String::from_utf8_lossy(&out.stderr).contains("no running dev discovered"));
+        assert!(target.request("GET","/dev/status",Value::Null)["clockOffsetMs"].as_i64().unwrap().abs()<100);
+    }
+}
+
+#[test]
+fn stale_instance_control_is_refused_before_clock_or_reset_changes() {
+    let f=Fixture::new("discover-instance-race");
+    let host=f.start(&["dev","--memory","--no-watch","--hold-schedules"]);
+    let before=host.request("GET","/dev/status",Value::Null);
+    for (path,body) in [("/dev/clock/advance",json!({"duration":"2h"})),("/dev/reset",json!({}))] {
+        let reply=host.auth_request("POST",path,body,"x-snapback-dev-instance: stale-instance");
+        assert_eq!(reply["denied"]["code"],"E_INPUT","{reply}");
+        let after=host.request("GET","/dev/status",Value::Null);
+        assert_eq!(after["storeId"],before["storeId"]);
+        assert!(after["clockOffsetMs"].as_i64().unwrap().abs()<100);
+    }
+}

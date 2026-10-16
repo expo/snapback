@@ -148,6 +148,7 @@ schedule closer every 1m: closeDeparted
 - `snapback4 clock advance 2m [--port N]` moves a running dev forward, sweeps expiry and runs due
   schedules and jobs; over HTTP: `POST /dev/clock/advance` with `{"duration":"2m"}`. An advance across
   many boundaries runs each schedule once, and its reply names the period and `skippedPeriods`.
+- Clock and reset discover a unique live dev in the current project, including `dev --memory --port N`. Multiple hosts list their addresses and require `--port N`; no default port is guessed. Registrations live in `.snapback4/dev-hosts`, contain no secrets, and stale hosts are ignored.
 - The offset belongs to the process: restart with `dev --resume-clock` to continue from the store's
   newest stamp. `GET /dev/status` reports `now` and `clockOffsetMs`.
 - `snapback4 run <op> --now +2h` (or milliseconds) pins the clock for one local run.

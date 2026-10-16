@@ -166,8 +166,13 @@ pub fn serve(
             .map_err(|e| e.to_string())?
             .unwrap_or_default(),
     ));
+    // Keep registration custody in this serving frame, independently of worker Arcs.
+    let registration = if dev { Some(crate::dev_hosts::register(&project.root, address,
+        engine.store().meta("store_id").map_err(|e|e.to_string())?.unwrap_or_default(),
+        matches!(mode, Mode::Dev {fresh:true,..}))?) } else {None};
     let readers = Mutex::new(QueryReaders::new(&engine, &bound.refusal_sites));
     let shared = Arc::new(Shared {
+        dev_identity: registration.as_ref().map(|r| r.identity.clone()),
         release_requests: Arc::new(crate::release_requests::Gate::default()),
         #[cfg(test)]
         release_committed: Mutex::new(None),
