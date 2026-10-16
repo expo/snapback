@@ -28,6 +28,7 @@ test("native and static bind beyond an occupied port; identity and independent l
   const env = { PORT_LO: String(port), PORT_HI: String(Math.min(65535, port + 20)) };
   const dev = await startDev({ cwd, env }); let web;
   try {
+    assert.deepEqual(dev.personas, ["alice", "bob"]);
     assert.ok(Number(new URL(dev.url).port) > port); assert.equal((await (await fetch(dev.url + "/dev/status")).json()).pid, dev.pid);
     web = await startStatic("dist", { cwd, env }); assert.notEqual(web.url, dev.url);
     assert.equal(await (await fetch(web.url)).text(), "<h1>owned</h1>");

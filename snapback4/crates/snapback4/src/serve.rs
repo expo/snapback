@@ -472,7 +472,7 @@ fn dispatch_with_builder(request: Request, shared: Arc<Shared>, admission: Arc<R
 
 fn detached_request(method: &Method, path: &str) -> bool {
     method == &Method::Post && (path.starts_with("/q/") || path.starts_with("/following/") || path == "/sync")
-        || method == &Method::Get && matches!(path, "/" | "/probe" | "/schema" | "/api.ts" | "/native.wasm" | "/dev/status" | "/auth/config")
+        || method == &Method::Get && matches!(path, "/" | "/probe" | "/schema" | "/api.ts" | "/native.wasm" | "/dev/status" | "/dev/catalog" | "/auth/config")
         || method == &Method::Options
 }
 
@@ -923,6 +923,14 @@ fn handle(mut request: Request, shared: &Shared) {
     }
     if (method == Method::Get && path == "/dev/latency") || (method == Method::Post && path == "/dev/latency/reset") {
         return latency::endpoint(request, shared, method == Method::Post);
+    }
+    // @ref LLP 3000.000.000.000.000#3-proof-fixture-loading — development field types need no principal.
+    if method == Method::Get && path == "/dev/catalog" {
+        if !shared.personas { return respond_timed(request, shared, 403, json!({"denied":refusal_json(&Refusal::new("E_AUTH", "auth", "fixture catalog requires dev"))})); }
+        let bound = lock(&shared.bound);
+        let tables: Vec<Json> = bound.schema.visible_tables().map(|(name, table)| json!({ "name": name, "fields": table.columns.iter().filter(|(column, _)| !table.private_field(column) && !table.engine_field(column)).collect::<BTreeMap<_,_>>() })).collect();
+        drop(bound);
+        return respond_timed(request, shared, 200, json!({ "tables": tables }));
     }
     if method == Method::Get && path == "/dev/status" {
         if !shared.personas { return respond_timed(request, shared, 403, json!({"denied":refusal_json(&Refusal::new("E_AUTH", "auth", "status inspection requires dev"))})); }

@@ -419,6 +419,7 @@ fn foreign_origins_and_rebound_hosts_cannot_seed_or_impersonate() {
             ("POST", "/seed", "[]"),
             ("OPTIONS", "/seed", ""),
             ("POST", "/dev/reset", ""),
+            ("GET", "/dev/catalog", ""),
         ] {
             let response = host.request(method, path, &headers, payload);
             assert_eq!(status(&response), 403, "{origin}: {response}");
@@ -504,6 +505,18 @@ fn catalog_and_changes_require_live_identity_and_release_refuses_dev_doors() {
                 status(&host.request("GET", route, "x-snapback-persona: alice\r\n", "")),
                 if dev { 200 } else { 401 }
             );
+        }
+        let catalog = host.request("GET", "/dev/catalog", "", "");
+        assert_eq!(status(&catalog), if dev { 200 } else { 403 });
+        if dev { assert!(body(&catalog)["tables"].as_array().unwrap().iter().any(|table| table["fields"].is_object())); }
+        else { assert!(body(&catalog).get("tables").is_none()); }
+        if !dev {
+            let catalog = body(&host.request("GET", "/dev/catalog", &bearer, ""));
+            assert_eq!(catalog["denied"]["code"], "E_AUTH");
+            assert!(catalog.get("tables").is_none());
+        } else {
+            let rebound = exchange(host.address, "GET /dev/catalog HTTP/1.1\r\nHost: attacker.example\r\nConnection: close\r\n\r\n");
+            assert_eq!(status(&rebound), 403);
         }
         assert_eq!(status(&host.request("GET", "/native.wasm", "", "")), 401);
         assert_eq!(
@@ -1477,3 +1490,5 @@ mod ops_tests;
 
 #[path = "../tests/device_handshake/mod.rs"]
 mod device_handshake_tests;
+
+#[path = "../tests/serve_catalog/mod.rs"] mod catalog_tests;

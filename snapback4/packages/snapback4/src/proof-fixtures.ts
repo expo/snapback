@@ -7,6 +7,9 @@ export interface LoadFixturesOptions {
   /** A running dev host, used for its public field types and current clock. */
   url: string;
   cwd?: string;
+  /** Authenticate catalog and clock reads when needed. */
+  persona?: string;
+  headers?: Record<string, string>;
   /** Override the captured dev clock for a deterministic proof. */
   now?: number;
   timeoutMs?: number;
@@ -17,13 +20,17 @@ export interface LoadFixturesOptions {
 export async function loadFixtures(directory: string, options: LoadFixturesOptions): Promise<FixtureRow[]> {
   const timeoutMs = options.timeoutMs ?? 10_000;
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw Error("E_PROOF_USAGE: loadFixtures timeoutMs must be a positive integer");
+  const headers = new Headers(options.headers);
+  if (options.persona !== undefined) headers.set("x-snapback-persona", options.persona);
   const read = async (path: string) => {
-    const response = await fetch(new URL(path, options.url), { signal: AbortSignal.timeout(timeoutMs) });
+    const response = await fetch(new URL(path, options.url), { headers, signal: AbortSignal.timeout(timeoutMs) });
     const body = await response.json() as Record<string, unknown>;
+    if (response.status === 401 || response.status === 403 || (body.denied as { code?: string } | undefined)?.code === "E_AUTH")
+      throw Error("E_AUTH: loadFixtures could not read the catalog; pass { persona } or { headers }");
     if (!response.ok || body.denied) throw Error(`E_INPUT: ${path}: ${JSON.stringify(body)}`);
     return body;
   };
-  const [catalog, status] = await Promise.all([read("/"), options.now === undefined ? read("/dev/status") : Promise.resolve({ now: options.now })]);
+  const [catalog, status] = await Promise.all([read(options.persona !== undefined || options.headers !== undefined ? "/" : "/dev/catalog"), options.now === undefined ? read("/dev/status") : Promise.resolve({ now: options.now })]);
   const now = status.now;
   if (typeof now !== "number" || !Number.isSafeInteger(now) || now < 0) throw Error("E_FIXTURE_TIME: dev did not report a valid clock");
   const tables = catalog.tables as Array<{ name: string; fields: Record<string, unknown> }>;
