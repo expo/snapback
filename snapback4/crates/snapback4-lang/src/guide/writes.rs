@@ -16,7 +16,7 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
 
 `insert` creates a row; `if absent` returns null on a readable key collision.
 `update` patches; `if` tests the old row.
-`upsert` inserts/patches. Immutable patches: N_IMMUTABLE_PATCH explains runtime equality;
+`upsert` inserts/patches. N_IMMUTABLE_PATCH: runtime equality;
 E_QUARRY_IMMUTABLE refuses proven changes and fresh clocks/ids.
 `delete` removes the row: NOT_FOUND when absent
 (guard with `if exists t[id]:`); references obey `on delete` (recipes).
