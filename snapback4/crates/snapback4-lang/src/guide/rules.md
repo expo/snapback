@@ -60,16 +60,20 @@ A child names one required immutable reference, without a default, to an ordinar
 
 Each child expires no later than its parent, through any number of levels. A parent's delete needs read authority and waits until its children are deleted and expired children swept. Its id cannot be reused while physical children remain. A mutable child deadline can shorten its life but cannot extend it past the parent.
 
-`sync` infers exactly the parent's substituted audience after service grants are removed. A conjunction such as membership and an archived flag stays `online only`; `check --verbose` explains its server reads. A parent-pinned page resolves authorization once, while completeness still requires the child's own coverage. An unknown or mismatched parent takes the server fallback. Retained history stays marked `retained: true` beside the server's current page.
-On these syncing delivered-history children, `retained` is row metadata; name an
-application column `wasRetained` instead. Row shapes and spreads preserve the mark.
+`sync` infers exactly the parent's substituted audience after service grants are removed. A conjunction such as membership and an archived flag stays `online only`; `check --verbose` explains its server reads. A parent-pinned page resolves authorization once, while completeness still requires the child's own coverage. An unknown or mismatched parent takes the server fallback. Retained history stays marked `retained: true` beside the server's current page. On these syncing delivered-history children, `retained` is row metadata; name an application column `wasRetained` instead. Row shapes and spreads preserve the mark.
 
-A device predicts a plain child insert only with a live parent covered by its
-current partition, or one predicted in the same pending chain. An unheld, expired
-or retained-only parent queues without a row. Upserts and `insert … if absent` need complete child-group coverage
-to prove absence; changed unique keys or cap groups need their populations covered. A parent delete requires full current child
-coverage and no live children. Expiry uses the later of the device's supplied
-clock and the last atomically applied server time.
+A device predicts a plain child insert only with a live parent covered by its current partition, or one predicted in the same pending chain. An unheld, expired or retained-only parent queues without a row.
+Upserts and `insert … if absent` need complete child-group coverage to prove absence; changed unique keys or cap groups need their populations covered. A parent delete requires full current child coverage and no live children. Expiry uses the later of the device's supplied clock and the last atomically applied server time.
+
+### A child follows a mutable parent audience
+
+`read through live .parent` maintains the whole current parent rule. Require `immutable parent` without a default and `cap N by parent`. Parent writes prepay maximum fanout, update children atomically and queue on devices. Bare `read through` stays captured.
+
+Use ordinary nonexpiring endpoints/probes and bounded plain indexes. Chains, derived/private/receipt endpoints and writing reference actions refuse. Sync requires one exact all-current/until-revoked audience; other whole rules work online.
+
+`N_LIVE_PARENT_COST` means fixed fanout exceeds ordinary ceilings. Reduce caps or row/index bounds, or maintain manually.
+
+Parent/roster changes invalidate; matching copies and child coverage prove authority. Adoption validates copies; restoration uses current parents. Rebuild for `live-parent-copy-v1`. Bulk calls share one job account. See `guide rule-recipes current-roster`.
 
 ### Clique receipts and reactions
 Clique receipts and reactions need only their message reference. The unread view uses the captured conversation field and inherits its rule, without an explicit `read` or copied deadline. These parents stay online, so reaction pages use the server:
@@ -136,10 +140,7 @@ query reacted(message: messages, c: cursor ?):
 
 ### Row rules, probes and rule spelling
 
-A bare `exists` probe in a table rule never inherits the target's read rule: it tests the keyed row even when the caller cannot read it.
-Program `exists` is a caller-filtered read. Dotted membership hops in read rules are only `read through` (whole parent rule, immutable captures and inherited lifetime).
-An online-only one-hop equality may instead lower to its explicit keyed probe, as described below; it also inherits no target read rule.
-For the parent's current department roster, use `guide rule-recipes current-roster`.
+A bare `exists` probe in a table rule never inherits the target's read rule: it tests the keyed row even when the caller cannot read it. Program `exists` is a caller-filtered read. Dotted membership hops in read rules are only `read through` (whole parent rule, immutable captures and inherited lifetime). An online-only one-hop equality may instead lower to its explicit keyed probe, as described below; it also inherits no target read rule. For the parent's current department roster, use `guide rule-recipes current-roster`.
 
 A view grouped directly by the parent reference is read by key, such as `totals[issue]`; scanning its groups is refused. An unknown parent or unknown child coverage leaves that device count incomplete, never an invented zero. For independent row rules, use the comparisons and keyed probes below.
 

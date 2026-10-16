@@ -1,5 +1,19 @@
 # Snapback 4 behavior changes
 
+## 0.4.32
+
+- `read through live .parent` follows the complete current parent audience.
+  Declare an immutable required reference and a per-parent product cap; the
+  engine atomically maintains private copies, invalidates reads and syncs row
+  moves. No author-maintained transfer loop. The first form refuses unsupported
+  time/chain/derived/receipt/action/index compositions; exact single-audience
+  sync is all-current, while other whole parent rules remain online.
+- Parent writes reserve maximum fanout and queue on devices. Rebuild device
+  engines for `live-parent-copy-v1`. Manual-copy stores adopt by validated
+  correspondence; rollback reconciles current audience cells, including dormant
+  ones. Large bulk loads need coherent bounded batches. `guide rules` and
+  `guide rule-recipes current-roster` show the live form and manual alternative.
+
 ## 0.4.31
 
 - Authorization: developer refusals distinguish mutation `require` from the table's insert/update/delete rule and quote the clause from the executing generation. `check` detects contradictory insert/delete caller gates and mixed caller branches that do not establish table authority, without assuming roles are disjoint. Rule recipes cover current-parent rosters through an atomic maintained copy, private waitlists with public occupancy, expiring membership pages, union cold-start cost, separate public/private image placements and own-or-staff reads. `guide rules` distinguishes bare rule probes from inherited parent authority and runs an upsert refusal-ladder example. Live-parent language remains an RFC in review; captured `read through` semantics are unchanged.

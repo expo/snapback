@@ -51,7 +51,12 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
     const cwd = join(dir, marker.replace(/\W/g,'_')); mkdirSync(join(cwd,'snapback'),{recursive:true});
     writeFileSync(join(cwd,'snapback/schema.q'), source);
     const checked = JSON.parse(invoke(process.execPath,[cliPath,'check','--json'],cwd,env));
-    assert.equal(checked.ok,true); assert.deepEqual(checked.notes.filter(n=>n.code!=='N_NO_PRODUCTION_WRITER'),[]);
+    assert.equal(checked.ok,true);
+    const notes=checked.notes.filter(n=>n.code!=='N_NO_PRODUCTION_WRITER');
+    if(marker==='table liveRosterFolders:') {
+      assert.equal(notes.length,1); assert.equal(notes[0].code,'N_NO_HORIZON');
+      assert.doesNotMatch(JSON.stringify(notes),/last 500/);
+    } else assert.deepEqual(notes,[]);
     const host = await startDev({cwd,env:{SNAPBACK4_BIN:'',PORT_LO:'47000',PORT_HI:'47999'},args:['--no-memory','--port','0','--no-watch','--hold-schedules'],timeoutMs:30000});
     t.after(()=>host.stop());
     const post = async (path, who, body) => {
@@ -109,6 +114,50 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
     assert.equal(fresh.data.body,'private',JSON.stringify(fresh));
     await p.failed('addRosterFile','alice',{folder:'folder',body:'old roster'},'NOT_FOUND');
     await p.failed('addRosterFile','bob',{folder:'folder',body:'new roster at cap'},'E_CONSTRAINT');
+  });
+  await t.test('live parent transfers the packed guide authority, invalidates held reads and moves devices', async t=>{
+    const p = await project(t,'table liveRosterFolders:');
+    await p.seed([
+      {table:'liveDepartments',row:{id:'old',title:'Old'}},{table:'liveDepartments',row:{id:'new',title:'New'}},
+      {table:'liveDepartmentRoster',row:{id:'a',department:'old',principal:'dev:alice'}},
+      {table:'liveDepartmentRoster',row:{id:'b',department:'new',principal:'dev:bob'}},
+      {table:'liveRosterFolders',row:{id:'folder',department:'old'}},
+    ]);
+    const replicas = [];
+    for (const persona of ['alice','bob']) {
+      const opener=webDevice({wasm,persist:memoryPersistence()});let core;
+      const client=await createLocalClient({url:p.host.url,persona,device:{open:async(...args)=>{core=await opener.open(...args);return core;}}});
+      t.after(()=>client.close());await client.sync();
+      replicas.push({client,query:async file=>(await core.call({op:'query',name:'liveRosterFile',viewer:`dev:${persona}`,args:{file},now:Date.now()})).ok});
+    }
+    const a=await p.sent('addLiveRosterFile','alice',{folder:'folder',body:'private'});
+    const b=await p.sent('addLiveRosterFile','alice',{folder:'folder',body:'second'});
+    for(let i=2;i<20;i++) await p.sent('addLiveRosterFile','alice',{folder:'folder',body:`boundary ${i}`});
+    await p.failed('addLiveRosterFile','alice',{folder:'folder',body:'over cap'},'E_CONSTRAINT');
+    assert.equal(await p.read('liveRosterFile','bob',{file:a.id}),null);
+    for(const replica of replicas) await replica.client.sync();
+    assert.equal((await replicas[0].query(a.id)).data.body,'private');
+    assert.equal((await replicas[1].query(a.id)).data,null);
+    const observer=createClient({url:p.host.url,persona:'alice',waitSeconds:1});t.after(()=>observer.close());
+    const watch=observer.observe({kind:'query',name:'liveRosterFile'},{file:a.id});
+    const unsubscribe=watch.subscribe(()=>{});t.after(()=>{unsubscribe();watch.close();});
+    await until(()=>watch.getSnapshot()?.data?.body==='private','live held point starts authorized');
+    await p.failed('transferLiveRosterFolder','alice',{folder:'folder',department:'new'},'OPERATOR_ONLY');
+    const token=invoke(process.execPath,[cliPath,'token','--service','ops','--quiet'],p.cwd,env).trim();
+    const moved=await fetch(p.host.url+'/m/transferLiveRosterFolder',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${token}`},body:JSON.stringify({args:{folder:'folder',department:'new'}}),signal:AbortSignal.timeout(15000)}).then(r=>r.json());
+    assert.equal(moved.state,'sent',JSON.stringify(moved));
+    for(const row of [a,b]) {
+      assert.equal(await p.read('liveRosterFile','alice',{file:row.id}),null);
+      assert.equal((await p.read('liveRosterFile','bob',{file:row.id})).body,row.id===a.id?'private':'second');
+      assert.equal('department' in await p.read('liveRosterFile','bob',{file:row.id}),false);
+    }
+    await until(()=>watch.getSnapshot()?.data===null,'live parent invalidates held child point');
+    for(const replica of replicas) await replica.client.sync();
+    const old=await replicas[0].query(a.id), fresh=await replicas[1].query(a.id);
+    assert.equal(old.data,null,JSON.stringify(old));
+    assert.equal(fresh.data.body,'private',JSON.stringify(fresh));
+    await p.failed('addLiveRosterFile','alice',{folder:'folder',body:'old roster'},'NOT_FOUND');
+    await p.failed('addLiveRosterFile','bob',{folder:'folder',body:'new roster at cap'},'E_CONSTRAINT');
   });
   await t.test('private waitlist publishes occupancy without exposing membership', async t=>{
     const p = await project(t,'table privateWaitlist:');

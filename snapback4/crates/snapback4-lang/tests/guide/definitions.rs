@@ -137,6 +137,7 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("N_LIVE_PARENT_COST", "means fixed fanout exceeds ordinary ceilings"),
     ("E_EXPIRY_ORPHAN", "a stored reference points to a physically missing expiring parent"),
 
     ("E_QUARRY_STATEMENT", "A non-final expression must perform a write."),

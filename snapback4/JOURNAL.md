@@ -96172,3 +96172,21 @@ number normalization. Preserve the contextual member-read-mark guidance in
 the code-owned E_FIELD_AUTHORITY explanation. The 125 guide, nine field
 authority and 88 read-authorization tests pass on Linux and Mac after these
 editorial/snapshot corrections; existing explanation byte ceilings hold.
+
+## 2026-10-17 — LIVE bounded current-parent authority candidate
+
+LLP 3000.014.000 revision 5 has independent Muse and fresh Codex READY on
+1d10663cf369e9237f44dcf31a4b0c42bf9f2ff9192d08a8a374d7cd2028162f.
+The candidate spells `read through live .parent` with an immutable required
+reference and exact per-parent product cap. Private policy copies move in the
+parent transaction under a fixed source reservation and bounded internal
+meter. Automatic event counts use a schema-selected disclosure mask. Ordinary
+snapshot/catch-up and row moves carry the change; parent predictions queue.
+
+The accepted form excludes time/chain/derived/receipt/private-owner/action and
+nonplain/oversized-key compositions; noninvertible whole rules remain online.
+Adoption compares manual inputs before projection, live restoration restamps,
+and reverse adoption fills manual cells from current parent values. Live
+bulk calls use one job account and restoration identities use a file-backed
+transaction-local relation. Qualification and remaining implementation checks
+are in WORKSTREAM-REPORT.md; no publication or 0.4.32 version bump is claimed.

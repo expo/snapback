@@ -145,7 +145,7 @@ This form is for a blind writer. If the operation needs parent contents, that is
 
 ## Copied audiences
 
-Unlike an RLS subquery, a synced rule describes an invertible delivery audience. Copy the parent's audience onto each child and verify the copies on insert. Immutable copies retain the audience chosen at creation; a parent transfer does not transfer these children. Use online live-parent probes when that is required.
+Unlike an RLS subquery, a synced rule describes an invertible delivery audience. Copy the parent's audience onto each child and verify the copies on insert. Immutable copies retain the audience chosen at creation; a parent transfer does not transfer these children. For current-parent authority use `read through live` with a per-parent product cap (`guide rule-recipes current-roster`), or online live-parent probes.
 
 ```quarry
 table folders:
