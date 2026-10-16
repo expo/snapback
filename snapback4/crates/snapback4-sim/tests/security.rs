@@ -227,7 +227,7 @@ fn asset_sweep_separates_catalog_guards_from_file_io() {
 #[test]
 fn stores_sidecars_assets_and_existing_files_are_owner_only() {
     use std::os::unix::fs::PermissionsExt;
-    let dir = std::env::temp_dir().join(format!("sb4-security-{}", snapback4_core::ids::mint(1, &mut 0).unwrap()));
+    let dir = std::env::temp_dir().join(format!("sb4-security-{}", snapback4_core::ids::mint(1, &mut snapback4_core::ids::Mint::default()).unwrap()));
     std::fs::create_dir(&dir).unwrap();
     std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755)).unwrap();
     let db = dir.join("store.sqlite");

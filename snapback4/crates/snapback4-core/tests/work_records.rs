@@ -42,7 +42,7 @@ fn payload_digests_sort_nested_keys_and_keep_array_order() {
 #[test]
 fn a_pre_binding_store_opens_legacy_receipts_replay_and_sessions_refresh() {
     use sha2::{Digest, Sha256};
-    let path = std::env::temp_dir().join(format!("sb4-legacy-work-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).unwrap()));
+    let path = std::env::temp_dir().join(format!("sb4-legacy-work-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut snapback4_core::ids::Mint::default()).unwrap()));
     std::fs::create_dir_all(&path).unwrap();
     let file = path.join("store.sqlite");
     // A real predecessor also has store identity/catalog metadata. Replace only

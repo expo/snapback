@@ -220,7 +220,7 @@ fn a_cyclic_delegated_authority_chain_fails_closed() {
 
 #[test]
 fn two_connections_recheck_service_revocation_and_serialize_replacements() {
-    let root = std::env::temp_dir().join(format!("sb4-bound-session-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).unwrap()));
+    let root = std::env::temp_dir().join(format!("sb4-bound-session-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut snapback4_core::ids::Mint::default()).unwrap()));
     std::fs::create_dir_all(&root).unwrap();
     let path = root.join("store.sqlite");
     let mut engine = Engine::new(Store::open(&path).unwrap(), Schema::default(), [program()]).unwrap();
@@ -273,7 +273,7 @@ fn two_connections_recheck_service_revocation_and_serialize_replacements() {
 
 #[test]
 fn committed_order_logout_and_lost_delivery_replacement_are_serialized() {
-    let root = std::env::temp_dir().join(format!("sb4-bound-logout-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).unwrap()));
+    let root = std::env::temp_dir().join(format!("sb4-bound-logout-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut snapback4_core::ids::Mint::default()).unwrap()));
     std::fs::create_dir_all(&root).unwrap();
     let path = root.join("store.sqlite");
     let mut engine = Engine::new(Store::open(&path).unwrap(), Schema::default(), [program()]).unwrap();
@@ -307,7 +307,7 @@ fn committed_order_logout_and_lost_delivery_replacement_are_serialized() {
 #[test]
 fn two_connection_writer_block_samples_authority_time_after_the_lock() {
     for mode in ["service-expiry", "claim-lease-expiry", "claim-deadline-expiry", "admitting-expiry"] {
-        let root = std::env::temp_dir().join(format!("sb4-bound-clock-{mode}-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).unwrap()));
+        let root = std::env::temp_dir().join(format!("sb4-bound-clock-{mode}-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut snapback4_core::ids::Mint::default()).unwrap()));
         std::fs::create_dir_all(&root).unwrap();
         let path = root.join("store.sqlite");
         let mut engine = Engine::new(Store::open(&path).unwrap(), Schema::default(), [program()]).unwrap();
@@ -360,7 +360,7 @@ fn two_connection_writer_block_samples_authority_time_after_the_lock() {
         std::fs::remove_dir_all(root).unwrap();
     }
 
-    let root = std::env::temp_dir().join(format!("sb4-logout-clock-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).unwrap()));
+    let root = std::env::temp_dir().join(format!("sb4-logout-clock-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut snapback4_core::ids::Mint::default()).unwrap()));
     std::fs::create_dir_all(&root).unwrap();
     let path = root.join("store.sqlite");
     let store = Store::open(&path).unwrap();

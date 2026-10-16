@@ -215,7 +215,7 @@ impl Store {
 
     pub fn memory() -> Result<Self, RuntimeError> {
         let assets_dir = std::env::temp_dir().join(format!(
-            "snapback4-{}-{}", std::process::id(), crate::ids::mint(crate::now_ms(), &mut 0)?
+            "snapback4-{}-{}", std::process::id(), crate::ids::mint(crate::now_ms(), &mut crate::ids::Mint::default())?
         ));
         Self::prepare(Connection::open_in_memory()?, assets_dir, true, true)
     }

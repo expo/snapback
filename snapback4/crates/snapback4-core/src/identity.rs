@@ -305,10 +305,10 @@ pub fn rotate_session(
 }
 
 /// A guest: a principal with no credential, minted on request.
-pub fn guest(store: &Store, now: i64, entropy: &mut u64) -> Result<Session, RuntimeError> {
+pub fn guest(store: &Store, now: i64, entropy: &mut crate::ids::Mint) -> Result<Session, RuntimeError> {
     guest_scoped(store, now, entropy, SessionScope::Full)
 }
-pub fn guest_scoped(store: &Store, now: i64, entropy: &mut u64, scope: SessionScope) -> Result<Session, RuntimeError> {
+pub fn guest_scoped(store: &Store, now: i64, entropy: &mut crate::ids::Mint, scope: SessionScope) -> Result<Session, RuntimeError> {
     let id = crate::ids::mint(now, entropy)?;
     let session = read_sessions::scoped_session(&format!("guest:{id}"), "guest", now, scope)?;
     let tx = store.conn().unchecked_transaction()?;
@@ -370,11 +370,11 @@ pub fn finish_signup(
     store: &Store,
     prepared: PreparedSignup,
     now: i64,
-    entropy: &mut u64,
+    entropy: &mut crate::ids::Mint,
 ) -> Result<Session, RuntimeError> {
     finish_signup_scoped(store, prepared, now, entropy, SessionScope::Full)
 }
-pub fn finish_signup_scoped(store: &Store, prepared: PreparedSignup, now: i64, entropy: &mut u64, scope: SessionScope) -> Result<Session, RuntimeError> {
+pub fn finish_signup_scoped(store: &Store, prepared: PreparedSignup, now: i64, entropy: &mut crate::ids::Mint, scope: SessionScope) -> Result<Session, RuntimeError> {
     let principal = format!("user:{}", crate::ids::mint(now, entropy)?);
     let session = read_sessions::scoped_session(&principal, "user", now, scope)?;
     let tx = store.conn().unchecked_transaction()?;
@@ -399,7 +399,7 @@ pub fn signup(
     email: &str,
     password: &str,
     now: i64,
-    entropy: &mut u64,
+    entropy: &mut crate::ids::Mint,
 ) -> Result<Session, RuntimeError> {
     finish_signup(store, prepare_signup(email, password)?, now, entropy)
 }
@@ -475,7 +475,7 @@ mod tests {
     #[test]
     fn sessions_resolve_until_closed() {
         let store = Store::memory().unwrap();
-        let mut entropy = 7;
+        let mut entropy = crate::ids::Mint::default();
         let session = guest(&store, 1_000, &mut entropy).unwrap();
         assert!(session.principal.starts_with("guest:"));
         assert_eq!(session.expires_at, 1_000 + SESSION_DAYS * DAY_MS);
@@ -528,7 +528,7 @@ mod tests {
     #[test]
     fn passwords_hash_and_verify() {
         let store = Store::memory().unwrap();
-        let mut entropy = 9;
+        let mut entropy = crate::ids::Mint::default();
         let session = signup(&store, "Ann@Example.com", "correct horse", 1_000, &mut entropy,
         ).unwrap();
         assert!(session.principal.starts_with("user:"));
@@ -545,7 +545,7 @@ mod tests {
         assert!(prepare_signup("a@example.com", &oversized).is_err());
         assert!(verify_password(None, &oversized).is_err());
         let store = Store::memory().unwrap();
-        signup(&store, "a@example.com", "correct horse", 1, &mut 1).unwrap();
+        signup(&store, "a@example.com", "correct horse", 1, &mut crate::ids::Mint::default()).unwrap();
         let found = credential(&store, "a@example.com").unwrap().unwrap();
         verify_password(Some(&found), "correct horse").unwrap();
         store

@@ -353,7 +353,7 @@ fn sqlite_overflow_payload_is_prepaid_before_preflight() {
 fn sqlite_scratch_uses_the_open_connections_actual_page_size() {
     use rows::{Bounds, Dir, Rows};
     configure_sqlite_probe();
-    let dir = std::env::temp_dir().join(format!("snapback4-word-scratch-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).unwrap()));
+    let dir = std::env::temp_dir().join(format!("snapback4-word-scratch-{}-{}", std::process::id(), snapback4_core::ids::mint(snapback4_core::now_ms(), &mut snapback4_core::ids::Mint::default()).unwrap()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("store.sqlite");
     let conn = rusqlite::Connection::open(&path).unwrap();

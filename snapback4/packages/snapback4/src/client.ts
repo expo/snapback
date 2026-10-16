@@ -128,8 +128,8 @@ function incrementEntropy(bytes: Uint8Array): void {
 }
 
 /** A time-ordered 128-bit id: 48 bits of milliseconds, 80 bits of entropy,
- * 26 base32 digits. Ids minted by one process strictly increase. A burst in
- * one millisecond increments the entropy field, preserving the real time
+ * 26 base32 digits. Ids minted by one loaded module instance strictly increase. A burst in
+ * one millisecond increments the entropy field, preserving the logical time
  * encoded in the id; a clock rollback continues that logical millisecond. */
 export function mintId(now = Date.now()): string {
   if (!Number.isSafeInteger(now) || now < 0 || now > 0xffff_ffff_ffff) throw new RangeError("mintId: time must be an integer from 0 through 2^48-1 milliseconds");

@@ -3,7 +3,7 @@ use snapback4_core::{Store, identity};
 #[test]
 fn signup_minimum_counts_unicode_scalars() {
     let store = Store::memory().unwrap();
-    let mut entropy = 1;
+    let mut entropy = snapback4_core::ids::Mint::default();
     for (n, letter) in ["é", "😀", "a"].into_iter().enumerate() {
         let email = format!("unicode-{n}@example.com");
         let short = letter.repeat(7);
@@ -28,7 +28,7 @@ fn signup_minimum_counts_unicode_scalars() {
 #[test]
 fn password_maximum_still_counts_utf8_bytes() {
     let store = Store::memory().unwrap();
-    let mut entropy = 1;
+    let mut entropy = snapback4_core::ids::Mint::default();
     assert_eq!(identity::PASSWORD_MAX_BYTES, 1024);
     for (n, password) in ["a".repeat(1024), "é".repeat(512), "😀".repeat(256)].into_iter().enumerate() {
         assert_eq!(password.len(), 1024);

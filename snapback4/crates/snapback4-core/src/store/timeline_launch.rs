@@ -158,7 +158,7 @@ fn copy(tx: &Tx<'_>, schema: &Schema, t: &Timeline, event: &Value, reader: Value
 
 pub(super) fn build(tx: &Tx<'_>, schema: &Schema, estimates: &[Estimate], now: i64) -> Result<(), RuntimeError> {
     if estimates.iter().all(|e| e.sources == 0) { return Ok(()); }
-    let incarnation = Value::Id(crate::ids::mint(now, &mut 0)?);
+    let incarnation = Value::Id(crate::ids::mint(now, &mut crate::ids::Mint::default())?);
     let seq = tx.next_seq()?;
     let birth = Value::Id(format!("{seq:016x}{:016x}", 0));
     let epoch = Value::Id(format!("{seq:016x}{:016x}", 1));

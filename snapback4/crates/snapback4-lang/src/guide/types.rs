@@ -15,6 +15,12 @@ mutation createProfile(name: text 1..80):
   return insert profiles { owner: viewer, name }
 ```
 
+Minted IDs sort by allocation order within one live engine, device or JavaScript
+module instance, including equal milliseconds and clock rollback. Across devices,
+restarts or separate instances, same-time suffix order is arbitrary. Use an explicit
+order column for application-wide chronology; IDs are public identities, never secrets.
+During rollback the encoded timestamp retains the previous logical millisecond.
+
 Reference contexts project required rows’ `.id`. Media: decimal KB/MB/GB.
 
 `?` makes columns/arguments nullable; omission is null. Table references do not
