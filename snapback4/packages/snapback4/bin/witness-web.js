@@ -6,7 +6,6 @@ import { existsSync, globSync } from 'node:fs';
 import { resolve, join, extname, sep } from 'node:path';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { chromium } from 'playwright-core';
 import { idFrom } from '../dist/client.js';
 
 function options(args) {
@@ -14,7 +13,7 @@ function options(args) {
   const flags = new Set(['url', 'as', 'email', 'password-env', 'mutation', 'args', 'timeout', 'export', 'field', 'value', 'button', 'port-range']);
   for (let i = 0; i < args.length; i++) {
     const flag = args[i];
-    if (flag === '--help') return null;
+    if (flag === '--help' || flag === '-h') return null;
     if (!flag.startsWith('--') && i === 0) { out.export = flag; continue; }
     const key = flag.slice(2);
     if (!flags.has(key) || !args[i + 1] || args[i + 1].startsWith('--')) throw Error(`E_INPUT: witness web takes --${[...flags].join(', --')}`);
@@ -105,6 +104,14 @@ async function backend(timeout, own, range) {
 }
 const canonical = value => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical(value[key])])) : value;
 async function run(o) {
+  let chromium;
+  try { ({ chromium } = await import('playwright-core')); }
+  catch (error) {
+    if (error.code === 'ERR_MODULE_NOT_FOUND' && error.message.includes("'playwright-core'")) {
+      throw Error('E_WITNESS_BROWSER: witness web requires the optional playwright-core peer; install it with `npm install --save-dev playwright-core`, then `npx playwright-core install chromium`');
+    }
+    throw error;
+  }
   const browserPath = executable();
   let dev, web, browser;
   let cleanupPromise;

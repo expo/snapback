@@ -48,6 +48,10 @@ pub fn init(options: &Options) -> i32 {
         eprintln!("E_RECIPE_RETIRED: the Following recipe installer is retired; no files written\n  rewrite: maintain feed: timeline\n    events posts by authorId, at removed by removed\n    reposts reposts by actorId, postId, at\n    edges follows by followerId, followedId\n  use a fresh feed name; dev adopts retained sources and deploy requires --allow-feed-adoption; see snapback4 guide feeds");
         return 2;
     }
+    if options.flags.contains_key("recipe") {
+        eprintln!("{USAGE}\nE_RECIPE_RETIRED: recipe is a retired spelling; no files written\n  rewrite: use `snapback4 init [dir] --web` for todos, or `snapback4 init [dir] --web --template chat` for chat; use --expo for Expo. See snapback4 guide recipes for schema patterns.");
+        return 2;
+    }
     let online_web = modes == 2 && options.flags.contains_key("online") && options.flags.contains_key("web");
     if options.positionals.len() > 1 || (modes > 1 && !online_web) || options.flags.contains_key("recipe") || options.flags.contains_key("dry-run") || options.flags.contains_key("apply") {
         eprintln!("{USAGE}");

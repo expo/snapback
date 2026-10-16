@@ -2,9 +2,11 @@
 // Replace the application assertions when replacing the starter screen.
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
-import { startDev, startStatic, withBrowser, renderedText, fillRN, statusText, waitForFresh, bounded, cleanup } from "snapback4/proof";
+import { startDev, startStatic, withBrowser, renderedText, fillRN, statusText, waitForFresh, bounded, cleanup, portRange } from "snapback4/proof";
 
 const options = process.env.SNAPBACK4_PROOF_LOGS ? { logsDir: process.env.SNAPBACK4_PROOF_LOGS } : {};
+const range = portRange();
+if (range !== "0" && range.split("-")[0] === range.split("-")[1]) throw Error("the starter needs two runtime ports");
 const dev = await startDev(options);
 let web;
 try {

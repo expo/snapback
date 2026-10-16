@@ -54,7 +54,7 @@ try {
     catch { throw Error('E_UPGRADE: package manager returned no exact core version'); }
   }
   if (typeof version !== 'string' || !/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) throw Error('E_UPGRADE: registry returned no exact core version');
-  if (!explicit && installed && compareVersions(version, installed) < 0) throw Error(`E_UPGRADE: requested ${target ?? "registry latest"} resolves to ${version} is older than installed ${installed}; refusing a downgrade. Use --to ${version} to request it explicitly.`);
+  if (!explicit && installed && compareVersions(version, installed) < 0) throw Error(`E_UPGRADE: the registry’s ${target ?? "latest"} is ${version}, which is older than the installed ${installed}; refusing a downgrade. Use --to ${version} to request it explicitly.`);
   // Check the adapter release before any install changes package.json.
   for (const name of targets) invoke(pm === 'bun' ? ['info', `${name}@${version}`, 'version', '--json'] : ['view', `${name}@${version}`, 'version', '--json'], true);
   if (previous) acknowledgeVersion(root, previous);

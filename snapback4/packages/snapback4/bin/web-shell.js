@@ -96,6 +96,10 @@ self.addEventListener("fetch", event => {
 }
 
 export async function runWebShell(args) {
+  if (args.includes("--help") || args.includes("-h")) {
+    console.log("usage: snapback4 web-shell <dir> [--base /]\nInstall an offline service worker for a static web export. Run after exporting the app (for example, snapback4 web-shell dist).");
+    return;
+  }
   const directory = args.shift();
   let base = "/";
   if (args[0] === "--base" && args.length === 2) base = args[1];

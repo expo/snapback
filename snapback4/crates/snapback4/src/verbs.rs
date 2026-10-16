@@ -47,6 +47,25 @@ pub struct Options {
     pub json: bool,
 }
 
+/// Shared dev target for control verbs: an explicit port wins, otherwise
+/// inspect the persisted store owner's address through doctor's validated host
+/// lookup. run also resolves the same store owner before forwarding.
+pub(crate) fn dev_address(options: &Options) -> Result<std::net::SocketAddr, String> {
+    use std::net::{Ipv4Addr, SocketAddr};
+    if let Some(text) = options.flags.get("port") {
+        let port = text.parse::<u16>().ok().filter(|n| *n > 0)
+            .ok_or("E_INPUT: --port must be an integer in 1..65535")?;
+        return Ok(SocketAddr::from((Ipv4Addr::LOCALHOST, port)));
+    }
+    let cwd = std::env::current_dir().map_err(|error| error.to_string())?;
+    if let Some(project) = Project::locate(&cwd)
+        && let Some(host) = adoption::host(&project, options)? {
+        return host["address"].as_str().ok_or("dev did not report an address")?
+            .parse().map_err(|error| format!("invalid dev address: {error}"));
+    }
+    Ok(SocketAddr::from((Ipv4Addr::LOCALHOST, 4400)))
+}
+
 pub fn parse(args: &[String]) -> Options {
     let mut positionals = Vec::new();
     let mut flags = BTreeMap::new();

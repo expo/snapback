@@ -177,7 +177,7 @@ test('registry latest cannot silently downgrade; only --to authorizes it', t => 
   const { dir, env } = upgradeFixture(t, releaseVersion, '0.4.26');
   const before = readFileSync(join(dir, '.snapback4/check-surface.json'), 'utf8');
   for (const args of [['upgrade'], ['upgrade', '0.4.26']]) {
-    const refused = invoke(args, dir, env); assert.equal(refused.status, 1); assert.match(refused.stderr, /older than installed.*refusing a downgrade.*--to 0.4.26/);
+    const refused = invoke(args, dir, env); assert.equal(refused.status, 1); assert.match(refused.stderr, /the registry’s (?:latest|0\.4\.26) is 0\.4\.26, which is older than the installed.*refusing a downgrade.*--to 0.4.26/);
     assert.equal(readFileSync(join(dir, '.snapback4/check-surface.json'), 'utf8'), before);
     assert.equal(readFileSync(join(dir, 'package.json'), 'utf8').includes(releaseVersion), true);
   }

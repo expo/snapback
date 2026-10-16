@@ -2,6 +2,7 @@
 
 ## 0.4.29
 
+- CLI repairs: web-shell appears in help and accepts both help spellings without files or builds; retired init recipes explain --web/--expo and --template chat. witness web loads the optional playwright-core peer only when running, with an install command if missing. clock advance and reset discover the persisted dev's port, with --port overriding it. Starter frontend proofs refuse a one-port range before launching; day-two/backend-only proofs still accept one port. Implicit downgrade refusal now names the registry's version and installed version clearly.
 
 - Expiry now applies declared cascade, set-null and restrict actions atomically, including replacement and final retirement. Existing stores gain these actions on the next sweep: cascading children are removed, nullable links clear, and restrict retains expired physical parents while reads exclude them. Private or incomplete device evidence queues the write for the server. Rebuild native/Exact devices after upgrading.
 - Maintained aggregate rows now use domain-separated 64-character digest keys. Existing 0.4.28 stores rebuild derived rows transactionally on adoption, translating active/dormant references, indexes, caps and sequence history; long user: principals no longer block adoption. Ordinary aggregates require maintained-id-sha256-v1; private maintained-column aggregates are omitted from device projections. Older devices refuse unsupported markers. Rebuild clients rather than persisting or constructing aggregate ids yourself.

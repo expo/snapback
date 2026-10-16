@@ -1,6 +1,6 @@
 //! A process-local development clock. The release host always reads wall time.
 use snapback4_core::error::Refusal;
-use std::{io::{Read, Write}, net::{Ipv4Addr, TcpStream}, time::{Duration, Instant}};
+use std::{io::{Read, Write}, net::TcpStream, time::{Duration, Instant}};
 
 const MAX_TIME: i64 = snapback4_core::value::I53_MAX;
 
@@ -93,15 +93,12 @@ pub fn command(options: &crate::verbs::Options) -> i32 {
             return Err(input("usage: snapback4 clock advance <duration> [--port N]").to_string());
         }
         duration(&options.positionals[1]).map_err(|e| e.to_string())?;
-        let port = match options.flags.get("port") {
-            None => 4400,
-            Some(text) => text.parse::<u16>().ok().filter(|n| *n > 0).ok_or_else(|| input("--port must be an integer in 1..65535").to_string())?,
-        };
-        let mut stream = TcpStream::connect_timeout(&(Ipv4Addr::LOCALHOST, port).into(), Duration::from_secs(5)).map_err(|e| format!("cannot reach dev on port {port}: {e}"))?;
+        let address = crate::verbs::dev_address(options)?;
+        let mut stream = TcpStream::connect_timeout(&address, Duration::from_secs(5)).map_err(|e| format!("cannot reach dev at {address}: {e}"))?;
         stream.set_read_timeout(Some(Duration::from_secs(60))).map_err(|e| e.to_string())?;
         stream.set_write_timeout(Some(Duration::from_secs(5))).map_err(|e| e.to_string())?;
         let body = serde_json::json!({"duration":options.positionals[1]}).to_string();
-        write!(stream, "POST /dev/clock/advance HTTP/1.1\r\nHost: localhost:{port}\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}", body.len()).map_err(|e| e.to_string())?;
+        write!(stream, "POST /dev/clock/advance HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}", body.len()).map_err(|e| e.to_string())?;
         let mut answer = String::new();
         stream.take(65_536).read_to_string(&mut answer).map_err(|e| e.to_string())?;
         let (headers, body) = answer.split_once("\r\n\r\n").ok_or("dev returned an incomplete HTTP response")?;

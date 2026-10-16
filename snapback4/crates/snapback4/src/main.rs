@@ -66,6 +66,7 @@ const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on 
     --long-waits-per-principal N     held change polls one principal may hold (default 16; SNAPBACK4_LONG_WAITS_PER_PRINCIPAL)
     --claim-waits N                  service workers' claim polls, a separate pool (default 32, max 1024; SNAPBACK4_CLAIM_WAITS)
   run <op> [json] --as <persona|principal-id> [--port N] [--now <milliseconds|+duration>]   run one operation against the local store (a job runs whole, as the system); beside a live dev, forwarded to it as the persona; --port N: to the dev on that port (a dev --fresh)
+  web-shell <dir> [--base /]  install an offline shell for a static export (npm wrapper)
   clock advance <duration> [--port N]  advance a running dev clock, sweep expiry and run due jobs
   reset [--port N] [--seed <fixture dir|rows.json>] [--clock reset]  empty a running dev's store (POST /dev/reset): rows, views, queues, assets, accounts; a new store identity; reseed in the same transaction; personas and service seats stay
   test [--source file.q] [--fixture dir] [--as p] [--residency [--verbose]]    load --fixture or ./fixtures when present, run every query, print the meters; --residency: acquisition report only; add --verbose to run queries and print meters
@@ -377,7 +378,7 @@ mod tests {
 
     #[test]
     fn help_names_every_dispatched_verb() {
-        for verb in ["init", "check", "types", "dev", "deploy", "rollback", "serve", "run", "test", "why", "guide", "data", "sql", "token", "doctor", "device", "witness"] {
+        for verb in ["init", "check", "types", "dev", "deploy", "rollback", "serve", "run", "test", "why", "guide", "data", "sql", "token", "doctor", "device", "witness", "web-shell"] {
             assert!(super::HELP.lines().any(|line| line.trim_start().starts_with(verb)), "HELP omits {verb}");
         }
     }

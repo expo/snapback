@@ -65,7 +65,9 @@ test("Removed search recipe gets the ordinary unknown-recipe refusal", (t) => {
   assert.equal(unknown.status, 2);
   assert.equal(removed.status, unknown.status);
   assert.equal(removed.stderr, unknown.stderr);
-  assert.equal(removed.stderr, "usage: snapback4 init [dir] [--online|--expo|--web [--online]]\n");
+  assert.match(removed.stderr, /^usage: snapback4 init/);
+  assert.match(removed.stderr, /E_RECIPE_RETIRED: recipe is a retired spelling/);
+  assert.match(removed.stderr, /init \[dir\] --web.*--template chat/);
   assert.deepEqual(snapshot(dir), before);
 });
 

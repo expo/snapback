@@ -208,7 +208,7 @@ source and generated types stay isolated. `guide deploy` covers deploy/rollback 
 
 The existing `snapback4 witness web dist` also proves the exported app's SDK
 write; `--field Task --value 'Browser proof' --button Add` drives its visible
-starter form. E_WITNESS_BROWSER means no usable headless Chromium executable. Set SNAPBACK4_CHROMIUM.
+starter form. E_WITNESS_BROWSER means the optional playwright-core peer is missing or no usable headless Chromium executable was found. Install it with `npm install --save-dev playwright-core` and `npx playwright-core install chromium`. Set SNAPBACK4_CHROMIUM for an installed browser.
 
 E_WITNESS_AUTH means the exported app did not sign in. Check the persona or credentials and register its client.
 
