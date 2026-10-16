@@ -140,7 +140,7 @@ fn fixture_notes(project: &Project, bound: &Bound, fixture: Option<&String>) -> 
             let case = case.as_ref().map_err(|e| e.to_string())?;
             let op = case["op"].as_str().ok_or("case needs op")?;
             let program = &bound.programs.iter().find(|p| p.program.name == op).ok_or_else(|| format!("unknown operation {op}"))?.program;
-            let mut args = case.get("args").cloned().unwrap_or_else(|| serde_json::json!({}));
+            let mut args = super::test_cases::literal_escapes(case.get("args").cloned().unwrap_or_else(|| serde_json::json!({})));
             super::test_fixture::argument_times(&program.args, &mut args, now)?;
             let args = args.as_object().ok_or("args must be an object")?;
             for (name, kind) in &program.args {

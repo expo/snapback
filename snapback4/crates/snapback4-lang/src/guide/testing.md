@@ -15,9 +15,9 @@ After replacing the starter screen, replace its business assertions too.
 A custom Home has no write scenario: replace the Home assertions; a proof without a write fails.
 `day2:proof` uses versions/v1.q and versions/v2.q (initial copies of your complete schema).
 
-E_FIXTURE_ALIAS means a saved alias or path could not resolve. Use an earlier case's `save` name with `$name` or `$name.field`; escape a literal with `$$` or `$literal`. An unresolved assertion fails the case; it never compares the alias as literal data.
+E_FIXTURE_ALIAS means a saved alias/path cannot resolve; see the case substitution rules below.
 
-E_FIXTURE_TIME means a relative fixture time is malformed or out of range. Use `now` or `now±duration` with positive integral ms/s/m/h/d/w. Relative conversion applies only to typed time leaves; text/JSON strings stay literal.
+E_FIXTURE_TIME means malformed/out-of-range relative time; the typed conversion rules follow.
 
 ## Fixtures and cases
 
@@ -35,8 +35,7 @@ Typed time arguments in cases accept the same forms.
 One clock captured at test start anchors these values, seed defaults, cases and
 the sweep, so timed fixtures do not rot; malformed/overflowing relative times
 refuse E_FIXTURE_TIME. Text and JSON fields retain literal strings.
-Money/decimal use integer minor units; bytes are hex;
-optional fields may be absent/null. Parents and children load in one batch.
+Money/decimal use integer minor units; bytes are hex; optional fields may be absent/null. Parents load before children.
 Defaults, unique keys, caps, maintained values and sequences obey normal insert
 semantics: omit sequence and engine-maintained columns. A missing parent is
 NOT_FOUND; a bad row or unknown table fails the run before any case executes.
@@ -96,13 +95,11 @@ await fetch(`${dev.url}/dev/reset`, {
 });
 ```
 
-The helper reads table JSONL files (excluding cases), captures the dev clock once,
-and resolves only typed time leaves using the host's public field types. Pass
-`now` for a fixed proof clock, `cwd` for another project, or `timeoutMs` to bound
-the catalog/status requests (10 seconds by default). Reload after schema edits.
-The server validates rows and authorizes the dev door; inspect reset's reply for
-`denied`. `/seed` and `/dev/reset` also accept relative times directly. A reset
-with `"clock":"reset"` resolves them against its new wall clock atomically.
+The helper resolves typed relative times against one dev clock from bounded
+catalog/status requests (timeoutMs defaults to 10 seconds). Options `now` and
+`cwd` override clock/project. Reload after schema edits. Reset validates rows;
+inspect its reply for `denied`. `/seed` and `/dev/reset` accept relative times
+directly; `"clock":"reset"` uses the prospective wall clock atomically.
 
 ## An acceptance script over HTTP
 

@@ -20,25 +20,25 @@ export async function loadFixtures(directory: string, options: LoadFixturesOptio
   const read = async (path: string) => {
     const response = await fetch(new URL(path, options.url), { signal: AbortSignal.timeout(timeoutMs) });
     const body = await response.json() as Record<string, unknown>;
-    if (!response.ok || body.denied) throw Error(`E_FIXTURE_INPUT: ${path}: ${JSON.stringify(body)}`);
+    if (!response.ok || body.denied) throw Error(`E_INPUT: ${path}: ${JSON.stringify(body)}`);
     return body;
   };
   const [catalog, status] = await Promise.all([read("/"), options.now === undefined ? read("/dev/status") : Promise.resolve({ now: options.now })]);
   const now = status.now;
   if (typeof now !== "number" || !Number.isSafeInteger(now) || now < 0) throw Error("E_FIXTURE_TIME: dev did not report a valid clock");
   const tables = catalog.tables as Array<{ name: string; fields: Record<string, unknown> }>;
-  if (!Array.isArray(tables)) throw Error("E_FIXTURE_INPUT: host did not report table field types");
+  if (!Array.isArray(tables)) throw Error("E_INPUT: host did not report table field types");
   const dir = resolve(options.cwd ?? ".", directory), rows: FixtureRow[] = [];
   for (const name of (await readdir(dir)).filter(name => name.endsWith(".jsonl") && name !== "test.cases.jsonl").sort()) {
     const table = name.slice(0, -6), definition = tables.find(item => item.name === table);
-    if (!definition) throw Error(`E_FIXTURE_INPUT: ${name}: unknown table ${table}`);
+    if (!definition) throw Error(`E_INPUT: ${name}: unknown table ${table}`);
     const lines = (await readFile(join(dir, name), "utf8")).split(/\r?\n/);
     for (let n = 0; n < lines.length; n++) {
       if (!lines[n]!.trim()) continue;
       const at = `${name}:${n + 1}`;
       let row: unknown;
-      try { row = JSON.parse(lines[n]!); } catch (error) { throw Error(`E_FIXTURE_INPUT: ${at}: ${error}`); }
-      if (!row || typeof row !== "object" || Array.isArray(row)) throw Error(`E_FIXTURE_INPUT: ${at}: expected a row object`);
+      try { row = JSON.parse(lines[n]!); } catch (error) { throw Error(`E_INPUT: ${at}: ${error}`); }
+      if (!row || typeof row !== "object" || Array.isArray(row)) throw Error(`E_INPUT: ${at}: expected a row object`);
       const fields = row as Record<string, unknown>;
       for (const [field, kind] of Object.entries(definition.fields)) {
         if (field in fields) fields[field] = timeValue(kind, fields[field], now, `${at}.${field}`);

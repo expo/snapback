@@ -156,6 +156,9 @@ pub(super) fn reset(request: Request, shared: &Shared, body: &str) {
         }
     };
     if asked.clock { *lock(&shared.clock) = clock; }
+    // The reset committed a new identity and a new authority clock. Replace,
+    // rather than max with, the retired store's cached high-water mark.
+    shared.time_audience_clock.store(if engine.schema().tables.values().any(|t| t.not_before.is_some()) { now } else { i64::MIN }, std::sync::atomic::Ordering::Release);
     // Detached readers reopen; the following registry, change answers and
     // `/dev/status` forget the old identity. Wake then names the new store,
     // so every held poll returns and each client sees the replacement.

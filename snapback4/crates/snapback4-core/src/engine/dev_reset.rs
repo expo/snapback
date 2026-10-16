@@ -41,6 +41,8 @@ impl Engine {
         // Like adoption: no ephemeral program runs across the identity change.
         drop(self.ephemeral.lock()?);
         let tx = self.store.transaction()?;
+        // @ref LLP 3000.000.000.000.000#2-fixture-semantics — the new store identity must not inherit the retired store's future clock.
+        tx.conn().execute("DELETE FROM _meta WHERE key = 'time_audience_clock'", [])?;
         let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
         let previous_store_id = tx.meta("store_id")?.unwrap_or_default();
         let head = tx.next_seq()?.saturating_sub(1);

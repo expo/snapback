@@ -240,6 +240,17 @@ pub(super) fn validate(case: &Json) -> Result<(), String> {
     Ok(())
 }
 
+/// Normalize statically known escapes without resolving runtime saved answers.
+pub(super) fn literal_escapes(value: Json) -> Json {
+    match value {
+        Json::Object(mut fields) if fields.len() == 1 && fields.contains_key("$literal") => fields.remove("$literal").unwrap(),
+        Json::String(text) if text.starts_with("$$") => Json::String(text[1..].into()),
+        Json::Object(fields) => Json::Object(fields.into_iter().map(|(key,value)| (key,literal_escapes(value))).collect()),
+        Json::Array(items) => Json::Array(items.into_iter().map(literal_escapes).collect()),
+        other => other,
+    }
+}
+
 /// The query's N_NEVER_COMPLETE note, as `N_NEVER_COMPLETE at schema.q:L`.
 fn never_complete(bound: &Bound, program: &snapback4_lang::BoundProgram) -> Option<String> {
     bound.notes.iter().chain(&program.notes)

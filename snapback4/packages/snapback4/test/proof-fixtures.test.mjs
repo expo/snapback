@@ -30,7 +30,7 @@ test('loadFixtures resolves only typed leaves at one dev clock and returns reset
     await assert.rejects(loadFixtures(dir, { url }), /E_FIXTURE_TIME: events.jsonl:1.at/);
   }
   writeFileSync(join(dir, 'events.jsonl'), '[]\n');
-  await assert.rejects(loadFixtures(dir, { url }), /E_FIXTURE_INPUT.*expected a row object/);
+  await assert.rejects(loadFixtures(dir, { url }), /E_INPUT.*expected a row object/);
   writeFileSync(join(dir, 'unknown.jsonl'), '{}\n');
   writeFileSync(join(dir, 'events.jsonl'), '{}\n');
   await assert.rejects(loadFixtures(dir, { url }), /unknown table unknown/);

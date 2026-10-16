@@ -1168,3 +1168,31 @@ fn surf3_reset_relative_times_share_the_reset_clock_and_bad_times_are_atomic() {
     let (_, got) = http(&url, "POST", "/q/one", Some("alice"), r#"{"args":{"id":"e"}}"#);
     assert_eq!(got["data"]["at"], at);
 }
+
+#[test]
+fn surf3_static_literal_escapes_agree_with_execution_and_typed_times() {
+    let project = Project::new("use personas alice\nquery echo(text: text <=20, at: time):\n  return text\n");
+    project.write("fixtures/test.cases.jsonl", r#"{"op":"echo","args":{"text":{"$literal":"draft"},"at":{"$literal":"now+2h"}},"data":"draft"}
+{"op":"echo","args":{"text":"$$draft","at":"now"},"data":"$$draft"}
+"#);
+    for args in [&["test"][..], &["check", "--json"][..]] {
+        let output = project.run(args);
+        assert!(output.status.success(), "{}", text(&output));
+        assert!(!text(&output).contains("N_FIXTURE_ARGUMENT_DRIFT"), "{}", text(&output));
+    }
+}
+
+#[test]
+fn surf3_reset_retires_future_time_audience_floor_before_reseed() {
+    let project = Project::new("use personas alice\ntable events:\n  opens: time default now\n  note: text <=40\n  not before .opens\n  public 'fixture'\n  online only\nquery one(id: events):\n  return events[id]\n");
+    let (_dev, url) = project.dev(0);
+    let (_, advanced) = http(&url, "POST", "/dev/clock/advance", None, r#"{"duration":"25h"}"#);
+    assert!(advanced["denied"].is_null(), "{advanced}");
+    let (_, reset) = http(&url, "POST", "/dev/reset", None, r#"{"clock":"reset","seed":[{"table":"events","row":{"id":"future","opens":"now+1h","note":"waiting"}},{"table":"events","row":{"id":"default","note":"default"}}]}"#);
+    assert_eq!(reset["reset"], true, "{reset}");
+    assert!(advanced["now"].as_i64().unwrap() - reset["now"].as_i64().unwrap() > 86_000_000, "{advanced} {reset}");
+    let (_, got) = http(&url, "POST", "/q/one", Some("alice"), r#"{"args":{"id":"future"}}"#);
+    assert!(got["data"].is_null(), "future row published early: {got}");
+    let (_, got) = http(&url, "POST", "/q/one", Some("alice"), r#"{"args":{"id":"default"}}"#);
+    assert!((got["data"]["opens"].as_i64().unwrap() - reset["now"].as_i64().unwrap()).abs() < 1000, "defaults use reset clock: {got} {reset}");
+}

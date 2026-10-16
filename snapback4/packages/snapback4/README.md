@@ -92,14 +92,10 @@ import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { createApp } from "snapback4/app";
 import { localStorageSessionStore } from "snapback4/auth";
-import { nativeAvailable, nativeDevice } from "snapback4-expo";
+import { nativeAvailable, nativeDevice, secureStoreSessionStore } from "snapback4-expo";
 import { smokeOrigin } from "snapback4-expo/witness";
 import { webDevice } from "snapback4/web";
-const sessionStore = {
-  get: (key: string) => SecureStore.getItemAsync(key),
-  set: (key: string, value: string) => SecureStore.setItemAsync(key, value),
-  delete: (key: string) => SecureStore.deleteItemAsync(key),
-};
+const sessionStore = secureStoreSessionStore(SecureStore);
 export const app = createApp({
   url: smokeOrigin(process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400"),
   sessionStore: Platform.OS === "web" ? localStorageSessionStore() : sessionStore,
@@ -283,7 +279,8 @@ For a web-first tutorial, start with `npx snapback4 init --web` (or add
 `--port-range 29000-29009`; PORT_LO/PORT_HI also work), then `npm install`,
 `npx snapback4 check`, `npm run backend` and `npm run dev` in separate terminals.
 The labelled Task form reads and writes your starter schema. Run `npm run build:web`
-then `npm run proof:web -- --field Task --value "Browser proof" --button Add`.
+then `npm run proof:web`. The generated `scripts/frontend-proof.mjs` owns the
+application assertions; edit them when replacing the starter screen.
 Use `guide client` for password and role-gated screens; the profile schema below
 also works on web with createApp/localStorageSessionStore and ordinary HTML controls.
 

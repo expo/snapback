@@ -1,5 +1,13 @@
 # Snapback 4 behavior changes
 
+## 0.4.30
+
+- Fixtures and IDs: check and test agree on typed now-relative arguments; malformed times report E_FIXTURE_TIME. Assertion enum literals remain literal when they match saved names. matchSet compares unordered row subsets with duplicate counts; test.sweep.json selects personas per query. loadFixtures returns reset-ready rows from table JSONL with one captured dev clock. Seed/reset accept relative time leaves atomically. Clock failures name --port; isolated-time guidance respects the assigned range. IDs increase within each live engine/device/JS mint context for same-millisecond bursts and clock rollback; use an application order column across independent contexts/restarts.
+
+- Production transition: native examples/starters use `secureStoreSessionStore(SecureStore)`; device-less identity options require an explicit session store. `guide production` covers guest policy, seat/bootstrap proposals, password/persona entry and shared principals. `why N_NO_PRODUCTION_WRITER` lists every blocker and proposes one seat mutation per declared role. Failed effect attempts call `onError` even after settlement; dev and doctor show recorded handler failures. `guide assets` adds shared immutable evidence references and a fail-closed scan-before-sharing recipe.
+
+- Surface and help: one admitted-flag table generates every verb synopsis and help flag list. Ignored flags refuse before work; data --json returns an array, including []. token --quiet prints only the bearer and --json returns session metadata. Immutable releases carry source hash, CLI version and time in provenance.json. startServe options-only calls refuse E_PROOF_USAGE; disabled browser witnesses expose E_WITNESS_DISABLED.code. Browser proofs prefer the app's installed @playwright/test, playwright or playwright-core. Identity/migration/headless aliases select their sections, fields/backfill aliases resolve, long piped cards include an index and full content, and writes includes optional-reference validation. Duplicate identity declarations report E_QUARRY_IDENTITY_DUPLICATE.
+
 ## 0.4.29
 
 - CLI repairs: web-shell appears in help and accepts both help spellings without files or builds; retired init recipes explain --web/--expo and --template chat. witness web loads the optional playwright-core peer only when running, with an install command if missing. clock advance and reset discover the persisted dev's port, with --port overriding it. Starter frontend proofs refuse a one-port range before launching; day-two/backend-only proofs still accept one port. Implicit downgrade refusal now names the registry's version and installed version clearly.

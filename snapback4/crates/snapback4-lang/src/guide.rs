@@ -122,6 +122,7 @@ pub const ALIASES: &[(&str, &str)] = &[
     ("roster", "cheatsheet"), ("rosters", "cheatsheet"), ("probe", "cheatsheet"), ("positional", "cheatsheet"),
     ("division", "types"), ("integer", "types"), ("reserved", "cheatsheet"), ("reserved words", "cheatsheet"),
     ("persona", "personas"), ("persona picker", "personas"), ("switch persona", "personas"), ("picker", "personas"),
+    ("backfill", "evolution"), ("fields", "types"), ("auth/headless", "personas"),
     ("migration", "deploy"), ("migrate", "deploy"), ("schema-evolution", "evolution"), ("adoption", "evolution"),
     ("releases", "deploy"), ("prune", "deploy"),
     ("sql", "from-sql"), ("convex", "from-sql"), ("rosetta", "from-sql"), ("inspect", "personas"),
@@ -154,6 +155,12 @@ pub const ALIASES: &[(&str, &str)] = &[
 /// no heading or line holds the word. Each entry is (alias, heading words).
 // @ref LLP 3000.007#20.1 — wave 6: `guide pagination` opened the reads card's index, and `--section pagination` found nothing.
 pub const ALIAS_SECTIONS: &[(&str, &str)] = &[
+    ("identity", "Deploy and password identity"), ("password", "Deploy and password identity"),
+    ("signin", "Deploy and password identity"), ("login", "Deploy and password identity"),
+    ("signup", "Deploy and password identity"), ("sign-up", "Deploy and password identity"), ("register", "Deploy and password identity"),
+    ("migrations", "Migrations and adoption"), ("migration", "Migrations and adoption"), ("migrate", "Migrations and adoption"),
+    ("auth/headless", "Seed accounts headlessly"), ("headless", "Seed accounts headlessly"),
+    ("backfill", "Release rollback"), ("fields", "Column types"),
     ("pagination", "Pages and cursors"), ("paging", "Pages and cursors"), ("cursor", "Pages and cursors"),
     ("first admin", "First admin"), ("roles", "Roles"), ("role", "Roles"), ("admin", "First admin"), ("rbac", "Roles"), ("permissions", "Roles"),
     ("two-party", "Two parties"), ("two party", "Two parties"), ("buyer seller", "Two parties"), ("marketplace", "Two parties"),
@@ -588,7 +595,7 @@ In tests, use `snapback4 clock advance <dur>` or `POST /dev/clock/advance`; each
 snapback4 clock advance 36s
 curl -X POST http://127.0.0.1:4400/dev/clock/advance -H 'Content-Type: application/json' -d '{"duration":"36s"}'
 ```"##,
-        "assets" => r##"# Assets: upload, place, serve
+        "assets" => concat!(r##"# Assets: upload, place, serve
 
 Assets are uploaded images, videos and files (documents: "Files" below)
 attached to a row. That row's read rule controls who can fetch the bytes.
@@ -1024,7 +1031,7 @@ or choose a new id. A declaration cannot be changed or reused for another row.
 
 `E_ASSET_INTENT_EXPIRED`: the original asset was collected after settlement;
 the same upload id cannot create another asset. Select a new capture/id.
-"##,
+"##, include_str!("guide/asset_sharing.md")),
         "read-only" => include_str!("guide/read_only.md"),
         "client" => include_str!("guide/client.md"),
         "social" => social::CARD,
