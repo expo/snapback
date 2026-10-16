@@ -96125,3 +96125,16 @@ callbacks, using real Node builtins, and require the iOS cache-mod callback to
 register. Its isolated rerun passes all eight cases; the actual cache mod is
 covered by real prebuild/hardlink tests on both OSes. No published package
 bytes change in this fixture-only followup.
+
+## 2026-10-16 — Integration 14: final 0.4.30 device and upgrade boundary
+
+LANG2 and EXPOPIN are now merged after the first five lanes. P18 preserves
+uncertain immutable patches with a runtime-equality note; new bounded walk
+interpretations require branch-pages-v5. Existing store rows and ids remain;
+F2 repair is explicit. Rebuild web/native/Exact devices and regenerate iOS
+for the Expo57/Xcode27.0–27.1 cache repair. The final clean Linux device at
+751f4b044b measures2,372,437 B raw /723,160 B gzip /545,213 B Brotli.
+Budget723,660 B is exactly gzip+500 B, whole-artifact +6,446 B gzip over
+0.4.29; strict family/absence audits pass, with no runtime ceiling increase
+or independent feature attribution. This is integration evidence, not a
+publication record; all final checks are recorded in WORKSTREAM-REPORT.md.
