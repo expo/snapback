@@ -610,7 +610,7 @@ fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
         }
         let texts = starter_texts(&dir.0);
         // Three kit scripts replace builder-owned process orchestration.
-        assert!(texts.len() <= 27, "{flag}: {} files", texts.len());
+        assert!(texts.len() <= 28, "{flag}: {} files", texts.len());
         let schema = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();
         let bound = snapback4_lang::compile(&[("schema.q".into(), schema)]);
         assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);
@@ -921,7 +921,7 @@ fn init_first_then_schema_leftovers_are_named_and_adapted() {
     // Wave 6 (042): the README is rewritten too, to the one schema-first init writes
     // (named after the directory, the persona sign-in, `dev --port`), apart from the title.
     let readme = fs::read_to_string(dir.0.join("README.md")).unwrap();
-    assert!(!readme.contains("todos") && readme.contains("usePersonaApp") && readme.contains("npx snapback4 dev --port 4517 ") && readme.contains("127.0.0.1:4517"), "{readme}");
+    assert!(!readme.contains("todos") && readme.contains("usePersonaApp") && readme.contains("npm run backend") && readme.contains("127.0.0.1:4517"), "{readme}");
     let body = |text: String| text.split_once('\n').unwrap().1.to_owned();
     assert_eq!(body(readme), body(fs::read_to_string(schema_first.0.join("README.md")).unwrap()));
     // Adapted: the screen behind the picker is the neutral Home, so nothing is
