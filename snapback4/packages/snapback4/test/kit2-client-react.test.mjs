@@ -42,7 +42,7 @@ window.publish=async patch=>{await act(async()=>{if(patch.role)role=patch.role;i
 window.inspect=()=>({writes,notes:[...records].filter(r=>r.name==='staffNotes').length});
 window.finish=()=>act(async()=>root.unmount());
 `);
- server=await createBrowserServer({root:dir,configFile:false,logLevel:'error',server:{host:'127.0.0.1',port:0,fs:{allow:[root,dir]}},resolve:{alias:[
+ server=await createBrowserServer({root:dir,configFile:false,logLevel:'error',server:{host:'127.0.0.1',port:0,fs:{allow:[root,dir,clientDist]}},resolve:{alias:[
  {find:'snapback4/react',replacement:join(clientDist,'react.js')},{find:'snapback4/contract',replacement:join(clientDist,'contract.js')}]}});
  await server.listen();const {chromium}=require('playwright-core');browser=await chromium.launch({executablePath:chromiumExecutable(),headless:true,args:['--no-sandbox']});
  const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
