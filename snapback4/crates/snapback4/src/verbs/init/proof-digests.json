@@ -148,42 +148,42 @@
   },
   {
     "file": "frontend",
-    "sha256": "eea5d3ec3f189bb703b1f79fd71f71ee39b2adb62a400c57a29b19a46772d7de",
+    "sha256": "0b9b38b3322d6b11f8faa78f02cfcf8ecaf99129b95ae21972d8893d4e54b481",
     "template": null,
     "version": "0.4.31",
     "web": false
   },
   {
     "file": "frontend",
-    "sha256": "4222f462e0e56da928ce6ee8f567a7ef13083c5c5f73cf415b98d5147b053bf8",
+    "sha256": "5698c9fe341b0c24fb4319513509779f9b1b4bafadbc603afd840d02f3b94b7f",
     "template": "chat",
     "version": "0.4.31",
     "web": false
   },
   {
     "file": "frontend",
-    "sha256": "d681821c49a7b57dc3c5d8caf11c897fa58d31a6fb963d0225af2d59788a784c",
+    "sha256": "32d0ca1a2487e205d4441da01fc2cfab8232bd4eb5e5cfd648ec36f8d733222d",
     "template": "social",
     "version": "0.4.31",
     "web": false
   },
   {
     "file": "frontend",
-    "sha256": "d2746603c8d2400941262e871b03725792e5c235f851fc88610ca64fff9c943a",
+    "sha256": "762b4262606b3688a03edf721eb9238bf91c0164cedf060a6a9539306bdccd52",
     "template": null,
     "version": "0.4.31",
     "web": true
   },
   {
     "file": "frontend",
-    "sha256": "aab29caf6f66c73e236e3b63ee4342bcdf9ebe49d524fc1d79a093100a34cb4b",
+    "sha256": "95f2c58f80f67d5efd21d05b34a847ad7883bcc245f9b68ae1aa4d331396146f",
     "template": "chat",
     "version": "0.4.31",
     "web": true
   },
   {
     "file": "frontend",
-    "sha256": "65deada764a4fe1ac21e7a31aef778aedccfb45562415e73c72ef96ab490ba30",
+    "sha256": "61c4c27b00ee9ecd92eb548230e0002455a84575ef8ba4a0135260c19b662c5e",
     "template": "social",
     "version": "0.4.31",
     "web": true

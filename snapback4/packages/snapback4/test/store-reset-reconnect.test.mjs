@@ -175,7 +175,7 @@ test("R2 item 3: restoring the same store at a lower head halts reads and retrie
   assert.equal(change.seq, 1); assert.equal(change.store_id, a.store_id);
   t.diagnostic(`restore before/after heads=${a.watermark}/${b.watermark}, read=${JSON.stringify(read)}`);
   assert.equal(read.denied?.code, "E_STORE_RESTORE", "restored same-id partition must refuse, never return old complete rows");
-  assert.equal(read.denied.message, "E_STORE_RESTORE: the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox");
+  assert.equal(read.denied.message, "the backend store was restored or shrank below this device's watermark; stop this client and use a fresh device store and outbox");
   assert.notEqual(read.denied.retryable, true);
   await until(() => watch.getSnapshot().denied?.code === "E_STORE_RESTORE", "watch did not refuse");
   const syncs = f.pages.length; await client.sync(); await sleep(1200);

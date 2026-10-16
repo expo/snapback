@@ -59,7 +59,7 @@ test('startServe names its directory argument and witness disabled errors expose
   const previous=globalThis.window;
   try {
     globalThis.window={location:{search:''}};
-    registerWebWitness({},{});
+    registerWebWitness({ready:Promise.resolve({ok:true})},{});
     assert.throws(()=>window.__snapback4Witness.beginForm('save',null,{}),e=>e.code==='E_WITNESS_DISABLED');
   } finally { if(previous===undefined) delete globalThis.window; else globalThis.window=previous; }
 });

@@ -55,7 +55,7 @@ module.exports = { ...ts, sys: wrap({ ...ts.sys }), createCompilerHost: (...args
     }
     writeFileSync(entry, boundary === "readFile" ? "export default 0;\n" : 'import { value } from "../late/helper.js"; export default value;\n');
     const before = statSync(entry, { bigint: true });
-    const check = () => spawnSync(process.execPath, ["--input-type=module", "-e", checker, root, entry], { encoding: "utf8", timeout: hangBudget() });
+    const check = () => spawnSync(process.execPath, ["--experimental-import-meta-resolve", "--input-type=module", "-e", checker, root, entry], { encoding: "utf8", timeout: hangBudget() });
     const first = check();
     assert.equal(first.status, 1, first.stderr);
     assert.match(first.stderr, /E_SERVER_TYPECHECK/);
@@ -68,6 +68,9 @@ module.exports = { ...ts, sys: wrap({ ...ts.sys }), createCompilerHost: (...args
     if (boundary === "readFile") {
       writeFileSync(join(root, "node_modules/typescript/index.cjs"), `module.exports = require(${JSON.stringify(require.resolve("typescript"))});`);
     }
+    // Runtime capture also requires the executable imported as helper.js.
+    // Keep the first missing TypeScript observation, then provide both files.
+    if (boundary !== "readFile") writeFileSync(join(directory, "helper.js"), "export const value = 1;\n");
     const second = check();
     assert.equal(second.status, 0, second.stderr);
   });

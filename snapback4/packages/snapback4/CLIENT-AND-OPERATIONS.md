@@ -61,12 +61,15 @@ For a browser proof, register the application's own app and generated API
 (starters do this; the hook is active only under `?witness=web`):
 
 ```ts
-import { registerWebWitness } from "snapback4/witness-web";
+import { registerWebWitness, witnessForm } from "snapback4/witness-web";
 import { createApp } from "snapback4/app";
 import { localStorageSessionStore } from "snapback4/auth";
 import { api } from "../snapback/generated/api";
 const app = createApp({ url: "http://127.0.0.1:4400", sessionStore: localStorageSessionStore() });
 registerWebWitness(app, api);
+export function submitMessage(event: Event, conversationId: string, body: string) {
+  return witnessForm(app, event, async mutate => { await mutate(api.send, { conversationId, body }); });
+}
 ```
 
 `npm run build:web && snapback4 witness web dist` proves the first durable
