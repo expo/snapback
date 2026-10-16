@@ -120,6 +120,7 @@ impl Runner<'_> {
         })
     }
 
+    #[cfg(feature = "sqlite")]
     pub(super) fn evaluate_update_rule(&mut self, allowance: &Authorization, name: &str, rule: &RuleExpr, both: bool, old: Option<&Value>, next: &Value) -> Result<(bool, &'static str), RuntimeError> {
         let next_provisional = self.device && self.is_provisional(name, next)?;
         let old_provisional = old.map(|row| self.is_provisional(name, row)).transpose()?.unwrap_or(false);

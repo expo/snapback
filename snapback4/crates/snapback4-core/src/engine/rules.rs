@@ -1188,6 +1188,7 @@ impl Timeline {
 }
 
 // @ref LLP 3000.036.002#10 — observe the existing evaluation, never re-probe for diagnostics.
+#[cfg(feature = "sqlite")]
 pub(super) fn evaluate_update(rule: &RuleExpr, both: bool, viewer: &str, old: Option<&Value>, next: &Value, probe: &mut dyn Probe) -> Result<(bool, &'static str), crate::error::RuntimeError> {
     let prior = probe.replace_expiry(None);
     let result = if both {

@@ -62,7 +62,7 @@ fn real_runner_matches_explicit_old_next_rules_at_meter_and_physical_boundaries(
         for spent in [0,AUTHORIZATION_WALK_LIMIT-1,AUTHORIZATION_WALK_LIMIT] {
             for probes in [1,2,3] {
                 let mut results=Vec::new();
-                for named in [false,true] {
+                for (named,traced) in [(false,false),(false,true),(true,false),(true,true)] {
                     let mut schema=schema.clone();
                     if named {
                         schema.tables.get_mut("notes").unwrap().rules.update=schema.tables["notes"].rules.update.old_and_next();
@@ -71,7 +71,9 @@ fn real_runner_matches_explicit_old_next_rules_at_meter_and_physical_boundaries(
                     let rows=MemoryRows::default();
                     rows.put("grants",&schema.tables["grants"],&object([("id",Value::Id("g".into())),("until",Value::Int(500))]),None).unwrap();
                     let trace=RefusalTrace::default();
-                    let mut r=Runner::new(&rows,&schema,Context::new("alice",Default::default()).at(now).with_refusal_trace(trace.clone()),Meter::new(Ceilings {rule_probes:probes,..Default::default()},Cut::Abort),0);
+                    let context=Context::new("alice",Default::default()).at(now);
+                    let context=if traced {context.with_refusal_trace(trace.clone())} else {context};
+                    let mut r=Runner::new(&rows,&schema,context,Meter::new(Ceilings {rule_probes:probes,..Default::default()},Cut::Abort),0);
                     // Consume the original shared physical allowance, without changing
                     // public logical work. Both old/next probes then share its tail.
                     r.prepaid_witnesses(|r,a| {
@@ -96,7 +98,7 @@ fn real_runner_matches_explicit_old_next_rules_at_meter_and_physical_boundaries(
                         if cause.clause=="update rule" && named { assert!(cause.phase.contains("named transition"),"{cause:?}"); }
                     }
                 }
-                assert_eq!(results[0],results[1],"old={old_key} next={next_key} now={now} spent={spent} probes={probes}");
+                for result in &results[1..] { assert_eq!(&results[0],result,"old={old_key} next={next_key} now={now} spent={spent} probes={probes}"); }
             }
         }
     }

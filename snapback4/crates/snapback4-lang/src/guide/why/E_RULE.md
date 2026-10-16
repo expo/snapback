@@ -27,7 +27,7 @@ the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
 
-Require decides intent; each write passes table rules as caller. Jobs run as
+Require decides intent; each write passes its table rules. Jobs run as
 system. See: guide rule-recipes update-images. Under `dev`, `snapback4 why recent` prints each refusal and parked job:
 operation, code, request/job ID, Unix time, and the refusing clause with its
 site. Replays and uninstrumented paths say `cause not instrumented`. Records describe only
