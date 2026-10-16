@@ -309,9 +309,15 @@ fn wave13_rewrites_apply_to_the_authors_schema_and_recheck() {
     check(&repaired);
 
     let source = "table entries:\n  at: time\n  public\n  update <- allow\n  immutable at\n  online only\nmutation edit(entry: entries, at: time):\n  update entries[entry] { at }\n  return null\n";
-    let d = refusal(source,"E_QUARRY_IMMUTABLE");
-    assert!(d.rewrite.contains("omit at from the patch"));
+    let bound = compile(&[("schema.q".into(),source.into())]);
+    assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+    let note = bound.notes.iter().find(|d|d.code=="N_IMMUTABLE_PATCH").unwrap();
+    assert!(note.rewrite.contains("omit at from the patch"));
     check(&source.replace("{ at }", "{}"));
+    let clock = source.replace("{ at }", "{ at: now }");
+    let d = refusal(&clock,"E_QUARRY_IMMUTABLE");
+    assert!(d.rewrite.contains("omit at from the patch"));
+    check(&clock.replace("{ at: now }", "{}"));
 }
 
 #[test]

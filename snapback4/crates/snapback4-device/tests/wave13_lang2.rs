@@ -35,3 +35,22 @@ fn filtered_snapshot_refinement_runs_on_memory_and_native_sqlite() {
     filtered(&mut Memory::new());
     filtered(&mut Sqlite::new("lang2-filter"));
 }
+
+fn immutable_equality(host: &mut impl Host) {
+    let source = "table entries:\n  owner: principal\n  body: text\n  immutable owner\n  public\n  insert <- allow\n  update <- allow\n  sync public\nmutation save(e: entries):\n  upsert entries[e] { owner: viewer, body: 'saved' }\n  return null\n";
+    let (mut server, backend) = compile(source);
+    server.seed([("entries".into(),object([("id",id("e")),("owner",id("alice")),("body",Value::String("old".into()))]))]).unwrap();
+    let mut device = host.open("immutable",Some(backend)).unwrap();
+    for (at,page) in snapshot_pages(&mut server,"alice",10).iter().enumerate() { device.apply(page,at==0).unwrap(); }
+    let same = device.predict("save","alice",&json!({"e":"e"}),100,vec![],1).unwrap();
+    assert_eq!(same.predicted,vec!["entries/e"]);
+    let different = device.predict("save","bob",&json!({"e":"e"}),100,vec![],2).unwrap_err();
+    assert_eq!(different.code(),"E_CONSTRAINT");
+    host.close("immutable",device);
+}
+
+#[test]
+fn immutable_notes_preserve_equality_on_memory_and_native_sqlite() {
+    immutable_equality(&mut Memory::new());
+    immutable_equality(&mut Sqlite::new("immutable-equality"));
+}

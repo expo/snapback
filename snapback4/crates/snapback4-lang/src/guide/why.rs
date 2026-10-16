@@ -3,6 +3,7 @@ pub(super) fn detail(code: &str) -> Option<&'static str> {
     Some(match code {
         "E_QUARRY_STATEMENT" => include_str!("why/E_QUARRY_STATEMENT.md"),
         "E_QUARRY_FANOUT" => include_str!("why/E_QUARRY_FANOUT.md"),
+        "N_IMMUTABLE_PATCH" => include_str!("why/N_IMMUTABLE_PATCH.md"),
         "E_QUARRY_IMMUTABLE" => include_str!("why/E_QUARRY_IMMUTABLE.md"),
         "N_CASCADE_DORMANT" => include_str!("why/N_CASCADE_DORMANT.md"),
 

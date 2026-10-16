@@ -167,7 +167,7 @@ pub fn base(seed: u64) -> Case {
             ),
             ("byTag".into(), vec!["tag".into()], true),
         ],
-        caps: vec![],
+        immutable: vec![], caps: vec![],
         rule,
         residency,
         effects: None,
@@ -184,7 +184,7 @@ pub fn base(seed: u64) -> Case {
             ("byMember".into(), vec!["bucket".into(), "principal".into()], true),
             ("byPrincipal".into(), vec!["principal".into(), "bucket".into()], false),
         ],
-        caps: vec![(16, vec!["principal".into()])],
+        immutable: vec![], caps: vec![(16, vec!["principal".into()])],
         rule: Rule::Allow,
         residency: Residency::Public,
         effects: None,
@@ -418,7 +418,7 @@ pub(crate) fn page4(case: &mut Case) {
     }
     if shape==4 {
         if !case.program.tables.iter().any(|t|t.name=="parents") {
-            case.program.tables.push(Table {name:"parents".into(),columns:vec![],keys:vec![],caps:vec![],rule:Rule::Allow,residency:Residency::Public,effects:None,expire:None,not_before:None});
+            case.program.tables.push(Table {name:"parents".into(),columns:vec![],keys:vec![],immutable: vec![], caps:vec![],rule:Rule::Allow,residency:Residency::Public,effects:None,expire:None,not_before:None});
         }
         case.rows.retain(|(table,row)|table!="parents" || row["id"]!="parent");
         case.program.lets.retain(|(name,_)|name!="parent");
@@ -494,15 +494,15 @@ pub fn page5(seed: u64, shape: u64) -> Case {
                 if table == "access" { row["bucket"] = json!(bucket); }
             }
             let roles = Table { name: "roles".into(), columns: vec![column("bucket", Type::Int), column("principal", Type::Principal)],
-                keys: vec![("byBucketPrincipal".into(), vec!["bucket".into(), "principal".into()], true)], caps: vec![],
+                keys: vec![("byBucketPrincipal".into(), vec!["bucket".into(), "principal".into()], true)], immutable: vec![], caps: vec![],
                 rule: Rule::Member, residency: Residency::Online, effects: None, expire: None, not_before: None };
             case.program.tables.push(roles);
             let seats = Table { name: "seats".into(), columns: vec![column("bucket", Type::Int), column("principal", Type::Principal)],
-                keys: vec![("byBucketPrincipal".into(), vec!["bucket".into(), "principal".into()], true)], caps: vec![],
+                keys: vec![("byBucketPrincipal".into(), vec!["bucket".into(), "principal".into()], true)], immutable: vec![], caps: vec![],
                 rule: Rule::Member, residency: Residency::Online, effects: None, expire: None, not_before: None };
             case.program.tables.push(seats);
             let permits = Table { name: "permits".into(), columns: vec![column("principal", Type::Principal)],
-                keys: vec![("byPrincipal".into(), vec!["principal".into()], true)], caps: vec![],
+                keys: vec![("byPrincipal".into(), vec!["principal".into()], true)], immutable: vec![], caps: vec![],
                 rule: Rule::Member, residency: Residency::Online, effects: None, expire: None, not_before: None };
             case.program.tables.push(permits);
             if rng.pick(4) != 0 { case.rows.push(("roles".into(), json!({"id":format!("role-{seed}"), "bucket":bucket, "principal":case.principal}))); }
@@ -724,5 +724,28 @@ pub fn lang2(seed: u64, shape: u64) -> Case {
             access.effects = Some(vec![Rule::Member, Rule::Deny, Rule::Deny, Rule::Member]);
         }
     }
+    case
+}
+
+/// P18's accepted equality guards, including readable mismatch and hidden
+/// immutable suppression. All cases remain ordinary generated source.
+pub fn immutable_patch(seed: u64, shape: u64) -> Case {
+    let mut case = base(seed);
+    let shape = shape % 6;
+    let table = &mut case.program.tables[0];
+    table.rule = Rule::Allow;
+    table.residency = if shape == 2 { Residency::Online } else { Residency::Public };
+    table.effects = Some(vec![if shape == 2 { Rule::Deny } else { Rule::Allow }, Rule::Allow, Rule::Allow, Rule::Allow]);
+    table.immutable = vec![if shape >= 4 { "score" } else { "owner" }.into()];
+    case.program.body = Body::Write(if shape >= 4 { Write::Update } else { Write::Upsert }, Expr::Arg("a".into(),Type::Int));
+    case.program.helper = false;
+    case.program.lets.clear();
+    case.rows.clear();
+    case.principal = "alice".into();
+    let score = (seed % 100) as i64;
+    if shape != 3 {
+        case.rows.push(("items".into(),json!({"id":"r0","owner":if matches!(shape,1|2) {"bob"} else {"alice"},"bucket":0,"score":score,"label":"old","flag":true,"maybe":null,"tag":"tag"})));
+    }
+    case.args = json!({"key":"r0","bucket":0,"c":null,"n":null,"a":score + if shape == 5 {1} else {0},"b":0});
     case
 }

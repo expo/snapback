@@ -139,7 +139,8 @@ fn w11_every_registered_code_quotes_its_definition() {
 const DEFINITIONS: &[(&str, &str)] = &[
     ("E_QUARRY_STATEMENT", "A non-final expression must perform a write."),
     ("E_QUARRY_FANOUT", "An atomic mutation must bound the whole population it changes."),
-    ("E_QUARRY_IMMUTABLE", "An update patch or an upsert conflict arm supplies an immutable column without proving the stored value."),
+    ("E_QUARRY_IMMUTABLE", "An immutable patch provably changes a stored value or supplies a fresh clock/id."),
+    ("N_IMMUTABLE_PATCH", "An immutable patch may succeed only when its value equals the stored value."),
     ("N_CASCADE_DORMANT", "This unbounded cascade or set-null edge has no declared source that can delete its parent."),
 
     ("N_LOOKUP_NEVER_VISIBLE", "nullable point lookup is always null"),

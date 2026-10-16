@@ -52,7 +52,7 @@ elan.
 | Store and rules | `Quarry/Store.lean` | Rows, the store, rule evaluation, visibility (`visibleRows`), a rule's disjuncts and terms. |
 | Maintained identity | `Quarry/Maintained.lean` | An independent logical abstraction of the versioned aggregate digest: every logical group, including the empty tuple, has a 64-character identity within the id bound; adoption replaces legacy ids and publishes the version in one state. It does not reproduce or verify SHA-256. |
 | Evaluator | `Quarry/Eval.lean` | `evalExpr` and `execStmts`: total and structural on fuel. The page walk, `complete` and `next`, counts and search `exists`; when a scan is decided (its pins, or a page guard: a grant or a pinned parent probe). Reads see only a `View` of visible rows. |
-| Writes | `Quarry/Write.lean` | Insert, upsert, update and delete, with rule checks and the documented refusal codes (`E_RULE`, `NOT_FOUND`, `E_CONFLICT`, `E_CONSTRAINT`, `E_REFERENCED`, application codes). A delete applies its references' `on delete` actions (LLP 3000.039 §3): the read prerequisite, the cascade closure, restrict probes outside it, set null, removal. Caps are carried as unenforced declarations: the emitter admits a capped table only when the program never inserts into or updates it. |
+| Writes | `Quarry/Write.lean` | Insert, upsert, update and delete, with rule checks and the documented refusal codes (`E_RULE`, `NOT_FOUND`, `E_CONFLICT`, `E_CONSTRAINT`, `E_REFERENCED`, application codes). A delete applies its references' `on delete` actions (LLP 3000.039 §3): the read prerequisite, the cascade closure, restrict probes outside it, set null, removal. Readable immutable patches enforce stored equality; hidden immutable fields are removed before patching. Caps are carried as unenforced declarations: the emitter admits a capped table only when the program never inserts into or updates it. |
 | Calendar | `Quarry/Calendar.lean` | The UTC builtins of LLP 3000.040 §2.2: `day`, `hour`, `bucket` as period ordinals; `month`, `year`, `monthStart`, `yearStart` over the proleptic Gregorian calendar, by a 400/100/4/1-year decomposition independent of the engine's algorithm. Unbounded `Int`; the evaluator refuses `E_OVERFLOW` outside i53. |
 | Wave 12 witnesses | `Quarry/Wave12.lean` | Independent executable contracts for readable-zero versus hidden global counts, positive-count population, capture-time domain/transaction/authority/reaching-definition provenance, exact keyed-role narrowing/invalidation, the ASCII email grammar, and the ASCII fragment of enum word-prefix search. Production NFC/token limits remain Rust/device evidence. |
 | Running | `Quarry/Run.lean` | `run : Case → Outcome`. An outcome is an answer (data, `complete`, `next`), unavailable, committed (result and store), or refused (code). |
@@ -67,7 +67,7 @@ visible candidates examined (OPEN M1), and the following:
 - residency, sync and devices;
 - full Unicode search, jobs and effects (the Wave 12 enum witness covers its ASCII tokenizer fragment);
 - loops, `walk`, `merge` and shapes;
-- sequences, caps, immutable columns, `after insert` and field authority;
+- sequences, cap enforcement, `after insert` and field authority;
 - defaults, general text bounds and formats, int ranges (LLP 3000.040 §1.8), and assets (the Wave 12 email grammar is a standalone exact validator witness);
 - `created`, parent hops and `read through`.
 

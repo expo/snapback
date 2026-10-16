@@ -7,22 +7,6 @@ use snapback4_core::{
 const MODEL: &str = include_str!("read_through/lifetime.q");
 fn bound(source: &str) -> snapback4_lang::Bound {
     let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
-    if source.contains("upsert children[id] { parent, body:") {
-        assert!(!b.diagnostics.is_empty() && b.diagnostics.iter().all(|d| d.code == "E_QUARRY_IMMUTABLE"), "{:?}", b.diagnostics);
-        // Source rejects this arm; keep exercising the external-IR runtime boundary.
-        let mut runtime = snapback4_lang::compile(&[("schema.q".into(), source.replace("upsert children[id] { parent, body:", "upsert children[id] { body:"))]);
-        assert!(runtime.diagnostics.is_empty(), "{:?}", runtime.diagnostics);
-        for program in &mut runtime.programs {
-            if program.program.name == "put" {
-                for statement in &mut program.program.body {
-                    if let snapback4_core::ir::Stmt::WriteTarget { patch: snapback4_core::ir::Expr::Object(fields), .. } = statement {
-                        fields.insert("parent".into(), snapback4_core::ir::Expr::Variable("parent".into()));
-                    }
-                }
-            }
-        }
-        return runtime;
-    }
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     b
 }

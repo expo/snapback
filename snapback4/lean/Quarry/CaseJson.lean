@@ -273,6 +273,9 @@ def table (j : Json) : D TableDecl := do
     | some cs => (← cs.getArr?).toList.mapM fun cap => do
       let columns ← (← arr cap "by").toList.mapM (·.getStr?)
       return ({ columns, max := ← (← field cap "max").getNat? } : CapDecl)
+  let immutable ← match optField j "immutable" with
+    | none => pure []
+    | some fields => (← fields.getArr?).toList.mapM (·.getStr?)
   let notBefore := match optField j "notBefore" with
     | some (.str column) => some column
     | _ => none
@@ -282,7 +285,7 @@ def table (j : Json) : D TableDecl := do
   let expiryOrder ← match optField j "expiryOrder" with
     | none => pure []
     | some order => (← order.getArr?).toList.mapM (·.getStr?)
-  return { name := ← str j "name", cols, uniques, uniqueCodes := codes, caps, notBefore, expire, expiryOrder, onlineOnly := ((optField j "onlineOnly").bind (fun x => x.getBool?.toOption)).getD true,
+  return { name := ← str j "name", cols, uniques, uniqueCodes := codes, caps, immutable, notBefore, expire, expiryOrder, onlineOnly := ((optField j "onlineOnly").bind (fun x => x.getBool?.toOption)).getD true,
            read := ← rule (← field j "read"), insert := ← rule (← field j "insert"),
            update := ← rule (← field j "update"), delete := ← rule (← field j "delete") }
 

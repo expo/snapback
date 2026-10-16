@@ -77,3 +77,6 @@ open Quarry
 #print axioms Quarry.Wave12DeviceQueue.nested_spends_fit
 
 #print axioms Rule.eval_viewer_component
+
+#print axioms immutablePreserved_self
+#print axioms immutablePatch_hidden

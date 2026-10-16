@@ -144,6 +144,8 @@ pub struct Table {
     /// Bounded cardinality declarations `(maximum, group columns)`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub caps: Vec<(u32, Vec<String>)>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub immutable: Vec<String>,
     pub rule: Rule,
     pub residency: Residency,
     /// Per-effect rules (read, insert, update, delete) replacing `rule`;
@@ -170,6 +172,7 @@ impl Table {
                 cols.join(", ")
             );
         }
+        if !self.immutable.is_empty() { out += &format!("  immutable {}\n", self.immutable.join(", ")); }
         for (max, by) in &self.caps {
             out += &format!("  cap {max}{}\n", if by.is_empty() { String::new() } else { format!(" by {}", by.join(", ")) });
         }

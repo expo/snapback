@@ -22,3 +22,27 @@ fn generated_lang2_plans_have_no_new_native_device_or_lean_signatures() {
         }
     }
 }
+
+#[test]
+fn immutable_equality_notes_preserve_native_device_and_lean_outcomes() {
+    lean::refresh().unwrap();
+    assert!(lean::oracle_path().is_file());
+    let mut files = devices::Files::new().unwrap();
+    for seed in 0..8 {
+        for shape in 0..6 {
+            let case = generate::immutable_patch(seed,shape);
+            let source = case.program.source();
+            let bound = snapback4_lang::compile(&[("schema.q".into(),source.clone())]);
+            assert!(bound.diagnostics.is_empty(),"{:?}\n{source}",bound.diagnostics);
+            assert!(bound.notes.iter().any(|d|d.code=="N_IMMUTABLE_PATCH"),"{source}");
+            let mut native = Report::default();
+            campaign::check(&case,&mut native,|finding|panic!("{seed}/{shape}: {finding:?}\n{source}"));
+            assert!(!native.failed(),"{native:?}");
+            let model = lean::compare(&case,&source).unwrap();
+            assert!(matches!(model.verdict,Verdict::Pass),"{seed}/{shape}: {:?}\n{source}",model.verdict);
+            let mut device = Report::default();
+            devices::check(&case,&mut device,&mut files,|finding|panic!("{seed}/{shape}: {finding:?}\n{source}")).unwrap();
+            assert!(!device.failed(),"{device:?}");
+        }
+    }
+}

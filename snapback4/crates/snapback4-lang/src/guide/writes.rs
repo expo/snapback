@@ -1,7 +1,7 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub(super) const CARD: &str = r##"# Writes
 
-Mutations change rows atomically, enforcing rules and constraints.
+Mutations atomically enforce rules and constraints.
 
 ```quarry
 mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: text <=4000):
@@ -16,7 +16,8 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
 
 `insert` creates a row; `if absent` returns null on a readable key collision.
 `update` patches; `if` tests the old row.
-`upsert` inserts/patches. E_QUARRY_IMMUTABLE rejects unproved immutable patches.
+`upsert` inserts/patches. Immutable patches: N_IMMUTABLE_PATCH explains runtime equality;
+E_QUARRY_IMMUTABLE refuses proven changes and fresh clocks/ids.
 `delete` removes the row: NOT_FOUND when absent
 (guard with `if exists t[id]:`); references obey `on delete` (recipes).
 Omitted optional arguments are null. `{ c: x }` clears `c` when `x` is omitted; `x ?? row.c` keeps it (Details).
@@ -56,7 +57,7 @@ mutation confirm(d: doses, dose: int ?, clear: bool ?):
   update doses[d] { confirmed: null if clear = true else dose ?? row.confirmed }
 ```
 
-Bound results charge heap, steps, output and rule probes.
+Results charge heap, steps, output and probes.
 Defaults use actual sizes; discarded inserts skip completion.
 
 If `messageId` in `writeForms` addresses retained history from a room the

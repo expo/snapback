@@ -297,7 +297,6 @@ fn table_shape(t: &ast::TableDecl) -> R<Table> {
         (t.ephemeral.is_some(), "ephemeral"),
         (!t.search.is_empty(), "search"),
         (t.rules.iter().any(|rule| matches!(&rule.value, Expr::Call { name, .. } if name == "$readThrough")), "through"),
-        (!t.immutable.is_empty(), "immutable"),
         (!t.final_exists.is_empty(), "after-insert"),
         (t.retain.is_some(), "retain"),
     ] {
@@ -387,6 +386,7 @@ fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table], selected_expi
         }).collect::<Vec<_>>(),
         "uniques": shape.uniques,
         "uniqueCodes": shape.codes,
+        "immutable": t.immutable.iter().flat_map(|(fields,_)| fields).collect::<Vec<_>>(),
         "caps": shape.caps.iter().map(|(max, by)| json!({"by": by, "max": max})).collect::<Vec<_>>(),
         "onlineOnly": t.sync.is_none(),
         "notBefore": t.not_before.as_ref().map(|(column, _)| column),

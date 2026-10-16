@@ -102,6 +102,7 @@ theorem doUpdateRow_ok {sch s v now t td old patch cond val s'}
   obtain ⟨_, hg, h⟩ := bind_ok h
   obtain ⟨_, -, h⟩ := bind_ok h
   obtain ⟨_, -, h⟩ := bind_ok h
+  obtain ⟨_, -, h⟩ := bind_ok h
   cases h
   exact ⟨nw, guardE_ok hg, rfl⟩
 

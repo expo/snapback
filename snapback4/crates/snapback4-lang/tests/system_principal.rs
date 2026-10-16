@@ -84,7 +84,8 @@ fn values_that_may_not_reach_storage_are_not_refused() {
     // A patch of an immutable column is dropped against a hidden row.
     let schema = TABLES.replace("  update <- deny\n", "  update <- deny\n  immutable actor\n");
     let bound = compile(&[("schema.q".into(), format!("{schema}mutation m(a: activity):\n  update activity[a] {{ actor: 'system', note: 'x' }}\n"))]);
-    assert!(bound.diagnostics.iter().any(|d|d.code == "E_QUARRY_IMMUTABLE"), "{:?}", bound.diagnostics);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.iter().any(|d|d.code=="N_IMMUTABLE_PATCH"));
     // The same immutable column on insert is stored, and refused.
     let bound = compile(&[("schema.q".into(), format!("{schema}mutation m():\n  insert activity {{ actor: 'system', note: 'x', watchers: [] }}\n"))]);
     assert!(bound.diagnostics.iter().any(|d| d.code == "E_SYSTEM_PRINCIPAL_WRITE"), "{:?}", bound.diagnostics);

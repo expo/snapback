@@ -100,6 +100,8 @@ structure TableDecl where
   uniqueCodes : List (Option String) := []
   /-- Declared finite group bounds (`cap N by ...`). -/
   caps : List CapDecl := []
+  /-- Immutable columns: readable patches preserve their stored values. -/
+  immutable : List String := []
   /-- A lower read lifetime: null or values at most the request clock are open. -/
   notBefore : Option String := none
   /-- An upper read lifetime: non-null values at most the request clock are expired. -/

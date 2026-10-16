@@ -1150,7 +1150,7 @@ impl<'a> Binder<'a> {
                     return Err(unknown(site, "upsert cannot spell id; the key names the row", "remove id from the patch; the key names the row"));
                 }
                 let (patch, _) = self.write_row(info, fields, Some("patch"), site, out)?;
-                self.immutable_patch(info, &key, &patch, fields, site, out)?;
+                self.immutable_patch(info, &key, &patch, fields, site, out, upsert)?;
                 let condition = if let Some(condition) = condition {
                     let old = self.temp("condition");
                     let prior = self.focal.replace((old.clone(), Ty::Row(table.clone())));

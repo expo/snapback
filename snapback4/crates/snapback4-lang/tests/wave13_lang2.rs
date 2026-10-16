@@ -10,6 +10,13 @@ fn refusal(source: &str, code: &str) -> snapback4_lang::Diagnostic {
     let b = compile(&[("schema.q".into(), source.into())]);
     b.diagnostics.iter().find(|d| d.code == code).cloned().unwrap_or_else(|| panic!("missing {code}: {:#?}", b.diagnostics))
 }
+fn immutable_note(source: &str) -> snapback4_lang::Diagnostic {
+    checked(source).notes.into_iter().find(|d| d.code == "N_IMMUTABLE_PATCH").expect("immutable equality note")
+}
+fn quiet(source: &str) {
+    let b = checked(source);
+    assert!(!b.notes.iter().any(|d| d.code == "N_IMMUTABLE_PATCH"), "{:?}", b.notes);
+}
 fn engine(source: &str) -> Engine {
     let b = checked(source);
     Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap()
@@ -57,15 +64,15 @@ fn dormant_cascades_need_bounds_only_after_a_delete_source_appears() {
 }
 
 #[test]
-fn immutable_patches_refuse_unproved_values_and_admit_exact_key_and_current_snapshot() {
+fn immutable_patches_split_proven_changes_notes_and_proven_equality() {
     let base = "table entries:\n  owner: principal\n  at: time\n  body: text\n  unique owner\n  immutable owner, at\n  public\n  insert <- allow\n  update <- allow\n  online only\n";
     for write in ["update entries[e] { at: now }", "upsert entries[viewer] { at: now, body: 'x' }"] {
         refusal(&format!("{base}mutation bad(e: entries):\n  {write}\n  return null\n"), "E_QUARRY_IMMUTABLE");
     }
-    checked(&format!("{base}mutation key():\n  upsert entries[viewer] {{ owner: viewer, body: 'x' }}\n  return null\n"));
-    checked(&format!("{base}mutation snapshot(e: entries):\n  r = entries[e] ! else NOT_FOUND\n  update entries[e] {{ at: r.at }}\n  return null\n"));
-    refusal(&format!("{base}mutation stale(e: entries):\n  r = entries[e] ! else NOT_FOUND\n  update entries[e] {{ body: 'x' }}\n  update entries[e] {{ at: r.at }}\n  return null\n"), "E_QUARRY_IMMUTABLE");
-    refusal(&format!("{base}mutation spread(e: entries, at: time):\n  patch = {{ at }}\n  update entries[e] {{ ...patch }}\n  return null\n"), "E_QUARRY_IMMUTABLE");
+    quiet(&format!("{base}mutation key():\n  upsert entries[viewer] {{ owner: viewer, body: 'x' }}\n  return null\n"));
+    quiet(&format!("{base}mutation snapshot(e: entries):\n  r = entries[e] ! else NOT_FOUND\n  update entries[e] {{ at: r.at }}\n  return null\n"));
+    immutable_note(&format!("{base}mutation stale(e: entries):\n  r = entries[e] ! else NOT_FOUND\n  update entries[e] {{ body: 'x' }}\n  update entries[e] {{ at: r.at }}\n  return null\n"));
+    immutable_note(&format!("{base}mutation spread(e: entries, at: time):\n  patch = {{ at }}\n  update entries[e] {{ ...patch }}\n  return null\n"));
 }
 
 #[test]
@@ -236,7 +243,7 @@ fn immutable_compound_operands_resolve_in_their_capture_time_environment() {
 #[test]
 fn snapshot_identity_cannot_resolve_an_opaque_branch_key_again_at_the_write() {
     let source = "table entries:\n  frozen: int\n  immutable frozen\n  public\n  update <- allow\n  online only\nmutation change(a: entries, b: entries, flag: bool):\n  k = a\n  if flag:\n    k = b\n  s = entries[k] ! else NOT_FOUND\n  k = a\n  update entries[k] { frozen: s.frozen }\n  return null\n";
-    refusal(source,"E_QUARRY_IMMUTABLE");
+    immutable_note(source);
 }
 
 #[test]
@@ -348,4 +355,68 @@ fn dormant_descendants_are_not_misreported_as_cycles_below_capped_edges() {
     }
     let cycle = "table a:\n  b: b on delete cascade\n  public\n  online only\ntable b:\n  a: a on delete cascade\n  public\n  online only\n";
     refusal(cycle,"E_REFERENCE_ACTION");
+}
+
+const IMMUTABLE: &str = "table entries:\n  owner: principal\n  frozen: text\n  token: id\n  at: time\n  body: text\n  immutable owner, frozen, token, at\n  public\n  insert <- allow\n  update <- allow\n  online only\n";
+
+#[test]
+fn uncertain_immutable_values_keep_runtime_equality_and_name_the_column() {
+    let source = format!("{IMMUTABLE}mutation save(e: entries, frozen: text, token: id, at: time):\n  upsert entries[e] {{ owner: viewer, frozen, token, at, body: 'saved' }}\n  return null\n");
+    let b = checked(&source);
+    let notes = b.notes.iter().filter(|d|d.code == "N_IMMUTABLE_PATCH").collect::<Vec<_>>();
+    assert_eq!(notes.len(),4);
+    let owner = notes.iter().find(|d|d.message.contains("entries.owner")).unwrap();
+    assert!(owner.message.contains("on conflict, this upsert") && owner.message.contains("viewer must be the original owner"),"{owner}");
+    assert!(owner.rewrite.contains("omit owner from the patch"));
+    let mut e = engine(&source);
+    e.seed([("entries".into(),object([("id",id("e")),("owner",id("alice")),("frozen",Value::String("fixed".into())),("token",id("t")),("at",Value::Int(5)),("body",Value::String("old".into()))]))]).unwrap();
+    let args = || [("e".into(),id("e")),("frozen".into(),Value::String("fixed".into())),("token".into(),id("t")),("at".into(),Value::Int(5))].into();
+    let same = e.mutate("save",Some("same"),Context::new("alice",args())).unwrap();
+    assert!(matches!(same.state,snapback4_core::WriteState::Sent { .. }),"{same:?}");
+    let different = e.mutate("save",Some("different"),Context::new("bob",args())).unwrap();
+    assert!(matches!(different.state,snapback4_core::WriteState::Failed { .. }),"{different:?}");
+}
+
+#[test]
+fn clocks_and_fresh_ids_refuse_but_reused_insert_values_are_quiet() {
+    for body in ["update entries[e] { token: new }", "token = new\n  update entries[e] { token }", "at = now\n  update entries[e] { at }", "update entries[e] { at: now + 1s }"] {
+        refusal(&format!("{IMMUTABLE}mutation bad(e: entries):\n  {body}\n  return null\n"),"E_QUARRY_IMMUTABLE");
+    }
+    for value in ["'first'", "'second'"] {
+        let source = format!("{IMMUTABLE}mutation local():\n  e = insert entries {{ owner: viewer, frozen: 'first', token: new, at: now, body: 'x' }}\n  update entries[e.id] {{ frozen: {value} }}\n  return null\n");
+        if value == "'first'" { quiet(&source); } else { refusal(&source,"E_QUARRY_IMMUTABLE"); }
+    }
+    quiet(&format!("{IMMUTABLE}mutation local():\n  token = new\n  at = now\n  e = insert entries {{ owner: viewer, frozen: 'first', token, at, body: 'x' }}\n  update entries[e.id] {{ token, at }}\n  return null\n"));
+}
+
+#[test]
+fn other_writers_and_conditional_inserts_do_not_constrain_historical_storage() {
+    let writer = "mutation add():\n  return insert entries { owner: viewer, frozen: 'first', token: new, at: now, body: 'x' }\n";
+    immutable_note(&format!("{IMMUTABLE}{writer}mutation change(e: entries):\n  update entries[e] {{ frozen: 'second' }}\n  return null\n"));
+    immutable_note(&format!("{IMMUTABLE}mutation conditional(e: id):\n  insert entries {{ id: e, owner: viewer, frozen: 'first', token: new, at: now, body: 'x' }} if absent\n  update entries[e] {{ frozen: 'second' }}\n  return null\n"));
+    immutable_note(&format!("{IMMUTABLE}mutation reuse(e: entries):\n  token = new\n  insert entries {{ owner: viewer, frozen: 'first', token, at: now, body: 'x' }}\n  update entries[e] {{ token }}\n  return null\n"));
+}
+
+#[test]
+fn immutable_changes_against_always_hidden_targets_are_notes_not_false_refusals() {
+    let hidden = IMMUTABLE.replace("  public\n", "  read <- deny\n");
+    for patch in ["at: now", "token: new", "owner: viewer"] {
+        immutable_note(&format!("{hidden}mutation change(e: entries):\n  update entries[e] {{ {patch} }}\n  return null\n"));
+    }
+    // Jobs bypass the read rule and still have to preserve immutable values.
+    refusal(&format!("{hidden}job change():\n  for e in entries:\n    update entries[e.id] {{ at: now }}\n"),"E_QUARRY_IMMUTABLE");
+}
+
+#[test]
+fn prior_writes_may_already_have_stored_the_invocations_clock() {
+    immutable_note(&format!("{IMMUTABLE}mutation local():\n  e = insert entries {{ owner: viewer, frozen: 'first', token: new, at: now, body: 'x' }}\n  update entries[e.id] {{ body: 'changed' }}\n  update entries[e.id] {{ at: now }}\n  return null\n"));
+}
+
+#[test]
+fn opaque_mutable_insert_fields_do_not_erase_immutable_equality() {
+    for target in ["key", "e.id"] {
+        let source = format!("{IMMUTABLE}mutation local(body: text <=100):\n  key = new\n  e = insert entries {{ id: key, owner: viewer, frozen: 'first', token: new, at: now, body: lower(body) }}\n  update entries[{target}] {{ at: now }}\n  return null\n");
+        quiet(&source);
+        refusal(&source.replace("{ at: now }", "{ frozen: 'second' }"),"E_QUARRY_IMMUTABLE");
+    }
 }
