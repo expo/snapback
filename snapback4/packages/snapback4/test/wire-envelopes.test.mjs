@@ -64,13 +64,13 @@ table notes:
   insert <- allow
   online only
 view noteCounts: count notes by .owner
-query list():
+query list(c: cursor ?):
   require viewer = 'dev:alice' else READ_REFUSED
-  return notes first 10 by .id
+  return notes first 10 by .id after c
 query one(id: notes):
   return notes[id]
-query countRows():
-  return noteCounts first 10 by .owner { owner, value }
+query countRows(c: cursor ?):
+  return noteCounts first 10 by .owner after c { owner, value }
 mutation add(title: text <=80):
   require title != 'refuse' else WRITE_REFUSED
   return insert notes { owner: viewer, title }
@@ -81,10 +81,10 @@ test('KIT3 guide wire literal query/mutation success/refusal, point objects and 
   const requests=[
     ['/m/add','alice',{title:'Proof'}],
     ['/m/add','alice',{title:'refuse'}],
-    ['/q/list','alice',{}],
-    ['/q/list','bob',{}],
+    ['/q/list','alice',{c:null}],
+    ['/q/list','bob',{c:null}],
     ['/q/one','alice',null],
-    ['/q/countRows','alice',{}],
+    ['/q/countRows','alice',{c:null}],
   ];
   let row,store;const examples={};
   for(const [route,as,args] of requests){

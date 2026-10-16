@@ -663,7 +663,7 @@ const JSON_REQUEST_CEILING: usize = 1 << 20;
 // for a snapshot cursor, without changing the general JSON body ceiling.
 const SYNC_REQUEST_CEILING: usize = 256 << 10;
 const SEED_REQUEST_CEILING: usize = 16 << 20;
-const JSON_RESPONSE_CEILING: usize = 16 << 20;
+pub(super) const JSON_RESPONSE_CEILING: usize = 16 << 20;
 
 /// Stop encoding before an additional unbounded String exists. Partition
 /// acquisition has its own page/commit bounds; this owns the wire buffer.

@@ -7,6 +7,8 @@ const RECENT_COMMITS: usize = 64;
 const TABLE_BYTES: usize = 4096;
 const TABLE_NAMES: usize = 8;
 const REPORT_ERROR_BYTES: usize = 1024;
+// Reserve one MiB for the outer clock/work envelope inside the host encoder.
+const REPORT_BYTE_BUDGET: usize = crate::serve::JSON_RESPONSE_CEILING - (1 << 20);
 
 // @ref LLP 3000.007#20.12 — inspect a fixed recent commit window, never application row values.
 pub fn ahead(engine: &Engine, now: i64) -> Result<Option<String>, RuntimeError> {
@@ -88,7 +90,7 @@ pub fn crossed_boundaries(engine: &Engine, before: &[Option<i64>], now: i64, hel
     for (index, schedule) in engine.schema().schedules.iter().enumerate() {
         // JSON may escape every error byte; count that bound per schedule.
         report_bytes = report_bytes.saturating_add(2048 + 6 * (REPORT_ERROR_BYTES + 3) + 8 * (schedule.name.len() + schedule.target.len()));
-        if report_bytes > 32 << 20 { return Err(crate::dev_clock::input("schedule report exceeds its byte budget; reduce the declared schedules")); }
+        if report_bytes > REPORT_BYTE_BUDGET { return Err(crate::dev_clock::input("schedule report exceeds its byte budget; reduce the declared schedules")); }
         if held { continue; }
         let Some(old) = before.get(index).copied().flatten() else { continue; };
         let end = schedule.boundary(now);
@@ -97,7 +99,7 @@ pub fn crossed_boundaries(engine: &Engine, before: &[Option<i64>], now: i64, hel
             return Err(crate::dev_clock::input("advance crosses more than 10000 schedule windows; use a smaller duration"));
         }
         report_bytes = report_bytes.saturating_add((schedule.periods_between(old, end) as usize).saturating_mul(1024 + 8 * schedule.target.len()));
-        if report_bytes > 32 << 20 { return Err(crate::dev_clock::input("schedule window report exceeds its byte budget; use a smaller duration")); }
+        if report_bytes > REPORT_BYTE_BUDGET { return Err(crate::dev_clock::input("schedule window report exceeds its byte budget; use a smaller duration")); }
         let mut boundary = schedule.next(old);
         while boundary <= end {
             boundaries.push((index, boundary));
@@ -266,6 +268,21 @@ mod tests {
         assert!(report.iter().all(|s| s["run"]["errorTruncated"] == true));
         assert!(report.iter().all(|s| s["run"]["error"].as_str().unwrap().len() <= REPORT_ERROR_BYTES + 3));
         assert!(serde_json::to_vec(&report).unwrap().len() < 2 << 20);
+    }
+    #[test]
+    fn clock_report_refuses_before_the_host_encoder_limit() {
+        let mut source = "table rows:\n  n: int\n  public 'fixture'\njob tick():\n  for row in rows:\n    update rows[row.id] {n:1}\n".to_owned();
+        for n in 0..3000 { source.push_str(&format!("schedule s{n} every 1m: tick\n")); }
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let mut engine = Engine::new_at(snapback4_core::Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p|p.program), 0).unwrap();
+        engine.fire_schedules(0).unwrap();
+        let before = saved_boundaries(&engine);
+        let refusal = crossed_boundaries(&engine, &before, 60_000, false).unwrap_err();
+        assert_eq!(refusal.code, "E_CLOCK_INPUT");
+        assert!(refusal.message.contains("byte budget"));
+        assert_eq!(before, saved_boundaries(&engine));
+        assert!(REPORT_BYTE_BUDGET < crate::serve::JSON_RESPONSE_CEILING);
     }
     #[test]
     fn utc_text_and_spans_match_the_calendar() {

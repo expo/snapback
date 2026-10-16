@@ -354,6 +354,10 @@ values refuse E_CLOCK_INPUT. `serve` refuses clock flags and the control
 endpoint with E_CLOCK_DEV_ONLY. The endpoint is dev-only loopback
 `POST /dev/clock/advance` with `{"duration":"+2m"}`.
 
+E_CLOCK_INTERRUPTED means time advanced but shutdown interrupted the drain.
+The refusal retains `now`/`skewMs`; inspect queued work or restart the test with
+`reset --clock reset`. Do not repeat the advance blindly.
+
 For a replay mode that must not emit notifications, run `snapback4 dev --replay`.
 New emits are counted as `suppressed` by `doctor`, with no queued payload:
 they are never delivered, including after restarting with or without `--replay`.

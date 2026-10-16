@@ -98,7 +98,7 @@ sweep uses another literal-argument case or derives arguments for that query.
 For different authorization lanes, add `fixtures/test.sweep.json`:
 `{"hrStatus":["carol"],"policiesList":["alice","bob"]}`. Each named query uses
 its listed personas; other queries use the whole cast. `--as` explicitly overrides
-that matrix and prints "overrides test.sweep.json for: …" with its query names. Empty/unknown entries and undeclared personas fail before cases run.
+that matrix and names the queries whose sweep personas it overrides. Empty/unknown entries and undeclared personas fail before cases run.
 It prints examined rows, entries, probes, steps, heap/output bytes and ceilings.
 `complete` is the whole answer; `capped` is a partial answer, not a refusal.
 Sweep refusals from a program's own require (family rule) are advisory and do

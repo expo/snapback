@@ -61,13 +61,13 @@ table notes:
   insert <- allow
   online only
 view noteCounts: count notes by .owner
-query list():
+query list(c: cursor ?):
   require viewer = 'dev:alice' else READ_REFUSED
-  return notes first 10 by .id
+  return notes first 10 by .id after c
 query one(id: notes):
   return notes[id]
-query countRows():
-  return noteCounts first 10 by .owner { owner, value }
+query countRows(c: cursor ?):
+  return noteCounts first 10 by .owner after c { owner, value }
 mutation add(title: text <=80):
   require title != 'refuse' else WRITE_REFUSED
   return insert notes { owner: viewer, title }
@@ -77,10 +77,10 @@ mutation add(title: text <=80):
 {
   "/m/add Proof": {"status":200,"body":{"generation":1,"head":1,"preserved":["notes"],"result":{"id":"row1","owner":"dev:alice","title":"Proof"},"seq":1,"state":"sent","store_id":"store1"}},
   "/m/add refuse": {"status":200,"body":{"generation":1,"head":1,"preserved":[],"state":"failed","store_id":"store1","why":{"code":"WRITE_REFUSED","family":"rule","guide":"programs","message":"the program refused with WRITE_REFUSED","rule":"WRITE_REFUSED","site":"schema.q:17:3"}}},
-  "/q/list alice": {"status":200,"body":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":[{"id":"row1","owner":"dev:alice","title":"Proof"}],"next":null,"nextExpiry":null,"seq":1,"store_id":"store1","tables":["notes"],"viewer":"dev:alice","meter":{"cut":null,"examined":1,"heapBytes":350,"indexEntries":0,"outputBytes":116,"probes":0,"rowsWritten":0,"steps":6}}},
+  "/q/list alice": {"status":200,"body":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":[{"id":"row1","owner":"dev:alice","title":"Proof"}],"next":null,"nextExpiry":null,"seq":1,"store_id":"store1","tables":["notes"],"viewer":"dev:alice","meter":{"cut":null,"examined":1,"heapBytes":350,"indexEntries":0,"outputBytes":116,"probes":0,"rowsWritten":0,"steps":7}}},
   "/q/list bob": {"status":200,"body":{"complete":false,"denied":{"code":"READ_REFUSED","family":"rule","guide":"programs","message":"the program refused with READ_REFUSED","rule":"READ_REFUSED","site":"schema.q:10:3"},"generation":1,"head":1,"seq":1,"store_id":"store1"}},
   "/q/one alice": {"status":200,"body":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":{"id":"row1","owner":"dev:alice","title":"Proof"},"next":null,"nextExpiry":null,"seq":1,"store_id":"store1","tables":["notes"],"viewer":"dev:alice","meter":{"cut":null,"examined":1,"heapBytes":716,"indexEntries":0,"outputBytes":104,"probes":0,"rowsWritten":0,"steps":3}}},
-  "/q/countRows alice": {"status":200,"body":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":[{"owner":"dev:alice","value":1}],"next":null,"nextExpiry":null,"seq":1,"store_id":"store1","tables":["noteCounts"],"viewer":"dev:alice","meter":{"cut":null,"examined":1,"heapBytes":1004,"indexEntries":0,"outputBytes":66,"probes":0,"rowsWritten":0,"steps":12}}}
+  "/q/countRows alice": {"status":200,"body":{"scopes":{},"generation":1,"complete":true,"cut":null,"data":[{"owner":"dev:alice","value":1}],"next":null,"nextExpiry":null,"seq":1,"store_id":"store1","tables":["noteCounts"],"viewer":"dev:alice","meter":{"cut":null,"examined":1,"heapBytes":1165,"indexEntries":0,"outputBytes":66,"probes":0,"rowsWritten":0,"steps":13}}}
 }
 ```
 <!-- KIT3 WIRE END -->
