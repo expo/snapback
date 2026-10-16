@@ -163,3 +163,42 @@ fn check_distinguishes_required_columns_from_seed_supplied_columns() {
         assert!(!stderr.contains(accepted), "{accepted}: {stderr}");
     }
 }
+
+#[test]
+fn check_accepts_omitted_sequences_and_warns_when_fixture_supplies_them() {
+    let app = App::new();
+    let source = "table lists:\n  itemCount: count items by list\n  public 'lists'\n  online only\ntable items:\n  list: lists\n  pos: sequence by list\n  public 'items'\n  online only\n";
+    app.write("snapback/schema.q", source);
+    app.write("versions/v1/schema.q", source);
+    app.write(
+        "versions/v1/fixtures/lists.jsonl",
+        "{\"id\":\"list\"}\n{\"id\":\"maintained\",\"itemCount\":1}\n",
+    );
+    app.write(
+        "versions/v1/fixtures/items.jsonl",
+        "{\"id\":\"assigned\",\"list\":\"list\"}\n{\"id\":\"supplied\",\"list\":\"list\",\"pos\":7}\n",
+    );
+
+    let checked = app.run(&["check"]);
+    assert!(checked.status.success(), "{checked:?}");
+    let stderr = String::from_utf8_lossy(&checked.stderr);
+    let drift = stderr
+        .lines()
+        .filter(|line| line.contains("saved fixture drift"))
+        .collect::<Vec<_>>();
+    assert_eq!(drift.len(), 2, "{stderr}");
+    assert!(
+        drift
+            .iter()
+            .any(|line| line.contains("items.jsonl:2") && line.contains("E_SEQUENCE_SUPPLIED")),
+        "{stderr}"
+    );
+    assert!(
+        drift
+            .iter()
+            .any(|line| line.contains("lists.jsonl:2") && line.contains("E_MAINTAINED_COLUMN")),
+        "{stderr}"
+    );
+    assert!(!stderr.contains("items.jsonl:1"), "{stderr}");
+    assert!(!stderr.contains("lists.jsonl:1"), "{stderr}");
+}

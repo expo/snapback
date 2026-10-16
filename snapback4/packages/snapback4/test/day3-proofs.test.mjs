@@ -55,3 +55,17 @@ test("expiry recovery refuses while the deployment owner is serving", async t =>
     assert.match(result.stderr, /E_STORE_IN_USE|owned|owner|serving/);
   } finally { await serve.stop(); }
 });
+
+// The emitted npm defaults, direct argv form and explicit destination share one parser.
+test("day-two destination works with direct args and npm defaults", async t => {
+  const cwd = fixture(t);
+  assert.equal((await cli(["init", "--web", "--day2"], { cwd })).code, 0);
+  for (const [binary,args] of [[process.execPath,["scripts/day2-proof.mjs","versions/v1","versions/v2","./direct-deploy"]],["npm",["run","day2:proof","--","./npm-deploy"]]]) {
+    const result = await command(binary,args,{cwd,timeoutMs:60_000});
+    assert.notEqual(result.code,0);
+    assert.match(result.stderr,/needs a business assertion for v1/);
+    assert.doesNotMatch(result.stderr,/usage:/);
+  }
+  assert.ok(existsSync(join(cwd,"direct-deploy/store.sqlite")));
+  assert.ok(existsSync(join(cwd,"npm-deploy/store.sqlite")));
+});

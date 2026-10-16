@@ -9,7 +9,7 @@ use serde_json::Value as Json;
 use snapback4_core::{
     engine::validate::validate_row,
     ir::{ArgType, ProgramKind},
-    schema::materialize_optional_fields,
+    schema::{ColumnType, materialize_optional_fields},
     value::Value,
     wire,
 };
@@ -124,6 +124,19 @@ fn inspect_rows(
             ));
             continue;
         };
+        // Complete-image validation remains authoritative for authored fields.
+        // Engine-assigned fields are absent at this read-only input boundary,
+        // so a private schema copy marks only those omissions as nullable.
+        let mut validation_schema = bound.schema.clone();
+        let validation_definition = validation_schema.tables.get_mut(table).unwrap();
+        for (field, kind) in &mut validation_definition.columns {
+            if definition.sequences.contains_key(field)
+                || definition.engine_field(field)
+                || snapback4_core::schema::timeline::is_slot(field)
+            {
+                *kind = ColumnType::Optional(Box::new(kind.clone()));
+            }
+        }
         let text = match std::fs::read_to_string(&path) {
             Ok(text) => text,
             Err(error) => {
@@ -161,6 +174,36 @@ fn inspect_rows(
             if !unknown.is_empty() {
                 continue;
             }
+            let engine_owned = fields.keys().find_map(|field| {
+                if snapback4_core::schema::timeline::is_slot(field) {
+                    Some(("E_TIMELINE_OWNED", format!("{table}.{field} is an engine event slot; omit it from fixtures")))
+                } else if definition.engine_field(field) {
+                    Some(("E_RECORDED_FIELD", format!("{table}.{field} is engine-recorded; omit it from fixtures")))
+                } else if definition.maintained.contains_key(field) {
+                    Some(("E_MAINTAINED_COLUMN", format!("{table}.{field} is engine-maintained; omit it and fixture the source rows")))
+                } else {
+                    None
+                }
+            });
+            if let Some((code, message)) = engine_owned {
+                warnings.push(format!(
+                    "{at}: row does not match table `{table}`: {code}: {message}"
+                ));
+                continue;
+            }
+            let supplied_sequences = definition
+                .sequences
+                .keys()
+                .filter(|field| fields.contains_key(*field))
+                .collect::<Vec<_>>();
+            for field in &supplied_sequences {
+                warnings.push(format!(
+                    "{at}: row does not match table `{table}`: E_SEQUENCE_SUPPLIED: {table}.{field} is engine-assigned; omit {field} from fixtures"
+                ));
+            }
+            if !supplied_sequences.is_empty() {
+                continue;
+            }
             if let Err(error) =
                 test_fixture::relative_times(definition, &mut row, snapback4_core::now_ms())
             {
@@ -196,7 +239,7 @@ fn inspect_rows(
                 decoded = Value::Row(fields.into());
             }
             materialize_optional_fields(&mut decoded, definition);
-            if let Err(error) = validate_row(&bound.schema, table, &decoded) {
+            if let Err(error) = validate_row(&validation_schema, table, &decoded) {
                 warnings.push(format!("{at}: row does not match table `{table}`: {error}"));
             }
         }

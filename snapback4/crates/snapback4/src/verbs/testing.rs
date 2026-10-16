@@ -226,6 +226,8 @@ pub fn test(options: &Options) -> i32 {
     println!("test: {complete} complete, {capped} capped, {expected} refused as your cases expect, {refused_derived} probe refusals on derived arguments (expected), {} not run, {failures} denied{} — {verdict}",
         skipped.len() + held_not_run, if passed + failed_cases > 0 { format!("; cases: {passed} passed, {failed_cases} failed") } else if options.flags.contains_key("fixture") { format!("; no {} (see snapback4 guide testing)", test_cases::FILE) } else { String::new() });
     // @ref LLP 3000.011.003.000.000#11-wave-14-truthful-starter-custody-day4 — query-sweep reads are not application business cases.
-    println!("{CASE_SUMMARY} {{\"run\":{},\"skipped\":{skipped_business_cases}}}", passed + failed_cases);
+    if options.flags.contains_key("source") {
+        println!("{CASE_SUMMARY} {{\"run\":{},\"skipped\":{skipped_business_cases}}}", passed + failed_cases);
+    }
     if failures > 0 || failed_cases > 0 { 1 } else { 0 }
 }

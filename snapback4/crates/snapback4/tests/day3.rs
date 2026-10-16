@@ -301,3 +301,48 @@ fn day4_frontend_proof_heuristics_are_explicit_and_shared_by_check_and_adapt() {
     ok(app.run(&["init","--adapt","--apply"]));
     assert!(app.0.join("scripts/frontend-proof.mjs").is_file());
 }
+
+#[test]
+fn day4_missing_referenced_day2_restores_a_runnable_command_and_sources() {
+    for script in ["node scripts/day2-proof.mjs","node scripts/day2-proof.mjs versions/v1.q versions/v2.q"] {
+        let app=App::new(); app.write("snapback/schema.q",V1);ok(app.run(&["init","--web"]));
+        let mut pkg:serde_json::Value=serde_json::from_str(&app.text("package.json")).unwrap();
+        pkg["scripts"]["day2:proof"]=script.into();app.write("package.json",&pkg.to_string());
+        let check=ok(app.run(&["check"]));assert!(check.contains("missing but package.json still references"),"{check}");
+        ok(app.run(&["init","--adapt","--apply"]));
+        assert!(app.text("package.json").contains("day2-proof.mjs versions/v1 versions/v2"));
+        assert_eq!(app.text("versions/v1/schema.q"),V1);
+        assert!(app.text("scripts/day2-proof.mjs").contains("BUSINESS_ASSERTION_BEGIN"));
+    }
+}
+#[test]
+fn day4_unmodified_chat_and_social_proofs_have_write_scenarios() {
+    for args in [vec!["init","--web","--template","chat"],vec!["init","--expo","--template","chat"],vec!["init","--template","social"]] {
+        let app=App::new();ok(app.run(&args));
+        assert!(!ok(app.run(&["init","--adapt"])).contains("no write scenario"));
+    }
+}
+
+#[test]
+fn day4_adapt_repairs_launchers_referenced_by_the_resulting_commands() {
+    let app=App::new();ok(app.run(&["init","--web"]));
+    fs::remove_file(app.0.join("scripts/launch.mjs")).unwrap();
+    let mut pkg:serde_json::Value=serde_json::from_str(&app.text("package.json")).unwrap();
+    pkg["scripts"]["backend"]="snapback4 dev --port 4400".into();
+    pkg["scripts"]["dev"]="vite --port 5173 --strictPort".into();
+    pkg["scripts"].as_object_mut().unwrap().remove("preview");
+    app.write("package.json",&pkg.to_string());
+    ok(app.run(&["init","--adapt","--apply"]));
+    assert!(app.text("package.json").contains("node scripts/launch.mjs backend"));
+    assert!(app.0.join("scripts/launch.mjs").exists());
+}
+#[test]
+fn day4_optin_preview_keeps_the_flag_and_snapshots_sweep_configuration() {
+    let app=App::new();app.write("snapback/schema.q",V1);ok(app.run(&["init","--web"]));
+    app.write("fixtures/test.sweep.json","{\"list\":[\"alice\"]}");
+    let preview=ok(app.run(&["init","--adapt","--day2"]));
+    assert!(preview.contains("snapback4 init --adapt --day2 --apply"),"{preview}");
+    assert!(!app.0.join("versions").exists());
+    ok(app.run(&["init","--adapt","--day2","--apply"]));
+    assert_eq!(app.text("versions/v1/fixtures/test.sweep.json"),app.text("fixtures/test.sweep.json"));
+}

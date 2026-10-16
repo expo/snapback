@@ -376,7 +376,7 @@ pub(super) fn adapt(dir: &Path, dry_run: bool, apply: bool, day2: bool) -> i32 {
         for line in advice { println!("init --adapt: {line}"); }
         if !fits_todos(&own) && [false,true].into_iter().any(|web| super::proof_advice::frontend_template(dir, web).is_some_and(|(_,template)|template.is_none())) { println!("init --adapt: no write scenario: replace the Home assertions"); }
         println!("init --adapt: preview only; no files changed. Apply with:");
-        println!("snapback4 init{} --adapt --apply", if dir == Path::new(".") { String::new() } else { format!(" '{}'", dir.to_string_lossy().replace('\'', "'\"'\"'")) });
+        println!("snapback4 init{} --adapt{} --apply", if dir == Path::new(".") { String::new() } else { format!(" '{}'", dir.to_string_lossy().replace('\'', "'\"'\"'")) }, if day2 { " --day2" } else { "" });
         return 0;
     }
     if let Err(error) = super::proof::apply(dir, &proof) { eprintln!("init --adapt proof: {error}"); return 2; }

@@ -38,7 +38,7 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, 
         let mut fixtures = files.iter().filter_map(|(name, text)| name.strip_prefix("fixtures/").map(|name| (name.to_owned(), text.clone()))).collect::<Vec<_>>();
         if fixtures.is_empty() {
             if let Ok(entries) = std::fs::read_dir(dir.join("fixtures")) {
-                for entry in entries.flatten().filter(|entry| entry.path().extension().is_some_and(|ext| ext == "jsonl")) {
+                for entry in entries.flatten().filter(|entry| entry.path().extension().is_some_and(|ext| ext == "jsonl") || entry.file_name() == "test.sweep.json") {
                     if let Ok(text) = std::fs::read_to_string(entry.path()) { fixtures.push((entry.file_name().to_string_lossy().into_owned(), text)); }
                 }
             }
@@ -185,12 +185,13 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema, enable_day2: b
             *text = frontend_proof(include_str!("frontend-proof.mjs"), template, web);
         }
     }
+    let referenced_after = |path: &str| package["scripts"].as_object().is_some_and(|scripts| scripts.values().any(|v|v.as_str().is_some_and(|s|s.contains(path))));
     let mut additions: Vec<_> = generated.into_iter().skip(1)
         .filter(|(name, _)| {
-            if *name == "scripts/frontend-proof.mjs" { return inherited_frontend.is_some() || !dir.join(name).exists() && super::proof_advice::referenced(dir, name); }
+            if *name == "scripts/frontend-proof.mjs" { return inherited_frontend.is_some() || !dir.join(name).exists() && referenced_after(name); }
             if *name == "scripts/day2-proof.mjs" { return day2 && (managed_day2 || !dir.join(name).exists() && (enable_day2 || referenced_day2)); }
             if !dir.join(name).exists() {
-                return name.starts_with("versions/") || super::proof_advice::referenced(dir, name);
+                return name.starts_with("versions/") || referenced_after(name);
             }
             false
         }).collect();
