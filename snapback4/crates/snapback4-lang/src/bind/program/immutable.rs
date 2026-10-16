@@ -37,6 +37,7 @@ impl Binder<'_> {
                 && self.loops + self.caller_loops == 0 && self.depth == 0 && self.scopes.len() == 1 && !conditional
                 && scalar_prefix(prior, &stable)
                 && !prior.iter().any(|statement| ir::effects::Effects::writes_in(std::slice::from_ref(statement)));
+            // Each mint is unique per execution, even in loops; clocks can repeat.
             let fresh = matches!(supplied, Expr::Input(Input::NewId)) || value.as_ref().is_some_and(|value| fresh_capture(value, prior));
             if !always_hidden && (differing || clock || fresh) {
                 let reason = if differing { "the supplied value provably differs from the target key or the row inserted earlier in this transaction" }
