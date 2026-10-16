@@ -35,7 +35,7 @@ fn keyed_parent_guard_is_followed_but_a_copied_owner_alone_is_not() {
     assert!(!b.notes.iter().any(|n| matches!(n.code.as_str(), "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE")), "{:?}", b.notes);
     let copied = PARENT.replace(".author = viewer or exists parents[.parent, owner = viewer]", ".author = viewer");
     let b = clean(&format!("{copied}query history(parent: parents, c: cursor ?):\n  p = parents[parent] ! else NOT_FOUND\n  return children where .parent = parent first 50 by .id after c\n"));
-    assert!(b.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE" && n.rewrite.contains("require exists parents[parent, owner = viewer]")), "{:?}", b.notes);
+    assert!(b.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE" && n.rewrite.contains("cap 50 by parent") && n.rewrite.contains("same audience")), "{:?}", b.notes);
 }
 
 #[test]

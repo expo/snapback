@@ -11,8 +11,8 @@
 //!   for every caller, by writing `viewer` into the column it tests, on a row
 //!   that names another principal the caller chose as a reader.
 //! - `N_LOOKUP_HIDDEN`: an update or delete rule admits callers the read rule
-//!   does not, and a mutation looks the row up by key, so those callers get
-//!   `NOT_FOUND` before the write rule runs.
+//!   does not, and a mutation requires an actual ruled point lookup, so
+//!   those callers fail that read gate. Blind writes are not program reads.
 //! - `N_WRITE_DENIED` (counter): a mutation increments a column whose table's
 //!   update rule admits only role holders, without requiring the role, so
 //!   every other caller is refused `E_RULE` at the counter.
@@ -284,27 +284,42 @@ fn reads_what_it_writes(disjunct: &RuleExpr, read: &RuleExpr) -> bool {
     read.disjuncts().into_iter().any(|option| conjuncts(option).into_iter().all(|need| have.iter().any(|h| implies(h, need))))
 }
 
+fn point_probe(catalog: &Catalog, read: &ReadExpr) -> bool {
+    if read.matching.is_some() || !read.seeks.is_empty() { return false; }
+    let Some(info) = catalog.tables.get(&read.table) else { return false };
+    let named = read.keys.iter().all(|key| key.column.is_some());
+    info.indexes.iter().any(|index| index.unique && index.is_plain() && read.index.as_ref().is_none_or(|name| name == &index.name)
+        && if named { index.columns.iter().all(|column| read.keys.iter().any(|key| key.column.as_ref() == Some(column))) }
+            else { index.columns.len() == read.keys.len() })
+}
+
+// @ref LLP 3000.036.002#12 — required program reads are gates; blind mutable writes are not.
 fn hidden_lookups(catalog: &Catalog, schema: &Schema, mutations: &[&ProgramDecl], notes: &mut Vec<Diagnostic>) {
     for program in mutations {
-        for (op, name, keys, _, write_site) in writes(program) {
-            let effect = match op { WriteOp::Update => Effect::Update, WriteOp::Delete => Effect::Delete, _ => continue };
-            if keys.is_empty() { continue; }
-            let Some(table) = schema.table(&name) else { continue };
-            let Some(info) = catalog.tables.get(&name) else { continue };
-            if table.through.is_some() || info.maintained.is_some() || info.decl.ephemeral.is_some() || table.rules.read.is_uniformly_readable() { continue; }
-            let rule = match effect { Effect::Update => &table.rules.update, _ => &table.rules.delete };
-            if matches!(rule, RuleExpr::Deny | RuleExpr::Allow | RuleExpr::Public { .. }) { continue; }
-            // A role (a disjunct that reads no row column) the read rule never admits:
-            // a row-dependent party is often a reader by the app's own invariant
-            // (a facilitator is a member), which no rule states, so it is not named.
-            // A role that helps no read disjunct at all: its holders find no row by it.
-            let helps = |d: &RuleExpr| table.rules.read.disjuncts().into_iter().any(|option| conjuncts(option).into_iter().any(|need| conjuncts(d).into_iter().any(|have| implies(have, need))));
-            let Some(disjunct) = rule.disjuncts().into_iter().find(|d| role(d) && !helps(d) && !reads_what_it_writes(d, &table.rules.read)) else { continue };
-            let site = rule_site(catalog, &name, effect).cloned().unwrap_or_else(|| info.decl.site.clone());
-            let read = rule_site(catalog, &name, Effect::Read).map(|s| format!(" ({s})")).unwrap_or_default();
-            notes.push(Diagnostic::new(&write_site, "N_LOOKUP_HIDDEN",
-                format!("mutation {}: the {} rule of {name} ({site}) admits the role `{}`, which no disjunct of its read rule `{}`{read} uses; the {} looks the row up first under the read rule, so a holder of that role who reads the row no other way gets NOT_FOUND before the {} rule runs", program.name, effect.word(), disjunct.quarry(), table.rules.read.quarry(), op.word(), effect.word()),
-                format!("if the role's holders act on rows they cannot otherwise read, let them read those rows (`read <- {} or {}`, or narrower, such as `… or .status = 'open' and {}`); if they always read the row another way, the role only widens the {} rule for them and nothing changes", table.rules.read.quarry(), disjunct.quarry(), disjunct.quarry(), effect.word())).guide("rules"));
+        let mut required = Vec::new();
+        let mut body = program.prelude.clone(); body.extend(program.body.iter().cloned());
+        super::intent_walk::statements(&mut body, &mut |expr| {
+            if let Expr::Assert { value, code, .. } = expr && let Expr::Read(read) = value.as_ref() {
+                required.push((read.clone(), code.clone()));
+            }
+        });
+        for (read, refusal) in required {
+            let name = &read.table;
+            let Some(table) = schema.table(name) else { continue };
+            let Some(info) = catalog.tables.get(name) else { continue };
+            if read.range.is_some() || !point_probe(catalog, &read) || table.through.is_some() || info.maintained.is_some() || info.decl.ephemeral.is_some() || table.rules.read.is_uniformly_readable() { continue; }
+            for (op, target, keys, _, _) in writes(program) {
+                if target != *name || keys.is_empty() { continue; }
+                let effect = match op { WriteOp::Update => Effect::Update, WriteOp::Delete => Effect::Delete, _ => continue };
+                let rule = match effect { Effect::Update => &table.rules.update, _ => &table.rules.delete };
+                if matches!(rule, RuleExpr::Deny | RuleExpr::Allow | RuleExpr::Public { .. }) { continue; }
+                let helps = |d: &RuleExpr| table.rules.read.disjuncts().into_iter().any(|option| conjuncts(option).into_iter().any(|need| conjuncts(d).into_iter().any(|have| implies(have, need))));
+                let Some(disjunct) = rule.disjuncts().into_iter().find(|d| role(d) && !helps(d) && !reads_what_it_writes(d, &table.rules.read)) else { continue };
+                let site = rule_site(catalog, name, effect).cloned().unwrap_or_else(|| info.decl.site.clone());
+                notes.push(Diagnostic::new(&read.site, "N_LOOKUP_HIDDEN",
+                    format!("mutation {}: this required lookup of {name} uses its read rule `{}`; the {} rule ({site}) admits `{}`, which no read-rule disjunct uses. A holder who reads the row no other way receives {refusal} at this lookup, even though the table admits their {}; a blind mutable update is not a program read", program.name, table.rules.read.quarry(), effect.word(), disjunct.quarry(), effect.word()),
+                    format!("if the role's holders are intended to pass this required lookup, let them read the intended rows (`read <- {} or {}`, or narrower, such as `… or .status = 'open' and {}`); otherwise keep the lookup as the reader-only gate", table.rules.read.quarry(), disjunct.quarry(), disjunct.quarry())).guide("rules"));
+            }
         }
     }
 }
@@ -1066,32 +1081,22 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
         // projected-field tests are not raw rule evidence and are deliberately omitted.
         Some(format!("exists {}[{keys}]", read.table))
     }
-    fn point_probe(catalog: &Catalog, read: &ReadExpr) -> bool {
-        if read.matching.is_some() || !read.seeks.is_empty() { return false; }
-        let Some(info) = catalog.tables.get(&read.table) else { return false };
-        let named = read.keys.iter().all(|key| key.column.is_some());
-        info.indexes.iter().any(|index| index.unique && index.is_plain() && read.index.as_ref().is_none_or(|name| name == &index.name)
-            && if named { index.columns.iter().all(|column| read.keys.iter().any(|key| key.column.as_ref() == Some(column))) }
-                else { index.columns.len() == read.keys.len() })
-    }
     fn quiet_proven_lookup(catalog: &Catalog, schema: &Schema, expr: &Expr, known: &BTreeSet<String>, notes: &mut Vec<Diagnostic>) {
-        if let Expr::Write { op: WriteOp::Update | WriteOp::Delete, table, keys, site, .. } = expr {
-            fn stable_key(value: &Expr) -> bool {
-                match value {
-                    Expr::Literal { .. } => true,
-                    Expr::Name { name, .. } => name != "new",
-                    Expr::Member { base, .. } => stable_key(base),
-                    _ => false,
-                }
+        let Expr::Assert { value, .. } = expr else { return };
+        let Expr::Read(read) = value.as_ref() else { return };
+        fn stable_key(value: &Expr) -> bool {
+            match value {
+                Expr::Literal { .. } => true,
+                Expr::Name { name, .. } => name != "new",
+                Expr::Member { base, .. } => stable_key(base),
+                _ => false,
             }
-            if !keys.iter().all(|key| stable_key(&key.value)) { return; }
-            let mut read = empty_read(table, site);
-            read.keys = keys.clone();
-            let witness = Expr::Exists { read: read.clone(), site: site.clone() };
-            if readable(catalog, schema, &read, known) || known.contains(&fact_text(&witness))
-                || point_fact(catalog, schema, &read).is_some_and(|fact| known.contains(&fact)) {
-                notes.retain(|note| !(note.code == "N_LOOKUP_HIDDEN" && note.site == *site));
-            }
+        }
+        if !read.keys.iter().all(|key| stable_key(&key.value)) { return; }
+        let witness = Expr::Exists { read: read.clone(), site: read.site.clone() };
+        if readable(catalog, schema, read, known) || known.contains(&fact_text(&witness))
+            || point_fact(catalog, schema, read).is_some_and(|fact| known.contains(&fact)) {
+            notes.retain(|note| !(note.code == "N_LOOKUP_HIDDEN" && note.site == read.site));
         }
     }
     fn expression_guard_node(catalog: &Catalog, schema: &Schema, program: &str, expr: &Expr, known: &BTreeSet<String>, global: &BTreeSet<String>, system: bool, observe_prefix: bool, visiting: &mut BTreeSet<String>, notes: &mut Vec<Diagnostic>) {
@@ -1190,6 +1195,7 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                     // Calls can return an existence value even when no probe is spelled here.
                     let mut copy = analysis_expr(condition);
                     super::intent_walk::expression(&mut copy, &mut |expr| {
+                        quiet_proven_lookup(catalog, schema, expr, &known, notes);
                         if let Expr::Shape { base, .. } = expr {
                             input_guards(catalog, schema, program, base, &known, global, system, visiting, notes);
                         }
@@ -1248,15 +1254,6 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
                     // Values can contain conditional guards too; writes invalidate earlier role facts.
                     let one = vec![statement.clone()];
                     let wrote = effects(catalog, &one, &mut BTreeSet::new()).0;
-                    // A direct write's lookup occurs before its own row change.
-                    // Use the entry facts only when evaluating its operands cannot
-                    // write first; nested/helper writes keep the ordinary barrier.
-                    if let Stmt::Bind { value, .. } | Stmt::Expr { value, .. } | Stmt::Return { value, .. } = statement
-                        && let Expr::Write { keys, fields, .. } = value
-                        && keys.iter().all(|key| !effectful(catalog, &key.value))
-                        && fields.iter().all(|field| field.value.as_ref().is_none_or(|value| !effectful(catalog, value))) {
-                        quiet_proven_lookup(catalog, schema, value, &known, notes);
-                    }
                     // Operand order can hide the grant before a later condition in this expression.
                     if wrote && !matches!(statement, Stmt::Bind { value, .. } | Stmt::Expr { value, .. } | Stmt::Return { value, .. } if ordered_call(catalog, value)) {
                         preserve_rosters(catalog, schema, &one, &mut known);
@@ -1305,8 +1302,8 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
         let guarded = guard_bindings(catalog, &statements);
         body(catalog, schema, &program.name, &statements, BTreeSet::new(), &global, &guarded, system, program.kind != ProgramKind::Query, &mut visiting, notes);
     }
-    // Group only surviving occurrences: a guarded first write must not hide
-    // a later unguarded write to the same table under the same effect.
+    // Group only surviving read gates: a guarded first lookup must not hide
+    // a later unguarded lookup of the same table.
     let mut shown = BTreeSet::new();
     notes.retain(|note| note.code != "N_LOOKUP_HIDDEN" || shown.insert(note.message.clone()));
 }

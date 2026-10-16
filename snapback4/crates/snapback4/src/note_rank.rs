@@ -50,7 +50,7 @@ pub(crate) fn verdict(code: &str, summary: &str, form: bool) -> &'static str {
         "N_REQUIRE_HIDDEN" if summary.contains("get NOT_FOUND") => "review: the hidden lookup runs before this require",
         "N_REQUIRE_HIDDEN" => "fix: this require cannot see the rows it tests",
         "N_LOOKUP_NEVER_VISIBLE" => "fix: this nullable lookup is always null for the admitted callers",
-        "N_LOOKUP_HIDDEN" => "review: some writers get NOT_FOUND",
+        "N_LOOKUP_HIDDEN" => "review: a required read gate may hide rows from writers",
         "N_PROBE_ONLY_READ" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" => "review: who can read this",
         "N_VACUOUS_RULE" => "review: who can write this",
         "N_IMMUTABLE_PATCH" => "review: readable conflicts require the original immutable value",

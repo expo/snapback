@@ -445,10 +445,14 @@ fn n_lookup_hidden_names_a_write_role_the_read_rule_never_uses_and_the_runtime_a
     // Lane 001: vetted drivers pass the update rule but cannot find a requested ride.
     let rides = |read: &str| format!("table drivers:\n  principal: principal\n  vetted: bool\n  unique principal\n  read <- .principal = viewer\n  online only\ntable rides:\n  patient: principal\n  driver: principal ?\n  status: enum('requested', 'accepted') default 'requested'\n  immutable patient\n  read <- {read}\n  insert <- .patient = viewer\n  update <- .patient = viewer or .driver = viewer or exists drivers[viewer, vetted = true]\n  online only\nmutation acceptRide(ride: rides):\n  r = rides[ride] ! else NOT_FOUND\n  require r.status = 'requested' else ALREADY_TAKEN\n  update rides[ride] {{ driver: viewer, status: 'accepted' }}\n");
     let hidden = rides(".patient = viewer or .driver = viewer");
+    let direct=hidden.replace("  r = rides[ride] ! else NOT_FOUND\n  require r.status = 'requested' else ALREADY_TAKEN\n", "");
+    assert!(note(&clean(&direct), "N_LOOKUP_HIDDEN").is_none(), "a blind mutable update is not a program read");
     let b = clean(&hidden);
     let n = note(&b, "N_LOOKUP_HIDDEN").unwrap_or_else(|| panic!("{:#?}", b.notes)).clone();
     assert!(n.message.contains("`exists drivers[viewer, vetted = true]`") && n.rewrite.contains("read <- .patient = viewer or .driver = viewer or exists drivers[viewer, vetted = true]"), "{n}");
     let rows = || -> Rows { vec![("drivers", vec![("id", id("d1")), ("principal", id("dee")), ("vetted", Value::Bool(true))]), ("rides", vec![("id", id("x1")), ("patient", id("pat")), ("driver", Value::Null), ("status", Value::String("requested".into()))])] };
+    let mut blind = engine(&direct, rows());
+    assert_eq!(mutate(&mut blind, "acceptRide", "dee", &[("ride", id("x1"))]), "ok", "a vetted writer may perform this blind mutable update");
     let mut before = engine(&hidden, rows());
     assert_eq!(mutate(&mut before, "acceptRide", "dee", &[("ride", id("x1"))]), "NOT_FOUND", "the runtime agrees with the note");
     let fixed = rides(".patient = viewer or .driver = viewer or .status = 'requested' and exists drivers[viewer, vetted = true]");

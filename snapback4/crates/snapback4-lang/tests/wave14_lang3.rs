@@ -168,33 +168,43 @@ fn the_actual_pre_wave_private_composite_upsert_refuses_only_the_changing_clock(
 
 #[test]
 fn lookup_and_reference_advice_follow_the_exact_successful_point() {
-    let source="table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  owner: principal\n  n: int\n  read <- .owner = viewer\n  update <- exists staff[viewer]\n  online only\nmutation m(d: docs):\n  require exists staff[viewer] else NO\n  update docs[d] { n: 1 }\n  return null\n";
+    let source="table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  owner: principal\n  n: int\n  read <- .owner = viewer\n  update <- exists staff[viewer]\n  online only\nmutation m(d: docs):\n  require exists staff[viewer] else NO\n  row = docs[d] ! else NOT_FOUND\n  update docs[d] { n: 1 }\n  return null\n";
     assert!(checked(source).notes.iter().any(|n|n.code=="N_LOOKUP_HIDDEN"));
-    let guarded=source.replace("  update docs[d]", "  require exists docs[d] else NOT_FOUND\n  update docs[d]");
+    let blind=source.replace("  row = docs[d] ! else NOT_FOUND\n", "");
+    assert!(!checked(&blind).notes.iter().any(|n|n.code=="N_LOOKUP_HIDDEN"));
+    let guarded=source.replace("  row = docs[d]", "  require exists docs[d] else NOT_FOUND\n  row = docs[d]");
     assert!(!checked(&guarded).notes.iter().any(|n|n.code=="N_LOOKUP_HIDDEN"));
-    for guard in ["row = docs[d] ! else NOT_FOUND", "require exists docs[id = d, owner = viewer] else NOT_FOUND"] {
-        let exact=guarded.replace("require exists docs[d] else NOT_FOUND",guard);
-        assert!(!checked(&exact).notes.iter().any(|n|n.code=="N_LOOKUP_HIDDEN"));
-    }
+    let named=guarded.replace("require exists docs[d]", "require exists docs[id = d, owner = viewer]");
+    assert!(!checked(&named).notes.iter().any(|n|n.code=="N_LOOKUP_HIDDEN"));
+    let in_require=guarded.replace("row = docs[d] ! else NOT_FOUND", "require (docs[d] ! else LOST).owner = viewer else WRONG_OWNER");
+    assert!(!checked(&in_require).notes.iter().any(|n|n.code=="N_LOOKUP_HIDDEN"));
+    let wrong_require=in_require.replace("m(d: docs)", "m(d: docs, other: docs)").replace("require exists docs[d]", "require exists docs[other]");
+    assert!(checked(&wrong_require).notes.iter().any(|n|n.code=="N_LOOKUP_HIDDEN" && n.message.contains("LOST")));
+    let repeated=source.replace("  update docs[d]", "  again = docs[d] ! else SECOND\n  update docs[d]");
+    let b=checked(&repeated);
+    let notes=b.notes.iter().filter(|n|n.code=="N_LOOKUP_HIDDEN").collect::<Vec<_>>();
+    assert_eq!(notes.len(),1,"{:?}",b.notes);
+    assert!(notes[0].message.contains("NOT_FOUND") && !notes[0].message.contains("SECOND"));
     let wrong=guarded.replace("m(d: docs)", "m(d: docs, other: docs)")
         .replace("require exists docs[d]", "require exists docs[other]");
     assert!(checked(&wrong).notes.iter().any(|n|n.code=="N_LOOKUP_HIDDEN"));
     let rebound=guarded.replace("m(d: docs)", "m(d: docs, other: docs)")
         .replace("  require exists docs[d]", "  key = d\n  require exists docs[key]")
-        .replace("  update docs[d]", "  key = other\n  update docs[key]");
+        .replace("  row = docs[d]", "  key = other\n  row = docs[key]");
     assert!(checked(&rebound).notes.iter().any(|n|n.code=="N_LOOKUP_HIDDEN"));
-    let nested=guarded.replace("update docs[d] { n: 1 }", "update docs[d] { n: (update docs[d] { n: 2 }).n ?? 0 }");
+    let nested=guarded.replace("m(d: docs)", "m(d: docs, other: docs)")
+        .replace("row = docs[d]", "row = docs[(update docs[other] { n: 2 }) ! else NOT_FOUND]");
     assert!(checked(&nested).notes.iter().any(|n|n.code=="N_LOOKUP_HIDDEN"));
-    for later in ["update docs[other] { n: 2 }", "key = other\n  update docs[key] { n: 2 }", "update docs[other] { n: (update docs[other] { n: 2 }).n ?? 0 }"] {
+    for later in ["row2 = docs[other] ! else NOT_FOUND\n  update docs[other] { n: 2 }", "key = other\n  row2 = docs[key] ! else NOT_FOUND\n  update docs[key] { n: 2 }", "row2 = docs[(update docs[other] { n: 2 }) ! else NOT_FOUND] ! else NOT_FOUND\n  update docs[other] { n: 2 }"] {
         let two=guarded.replace("m(d: docs)", "m(d: docs, other: docs)")
             .replace("  require exists docs[d]", "  key = d\n  require exists docs[key]")
-            .replace("  update docs[d]", "  update docs[key]")
+            .replace("  row = docs[d]", "  row = docs[key]")
             .replace("  return null", &format!("  {later}\n  return null"));
         let b=checked(&two);
         let notes=b.notes.iter().filter(|n|n.code=="N_LOOKUP_HIDDEN").collect::<Vec<_>>();
         assert_eq!(notes.len(),1,"{two}\n{:?}",b.notes);
-        let line=two.lines().enumerate().filter(|(_,line)|line.contains("update docs[")).last().unwrap().0+1;
-        assert_eq!(notes[0].site.line as usize,line,"the note must name the later unguarded write");
+        let line=two.lines().enumerate().find(|(_,line)|line.contains("row2 = docs[")).unwrap().0+1;
+        assert_eq!(notes[0].site.line as usize,line,"the note must name the later unguarded lookup");
     }
     let refs="table parents:\n  n: int\n  public\n  update <- allow\n  online only\ntable children:\n  parent: parents\n  public\n  insert <- allow\n  online only\nmutation m(p: parents):\n  return insert children { parent: p }\n";
     assert!(checked(refs).notes.iter().any(|n|n.code=="N_REFERENCE_UNCHECKED"));

@@ -17,10 +17,10 @@ fn repair(source: &str, sync_line: &str, why: &str) {
     let d = ds[0];
     assert!(d.message.contains(why), "{d:?}");
     assert_eq!(d.guide, "sharing");
-    assert!(d.rewrite.starts_with("online only") || d.rewrite.starts_with("sync"), "{d:?}");
+    let replacement=d.rewrite.lines().map(str::trim).find(|line|line.starts_with("online only") || line.starts_with("sync")).unwrap_or_else(||panic!("{d:?}"));
     // Replace the actual sync line, retaining the read rule, expiry and queries.
     let (prefix, suffix) = source.rsplit_once(sync_line).expect("content sync line");
-    let repaired = format!("{prefix}  {}\n{suffix}", d.rewrite);
+    let repaired = format!("{prefix}  {replacement}\n{suffix}");
     assert_ne!(repaired, source);
     clean(&repaired);
 }

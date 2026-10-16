@@ -177,13 +177,13 @@ fn whole_caps_and_unique_enum_alternatives_do_not_ask_for_cursors() {
 }
 
 #[test]
-fn unsupported_copied_scopes_print_the_same_caller_query_instead_of_a_viewer_pin() {
+fn copied_scopes_offer_an_optional_cap_without_changing_the_caller_query() {
     let source = "table parents:\n  owner: principal\n  immutable owner\n  public\n  online only\ntable children:\n  parent: parents\n  owner: principal\n  read <- .owner = viewer\n  online only\nquery list(parent: parents, c: cursor ?):\n  return children where .parent = parent first 10 by .id after c\n";
     let b = checked(source);
     let note = b.notes.iter().find(|note|note.code=="N_NEVER_COMPLETE").unwrap();
-    assert!(note.rewrite.starts_with("nearest supported query, preserving every authorized caller"),"{note}");
-    let code = note.rewrite.split_once('\n').unwrap().1.split("\nHandle complete:").next().unwrap();
-    checked(&format!("{}{}",source.split("query list").next().unwrap(),code));
+    assert!(note.rewrite.contains("cap 10 by parent") && note.rewrite.contains("same audience") && note.rewrite.contains("product limit you choose"),"{note}");
+    let fixed=checked(&source.replace("table children:\n","table children:\n  cap 10 by parent\n"));
+    assert!(!fixed.notes.iter().any(|note|matches!(note.code.as_str(),"N_NEVER_COMPLETE"|"N_CONDITIONAL_COMPLETE")));
 }
 
 #[test]

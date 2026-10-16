@@ -175,7 +175,7 @@ fn union_read_rules_sync_and_what_is_not_a_whole_audience_is_refused() {
     assert_eq!(clean(&two.replace("  sync\n", "  sync to .seller or .customer\n")).schema.tables["orders"].sync, Some(sync));
     // Naming one branch disagrees, and the rewrite is the union.
     let one = refusal(&two.replace("  sync\n", "  sync to .customer\n"));
-    assert!(one.message.contains("disagrees") && one.rewrite.contains("`sync to .customer or .seller`"), "{one:?}");
+    assert!(one.message.contains("disagrees") && one.rewrite.lines().nth(1).is_some_and(|line|line.trim()=="sync to .customer or .seller"), "{one:?}");
     // An owner beside a group: the group arm first, with its grant rules.
     let shares = "table plants:\n  owner: principal\n  read <- .owner = viewer or exists shares[.id, viewer]\n  insert <- .owner = viewer\n  sync\ntable shares:\n  plant: plants\n  principal: principal\n  unique plant, principal\n  immutable plant, principal\n  read <- .principal = viewer\n  insert <- created plants[.plant] or exists shares[.plant, viewer]\n  sync\n";
     let sync = clean(shares).schema.tables["plants"].sync.clone().unwrap();
@@ -254,7 +254,9 @@ fn equal_union_window_prefixes_are_refused_with_a_working_repair() {
     let source = "table grants:\n  owner: principal\n  person: principal\n  unique owner, person\n  immutable owner, person\n  read <- exists grants[.owner, viewer]\n  insert <- exists grants[.owner, viewer]\n  sync by .person\ntable notes:\n  owner: principal\n  at: time\n  read <- .owner = viewer or exists grants[.owner, viewer]\n  insert <- .owner = viewer and exists grants[.owner, viewer]\n  sync by .person last 1 by .at\n";
     let d = refusal(source);
     assert!(d.message.contains("union audiences cannot have"), "{d:?}");
-    clean(&source.replace("sync by .person last 1 by .at", &d.rewrite));
+    let replacement=d.rewrite.lines().nth(1).unwrap().trim();
+    assert_eq!(replacement,"sync by .person");
+    clean(&source.replace("sync by .person last 1 by .at", replacement));
     clean(&source.replace("sync by .person last 1 by .at", "sync by .person"));
 }
 

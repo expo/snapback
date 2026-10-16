@@ -30,7 +30,8 @@ fn whole_cascade_recipe_fits_once_across_children() {
     for source in [source.to_owned(),source.replace("  owner: principal\n  read <- .owner = viewer\n  sync\ntable comments:","  owner: principal\n  cap 500 by root\n  read <- .owner = viewer\n  sync\ntable comments:").replace("  body: text <=10000\n","  body: text <=10000\n  cap 500 by root\n")] {
         let b=checked(&source);
         let d=b.diagnostics.iter().find(|d|d.code=="E_CASCADE_BOUND").unwrap_or_else(||panic!("{:?}",b.diagnostics));
-        assert!(d.rewrite.contains("heap bytes") && d.rewrite.contains("3 ×"),"{}",d.rewrite);
+        assert!(d.details.as_deref().is_some_and(|details| details.contains("heap bytes") && details.contains("3 ×")),"{d:?}");
+        assert!(!d.rewrite.contains("heap bytes"),"{}",d.rewrite);
         let caps: Vec<_>=d.rewrite.split('`').filter(|s|s.starts_with("cap ")).collect();
         assert_eq!(caps.len(),2,"{}",d.rewrite);
         let edited=source.lines().filter(|line|!line.trim().starts_with("cap 500")).collect::<Vec<_>>().join("\n");
