@@ -108,7 +108,7 @@ for (let index = 0; index < sourceQueue.length; index++) {
   const source = sourceQueue[index];
   if (inspected.has(source.fileName)) continue;
   inspected.add(source.fileName);
-  if (!source.fileName.startsWith(root + sep) || source.fileName.split(sep).includes("node_modules")) continue;
+  if (!(source.fileName.startsWith(root + sep) || source.fileName.startsWith(projectRoot + sep)) || source.fileName.split(sep).includes("node_modules")) continue;
   function visit(node) {
     const specifier = (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) ? node.moduleSpecifier
       : ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || ts.isIdentifier(node.expression) && node.expression.text === "require") ? node.arguments[0] : undefined;
