@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, readlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 export function listenerSnapshot(root = process.pid, proc = '/proc') {
+  if (process.platform !== 'linux') throw Error('E_PROOF_LISTENER: listener snapshot requires Linux /proc');
   const parents = new Map();
   for (const id of readdirSync(proc).filter(id => /^\d+$/.test(id))) {
     try { parents.set(Number(id), Number(readFileSync(join(proc, id, 'status'), 'utf8').match(/^PPid:\s+(\d+)/m)[1])); }
@@ -52,6 +53,13 @@ export function auditListenerTrace(trace, low, high) {
     if (/^\?\?\?\((?: <(?:unfinished|detached) \.\.\.>|\d+ \+\+\+ (?:exited with \d+|killed by SIG[A-Z0-9]+(?: \(core dumped\))?) \+\+\+)$/.test(body)) {
       let state;
       try {
+        // The trace decoder also runs on Darwin with synthetic input. kill(0)
+        // is a read-only existence probe; EPERM remains live/uninspectable.
+        // Linux additionally recognizes zombies for real qualification traces.
+        if (process.platform !== 'linux') {
+          process.kill(Number(pid), 0);
+          throw Error(`E_PROOF_LISTENER: undecoded live process ${pid}`);
+        }
         const stat = readFileSync(`/proc/${pid}/stat`,'utf8');
         if (stat.slice(stat.lastIndexOf(')')+2, stat.lastIndexOf(')')+3) !== 'Z') throw Error(`E_PROOF_LISTENER: undecoded live process ${pid}`);
         state = 'zombie';

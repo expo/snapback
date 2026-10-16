@@ -95742,3 +95742,21 @@ including the blocking release-control regression and the 0.2.33 fences. One
 `--resume` published the platforms and client, then Expo. Clean installs on
 Linux and the Mac print `snapback4 0.4.28` and pass `init` + `check`. Details:
 `reports/20261015-publication-0.4.28/REPORT.md`.
+
+## 2026-10-16 — PUBFIX29: capability projections and platform-aware proof tests
+
+The 0.4.29 publication failures exposed two distinct marker sets: ordinary
+aggregates require digest identity, while device projection omits a maintained
+column's private aggregate. The shared fence now checks both exact sets on
+Linux and Darwin; historical recorded-only and Clique pins join the ordinary
+client pool. Native/WASM 0.2.33 refusal and store-preservation assertions remain.
+
+Listener snapshots remain an explicit Linux observation. The caller-Playwright
+browser case still runs on Darwin; trace decoding corroborates process absence
+there with signal 0 and conservatively refuses live/uninspectable PIDs. The
+published proof helper has no dependency on the repository listener observer.
+A client-pool static guard catches common ungated Linux APIs through static
+helpers, defaults, initialization and named callbacks. Its bounds and the rule
+live in AGENTS and LLP 3000.011.003.000.000 §8. Mac repetitions, failed intermediate
+pins, review fixes and final Linux verification are recorded in PUBFIX29's
+workstream report. Version remains 0.4.29; no publication or push in this lane.

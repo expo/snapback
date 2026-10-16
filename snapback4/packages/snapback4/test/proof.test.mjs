@@ -102,7 +102,7 @@ test("exit sweep kills registered child, not a neighboring child", async t => {
   const parent = spawn(process.execPath, ["--input-type=module", "-e", script], { stdio: "ignore" }); await new Promise(resolve => parent.once("close", resolve));
   const pid = Number(readFileSync(pidFile, "utf8"));
   for (let tries = 0; tries < 100; tries++) {
-    try { process.kill(pid, 0); const stat = readFileSync(`/proc/${pid}/stat`, "utf8"); if (/\) Z /.test(stat)) return; }
+    try { process.kill(pid, 0); if (process.platform === "linux" && /\) Z /.test(readFileSync(`/proc/${pid}/stat`, "utf8"))) return; }
     catch { return; }
     await new Promise(resolve => setTimeout(resolve, 20));
   }

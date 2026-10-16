@@ -135,6 +135,17 @@ Gotchas you cannot derive from the code:
   does not yield may buffer events in Node's child until that work finishes.
   Such an unreported interval is subject to the same stall bound. See QF Round 7.
   The M5 MacBook is the publication host; the office M1 is calibration-only.
+- Client tests and their helpers must gate Linux APIs (`/proc`, `strace`, `ss`,
+  `taskset`, namespace/network tools) at the test or call, or implement a
+  portable fallback. Keep portable assertions running on Darwin and give each
+  skipped witness an explicit reason. The client pool runs
+  `test-platform-audit.test.mjs`: a cheap static census follows static named/namespace `.mjs`
+  imports and named helpers and checks scoped Linux skips/branches/early returns.
+  A gate in another test does not count. This conservative common-case guard
+  does not prove dynamic imports, generated scripts or arbitrary control flow;
+  review those paths and run affected tests on the publication Mac.
+  Listener snapshots and syscall tracing are Linux qualification capabilities,
+  never dependencies of the published `snapback4/proof` browser helper.
 - Before a publication dry run, warm the test artifacts **in that publication
   worktree**, while the host is free of calibration work:
   `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo test --workspace --no-run`.
