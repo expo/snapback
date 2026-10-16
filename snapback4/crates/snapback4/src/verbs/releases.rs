@@ -248,6 +248,17 @@ pub fn deploy(options: &Options) -> i32 {
             std::fs::create_dir(&stage).map_err(|e| e.to_string())?;
             let _cleanup=Stage(stage.clone());
             std::fs::create_dir(stage.join("snapback")).map_err(|e| e.to_string())?;
+            let source_hash = {
+                use sha2::{Digest, Sha256};
+                let mut hash = Sha256::new();
+                let mut ordered = sources.iter().collect::<Vec<_>>();
+                ordered.sort_by(|a,b| a.0.cmp(&b.0));
+                for (name,text) in ordered {
+                    hash.update((name.len() as u64).to_le_bytes()); hash.update(name.as_bytes());
+                    hash.update((text.len() as u64).to_le_bytes()); hash.update(text.as_bytes());
+                }
+                format!("{:x}", hash.finalize())
+            };
             for (name,text) in sources {
                 let path=stage.join("snapback").join(name);
                 if let Some(parent)=path.parent(){std::fs::create_dir_all(parent).map_err(|e|e.to_string())?;}
@@ -304,6 +315,10 @@ pub fn deploy(options: &Options) -> i32 {
             if staged_bound.schema != bound.schema {
                 return Err("staged source does not match the compiled schema".into());
             }
+            // @ref LLP 3000.000.000.000.000#4-cli-surface-contracts — provenance is immutable metadata, excluded from executable identity so identical deploys stay no-ops.
+            std::fs::write(stage.join("provenance.json"), format!("{}\n", serde_json::json!({
+                "release": n, "sourceHash": source_hash, "cliVersion": env!("CARGO_PKG_VERSION"), "createdAt": snapback4_core::now_ms()
+            }))).map_err(|e|e.to_string())?;
             crate::release_files::durable(&stage)?;
             std::fs::rename(&stage, &final_dir).map_err(|e| e.to_string())?;
             std::fs::File::open(&releases)

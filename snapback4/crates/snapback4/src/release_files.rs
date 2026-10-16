@@ -42,7 +42,8 @@ pub(crate) fn digest(root: &Path) -> Result<String, String> {
     let mut hash = Sha256::new();
     for path in paths {
         let name = path.strip_prefix(root).unwrap().to_string_lossy();
-        if name == ".pending-adoption" {continue;}
+        // @ref LLP 3000.000.000.000.000#4-cli-surface-contracts — metadata does not change executable release identity.
+        if name == ".pending-adoption" || name == "provenance.json" {continue;}
         hash.update((name.len() as u64).to_le_bytes());
         hash.update(name.as_bytes());
         #[cfg(unix)]

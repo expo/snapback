@@ -7,6 +7,17 @@ const MAX_TIME: i64 = snapback4_core::value::I53_MAX;
 pub fn input(message: impl Into<String>) -> Refusal { Refusal::new("E_CLOCK_INPUT", "clock", message).guide("clock") }
 pub fn release() -> Refusal { Refusal::new("E_CLOCK_DEV_ONLY", "clock", "clock controls require dev; serve always uses wall time").guide("clock") }
 
+/// Isolated time tests stay inside an assigned range, or request a free port.
+pub(crate) fn isolated_command() -> String {
+    isolated_range(std::env::var("PORT_LO").ok().as_deref(), std::env::var("PORT_HI").ok().as_deref())
+}
+fn isolated_range(lo: Option<&str>, hi: Option<&str>) -> String {
+    match (lo.and_then(|n| n.parse::<u16>().ok()), hi.and_then(|n| n.parse::<u16>().ok())) {
+        (Some(lo), Some(hi)) if lo > 0 && hi >= lo => format!("dev --memory --port {lo}-{hi} within the current range"),
+        _ => "dev --memory --port 0".into(),
+    }
+}
+
 pub fn duration(text: &str) -> Result<i64, Refusal> {
     if text.starts_with('-') { return Err(input("clock advance cannot move backwards; use a positive duration such as +2m")); }
     let text = text.strip_prefix('+').unwrap_or(text);
@@ -49,7 +60,7 @@ impl Clock {
     pub fn new(dev: bool, offset: i64) -> Result<Self, Refusal> {
         if !dev && offset != 0 { return Err(release()); }
         Ok(Self { dev, base: time(snapback4_core::now_ms().checked_add(offset))?, started: Instant::now(),
-            epoch: snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).map_err(|e| e.refusal())?, revision: 0, #[cfg(test)] frozen: false })
+            epoch: snapback4_core::ids::mint(snapback4_core::now_ms(), &mut snapback4_core::ids::Mint::default()).map_err(|e| e.refusal())?, revision: 0, #[cfg(test)] frozen: false })
     }
     #[cfg(test)]
     pub(crate) fn freeze(&mut self, now: i64) { self.base = now; self.frozen = true; }
@@ -90,15 +101,16 @@ pub fn command(options: &crate::verbs::Options) -> i32 {
     let result = (|| -> Result<String, String> {
         if options.flags.contains_key("release") { return Err(release().to_string()); }
         if options.positionals.len() != 2 || options.positionals[0] != "advance" {
-            return Err(input("usage: snapback4 clock advance <duration> [--port N]").to_string());
+            return Err(input(format!("usage: {}", crate::cli_flags::synopsis("clock"))).to_string());
         }
         duration(&options.positionals[1]).map_err(|e| e.to_string())?;
-        let address = crate::verbs::dev_address(options)?;
-        let mut stream = TcpStream::connect_timeout(&address, Duration::from_secs(5)).map_err(|e| format!("cannot reach dev at {address}: {e}"))?;
+        let (address, instance) = crate::verbs::dev_address(options)?;
+        let instance = instance.map(|i|format!("x-snapback-dev-instance: {i}\r\n")).unwrap_or_default();
+        let mut stream = TcpStream::connect_timeout(&address, Duration::from_secs(5)).map_err(|e| format!("cannot reach dev at {address}: {e}; for dev --memory or a custom port, pass `snapback4 clock advance {} --port N` using the port dev printed", options.positionals[1]))?;
         stream.set_read_timeout(Some(Duration::from_secs(60))).map_err(|e| e.to_string())?;
         stream.set_write_timeout(Some(Duration::from_secs(5))).map_err(|e| e.to_string())?;
         let body = serde_json::json!({"duration":options.positionals[1]}).to_string();
-        write!(stream, "POST /dev/clock/advance HTTP/1.1\r\nHost: {address}\r\nConnection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}", body.len()).map_err(|e| e.to_string())?;
+        write!(stream, "POST /dev/clock/advance HTTP/1.1\r\nHost: {address}\r\n{instance}Connection: close\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}", body.len()).map_err(|e| e.to_string())?;
         let mut answer = String::new();
         stream.take(65_536).read_to_string(&mut answer).map_err(|e| e.to_string())?;
         let (headers, body) = answer.split_once("\r\n\r\n").ok_or("dev returned an incomplete HTTP response")?;
@@ -111,4 +123,15 @@ pub fn command(options: &crate::verbs::Options) -> i32 {
         Ok(json.to_string())
     })();
     match result { Ok(body) => { println!("{body}"); 0 }, Err(error) => { eprintln!("{error}"); 1 } }
+}
+
+#[cfg(test)]
+mod isolated_tests {
+    #[test]
+    fn time_test_guidance_uses_only_valid_assigned_ranges_or_a_free_port() {
+        assert_eq!(super::isolated_range(Some("24000"), Some("24009")), "dev --memory --port 24000-24009 within the current range");
+        for (lo,hi) in [(None,None),(Some("0"),Some("3")),(Some("4"),Some("3")),(Some("bad"),Some("3"))] {
+            assert_eq!(super::isolated_range(lo,hi), "dev --memory --port 0");
+        }
+    }
 }

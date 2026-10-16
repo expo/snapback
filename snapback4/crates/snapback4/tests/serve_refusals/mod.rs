@@ -137,6 +137,7 @@ impl Host {
         let generation = engine.generation();
         let readers = Mutex::new(QueryReaders::new(&engine, &bound.refusal_sites));
         let shared = Arc::new(Shared {
+        dev_identity: None,
         release_requests: Arc::new(crate::release_requests::Gate::default()),
         following: Mutex::new(snapback4_core::engine::following_history::Reader::new().unwrap()),
             project: std::env::current_dir().unwrap(), release_root: Mutex::new(None), temporary: true,
@@ -156,7 +157,7 @@ impl Host {
             hold_schedules: false,
             time_audience_clock: AtomicI64::new(authoritative_now),
             clock, maintenance: FairMutex::gate(maintenance::State::default()),
-            entropy: Mutex::new(1),
+            entropy: Mutex::new(snapback4_core::ids::Mint::default()),
             presence,
             long_waits: long_waits::LongWaits::new(&capacity), change_answers: Mutex::default(),
             asset_transfers: AssetTransfers::default(),

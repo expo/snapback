@@ -31,3 +31,11 @@ test('SecureStore failures propagate without claiming persistence', async () => 
   const index = readFileSync(new URL('../../snapback4-expo/src/index.ts',import.meta.url),'utf8');
   assert.match(index, /export \{ secureStoreSessionStore, type SecureStoreLike \} from "\.\/session-store"/);
 });
+
+test('published native snippets and both active Expo starters use the injected SecureStore adapter', () => {
+  for (const path of ['../README.md', '../CLIENT-AND-OPERATIONS.md', '../../../crates/snapback4/src/verbs/init/expo-client.ts', '../../../crates/snapback4/src/verbs/init/starter/expo/client.ts']) {
+    const text = readFileSync(new URL(path, import.meta.url), 'utf8');
+    assert.match(text, /secureStoreSessionStore\(SecureStore\)/, path);
+    assert.doesNotMatch(text, /SecureStore\.(getItemAsync|setItemAsync|deleteItemAsync)/, path);
+  }
+});

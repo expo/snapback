@@ -35,7 +35,7 @@ impl Recent {
     ) -> Result<Self, String> {
         if !component(store) { return Err("invalid store identity for dev evidence".into()); }
         let now = snapback4_core::now_ms();
-        let instance = snapback4_core::ids::mint(now, &mut 0).map_err(|e| e.to_string())?;
+        let instance = snapback4_core::ids::mint(now, &mut snapback4_core::ids::Mint::default()).map_err(|e| e.to_string())?;
         let dir = project.join(".snapback4").join(DIRECTORY).join(store);
         snapback4_core::private_fs::directory(&dir).map_err(|e| e.to_string())?;
         let identity = json!({"storeId":store,"instance":instance,"pid":std::process::id(),"address":address.to_string(),"startedAt":now,"traceEmpty":trace_empty});

@@ -1,6 +1,8 @@
 # Production: a persona demo becomes an account app
 
-The minimal production bar is identity plus one trusted seat writer per root table that accounts cannot bootstrap. Use real principals and persisted sessions; signup grants no role.
+Bare `use identity` keeps guests; `use identity password` removes them. Production
+needs persisted sessions and a trusted seat writer for roots accounts cannot
+bootstrap; signup grants no role.
 
 ```quarry
 use identity password
@@ -16,7 +18,7 @@ mutation provisionLabel(slug: text 1..40):
   require viewer = 'service:ops' else NOT_OPERATOR
   return insert labels {slug}
 ```
-Profiles and teams below are optional application policy. Prove writes, outsiders and durable restart. Mint `token --service ops --release ./deployment` while serve runs, then call `/m/provisionLabel` with its bearer. No production seed door is needed. Add a root's service read branch when its writer probes existing rows. Every mutation still passes table rules (`guide deploy`).
+This is the minimal production bar. Profiles and teams below are optional application policy. Prove writes, outsiders and durable restart. Mint `token --service ops --release ./deployment` while serve runs, then call `/m/provisionLabel` with its bearer. No production seed door is needed. Add a root's service read branch when its writer probes existing rows. Every mutation still passes table rules (`guide deploy`).
 
 A persona demo becomes a password-account app with self-written profiles,
 a private staff directory and trusted membership enrollment. This policy is
@@ -56,11 +58,34 @@ function AccountScreen(){
 }
 ```
 
+## Production transition checklist
+
+1. Run `check`, then `why N_NO_PRODUCTION_WRITER` in the project. It lists
+   **all** fixture-only first writers and their blocked dependents. Its rewrite
+   proposes a seat mutation for each root, and one per declared `role` enum
+   value. Review these proposals: add `viewer = 'service:ops'` to the table's
+   insert rule, authorize required probes and run `check` again. The CLI never
+   silently grants a seat or changes the schema. Separate roster tables get
+   separate proposals; other application role encodings need explicit policy.
+2. Map every `dev:NAME` owner, fixture role and relationship to a real account
+   principal. Signup grants no role. Provision the initial roster with the
+   seat; `grantStaff` below is the concrete first-role example.
+3. Persist sessions with `localStorageSessionStore()` in browsers and
+   `secureStoreSessionStore(SecureStore)` from `snapback4-expo` on native.
+   Device-less identity apps require an explicit `sessionStore` in TypeScript.
+4. Keep the password form available alongside the development persona picker.
+   Fetch `/auth/config`, and render personas only when `development === true`.
+   `serve` reports false and refuses personas. Do not derive a role from a
+   selector, query string or principal prefix: read the application's roster.
+5. Use the authorized directory and shared-principal controls below, then run
+   the account/outsider/restart acceptance at the end of this card. KIT2 owns
+   the full auth-form and proof-kit recipes in `guide client`/`guide testing`.
+
 ## Password UI and auth transitions
 
 Replace `?as=alice`, `usePersonaApp` and fixed `dev:` owners with `createApp`
-using a persisted session store (`guide client`, password React/Expo). Change
-`use identity` to `use identity password` and retain `use personas` only for
+using a persisted session store (`guide client`, password React/Expo). Choose
+`use identity password` when guests must be removed, and retain `use personas` only for
 development tests. Production principals come from signup/login, not names.
 `init --adapt` previews starter files; keep business schemas and apply this
 policy explicitly. This card supplies the full transition without guessing
@@ -71,6 +96,49 @@ PasswordForm is intentionally reset by signup/login/logout; store a mode choice
 or unsent work above the provider if it must survive. `useSignedInViewer()` is
 for a signed-in AccountScreen; `restoring` is not a signed-in viewer. The browser setup above persists sessions; on Expo replace webDevice with
 nativeDevice and use SecureStore (`guide client`). Never keep credentials in an account directory.
+
+## Password plus development personas
+
+Keep the account form as the default. This outer selector reads the server's
+configuration before interpreting `?as=`. Its persona list is the application's
+declared development list; it grants no production role. Mount `AccountEntry`
+above `AppProvider`; the `children` contain Gate/PasswordForm/AccountScreen from
+above. An account screen reads `myStaff` below to show roster roles and mounts
+`SharePrincipal` for a signed-in account.
+
+```tsx
+import {useEffect, useState, type ReactNode} from "react";
+import {createApp, type App} from "snapback4/app";
+import {webDevice} from "snapback4/web";
+import {localStorageSessionStore} from "snapback4/auth";
+import {AppProvider} from "snapback4/react";
+export function AccountEntry({url, children}: {url: string; children: ReactNode}) {
+  const [ready, setReady] = useState<{app: App; development: boolean} | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    let closed = false, owned: App | undefined;
+    void (async () => {
+      try {
+        const response = await fetch(`${url}/auth/config`);
+        if (!response.ok) throw new Error("Authentication configuration unavailable");
+        const config = await response.json();
+        const development = config.development === true;
+        const requested = new URLSearchParams(location.search).get("as");
+        const persona = development && ["alice", "bob"].includes(requested ?? "") ? requested! : undefined;
+        if (closed) return;
+        owned = createApp({url, device: webDevice(), sessionStore: localStorageSessionStore(), ...(persona ? {persona} : {})});
+        setReady({app: owned, development});
+      } catch (failure) { if (!closed) setError(String(failure)); }
+    })();
+    return () => { closed = true; void owned?.close(); };
+  }, [url]);
+  if (error) return <p role="alert">{error}</p>;
+  if (!ready) return <p>Loading sign-in…</p>;
+  return <>{ready.development && <nav aria-label="Development identity">
+    <a href="?">Password account</a> <a href="?as=alice">Alice</a> <a href="?as=bob">Bob</a>
+  </nav>}<AppProvider app={ready.app}>{children}</AppProvider></>;
+}
+```
 
 ## Profiles, private pickers, roles and linked memberships
 
@@ -150,6 +218,8 @@ query catalogue(c: cursor ?):
   return catalogues first 20 by .id after c
 query myProfile():
   return profiles[principal = viewer]
+query myStaff():
+  return staff[principal = viewer]
 ```
 
 A staff picker uses the authorized directory; a failed read produces a refusal,
@@ -206,7 +276,7 @@ export function InviteAccount({team}: {team: string}) {
   </form>;
 }
 ```
-Mount InviteAccount only behind a role read, such as `myStaff(): return staff[principal = viewer]` (add that query to the schema above). `absent` on a list can be an authorised empty result; it does not prove staff membership. Handle NOT_STAFF/NO_PROFILE even when the button was enabled. Sign up and register before sharing a principal. Seeded persona names never become production ids.
+Mount InviteAccount only behind a role read, `myStaff` above. `absent` on a list can be an authorised empty result; it does not prove staff membership. Handle NOT_STAFF/NO_PROFILE even when the button was enabled. Sign up and register before sharing a principal. Seeded persona names never become production ids.
 
 ## New-app bootstrap for catalogues and first seats
 

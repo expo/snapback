@@ -95865,3 +95865,74 @@ client cases pass, with four optional historical-package cases skipped.
 Guide/inventory/reference/doc-budget checks pass. The final diagnostic-contract
 revision received another paired READY review; its adjacent exact-repair
 observation is fixed by keeping the recipe pointer in the refusal message.
+### 2026-10-16 — SURF3: monotonic mint contexts
+
+LLP 3000.000.001 records the per-live-context mint order, clock-rollback
+high-water mark and overflow refusal. Separate engine/device/JS-module
+instances and restarts have no shared allocation order. The frozen-clock
+server/device regression passes on both memory and SQLite, through direct
+prediction and durable admission. Lean's supplemental mint model proves
+same/regressed-clock and advancing-clock order; `lean/check.sh` passes its
+75 theorem audits, 115 row examples and seven oracle fixtures.
+
+Initial monotonic WASM measurement: 2,354,746 B raw / 717,156 B gzip /
+541,686 B Brotli, +442 B gzip from the 716,714 B 0.4.29 baseline. The
+717,214 B budget stays unchanged, with 58 B remaining. Strict serde-family
+and server/Unicode-table absence audits pass. The metric truthfully records
+`dirty=true` because concurrent CLI review edits were present; the measured
+core/device source was frozen. Brotli used Node 24.13.1's zlib quality 11
+through a temporary CLI wrapper because the host has no `brotli` executable.
+An optional lazy-context allocation experiment exceeded the budget by 41 B
+and was reverted; the final artifact retains the original shared-context
+implementation and its measured bytes.
+
+### 2026-10-16 — SURF3: fixtures, surface contracts and production operations
+
+Readiness and test share typed relative fixture times, including literal escapes;
+malformed fixture times refuse with E_FIXTURE_TIME. Assertions disambiguate enum
+literals from aliases, matchSet preserves multiplicity with full matching, sweep
+personas may differ by query, and proof-fixtures.ts exports the independent
+loadFixtures helper. Seed/reset resolve typed now-relative values atomically at
+the intended clock and replace a retired store's time-audience floor. The 0.4.29
+H9 repro passes test but emits check drift; the current 100-app copied fixture
+census passes test with zero drift notes. Evidence is under reports/20261016-surf3.
+
+One CLI table now drives admitted flags, synopses and help, including JS helpers.
+Ignored flags refuse or work; data/token machine modes and release provenance
+are explicit. Guide aliases and section indexes preserve long piped bodies.
+Production examples use injected SecureStore, online identity apps require an
+explicit sessionStore, and readiness inventories all first-writer blockers with
+reviewable service-seat proposals. Workers expose settled failures once with
+redaction; dev/doctor report accepted failures. Assets retain one immutable home
+with nominal sharing and original authority/lifetime. The tested scan adapter
+fails closed, while the scanner service seat remains trusted.
+
+Custom-port memory and persisted devs register project-local locked identities.
+Discovery validates live project/instance/store/lifetime, refuses ambiguity,
+ignores stale legacy hints and normalizes wildcard listeners to loopback.
+Current automatically selected clock/reset/latency-reset controls bind their
+instance before mutation; reset can rotate store identity without losing the
+live registration. Startup prunes only well-formed unlocked records, and bounds
+are enforced before publishing a registration. Linux and Darwin clock, latency,
+registry lifecycle, stale-instance and wildcard regressions pass.
+
+Governing amendments: LLP 3000.000.000.000.000, 3000.000.001, 3000.013 §6.10,
+3000.009 §5.2, 3000.038 §11 and 3000.019 §3.7. Full-scope, discovery and final byte-bound
+revisions each received independent Muse/fresh Codex READY verdicts, retained
+verbatim with provenance under llp/reviews. Full requested native/client runs,
+repaired reruns, Mac evidence and explicit coverage limits are in
+WORKSTREAM-REPORT.md. The inherited Linux executable-replacement worker recovery
+bug is tracked separately in issues/20261016-snapback4-worker-restart-after-executable-replacement.md.
+Version remains 0.4.29; integration owns 0.4.30 and publication. No origin push.
+
+Final full-workspace qualification found a compatibility regression in two
+existing timeline cases: negative synthetic Context clocks had previously
+normalized to epoch zero for IDs. Commit 09a1d55d8a restores that normalization
+before per-context monotonic comparison, without changing operation clocks;
+public JS mintId retains its existing negative-input rejection. Both fresh
+review families returned READY on the amended contract. Timeline 17/17 remains
+unchanged and passes; Mint 6/6, full default difftest 94/94 with no new signatures,
+Lean 76 theorem audits/115 examples/7 fixtures, and actual shipped-WASM 3/3 pass.
+The final measured artifact is 2354702 B raw /717039 B gzip /541719 B Brotli,
+175 B under the unchanged 717214 B budget, 325 B gzip above 0.4.29. This supersedes the
+initial 717156 B gzip measurement above; strict family/absence audits still pass.

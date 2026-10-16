@@ -43,6 +43,7 @@ pub struct Stats {
 }
 
 pub struct PostgresEngine {
+    minter: crate::ids::Mint,
     store: Store,
     schema: Schema,
     programs: BTreeMap<String, Program>,
@@ -147,7 +148,7 @@ impl PostgresEngine {
         tx.commit()?;
         store.generation = generation;
         schema.prepare_delivery_lookup();
-        Ok(Self { store, schema, programs, ceilings: Ceilings::default(), mode: WriteMode::Serialized, retries: 0, precharge: Metered::default(), expiry_after: BTreeMap::new() })
+        Ok(Self { minter: crate::ids::Mint::default(), store, schema, programs, ceilings: Ceilings::default(), mode: WriteMode::Serialized, retries: 0, precharge: Metered::default(), expiry_after: BTreeMap::new() })
     }
 
     pub fn schema(&self) -> &Schema {
@@ -189,6 +190,7 @@ impl PostgresEngine {
         super::server_query_allowed(&self.schema, name)?;
         validate::validate_inputs(&self.schema, program, &mut context.args)?;
         context.now.get_or_insert_with(crate::now_ms);
+        context = context.with_minter(self.minter.clone());
         let tx = self.store.transaction(None)?;
         let seq = tx.next_seq()? - 1;
         let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(self.ceilings, Cut::Cap), seq);
@@ -252,6 +254,7 @@ impl PostgresEngine {
                 .unwrap_or_else(|| RuntimeError::UnknownOp(name.into()))
         })?.clone();
         context.now.get_or_insert_with(crate::now_ms);
+        context = context.with_minter(self.minter.clone());
         if context.entropy == 0 {
             context.entropy = crate::ids::seed();
         }

@@ -83,7 +83,7 @@ fn eligibility_and_direct_signin_scope() {
     let before = read_rows(&store);
     assert!(identity::narrow_session(&mut store, &parent.token, || sample(1)).is_err());
     assert_eq!(read_rows(&store), before);
-    let read = identity::guest_scoped(&store, 1, &mut 0, SessionScope::Read).unwrap();
+    let read = identity::guest_scoped(&store, 1, &mut snapback4_core::ids::Mint::default(), SessionScope::Read).unwrap();
     assert_eq!(read.cap_expires_at, Some(read.expires_at));
     assert_eq!(identity::resolve(&store, &read.token, 2).unwrap().unwrap().2, SessionScope::Read);
     let before = read_rows(&store);
@@ -139,7 +139,7 @@ fn queued_narrow_samples_authority_after_writer_lock() {
 fn signin_collects_foreign_read_expiry_but_read_refresh_does_not() {
     for scope in [SessionScope::Full, SessionScope::Read] {
         let store = Store::memory().unwrap();
-        let read = identity::guest_scoped(&store, 0, &mut 0, SessionScope::Read).unwrap();
+        let read = identity::guest_scoped(&store, 0, &mut snapback4_core::ids::Mint::default(), SessionScope::Read).unwrap();
         // Both inclusive boundaries independently qualify; a still-live foreign row survives.
         for (id, expiry, cap) in [("expires", 10, 100), ("cap", 100, 10), ("live", 100, 100)] {
             store.conn().execute("INSERT INTO _read_sessions VALUES (?1,'foreign','user',?1,0,?2,?3,0)", params![id, expiry, cap]).unwrap();
@@ -147,7 +147,7 @@ fn signin_collects_foreign_read_expiry_but_read_refresh_does_not() {
         let rotated = identity::rotate_session(&store, &read.token, 10).unwrap().unwrap();
         let rows = read_rows(&store);
         for id in ["expires", "cap", "live"] { assert!(rows.contains(&id.to_string())); }
-        identity::guest_scoped(&store, 10, &mut 1, scope).unwrap();
+        identity::guest_scoped(&store, 10, &mut snapback4_core::ids::Mint::default(), scope).unwrap();
         let rows = read_rows(&store);
         assert!(!rows.contains(&"expires".to_string())); assert!(!rows.contains(&"cap".to_string()));
         assert!(rows.contains(&"live".to_string())); assert!(rows.contains(&digest(&rotated.token)));
@@ -173,7 +173,7 @@ fn absent_read_storage_is_empty_without_writes_and_full_logout_still_works() {
     assert_eq!(identity::revoke_principal(&store, "bob").unwrap(), 0);
     let installed: bool = store.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name = '_read_sessions')", [], |r| r.get(0)).unwrap();
     assert!(!installed, "reads and full-session logout must never create read storage");
-    let read = identity::guest_scoped(&store, 2, &mut 0, SessionScope::Read).unwrap();
+    let read = identity::guest_scoped(&store, 2, &mut snapback4_core::ids::Mint::default(), SessionScope::Read).unwrap();
     assert_eq!(identity::resolve(&store, &read.token, 3).unwrap().unwrap().2, SessionScope::Read);
     identity::logout_session(&mut store, &read.token, || 3).unwrap();
     assert!(identity::resolve(&store, &read.token, 3).unwrap().is_none());

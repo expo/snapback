@@ -106,6 +106,8 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_QUARRY_RULE_HOP", &["Each hop costs one prepaid rule probe", "read through .message", "beyond three hops", "Sibling hops are legal and charged"]),
     ("E_QUARRY_RULE_SPELLING", &["declare separate insert, update and delete rules for the operations intended"]),
     ("E_QUARRY_RULE_OPERATOR", &["The rewrite moves your comparison into the", "filter the query"]),
+    ("E_PROOF_USAGE", &["Call startServe(deployDir, options) with a nonempty directory string first."]),
+    ("E_QUARRY_IDENTITY_DUPLICATE", &["Keep one declaration: password, guests, or both."]),
     ("E_QUARRY_RESERVED", &["Rename it at the declaration and each use."]),
     ("E_QUARRY_JOB_SCHEDULE", &["`job sweep every 1h:` with `job sweep():`, keep the indented body"]),
     ("E_QUARRY_KEY_ORDER", &["move all positional components first, then write the named tests"]),

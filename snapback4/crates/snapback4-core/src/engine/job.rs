@@ -188,7 +188,7 @@ impl Engine {
             return Err(RuntimeError::UnknownOp(format!("{name} is a {}, not a job", program.kind.word())));
         }
         validate_inputs(&self.schema, &program, &mut args)?;
-        let id = crate::ids::mint(now, &mut self.entropy)?;
+        let id = crate::ids::mint(now, &mut self.minter)?;
         #[cfg(feature = "native")]
         let program_hash = job_admission_hash(&program, self.native.as_deref().map(super::native::Module::digest));
         #[cfg(not(feature = "native"))]
@@ -262,7 +262,7 @@ impl Engine {
         if program.native {
             let id = head.run.id.clone();
             #[cfg(feature = "native")]
-            native_chunk(tx, &self.schema, self.native.as_deref(), &mut self.native_logs, head, &program, now, self.dev_effects)?;
+            native_chunk(tx, &self.schema, self.native.as_deref(), &mut self.native_logs, self.minter.clone(), head, &program, now, self.dev_effects)?;
             #[cfg(not(feature = "native"))]
             native_chunk(tx, head, &program, now)?;
             return self.job(&id);
@@ -307,7 +307,7 @@ impl Engine {
         loop {
             tx.savepoint("job_chunk")?;
             let seq = tx.next_seq()?;
-            let mut context = Context::system().at(now).with_presence(presence.clone());
+            let mut context = Context::system().at(now).with_presence(presence.clone()).with_minter(self.minter.clone());
             context.args = head.args.clone();
             context = context.with_generation(self.generation);
             let mut runner = Runner::new(&tx, &self.schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
@@ -451,7 +451,7 @@ impl Engine {
             if program.args.contains_key("periodEnd") {
                 args.insert("periodEnd".to_owned(), Value::Int(boundary));
             }
-            let id = crate::ids::mint(now, &mut self.entropy)?;
+            let id = crate::ids::mint(now, &mut self.minter)?;
             if program.kind == ProgramKind::Action {
                 let principal = schedule.service.as_deref().expect("checked service seat");
                 validate_inputs(&self.schema, &program, &mut args)?;
@@ -481,11 +481,11 @@ impl Engine {
 /// it, a trap parks it with the reason. Over the engine's fields, not the
 /// engine, because the transaction borrows its store.
 #[cfg(feature = "native")]
-fn native_chunk(tx: crate::store::Tx<'_>, schema: &crate::schema::Schema, module: Option<&super::native::Module>, logs: &mut super::native::Logs, head: Head, program: &crate::ir::Program, now: i64, dev: bool) -> Result<(), RuntimeError> {
+fn native_chunk(tx: crate::store::Tx<'_>, schema: &crate::schema::Schema, module: Option<&super::native::Module>, logs: &mut super::native::Logs, minter: crate::ids::Mint, head: Head, program: &crate::ir::Program, now: i64, dev: bool) -> Result<(), RuntimeError> {
     use super::native::{self, Step};
     tx.savepoint("job_chunk")?;
     let seq = tx.next_seq()?;
-    let mut context = Context::system().at(now);
+    let mut context = Context::system().at(now).with_minter(minter);
     context.args = head.args.clone();
     let runner = Runner::new(&tx, schema, context, Meter::new(Ceilings::job(), Cut::Abort), seq);
     let state: Option<serde_json::Value> = head.cursor.as_deref().and_then(|bytes| serde_json::from_slice(bytes).ok());

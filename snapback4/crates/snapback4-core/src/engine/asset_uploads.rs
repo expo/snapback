@@ -84,7 +84,7 @@ impl Engine {
     }
 
     fn stage_upload(&mut self, mut asset: Asset) -> Result<assets::Upload, RuntimeError> {
-        asset.id = crate::ids::mint(asset.created_at, &mut self.entropy)?;
+        asset.id = crate::ids::mint(asset.created_at, &mut self.minter)?;
         let path = self.store.asset_path(&asset.id);
         Ok(assets::Upload {
             asset,

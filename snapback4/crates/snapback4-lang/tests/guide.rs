@@ -1566,7 +1566,14 @@ mod start;
 // @ref LLP 3000.011.003.000#9 — every piped card is complete.
 #[test]
 fn a_piped_card_prints_whole() {
-    for name in KEYWORDS { assert_eq!(guide::piped(name, card(name).unwrap()), card(name).unwrap(), "{name}"); }
+    for name in KEYWORDS {
+        let text = card(name).unwrap();
+        let printed = guide::piped(name, text);
+        if text.lines().count() > guide::FULL_LINES {
+            assert!(printed.contains(&guide::section_index(name, text)), "{name}");
+            assert!(printed.ends_with(text.split_once('\n').unwrap().1), "{name}: whole body survives");
+        } else { assert_eq!(printed, text); }
+    }
 }
 
 // Wave 7: `--section` words builders guessed (008 009 023 065 070 092).

@@ -20,7 +20,7 @@ pub(super) fn preview(
     let project = Project { root };
     let native = crate::native::prepare(&project, &bound).map_err(|e| e.to_string())?;
     crate::dev_worker::prepare_release(&project,&bound.schema)?;
-    let id = snapback4_core::ids::mint(snapback4_core::now_ms(), &mut snapback4_core::ids::seed())
+    let id = snapback4_core::ids::mint(snapback4_core::now_ms(), &mut snapback4_core::ids::Mint::default())
         .map_err(|e| e.to_string())?;
     let snapshot = Snapshot(std::env::temp_dir().join(format!("snapback4-release-preview-{id}")));
     snapback4_core::private_fs::directory(&snapshot.0).map_err(|e| e.to_string())?;

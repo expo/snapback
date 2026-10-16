@@ -57,6 +57,12 @@ pub fn test(options: &Options) -> i32 {
         Err(error) => { eprintln!("{error}"); return 1; }
     };
     let personas = residency::personas(&bound, options);
+    let sweep_personas = if options.flags.contains_key("saved-fixture-fallback") { Default::default() } else {
+        match test_sweep::load(options.flags.get("fixture"), &bound) {
+            Ok(matrix) => matrix,
+            Err(error) => { eprintln!("{error}"); return 1; }
+        }
+    };
     if options.flags.contains_key("residency") {
         let verbose = options.flags.contains_key("verbose");
         if let Err(error) = residency::measure(&mut engine, &bound, &personas, verbose) { eprintln!("residency measurement failed: {error}"); return 1; }
@@ -88,7 +94,9 @@ pub fn test(options: &Options) -> i32 {
             held_not_run += 1;
             continue;
         }
-        for persona in &personas {
+        let selected = if options.flags.contains_key("as") { &personas }
+            else { sweep_personas.get(&program.program.name).unwrap_or(&personas) };
+        for persona in selected {
             let principal = if persona.contains(':') { persona.clone() } else { persona_principal(persona) };
             let name = &program.program.name;
             let cases: Vec<&test_cases::Explicit> = explicit.iter().filter(|case| case.op == *name && case.principal == principal).collect();

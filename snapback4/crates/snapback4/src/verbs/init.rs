@@ -13,13 +13,14 @@ mod ports;
 mod proof;
 pub(crate) use adapt::{report as starter_leftovers, report_json as starter_leftovers_json};
 
-const USAGE: &str = "usage: snapback4 init [dir] [--online|--expo|--web [--online]]";
+fn usage() -> String { format!("usage: {}", crate::cli_flags::synopsis("init")) }
 
 pub fn init(options: &Options) -> i32 {
+    let usage = usage();
     // @ref LLP 3000.011.003.000#7.2 — the init-first path: fit the starter already written to the schema written since.
     if options.flags.contains_key("adapt") {
         if options.positionals.len() > 1 || options.flags.keys().any(|flag| !matches!(flag.as_str(), "adapt" | "web" | "expo" | "dry-run" | "apply")) {
-            eprintln!("usage: snapback4 init [dir] --adapt [--dry-run|--apply]\n  --adapt fits the starter files init wrote to your snapback/*.q; it takes no other starter flags");
+            eprintln!("{usage}\n  --adapt fits the starter files init wrote to your snapback/*.q; it takes no other starter flags");
             return 2;
         }
         if options.flags.contains_key("dry-run") && options.flags.contains_key("apply") { eprintln!("E_INPUT: --dry-run and --apply are mutually exclusive"); return 2; }
@@ -36,7 +37,7 @@ pub fn init(options: &Options) -> i32 {
         Some(_) => false,
     };
     if !template_ok || (template.is_some() && options.flags.contains_key("recipe")) {
-        eprintln!("usage: snapback4 new <dir> --template social\n       snapback4 init [dir] --web --template chat\n       snapback4 init [dir] --expo --template chat");
+        eprintln!("{usage}\n  templates: --template social (no client flags), --template chat (--web or --expo)");
         return 2;
     }
     let social = template == Some("social");
@@ -49,12 +50,12 @@ pub fn init(options: &Options) -> i32 {
         return 2;
     }
     if options.flags.contains_key("recipe") {
-        eprintln!("{USAGE}\nE_RECIPE_RETIRED: recipe is a retired spelling; no files written\n  rewrite: use `snapback4 init [dir] --web` for todos, or `snapback4 init [dir] --web --template chat` for chat; use --expo for Expo. See snapback4 guide recipes for schema patterns.");
+        eprintln!("{usage}\nE_RECIPE_RETIRED: recipe is a retired spelling; no files written\n  rewrite: use `snapback4 init [dir] --web` for todos, or `snapback4 init [dir] --web --template chat` for chat; use --expo for Expo. See snapback4 guide recipes for schema patterns.");
         return 2;
     }
     let online_web = modes == 2 && options.flags.contains_key("online") && options.flags.contains_key("web");
     if options.positionals.len() > 1 || (modes > 1 && !online_web) || options.flags.contains_key("recipe") || options.flags.contains_key("dry-run") || options.flags.contains_key("apply") {
-        eprintln!("{USAGE}");
+        eprintln!("{usage}");
         return 2;
     }
     match ports::environment() {

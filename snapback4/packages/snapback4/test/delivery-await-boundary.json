@@ -315,6 +315,10 @@
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
+  "proof-fixtures.ts": {
+    "count": 5,
+    "sha256": "979ce1e4100e2b17d4521a65469122065fe8ab909e6f38cbd116f5c7eb7a6afa"
+  },
   "proof-guard.ts": {
     "count": 0,
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
@@ -328,8 +332,8 @@
     "sha256": "5b7cdcfd62f5dcf4a6f41dc9d59fec7e5a7e364582c01189c4723b860518e93f"
   },
   "proof.ts": {
-    "count": 29,
-    "sha256": "47e313c568eadb10f836a37d5eac8489b8771940e06e8063c44474a974fc44cf"
+    "count": 30,
+    "sha256": "e0479cb4b6790f81653c3dcf066fb2b36703ef2efae835f702b00f8d78e52989"
   },
   "query-custody.ts": {
     "count": 1,
@@ -565,7 +569,7 @@
   },
   "worker.ts": {
     "count": 40,
-    "sha256": "a6eae732b03a25ae5889d80e2f30fd6bb79fe73039ec02034f43c81c1b1cf82a"
+    "sha256": "dc90a5be0bc418ee0886198afeac827f45420375fe1eff78a5652bfb4121ae88"
   },
   "write-settlement.ts": {
     "count": 2,

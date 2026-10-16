@@ -1,11 +1,7 @@
 //! `snapback4 <verb> --help`: one verb's flags, output and exit codes. The
-//! verbs agents script against have a page; any other verb prints its lines
-//! from the full help.
+//! all synopses and flag lists come from cli_flags; pages add recipes and output details.
 
-const INIT: &str = "snapback4 init [dir] [--online|--expo|--web [--online]] [--template chat] [--port N] [--port-range A-B] [--web-port N] [--skip-existing]
-snapback4 init [dir] --adapt [--dry-run|--apply]
-
-Starts a project in dir (default: here) without overwriting anything: an
+const INIT: &str = "Starts a project in dir (default: here) without overwriting anything: an
 existing package.json has the starter's dependencies and scripts merged in
 (a caret range of the starter's own version is pinned to it; scripts compare
 as commands, so option order does not matter), and an existing file or a
@@ -52,9 +48,7 @@ Next: npm install (when a package.json was written), snapback4 check, then
 snapback4 dev. Exit 0 when written, 1 on a conflict, 2 on bad flags.
 snapback4 guide start walks the first schema.";
 
-const CHECK: &str = "snapback4 check [--verbose] [--json] [--cost] [--residency [--fixture dir --as p]] [--fix] [--store path]
-
-Compiles snapback/*.q, checks that the dev store's rows adopt it (read-only,
+const CHECK: &str = "Compiles snapback/*.q, checks that the dev store's rows adopt it (read-only,
 .snapback4/store.sqlite or --store), writes snapback/generated/api.ts and
 builds native jobs.
 
@@ -81,9 +75,7 @@ Output:
 snapback4 why <CODE> explains any problem or note; snapback4 why <op> one
 operation's cost. Exit 0 ok (notes or not), 1 problems, 2 cannot run.";
 
-const DEV: &str = "snapback4 dev [--port N|A-B] [--bind IP] [--fresh|--memory] [--no-watch] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h|--resume-clock] [--trace-empty] [--verbose]
-
-Serves snapback/*.q on http://127.0.0.1:4400 and re-adopts the schema on every
+const DEV: &str = "Serves snapback/*.q on http://127.0.0.1:4400 and re-adopts the schema on every
 save (a save with problems keeps the previous generation serving).
 
 Readiness and ownership:
@@ -135,10 +127,7 @@ stops the server when its parent dies. snapback4 guide testing has the script.
 Stop with Ctrl-C or SIGTERM. Refusals print as one short `dev refusal: <op> <CODE> at <site> (<clause>)`
 line per cause; snapback4 why recent lists the full records.";
 
-const RUN: &str = "snapback4 run <operation> [json-args] [--as <persona|principal-id>] [--port N] [--now <ms|+duration>] [--json]
-snapback4 run <job> [json-args] --release <dir> [--token-env NAME] [--json]
-
---release uses served source, the server clock and the existing FIFO. Set SNAPBACK4_SERVICE_TOKEN (or --token-env NAME) to a full service token; every full service seat may trigger system jobs. It needs a running serve and no local app directory.
+const RUN: &str = "--release uses served source, the server clock and the existing FIFO. Set SNAPBACK4_SERVICE_TOKEN (or --token-env NAME) to a full service token; every full service seat may trigger system jobs. It needs a running serve and no local app directory.
 
 Runs one query, mutation or job and prints its answer and meters.
 
@@ -157,12 +146,10 @@ Where it runs:
   --now <t>       pin the clock for a local run (milliseconds, or +2h from now)
   --json          one JSON object on stdout
 
-A job runs whole as the system (--as is ignored). Exit 0 sent/complete, 1
+A job runs whole as the system; explicit --as refuses E_INPUT. Exit 0 sent/complete, 1
 refused (the refusing clause and its site are printed), 2 cannot run.";
 
-const TEST: &str = "snapback4 test [--source file.q] [--fixture dir] [--as persona] [--json] [--residency [--verbose]]
-
-Runs fixture cases in order, then sweeps every query as each persona and prints
+const TEST: &str = "Runs fixture cases in order, then sweeps every query as each persona and prints
 its meters. The sweep uses that persona's case arguments when available, otherwise
 derives arguments from the resulting store (including the cases' writes).
 Cases default to sent for mutations and check's verdict for queries: complete,
@@ -218,46 +205,30 @@ a case fails or the fixture does not load (a bad row, an unknown table file);
 acceptance script over HTTP.";
 
 /// The help for `snapback4 <verb> --help`; `None` prints the full help.
-pub fn page(verb: &str, full: &str) -> Option<String> {
+pub fn page(verb: &str) -> Option<String> {
     let page = match verb {
         "init" => INIT,
-        "new" => "snapback4 new <dir> --template social|chat [--web|--expo]
-
-Choose a full reference template. For a small starter or schema-only setup, use snapback4 init. The Flags section lists the shared scaffold validator; each template checks its own combinations.",
-        "version" => "snapback4 --version
-
-Print the binary version.",
-        "upgrade" => "snapback4 upgrade [version]
-
-Upgrade core and every installed snapback4-expo adapter together with npm, bun or pnpm, keeping exact pins. Default: latest; --to selects an explicit target and permits a downgrade. Rebuild native apps after adapter changes; guide deploy has the upgrade checklist. Executing upgrade requires the matching installed client helper; help itself is built into this binary.",
+        "new" => "Choose a full reference template. For a small starter or schema-only setup, use snapback4 init. The Flags section lists the shared scaffold validator; each template checks its own combinations.",
+        "version" => "Print the binary version.",
+        "upgrade" => "Upgrade core and every installed snapback4-expo adapter together with npm, bun or pnpm, keeping exact pins. Default: latest; --to selects an explicit target and permits a downgrade. Rebuild native apps after adapter changes; guide deploy has the upgrade checklist. Executing upgrade requires the matching installed client helper; help itself is built into this binary.",
         "check" => CHECK,
         "dev" => DEV,
         "run" => RUN,
         "test" => TEST,
-        "deploy" => "snapback4 deploy <dir> [--check] [--restore-dormant] [--allow-feed-adoption] [--verbose|--json] [--allow-destructive]
-
-Packages immutable source and activates it on the durable store. A running serve adopts the release before this command completes. --check previews exact deploy adoption without activating; --restore-dormant explicitly restores retired names. --allow-destructive never prunes; use prune <dir> --allow-destructive. Exit 1 on refusal.",
-        "rollback" => "snapback4 rollback <dir> [--to N|latest] [--check] [--allow-feed-adoption] [--verbose|--json] [--allow-destructive]
-
-Without --to, selects the previously active release from committed activation history. --to selects a successful immutable release, including roll-forward with latest. --check previews exact adoption without activating. Removed storage and incompatible rows become dormant per row and restore on compatible forward. --allow-destructive never prunes. Exit 1 on refusal.",
-        "serve" => "snapback4 serve <dir> [--port N|A-B] [--bind IP] [--worker PATH] [--i-understand-cleartext] [--clock-offset MS] [--resume-clock] [--now TIME] [--replay] [--long-waits N] [--long-waits-per-principal N] [--claim-waits N]
-
-Attaches the active release; a running serve adopts deploy and rollback atomically without restart. Bearer sessions only. The first stdout line is its URL. Non-loopback cleartext requires --i-understand-cleartext. Exit 1 on refusal.",
+        "deploy" => "Packages immutable source and activates it on the durable store. A running serve adopts the release before this command completes. --check previews exact deploy adoption without activating; --restore-dormant explicitly restores retired names. --allow-destructive never prunes; use prune <dir> --allow-destructive. Exit 1 on refusal.",
+        "rollback" => "Without --to, selects the previously active release from committed activation history. --to selects a successful immutable release, including roll-forward with latest. --check previews exact adoption without activating. Removed storage and incompatible rows become dormant per row and restore on compatible forward. --allow-destructive never prunes. Exit 1 on refusal.",
+        "serve" => "Attaches the active release; a running serve adopts deploy and rollback atomically without restart. Bearer sessions only. The first stdout line is its URL. Non-loopback cleartext requires --i-understand-cleartext. Exit 1 on refusal.",
+        "data" => "Inspect stored rows as an administrator, bypassing read rules. --json prints one array, including [] for an empty table. Default output is one JSON row per line.",
+        "sql" => "Read-only administrative inspection, never rule-filtered. --json-objects returns {columns, header, limit, more, rows, ruleFiltered}; rows are objects and boolean columns retain boolean values. Use sql '\\dt' to list tables, or sql '\\d messages' for one schema.",
+        "reset" => "Empty a running development store through POST /dev/reset. --seed reseeds in the same transaction; --clock reset returns to wall time. Production releases refuse this door.",
+        "clock" => "Advance a running development backend's clock, sweep expiry and run due jobs. --port targets a specific dev. Production releases refuse clock control.",
+        "token" => "Mint a bearer session for a service seat. Default: token and newline on stdout, usage on stderr. --quiet suppresses successful stderr; --json prints {token, principal, expiresAt, store} with no successful stderr. --quiet and --json are mutually exclusive. A token belongs only to its owning store.",
+        "web-shell" => "Install an offline service worker for a static web export (npm wrapper). Export index.html first; --base selects an absolute URL directory such as / or /chat/.",
+        "witness" => "Browser executable: set SNAPBACK4_CHROMIUM (or CHROME) to Chromium. Build the static export first and register the app with registerWebWitness(app, api) from snapback4/witness-web. web exercises a visible form; acquire proves native acquisition and retained restart; ios exercises an installed application; status inspects background proof.",
         "" => return None,
-        verb => {
-            // Its own lines from the full help, and the indented lines under them.
-            let mut lines = Vec::new();
-            let mut inside = false;
-            for line in full.lines().skip(1) {
-                let trimmed = line.trim_start();
-                let depth = line.len() - trimmed.len();
-                if depth == 2 { inside = trimmed.split_whitespace().next() == Some(verb); }
-                if inside && !trimmed.is_empty() { lines.push(line.to_owned()); }
-            }
-            if lines.is_empty() { return None; }
-            if verb == "witness" { lines.push("Browser executable: set SNAPBACK4_CHROMIUM (or CHROME) to Chromium. Run build:web first and register the app with registerWebWitness(app, api) from snapback4/witness-web.".into()); }
-            return Some(format!("{}\n\n{}\n\nsnapback4 --help lists every verb.", lines.join("\n"), crate::cli_flags::help(verb)));
-        }
+        verb if crate::cli_flags::VERBS.contains(&verb) => "See the flags below and snapback4 guide for recipes.",
+        _ => return None,
     };
-    Some(format!("{page}\n\n{}\n\nsnapback4 --help lists every verb.", crate::cli_flags::help(verb)))
+    let prose = if page.starts_with("snapback4 ") { page.split_once("\n\n").map(|(_, prose)| prose).unwrap_or("") } else { page };
+    Some(format!("{}\n\n{prose}\n\n{}\n\nsnapback4 --help lists every verb.", crate::cli_flags::synopsis(verb), crate::cli_flags::help(verb)))
 }

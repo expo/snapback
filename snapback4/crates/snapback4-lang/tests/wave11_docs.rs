@@ -340,7 +340,7 @@ fn production_accounts_enroll_privately_and_survive_rollback() {
     let first = compile(source.clone());
     let mut e =
         Engine::memory(first.schema, first.programs.into_iter().map(|p| p.program)).unwrap();
-    let mut entropy = 1234;
+    let mut entropy = snapback4_core::ids::Mint::default();
     let alice = snapback4_core::identity::signup(
         e.store(),
         "alice@example.test",

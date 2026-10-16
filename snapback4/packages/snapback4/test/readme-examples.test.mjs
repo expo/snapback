@@ -184,13 +184,18 @@ test("Expo Go README session store preserves encoded SecureStore keys and round-
     async deleteItemAsync(key) { valid(key); values.delete(key); },
   };
   const js = ts.transpile(source, { target: ts.ScriptTarget.ES2022 });
-  const store = new Function("SecureStore", `${js}\nreturn sessionStore;`)(SecureStore);
+  const adapterSource = read(join(root, "../snapback4-expo/src/session-store.ts"));
+  const adapterJs = ts.transpileModule(adapterSource, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext } }).outputText;
+  const { secureStoreSessionStore } = await import(`data:text/javascript;base64,${Buffer.from(adapterJs).toString("base64")}`);
+  const store = new Function("SecureStore", "secureStoreSessionStore", `${js}\nreturn sessionStore;`)(SecureStore, secureStoreSessionStore);
   const key = sessionKey("http://127.0.0.1:4400");
   await store.set(key, "saved-session");
   assert.equal(await store.get(key), "saved-session");
   await store.delete(key);
   assert.equal(await store.get(key), null);
-  assert.deepEqual(keys, Array(4).fill(key));
+  assert.equal(keys.length, 4);
+  assert.ok(keys.every(encoded => encoded === keys[0]), "all operations use the same encoded backend key");
+  assert.notEqual(keys[0], key, "the published helper encodes the session key before SecureStore");
 });
 
 

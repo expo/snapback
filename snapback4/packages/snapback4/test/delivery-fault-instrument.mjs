@@ -416,3 +416,13 @@ export function awaitBoundary() {
 // CLI and browser orchestration. They are a Node-only subpath, never imported by
 // app/local/online delivery. proof.test.mjs owns occupied ports, process death,
 // deadlines, group cleanup and browser failures; no delivery fault recipe changes.
+
+// SURF3: proof-fixtures.ts awaits bounded catalog/dev-clock reads and local
+// JSONL files; proof.ts adds caller-installed Playwright module loading. Both
+// are Node-only proof orchestration, outside app/local/online write delivery.
+// Fixture loader and proof usage/browser regressions own those failure paths;
+// the actual delivery site census and all fault recipes remain unchanged.
+// Worker settlement keeps the same await count: failed settlement payloads are
+// redacted before the existing request; authority-loss callbacks are synchronous.
+// These external-effect worker attempts do not enter device mutation delivery.
+// Generated-effect-context/opt-in and worker tests cover retry and lease loss.

@@ -182,6 +182,7 @@ pub struct Context {
     /// Ids the caller minted for this run, consumed in order by `new`.
     pub new_ids: VecDeque<String>,
     entropy: u64,
+    minter: crate::ids::Mint,
     /// Every id consumed by this execution, including newly minted ids.
     pub(crate) minted_ids: Vec<String>,
     /// The server's live registry behind `connected[p]`, when there is one.
@@ -191,7 +192,7 @@ pub struct Context {
 
 impl Context {
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { #[cfg(feature = "sqlite")] refusal_trace: None, #[cfg(feature = "server-search")] search_retained_order: None, #[cfg(feature = "server-search")] search_retained_candidates: Vec::new(), retained_search: false, read_spent: None, viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minted_ids: Vec::new(), presence: None }
+        Self { #[cfg(feature = "sqlite")] refusal_trace: None, #[cfg(feature = "server-search")] search_retained_order: None, #[cfg(feature = "server-search")] search_retained_candidates: Vec::new(), retained_search: false, read_spent: None, viewer: viewer.into(), kind: "user".into(), args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minter: crate::ids::Mint::default(), minted_ids: Vec::new(), presence: None }
     }
 
     #[cfg(feature = "sqlite")]
@@ -243,14 +244,19 @@ impl Context {
         self
     }
 
+    /// Attach the live host's mint stream; supplied replay ids remain untouched.
+    pub fn with_minter(mut self, minter: crate::ids::Mint) -> Self {
+        self.minter = minter;
+        self
+    }
+
     pub fn is_system(&self) -> bool {
         self.viewer == crate::SYSTEM_PRINCIPAL
     }
 
     pub(crate) fn mint(&mut self) -> Result<String, crate::RuntimeError> {
         let id = if let Some(id) = self.new_ids.pop_front() { id } else {
-            if self.entropy == 0 { self.entropy = crate::ids::seed(); }
-            crate::ids::mint(self.now.unwrap_or(0), &mut self.entropy)?
+            crate::ids::mint(self.now.unwrap_or(0), &mut self.minter)?
         };
         self.minted_ids.push(id.clone());
         Ok(id)
@@ -368,6 +374,7 @@ pub struct Engine {
     programs: BTreeMap<String, Program>,
     ceilings: Ceilings,
     entropy: u64,
+    minter: crate::ids::Mint,
     generation: u64,
     /// Per-table physical expiry scan positions. Restricted or retained roots
     /// consume a visit, so later due keys make progress across short sweeps.
@@ -405,14 +412,14 @@ impl Engine {
         let (generation, metadata) = Self::activate(&mut store, &schema, &programs, None, now, true, None, None)?;
         let dev_effects = metadata.dev_effects;
         store.exclude_ephemeral(&schema);
-        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id, generation, &schema)), store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id, generation, &schema)), store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// A detached read owner for HTTP query/sync computation. Creating it is
     /// brief; materializing its response does not hold the serving engine.
     pub fn reader(&self) -> Result<Self, RuntimeError> {
         Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: self.ephemeral.clone(), store: self.store.reader()?, schema: self.schema.clone(), programs: self.programs.clone(),
-            ceilings: self.ceilings, entropy: 0, generation: self.generation, expiry_after: BTreeMap::new(), dev_effects: self.dev_effects,
+            ceilings: self.ceilings, entropy: 0, minter: self.minter.clone(), generation: self.generation, expiry_after: BTreeMap::new(), dev_effects: self.dev_effects,
             #[cfg(feature = "native")] native: self.native.clone(),
             #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: self.presence.clone() })
     }
@@ -465,7 +472,7 @@ impl Engine {
             else { tx.rollback()?; Self::activate(&mut store, &schema, &programs, None, now, true, expected_release, Some(&kept))? };
         let dev_effects = metadata.dev_effects;
         store.accept_open(); store.exclude_ephemeral(&schema);
-        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id, generation, &schema)), store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        Ok(Self { timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id, generation, &schema)), store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// Serving a selected immutable release may attach only while that release
@@ -936,6 +943,7 @@ impl Engine {
             context.presence = self.presence.clone();
         }
         context.entropy = self.entropy;
+        context.minter = self.minter.clone();
         let ceilings = self.ceilings;
         let viewer = context.viewer.clone();
         let now = context.now.unwrap_or(0);

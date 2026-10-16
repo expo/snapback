@@ -1,4 +1,5 @@
 //! Read-only production and fixture authoring notes; never an execution gate.
+mod production;
 use std::collections::{BTreeMap, BTreeSet};
 use snapback4_lang::{bind::Bound, Diagnostic, Site};
 use snapback4_core::{ir::{self, ProgramKind, ArgType}, schema::{RuleExpr, RuleTerm}, engine::validate, wire};
@@ -85,7 +86,8 @@ fn bootstrap_recipe(bound: &Bound, table: &str) -> String {
     let writers: Vec<_> = bound.programs.iter().filter(|p| ir::write_tables(&p.program).iter().any(|(target,effect)| target==table && matches!(*effect,"insert"|"upsert"))).map(|p|p.program.name.clone()).collect();
     let missing = if writers.is_empty() { format!("missing mutation path: no mutation inserts {table}") }
         else { format!("missing service-seat bootstrap path through {} (their {table} insert rule depends on rows not yet provisioned)",writers.join(", ")) };
-    format!("{missing}; add a bootstrap{table} mutation that requires `viewer = 'service:ops'`, allow that branch in {table}'s insert rule, and make its required probes readable to the seat. Mint `snapback4 token --service ops --release ./deployment`, then call the mutation with the real account principal and its bearer token. For synced rosters use the independent seat-or-member branch; snapback4 guide deploy --section first admin")
+    let proposal = production::proposal(&bound.schema, table);
+    format!("{missing}; add a bootstrap{table} mutation that requires `viewer = 'service:ops'`, allow that branch in {table}'s insert rule, and make its required probes readable to the seat. Mint `snapback4 token --service ops --release ./deployment`, then call the mutation with the real account principal and its bearer token. For synced rosters use the independent seat-or-member branch; snapback4 guide deploy --section first admin\n{proposal}")
 }
 fn possible(rule: &RuleExpr, rows: &BTreeSet<String>) -> bool {
     match rule {
@@ -119,6 +121,7 @@ fn fixture_notes(project: &Project, bound: &Bound, fixture: Option<&String>) -> 
     let path = fixture.map(std::path::PathBuf::from).unwrap_or_else(|| project.root.join("fixtures")).join(super::test_cases::FILE);
     let Ok(text) = std::fs::read_to_string(&path) else { return vec![]; };
     let mut notes = Vec::new();
+    let now = snapback4_core::now_ms();
     for (index, line) in text.lines().enumerate() {
         let line = line.trim();
         if line.is_empty() || line.starts_with("//") { continue; }
@@ -137,8 +140,9 @@ fn fixture_notes(project: &Project, bound: &Bound, fixture: Option<&String>) -> 
             let case = case.as_ref().map_err(|e| e.to_string())?;
             let op = case["op"].as_str().ok_or("case needs op")?;
             let program = &bound.programs.iter().find(|p| p.program.name == op).ok_or_else(|| format!("unknown operation {op}"))?.program;
-            let empty = serde_json::json!({});
-            let args = case.get("args").unwrap_or(&empty).as_object().ok_or("args must be an object")?;
+            let mut args = super::test_cases::literal_escapes(case.get("args").cloned().unwrap_or_else(|| serde_json::json!({})));
+            super::test_fixture::argument_times(&program.args, &mut args, now)?;
+            let args = args.as_object().ok_or("args must be an object")?;
             for (name, kind) in &program.args {
                 if !args.contains_key(name) && !kind.is_optional() && !matches!(kind, ArgType::Cursor) { return Err(format!("{op}: missing argument {name}")); }
             }
@@ -154,8 +158,9 @@ fn fixture_notes(project: &Project, bound: &Bound, fixture: Option<&String>) -> 
         if let Err(reason) = check() {
             // An authored refusal expectation may deliberately supply values
             // outside the operation's accepted input domain.
-            if expects_refusal { continue; }
-            notes.push(Diagnostic::new(&Site::new(&path.to_string_lossy(), index as u32 + 1, 1), "N_FIXTURE_ARGUMENT_DRIFT", reason,
+            let time_error = reason.contains("E_FIXTURE_TIME:");
+            if expects_refusal && !time_error { continue; }
+            notes.push(Diagnostic::new(&Site::new(&path.to_string_lossy(), index as u32 + 1, 1), if time_error { "E_FIXTURE_TIME" } else { "N_FIXTURE_ARGUMENT_DRIFT" }, reason,
                 "update this case's arguments to the operation's current signature; run snapback4 test").guide("testing"));
         }
     }

@@ -12,6 +12,13 @@ import { createApp } from "../dist/app.js";
 import { keepSession, restoreSession, sessionKey } from "../dist/auth.js";
 import { storeKey } from "../dist/app-storage.js";
 
+// Exercise the real injected adapter without loading native Expo modules.
+const adapter = ts.transpileModule(readFileSync(new URL("../../snapback4-expo/src/session-store.ts", import.meta.url), "utf8"), {
+  compilerOptions: {target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext},
+}).outputText;
+const {secureStoreSessionStore} = await import(`data:text/javascript;base64,${Buffer.from(adapter).toString("base64")}`);
+const secureModule = held => ({getItemAsync: held.store.get, setItemAsync: held.store.set, deleteItemAsync: held.store.delete});
+
 const mutation = { kind: "mutation", name: "write" };
 const url = "https://app.invalid";
 const session = principal => ({ principal, token: "token-" + principal, kind: "user", expiresAt: Date.now() + 7 * 86400000 });
@@ -45,9 +52,9 @@ function generated(t, held, fetcher, address = url) {
     }
     if (name === "expo-sqlite/kv-store") return { default: { getItemSync: held.intentStore.getItem, setItemSync: held.intentStore.setItem, removeItemSync: held.intentStore.removeItem } };
     if (name === "react-native") return { Platform: { OS: "ios" } };
-    if (name === "expo-secure-store") return { getItemAsync: held.store.get, setItemAsync: held.store.set, deleteItemAsync: held.store.delete };
+    if (name === "expo-secure-store") return secureModule(held);
     if (name === "snapback4/app") return { createApp: options => createApp({ ...options, fetch: fetcher }) };
-    if (name === "snapback4-expo") return { nativeAvailable: () => false };
+    if (name === "snapback4-expo") return { nativeAvailable: () => false, secureStoreSessionStore };
     if (name === "snapback4/witness-web") return { registerWebWitness: () => () => {} };
     if (name === "snapback4-expo/witness") return { smokeOrigin: fallback => fallback };
     return {};
@@ -104,8 +111,8 @@ test("generated SecureStore separates formerly colliding backend session keys", 
   await a.ready; await a.auth.login("alice", "password"); await a.close();
   const b = generated(t, held, wire.fetcher, bUrl);
   await b.ready; assert.equal(b.auth.state, "signed-out");
-  assert.equal((await restoreSession(aUrl, held.store)).principal, "alice");
-  assert.equal(await restoreSession(bUrl, held.store), null);
+  assert.equal((await restoreSession(aUrl, secureStoreSessionStore(secureModule(held)))).principal, "alice");
+  assert.equal(await restoreSession(bUrl, secureStoreSessionStore(secureModule(held))), null);
   assert.notEqual(sessionKey(aUrl), sessionKey(bUrl));
   const segments = ["a!b", "a~b", "a*b", "a'b", "a(b", "a)b", "user:01ABC", "user_3A01ABC", "ab", "慢", "\ud800", "\ufffd"];
   assert.equal(new Set(segments.map(value => storeKey("writes", url, value))).size, segments.length);

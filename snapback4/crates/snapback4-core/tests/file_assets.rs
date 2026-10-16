@@ -173,3 +173,34 @@ fn the_ledger_keeps_the_name_across_reopen_and_older_stores_gain_the_column() {
     drop(e);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn shared_immutable_evidence_refs_preserve_home_authorization_and_lifetime() {
+    // Execute the actual published recipe; snapshots carry row refs, not second asset placements.
+    let guide = include_str!("../../snapback4-lang/src/guide/asset_sharing.md");
+    let source = guide.split("```quarry\n").nth(1).unwrap().split("```").next().unwrap();
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut e = Engine::memory(bound.schema, bound.programs.into_iter().map(|p|p.program)).unwrap();
+    let upload = e.store_file("alice", PDF, Some("application/pdf"), "evidence.pdf", 0).unwrap();
+    let write = |e: &mut Engine, viewer: &str, op: &str, arg: &str, value: Value, id: &str, at: i64| {
+        e.mutate(op, None, Context::new(viewer, BTreeMap::from([(arg.into(), value)])).with_ids([id.to_owned()]).at(at)).unwrap().state
+    };
+    let home = sent(&write(&mut e, "alice", "captureEvidence", "document", handle(&upload.id), "home", 1));
+    let id = home.field("id").unwrap().clone();
+    assert!(e.asset_access("alice", &upload.id, 2).is_ok());
+    assert!(e.asset_access("service:scanner", &upload.id, 2).is_ok());
+    assert_eq!(e.asset_access("bob", &upload.id, 2).unwrap_err().code(), "E_ASSET_UNKNOWN");
+    assert_eq!(refused(&write(&mut e,"alice","shareSnapshot","source",id.clone(),"pending",3)),"NOT_SCANNED");
+    assert_eq!(refused(&write(&mut e,"bob","approveScan","source",id.clone(),"forged",4)),"NOT_SCANNER");
+    // Approval deliberately trusts the scanner seat; SHA verification belongs to its adapter.
+    sent(&write(&mut e,"service:scanner","approveScan","source",id.clone(),"clean",5));
+    assert!(e.asset_access("bob", &upload.id, 6).is_ok());
+    let snapshot = sent(&write(&mut e,"alice","shareSnapshot","source",id.clone(),"snapshot-a",7));
+    sent(&write(&mut e,"bob","shareSnapshot","source",id.clone(),"snapshot-b",8));
+    sent(&write(&mut e,"alice","removeSnapshot","snapshot",snapshot.field("id").unwrap().clone(),"remove-ref",9));
+    assert!(e.asset_access("bob", &upload.id, 10).is_ok(), "deleting a ref cannot release its home");
+    assert_eq!(refused(&write(&mut e,"alice","captureEvidence","document",handle(&upload.id),"duplicate",11)),"E_ASSET_PLACED");
+    sent(&write(&mut e,"service:scanner","removeEvidence","source",id,"remove-home",12));
+    assert_eq!(e.asset_access("bob", &upload.id, 13).unwrap_err().code(), "E_ASSET_UNKNOWN", "remaining refs cannot grant bytes after home deletion");
+}

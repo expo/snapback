@@ -1,0 +1,27 @@
+[
+  {
+    "args": [
+      "--version"
+    ],
+    "code": 0,
+    "stdout": "snapback4 0.4.29\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "test"
+    ],
+    "code": 0,
+    "stdout": "test: loaded 0 rows from /tmp/surf3-baseline-7nyzk9c6/fixtures in 0.0 s\ntest: cases from test.cases.jsonl\n      ok   test.cases.jsonl:1 clock (alice) \u2192 complete\ntest: operation (persona)          examined  entries   probes    steps     heap B   output B\n      ceilings                         8192    16384     8192  1000000   16777216    1048576\n      clock (alice)                       0        0        0        2          0         21  complete in 0.0 ms {\"at\":1792156865923} (from test.cases.jsonl:1)\ntest: 1 complete, 0 capped, 0 refused as your cases expect, 0 probe refusals on derived arguments (expected), 0 not run, 0 denied; cases: 1 passed, 0 failed \u2014 pass\n",
+    "stderr": "test: using /tmp/surf3-baseline-7nyzk9c6/fixtures (default fixture directory; override with --fixture <dir>)\n"
+  },
+  {
+    "args": [
+      "check",
+      "--json"
+    ],
+    "code": 0,
+    "stdout": "{\"acquisition\":null,\"fieldAuthority\":[],\"followingHistory\":[],\"heldQueries\":[],\"ms\":2,\"native\":null,\"notes\":[{\"code\":\"N_NO_PRODUCTION_WRITER\",\"guide\":\"deploy\",\"mechanical\":false,\"message\":\"persona-only: safe to ignore without `use identity`; no production identity\",\"rewrite\":\"safe to ignore without `use identity`; when moving to production, add use identity password, map roles and relationships to account principals, and provision the first admin; snapback4 guide deploy --section first admin\",\"site\":{\"col\":1,\"file\":\"schema\",\"line\":1}},{\"code\":\"N_FIXTURE_ARGUMENT_DRIFT\",\"guide\":\"testing\",\"mechanical\":false,\"message\":\"at: expected a time in milliseconds, got a string\",\"rewrite\":\"update this case's arguments to the operation's current signature; run snapback4 test\",\"site\":{\"col\":1,\"file\":\"/tmp/surf3-baseline-7nyzk9c6/fixtures/test.cases.jsonl\",\"line\":1}}],\"ok\":true,\"operations\":1,\"plans\":null,\"predictionSummary\":null,\"residency\":null,\"rowViews\":[],\"scale\":null,\"scaleSummary\":\"scale: 1 of 1 operations are constant; 0 grow with data \u2014 `check --cost` gives the certificate\",\"search\":[],\"sequences\":[],\"starterLeftovers\":null,\"synced\":0,\"tables\":0,\"views\":0}\n",
+    "stderr": ""
+  }
+]

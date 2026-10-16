@@ -94,10 +94,19 @@ fn success(out: Output) -> String {
 fn token(out: Output) -> String {
     let stderr = String::from_utf8_lossy(&out.stderr).into_owned();
     let output = success(out);
-    assert_eq!(output.len(), 44); assert_eq!(&output[43..], "\n");
-    let token = output.trim_end().to_owned();
-    assert!(!stderr.contains(&token)); assert!(stderr.contains("printed once") && stderr.contains("store.sqlite"));
-    token
+    if output.starts_with('{') {
+        let record: Value = serde_json::from_str(&output).unwrap();
+        assert_eq!(stderr, "");
+        assert!(record["store"].as_str().unwrap().contains("store.sqlite"));
+        assert!(record["expiresAt"].as_i64().unwrap() > snapback4_core::now_ms());
+        let token = record["token"].as_str().unwrap(); assert_eq!(token.len(),43);
+        token.to_owned()
+    } else {
+        assert_eq!(output.len(), 44); assert_eq!(&output[43..], "\n");
+        let token = output.trim_end().to_owned();
+        assert!(!stderr.contains(&token)); assert!(stderr.contains("printed once") && stderr.contains("store.sqlite"));
+        token
+    }
 }
 fn request(address: SocketAddr, host: SocketAddr, path: &str, headers: &str, body: &str) -> (u16, Value) {
     let mut socket = TcpStream::connect_timeout(&address, Duration::from_secs(3)).unwrap();

@@ -1192,7 +1192,7 @@ fn upload_disk_work_is_bounded_and_does_not_hold_the_query_engine() {
 #[test]
 fn opening_a_development_project_protects_its_data_directory_and_store() {
     use std::os::unix::fs::PermissionsExt;
-    let id = snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).unwrap();
+    let id = snapback4_core::ids::mint(snapback4_core::now_ms(), &mut snapback4_core::ids::Mint::default()).unwrap();
     let project = Project {
         root: std::env::temp_dir().join(format!("snapback4-http-permissions-{id}")),
     };

@@ -1,4 +1,5 @@
 // @ref LLP 3000.013#6 — exported static files are the offline shell; API and replica data never enter this cache.
+import { synopsis } from "./cli-usage.js";
 import { createHash } from "node:crypto";
 import { readdir, readFile, writeFile, lstat } from "node:fs/promises";
 import { join, resolve } from "node:path";
@@ -97,15 +98,15 @@ self.addEventListener("fetch", event => {
 
 export async function runWebShell(args) {
   if (args.includes("--help") || args.includes("-h")) {
-    console.log("usage: snapback4 web-shell <dir> [--base /]\nInstall an offline service worker for a static web export. Run after exporting the app (for example, snapback4 web-shell dist).");
+    console.log(`usage: ${synopsis("web-shell")}\nInstall an offline service worker for a static web export. Run after exporting the app (for example, snapback4 web-shell dist).`);
     return;
   }
   const directory = args.shift();
   let base = "/";
   if (args[0] === "--base" && args.length === 2) base = args[1];
   else if (args.length === 1 && args[0].startsWith("--base=")) base = args[0].slice(7);
-  else if (args.length) throw Error("usage: snapback4 web-shell <dir> [--base /]");
-  if (!directory || directory.startsWith("--")) throw Error("usage: snapback4 web-shell <dir> [--base /]");
+  else if (args.length) throw Error(`usage: ${synopsis("web-shell")}`);
+  if (!directory || directory.startsWith("--")) throw Error(`usage: ${synopsis("web-shell")}`);
   const result = await webShell(directory, base);
   console.log(`web-shell: ${result.files} files at ${result.base}; wrote ${workerName}`);
 }

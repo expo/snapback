@@ -77,3 +77,9 @@ open Quarry
 #print axioms Quarry.Wave12DeviceQueue.nested_spends_fit
 
 #print axioms Rule.eval_viewer_component
+
+#print axioms Quarry.Mint.same_or_rollback_order
+
+#print axioms Quarry.Mint.advanced_clock_order
+
+#print axioms Quarry.Mint.nonpositive_host_clock_normalizes

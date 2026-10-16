@@ -118,6 +118,7 @@ impl Engine {
             dev_effects: false,
             ceilings: Ceilings::default(),
             entropy: crate::ids::seed(),
+            minter: crate::ids::Mint::default(),
             #[cfg(feature = "native")]
             native: None,
             #[cfg(feature = "native")]

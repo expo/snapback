@@ -257,6 +257,7 @@ const NATIVE_DIGEST: &str = "device:native:digest";
 const NATIVE_GENERATION: &str = "device:native:generation";
 
 pub struct Device<S: DeviceStore> {
+    minter: snapback4_core::ids::Mint,
     pub(crate) preserved: Option<Vec<String>>,
     pub(crate) settlement_unchanged: bool,
     store: S,
@@ -538,7 +539,7 @@ impl<S: DeviceStore> Device<S> {
             clear_native(&mut store)?;
         }
         let store_identity = store.meta(STORE_ID)?;
-        Ok(Self { preserved: None, settlement_unchanged: false, delivery_now: 0, read_scopes: RefCell::new(serde_json::Value::Null),
+        Ok(Self { minter: snapback4_core::ids::Mint::default(), preserved: None, settlement_unchanged: false, delivery_now: 0, read_scopes: RefCell::new(serde_json::Value::Null),
             store,
             schema: backend.schema,
             programs: snapback4_core::small_map::collect(backend.programs.into_iter().map(|p| (p.name.clone(), p))),
@@ -1051,7 +1052,7 @@ impl<S: DeviceStore> Device<S> {
         let tx = self.store.transaction()?;
         store_identity::require_owner(&tx, &self.backend_identity, &self.store_identity, self.native_digest.as_deref())?;
         require_acquired(&tx, &self.schema, &program)?;
-        let context = Context::new(viewer, media::inputs(&tx, &program, viewer, args)?).at(expiry_clock::now(&tx, now)?).with_generation(self.generation).with_ids(new_ids).with_entropy(entropy.max(1));
+        let context = Context::new(viewer, media::inputs(&tx, &program, viewer, args)?).at(expiry_clock::now(&tx, now)?).with_generation(self.generation).with_ids(new_ids).with_entropy(entropy.max(1)).with_minter(self.minter.clone());
         let predicting = Predicting { tx: &tx, schema: &self.schema, groups: history::load(&tx, history::GROUPS)?, boundaries: boundary::Boundaries::load(&tx, false)?, written: RefCell::new(Vec::new()) };
         match local::predict(&predicting, &self.schema, &program, context, Ceilings::default()) {
             Ok(prediction) => {
@@ -1149,7 +1150,7 @@ impl<S: DeviceStore> Device<S> {
         if entry.upload.is_some() { upload::validate(&tx, &mut entry, &self.programs)?; entry.predictable = false; }
         if entry.predictable {
             tx.savepoint("admit")?;
-            match predictions::run(&tx, &self.schema, program.unwrap(), &entry) {
+            match predictions::run_with_minter(&tx, &self.schema, program.unwrap(), &entry, self.minter.clone()) {
                 Ok((predicted, new_ids)) => {
                     entry.predicted = predicted;
                     entry.new_ids = new_ids;

@@ -743,3 +743,16 @@ test('principal-sharing invitation UI compiles against its actual generated prod
     assert.deepEqual(result.codes,[],result.text);
   } finally {rmSync(dir,{recursive:true,force:true});}
 });
+
+test('device-less identity options require a store while persona and device forms remain explicit', () => {
+  const missing = check(`import { createApp } from './src/app.ts'; createApp({url:'http://localhost:4400'});`);
+  assert.deepEqual(missing.codes, [2345], missing.text);
+  const valid = check(`import { createApp } from './src/app.ts'; import { localStorageSessionStore, memorySessionStore } from './src/auth.ts';
+    createApp({url:'http://localhost:4400', sessionStore: localStorageSessionStore()});
+    createApp({url:'http://localhost:4400', sessionStore: memorySessionStore()});
+    createApp({url:'http://localhost:4400', persona:'alice'});
+    createApp({url:'http://localhost:4400', readOnly:true});
+    declare const device: import('./src/local.ts').DeviceOpener;
+    createApp({url:'http://localhost:4400', device});`);
+  assert.deepEqual(valid.codes, [], valid.text);
+});

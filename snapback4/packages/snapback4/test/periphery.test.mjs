@@ -15,6 +15,11 @@ import vm from "node:vm";
 import ts from "typescript";
 import { processDevice } from "../dist/native.js";
 
+const adapter = ts.transpileModule(readFileSync(new URL("../../snapback4-expo/src/session-store.ts", import.meta.url), "utf8"), {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+}).outputText;
+const { secureStoreSessionStore } = await import(`data:text/javascript;base64,${Buffer.from(adapter).toString("base64")}`);
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
 const read = (file) => readFileSync(file, "utf8");
@@ -46,7 +51,7 @@ for (const mode of ["dev", "serve"]) test(`${mode}: offline and live piped token
   }
   if (mode === "dev") run("test", "--residency");
   const releaseFlags = mode === "serve" ? ["--release", release] : [];
-  const mint = phase => [[], ["--days", "1"], ["--days=2", "--service=worker"], ["--json"]]
+  const mint = phase => [[], ["--days", "1"], ["--days=2", "--service=worker"], ["--quiet"], ["--json"]]
     .map(flags => ({ phase, flags, minted: run("token", "--service", "worker", ...releaseFlags, ...flags) }));
   const tokens = mint("offline");
   const invalid = invoke("token", "--service", "bad name", ...releaseFlags);
@@ -82,16 +87,24 @@ for (const mode of ["dev", "serve"]) test(`${mode}: offline and live piped token
     };
     tokens.push(...mint("live"));
     for (const { phase, flags, minted } of tokens) {
-      const match = minted.stdout.match(/^([A-Za-z0-9_-]{43})\n$/);
-      assert.ok(match, "stdout must contain only the base64url token and one newline");
-      const token = match[1];
-      assert.equal(minted.stdout, `${token}\n`);
-      const [status, ownership, end] = minted.stderr.split("\n");
-      assert.match(status, /^token: a session for service:worker until \d+ — printed once; keep it where the worker keeps secrets$/);
       const store = mode === "serve" ? join(release, "store.sqlite") : realpathSync(join(dir, ".snapback4/store.sqlite"));
-      assert.equal(ownership, `store: ${store} — this token belongs only to this store; each isolated store needs its own`);
-      assert.equal(end, "");
-      assert.equal(minted.stderr.split("\n").length, 3);
+      let token;
+      if (flags.includes("--json")) {
+        const record=JSON.parse(minted.stdout);token=record.token;
+        assert.equal(record.principal,"service:worker");assert.equal(record.store,store);assert.ok(record.expiresAt>Date.now());
+        assert.equal(minted.stderr,"");
+      } else {
+        const match = minted.stdout.match(/^([A-Za-z0-9_-]{43})\n$/);
+        assert.ok(match, "stdout must contain only the base64url token and one newline");
+        token=match[1];
+        if (flags.includes("--quiet")) assert.equal(minted.stderr,"");
+        else {
+          const [status, ownership, end] = minted.stderr.split("\n");
+          assert.match(status, /^token: a session for service:worker until \d+; printed once; keep it where the worker keeps secrets$/);
+          assert.equal(ownership, `store: ${store}; this token belongs only to this store; each isolated store needs its own`);
+          assert.equal(end, ""); assert.equal(minted.stderr.split("\n").length, 3);
+        }
+      }
       assert.ok(!minted.stderr.includes(token), "the token is printed only once");
       const { session } = await post("/auth/session", token, { principal: "member:captured", kind: "member", days: 1 });
       assert.equal(session.principal, "member:captured");
@@ -652,12 +665,18 @@ test("processDevice defaults to Node spawn and file writing in a new directory",
 });
 
 
-test("Expo starter selects web, native and online app devices with explicit session stores", (t) => {
+test("Expo starter selects web, native and online app devices with explicit session stores", async (t) => {
   const { dir, run } = fixture(t);
   run("init", "--expo");
   const compiled = ts.transpileModule(read(join(dir, "src/client.ts")), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
   for (const [platform, native, tier] of [["web", false, "web"], ["ios", true, "native"], ["ios", false, "online"]]) {
     const nativeDevice = {}, webDevice = {}, webStore = {};
+    const sessions = new Map();
+    const secureStore = {
+      getItemAsync: async key => sessions.get(key) ?? null,
+      setItemAsync: async (key, value) => { assert.match(key, /^[\w.-]+$/); sessions.set(key, value); },
+      deleteItemAsync: async key => { sessions.delete(key); },
+    };
     let options;
     const context = { exports: {}, process: { env: {} }, URLSearchParams, window: { location: { search: "" } }, require: name => {
       if (name === "./intents") {
@@ -672,7 +691,8 @@ test("Expo starter selects web, native and online app devices with explicit sess
       if (name === "snapback4/auth") return { localStorageSessionStore: () => webStore };
       if (name === "snapback4/web") return { webDevice: () => webDevice };
       if (name === "snapback4-expo/witness") return { smokeOrigin: fallback => fallback };
-      if (name === "snapback4-expo") return { nativeAvailable: () => native, nativeDevice };
+      if (name === "snapback4-expo") return { nativeAvailable: () => native, nativeDevice, secureStoreSessionStore };
+      if (name === "expo-secure-store") return secureStore;
       return {};
     } };
     vm.runInNewContext(compiled, context);
@@ -680,7 +700,12 @@ test("Expo starter selects web, native and online app devices with explicit sess
     assert.equal(options.device, tier === "web" ? webDevice : native ? nativeDevice : undefined);
     assert.ok(options.sessionStore);
     if (tier === "web") assert.equal(options.sessionStore, webStore);
-    else assert.equal(typeof options.sessionStore.get, "function");
+    else {
+      await options.sessionStore.set("https://backend.test/session", "kept-session");
+      assert.equal(await options.sessionStore.get("https://backend.test/session"), "kept-session");
+      await options.sessionStore.delete("https://backend.test/session");
+      assert.equal(await options.sessionStore.get("https://backend.test/session"), null);
+    }
   }
 });
 

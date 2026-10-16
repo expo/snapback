@@ -205,7 +205,7 @@ fn live_dev_forwards_run_refuses_other_offline_writers_with_its_address_and_rele
         let conn = p.conn(); conn.execute_batch("BEGIN IMMEDIATE").unwrap();
         let inspected = p.run(&["data", "items", "--json"]);
         assert!(inspected.status.success(), "{inspected:?}");
-        let rows: Vec<serde_json::Value> = String::from_utf8_lossy(&inspected.stdout).lines().map(|line| serde_json::from_str(line).unwrap()).collect();
+        let rows: Vec<serde_json::Value> = serde_json::from_slice(&inspected.stdout).unwrap();
         assert_eq!(rows.len(), 2); assert_eq!(rows[0]["n"], 1, "the forwarded backfill ran on the live host");
         conn.execute_batch("ROLLBACK").unwrap();
         drop(host);

@@ -64,7 +64,7 @@ export interface App {
 }
 /** Local configuration (including assets and waitSeconds) applies only with a
  * device; the online tier ignores it. Identity is owned by app.auth. */
-export interface AppOptions extends Omit<LocalOptions, "device" | "persona" | "session" | "guest"> {
+interface AppConfiguration extends Omit<LocalOptions, "device" | "persona" | "session" | "guest"> {
   readonly readOnly?: boolean;
   readonly device?: DeviceOpener | undefined;
   /** A development persona for loopback `snapback4 dev` only: the app acts as
@@ -81,6 +81,17 @@ export interface AppOptions extends Omit<LocalOptions, "device" | "persona" | "s
    * apps acquire their browser journal storage internally. */
   readonly writes?: "online";
 }
+
+/** Device-less identity apps need explicit session persistence. TypeScript cannot
+ * infer the runtime host: use memorySessionStore() explicitly on server hosts.
+ * Browsers require localStorageSessionStore() for their durable write journal. */
+// @ref LLP 3000.013#6.10 — explicit persistence is part of device-less identity construction.
+export type AppOptions = AppConfiguration & (
+  | { readonly sessionStore: SessionStore }
+  | { readonly device: DeviceOpener }
+  | { readonly persona: string }
+  | { readonly readOnly: true }
+);
 
 function problem(error: unknown): Refusal {
   if (error instanceof DeviceVersionError) return error.why;

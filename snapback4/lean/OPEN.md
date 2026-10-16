@@ -447,6 +447,10 @@ rule hides?**
 **W5. Where do new ids come from?**
 - *Model:* an insert needs an explicit `id`. The emitter or harness supplies
   minted ids, from the corpus's `new_ids` or the generator's `id: key`.
+- *Monotonic mint contexts (2026-10-16, LLP 3000.000.001):* the supplemental
+  `Quarry.Mint` model covers numeric ULID allocation, same/regressed-clock
+  order and overflow. The row interpreter treats supplied identities as opaque;
+  it does not simulate host randomness or promise order across mint contexts.
 
 **W6. Which write constraints are not modelled?**
 - Immutable columns, caps, `after insert`, field authority, sequences,

@@ -1,7 +1,7 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub(super) const CARD: &str = r##"# Writes
 
-Mutations change rows atomically, enforcing rules and constraints.
+Mutations change rows atomically.
 
 ```quarry
 mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: text <=4000):
@@ -14,19 +14,16 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
   return { a: a.id, b }
 ```
 
-`insert` creates a row; `if absent` returns null on a readable key collision.
-`update` patches; `if` tests the old row.
-`upsert` inserts/patches; `delete` removes the row: NOT_FOUND when absent
-(guard with `if exists t[id]:`); references obey `on delete` (recipes).
-Omitted optional arguments are null. `{ c: x }` clears `c` when `x` is omitted; `x ?? row.c` keeps it (Details).
-Write results contain omitted optional columns as null and defaults as values;
-updates retain unchanged fields. These fields add no prediction dependency.
-Owned/sequence/receipt fields keep their projection and settlement rules.
-E_MAINTAINED_COLUMN_RESULT requires an authorized reread for maintained columns.
-Refusals roll back the mutation. Mutation writes pass table rules as the caller;
-helpers obey them too. Only jobs run as the system.
-Insert variables keep insert images after updates; reread for final images (null if hidden).
-Retry an intent with its minted write id.
+`insert` creates rows; `if absent` returns null on readable collisions.
+`update` patches; `if` tests the old row; `upsert` inserts/patches.
+`delete` refuses NOT_FOUND when absent (guard `if exists t[id]:`); references obey `on delete`.
+Omitted optionals are null: `{ c: x }` clears `c` for omitted `x`; `x ?? row.c` preserves it.
+Results materialize nulls/defaults; updates retain unchanged fields, without prediction dependencies.
+Owned/sequence/receipt fields retain projection/settlement rules.
+E_MAINTAINED_COLUMN_RESULT requires an authorized maintained-column reread.
+Refusals roll back mutations. Caller rules govern writes/helpers; only jobs run as the system.
+Insert variables retain insert images; reread final images (null if hidden).
+Retry with the intent's minted write id.
 
 Receipt gaps: `guide sequences`.
 
@@ -42,7 +39,7 @@ Receipt gaps: `guide sequences`.
 Mutations insert, update and delete rows in one transaction.
 Rules and constraints apply before that transaction commits.
 
-Here an omitted or null `dose` keeps the stored value; only `clear: true` clears it:
+Omitted/null `dose` preserves the value; only `clear: true` clears it:
 
 ```quarry
 table doses:
@@ -443,5 +440,27 @@ The projection is private; append `readable by audience` for shared receipts.
 Owners receive settled marks on every device, and held-row patches predict
 offline. E_FIELD_AUTHORITY names the owner: omit the field or write as that
 principal. See `guide rules` for the Clique membership recipe and private-field restrictions.
+
+## Optional references
+
+Validate supplied optional parents before writing:
+
+```quarry
+table folders:
+  owner: principal
+  read <- .owner = viewer
+table notes:
+  owner: principal
+  folder: folders ?
+  read <- .owner = viewer
+  insert <- .owner = viewer
+mutation createNote(folder: folders ?):
+  if folder != null:
+    parent = folders[folder] ! else FOLDER_NOT_FOUND
+    require parent.owner = viewer else FOLDER_FORBIDDEN
+  return insert notes { owner: viewer, folder }
+```
+
+Lookup obeys the caller's read rule; null skips validation.
 
 "##;

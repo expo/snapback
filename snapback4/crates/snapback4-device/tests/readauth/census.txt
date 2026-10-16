@@ -49,6 +49,11 @@ card/assets/3:addReceipt | eligible
 card/assets/3:addReceipt | receipts/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/assets/4:decide | never
 card/assets/4:fileClaim | never
+card/assets/5:approveScan | never
+card/assets/5:captureEvidence | never
+card/assets/5:removeEvidence | never
+card/assets/5:removeSnapshot | never
+card/assets/5:shareSnapshot | never
 card/cheatsheet/1:addItem | eligible
 card/cheatsheet/1:addItem | items/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/cheatsheet/1:addItem | openItems/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
@@ -698,6 +703,7 @@ card/writes/4:send | never
 card/writes/5:addMember | never
 card/writes/5:createConversation | never
 card/writes/5:send | never
+card/writes/6:createNote | never
 package/CLIENT-AND-OPERATIONS/1:createProfile | never
 package/README/1:placeAvatar | eligible
 package/README/1:placeAvatar | profiles/update | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule

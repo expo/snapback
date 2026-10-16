@@ -1,0 +1,231 @@
+{
+  "date": "2026-10-16",
+  "branch": "sb4-w13-surf3",
+  "baseline": "59fb4ead1b",
+  "last_semantic_implementation": "09a1d55d8a",
+  "version_bumped": false,
+  "origin_pushed": false,
+  "mac_transport_only": "~/projects/snapback-ws-surf3",
+  "native_workspace": {
+    "command": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 SNAPBACK4_REQUIRE_LEAN=1 cargo test --workspace --no-fail-fast",
+    "crates": [
+      "snapback4",
+      "snapback4-core",
+      "snapback4-device",
+      "snapback4-native",
+      "snapback4-difftest",
+      "snapback4-lang",
+      "snapback4-sim"
+    ],
+    "status": "completed",
+    "initial_exit_code": 101,
+    "parent_targets": 401,
+    "initial_pass": 6301,
+    "initial_fail": 15,
+    "initial_ignored": 45,
+    "initial_failed_targets": [
+      "-p snapback4 --test check",
+      "-p snapback4 --test cli_friction",
+      "-p snapback4 --test clock",
+      "-p snapback4 --test init",
+      "-p snapback4 --test run_admission",
+      "-p snapback4-device --test readauth",
+      "-p snapback4-difftest --test lean",
+      "-p snapback4-lang --test guide",
+      "-p snapback4-lang --test timeline_background"
+    ],
+    "initial_failures_repaired": true,
+    "claim": "Full default workspace run, plus passing affected reruns; initial nonzero exit is retained, not represented as a clean first run. Default-ignored stress and optional live-Postgres campaigns excluded."
+  },
+  "native_repaired_or_final_affected": {
+    "cli_unit": {
+      "passed": 446,
+      "ignored": 5
+    },
+    "check": 103,
+    "cli_friction": 40,
+    "clock": 35,
+    "latency": 21,
+    "dev_reset": 4,
+    "replay": 24,
+    "run_admission": 28,
+    "token_live": 22,
+    "init": 50,
+    "readauth": 88,
+    "lean_integration": 45,
+    "full_latest_difftest": 94,
+    "timeline_background": 17,
+    "mint_unit": 6,
+    "final_registry_unit": 2,
+    "guide_cards": 125,
+    "file_assets": 7
+  },
+  "client_pool": {
+    "command": "node scripts/run-client-tests.mjs 8 files <all non-model client test files>",
+    "files_completed": 401,
+    "initial_failed_files": 14,
+    "initial_tests": 7542,
+    "initial_pass": 7461,
+    "initial_fail": 25,
+    "initial_skipped": 56,
+    "repaired_files": [
+      "packages/snapback4/test/api-index.test.mjs",
+      "packages/snapback4/test/app-storage.test.mjs",
+      "packages/snapback4/test/event-slot-capability.test.mjs",
+      "packages/snapback4/test/event-slots.test.mjs",
+      "packages/snapback4/test/generated-effect-opt-in.test.mjs",
+      "packages/snapback4/test/generated-effect-context.test.mjs",
+      "packages/snapback4/test/delivery-fault-matrix.test.mjs",
+      "packages/snapback4/test/periphery.test.mjs",
+      "packages/snapback4/test/readme-examples.test.mjs",
+      "packages/snapback4/test/release-activation.test.mjs",
+      "packages/snapback4/test/social-starter.test.mjs",
+      "packages/snapback4/test/wave12-surface.test.mjs",
+      "packages/snapback4/test/server-e2e.test.mjs",
+      "packages/snapback4/test/export-maintenance-wakeup.test.mjs"
+    ],
+    "all_initial_failures_have_passing_affected_reruns": true,
+    "delivery_matrix_note": "All initial functional matrix cases passed; failed source-boundary guard rerun passed after classifying proof-only awaits. No delivery site added.",
+    "full_serial_models": {
+      "files": 2,
+      "tests": 81,
+      "pass": 81
+    },
+    "final_discovery_clients": {
+      "files": 3,
+      "pass": 15
+    }
+  },
+  "difftests": {
+    "native_fixed_seeds": 32,
+    "device_fixed_seeds": 40,
+    "device_stores": [
+      "memory",
+      "sqlite"
+    ],
+    "lean_campaign_cases": 400,
+    "lean_retained_classified": 4,
+    "lean_retained_resolved": 24,
+    "complete_lean_file_pass": 45,
+    "new_signatures": 0,
+    "allowlist_or_generator_or_found_cases_changed": false,
+    "mint_order_regression": true
+  },
+  "fixture_agreement": {
+    "baseline_version": "0.4.29",
+    "baseline_test_passes_check_emits_drift": true,
+    "baseline_evidence": "baseline-fixture-agreement.json",
+    "passing_census_schemas": 100,
+    "census_drift_notes": 0,
+    "census_evidence": "fixture-census.json",
+    "evidence_lanes_modified": false
+  },
+  "lean_model_audit": {
+    "theorems": 76,
+    "examples": 115,
+    "oracle_fixtures": 7,
+    "pass": true
+  },
+  "wasm": {
+    "raw_bytes": 2354702,
+    "gzip_bytes": 717039,
+    "brotli_bytes": 541719,
+    "baseline_gzip_bytes": 716714,
+    "gzip_budget": 717214,
+    "headroom_bytes": 175,
+    "budget_raised": false,
+    "strict_family_and_absence_audit": "PASS",
+    "metric_dirty": true,
+    "dirty_scope": "Measured core/device source frozen at 09a1d55d8a; dirty files were unrelated CLI formatting and qualification/documentation updates.",
+    "metrics": "../../metrics/wasm.jsonl"
+  },
+  "mac": {
+    "host": "charlies-macbook-pro-m5max-black",
+    "platform": "Darwin arm64",
+    "node": "25.9.0",
+    "scratch": "~/projects/snapback-ws-surf3",
+    "affected_rust_targets_pass": {
+      "cli_unit": 438,
+      "ignored_unit": 5,
+      "clock": 35,
+      "latency": 21,
+      "cli_friction": 40,
+      "dev_reset": 4,
+      "replay": 24,
+      "run_admission": 28,
+      "token_live": 22
+    },
+    "old_cli_friction_expectation_repaired_and_full_file_pass": 40,
+    "initial_affected_clients": {
+      "files": 9,
+      "tests": 127,
+      "pass": 126,
+      "fail": 1
+    },
+    "securestore_stub_repair_full_periphery_pass": 28,
+    "final_pubfix_and_maintenance_clients": {
+      "files": 2,
+      "pass": 28
+    },
+    "final_bounded_writer_source": "252696bbb3",
+    "final_registry_pass": 2,
+    "final_clock_pass": 35,
+    "negative_clock_source": "09a1d55d8a",
+    "negative_mint_pass": 6,
+    "negative_timeline_pass": 17,
+    "negative_actual_wasm_pass": 3,
+    "publication_clones_touched": false
+  },
+  "required_checks": {
+    "ref_check": {
+      "pass": true,
+      "llp_docs": 550,
+      "refs": 11935,
+      "errors": 0
+    },
+    "docs_budget": {
+      "pass": true,
+      "readme_lines": 317,
+      "readme_limit": 320
+    },
+    "six_card_words": {
+      "words": 12792,
+      "limit": 12810
+    },
+    "root_inventories": "PASS",
+    "root_guide": {
+      "pass": 22,
+      "fail": 0,
+      "preconditions": 0
+    },
+    "root_frozen_bun_install_and_hoist": "PASS"
+  },
+  "reviews": {
+    "full_scope": [
+      "../../../llp/reviews/3000.000.000.000.000-surf3-r3.codex.md",
+      "../../../llp/reviews/3000.000.000.000.000-surf3-r2.muse.md"
+    ],
+    "discovery_contract": [
+      "../../../llp/reviews/3000.000.000.000.000-surf3-memory-r5.codex.md",
+      "../../../llp/reviews/3000.000.000.000.000-surf3-memory-r5.muse.md"
+    ],
+    "bounded_writer": [
+      "../../../llp/reviews/3000.000.000.000.000-surf3-memory-bound.codex.md",
+      "../../../llp/reviews/3000.000.000.000.000-surf3-memory-bound.muse.md"
+    ],
+    "negative_host_clock": [
+      "../../../llp/reviews/3000.000.001-surf3-negative-host.codex.md",
+      "../../../llp/reviews/3000.000.001-surf3-negative-host.muse.md"
+    ],
+    "all_final_verdicts": "READY"
+  },
+  "limits": [
+    "No optional live-Postgres campaign; optional core Postgres compilation passed.",
+    "Default-ignored stress campaigns excluded.",
+    "Worker executable-replacement issue is inherited, separately tracked; unchanged server-e2e passes9/9 with stable executable.",
+    "Legacy Contract acceptance needs Snapback1 Ibex runtime; required root generated-artifact/inventory/guide checks passed.",
+    "One preliminary reviewer unconfigured Cargo compile was stopped before CLI relink; no test result or approval claimed."
+  ],
+  "inherited_followup": "../../../issues/20261016-snapback4-worker-restart-after-executable-replacement.md",
+  "requested_implementation_deferrals": []
+}

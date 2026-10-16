@@ -32,7 +32,7 @@ fn repeated_identity_declarations_name_both_method_sets() {
     )]);
     assert_eq!(same_file.diagnostics.len(), 1, "{:?}", same_file.diagnostics);
     let diagnostic = &same_file.diagnostics[0];
-    assert_eq!(diagnostic.code, "E_QUARRY_SYNTAX");
+    assert_eq!(diagnostic.code, "E_QUARRY_IDENTITY_DUPLICATE");
     assert_eq!(diagnostic.site.line, 2);
     assert!(
         diagnostic.message.contains("password") && diagnostic.message.contains("guests"),

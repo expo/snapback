@@ -25,6 +25,7 @@ mod serve;
 mod dev_worker;
 mod dev_replay;
 mod dev_clock;
+mod dev_hosts;
 mod dev_reset;
 mod dev_clock_store;
 mod lifecycle;
@@ -42,55 +43,6 @@ mod supervisor;
 use snapback4_lang::guide;
 use std::process::ExitCode;
 
-const HELP: &str = "snapback4 — the scale-to-zero backend with a partition on every device
-
-  init [dir] [--online|--expo|--web [--online]]  start a project: a schema; --web a Vite + React todos app; --expo an Expo todos app; --online a schema and an online client
-       [--template chat] [--port N] [--web-port N] [--skip-existing]  --web or --expo with --template chat: the full reference chat app; --port: the backend port the client calls; --web-port: the Vite page's port (default: the next port); --skip-existing: keep existing files, write only missing ones
-  init [dir] --web --online        Vite + React, server reads and browser journal writes, no device
-  init [dir] --adapt [--dry-run|--apply]  preview or fit the starter init wrote to the schema written since: remove its unmodified todo fixtures (fixtures/ stays), rewrite its unmodified screen for the schema's sign-in and operations
-  new <dir> --template social|chat   social: Expo Router social starter (feed, chats, search, profile); chat: add --web or --expo
-  check [--cost|--residency|--fix|--json|--verbose] [--store path] [--fixture dir --as p]  compile snapback/*.q; check store adoption; write types; build native jobs; --verbose includes note explanations and redundant cascades
-  check --emit-lean <file.q>          print the checked file as the Lean model's case JSON (LLP 3000.035 §5.2; snapback4/lean); programs outside the model's fragment are listed with a reason
-  types                            compile and write snapback/generated/api.ts
-  dev [--port N|A-B] [--bind IP] [--no-watch] [--fresh|--memory] [--replay] [--hold-effects] [--hold-schedules] [--clock-offset +25h|--resume-clock] [--trace-empty] [long-wait flags]
-                                      --trace-empty: record unknown empty reads in why recent; --replay: suppress new effects and hold schedules; --hold-effects: pause claims, keep effects for later; serve on 127.0.0.1:4400, re-adopting on every save (--no-watch: never; restart to serve edits); --fresh/--memory: a store in memory that dies with this process
-  deploy <dir> [--schema file.q] [--check] [--restore-dormant] [--allow-feed-adoption]  a release: the compiled backend into <dir>/releases/N, current → N; running serve adopts
-  rollback <dir> [--to N|latest] [--check]  bare: previously active release; incompatible present values become dormant per row; --check previews without activating
-  prune <dir> [--allow-destructive] preview or explicitly drop dormant storage
-  releases <dir> [N|latest] [--after ID] [--items-after KEY] [--event ID]  inspect authoritative release history/storage
-  serve <dir> [--port N|A-B] [--bind IP] [--worker <path>] [long-wait flags]  serve HTTP on 127.0.0.1:4400 behind a TLS proxy; tokens only
-    --port N|A-B                    a port (0 chooses a free one) or the first free port in an inclusive range; stdout prints the real URL, stderr SNAPBACK4_READY
-    --i-understand-cleartext         required for a non-loopback bind; see README proxy contract
-  long-wait flags (dev and serve; SERVER.md \"Long-wait capacity\"):
-    --long-waits N                   viewers' held /changes?wait and /a/ calls (default 1024, max 4096; SNAPBACK4_LONG_WAITS)
-    --long-waits-per-principal N     held change polls one principal may hold (default 16; SNAPBACK4_LONG_WAITS_PER_PRINCIPAL)
-    --claim-waits N                  service workers' claim polls, a separate pool (default 32, max 1024; SNAPBACK4_CLAIM_WAITS)
-  run <op> [json] --as <persona|principal-id> [--port N] [--now <milliseconds|+duration>]   run one operation against the local store (a job runs whole, as the system); beside a live dev, forwarded to it as the persona; --port N: to the dev on that port (a dev --fresh)
-  web-shell <dir> [--base /]  install an offline shell for a static export (npm wrapper)
-  clock advance <duration> [--port N]  advance a running dev clock, sweep expiry and run due jobs
-  reset [--port N] [--seed <fixture dir|rows.json>] [--clock reset]  empty a running dev's store (POST /dev/reset): rows, views, queues, assets, accounts; a new store identity; reseed in the same transaction; personas and service seats stay
-  test [--source file.q] [--fixture dir] [--as p] [--residency [--verbose]]    load --fixture or ./fixtures when present, run every query, print the meters; --residency: acquisition report only; add --verbose to run queries and print meters
-  why <E_CODE | op | table | id>   explain a refusal or note with its card section, an operation's cost, a table's rules, or work by id; --release <dir>, --values
-  guide [keyword|aliases] [--full|--sections|--section <words|N>|--find <words>]  list cards (guide aliases: every alias), or print one card (over 130 lines: its opening, numbered index and, when piped, its first section; an alias that names a section prints it; --full: all of it), its index, one section (a word no heading names prints the section that mentions it most), or the lines that hold every word (a|b or a OR b: either)
-  data <table> [--release dir] [--limit N]         inspect stored rows as an administrator (bypasses read rules)
-  sql <SELECT> [--release dir] [--limit N] [--json|--json-objects]  read-only inspection of your store (not rule-filtered)
-    --json-objects                  envelope {columns, header, limit, more, rows, ruleFiltered}; rows are objects; declared boolean columns are true/false, SQL expressions keep SQLite types
-    sql '\\dt' / '.tables'           application tables, maintained views, bounded row counts, active generation
-    sql '\\d messages' / '.schema messages'  columns (Quarry types/nullability), indexes and unique keys
-  token --service <name> [--days N] [--release <dir>]  a bearer token for a service principal (a worker's seat), printed once
-  doctor [--url <url>] [--latency [--reset]]  health or latency (--json for JSON)
-  upgrade [--to version] [--json]   upgrade core and installed adapters together; only --to allows downgrades
-  witness web [dist] [--as PERSONA | --email EMAIL --password-env NAME] [--mutation NAME --args JSON] [--url URL]
-  witness acquire --as <persona|principal> [--url URL] [--token TOKEN] [--restart] [--runs N] [--query NAME --args JSON] [--artifacts DIR] [--timeout 120] [--json]
-                                      prove fresh acquisition and retained cold restart on the native process device
-  witness ios --build PROJECT --smoke [--udid ID] [--port N] [--artifacts DIR]
-  witness status [--wait] [--json]  latest background native proof
-  witness ios --bundle-id ID (--smoke | --segment NAME) [--udid ID] [--port N] [--artifacts DIR] [--prime] [--relaunch] [--timeout 120]
-                                      record an installed iOS app cold-offline, then reconnect its owned backend
-  device <store.sqlite> [backend.json]  the native module over stdin/stdout: one JSON request per line, one answer per line
-  --version
-
-snapback4 <verb> --help explains one verb (init, check, dev, run, test: flags, output columns, exit codes).";
 
 fn main() -> ExitCode {
     // Before any thread: the wrapper's PID leaves the environment here.
@@ -116,7 +68,7 @@ fn main() -> ExitCode {
     let options = verbs::parse(&args);
     if options.flags.contains_key("help") || matches!(verb, "--help" | "-h") || verb.is_empty() {
         // `snapback4 test --help` is about test; `snapback4 --help` lists every verb.
-        println!("{}", verb_help::page(verb, HELP).unwrap_or_else(|| HELP.to_owned()));
+        println!("{}", verb_help::page(verb).unwrap_or_else(cli_flags::top_help));
         return ExitCode::SUCCESS;
     }
     if options.flags.contains_key("replay") && (verb != "dev" || options.flags.contains_key("release")) {
@@ -133,7 +85,7 @@ fn main() -> ExitCode {
             0
         }
         "new" if !options.flags.contains_key("template") => {
-            eprintln!("Choose a template: social or chat\nusage: snapback4 new <dir> --template social\n       snapback4 new <dir> --template chat --web|--expo\nFor a small starter use snapback4 init <dir> --web (or --expo); for schema-only setup use snapback4 init <dir>.");
+            eprintln!("Choose a template: --template social, or --template chat with --web or --expo\nusage: {}\nFor a small starter use snapback4 init <dir> --web (or --expo); for schema-only setup use snapback4 init <dir>.", cli_flags::synopsis("new"));
             2
         }
         "init" | "new" => verbs::init(&options),
@@ -235,7 +187,7 @@ fn main() -> ExitCode {
             2
         }
         other => {
-            eprintln!("unknown verb {other}\n{HELP}");
+            eprintln!("unknown verb {other}\n{}", cli_flags::top_help());
             2
         }
     };
@@ -381,7 +333,7 @@ mod tests {
     #[test]
     fn help_names_every_dispatched_verb() {
         for verb in ["init", "check", "types", "dev", "deploy", "rollback", "serve", "run", "test", "why", "guide", "data", "sql", "token", "doctor", "device", "witness", "web-shell"] {
-            assert!(super::HELP.lines().any(|line| line.trim_start().starts_with(verb)), "HELP omits {verb}");
+            assert!(crate::cli_flags::top_help().lines().any(|line| line.trim_start().starts_with(&format!("snapback4 {verb}"))), "HELP omits {verb}");
         }
     }
 

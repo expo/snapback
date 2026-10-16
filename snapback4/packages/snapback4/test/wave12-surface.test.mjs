@@ -52,6 +52,6 @@ test('a staged standalone binary owns every native verb help without companion J
     assert.match(result.stdout,/Flags \(validated before any project or store work\)/,verb);
   }
   const web=spawnSync(staged,['witness','web','--help'],{cwd:dir,env,encoding:'utf8',timeout:30000});
-  assert.equal(web.status,0,web.stderr);assert.match(web.stdout,/witness web/);assert.match(web.stdout,/--password-env/);
+  assert.equal(web.status,0,web.stderr);assert.match(web.stdout,/^snapback4 witness <web\|acquire\|ios\|status>/m);assert.match(web.stdout,/web exercises a visible form/);assert.match(web.stdout,/--password-env/);
   checkVerbHelp(staged,changelog);
 });

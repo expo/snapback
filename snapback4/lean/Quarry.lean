@@ -1,5 +1,6 @@
 import Quarry.Order
 import Quarry.Value
+import Quarry.Mint
 import Quarry.Calendar
 import Quarry.Wave12
 import Quarry.Wave12DeviceQueue

@@ -22,10 +22,11 @@ pub use init::init;
 pub(crate) use init::without_design_references;
 pub use sql::sql;
 mod residency;
-mod test_fixture;
+pub(crate) mod test_fixture;
 mod expiry_orphans;
 mod proof_source;
 mod test_cases;
+mod test_sweep;
 /// A fixture directory's case file: not a table's rows.
 pub(crate) const CASES_FILE: &str = test_cases::FILE;
 mod adoption;
@@ -48,23 +49,18 @@ pub struct Options {
     pub json: bool,
 }
 
-/// Shared dev target for control verbs: an explicit port wins, otherwise
-/// inspect the persisted store owner's address through doctor's validated host
-/// lookup. run also resolves the same store owner before forwarding.
-pub(crate) fn dev_address(options: &Options) -> Result<std::net::SocketAddr, String> {
-    use std::net::{Ipv4Addr, SocketAddr};
-    if let Some(text) = options.flags.get("port") {
-        let port = text.parse::<u16>().ok().filter(|n| *n > 0)
-            .ok_or("E_INPUT: --port must be an integer in 1..65535")?;
-        return Ok(SocketAddr::from((Ipv4Addr::LOCALHOST, port)));
+/// Explicit control ports remain an intentional selection; otherwise discover
+/// a unique, identity-validated project host (persisted or temporary).
+pub(crate) fn dev_address(options: &Options) -> Result<(std::net::SocketAddr, Option<String>), String> {
+    if let Some(text)=options.flags.get("port") {
+        let port=text.parse::<u16>().ok().filter(|n|*n>0).ok_or("E_INPUT: --port must be an integer in 1..65535")?;
+        return Ok((std::net::SocketAddr::from((std::net::Ipv4Addr::LOCALHOST,port)),None));
     }
-    let cwd = std::env::current_dir().map_err(|error| error.to_string())?;
-    if let Some(project) = Project::locate(&cwd)
-        && let Some(host) = adoption::host(&project, options)? {
-        return host["address"].as_str().ok_or("dev did not report an address")?
-            .parse().map_err(|error| format!("invalid dev address: {error}"));
-    }
-    Ok(SocketAddr::from((Ipv4Addr::LOCALHOST, 4400)))
+    let cwd=std::env::current_dir().map_err(|e|e.to_string())?;
+    let project=Project::locate(&cwd).ok_or("E_INPUT: cannot discover dev outside a project; pass --port N using the port dev printed")?;
+    let host=adoption::host(&project,options)?.ok_or("E_INPUT: no running dev discovered for this project; start dev or pass --port N using the port dev printed")?;
+    let address=host["address"].as_str().ok_or("dev did not report an address")?.parse().map_err(|e|format!("invalid dev address: {e}"))?;
+    Ok((address,host["instance"].as_str().map(str::to_owned)))
 }
 
 pub fn parse(args: &[String]) -> Options {
@@ -306,7 +302,14 @@ pub fn check(options: &Options) -> i32 {
         if !options.json { print_prediction(&bound, options.flags.contains_key("verbose")); }
         return 1;
     }
-    bound.notes.extend(readiness::notes(&project, &bound, options.flags.get("fixture")));
+    for diagnostic in readiness::notes(&project, &bound, options.flags.get("fixture")) {
+        if diagnostic.code == "E_FIXTURE_TIME" { bound.diagnostics.push(diagnostic); }
+        else { bound.notes.push(diagnostic); }
+    }
+    if !bound.diagnostics.is_empty() {
+        report_diagnostics(&bound, options.json, true, options.flags.contains_key("verbose"));
+        return 1;
+    }
     bound.notes.extend(snapback4_lang::bind::residency::change_notes(&bound, &residency::previous(&project)));
     check_surface::report(&project, &bound, options.json);
     if let Err(error) = project.write_generated(&bound) {
@@ -620,7 +623,7 @@ pub fn types(options: &Options) -> i32 {
 pub fn run(options: &Options) -> i32 {
     if options.flags.contains_key("release") {return run_forward::release(options);}
     let Some(op) = options.positionals.first() else {
-        eprintln!("usage: snapback4 run <operation> [json-args] --as <persona|principal-id> [--json]");
+        eprintln!("usage: {}", crate::cli_flags::synopsis("run"));
         return 2;
     };
     let now = match crate::dev_clock::run_now(options.flags.get("now")) { Ok(now) => now, Err(error) => { eprintln!("{error}"); return 1; } };
@@ -638,6 +641,10 @@ pub fn run(options: &Options) -> i32 {
         eprintln!("unknown operation {op}; operations: {}", names.join(", "));
         return 1;
     };
+    if program.kind == ProgramKind::Job && options.flags.contains_key("as") {
+        eprintln!("E_INPUT: run <job> takes no --as; jobs run as the system");
+        return 2;
+    }
     let args_json: Json = match options.positionals.get(1) {
         Some(text) => match serde_json::from_str(text) {
             Ok(json) => json,
@@ -716,9 +723,6 @@ pub fn run(options: &Options) -> i32 {
     }
     if program.kind == ProgramKind::Job {
         // A job runs as the system principal, every chunk in turn, here.
-        if options.flags.contains_key("as") {
-            eprintln!("run: --as is ignored for a job; jobs run as the system");
-        }
         return match engine.run_job(op, args, now) {
             Ok(run) => {
                 for line in engine.take_native_logs() {
@@ -776,7 +780,7 @@ pub fn run(options: &Options) -> i32 {
 
 pub fn data(options: &Options) -> i32 {
     let Some(table) = options.positionals.first() else {
-        eprintln!("usage: snapback4 data <table> [--release <dir>] [--limit N]");
+        eprintln!("usage: {}", crate::cli_flags::synopsis("data"));
         return 2;
     };
     let path = options.flags.get("release").map(|dir| Path::new(dir).join("store.sqlite"))
@@ -821,8 +825,10 @@ pub fn data(options: &Options) -> i32 {
     })();
     match inspected {
         Ok((rows, more)) => {
-            for row in &rows {
-                println!("{}", wire::to_json(row));
+            if options.json {
+                println!("{}", serde_json::Value::Array(rows.iter().map(wire::to_json).collect()));
+            } else {
+                for row in &rows { println!("{}", wire::to_json(row)); }
             }
             if more {
                 eprintln!("… more rows (increase --limit)");
@@ -1049,6 +1055,10 @@ pub fn doctor(options: &Options) -> i32 {
                             lines.push(format!("job       {} {} {:?}: {} chunk{}, {} row{} (chunk size {}, retries {}, peak heap {}){}", run.name, run.id, run.state, run.chunks, if run.chunks == 1 { "" } else { "s" }, run.rows_written, if run.rows_written == 1 { "" } else { "s" }, run.chunk_size, run.retries, run.heap_peak, run.error.map(|e| format!(" — {e}")).unwrap_or_default()));
                         }
                     }
+                    match work_records::handler_failures(engine.store().conn()) {
+                        Ok(failures) => lines.extend(failures),
+                        Err(error) => { ok = false; lines.push(format!("handler failures unavailable: {error}")); }
+                    }
                     if let Ok((counts, deferred)) = effect_health(&engine, now) && !counts.is_empty() {
                         let deferred = match deferred {
                             Ok((count, Some(at))) => format!("{count} deferred (next at {at}, +{}s)", (at - now + 999) / 1000),
@@ -1056,11 +1066,6 @@ pub fn doctor(options: &Options) -> i32 {
                             Err(error) => { ok = false; format!("deferred count unavailable: {error}") }
                         };
                         lines.push(format!("effects   {}, {deferred}", counts.iter().map(|(state, n)| format!("{n} {state}")).collect::<Vec<_>>().join(", ")));
-                        if let Ok(failed) = engine.effects(Some("failed"), 3) {
-                            for run in failed {
-                                lines.push(format!("effect    {} {} failed after {} attempt{}: {}", run.effect, run.id, run.attempts, if run.attempts == 1 { "" } else { "s" }, run.error.unwrap_or_default()));
-                            }
-                        }
                     }
                 }
                 Err(error) => {
@@ -1093,7 +1098,7 @@ pub fn doctor(options: &Options) -> i32 {
 
 pub fn why(options: &Options) -> i32 {
     let Some(subject) = options.positionals.first() else {
-        eprintln!("usage: snapback4 why <E_CODE | recent | operation | table | id> [--release dir] [--values]");
+        eprintln!("usage: {}", crate::cli_flags::synopsis("why"));
         return 2;
     };
     if subject == "recent" {
@@ -1113,7 +1118,11 @@ pub fn why(options: &Options) -> i32 {
             if subject == "N_NO_PRODUCTION_WRITER" { bound.notes.extend(readiness::notes(&project, &bound, None)); }
             bound
         })).and_then(|bound| {
-            bound.diagnostics.iter().chain(&bound.notes).find(|diagnostic| diagnostic.code == *subject).and_then(|diagnostic| if subject == "N_NO_PRODUCTION_WRITER" { Some(format!("{explanation}\n\n{}\nrewrite: {}",diagnostic.message,diagnostic.rewrite)) } else { diagnostic.explanation() })
+            if subject == "N_NO_PRODUCTION_WRITER" {
+                let entries: Vec<_> = bound.diagnostics.iter().chain(&bound.notes).filter(|diagnostic| diagnostic.code == *subject)
+                    .map(|diagnostic| format!("{}\nrewrite: {}", diagnostic.message, diagnostic.rewrite)).collect();
+                Some(format!("{explanation}\n\nProduction transition checklist (all bootstrap blockers):\n{}", if entries.is_empty() { "No fixture-only first writers found; verify your account and seat journeys.".into() } else { entries.join("\n\n") }))
+            } else { bound.diagnostics.iter().chain(&bound.notes).find(|diagnostic| diagnostic.code == *subject).and_then(|diagnostic| diagnostic.explanation()) }
         });
         let explanation = contextual.unwrap_or(explanation);
         println!("{explanation}");
@@ -1263,7 +1272,7 @@ pub(crate) use releases::release_bind;
 /// authenticates itself, and is admitted by rules as `service:<name>`.
 pub fn token(options: &Options) -> i32 {
     let Some(name) = options.flags.get("service").filter(|name| !name.is_empty()) else {
-        eprintln!("usage: snapback4 token --service <name> [--days N] [--release <dir>]");
+        eprintln!("usage: {}", crate::cli_flags::synopsis("token"));
         return 2;
     };
     let days: i64 = options.flags.get("days").and_then(|d| d.parse().ok()).unwrap_or(365);
@@ -1291,10 +1300,15 @@ pub fn token(options: &Options) -> i32 {
     };
     match session {
         Ok(session) => {
-            // Shell capture has one form, including when the shared --json flag is present.
-            println!("{}", session.token);
-            eprintln!("token: a session for {} until {} — printed once; keep it where the worker keeps secrets", session.principal, session.expires_at);
-            eprintln!("store: {} — this token belongs only to this store; each isolated store needs its own", store_path.display());
+            if options.json {
+                println!("{}", json!({"token":session.token,"principal":session.principal,"expiresAt":session.expires_at,"store":store_path}));
+            } else {
+                println!("{}", session.token);
+                if !options.flags.contains_key("quiet") {
+                    eprintln!("token: a session for {} until {}; printed once; keep it where the worker keeps secrets", session.principal, session.expires_at);
+                    eprintln!("store: {}; this token belongs only to this store; each isolated store needs its own", store_path.display());
+                }
+            }
             0
         }
         Err((status, error)) => {
@@ -1329,8 +1343,8 @@ fn row_view_range(schema: &snapback4_core::schema::Schema, m: &snapback4_core::s
 pub fn device(options: &Options) -> i32 {
     if options.flags.contains_key("engine-info") { println!("{}", serde_json::to_string(&snapback4_core::device_protocol::DeviceEngine::current()).unwrap()); return 0; }
     let Some(path) = options.positionals.first() else {
-        eprintln!("usage: snapback4 device <store.sqlite> [backend.json]");
-        println!("{}", json!({ "denied": { "code": "E_INPUT", "family": "input", "message": "usage: snapback4 device <store.sqlite> [backend.json]" } }));
+        eprintln!("usage: {}", crate::cli_flags::synopsis("device"));
+        println!("{}", json!({ "denied": { "code": "E_INPUT", "family": "input", "message": format!("usage: {}", crate::cli_flags::synopsis("device")) } }));
         return 2;
     };
     let backend = match options.positionals.get(1) {

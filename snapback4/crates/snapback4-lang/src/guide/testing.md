@@ -52,15 +52,14 @@ Typed time arguments in cases accept the same forms.
 One clock captured at test start anchors these values, seed defaults, cases and
 the sweep, so timed fixtures do not rot; malformed/overflowing relative times
 refuse E_FIXTURE_TIME. Text and JSON fields retain literal strings.
-Money/decimal use integer minor units; bytes are hex;
-optional fields may be absent/null. Parents and children load in one batch.
+Money/decimal use integer minor units; bytes are hex; optional fields may be absent/null. Parents load before children.
 Defaults, unique keys, caps, maintained values and sequences obey normal insert
 semantics: omit sequence and engine-maintained columns. A missing parent is
 NOT_FOUND; a bad row or unknown table fails the run before any case executes.
 
 Add `test.cases.jsonl` to that directory. Cases execute in order; writes change
 what later cases see. The complete vocabulary is `as`, `op`, `args`, `expect`,
-`data`, `match`, `count`, `save`, `label`; unknown keys fail before any case runs.
+`data`, `match`, `matchSet`, `count`, `save`, `label`; unknown keys fail before any case runs.
 
 ```jsonl
 {"as":"alice","op":"addCard","args":{"board":"board-alice","text":"eggs"},"save":"eggs"}
@@ -70,13 +69,16 @@ what later cases see. The complete vocabulary is `as`, `op`, `args`, `expect`,
 
 `save` names an answer: `$eggs` means its row id, `$eggs.text` its field.
 A bare argument equal to a saved alias refuses with the `$name` rewrite.
+Bare assertion strings (including enum literals) remain literals even if an alias has that name.
 Aliases resolve recursively inside args, data and match. Unknown aliases and
 missing fields refuse E_FIXTURE_ALIAS by name. `$$text` means literal
 `$text`; `{"$literal":"eggs"}` means literal `eggs`, even if saved as an alias.
 `data` asserts the exact result; `match` asserts a recursive object subset
 (`"match":{"name":"Ash"}` permits an extra id). Arrays retain their exact
 length/order, with each element matched recursively; scalars compare exactly.
-Both assertions may appear together. `count` asserts length. A mutation defaults to
+`matchSet` compares a list without order: `"matchSet":[{"name":"Ash"},{"name":"Oak"}]`
+requires exactly those two recursive subsets, each matched to a different row.
+Duplicate counts matter. Nested arrays retain their order. All assertion forms may appear together. `count` asserts length. A mutation defaults to
 `sent`; a query to its check verdict (`complete`, or complete/capped when
 N_NEVER_COMPLETE). Set `expect` to `complete`, `capped`, `ok`, `denied`, or a
 refusal code. `as` must be a declared persona; outsiders need their own persona.
@@ -85,6 +87,10 @@ After the cases, the sweep runs every query with that persona's case arguments w
 otherwise derives arguments from the store after the cases' writes (text uses
 the shortest valid value). Saved-alias arguments belong to the case run; the
 sweep uses another literal-argument case or derives arguments for that query.
+For different authorization lanes, add `fixtures/test.sweep.json`:
+`{"hrStatus":["carol"],"policiesList":["alice","bob"]}`. Each named query uses
+its listed personas; other queries use the whole cast. `--as` explicitly overrides
+that matrix. Empty/unknown entries and undeclared personas fail before cases run.
 It prints examined rows, entries, probes, steps, heap/output bytes and ceilings.
 `complete` is the whole answer; `capped` is a partial answer, not a refusal.
 Expected refusals pass; denied queries, failed cases and invalid fixtures exit 1.
@@ -94,6 +100,23 @@ A lookup reads through the caller's rule: hidden rows give NOT_FOUND before
 later `require` guards; hidden unique conflicts give E_RULE instead of the
 custom code. `test` and dev refusal logs explain the hidden lookup or rule.
 `guide refusals` explains refusal ordering and hidden rows.
+
+## Loading fixture rows for a proof
+
+```js
+import { loadFixtures } from "snapback4/proof";
+const rows = await loadFixtures("fixtures", { url: dev.url });
+await fetch(`${dev.url}/dev/reset`, {
+  method: "POST", headers: { "content-type": "application/json" },
+  body: JSON.stringify({ seed: rows }),
+});
+```
+
+The helper resolves typed relative times against one dev clock from bounded
+catalog/status requests (timeoutMs defaults to 10 seconds). Options `now` and
+`cwd` override clock/project. Reload after schema edits. Reset validates rows;
+inspect its reply for `denied`. `/seed` and `/dev/reset` accept relative times
+directly; `"clock":"reset"` uses the prospective wall clock atomically.
 
 ## An acceptance script over HTTP
 
@@ -206,8 +229,9 @@ calling operations that use them: a fresh dev has no admins or memberships.
 
 POST it to `/seed` to upsert without resetting;
 changing an immutable field refuses E_CONSTRAINT. Both doors are dev-only.
-Advance time without sleeping with `snapback4 clock advance +2h` (add `--port N`
-for another dev), or POST `/dev/clock/advance` with `{"duration":"+2h"}`.
+Advance time without sleeping with `snapback4 clock advance +2h`: it discovers
+a unique live dev for this project, including a memory host on a custom port
+(add `--port N` to select among simultaneous hosts), or POST `/dev/clock/advance` with `{"duration":"+2h"}`.
 Clock controls are dev-only; `guide clock` covers status, reset and restart.
 
 ## Day-two proofs with immutable sources

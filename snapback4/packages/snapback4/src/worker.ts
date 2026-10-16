@@ -97,6 +97,8 @@ export interface WorkerOptions {
   readonly fetch?: typeof fetch;
   /** Stops the loop when aborted. */
   readonly signal?: AbortSignal;
+  /** Every failed effect attempt (including successfully recorded retries),
+   * settlement and polling failures. Error text is redacted before delivery. */
   readonly onError?: (error: unknown) => void;
   /** Lifecycle hook for a supervisor sharing authentication with other loops. */
   readonly onAuthFailure?: () => void;
@@ -185,7 +187,9 @@ export function runWorker(options: WorkerOptions): Worker {
     const handler = Object.hasOwn(effects, effect.effect) ? effects[effect.effect] as EffectHandler | undefined : undefined;
     const meta: EffectMeta = { id: effect.id, idempotencyKey: effect.id, effect: effect.effect, attempt: effect.attempt, seq: effect.seq, at: effect.at, worker: principal ?? "" };
     if (!handler) {
-      await settle(effect, { error: `this worker has no handler for ${effect.effect}`, retry: false });
+      const error = new GiveUp(`this worker has no handler for ${effect.effect}`);
+      try { await settle(effect, { error: message(error), retry: false }); }
+      finally { report(error); }
       return;
     }
     try {
@@ -199,9 +203,9 @@ export function runWorker(options: WorkerOptions): Worker {
         return;
       }
       if (ledger && stop.signal.aborted) return;
-      let recorded = false;
-      try { recorded = await settle(effect, { error: message(error), retry: !(error instanceof GiveUp) }); }
-      finally { if (!recorded) report(error); }
+      try { await settle(effect, { error: message(error), retry: !(error instanceof GiveUp) }); }
+      // @ref LLP 3000.009#5.2 — recording a failed attempt must not hide its failure.
+      finally { report(error); }
     }
   };
   const performAction = async (request: ActionRequest) => {
@@ -356,22 +360,20 @@ export function runGeneratedEffects(options: WorkerOptions, registry: Readonly<R
     const meta: EffectMeta = Object.freeze({ id: effect.id, idempotencyKey: effect.id, effect: effect.effect, attempt: effect.attempt, seq: effect.seq, at: effect.at, worker: principal ?? "" });
     const outcome = await registration.execute(effect, meta);
     if (outcome.kind === "authority-lost") {
-      if (outcome.terminal) terminal(new Error(outcome.error));
-      report(new Error(outcome.error));
+      if (outcome.terminal) terminal(new Error(effectMessage(effect, outcome.error)));
+      report(new Error(effectMessage(effect, outcome.error)));
       return;
     }
     if (outcome.kind === "active-error") {
-      let recorded = false;
-      try { recorded = await settle(effect, { error: outcome.error, retry: outcome.retry }); }
-      finally { if (!recorded) report(new Error(outcome.error)); }
+      try { await settle(effect, { error: effectMessage(effect, outcome.error), retry: outcome.retry }); }
+      finally { report(new Error(effectMessage(effect, outcome.error))); }
       return;
     }
     try { await settle(effect, { result: outcome.result === undefined ? null : outcome.result }); }
     catch (error) {
       if (stop.signal.aborted) throw error;
-      let recorded = false;
-      try { recorded = await settle(effect, { error: effectMessage(effect, error), retry: true }); }
-      finally { if (!recorded) report(new Error(effectMessage(effect, error))); }
+      try { await settle(effect, { error: effectMessage(effect, error), retry: true }); }
+      finally { report(new Error(effectMessage(effect, error))); }
     }
   };
   const loop = async (name: string, registration: GeneratedEffectRegistration) => {

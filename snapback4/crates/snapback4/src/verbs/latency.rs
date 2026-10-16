@@ -6,7 +6,8 @@ use serde_json::Value;
 
 pub(super) fn read(host: &Value, reset: bool) -> Option<Snapshot> {
     let path = if reset { format!("/dev/latency/reset?store_id={}", host["storeId"].as_str()?) } else { "/dev/latency".into() };
-    let response = adoption::request(host["address"].as_str()?.parse().ok()?, if reset { "POST" } else { "GET" }, &path)?;
+    let instance=if reset && host["_explicitSelection"]!=true {host["instance"].as_str()} else {None};
+    let response = adoption::request_instance(host["address"].as_str()?.parse().ok()?, if reset { "POST" } else { "GET" }, &path, instance)?;
     if response["storeId"] != host["storeId"] { return None; }
     serde_json::from_value(response).ok()
 }

@@ -111,13 +111,18 @@ pub(super) fn dispatch<T: DeviceTx>(tx: &T, id: &str, reason: &str) -> Result<()
 }
 
 pub(super) fn run<T: DeviceTx>(tx: &T, schema: &Schema, program: &Program, entry: &Queued) -> Result<(Vec<String>, Vec<String>), RuntimeError> {
+    // Replay consumes recorded IDs; any extra allocation withdraws the prediction.
+    run_with_minter(tx, schema, program, entry, snapback4_core::ids::Mint::default())
+}
+
+pub(super) fn run_with_minter<T: DeviceTx>(tx: &T, schema: &Schema, program: &Program, entry: &Queued, minter: snapback4_core::ids::Mint) -> Result<(Vec<String>, Vec<String>), RuntimeError> {
     // Missing acquisition is missing evidence, never an authored refusal.
     // Admission already handles E_PREDICT by durably queueing without a row.
     require_acquired(tx, schema, program)?;
     // Replay mints past the admitted ids only to discover it needs more (and
     // is then withdrawn): its entropy comes from the entry, never the clock.
     let entropy = entry.id.bytes().fold(entry.seq.wrapping_mul(0x9E37_79B9_7F4A_7C15), |acc, byte| (acc ^ u64::from(byte)).wrapping_mul(0x100_0000_01B3));
-    let context = Context::new(&entry.viewer, media::inputs(tx, program, &entry.viewer, &entry.args)?).at(expiry_clock::now(tx, entry.now)?).with_generation(meta_u64(tx, GENERATION)?).with_ids(entry.new_ids.clone()).with_entropy(entropy | 1);
+    let context = Context::new(&entry.viewer, media::inputs(tx, program, &entry.viewer, &entry.args)?).at(expiry_clock::now(tx, entry.now)?).with_generation(meta_u64(tx, GENERATION)?).with_ids(entry.new_ids.clone()).with_entropy(entropy | 1).with_minter(minter);
     let predicting = Predicting { tx, schema, groups: history::load(tx, history::GROUPS)?, boundaries: boundary::Boundaries::load(tx, false)?, written: RefCell::new(Vec::new()) };
     let prediction = local::predict(&predicting, schema, program, context, Ceilings::default())?;
     Ok((predicting.written.into_inner(), prediction.new_ids))

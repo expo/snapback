@@ -40,8 +40,8 @@ pub fn ahead(engine: &Engine, now: i64) -> Result<Option<String>, RuntimeError> 
     if omitted { names.push("additional tables omitted".into()); }
     if names.is_empty() { names.push("no table names recorded".into()); }
     Ok(Some(format!(
-        "N_CLOCK_STORE_AHEAD: recent commit stamps lead the current clock by up to {lead}ms (latest {RECENT_COMMITS} commits; tables: {}); use a fresh store per offset test (dev --fresh --port 4401), or restart with the same --clock-offset (or dev --resume-clock) to continue",
-        names.join(", "))))
+        "N_CLOCK_STORE_AHEAD: recent commit stamps lead the current clock by up to {lead}ms (latest {RECENT_COMMITS} commits; tables: {}); use a fresh store per offset test ({}), or restart with the same --clock-offset (or dev --resume-clock) to continue",
+        names.join(", "), crate::dev_clock::isolated_command())))
 }
 
 /// UTC calendar text for Unix milliseconds: schedule boundaries are UTC.
@@ -167,7 +167,7 @@ mod tests {
     }
     fn seed(engine: &mut Engine, table: &str, commit_at: i64, row_at: i64) {
         engine.seed_at([(table.into(), snapback4_core::value::object([
-            ("id", snapback4_core::Value::Id(snapback4_core::ids::mint(row_at, &mut 0).unwrap())),
+            ("id", snapback4_core::Value::Id(snapback4_core::ids::mint(row_at, &mut snapback4_core::ids::Mint::default()).unwrap())),
             ("at", snapback4_core::Value::Int(row_at)),
         ]))], commit_at).unwrap();
     }

@@ -288,7 +288,7 @@ fn latency_held_poll_total_includes_blocked_final_frame_write() {
     let host = Host::with_store(false, snapback4_core::Store::memory().unwrap(), &source);
     let session = {
         let engine = lock(&host.shared.engine);
-        snapback4_core::identity::guest(engine.store(), host.shared.now(), &mut 1).unwrap()
+        snapback4_core::identity::guest(engine.store(), host.shared.now(), &mut snapback4_core::ids::Mint::default()).unwrap()
     };
     let token = &session.token;
     let (server, mut stream) = constrained_socket();

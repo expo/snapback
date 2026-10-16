@@ -1,3 +1,4 @@
+export { loadFixtures, type FixtureRow, type LoadFixturesOptions } from "./proof-fixtures.ts";
 // @ref LLP 3000.011.003.000.000#1 — the packaged proof kit owns hosts; builders own assertions.
 import { mkdirSync, openSync, closeSync, writeSync } from "node:fs";
 import { join } from "node:path";
@@ -43,6 +44,7 @@ export function startDev(options: ProofOptions | readonly string[] = {}): Promis
   return nativeHost("dev", [], { ...opts, args: opts.args ?? ["--memory"] });
 }
 export function startServe(deployDir: string, options: ProofOptions | readonly string[] = {}): Promise<ProofHost> {
+  if (typeof deployDir !== "string" || !deployDir.trim()) throw Object.assign(new TypeError("E_PROOF_USAGE: startServe(deployDir, options) requires a deployment directory as its first argument"), { code: "E_PROOF_USAGE" });
   return nativeHost("serve", [resolve(options && !Array.isArray(options) ? (options as ProofOptions).cwd ?? "." : ".", deployDir)],
     Array.isArray(options) ? { args: options } : options as ProofOptions);
 }
@@ -109,7 +111,19 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
   const directory = logsDir(options); mkdirSync(directory, { recursive: true, mode: 0o700 });
   const err = openSync(join(directory, `${randomUUID()}.browser.stderr.log`), "wx", 0o600);
   const { chromium: suppliedChromium, executablePath, cwd: _cwd, logsDir: _logs, ...other } = options;
-  const caller = suppliedChromium ?? (await import("playwright-core")).chromium;
+  const requireCaller = createRequire(resolve(options.cwd ?? process.cwd(), "package.json"));
+  let caller = suppliedChromium;
+  if (!caller) {
+    for (const peer of ["@playwright/test", "playwright", "playwright-core"]) {
+      let path: string;
+      try { path = requireCaller.resolve(peer); }
+      catch (error) { if ((error as NodeJS.ErrnoException).code === "MODULE_NOT_FOUND") continue; throw error; }
+      const peerModule = await import(path);
+      caller = (peerModule.chromium ?? peerModule.default?.chromium) as BrowserType;
+      break;
+    }
+  }
+  caller ??= (await import("playwright-core")).chromium;
   const launch = { ...other, ...(executablePath === undefined ? {} : { executablePath }), timeout: deadline(options.timeout, 30_000), logger: {
     isEnabled: () => true,
     log: (name: string, severity: string, message: string | Error) => { writeSync(err, `${name} ${severity}: ${String(message)}\n`); },

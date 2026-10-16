@@ -68,42 +68,37 @@ pub(super) fn diagnostics(project: &Project, schema: &Schema, explicit: Option<&
     Ok((diagnostics, notes))
 }
 
-// @ref LLP 3000.019#3.7 — persisted discovery uses store ownership's address; temporary hosts need --url.
-pub(super) const NO_HOST: &str = "no running persisted dev server; pass --url with the address snapback4 dev printed at startup (for example, snapback4 doctor --latency --url http://127.0.0.1:4400)";
+// @ref LLP 3000.000.000.000.000#3-proof-fixture-loading — discover all live project instances; no guessed ports.
+pub(super) const NO_HOST: &str = "no running dev server for this project; restart dev or pass --url with the address dev printed at startup";
 
-/// Select the listener before any inspection/reset; status must name our project.
-/// The server supplies temporary-store status in both discovery modes.
 pub(super) fn host(project: &Project, options: &super::Options) -> Result<Option<serde_json::Value>, String> {
-    let (address, expected_store) = if let Some(url) = options.flags.get("url") {
-        if options.flags.contains_key("release") {
-            return Err("--url inspects a dev server; omit --release and run doctor in that server's project".into());
+    let root = project.root.canonicalize().map_err(|e|e.to_string())?;
+    if let Some(url)=options.flags.get("url") {
+        if options.flags.contains_key("release") {return Err("--url inspects a dev server; omit --release and run doctor in that server's project".into());}
+        let address=loopback_url(url)?;
+        let mut status=request(address,"GET","/dev/status").ok_or_else(||format!("http://{address} did not return dev status; pass --url with the address dev printed at startup"))?;
+        if status["project"]!=serde_json::json!(root) {return Err(format!("http://{address} serves project {}, not {}; use this project's dev address", status["project"].as_str().unwrap_or("<unreported>"),root.display()));}
+        if status["temporary"].as_bool().is_none() || status["storeId"].as_str().is_none_or(str::is_empty) {return Err(format!("http://{address} did not report its store identity and lifetime; restart dev with this CLI"));}
+        status["address"]=serde_json::json!(address.to_string());status["_explicitSelection"]=serde_json::json!(true);return Ok(Some(status));
+    }
+    if options.flags.contains_key("release") {return Ok(None);}
+    let mut hosts=std::collections::BTreeMap::new();
+    for identity in crate::dev_hosts::live(&root)? {
+        if let Some(mut status)=request(identity.address,"GET","/dev/status").filter(|s|identity.matches(s)) {
+            status["address"]=serde_json::json!(identity.address.to_string());hosts.insert(identity.address,status);
         }
-        (loopback_url(url)?, None)
-    } else {
-        if options.flags.contains_key("release") { return Ok(None); }
-        let path = project.store_path();
-        let Some(address) = crate::store_owner::inspector_address(&path) else { return Ok(None); };
-        let Some(id) = Store::open_read_only(&path).ok().and_then(|store| store.meta("store_id").ok().flatten()) else { return Ok(None); };
-        (address, Some(id))
-    };
-    let Some(mut status) = request(address, "GET", "/dev/status") else {
-        return if options.flags.contains_key("url") {
-            Err(format!("http://{address} did not return dev status; pass --url with the address dev printed at startup"))
-        } else { Ok(None) };
-    };
-    let root = project.root.canonicalize().map_err(|e| e.to_string())?;
-    if status["project"] != serde_json::json!(root) {
-        return Err(format!("http://{address} serves project {}, not {}; run doctor in that project or pass --url with this project's dev address",
-            status["project"].as_str().unwrap_or("<unreported>"), root.display()));
     }
-    if status["temporary"].as_bool().is_none() || status["storeId"].as_str().is_none_or(str::is_empty) {
-        return Err(format!("http://{address} did not report its store identity and lifetime; restart dev with this CLI"));
+    // Older persisted hosts still publish their address through store ownership.
+    let path=project.store_path();
+    if let Some(address)=crate::store_owner::inspector_address(&path).filter(|a|!hosts.contains_key(a)) {
+        if let Some(id)=Store::open_read_only(&path).ok().and_then(|s|s.meta("store_id").ok().flatten()) {
+            if let Some(mut status)=request(address,"GET","/dev/status").filter(|s|s["project"]==serde_json::json!(root) && s["storeId"]==id && s["temporary"]==false) {
+                status["address"]=serde_json::json!(address.to_string());hosts.insert(address,status);
+            }
+        }
     }
-    if expected_store.as_deref().is_some_and(|id| status["storeId"].as_str() != Some(id)) {
-        return Err(format!("http://{address} serves a different store; pass --url with the intended dev address"));
-    }
-    status["address"] = serde_json::json!(address.to_string());
-    Ok(Some(status))
+    if hosts.len()>1 {return Err(format!("multiple live dev hosts for this project: {}; select one explicitly with --port N for clock/reset or --url http://ADDRESS for doctor",hosts.keys().map(|a|a.to_string()).collect::<Vec<_>>().join(", ")));}
+    Ok(hosts.into_values().next())
 }
 
 /// Only literal loopback addresses and localhost: no DNS, redirects, credentials,
@@ -127,13 +122,17 @@ fn loopback_url(url: &str) -> Result<std::net::SocketAddr, String> {
 }
 
 pub(super) fn request(address: std::net::SocketAddr, method: &str, path: &str) -> Option<serde_json::Value> {
+    request_instance(address,method,path,None)
+}
+pub(super) fn request_instance(address:std::net::SocketAddr,method:&str,path:&str,instance:Option<&str>)->Option<serde_json::Value> {
     use std::{io::{Read, Write}, net::TcpStream, time::Duration};
+    let instance=instance.map(|i|format!("x-snapback-dev-instance: {i}\r\n")).unwrap_or_default();
     let mut stream = TcpStream::connect_timeout(&address, Duration::from_millis(200)).ok()?;
     stream.set_read_timeout(Some(Duration::from_secs(1))).ok()?;
     stream.set_write_timeout(Some(Duration::from_secs(1))).ok()?;
     // The complete latency registry can exceed tiny_http's chunk threshold.
     // HTTP/1.0 requests a length-delimited reply for this close-only reader.
-    write!(stream, "{method} {path} HTTP/1.0\r\nHost: {address}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n").ok()?;
+    write!(stream, "{method} {path} HTTP/1.0\r\nHost: {address}\r\n{instance}Connection: close\r\nContent-Length: 0\r\n\r\n").ok()?;
     let mut reply = String::new(); stream.take((16 << 20) + 4096).read_to_string(&mut reply).ok()?;
     let (head, body) = reply.split_once("\r\n\r\n")?;
     if !head.starts_with("HTTP/1.0 200 ") && !head.starts_with("HTTP/1.1 200 ") { return None; }

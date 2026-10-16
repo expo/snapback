@@ -216,7 +216,7 @@ fn full() -> RuntimeError {
     }
 }
 fn incarnation() -> String {
-    crate::ids::mint(crate::now_ms(), &mut crate::ids::seed())
+    crate::ids::mint(crate::now_ms(), &mut crate::ids::Mint::default())
         .expect("current time is an id instant")
 }
 
@@ -419,6 +419,7 @@ impl Engine {
             )));
         }
         context.generation = self.generation;
+        context = context.with_minter(self.minter.clone());
         context.new_ids.clear();
         context.minted_ids.clear();
         if context.now.is_none() {

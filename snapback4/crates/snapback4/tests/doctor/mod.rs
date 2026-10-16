@@ -79,3 +79,13 @@ fn w11_check_renderer_has_a_dedicated_excerpt_for_every_registered_code() {
     }
     println!("W11 check renderer: codes={} cards={} repeats=2 excerpts=1 single_excerpts=0 maximum_bytes={largest}", snapback4_lang::guide::codes().len(), cards.len());
 }
+
+#[test]
+fn settled_handler_failures_remain_visible_including_retry_and_action() {
+    let engine = Engine::new(Store::memory().unwrap(), Default::default(), []).unwrap();
+    engine.store().conn().execute_batch("INSERT INTO _outbox(id,seq,effect,payload,state,attempts,at,error) VALUES ('e1',1,'scan','null','queued',1,100,'scanner unavailable'); INSERT INTO _requests(id,name,args,principal,at,state,attempts,error) VALUES ('a1','send','{}','user:a',101,'failed',2,'provider failed');").unwrap();
+    let lines = super::work_records::handler_failures(engine.store().conn()).unwrap();
+    assert_eq!(lines.len(), 2);
+    assert!(lines.iter().any(|line| line.contains("scan e1 queued") && line.contains("scanner unavailable")));
+    assert!(lines.iter().any(|line| line.contains("send a1 failed") && line.contains("provider failed")));
+}

@@ -44,11 +44,14 @@ pub(super) fn seed(request: Request, shared: &Shared, body: &str) {
         Ok(Json::Array(rows)) => rows,
         _ => return refuse(request, Refusal::new("E_INPUT", "input", "seed takes a JSON array of {table, row}")),
     };
-    let typed = match typed_rows(shared, &rows) {
+    let mut engine = lock(&shared.engine);
+    let now = shared.now();
+    let typed = match typed_rows(engine.schema(), &rows, now) {
         Ok(typed) => typed,
-        Err(refusal) => return refuse(request, refusal),
+        Err(refusal) => { drop(engine); return refuse(request, refusal); }
     };
-    let outcome = lock(&shared.engine).seed_at(typed, shared.now());
+    let outcome = engine.seed_at(typed, now);
+    drop(engine);
     match outcome {
         Ok(count) => {
             shared.durable_committed(&lock(&shared.engine));
@@ -59,8 +62,7 @@ pub(super) fn seed(request: Request, shared: &Shared, body: &str) {
 }
 
 /// `/seed` rows checked against the served schema and typed, or the first problem.
-fn typed_rows(shared: &Shared, rows: &[Json]) -> Result<Vec<(String, snapback4_core::Value)>, Refusal> {
-    let schema = lock(&shared.bound).schema.clone();
+fn typed_rows(schema: &snapback4_core::Schema, rows: &[Json], now: i64) -> Result<Vec<(String, snapback4_core::Value)>, Refusal> {
     let mut typed = Vec::new();
     for (index, entry) in rows.iter().enumerate() {
         let (Some(table), Some(row)) = (entry.get("table").and_then(Json::as_str), entry.get("row")) else {
@@ -72,10 +74,13 @@ fn typed_rows(shared: &Shared, rows: &[Json]) -> Result<Vec<(String, snapback4_c
         if row.is_object() && row.get("id").is_none_or(|id| !id.is_string()) {
             return Err(missing_id(index, table));
         }
-        if let Some(why) = wire::bare_principal(definition, row) {
+        let mut row = row.clone();
+        crate::verbs::test_fixture::relative_times(definition, &mut row, now)
+            .map_err(|why| Refusal::new("E_FIXTURE_TIME", "input", format!("seed row {index} ({table}): {why}")))?;
+        if let Some(why) = wire::bare_principal(definition, &row) {
             return Err(Refusal::new("E_INPUT", "input", format!("seed row {index} ({table}): {why}")));
         }
-        match wire::row_from_json(definition, row) {
+        match wire::row_from_json(definition, &row) {
             Ok(value) => typed.push((table.to_owned(), value)),
             Err(why) => return Err(Refusal::new("E_INPUT", "input", format!("{table}: {why}"))),
         }
@@ -131,10 +136,6 @@ pub(super) fn reset(request: Request, shared: &Shared, body: &str) {
         Ok(asked) => asked,
         Err(refusal) => return refuse(request, refusal),
     };
-    let typed = match typed_rows(shared, &asked.seed) {
-        Ok(typed) => typed,
-        Err(refusal) => return refuse(request, refusal),
-    };
     // Serialize with clock advances, then take the engine before the clock:
     // the order clock advance and worker claims use.
     let advance = lock(&shared.maintenance).advance.clone();
@@ -143,6 +144,11 @@ pub(super) fn reset(request: Request, shared: &Shared, body: &str) {
     let mut clock = lock(&shared.clock).clone();
     if asked.clock && let Err(refusal) = clock.reset() { drop(engine); return refuse(request, refusal); }
     let now = clock.now();
+    // Resolve against the prospective reset clock before changing any durable state.
+    let typed = match typed_rows(engine.schema(), &asked.seed, now) {
+        Ok(typed) => typed,
+        Err(refusal) => { drop(engine); return refuse(request, refusal); }
+    };
     let reset = match engine.dev_reset_at(typed, now) {
         Ok(reset) => reset,
         Err(error) => {
@@ -151,6 +157,9 @@ pub(super) fn reset(request: Request, shared: &Shared, body: &str) {
         }
     };
     if asked.clock { *lock(&shared.clock) = clock; }
+    // The reset committed a new identity and a new authority clock. Replace,
+    // rather than max with, the retired store's cached high-water mark.
+    shared.time_audience_clock.store(if engine.schema().tables.values().any(|t| t.not_before.is_some()) { now } else { i64::MIN }, std::sync::atomic::Ordering::Release);
     // Detached readers reopen; the following registry, change answers and
     // `/dev/status` forget the old identity. Wake then names the new store,
     // so every held poll returns and each client sees the replacement.

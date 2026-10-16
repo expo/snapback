@@ -841,3 +841,73 @@ test("real HTTP redelivery after a lost settlement acknowledgement replays the d
   assert.deepEqual(sent.result, { receipt: key });
   assert.equal(calls, 1);
 });
+
+for (const permanent of [false, true]) test(`successfully settled ${permanent ? 'terminal' : 'retry'} effect failure calls onError once and redacts credentials`, async () => {
+  const stop = new AbortController(), errors = [], settlements = [];
+  const worker = runWorker({url: 'http://worker.test', token: 'secret-seat', signal: stop.signal,
+    onError: error => errors.push(error), effects: {notify: () => {throw permanent ? new GiveUp('provider secret-seat unavailable') : new Error('provider secret-seat unavailable');}},
+    fetch: async (url, init) => {
+      if (url.endsWith('/claim')) return Response.json({worker: 'service:scan', effects: [{id:'effect-test', effect:'notify', payload:{}, attempt:1, seq:1, at:0}]});
+      settlements.push(JSON.parse(init.body)); stop.abort(); return Response.json({ok:true});
+    }});
+  await worker.done;
+  assert.deepEqual(settlements, [{error:'provider [REDACTED] unavailable', retry:!permanent}]);
+  assert.deepEqual(errors.map(error => error.message), ['provider [REDACTED] unavailable']);
+});
+
+test('generated effects also report successfully recorded handler failures with the lease redacted', async () => {
+  const {runGeneratedEffects} = await import('../dist/worker.js');
+  const stop = new AbortController(), errors = [];
+  const worker = runGeneratedEffects({url:'http://worker.test', token:'seat-secret', signal:stop.signal, onError:error=>errors.push(error),
+    fetch:async url=>{
+      if(url.endsWith('/claim'))return Response.json({worker:'service:worker',effects:[{id:'generated',effect:'notify',payload:{},attempt:1,seq:1,at:0,leaseToken:'lease-secret',declarationContract:'contract'}]});
+      stop.abort();return Response.json({ok:true});
+    }}, {notify:{declarationContract:'contract',execute:async()=>({kind:'active-error',error:'provider seat-secret lease-secret failed',retry:true})}});
+  await worker.done;
+  assert.deepEqual(errors.map(error=>error.message),['provider [REDACTED] [REDACTED] failed']);
+});
+
+test('dev and doctor expose successfully settled effect and action handler failures', {timeout:hangBudget(4)}, async t=>{
+  const f=await actionFixture(t,{source:actionSource+'\nmutation notify():\n  emit notify {message: \'hello\'}\n'});
+  const errors=[];
+  f.launch({onError:error=>errors.push(error),effects:{notify:()=>{throw new GiveUp('scanner unavailable');}},actions:{fail:()=>{throw new GiveUp('provider failed');}}});
+  assert.equal((await f.post('/m/notify',{args:{}})).state,'sent');
+  const client=createClient({url:f.url,persona:'alice'});f.clients.push(client);
+  assert.equal((await client.act(action('fail'),{})).state,'failed');
+  await until(()=>f.stderr().includes('scanner unavailable')&&f.stderr().includes('provider failed')&&errors.length===1);
+  assert.match(f.stderr(),/effect notify .* attempt 1 settled failed/);
+  assert.match(f.stderr(),/action fail .* attempt 1 settled failed/);
+  const doctor=spawnSync(binary,['doctor','--json'],{cwd:f.directory,encoding:'utf8'});
+  assert.equal(doctor.status,0,doctor.stderr);
+  const lines=JSON.parse(doctor.stdout).lines.join('\n');
+  assert.match(lines,/effect.*scanner unavailable/);assert.match(lines,/action.*provider failed/);
+});
+
+
+test('a claimed effect with no local handler reports its accepted terminal failure', async () => {
+  const stop = new AbortController(), errors = [];
+  const worker = runWorker({url:'http://worker.test',token:'seat-secret',signal:stop.signal,effects:{notify:()=>null},onError:error=>errors.push(error),
+    fetch:async (url,init)=>{
+      if(url.endsWith('/claim'))return Response.json({worker:'service:worker',effects:[{id:'unknown',effect:'unregistered',payload:{},attempt:1,seq:1,at:0}]});
+      assert.deepEqual(JSON.parse(init.body),{error:'this worker has no handler for unregistered',retry:false});
+      stop.abort();return Response.json({ok:true});
+    }});
+  await worker.done;
+  assert.deepEqual(errors.map(error=>error.message),['this worker has no handler for unregistered']);
+});
+
+for (const terminal of [false, true]) test(`generated ${terminal ? 'terminal' : 'nonterminal'} authority loss redacts the effect lease before reporting`, async () => {
+  const {runGeneratedEffects} = await import('../dist/worker.js');
+  const stop = new AbortController(), errors = [], paths = [];
+  const worker = runGeneratedEffects({url:'http://worker.test',token:'seat-secret',signal:stop.signal,
+    onError:error=>{errors.push(error);if(!terminal)stop.abort();},
+    fetch:async url=>{
+      paths.push(new URL(url).pathname);assert.ok(url.endsWith('/claim'),'authority loss never settles');
+      return Response.json({effects:[{id:'lost',effect:'notify',payload:{},attempt:1,seq:1,at:0,leaseToken:'lease-secret',declarationContract:'contract'}]});
+    }}, {notify:{declarationContract:'contract',execute:async()=>({kind:'authority-lost',error:'lost seat-secret lease-secret',terminal})}});
+  const expected='lost [REDACTED] [REDACTED]';
+  if(terminal)await assert.rejects(worker.done,error=>error.message===expected);
+  else await worker.done;
+  assert.deepEqual(errors.map(error=>error.message),[expected]);
+  assert.deepEqual(paths,['/effects/claim']);
+});

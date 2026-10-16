@@ -1520,3 +1520,30 @@ fn aggregate_identity_generator_checks_bounded_digest_shape_outside_oracle_verdi
         assert!(ids.insert(id), "unexpected digest collision in generated corpus");
     }
 }
+
+// @ref LLP 3000.000.001#4-verification — the Lean row oracle orders actual host-minted IDs as opaque identities.
+#[test]
+fn two_frozen_millisecond_mutations_keep_mint_order_in_the_lean_oracle() {
+    if !model_built() { return; }
+    let source = "table entries:\n  label: text\n  read <- allow\n  insert <- allow\n  sync\nmutation add(label: text):\n  return insert entries { label: label }\nquery ordered():\n  return entries first 10 by .id\n";
+    // Use the same schema.q entry module as lean::module: another file stem
+    // intentionally namespaces the native operations (for example mint.add).
+    let bound = execute::compile(source).unwrap();
+    let mut engine = snapback4_core::Engine::memory(bound.schema, bound.programs.into_iter().map(|p|p.program)).unwrap();
+    let mut rows = Vec::new();
+    for label in ["first", "second"] {
+        let input = [("label".into(), snapback4_core::Value::String(label.into()))].into_iter().collect();
+        let outcome = engine.mutate("add", None, snapback4_core::Context::new("alice", input).at(1_000)).unwrap();
+        let snapback4_core::WriteState::Sent { result, .. } = outcome.state else { panic!("{outcome:?}") };
+        rows.push(("entries".into(), snapback4_core::wire::to_json(&result)));
+    }
+    assert!(rows[0].1["id"].as_str().unwrap() < rows[1].1["id"].as_str().unwrap());
+    let answer = engine.query("ordered", snapback4_core::Context::new("alice", Default::default()).at(1_000)).unwrap();
+    let module = lean::module(source).unwrap();
+    let case = module.case("ordered", module.store(&rows).unwrap(), "alice",
+        module.tag_args("ordered", &json!({})).unwrap(), None).unwrap();
+    let modeled = lean::ask(&case).unwrap();
+    assert_eq!(lean::model_value(&modeled["data"]), lean::engine_value(&answer.data));
+    assert_eq!(modeled["complete"], answer.complete);
+    assert_eq!(snapback4_core::wire::to_json(&answer.data), json!([rows[0].1, rows[1].1]));
+}
