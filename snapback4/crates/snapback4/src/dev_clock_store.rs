@@ -6,6 +6,7 @@ const TOLERANCE_MS: i64 = 5_000;
 const RECENT_COMMITS: usize = 64;
 const TABLE_BYTES: usize = 4096;
 const TABLE_NAMES: usize = 8;
+const REPORT_ERROR_BYTES: usize = 1024;
 
 // @ref LLP 3000.007#20.12 — inspect a fixed recent commit window, never application row values.
 pub fn ahead(engine: &Engine, now: i64) -> Result<Option<String>, RuntimeError> {
@@ -85,9 +86,11 @@ pub fn crossed_boundaries(engine: &Engine, before: &[Option<i64>], now: i64) -> 
     let mut boundaries = Vec::new();
     let mut report_bytes = 0usize;
     for (index, schedule) in engine.schema().schedules.iter().enumerate() {
+        // JSON may escape every error byte; count that bound per schedule.
+        report_bytes = report_bytes.saturating_add(2048 + 6 * (REPORT_ERROR_BYTES + 3) + 8 * (schedule.name.len() + schedule.target.len()));
+        if report_bytes > 32 << 20 { return Err(crate::dev_clock::input("schedule window report exceeds its byte budget; use a smaller duration")); }
         let Some(old) = before.get(index).copied().flatten() else { continue; };
         let end = schedule.boundary(now);
-        report_bytes = report_bytes.saturating_add(2048 + 8 * (schedule.name.len() + schedule.target.len()));
         if old >= end { continue; }
         if schedule.periods_between(old, end) > (10_000 - boundaries.len()) as i64 {
             return Err(crate::dev_clock::input("advance crosses more than 10000 schedule windows; use a smaller duration"));
@@ -114,7 +117,9 @@ fn period(schedule: &snapback4_core::schema::Schedule) -> String {
 // @ref LLP 3000#7-decisions-during-execution — missed boundaries fire once; this only explains them.
 pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String], now: i64, held: bool, each_boundary: bool) -> Vec<serde_json::Value> {
     let after = saved_boundaries(engine);
-    let runs = engine.jobs(64).unwrap_or_default();
+    // Read only bounded summaries: job args/cursors and full error payloads
+    // are irrelevant to this report and must not be loaded then replicated.
+    let runs = job_summaries(engine).unwrap_or_default();
     engine.schema().schedules.iter().enumerate().map(|(index, schedule)| {
         let (old, saved) = (before.get(index).copied().flatten(), after.get(index).copied().flatten());
         let current = schedule.boundary(now);
@@ -136,9 +141,7 @@ pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String]
             entry["periodStart"] = start.into();
             entry["periodEnd"] = end.into();
             entry["reason"] = format!("fired for the period {} to {}", utc(start), utc(end)).into();
-            if let Some(run) = runs.iter().find(|run| run.name == schedule.target) {
-                entry["run"] = serde_json::json!({ "state": run.state, "rowsWritten": run.rows_written, "error": run.error });
-            }
+            if let Some(run) = runs.get(&schedule.target) { entry["run"] = run.clone(); }
             // @ref LLP 3000.040#24-monthly-and-yearly-schedules — calendar periods count boundaries, not milliseconds.
             let skipped = if each_boundary { 0 } else { old.map(|old| schedule.periods_between(old, end) - 1).unwrap_or(0) };
             if skipped > 0 {
@@ -175,6 +178,28 @@ pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String]
         }
         entry
     }).collect()
+}
+
+/// The report never loads full error/argument payloads from retained jobs.
+fn job_summaries(engine: &Engine) -> Result<std::collections::BTreeMap<String, serde_json::Value>, RuntimeError> {
+    let mut statement = engine.store().conn().prepare(
+        "SELECT name, state, rows_written, substr(error, 1, ?1), octet_length(error) > ?1, id FROM _jobs ORDER BY created_at DESC, id DESC LIMIT 64")?;
+    let mut rows = statement.query([REPORT_ERROR_BYTES as i64])?;
+    let mut summaries = std::collections::BTreeMap::new();
+    while let Some(row) = rows.next()? {
+        let name: String = row.get(0)?;
+        if summaries.contains_key(&name) { continue; }
+        let mut error: Option<String> = row.get(3)?;
+        let truncated = row.get::<_, Option<bool>>(4)?.unwrap_or(false);
+        if let Some(text) = &mut error && truncated {
+            let mut end = REPORT_ERROR_BYTES.min(text.len());
+            while !text.is_char_boundary(end) { end -= 1; }
+            text.truncate(end); text.push('…');
+        }
+        summaries.insert(name, serde_json::json!({ "id":row.get::<_, String>(5)?, "state":row.get::<_, String>(1)?,
+            "rowsWritten":row.get::<_, i64>(2)?, "error":error, "errorTruncated":truncated }));
+    }
+    Ok(summaries)
 }
 
 /// Startup lines for schedules the store holds: their saved boundary leads the clock.
@@ -221,6 +246,25 @@ mod tests {
             ("id", snapback4_core::Value::Id(snapback4_core::ids::mint(row_at, &mut snapback4_core::ids::Mint::default()).unwrap())),
             ("at", snapback4_core::Value::Int(row_at)),
         ]))], commit_at).unwrap();
+    }
+    #[test]
+    fn clock_report_bounds_one_large_job_error_repeated_across_many_schedules() {
+        let mut source = "table rows:\n  n: int\n  public 'fixture'\njob tick():\n  for row in rows:\n    update rows[row.id] {n:1}\n".to_owned();
+        for n in 0..500 { source.push_str(&format!("schedule s{n} every 1m: tick\n")); }
+        let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let mut engine = Engine::new_at(snapback4_core::Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p|p.program), 0).unwrap();
+        engine.fire_schedules(0).unwrap();
+        let before = saved_boundaries(&engine);
+        assert_eq!(crossed_boundaries(&engine, &before, 60_000).unwrap().len(), 500);
+        let fired = engine.fire_schedules(60_000).unwrap();
+        let message = "🧪\n\\".repeat(30_000);
+        engine.store().conn().execute("UPDATE _jobs SET error = ?1 WHERE id = (SELECT id FROM _jobs ORDER BY created_at DESC, id DESC LIMIT 1)", [&message]).unwrap();
+        let report = schedule_report(&engine, &before, &fired, 60_000, false, false);
+        assert_eq!(report.len(), 500);
+        assert!(report.iter().all(|s| s["run"]["errorTruncated"] == true));
+        assert!(report.iter().all(|s| s["run"]["error"].as_str().unwrap().len() <= REPORT_ERROR_BYTES + 3));
+        assert!(serde_json::to_vec(&report).unwrap().len() < 2 << 20);
     }
     #[test]
     fn utc_text_and_spans_match_the_calendar() {

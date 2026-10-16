@@ -1160,10 +1160,11 @@ fn kit3_http_transitive_opening_dependencies_ignore_never_live_worlds() {
 #[test]
 fn kit3_retained_search_overlap_waits_for_the_same_pending_publication() {
     let f = Fixture::new("kit3-retained-opening");
-    fs::write(f.0.join("snapback/schema.q"), "use personas alice\ntable notes:\n  opens: time\n  body: text <=100\n  search body\n  not before .opens\n  public 'timed search fixture'\n  online only\nquery search(q: text <=100, c: cursor ?):\n  return notes matching q first 10 by .id after c\nquery clock():\n  return now\n").unwrap();
+    fs::write(f.0.join("snapback/schema.q"), "use personas alice\ntable members:\n  room: id\n  principal: principal\n  unique room, principal\n  read <- .principal = viewer\n  sync to .principal\ntable notes:\n  room: id\n  opens: time\n  at: time\n  body: text <=100\n  search body\n  by byOpening: opens\n  not before .opens\n  read <- exists members[.room, viewer]\n  sync to members[.room] last 100 by .at\n  retain delivered-history\nquery search(q: text <=100, c: cursor ?):\n  return notes matching q first 10 by .at after c\nquery clock():\n  return now\n").unwrap();
     let host = f.start(&["dev", "--no-watch"]);
     let now = host.query("clock").as_i64().unwrap();
-    let rows: Vec<_> = (0..8).map(|n| json!({"table":"notes","row":{"id":format!("n{n}"),"opens":now+1000,"body":"coffee"}})).collect();
+    let mut rows: Vec<_> = (0..8).map(|n| json!({"table":"notes","row":{"id":format!("n{n}"),"room":"r","at":n,"opens":now+1000,"body":"coffee"}})).collect();
+    rows.push(json!({"table":"members","row":{"id":"member","room":"r","principal":"dev:alice"}}));
     let seeded = host.post("/seed", json!(rows)); assert!(seeded.get("denied").is_none(), "{seeded}");
     host.post("/dev/clock/advance", json!({"duration":"2s"}));
     let reply = host.post("/q/search", json!({"args":{"q":"coffee","c":null},"searchRetained":["n7"]}));
