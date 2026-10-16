@@ -88,6 +88,8 @@ export async function proveDay2(client, platform, directory) {
   await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", "playwright-core@1.55.1"]);
   await run(process.execPath, ["--test", join(root, "packages/snapback4/test/proof-contract.test.mjs")], root,
     { KIT2_BASELINE_DIST: join(cwd, "node_modules/snapback4/dist"), SNAPBACK4_BIN: packedBinary });
+  await run(process.execPath, ["--test", join(root, "packages/snapback4/test/wire-envelopes.test.mjs")], root,
+    { SNAPBACK4_BIN: packedBinary });
   const agreement = join(cwd, "fixture-agreement"); mkdirSync(join(agreement, "snapback"), {recursive:true}); mkdirSync(join(agreement, "fixtures"));
   writeFileSync(join(agreement, "snapback/schema.q"), "use personas alice\nquery clock(at: time, optional: time ?, times: [time] <=4):\n  return at\n");
   writeFileSync(join(agreement, "fixtures/test.cases.jsonl"), JSON.stringify({op:"clock",args:{at:"now+2h",optional:"now-1h",times:["now","now+1ms"]}})+"\n");

@@ -71,8 +71,33 @@ pub fn span(ms: i64) -> String {
 /// Each schedule's saved boundary, in declaration order.
 pub fn saved_boundaries(engine: &Engine) -> Vec<Option<i64>> {
     engine.schema().schedules.iter()
-        .map(|schedule| engine.store().meta(&format!("schedule:{}", schedule.name)).ok().flatten().and_then(|value| value.parse().ok()))
+        .map(|schedule| {
+            let shape = engine.store().meta(&format!("schedule-shape:{}", schedule.name)).ok().flatten();
+            if shape.as_ref().is_some_and(|shape| *shape != snapback4_core::value::digest(schedule)) { return None; }
+            engine.store().meta(&format!("schedule:{}", schedule.name)).ok().flatten().and_then(|value| value.parse().ok())
+        })
         .collect()
+}
+
+/// Preflight is bounded before the clock or worker leases change.
+// @ref LLP 3000.007#20.12.1 — explicit crossed windows share a bounded enumeration in both modes.
+pub fn crossed_boundaries(engine: &Engine, before: &[Option<i64>], now: i64) -> Result<Vec<(usize, i64)>, snapback4_core::Refusal> {
+    let mut boundaries = Vec::new();
+    for (index, schedule) in engine.schema().schedules.iter().enumerate() {
+        let Some(old) = before.get(index).copied().flatten() else { continue; };
+        let end = schedule.boundary(now);
+        if old >= end { continue; }
+        if schedule.periods_between(old, end) > (10_000 - boundaries.len()) as i64 {
+            return Err(crate::dev_clock::input("advance crosses more than 10000 schedule windows; use a smaller duration"));
+        }
+        let mut boundary = schedule.next(old);
+        while boundary <= end {
+            boundaries.push((index, boundary));
+            boundary = schedule.next(boundary);
+        }
+    }
+    boundaries.sort_by_key(|(index, at)| (*at, *index));
+    Ok(boundaries)
 }
 
 fn period(schedule: &snapback4_core::schema::Schedule) -> String {
@@ -83,18 +108,27 @@ fn period(schedule: &snapback4_core::schema::Schedule) -> String {
 /// The core fires each schedule at most once per advance, for the latest
 /// boundary, and holds it while its saved boundary is ahead of the clock.
 // @ref LLP 3000#7-decisions-during-execution — missed boundaries fire once; this only explains them.
-pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String], now: i64, held: bool) -> Vec<serde_json::Value> {
+pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String], now: i64, held: bool, each_boundary: bool) -> Vec<serde_json::Value> {
     let after = saved_boundaries(engine);
     let runs = engine.jobs(64).unwrap_or_default();
     engine.schema().schedules.iter().enumerate().map(|(index, schedule)| {
         let (old, saved) = (before.get(index).copied().flatten(), after.get(index).copied().flatten());
         let current = schedule.boundary(now);
         let next = schedule.next(current);
-        let mut entry = serde_json::json!({ "name": schedule.name, "target": schedule.target, "period": period(schedule), "fired": false, "nextBoundary": utc(next) });
+        let mut entry = serde_json::json!({ "name": schedule.name, "target": schedule.target, "period": period(schedule), "fired": false, "firedWindows": [], "skippedBoundaries": [], "nextBoundary": utc(next) });
         if fired.contains(&schedule.name) {
             let end = saved.unwrap_or(current);
             entry["fired"] = true.into();
             let start = schedule.previous(end);
+            let window = |boundary| serde_json::json!({"periodStart": schedule.previous(boundary), "periodEnd": boundary});
+            let mut windows = Vec::new();
+            if each_boundary {
+                if let Some(old) = old {
+                    let mut at = schedule.next(old);
+                    while at <= end { windows.push(window(at)); at = schedule.next(at); }
+                }
+            } else { windows.push(window(end)); }
+            entry["firedWindows"] = windows.into();
             entry["periodStart"] = start.into();
             entry["periodEnd"] = end.into();
             entry["reason"] = format!("fired for the period {} to {}", utc(start), utc(end)).into();
@@ -102,9 +136,18 @@ pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String]
                 entry["run"] = serde_json::json!({ "state": run.state, "rowsWritten": run.rows_written, "error": run.error });
             }
             // @ref LLP 3000.040#24-monthly-and-yearly-schedules — calendar periods count boundaries, not milliseconds.
-            let skipped = old.map(|old| schedule.periods_between(old, end) - 1).unwrap_or(0);
+            let skipped = if each_boundary { 0 } else { old.map(|old| schedule.periods_between(old, end) - 1).unwrap_or(0) };
             if skipped > 0 {
                 entry["skippedPeriods"] = skipped.into();
+                let mut windows = Vec::new();
+                let mut at = schedule.next(old.unwrap());
+                while at < end {
+                    let mut item = window(at);
+                    let args = serde_json::json!({"periodStart": schedule.previous(at), "periodEnd": at});
+                    item["command"] = format!("snapback4 run {} '{}'", schedule.target, args).into();
+                    windows.push(item); at = schedule.next(at);
+                }
+                entry["skippedBoundaries"] = windows.into();
                 entry["reason"] = format!("fired once, for the latest period {} to {}; {skipped} earlier period{} this advance crossed (from {}) did not run: missed boundaries fire once. Run {} with periodStart/periodEnd for an earlier period",
                     utc(start), utc(end), if skipped == 1 { "" } else { "s" }, utc(old.unwrap_or(end)), schedule.target).into();
             }

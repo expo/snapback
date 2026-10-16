@@ -40,7 +40,6 @@ A query over hidden rows is complete and empty when the pinned scope uniformly
 refuses its viewer. A nonuniform scan can still be partial with no visible
 rows. Test the complete flag as well as the count; do not expect E_RULE for a
 hidden page. For a compiled role workflow see: `guide rule-recipes role-workflow`.
-Proof-kit helper contracts and client recipes are owned by KIT2.
 
 ## Fixtures and cases
 
@@ -74,7 +73,10 @@ what later cases see. The complete vocabulary is `as`, `op`, `args`, `expect`,
 ```
 
 `save` names an answer: `$eggs` means its row id, `$eggs.text` its field.
-A bare argument equal to a saved alias refuses with the `$name` rewrite.
+A bare id/reference/principal/cursor/asset argument equal to a saved alias refuses
+with the `$name` rewrite (including optional/list leaves). Text, enum and JSON
+arguments remain literals. A root `$alias` saved as null refuses E_FIXTURE_ALIAS
+by name; `$row.optionalField` may be null.
 Bare assertion strings (including enum literals) remain literals even if an alias has that name.
 Aliases resolve recursively inside args, data and match. Unknown aliases and
 missing fields refuse E_FIXTURE_ALIAS by name. `$$text` means literal
@@ -85,7 +87,7 @@ length/order, with each element matched recursively; scalars compare exactly.
 `matchSet` compares a list without order: `"matchSet":[{"name":"Ash"},{"name":"Oak"}]`
 requires exactly those two recursive subsets, each matched to a different row.
 Duplicate counts matter. Nested arrays retain their order. All assertion forms may appear together. `count` asserts length. A mutation defaults to
-`sent`; a query to its check verdict (`complete`, or complete/capped when
+`sent`; `ok` also accepts a sent mutation and never a refusal; a query defaults to its check verdict (`complete`, or complete/capped when
 N_NEVER_COMPLETE). Set `expect` to `complete`, `capped`, `ok`, `denied`, or a
 refusal code. `as` must be a declared persona; outsiders need their own persona.
 
@@ -96,10 +98,16 @@ sweep uses another literal-argument case or derives arguments for that query.
 For different authorization lanes, add `fixtures/test.sweep.json`:
 `{"hrStatus":["carol"],"policiesList":["alice","bob"]}`. Each named query uses
 its listed personas; other queries use the whole cast. `--as` explicitly overrides
-that matrix. Empty/unknown entries and undeclared personas fail before cases run.
+that matrix and prints "overrides test.sweep.json for: …" with its query names. Empty/unknown entries and undeclared personas fail before cases run.
 It prints examined rows, entries, probes, steps, heap/output bytes and ceilings.
 `complete` is the whole answer; `capped` is a partial answer, not a refusal.
-Expected refusals pass; denied queries, failed cases and invalid fixtures exit 1.
+Sweep refusals from a program's own require (family rule) are advisory and do
+not fail the run. Other refused sweep queries fail unless that query/persona's
+own explicit case expects the same code. This exemption matches query, persona
+and code; it does not prove that earlier arguments/state validate the final sweep.
+Write one refusal case per refused persona, plus explicit data/count/completeness
+assertions for the allowed personas' final state. A refusal case for bob never
+covers carol. Failed cases and invalid fixtures exit 1.
 N_FIXTURE_ARGUMENT_DRIFT means a fixture case no longer fits its operation signature. Update its arguments and run snapback4 test.
 
 A lookup reads through the caller's rule: hidden rows give NOT_FOUND before
@@ -229,18 +237,54 @@ A synchronous form onSubmit caused by that button also qualifies.
 Timers or later requestSubmit calls do not inherit a prior click.
 formResult() returns a Promise of { state, id, seq?, result?, why?, mutation }.
 Require state === "sent" before asserting the rendered business result.
-An unclaimable durable write settles failed/E_WITNESS_UNCLAIMED with event/operation/arguments detail.
+An unclaimable durable write settles failed/E_WITNESS_UNCLAIMED with provenance/operation/argument mismatch detail, without logging argument values.
 Keep the promise outside components that may unmount. Four terminal outcomes:
 - sent: claimed write committed (a replay may omit its historical result);
 - failed with the app refusal: claimed write was refused;
 - failed/E_WITNESS_UNCLAIMED: event, operation or arguments did not match;
 - failed/E_WITNESS_NO_WRITE: armed click produced no durable mutation (handler returned early, or app was not ready).
+Both helper refusals carry stable `why.reason`, independent of message text:
+
+| Code | reason | Meaning |
+|---|---|---|
+| E_WITNESS_NO_WRITE | not-ready | app.ready had not successfully resolved at the click |
+| E_WITNESS_NO_WRITE | returned-early | ready handler issued no durable write |
+| E_WITNESS_UNCLAIMED | event | invocation lacked this arm's event/handler claim, or re-arm ended observation |
+| E_WITNESS_UNCLAIMED | arguments | operation name or canonical arguments differed |
+
 No write fails 1 second after the trusted click, on re-arm, or after a 30-second
 abandoned arm. A claimed write still pending at 30 seconds fails the proof with
 E_WITNESS_SENT; inspect its original intent id, never infer a server refusal.
 Re-arm settles the old promise and releases observation; it never cancels a write.
 Gate the form with useAppReady() before typing/clicking; auth alone can precede
 the initial app.ready barrier. pending is custody, not a terminal result.
+
+For an awaited upload, call `witnessForm(app,event,async mutate => ...)` from
+`snapback4/witness-web` synchronously in the handler and use its supplied mutate
+for placement after client.upload succeeds. It captures a per-arm write claim
+from that exact trusted event; unrelated promise callbacks cannot claim it.
+While the handler awaits, the arm's original 30-second bound applies; returning
+without a write settles no-write. Outside an armed proof it invokes ordinary
+app.mutate. Upload-on-selection plus a synchronous Save is also useful (`guide assets`).
+
+`waitForFresh(locator,previous,options)` returns `Promise<string>`: the fresh
+nonempty text, not a locator. Keep the locator separately for later actions.
+Strings passed to renderedText are exact by default; for composite row text use
+a RegExp or exact:false. If an exact string stays absent while a scoped substring
+exists, its timeout adds "a substring match exists; pass a RegExp or `exact: false`".
+This hint never weakens the assertion or suppresses ambiguity errors.
+
+On React Native web, a composite `<Text>` is one node, so match its whole text
+or a RegExp. Button titles render uppercase: use a case-insensitive role name
+when the proof runs on both web and native (`/^add$/i`). React Native has no
+`accessibilityRole="status"`; use accessibilityLiveRegion and statusText/text
+selectors for its visible status. An input's value is never rendered proof.
+
+For a wrapped `<select>`, its label can include option text. Prefer the select's
+own accessible name or scope a label then locate its select; use selectByValue
+with the stable option value, not its display label. For example, a label
+containing Choice and its options can be scoped with getByText('Choice',
+{exact:false}).locator('select'); an explicit aria-label on the select is clearer.
 
 Eight rules keep proofs honest:
 
@@ -280,7 +324,16 @@ changing an immutable field refuses E_CONSTRAINT. Both doors are dev-only.
 Advance time without sleeping with `snapback4 clock advance +2h`: it discovers
 a unique live dev for this project, including a memory host on a custom port
 (add `--port N` to select among simultaneous hosts), or POST `/dev/clock/advance` with `{"duration":"+2h"}`.
+Clock/reset replies carry now and skewMs. Reset keeps simulated time unless
+clock:reset is explicit. `await dev.now()` from startDev reads authoritative dev
+time afresh; use it instead of Date.now() for deadline arguments after advances.
+Default advance coalesces to the latest window. Add --each-boundary (HTTP
+eachBoundary:true) to admit each crossed window in order; jobs still see the
+final advanced now, so use periodStart/periodEnd for historical windows.
 Clock controls are dev-only; `guide clock` covers status, reset and restart.
+One-shot HTTP reads after a not-before crossing wait for each encountered live
+publication dependency. A 30-second limit refuses retryable E_QUERY_RETRY
+(503); retry the read, never assume loading means an empty list.
 
 ## Day-two proofs with immutable sources
 

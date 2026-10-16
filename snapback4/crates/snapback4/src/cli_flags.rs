@@ -103,6 +103,7 @@ pub(crate) fn help(verb: &str) -> String {
             ("deploy", "schema") => " — deploy a saved complete source; keep it outside snapback/",
             ("test", "source") => " — test a saved complete source; keep it outside snapback/",
             ("doctor", "repair-expiry-orphan") => " — offline recovery of one physically missing expiring parent, table:id; stop its host and back up first (guide expire)",
+            ("clock", "each-boundary") => " — fire every crossed schedule window in chronological order (default: latest window only)",
             (_, "help") => " — print this verb's help (-h also works)",
             _ if retired(verb,name) => " — retired spelling; the command explains its replacement before work",
             ("doctor", "instance") => " — inspect one dev instance's health and refusals",

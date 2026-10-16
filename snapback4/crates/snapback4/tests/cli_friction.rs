@@ -1145,6 +1145,7 @@ fn surf3_sweep_personas_are_per_query_validated_and_globally_overridable() {
     assert!(!output.contains("hr (alice)") && !output.contains("employee (carol)"), "{output}");
     let output = project.run(&["test", "--as", "carol"]);
     assert!(output.status.success() && text(&output).contains("employee (carol)"), "{}", text(&output));
+    assert!(text(&output).contains("overrides test.sweep.json for: employee, hr"), "{}", text(&output));
     for matrix in ["{\"typo\":[\"alice\"]}", "{\"hr\":[]}", "{\"hr\":[\"stranger\"]}", "{\"hr\":[\"carol\",\"carol\"]}", "{\"hr\":\"carol\"}"] {
         project.write("fixtures/test.sweep.json", matrix);
         let output = project.run(&["test"]);

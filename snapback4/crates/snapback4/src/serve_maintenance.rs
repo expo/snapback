@@ -344,9 +344,17 @@ impl Drop for Advancing<'_> {
 
 pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
     if !shared.personas { return respond(request, 403, json!({"denied":refusal_json(&crate::dev_clock::release())})); }
-    let duration = serde_json::from_str::<serde_json::Value>(body).ok()
-        .and_then(|body| body.get("duration").and_then(|value| value.as_str()).map(str::to_owned));
-    let milliseconds = match duration.as_deref().ok_or_else(|| crate::dev_clock::input("clock advance takes {\"duration\":\"+2m\"}"))
+    let payload = match serde_json::from_str::<serde_json::Value>(body) {
+        Ok(payload) => payload,
+        Err(_) => return respond(request, 400, json!({"denied":refusal_json(&crate::dev_clock::input("clock advance takes {\"duration\":\"+2m\"}"))})),
+    };
+    let each_boundary = match payload.get("eachBoundary") {
+        None => false,
+        Some(serde_json::Value::Bool(value)) => *value,
+        Some(_) => return respond(request, 400, json!({"denied":refusal_json(&crate::dev_clock::input("eachBoundary must be a boolean"))})),
+    };
+    let duration = payload.get("duration").and_then(|value| value.as_str());
+    let milliseconds = match duration.ok_or_else(|| crate::dev_clock::input("clock advance takes {\"duration\":\"+2m\"}"))
         .and_then(crate::dev_clock::duration) {
         Ok(milliseconds) => milliseconds,
         Err(error) => return respond(request, 400, json!({"denied":refusal_json(&error)})),
@@ -362,10 +370,11 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         // between shifting its lease and publishing the advanced clock.
         let mut engine = lock(&shared.engine);
         let before = crate::dev_clock_store::saved_boundaries(&engine);
-        lock(&shared.maintenance).advancing = true;
         let mut clock = lock(&shared.clock);
         let mut next = clock.clone();
         let now = next.advance(milliseconds)?;
+        let boundaries = if shared.hold_schedules { Vec::new() } else { crate::dev_clock_store::crossed_boundaries(&engine, &before, now)? };
+        lock(&shared.maintenance).advancing = true;
         engine.advance_worker_leases_at(milliseconds, clock.now()).map_err(|e| e.refusal())?;
         *clock = next;
         let offset = now - snapback4_core::now_ms();
@@ -373,22 +382,34 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
             format!("; use {} for isolated time tests; clock advance --port N targets its printed port (guide jobs)", crate::dev_clock::isolated_command())
         } else { String::new() };
         let message = format!("cumulative offset {offset:+}ms; lasts until restart{isolated}");
-        Ok((now, offset, message, before))
+        Ok((now, offset, message, before, boundaries))
     })();
-    let (now, offset, message, before) = match advanced {
+    let (now, offset, message, before, boundaries) = match advanced {
         Ok(result) => result,
         Err(error) => return respond(request, 400, json!({"denied":refusal_json(&error)})),
     };
     // @ref LLP 3000#contended-read-serving — a developer is awaiting this
     // request; synchronous clock-advance work intentionally keeps request QoS.
-    match work(shared, true, 0) {
+    let drained = (|| {
+        let mut crossed = Vec::new();
+        if each_boundary {
+            for (index, at) in boundaries {
+                crossed.extend(engine_work(shared, |engine, _| engine.fire_schedule_at(at, index))?);
+            }
+        }
+        let mut work = work(shared, true, 0)?;
+        work.schedules += crossed.len();
+        work.fired.extend(crossed);
+        Ok::<_, RuntimeError>(work)
+    })();
+    match drained {
         Ok(work) => {
-            let schedules = crate::dev_clock_store::schedule_report(&lock(&shared.engine), &before, &work.fired, now, shared.hold_schedules);
-            respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "message":message, "work":work, "schedules":schedules}))
+            let schedules = crate::dev_clock_store::schedule_report(&lock(&shared.engine), &before, &work.fired, now, shared.hold_schedules, each_boundary);
+            respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "skewMs":offset, "eachBoundary":each_boundary, "message":message, "work":work, "schedules":schedules}))
         }
         // Time remains advanced if maintenance fails; callers must not
         // retry the advance blindly. The normal tick retries pending work.
-        Err(error) => respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "message":message, "denied":refusal_json(&error.refusal())})),
+        Err(error) => respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "skewMs":offset, "eachBoundary":each_boundary, "message":message, "denied":refusal_json(&error.refusal())})),
     }
 }
 
@@ -474,7 +495,7 @@ pub(super) fn clock_status(request: Request, shared: &Shared) {
         note
     })();
     match result {
-        Ok(note) => respond(request, 200, json!({"storeAhead":note})),
+        Ok(note) => { let now = shared.now(); respond(request, 200, json!({"storeAhead":note,"now":now,"skewMs":now - snapback4_core::now_ms()})) },
         Err(error) => respond(request, 500, json!({"denied":refusal_json(&error.refusal())})),
     }
 }

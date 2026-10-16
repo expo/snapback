@@ -1044,3 +1044,62 @@ fn persisted_restart_nonce_refuses_old_latency_reset_even_with_the_same_store_id
     let cleared=output_json(f.command(&["doctor","--latency","--reset","--json"]));
     assert_eq!(cleared["operations"]["/q/time"]["n"],0);
 }
+
+#[test]
+fn kit3_clock_reports_skipped_windows_and_each_boundary_preserves_order() {
+    let f = Fixture::new("kit3-windows");
+    let source = "use personas alice\ntable windows:\n  start: time\n  end: time\n  at: time\n  public 'test'\n  insert <- allow\n  online only\ntable drivers:\n  n: int\n  cap 1\n  public 'test'\n  online only\nquery windows():\n  return windows first 100 by .id\njob record(periodStart: time, periodEnd: time):\n  for d in drivers:\n    insert windows {start: periodStart, end: periodEnd, at: now}\nschedule minute every 1m: record\nschedule two every 2m: record\n";
+    fs::write(f.0.join("snapback/schema.q"), source).unwrap();
+    let host = f.start(&["dev", "--no-watch"]);
+    let port = host.address.rsplit(':').next().unwrap();
+    host.post("/seed", json!([{"table":"drivers","row":{"id":"one","n":0}}]));
+    let advance = output_json(f.command(&["clock", "advance", "3m", "--port", port]));
+    assert!(advance["skewMs"].as_i64().unwrap() >= 180_000 - 100, "{advance}");
+    let minute = advance["schedules"].as_array().unwrap().iter().find(|s| s["name"] == "minute").unwrap();
+    assert_eq!(minute["firedWindows"].as_array().unwrap().len(), 1);
+    assert_eq!(minute["skippedBoundaries"].as_array().unwrap().len(), 2);
+    for skipped in minute["skippedBoundaries"].as_array().unwrap() {
+        assert_eq!(skipped["periodEnd"].as_i64().unwrap() - skipped["periodStart"].as_i64().unwrap(), 60_000);
+        assert!(skipped["command"].as_str().unwrap().starts_with("snapback4 run record '{"));
+    }
+    let reset = host.post("/dev/reset", json!({"clock":"reset","seed":[{"table":"drivers","row":{"id":"one","n":0}}]}));
+    assert!(reset["now"].is_i64() && reset["skewMs"].as_i64().unwrap().abs() < 1000, "{reset}");
+    let advance = output_json(f.command(&["clock", "advance", "3m", "--each-boundary", "--port", port]));
+    let mut expected = Vec::new();
+    for schedule in advance["schedules"].as_array().unwrap() {
+        assert_eq!(schedule["skippedBoundaries"], json!([]));
+        for window in schedule["firedWindows"].as_array().unwrap() { expected.push(window["periodEnd"].as_i64().unwrap()); }
+    }
+    expected.sort();
+    assert!(expected.len() >= 4);
+    let rows = host.query("windows");
+    let rows = rows.as_array().unwrap();
+    assert_eq!(rows.iter().map(|r| r["end"].as_i64().unwrap()).collect::<Vec<_>>(), expected);
+    assert!(rows.iter().all(|r| r["at"].as_i64().unwrap() >= advance["now"].as_i64().unwrap()));
+    let status = host.request("GET", "/dev/clock/status", json!({}));
+    assert!(status["now"].is_i64() && status["skewMs"].is_i64(), "{status}");
+    let before = host.query("windows");
+    let refused = f.command(&["clock", "advance", "10001m", "--each-boundary", "--port", port]);
+    assert!(!refused.status.success());
+    assert!(String::from_utf8_lossy(&refused.stderr).contains("10000 schedule windows"));
+    assert_eq!(host.query("windows"), before, "preflight refuses before admitting any window");
+}
+
+#[test]
+fn kit3_first_http_query_materializes_only_the_live_dependencies_it_encounters() {
+    let f = Fixture::new("kit3-opening");
+    let source = "use personas alice\ntable announcements:\n  opens: time\n  until: time ?\n  note: text <=40\n  not before .opens\n  expire at .until\n  public 'test'\n  online only\nquery all():\n  return announcements first 100 by .id\nquery clock():\n  return now\n";
+    fs::write(f.0.join("snapback/schema.q"), source).unwrap();
+    let host = f.start(&["dev", "--no-watch", "--hold-schedules"]);
+    let now = host.query("clock").as_i64().unwrap();
+    let mut seed = Vec::new();
+    for n in 0..20 { seed.push(json!({"table":"announcements","row":{"id":format!("row{n:02}"),"opens":now+1000,"until":null,"note":"revealed"}})); }
+    seed.push(json!({"table":"announcements","row":{"id":"never","opens":now+1000,"until":now+500,"note":"must stay private"}}));
+    let seeded = host.post("/seed", json!(seed)); assert!(seeded.get("denied").is_none(), "{seeded}");
+    host.post("/dev/clock/advance", json!({"duration":"2s"}));
+    let reply = host.post("/q/all", json!({"args":{}}));
+    assert_eq!(reply["complete"], true, "{reply}");
+    assert_eq!(reply["data"].as_array().unwrap().len(), 20);
+    assert!(reply.get("loading").is_none() && reply.get("pending_opening").is_none(), "{reply}");
+    assert!(!reply.to_string().contains("must stay private"));
+}

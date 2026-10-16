@@ -63,6 +63,9 @@ pub fn test(options: &Options) -> i32 {
             Err(error) => { eprintln!("{error}"); return 1; }
         }
     };
+    if let Some(persona) = options.flags.get("as") && !sweep_personas.is_empty() {
+        println!("test --as {persona} overrides test.sweep.json for: {}", sweep_personas.keys().cloned().collect::<Vec<_>>().join(", "));
+    }
     if options.flags.contains_key("residency") {
         let verbose = options.flags.contains_key("verbose");
         if let Err(error) = residency::measure(&mut engine, &bound, &personas, verbose) { eprintln!("residency measurement failed: {error}"); return 1; }

@@ -108,7 +108,9 @@ mutation checkIn():
 ## E_TIME_AUDIENCE_PENDING
 
 E_TIME_AUDIENCE_PENDING means an opened row is still waiting for its bounded server publication. A read
-remains loading instead of deciding that the row is absent. A mutation rolls
+never decides that the row is absent. HTTP queries wait for encountered live
+publication dependencies, then reevaluate; a 30-second limit returns retryable
+E_QUERY_RETRY (503). Other unavailable reasons can still return loading. A mutation rolls
 back without retaining its operation id, so the client can retry the same
 write. The refusal is retryable and reveals no row id or opening time.
 
@@ -147,10 +149,19 @@ schedule closer every 1m: closeDeparted
 - `snapback4 dev --clock-offset +25h` starts the dev server 25 hours ahead; mutations stamp `now` from it.
 - `snapback4 clock advance 2m [--port N]` moves a running dev forward, sweeps expiry and runs due
   schedules and jobs; over HTTP: `POST /dev/clock/advance` with `{"duration":"2m"}`. An advance across
-  many boundaries runs each schedule once, and its reply names the period and `skippedPeriods`.
+  many boundaries runs each schedule once, and its reply lists firedWindows and
+  skippedBoundaries with periodStart/periodEnd and a literal run command for each
+  skipped window. Add --each-boundary (HTTP eachBoundary:true) to admit every crossed
+  window in chronological order. Jobs see final advanced now; use period arguments
+  for historical windows, or separate advances to test now at each boundary.
+  The advance refuses more than 10000 total crossed windows before changing time.
+  If work fails after time advances, inspect now/skewMs; normal maintenance resumes
+  queued work. Reset the scenario with reset --clock reset rather than repeating
+  the advance blindly.
 - Clock and reset discover a unique live dev in the current project, including `dev --memory --port N`. Multiple hosts list their addresses and require `--port N`; no default port is guessed. Registrations live in `.snapback4/dev-hosts`, contain no secrets, and stale hosts are ignored.
 - The offset belongs to the process: restart with `dev --resume-clock` to continue from the store's
-  newest stamp. `GET /dev/status` reports `now` and `clockOffsetMs`.
+  newest stamp. `GET /dev/status` reports `now`, `skewMs` and `clockOffsetMs`. `/dev/clock/status` and reset
+  also carry now/skewMs; `await dev.now()` from snapback4/proof reads it afresh.
 - `snapback4 run <op> --now +2h` (or milliseconds) pins the clock for one local run.
 - In the client, `client.now()` is the server's time estimate; `useNow(deadline)` from `snapback4/react`
   re-renders at a deadline.

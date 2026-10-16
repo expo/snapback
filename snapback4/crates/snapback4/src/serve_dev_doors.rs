@@ -178,7 +178,7 @@ pub(super) fn reset(request: Request, shared: &Shared, body: &str) {
     respond_timed(request, shared, 200, json!({
         "reset": true, "seeded": reset.seeded, "generation": generation, "storeId": reset.store_id,
         "previousStoreId": reset.previous_store_id, "head": reset.seq, "assetsRemoved": assets,
-        "now": now, "clockOffsetMs": now - snapback4_core::now_ms(), "ms": started.elapsed().as_millis() as u64,
+        "now": now, "clockOffsetMs": now - snapback4_core::now_ms(), "skewMs": now - snapback4_core::now_ms(), "ms": started.elapsed().as_millis() as u64,
     }));
 }
 

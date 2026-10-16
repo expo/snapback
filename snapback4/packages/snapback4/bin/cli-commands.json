@@ -11,7 +11,7 @@
   {"verb":"releases","positional":"<dir> [N|latest]","flags":[{"name":"after","value":"VALUE"},{"name":"items-after","value":"VALUE"},{"name":"event","value":"VALUE"},{"name":"json","value":""}]},
   {"verb":"serve","positional":"<dir>","flags":[{"name":"port","value":"N|A-B"},{"name":"bind","value":"VALUE"},{"name":"worker","value":"path"},{"name":"i-understand-cleartext","value":""},{"name":"long-waits","value":"N"},{"name":"long-waits-per-principal","value":"N"},{"name":"claim-waits","value":"N"}]},
   {"verb":"run","positional":"<operation> [json-args]","flags":[{"name":"as","value":"persona|principal"},{"name":"port","value":"N"},{"name":"now","value":"VALUE"},{"name":"json","value":""},{"name":"release","value":"dir"},{"name":"token-env","value":"NAME"}]},
-  {"verb":"clock","positional":"advance <duration>","flags":[{"name":"port","value":"N"},{"name":"release","value":"dir"}]},
+  {"verb":"clock","positional":"advance <duration>","flags":[{"name":"each-boundary","value":""},{"name":"port","value":"N"},{"name":"release","value":"dir"}]},
   {"verb":"reset","positional":"","flags":[{"name":"port","value":"N"},{"name":"seed","value":"VALUE"},{"name":"clock","value":"VALUE"}]},
   {"verb":"test","positional":"","flags":[{"name":"source","value":"file.q"},{"name":"fixture","value":"dir"},{"name":"as","value":"persona|principal"},{"name":"residency","value":""},{"name":"verbose","value":""}]},
   {"verb":"why","positional":"<E_CODE|recent|operation|table|id>","flags":[{"name":"verbose","value":""},{"name":"release","value":"dir"},{"name":"values","value":""},{"name":"instance","value":"VALUE"},{"name":"store","value":"path"}]},

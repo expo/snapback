@@ -54,3 +54,49 @@ test('guide testing full HTTP bodies match real routes, including null returns, 
   assert.equal(explicit.id, 'saved-intent'); assert.equal(explicit.result, null);
 });
 
+
+// This schema is also the literal Quarry fixture printed on guide wire.
+const wireRecipe = `use personas alice, bob
+table notes:
+  owner: principal
+  title: text <=80
+  public 'wire recipe'
+  insert <- allow
+  online only
+view noteCounts: count notes by .owner
+query list():
+  require viewer = 'dev:alice' else READ_REFUSED
+  return notes first 10 by .id
+query one(id: notes):
+  return notes[id]
+query countRows():
+  return noteCounts first 10 by .owner { owner, value }
+mutation add(title: text <=80):
+  require title != 'refuse' else WRITE_REFUSED
+  return insert notes { owner: viewer, title }
+`;
+test('KIT3 guide wire literal query/mutation success/refusal, point objects and view values', {timeout:30000}, async t => {
+  const dir=project(t,'kit3-wire-');mkdirSync(join(dir,'snapback'));writeFileSync(join(dir,'snapback/schema.q'),wireRecipe);
+  const server=await dev(dir);t.after(server.stop);
+  const requests=[
+    ['/m/add','alice',{title:'Proof'}],
+    ['/m/add','alice',{title:'refuse'}],
+    ['/q/list','alice',{}],
+    ['/q/list','bob',{}],
+    ['/q/one','alice',null],
+    ['/q/countRows','alice',{}],
+  ];
+  let row,store;const examples={};
+  for(const [route,as,args] of requests){
+    const response=await fetch(server.url+route,{method:'POST',headers:{'content-type':'application/json','x-snapback-persona':as},body:JSON.stringify({args:args??{id:row}})});
+    const body=await response.json();assert.equal(response.status,200,JSON.stringify(body));
+    if(route==='/m/add'&&args.title==='Proof'){assert.equal(body.state,'sent',JSON.stringify(body));row=body.result.id;store=body.store_id;}
+    examples[route+' '+(args?.title??as)]={status:response.status,body:JSON.parse(JSON.stringify(body).replaceAll(row,'row1').replaceAll(store,'store1'))};
+  }
+  const path=join(root,'crates/snapback4-lang/src/guide/wire.md');
+  let guide=readFileSync(path,'utf8');
+  const block='<!-- KIT3 WIRE BEGIN -->\n```quarry\n'+wireRecipe+'```\n\n```json\n'+'{\n'+Object.entries(examples).map(([key,value])=>'  '+JSON.stringify(key)+': '+JSON.stringify(value)).join(',\n')+'\n}' +'\n```\n<!-- KIT3 WIRE END -->';
+  if(process.env.KIT3_UPDATE_WIRE==='1'){guide=guide.replace(/<!-- KIT3 WIRE BEGIN -->[\s\S]*?<!-- KIT3 WIRE END -->/,()=>block);writeFileSync(path,guide);}
+  const saved=guide.match(/<!-- KIT3 WIRE BEGIN -->\n```quarry\n([\s\S]*?)```\n\n```json\n([\s\S]*?)\n```\n<!-- KIT3 WIRE END -->/);
+  assert.ok(saved,'guide wire contains generated fixture and envelopes');assert.equal(saved[1],wireRecipe);assert.deepEqual(JSON.parse(saved[2]),examples);
+});
