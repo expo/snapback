@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "directory": "/home/ccheever/projects/sb4-w14-reg/snapback4/target/reg-qualification-router/day2-compatibility",
+  "savedSourceCompatibility": "passed",
+  "expoPrintedWrittenPorts": "passed",
+  "previewNoise": "passed",
+  "helperContracts": "passed",
+  "fixtureAgreement": "passed"
+}
