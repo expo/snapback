@@ -360,8 +360,8 @@ export function runGeneratedEffects(options: WorkerOptions, registry: Readonly<R
     const meta: EffectMeta = Object.freeze({ id: effect.id, idempotencyKey: effect.id, effect: effect.effect, attempt: effect.attempt, seq: effect.seq, at: effect.at, worker: principal ?? "" });
     const outcome = await registration.execute(effect, meta);
     if (outcome.kind === "authority-lost") {
-      if (outcome.terminal) terminal(new Error(outcome.error));
-      report(new Error(outcome.error));
+      if (outcome.terminal) terminal(new Error(effectMessage(effect, outcome.error)));
+      report(new Error(effectMessage(effect, outcome.error)));
       return;
     }
     if (outcome.kind === "active-error") {

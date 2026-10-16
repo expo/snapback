@@ -179,8 +179,7 @@ fn shared_immutable_evidence_refs_preserve_home_authorization_and_lifetime() {
     // Execute the actual published recipe; snapshots carry row refs, not second asset placements.
     let guide = include_str!("../../snapback4-lang/src/guide/asset_sharing.md");
     let source = guide.split("```quarry\n").nth(1).unwrap().split("```").next().unwrap();
-    let source = source.replace("  update <- viewer = 'service:scanner'", "  update <- viewer = 'service:scanner'\n  delete <- viewer = 'service:scanner'") + "\nmutation removeSnapshot(snapshot: snapshots):\n  delete snapshots[snapshot]\nmutation removeEvidence(source: evidence):\n  delete evidence[source]\n";
-    let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let mut e = Engine::memory(bound.schema, bound.programs.into_iter().map(|p|p.program)).unwrap();
     let upload = e.store_file("alice", PDF, Some("application/pdf"), "evidence.pdf", 0).unwrap();
@@ -194,6 +193,7 @@ fn shared_immutable_evidence_refs_preserve_home_authorization_and_lifetime() {
     assert_eq!(e.asset_access("bob", &upload.id, 2).unwrap_err().code(), "E_ASSET_UNKNOWN");
     assert_eq!(refused(&write(&mut e,"alice","shareSnapshot","source",id.clone(),"pending",3)),"NOT_SCANNED");
     assert_eq!(refused(&write(&mut e,"bob","approveScan","source",id.clone(),"forged",4)),"NOT_SCANNER");
+    // Approval deliberately trusts the scanner seat; SHA verification belongs to its adapter.
     sent(&write(&mut e,"service:scanner","approveScan","source",id.clone(),"clean",5));
     assert!(e.asset_access("bob", &upload.id, 6).is_ok());
     let snapshot = sent(&write(&mut e,"alice","shareSnapshot","source",id.clone(),"snapshot-a",7));

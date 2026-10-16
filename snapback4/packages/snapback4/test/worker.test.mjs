@@ -895,3 +895,19 @@ test('a claimed effect with no local handler reports its accepted terminal failu
   await worker.done;
   assert.deepEqual(errors.map(error=>error.message),['this worker has no handler for unregistered']);
 });
+
+for (const terminal of [false, true]) test(`generated ${terminal ? 'terminal' : 'nonterminal'} authority loss redacts the effect lease before reporting`, async () => {
+  const {runGeneratedEffects} = await import('../dist/worker.js');
+  const stop = new AbortController(), errors = [], paths = [];
+  const worker = runGeneratedEffects({url:'http://worker.test',token:'seat-secret',signal:stop.signal,
+    onError:error=>{errors.push(error);if(!terminal)stop.abort();},
+    fetch:async url=>{
+      paths.push(new URL(url).pathname);assert.ok(url.endsWith('/claim'),'authority loss never settles');
+      return Response.json({effects:[{id:'lost',effect:'notify',payload:{},attempt:1,seq:1,at:0,leaseToken:'lease-secret',declarationContract:'contract'}]});
+    }}, {notify:{declarationContract:'contract',execute:async()=>({kind:'authority-lost',error:'lost seat-secret lease-secret',terminal})}});
+  const expected='lost [REDACTED] [REDACTED]';
+  if(terminal)await assert.rejects(worker.done,error=>error.message===expected);
+  else await worker.done;
+  assert.deepEqual(errors.map(error=>error.message),[expected]);
+  assert.deepEqual(paths,['/effects/claim']);
+});

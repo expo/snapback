@@ -20,6 +20,7 @@ table evidence:
   read <- .owner = viewer or viewer = 'service:scanner' or .status = 'clean'
   insert <- .owner = viewer and .status = 'pending'
   update <- viewer = 'service:scanner'
+  delete <- viewer = 'service:scanner'
   online only
 table snapshots:
   owner: principal
@@ -44,6 +45,11 @@ mutation approveScan(source: evidence):
   require viewer = 'service:scanner' else NOT_SCANNER
   row = evidence[source] ! else NOT_FOUND
   update evidence[row.id] {status: 'clean'}
+mutation removeSnapshot(snapshot: snapshots):
+  delete snapshots[snapshot]
+mutation removeEvidence(source: evidence):
+  require viewer = 'service:scanner' else NOT_SCANNER
+  delete evidence[source]
 ```
 
 Clean evidence is account-readable here. Private sharing needs a reader roster
@@ -52,11 +58,11 @@ Copy changing business fields separately for a frozen snapshot.
 
 ## Scan before sharing: fail closed
 
-Type sniffing is not malware scanning. A trusted `service:scanner` worker reads
-`scanTarget` and downloads the immutable bytes using its bearer. It calls this
-adapter with those exact bytes. Configure the scanner URL privately; never use
-a payload URL. Its authenticated API returns `{verdict: "clean", sha256}` only
-after a completed scan, bound to the received bytes' lowercase digest.
+A trusted `service:scanner` worker downloads `scanTarget`'s immutable bytes
+using its bearer. Configure a trusted authenticated scanner URL, never a payload
+URL. Its API returns `{verdict: "clean", sha256}` after scanning those exact bytes.
+SHA verification happens in this adapter, **not the engine**: `approveScan` trusts
+the seat, which can approve directly. Type sniffing is not malware scanning.
 
 ```js
 import { Retry, GiveUp } from "snapback4/worker";

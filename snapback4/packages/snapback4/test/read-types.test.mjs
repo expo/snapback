@@ -751,6 +751,8 @@ test('device-less identity options require a store while persona and device form
     createApp({url:'http://localhost:4400', sessionStore: localStorageSessionStore()});
     createApp({url:'http://localhost:4400', sessionStore: memorySessionStore()});
     createApp({url:'http://localhost:4400', persona:'alice'});
-    createApp({url:'http://localhost:4400', readOnly:true});`);
+    createApp({url:'http://localhost:4400', readOnly:true});
+    declare const device: import('./src/local.ts').DeviceOpener;
+    createApp({url:'http://localhost:4400', device});`);
   assert.deepEqual(valid.codes, [], valid.text);
 });
