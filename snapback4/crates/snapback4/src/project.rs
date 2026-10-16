@@ -211,6 +211,10 @@ impl Project {
     // @ref LLP 3000.009#10.2 — A2 type errors are reported at check.
     pub fn check_server(&self) -> Result<(), String> {
         let Some(entry) = self.server_source() else { return Ok(()); };
+        self.check_entry(&entry)
+    }
+
+    pub(crate) fn check_entry(&self, entry: &Path) -> Result<(), String> {
         let mut child = std::process::Command::new(node())
             .arg("--max-old-space-size=256").arg("--input-type=module").arg("-e")
             .arg(include_str!("server_check.mjs")).arg(&self.root).arg(entry)

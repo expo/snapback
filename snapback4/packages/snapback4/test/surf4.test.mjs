@@ -57,3 +57,10 @@ test('serve ready wait has a finite deadline and cleans up its owned child', {ti
  try{await assert.rejects(startServe('deployment',{cwd,timeoutMs:30}),/ready timed out after 30 ms/)}
  finally{if(saved===undefined)delete process.env.SNAPBACK4_BIN;else process.env.SNAPBACK4_BIN=saved;}
 });
+
+test('conventional worker fallback captures its imports before a first check', {timeout:60000},async t=>{
+ const cwd=fixture(t);writeFileSync(join(cwd,'worker-helper.mjs'),'export const marker="SURF4_WORKER_CAPTURED";\n');
+ writeFileSync(join(cwd,'snapback/worker.mjs'),`import {marker} from '../worker-helper.mjs';console.log(marker);setInterval(()=>{},1000);\n`);
+ await ok(['deploy','deployment'],cwd);writeFileSync(join(cwd,'worker-helper.mjs'),'throw Error("mutable working bytes must not run");\n');
+ const host=await startServe('deployment',{cwd});try{await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_WORKER_CAPTURED'),'worker fallback/import was not captured')}finally{await host.stop();}
+});

@@ -61,7 +61,7 @@ impl Candidate {
         // its signatures are never replaced by a selected saved source. A
         // failed working typecheck still records its graph. The selected
         // contracts receive their strict private check below.
-        let _ = original.check_server();
+        if let Some(entry) = crate::dev_worker::source(original) { let _ = original.check_entry(&entry); }
         // Capture freshly checked imports outside snapback/. An absent or
         // stale graph can only cause a private typecheck refusal, never reuse
         // the working generated signature.
@@ -90,7 +90,7 @@ impl Candidate {
             let dependencies = original.root.ancestors().map(|root| root.join("node_modules")).find(|path| path.is_dir());
             if let Some(dependencies) = dependencies { std::os::unix::fs::symlink(dependencies, candidate.project.root.join("node_modules")).map_err(|e| e.to_string())?; }
         }
-        candidate.project.check_server()?;
+        if let Some(entry) = crate::dev_worker::source(&candidate.project) { candidate.project.check_entry(&entry)?; }
         Ok(candidate)
     }
 }

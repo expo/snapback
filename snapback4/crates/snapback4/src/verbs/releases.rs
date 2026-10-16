@@ -266,7 +266,7 @@ pub fn deploy(options: &Options) -> i32 {
             }
             crate::dev_worker::package(&project, &stage)?;
             // @ref LLP 3000.011.003.000.000#2 — saved schemas prepare companion types in a private snapshot, never in working generated/.
-            let private = if options.flags.contains_key("schema") || project.server_source().is_some() {
+            let private = if options.flags.contains_key("schema") || crate::dev_worker::source(&project).is_some() {
                 Some(super::proof_source::Candidate::prepare(&project, &stage, &bound)?)
             } else { None };
             let build_project = private.as_ref().map(|candidate| &candidate.project).unwrap_or(&project);
