@@ -96269,3 +96269,23 @@ ref-check and docs-budget pass. Root inventories/guide report three missing
 legacy Snapback1 generated-file prerequisites, not LANG3 content failures.
 Receipts and scope limits: reports/wave14-lang3/ and WORKSTREAM-REPORT.md.
 No push, version bump, Mac claim or publication qualification is made here.
+
+
+## 2026-10-17 — Integration 15, wave 14 for 0.4.31
+
+Merged REG, DAY4, PROD, KIT3, RULES4, LANG3 and SURF4 in order. Production
+adaptation retains its own dispatch beside day-two opt-in; proof hosts expose
+personas and current time; starter rendering retains empty/denied states and
+scoped proof results. Qualification runs every added consumer slice, including
+the authorization guide blocks against the exact prepared client/platform packs.
+
+The Linux device measures 2,372,829 B raw / 723,275 B gzip / 545,364 B Brotli
+with strict family/absence audits. Budget is 723,775 B, measurement plus exactly
+500 B. Whole-artifact growth from 0.4.30 is 115 B gzip, without a runtime ceiling
+change or independent feature attribution. The 100-schema read-only survey has
+358 notes and no refusal: LANG3's 357 counts plus RULES4's intended mixed-gate
+note in app 079. The authoring census regenerates to 497 mutations with the same
+94 eligible private write sites. Live-parent authority remains in its separate
+workstream; it is excluded from this release. No push or publication is authorized
+by this integration task. Qualification details are retained in the integration
+report; a running/failed check is never represented as a passing qualification.
