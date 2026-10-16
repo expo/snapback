@@ -1,7 +1,8 @@
 // @ref LLP 3000.011.003.000.000#9-wave-13-saved-version-proofs-day3-2026-10-16 — packed feature compositions must execute together.
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync, readdirSync, statSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { runToolchainCommand } from "./publication-starters.mjs";
 
 // Both exports can also run against an installed older package as negative controls.
@@ -80,10 +81,27 @@ export async function proveDay2(client, platform, directory) {
   await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", resolve(client), resolve(platform)]);
   writeFileSync(join(cwd, "day2.mjs"), day2Consumer);
   await run(process.execPath, ["day2.mjs"]);
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+  const packedBinary = join(cwd, "node_modules/snapback4-linux-x64/snapback4");
+  await run(process.execPath, ["--test", "--test-name-pattern", "H9", join(root, "packages/snapback4/test/wave13-previews.test.mjs")], root,
+    { SNAPBACK4_BIN: packedBinary });
+  await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", "playwright-core@1.55.1"]);
+  await run(process.execPath, ["--test", join(root, "packages/snapback4/test/proof-contract.test.mjs")], root,
+    { KIT2_BASELINE_DIST: join(cwd, "node_modules/snapback4/dist"), SNAPBACK4_BIN: packedBinary });
+  const agreement = join(cwd, "fixture-agreement"); mkdirSync(join(agreement, "snapback"), {recursive:true}); mkdirSync(join(agreement, "fixtures"));
+  writeFileSync(join(agreement, "snapback/schema.q"), "use personas alice\nquery clock(at: time, optional: time ?, times: [time] <=4):\n  return at\n");
+  writeFileSync(join(agreement, "fixtures/test.cases.jsonl"), JSON.stringify({op:"clock",args:{at:"now+2h",optional:"now-1h",times:["now","now+1ms"]}})+"\n");
+  writeFileSync(join(cwd, "agreement.mjs"), `import assert from 'node:assert/strict'; import {cli} from 'snapback4/proof';
+    const options={cwd:${JSON.stringify(agreement)}};
+    const tested=await cli(['test'],options); assert.equal(tested.code,0,tested.stdout+tested.stderr);
+    const checked=await cli(['check','--json'],options); assert.equal(checked.code,0,checked.stdout+checked.stderr);
+    assert.doesNotMatch(checked.stdout,/N_FIXTURE_ARGUMENT_DRIFT/);
+    console.log('packed fixture check/test agreement passed');`);
+  await run(process.execPath, ["agreement.mjs"]);
   const expo = join(cwd, "expo-ports"); mkdirSync(expo);
   // Capture output through the published kit, so only packed modules/binary are used.
   writeFileSync(join(cwd, "ports.mjs"), `import {cli} from 'snapback4/proof'; import {writeFileSync} from 'node:fs'; const result=await cli(['init','--expo'],{cwd:${JSON.stringify(expo)},env:{PORT_LO:'29120',PORT_HI:'29129'}}); writeFileSync('expo-init.stdout',result.stdout); if(result.code) throw Error(result.stderr);`);
   await run(process.execPath, ["ports.mjs"]);
   checkExpoPorts(expo, readFileSync(join(cwd, "expo-init.stdout"), "utf8"), 29120, 29129);
-  return { status: "passed", directory: cwd, savedSourceCompatibility: "passed", expoPrintedWrittenPorts: "passed" };
+  return { status: "passed", directory: cwd, savedSourceCompatibility: "passed", expoPrintedWrittenPorts: "passed", previewNoise: "passed", helperContracts: "passed", fixtureAgreement: "passed" };
 }

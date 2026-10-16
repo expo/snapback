@@ -95956,3 +95956,14 @@ narrows non-null disclosed data, and missing-denied diagnostics name the repair.
 Governing amendments: proof-kit §9 and client-intent §6.10. Detailed review and
 qualification evidence is in reports/20261016-wave13-kit2 and the workstream
 report. No version was bumped and nothing was published.
+
+
+## 2026-10-16 — Integration 14 before LANG2
+
+DAY3, PREV, RULES3, SURF3 and KIT2 are merged in order. The web device
+measures 2,355,193 B raw / 717,515 B gzip on Linux, 801 B gzip above
+0.4.29. Its budget is 718,015 B, exactly measurement + 500 B; combined
+monotonic mint contexts, native refusal attribution and expiry recovery have
+no independent byte attribution or runtime ceiling change. LANG2 and the
+final version remain pending and will be measured again. Shared test-verb
+code preserves saved contemporary fixtures and per-query sweep personas.

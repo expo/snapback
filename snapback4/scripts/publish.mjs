@@ -18,14 +18,15 @@ const flags = new Set(["--dry-run", "--resume", "--prepare-client"]), values = n
 for (let i = 2; i < process.argv.length; i++) {
   const arg = process.argv[i];
   if (flags.has(arg)) { values.set(arg, true); continue; }
-  if (!["--linux-receipt", "--linux-tarball"].includes(arg) || !process.argv[i + 1] || process.argv[i + 1].startsWith("--")) throw new Error(`unknown or incomplete option ${arg}`);
+  if (!["--linux-receipt", "--linux-tarball", "--prepare-directory"].includes(arg) || !process.argv[i + 1] || process.argv[i + 1].startsWith("--")) throw new Error(`unknown or incomplete option ${arg}`);
   values.set(arg, resolve(process.argv[++i]));
 }
 const dry = values.has("--dry-run"), resume = values.has("--resume"), preparing = values.has("--prepare-client");
 if (preparing && (resume || values.has("--linux-receipt") || values.has("--linux-tarball"))) throw new Error("--prepare-client cannot resume or import Linux artifacts");
 if (values.has("--linux-receipt") !== values.has("--linux-tarball")) throw new Error("provide both --linux-receipt and --linux-tarball");
 if (resume && values.has("--linux-receipt")) throw new Error("--resume uses the durable imported Linux receipt; do not replace it");
-const preparedDirectory = join(root, "target/publication", `client-${version}`);
+if (values.has("--prepare-directory") && !preparing) throw new Error("--prepare-directory requires --prepare-client");
+const preparedDirectory = values.get("--prepare-directory") ?? join(root, "target/publication", `client-${version}`);
 if (preparing) {
   const prepared = prepareClient(root, version, preparedDirectory);
   console.log(JSON.stringify(prepared, null, 2));
