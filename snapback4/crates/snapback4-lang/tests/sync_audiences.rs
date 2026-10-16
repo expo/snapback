@@ -200,7 +200,9 @@ fn union_read_rules_sync_and_what_is_not_a_whole_audience_is_refused() {
         let source = two.replace("  sync\n", &format!("  at: time\n  by byAt: customer, at, id\n  sync {window}\n"));
         let d = refusal(&source);
         assert!(d.message.contains("union audiences cannot have"), "{d:?}");
-        clean(&source.replace(&format!("sync {window}"), &d.rewrite));
+        let replacement=d.rewrite.lines().nth(1).unwrap().trim();
+        assert_eq!(replacement,"sync","{d:?}");
+        clean(&source.replace(&format!("sync {window}"), replacement));
         clean(&source.replace(&format!("sync {window}"), "sync"));
     }
     // Repeated branches, in either equality order, are one arm each (round 2, GPT finding 4).
