@@ -15,3 +15,4 @@
 {"as": "bob", "op": "clearedPhoto", "args": {"photo": "f"}, "match": {"body": "group portrait"}}
 {"as": "alice", "op": "untagPhoto", "args": {"photo": "f", "pupil": "b"}}
 {"as": "bob", "op": "clearedPhoto", "args": {"photo": "f"}, "data": null}
+{"as":"alice","op":"pupilConsent","args":{"pupil":"a","consented":true},"expect":"GUARDIAN_ONLY"}

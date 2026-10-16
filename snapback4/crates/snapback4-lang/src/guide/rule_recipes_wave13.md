@@ -107,7 +107,7 @@ table photoTags:
   immutable photo, pupil
   read <- exists pupils[.pupil, guardian = viewer] or exists photoStaff[viewer]
   insert <- exists photoStaff[viewer] and exists pupils[.pupil, consented = .consented]
-  update <- exists pupils[.pupil, guardian = viewer, consented = .consented]
+  update (old, next) <- exists pupils[old.pupil, guardian = viewer] and exists pupils[next.pupil, consented = next.consented]
   delete <- exists photoStaff[viewer]
   online only
 view taggedCount: count photoTags by .photo
@@ -155,8 +155,11 @@ query clearedPhoto(photo: consentPhotos):
   return consentPhotos[photo]
 ```
 
-The grant rule proves staff/guardian authority, while refreshConsent proves the
-count condition. These are the two authorization layers; adding a generic grant
+The grant insert rule proves staff/guardian authority, while refreshConsent
+proves the count condition. Deletion deliberately permits revocation regardless
+of which guardian last refreshed the grant: a photo may have many guardians.
+Only guarded pupilConsent/untagPhoto can reach that deletion; no generic grant
+writer/deleter is exposed. This keeps withdrawal atomic for every guardian. These are the two authorization layers; adding a generic grant
 mutation would bypass the latter. Universal relation quantifiers remain open.
 
 ## Mutable workflow gate as an explicit probe
@@ -328,6 +331,7 @@ table peerCounts:
   online only
 mutation reportWords(sprint: sprints, words: int 0..20000):
   s = sprints[sprint] ! else NOT_FOUND
+  require exists sprintMembers[sprint, viewer] else MEMBER_ONLY
   require now < s.endsAt else SPRINT_ENDED
   upsert ownCounts[sprint, viewer] { sprint, writer: viewer, words }
   upsert peerCounts[sprint, viewer] { sprint, writer: viewer, words, opensAt: s.endsAt }

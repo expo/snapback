@@ -148,6 +148,7 @@ fn refusal_ladder_and_developer_image_evidence_over_http() {
         ("ladder","bob",json!({"row":"p","body":"valid"}),"NOT_FOUND"),
         ("ladder","alice",json!({"row":"p","body":"valid"}),"E_RULE"),
         ("oldImage","alice",json!({"row":"w"}),"E_RULE"),
+        ("oldImage","bob",json!({"row":"p"}),"NOT_FOUND"),
         ("firstRequire","bob",json!({"row":"p"}),"EARLY"),
         ("lastRequire","alice",json!({"row":"p"}),"LATE"),
     ] {
@@ -173,6 +174,8 @@ fn refusal_ladder_and_developer_image_evidence_over_http() {
     }
     let r=host.post("/q/ladderRow","alice",json!({"args":{"row":"p"}}));
     assert_eq!(r["data"]["body"],"original","later require must roll back: {r}");
+    let hidden=host.post("/q/ladderRow","bob",json!({"args":{"row":"p"}}));
+    assert_eq!(hidden["data"],Value::Null,"nullable hidden lookup: {hidden}");
     let empty=host.post("/q/hiddenRows","carol",json!({"args":{"owner":"dev:alice"}}));
     assert_eq!(empty["data"],json!([])); assert_eq!(empty["complete"],true,"{empty}");
 }

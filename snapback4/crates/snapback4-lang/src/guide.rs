@@ -400,8 +400,9 @@ The HTTP /seed development door already runs through the host. `check`, `data`,
 `sql`, `doctor` and fixture tests remain usable beside it."##,
         "expire" => r##"# Expire: a row's life ends at a time
 
-Expiry makes a row invisible when its declared deadline passes.
+Expiry makes a row invisible to every reader, including its owner, when its declared deadline passes.
 The server then deletes it and syncs the deletion to devices holding it.
+Keep owner-visible grant history in a separate audit table; see: guide rule-recipes grant-expiry.
 
 ```quarry
 table stories:

@@ -280,7 +280,7 @@ impl RuntimeError {
             Self::Require { code, site, message } => {
                 refusal.rule = Some(code.clone());
                 refusal.site = site.clone();
-                refusal.message = message.clone().unwrap_or_else(|| format!("the mutation/query require layer refused with {code}"));
+                refusal.message = message.clone().unwrap_or_else(|| format!("the program refused with {code}"));
                 refusal.guide = Some("programs".into());
             }
             #[cfg(not(all(target_arch = "wasm32", feature = "web", not(feature = "sqlite"))))]

@@ -1375,3 +1375,10 @@ mod lifetime_tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "rules_reference.rs"]
+mod reference;
+
+#[cfg(test)]
+pub(super) use reference::evaluate as evaluate_reference;
