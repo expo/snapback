@@ -189,7 +189,8 @@ pub(super) fn expo_client(client: String, offline: &Offline) -> String {
             .replace("import { webDevice } from \"snapback4/web\";\n", "")
             .replace("export const tier = Platform.OS === \"web\" ? \"web\" : nativeAvailable() ? \"native\" : \"online\";", "export const tier = \"online\";")
             .replace("  device: tier === \"web\" ? webDevice() : tier === \"native\" ? nativeDevice : undefined,\n", "")
-            .replace("// Development and production builds carry the native device (offline data and\n// a durable outbox); Expo Go has no native module and uses the online client;\n// web uses the wasm device.", "// No table syncs: every platform reads online; browser writes use its journal.");
+            .replace("each with its own device and store", "each with its own principal write journal")
+            .replace("// Development and production builds carry the native device (offline data and\n// a durable outbox); Expo Go has no native module and uses the online client;\n// web uses the wasm device.", "// No table syncs: every platform reads online; browser writes use its principal write journal.");
         client.replace("createApp({", "createApp({ writes: \"online\",")
     } else { client }
 }

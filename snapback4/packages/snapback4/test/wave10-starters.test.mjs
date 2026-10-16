@@ -21,7 +21,7 @@ for (const mode of ['env', 'flag']) test(`portable ${mode} range sets URLs, Vite
   const dir = project(t);
   success(invoke(['init', '--web', ...(mode === 'flag' ? ['--port-range', '30100-30109'] : [])], dir, mode === 'env' ? { PORT_LO: '30100', PORT_HI: '30109' } : { PORT_LO: '1', PORT_HI: '2' }));
   const client = readFileSync(join(dir, 'src/client.ts'), 'utf8'), config = readFileSync(join(dir, 'vite.config.mts'), 'utf8');
-  const backend = mode === 'flag' ? 30100 : 4400, frontend = mode === 'flag' ? 30101 : 5173;
+  const backend = 30100, frontend = 30101;
   assert.ok(client.includes(`127.0.0.1:${backend}`)); assert.ok(config.includes(String(frontend)));
   const pkg = JSON.parse(readFileSync(join(dir, 'package.json')));
   assert.equal(pkg.scripts.backend, 'node scripts/launch.mjs backend');
@@ -30,10 +30,9 @@ for (const mode of ['env', 'flag']) test(`portable ${mode} range sets URLs, Vite
   assert.equal(pkg.scripts['proof:web'], 'node scripts/frontend-proof.mjs');
   const launcher = readFileSync(join(dir, 'scripts/launch.mjs'), 'utf8');
   assert.ok(launcher.includes(String(backend)) && launcher.includes(String(frontend)));
-  if (mode === 'env') assert.ok(!launcher.includes('30100') && !client.includes('30100'), 'init environment is not persisted');
+  assert.ok(launcher.includes('30100') && client.includes('30100'), 'init bakes either assigned range into defaults');
   const readme = readFileSync(join(dir, 'README.md'), 'utf8');
-  if (mode === 'flag') assert.ok(readme.includes(`dev --port ${backend}`));
-  else assert.ok(!readme.includes('30100'), 'README does not inherit the init owner range');
+  assert.ok(readme.includes('npm run backend') && readme.includes(`127.0.0.1:${backend}`), 'README uses the launcher at the written default');
   assert.match(readFileSync(join(dir, 'public/favicon.svg'), 'utf8'), /<svg/);
   assert.match(readFileSync(join(dir, 'index.html'), 'utf8'), /favicon\.svg/);
 });
