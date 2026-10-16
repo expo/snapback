@@ -322,7 +322,7 @@ fn wave13_boolean_and_joint_cap_guidance_rechecks_after_the_prescribed_edit() {
     let b = compile(&[("schema.q".into(),source.replace("flags[id].active","(flags[id].active = true)"))]);
     assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
 
-    let source = "table parents:\n  public\n  delete <- allow\n  online only\ntable children:\n  parent: parents on delete cascade\n  public\n  online only\ntable leaves:\n  parent: parents on delete set null\n  public\n  online only\n";
+    let source = "table parents:\n  public\n  delete <- allow\n  online only\ntable children:\n  parent: parents on delete cascade\n  public\n  online only\ntable leaves:\n  parent: parents ? on delete set null\n  public\n  online only\n";
     let d = refusal(source,"E_CASCADE_BOUND");
     let mut repaired = source.to_owned();
     for snippet in d.rewrite.split('`').skip(1).step_by(2).filter(|s|s.starts_with("cap ")) {

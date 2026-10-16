@@ -32,7 +32,7 @@ pub(crate) struct GuardedRows<'a> { raw: &'a dyn Rows, remaining: Cell<usize>, a
 impl<'a> GuardedRows<'a> {
     pub(crate) fn new(raw: &'a dyn Rows) -> Self { Self { raw, remaining: Cell::new(AUTHORIZATION_WALK_LIMIT), authorizing: Cell::new(false), reference_prepaid: Cell::new(false), bounded_remaining: Cell::new(None), revision: Cell::new(0), lookup_cache: RefCell::new(None) } }
     pub(super) fn revision(&self) -> u64 { self.revision.get() }
-    pub(super) fn remaining(&self) -> usize { self.remaining.get() }
+    pub(super) fn remaining(&self) -> usize { self.bounded_remaining.get().unwrap_or_else(|| self.remaining.get()) }
     fn limit(&self, table: &str, requested: usize) -> Result<usize, RuntimeError> {
         if self.authorizing.get() && let Some(remaining) = self.bounded_remaining.get() {
             if remaining == 0 { return Err(RuntimeError::AuthorizationBudget { table: table.into(), effect: crate::schema::Effect::Read }); }
