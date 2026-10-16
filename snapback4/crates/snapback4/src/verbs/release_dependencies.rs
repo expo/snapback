@@ -25,6 +25,13 @@ impl Dependencies {
             t.and_then(|t| t.columns.get(column)), t.and_then(|t| t.defaults.get(column)),
             t.and_then(|t| t.written_by.get(column)), t.and_then(|t| t.maintained.get(column)),
             t.and_then(|t| t.recorded.get(column))]));
+        for maintain in schema.maintains.iter().filter(|m|m.private.as_ref().is_some_and(|owner|owner.table==table && owner.column==column)) {self.maintain(schema,maintain);}
+    }
+    fn maintain(&mut self, schema: &Schema, maintain: &snapback4_core::schema::Maintain) {
+        let key=format!("{}.maintain",maintain.target);
+        if self.0.insert(key,json!(maintain)).is_some() {return;}
+        self.population(schema,&maintain.source);
+        for column in maintain.dependencies() {self.column(schema,&maintain.source,&column);}
     }
     fn index(&mut self, schema: &Schema, table: &str, index: &str) {
         let key = format!("{table}.index.{index}");
@@ -64,9 +71,7 @@ impl Dependencies {
         }
         // A maintained row's population/value depends on its source and derivation.
         if let Some(maintain) = schema.maintain_for(name) {
-            self.0.insert(format!("{name}.maintain"), json!(maintain));
-            self.population(schema, &maintain.source);
-            for column in schema.tables[&maintain.source].columns.keys() { self.column(schema, &maintain.source, column); }
+            self.maintain(schema,maintain);
         }
     }
     fn term(&mut self, schema: &Schema, owner: &str, term: &RuleTerm) {
@@ -109,6 +114,13 @@ impl Dependencies {
                     if let Some(object)=shape["fields"].as_object() {for value in object.values() {self.expression(schema,value,bindings,visited,None);}}
                     return;
                 }
+                if let Some(binary)=fields.get("Binary") {
+                    if matches!(binary["op"].as_str(),Some("Eq"|"Ne")) {
+                        let null=json!({"Literal":"Null"});
+                        if binary["right"]==null {self.expression(schema,&binary["left"],bindings,visited,Some("$presence"));return;}
+                        if binary["left"]==null {self.expression(schema,&binary["right"],bindings,visited,Some("$presence"));return;}
+                    }
+                }
                 if let Some(block) = fields.get("Block") {
                     let mut bindings = bindings.clone();
                     if let Some(stmts) = block["body"].as_array() {
@@ -135,7 +147,7 @@ impl Dependencies {
                     let table = read["table"].as_str().unwrap();
                     self.population(schema, table); self.index(schema, table, read["index"].as_str().unwrap());
                     if fields.contains_key("Get") {
-                        if let Some(column) = field { self.column(schema, table, column); }
+                        if let Some(column) = field { if column!="$presence" {self.column(schema, table, column);} }
                         else if let Some(t) = schema.table(table) { for column in t.columns.keys() { self.column(schema, table, column); } }
                     }
                     self.expression(schema, &read["key"], bindings, visited, None);
@@ -184,35 +196,48 @@ fn resolved(value: &Value, bindings: &BTreeMap<String,Value>, visiting: &mut BTr
 }
 
 fn guards(schema: &Schema, program: &ir::Program) -> Vec<Dependencies> {
-    fn body(out: &mut Vec<Dependencies>, schema: &Schema, stmts: &[ir::Stmt], inherited: &BTreeMap<String, Value>, context: &[Value]) -> BTreeMap<String,Value> {
+    fn body(out: &mut Vec<Dependencies>, schema: &Schema, stmts: &[ir::Stmt], inherited: &BTreeMap<String, Value>, context: &[Value], inherited_effects: &[(BTreeSet<String>,Value)]) -> BTreeMap<String,Value> {
+        fn stops(stmts: &[ir::Stmt]) -> bool {
+            stmts.iter().any(|stmt|match stmt {ir::Stmt::Return(_) | ir::Stmt::Break | ir::Stmt::Continue=>true,ir::Stmt::If {then_body,else_body,..}=>stops(then_body)&&stops(else_body),_=>false})
+        }
         let mut bindings = inherited.clone();
+        let mut context=context.to_vec();
+        let mut effects=inherited_effects.to_vec();
         for stmt in stmts {
             match stmt {
                 ir::Stmt::Const {name,value} | ir::Stmt::Let {name,value} | ir::Stmt::Assign {name,value} => {
                     bindings.insert(name.clone(), resolved(&json!(value),&bindings,&mut BTreeSet::new()));
+                },
+                ir::Stmt::Push {target,value} => {
+                    bindings.insert(target.clone(),json!({"append":[bindings.get(target),resolved(&json!(value),&bindings,&mut BTreeSet::new())]}));
                 },
                 ir::Stmt::Require {condition,code,message,..} => {
                     let mut deps=Dependencies::default();
                     deps.0.insert("auth".into(), json!(schema.auth));
                     let condition=json!(condition);
                     for value in context.iter().chain(std::iter::once(&condition)) { deps.expression(schema, value, &bindings, &mut BTreeSet::new(), None); }
-                    deps.0.insert("compiled guard".into(), resolved(&json!([context,condition,code,message]),&bindings,&mut BTreeSet::new()));
+                    let prior:Vec<_>=effects.iter().filter(|(tables,_)|tables.iter().any(|table|deps.0.keys().any(|key|key.starts_with(&format!("{table}."))))).map(|(_,value)|value).collect();
+                    deps.0.insert("compiled guard".into(), resolved(&json!([context,condition,code,message,prior]),&bindings,&mut BTreeSet::new()));
                     out.push(deps);
                 },
                 ir::Stmt::If {condition,then_body,else_body} => {
-                    let mut context=context.to_vec(); context.push(resolved(&json!(condition),&bindings,&mut BTreeSet::new()));
-                    let yes=body(out,schema,then_body,&bindings,&context);
-                    let no=body(out,schema,else_body,&bindings,&context);
+                    let condition=resolved(&json!(condition),&bindings,&mut BTreeSet::new());
+                    let mut branch=context.clone(); branch.push(condition.clone());
+                    let yes=body(out,schema,then_body,&bindings,&branch,&effects);
+                    let no=body(out,schema,else_body,&bindings,&branch,&effects);
+                    let (yes_stops,no_stops)=(stops(then_body),stops(else_body));
                     for name in yes.keys().chain(no.keys()).cloned().collect::<BTreeSet<_>>() {
-                        if yes.get(&name)!=no.get(&name) {
-                            bindings.insert(name.clone(),json!({"branch":context.last(),"then":yes.get(&name),"else":no.get(&name)}));
-                        }
+                        let (a,b)=(yes.get(&name),no.get(&name));
+                        let value=if yes_stops && !no_stops {b.cloned()} else if no_stops && !yes_stops || a==b {a.cloned()}
+                            else {Some(json!({"branch":condition,"then":a,"else":b}))};
+                        if let Some(value)=value {bindings.insert(name,value);}
                     }
+                    if yes_stops || no_stops {context.push(json!({"reachability":condition,"thenStops":yes_stops,"elseStops":no_stops}));}
                 },
                 ir::Stmt::For {binding,domain,body:stmts} => {
                     let mut context=context.to_vec(); context.push(resolved(&json!(domain),&bindings,&mut BTreeSet::new()));
                     let mut inner=bindings.clone();inner.insert(binding.clone(),json!(domain));
-                    let after=body(out,schema,stmts,&inner,&context);
+                    let after=body(out,schema,stmts,&inner,&context,&effects);
                     for name in bindings.keys().cloned().collect::<Vec<_>>() {
                         if bindings.get(&name)!=after.get(&name) {
                             bindings.insert(name.clone(),json!({"loop":context.last(),"before":bindings.get(&name),"after":after.get(&name)}));
@@ -221,10 +246,14 @@ fn guards(schema: &Schema, program: &ir::Program) -> Vec<Dependencies> {
                 },
                 _ => (),
             }
+            let wrapper=ir::Program {name:String::new(),kind:ir::ProgramKind::Mutation,args:BTreeMap::new(),read_time_granularity_ms:None,body:vec![stmt.clone()],returned_shapes:BTreeMap::new(),native:false};
+            let writes=ir::write_tables(&wrapper).into_iter().map(|(table,_)|table).collect::<BTreeSet<_>>();
+            if !writes.is_empty() {effects.push((writes,resolved(&json!(stmt),&bindings,&mut BTreeSet::new())));}
+            if stops(std::slice::from_ref(stmt)) {break;}
         }
         bindings
     }
-    let mut out=Vec::new();body(&mut out,schema,&program.body,&BTreeMap::new(),&[]);out
+    let mut out=Vec::new();body(&mut out,schema,&program.body,&BTreeMap::new(),&[],&[]);out
 }
 
 fn arguments_changed(before: &ir::Program, after: &ir::Program, guards: impl Iterator<Item=Value>) -> bool {

@@ -244,3 +244,101 @@ mutation approve():
   writeFileSync(schema,source.replace('  immutable principal\n  public','  immutable principal\n  read <- .principal = viewer'));
   assert.match(run('deploy',deployment,'--check').stdout,/delegates changed: 1 guards unproved across approve/);
 });
+
+test('row-presence guards and field guards ignore new unconsulted defaulted columns', t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe+`mutation publish(note: notes):
+  n = notes[note]! else NOT_FOUND
+  require n.body != 'blocked' else BLOCKED
+  return true
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  writeFileSync(schema,source.replace('  body: text <=80',"  body: text <=80\n  label: text <=20 default 'label'"));
+  assert.doesNotMatch(run('deploy',deployment,'--check').stdout,/WARNING|publish.require/);
+  writeFileSync(schema,source.replace('  body: text <=80','  body: text <=90'));
+  assert.match(run('deploy',deployment,'--check').stdout,/notes changed: 2 guards unproved across publish/);
+});
+
+test('same-transaction writes are guard inputs only when they reach a consulted table', t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe+`mutation prepare():
+  insert roles {principal: viewer, role: 'captain'}
+  require exists roles[principal = viewer, role = 'captain'] else NO
+  return true
+mutation unrelated():
+  insert notes {body: 'first'}
+  require exists roles[principal = viewer, role = 'captain'] else NO
+  return true
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  writeFileSync(schema,source.replace("insert roles {principal: viewer, role: 'captain'}", "insert roles {principal: viewer, role: 'crew'}").replace("body: 'first'","body: 'second'"));
+  const plan=run('deploy',deployment,'--check').stdout;
+  assert.match(plan,/compiled guard changed: 1 guards unproved across prepare/);
+  assert.doesNotMatch(plan,/unrelated.require|across unrelated/);
+});
+
+test('equal branch assignments and list accumulation cannot suppress a changed guard', t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe+`mutation branch(flag: bool):
+  ok = false
+  if flag:
+    ok = false
+  else:
+    ok = false
+  require ok else BLOCKED
+  return true
+mutation accumulated():
+  xs = []
+  for role in roles first 10 by .id:
+    xs = xs + [role.id]
+  require count(xs) = 0 else HELD
+  return true
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  writeFileSync(schema,source.replaceAll('    ok = false','    ok = true'));
+  assert.match(run('deploy',deployment,'--check').stdout,/compiled guard changed: 1 guards unproved across branch/);
+  writeFileSync(schema,source.replace('  public\n  online only\ntable notes:',"  read <- deny\n  online only\ntable notes:"));
+  const changed=run('deploy',deployment,'--check').stdout;
+  assert.match(changed,/roles changed: 4 guards unproved across accumulated, add, edit, remove/);
+});
+
+test('maintained parent fields lead guard and user-effect narration to their source populations', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=`use identity guests
+table parents:
+  holdCount: count holds by parent
+  public
+  insert <- allow
+  online only
+table holds:
+  parent: parents
+  state: enum('hold', 'inspection')
+  public
+  insert <- allow
+  online only
+mutation parent():
+  return insert parents {id: 'parent'}
+mutation hold():
+  return insert holds {parent: 'parent', state: 'inspection'}
+mutation book():
+  p = parents['parent']! else MISSING
+  require p.holdCount = 0 else HELD
+  return true
+query total():
+  return parents['parent']
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);
+  assert.equal((await host.post('/m/parent',{})).state,'sent');
+  assert.equal((await host.post('/m/hold',{})).state,'sent');
+  assert.equal((await host.post('/m/book',{})).why.code,'HELD');
+  writeFileSync(schema,source.replace("enum('hold', 'inspection')","enum('hold')").replace("state: 'inspection'","state: 'hold'"));
+  const plan=JSON.parse(run('deploy',deployment,'--check','--json').stdout);
+  assert.ok(plan.hazards.some(h=>h.startsWith('queries/counts total read holds: active table population 1 → 0')),JSON.stringify(plan.hazards));
+  assert.ok(plan.hazards.some(h=>h.includes('safety dependencies on holds: `book`')),JSON.stringify(plan.hazards));
+  assert.ok(plan.hazards.some(h=>h.includes('holds changed: 1 guards unproved across book')),JSON.stringify(plan.hazards));
+  run('deploy',deployment);
+  assert.equal((await host.post('/m/book',{})).state,'sent');
+  assert.equal((await host.post('/q/total',{})).data.holdCount,0);
+  await host.stop();
+});

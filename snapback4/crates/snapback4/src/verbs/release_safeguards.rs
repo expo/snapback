@@ -25,7 +25,7 @@ fn reads(schema: &Schema, program: &ir::Program) -> BTreeSet<String> {
     let mut visited = BTreeSet::new();
     while let Some(name) = reads.iter().find(|name| !visited.contains(*name)).cloned() {
         visited.insert(name.clone());
-        for maintain in schema.maintains.iter().filter(|m| m.target == name) { reads.insert(maintain.source.clone()); }
+        for maintain in schema.maintains.iter().filter(|m| m.target == name || m.private.as_ref().is_some_and(|owner|owner.table==name)) { reads.insert(maintain.source.clone()); }
         if let Some(table) = schema.table(&name) {
             tables(&serde_json::to_value(&table.rules.read).unwrap(), &mut reads);
             if let Some(parent) = &table.through { reads.insert(parent.parent.clone()); }

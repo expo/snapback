@@ -76,13 +76,13 @@ test('probe and deploy guide agree on exact compatibility, schedule, dormancy an
   assert.ok(zero.split('\n').includes('  note: notes.status: no stored values are incompatible with release 1; no value repair is needed for this switch'), zero);
   writeFileSync(schema, v3);
   const preview = run('deploy', deployment, '--check');
-  assert.ok(preview.stdout.split('\n').includes('  note: job remind compiles differently because notes changed (added color); schedule remindDaily remains'), preview.stdout);
+  assert.ok(preview.stdout.split('\n').includes('  note: job remind compiles differently because notes changed (added color); schedule remindDaily remains; verify the scheduled result if these dependencies matter'), preview.stdout);
   assert.doesNotMatch(preview.stdout, /WARNING.*job remind|lacks.*schedule/);
   run('deploy', deployment);
   assert.equal((await host.post('/m/archive', { note: ids[0] })).state, 'sent');
   await host.stop();
   assert.equal(existsSync(join(deployment, 'serve.lock')), false, host.log());
-  const warning = "WARNING notes.status: 1 row holds 'archived', which release 1 cannot hold; it becomes dormant on this switch and is restored on compatible forward";
+  const warning = "WARNING notes.status: 1 row holds 'archived', which release 1 cannot hold; it becomes dormant on this switch and is restored on compatible forward; accept their absence or preserve these values in a bridge release";
   const samples = `samples: cells notes.color [${ids.slice(1).sort().join(', ')}]; rows notes [${ids[0]}]`;
   const plan = run('rollback', deployment, '--to', '1', '--check');
   assert.ok(plan.stdout.split('\n').includes(`  ${warning}`), plan.stdout);
