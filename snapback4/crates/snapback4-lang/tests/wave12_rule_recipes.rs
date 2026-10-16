@@ -71,13 +71,18 @@ fn every_recipe_compiles_in_its_own_snippet_class() {
         "each standalone recipe has its own compilation class"
     );
     for s in blocks {
+        let timed_peer = s.contains("mutation reportWords(") && s.contains("table peerCounts:");
         let b = snapback4_lang::compile(&[("schema.q".into(), s)]);
         assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
-        assert!(
-            b.notes.iter().all(|n| n.code == "N_EPHEMERAL_SERVER"),
-            "{:?}",
-            b.notes
-        );
+        if timed_peer {
+            // The published recipe documents this intentional runtime guard.
+            assert_eq!(b.notes.len(), 1, "{:?}", b.notes);
+            assert_eq!(b.notes[0].code, "N_IMMUTABLE_PATCH");
+            assert!(b.notes[0].message.contains("peerCounts.opensAt"));
+            assert!(b.notes[0].message.contains("equals the stored value"));
+        } else {
+            assert!(b.notes.iter().all(|n| n.code == "N_EPHEMERAL_SERVER"), "{:?}", b.notes);
+        }
         Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     }
 }
