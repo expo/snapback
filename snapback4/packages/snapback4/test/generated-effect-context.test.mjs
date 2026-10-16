@@ -163,7 +163,7 @@ for (const [name, failure, secrets, env, expected] of [
   assert.deepEqual(recorded, expected);
   assert.equal(paths.filter(path => path.endsWith("/failed")).length, 1);
   assert.equal(paths.some(path => path.endsWith("/done")), false);
-  assert.deepEqual(errors, []);
+  assert.deepEqual(errors.map(error => error.message), [expected.error], "settled handler failures remain observable, with the same redacted message as storage");
 });
 
 for (const stage of ["fetch", "body"]) test(`actual final status ${stage} timeout latches E_OFFLINE without settlement`, { timeout: hangBudget(1) }, async () => {

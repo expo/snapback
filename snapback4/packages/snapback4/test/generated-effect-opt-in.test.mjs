@@ -111,7 +111,8 @@ mutation send():
     if (mode === "retry") {
       assert.deepEqual(attempts, [1, 2]);
       assert.equal(providerCalls, 1, "the second attempt reuses its completed durable step");
-      assert.equal(failures, 1); assert.equal(settled, 1); assert.deepEqual(errors, []);
+      assert.equal(failures, 1); assert.equal(settled, 1);
+      assert.deepEqual(errors.map(error => error.message), ["retry after the durable step"], "a recorded retry reports the handler failure exactly once");
     } else {
       assert.equal(failures, 0); assert.equal(settled, 0); assert.equal(claims, 1);
       assert.equal(paths.some(path => path.endsWith("/done") || path.endsWith("/failed")), false);
