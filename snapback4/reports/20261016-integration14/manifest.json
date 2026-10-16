@@ -1,6 +1,19 @@
 {
-  "checkpoint": "pre-LANG2; no release qualification claim",
-  "capturedAt": "2026-10-16T16:32:15.635281+00:00",
+  "checkpoint": "Integration14 complete,0.4.30 committed; no publication receipt or origin push",
+  "version": "0.4.30",
+  "capturedAt": "2026-10-16T18:48:25.144110+00:00",
+  "productAndFixtureHead": "92800374902175f0c5d1687b663aa559222e55f0",
+  "bumpCommit": "1f6b75ff27",
+  "merges": {
+    "day3": "cd57caff41",
+    "prev": "60f06e411f",
+    "rules3": "629bedd6e2",
+    "surf3": "e2451c9b08",
+    "kit2": "8a8a1c0102",
+    "publicationRecords029": "a840cb5024",
+    "lang2": "bb3ba3a6a1",
+    "expopin": "7d61cad480"
+  },
   "laneReports": {
     "day3": {
       "path": "/home/ccheever/projects/sb4-w13-day3/WORKSTREAM-REPORT.md",
@@ -26,101 +39,333 @@
       "path": "/home/ccheever/projects/sb4-w13-kit2/WORKSTREAM-REPORT.md",
       "sha256": "d46dfbbd106823bb10c53d128a45784b6ab153e4ade8301da1b5cb7c5d63c03a",
       "branchHead": "f6c7e6d747aec3663322f66925cadc5210fc91d1"
+    },
+    "lang2": {
+      "path": "snapback4/reports/20261016-integration14/final/lang2-WORKSTREAM-REPORT.md",
+      "sha256": "7920dd8f36b3e7f17e07ef9ef0f05944aca771bc4273f09b94bf5150969ce2fc",
+      "branchHead": "ec995bbcfb"
+    },
+    "expopin": {
+      "path": "snapback4/reports/20261016-integration14/final/expopin-WORKSTREAM-REPORT.md",
+      "sha256": "0e7fd4508253a34c4224f25713b4c47bb759f979a01a7d942251dd4e1eca4c6f",
+      "branchHead": "a809a0d22f"
     }
   },
-  "fullRuns": {
-    "native": {
-      "status": "passed",
-      "command": "cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast",
-      "environment": {
-        "CARGO_INCREMENTAL": "0",
-        "CARGO_PROFILE_DEV_DEBUG": "0",
-        "CARGO_PROFILE_TEST_DEBUG": "0"
-      },
-      "log": "cargo-full-4.log.gz",
-      "productCommit": "37ac4b8730800202425f55d2b4ff53304ae45609"
-    },
-    "client": {
-      "status": "passed",
-      "files": 407,
-      "pooledFiles": 405,
-      "modelFiles": 2,
-      "pooledTests": 7649,
-      "pooledPassed": 7593,
-      "pooledSkipped": 56,
-      "modelTests": 81,
-      "modelPassed": 81,
-      "failures": 0,
-      "log": "client-full-3.log.gz",
-      "globalBinary": "snapback4/target/debug/snapback4",
-      "testOnlyFollowupCommit": "3fcad43718974bc4d8f16651f5bcc237731d73e3"
-    },
-    "earlierRuns": {
-      "cargo-full-1": "failed; all four failed tests repaired before final full run",
-      "cargo-full-2": "interrupted to incorporate fixes",
-      "cargo-full-3": "interrupted to incorporate fixes",
-      "client-full-1": "failed; integration assertions and mocks repaired",
-      "client-full-2": "interrupted to incorporate legacy Expo assertion fix"
-    }
+  "cargoEnvironment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "native": {
+    "status": "passed",
+    "command": "cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast",
+    "log": "final/cargo-full-4.log.gz",
+    "lastRustOrRustTestFix": "cd04adf0b5",
+    "laterDelta": "JavaScript service-seat fixture only; no Cargo semantic input change",
+    "passed": 6381,
+    "ignored": 45,
+    "failed": 0,
+    "testTargets": 408
+  },
+  "clients": {
+    "status": "passed",
+    "log": "final/clients-full-6.log.gz",
+    "files": 407,
+    "tests": 7730,
+    "passed": 7674,
+    "skipped": 56,
+    "failed": 0,
+    "modelCases": "default5000session/tier+3000online",
+    "nativeBinarySha256": "23f02688a2101b525cbd5a119d43b612bd92bec6d1c3f69003f609405c4d92da",
+    "priorCompletePassAlsoGreen": "final/clients-full-5.log.gz"
+  },
+  "differential": {
+    "nativeCases": 20000,
+    "nativeExecutions": 1220035,
+    "nativeNewSignatures": 0,
+    "deviceCases": 1000,
+    "deviceExecutions": 27922,
+    "deviceNewSignatures": 0,
+    "leanCases": 20000,
+    "leanSupported": 16827,
+    "leanUnsupported": 3173,
+    "leanKnownDisagreements": 130,
+    "leanNewSignatures": 0,
+    "leanExit": 1,
+    "explicitLang2FactoryCases": 100
+  },
+  "leanAudit": {
+    "status": "passed Linux+Mac",
+    "theorems": 78,
+    "examples": 116,
+    "oracleFixtures": 7
   },
   "wasm": {
-    "raw": 2355193,
-    "gzip": 717515,
-    "brotli": 542232,
-    "budget": 718015
+    "raw": 2372437,
+    "gzip": 723160,
+    "brotli": 545213,
+    "budget": 723660,
+    "headroom": 500,
+    "gzipGrowthFrom029": 6446,
+    "measurementCommit": "07692d2b3f",
+    "sha256": "44bf4daf918f4be676009236c9c2f406a39ad480155f9e01d6e576993fb65137",
+    "macRaw": 2372683,
+    "macGzip": 722961
   },
-  "exact": {
-    "status": "passed",
-    "newApp": "~/sb4-loop/prewave14/hello",
-    "source": "private Exact copy with path dependencies pointed to merged tree",
-    "commands": [
-      "bun exact.mjs snapback",
-      "bun exact.mjs test web"
-    ],
-    "testsPassed": 2
-  },
-  "rootChecks": {
-    "inventories": "passed",
-    "guide": "22 passed, 0 skipped/precondition failures",
-    "refs": "550 LLPs, 11958 refs, 0 errors/unchecked",
-    "docsBudget": "passed, README317/320"
-  },
-  "survey": {
-    "schemas": 100,
-    "passed": 100,
-    "findings": 298,
-    "originalHashesUnchanged": true,
-    "rules3ComparableNotesBefore": 317,
-    "rules3ComparableNotesAfter": 296,
-    "removedFixtureArgumentDrift": 21,
-    "newlyHydrated087Notes": 2,
-    "LANG2": "pending authorized merge"
-  },
-  "linuxPacked": {
+  "packed": {
     "status": "passed",
     "mode": "consumer-only",
     "publicationQualified": false,
-    "routes": [
-      "ubuntu24.04-proot",
-      "alpine-proot"
-    ],
+    "prepareSource": "69594bd95130330cf2b61c055c98f58937d4e9d5",
+    "qualificationSource": "cd04adf0b5e85c7e7b3b104c7023d6f662171279",
+    "out": "/tmp/integ14/final/linux-qualification-final-4",
+    "clientIntegrity": "sha512-XG7WvQsmSEvOvWoWS9qGX8wHSUYsYPniZZijRPNaiH5gC0d7veCKJOACX3VTSRhHuhCZCpZamxzkLweIWTODCg==",
+    "expoIntegrity": "sha512-02goQLiDAwJgXWHdjTgvryLmJSkW7l8IGC+lpA0eYqxQir7xhFSsJwoJubOxKFdvw33Chh2u3P6PRT9CnT0cDQ==",
+    "nativeSha256": "ebadd4868adac40899e26e7b5e8319d1a3e2aa622aa11ce8985db08a598130b9",
+    "allH9": "passed",
     "frontendProofs": 12,
     "starterProofs": 6,
-    "allMergedH9": "passed"
+    "routes": [
+      "Ubuntu24.04-proot",
+      "Alpine-proot"
+    ],
+    "npm": "private cache with prefer_online=true after inherited ETARGET"
+  },
+  "survey": {
+    "schemas": 100,
+    "passing": 100,
+    "refusals": 0,
+    "findings": 315,
+    "immutableNotes": 29,
+    "immutableLanes": 18,
+    "allOriginalHashesUnchanged": true,
+    "LANG2": "Every per-lane/code language-note count matches after removing all21 fixture-drift notes; four search findings counted separately",
+    "RULES3": "Comparable99 baseline317 ->296 before LANG2; hydrated087 adds2 baseline notes; final LANG2 advice changes yield315 findings",
+    "perLaneMismatches": [],
+    "binarySha256": "23f02688a2101b525cbd5a119d43b612bd92bec6d1c3f69003f609405c4d92da"
+  },
+  "upgrade": {
+    "status": "passed",
+    "version": "0.4.30",
+    "oldWriter": "actual npm0.4.29 from http://127.0.0.1:4873/",
+    "orphan": "explicit private offline missing-parent emulation",
+    "repairRows": [
+      2,
+      0
+    ],
+    "oldIdsPreserved": true,
+    "backfill": "blue",
+    "finalRows": {
+      "notes": 4,
+      "children": 0
+    }
+  },
+  "exact": {
+    "originalExactHead": "80db4d8e2e365c203dfa6cbe5324e74177b1f7de",
+    "privateExact": "/home/ccheever/sb4-loop/prewave14/exact2",
+    "app": "/home/ccheever/sb4-loop/prewave14/hello0430",
+    "commands": [
+      "bun /home/ccheever/sb4-loop/prewave14/exact2/scripts/exact.mjs new ./hello0430 --snapback --port 26040",
+      "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo update --offline -p snapback4-core -p snapback4-device -p snapback4-lang (private exact2/snapback4)",
+      "bun add --exact /tmp/integ14/final/client-pack-3/snapback4-0.4.30.tgz (prewave14 parent)",
+      "bun exact.mjs snapback",
+      "snapback4 dev --memory --no-watch --port26040 (prewave14 parent)",
+      "bun exact.mjs test web"
+    ],
+    "clientSha256": "04413117bae1b81564c2415daa6eddea2a0c3f357da32d1afca22cf1fea131ea",
+    "binary": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+    "cargoVersionPins": "=0.4.30 and absolute merged-tree path dependencies for core/lang/device",
+    "result": "2 passed, 0 failed; offline/reconnect included",
+    "initialSetupFailure": "private device --locked refused old0.4.29 lock after dependency pins moved; explicit offline update fixes it",
+    "instructionText": "Exact still prints its snapshot0.4.29 banner; actual generation/runtime/device/client were explicitly pinned to local0.4.30",
+    "driver": "exact-run.mjs",
+    "environment": {
+      "SNAPBACK4_BIN": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4",
+      "CHROME": "cached Playwright Chromium",
+      "PATH": "Bun1.4.2 prepend",
+      "CARGO_INCREMENTAL": "0",
+      "CARGO_PROFILE_DEV_DEBUG": "0",
+      "CARGO_PROFILE_TEST_DEBUG": "0"
+    },
+    "deviceManifest": {
+      "format": 1,
+      "version": "0.4.30",
+      "capabilities": [
+        "branch-membership-v1",
+        "branch-membership-v2",
+        "branch-merge-v1",
+        "branch-pages-v2",
+        "branch-pages-v3",
+        "branch-pages-v4",
+        "branch-pages-v5",
+        "calendar-month",
+        "calendar-schedule",
+        "declarative-receipts-v4",
+        "ephemeral",
+        "expiry-reference-actions-v1",
+        "field-authority",
+        "insert-rule-order",
+        "insert-rule-order-units",
+        "int-range",
+        "maintained-column",
+        "maintained-id-sha256-v1",
+        "owner-key-coverage",
+        "read-through",
+        "receipt-derived-prediction-v1",
+        "recorded-attribution",
+        "reference-actions",
+        "row-keyed-view",
+        "rule-reference",
+        "rule-reference-v2",
+        "sequence-by",
+        "source-write-reservations-v1",
+        "source-write-reservations-v2",
+        "sync-generation-v1",
+        "time-audiences-v1",
+        "timeline",
+        "timeline-event-slots",
+        "timeline-v2",
+        "union-audience"
+      ],
+      "sha256": "56a9f5556b893d8125c4f9fb8a10bbacc4f587db74d079fff967c6d03a57461e"
+    },
+    "installedClientVersion": "0.4.30"
   },
   "mac": {
-    "status": "passed all corrected full targets and platform-sensitive pool",
-    "correctedFullTargetTests": 317,
-    "clientFiles": 53,
-    "clientPassed": 910,
-    "clientSkipped": 14,
-    "initialFiveCrateRun": "7 failures; fixed and affected targets fully rerun",
-    "wholeFiveCrateRerunAfterFixes": false
+    "status": "passed all required scopes",
+    "scratch": "~/projects/snapback-integ14",
+    "head": "92800374902175f0c5d1687b663aa559222e55f0",
+    "initialFullSixCrateExit": 101,
+    "initialFailedTargets": [
+      "CLIwave13_rules",
+      "langguide",
+      "langwave12_rule_recipes",
+      "langwave13_rules"
+    ],
+    "correctedFullTargetsPassed": 150,
+    "finalClientFiles": 61,
+    "finalClientTests": 984,
+    "finalClientPassed": 970,
+    "finalClientSkipped": 14,
+    "finalClientFailed": 0,
+    "providerFileAlonePassed": 9,
+    "productionBackgroundCaseAlonePassed": 1,
+    "scheduledFixtureFileAlonePassed": 9,
+    "node": "24.13.1",
+    "Xcode": "27.1/27A9275",
+    "rawFinalState": "92800374902175f0c5d1687b663aa559222e55f0\nv24.13.1\nsnapback4 0.4.30\n23c787eb7b750b2ebe152bdf6527723a2954691af6946c5b9d91081f20cff083  target/integ14-stable/snapback4\n464d9a50ae95974659e6cea47f379fa53459ff7bb4aa9048e144e543819acf1c  packages/snapback4/src/wasm/snapback4_device_bg.wasm\nXcode 27.1\nBuild version 27A9275\n",
+    "wholeSixCrateRerunAfterFixtureFixes": false
   },
-  "deferred": [
-    "LANG2 merge pending coordinator authorization",
-    "P17/P18/capability/upgrade release prose",
-    "0.4.30 bump",
-    "post-LANG2 required reruns and final version-bound pack/upgrade/Exact"
-  ]
+  "rootChecks": {
+    "setup": "frozenBun+hoist+check-generated-artifacts passed",
+    "inventories": "passed365package/35script/31demos/487leaves/162pages/1937snippets",
+    "guide": "22passed0failed0skipped0preconditions,121existingwarnings",
+    "docsBudget": "317/320+self-contained screen passed",
+    "refCheck": "550LLPs11970refs0errors0unchecked",
+    "censuses": "authoring798same; deliveryawaitASTregenerated; strictfamily/absence passed"
+  },
+  "notRun": [
+    "fullscripts/test.sh, explicitly prohibited",
+    "publication/push, explicitly prohibited",
+    "new Integration14 actual iOSRelease/physical-device run; EXPOPIN lane retains actual27.0/27.1 controls"
+  ],
+  "preLANG2Checkpoint": {
+    "checkpoint": "pre-LANG2; no release qualification claim",
+    "capturedAt": "2026-10-16T16:32:15.635281+00:00",
+    "fullRuns": {
+      "native": {
+        "status": "passed",
+        "command": "cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast",
+        "environment": {
+          "CARGO_INCREMENTAL": "0",
+          "CARGO_PROFILE_DEV_DEBUG": "0",
+          "CARGO_PROFILE_TEST_DEBUG": "0"
+        },
+        "log": "cargo-full-4.log.gz",
+        "productCommit": "37ac4b8730800202425f55d2b4ff53304ae45609"
+      },
+      "client": {
+        "status": "passed",
+        "files": 407,
+        "pooledFiles": 405,
+        "modelFiles": 2,
+        "pooledTests": 7649,
+        "pooledPassed": 7593,
+        "pooledSkipped": 56,
+        "modelTests": 81,
+        "modelPassed": 81,
+        "failures": 0,
+        "log": "client-full-3.log.gz",
+        "globalBinary": "snapback4/target/debug/snapback4",
+        "testOnlyFollowupCommit": "3fcad43718974bc4d8f16651f5bcc237731d73e3"
+      },
+      "earlierRuns": {
+        "cargo-full-1": "failed; all four failed tests repaired before final full run",
+        "cargo-full-2": "interrupted to incorporate fixes",
+        "cargo-full-3": "interrupted to incorporate fixes",
+        "client-full-1": "failed; integration assertions and mocks repaired",
+        "client-full-2": "interrupted to incorporate legacy Expo assertion fix"
+      }
+    },
+    "wasm": {
+      "raw": 2355193,
+      "gzip": 717515,
+      "brotli": 542232,
+      "budget": 718015
+    },
+    "exact": {
+      "status": "passed",
+      "newApp": "~/sb4-loop/prewave14/hello",
+      "source": "private Exact copy with path dependencies pointed to merged tree",
+      "commands": [
+        "bun exact.mjs snapback",
+        "bun exact.mjs test web"
+      ],
+      "testsPassed": 2
+    },
+    "rootChecks": {
+      "inventories": "passed",
+      "guide": "22 passed, 0 skipped/precondition failures",
+      "refs": "550 LLPs, 11958 refs, 0 errors/unchecked",
+      "docsBudget": "passed, README317/320"
+    },
+    "survey": {
+      "schemas": 100,
+      "passed": 100,
+      "findings": 298,
+      "originalHashesUnchanged": true,
+      "rules3ComparableNotesBefore": 317,
+      "rules3ComparableNotesAfter": 296,
+      "removedFixtureArgumentDrift": 21,
+      "newlyHydrated087Notes": 2,
+      "LANG2": "pending authorized merge"
+    },
+    "linuxPacked": {
+      "status": "passed",
+      "mode": "consumer-only",
+      "publicationQualified": false,
+      "routes": [
+        "ubuntu24.04-proot",
+        "alpine-proot"
+      ],
+      "frontendProofs": 12,
+      "starterProofs": 6,
+      "allMergedH9": "passed"
+    },
+    "mac": {
+      "status": "passed all corrected full targets and platform-sensitive pool",
+      "correctedFullTargetTests": 317,
+      "clientFiles": 53,
+      "clientPassed": 910,
+      "clientSkipped": 14,
+      "initialFiveCrateRun": "7 failures; fixed and affected targets fully rerun",
+      "wholeFiveCrateRerunAfterFixes": false
+    },
+    "deferred": [
+      "LANG2 merge pending coordinator authorization",
+      "P17/P18/capability/upgrade release prose",
+      "0.4.30 bump",
+      "post-LANG2 required reruns and final version-bound pack/upgrade/Exact"
+    ]
+  }
 }

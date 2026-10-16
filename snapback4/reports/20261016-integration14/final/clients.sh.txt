@@ -1,0 +1,14 @@
+set -uo pipefail
+trap 'exit 130' INT TERM
+export CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
+export SNAPBACK4_BIN="/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ14-final/snapback4"
+files=()
+for path in packages/snapback4/test/*.test.mjs; do
+ case "$path" in *app-session-model.test.mjs|*online-client-model.test.mjs) ;; *) files+=("$path");; esac
+done
+node scripts/run-client-tests.mjs 24 files "${files[@]}"
+pool_status=$?
+node scripts/run-client-tests.mjs 1 models packages/snapback4/test/app-session-model.test.mjs packages/snapback4/test/online-client-model.test.mjs
+model_status=$?
+printf 'FINAL_CLIENT_STATUS pool=%s models=%s\n' "$pool_status" "$model_status"
+exit $((pool_status || model_status))

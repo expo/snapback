@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "directory": "/tmp/integ14/final/linux-qualification-final-4/day2-compatibility",
+  "savedSourceCompatibility": "passed",
+  "expoPrintedWrittenPorts": "passed",
+  "previewNoise": "passed",
+  "helperContracts": "passed",
+  "fixtureAgreement": "passed"
+}

@@ -1,0 +1,24 @@
+from pathlib import Path
+import subprocess,sqlite3,json,hashlib,shutil
+root=Path('/home/ccheever/projects/snapback-sb4loop');binary=root/'snapback4/target/integ14-final/snapback4';out=Path('/tmp/integ14/final/upgrade');out.mkdir(exist_ok=True);(out/'snapback').mkdir(exist_ok=True);(out/'.snapback4').mkdir(exist_ok=True)
+shutil.copy2('/tmp/integ14/upgrade-candidate-prelang/snapback/schema.q',out/'snapback/schema.q');shutil.copy2('/tmp/integ14/upgrade-orphan-pristine.sqlite',out/'.snapback4/store.sqlite')
+logs=[]
+def run(*args,expected=None):
+ r=subprocess.run([str(binary),*args],cwd=out,text=True,capture_output=True);logs.append(dict(args=args,exit=r.returncode,stdout=r.stdout,stderr=r.stderr))
+ if expected is not None: assert r.returncode==expected,logs[-1]
+ try:return json.loads(r.stdout)
+ except:return r.stdout
+old=json.loads(Path('/tmp/integ14/upgrade-0.4.29-write.json').read_text());oldpair=json.loads(old['pair']['stdout'])['result'];parent=json.loads(old['family']['stdout'])['result']['parent'];clock=old['pair']['args'][1]
+assert run('--version',expected=0).strip()=='snapback4 0.4.30'
+rows=run('run','list','--as','alice','--now',clock,'--json',expected=0)['data']
+assert {r['id'] for r in rows}==set(oldpair.values()),rows
+assert all(r['color']=='blue' for r in rows),rows
+before=run('doctor','--json');assert 'E_EXPIRY_ORPHAN' in json.dumps(before),before
+repair=run('doctor','--repair-expiry-orphan','parents:'+parent,'--json',expected=0)
+repeat=run('doctor','--repair-expiry-orphan','parents:'+parent,'--json',expected=0)
+assert repair['rowsWritten']==2 and repeat['rowsWritten']==0,(repair,repeat)
+new=run('run','pair','--as','alice','--now',clock,'--json',expected=0)['result'];assert new['first']<new['second'],new
+notes=run('data','notes','--json',expected=0);children=run('data','children','--json',expected=0);assert len(notes)==4 and children==[],(notes,children)
+after=run('doctor','--json',expected=0);assert after['ok'],after
+summary=dict(version='0.4.30',binarySha256=hashlib.sha256(binary.read_bytes()).hexdigest(),preservedOldIds=oldpair,backfill='blue',repairRows=[2,0],newMint=new,counts=dict(notes=len(notes),children=len(children)),doctorAfter=after,oldStoreSha256=hashlib.sha256(Path('/tmp/integ14/upgrade-orphan-pristine.sqlite').read_bytes()).hexdigest(),provenance='Actual npm0.4.29 writer; explicit offline missing-parent emulation; pristine backup from pre-LANG2 check')
+Path('/tmp/integ14/final/upgrade-summary.json').write_text(json.dumps(summary,indent=2)+'\n');Path('/tmp/integ14/final/upgrade-commands.json').write_text(json.dumps(logs,indent=2)+'\n');print(json.dumps(summary,indent=2))

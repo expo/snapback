@@ -8,5 +8,6 @@
   "allOriginalHashesUnchanged": true,
   "LANG2": "Every per-lane/code language-note count matches after removing all21 fixture-drift notes; four search findings counted separately",
   "RULES3": "Comparable99 baseline317 ->296 before LANG2; hydrated087 adds2 baseline notes; final LANG2 advice changes yield315 findings",
-  "perLaneMismatches": []
+  "perLaneMismatches": [],
+  "binarySha256": "23f02688a2101b525cbd5a119d43b612bd92bec6d1c3f69003f609405c4d92da"
 }

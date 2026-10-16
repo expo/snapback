@@ -1,0 +1,98 @@
+[
+  {
+    "args": [
+      "--version"
+    ],
+    "exit": 0,
+    "stdout": "snapback4 0.4.30\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "run",
+      "list",
+      "--as",
+      "alice",
+      "--now",
+      "1792162502905",
+      "--json"
+    ],
+    "exit": 0,
+    "stdout": "{\"complete\":true,\"cut\":null,\"data\":[{\"color\":\"blue\",\"id\":\"01M52KB67S75KYKD9ABMZV9Z5R\",\"title\":\"first\"},{\"color\":\"blue\",\"id\":\"01M52KB67SQFVSRTDMMM6J5904\",\"title\":\"second\"}],\"metered\":{\"examined\":2,\"heap_bytes\":655,\"index_entries\":0,\"output_bytes\":220,\"rows_written\":0,\"rule_probes\":0,\"steps\":2},\"next\":null}\n",
+    "stderr": "run: on the local store .snapback4/store.sqlite (no dev owns it; a dev --fresh/--memory keeps its own: reach it with run --port N)\n"
+  },
+  {
+    "args": [
+      "doctor",
+      "--json"
+    ],
+    "exit": 1,
+    "stdout": "{\"latency\":null,\"lines\":[\"project   /tmp/integ14/final/upgrade\",\"worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>\",\"schema    ok: 3 tables, 0 synced, 3 operations\",\"host      uploads=2; file descriptors (inherited by doctor): soft=1048576 hard=1048576; server raises its soft limit at startup when possible (target=1048576)\",\"clock     offset from wall time: +0ms (no running dev; inspecting against wall time)\",\"latency   no running dev server for this project; restart dev or pass --url with the address dev printed at startup\",\"store     /tmp/integ14/final/upgrade/.snapback4/store.sqlite at seq 2, generation 2\",\"replay    off \u2014 new effects enabled; schedules enabled (persisted dev policy)\",\"storage   rows 449 B (4 rows, including engine-internal storage) \u00b7 indexes 504 B \u00b7 log 0 B (0 events, 0.0\u00d7 rows) \u00b7 ops 0 B \u00b7 file 212.0 KB\",\"expiry    E_EXPIRY_ORPHAN: references name physically missing parents:01M52KB67S791MPHJW3Z0RX2X8; may be pre-0.4.29 expiry or deliberate dangling data. After backup and review, stop the host and run `snapback4 doctor --repair-expiry-orphan 'parents:01M52KB67S791MPHJW3Z0RX2X8'` (current cascade/set-null actions; restrict may refuse; first 32 identities per inspection)\",\"clock     no commit stamps ahead of the current clock in the latest 64 commits (>5000ms)\",\"requests  0 queued, 0 running, 0 done, 0 failed\",\"types     not generated yet (`snapback4 check` writes them)\",\"personas  alice\"],\"ms\":3,\"ok\":false,\"storage\":{\"file\":217088,\"indexes\":504,\"log\":0,\"log_events\":0,\"ops\":0,\"row_count\":4,\"rows\":449}}\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "doctor",
+      "--repair-expiry-orphan",
+      "parents:01M52KB67S791MPHJW3Z0RX2X8",
+      "--json"
+    ],
+    "exit": 0,
+    "stdout": "{\"repaired\":\"parents:01M52KB67S791MPHJW3Z0RX2X8\",\"rowsWritten\":2}\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "doctor",
+      "--repair-expiry-orphan",
+      "parents:01M52KB67S791MPHJW3Z0RX2X8",
+      "--json"
+    ],
+    "exit": 0,
+    "stdout": "{\"repaired\":\"parents:01M52KB67S791MPHJW3Z0RX2X8\",\"rowsWritten\":0}\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "run",
+      "pair",
+      "--as",
+      "alice",
+      "--now",
+      "1792162502905",
+      "--json"
+    ],
+    "exit": 0,
+    "stdout": "{\"events\":0,\"metered\":{\"examined\":0,\"heap_bytes\":2455,\"index_entries\":2,\"output_bytes\":98,\"rows_written\":2,\"rule_probes\":0,\"steps\":28},\"result\":{\"first\":\"01M52KB67S4NQP82AYV22YJNEE\",\"second\":\"01M52KB67S4NQP82AYV22YJNEF\"},\"seq\":4,\"state\":\"sent\"}\n",
+    "stderr": "run: on the local store .snapback4/store.sqlite (no dev owns it; a dev --fresh/--memory keeps its own: reach it with run --port N)\n"
+  },
+  {
+    "args": [
+      "data",
+      "notes",
+      "--json"
+    ],
+    "exit": 0,
+    "stdout": "[{\"color\":\"blue\",\"id\":\"01M52KB67S4NQP82AYV22YJNEE\",\"title\":\"first\"},{\"color\":\"blue\",\"id\":\"01M52KB67S4NQP82AYV22YJNEF\",\"title\":\"second\"},{\"color\":\"blue\",\"id\":\"01M52KB67S75KYKD9ABMZV9Z5R\",\"title\":\"first\"},{\"color\":\"blue\",\"id\":\"01M52KB67SQFVSRTDMMM6J5904\",\"title\":\"second\"}]\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "data",
+      "children",
+      "--json"
+    ],
+    "exit": 0,
+    "stdout": "[]\n",
+    "stderr": ""
+  },
+  {
+    "args": [
+      "doctor",
+      "--json"
+    ],
+    "exit": 0,
+    "stdout": "{\"latency\":null,\"lines\":[\"project   /tmp/integ14/final/upgrade\",\"worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>\",\"schema    ok: 3 tables, 0 synced, 3 operations\",\"host      uploads=2; file descriptors (inherited by doctor): soft=1048576 hard=1048576; server raises its soft limit at startup when possible (target=1048576)\",\"clock     offset from wall time: +0ms (no running dev; inspecting against wall time)\",\"latency   no running dev server for this project; restart dev or pass --url with the address dev printed at startup\",\"store     /tmp/integ14/final/upgrade/.snapback4/store.sqlite at seq 4, generation 2\",\"replay    off \u2014 new effects enabled; schedules enabled (persisted dev policy)\",\"storage   rows 466 B (4 rows, including engine-internal storage) \u00b7 indexes 336 B \u00b7 log 0 B (0 events, 0.0\u00d7 rows) \u00b7 ops 0 B \u00b7 file 212.0 KB\",\"clock     no commit stamps ahead of the current clock in the latest 64 commits (>5000ms)\",\"requests  0 queued, 0 running, 0 done, 0 failed\",\"types     not generated yet (`snapback4 check` writes them)\",\"personas  alice\"],\"ms\":3,\"ok\":true,\"storage\":{\"file\":217088,\"indexes\":336,\"log\":0,\"log_events\":0,\"ops\":0,\"row_count\":4,\"rows\":466}}\n",
+    "stderr": ""
+  }
+]

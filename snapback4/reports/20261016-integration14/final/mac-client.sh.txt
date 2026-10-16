@@ -1,0 +1,9 @@
+set -euo pipefail
+export PATH=/tmp/integ14-node24/node-v24.13.1-darwin-arm64/bin:$HOME/.bun/bin:$HOME/.cargo/bin:$HOME/.elan/bin:$PATH
+export CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
+ulimit -n 65536
+cd "$HOME/projects/snapback-integ14/snapback4"
+bash scripts/build-wasm.sh
+bun run --cwd packages/snapback4 build
+export SNAPBACK4_BIN="$PWD/target/debug/snapback4"
+node scripts/run-client-tests.mjs 3 files $(cat /tmp/integ14-final-client-files.txt)

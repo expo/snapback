@@ -1,0 +1,14 @@
+set -euo pipefail
+export PATH=/tmp/integ14-node24/node-v24.13.1-darwin-arm64/bin:$HOME/.bun/bin:$HOME/.cargo/bin:$HOME/.elan/bin:$PATH
+export CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
+ulimit -n 65536
+cd "$HOME/projects/snapback-integ14"
+git status --short
+git fetch /tmp/integ14-final.bundle HEAD
+git merge --ff-only FETCH_HEAD
+cd snapback4
+bun install --frozen-lockfile
+cargo build -p snapback4
+export SNAPBACK4_BIN="$PWD/target/debug/snapback4"
+(cd lean && lake build)
+cargo test -p snapback4-core -p snapback4-lang -p snapback4-device -p snapback4-sim -p snapback4 -p snapback4-difftest --no-fail-fast

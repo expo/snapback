@@ -1,0 +1,15 @@
+import {spawn} from 'node:child_process';
+import {globSync} from 'node:fs';
+const parent='/home/ccheever/sb4-loop/prewave14';
+const binary='/home/ccheever/projects/snapback-sb4loop/snapback4/target/debug/snapback4';
+const bun='/home/ccheever/.bun-1.4.2/bin/bun';
+const chrome=globSync('/home/ccheever/.cache/ms-playwright/chromium-*/chrome-linux64/chrome').sort().at(-1);
+const env={...process.env,PATH:'/home/ccheever/.bun-1.4.2/bin:'+process.env.PATH,SNAPBACK4_BIN:binary,CHROME:chrome,CARGO_INCREMENTAL:'0',CARGO_PROFILE_DEV_DEBUG:'0',CARGO_PROFILE_TEST_DEBUG:'0'};
+const run=(args)=>new Promise((done,reject)=>{const child=spawn(bun,args,{cwd:parent+'/hello0430',env,stdio:'inherit'});child.once('error',reject);child.once('close',code=>code===0?done():reject(Error(args.join(' ')+' exited '+code)));});
+await run(['exact.mjs','snapback']);
+const backend=spawn(binary,['dev','--memory','--no-watch','--port','26040'],{cwd:parent,env,stdio:['ignore','pipe','inherit']});
+const exited=new Promise(done=>backend.once('close',done));
+try {
+ await new Promise((done,reject)=>{let output='';const timer=setTimeout(()=>reject(Error('Exact backend readiness timed out')),30000);backend.stdout.on('data',data=>{process.stdout.write(data);output+=data;if(output.includes('http://127.0.0.1:26040')){clearTimeout(timer);done();}});backend.once('error',reject);backend.once('close',code=>reject(Error('Exact backend exited '+code)));});
+ await run(['exact.mjs','test','web']);
+} finally {if(backend.exitCode===null)backend.kill('SIGTERM');const timer=setTimeout(()=>backend.kill('SIGKILL'),10000);await exited;clearTimeout(timer);}

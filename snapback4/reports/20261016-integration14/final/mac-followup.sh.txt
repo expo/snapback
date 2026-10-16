@@ -1,0 +1,22 @@
+set -euo pipefail
+export PATH=/tmp/integ14-node24/node-v24.13.1-darwin-arm64/bin:$HOME/.bun/bin:$HOME/.cargo/bin:$HOME/.elan/bin:$PATH
+export CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
+ulimit -n 65536
+cd "$HOME/projects/snapback-integ14"
+git status --short
+git fetch /tmp/integ14-final-followup.bundle HEAD
+git merge --ff-only FETCH_HEAD
+cd snapback4
+cargo test -p snapback4-lang --test guide --test wave12_rule_recipes --test wave13_rules
+cargo test -p snapback4 --test wave13_rules
+cargo build -p snapback4
+bun run --cwd packages/snapback4 build
+(cd lean && bash check.sh)
+cp target/debug/snapback4 target/integ14-stable/snapback4
+export SNAPBACK4_BIN="$PWD/target/integ14-stable/snapback4" SNAPBACK4_EXPORT_TEST_BINARY="$PWD/target/integ14-stable/snapback4"
+export SNAPBACK4_MAINTENANCE_EVIDENCE=/tmp/integ14-maintenance-final
+node scripts/run-client-tests.mjs 3 files $(cat /tmp/integ14-final-client-files.txt)
+git status --short
+git rev-parse HEAD
+shasum -a 256 target/integ14-stable/snapback4 packages/snapback4/src/wasm/snapback4_device_bg.wasm
+xcodebuild -version

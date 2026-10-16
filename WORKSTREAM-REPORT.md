@@ -1,273 +1,261 @@
-# Integration 14 — ready for LANG2
+# Integration 14 — 0.4.30
 
-Worktree `/home/ccheever/projects/snapback-sb4loop`, branch `sb4-loop`.
-Started clean at `59fb4ead1b`; fetched and fast-forwarded origin/main. All
-five authorized lanes are integrated. LANG2 remains unmerged pending the
-coordinator's instruction. Versions remain 0.4.29: the 0.4.30 bump belongs
-after LANG2. No push or publication was performed. No publication worktree or
-`target/publication/` was accessed. All generated packs use `/tmp/integ14/`.
+All seven wave-13 lanes are integrated on `sb4-loop` in
+`/home/ccheever/projects/snapback-sb4loop`. Version 0.4.30 is committed.
+No origin push or publication was performed. No publication target or
+publication worktree was accessed. Packs and scratch stores stay under
+`/tmp/integ14/`; Mac work uses only `~/projects/snapback-integ14`.
 
-## Integrated changes and decisions
+## Merges and release commit
 
-Read every lane's WORKSTREAM-REPORT in its own worktree before merging, then
-merged DAY3, PREV, RULES3, SURF3, KIT2 in that order with `--no-ff`:
+Started clean at 59fb4ead1b; fetched and fast-forwarded origin/main. Read each
+lane report in its own worktree before merging with `--no-ff`. Root report
+conflicts retained the integration side. Final fetch found no new main commits.
 
-| Lane | Merge | Result |
+| Lane | Merge | Integrated behavior |
 | --- | --- | --- |
-| DAY3 | cd57caff41 | Saved-source deployment, starter/port contracts, F2 offline expiry-orphan repair |
-| PREV | 60f06e411f | Saved release previews, backfill narration and bounded preview noise |
-| RULES3 | 629bedd6e2 | Authorization recipes, clearer refusal recovery and fixture-drift diagnostics |
-| SURF3 | e2451c9b08 | P11 mint-context order, fixture agreement, CLI/help surfaces |
-| KIT2 | 8a8a1c0102 | Proof-helper contracts, client readiness and application lifetime |
+| DAY3 | cd57caff41 | Saved-source compatibility, contemporary fixtures, ports, explicit expiry-orphan recovery |
+| PREV | 60f06e411f | Consulted-guard previews, population/backfill counts and bounded preview noise |
+| RULES3 | 629bedd6e2 | Authorization recipes, refusal layers and private update-image evidence |
+| SURF3 | e2451c9b08 | P11 mint-context order, fixture agreement and CLI/session surfaces |
+| KIT2 | 8a8a1c0102 | Proof-helper contracts, readiness gates and draft lifetime |
+| LANG2 (ec995bbcfb) | bb3ba3a6a1 | Precise P18 diagnostics, reachable action caps, bounded walks, refinements and branch-pages-v5 |
+| EXPOPIN (a809a0d22f) | 7d61cad480 | Expo 57 maintenance pins and matched Xcode 27.0/27.1 JSI cache repair |
 
-Parallel publisher's 0.4.29 record `6faa0fb9cd` was merged as `a840cb5024`.
-Final fetch found no additional origin/main commits. Report conflicts kept the
-integration side. Other conflicts preserved both lanes' behavior; generated
-files were regenerated instead of combining conflicting generated text.
+Parallel 0.4.29 publication record 6faa0fb9cd was merged as a840cb5024.
+LANG2 and EXPOPIN followed the coordinator's updated order.
 
-Composed saved-version and bridge guide paths; expiry-repair and rule-recipe
-pointers; SURF3 CLI metadata plus DAY3 doctor repair; extracted saved-fixture
-selection plus per-query sweep personas (working sweep matrices are skipped
-when falling back to a saved fixture). Renumbered colliding appended LLP
-sections: KIT2 proof §10 and application §6.11, updating live references but
-preserving raw lane reviews.
+Bump commit: **1f6b75ff27 — snapback4 0.4.30: bounded reads, precise patches,
+reliable proofs and Expo builds**. It changes exactly the ten paths and
+23 version lines used by c113020b4a: workspace Cargo/locks, Bun lock, following
+fixture lock, four package manifests and the two release fixture pins.
+The later fd92ae68c3 makes the identity-mutation fixture work across patch tens.
 
-Broad checks found and fixed these integration mismatches:
+## Composition and fixes
 
-- Strip native-device imports from zero-sync Expo starters while retaining
-  SecureStore session persistence; preserve DAY3 defaults and SURF3 port wording.
-- Validate generated frontend proof ports before starting builds.
-- Update publication test fixtures for DAY3's module and browser mocks for
-  KIT2's init scripts; align old saved-directory assertions and isolate the
-  descriptor restart assertion to its actual host diagnostic.
-- Expose `useAppReady` through the guide alias index (found by the Mac run).
-- Update wave9's online-only Expo expectations and keep browser test logs in
-  ignored target directories.
-- Add `publish.mjs --prepare-directory PATH` for isolated client preparation;
-  ordinary publication defaults remain intact. Extend packed H9 execution to
-  PREV noise budgets, KIT2 helper contracts and SURF3 fixture agreement.
+- Kept DAY3's extracted test verb, saved-fixture selection and strict fallback,
+  SURF3's per-query sweep personas and LANG2's verbose fixture presentation.
+  Preserved both saved-v1/v2 and bridge guide paths, all new codes and doctor repair.
+- Retained P11 ordering only within one live mint context. No old ids are
+  rewritten and no cross-context/process/restart/commit order is promised.
+- Kept RULES3 authorization/refusal behavior with LANG2's three-way immutable
+  analysis. The timed-peer recipe intentionally keeps its hidden-target upsert:
+  splitting on a readable lookup cannot distinguish an existing hidden row.
+  Its documented runtime-equality note is pinned narrowly in all four recipe
+  checks; other notes remain failures. Fixes 69594bd951 and cd04adf0b5.
+- Renumbered colliding amendments: RULES3 is 3000.036.002 §11, LANG2 stays §10;
+  DAY3 expiry recovery stays 3000.039 §13, delete reachability is §14. Earlier
+  KIT2 proof/application sections became §10/§6.11. Updated live references;
+  raw independent review artifacts remain verbatim. Their inherited trailing-space/EOF warnings are preserved with the original responses.
+- Composed Expo starters: zero-sync strips native-device imports but retains
+  SecureStore; init-time ports remain baked/printed and runtime-overridable.
+  Kept EXPOPIN's new toolchain pins and DAY3's backend launcher instruction.
+  Frontend proof ports validate before builds. Integration fixes 6393a786b8,
+  a3e5fddd82 and 304c7bf6b1 preserve the combined contracts.
+- Updated publication test fixtures, browser init-script mocks, saved-directory
+  assertions, descriptor-warning scope and online-only Expo assertions. Exposed
+  useAppReady in guide discovery; test logs use ignored target directories.
+- Added `publish.mjs --prepare-directory PATH` for isolated client preparation.
+  Extended installed H9 checks for PREV noise, KIT2 helper contracts, SURF3
+  fixture agreement and DAY3 saved compatibility/Expo ports. Corrected the
+  integration-only expected Expo pin to 57.0.30 in 3bac5812d4.
+- Mac caught a scheduled-handler test assumption. `ctx.mutate` permits pending
+  and replayed receipts without historical result (published SERVER.md).
+  Fixture 9280037490 retries the same write id with declared retry 3 / backoff 1s,
+  still requires sent and proves one correctly owned row using current server
+  truth. Fresh results retain their owner assertion. No SDK/runtime code or
+  product deadline changed; this fixture passed alone on Linux and Mac before
+  complete pool reruns.
 
-Applied llp-orient. Governing documents include LLP3000, release activation
-3000.000.000 and release-spanning clients 3000.000.000.000, mint context
-3000.000.001, proof kit 3000.011.003.000.000, starters3000.011.003.000,
-authorization3000.036.002, application lifetime3000.013 and reference actions
-3000.039. No new RFC or authority change was authored. Existing lane reviews
-remain intact. One coherent partial 0.4.30 changes entry and LLP3000.037 §17
-now describe these five lanes; LANG2-specific prose is explicitly pending.
+One coherent 0.4.30 `guide changes` entry covers client runtime/draft/session
+semantics, P11, P18, F2, P17, branch-pages-v5, rebuilds and Expo/Xcode. LLP
+3000.037 §17 records the farm findings, all seven lanes and the final census.
+Applied llp-orient; no new RFC or authority change was authored. The lane
+review records are retained with their provenance; mechanical composition is
+not a new author acceptance or publication claim.
 
 ## Verification
 
-All Cargo commands used `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0
-CARGO_PROFILE_TEST_DEBUG=0`. Product setup installed frozen dependencies,
-built native, wasm and the client. Never ran the full `scripts/test.sh`.
+Every Cargo command used `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0
+CARGO_PROFILE_TEST_DEBUG=0`. Product frozen install/native/wasm/client setup ran.
+Never ran the prohibited full `scripts/test.sh`.
 
-### Linux native and clients
+### Linux native, clients and model
 
-PASS: complete five-crate `cargo test -p snapback4-core -p snapback4-lang
--p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast`, exit0,
-including all integration targets and doc-tests. This final run followed the
-last Rust/product fix (`37ac4b8730`); the subsequent wave9 change only adjusts
-JavaScript test expectations. No failed tests in this run.
+- PASS: complete `cargo test -p snapback4-core -p snapback4-lang
+  -p snapback4-device -p snapback4-sim -p snapback4 --no-fail-fast`, exit 0.
+  6381 tests passed, 45 ignored, zero failed.
+  Final full run follows the last Rust/test correction cd04adf0b5; subsequent
+  service-seat fixture change is JavaScript only and has no Cargo input delta.
+  Final log: final/cargo-full-4.log.gz. Interrupted earlier runs are retained,
+  not relabeled passes. Both ticketed cleanup/resolver tests pass.
+- PASS: final full client pool in one pass: 405 pooled/serial files,
+  7,649 tests; 7,593 passed, 56 intentional skips, zero failures/cancellations.
+  Full model counts add 81/81 passed across two files. Total 407 files,
+  **7,674 passed, 56 skipped, zero failed**. No seed/count overrides.
+  Final log: final/clients-full-6.log.gz. A preceding complete pass also passed
+  before the scheduled-fixture correction. Complete repaired server-e2e 9/9
+  passed separately on both OSes.
+- The client native binary is an immutable copy under
+  `snapback4/target/integ14-final/snapback4`, preserving ancestor lookup for JS
+  helpers. It is the same merged 0.4.30 binary used for the final survey/upgrade.
+  Pack preparation finished before the final pools, keeping wasm bytes fixed.
+  Earlier setup runs exposed concurrent wasm replacement and a copy outside
+  the checkout's helper layout; their failures/cancellations remain recorded.
+- Lean check.sh PASS: 78 theorems audited with only permitted axioms,
+  116/116 examples and 7 oracle fixtures, on Linux and Mac.
 
-PASS: one complete final client pass with global SNAPBACK4_BIN bound to the
-merged debug binary:405 pooled/serial files plus the two full model files,
-407 total. The pool reports 7,649 tests: 7,593 passed, 56 explicitly skipped,
-zero failed/cancelled. Models add 81/81 passed at their full case counts.
-Combined: 7,674 passed, 56 skipped, zero failures.
+### Differential campaigns
 
-Initial broad runs exposed the integration issues listed above. The final
-runs follow the fixes; intentionally interrupted intermediate runs are not
-claimed as passing runs. The ticketed cleanup/resolver flake did not recur.
-
-### Differential checks and generated inventories
-
-- Native `run --seed 0 --cases 20000 --workers 8`: 20,000 compile cases,
-  1,220,035 executions, zero disagreements, generator errors or unexpected
-  binder refusals.
-- `run-devices --seed 0 --cases 1000 --workers 8`: seeds0–999,
+- `run --seed 0 --cases 20000 --workers 8`: 20,000 compile cases,
+  1,220,035 executions, zero disagreements/unexpected refusals/generator errors.
+- `run-devices --seed 0 --cases 1000 --workers 8`: seeds 0–999,
   27,922 executions, zero disagreements.
-- `lake build` then `run-lean --seed 0 --cases 20000 --workers 8`:
-  16,827 supported/3,173 unsupported; 130 disagreements entirely within the
-  four retained signatures: code E_RULE/NOT_FOUND(3), prelude code(25),
-  next/no-next(67), continuation-next/no-next(35). The nonzero exit is retained;
-  there are no new signatures or oracle/allowlist changes.
-- Rebuilt delivery-await census from the AST and authoring census from
-  CENSUS_ITEM output (798 entries; identical after regeneration).
-- Root frozen Bun install, `scripts/ensure-workspace-hoist.mjs` and
-  `scripts/check-generated-artifacts` PASS, including the previously absent
-  Snapback1 generated artifacts. Diagnostics registry, manifest and chained
-  inventories regenerated without tracked root drift.
-- Final root check-inventories PASS:365 package tests,35 script tests,31 demos,
-  487 publication leaves,162 guide pages/1,937 snippets. Final check-guide
-  PASS 22/22, zero skips/precondition failures (121 existing informational gap
-  warnings). A later missing root dependency directory required repeating the
-  frozen install/hoist before that final guide run; its earlier red is retained.
-- `./ref-check` PASS:550 LLPs,11,958 references, zero errors/unchecked.
-- Final `node scripts/docs-budget.mjs` PASS, README 317/320 physical lines
-  and the self-contained account-screen test passes.
+- `run-lean --seed 0 --cases 20000 --workers 8`: 16,827 supported,
+  3,173 unsupported, 130 disagreements in exactly four retained signatures:
+  E_RULE/NOT_FOUND(3), prelude code(25), next/no-next(67), continuation-next(35).
+  Its exit 1 is retained; no new signature, oracle or allowlist change.
+- Full difftest crate and explicit LANG2 factory pass, including the 100 new
+  cases (64 P18 + 36 LANG2). Excluded local observations remain exclusions;
+  they are not counted as successful device predictions.
 
-### Packed Linux consumers
+### Installed packed Linux qualification
 
-Fresh preparation from product revision `37ac4b8730800202425f55d2b4ff53304ae45609`:
+Fresh client/Expo preparation:
 
 ```sh
-node scripts/publish.mjs --prepare-client --prepare-directory /tmp/integ14/client-prelang-final
-node scripts/qualify-linux.mjs --consumer-only --client /tmp/integ14/client-prelang-final/snapback4-0.4.29.tgz --expo /tmp/integ14/client-prelang-final/snapback4-expo-0.4.29.tgz --out /tmp/integ14/linux-prelang-final
+node scripts/publish.mjs --prepare-client --prepare-directory /tmp/integ14/final/client-pack-3
+npm_config_cache=/tmp/integ14/final/npm-cache npm_config_prefer_online=true node scripts/qualify-linux.mjs --consumer-only --client /tmp/integ14/final/client-pack-3/snapback4-0.4.30.tgz --expo /tmp/integ14/final/client-pack-3/snapback4-expo-0.4.30.tgz --out /tmp/integ14/final/linux-qualification-final-4
 ```
 
-PASS on Ubuntu24.04 and Alpine through proot, with every merged H9 case:
-DAY3 compatibility deployment and ports, PREV noise budget, KIT2 helper
-contracts and SURF3 fixture agreement. All12 generated frontend proofs and
-six starter proofs pass. Client pack SHA256:
-`e8dc6589362ad6183f8842ef5b9864b423114f1d57437f8dcea11326c1371912`.
+PASS: Ubuntu 24.04 and Alpine proot consumers, all 12 frontend proofs and 6 starter
+proofs. Every installed H9 case passes: compatibility deploy/saved fixtures,
+Expo ports, preview-noise budget, helper contracts and fixture agreement.
+Fresh private npm metadata resolves the inherited ETARGET for @expo/cli 57.0.31;
+no shared cache was deleted or toolchain downgraded.
 
-`--consumer-only` intentionally leaves the qualifier's built-in full source
-suite unrun because that path invokes the prohibited full `scripts/test.sh`.
-Source suites were run directly as above. This is consumer evidence, with
-`publicationQualified:false`, not a publication receipt. Manifests are still
-0.4.29 until LANG2 lands; final0.4.30 version-bound packing remains pending.
+Preparation source 69594bd951; qualification source cd04adf0b5. Later source
+changes are tests/repository qualification prose only; published/native-runtime
+inputs are unchanged. Consumer evidence explicitly says suite:not-run and
+publicationQualified:false. Source suites ran directly above; no importable
+publication receipt is claimed. Native ELF is static and installed SHA verified.
 
-### Read-only 100-schema survey
+### 100-schema survey and reconciliation
 
-All 100 final wave13 schemas pass on the merged binary, with 298 notes/search
-findings and no refusals. Each source schema's hash is unchanged. Private
-copies include fixtures, versions and toolchain context. App087 initially
-matched RULES3's missing-toolchain red; linking the existing merged-tree
-`snapback4/node_modules` into its private copy made it pass too.
+All 100 final wave13 schemas pass with **zero refusals**, 315 note/search
+findings and 29 N_IMMUTABLE_PATCH notes in 18 lanes. Original q-source hashes
+remain unchanged. App 087's original toolchain precondition was resolved only
+inside its private copy using existing merged-tree dependencies.
 
 | Code | Count |
 | --- | ---: |
-| N_CONDITIONAL_COMPLETE | 11 |
+| N_CONDITIONAL_COMPLETE | 8 |
 | N_DELETE_NEEDS_READ | 1 |
 | N_DELETE_RESTRICTED | 1 |
 | N_EPHEMERAL_SERVER | 2 |
+| N_IMMUTABLE_PATCH | 29 |
 | N_LOOKUP_HIDDEN | 5 |
 | N_MAINTAIN_AUTHORIZATION | 2 |
 | N_MAINTAIN_DELTA | 7 |
-| N_NEVER_COMPLETE | 19 |
-| N_NO_CURSOR | 144 |
+| N_NEVER_COMPLETE | 15 |
+| N_NO_CURSOR | 139 |
 | N_NO_HORIZON | 12 |
 | N_NO_PRODUCTION_WRITER | 50 |
 | N_PATCH_CLEARS | 2 |
 | N_SEARCH_SHAPE | 1 |
 | N_SEARCH_UNSCOPED | 1 |
 | N_SEARCH_WORDS | 2 |
-| N_SPARSE_FILTER | 16 |
+| N_SPARSE_FILTER | 17 |
 | N_SYNC_ORDER | 5 |
 | N_UNREADABLE_PROBE | 13 |
 | N_VACUOUS_RULE | 1 |
-| N_WIDE_MERGE | 3 |
+| N_WIDE_MERGE | 2 |
 
-On RULES3's comparable 99 schemas, every code count matches except all 21
-N_FIXTURE_ARGUMENT_DRIFT are eliminated:317 → 296 notes. Hydrated087 adds one
-N_NEVER_COMPLETE and one N_NO_PRODUCTION_WRITER, giving 298 across all 100.
-LANG2 comparison must follow its authorized merge. Binary SHA256:
-`0989d347e49e0bb0b1c026ae7d38c8a0b7061b0778274644e20dba464429af78`.
+Every per-lane language-note count matches LANG2 after SURF3 removes all 21
+fixture-drift notes. Four search findings are counted separately. RULES3's
+99 comparable schemas baseline is 317; hydrated 087 adds 2, giving 319 for 100.
+LANG2 adds 17 net notes, SURF3 removes 21: 319 + 17 − 21 = 315. No newly refused lane.
+Machine records include per-lane codes, source hashes and exact binary SHA.
 
-### Upgrade rehearsal
+### Existing-store upgrade
 
-Installed the actual old release using `npm install --save-exact
-snapback4@0.4.29 --registry http://127.0.0.1:4873/ --ignore-scripts` in a private
-temporary project. That binary wrote two note rows minted at the same fixed
-millisecond and a parent with two children. Explicit offline SQL removal of
-the parent/indexes emulates the older orphan corruption;0.4.29 itself no
-longer creates this condition. Preserved pristine store backups.
+PASS using the actual npm 0.4.29 installation from http://127.0.0.1:4873/.
+Its store has a same-millisecond pair, a parent/two children and extra rows.
+Private offline parent/index removal emulates the older orphan corruption;
+0.4.29 itself no longer creates that condition. The pristine backup is retained.
 
-The merged binary adopted a copy: old IDs stayed unchanged, a new default
-backfilled both note rows, doctor reported E_EXPIRY_ORPHAN, explicit repair
-removed two orphan children and repeat repair removed zero. New same-ms rows
-have consecutive ordered entropy; final count four notes/no children, doctor
-healthy. Exact old IDs, new IDs and store SHA are in upgrade-prelang.json.
-Final version-bound0.4.30 adoption remains pending the bump.
+0.4.30 preserves every old id, backfills the new blue default, reports the
+orphan without automatic deletion, repairs exactly 2 children, then 0 on repeat.
+New same-ms ids order within their mint context. Final store: 4 notes, 0 children;
+doctor healthy. Commands/results and old-store digest are retained in
+final/upgrade-commands.json and final/upgrade-summary.json.
 
 ### Mac
 
-Used `ssh ccheever@charlies-macbook-pro-m5max-black`, scratch clone
-`~/projects/snapback-integ14` only, with bundled Git objects. Node24.13.1 was
-downloaded and checksum-verified. Set `ulimit -n 65536` and PATH including
-Bun, Cargo and the existing Elan install; all Cargo invocations used the
-three required environment settings.
+Used only `ccheever@charlies-macbook-pro-m5max-black:~/projects/snapback-integ14`,
+Node 24.13.1, ulimit 65536 and the required Cargo settings. The initial full
+six-crate run (including difftest) completed with only four old-source
+recipe/guide targets red. Every other target passed. After fixes, all four
+complete targets pass: guide 125, wave12 recipes 13, lang wave13 rules 3, CLI rules 9:
+**150 passed, zero failed**. This is the affected-scope closeout; the initial
+full run's nonzero exit is retained.
 
-The initial complete five-crate run exposed seven failures across DAY3,
-starters, lifecycle, overload and builder guidance. After the fixes, every
-failed target was rerun in full:day3(12),init(50),lifecycle(29),overload(2),
-builder_guidance(5),guide(125):223 passed. The complete difftest target passes
-94/94 with the real built Lean oracle (an initial missing-oracle setup red is
-retained). Total317 passing tests in those corrected full targets. The other
-initial five-crate targets passed. No claim of a second complete Mac
-five-crate run is made.
+PASS: final 61-file platform/client scope in one pass, 970 passed, 14 explicit skips, zero failures.
+Provider reconciliation and production-background policy passed alone before
+the complete-scope rerun; the scheduled-handler fixture passed 9/9 alone too.
+No deadlines, product ceilings or assertions were waived. Initial red pools,
+the maintenance diagnostic snapshot and corrected outcomes are all retained.
+The final pool pins both native binary environment variables to an immutable
+copy inside the scratch checkout, preserving helper lookup and worker lifetime.
 
-The platform-sensitive/client pool ran52 files in one pass:899passed,
-14 explicit skips, zero failures. The later test-only wave9 correction also
-passes 11/11 on Mac:53 distinct files,910 passed,14 skips total. Mac checkout
-ends at `3fcad43718974bc4d8f16651f5bcc237731d73e3`, clean; native SHA256
-`a71bc8c892b3915c4e92746ea07285f9be87522080a2653f8ec10a3c1614a03c`.
+### Fresh Exact
 
-### Exact
+PASS: fresh `~/sb4-loop/prewave14/hello0430` from a private copy of
+`~/sb4-loop/exact2`; original Exact checkout remains untouched. Generated with
+`bun <privateExact>/scripts/exact.mjs new ./hello0430 --snapback --port 26040`.
+Three private Cargo dependency paths/versions point to merged 0.4.30; the old
+lock was updated offline after the locked build refused it. Installed the
+actual merged client pack in the parent. With explicit SNAPBACK4_BIN,
+Playwright CHROME, Bun 1.4.2 and Cargo settings, `bun exact.mjs snapback` and
+`bun exact.mjs test web` pass 2/2 including offline/reconnect. The driver stopped
+its owned backend. Actual client and device manifest say 0.4.30 with
+branch-pages-v5; Exact's static printed 0.4.29 banner is not the selected runtime.
+Exact commands, source paths and manifest are retained in final/exact-local-build.json.
 
-Fresh app `/home/ccheever/sb4-loop/prewave14/hello` generated with
-`bun /home/ccheever/sb4-loop/prewave14/exact2/scripts/exact.mjs new ./hello
---snapback --port 26040`. Private Exact source copy came from
-`~/sb4-loop/exact2`; the original checkout is unchanged. In the private copy,
-three Cargo dependency paths were redirected from the pinned0.4.29 snapshot
-to this merged tree. Tracked build-source files omitted by the initial copy
-were restored before qualification. Private Bun1.4.2 install used the local
-registry after frozen public/local optional-package setup failed.
+### Regeneration and root checks
 
-Installed the merged client tgz in prewave14. With SNAPBACK4_BIN pointing to
-the merged debug binary, cached Playwright Chromium via CHROME and required
-Cargo flags, ran `bun exact.mjs snapback`, then the merged binary's
-`dev --memory --no-watch --port 26040` and `bun exact.mjs test web` from hello.
-PASS 2/2 including offline/reconnect. The driver stopped its owned server.
-Full commands, source paths and log are retained in exact-local-build.json
-and exact-37ac-prelang.log.gz. Final0.4.30 pins/build rerun remain pending.
+- Delivery-await census regenerated from AST; authoring census regenerated,
+  798 entries and byte-identical. Strict wasm family/absence censuses pass.
+- Root frozen Bun install + workspace hoist + check-generated-artifacts PASS;
+  missing Snapback 1 prerequisites materialized. Diagnostics registry, guide
+  manifest and chained inventories regenerated without tracked root drift.
+- Root inventories PASS: 365 package tests, 35 script tests, 31 demos,
+  487 publication leaves, 162 pages/1,937 snippets.
+- Root guide PASS 22/22, zero skips/precondition failures; 121 existing informational
+  gap warnings. Docs budget PASS 317/320 plus the self-contained screen test.
+- ./ref-check PASS: 550 LLPs,11,970 references, zero errors/unchecked.
 
 ## Wasm
 
-Clean pre-LANG2 measure:2,355,193 B raw,717,515 B gzip,542,232 B Brotli.
-Budget718,015 B = gzip+exactly500 B, recorded with reason in wasm-budget.json.
-Gzip increase over0.4.29 is801 B. Strict family/absence audits pass; no runtime
-ceiling changed. Measured at6393a786b8; later changes do not affect device/core
-wasm inputs. Used real gzip and Node Brotli quality11 wrapper because the
-brotli executable is absent. Remeasure after LANG2 and the version change.
+Clean Linux 0.4.30 artifact: **2,372,437 B raw / 723,160 B gzip / 545,213 B Brotli**.
+Budget **723,660 B = gzip + exactly 500 B**; whole-artifact gzip growth 6,446 B
+from 0.4.29. Reason, journal and clean measurement are committed. No runtime
+resource ceiling or independent per-feature byte attribution changed. Subsequent
+changes do not affect device/core wasm inputs; final pool bytes match the
+measured artifact. Mac build: 2,372,683 B raw / 722,961 B gzip, within Linux budget.
 
-## Commits through this checkpoint's evidence preparation
+## Evidence and limits
 
-```
-46881c12b6 Integration 14: retain packed, Mac, Exact and reconciled survey evidence
-3fcad43718 Integration 14: align legacy Expo assertions with online-only starters
-37ac4b8730 Integration 14: expose readiness hook guide and complete saved-version assertions
-27d98e0e43 Integration 14: distinguish proof persistence from native CLI flags
-162b26da6c Integration 14: retain lane reports and pre-LANG2 oracle, survey and upgrade evidence
-afb56fd112 Integration 14: align references with composed amendment sections
-dcfa4cca7b Integration 14: date the wave 13 research update
-a840cb5024 Integration 14: retain parallel 0.4.29 publication record
-3cf57ec92d Integration 14: checkpoint integration decisions and pre-LANG2 evidence
-a86e81188a Integration 14: scope descriptor restart assertion to host diagnostics
-b34c9a6ef8 Integration 14: consolidate release notes and record wave 13 before LANG2
-304c7bf6b1 Integration 14: validate proof ports before builds and compose qualification fixtures
-9cec89f636 Integration 14: record clean pre-LANG2 wasm measurement
-a3e5fddd82 Integration 14: preserve zero-sync Expo and printed port contracts
-6393a786b8 Integration 14: compose proof census and packed H9 checks; allow 718015 B wasm
-8a8a1c0102 Integration 14: merge KIT2 proof contracts and client readiness
-e2451c9b08 Integration 14: merge SURF3 fixtures, mint order and CLI surfaces
-629bedd6e2 Integration 14: merge RULES3 authorization recipes and refusal diagnostics
-60f06e411f Integration 14: merge PREV release previews and backfill narration
-cd57caff41 Integration 14: merge DAY3 saved-source, starter and expiry fixes
-```
+Durable evidence: `snapback4/reports/20261016-integration14/final/`; the parent
+directory retains the pre-LANG2 checkpoint and verbatim lane reports. Every
+attempt is distinguished from final passing runs. Temporary packs, stores,
+scripts and caches remain under `/tmp/integ14/`. The manifest records artifact
+integrities, source revisions and commands. No credentials were copied.
 
-Commit identity is Charlie Cheever <ccheever@firewoodagent.com>. No push.
-Raw earlier reds and final evidence live under
-`snapback4/reports/20261016-integration14/`; transient scripts, private stores,
-consumer packs and full logs remain under `/tmp/integ14/`.
-
-## Coordinator handoff: ready for LANG2
-
-Do not merge LANG2 before the coordinator resumes this integration. Remaining
-work depends on that merge:compose P17/P18 diagnostics and refusal semantics,
-finish the coherent0.4.30 changes entry (capability markers, existing-store and
-client/native-device rebuild implications) and LLP3000.037 §17; bump exactly
-the paths changed by c113020b4a in its own `snapback4 0.4.30: ...` commit;
-repeat the full Cargo run, three difftests,100-schema reconciliation and wasm
-measurement. Repeat affected Mac/packed/Exact/upgrade checks against the final
-version, finish report and commit. Do not push.
+All requested scopes are complete. Default ignored/platform-specific cases and
+Lean's retained signatures remain explicitly counted. The full scripts/test.sh
+was not run per instruction; consumer-only qualification supplies no publication
+receipt. EXPOPIN's actual Xcode 27.0/27.1 iOS Release controls are retained lane
+evidence, not a newly claimed Integration 14 iOS Release or physical-device run.
+No push or publication was performed. Commits use Charlie Cheever
+<ccheever@firewoodagent.com>.

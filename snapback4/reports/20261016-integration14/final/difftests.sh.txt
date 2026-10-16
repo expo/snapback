@@ -1,0 +1,14 @@
+set -uo pipefail
+trap 'exit 130' INT TERM
+export CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0
+cargo build -p snapback4-difftest --release || exit $?
+(cd lean && lake build) || exit $?
+cargo test -p snapback4-difftest --no-fail-fast || exit $?
+target/release/snapback4-difftest run --seed 0 --cases 20000 --workers 8 --out /tmp/integ14/final/difftest-run
+native_status=$?
+target/release/snapback4-difftest run-devices --seed 0 --cases 1000 --workers 8 --out /tmp/integ14/final/difftest-devices
+device_status=$?
+target/release/snapback4-difftest run-lean --seed 0 --cases 20000 --workers 8 --out /tmp/integ14/final/difftest-lean
+lean_status=$?
+printf 'FINAL_DIFFERENTIAL_STATUS native=%s device=%s lean=%s\n' "$native_status" "$device_status" "$lean_status"
+exit $((native_status || device_status))
