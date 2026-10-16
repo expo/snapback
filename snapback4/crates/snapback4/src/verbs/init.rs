@@ -286,7 +286,7 @@ pub fn init(options: &Options) -> i32 {
     println!("init: files: {}", written_files(&files.iter().map(|(name, _)| *name).collect::<Vec<_>>()));
     // @ref LLP 3000.011.003.000#7.4 — the advisories are read before the install that reports them, not after.
     if expo && files.iter().any(|(name, _)| *name == "package.json") {
-        println!("init: Expo dependencies are pinned; next: `npm install`, then `npx snapback4 check`. Adapter-first installs use the same React 19.2.3 / React Native 0.86.3 set; init supplies the app and scripts.");
+        println!("init: Expo dependencies are pinned; next: `npm install`, then `npx snapback4 check`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.");
         println!("init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)");
     }
     if web {

@@ -4,6 +4,7 @@ import {createServer} from 'node:http';
 import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {createHash} from 'node:crypto';
+import {createRequire} from 'node:module';
 import {spawnSync} from 'node:child_process';
 import {runToolchainCommand} from './publication-starters.mjs';
 
@@ -42,10 +43,13 @@ export async function proveExpoUpgrades(client,platform,expo,directory,modes=['l
       if(mode==='adapter-first') {
         writeFileSync(join(cwd,'package.json'),'{"private":true}');
         await run('npm',['install','--save-exact',`snapback4@${version}`,`snapback4-expo@${version}`],cwd);
-        assert.equal(JSON.parse(readFileSync(join(cwd,'node_modules/react/package.json'))).version,'19.2.3');
+        assert.match(JSON.parse(readFileSync(join(cwd,'node_modules/react/package.json'))).version,/^19[.]/);
         assert.equal(JSON.parse(readFileSync(join(cwd,'node_modules/react-native/package.json'))).version,'0.86.3');
         await run('npx',['snapback4','init','--expo'],cwd);
         await run('npm',['install'],cwd);
+        for(const name of ['react','react-dom']) assert.equal(JSON.parse(readFileSync(join(cwd,'node_modules',name,'package.json'))).version,'19.2.3');
+        const rootReact=createRequire(join(cwd,'package.json')).resolve('react');
+        for(const name of ['react-native','snapback4-expo','snapback4']) assert.equal(createRequire(join(cwd,'node_modules',name,'package.json')).resolve('react'),rootReact,'scaffold install deduplicates React');
       } else {
       // Install and generate with the actual previous published CLI first.
       writeFileSync(join(cwd,'package.json'),'{"private":true}');

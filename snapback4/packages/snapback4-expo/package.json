@@ -29,7 +29,7 @@
     "expo": ">=57.0.22 <58",
     "snapback4": "*",
     "expo-modules-core": ">=57.0.23 <58",
-    "react": "19.2.3",
+    "react": "^19.2.3",
     "react-native": "0.86.3"
   },
   "devDependencies": {
