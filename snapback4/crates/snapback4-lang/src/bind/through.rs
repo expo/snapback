@@ -65,7 +65,7 @@ fn one(
         .map(|r| &r.site)
         .unwrap_or(&info.decl.site);
     let fail = |message: String, rewrite: String| {
-        Diagnostic::new(site, "E_READ_THROUGH", message, format!("{rewrite}  -- for mutable parent gates see: guide rule-recipes mutable-workflow")).guide("rules")
+        Diagnostic::new(site, "E_READ_THROUGH", format!("{message}; for mutable parent gates see: guide rule-recipes mutable-workflow"), rewrite).guide("rules")
     };
     if info.decl.sync.is_some()
         && info.decl.retain.as_ref().is_some_and(|(policy, _)| policy == "delivered-history")

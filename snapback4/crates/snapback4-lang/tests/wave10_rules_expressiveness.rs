@@ -261,6 +261,7 @@ fn mutable_read_through_diagnostic_explains_both_audience_histories() {
         "copy it into a required immutable audience column",
         "check `.copy = .lead.territory`",
         "probe the live parent",
+        "see: guide rule-recipes mutable-workflow",
     ] {
         assert!(
             diagnostic.message.contains(phrase),

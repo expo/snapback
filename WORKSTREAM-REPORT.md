@@ -105,7 +105,7 @@ and summary are in `snapback4/reports/wave13-rules3/`.
   in the compilation census (29 blocks total). Full-suite follow-up passes all
   125 guide, three denied-write, 13 prior-recipe and three RULES3 tests, plus
   nine membership-path and 18 MP reproduction tests. Read-through repairs keep
-  the named recipe pointer in a compilable Quarry comment. Historical public
+  their exact executable source; the named recipe pointer lives in the message. Historical public
   refusal evidence is retained; the current expectation adds only the reviewed
   generic layer label and static recipe rewrite, and still compares all private
   cause envelopes byte-for-byte. All original guide size ceilings remain.
