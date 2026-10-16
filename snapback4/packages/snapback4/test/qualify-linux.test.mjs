@@ -20,6 +20,14 @@ function qualify(t, scenario = {}) {
   writeFileSync(join(root, "scripts/publication-day2.mjs"), `export async function proveDay2() {
     return { status: "passed", savedSourceCompatibility: "passed", expoPrintedWrittenPorts: "passed", previewNoise: "passed", helperContracts: "passed", fixtureAgreement: "passed" };
   }`);
+  writeFileSync(join(root, "scripts/publication-production.mjs"), `export async function proveProduction() {
+    if (${JSON.stringify(scenario.productionFail ?? false)}) throw Error('deliberately failing packed production proof');
+    return { status: "passed", realAccounts: "passed", fixture: "packed-production" };
+  }`);
+  writeFileSync(join(root, "scripts/publication-client-recipes.mjs"), `export async function proveClientRecipes() {
+    if (${JSON.stringify(scenario.clientRecipesFail ?? false)}) throw Error('deliberately failing packed client recipes');
+    return { status: "passed", fixture: "packed-client-recipes" };
+  }`);
   writeFileSync(join(root, "scripts/publication-frontend-proofs.mjs"), `
     const audit = ${audit.toString()};
     export async function proveGeneratedProofs(client, platform, expo, out) {
@@ -201,6 +209,7 @@ test("Linux qualification receipt binds source, toolchain, suite, both container
   assert.equal(r.receipt.binarySha256, digest(r.binary)); assert.equal(r.receipt.platform.integrity, sri(tarball)); assert.equal(r.receipt.clientIntegrity, sri(r.client));
   assert.deepEqual(r.receipt.frontendProofs.map(p => [p.kind, p.attempt, p.status]), starterCases.flatMap(s => [1,2].map(attempt => [s.kind, attempt, "passed"])));
   validateLinux(r.receipt, tarball, { version: "0.0.0", integrity: sri(r.client) }, "a".repeat(40));
+  assertAdditionalProofReports(r);
   assert.deepEqual(r.receipt.proofs.map(p => p.base), ["ubuntu:22.04", "alpine"]);
   assert.equal(r.receipt.suite.summary, "== 0 failure(s) in 2 s");
   assert.equal(r.receipt.route, "docker");
@@ -210,6 +219,24 @@ test("Linux qualification receipt binds source, toolchain, suite, both container
   const containers = r.commands.filter(c => c.cmd === "docker" && c.args[0] === "run"); assert.equal(containers.length, 2);
   assert.ok(containers.every(c => !c.args.includes("--volume") && !c.args.includes("-v") && !c.args.includes("--env-file")));
   assertProofsExecuted(r);
+});
+
+function assertAdditionalProofReports(r) {
+  assert.deepEqual(json(join(r.root, "out/production-proofs.json")), { status: "passed", realAccounts: "passed", fixture: "packed-production" });
+  assert.deepEqual(json(join(r.root, "out/client-recipes.json")), { status: "passed", fixture: "packed-client-recipes" });
+}
+
+for (const consumerOnly of [false, true]) for (const [refusal, message] of [
+  ["productionFail", "deliberately failing packed production proof"],
+  ["clientRecipesFail", "deliberately failing packed client recipes"],
+]) test(`${consumerOnly ? "consumer-only" : "full"} qualification refuses ${refusal} without success evidence`, t => {
+  const r = qualify(t, { consumerOnly, [refusal]: true });
+  assert.notEqual(r.status, 0); assert.equal(r.receipt, null);
+  assert.match(r.stderr, new RegExp(message));
+  assert.equal(existsSync(join(r.root, "out/consumer.json")), false);
+  assert.equal(existsSync(join(r.root, "out/client-recipes.json")), false);
+  assert.equal(existsSync(join(r.root, "out/production-proofs.json")), refusal === "clientRecipesFail");
+  assert.ok(!r.commands.some(c => c.cmd === "npm" && c.args[0] === "publish"));
 });
 
 function assertProofsExecuted(r) {
@@ -347,6 +374,7 @@ for (const proot of [false, true]) test(`consumer-only ${proot ? 'proot' : 'cont
   assert.equal(r.status, 0, r.stderr); assert.equal(r.receipt, null);
   const evidence = json(join(r.root, 'out/consumer.json'));
   assert.equal(evidence.publicationQualified, false);
+  assertAdditionalProofReports(r);
   assert.deepEqual(evidence.suite, { status: 'not-run' });
   validateFrontendProofs(evidence.frontendProofs);
   assert.equal(evidence.proofs.length, 2);

@@ -170,18 +170,30 @@ window.refuseJournalCommits = () => {
     await page.evaluate(() => app.close());
   });
 
-  await t.test('persona syncing schema and invalid combinations refuse while opening; explicit online works', async () => {
+  await t.test('persona syncing schema and invalid combinations publish opening refusals; explicit online works', async () => {
     await fresh();
     const refused = await page.evaluate(options => boot(options), { url, persona: 'alice', fakeSync: true });
     assert.equal(refused.ok, false); assert.equal(refused.why.code, 'E_ADMISSION');
     assert.match(refused.why.rewrite, /writes: "online"/);
     assert.equal(await page.evaluate(() => app.auth.why.code), 'E_ADMISSION');
     await page.evaluate(() => app.close());
-    const invalid = await page.evaluate(url => {
-      try { createApp({ url, persona: 'alice', writes: 'online', device: {} }); return null; }
-      catch (error) { return error.why.code; }
+    const invalid = await page.evaluate(async url => {
+      let deviceOpens = 0, requests = 0;
+      const refusedApp = createApp({ url, persona: 'alice', writes: 'online',
+        device: async () => { deviceOpens++; throw Error('device must stay unopened'); },
+        fetch: async () => { requests++; throw Error('transport must stay unopened'); },
+      });
+      try {
+        const ready = await refusedApp.ready;
+        return { ready, auth: refusedApp.auth.getSnapshot(), guest: await refusedApp.auth.guest(), deviceOpens, requests };
+      } finally { await refusedApp.close(); }
     }, url);
-    assert.equal(invalid, 'E_CLIENT');
+    assert.equal(invalid.ready.ok, false); assert.equal(invalid.ready.why.code, 'E_CLIENT');
+    assert.equal(invalid.ready.why.site, 'createApp.writes');
+    assert.equal(invalid.auth.state, 'signed-out'); assert.equal(invalid.auth.viewer, null);
+    assert.deepEqual(invalid.auth.why, invalid.ready.why);
+    assert.deepEqual(invalid.guest, invalid.ready, 'sign-in keeps the configuration refusal visible');
+    assert.equal(invalid.deviceOpens, 0); assert.equal(invalid.requests, 0);
     await page.evaluate(options => boot(options), { url, persona: 'alice', fakeSync: true, writes: 'online' });
     assert.equal((await page.evaluate(() => app.mutate(clickOp, {}))).state, 'sent');
     await page.evaluate(() => app.close());
