@@ -8,7 +8,7 @@ OFFLINE
 ```sh
 npm install
 npx snapback4 check      # compiles snapback/*.q, writes snapback/generated/api.ts
-npx snapback4 dev        # serves http://127.0.0.1:4400 and reloads on save
+npm run backend         # serves http://127.0.0.1:4400 and reloads on save
 npm run dev              # in a second terminal: http://localhost:5173
 ```
 

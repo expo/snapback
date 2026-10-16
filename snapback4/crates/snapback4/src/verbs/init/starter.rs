@@ -95,6 +95,17 @@ pub(super) fn without_offline(text: &str) -> String {
             "started from the Snapback 4 Expo starter. Development and production builds\nopen the native device; Expo Go uses the online client; web uses the wasm\ndevice.\n\nOFFLINE\n"),
     ];
     let mut text = super::proof::without_readme(text).to_owned();
+    // Recognize the exact previous quick-start command while moving generated
+    // READMEs onto launchers. Application prose still participates byte-for-byte.
+    text = text.split_inclusive('\n').map(|line| {
+        let Some(rest) = line.strip_prefix("npx snapback4 dev") else { return line.to_owned(); };
+        let rest = if let Some(rest) = rest.strip_prefix(" --port ") {
+            let digits = rest.chars().take_while(char::is_ascii_digit).count();
+            if digits == 0 { return line.to_owned(); } else { &rest[digits..] }
+        } else { rest };
+        if rest.starts_with("        # serves ") { format!("npm run backend         # serves {}", rest.strip_prefix("        # serves ").unwrap()) } else { line.to_owned() }
+    }).collect();
+
     for (old, new) in legacy { text = text.replacen(old, new, 1); }
     text = text.replace("web uses the principal write journal (no synced tables)", "web uses the wasm\ndevice")
         .replace("or the principal write journal (web, no synced tables)", "or `webDevice()` (web)")

@@ -12,7 +12,7 @@ ADVISORIES
 ```sh
 npm install
 npx snapback4 check      # compiles snapback/*.q, writes snapback/generated/api.ts
-npx snapback4 dev        # serves http://127.0.0.1:4400 and reloads on save
+npm run backend         # serves http://127.0.0.1:4400 and reloads on save
 npm start                # in a second terminal: Expo Go, or press w for web
 npm run typecheck
 ```

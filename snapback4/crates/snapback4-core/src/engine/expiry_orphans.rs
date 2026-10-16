@@ -73,7 +73,7 @@ impl Engine {
 mod tests {
     use super::*;
     use crate::{Store, value::object};
-    const SOURCE: &str = "table parents:\n  until: time\n  public 'test'\n  expire at .until\ntable children:\n  parent: parents on delete cascade\n  cap 5 by parent\n  public 'test'\ntable links:\n  parent: parents ? on delete set null\n  cap 5 by parent\n  public 'test'\ntable history:\n  parent: parents on delete keep\n  public 'test'\ntable leaves:\n  child: children on delete cascade\n  cap 5 by child\n  public 'test'\n";
+    const SOURCE: &str = "table parents:\n  until: time\n  immutable until\n  public 'test'\n  expire at .until\ntable children:\n  parent: parents on delete cascade\n  cap 5 by parent\n  public 'test'\ntable links:\n  parent: parents ? on delete set null\n  cap 5 by parent\n  public 'test'\ntable history:\n  parent: parents on delete keep\n  public 'test'\ntable leaves:\n  child: children on delete cascade\n  cap 5 by child\n  public 'test'\n";
     fn engine(extra: &str) -> Engine {
         let bound = snapback4_lang::compile(&[("schema.q".into(), format!("{SOURCE}{extra}"))]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
@@ -130,7 +130,7 @@ mod tests {
     }
     #[test]
     fn physical_read_through_root_child_refuses_before_cascade_or_null_writes() {
-        let mut engine = engine("table captures:\n  parent: parents on delete keep\n  immutable parent\n  read through .parent\n"); orphan(&mut engine);
+        let mut engine = engine("table captures:\n  parent: parents\n  immutable parent\n  read through .parent\n"); orphan(&mut engine);
         // Simulate a physically retained capture from before the parent vanished.
         // Trusted store insertion preserves its already-captured lifetime.
         let table = engine.schema.tables["captures"].clone();

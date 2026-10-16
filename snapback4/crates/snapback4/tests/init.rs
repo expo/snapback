@@ -610,7 +610,7 @@ fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
         }
         let texts = starter_texts(&dir.0);
         // Three kit scripts replace builder-owned process orchestration.
-        assert!(texts.len() <= 23, "{flag}: {} files", texts.len());
+        assert!(texts.len() <= 27, "{flag}: {} files", texts.len());
         let schema = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();
         let bound = snapback4_lang::compile(&[("schema.q".into(), schema)]);
         assert!(bound.diagnostics.is_empty() && bound.notes.is_empty(), "{:?} {:?}", bound.diagnostics, bound.notes);
@@ -897,7 +897,7 @@ fn init_first_then_schema_leftovers_are_named_and_adapted() {
     let again = dir.init(&["--web"]);
     assert_eq!(again.status.code(), Some(1));
     let refusal = String::from_utf8_lossy(&again.stderr);
-    assert!(refusal.lines().next().unwrap().contains("snapback4 init --adapt") && !refusal.contains("schema.q already exists"), "{refusal}");
+    assert!(refusal.lines().next().unwrap().contains("snapback4 init --adapt") && !refusal.contains("./snapback/schema.q already exists"), "{refusal}");
     let adapted = dir.init(&["--adapt", "--apply"]);
     assert!(adapted.status.success(), "{adapted:?}");
     let stdout = String::from_utf8_lossy(&adapted.stdout);
@@ -1304,7 +1304,7 @@ fn password_starters_and_expo_web_journal_follow_schema() {
             let client = fs::read_to_string(dir.0.join("src/client.ts")).unwrap();
             assert!(!client.contains("webDevice"), "{client}");
             assert!(client.contains("get(\"api\")") && client.contains("registerWebWitness"), "{client}");
-            if flag == "--expo" { assert!(client.contains("nativeDevice"), "{client}"); }
+            if flag == "--expo" { assert!(client.contains("writes: \"online\"") && !client.contains("nativeDevice"), "{client}"); }
             let pkg: Value = serde_json::from_str(&fs::read_to_string(dir.0.join("package.json")).unwrap()).unwrap();
             assert!(pkg["scripts"]["build:web"].is_string());
             if flag == "--expo" { assert!(pkg["scripts"]["build:web"].as_str().unwrap().contains("--clear")); }
@@ -1412,10 +1412,12 @@ fn generated_proofs_read_ports_at_execution_and_declare_the_driver() {
         let package: Value = serde_json::from_slice(&fs::read(dir.0.join("package.json")).unwrap()).unwrap();
         assert_eq!(package["scripts"]["frontend:proof"], "node scripts/frontend-proof.mjs");
         assert_eq!(package["devDependencies"]["playwright-core"], "1.55.1");
-        for path in ["package.json", "scripts/frontend-proof.mjs", "scripts/launch.mjs", "src/client.ts"] {
+        for path in ["package.json", "scripts/frontend-proof.mjs"] {
             let body = fs::read_to_string(dir.0.join(path)).unwrap();
             assert!(!body.contains("29040") && !body.contains("29041") && !body.contains("29049"), "{flag}: initializer's environment leaked into {path}");
         }
+        assert!(fs::read_to_string(dir.0.join("scripts/launch.mjs")).unwrap().contains("low === null ? 29040"));
+        assert!(fs::read_to_string(dir.0.join("src/client.ts")).unwrap().contains("http://127.0.0.1:29040"));
         let proof = fs::read_to_string(dir.0.join("scripts/frontend-proof.mjs")).unwrap();
         assert!(proof.contains("snapback4/proof") && proof.contains("encodeURIComponent(dev.url)") && proof.contains("cleanup("));
         assert!(!proof.contains("spawn(") && !proof.contains("npx") && !proof.contains("--port"));

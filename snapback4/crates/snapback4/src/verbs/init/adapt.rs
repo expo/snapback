@@ -108,7 +108,7 @@ fn readme(dir: &Path, own: &OwnSchema, todos: bool, found: &mut Vec<Leftover>, m
         // The offline paragraph names the schema's synced tables when init
         // wrote it; any of them (or 0.4.22's unconditional claim) still matches.
         let masked = starter::without_offline(&text);
-        let explicit_online = read(dir, "src/client.ts").is_some_and(|client| client.contains("writes: \"online\""));
+        let explicit_online = platform == Platform::Web && read(dir, "src/client.ts").is_some_and(|client| client.contains("writes: \"online\""));
         let matched = ports.into_iter().find(|&(port, web_port)| {
             [(Body::Todos, false), (Body::Home(None), false), (Body::Home(None), true)].iter()
                 .any(|(body, personas)| [false, true].iter().any(|password| [false, true].iter().any(|online| {
@@ -209,7 +209,7 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
     let explicit_online = platform == Platform::Web && client.contains("writes: \"online\"");
     let client_shape = normalized(&client);
     let matches_client = |reference: &str, personas: bool| [reference, starter::previous_client(platform, personas)].iter().any(|reference|
-        client_shape == normalized(reference) || client_shape == normalized(&starter::web_client((*reference).to_owned(), &journal_shape)) || client_shape == normalized(&starter::online_web_client((*reference).to_owned())));
+        client_shape == normalized(reference) || client_shape == normalized(&starter::web_client((*reference).to_owned(), &journal_shape)) || client_shape == normalized(&starter::online_web_client((*reference).to_owned())) || client_shape == normalized(&starter::expo_client((*reference).to_owned(), &journal_shape)));
     let current = [Body::Todos, Body::Home(first_read(&app))].into_iter().find_map(|body| [false, true].into_iter().find_map(|previous| {
         let screens = |personas: Option<&[String]>, password| if previous { starter::previous_screens(platform, personas, &body, password) } else { starter::identity_screens(platform, personas, &body, password) };
         let (guest_app, guest_client) = screens(None, false);
@@ -238,7 +238,7 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
         }
     };
     let (app_text, mut client_text) = starter::identity_screens(platform, wanted_sign_in.personas(), &wanted_body, wanted_sign_in == SignIn::Password);
-    client_text = if explicit_online { starter::online_web_client(client_text) } else { starter::web_client(client_text, &own.offline) };
+    client_text = if explicit_online { starter::online_web_client(client_text) } else if platform == Platform::Expo { starter::expo_client(client_text, &own.offline) } else { starter::web_client(client_text, &own.offline) };
     let client_changed = client_shape != normalized(&client_text);
     if wanted_sign_in == sign_in && app == app_text && wanted_body == body && !client_changed { return true; }
     let mut reasons = Vec::new();

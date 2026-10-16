@@ -111,6 +111,20 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema) -> std::io::Re
         ).unwrap_or(if backend != 4400 { backend.saturating_add(1) } else if web { 5173 } else { 8081 });
     let mut generated = vec![("package.json", pretty(&package))];
     files(&mut generated, &Options { positionals: vec![dir.to_string_lossy().into_owned()], flags: Default::default(), json: false }, backend, frontend, web, &shape);
+    // A saved version is immutable application evidence. Never fill its missing
+    // fixture files from today's working release during an adaptation.
+    generated.retain(|(name, _)| !name.starts_with("versions/") || {
+        let version = name.split('/').nth(1).unwrap();
+        !dir.join("versions").join(version).exists()
+    });
+    generated.retain_mut(|(name, text)| {
+        let Some(rest) = name.strip_prefix("versions/") else { return true; };
+        let (version, leaf) = rest.split_once('/').unwrap();
+        let legacy = dir.join("versions").join(format!("{version}.q"));
+        if !legacy.is_file() { return true; }
+        if leaf == "schema.q" { *text = std::fs::read_to_string(legacy).unwrap_or_else(|_| text.clone()); true }
+        else { leaf == "fixtures/.gitkeep" }
+    });
     let wanted: Value = serde_json::from_str(&generated[0].1).unwrap();
     for group in ["scripts", "devDependencies"] {
         if !package[group].is_object() { package[group] = json!({}); }
