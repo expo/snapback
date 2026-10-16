@@ -1,0 +1,9 @@
+{"as": "alice", "op": "fieldList", "args": {"precinct": "p"}, "count": 1}
+{"as": "carol", "op": "fieldList", "args": {"precinct": "p"}, "count": 0}
+{"as": "bob", "op": "supervisorList", "args": {"precinct": "p"}, "count": 1}
+{"as": "alice", "op": "supervisorList", "args": {"precinct": "p"}, "expect": "SUPERVISOR_ONLY"}
+{"as": "bob", "op": "assignField", "args": {"precinct": "p", "who": "dev:carol", "role": "worker"}}
+{"as": "carol", "op": "fieldList", "args": {"precinct": "p"}, "count": 1}
+{"as": "alice", "op": "assignField", "args": {"precinct": "q", "who": "dev:alice", "role": "supervisor"}, "expect": "E_RULE"}
+{"as": "bob", "op": "unassignField", "args": {"precinct": "p", "who": "dev:carol"}}
+{"as": "carol", "op": "fieldList", "args": {"precinct": "p"}, "count": 0}

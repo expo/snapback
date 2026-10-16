@@ -1,0 +1,10 @@
+{"as": "bob", "op": "respondConference", "args": {"conference": "c", "body": "before"}, "expect": "NOT_FOUND"}
+{"as": "alice", "op": "releaseConference", "args": {"conference": "c", "released": true}}
+{"as": "bob", "op": "respondConference", "args": {"conference": "c", "body": "response"}}
+{"as": "alice", "op": "conferenceResponse", "args": {"conference": "c"}, "match": {"body": "response"}}
+{"as": "carol", "op": "conferenceResponse", "args": {"conference": "c"}, "data": null}
+{"as": "alice", "op": "releaseConference", "args": {"conference": "c", "released": false}}
+{"as": "bob", "op": "conferenceResponse", "args": {"conference": "c"}, "data": null}
+{"as": "bob", "op": "respondConference", "args": {"conference": "c", "body": "hidden"}, "expect": "NOT_FOUND"}
+{"as": "alice", "op": "releaseConference", "args": {"conference": "c", "released": true}}
+{"as": "bob", "op": "conferenceResponse", "args": {"conference": "c"}, "match": {"body": "response"}}

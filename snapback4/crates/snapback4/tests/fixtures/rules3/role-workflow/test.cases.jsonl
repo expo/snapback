@@ -1,0 +1,11 @@
+{"as": "bob", "op": "draftSponsorRead", "args": {"contact": "dev:carol", "script": "ad read"}, "expect": "HOST_ONLY"}
+{"as": "alice", "op": "draftSponsorRead", "args": {"contact": "dev:carol", "script": "ad read"}, "save": "ad"}
+{"as": "alice", "op": "setSponsorRate", "args": {"adRead": "$ad", "cents": 1000}}
+{"as": "bob", "op": "sponsorRate", "args": {"adRead": "$ad"}, "data": null}
+{"as": "carol", "op": "sponsorRate", "args": {"adRead": "$ad"}, "data": null}
+{"as": "bob", "op": "editSponsorRead", "args": {"adRead": "$ad", "script": "revised"}}
+{"as": "bob", "op": "approveSponsorRead", "args": {"adRead": "$ad"}, "expect": "SPONSOR_ONLY"}
+{"as": "carol", "op": "approveSponsorRead", "args": {"adRead": "$ad"}}
+{"as": "alice", "op": "editSponsorRead", "args": {"adRead": "$ad", "script": "too late"}, "expect": "READ_LOCKED"}
+{"as": "carol", "op": "sponsorRead", "args": {"adRead": "$ad"}, "match": {"state": "approved", "script": "revised"}}
+{"as": "alice", "op": "sponsorRate", "args": {"adRead": "$ad"}, "match": {"cents": 1000}}

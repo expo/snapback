@@ -1,5 +1,9 @@
 # Snapback 4 behavior changes
 
+## 0.4.30
+
+- Authorization: rule-recipes adds offline supervisors, maintained consent counts, live workflow probes, source-maintained publication, owner-now/peer-deadline counts, expiring grants with owner history, and a complete role workflow. Rules/testing teach the refusal ladder and the two authorization layers. N_WRITE_DENIED names contradictory update images; developer E_RULE evidence names the failed image without exposing hidden targets to clients. See guide rule-recipes update-images.
+
 ## 0.4.29
 
 - CLI repairs: web-shell appears in help and accepts both help spellings without files or builds; retired init recipes explain --web/--expo and --template chat. witness web loads the optional playwright-core peer only when running, with an install command if missing. clock advance and reset discover the persisted dev's port, with --port overriding it. Starter frontend proofs refuse a one-port range before launching; day-two/backend-only proofs still accept one port. Implicit downgrade refusal now names the registry's version and installed version clearly.

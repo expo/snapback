@@ -254,7 +254,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
         "from-sql" => include_str!("guide/from_sql.md"),
         "app" => app::CARD,
         "recipes" => include_str!("guide/recipes.md"),
-        "rule-recipes" => include_str!("guide/rule_recipes.md"),
+        "rule-recipes" => concat!(include_str!("guide/rule_recipes.md"), include_str!("guide/rule_recipes_wave13.md")),
         "witness" => include_str!("guide/witness.md"),
         "prediction" => prediction::CARD,
         "evolution" => discovery::EVOLUTION,

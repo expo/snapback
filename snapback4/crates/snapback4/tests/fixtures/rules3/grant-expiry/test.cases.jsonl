@@ -1,0 +1,6 @@
+{"as": "alice", "op": "shareLedger", "args": {"ledger": "l", "accountant": "dev:bob", "expiresAt": "now+1h"}}
+{"as": "alice", "op": "liveGrant", "args": {"ledger": "l", "accountant": "dev:bob"}, "match": {"owner": "dev:alice"}}
+{"as": "bob", "op": "ledgerById", "args": {"ledger": "l"}, "match": {"owner": "dev:alice"}}
+{"as": "carol", "op": "ledgerById", "args": {"ledger": "l"}, "data": null}
+{"as": "alice", "op": "grantHistory", "args": {}, "count": 1}
+{"as": "bob", "op": "grantHistory", "args": {}, "count": 0}
