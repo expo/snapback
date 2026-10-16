@@ -96158,3 +96158,16 @@ The governing amendments are proof-kit §11 and retained-release §14. Review
 records and qualification are under reports/20261016-wave14-day4 and the
 worktree's WORKSTREAM-REPORT.md. REG owns the proof-host missing-dist failure;
 PROD owns the production adapt flag; their changes are intentionally separate.
+## 2026-10-16 — Wave 14 PROD: guided production and release-aware screens
+
+`init --adapt --production` previews bare identity, all blocked first writers,
+explicit seat read/insert grants and a typed mutation per roster; apply compiles
+before replacing schema files and preserves application screens. The source
+scan names dev-principal migration sites. React/Expo starters carry a compiled
+account/persona roster recipe, gated by GET auth configuration, with role-based
+invitations/pickers and draft/selection ownership above release queries.
+Client recipes spell handler signatures and per-operation prediction timing;
+codegen annotates decimal scale. Invalid write-tier configuration is observable
+through auth.why without side effects. LLP 3000.011.003.000 §14 records the
+amendment and both READY reviews. This is work toward 0.4.31; no version bump,
+publication, deployment or push is performed by this workstream.

@@ -335,7 +335,7 @@ pub(super) fn web_files(shape: &Shape) -> Vec<(&'static str, String)> {
         ("src/vite-env.d.ts", include_str!("../../../../../apps/chat/src/vite-env.d.ts").to_owned()),
         ("snapback/schema.q", SCHEMA.to_owned()),
         ("README.md", identity_readme(Platform::Web, &shape.title, &shape.body, shape.personas.is_some(), &shape.offline, shape.password)),
-    ].into_iter().chain(FIXTURES.map(|(name, text)| (name, text.to_owned()))).collect()
+    ].into_iter().chain(FIXTURES.map(|(name, text)| (name, text.to_owned()))).chain(production_files(Platform::Web)).collect()
 }
 
 fn html_text(text: &str) -> String {
@@ -370,7 +370,7 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
         ("src/native-smoke.ts", native_smoke(shape.password)),
         ("snapback/schema.q", SCHEMA.to_owned()),
         ("README.md", identity_readme(Platform::Expo, &shape.title, &shape.body, shape.personas.is_some(), &shape.offline, shape.password)),
-    ].into_iter().chain(FIXTURES.map(|(name, text)| (name, text.to_owned()))).collect()
+    ].into_iter().chain(FIXTURES.map(|(name, text)| (name, text.to_owned()))).chain(production_files(Platform::Expo)).collect()
 }
 
 pub(super) const EXPO_ENV: &str = include_str!("starter/expo-env.d.ts");
@@ -423,9 +423,49 @@ pub(super) fn previous_client(platform: Platform, personas: bool) -> &'static st
 
 // The smoke's identity choice is generated with the screen, not assumed guest.
 pub(super) fn native_smoke(password: bool) -> String {
-    let guest = include_str!("native-smoke.ts");
+    native_smoke_version(password, include_str!("native-smoke.ts"))
+}
+
+pub(super) fn wave14_native_smoke(password: bool) -> String {
+    native_smoke_version(password, include_str!("starter/previous/wave14/native-smoke.ts"))
+}
+
+fn native_smoke_version(password: bool, guest: &str) -> String {
     if !password { return guest.to_owned(); }
     guest.replace("import { smokeSegment }", "import { smokeAccount, smokeSegment }")
         .replace("void auth.guest();", "const account = smokeAccount();\n    if (account) void auth.signup(account.email, account.password);")
         .replace("sign in as a guest", "sign up with the driver's disposable password account")
+}
+
+
+/// An independent, runnable production slice. Kept application schemas and
+/// screens stay owned by the application; these files are examples to copy
+/// together into a separate starter, then check/build with the installed SDK.
+// @ref LLP 3000.011.003.000#8 — executable identity screens keep session-store custody.
+fn production_files(platform: Platform) -> Vec<(&'static str, String)> {
+    let (app, client) = match platform {
+        Platform::Web => (include_str!("starter/production/web-app.tsx"), include_str!("starter/production/web-client.ts")),
+        Platform::Expo => (include_str!("starter/production/expo-app.tsx"), include_str!("starter/production/expo-client.ts")),
+    };
+    vec![
+        ("recipes/production/schema.q", include_str!("starter/production/schema.q").to_owned()),
+        ("recipes/production/fixtures/test.cases.jsonl", include_str!("starter/production/test.cases.jsonl").to_owned()),
+        ("recipes/production/App.tsx", super::without_design_references(app)),
+        ("recipes/production/client.ts", super::without_design_references(client)),
+    ]
+}
+
+/// Wave 14's previous exact screen bytes remain recognizable after the
+/// improved complete-empty/denied rendering. Edited screens never match.
+pub(super) fn wave14_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) {
+    let (app, client) = identity_screens(platform, personas, body, password);
+    let (current, previous) = match platform {
+        Platform::Web => (include_str!("starter/web/todos.tsx"), include_str!("starter/previous/wave14/web-todos.tsx")),
+        Platform::Expo => (include_str!("starter/expo/todos.tsx"), include_str!("starter/previous/wave14/expo-todos.tsx")),
+    };
+    let (_, current_body) = current.split_once("\n\n").expect("imports end");
+    let (_, previous_body) = previous.split_once("\n\n").expect("imports end");
+    // Imports are coalesced by compose; the new isAbsent import is the sole
+    // import delta between these two complete historical templates.
+    (app.replace(current_body.trim(), previous_body.trim()).replace("isAbsent, isDenied", "isDenied"), client)
 }

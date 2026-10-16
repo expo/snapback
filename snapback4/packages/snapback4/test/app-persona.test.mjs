@@ -89,9 +89,28 @@ test("a browser persona app refuses missing journal support at construction", as
   assert.throws(() => createApp({ url: "http://127.0.0.1:4400", persona: "alice", fetch }), error => error.why?.code === "E_ADMISSION");
 });
 
-test("invalid online-write combinations refuse before branching on identity", () => {
+test("invalid online-write combinations publish auth.why before branching on identity", async () => {
   for (const persona of [undefined, "alice"]) {
-    for (const extra of [{ writes: "bogus" }, { writes: "online", device: {} }])
-      assert.throws(() => createApp({ url: "http://127.0.0.1:4400", persona, ...extra }), error => error.why?.code === "E_CLIENT");
+    const invalid = [{ writes: "bogus" }, { writes: "online", device: async () => { throw Error("device opened"); } }];
+    // readOnly+persona retains its earlier credential refusal.
+    if (!persona) invalid.push({ writes: "online", readOnly: true });
+    for (const extra of invalid) {
+      const calls = [];
+      const app = createApp({ url: "http://127.0.0.1:4400", persona, ...extra,
+        sessionStore: Object.fromEntries(["get", "set", "delete"].map(key => [key, () => { calls.push(key); throw Error("storage opened"); }])),
+        fetch: () => { calls.push("fetch"); throw Error("network opened"); } });
+      const result = await app.ready;
+      assert.equal(result.ok, false); assert.equal(result.why.code, "E_CLIENT");
+      assert.equal(result.why.site, "createApp.writes");
+      assert.equal(app.auth.state, "signed-out"); assert.equal(app.auth.viewer, null);
+      assert.equal(app.auth.getSnapshot().why, result.why); assert.equal(app.auth.why, result.why);
+      for (const operation of [app.auth.guest(), app.auth.signup("a@example.com", "password-a"), app.auth.login("a@example.com", "password-a")])
+        assert.deepEqual(await operation, result);
+      assert.deepEqual(await app.client.query(list, {}), { denied: result.why });
+      assert.equal((await app.mutate(add, { body: "not admitted" })).state, "failed");
+      assert.equal((await app.online.query(list, {})).denied, result.why);
+      assert.deepEqual(calls, [], "configuration refusal has no storage, device or transport side effects");
+      await app.close();
+    }
   }
 });

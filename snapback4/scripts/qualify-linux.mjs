@@ -12,6 +12,8 @@ import { proveStarters } from "./publication-starters.mjs";
 import { proveExpoUpgrades } from "./publication-regressions.mjs";
 import { proveDay2 } from "./publication-day2.mjs";
 import { proveDay4 } from "./publication-day4.mjs";
+import { proveProduction } from "./publication-production.mjs";
+import { proveClientRecipes } from "./publication-client-recipes.mjs";
 import { proveGeneratedProofs } from "./publication-frontend-proofs.mjs";
 import { prootProof } from "./qualify-linux-proot.mjs";
 export function containerRuntime(probeRuntime = name => spawnSync(name, ["info"], { stdio: "ignore", timeout: 15_000 })) {
@@ -101,6 +103,10 @@ export async function qualify(args = process.argv.slice(2)) {
     save(join(out, "regressions.json"), regressions);
     const day4Proof = await proveDay4(day2Proof.directory);
     save(join(out, "day4-proof.json"), day4Proof);
+    const productionProofs = await proveProduction(client, tarball, expo, out);
+    save(join(out, "production-proofs.json"), productionProofs);
+    const clientRecipes = await proveClientRecipes(client, tarball, out);
+    save(join(out, "client-recipes.json"), clientRecipes);
     const frontendProofs = await proveGeneratedProofs(client, tarball, expo, out);
     save(join(out, "frontend-proofs.json"), frontendProofs);
     // Browser execution stays on the Linux host: clean userspaces qualify the

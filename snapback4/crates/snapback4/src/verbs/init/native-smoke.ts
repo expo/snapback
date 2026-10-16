@@ -5,8 +5,17 @@ import { useAuth } from "snapback4/react";
 // native module config (smoke: true and segment); prime signs in, later segments reuse that session.
 import { smokeSegment } from "snapback4-expo/witness";
 
+function useSmokeAuth() {
+  try { return useAuth(); }
+  catch (error) {
+    if (error instanceof Error && error.message === "useAuth: no <AppProvider> above this component")
+      throw new Error("useNativeSmokeGuest: no <AppProvider> above this component");
+    throw error;
+  }
+}
+
 export function useNativeSmokeGuest() {
-  const auth = useAuth(), attempted = useRef(false);
+  const auth = useSmokeAuth(), attempted = useRef(false);
   useEffect(() => {
     if (smokeSegment() !== "prime" || auth.state !== "signed-out" || attempted.current) return;
     attempted.current = true;
