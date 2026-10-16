@@ -172,3 +172,13 @@ test('a Node-only low-level worker captures outside imports without requiring Ty
  await ok(['deploy','deployment'],cwd);writeFileSync(join(cwd,'src/helper.mjs'),'throw Error("mutable source");\n');
  const host=await startServe('deployment',{cwd});try{await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_NODE_ONLY'),'Node-only worker gained a compiler dependency',()=>readFileSync(host.logs.stderr,'utf8'))}finally{await host.stop();}
 });
+
+for(const entry of ['worker.mjs','server.mjs']) test(`${entry}: ESM-only packages and conditional local imports preserve Node resolution`, {timeout:60000},async t=>{
+ const cwd=fixture(t);mkdirSync(join(cwd,'src'));const pkg=join(cwd,'node_modules/import-only-package');mkdirSync(pkg,{recursive:true});
+ writeFileSync(join(pkg,'package.json'),JSON.stringify({type:'module',exports:{types:'./index.d.ts',import:'./index.mjs'}}));writeFileSync(join(pkg,'index.d.ts'),'export declare const marker: string;\n');writeFileSync(join(pkg,'index.mjs'),'export const marker="SURF4_IMPORT_ONLY";\n');
+ writeFileSync(join(cwd,'package.json'),JSON.stringify({type:'module',imports:{'#branch':{import:'./src/branch.mjs',require:'./src/branch.cjs'}}}));
+ writeFileSync(join(cwd,'src/branch.mjs'),'export const marker="SURF4_ESM_BRANCH";\n');writeFileSync(join(cwd,'src/branch.cjs'),'exports.marker="SURF4_REQUIRE_BRANCH";\n');
+ writeFileSync(join(cwd,'snapback',entry),`import {marker as imported} from 'import-only-package';import {marker} from '#branch';import {createRequire} from 'node:module';const require=createRequire(import.meta.url);console.log(imported,marker,require('#branch').marker);setInterval(()=>{},1000);\n`);
+ await ok(['deploy','deployment'],cwd);writeFileSync(join(cwd,'src/branch.mjs'),'throw Error("mutable ESM branch");\n');writeFileSync(join(cwd,'src/branch.cjs'),'throw Error("mutable require branch");\n');
+ const host=await startServe('deployment',{cwd});try{await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_IMPORT_ONLY SURF4_ESM_BRANCH SURF4_REQUIRE_BRANCH'),'import/require conditions lost',()=>readFileSync(host.logs.stderr,'utf8'))}finally{await host.stop();}
+});

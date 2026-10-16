@@ -1,8 +1,9 @@
 // The CLI embeds this checker. Resolve the application's installed compiler;
 // never download a package or execute the application's TypeScript to check it.
-import { createRequire } from "node:module";
+import { createRequire, isBuiltin } from "node:module";
 import { mkdirSync, readFileSync, renameSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { dirname, resolve, sep, isAbsolute } from "node:path";
+import { pathToFileURL, fileURLToPath } from "node:url";
 
 const root = resolve(process.argv[1]);
 const entry = resolve(process.argv[2]);
@@ -132,20 +133,27 @@ for (let index = 0; index < sourceQueue.length; index++) {
       const spec = specifier.text;
       let problem;
       if (isAbsolute(spec) || spec.startsWith("file:")) problem = "use a project-relative import instead of an absolute/file URL import; deploy captures project source";
-      else if (spec.startsWith(".")) {
+      else if (!isBuiltin(spec)) {
         const module = ts.resolveModuleName(spec, source.fileName, compilerOptions, host).resolvedModule;
         if (!typeOnly) {
           // A .d.ts can satisfy TypeScript without loading the JavaScript that
           // Node executes. Observe and walk that implementation graph too.
           let runtime;
-          try { runtime = createRequire(source.fileName).resolve(spec); }
-          catch { watchRuntimeFailure(resolve(dirname(source.fileName), spec)); problem = "local runtime module is missing; provide the executable file as well as its declarations"; }
+          try {
+            const required = ts.isCallExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === "require";
+            const resolved = required ? createRequire(source.fileName).resolve(spec) : import.meta.resolve(spec, pathToFileURL(source.fileName).href);
+            if (!isBuiltin(resolved)) {
+              runtime = resolved.startsWith("file:") ? fileURLToPath(resolved) : resolved;
+              if (!statSync(runtime).isFile()) throw Error("runtime module is a directory");
+            }
+          }
+          catch { if (runtime) watchRuntimeFailure(runtime); if (spec.startsWith(".")) watchRuntimeFailure(resolve(dirname(source.fileName), spec)); problem = "local runtime module is missing; provide the executable file as well as its declarations"; runtime = undefined; }
           if (runtime) system.fileExists(runtime); // records the executable, even when types hide it
           system.fileExists(resolve(dirname(source.fileName), spec, "package.json"));
           if (runtime && !runtime.split(sep).includes("node_modules")) {
             const actual = realpathSync(runtime);
-            if (!actual.startsWith(projectRoot + sep)) problem = "local server implementations must remain inside the project; install external code as a package";
-            else {
+            if (!actual.startsWith(projectRoot + sep) && spec.startsWith(".")) problem = "local server implementations must remain inside the project; install external code as a package";
+            else if (actual.startsWith(projectRoot + sep)) {
               // Runtime-only JS inherits package type from these scopes even
               // when the TypeScript program never loaded that implementation.
               for (let scope = dirname(actual); scope === projectRoot || scope.startsWith(projectRoot + sep); scope = dirname(scope)) {
@@ -159,7 +167,7 @@ for (let index = 0; index < sourceQueue.length; index++) {
             }
           }
         }
-        if (module && !module.resolvedFileName.split(sep).includes("node_modules")) {
+        if (spec.startsWith(".") && module && !module.resolvedFileName.split(sep).includes("node_modules")) {
           const actual = realpathSync(module.resolvedFileName);
           if (!actual.startsWith(projectRoot + sep)) problem = "local server imports must remain inside the project; move the module into the app or install it as a package";
         }

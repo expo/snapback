@@ -4,23 +4,23 @@ use std::{collections::{BTreeMap, BTreeSet}, path::{Path, PathBuf}, process::{Co
 use oxc_ast::ast::{Argument, CallExpression, ExportAllDeclaration, ExportFromDeclaration, Expression, ImportDeclaration, ImportExpression, ImportOrExportKind, TSType};
 use oxc_ast_visit::{Visit, walk};
 
-fn imports(source: &str, path: &Path) -> Result<Vec<String>, String> {
-    struct Imports(Vec<String>);
+fn imports(source: &str, path: &Path) -> Result<Vec<(String, &'static str)>, String> {
+    struct Imports(Vec<(String, &'static str)>);
     impl<'a> Visit<'a> for Imports {
         fn visit_ts_type(&mut self, _: &TSType<'a>) {}
         fn visit_import_declaration(&mut self, node: &ImportDeclaration<'a>) {
-            if node.import_kind != ImportOrExportKind::Type { self.0.push(node.source.value.to_string()); }
+            if node.import_kind != ImportOrExportKind::Type { self.0.push((node.source.value.to_string(), "import")); }
         }
         fn visit_export_from_declaration(&mut self, node: &ExportFromDeclaration<'a>) {
-            if node.export_kind != ImportOrExportKind::Type { self.0.push(node.source.value.to_string()); }
+            if node.export_kind != ImportOrExportKind::Type { self.0.push((node.source.value.to_string(), "import")); }
         }
         fn visit_export_all_declaration(&mut self, node: &ExportAllDeclaration<'a>) {
-            if node.export_kind != ImportOrExportKind::Type { self.0.push(node.source.value.to_string()); }
+            if node.export_kind != ImportOrExportKind::Type { self.0.push((node.source.value.to_string(), "import")); }
         }
         fn visit_import_expression(&mut self, node: &ImportExpression<'a>) {
             match &node.source {
-                Expression::StringLiteral(value) => self.0.push(value.value.to_string()),
-                Expression::TemplateLiteral(value) if value.expressions.is_empty() => { if let Some(text)=value.quasis.first().and_then(|part|part.value.cooked.as_ref()) {self.0.push(text.to_string());} }
+                Expression::StringLiteral(value) => self.0.push((value.value.to_string(), "import")),
+                Expression::TemplateLiteral(value) if value.expressions.is_empty() => { if let Some(text)=value.quasis.first().and_then(|part|part.value.cooked.as_ref()) {self.0.push((text.to_string(), "import"));} }
                 _=>{}
             }
             walk::walk_import_expression(self, node);
@@ -28,8 +28,8 @@ fn imports(source: &str, path: &Path) -> Result<Vec<String>, String> {
         fn visit_call_expression(&mut self, node: &CallExpression<'a>) {
             if matches!(&node.callee, Expression::Identifier(name) if name.name == "require") {
                 match node.arguments.first() {
-                    Some(Argument::StringLiteral(value)) => self.0.push(value.value.to_string()),
-                    Some(Argument::TemplateLiteral(value)) if value.expressions.is_empty() => {if let Some(text)=value.quasis.first().and_then(|part|part.value.cooked.as_ref()){self.0.push(text.to_string());}}
+                    Some(Argument::StringLiteral(value)) => self.0.push((value.value.to_string(), "require")),
+                    Some(Argument::TemplateLiteral(value)) if value.expressions.is_empty() => {if let Some(text)=value.quasis.first().and_then(|part|part.value.cooked.as_ref()){self.0.push((text.to_string(), "require"));}}
                     _=>{}
                 }
             }
@@ -58,8 +58,8 @@ pub(crate) fn check(project: &Project, entry: &Path) -> Result<(), String> {
         if !path.extension().is_some_and(|ext| matches!(ext.to_str(), Some("js"|"mjs"|"cjs"|"ts"|"mts"|"cts"))) { continue; }
         let source = std::fs::read_to_string(&path).map_err(|e| e.to_string())?;
         let imports = imports(&source, &path)?;
-        let mut child = Command::new(crate::project::node()).args(["--input-type=module", "-e", include_str!("worker_graph.mjs")])
-            .arg(&root).arg(&path).args(imports).env_remove("NODE_OPTIONS").env_remove("NODE_PATH")
+        let mut child = Command::new(crate::project::node()).args(["--experimental-import-meta-resolve", "--input-type=module", "-e", include_str!("worker_graph.mjs")])
+            .arg(&root).arg(&path).args(imports.iter().map(|item|serde_json::to_string(item).unwrap())).env_remove("NODE_OPTIONS").env_remove("NODE_PATH")
             .stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e|format!("E_SERVER_TOOLCHAIN: worker capture needs Node 24: {e}"))?;
         fn drain(mut pipe: impl Read + Send + 'static) -> std::thread::JoinHandle<Vec<u8>> { std::thread::spawn(move || { let mut bytes=Vec::new();let _=pipe.read_to_end(&mut bytes);bytes }) }
         let stdout=drain(child.stdout.take().unwrap());let stderr=drain(child.stderr.take().unwrap());
