@@ -75,7 +75,8 @@ export function useAppReady(): boolean {
   const [opened, setOpened] = useState<App | null>(null);
   useEffect(() => {
     let active = true;
-    void app.ready.then(() => { if (active) setOpened(app); }, () => {});
+    const finished = () => { if (active) setOpened(app); };
+    void app.ready.then(finished, finished);
     return () => { active = false; };
   }, [app]);
   return opened === app && auth.state === "signed-in" && !auth.why?.code.startsWith("E_ADMISSION");

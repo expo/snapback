@@ -17,15 +17,15 @@ export function Inbox() { const page = usePage(api.inboxCards, {}), status = rea
 ## Reference
 `Write`: pending custody, sent fresh result, sent replay without result, or failed with why. Clear only on sentResult; undefined is not success.
 ```tsx
-import { useState } from "react"; import { matchRead, sentResult, useMutation, useQuery } from "snapback4/react";
+import { useState } from "react"; import { matchRead, sentResult, useAppReady, useMutation, useQuery } from "snapback4/react";
 import { api } from "../snapback/generated/api";
 export function Composer({conversationId}:{conversationId:string}) {
   const [draft,setDraft]=useState(""),[submitted,setSubmitted]=useState("");
-  const send=useMutation(api.send),member=useQuery(api.myMembership,{conversationId});
+  const ready=useAppReady(),send=useMutation(api.send),member=useQuery(api.myMembership,{conversationId});
   const blocked=matchRead(member,{denied:()=>true,absent:read=>read.fresh&&!read.revalidating,partial:()=>false,otherwise:()=>false});
-  async function submit(){const text=draft.trim();if(blocked||!text||text.length>2000)return;setSubmitted(text);const write=await send.run({conversationId,body:text});if(sentResult(write)!==undefined)setDraft(current=>current.trim()===text?"":current);}
+  async function submit(){const text=draft.trim();if(!ready||blocked||!text||text.length>2000)return;setSubmitted(text);const write=await send.run({conversationId,body:text});if(sentResult(write)!==undefined)setDraft(current=>current.trim()===text?"":current);}
   return <><input value={draft} onChange={e=>setDraft(e.target.value)}/>
-    <button disabled={send.inFlight||blocked} onClick={()=>void submit()}>Send</button>
+    <button disabled={!ready||send.inFlight||blocked} onClick={()=>void submit()}>Send</button>
     {send.last?.state==="failed"&&submitted&&<p role="alert">Not sent: {submitted} <button onClick={()=>setDraft(current=>current?current+" "+submitted:submitted)}>Edit</button> <button onClick={()=>setSubmitted("")}>Dismiss</button></p>}</>;
 }
 ```

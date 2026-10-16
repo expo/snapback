@@ -37,7 +37,7 @@ let app=makeApp();const root=createRoot(document.querySelector('#root'));
 function Login(){const ready=useAppReady(),[email,setEmail]=useState('');return <><output aria-label='Admission'>{ready?'ready':'opening'}</output>{auth.state==='signed-in'?<StaffWorkspace team='t'/>:<label>Email<input value={email} onChange={e=>setEmail(e.target.value)}/></label>}</>}
 const render=()=>root.render(<React.StrictMode><AppProvider app={app}><Login/></AppProvider></React.StrictMode>);
 window.start=async()=>{await act(async()=>render())};
-window.publish=async patch=>{await act(async()=>{if(patch.role)role=patch.role;if(patch.release)release=patch.release;if(patch.auth)auth=patch.auth;if(patch.ready)openReady({ok:true});if(patch.app)app=makeApp();if(patch.failedApp)app={...makeApp(),ready:Promise.resolve({ok:false})};if(patch.newClient)app.client={...client};for(const fn of authListeners)fn();for(const fn of releaseListeners)fn();for(const r of records)for(const fn of r.subs)fn();render();})};
+window.publish=async patch=>{await act(async()=>{if(patch.role)role=patch.role;if(patch.release)release=patch.release;if(patch.auth)auth=patch.auth;if(patch.ready)openReady({ok:true});if(patch.app)app=makeApp();if(patch.failedApp)app={...makeApp(),ready:Promise.resolve({ok:false})};if(patch.rejectedApp)app={...makeApp(),ready:Promise.reject(Error("opening failed"))};if(patch.newClient)app.client={...client};for(const fn of authListeners)fn();for(const fn of releaseListeners)fn();for(const r of records)for(const fn of r.subs)fn();render();})};
 window.inspect=()=>({writes,notes:[...records].filter(r=>r.name==='staffNotes').length});
 window.finish=()=>act(async()=>root.unmount());
 `);
@@ -72,5 +72,9 @@ window.finish=()=>act(async()=>root.unmount());
  assert.equal(await page.getByLabel('Admission').textContent(),'opening','failed opener does not admit its own client');
  await publish({newClient:true,auth:{state:'signed-in',viewer:'dev:bob'}});
  assert.equal(await page.getByLabel('Admission').textContent(),'ready','successful replacement client recovers after failed initial restoration');
+ await publish({rejectedApp:true,auth:{state:'signed-out',viewer:null}});
+ assert.equal(await page.getByLabel('Admission').textContent(),'opening');
+ await publish({newClient:true,auth:{state:'signed-in',viewer:'dev:bob'}});
+ assert.equal(await page.getByLabel('Admission').textContent(),'ready','rejection does not permanently disable later successful sign-in');
  await page.evaluate(()=>window.finish());assert.deepEqual(errors,[]);
 });

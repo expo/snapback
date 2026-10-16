@@ -77,7 +77,7 @@ test('the published production composer validates and clears only its fresh rece
   ]) {
     for (const newerDraft of [false, true]) {
       let settle, calls = 0;
-      const context = { draft:'  Hello  ', blocked:false, conversationId:'c', sentResult,
+      const context = { draft:'  Hello  ', ready:true, blocked:false, conversationId:'c', sentResult,
         setSubmitted: () => {}, setDraft: change => {context.draft = change(context.draft);},
         send:{},
       };
@@ -92,7 +92,7 @@ test('the published production composer validates and clears only its fresh rece
     }
   }
   for(const [draft,blocked] of [['   ',false],['x'.repeat(2001),false],['Hello',true]]){
-    const context={draft,blocked,send:{run:()=>{throw Error('invalid form submitted');}},sentResult};
+    const context={draft,blocked,ready:true,send:{run:()=>{throw Error('invalid form submitted');}},sentResult};
     await vm.runInNewContext('('+submitSource+')',context)();
   }
 });

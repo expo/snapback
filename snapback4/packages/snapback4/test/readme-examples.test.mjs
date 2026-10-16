@@ -266,7 +266,7 @@ test("client card composer clears after a fresh sent result and preserves concur
       target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
     })}\nComposer;`, {
       api: { send: {}, myMembership: {} }, useMutation: () => send,
-      existence, matchRead, sentResult, isReady: read => "data" in read, useQuery: () => readyRead({ data: { id: "me" }, complete: true, cut: null, fresh: true }),
+      existence, matchRead, sentResult, useAppReady:()=>true, isReady: read => "data" in read, useQuery: () => readyRead({ data: { id: "me" }, complete: true, cut: null, fresh: true }),
       useState: () => slot++ === 0 ? [draft, update => { draft = typeof update === "function" ? update(draft) : update; }] : [saved, update => { saved = typeof update === "function" ? update(saved) : update; }],
       React: { Fragment: "fragment", createElement: (type, props, ...children) => ({ type, props, children }) },
     });
@@ -313,7 +313,7 @@ test("client card composer disables only denied or fresh non-revalidating absent
     const Composer = runInNewContext(`${ts.transpile(source.replace("export ", ""), {
       target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React,
     })}\nComposer;`, {
-      api: { send: {}, myMembership: {} }, existence, matchRead, sentResult, isReady: read => "data" in read, useQuery: () => member,
+      api: { send: {}, myMembership: {} }, existence, matchRead, sentResult, useAppReady:()=>true, isReady: read => "data" in read, useQuery: () => member,
       useState: () => ['hello', () => {}],
       useMutation: () => ({ inFlight: false, run: async () => { called = true; return { state: 'pending' }; } }),
       React: { Fragment: 'fragment', createElement: (type, props, ...children) => ({ type, props, children }) },
