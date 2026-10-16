@@ -56,7 +56,13 @@ impl Candidate {
         if original.schema_dir().is_dir() {
             copy_companions(&original.schema_dir(), &candidate.project.schema_dir()).map_err(|e| e.to_string())?;
         }
-        // Capture previously checked imports outside snapback/. An absent or
+        // Discover imports even before a first check, or after the entry adds a
+        // new import. Only dependency metadata is written in the working tree;
+        // its signatures are never replaced by a selected saved source. A
+        // failed working typecheck still records its graph. The selected
+        // contracts receive their strict private check below.
+        let _ = original.check_server();
+        // Capture freshly checked imports outside snapback/. An absent or
         // stale graph can only cause a private typecheck refusal, never reuse
         // the working generated signature.
         if let Ok(text) = std::fs::read_to_string(original.generated_dir().join("server-watch.json")) {

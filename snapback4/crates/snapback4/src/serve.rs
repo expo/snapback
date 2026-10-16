@@ -340,6 +340,25 @@ fn serve_requests(
             report_at = Instant::now();
         }
         if stopping() {
+            let address = server.server_addr();
+            drop(server);
+            // tiny_http's accept thread owns the descriptor until it observes
+            // the close trigger. Confirm closure before reporting it.
+            if let Some(mut socket) = address.clone().to_ip() {
+                if socket.ip().is_unspecified() {
+                    socket.set_ip(if socket.is_ipv4() { std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST) } else { std::net::IpAddr::V6(std::net::Ipv6Addr::LOCALHOST) });
+                }
+                let until = Instant::now() + Duration::from_secs(3);
+                loop {
+                    match std::net::TcpStream::connect_timeout(&socket, Duration::from_millis(50)) {
+                        Err(error) if error.kind() == std::io::ErrorKind::ConnectionRefused => break,
+                        _ if Instant::now() >= until => return Err("HTTP socket closure could not be confirmed".into()),
+                        _ => std::thread::sleep(Duration::from_millis(10)),
+                    }
+                }
+            }
+            snapback4_core::diagnostic!("SNAPBACK4_SOCKET_CLOSED verb={} url=http://{address} socket closed", if shared.personas { "dev" } else { "serve" });
+            let _ = snapback4_core::diagnostics::drain(Duration::from_secs(3));
             shared.refusals.shutdown();
             // @ref LLP 3000.000.000#51-path-independent-control-address — retain store ownership until control drains admitted work and unlinks its socket.
             for (name, thread) in background {

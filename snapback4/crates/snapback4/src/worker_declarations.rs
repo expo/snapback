@@ -140,6 +140,41 @@ pub(crate) fn package(project: &Project, stage: &Path) -> Result<(), String> {
 
 }
 
+/// Capture the same checked source closure used by automatic development entries.
+// @ref LLP 3000.000.000.000.000#7-serve-and-surface-completion-surf4-2026-10-16 — release source, including imports, is immutable; installed packages remain host-owned.
+pub(crate) fn package_entry(project: &Project, stage: &Path) -> Result<(), String> {
+    let Some(source) = super::source(project) else { return Ok(()); };
+    let snapshot = Snapshot::automatic(project, &source)?;
+    let captured = snapshot.entry.parent().and_then(Path::parent).ok_or("worker snapshot root")?;
+    fn copy(source: &Path, target: &Path) -> io::Result<()> {
+        for entry in std::fs::read_dir(source)? {
+            let entry = entry?;
+            if matches!(entry.file_name().to_str(), Some("node_modules" | "native" | "target")) || entry.path().extension().is_some_and(|ext| ext == "q") { continue; }
+            let kind = entry.file_type()?;
+            if kind.is_symlink() { return Err(io::Error::other("worker source must be a regular file or directory")); }
+            let target = target.join(entry.file_name());
+            if kind.is_dir() { std::fs::create_dir_all(&target)?; copy(&entry.path(), &target)?; }
+            else if kind.is_file() { std::fs::copy(entry.path(), target)?; }
+        }
+        Ok(())
+    }
+    copy(captured, stage).map_err(|e| e.to_string())?;
+    let graph = stage.join("snapback/generated/server-watch.json");
+    if let Ok(bytes) = std::fs::read(&graph) {
+        type Dependency = (PathBuf, Option<(String, String)>);
+        let dependencies: Vec<Dependency> = serde_json::from_slice(&bytes).map_err(|e| e.to_string())?;
+        let root = project.root.canonicalize().map_err(|e| e.to_string())?;
+        let relative: Vec<Dependency> = dependencies.into_iter().filter_map(|(path, state)| {
+            let relative = path.strip_prefix(&root).ok()?;
+            if relative.components().any(|part| part.as_os_str() == "node_modules") { return None; }
+            // Stat data is checker-local evidence, not executable release identity.
+            Some((relative.to_owned(), state.map(|_| ("captured".into(), "captured".into()))))
+        }).collect();
+        std::fs::write(graph, serde_json::to_vec(&relative).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 /// A launch owns these copied bytes until its process group has stopped.
 /// Module dependencies remain installed host code, outside source custody.
 // @ref LLP 3000.009#5.3 — validation and execution share one private snapshot.
@@ -194,6 +229,7 @@ impl Snapshot {
         type Dependency = (PathBuf, Option<(String, String)>);
         let dependencies: Vec<Dependency> = serde_json::from_slice(&graph).map_err(io::Error::other)?;
         for (path, state) in dependencies {
+            let path = if path.is_absolute() { path } else { project_root.join(path) };
             // The checker records paths as it resolved them, possibly through a
             // symlinked ancestor (macOS /var is /private/var). Canonicalize only
             // the parent: the final component is still opened without following.

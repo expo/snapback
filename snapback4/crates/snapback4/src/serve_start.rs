@@ -283,8 +283,21 @@ pub fn serve(
             source.clone(),
             true,
         )?),
-        _ => None,
+        Mode::Release { .. } => match crate::dev_worker::source(&project) {
+            Some(source) => Some(crate::dev_worker::DevWorker::start_source(&project, shared.clone(), worker_url.clone(), source, false)?),
+            None => None,
+        },
     };
+    if worker.is_none() && crate::dev_worker::declared(&project)?.is_empty() {
+        let bound = lock(&shared.bound);
+        if !bound.schema.action_specs.is_empty() || !bound.schema.routes.is_empty() {
+            snapback4_core::diagnostic!("WARNING: declared actions/routes have no supervised handler entry; requests remain queued without an external handler. Add snapback/server.ts and deploy, or pass serve --worker <path>; doctor reports handler status.");
+        }
+    }
+    let active_hash = lock(&shared.bound).schema.hash();
+    let working_hash = std::env::current_dir().ok().and_then(|cwd| Project::locate(&cwd))
+        .and_then(|working| working.compile().ok()).filter(|bound| bound.diagnostics.is_empty())
+        .map(|bound| bound.schema.hash()).unwrap_or_else(|| "unavailable".into());
     let mut background = Vec::new();
     #[cfg(unix)]
     if !dev {
@@ -316,7 +329,7 @@ pub fn serve(
             generated.display()
         ),
         None => snapback4_core::diagnostic!(
-            "snapback4 serve: http://{address}  pid {}{wrapper}  (release {}, generation {generation}, tokens only)",
+            "snapback4 serve: http://{address}  pid {}{wrapper}  (release {}, generation {generation}, active schema {active_hash}, working schema {working_hash}, tokens only)",
             std::process::id(),
             project.root.display()
         ),

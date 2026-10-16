@@ -19,7 +19,7 @@ pub(crate) use environment::validate_environment;
 mod declarations;
 #[path = "worker_process.rs"]
 pub(crate) mod process;
-pub(crate) use declarations::package;
+pub(crate) use declarations::{package, package_entry};
 pub(crate) fn declared(
     project: &Project,
 ) -> Result<std::collections::BTreeMap<String, PathBuf>, String> {
@@ -204,7 +204,7 @@ impl Supervisor {
                         Err(error) => snapback4_core::diagnostic!("snapback4 worker: {error}"),
                     }
                 }
-                if worker.is_none() && dev && changed {
+                if worker.is_none() && changed {
                     match DevWorker::start(&project, shared.clone(), url.clone()) {
                         Ok(next) => worker = next,
                         Err(error) => snapback4_core::diagnostic!("snapback4 worker: {error}"),
@@ -213,6 +213,7 @@ impl Supervisor {
                 if let Some(worker) = &mut worker {
                     worker.tick();
                 }
+                if worker.as_ref().is_some_and(|worker| worker.retiring && worker.child_expires_at.is_none()) { worker = None; }
                 for worker in named.values_mut() {
                     worker.tick();
                 }
@@ -525,6 +526,9 @@ impl DevWorker {
             } else if !self.explicit_env {
                 if let Some(source) = source(&self.project) {
                     self.source = source;
+                } else {
+                    self.retiring = true;
+                    return;
                 }
             }
             self.restart = Instant::now();
