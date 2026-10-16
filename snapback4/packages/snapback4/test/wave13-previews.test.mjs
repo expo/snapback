@@ -662,3 +662,21 @@ ${caller?'  require ok else NO\n':''}  return ${filter?'max(gates where gate(.va
   assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*compiled guard changed: 1 guard unproved across projected/);
   run('deploy',deployment);assert.equal((await host.post('/m/projected',{ok:true})).state,'sent');await host.stop();
 });
+
+for (const caller of [false,true]) test(`conditional-update helper refusals remain visible (caller requirement: ${caller})`, {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe.replace('  insert <- allow\n  online only\nmutation add', '  insert <- allow\n  update <- allow\n  online only\nmutation add')+`fn gate():
+  require false else BLOCKED
+  return true
+mutation seedNote():
+  return insert notes {id: 'n', body: 'before'}
+mutation conditionalUpdate(ok: bool):
+${caller?'  require ok else NO\n':''}  return update notes['n'] {body: 'after'} if gate()
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);assert.equal((await host.post('/m/seedNote',{})).state,'sent');
+  assert.equal((await host.post('/m/conditionalUpdate',{ok:true})).why.code,'BLOCKED');
+  writeFileSync(schema,source.replace('require false else BLOCKED','require true else BLOCKED').replace('require ok else NO','require not not ok else NO'));
+  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*compiled guard changed: 1 guard unproved across conditionalUpdate/);
+  run('deploy',deployment);assert.equal((await host.post('/m/conditionalUpdate',{ok:true})).state,'sent');await host.stop();
+});

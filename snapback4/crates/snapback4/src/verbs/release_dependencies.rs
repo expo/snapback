@@ -261,17 +261,35 @@ fn selected_guards(schema: &Schema, program: &ir::Program, excluded: &BTreeSet<S
                         nested(out,schema,&builtin["args"][1],&projected,&context,effects,excluded);return;
                     }
                 }
+                if let Some(write)=fields.get("WriteTarget") {
+                    for field in ["target","patch"] {nested(out,schema,&write[field],bindings,context,effects,excluded);}
+                    if let Some(condition)=write.get("condition").filter(|value|!value.is_null()) {
+                        let target=resolved(&json!({"Get":write["target"]}),bindings,&mut BTreeSet::new());
+                        let mut inner=bindings.clone();inner.insert(condition["old"].as_str().expect("condition old binding").into(),target.clone());
+                        let mut context=context.to_vec();context.push(json!({"writeTarget":target}));
+                        let setup:Vec<ir::Stmt>=serde_json::from_value(condition["setup"].clone()).expect("serialized write condition");
+                        let (inner,effects)=body(out,schema,&setup,&inner,&context,effects,excluded);
+                        nested(out,schema,&condition["value"],&inner,&context,&effects,excluded);
+                    }
+                    return;
+                }
                 if fields.contains_key("scan") && fields.get("binding").is_some_and(Value::is_string) {
-                    let source=fields.get("source").filter(|value|!value.is_null()).unwrap_or(&fields["scan"]);
-                    nested(out,schema,source,bindings,context,effects,excluded);
-                    nested(out,schema,&json!({"Scan":fields["scan"]}),bindings,context,effects,excluded);
-                    let source=resolved(source,bindings,&mut BTreeSet::new());
+                    // Runtime guards precede discovery. Setup sees the discovery
+                    // row; projection sees the target scan row after setup.
+                    nested(out,schema,&value["guard"],bindings,context,effects,excluded);
+                    let mut context=context.to_vec();context.push(json!({"laneGuard":resolved(&value["guard"],bindings,&mut BTreeSet::new())}));
                     let mut inner=bindings.clone();
-                    for name in [fields["binding"].as_str().unwrap(),"$project","$filter"] {inner.insert(name.into(),source.clone());}
-                    nested(out,schema,&value["guard"],&inner,context,effects,excluded);
-                    let mut context=context.to_vec();context.push(json!({"laneSource":source,"guard":resolved(&value["guard"],&inner,&mut BTreeSet::new())}));
+                    if let Some(source)=fields.get("source").filter(|value|!value.is_null()) {
+                        nested(out,schema,source,bindings,&context,effects,excluded);
+                        let source=resolved(source,bindings,&mut BTreeSet::new());
+                        inner.insert(fields["binding"].as_str().unwrap().into(),source.clone());context.push(json!({"laneSource":source}));
+                    }
                     let setup:Vec<ir::Stmt>=fields.get("setup").map(|value|serde_json::from_value(value.clone()).expect("serialized lane setup")).unwrap_or_default();
-                    let (inner,effects)=body(out,schema,&setup,&inner,&context,effects,excluded);
+                    let (mut inner,effects)=body(out,schema,&setup,&inner,&context,effects,excluded);
+                    let scan=resolved(&json!({"Scan":fields["scan"]}),&inner,&mut BTreeSet::new());
+                    nested(out,schema,&scan,&inner,&context,&effects,excluded);
+                    for name in ["$project","$filter"] {inner.insert(name.into(),scan.clone());}
+                    context.push(json!({"projectionSource":scan}));
                     for name in ["project","distinct"] {nested(out,schema,&value[name],&inner,&context,&effects,excluded);}return;
                 }
                 // Scan filters execute per admitted source row. Keep their
@@ -455,6 +473,26 @@ mod tests {
     }
     fn population(schema: &Schema, name: &str) -> Dependencies {
         let mut deps=Dependencies::default();deps.population(schema,name);deps
+    }
+    #[test]
+    fn merge_projection_guards_keep_target_inputs_separate_from_discovery() {
+        let bound=snapback4_lang::compile(&[("schema.q".into(),"table discovery:\n  value: int\n  public\n  online only\ntable targets:\n  value: int default 1\n  public\n  online only\nquery discover():\n  return discovery first 1 by .id\nquery target():\n  return targets first 1 by .id\n".into())]);
+        assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+        let scan=|name: &str| match &bound.programs.iter().find(|p|p.program.name==name).unwrap().program.body.last().unwrap() {
+            ir::Stmt::Return(ir::Expr::Scan(scan))=>scan.clone(),other=>panic!("expected scan: {other:?}"),
+        };
+        let project=ir::Expr::Block {body:vec![ir::Stmt::Require {
+            condition:ir::Expr::Binary {op:ir::BinaryOp::Gt,left:Box::new(ir::Expr::Field {base:Box::new(ir::var("$project")),name:"value".into()}),right:Box::new(ir::Expr::Literal(snapback4_core::Value::Int(0)))},
+            code:"BLOCKED".into(),site:None,message:None,
+        }],value:Box::new(ir::Expr::Literal(snapback4_core::Value::Bool(true)))};
+        let merge:ir::Merge=serde_json::from_value(json!({"site":"test","lanes":[{"guard":null,"distinct":null,"branch":"target","project":project,"setup":[],"scan":scan("target"),"source":scan("discover"),"binding":"discovered"}]})).unwrap();
+        let mut program=bound.programs[0].program.clone();program.kind=ir::ProgramKind::Mutation;
+        program.body=vec![ir::Stmt::Return(ir::Expr::Merge(merge))];
+        let schema=bound.schema;assert!(changes(&schema,&program,&schema,&program,true).iter().all(BTreeSet::is_empty));
+        let mut target=schema.clone();target.tables.get_mut("targets").unwrap().defaults.insert("value".into(),snapback4_core::schema::ColumnDefault::Literal(snapback4_core::Value::Int(2)));
+        assert_eq!(changes(&schema,&program,&target,&program,true),vec![BTreeSet::from(["targets".into()])]);
+        let mut target=schema.clone();target.tables.get_mut("targets").unwrap().rules.read=RuleExpr::Deny;
+        assert_eq!(changes(&schema,&program,&target,&program,true),vec![BTreeSet::from(["targets".into()])]);
     }
     #[test]
     fn consulted_timeline_metadata_changes_without_polluting_ordinary_tables() {
