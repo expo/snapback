@@ -15,7 +15,9 @@ export function registerWebWitness(app: App, api: Operations): void {
     }
   } };
   walk(api);
-  let form: { terminal: Promise<unknown>; cancel: () => void } | undefined;
+  let ready = false;
+  void app.ready.then(result => { ready = result.ok; }, () => {});
+  let form: { terminal: Promise<unknown>; cancel: () => void; claimHandler: (owner: App, event: Event) => { mutate: App["mutate"]; done: () => void } | undefined } | undefined;
   Object.defineProperty(window, "__snapback4Witness", { configurable: true, value: {
     ready: () => app.ready,
     viewer: () => app.client?.viewer(),
@@ -25,11 +27,13 @@ export function registerWebWitness(app: App, api: Operations): void {
       form?.cancel();
       const client = app.client, originalClient = client.mutate, originalApp = app.mutate;
       let click: Event | undefined, submit: Event | undefined, clickTimer: ReturnType<typeof setTimeout> | undefined, claimed = false, cancelObserver = () => {};
+      let clickedReady = false, handlerClaimed = false;
+      const handlerToken = Symbol("witness handler claim");
       const outsideClick = Symbol("witness outside clicked dispatch");
       let resolve!: (write: unknown) => void;
       const terminal = new Promise(answer => { resolve = answer; });
       let settled = false, noWriteTimer: ReturnType<typeof setTimeout> | undefined;
-      const noWrite = () => finish({ state: "failed", mutation: name, why: { code: "E_WITNESS_NO_WRITE", message: "armed click produced no durable mutation (form handler returned early, or the app was not ready)" } });
+      const noWrite = () => finish({ state: "failed", mutation: name, why: { code: "E_WITNESS_NO_WRITE", reason: clickedReady ? "returned-early" : "not-ready", message: "armed click produced no durable mutation (form handler returned early, or the app was not ready)" } });
       const finish = (write: unknown) => {
         if (settled) return;
         settled = true; clearTimeout(expiry); clearTimeout(noWriteTimer); restore(); cancelObserver(); resolve(write);
@@ -42,7 +46,7 @@ export function registerWebWitness(app: App, api: Operations): void {
       const capture = (event: Event) => {
         if (!event.isTrusted) { click = undefined; submit = undefined; clearTimeout(clickTimer); return; }
         if (event.isTrusted && event.composedPath().includes(button)) {
-          click = event; submit = undefined;
+          click = event; submit = undefined; clickedReady = ready;
           clearTimeout(noWriteTimer);
           noWriteTimer = setTimeout(() => { if (!claimed) noWrite(); }, 1000);
           clearTimeout(clickTimer);
@@ -64,7 +68,8 @@ export function registerWebWitness(app: App, api: Operations): void {
         ? Object.fromEntries(Object.keys(value).sort().map(key => [key, canonical((value as Record<string, unknown>)[key])])) : value;
       const execute = async (original: Function, receiver: unknown, op: Mutation<any, any>, args: Record<string, unknown>, options?: any): Promise<Write> => {
         const durable = operations.some(value => (value as Mutation<any, any>).name === op.name);
-        const eventMatches = !!click && (window.event === click || (!!submit && window.event === submit));
+        const eventMatches = !!click && (window.event === click || (!!submit && window.event === submit))
+          || handlerClaimed && options?.[handlerToken] === true;
         const argsMatch = expected == null || JSON.stringify(canonical(expected)) === JSON.stringify(canonical(args));
         const eligible = !claimed && eventMatches && !options?.[outsideClick] && durable && (!name || name === op.name) && argsMatch;
         let forwarded = options;
@@ -78,8 +83,8 @@ export function registerWebWitness(app: App, api: Operations): void {
             claimed = true; restore();
             const reason = !eventMatches || options?.[outsideClick] ? "event: expected the armed click or its synchronous submit"
               : name && name !== op.name ? `operation: expected ${name}, got ${op.name}`
-              : `arguments: expected ${JSON.stringify(canonical(expected))}, got ${JSON.stringify(canonical(args))}`;
-            finish({ state: "failed", mutation: op.name, why: { code: "E_WITNESS_UNCLAIMED", message: reason } });
+              : "arguments: durable mutation arguments did not match the armed form";
+            finish({ state: "failed", mutation: op.name, why: { code: "E_WITNESS_UNCLAIMED", reason: !eventMatches || options?.[outsideClick] ? "event" : "arguments", message: reason } });
           }
           return invoke();
         }
@@ -108,8 +113,20 @@ export function registerWebWitness(app: App, api: Operations): void {
       const clientWrapper = ((op: Mutation<any, any>, args: Record<string, unknown>, options?: any) => execute(originalClient, client, op, args, options)) as typeof client.mutate;
       const appWrapper = ((op: Mutation<any, any>, args: Record<string, unknown>, options?: any) => execute(originalApp, app, op, args, options)) as typeof app.mutate;
       client.mutate = clientWrapper; app.mutate = appWrapper;
-      form = { terminal, cancel: () => { if (!claimed) noWrite(); else finish({ state: "failed", mutation: name, why: { code: "E_WITNESS_UNCLAIMED", message: "rearmed before the claimed write settled; inspect its original intent id" } }); } };
+
+      const claimHandler = (owner: App, event: Event) => {
+        if (owner !== app || handlerClaimed || claimed || settled || !event.isTrusted
+          || !(click && event === click && window.event === click || submit && event === submit && window.event === submit)) return undefined;
+        handlerClaimed = true; clearTimeout(noWriteTimer);
+        return {
+          mutate: ((op: Mutation<any, any>, args: Record<string, unknown>, options?: any) =>
+            app.mutate(op, args, { ...options, [handlerToken]: true })) as App["mutate"],
+          done: () => { if (!claimed) noWrite(); },
+        };
+      };
+      form = { terminal, claimHandler, cancel: () => { if (!claimed) noWrite(); else finish({ state: "failed", mutation: name, why: { code: "E_WITNESS_UNCLAIMED", reason: "event", message: "rearmed before the claimed write settled; inspect its original intent id" } }); } };
     },
+    claimHandler: (owner: App, event: Event) => form?.claimHandler(owner, event),
     formResult: () => form?.terminal,
     mutate: async (name: string | undefined, args: Record<string, unknown>, id: string) => {
       armed();
@@ -126,4 +143,18 @@ export function registerWebWitness(app: App, api: Operations): void {
       } finally { stop(); }
     },
   } });
+}
+
+/** Run an event handler with an explicit write claim that survives awaited uploads.
+ * Call synchronously from the clicked control. Use the supplied mutate inside
+ * the callback; it carries only that arm's token, never another handler's writes.
+ */
+export async function witnessForm<T>(app: App, event: Event | { nativeEvent: Event }, handler: (mutate: App["mutate"]) => Promise<T>): Promise<T> {
+  const native = "nativeEvent" in event ? event.nativeEvent : event;
+  const bridge = typeof window === "undefined" ? undefined : (window as unknown as { __snapback4Witness?: {
+    claimHandler(owner: App, event: Event): { mutate: App["mutate"]; done(): void } | undefined;
+  } }).__snapback4Witness;
+  const claim = bridge?.claimHandler(app, native);
+  try { return await handler(claim?.mutate ?? app.mutate.bind(app)); }
+  finally { claim?.done(); }
 }

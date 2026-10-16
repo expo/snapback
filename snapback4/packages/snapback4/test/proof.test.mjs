@@ -29,6 +29,13 @@ test("native and static bind beyond an occupied port; identity and independent l
   const dev = await startDev({ cwd, env }); let web;
   try {
     assert.ok(Number(new URL(dev.url).port) > port); assert.equal((await (await fetch(dev.url + "/dev/status")).json()).pid, dev.pid);
+    const before = await dev.now();
+    const advanced = await fetch(dev.url + "/dev/clock/advance", { method: "POST", body: JSON.stringify({duration:"2h"}) }).then(r=>r.json());
+    assert.ok(advanced.now >= before + 7_200_000); assert.ok(Math.abs(advanced.skewMs - 7_200_000) < 1000);
+    assert.ok(await dev.now() >= advanced.now);
+    const reset = await fetch(dev.url + "/dev/reset", { method: "POST", body: "{}" }).then(r=>r.json());
+    assert.ok(reset.now >= advanced.now); assert.ok(reset.skewMs >= 7_199_000);
+    assert.ok(await dev.now() >= reset.now);
     web = await startStatic("dist", { cwd, env }); assert.notEqual(web.url, dev.url);
     assert.equal(await (await fetch(web.url)).text(), "<h1>owned</h1>");
     for (const log of Object.values(dev.logs)) assert.ok(log.startsWith(join(cwd, "logs")), "default logs survive temp-root harness cleanup");

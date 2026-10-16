@@ -93,6 +93,14 @@ fn frontend_proof(source: &str, template: Option<&str>, web: bool) -> String {
         // Chat receipts echo drafts. Restrict evidence to its message display.
         if web { proof = proof.replace("renderedText(page, new RegExp(title))", "renderedText(page, new RegExp(title), { within: page.getByRole(\"region\", { name: \"Thread\" }) })"); }
     }
+    let scope = match (template, web) {
+        (Some("social"), _) => "page.getByTestId(\"profile-results\")",
+        (Some("chat"), true) => "page.getByRole(\"region\", { name: \"Thread\" })",
+        (Some("chat"), false) => "page.getByTestId(\"thread-results\")",
+        (_, true) => "page.getByRole(\"list\")",
+        (_, false) => "page.getByTestId(\"todo-results\")",
+    };
+    proof = proof.replace("RESULTS_SCOPE", scope);
     proof = proof.replace("BUILD_SCRIPT", if web { "build" } else { "build:web" });
     proof
 }

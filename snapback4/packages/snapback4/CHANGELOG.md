@@ -1,5 +1,12 @@
 # Snapback 4 behavior changes
 
+## 0.4.31
+
+- Proofs can use witnessForm to carry an explicit handler write claim across awaited uploads. E_WITNESS_NO_WRITE and E_WITNESS_UNCLAIMED now carry stable reason values; mismatch message changes redact argument values. Match code/reason instead of human text.
+- waitForFresh returns the fresh string and suggests RegExp/exact:false when only a substring exists. Starter proofs scope rendered assertions and show SVG bounding-box clicks; testing explains RN-web and wrapped select matching.
+- startDev exposes await dev.now(); dev reset and clock replies include now/skewMs. Clock advance reports fired/skipped windows and replay commands, with --each-boundary for every crossed window (jobs use final now and historical period arguments).
+- HTTP queries wait for encountered not-before publications. Null root fixture aliases name themselves; bare alias diagnostics use argument types. test --as names the sweep entries it overrides. Guide wire includes real-run success/refusal, point and view envelopes.
+
 ## 0.4.30
 
 - Saved releases: `deploy --schema` resolves compatibility baselines from the original project, preserves module names and deduplicates enum/value unions. Prefer `versions/v1/schema.q`, original-name modules and `versions/v1/fixtures/`; directory and complete-file inputs remain supported. Saved tests prefer contemporary fixtures, name fallback skips and keep explicit fixture selection strict. Deploy/rollback previews group actual guard dependencies and lead with query/count population losses, dependent dormancy and safety effects; literal backfills include exact active-row counts. A bridge-release recipe preserves safety logic as well as data.

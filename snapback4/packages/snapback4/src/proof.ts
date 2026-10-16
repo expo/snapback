@@ -38,14 +38,23 @@ async function nativeHost(verb: "dev" | "serve", prefix: string[], options: Proo
     return { url, pid: run.child.pid!, logs: run.logs, stop: () => stopChild(run.child, deadline(options.stopTimeoutMs, 5000)) };
   } catch (error) { await stopChild(run.child, deadline(options.stopTimeoutMs, 5000)); throw error; }
 }
+export interface DevHost extends ProofHost {
+  /** Read the current authoritative development time, including all clock advances. */
+  now(): Promise<number>;
+}
 /** The array form preserves the former startDev(args) recipe. */
-export function startDev(options: ProofOptions | readonly string[] = {}): Promise<ProofHost> {
+export async function startDev(options: ProofOptions | readonly string[] = {}): Promise<DevHost> {
   const opts: ProofOptions = Array.isArray(options) ? { args: options } : options as ProofOptions;
   const args = [...(opts.args ?? [])];
   const persistent = args.some(arg => arg === "--store" || arg.startsWith("--store=") || arg === "--no-memory");
   if (persistent && args.includes("--memory")) throw new TypeError("proof startDev: --memory conflicts with --store/--no-memory");
   // --no-memory is a proof option; native dev already persists by default.
-  return nativeHost("dev", [], { ...opts, args: [...args.filter(arg => arg !== "--no-memory"), ...(persistent || args.includes("--memory") ? [] : ["--memory"])] });
+  const host = await nativeHost("dev", [], { ...opts, args: [...args.filter(arg => arg !== "--no-memory"), ...(persistent || args.includes("--memory") ? [] : ["--memory"])] });
+  return { ...host, now: async () => {
+    const { response, body } = await fetchIdentity(`${host.url}/dev/status`, deadline(opts.timeoutMs, 10_000));
+    if (!response.ok || typeof body.now !== "number") throw Error("proof dev clock unavailable");
+    return body.now;
+  } };
 }
 export function startServe(deployDir: string, options: ProofOptions | readonly string[] = {}): Promise<ProofHost> {
   if (typeof deployDir !== "string" || !deployDir.trim()) throw Object.assign(new TypeError("E_PROOF_USAGE: startServe(deployDir, options) requires a deployment directory as its first argument"), { code: "E_PROOF_USAGE" });
@@ -163,16 +172,25 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
     }
   } finally { closeSync(err); }
 }
+const substringLocators = new WeakMap<Locator, Locator>();
 /** Strings match exactly by default; use exact:false or a RegExp for a row with more text. Excludes editable values. */
 export function renderedText(page: Page, text: string | RegExp, options: { within?: Locator; exact?: boolean } = {}): Locator {
-  return (options.within ?? page).getByText(text, { exact: options.exact ?? true }).and(page.locator(":not(input):not(textarea)"));
+  const root = options.within ?? page, rendered = page.locator(":not(input):not(textarea)");
+  const locator = root.getByText(text, { exact: options.exact ?? true }).and(rendered);
+  if (typeof text === "string" && options.exact !== false) substringLocators.set(locator, root.getByText(text, { exact: false }).and(rendered));
+  return locator;
 }
 /** Activate before taking a screenshot, particularly on loaded shared hosts. */
 export async function frontPage(page: Page): Promise<Page> { await page.bringToFront(); return page; }
 export { logsDir } from "./proof-process.ts";
+/** Returns the fresh nonempty text as a string, after it differs from previous. */
 export async function waitForFresh(locator: Locator, previous: string | null, options: number | { within?: Locator; timeoutMs?: number } = 30_000): Promise<string> {
   const timeoutMs = deadline(typeof options === "number" ? options : options.timeoutMs, 30_000);
-  if (typeof options !== "number" && options.within) locator = options.within.locator(locator);
+  let substring = substringLocators.get(locator);
+  if (typeof options !== "number" && options.within) {
+    locator = options.within.locator(locator);
+    if (substring) substring = options.within.locator(substring);
+  }
   const end = performance.now() + timeoutMs;
   let count = 0, text: string | null = null, detail = "";
   while (performance.now() < end) {
@@ -187,7 +205,9 @@ export async function waitForFresh(locator: Locator, previous: string | null, op
     }
     await new Promise(resolve => setTimeout(resolve, Math.min(25, Math.max(1, end - performance.now()))));
   }
-  throw Error(`no fresh signal after ${timeoutMs} ms: ${String(locator)}; last count=${count}, text=${JSON.stringify(text)}; ${count ? "present but unchanged" : "absent"}; previous=${JSON.stringify(previous)}${detail ? `; ${detail}` : ""}`);
+  const hint = count === 0 && substring && await bounded(substring.count(), 1000, "substring count").catch(() => 0)
+    ? "; a substring match exists; pass a RegExp or `exact: false`" : "";
+  throw Error(`no fresh signal after ${timeoutMs} ms: ${String(locator)}; last count=${count}, text=${JSON.stringify(text)}; ${count ? "present but unchanged" : "absent"}; previous=${JSON.stringify(previous)}${hint}${detail ? `; ${detail}` : ""}`);
 }
 /** Poll authoritative server truth after a receipt; a pending prediction is not a commit. */
 export async function waitForServer<T>(read: () => Promise<T>, accepts: (value: T) => boolean, options: { timeoutMs?: number; label?: string } = {}): Promise<T> {

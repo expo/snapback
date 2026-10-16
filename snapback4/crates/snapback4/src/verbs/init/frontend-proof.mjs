@@ -4,6 +4,15 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { command, startDev, startStatic, withBrowser, renderedText, fillRN, statusText, waitForFresh, bounded, cleanup, portRange } from "snapback4/proof";
 
+// For SVG/foreignObject controls, click the actual rendered box, not a text
+// descendant whose DOM geometry Playwright may interpret differently.
+async function clickSvg(page, control) {
+  await control.waitFor({ state: "visible" });
+  const box = await control.boundingBox();
+  assert.ok(box && box.width > 0 && box.height > 0, "SVG control has no rendered box");
+  await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+}
+
 const options = process.env.SNAPBACK4_PROOF_LOGS ? { logsDir: process.env.SNAPBACK4_PROOF_LOGS } : {};
 const range = portRange();
 if (range !== "0" && range.split("-")[0] === range.split("-")[1]) throw Error("the starter needs two runtime ports");
@@ -38,10 +47,12 @@ try {
       // Arm the app's SDK receipt outside the form, which may unmount.
       const button = page.getByRole("button", { name: "Add", exact: true });
       await button.evaluate((element, title) => window.__snapback4Witness.beginForm("add", { title }, element), title);
-      await button.click();
+      const svg = button.locator("svg");
+      if (await svg.count()) await clickSvg(page, svg); else await button.click();
       const receipt = await bounded(page.evaluate(() => window.__snapback4Witness.formResult()), 30_000, "clicked write receipt");
       assert.equal(receipt.state, "sent", JSON.stringify(receipt));
-      await waitForFresh(renderedText(page, new RegExp(title)), null);
+      const within = RESULTS_SCOPE;
+      await waitForFresh(renderedText(page, new RegExp(title), { within }), null);
     }
   });
   console.log("frontend:proof passed");
