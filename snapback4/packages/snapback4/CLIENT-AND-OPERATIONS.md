@@ -176,8 +176,9 @@ ephemeral signal or action. `useOnline()` returns that arm under `AppProvider`:
 ```tsx
 import { useOnline } from "snapback4/react";
 import { createApp } from "snapback4/app";
+import { localStorageSessionStore } from "snapback4/auth";
 import { api } from "../snapback/generated/api";
-const app = createApp({ url: "http://127.0.0.1:4400" });
+const app = createApp({ url: "http://127.0.0.1:4400", sessionStore: localStorageSessionStore() });
 function TypingButton({ room }: { room: string }) {
   const online = useOnline();
   return <button onClick={() => void online.mutate(api.setTyping, { room })}>Typing</button>;
@@ -4003,7 +4004,7 @@ proof can compose the same bounded hosts, private logs and saved release inputs:
 ```ts
 import { startDev, startServe, startStatic, startVite, cli, command, deploy,
   rollback, testSource, withBrowser, waitForFresh, fillRN, statusText,
-  selectByValue, renderedText, frontPage, logsDir, bounded, cleanup, stopChild, portRange, sandboxUnavailable }
+  selectByValue, renderedText, frontPage, logsDir, bounded, cleanup, stopChild, portRange, sandboxUnavailable, loadFixtures }
   from "snapback4/proof";
 
 export async function applicationProof(cwd: string) {
@@ -4044,6 +4045,12 @@ export async function applicationProof(cwd: string) {
 export async function developmentHosts(cwd: string) {
   const backend = await startDev({ cwd });
   try {
+    // Read the application's fixtures/<table>.jsonl using the dev schema/clock.
+    const seed = await loadFixtures("fixtures", { url: backend.url, cwd });
+    const response = await fetch(`${backend.url}/seed`, { method: "POST",
+      headers: { "content-type": "application/json" }, body: JSON.stringify(seed) });
+    const result = await response.json();
+    if (!response.ok || result.denied) throw Error(JSON.stringify(result));
     const frontend = await startVite(cwd);
     await cleanup(() => frontend.stop());
   } finally { await cleanup(() => backend.stop()); }

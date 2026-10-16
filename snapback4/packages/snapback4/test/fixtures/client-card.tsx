@@ -2,11 +2,12 @@ import type { Client, Write } from "snapback4/contract";
 import { createClient } from "snapback4/client";
 import { createLocalClient } from "snapback4/local";
 import { createApp, type AppOptions } from "snapback4/app";
+import { localStorageSessionStore } from "snapback4/auth";
 import type { AssetState } from "snapback4/react";
 import { Image, Text } from "react-native";
 declare const local: Awaited<ReturnType<typeof createLocalClient>>;
 declare const device: import("snapback4/local").DeviceOpener;
-const appOptions: AppOptions = { url: "http://localhost:4400", assets: { keep: "viewed", maxBytes: 67108864 }, waitSeconds: 1 };
+const appOptions: AppOptions = { url: "http://localhost:4400", sessionStore: localStorageSessionStore(), assets: { keep: "viewed", maxBytes: 67108864 }, waitSeconds: 1 };
 createApp({ ...appOptions, device });
 createApp({ ...appOptions, device: undefined }); // Local tuning is accepted but ignored online.
 // @ts-expect-error retention policies retain their literal union
