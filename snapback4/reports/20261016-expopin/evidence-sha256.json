@@ -1,0 +1,557 @@
+[
+  {
+    "path": "CONTEXT.md",
+    "bytes": 1827,
+    "sha256": "8a89b35ada579b3e4ea5fce240dfaaeb76761b619bc43974f62536239f5e55ef"
+  },
+  {
+    "path": "REPORT.md",
+    "bytes": 16096,
+    "sha256": "8fee7d054f4c4a5399c77bcfc66508d043b7103336cd349250ad82c8338c300f"
+  },
+  {
+    "path": "linux/adapter-regressions.log.gz",
+    "bytes": 912,
+    "sha256": "6f148d1ace9edf048a8f095b8d97896407a67a7b6ec1ce78b14a5cdaf26cc3a8"
+  },
+  {
+    "path": "linux/affected-final.log.gz",
+    "bytes": 1462,
+    "sha256": "66322fbd4e315c40b8fa922a74c69eeffb2371bf31b53683dc43956b4e3be3e1"
+  },
+  {
+    "path": "linux/affected-patch-final.log.gz",
+    "bytes": 1470,
+    "sha256": "61fef70b3beedd57431f86d81ea6761a02064ddc2707943d7a8efe57ee318c68"
+  },
+  {
+    "path": "linux/caps.log.gz",
+    "bytes": 698,
+    "sha256": "2c9e054cc79f6963eb4e98fcd5c699ba27d4d61d252eeeae2ba9ecf204c3fc49"
+  },
+  {
+    "path": "linux/client-pool-canonical.log.gz",
+    "bytes": 279592,
+    "sha256": "745c755ff0ba2ac6685452186ace68b10b4cea9e819094d496ef743cddfd92db"
+  },
+  {
+    "path": "linux/client-pool.log.gz",
+    "bytes": 281151,
+    "sha256": "3d951fbcea835336405c0289d5473f1c6d25911c1df6223e430b32877b864b90"
+  },
+  {
+    "path": "linux/docs-budget.log.gz",
+    "bytes": 1535,
+    "sha256": "2541bb08f9c50d9dbf080a837dcb42dfa9ccdd69a90b299b90c3bc1ecfed0eb9"
+  },
+  {
+    "path": "linux/event-rerun.log.gz",
+    "bytes": 1702,
+    "sha256": "a842cf592b2f668011d78c8e6db6dab859211a97a203586b6cd2763fcc393acc"
+  },
+  {
+    "path": "linux/event-trace.log.gz",
+    "bytes": 1539,
+    "sha256": "890e6757749e53f95463091ccfdd342f636241d2a05bb18379b8e3991ba500c0"
+  },
+  {
+    "path": "linux/expopin-linux-consumer-qualified/consumer.json",
+    "bytes": 43251,
+    "sha256": "9717f98ba170adccc64a995aa841805c194d9e40c3335e80350f914cc24a47dd"
+  },
+  {
+    "path": "linux/expopin-linux-consumer-qualified/frontend-proofs.json",
+    "bytes": 11989,
+    "sha256": "a174fdb04a0a5652baa53c0e3b4003cf607386c68f266602c0d0ba792740771e"
+  },
+  {
+    "path": "linux/expopin-linux-consumer-qualified/proofs.json",
+    "bytes": 6310,
+    "sha256": "7fcfb399e231ef50960a47b79f78f2714fd01b0cd0fe8c120efcfa3f7614e8d4"
+  },
+  {
+    "path": "linux/expopin-linux-consumer-qualified/starter-proofs.json",
+    "bytes": 21158,
+    "sha256": "416e2ae68f64209cabbd90fab2677d4dae81e9327f25426cfed81f0bcd6cbf11"
+  },
+  {
+    "path": "linux/expopin-linux-consumer-retry/consumer.json",
+    "bytes": 42831,
+    "sha256": "ad02cb6e14d37a84ab3cb73442a6da5bbab4f976322a77369c3a69be62b48364"
+  },
+  {
+    "path": "linux/expopin-linux-consumer-retry/frontend-proofs.json",
+    "bytes": 11547,
+    "sha256": "c50fd315e2b2189886bf364ba83e689f5b0a1579549c5a34aaee6dcf0f48bcce"
+  },
+  {
+    "path": "linux/expopin-linux-consumer-retry/proofs.json",
+    "bytes": 6310,
+    "sha256": "77ddaa1518bce9a5d9d73aaef9809d2518fe4506710693e9c5df623defa96b15"
+  },
+  {
+    "path": "linux/expopin-linux-consumer-retry/starter-proofs.json",
+    "bytes": 21202,
+    "sha256": "dd263b94ee36c2b2b715c0999ad06453e603ba58cdabfbc183c9e980aa779f88"
+  },
+  {
+    "path": "linux/guide-tests.log.gz",
+    "bytes": 4420,
+    "sha256": "6442819a70149d9843b71df96cacfa2221d5803770dbcb5f5a6556903f4e17a7"
+  },
+  {
+    "path": "linux/hardlink-tests.log.gz",
+    "bytes": 907,
+    "sha256": "b46971cfd3c40867b9ab42b7b12afffc25f5b28c5dbece9d80b1dd84927ebb34"
+  },
+  {
+    "path": "linux/init-pin-rerun.log.gz",
+    "bytes": 1737,
+    "sha256": "eda6bf2fcf5fdde83a82e10dedfd1d121ede97928babdcdb407f947ee5840106"
+  },
+  {
+    "path": "linux/init-tests.log.gz",
+    "bytes": 4356,
+    "sha256": "5bf9d811328305cb366a102af92666f74aad5188a55640181c0f2dab90c564e9"
+  },
+  {
+    "path": "linux/inventories.log.gz",
+    "bytes": 1344,
+    "sha256": "150d61ef421424f48e241ee21773a1f5adbe08e06c41d2b03e36ea7eb7ab2710"
+  },
+  {
+    "path": "linux/linux-build.log.gz",
+    "bytes": 4992,
+    "sha256": "1ec5733c8ee85048368b2bcbd34cf60e405a922153718a32a3d9bf1badc3557b"
+  },
+  {
+    "path": "linux/linux-rebuild.log.gz",
+    "bytes": 1566,
+    "sha256": "8a819fabd0bc7457a78485df32bed866c6da8b07d9bf48fc1c4a4e635bdc8200"
+  },
+  {
+    "path": "linux/models.log.gz",
+    "bytes": 6030,
+    "sha256": "ce3061094be025a35b5cd3126898776079559d5f2f60f2383202d4681f912ad3"
+  },
+  {
+    "path": "linux/npm-fresh.log.gz",
+    "bytes": 189,
+    "sha256": "ed6868afc858795b6b7dc65eb88ea701b7918fc703c314f252a462206ca7e7ed"
+  },
+  {
+    "path": "linux/prepare-final.log.gz",
+    "bytes": 2866,
+    "sha256": "40ac5ed78d268d76d889a2692bd78bcdcf56dce56bf06060ae6116cb9a01646f"
+  },
+  {
+    "path": "linux/prepare-hardlink.log.gz",
+    "bytes": 2866,
+    "sha256": "cc7b942a30e47ecffc228fe68d87e3204f7977e5b172013863944a3b922441ed"
+  },
+  {
+    "path": "linux/prepare-qualified.log.gz",
+    "bytes": 2871,
+    "sha256": "c97ba255280900fbff4c42db993d72945a54333d867f679bf5e983449d163355"
+  },
+  {
+    "path": "linux/prepare.log.gz",
+    "bytes": 2863,
+    "sha256": "f0a2d2724f21189f3eff443f7f5b43c8cd847f4492552c3e746ed43f6614f171"
+  },
+  {
+    "path": "linux/qualify-linux-final.log.gz",
+    "bytes": 3425,
+    "sha256": "35d33e0efd7b14cfb30edc575200af7abd74fed0fa98c8462911bd0cde43426e"
+  },
+  {
+    "path": "linux/qualify-linux-qualified.log.gz",
+    "bytes": 21844,
+    "sha256": "23505dd1e720e7fad0472e0b12f2f91716b90640792555bb5042d7a15590b86d"
+  },
+  {
+    "path": "linux/qualify-linux-retry.log.gz",
+    "bytes": 21905,
+    "sha256": "1e9695f5892d4b7a2fc8c0fe875b86159e837e524d44d60c518f6319abd206a3"
+  },
+  {
+    "path": "linux/ref-check-complete.log.gz",
+    "bytes": 117,
+    "sha256": "b661d0733b526f1957a8089aa708be4549f31a011af406371795abc9bab979cd"
+  },
+  {
+    "path": "linux/ref-check-final-records.log.gz",
+    "bytes": 122,
+    "sha256": "dd6f76c61d2c4986b20b8d8f12f80cefce89c1119663cecf82ae9f38b3e1d0b3"
+  },
+  {
+    "path": "linux/ref-check-final.log.gz",
+    "bytes": 114,
+    "sha256": "a86b92a39e127a356946e9c076c97c9fe9f217b949ce79d8cec6927054e63191"
+  },
+  {
+    "path": "linux/root-setup.log.gz",
+    "bytes": 517,
+    "sha256": "a1689ac65a3f8fad4efb3ae2ada58cc80d0dec2ca0d43c584f7e4572ac700581"
+  },
+  {
+    "path": "linux/routes-rerun.log.gz",
+    "bytes": 1316,
+    "sha256": "ea8f219b859e97e0e333718e20244f0da57fa1356bfe00e973868cae3973b8ba"
+  },
+  {
+    "path": "linux/witness-mock-rerun.log.gz",
+    "bytes": 792,
+    "sha256": "2bea1418296808dc8311276ac61bcee127305f57598d7fb072f58ba9ad0a7da1"
+  },
+  {
+    "path": "mac/constants-phase-audit.json",
+    "bytes": 3563,
+    "sha256": "d81fb1c2a78ff27cf644ce9537486882105d4f6f5155f982056ad2620ccf147a"
+  },
+  {
+    "path": "mac/expopin-mac-build.log.gz",
+    "bytes": 5254,
+    "sha256": "bf8995cba6f5eb3ed428fe16a59739a447f6543c1d58cfd6579798e9b9398f8c"
+  },
+  {
+    "path": "mac/expopin-mac-hardlink-tests.log.gz",
+    "bytes": 1451,
+    "sha256": "617162e9470ccb275ebefc493ce72b7dd2ed5372fb793d7b6daebbcdc769973a"
+  },
+  {
+    "path": "mac/expopin-mac-package-final.log.gz",
+    "bytes": 1842,
+    "sha256": "18fe9896e0ed8607fc85ab47b7c1e0dc033f40b266d21bc43937ac50015acac0"
+  },
+  {
+    "path": "mac/expopin-mac-package-final2.log.gz",
+    "bytes": 1456,
+    "sha256": "f1a6477a5a99246a56861f4de7180f07003a01c4c3fe4fe7bb40be3d37b71d1b"
+  },
+  {
+    "path": "mac/expopin-mac-package-final3.log.gz",
+    "bytes": 1447,
+    "sha256": "a263b4f6e66f93a1bf3d139242de1b94c1f7fcd35969aee1e64375816aca78ed"
+  },
+  {
+    "path": "mac/expopin-mac-package-tests.log.gz",
+    "bytes": 678,
+    "sha256": "f869963b83811435392fdb88809e5f30b7299ebb720d13fac2febe14ecd0356a"
+  },
+  {
+    "path": "mac/expopin-mac-root-install.log.gz",
+    "bytes": 228,
+    "sha256": "97180e1247f5d10c6586bde0c6261be6cfe7b4fefafa74555206b57e2e72a5da"
+  },
+  {
+    "path": "mac/expopin-mac-root-install2.log.gz",
+    "bytes": 530,
+    "sha256": "d4dd4124974d785fdbffda16f4b1cb053241886783d8247d126393a84a907b89"
+  },
+  {
+    "path": "mac/expopin-release270-attempt1.log.gz",
+    "bytes": 2102,
+    "sha256": "f5440c78e3488d8defb7da0c8107285de1b089e62f81de52ff17d9ace35e13dc"
+  },
+  {
+    "path": "mac/expopin-release270-attempt2.log.gz",
+    "bytes": 5565,
+    "sha256": "0944bfed1f50e2512d7db26925a2fff2bb47267d906b0cf7a95a5c4d2c1e15a4"
+  },
+  {
+    "path": "mac/expopin-release271-attempt1.log.gz",
+    "bytes": 2733,
+    "sha256": "c28a9faf135d78b6aca1766e8c5776564d18cd531c53004a76a56faaea962f83"
+  },
+  {
+    "path": "mac/expopin-release271-attempt2.log.gz",
+    "bytes": 2686,
+    "sha256": "4f51ce05e282c22c5ec887aa45da09d030c0eedf45984705173de8691cdd572d"
+  },
+  {
+    "path": "mac/expopin-release271-final.log.gz",
+    "bytes": 2649,
+    "sha256": "cd5aa22fe99c70494640a94b7ee7cbb6caabb4d5d7398201c72cf81e6d143f8c"
+  },
+  {
+    "path": "mac/expopin-social-smoke/build.json.gz",
+    "bytes": 7045482,
+    "sha256": "ad41dfc955b21799b3d497ae4ca85b59001e9decc49e0e08b98f1016d6a89a47"
+  },
+  {
+    "path": "mac/expopin-social-smoke/preparation-phases.json.gz",
+    "bytes": 2793,
+    "sha256": "c4f493689ff705a96b43e5951d6260fde9cd086367f6b10b0bd1cac071524d47"
+  },
+  {
+    "path": "mac/expopin-social-smoke/preparation-stderr.log.gz",
+    "bytes": 43,
+    "sha256": "0c49ecc9e7790025330ef23b8290fd49e6df5ceeccd4af92c7dae9ab29136092"
+  },
+  {
+    "path": "mac/expopin-social-smoke/smoke-ios-receipts.jsonl.gz",
+    "bytes": 1410,
+    "sha256": "2ba51279aacf36b9768100f2c13c5cac1000666b439edc58801b8a318b817cfa"
+  },
+  {
+    "path": "mac/expopin-social-smoke/smoke-ios-run.json.gz",
+    "bytes": 8900,
+    "sha256": "ee5b4e7f784a5960fc7bdd97bad202bd48dfd7e6b6481d2e92ade00d9584daef"
+  },
+  {
+    "path": "mac/expopin-starter-smoke/preparation-phases.json.gz",
+    "bytes": 2369,
+    "sha256": "fea62c5296fd5aad7330f47dbbc4550c30b18dc639dfa28926696a68dc5dd86f"
+  },
+  {
+    "path": "mac/expopin-starter-smoke/preparation-stderr.log.gz",
+    "bytes": 154,
+    "sha256": "c54f5cfaffe47acbdde56bf31ef2e2a06f46e095e6393949b41585ef601d9a85"
+  },
+  {
+    "path": "mac/expopin-starter-smoke/smoke-ios-run.json.gz",
+    "bytes": 530,
+    "sha256": "744521f730bcb68edc2392ad3470b9d875fea4661249a5762c1c30155e3aef99"
+  },
+  {
+    "path": "mac/expopin-starter-smoke2/build.json.gz",
+    "bytes": 5074383,
+    "sha256": "2a390459425c21c5d43e2bd86334ecbac2564bc75d509789e761933e06ff8f42"
+  },
+  {
+    "path": "mac/expopin-starter-smoke2/preparation-phases.json.gz",
+    "bytes": 2770,
+    "sha256": "b913de741db4ca2bea9411ce80726faa75e1c5ea5f3781ff2c49ab24400d8be9"
+  },
+  {
+    "path": "mac/expopin-starter-smoke2/preparation-stderr.log.gz",
+    "bytes": 43,
+    "sha256": "5861d2a9acca4a434713d0777dba77ab8303c3cb22dc8094c9cdc3e443c82132"
+  },
+  {
+    "path": "mac/expopin-starter-smoke2/smoke-ios-receipts.jsonl.gz",
+    "bytes": 1290,
+    "sha256": "e1072b861b9fa70672a46d5b6d0818a1eea24959ca311c4d7fec8a4d5a78741a"
+  },
+  {
+    "path": "mac/expopin-starter-smoke2/smoke-ios-run.json.gz",
+    "bytes": 7571,
+    "sha256": "b4af32716f01d75b9f49d5c4ea6a418c422031937b998233c135523a183b8456"
+  },
+  {
+    "path": "mac/expopin-witness270/offline-ios-receipts.jsonl.gz",
+    "bytes": 583,
+    "sha256": "0802cec9819c858ae5e7efe518f531899d29975f551ff8776b082bd49fd9bd59"
+  },
+  {
+    "path": "mac/expopin-witness270/offline-ios-run.json.gz",
+    "bytes": 1783,
+    "sha256": "09dd3966738e43d94bcca4ad350029825441f21bf225ddc13ff06932ea9dfea0"
+  },
+  {
+    "path": "mac/expopin-witness270/restart-ios-receipts.jsonl.gz",
+    "bytes": 624,
+    "sha256": "5be160060594cd74510aadf5e731f0c74e65adfa882e9e4eb237b6967a1e39c3"
+  },
+  {
+    "path": "mac/expopin-witness270/restart-ios-run.json.gz",
+    "bytes": 1822,
+    "sha256": "a91aa433ca3efd85d3fb10815bf8d7ecdf9a3d2e0e0216b3853d1abdd8a9bb83"
+  },
+  {
+    "path": "mac/expopin-witness270.log.gz",
+    "bytes": 460,
+    "sha256": "0e1b70fa021cfd57339790c74c4c658ddb48cb723a865dc7b1e135b08b628da4"
+  },
+  {
+    "path": "mac/expopin-witness271/offline-ios-receipts.jsonl.gz",
+    "bytes": 578,
+    "sha256": "6fffe9c350452df005289af650cf84f2149951f30a086e2e5a12e10f16e51121"
+  },
+  {
+    "path": "mac/expopin-witness271/offline-ios-run.json.gz",
+    "bytes": 1780,
+    "sha256": "e0eab1b6aa1ac9bdb3410a788ea723d5fd25824a2391c782a1fd8b53556f3538"
+  },
+  {
+    "path": "mac/expopin-witness271/restart-ios-receipts.jsonl.gz",
+    "bytes": 637,
+    "sha256": "ee8a1265385049ab21574db80bf1cc9bd6cd33b312e96fd5520be3c9c2e51ba5"
+  },
+  {
+    "path": "mac/expopin-witness271/restart-ios-run.json.gz",
+    "bytes": 1831,
+    "sha256": "01567e53bff4b3b869f9cd282d19f8d8cd096f50c1565f499e13adbd7d07ee72"
+  },
+  {
+    "path": "mac/expopin-witness271-clean/offline-ios-receipts.jsonl.gz",
+    "bytes": 589,
+    "sha256": "127084f1fa71e9253553a08b26ec6357c960a3d9f410528cffe6a3e838b93008"
+  },
+  {
+    "path": "mac/expopin-witness271-clean/offline-ios-run.json.gz",
+    "bytes": 1787,
+    "sha256": "e1d8784bbe98dacab0eed822b921e67ef5f5fc16137ecca02dbc57cc57681fb6"
+  },
+  {
+    "path": "mac/expopin-witness271-clean/restart-ios-receipts.jsonl.gz",
+    "bytes": 623,
+    "sha256": "275241115c797369f1180a572ae4aa7c37fda4ae1625c66b2293ca3cdc6737cd"
+  },
+  {
+    "path": "mac/expopin-witness271-clean/restart-ios-run.json.gz",
+    "bytes": 1828,
+    "sha256": "e29e775dcaa8350ef458e97b19ba2ffcc8d0c4ee77df1a2693447ed1f26a0dac"
+  },
+  {
+    "path": "mac/expopin-witness271-clean.log.gz",
+    "bytes": 468,
+    "sha256": "cf229ba5279bdcf81667c2c9fbb38db7e3150c203dd3a1d8c70b6d7d9f5d6057"
+  },
+  {
+    "path": "mac/expopin-witness271-final/offline-ios-run.json.gz",
+    "bytes": 347,
+    "sha256": "a0ebcd31946a1bfd3fbdc48920738518b2fdcab91772a36e6902eed5d1259e44"
+  },
+  {
+    "path": "mac/expopin-witness271-final.log.gz",
+    "bytes": 417,
+    "sha256": "13e00ce8bb1417b57b98aaaf4836d436f681827b1f0dfc12552048456510c2d3"
+  },
+  {
+    "path": "mac/expopin-witness271-retry/offline-ios-receipts.jsonl.gz",
+    "bytes": 582,
+    "sha256": "aa8edfd1dfe9d8e0793165053ebd390a261c622371858f4e68f3f3ddfd73217d"
+  },
+  {
+    "path": "mac/expopin-witness271-retry/offline-ios-run.json.gz",
+    "bytes": 1784,
+    "sha256": "5f79852ea45a55bb13217f3f3c31fb22affad2af05773612d5b517cf2a97e658"
+  },
+  {
+    "path": "mac/expopin-witness271-retry/restart-ios-receipts.jsonl.gz",
+    "bytes": 630,
+    "sha256": "1448fedb457db1d91809117bc845c35b04ad09e167aff02f03ae53d15738bbe7"
+  },
+  {
+    "path": "mac/expopin-witness271-retry/restart-ios-run.json.gz",
+    "bytes": 1884,
+    "sha256": "d7490abc926e81158488c3530b166d3462f27e795cfacaa36434d37ba4dc4dd0"
+  },
+  {
+    "path": "mac/expopin-witness271-retry.log.gz",
+    "bytes": 699,
+    "sha256": "4eadd2c66a59bc6ca56d9a03a956ecfaaa5262766b4297cb45714257b73f5a6c"
+  },
+  {
+    "path": "mac/expopin-witness271.log.gz",
+    "bytes": 459,
+    "sha256": "182be2229741b306bacc8679e787ffad7f4b765a76a3ea8eb95cbf8c93e9b90f"
+  },
+  {
+    "path": "mac/expopin-xcframework.log.gz",
+    "bytes": 1066,
+    "sha256": "2439ec4be28fc7703a7ffdae9930decb376a054d6fa1003ee20163b743587245"
+  },
+  {
+    "path": "mac/native-link-verification.json",
+    "bytes": 1115,
+    "sha256": "d275bf57c298748036c449dc64b4a58286d2017e179e3cdccbd258c24a9e68ee"
+  },
+  {
+    "path": "mac/package-tests-final.log.gz",
+    "bytes": 1773,
+    "sha256": "ab92665d6988dbf36049d40ead9ea4794931be31cc8d477807b13c90ba2fdf64"
+  },
+  {
+    "path": "mac/package-tests-provenance.json",
+    "bytes": 408,
+    "sha256": "060ff04978ee36d1f656d3a199e9aeeba52fe3b70c200541e97c93aa77a14c94"
+  },
+  {
+    "path": "mac/social-check.log.gz",
+    "bytes": 1671,
+    "sha256": "07070663c0ff176f4f5e78a0191f1f53abed60c1f029a2ef70eb3f58d053510a"
+  },
+  {
+    "path": "mac/social-init.log.gz",
+    "bytes": 654,
+    "sha256": "f75ab19fea6928d2f9ac59e888136b61fc12de32a95b3eddf162be590a31fc58"
+  },
+  {
+    "path": "mac/social-install.log.gz",
+    "bytes": 65,
+    "sha256": "f4a441312a2ddaa925fc4a17b683086bcab3ceb9461ea46e0764ea68e2ceb57d"
+  },
+  {
+    "path": "mac/social-smoke.log.gz",
+    "bytes": 354,
+    "sha256": "c20d8b3f9248af739f6e287494ad2ec859fe5c8a07aa5ddd4dfa56524b09da7c"
+  },
+  {
+    "path": "mac/social-typecheck.log.gz",
+    "bytes": 114,
+    "sha256": "6bf4b0fd2e6b11d967bf8bb95f5367c7ff1b9298d9a20dc66cc034b4590b64cb"
+  },
+  {
+    "path": "mac/social-web.log.gz",
+    "bytes": 755,
+    "sha256": "454fd31b94af996b64aad4408a4a2522612f6e61b014975bbe44cc490ea8d395"
+  },
+  {
+    "path": "mac/starter-check.log.gz",
+    "bytes": 165,
+    "sha256": "d59c344b73b30fe9506994ca9ad42da75829ae0d306bcb3b26b2ef8e494f0730"
+  },
+  {
+    "path": "mac/starter-init.log.gz",
+    "bytes": 617,
+    "sha256": "cdaee392966cd684adee06cf61a727daf3ab436dceceb11c70766b15ef8f8bd7"
+  },
+  {
+    "path": "mac/starter-install.log.gz",
+    "bytes": 67,
+    "sha256": "8e2e085a811aa49d2b5024e2c6180033f096386e5e804abbface897ee82b8dec"
+  },
+  {
+    "path": "mac/starter-smoke.log.gz",
+    "bytes": 308,
+    "sha256": "5544372f483d4b0c37a04584b1d5afb151ec445bb5282f1178f9898182c79fef"
+  },
+  {
+    "path": "mac/starter-smoke2.log.gz",
+    "bytes": 356,
+    "sha256": "e082c103189ee4ef459ec8bb7116a943c322619f28cca717c283737ec8495e9b"
+  },
+  {
+    "path": "mac/starter-typecheck.log.gz",
+    "bytes": 114,
+    "sha256": "404f3c03bdb7fe55c8fdf7a62b8359f9b63988f5941da5bd847d8e3e2f6a90bd"
+  },
+  {
+    "path": "mac/starter-web.log.gz",
+    "bytes": 329,
+    "sha256": "a9aff8d4db2123306be1c9e8d88c86c44f375568d01e3d5198662a4eb9b2ad0d"
+  },
+  {
+    "path": "mac/verification.json",
+    "bytes": 29959,
+    "sha256": "a9a89c1d49e5ba3a67ff05476831a27e9eb3953003de9855de2d3fb6df1309bf"
+  },
+  {
+    "path": "npm-metadata.json",
+    "bytes": 50368,
+    "sha256": "d956feaef0c21790fd64ba14c5dd2eeb20cd5c72d2bbd2b995001512f7f3a532"
+  },
+  {
+    "path": "prepare.json",
+    "bytes": 592,
+    "sha256": "3795462d1ed14676df52a7f9997bfb26a94d40a9ddcaf2e1018513a804e230f5"
+  },
+  {
+    "path": "upstream-jsi-cache-source.txt",
+    "bytes": 2807,
+    "sha256": "15b3149ba4d5b2873d05894fbb4bde44fd5b1f90a335077303782c29bc93ab80"
+  }
+]

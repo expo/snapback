@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fail, hash } from './payload.mjs';
 import { outputKey, validateBundlingSettings } from './native-closure.mjs';
 
-// Generated Expo 57.0.22 / CocoaPods 1.17 phases, with only the target name
+// Generated Expo 57.0.30 / CocoaPods 1.17 phases, with only the target name
 // normalized. Custom scripts can read arbitrary undeclared inputs: refuse them.
 const scripts = new Set([
   '49987658b902be328e98da33ba80b146e8dd84f15ed7afd45484b82fa0c00df8',

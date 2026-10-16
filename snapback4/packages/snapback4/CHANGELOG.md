@@ -16,6 +16,8 @@
 - Delete-action caps are required only when a declared source can delete the parent; dormant edges get a note. Required-cap rewrites explain the product limit and heap formula. Diagnostics distinguish statement position and atomic fanout, name nullable Boolean operands, preserve descending cursors, and show source-level sync/job/reference repairs. Cursor and ordered-delete notes recognize enforced whole-group bounds; long rule expansions abbreviate outside verbose/JSON.
 - Authorization recipes/refusal layers: RULES3 owns the related 0.4.30 changes.
 
+- Expo starters and snapback4-expo now use Expo 57.0.30 / expo-modules-core 57.0.23; the shared config plugin repairs ExpoModulesJSI cache invalidation when switching SDKs, and native preparation accepts Xcode 27.1 as well as 27.0 with matching iOS SDKs. Regenerate iOS and rebuild the native app after upgrading. Qualification records the producing Xcode build and iOS SDK.
+
 ## 0.4.29
 
 - CLI repairs: web-shell appears in help and accepts both help spellings without files or builds; retired init recipes explain --web/--expo and --template chat. witness web loads the optional playwright-core peer only when running, with an install command if missing. clock advance and reset discover the persisted dev's port, with --port overriding it. Starter frontend proofs refuse a one-port range before launching; day-two/backend-only proofs still accept one port. Implicit downgrade refusal now names the registry's version and installed version clearly.

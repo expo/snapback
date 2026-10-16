@@ -1,0 +1,13 @@
+muse: workspace root: /home/ccheever/projects/sb4-w13-expopin (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY — the code in the two commits is sound, but the objective's required validation is still incomplete.
+
+I reviewed the full diff from `6faa0fb9cd` read-only: the JSI patch lands inside `compute_hash()`'s hashed subshell ([build-xcframework.sh](/home/ccheever/projects/sb4-w13-expopin/snapback4/node_modules/expo-modules-jsi/apple/scripts/build-xcframework.sh:86)), the patched script is itself a hash input (`SOURCE_FILES`, line 77), so the "invalidates pre-patch slices once" claim holds; the anchor check correctly refuses zero/nonunique matches and is idempotent via the marker in [plugin.cjs](/home/ccheever/projects/sb4-w13-expopin/snapback4/packages/snapback4-expo/plugin.cjs:45); the Xcode gate requires matched 27.0/27.1 pairs in [prepare.mjs](/home/ccheever/projects/sb4-w13-expopin/snapback4/crates/snapback4/src/verbs/witness/prepare.mjs:141); pins are consistent everywhere (Expo 57.0.30 satisfies the `>=57.0.30 <58` peer, Babel 57.0.16 and fingerprint 0.20.14 match expo 57.0.30's transitive ranges); provenance writers are untouched; no stale pins remain. No code changes requested.
+
+Material blockers (validation, not code):
+
+- Fresh-starter proof on Xcode 27.1 is pending. Needed: from a clean tree on 27.1, generate both starters (`init --expo`, plain and social/chat), cold-install, iOS prebuild, then Release build plus offline-and-restart witness, confirming the cache patch applies and the receipt records build 27A9275.
+- Return-to-27.1 control is pending. Needed: after the 27.0 detour, a fresh 27.1 prebuild and Release run proving the patched key correctly invalidates the 27.0 JSI slice in both directions (no `__ObjC::expo`, no stale-slice reuse).
+- Full client pool and guide checks are still running. Needed: a completed green run, since this diff touches starter output, guide prose, and the `witness` card assertion.
+
+Not blocking: scheduled publication and final report assembly, per instructions.

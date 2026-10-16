@@ -244,7 +244,7 @@ test('preparation rejects wrong HBC versions and escaping outputs before issuing
     write(path.join(project, 'javascript.txt'), 'A');
     write(path.join(project, 'app.json'), { expo: { newArchEnabled: true } });
     write(path.join(project, 'package-lock.json'), { packages: {} });
-    for (const [name, version] of Object.entries({ expo: '57.0.22', 'react-native': '0.86.3', '@expo/fingerprint': '0.20.13', 'hermes-compiler': 'test' })) {
+    for (const [name, version] of Object.entries({ expo: '57.0.30', 'react-native': '0.86.3', '@expo/fingerprint': '0.20.14', 'hermes-compiler': 'test' })) {
       write(path.join(project, 'node_modules', name, 'package.json'), { version, bin: 'cli.js' });
     }
     write(path.join(project, 'node_modules/hermes-compiler/hermesc/osx-bin/hermesc'), 'compiler');
@@ -591,6 +591,10 @@ test('Expo dSYM phases admit hoisted and nested npm layouts but reject custom sc
       phase: { isa: 'PBXShellScriptBuildPhase', shellPath: '/bin/sh', name: 'Resolve dSYM' } } };
     const settings = { TARGET_BUILD_DIR: cache, TARGET_TEMP_DIR: cache, OBJROOT: cache, SYMROOT: cache, SRCROOT: dir };
     const audit = () => auditNativeProject(graph, dir, [{ target: 'Pod', buildSettings: settings }], root, cache, [], 'App');
+    graph.objects.phase.shellScript = "bash -l -c \"\\\"$PODS_TARGET_SRCROOT/../scripts/get-app-config-ios.sh\\\"\"";
+    assert.equal(audit().phases.length, 1, 'Expo 57.0.30 nested Constants manifest phase');
+    graph.objects.phase.shellScript += '\ncat /external/file\n';
+    assert.throws(audit, /unsupported native script/);
     for (const [module, pkg] of [['ExpoFont', 'expo-font'], ['ExpoFileSystem', 'expo-file-system']]) {
       const script = fixture.replaceAll('ExpoFont', module).replaceAll('expo-font', pkg);
       for (const source of [script, script.replaceAll('expo/node_modules/', '')]) {

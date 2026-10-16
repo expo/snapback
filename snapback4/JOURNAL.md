@@ -96068,3 +96068,60 @@ A proven fresh unused component of an upsert's unique identity establishes an
 insert-only operation. Its initial immutable values stay quiet, including a
 second minted id and creation clock. Ordinary insert constraints still apply;
 a write or opaque effect after the capture prevents claiming this absence.
+
+## 2026-10-16 — EXPOPIN: refresh the SDK 57 toolchain for Xcode 27.1
+
+The reference Expo app owns the plain/chat/social manifests, now on Expo
+57.0.30/core 57.0.23, RN 0.86.3, Babel 57.0.16 and fingerprint 0.20.14.
+The native package declares the qualified SDK 57 peer floor; SDK 58's new RN
+is a separate migration. Keep the published scene plugin across all starters.
+The preparation adapter admits matched Xcode/SDK 27.0 and 27.1 and continues
+recording installed-product provenance. On the M5 scratch clone the updated
+reference Release app builds with default precompiled Expo modules on Xcode
+27.1 (27A9275); full native/starter and older-Xcode controls follow in the
+EXPOPIN report. Version remains 0.4.29 for Integration 14 to cut 0.4.30.
+No publication tree, older Xcode installation, version, or remote branch is changed.
+
+### EXPOPIN SDK-switch control
+
+The first updated dependency tree passes the installed native witness on an
+owned iOS 27.1 simulator (offline and restart, 27.920 s total; installed product
+reports Xcode build 27A9275 / iphonesimulator27.1). Reusing its JSI slice under
+27.0 reproduces `__ObjC::expo`. Extend the same published config plugin with
+an idempotent prebuild patch that adds Xcode's build identity to JSI's existing
+source/Swift hash (expo/expo#50365). Unknown upstream script forms refuse.
+The scene fixture now keeps dependency copies private and executes the real
+upstream hash function: equal Swift strings and different Xcode builds must
+produce distinct keys. This is a cache identity repair, with no interop-mode
+or native module API change.
+
+### EXPOPIN cold npm preparation
+
+A fresh npm-installed plain starter exposed one changed SDK 57.0.30 Constants
+manifest build phase in the bounded native audit. Admit only its measured hash,
+with a regression that still rejects appended custom shell code. The first
+private Release attempt refused before compilation as designed; the next uses
+that exact phase. Correct the cache regression's empty-array fixture for the
+Mac's Bash 3 (upstream's real source arrays were already nonempty). Mac package
+and preparation regressions now pass 22/22; Linux regressions also pass.
+
+### EXPOPIN shared package-cache custody
+
+The installed Linux JSI script has two hardlinks; truncating it would mutate
+Bun's shared cached inode. Change the patch writer to a same-directory temporary
+file and atomic rename, preserving its mode. The generated script bytes and
+Xcode hash semantics stay identical. The prebuild regression now creates a
+hardlinked cache alias and requires its bytes to remain original after patching.
+The Mac's installed script has one link; earlier Mac runs did not share that inode.
+
+### EXPOPIN final consumer snapshot and legacy scene fixture
+
+The 2cd9965ef6 prepared client/Expo artifacts pass consumer-only Linux
+qualification: all twelve loaded-host frontend proofs, all six starters and
+both clean distributions. This is not a publication receipt. The canonical
+client pool then exposes the old scene-only VM fixture's missing
+withDangerousMod registration stub. Keep that fixture focused on scene
+callbacks, using real Node builtins, and require the iOS cache-mod callback to
+register. Its isolated rerun passes all eight cases; the actual cache mod is
+covered by real prebuild/hardlink tests on both OSes. No published package
+bytes change in this fixture-only followup.

@@ -2916,8 +2916,8 @@ step.
   again after merging a starter. The default writes the local-first todo schema and `.gitignore`; `--online`
   adds an online client, package.json and README. `--expo` copies the chat starter with its backend,
   invitation worker, screens, secure session store and native/online tier selection. Its toolchain matches the
-  reference app: Expo **57.0.22**, React Native **0.86.3**, React **19.2.3**, expo-sqlite **57.0.3**,
-  babel-preset-expo **57.0.11**. Keep Expo and its Babel preset on the same major; a mismatch can leave
+  reference app: Expo **57.0.30**, React Native **0.86.3**, React **19.2.3**, expo-sqlite **57.0.3**,
+  babel-preset-expo **57.0.16**. Keep `snapback4-expo/plugin`: it adopts UIScene and binds the ExpoModulesJSI slice cache to Xcode (SDK-switch failure: [expo/expo#50365](https://github.com/expo/expo/issues/50365)). After dependency upgrades, regenerate iOS and rebuild. Keep Expo and its Babel preset on the same major; a mismatch can leave
   private fields in the bundle that Hermes cannot compile. The generated README gives the install and run
   commands. For Following, declare `maintain feed: timeline` before adding
   events or edges; `guide feeds` has the complete program.

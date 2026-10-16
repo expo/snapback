@@ -1,0 +1,11 @@
+{
+  "source": "526e4042ce",
+  "host": "charlies-macbook-pro-m5max-black",
+  "node": "v24.13.1",
+  "command": "node --test packages/snapback4/test/expo-*.test.mjs packages/snapback4/test/witness-preparation.test.mjs packages/snapback4/test/witness.test.mjs",
+  "exitStatus": 0,
+  "tests": 30,
+  "passed": 30,
+  "skipped": 0,
+  "logSha256": "6ecff5971780a808bf931783834cb4b8a263e92cf4f8a718392ba45ca025fa71"
+}

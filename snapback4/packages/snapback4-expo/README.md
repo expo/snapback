@@ -31,9 +31,16 @@ SQLite and the native-query Wasm host. The earlier module measured 1.7 MB
 linked and about a millisecond per call; those measurements predate the
 native-query host.
 
-The pinned Expo 57.0.22 apps list `snapback4-expo/plugin` in app.json's
+The pinned Expo 57.0.30 apps list `snapback4-expo/plugin` in app.json's
 `plugins`. Keep that entry when generating iOS: it supplies the scene lifecycle
 required by Xcode 27, shared by the reference chat app and both starters.
+It also adds the selected Xcode build to ExpoModulesJSI's slice-cache key:
+27.0 and 27.1 can share a Swift compiler version but require different SDK
+modules ([upstream issue](https://github.com/expo/expo/issues/50365)).
+The patch is idempotent, applies during iOS prebuild, and refuses an unknown
+upstream script instead of silently leaving an incompatible cache. Regenerate
+iOS after installing/upgrading dependencies or changing Xcode; direct native
+builds then invalidate the patched cache when the selected Xcode changes.
 After adding it, run `npx expo prebuild --platform ios`, rebuild Release and
 reinstall. Preserve custom native changes when regenerating; the plugin handles
 the standard Swift starter and refuses custom delegates/manifests.

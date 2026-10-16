@@ -16,7 +16,7 @@ test('effective prebuild fingerprints project-relative shadows and automatically
   const root = fs.mkdtempSync(path.join(workspace, 'target/nx-effective-test-'));
   const put = (file, value) => { file = path.join(root, file); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, value); };
   try {
-    put('package.json', JSON.stringify({ name: 'fixture', version: '1.0.0', dependencies: { expo: '57.0.22' } }));
+    put('package.json', JSON.stringify({ name: 'fixture', version: '1.0.0', dependencies: { expo: '57.0.30' } }));
     put('app.json', JSON.stringify({ expo: { name: 'Fixture', slug: 'fixture', plugins: ['expo-status-bar'], ios: { bundleIdentifier: 'test.fixture' } } }));
     put('src/native-mode.js', 'first');
     const plugin = `module.exports = config => { config.ios ??= {}; config.ios.infoPlist ??= {}; config.ios.infoPlist.NXNativeMode = require('fs').readFileSync(require('path').join(config._internal.projectRoot,'src/native-mode.js'),'utf8'); return config };`;
@@ -62,7 +62,7 @@ test('local plugin resolution, preparation-context reads, late mods, URI resourc
   const put = (file, value) => { file = path.join(root, file); fs.mkdirSync(path.dirname(file), { recursive: true }); fs.writeFileSync(file, value); };
   const app = { expo: { name: 'Fixture', slug: 'fixture', plugins: ['./x.js'], ios: { bundleIdentifier: 'test.fixture' } } };
   try {
-    put('package.json', JSON.stringify({ name: 'fixture', version: '1.0.0', dependencies: { expo: '57.0.22' } }));
+    put('package.json', JSON.stringify({ name: 'fixture', version: '1.0.0', dependencies: { expo: '57.0.30' } }));
     put('app.json', JSON.stringify(app));
     const plugin = `module.exports = c => { const fs=require('fs'),p=require('path'); if(fs.existsSync(p.join(c._internal.projectRoot,'ios'))) {c.ios.infoPlist??={};c.ios.infoPlist.NXNativeMode=fs.readFileSync(p.join(c._internal.projectRoot,'src/native-mode.js'),'utf8')} return c };`;
     for (const reference of ['./x.js', 'plugins/x.js', 'expo-status-bar']) {

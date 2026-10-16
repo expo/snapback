@@ -61,7 +61,7 @@ fn init_merges_packages_and_preserves_unrelated_metadata() {
         assert_eq!(after["dependencies"]["unrelated"], "1");
         assert_eq!(after["devDependencies"]["my-tool"], "2");
         assert_eq!(after["scripts"]["test"], "my-tests");
-        if flag == "--expo" { assert_eq!(after["scripts"]["start"], "node scripts/launch.mjs expo"); assert_eq!(after["devDependencies"]["babel-preset-expo"], "57.0.11"); }
+        if flag == "--expo" { assert_eq!(after["scripts"]["start"], "node scripts/launch.mjs expo"); assert_eq!(after["devDependencies"]["babel-preset-expo"], "57.0.16"); }
         assert!(dir.0.join("snapback/schema.q").exists());
         if flag == "--expo" { assert!(dir.0.join("expo-env.d.ts").is_file(), "Expo's types declare process.env for the starter's typecheck"); }
         if flag == "--expo" && chat {
@@ -581,7 +581,7 @@ fn expo_starters_pave_native_smoke_and_export_at_every_milestone() {
         let package: Value = serde_json::from_slice(&fs::read(root.join("package.json")).unwrap()).unwrap();
         assert_eq!(package["scripts"]["native:smoke"], "node scripts/launch.mjs native-smoke");
         assert_eq!(package["scripts"]["export:ios"], "snapback4-export-ios");
-        assert_eq!(package["devDependencies"]["@expo/fingerprint"], "0.20.13");
+        assert_eq!(package["devDependencies"]["@expo/fingerprint"], "0.20.14");
         let config: Value = serde_json::from_slice(&fs::read(root.join("app.json")).unwrap()).unwrap();
         assert_eq!(config["expo"]["newArchEnabled"], true);
         assert!(config["expo"]["plugins"].as_array().unwrap().contains(&json!("snapback4-expo/plugin")));

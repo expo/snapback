@@ -1,0 +1,66 @@
+npm package: expo-modules-jsi@57.1.2
+gitHead: 58da4edafcb043872c3ed9bf8f5957e6544d0a9c
+source: apple/scripts/build-xcframework.sh
+full source SHA-256: 8f3ed615b7024f8026847316d22989796c145a998b2dcda1216c8df68efbe55c
+
+65: log() {
+66:   echo -e "${BLUE}[${PACKAGE_NAME}]${RESET} $1"
+67: }
+68:
+69: # Directories and files that affect the build output.
+70: SOURCE_DIRS=(
+71:   "${PACKAGE_DIR}/Sources/ExpoModulesJSI"
+72:   "${PACKAGE_DIR}/Sources/ExpoModulesJSI-Cxx"
+73:   "${PACKAGE_DIR}/APINotes"
+74: )
+75: SOURCE_FILES=(
+76:   "${PACKAGE_DIR}/Package.swift"
+77:   "${PACKAGE_DIR}/scripts/build-xcframework.sh"
+78:   "${PACKAGE_DIR}/scripts/create-stub-xcframework.sh"
+79:   "${PACKAGE_DIR}/scripts/xcframework-helpers.sh"
+80:   # JSI headers we compile against. `cat` follows the symlinks CocoaPods
+81:   # installs into Pods/Headers/Public so the real header contents get hashed.
+82:   "${PODS_ROOT}/Headers/Public/React-jsi/jsi/jsi.h"
+83:   "${PODS_ROOT}/Headers/Public/React-jsi/jsi/jsi-inl.h"
+84: )
+85:
+86: compute_hash() {
+87:   local all_files
+88:   all_files=$(
+89:     for dir in "${SOURCE_DIRS[@]}"; do
+90:       find "$dir" -type f
+91:     done
+92:     for file in "${SOURCE_FILES[@]}"; do
+93:       [[ -f "$file" ]] && echo "$file"
+94:     done
+95:   )
+96:   # Force C locale so sort order is consistent regardless of the environment.
+97:   # Xcode build phases run without locale variables, which changes sort ordering.
+98:   (
+99:     # Include PODS_ROOT and RN_ROOT so switching between worktrees or RN
+100:     # sources invalidates the cache.
+101:     echo "PODS_ROOT=${PODS_ROOT:-}"
+102:     echo "RN_ROOT=${RN_ROOT:-}"
+103:     # Include the Swift toolchain version so upgrading Xcode invalidates the
+104:     # cache. A slice's .swiftmodule and Clang module cache are tied to the
+105:     # compiler that produced them; reusing a slice built by an older toolchain
+106:     # after an Xcode upgrade surfaces as spurious compile errors that look like
+107:     # source problems. swiftc --version reports the swiftlang/clang tags and the
+108:     # target triple, so any toolchain change forces a clean rebuild.
+109:     echo "TOOLCHAIN_VERSION=$(xcrun swiftc --version 2>/dev/null || true)"
+110:     echo "$all_files" | LC_ALL=C sort | while IFS= read -r file; do
+111:       echo "$file"
+112:       cat "$file"
+113:     done
+114:   ) | shasum -a 256 | cut -d' ' -f1
+115: }
+116:
+117: # Resolves the xcodebuild destination for a given platform name.
+118: platform_destination() {
+119:   case "$1" in
+120:     iphoneos)         echo "iOS" ;;
+121:     iphonesimulator)  echo "iOS Simulator" ;;
+122:     appletvos)        echo "tvOS" ;;
+123:     appletvsimulator) echo "tvOS Simulator" ;;
+124:     macosx)           echo "macOS" ;;
+125:     maccatalyst)      echo "macOS,variant=Mac Catalyst" ;;

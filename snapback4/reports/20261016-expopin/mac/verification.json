@@ -1,0 +1,867 @@
+{
+  "source": "d21839d9d7d97add13c0c3dc5a844f81f8ff1fc9",
+  "host": "Charlies-MacBook-Pro-M5Max-Black.local",
+  "runs": {
+    "expopin-witness271/restart-ios-run.json": {
+      "exitStatus": 0,
+      "error": null,
+      "proofKind": "installed-application",
+      "durationMs": 16099,
+      "xcodeBuild": "27A9275",
+      "iosSdkVersion": "27.1",
+      "toolchainSource": "installed Info.plist; absent values are unknown",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-1",
+      "segment": "restart",
+      "segments": null,
+      "bundleId": "dev.snapback4.chat",
+      "receiptSha256": "0b2e0cd56b18a695059c22f98f03f4d2a638b733d2003b688862b8df8aee73ea"
+    },
+    "expopin-witness271/offline-ios-run.json": {
+      "exitStatus": 0,
+      "error": null,
+      "proofKind": "installed-application",
+      "durationMs": 11791,
+      "xcodeBuild": "27A9275",
+      "iosSdkVersion": "27.1",
+      "toolchainSource": "installed Info.plist; absent values are unknown",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-1",
+      "segment": "offline",
+      "segments": null,
+      "bundleId": "dev.snapback4.chat",
+      "receiptSha256": "da1c331ce1d6c55fc13baead4381f54a111f1a711192af5bffe288707e23e7c1"
+    },
+    "expopin-witness270/restart-ios-run.json": {
+      "exitStatus": 0,
+      "error": null,
+      "proofKind": "installed-application",
+      "durationMs": 16434,
+      "xcodeBuild": "27A266a",
+      "iosSdkVersion": "27.0",
+      "toolchainSource": "installed Info.plist; absent values are unknown",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-1",
+      "segment": "restart",
+      "segments": null,
+      "bundleId": "dev.snapback4.chat",
+      "receiptSha256": "31de3bec2e67edb9e931980c295b6b042aa607f409b5d4f1e53ad3980a34989e"
+    },
+    "expopin-witness270/offline-ios-run.json": {
+      "exitStatus": 0,
+      "error": null,
+      "proofKind": "installed-application",
+      "durationMs": 10861,
+      "xcodeBuild": "27A266a",
+      "iosSdkVersion": "27.0",
+      "toolchainSource": "installed Info.plist; absent values are unknown",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-1",
+      "segment": "offline",
+      "segments": null,
+      "bundleId": "dev.snapback4.chat",
+      "receiptSha256": "3dc7bbd33ba3b9fcc3a086bb57b641abf650923f2e5af2312ff9c3be5601047f"
+    },
+    "expopin-witness271-final/offline-ios-run.json": {
+      "exitStatus": 1,
+      "error": "E_WITNESS_PROCESS: another witness holds the --udid lease; leaving it untouched",
+      "proofKind": null,
+      "durationMs": null,
+      "xcodeBuild": "27A9275",
+      "iosSdkVersion": "27.1",
+      "toolchainSource": "selected host; no installed product inspected",
+      "runtime": null,
+      "segment": "offline",
+      "segments": null,
+      "bundleId": "dev.snapback4.chat",
+      "receiptSha256": "3c195b88f0e6bf42276372e5924c26b68aca57e0ffe00ea993ba065c262f10d2"
+    },
+    "expopin-witness271-retry/restart-ios-run.json": {
+      "exitStatus": 1,
+      "error": "E_WITNESS_PROCESS: owned process did not stop within 10 seconds; killed it",
+      "proofKind": "installed-application",
+      "durationMs": 25437,
+      "xcodeBuild": "27A9275",
+      "iosSdkVersion": "27.1",
+      "toolchainSource": "installed Info.plist; absent values are unknown",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-1",
+      "segment": "restart",
+      "segments": null,
+      "bundleId": "dev.snapback4.chat",
+      "receiptSha256": "f5a8f0f02b55e9467fc0bc70fc8e5e288ff14461e0b6307b758be19eaedbe1df"
+    },
+    "expopin-witness271-retry/offline-ios-run.json": {
+      "exitStatus": 0,
+      "error": null,
+      "proofKind": "installed-application",
+      "durationMs": 15838,
+      "xcodeBuild": "27A9275",
+      "iosSdkVersion": "27.1",
+      "toolchainSource": "installed Info.plist; absent values are unknown",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-1",
+      "segment": "offline",
+      "segments": null,
+      "bundleId": "dev.snapback4.chat",
+      "receiptSha256": "f236862d8b6f55361d09f5cd0e14c020b9b69bdbab7eab827867038e0aca3ef9"
+    },
+    "expopin-witness271-clean/restart-ios-run.json": {
+      "exitStatus": 0,
+      "error": null,
+      "proofKind": "installed-application",
+      "durationMs": 17342,
+      "xcodeBuild": "27A9275",
+      "iosSdkVersion": "27.1",
+      "toolchainSource": "installed Info.plist; absent values are unknown",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-1",
+      "segment": "restart",
+      "segments": null,
+      "bundleId": "dev.snapback4.chat",
+      "receiptSha256": "c388253a459a2a8f07b2598b8bbe790dd15919e48058b215661ee590a8de0298"
+    },
+    "expopin-witness271-clean/offline-ios-run.json": {
+      "exitStatus": 0,
+      "error": null,
+      "proofKind": "installed-application",
+      "durationMs": 14862,
+      "xcodeBuild": "27A9275",
+      "iosSdkVersion": "27.1",
+      "toolchainSource": "installed Info.plist; absent values are unknown",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-1",
+      "segment": "offline",
+      "segments": null,
+      "bundleId": "dev.snapback4.chat",
+      "receiptSha256": "a52e542af7a033bcdf48ea89db21a76fde2a85d3b639522f86e2508e64299e99"
+    },
+    "expopin-starter-smoke/smoke-ios-run.json": {
+      "exitStatus": 1,
+      "error": "E_WITNESS_NATIVE_COMPAT: --build has unsupported native inputs; see the command's own raw log path: /Users/ccheever/projects/snapback-ws-expopin/snapback4/target/expopin-starter-smoke/preparation-stderr.log",
+      "proofKind": null,
+      "durationMs": null,
+      "xcodeBuild": "27A9275",
+      "iosSdkVersion": "27.1",
+      "toolchainSource": "selected host; no installed product inspected",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-1",
+      "segment": "smoke",
+      "segments": null,
+      "bundleId": "",
+      "receiptSha256": "0ceae67c8cecd005ff175a91c8024c149e418acf47eeb61c5e69a85422bda82c"
+    },
+    "expopin-starter-smoke2/smoke-ios-run.json": {
+      "exitStatus": 0,
+      "error": null,
+      "proofKind": "application-release",
+      "durationMs": 128084,
+      "xcodeBuild": "27A9275",
+      "iosSdkVersion": "27.1",
+      "toolchainSource": "installed Info.plist; absent values are unknown",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-1",
+      "segment": "smoke",
+      "segments": {
+        "offline": {
+          "durationMs": 3149,
+          "endedAt": 1792164135828,
+          "error": null,
+          "receipt": {
+            "acquired": true,
+            "assets": {
+              "reason": "generic smoke checks acquisition and queries; an application witness must record useAsset states and native media load/error events",
+              "state": "not-exercised"
+            },
+            "backendRequired": false,
+            "durationMs": 156,
+            "endedAt": 1792164134339,
+            "errors": [],
+            "generation": 1,
+            "link": "offline",
+            "origin": "http://127.0.0.1:56829",
+            "pass": true,
+            "queries": [
+              {
+                "classification": "device-answerable",
+                "complete": true,
+                "count": 0,
+                "cut": null,
+                "fresh": false,
+                "name": "list",
+                "state": "ready"
+              }
+            ],
+            "queryFacts": {
+              "list": {
+                "held": false,
+                "runs": "device"
+              }
+            },
+            "queryGeneration": 1,
+            "rows": {
+              "todos": 0
+            },
+            "segment": "offline",
+            "startedAt": 1792164134183,
+            "storeId": "1c6d4e208a262230f50db044b5319010",
+            "viewer": "guest:01M52MWW10FBRJZ86X4SZBFRM7",
+            "watermark": 0
+          },
+          "receipts": [
+            {
+              "acquired": true,
+              "assets": {
+                "reason": "generic smoke checks acquisition and queries; an application witness must record useAsset states and native media load/error events",
+                "state": "not-exercised"
+              },
+              "backendRequired": false,
+              "durationMs": 156,
+              "endedAt": 1792164134339,
+              "errors": [],
+              "generation": 1,
+              "link": "offline",
+              "origin": "http://127.0.0.1:56829",
+              "pass": true,
+              "queries": [
+                {
+                  "classification": "device-answerable",
+                  "complete": true,
+                  "count": 0,
+                  "cut": null,
+                  "fresh": false,
+                  "name": "list",
+                  "state": "ready"
+                }
+              ],
+              "queryFacts": {
+                "list": {
+                  "held": false,
+                  "runs": "device"
+                }
+              },
+              "queryGeneration": 1,
+              "rows": {
+                "todos": 0
+              },
+              "segment": "offline",
+              "startedAt": 1792164134183,
+              "storeId": "1c6d4e208a262230f50db044b5319010",
+              "viewer": "guest:01M52MWW10FBRJZ86X4SZBFRM7",
+              "watermark": 0
+            }
+          ],
+          "startedAt": 1792164132679,
+          "status": "passed"
+        },
+        "prime": {
+          "durationMs": 3295,
+          "endedAt": 1792164132564,
+          "error": null,
+          "receipt": {
+            "acquired": true,
+            "assets": {
+              "reason": "generic smoke checks acquisition and queries; an application witness must record useAsset states and native media load/error events",
+              "state": "not-exercised"
+            },
+            "backendRequired": false,
+            "durationMs": 191,
+            "endedAt": 1792164131006,
+            "errors": [],
+            "generation": 1,
+            "link": "online",
+            "origin": "http://127.0.0.1:56829",
+            "pass": true,
+            "queries": [],
+            "queryFacts": {
+              "list": {
+                "held": false,
+                "runs": "device"
+              }
+            },
+            "queryGeneration": 1,
+            "rows": {
+              "todos": 0
+            },
+            "segment": "prime",
+            "startedAt": 1792164130815,
+            "storeId": "1c6d4e208a262230f50db044b5319010",
+            "viewer": "guest:01M52MWW10FBRJZ86X4SZBFRM7",
+            "watermark": 0
+          },
+          "receipts": [
+            {
+              "acquired": true,
+              "assets": {
+                "reason": "generic smoke checks acquisition and queries; an application witness must record useAsset states and native media load/error events",
+                "state": "not-exercised"
+              },
+              "backendRequired": false,
+              "durationMs": 191,
+              "endedAt": 1792164131006,
+              "errors": [],
+              "generation": 1,
+              "link": "online",
+              "origin": "http://127.0.0.1:56829",
+              "pass": true,
+              "queries": [],
+              "queryFacts": {
+                "list": {
+                  "held": false,
+                  "runs": "device"
+                }
+              },
+              "queryGeneration": 1,
+              "rows": {
+                "todos": 0
+              },
+              "segment": "prime",
+              "startedAt": 1792164130815,
+              "storeId": "1c6d4e208a262230f50db044b5319010",
+              "viewer": "guest:01M52MWW10FBRJZ86X4SZBFRM7",
+              "watermark": 0
+            }
+          ],
+          "startedAt": 1792164129269,
+          "status": "passed"
+        },
+        "restart": {
+          "durationMs": 3090,
+          "endedAt": 1792164139038,
+          "error": null,
+          "receipt": {
+            "acquired": true,
+            "assets": {
+              "reason": "generic smoke checks acquisition and queries; an application witness must record useAsset states and native media load/error events",
+              "state": "not-exercised"
+            },
+            "backendRequired": false,
+            "barrierSeq": 1,
+            "durationMs": 172,
+            "endedAt": 1792164137573,
+            "errors": [],
+            "generation": 1,
+            "link": "online",
+            "origin": "http://127.0.0.1:56829",
+            "pass": true,
+            "queries": [],
+            "queryFacts": {
+              "list": {
+                "held": false,
+                "runs": "device"
+              }
+            },
+            "queryGeneration": 1,
+            "rows": {
+              "todos": 0
+            },
+            "segment": "restart",
+            "startedAt": 1792164137401,
+            "storeId": "1c6d4e208a262230f50db044b5319010",
+            "viewer": "guest:01M52MWW10FBRJZ86X4SZBFRM7",
+            "watermark": 1
+          },
+          "receipts": [
+            {
+              "acquired": true,
+              "assets": {
+                "reason": "generic smoke checks acquisition and queries; an application witness must record useAsset states and native media load/error events",
+                "state": "not-exercised"
+              },
+              "backendRequired": false,
+              "barrierSeq": 1,
+              "durationMs": 172,
+              "endedAt": 1792164137573,
+              "errors": [],
+              "generation": 1,
+              "link": "online",
+              "origin": "http://127.0.0.1:56829",
+              "pass": true,
+              "queries": [],
+              "queryFacts": {
+                "list": {
+                  "held": false,
+                  "runs": "device"
+                }
+              },
+              "queryGeneration": 1,
+              "rows": {
+                "todos": 0
+              },
+              "segment": "restart",
+              "startedAt": 1792164137401,
+              "storeId": "1c6d4e208a262230f50db044b5319010",
+              "viewer": "guest:01M52MWW10FBRJZ86X4SZBFRM7",
+              "watermark": 1
+            }
+          ],
+          "startedAt": 1792164135948,
+          "status": "passed"
+        }
+      },
+      "bundleId": "dev.snapback4.starter",
+      "receiptSha256": "31d904d3eefb250162447790da3ad3b66ed7abaed686522aea93b1e15c269773"
+    },
+    "expopin-starter-smoke2/build.json": {
+      "proofKind": "application-release",
+      "durationMs": 108937,
+      "toolchain": {
+        "node": "v24.13.1",
+        "xcode": "Xcode 27.1\nBuild version 27A9275",
+        "sdk": "27.1",
+        "sdkBuild": "24A94232",
+        "pod": "1.17.0",
+        "runtime": [
+          {
+            "identifier": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+            "version": "26.5",
+            "buildversion": "23F77"
+          },
+          {
+            "identifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+            "version": "27.0",
+            "buildversion": "24A434"
+          },
+          {
+            "identifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-1",
+            "version": "27.1",
+            "buildversion": "24A94401"
+          },
+          {
+            "identifier": "com.apple.CoreSimulator.SimRuntime.tvOS-27-0",
+            "version": "27.0",
+            "buildversion": "24J360"
+          }
+        ],
+        "architecture": "arm64"
+      }
+    },
+    "expopin-social-smoke/smoke-ios-run.json": {
+      "exitStatus": 0,
+      "error": null,
+      "proofKind": "application-release",
+      "durationMs": 223792,
+      "xcodeBuild": "27A9275",
+      "iosSdkVersion": "27.1",
+      "toolchainSource": "installed Info.plist; absent values are unknown",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-1",
+      "segment": "smoke",
+      "segments": {
+        "offline": {
+          "durationMs": 4400,
+          "endedAt": 1792164377610,
+          "error": null,
+          "receipt": {
+            "acquired": true,
+            "assets": {
+              "reason": "generic smoke checks acquisition and queries; an application witness must record useAsset states and native media load/error events",
+              "state": "not-exercised"
+            },
+            "backendRequired": false,
+            "durationMs": 192,
+            "endedAt": 1792164376209,
+            "errors": [],
+            "generation": 1,
+            "link": "offline",
+            "origin": "http://127.0.0.1:57371",
+            "pass": true,
+            "queries": [
+              {
+                "classification": "device-answerable",
+                "complete": true,
+                "count": 0,
+                "cut": null,
+                "fresh": false,
+                "name": "feed",
+                "state": "ready"
+              },
+              {
+                "classification": "device-answerable",
+                "complete": true,
+                "count": 0,
+                "cut": null,
+                "fresh": false,
+                "name": "inbox",
+                "state": "ready"
+              }
+            ],
+            "queryFacts": {
+              "feed": {
+                "held": false,
+                "runs": "device"
+              },
+              "inbox": {
+                "held": false,
+                "runs": "device"
+              }
+            },
+            "queryGeneration": 1,
+            "rows": {
+              "$ownKeys:likes": 0,
+              "conversations": 0,
+              "directChats": 0,
+              "followingEdges": 0,
+              "followingFeed": 0,
+              "followingPosts": 0,
+              "followingRemovedEvents": 0,
+              "followingWork": 0,
+              "likes": 0,
+              "members": 0,
+              "messages": 0,
+              "posts": 0,
+              "profiles": 0,
+              "reposts": 0,
+              "runs": 0
+            },
+            "segment": "offline",
+            "startedAt": 1792164376017,
+            "storeId": "30c0290bad85d6e02628dd58b1245049",
+            "viewer": "guest:01M52N46NTZRGE1BJD8HYF27FD",
+            "watermark": 0
+          },
+          "receipts": [
+            {
+              "acquired": true,
+              "assets": {
+                "reason": "generic smoke checks acquisition and queries; an application witness must record useAsset states and native media load/error events",
+                "state": "not-exercised"
+              },
+              "backendRequired": false,
+              "durationMs": 192,
+              "endedAt": 1792164376209,
+              "errors": [],
+              "generation": 1,
+              "link": "offline",
+              "origin": "http://127.0.0.1:57371",
+              "pass": true,
+              "queries": [
+                {
+                  "classification": "device-answerable",
+                  "complete": true,
+                  "count": 0,
+                  "cut": null,
+                  "fresh": false,
+                  "name": "feed",
+                  "state": "ready"
+                },
+                {
+                  "classification": "device-answerable",
+                  "complete": true,
+                  "count": 0,
+                  "cut": null,
+                  "fresh": false,
+                  "name": "inbox",
+                  "state": "ready"
+                }
+              ],
+              "queryFacts": {
+                "feed": {
+                  "held": false,
+                  "runs": "device"
+                },
+                "inbox": {
+                  "held": false,
+                  "runs": "device"
+                }
+              },
+              "queryGeneration": 1,
+              "rows": {
+                "$ownKeys:likes": 0,
+                "conversations": 0,
+                "directChats": 0,
+                "followingEdges": 0,
+                "followingFeed": 0,
+                "followingPosts": 0,
+                "followingRemovedEvents": 0,
+                "followingWork": 0,
+                "likes": 0,
+                "members": 0,
+                "messages": 0,
+                "posts": 0,
+                "profiles": 0,
+                "reposts": 0,
+                "runs": 0
+              },
+              "segment": "offline",
+              "startedAt": 1792164376017,
+              "storeId": "30c0290bad85d6e02628dd58b1245049",
+              "viewer": "guest:01M52N46NTZRGE1BJD8HYF27FD",
+              "watermark": 0
+            }
+          ],
+          "startedAt": 1792164373210,
+          "status": "passed"
+        },
+        "prime": {
+          "durationMs": 4895,
+          "endedAt": 1792164372938,
+          "error": null,
+          "receipt": {
+            "acquired": true,
+            "assets": {
+              "reason": "generic smoke checks acquisition and queries; an application witness must record useAsset states and native media load/error events",
+              "state": "not-exercised"
+            },
+            "backendRequired": false,
+            "durationMs": 248,
+            "endedAt": 1792164371342,
+            "errors": [],
+            "generation": 1,
+            "link": "online",
+            "origin": "http://127.0.0.1:57371",
+            "pass": true,
+            "queries": [],
+            "queryFacts": {
+              "feed": {
+                "held": false,
+                "runs": "device"
+              },
+              "inbox": {
+                "held": false,
+                "runs": "device"
+              }
+            },
+            "queryGeneration": 1,
+            "rows": {
+              "$ownKeys:likes": 0,
+              "conversations": 0,
+              "directChats": 0,
+              "followingEdges": 0,
+              "followingFeed": 0,
+              "followingPosts": 0,
+              "followingRemovedEvents": 0,
+              "followingWork": 0,
+              "likes": 0,
+              "members": 0,
+              "messages": 0,
+              "posts": 0,
+              "profiles": 0,
+              "reposts": 0,
+              "runs": 0
+            },
+            "segment": "prime",
+            "startedAt": 1792164371094,
+            "storeId": "30c0290bad85d6e02628dd58b1245049",
+            "viewer": "guest:01M52N46NTZRGE1BJD8HYF27FD",
+            "watermark": 0
+          },
+          "receipts": [
+            {
+              "acquired": true,
+              "assets": {
+                "reason": "generic smoke checks acquisition and queries; an application witness must record useAsset states and native media load/error events",
+                "state": "not-exercised"
+              },
+              "backendRequired": false,
+              "durationMs": 248,
+              "endedAt": 1792164371342,
+              "errors": [],
+              "generation": 1,
+              "link": "online",
+              "origin": "http://127.0.0.1:57371",
+              "pass": true,
+              "queries": [],
+              "queryFacts": {
+                "feed": {
+                  "held": false,
+                  "runs": "device"
+                },
+                "inbox": {
+                  "held": false,
+                  "runs": "device"
+                }
+              },
+              "queryGeneration": 1,
+              "rows": {
+                "$ownKeys:likes": 0,
+                "conversations": 0,
+                "directChats": 0,
+                "followingEdges": 0,
+                "followingFeed": 0,
+                "followingPosts": 0,
+                "followingRemovedEvents": 0,
+                "followingWork": 0,
+                "likes": 0,
+                "members": 0,
+                "messages": 0,
+                "posts": 0,
+                "profiles": 0,
+                "reposts": 0,
+                "runs": 0
+              },
+              "segment": "prime",
+              "startedAt": 1792164371094,
+              "storeId": "30c0290bad85d6e02628dd58b1245049",
+              "viewer": "guest:01M52N46NTZRGE1BJD8HYF27FD",
+              "watermark": 0
+            }
+          ],
+          "startedAt": 1792164368043,
+          "status": "passed"
+        },
+        "restart": {
+          "durationMs": 4604,
+          "endedAt": 1792164382336,
+          "error": null,
+          "receipt": {
+            "acquired": true,
+            "assets": {
+              "reason": "generic smoke checks acquisition and queries; an application witness must record useAsset states and native media load/error events",
+              "state": "not-exercised"
+            },
+            "backendRequired": false,
+            "barrierSeq": 1,
+            "durationMs": 217,
+            "endedAt": 1792164380908,
+            "errors": [],
+            "generation": 1,
+            "link": "online",
+            "origin": "http://127.0.0.1:57371",
+            "pass": true,
+            "queries": [],
+            "queryFacts": {
+              "feed": {
+                "held": false,
+                "runs": "device"
+              },
+              "inbox": {
+                "held": false,
+                "runs": "device"
+              }
+            },
+            "queryGeneration": 1,
+            "rows": {
+              "$ownKeys:likes": 0,
+              "conversations": 0,
+              "directChats": 0,
+              "followingEdges": 0,
+              "followingFeed": 0,
+              "followingPosts": 0,
+              "followingRemovedEvents": 0,
+              "followingWork": 0,
+              "likes": 0,
+              "members": 0,
+              "messages": 0,
+              "posts": 0,
+              "profiles": 0,
+              "reposts": 0,
+              "runs": 0
+            },
+            "segment": "restart",
+            "startedAt": 1792164380691,
+            "storeId": "30c0290bad85d6e02628dd58b1245049",
+            "viewer": "guest:01M52N46NTZRGE1BJD8HYF27FD",
+            "watermark": 1
+          },
+          "receipts": [
+            {
+              "acquired": true,
+              "assets": {
+                "reason": "generic smoke checks acquisition and queries; an application witness must record useAsset states and native media load/error events",
+                "state": "not-exercised"
+              },
+              "backendRequired": false,
+              "barrierSeq": 1,
+              "durationMs": 217,
+              "endedAt": 1792164380908,
+              "errors": [],
+              "generation": 1,
+              "link": "online",
+              "origin": "http://127.0.0.1:57371",
+              "pass": true,
+              "queries": [],
+              "queryFacts": {
+                "feed": {
+                  "held": false,
+                  "runs": "device"
+                },
+                "inbox": {
+                  "held": false,
+                  "runs": "device"
+                }
+              },
+              "queryGeneration": 1,
+              "rows": {
+                "$ownKeys:likes": 0,
+                "conversations": 0,
+                "directChats": 0,
+                "followingEdges": 0,
+                "followingFeed": 0,
+                "followingPosts": 0,
+                "followingRemovedEvents": 0,
+                "followingWork": 0,
+                "likes": 0,
+                "members": 0,
+                "messages": 0,
+                "posts": 0,
+                "profiles": 0,
+                "reposts": 0,
+                "runs": 0
+              },
+              "segment": "restart",
+              "startedAt": 1792164380691,
+              "storeId": "30c0290bad85d6e02628dd58b1245049",
+              "viewer": "guest:01M52N46NTZRGE1BJD8HYF27FD",
+              "watermark": 1
+            }
+          ],
+          "startedAt": 1792164377732,
+          "status": "passed"
+        }
+      },
+      "bundleId": "dev.snapback4.social",
+      "receiptSha256": "1579e01f28e6cadfd7b7278897b4910154dab1427e0da411e3f72ed3ca79fde7"
+    },
+    "expopin-social-smoke/build.json": {
+      "proofKind": "application-release",
+      "durationMs": 198398,
+      "toolchain": {
+        "node": "v24.13.1",
+        "xcode": "Xcode 27.1\nBuild version 27A9275",
+        "sdk": "27.1",
+        "sdkBuild": "24A94232",
+        "pod": "1.17.0",
+        "runtime": [
+          {
+            "identifier": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+            "version": "26.5",
+            "buildversion": "23F77"
+          },
+          {
+            "identifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+            "version": "27.0",
+            "buildversion": "24A434"
+          },
+          {
+            "identifier": "com.apple.CoreSimulator.SimRuntime.iOS-27-1",
+            "version": "27.1",
+            "buildversion": "24A94401"
+          },
+          {
+            "identifier": "com.apple.CoreSimulator.SimRuntime.tvOS-27-0",
+            "version": "27.0",
+            "buildversion": "24J360"
+          }
+        ],
+        "architecture": "arm64"
+      }
+    }
+  },
+  "products": {
+    "expo-release": {
+      "DTXcodeBuild": "27A9275",
+      "DTSDKName": "iphonesimulator27.1",
+      "CFBundleIdentifier": "dev.snapback4.chat",
+      "CFBundleExecutable": "Snapback4chat",
+      "executableSha256": "c0640d9ddbc35fce80b5dacf3531dfce66bd7e12a4e26269f010ee6fb33d6bc0"
+    },
+    "expo-release270": {
+      "DTXcodeBuild": "27A266a",
+      "DTSDKName": "iphonesimulator27.0",
+      "CFBundleIdentifier": "dev.snapback4.chat",
+      "CFBundleExecutable": "Snapback4chat",
+      "executableSha256": "0b53181b54c0e24740ca655f9b45fd56a1debfa63aa15de54c77fa46e98f7171"
+    },
+    "expo-release271-final": {
+      "DTXcodeBuild": "27A9275",
+      "DTSDKName": "iphonesimulator27.1",
+      "CFBundleIdentifier": "dev.snapback4.chat",
+      "CFBundleExecutable": "Snapback4chat",
+      "executableSha256": "c0640d9ddbc35fce80b5dacf3531dfce66bd7e12a4e26269f010ee6fb33d6bc0"
+    }
+  },
+  "nativeArchives": {
+    "ios-arm64-simulator/libsnapback4_device.a": "072c373e29d081ab138f83f8ed2f466388bf8810466efcd880ddb008a8aeac27",
+    "ios-arm64/libsnapback4_device.a": "bdde643686aa325a598047b7e491217ba1f049d3db2c59285ebfdff1c1a6990e"
+  }
+}

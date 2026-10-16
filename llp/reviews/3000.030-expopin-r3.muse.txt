@@ -1,0 +1,11 @@
+muse: workspace root: /home/ccheever/projects/sb4-w13-expopin (cwd default)
+muse: workspace trust: trusted source=run-flag
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+READY
+
+No material actionable correctness, regression, or validation concern remains.
+
+The canonical pool failure is a preserved historical failed run, not an unresolved failure: `/tmp/expopin-client-pool-final.log` ends 398/398 files, 7568 tests, 7511 pass / 1 fail / 56 skip, with the sole failure `witness.test.mjs:108` `withDangerousMod is not a function`. Commit `526e4042ce` changes only that fixture to stub `withDangerousMod` with platform/function assertions while retaining real builtins via `req(name)`; `/tmp/expopin-witness-mock-rerun.log` shows the full file 8/8 pass, and `snapback4/reports/20261016-expopin/mac/package-tests-final.log.gz` shows 30/30 pass. The original pool exit is retained failed, never relabeled.
+
+Verified independently: `snapback4/packages/snapback4-expo/plugin.cjs` preserves scenes and adds only `xcodebuild -version` to the upstream hash, idempotent with unfamiliar-anchor refusal and atomic mode-preserving replace; hardlink/mode/idempotence/hash regressions pass on both OSes in `snapback4/packages/snapback4/test/expo-scenes.test.mjs`. `snapback4/crates/snapback4/src/verbs/witness/prepare.mjs` admits only matching 27.0/27.1 pairs; `native-scripts.mjs` adds only hash `9d4cf74c…`, with custom-script refusal retained in `snapback4/packages/snapback4/test/witness-preparation.test.mjs:582`. SDK-switch control reproduces `__ObjC::expo` then passes patched 27.0/return 27.1 with matching digests; consumer-only source `2cd9965ef6` binds exact integrities with `publicationQualified: false`. Seeded models 81/81, guide 125/125, ref-check 548 docs clean. Product tree clean versus `526e4042ce`; version stays 0.4.29.
+

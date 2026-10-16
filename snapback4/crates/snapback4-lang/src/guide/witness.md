@@ -75,7 +75,7 @@ prepares that project's own Release simulator application with a private stable
 snapshot, CocoaPods and Xcode DerivedData cache, then installs with `simctl` and launches its bundle ID directly. It never opens Simulator.app, invokes AppleScript, opens a dev-client URL, or starts Metro. Native preparation has a
 separate 900-second deadline for explicit `native:smoke` and `witness ios --build`. Automatic background preparation allows 900 seconds without new phase output or log growth, up to 60 minutes total. This measures output activity, not semantic build advancement: repeated retries or heartbeat lines can keep a non-advancing build and its private simulator occupied until the 60-minute cap. This is the accepted bound for CocoaPods/Xcode output; silent stalls still fail with the build diagnostic; `preparation-deadline.json` records the progress budget. Node launcher resolution gets at most 30 seconds (or a shorter --timeout), with cancellation. Finish any pinned-Node download in the project before retrying; smoke keeps its 120-second step default.
 
-This adapter currently accepts Apple-silicon macOS, Xcode 27.0 / iOS SDK 27.0, Expo 57.0.22, RN 0.86.3, `@expo/fingerprint` 0.20.13, New Architecture and
+This adapter currently accepts Apple-silicon macOS, Xcode 27.0 or 27.1 with the matching iOS SDK, Expo 57.0.30, RN 0.86.3, `@expo/fingerprint` 0.20.14, New Architecture and
 Hermes, an installed npm dependency tree with `package-lock.json`, and static
 `app.json`. An existing iOS project keeps its native customizations; generated projects
 use the starter's UIScene lifecycle for iOS 27. Products, intermediates and module caches
@@ -305,7 +305,7 @@ simulator/runtime first; do not let the witness choose someone else's device.
 E_WITNESS_SCENE_LIFECYCLE means the owned app stopped before its priming
 receipt. The detector filters reports by bundle, launch PID, simulator and mtime
 since launch, then selects the newest with `NoSceneLifecycleAdoption` in its faulting thread.
-For the pinned Expo 57.0.22 starter, include `snapback4-expo/plugin` in
+For Expo 57.0.30, keep `snapback4-expo/plugin`: it binds JSI slices to Xcode ([upstream SDK-switch bug](https://github.com/expo/expo/issues/50365)) and adopts scenes. Include it in
 app.json's plugins, regenerate with `expo prebuild --platform ios`, then rebuild and reinstall Release.
 Keep native customizations when regenerating an existing iOS project; custom
 projects must adopt UIScene in their own lifecycle. The three-second retry checks its
