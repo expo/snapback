@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { spawn } from "node:child_process";
+import { spawn, execFileSync } from "node:child_process";
 import { createServer } from "node:net";
 import { createServer as httpServer } from "node:http";
 import { fileURLToPath } from "node:url";
@@ -264,13 +264,31 @@ test("proof witness injection survives HTTP redirect destinations", async t => {
 });
 
 
-test("secret capture releases its pipe when an exited tool leaves a descendant holding stdout", async t => {
+test("secret capture releases its pipe when an exited tool leaves a descendant holding stdout", {
+  skip: process.platform === "win32" && "The pipe-holder exit witness uses portable Unix ps (Linux and Darwin)",
+}, async t => {
   const cwd=fixture(t),module=fileURLToPath(new URL('../dist/proof.js',import.meta.url));
   const script=join(cwd,'driver.mjs'),marker=join(cwd,'desc-ready');
   writeFileSync(script, `import {command} from ${JSON.stringify(module)};
-try {await command(process.execPath,['-e',\`require('node:child_process').spawn(process.execPath,['-e','setTimeout(()=>{},6000)'],{stdio:['ignore',1,2]});require('node:fs').writeFileSync(${JSON.stringify(marker)},'ready');process.exit(0)\`],{cwd:${JSON.stringify(cwd)},secret:true,timeoutMs:1000});process.exitCode=1;}
+try {await command(process.execPath,['-e',\`const child=require('node:child_process').spawn(process.execPath,['-e','setTimeout(()=>{},6000)'],{stdio:['ignore',1,2]});require('node:fs').writeFileSync(${JSON.stringify(marker)},JSON.stringify({pid:child.pid}));process.exit(0)\`],{cwd:${JSON.stringify(cwd)},secret:true,timeoutMs:1000});process.exitCode=1;}
 catch(error){if(!/timed out/.test(error.message))throw error;}`);
-  const child=spawn(process.execPath,[script],{stdio:'ignore'});t.after(()=>{if(child.exitCode===null&&child.signalCode===null)child.kill('SIGKILL')});
-  await bounded(new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',code=>{try{assert.equal(code,0);resolve();}catch(error){reject(error)}})}),5000,'secret driver exit');
-  assert.equal(readFileSync(marker,'utf8'),'ready','the tool exited after spawning the pipe holder, before its deadline');
+  const child=spawn(process.execPath,[script],{stdio:'ignore'});
+  let holder;
+  const closed=new Promise((resolve,reject)=>{child.once('error',reject);child.once('close',resolve)});
+  t.after(async()=>{
+    if(child.exitCode===null&&child.signalCode===null)child.kill('SIGKILL');
+    // The regression deliberately outlives the driver. Observe its own finite
+    // lifetime before ending the file; never signal a retained descendant PID.
+    if(holder) await bounded((async()=>{
+      while(true){
+        let state;
+        try {state=execFileSync('ps',['-p',String(holder),'-o','stat='],{encoding:'utf8',timeout:2000}).trim();}
+        catch(error){if(error.status===1 && !String(error.stdout).trim())return;throw error;}
+        if(state.startsWith('Z'))return;
+        await new Promise(resolve=>setTimeout(resolve,50));
+      }
+    })(),10000,'pipe holder exit');
+  });
+  await bounded((async()=>{while(!holder){try{holder=JSON.parse(readFileSync(marker,'utf8')).pid;}catch(error){if(error.code!=='ENOENT')throw error;}if(!holder)await new Promise(resolve=>setTimeout(resolve,20));}})(),5000,'pipe holder spawned');
+  assert.equal(await bounded(closed,5000,'secret driver exit'),0);
 });

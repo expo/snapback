@@ -33,7 +33,7 @@ Membership: no horizon, the conversation's own group and messages' audience prov
 Keep drafts and receipts above rows; [write journal, password form and typed list props](CLIENT-AND-OPERATIONS.md). `waitSeconds:0` returns custody; keep the original id, never auto-resend.
 
 ## An online role form across releases
-Use createApp({url,writes:"online",sessionStore:localStorageSessionStore()}) inside AppProvider after sign-in. RULES3 owns roster authorization; DAY3 owns compatibility generation.
+Create the app once outside render with createApp({url,writes:"online",sessionStore:localStorageSessionStore()}); mount this signed-in screen under AppProvider. RULES3 owns roster authorization; DAY3 owns compatibility generation.
 ```tsx
 import { useEffect, useState } from "react";
 import { isPresent, matchReadList, sentResult, useAppReady, useMutation, useQuery, useRelease } from "snapback4/react";
