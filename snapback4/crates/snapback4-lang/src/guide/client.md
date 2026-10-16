@@ -39,9 +39,9 @@ import { useEffect, useState } from "react";
 import { isPresent, matchReadList, sentResult, useAppReady, useMutation, useQuery, useRelease } from "snapback4/react";
 import { api } from "../snapback/generated/api";
 export function StaffWorkspace({team}: {team: string}) {
+  const [draft, setDraft] = useState(""), [selected, setSelected] = useState("");
   const ready = useAppReady(), release = useRelease();
   const role = useQuery(api.myRole, {team});
-  const [draft, setDraft] = useState(""), [selected, setSelected] = useState("");
   const [lastStaff, setLastStaff] = useState(false);
   const staff = isPresent(role) && role.data.role === "staff";
   const uncertain = "loading" in role || ("data" in role && role.existence === "partial");
@@ -59,7 +59,7 @@ export function StaffWorkspace({team}: {team: string}) {
     <label>Note<input value={draft} onChange={e => setDraft(e.target.value)} /></label>
     <label htmlFor="category">Category</label><select id="category" value={selected} onChange={e => setSelected(e.target.value)}><option value="">Choose</option><option value="general">General</option></select>
     <button disabled={!ready || !staff || !available || add.inFlight} onClick={() => void submit()}>Save note</button>
-    {staff && available ? <StaffRows team={team} /> : <p>Waiting for staff capabilities</p>}
+    {staff && available ? <StaffRows team={team} /> : <p>{"denied" in role || "denied" in release || ("generation" in release && !available) || (!uncertain && !staff) ? "Staff workspace not available" : "Waiting for staff capabilities"}</p>}
     {add.last?.state === "failed" && <p role="alert">{add.last.why.message}</p>}
   </section>;
 }
@@ -96,9 +96,27 @@ function PublicNotes() {
 
 ## React hooks and auth decisions
 Render editable sign-in controls only while signed-out, Restoring… otherwise. AppProvider resets on app/viewer changes; restoring → signed-out preserves the null-viewer form. `useAppReady()` waits for initial app.ready and current signed-in auth without an admission refusal; gate writers/proof input. Successful later sign-in recovers from initial failure. Readiness is neither connectivity nor permission; surface auth.why.
+`createApp` returns a signed-out app with `auth.why` and a failed `ready` result for invalid `writes` options, including `writes:"online"` combined with a device or `readOnly`. Render that refusal through `useAuth().why`; recreate with corrected options. Browser storage prerequisites still refuse construction with `E_ADMISSION`.
 `useAuth()` members: `state`, `viewer`, `why`, `signup(email, password)`, `login(email, password)`, `guest()`, `logout()`, `logoutEverywhere()`. `signOut()` belongs to the client. Expo session store: secureStoreSessionStore(SecureStore); password form: [reference](CLIENT-AND-OPERATIONS.md#password-react-and-expo).
-`matchRead` handlers: `loading(read)`, `denied(why,read)`, `absent(read)`, `partial(data,read)`, `present(data,read)`. `otherwise` covers omitted loading/absent/present; otherwiseAll also takes denied/partial. A complete empty list is absent; `absent` can be an authorised empty list. `matchReadList` handles lists; `isPresent(read)` excludes null, while `isReady(read)` still permits null; `existence(read)` and `read.existence` classify.
+
+| Helper | Input and result | Handlers and argument shapes |
+| --- | --- | --- |
+| `matchRead(read, handlers)` | A `Read<T>` or the whole `usePage` result; returns the selected handler's result | `loading(read)`, `denied(why, read)`, `absent(read)`, `partial(data, read)`, `present(data, read)`. `why` is a bare `Refusal`, not `{why}`. Both data handlers take the data first, metadata second. Supply all five, including `partial` for a single-row read, or supply `denied`, `partial`, and `otherwise(read)` for omitted loading/absent/present branches. |
+| `matchReadList(read, handlers)` | A list `Read<T[]>` or whole `usePage` result | Required: `denied(why, read)` and `otherwise(read)`. Optional: loading/absent/partial/present with the same signatures above. Omitted `partial` uses `otherwise`. |
+| `otherwiseAll(fallback, overrides?)` | Spread its returned object into a `matchRead` handler set | `fallback(read)` receives the whole read, including denied/partial. Named handlers override it in any spread order. |
+| `usePage(op, args)` | A query declaring `c: cursor ?`; omit `c` from `args` | Returns `{read, items, hasMore, loadMore}`. Match `page.read` or `page`; render `page.items`, and call `page.loadMore()` for continuation. This hook takes no handler object. |
+
+For direct narrowing use `'data' in read`: that branch exposes `read.data`, `read.existence`, and freshness/completeness metadata. Data may still be `null`, an empty list, partial, or stale; it does not grant permission. Check `'denied' in read` separately and render a roster/capability denial as “not available”. The remaining loading branch means acquisition or revalidation. A complete empty list is `absent`: render the empty state. `isPresent(read)` excludes null, while `isReady(read)` still permits null; `existence(read)` and `read.existence` classify.
+```ts
+import type { Read } from "snapback4/contract";
+export function listLabel(read: Read<readonly {id:string}[]>): string {
+  if ('denied' in read) return "not available";
+  if ('data' in read) return read.existence === "absent" ? "No rows" : `${read.data.length} rows`;
+  return "Loading…";
+}
+```
 `loading`: keep shells; `denied`: show refusal; `present`: render; `absent`: proven empty; `partial`: uncertain. Offline absent is absence at the acquired watermark. Hidden/missing rows are indistinguishable. `readPresentation` notices never grant permission. Render page.items, follow hasMore/loadMore. Unknown counts never hide conversations.
+Prediction timing belongs to each mutation, not the app: inspect that operation's generated `predicts` comment. With `predicts:"eligible"`, a device holding the needed facts may publish a row with `pending:true` before `useMutation().run()` settles; lacking those facts, it queues without a row. With `predicts:"never"`, no predicted row appears; query data follows server settlement and delivery. The online tier never predicts. Ordinary `run()` waits for `sent` or `failed`; `{waitSeconds:0}` requests immediate custody and may return `pending`. UI proofs await a fresh `sent` receipt before asserting committed data; a rendered predicted row is not evidence of settlement.
 `query(op,args)` settles ready/denied within 30 seconds. Unavailable offline reads give immediate `E_OFFLINE`. After four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Retention, RowOf/ArgsOf/ResultOf and {skip}: [reference](CLIENT-AND-OPERATIONS.md). Share/paginate: eight active, eight queued observation attempts; direct queries and timed presence refreshes use separate paths.
 Browser createApp: no sync → journal; sync → webDevice(); online writes: writes:"online". Native: nativeDevice; Expo Go online. Every milestone: npm run export:ios; proof in the background: witness status --wait. Rebuild npm run native:smoke. Acquisition/offline reopen/reconnect/write replay: guide witness.
 useOnline: server reads/ephemeral/actions; durable writes: app.mutate. SDK owns delivery reporting; screen owns visible `seen` reporting. useSeen owns receipt retries (guide receipts). Read-only clients: guide read-only. Media: OFFLINE-UPLOADS.md. Never wait for networkidle; assert fresh sent before rendered output (guide testing).

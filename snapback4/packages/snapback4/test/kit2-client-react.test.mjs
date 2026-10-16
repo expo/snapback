@@ -9,7 +9,8 @@ import {createBrowserServer, loadBrowserPage} from './helpers/browser-server.mjs
 import {chromiumExecutable} from '../../../witness/lib.mjs';
 const root=resolve(import.meta.dirname,'../../..');
 const require=createRequire(join(root,'package.json'));
-const doc=readFileSync(join(root,'crates/snapback4-lang/src/guide/client.md'),'utf8');
+const doc=readFileSync(process.env.SNAPBACK4_CLIENT_GUIDE??join(root,'crates/snapback4-lang/src/guide/client.md'),'utf8');
+const clientDist=process.env.SNAPBACK4_CLIENT_DIST??join(root,'packages/snapback4/dist');
 const workspace=[...doc.matchAll(/```tsx\n([\s\S]*?)\n```/g)].map(m=>m[1]).find(s=>s.includes('export function StaffWorkspace'));
 test('published role/release form preserves drafts and selection; revocation gates reads and writes; accounts reset state', {timeout:120000}, async t=>{
  const dir=mkdtempSync(join(tmpdir(),'kit2-client-'));let server,browser;
@@ -42,7 +43,7 @@ window.inspect=()=>({writes,notes:[...records].filter(r=>r.name==='staffNotes').
 window.finish=()=>act(async()=>root.unmount());
 `);
  server=await createBrowserServer({root:dir,configFile:false,logLevel:'error',server:{host:'127.0.0.1',port:0,fs:{allow:[root,dir]}},resolve:{alias:[
- {find:'snapback4/react',replacement:join(root,'packages/snapback4/dist/react.js')},{find:'snapback4/contract',replacement:join(root,'packages/snapback4/dist/contract.js')}]}});
+ {find:'snapback4/react',replacement:join(clientDist,'react.js')},{find:'snapback4/contract',replacement:join(clientDist,'contract.js')}]}});
  await server.listen();const {chromium}=require('playwright-core');browser=await chromium.launch({executablePath:chromiumExecutable(),headless:true,args:['--no-sandbox']});
  const page=await browser.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
  await loadBrowserPage(t,page,server.resolvedUrls.local[0]);await page.waitForFunction(()=>window.start);await page.evaluate(()=>window.start());
@@ -61,6 +62,8 @@ window.finish=()=>act(async()=>root.unmount());
  await publish({role:{data:{role:'staff'},existence:'present',fresh:true,complete:true,cut:null},release:catalog(3)});await kept();assert.equal(await save.isDisabled(),false);
  await publish({role:{denied:{code:'NO',family:'rule',message:'Revoked'}}});await kept();assert.equal(await save.isDisabled(),true);assert.equal((await page.evaluate(()=>window.inspect())).notes,0);
  assert.equal(await page.getByText('Staff access required',{exact:true}).count(),1);
+ assert.equal(await page.getByText('Staff workspace not available',{exact:true}).count(),1);
+ assert.equal(await page.getByText('Waiting for staff capabilities',{exact:true}).count(),0,'denial is never a loading branch');
  await publish({role:{loading:true}});assert.equal(await page.getByText('Staff access required',{exact:true}).count(),1,'revoked role is not made sticky again');
  await publish({auth:{state:'restoring',viewer:null}});
  const email=page.getByRole('textbox',{name:'Email',exact:true});await email.fill('kept@example.com');await page.evaluate(()=>window.originalEmail=document.querySelector('input'));
