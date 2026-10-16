@@ -134,7 +134,7 @@ fn w14b_first_account_screen_is_self_contained() {
     let readme = include_str!("../../../packages/snapback4/README.md");
     let path = readme.split_once("## Reference map").expect("one optional reference map").0;
     for text in [
-        "npx snapback4 init --expo", "npm install", "npx snapback4 check", "npx snapback4 dev",
+        "npx snapback4 init --expo", "npm install", "npx snapback4 check", "npm run backend",
         "use identity password", "table profiles:", "unique handle", "avatar: image",
         "query handleAvailable(", "query myProfile(", "mutation saveProfile(",
         "signup(", "login(", "createApp(", "useAuth()", "AppProvider", "sessionStore",
