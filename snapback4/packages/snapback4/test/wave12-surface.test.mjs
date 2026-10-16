@@ -55,3 +55,12 @@ test('a staged standalone binary owns every native verb help without companion J
   assert.equal(web.status,0,web.stderr);assert.match(web.stdout,/^snapback4 witness <web\|acquire\|ios\|status>/m);assert.match(web.stdout,/web exercises a visible form/);assert.match(web.stdout,/--password-env/);
   checkVerbHelp(staged,changelog);
 });
+
+
+test('changelog help distinguishes flag retirement from supported announcements', () => {
+  const removal = '- CLI help drops the unsupported clock --release flag.';
+  assert.deepEqual(changelogFlags(removal + '\n- clock --release chooses a deployment'), []);
+  assert.doesNotThrow(() => assertChangelogHelp(removal, () => 'clock advance [amount]'));
+  assert.deepEqual(changelogFlags('- clock --release is reintroduced\n' + removal), [['clock', '--release']]);
+  assert.throws(() => assertChangelogHelp('- clock --new-flag is supported', () => ''), /omits announced --new-flag/);
+});

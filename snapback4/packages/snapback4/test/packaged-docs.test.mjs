@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { docLeaks, lintPackagedDocs } from '../../../scripts/packaged-docs.mjs';
 
 test('publication rejects internal ownership text while allowing product ownership', () => {
-  for (const text of ['RULES3 owns authorization.', 'KIT2 owns proof.', 'wave-13 lanes', 'DX2 owns starter recipes.', 'DX owns integration; HAND owns wire.', 'QDIAG owns the note.', 'Exact implements its adapter in its workstream.']) {
+  for (const text of ['RULES3 owns authorization.', 'KIT2 owns proof.', 'wave-13 lanes', 'wave-14', 'Wave 14', 'wave14', 'DX2 owns starter recipes.', 'DX owns integration; HAND owns wire.', 'QDIAG owns the note.', 'Exact implements its adapter in its workstream.']) {
     assert.ok(docLeaks(text).length, text);
   }
   assert.deepEqual(docLeaks('The SDK owns retries. An account owns its profile. HANDLER is a code.'), []);
