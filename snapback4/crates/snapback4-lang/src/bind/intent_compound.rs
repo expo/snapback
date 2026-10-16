@@ -222,7 +222,7 @@ pub(super) fn vacancy(tables: &Tables, synthesized: &BTreeSet<(String, String)>,
     let mut system = read.clone(); candidate.read(tables, &mut system, false);
     let mut lane = read.clone(); candidate.plan_lane(tables, &mut lane);
     let pins = lane.keys.iter().filter_map(|key| key.column.as_ref()).collect::<Vec<_>>();
-    let bounded = table.decl.caps.iter().any(|cap| cap.by.iter().all(|column| pins.contains(&column)
+    let bounded = table.decl.not_before.is_none() && table.decl.expire.is_none() && table.decl.caps.iter().any(|cap| cap.by.iter().all(|column| pins.contains(&column)
         && !table.decl.columns.iter().any(|decl| &decl.name == column && decl.on_delete.as_ref().is_some_and(|(action,_)| *action == OnDelete::SetNull))));
     if !admitted && !bounded { return None; }
     let mut lanes = Vec::with_capacity(2); let mut order = None;

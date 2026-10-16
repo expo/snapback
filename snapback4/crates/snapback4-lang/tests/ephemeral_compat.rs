@@ -145,11 +145,21 @@ fn durable_schema_and_types_keep_base_bytes() {
     // P18's fixture uses explicit insert/update arms for immutable fields.
     // Only its operation-site metadata changes; keep every schema/type byte.
     let current: serde_json::Value = serde_json::from_str(&actual["never-predict.q"].0).unwrap();
-    let record = &mut expected.get_mut("never-predict.q").unwrap().0;
-    let mut prior: serde_json::Value = serde_json::from_str(record).unwrap();
+    let mut prior: serde_json::Value = serde_json::from_str(&expected["never-predict.q"].0).unwrap();
     assert!(current["operations"].as_object().unwrap().values().all(|fact| fact["predicts"] == "never"));
+    fn source_sites(text: &str) -> String {
+        let mut pieces = text.split("schema.q:");
+        let mut out = pieces.next().unwrap().to_owned();
+        for piece in pieces {
+            let tail = piece.trim_start_matches(|c: char|c.is_ascii_digit() || c == ':');
+            out.push_str("schema.q:<source-site>"); out.push_str(tail);
+        }
+        out
+    }
+    expected.get_mut("never-predict.q").unwrap().1 = source_sites(&expected["never-predict.q"].1);
+    actual.get_mut("never-predict.q").unwrap().1 = source_sites(&actual["never-predict.q"].1);
     prior["operations"] = current["operations"].clone();
-    *record = serde_json::to_string(&serde_json::from_value::<snapback4_core::Schema>(prior).unwrap()).unwrap();
+    expected.get_mut("never-predict.q").unwrap().0 = serde_json::to_string(&serde_json::from_value::<snapback4_core::Schema>(prior).unwrap()).unwrap();
     assert_eq!(actual.keys().collect::<Vec<_>>(), expected.keys().collect::<Vec<_>>());
     // @ref LLP 3000.013#2.2 — DX3 removes null only for these proved-stable
     // mutation returns. Keep the historical JSON captures and every other

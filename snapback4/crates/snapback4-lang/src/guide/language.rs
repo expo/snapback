@@ -31,7 +31,7 @@ mutation addNote(body: text):
   return insert notes { owner: viewer, body }
 ```
 
-`where .x != null` narrows that row in loops and shapes.
+`where .x != null` narrows loop/shape rows.
 
 Tables have an implicit `id`. `query` pages newest first; pass `next` as `c`. `addNote` inserts atomically with default time.
 `not before .opensAt` sets a stored lower read lifetime; null is unbounded. With `expire at`, rows live in `[opensAt, expiresAt)`. See `guide timed disclosure`.

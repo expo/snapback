@@ -336,3 +336,12 @@ fn wave13_boolean_and_joint_cap_guidance_rechecks_after_the_prescribed_edit() {
     assert!(b.diagnostics.is_empty(),"{:?}\n{d}",b.diagnostics);
     assert!(d.rewrite.contains("Heap =") && d.rewrite.contains("product limit"));
 }
+
+#[test]
+fn union_window_repair_retains_the_authors_named_recipient() {
+    let source = "table crew:\n  owner: principal\n  who: principal\n  unique owner, who\n  immutable owner, who\n  read <- exists crew[.owner, viewer]\n  insert <- exists crew[.owner, viewer]\n  sync by .who\ntable docs:\n  owner: principal\n  read <- .owner = viewer or exists crew[.owner, viewer]\n  sync by .who last 2 by .id\n";
+    let d = refusal(source,"E_SYNC");
+    assert!(d.rewrite.starts_with("sync by .who"),"{d}");
+    let b = compile(&[("schema.q".into(),source.replace("sync by .who last 2 by .id",&d.rewrite))]);
+    assert!(b.diagnostics.is_empty(),"{:?}\n{d}",b.diagnostics);
+}

@@ -251,7 +251,7 @@ a constraint across all guests.
 References default to `restrict`; a live child causes E_REFERENCED. Alternatives:
 bounded `cascade`, optional `set null`, or `keep`. Cascades recurse under a
 cap/unique key per parent; keep/restrict history and audit rows.
-Dormant actions need caps only when deleted. Whole-group child deletion silences N_DELETE_RESTRICTED.
+Delete sources require caps; complete child deletion silences N_DELETE_RESTRICTED.
 
 ## Server-arrival order within a conversation
 

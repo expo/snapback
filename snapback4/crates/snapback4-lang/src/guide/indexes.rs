@@ -221,8 +221,6 @@ read. In `test.cases.jsonl` the default expectation passes it (write
 `"expect": "capped"` to pin it); a client renders the rows and shows
 `readPresentation(read).incomplete` as "there may be more", not as an error.
 
-Bounded online-only groups and exact negative points can complete (branch-pages-v5).
-
 ## Operations
 
 Run `snapback4 check --cost` for chosen and synthesized indexes and the reads

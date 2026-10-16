@@ -253,3 +253,27 @@ fn historical_vacancy_admission_requires_the_actual_unique_point() {
     assert!(compound.schema.required_capabilities().contains("branch-pages-v5"));
     assert!(!compound.notes.iter().any(|note|note.code=="N_NEVER_COMPLETE"));
 }
+
+#[test]
+fn admitted_capped_private_walks_hide_candidate_and_witness_meter_counts() {
+    for rule in [".a = .b and exists grants[viewer]", "exists grants[viewer]"] {
+        let source = format!("table grants:\n  who: principal\n  unique who\n  read <- deny\n  online only\ntable entries:\n  a: int\n  b: int\n  cap 20\n  read <- {rule}\n  online only\nquery list(c: cursor ?):\n  return entries first 5 by .id after c\n");
+        let mut empty = engine(&source);
+        let mut hidden = engine(&source);
+        hidden.seed((0..20).map(|n| ("entries".into(),object([("id",id(&format!("h{n}"))),("a",Value::Int(1)),("b",Value::Int(1))])))).unwrap();
+        let a = query(&mut empty,"list","alice", &[("c",Value::Null)]);
+        let b = query(&mut hidden,"list","alice", &[("c",Value::Null)]);
+        assert_eq!(a.data,b.data,"{rule}");
+        assert_eq!(a.complete,b.complete,"{rule}");
+        assert_eq!(a.next,b.next,"{rule}");
+        assert_eq!(a.metered,b.metered,"{rule}");
+    }
+}
+
+#[test]
+fn future_opening_caps_do_not_supply_a_physical_population_bound() {
+    let source = "table entries:\n  opens: time ?\n  a: int\n  b: int\n  not before .opens\n  cap 2\n  read <- .a = .b\n  online only\nquery list(c: cursor ?):\n  return entries first 2 by .id after c\n";
+    let b = checked(source);
+    assert!(!b.schema.required_capabilities().contains("branch-pages-v5"));
+    assert!(b.notes.iter().any(|note|note.code=="N_NEVER_COMPLETE"));
+}

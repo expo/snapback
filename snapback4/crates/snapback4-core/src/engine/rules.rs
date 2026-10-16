@@ -633,7 +633,7 @@ pub fn bounded_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
     let Some(table) = schema.table(&lane.scan.table) else { return false };
     if lane.source.is_some() || lane.scan.filter.as_deref().is_some_and(|filter| !exhaustion_filter(filter))
         || table.sync.is_some() || table.through.is_some()
-        || !table.written_by.is_empty() || table.ephemeral.is_some() || table.is_expiring()
+        || !table.written_by.is_empty() || table.ephemeral.is_some() || table.read_lifetime_sensitive()
         || schema.maintain_for(&lane.scan.table).is_some() { return false; }
     if table.rules.read.any_term(&|term| term.references().next().is_some()) { return false; }
     let mut sites = Vec::new(); probe_sites(&table.rules.read, &mut sites);

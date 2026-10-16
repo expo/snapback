@@ -1240,7 +1240,7 @@ impl<'r> Runner<'r> {
         let aborting = self.meter.cut == crate::meter::Cut::Abort;
         if aborting && !self.read_charge(MeterKind::Examined, 1)? { return Ok((Vec::new(), Vec::new())); }
         let streaming_parent = aggregate.is_some();
-        if !self.merge_bounded && !always_visible && word.is_none() && let Some(rule) = rules::prefix_decision(self.schema, scan) {
+        if (!self.merge_bounded || visibility.uniform) && !always_visible && word.is_none() && let Some(rule) = rules::prefix_decision(self.schema, scan) {
             let (allowed, pending) = self.prefix_verdict(&scan.table, table, index, &prefix, &rule, visibility.uniform)?;
             if !allowed && !(self.device && parent_pinned && !streaming_parent) { return Ok((Vec::new(), Vec::new())); }
             prefix_expiry = pending;

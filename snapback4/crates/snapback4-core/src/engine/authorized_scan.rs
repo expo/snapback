@@ -248,6 +248,12 @@ impl Runner<'_> {
     /// out of its enclosing authorization's physical allowance.
     pub(super) fn prepaid_scan<T: Default>(&mut self, allowance: &[(MeterKind, u64)], physical: bool, scan: impl FnOnce(&mut Self, &Authorization) -> Result<T, RuntimeError>,
     ) -> Result<T, RuntimeError> {
+        // The enclosing bounded candidate has prepaid logical page work and
+        // owns a fixed physical sub-allowance. Nested witness scopes must not
+        // publish an actual-occupancy-dependent probe count on their return.
+        if self.merge_bounded && self.tx.authorizing.get() {
+            return scan(self, &Authorization::internal());
+        }
         // This meter is the device's separate physical-work budget. Its
         // caller maps exhaustion to uncertainty, never a logical E_BOUND.
         if self.device_work_active {

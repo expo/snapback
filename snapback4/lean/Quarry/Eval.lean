@@ -709,7 +709,7 @@ def Rule.exhaustionSafe (sch : Schema) : Rule → Bool
   | _ => true
 
 def finiteExhaustion (sch : Schema) (td : TableDecl) (pins : List (String × Expr)) : Bool :=
-  td.onlineOnly && td.expire.isNone && td.read.exhaustionSafe sch
+  td.onlineOnly && td.notBefore.isNone && td.expire.isNone && td.read.exhaustionSafe sch
     && td.caps.any fun cap => cap.columns.all fun c => pins.any (·.1 == c)
       && !(td.cols.any fun col => col.name == c && col.onDelete == some .setNull)
 
