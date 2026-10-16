@@ -305,7 +305,7 @@ simulator/runtime first; do not let the witness choose someone else's device.
 E_WITNESS_SCENE_LIFECYCLE means the owned app stopped before its priming
 receipt. The detector filters reports by bundle, launch PID, simulator and mtime
 since launch, then selects the newest with `NoSceneLifecycleAdoption` in its faulting thread.
-For the pinned Expo 57.0.30 starter, include `snapback4-expo/plugin` in
+For Expo 57.0.30, keep `snapback4-expo/plugin`: it binds JSI slices to Xcode ([upstream SDK-switch bug](https://github.com/expo/expo/issues/50365)) and adopts scenes. Include it in
 app.json's plugins, regenerate with `expo prebuild --platform ios`, then rebuild and reinstall Release.
 Keep native customizations when regenerating an existing iOS project; custom
 projects must adopt UIScene in their own lifecycle. The three-second retry checks its

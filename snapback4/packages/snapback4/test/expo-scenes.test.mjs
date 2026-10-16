@@ -28,7 +28,17 @@ test('chat prebuild adopts Expo scenes and retains linking and status bar config
       delegate: fs.readFileSync(path.join(ios, 'AppDelegate.swift'), 'utf8') };
   };
   try {
-    fs.symlinkSync(path.join(root, 'node_modules'), path.join(project, 'node_modules'));
+    const modules = path.join(project, 'node_modules');
+    fs.mkdirSync(modules);
+    for (const name of fs.readdirSync(path.join(root, 'node_modules'))) {
+      fs.symlinkSync(path.join(root, 'node_modules', name), path.join(modules, name));
+    }
+    // Keep the patch target private, including the core-relative npm resolver.
+    for (const name of ['expo-modules-core', 'expo-modules-jsi']) {
+      fs.rmSync(path.join(modules, name), { force: true });
+      const installed = path.dirname(require.resolve(`${name}/package.json`));
+      fs.cpSync(installed, path.join(modules, name), { recursive: true });
+    }
     fs.writeFileSync(path.join(project, 'package.json'), JSON.stringify(packageJSON));
     fs.writeFileSync(path.join(project, 'app.json'), JSON.stringify(app));
     const generated = build();
@@ -45,7 +55,26 @@ test('chat prebuild adopts Expo scenes and retains linking and status bar config
     assert.ok(generated.info.CFBundleURLTypes.some(row => row.CFBundleURLSchemes.includes('snapback4chat')));
     assert.match(generated.delegate, /app.application\(UIApplication.shared, open: context.url/);
     assert.match(generated.delegate, /app.application\(UIApplication.shared, continue: activity/);
+    const script = path.join(modules, 'expo-modules-jsi/apple/scripts/build-xcframework.sh');
+    const patched = fs.readFileSync(script, 'utf8');
+    assert.match(patched, /XCODE_VERSION=\$\(xcodebuild -version\)/);
     assert.deepEqual(build(), generated, 'repeated prebuild preserves the scene output');
+    assert.equal(fs.readFileSync(script, 'utf8'), patched, 'cache patch is idempotent');
+    // Exercise the actual upstream hash function with equal Swift versions and
+    // distinct Xcode builds, the case that failed when switching SDKs.
+    const hashFunction = patched.slice(patched.indexOf('compute_hash() {'), patched.indexOf('# Resolves the xcodebuild destination'));
+    const hashFor = xcode => {
+      const result = spawnSync('bash', ['-c', `set -euo pipefail
+SOURCE_DIRS=(); SOURCE_FILES=("$TEST_SCRIPT")
+xcrun() { echo 'Apple Swift version 6.4'; }
+xcodebuild() { echo "$TEST_XCODE"; }
+${hashFunction}
+compute_hash`], { encoding: 'utf8', env: { ...process.env, TEST_XCODE: xcode, TEST_SCRIPT: script } });
+      assert.equal(result.status, 0, result.stderr);
+      return result.stdout.trim();
+    };
+    assert.notEqual(hashFor('Xcode 27.0 Build 27A266a'), hashFor('Xcode 27.1 Build 27A9275'));
+    assert.equal(hashFor('Xcode 27.1 Build 27A9275'), hashFor('Xcode 27.1 Build 27A9275'));
     assert.doesNotThrow(() => nativeReferences(project, { objects: {} }, 'Snapback4chat'));
     fs.appendFileSync(path.join(project, 'ios/Podfile'), '\nputs \"custom pod hook\"\n');
     assert.throws(() => nativeReferences(project, { objects: {} }, 'Snapback4chat'), /custom Podfile/);

@@ -61,7 +61,7 @@ fn init_merges_packages_and_preserves_unrelated_metadata() {
         assert_eq!(after["dependencies"]["unrelated"], "1");
         assert_eq!(after["devDependencies"]["my-tool"], "2");
         assert_eq!(after["scripts"]["test"], "my-tests");
-        if flag == "--expo" { assert_eq!(after["scripts"]["start"], "node scripts/launch.mjs expo"); assert_eq!(after["devDependencies"]["babel-preset-expo"], "57.0.11"); }
+        if flag == "--expo" { assert_eq!(after["scripts"]["start"], "node scripts/launch.mjs expo"); assert_eq!(after["devDependencies"]["babel-preset-expo"], "57.0.16"); }
         assert!(dir.0.join("snapback/schema.q").exists());
         if flag == "--expo" { assert!(dir.0.join("expo-env.d.ts").is_file(), "Expo's types declare process.env for the starter's typecheck"); }
         if flag == "--expo" && chat {

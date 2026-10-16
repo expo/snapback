@@ -95821,3 +95821,16 @@ reference Release app builds with default precompiled Expo modules on Xcode
 27.1 (27A9275); full native/starter and older-Xcode controls follow in the
 EXPOPIN report. Version remains 0.4.29 for Integration 14 to cut 0.4.30.
 No publication tree, older Xcode installation, version, or remote branch is changed.
+
+### EXPOPIN SDK-switch control
+
+The first updated dependency tree passes the installed native witness on an
+owned iOS 27.1 simulator (offline and restart, 27.920 s total; installed product
+reports Xcode build 27A9275 / iphonesimulator27.1). Reusing its JSI slice under
+27.0 reproduces `__ObjC::expo`. Extend the same published config plugin with
+an idempotent prebuild patch that adds Xcode's build identity to JSI's existing
+source/Swift hash (expo/expo#50365). Unknown upstream script forms refuse.
+The scene fixture now keeps dependency copies private and executes the real
+upstream hash function: equal Swift strings and different Xcode builds must
+produce distinct keys. This is a cache identity repair, with no interop-mode
+or native module API change.
