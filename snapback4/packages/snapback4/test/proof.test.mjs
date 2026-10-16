@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
+import { createServer as httpServer } from "node:http";
 import { fileURLToPath } from "node:url";
 import { cli, startDev, startServe, startStatic, startVite, deploy, rollback, testSource, stopChild, cleanup, bounded, portRange, withBrowser, fillRN, statusText, waitForFresh, selectByValue, sandboxUnavailable, logsDir, command, waitForServer } from "../dist/proof.js";
 import { logged, ready } from "../dist/proof-process.js";
@@ -219,4 +220,45 @@ test("waitForServer waits for authoritative projection and diagnoses unchanged t
   let reads=0;
   assert.equal(await waitForServer(async()=>++reads, value=>value===3, {timeoutMs:1000}),3);
   await assert.rejects(waitForServer(async()=>({pending:true}),()=>false,{timeoutMs:50,label:'committed row'}), /committed row.*last=.*pending/);
+  let calls=0;
+  await assert.rejects(waitForServer(()=>++calls===1?Promise.resolve('last truth'):new Promise(()=>{}),()=>false,{timeoutMs:50,label:'stalled read'}),/stalled read.*last="last truth"/);
+});
+
+
+test("proof browser navigation arms witness before application registration", async t => {
+  const cwd=fixture(t);mkdirSync(join(cwd,'dist'));
+  writeFileSync(join(cwd,'dist/index.html'), '<p></p><script>document.querySelector("p").textContent=new URLSearchParams(location.search).get("witness")</script>');
+  const host=await startStatic('dist',{cwd});
+  try {
+    await withBrowser({cwd,executablePath:process.env.CHROME},async context=>{
+      const page=await context.newPage();await page.goto(host.url+'/?api=kept');
+      assert.equal(await page.locator('p').textContent(),'web');
+      assert.equal(new URL(page.url()).searchParams.get('api'),'kept');
+    });
+  } finally {await host.stop();}
+});
+
+
+test("--no-memory is consumed by the kit and retains dev rows across restarts", async t => {
+  const cwd=fixture(t),options={cwd,args:['--no-memory']};
+  let host=await startDev(options);
+  const seed=await fetch(host.url+'/seed',{method:'POST',headers:{'content-type':'application/json'},body:'[{"table":"notes","row":{"id":"kept","title":"Persistent"}}]'});
+  assert.equal(seed.status,200);await host.stop();host=await startDev(options);
+  try {
+    const read=await (await fetch(host.url+'/q/list',{method:'POST',headers:{'content-type':'application/json','x-snapback-persona':'alice'},body:'{"args":{}}'})).json();
+    assert.equal(read.data[0].title,'Persistent');
+  } finally {await host.stop();}
+  assert.throws(()=>startDev({cwd,args:['--memory','--no-memory']}),/conflicts/);
+});
+test("proof witness injection survives HTTP redirect destinations", async t => {
+  const cwd=fixture(t),server=httpServer((req,res)=>{
+    if(req.url.startsWith('/start')){res.writeHead(302,{location:'/landing?api=kept'});res.end();}
+    else {res.setHeader('content-type','text/html');res.end('<script>window.sampled=new URLSearchParams(location.search).get("witness")</script>');}
+  });
+  const port=await bind(server);
+  try {await withBrowser({cwd,executablePath:process.env.CHROME},async context=>{
+    const page=await context.newPage();await page.goto('http://127.0.0.1:'+port+'/start');
+    assert.equal(await page.evaluate(()=>window.sampled),'web');
+    assert.equal(new URL(page.url()).searchParams.get('api'),'kept');
+  });}finally{await new Promise(resolve=>server.close(resolve));}
 });

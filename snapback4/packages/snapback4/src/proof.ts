@@ -40,7 +40,11 @@ async function nativeHost(verb: "dev" | "serve", prefix: string[], options: Proo
 /** The array form preserves the former startDev(args) recipe. */
 export function startDev(options: ProofOptions | readonly string[] = {}): Promise<ProofHost> {
   const opts: ProofOptions = Array.isArray(options) ? { args: options } : options as ProofOptions;
-  return nativeHost("dev", [], { ...opts, args: [...(opts.args ?? []), ...((opts.args ?? []).some(arg => arg === "--store" || arg.startsWith("--store=") || arg === "--no-memory") ? [] : ["--memory"])] });
+  const args = [...(opts.args ?? [])];
+  const persistent = args.some(arg => arg === "--store" || arg.startsWith("--store=") || arg === "--no-memory");
+  if (persistent && args.includes("--memory")) throw new TypeError("proof startDev: --memory conflicts with --store/--no-memory");
+  // --no-memory is a proof option; native dev already persists by default.
+  return nativeHost("dev", [], { ...opts, args: [...args.filter(arg => arg !== "--no-memory"), ...(persistent || args.includes("--memory") ? [] : ["--memory"])] });
 }
 export function startServe(deployDir: string, options: ProofOptions | readonly string[] = {}): Promise<ProofHost> {
   return nativeHost("serve", [resolve(options && !Array.isArray(options) ? (options as ProofOptions).cwd ?? "." : ".", deployDir)],
@@ -128,12 +132,13 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
     let context: BrowserContext | undefined;
     try {
       context = await browser.newContext();
-      await context.route("**/*", async route => {
-        const request = route.request(), url = new URL(request.url());
-        if (request.isNavigationRequest() && request.frame().parentFrame() === null && /^https?:$/.test(url.protocol) && url.searchParams.get("witness") !== "web") {
-          url.searchParams.set("witness", "web");
-          await route.fulfill({ status: 302, headers: { location: url.href }, body: "" });
-        } else await route.continue();
+      // Init scripts run on each document, including HTTP redirect destinations,
+      // before any application script samples its URL.
+      await context.addInitScript(() => {
+        if (window.top !== window || !/^https?:$/.test(location.protocol)) return;
+        const url = new URL(location.href);
+        url.searchParams.set("witness", "web");
+        history.replaceState(history.state, "", url.href);
       });
       context.setDefaultTimeout(30_000); context.setDefaultNavigationTimeout(30_000);
       return await proof(context);
@@ -174,9 +179,14 @@ export async function waitForServer<T>(read: () => Promise<T>, accepts: (value: 
   const timeoutMs = deadline(options.timeoutMs, 30_000), end = performance.now() + timeoutMs;
   let last: T | undefined;
   while (performance.now() < end) {
-    const value = await bounded(Promise.resolve().then(read), Math.max(1, end - performance.now()), options.label ?? "server truth");
-    last = value;
-    if (accepts(value)) return value;
+    try {
+      const value = await bounded(Promise.resolve().then(read), Math.max(1, end - performance.now()), options.label ?? "server truth");
+      last = value;
+      if (accepts(value)) return value;
+    } catch (error) {
+      if (performance.now() >= end - 1) throw Error(`${options.label ?? "server truth"} timed out after ${timeoutMs} ms; last=${JSON.stringify(last)}`, { cause: error });
+      throw error;
+    }
     await new Promise(resolve => setTimeout(resolve, Math.min(25, Math.max(1, end - performance.now()))));
   }
   throw Error(`${options.label ?? "server truth"} timed out after ${timeoutMs} ms; last=${JSON.stringify(last)}`);

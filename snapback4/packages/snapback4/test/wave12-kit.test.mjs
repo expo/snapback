@@ -15,6 +15,7 @@ const source = `use identity guests\ntable notes:\n  title: text <=80\n  public 
 const fixture = t => { const dir = mkdtempSync(join(root, 'target/kit12-')); t.after(()=>rmSync(dir,{recursive:true,force:true})); return dir; };
 const invoke = (cwd, args, env={}) => spawnSync(bin,args,{cwd,encoding:'utf8',timeout:120000,env:{...process.env,PORT_LO:undefined,PORT_HI:undefined,SNAPBACK4_BIN:bin,...env}});
 const okay = r => assert.equal(r.status,0,r.stdout+r.stderr);
+const windowReceipt = page => kit.bounded(page.evaluate(()=>window.__snapback4Witness.formResult()),1000,"fresh receipt");
 const snapshot = dir => Object.fromEntries(readdirSync(dir,{recursive:true,withFileTypes:true}).filter(e=>e.isFile()).map(e=>{const path=join(e.parentPath,e.name);return[path,readFileSync(path).toString('base64')]}));
 
 test('H8 custom-schema generated proof refuses success without a write', {timeout:120000}, async t=>{
@@ -72,11 +73,20 @@ registerWebWitness(app,{save:op});document.querySelector('form').onsubmit=e=>{e.
     await button.evaluate(e=>window.__snapback4Witness.beginForm('save',null,e));
     await button.click();
     assert.equal((await kit.bounded(page.evaluate(()=>window.__snapback4Witness.formResult()),1000,'routed receipt')).state,'sent');
-    // A new document/registration without the flag is disabled.
-    // The global exists without the flag, and arming fails with a useful repair.
+    // Proof-owned contexts automatically arm each document.
     await page.goto(web.url);await button.waitFor();
-    await assert.rejects(button.evaluate(e=>window.__snapback4Witness.beginForm('save',null,e)),/E_WITNESS_DISABLED/);
-  }); } finally { await web.stop(); }
+    await button.evaluate(e=>window.__snapback4Witness.beginForm('save',null,e));
+    await button.click();
+    assert.equal((await windowReceipt(page)).state,'sent');
+  });
+    // Bare Playwright still requires an explicit flag; production pages are not armed.
+    const browser=await chromium.launch({executablePath:process.env.CHROME,args:['--no-sandbox']});
+    try {
+      const page=await browser.newPage();await page.goto(web.url);
+      const button=page.getByRole('button',{name:'Save'});await button.waitFor();
+      await assert.rejects(button.evaluate(e=>window.__snapback4Witness.beginForm('save',null,e)),/E_WITNESS_DISABLED/);
+    } finally {await browser.close();}
+  } finally { await web.stop(); }
 });
 
 if (!baseline) {
@@ -110,7 +120,7 @@ if (!baseline) {
    await page.locator('#rows p').evaluate(e=>e.textContent='changed');assert.equal(await fresh,'changed');
    assert.equal(await kit.frontPage(page),page);
   });
-  assert.ok(!kit.logsDir({cwd:'/example/app'}).startsWith('/example/app'));
+  assert.equal(kit.logsDir({cwd:'/example/app'}),'/example/app/logs');
  });
 }
 

@@ -123,6 +123,9 @@ Set `logsDir` explicitly to retain a chosen artifact directory. `startServe(depl
 output, including wasm. Spawn servers with the kit or the binary, never `npx`:
 killing the npx wrapper leaves the server holding your pipe.
 `startDev({args})` still adds --memory unless --store or --no-memory is explicit.
+The kit consumes --no-memory to use native dev's persistent `.snapback4/store.sqlite`;
+--memory with a persistence flag refuses. --store is forwarded to native validation
+(current dev refuses it; choose --no-memory for its project store).
 `startDev(args)` and `stopChild(ChildProcess | {url, stop})` remain supported.
 `cli(args)` dispatches every published verb through the installed JS wrapper, including web-shell,
 awaits close and returns `{code, stdout, stderr, logs}`; assert code
@@ -130,7 +133,7 @@ when expecting success. `cli(["token", ...])` never persists stdout: its bearer 
 returned in memory only. Use `{secret:true}` with cli/command for other secret
 stdout; stderr remains a log, so the invoked tool must keep secrets off stderr.
 `withBrowser` automatically adds `witness=web` to top-level HTTP(S) navigations
-before the app registers; raw Playwright callers add the flag themselves.
+with an init script before app scripts, including redirect destinations; raw Playwright callers add the flag themselves.
 `withBrowser({ chromium })` uses the caller’s Playwright (including @playwright/test);
 playwright-core is an optional peer required when using browsers. Chromium launches over
 a pipe, with no WebSocket listener. Set CHROME to an installed Chromium; root or a recognized
