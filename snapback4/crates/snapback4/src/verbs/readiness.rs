@@ -7,34 +7,10 @@ use crate::project::Project;
 
 // @ref LLP 3000.011.003.000#8 — positive bootstrap dependencies form a least fixed point.
 pub(super) fn notes(project: &Project, bound: &Bound, fixture: Option<&String>) -> Vec<Diagnostic> {
-    let mut reachable = BTreeSet::new();
-    let mut system = BTreeSet::new();
-    let mut writers = BTreeSet::new();
-    for p in &bound.programs {
-        for (table, effect) in ir::write_tables(&p.program) {
-            if matches!(effect, "insert" | "upsert") {
-                writers.insert(table.clone());
-                if p.program.kind == ProgramKind::Job { system.insert(table); }
-            }
-        }
-        // Native jobs are opaque to the authoring analysis; no absence claim.
-        if p.program.native { return fixture_notes(project, bound, fixture); }
-    }
-    loop {
-        let previous = reachable.len();
-        for (name, table) in bound.schema.visible_tables() {
-            if bound.schema.maintain_for(name).is_some() { reachable.insert(name.to_owned()); continue; }
-            if !writers.contains(name) { continue; }
-            let refs_ready = table.through.as_ref().is_none_or(|through| reachable.contains(&through.parent));
-            if refs_ready && (system.contains(name) || possible(&table.rules.insert, &reachable)) { reachable.insert(name.to_owned()); }
-        }
-        if reachable.len() == previous { break; }
-    }
+    let blocked = blocked_tables(bound);
+    let writers: BTreeSet<_> = bound.programs.iter().flat_map(|p| ir::write_tables(&p.program)).filter(|(_, effect)| matches!(*effect, "insert" | "upsert")).map(|(name, _)| name).collect();
     let sources = project.sources().unwrap_or_default();
     let mut notes = Vec::new();
-    let blocked: BTreeSet<String> = bound.schema.visible_tables().filter(|(name, table)|
-        table.ephemeral.is_none() && bound.schema.maintain_for(name).is_none() && !reachable.contains(name.as_str()))
-        .map(|(name, _)| name.clone()).collect();
     let site = |name: &str| sources.iter().find_map(|(file, source)| source.lines().enumerate()
         .find(|(_, line)| line.trim_start().starts_with(&format!("table {name}:")))
         .map(|(line, _)| Site::new(file, line as u32 + 1, 1)))
@@ -168,4 +144,36 @@ fn fixture_notes(project: &Project, bound: &Bound, fixture: Option<&String>) -> 
 }
 fn saved(value: &serde_json::Value) -> bool {
     match value { serde_json::Value::String(s) => s.starts_with('$') && s.len() > 1, serde_json::Value::Array(items) => items.iter().any(saved), serde_json::Value::Object(items) => items.values().any(saved), _ => false }
+}
+
+// Shared with production adaptation: the preview names every blocked table,
+// including dependents, using exactly the advisory's reachability analysis.
+pub(super) fn blocked_tables(bound: &Bound) -> BTreeSet<String> {
+    let mut reachable = BTreeSet::new();
+    let mut system = BTreeSet::new();
+    let mut writers = BTreeSet::new();
+    for p in &bound.programs {
+        for (table, effect) in ir::write_tables(&p.program) {
+            if matches!(effect, "insert" | "upsert") {
+                writers.insert(table.clone());
+                if p.program.kind == ProgramKind::Job { system.insert(table); }
+            }
+        }
+        // Native jobs are opaque to the authoring analysis; no absence claim.
+        if p.program.native { return BTreeSet::new(); }
+    }
+    loop {
+        let previous = reachable.len();
+        for (name, table) in bound.schema.visible_tables() {
+            if bound.schema.maintain_for(name).is_some() { reachable.insert(name.to_owned()); continue; }
+            if !writers.contains(name) { continue; }
+            let refs_ready = table.through.as_ref().is_none_or(|through| reachable.contains(&through.parent));
+            if refs_ready && (system.contains(name) || possible(&table.rules.insert, &reachable)) { reachable.insert(name.to_owned()); }
+        }
+        if reachable.len() == previous { break; }
+    }
+    let blocked: BTreeSet<String> = bound.schema.visible_tables().filter(|(name, table)|
+        table.ephemeral.is_none() && bound.schema.maintain_for(name).is_none() && !reachable.contains(name.as_str()))
+        .map(|(name, _)| name.clone()).collect();
+    blocked
 }

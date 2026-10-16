@@ -1,8 +1,8 @@
 # Production: a persona demo becomes an account app
 
-Bare `use identity` keeps guests; `use identity password` removes them. Production
-needs persisted sessions and a trusted seat writer for roots accounts cannot
-bootstrap; signup grants no role.
+Bare `use identity` keeps guests; guests call `/auth/guest` before any read;
+`use identity password` removes them. `/auth/config` is GET; production needs
+persisted sessions and trusted first writers because signup grants no role.
 
 ```quarry
 use identity password
@@ -60,7 +60,12 @@ function AccountScreen(){
 
 ## Production transition checklist
 
-1. Run `check`, then `why N_NO_PRODUCTION_WRITER` in the project. It lists
+1. Preview `init --adapt --production`, then review and use `--apply`. It adds
+   bare `use identity` only when no identity is declared, lists blocked tables,
+   emits one typed service-seat provisioning mutation per roster and shows its
+   explicit read/insert seat grants. It names frontend `dev:` references without
+   editing screens. Non-roster roots still need application policy.
+   Run `check`, then `why N_NO_PRODUCTION_WRITER` in the project. It lists
    **all** fixture-only first writers and their blocked dependents. Its rewrite
    proposes a seat mutation for each root, and one per declared `role` enum
    value. Review these proposals: add `viewer = 'service:ops'` to the table's
@@ -87,9 +92,10 @@ Replace `?as=alice`, `usePersonaApp` and fixed `dev:` owners with `createApp`
 using a persisted session store (`guide client`, password React/Expo). Choose
 `use identity password` when guests must be removed, and retain `use personas` only for
 development tests. Production principals come from signup/login, not names.
-`init --adapt` previews starter files; keep business schemas and apply this
-policy explicitly. This card supplies the full transition without guessing
-an app's directory and enrollment policy.
+`init --adapt --production` previews the identity and first-writer schema plan;
+`--apply` writes it and leaves application screens unchanged. Map each listed
+`dev:` location to the authenticated viewer or an authorized picker. Directory
+privacy and who may invite remain explicit application policy.
 
 `AppProvider` remounts children on every auth-state transition. A draft inside
 PasswordForm is intentionally reset by signup/login/logout; store a mode choice
@@ -332,3 +338,45 @@ The tested schema above covers enrollment, directory privacy and linked rows.
 Run this HTTP acceptance against your actual app's fields as well; storage
 rollback does not restore safeguards absent from old business logic. Detailed
 proof process helpers are `guide testing`; release narration is `guide changes`.
+
+
+## Runnable React and Expo production slice
+
+Every small React and Expo starter carries `recipes/production/`: a complete
+schema, screen, client and acceptance cases. It runs beside the default app
+without making your existing schema adopt a directory policy. In a disposable
+React starter (`init --web`), run these commands as written:
+
+```sh
+cp recipes/production/schema.q snapback/schema.q
+cp recipes/production/App.tsx src/App.tsx
+cp recipes/production/client.ts src/client.ts
+npx snapback4 check
+npx snapback4 test --fixture recipes/production/fixtures
+npm run typecheck
+npm run build
+```
+
+For an Expo starter (`init --expo`), use this mapping instead:
+
+```sh
+cp recipes/production/schema.q snapback/schema.q
+cp recipes/production/App.tsx App.tsx
+cp recipes/production/client.ts src/client.ts
+npx snapback4 check
+npx snapback4 test --fixture recipes/production/fixtures
+npm run typecheck
+npm run build:web
+```
+
+Then run the starter's backend and frontend commands. Password sign-in is
+always offered; development personas appear only after GET /auth/config says
+development=true. Create a team to become its admin, share an account's
+principal, and invite it as a member. Roles come from the roster. The principal
+picker lists only that team's authorized roster. This recipe uses direct
+enrollment, without an invitation acceptance step. An outsider's roster read
+shows “not available”. Complete empty lists show their empty state. Drafts,
+team selection and principal selection sit above release-sensitive reads;
+release gates and rollback preserve them. Account changes intentionally cross
+the AppProvider principal boundary. Exact's corresponding recipe is maintained
+in Exact2 (EX9); these source files target React and Expo.

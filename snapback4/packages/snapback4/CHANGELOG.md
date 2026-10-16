@@ -1,5 +1,11 @@
 # Snapback 4 behavior changes
 
+## 0.4.31
+
+- `init --adapt --production` previews identity, missing first writers and one service-seat provisioning mutation per roster; `--apply` writes the displayed schema plan. Frontend `dev:` references are listed and application screens stay owned. `guide production` states guest authentication before reads and GET `/auth/config`.
+- React and Expo starters include a runnable persona/password production recipe with roster roles, invitations by principal and an authorized principal picker. Drafts and selections survive release changes; denied roles show not available and complete empty lists show empty.
+- `guide client` lists read-helper handlers/arguments and mutation prediction timing. Generated declarations explain per-operation prediction and decimal scale. Invalid `writes` configuration appears in `useAuth().why`; native smoke names its provider requirement.
+
 ## 0.4.30
 
 - Saved releases: `deploy --schema` resolves compatibility baselines from the original project, preserves module names and deduplicates enum/value unions. Prefer `versions/v1/schema.q`, original-name modules and `versions/v1/fixtures/`; directory and complete-file inputs remain supported. Saved tests prefer contemporary fixtures, name fallback skips and keep explicit fixture selection strict. Deploy/rollback previews group actual guard dependencies and lead with query/count population losses, dependent dormancy and safety effects; literal backfills include exact active-row counts. A bridge-release recipe preserves safety logic as well as data.

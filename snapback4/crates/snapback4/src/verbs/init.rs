@@ -9,6 +9,7 @@ mod web;
 mod social;
 mod starter;
 mod adapt;
+mod production;
 mod ports;
 mod proof;
 pub(crate) use adapt::{report as starter_leftovers, report_json as starter_leftovers_json};
@@ -19,12 +20,19 @@ pub fn init(options: &Options) -> i32 {
     let usage = usage();
     // @ref LLP 3000.011.003.000#7.2 — the init-first path: fit the starter already written to the schema written since.
     if options.flags.contains_key("adapt") {
-        if options.positionals.len() > 1 || options.flags.keys().any(|flag| !matches!(flag.as_str(), "adapt" | "web" | "expo" | "dry-run" | "apply")) {
+        if options.positionals.len() > 1 || options.flags.keys().any(|flag| !matches!(flag.as_str(), "adapt" | "production" | "web" | "expo" | "dry-run" | "apply")) {
             eprintln!("{usage}\n  --adapt fits the starter files init wrote to your snapback/*.q; it takes no other starter flags");
             return 2;
         }
         if options.flags.contains_key("dry-run") && options.flags.contains_key("apply") { eprintln!("E_INPUT: --dry-run and --apply are mutually exclusive"); return 2; }
+        if options.flags.contains_key("production") {
+            return production::adapt(options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new(".")), options.flags.contains_key("apply"));
+        }
         return adapt::adapt(options.positionals.first().map(Path::new).unwrap_or_else(|| Path::new(".")), options.flags.contains_key("dry-run"), options.flags.contains_key("apply"));
+    }
+    if options.flags.contains_key("production") {
+        eprintln!("E_INPUT: --production requires init --adapt; preview with init --adapt --production");
+        return 2;
     }
     let template = options.flags.get("template").map(String::as_str);
     let modes = ["online", "expo", "web"].iter().filter(|flag| options.flags.contains_key(**flag)).count();
