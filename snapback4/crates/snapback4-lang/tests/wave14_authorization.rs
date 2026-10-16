@@ -69,11 +69,11 @@ fn missing_role_proof_is_advisory_and_overlapping_roles_still_pass_at_runtime() 
 
 #[test]
 fn helper_requires_keep_their_own_source_site_for_caller_layer_attribution() {
-    let source = format!("{ROWS}fn ownerGate(owner: principal):\n  require owner = viewer else E_RULE\n  return owner\nmutation guarded(owner: principal):\n  who = ownerGate(owner)\n  return insert rows {{ owner: who, body: 'x' }}\n");
+    let source = format!("{ROWS}fn ownerGate(owner: principal):\n  require owner = viewer else HELPER_OWNER\n  return owner\nmutation guarded(owner: principal):\n  who = ownerGate(owner)\n  return insert rows {{ owner: who, body: 'x' }}\n");
     let b = compile(&[("schema.q".into(), source)]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     assert!(b.refusal_sites.values().any(|v| v == "program require"));
-    assert!(b.refusal_sites.values().any(|v| v.contains("owner = viewer") && v.contains("else E_RULE")));
+    assert!(b.refusal_sites.values().any(|v| v.contains("owner = viewer") && v.contains("else HELPER_OWNER")));
 }
 
 #[test]
@@ -112,7 +112,7 @@ fn exact_current_roster_recipe_rolls_back_a_transfer_cut_after_work_begins() {
     let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
     let mut rows=vec![("departments",json!({"id":"old","title":"Old"})),("departments",json!({"id":"new","title":"New"})),("rosterFolders",json!({"id":"folder","department":"old"}))];
     for i in 0..20 { rows.push(("rosterFiles",json!({"id":format!("file-{i}"),"folder":"folder","department":"old","body":"private"}))); }
-    let rows=rows.into_iter().map(|(table,row)|(table.into(),wire::row_from_json(&e.schema().tables[table],&row).unwrap())).collect();
+    let rows=rows.into_iter().map(|(table,row)|(table.to_owned(),wire::row_from_json(&e.schema().tables[table],&row).unwrap())).collect::<Vec<_>>();
     e.seed(rows).unwrap();
     let before=e.store().rows("rosterFiles").unwrap();
     let ordinary=e.ceilings();let mut small=ordinary;small.rows_written=3;e.set_ceilings(small);
