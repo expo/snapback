@@ -1214,7 +1214,7 @@ impl<'r> Runner<'r> {
         // @ref LLP 3000.036.001#3 — a branch merge's grant lane was admitted by its grant before it opened; one verdict, one charge.
         let lane_grant = self.merge_grant.take();
         let granted = if let Some(pending) = lane_grant { grant_expiry = Some(pending); !always_visible } else {
-            !always_visible && !visibility.uniform && !parent_pinned && word.is_none() && aggregate_parent.is_none()
+            !self.merge_bounded && !always_visible && !visibility.uniform && !parent_pinned && word.is_none() && aggregate_parent.is_none()
             && !self.device && !self.context.is_system()
             && match rules::page_guard_decision(self.schema, scan) {
                 Some(rule) => {
@@ -1240,7 +1240,7 @@ impl<'r> Runner<'r> {
         let aborting = self.meter.cut == crate::meter::Cut::Abort;
         if aborting && !self.read_charge(MeterKind::Examined, 1)? { return Ok((Vec::new(), Vec::new())); }
         let streaming_parent = aggregate.is_some();
-        if !always_visible && word.is_none() && let Some(rule) = rules::prefix_decision(self.schema, scan) {
+        if !self.merge_bounded && !always_visible && word.is_none() && let Some(rule) = rules::prefix_decision(self.schema, scan) {
             let (allowed, pending) = self.prefix_verdict(&scan.table, table, index, &prefix, &rule, visibility.uniform)?;
             if !allowed && !(self.device && parent_pinned && !streaming_parent) { return Ok((Vec::new(), Vec::new())); }
             prefix_expiry = pending;

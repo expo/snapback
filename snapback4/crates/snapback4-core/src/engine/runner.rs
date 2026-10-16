@@ -86,6 +86,7 @@ pub(crate) struct PagePosition {
 }
 
 pub struct Runner<'a> {
+    pub(super) bounded_plans: BTreeSet<usize>,
     #[cfg(feature = "sqlite")]
     pub(super) following_witnesses: Option<Vec<super::following_history::projection::Witness>>,
     #[cfg(feature = "sqlite")]
@@ -181,6 +182,7 @@ pub struct Runner<'a> {
     /// A validator-proved vacancy lane may publish exhaustion after its
     /// private server scan checks every candidate's original read rule.
     pub(super) merge_vacancy: bool,
+    pub(super) merge_bounded: bool,
     /// Armed by a branch merge around a lane's read with the lane's table and
     /// index: the key of the last rule-visible candidate that read examined.
     pub(super) scan_frontier: Option<(String, String, Option<Vec<u8>>)>,
@@ -308,6 +310,7 @@ impl<'a> Runner<'a> {
             env.insert(name.clone(), value.clone());
         }
         Self {
+            bounded_plans: BTreeSet::new(),
             #[cfg(feature = "sqlite")]
             job_read_scope: 0,
             receipt_operation: String::new(),
@@ -362,6 +365,7 @@ impl<'a> Runner<'a> {
             view_scan_active: false,
             merge_grant: None,
             merge_vacancy: false,
+            merge_bounded: false,
             scan_frontier: None,
             discarded_page_loss: false,
             page_owner: None,
@@ -428,6 +432,7 @@ impl<'a> Runner<'a> {
     }
 
     pub fn run(&mut self, program: &Program) -> Result<Value, RuntimeError> {
+        self.reserve_bounded_plans(program)?;
         if let Some(value) = self.run_decorated_search(program)? { return Ok(value); }
         self.insert_uses = (program.kind != ProgramKind::Query).then(|| effects::Effects::variable_uses(&program.body));
         self.receipt_operation = program.name.clone();

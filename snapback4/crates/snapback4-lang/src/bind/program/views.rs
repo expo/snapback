@@ -49,6 +49,15 @@ impl Binder<'_> {
             scan.after = cursor.as_ref().map(|(value, _)| Box::new(value.clone()));
             scan.opaque_cursor = cursor.is_some();
             scan.merge_site = Some(site.clone());
+            if lane.branch.as_deref() == Some(ir::BOUNDED_LANE) {
+                let proof = MergeLane { guard: None, distinct: None, branch: Some(ir::BOUNDED_LANE.into()), setup: Vec::new(), scan: scan.clone(), source: None, binding: String::new(), project: None };
+                if !snapback4_core::engine::rules::bounded_branch(self.schema, &proof) {
+                    // The schema's null-exempt caps or lifetime dependencies
+                    // could not certify this speculative source-level plan.
+                    self.pop_scope();
+                    return self.read(&read, out);
+                }
+            }
             if lane.project.is_none() {
                 // Admission was checked against the original domain cap above.
                 scan.take = Bound::Literal(merge.take);

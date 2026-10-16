@@ -283,7 +283,7 @@ fn one_row_source_admitted(table: &TableInfo, source: &ReadExpr, index: &IndexDe
     source_read_admitted(table, &point)
 }
 
-fn source_read_admitted(table: &TableInfo, source: &ReadExpr) -> bool {
+pub(super) fn source_read_admitted(table: &TableInfo, source: &ReadExpr) -> bool {
     table.decl.public.is_some() || read_rule(table).is_some_and(|rule| by_form(rule, source))
 }
 

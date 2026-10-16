@@ -1,0 +1,216 @@
+use snapback4_lang::{compile, bind::Bound};
+use snapback4_core::{Context, Engine, Value, value::object};
+
+fn checked(source: &str) -> Bound {
+    let b = compile(&[("schema.q".into(), source.into())]);
+    assert!(b.diagnostics.is_empty(), "{source}\n{:#?}", b.diagnostics);
+    b
+}
+fn refusal(source: &str, code: &str) -> snapback4_lang::Diagnostic {
+    let b = compile(&[("schema.q".into(), source.into())]);
+    b.diagnostics.iter().find(|d| d.code == code).cloned().unwrap_or_else(|| panic!("missing {code}: {:#?}", b.diagnostics))
+}
+fn engine(source: &str) -> Engine {
+    let b = checked(source);
+    Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap()
+}
+fn id(s: &str) -> Value { Value::Id(s.into()) }
+fn query(engine: &mut Engine, name: &str, viewer: &str, args: &[(&str, Value)]) -> snapback4_core::engine::QueryOutcome {
+    engine.query(name, Context::new(viewer, args.iter().map(|(k,v)| ((*k).into(),v.clone())).collect())).unwrap()
+}
+
+const MEMBERSHIP: &str = "table judges:\n  principal: principal\n  story: stories\n  unique story, principal\n  read <- .principal = viewer\n  online only\ntable stories:\n  winner: bool\n  read <- exists judges[story = .id, principal = viewer]\n  online only\nquery winners(c: cursor ?):\n  return stories where .winner = true first 1 by .id after c\n";
+#[test]
+fn unique_membership_lanes_filter_one_point_and_continue_in_merge_order() {
+    let b = checked(MEMBERSHIP);
+    assert!(!b.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE"), "{:?}", b.notes);
+    let mut e = engine(MEMBERSHIP);
+    e.seed([("stories".into(), object([("id", id("a")), ("winner",Value::Bool(false))])),
+        ("stories".into(), object([("id", id("b")), ("winner",Value::Bool(true))])),
+        ("stories".into(), object([("id", id("c")), ("winner",Value::Bool(true))])),
+        ("stories".into(), object([("id", id("hidden")), ("winner",Value::Bool(true))]))]).unwrap();
+    e.seed(["a","b","c"].into_iter().map(|s| ("judges".into(), object([
+        ("id",id(&format!("j{s}"))), ("story",id(s)), ("principal",id("alice"))])))).unwrap();
+    let a = query(&mut e,"winners","alice", &[("c",Value::Null)]);
+    assert!(a.complete, "{a:?}");
+    assert_eq!(a.data.as_array().unwrap()[0].field("id").unwrap(), &id("b"));
+    let b = query(&mut e,"winners","alice", &[("c", Value::String(a.next.unwrap()))]);
+    assert!(b.complete, "{b:?}");
+    assert_eq!(b.data.as_array().unwrap()[0].field("id").unwrap(), &id("c"));
+}
+
+#[test]
+fn dormant_cascades_need_bounds_only_after_a_delete_source_appears() {
+    let source = "table parents:\n  public\n  online only\ntable children:\n  parent: parents on delete cascade\n  public\n  online only\n";
+    let b = checked(source);
+    Engine::memory(b.schema, []).unwrap();
+    for active in [source.replace("table parents:\n", "table parents:\n  delete <- allow\n"),
+        source.replace("table parents:\n", "table parents:\n  until: time\n  expire at .until\n"),
+        format!("{source}mutation remove(p: parents):\n  delete parents[p]\n  return null\n"),
+        format!("{source}job remove():\n  for p in parents:\n    delete parents[p.id]\n")] {
+        let d = refusal(&active, "E_CASCADE_BOUND");
+        assert!(d.rewrite.contains("product limit") && d.rewrite.contains("Heap ="), "{d}");
+    }
+    let active = source.replace("table parents:\n", "table parents:\n  delete <- allow\n").replace("  parent: parents on delete cascade\n", "  parent: parents on delete cascade\n  cap 3 by parent\n");
+    checked(&active);
+}
+
+#[test]
+fn immutable_patches_refuse_unproved_values_and_admit_exact_key_and_current_snapshot() {
+    let base = "table entries:\n  owner: principal\n  at: time\n  body: text\n  unique owner\n  immutable owner, at\n  public\n  insert <- allow\n  update <- allow\n  online only\n";
+    for write in ["update entries[e] { at: now }", "upsert entries[viewer] { at: now, body: 'x' }"] {
+        refusal(&format!("{base}mutation bad(e: entries):\n  {write}\n  return null\n"), "E_QUARRY_IMMUTABLE");
+    }
+    checked(&format!("{base}mutation key():\n  upsert entries[viewer] {{ owner: viewer, body: 'x' }}\n  return null\n"));
+    checked(&format!("{base}mutation snapshot(e: entries):\n  r = entries[e] ! else NOT_FOUND\n  update entries[e] {{ at: r.at }}\n  return null\n"));
+    refusal(&format!("{base}mutation stale(e: entries):\n  r = entries[e] ! else NOT_FOUND\n  update entries[e] {{ body: 'x' }}\n  update entries[e] {{ at: r.at }}\n  return null\n"), "E_QUARRY_IMMUTABLE");
+    refusal(&format!("{base}mutation spread(e: entries, at: time):\n  patch = {{ at }}\n  update entries[e] {{ ...patch }}\n  return null\n"), "E_QUARRY_IMMUTABLE");
+}
+
+#[test]
+fn non_null_filter_refines_loop_and_shape_snapshots_but_not_other_rows_or_phase() {
+    let base = "table entries:\n  x: int ?\n  public\n  cap 4\n  online only\n";
+    checked(&format!("{base}query loop():\n  values = []\n  for row in entries where .x != null:\n    values = values + [row.x + 1]\n  return values\n"));
+    checked(&format!("{base}query shape():\n  return entries where .x != null first 4 by .id {{ value: .x + 1 }}\n"));
+    refusal(&format!("{base}query disjunction():\n  return entries where .x != null or true first 4 by .id {{ value: .x + 1 }}\n"), "E_QUARRY_TYPE");
+}
+
+#[test]
+fn opening_boundary_index_is_inferred_without_an_authored_index() {
+    let b = checked("table messages:\n  opens: time ?\n  not before .opens\n  public\n  online only\nquery list(c: cursor ?):\n  return messages first 10 by .id after c\n");
+    assert!(b.schema.tables["messages"].opening_index().is_some());
+}
+
+#[test]
+fn finite_parent_and_child_policy_walks_exhaust_without_claiming_uncapped_reads() {
+    let base = "table parents:\n  public\n  online only\ntable grants:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable children:\n  parent: parents\n  owner: principal\n  open: bool\n  cap 2 by parent\n  read <- .owner = viewer or (exists grants[viewer] and .open = true)\n  online only\nquery list(parent: parents, c: cursor ?):\n  return children where .parent = parent first 2 by .id after c\n";
+    let b = checked(base);
+    assert!(b.schema.required_capabilities().contains("branch-pages-v5"));
+    assert!(!b.notes.iter().any(|n| n.code == "N_NEVER_COMPLETE"), "{:?}", b.notes);
+    let mut e = engine(base);
+    e.seed([("parents".into(),object([("id",id("p"))])),
+        ("children".into(),object([("id",id("a")),("parent",id("p")),("owner",id("bob")),("open",Value::Bool(true))])),
+        ("children".into(),object([("id",id("b")),("parent",id("p")),("owner",id("bob")),("open",Value::Bool(false))]))]).unwrap();
+    let hidden = query(&mut e,"list","alice", &[("parent",id("p")),("c",Value::Null)]);
+    assert!(hidden.complete && hidden.data.as_array().unwrap().is_empty(), "{hidden:?}");
+    e.seed([("grants".into(),object([("id",id("g")),("principal",id("alice"))]))]).unwrap();
+    let visible = query(&mut e,"list","alice", &[("parent",id("p")),("c",Value::Null)]);
+    assert!(visible.complete && visible.data.as_array().unwrap().len() == 1, "{visible:?}");
+    let uncapped = checked(&base.replace("  cap 2 by parent\n", ""));
+    assert!(!uncapped.schema.required_capabilities().contains("branch-pages-v5"));
+}
+
+#[test]
+fn compound_negative_membership_keeps_extra_equalities_and_all_callers() {
+    let source = "table listings:\n  owner: principal\n  read <- .owner = viewer or not exists applications[listing = .id, applicant = viewer, status = 'declined']\n  online only\ntable applications:\n  listing: listings\n  applicant: principal\n  status: enum('declined', 'pending')\n  unique listing, applicant\n  read <- deny\n  online only\nquery board(c: cursor ?):\n  return listings first 10 by .id after c\n";
+    let b = checked(source);
+    assert!(b.schema.required_capabilities().contains("branch-pages-v5"));
+    let mut e = engine(source);
+    e.seed([("listings".into(),object([("id",id("a")),("owner",id("bob"))])),
+        ("listings".into(),object([("id",id("b")),("owner",id("bob"))])),
+        ("listings".into(),object([("id",id("c")),("owner",id("bob"))])),
+        ("applications".into(),object([("id",id("x")),("listing",id("a")),("applicant",id("alice")),("status",Value::String("declined".into()))])),
+        ("applications".into(),object([("id",id("y")),("listing",id("b")),("applicant",id("alice")),("status",Value::String("pending".into()))]))]).unwrap();
+    let a = query(&mut e,"board","alice", &[("c",Value::Null)]);
+    assert!(a.complete, "{a:?}");
+    assert_eq!(a.data.as_array().unwrap().len(), 2);
+    let b = query(&mut e,"board","bob", &[("c",Value::Null)]);
+    assert!(b.complete && b.data.as_array().unwrap().len() == 3, "{b:?}");
+}
+
+#[test]
+fn boolean_errors_name_nullable_operand_source_and_statement_position_has_own_code() {
+    let source = "table flags:\n  active: bool\n  public\nquery bad(id: flags):\n  return true and flags[id].active\n";
+    let d = refusal(source,"E_QUARRY_TYPE");
+    assert!(d.message.contains("flags[id].active") && d.message.contains("nullable operand") && d.message.contains("schema.q:"), "{d}");
+    refusal("table flags:\n  public\nmutation bad(id: flags):\n  flags[id] ! else NOT_FOUND\n  return null\n", "E_QUARRY_STATEMENT");
+}
+
+#[test]
+fn private_count_uses_the_proved_immutable_parent_field_without_turning_hidden_into_zero() {
+    let source = "table vendors:\n  lead: principal\n  immutable lead\n  read <- allow\n  online only\ntable badges:\n  vendor: vendors\n  public\n  online only\nview used: count badges by .vendor\n  read <- exists vendors[.vendor, lead = viewer]\n  online only\nquery capacity(vendor: vendors):\n  v = vendors[vendor] ! else NOT_FOUND\n  require v.lead = viewer else NOT_LEAD\n  return used[vendor] + 1\n";
+    checked(source);
+    refusal(&source.replace("  immutable lead\n", ""), "E_QUARRY_TYPE");
+    refusal(&source.replace("  require v.lead = viewer else NOT_LEAD\n", ""), "E_QUARRY_TYPE");
+}
+
+#[test]
+fn ordered_whole_child_deletes_silence_restrict_but_previews_and_hidden_populations_do_not() {
+    let source = "table parents:\n  public\n  delete <- allow\n  online only\ntable children:\n  parent: parents\n  public\n  delete <- allow\n  cap 3 by parent\n  online only\nmutation remove(parent: parents):\n  for row in children where .parent = parent:\n    delete children[row.id]\n  delete parents[parent]\n  return null\n";
+    let b = checked(source);
+    assert!(!b.notes.iter().any(|n|n.code=="N_DELETE_RESTRICTED"), "{:?}", b.notes);
+    let preview = checked(&source.replace("children where .parent = parent:","children where .parent = parent first 2 by .id:"));
+    assert!(preview.notes.iter().any(|n|n.code=="N_DELETE_RESTRICTED"), "{:?}", preview.notes);
+}
+
+#[test]
+fn capped_private_walk_admission_is_independent_of_hidden_occupancy() {
+    let source = "table entries:\n  a: int\n  b: int\n  cap 9000\n  read <- .a = .b\n  online only\nquery list(c: cursor ?):\n  return entries first 10 by .id after c\n";
+    let mut empty = engine(source);
+    let mut hidden = engine(source);
+    hidden.seed((0..20).map(|n| ("entries".into(),object([("id",id(&format!("h{n}"))), ("a",Value::Int(1)),("b",Value::Int(2))])))).unwrap();
+    let a = query(&mut empty,"list","alice", &[("c",Value::Null)]);
+    let b = query(&mut hidden,"list","alice", &[("c",Value::Null)]);
+    assert!(!a.complete && !b.complete, "{a:?}\n{b:?}");
+    assert_eq!(a.data,b.data);
+    assert_eq!(a.next,b.next);
+    assert_eq!(a.metered,b.metered);
+}
+
+#[test]
+fn whole_caps_and_unique_enum_alternatives_do_not_ask_for_cursors() {
+    for (decl, read) in [
+        ("  cap 4\n", "entries first 4 by .id"),
+        ("  unique owner, status\n", "entries where .owner = viewer and (.status = 'open' or .status = 'closed') first 4 by .id"),
+    ] {
+        let b = checked(&format!("table entries:\n  owner: principal\n  status: enum('open', 'closed')\n{decl}  public\n  online only\nquery list():\n  return {read}\n"));
+        assert!(!b.notes.iter().any(|n|n.code=="N_NO_CURSOR"), "{:?}", b.notes);
+    }
+}
+
+#[test]
+fn unsupported_copied_scopes_print_the_same_caller_query_instead_of_a_viewer_pin() {
+    let source = "table parents:\n  owner: principal\n  immutable owner\n  public\n  online only\ntable children:\n  parent: parents\n  owner: principal\n  read <- .owner = viewer\n  online only\nquery list(parent: parents, c: cursor ?):\n  return children where .parent = parent first 10 by .id after c\n";
+    let b = checked(source);
+    let note = b.notes.iter().find(|note|note.code=="N_NEVER_COMPLETE").unwrap();
+    assert!(note.rewrite.starts_with("nearest supported query, preserving every authorized caller"),"{note}");
+    let code = note.rewrite.split_once('\n').unwrap().1.split("\nHandle complete:").next().unwrap();
+    checked(&format!("{}{}",source.split("query list").next().unwrap(),code));
+}
+
+#[test]
+fn private_count_proof_cannot_be_reacquired_for_an_old_snapshot_after_parent_rebirth() {
+    let source = "table vendors:\n  lead: principal\n  immutable lead\n  public\n  delete <- allow\n  insert <- allow\n  online only\ntable badges:\n  vendor: vendors on delete keep\n  public\n  online only\nview used: count badges by .vendor\n  read <- exists vendors[.vendor, lead = viewer]\n  online only\nmutation stale(vendor: vendors):\n  v = vendors[vendor] ! else NOT_FOUND\n  require v.lead = viewer else NOT_LEAD\n  delete vendors[vendor]\n  insert vendors { id: vendor, lead: 'bob' }\n  require exists vendors[vendor] else NOT_FOUND\n  return used[vendor] + 1\n";
+    refusal(source,"E_QUARRY_TYPE");
+}
+
+#[test]
+fn immutable_volatile_captures_keep_assignment_versions() {
+    let source = "table entries:\n  owner: id\n  unique owner\n  immutable owner\n  public\n  insert <- allow\n  update <- allow\n  online only\nmutation change():\n  a = new\n  insert entries { owner: a }\n  old = a\n  a = new\n  update entries[owner = old] { owner: a }\n  return null\n";
+    refusal(source,"E_QUARRY_IMMUTABLE");
+}
+
+#[test]
+fn bounded_reservation_precedes_even_a_readable_points_private_rule_probe() {
+    let source = "table secrets:\n  card: cards\n  unique card\n  read <- deny\n  online only\ntable cards:\n  owner: principal\n  read <- exists secrets[card = .id] or .owner = viewer\n  online only\ntable entries:\n  a: int\n  b: int\n  cap 8189\n  read <- .a = .b\n  online only\nquery both(card: cards, c: cursor ?):\n  selected = cards[card] ! else NOT_FOUND\n  return entries first 10 by .id after c\n";
+    let mut a = engine(source);
+    let mut b = engine(source);
+    for e in [&mut a,&mut b] { e.seed([("cards".into(),object([("id",id("card")),("owner",id("alice"))]))]).unwrap(); }
+    b.seed([("secrets".into(),object([("id",id("secret")),("card",id("card"))]))]).unwrap();
+    let left = query(&mut a,"both","alice", &[("card",id("card")),("c",Value::Null)]);
+    let right = query(&mut b,"both","alice", &[("card",id("card")),("c",Value::Null)]);
+    assert_eq!(left.complete,right.complete);
+    assert_eq!(left.data,right.data);
+    assert_eq!(left.next,right.next);
+}
+
+#[test]
+fn external_ir_deletes_cannot_activate_unbounded_dormant_actions() {
+    use snapback4_core::ir::*;
+    let b = checked("table parents:\n  public\n  online only\ntable children:\n  parent: parents on delete cascade\n  public\n  online only\n");
+    let delete = Stmt::Delete { table: "parents".into(), key: Expr::Literal(id("p")) };
+    let program: Program = serde_json::from_value(serde_json::json!({"name":"external","kind":"job","args":{},"body":[]})).unwrap();
+    let program = Program { body: vec![Stmt::Return(Expr::Block { body: vec![delete], value: Box::new(Expr::Literal(Value::Null)) })], ..program };
+    let error = snapback4_core::engine::admission::check(&b.schema,&program).unwrap_err();
+    assert!(error.to_string().contains("E_CASCADE_BOUND"),"{error}");
+}

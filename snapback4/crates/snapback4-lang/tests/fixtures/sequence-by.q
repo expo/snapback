@@ -39,7 +39,7 @@ mutation pair(conversationId: conversations):
   row = insert messages { conversationId, body: 'paired' }
   return row
 mutation move(messageId: messages, conversationId: conversations):
-  update messages[messageId] { conversationId }
+  update messages[messageId] {}
 mutation remove(messageId: messages):
   delete messages[messageId]
 mutation put(conversationId: conversations, body: text <=40):

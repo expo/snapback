@@ -606,7 +606,9 @@ fn definitely_non_null_pin(bound: &BoundProgram, value: &snapback4_core::ir::Exp
 /// A branch merge over one capped group cannot leave rows behind when every
 /// branch pins the same group values and the cap fits both the page and meter.
 fn merged_group_complete(schema: &Schema, bound: &BoundProgram, merge: &snapback4_core::ir::Merge) -> bool {
-    if !merge.branches() || merge.lanes.is_empty() { return false; }
+    if merge.lanes.is_empty() { return false; }
+    if schema.group_bound(merge.table(), &[]).is_some_and(|cap| u64::from(cap) <= merge.take()
+        && u64::from(cap) <= snapback4_core::Ceilings::default().examined) { return true; }
     let table = match schema.table(merge.table()) { Some(table) => table, None => return false };
     // System and grant lanes cover the other branches when they run. Every
     // remaining branch can scan the capped group, including the same row
@@ -614,6 +616,22 @@ fn merged_group_complete(schema: &Schema, bound: &BoundProgram, merge: &snapback
     // generated source has an additional discovery walk that this bound does
     // not prove.
     let participating: Vec<_> = merge.lanes.iter().filter(|lane| !lane.system() && !lane.grant()).collect();
+    // Sum the finite populations of every branch, including a list lane's
+    // finite values. Overlap only tightens this upper bound. A scan source
+    // needs discovery work too and does not get this cursor-only silence.
+    let finite = merge.lanes.iter().filter(|lane| !lane.system()).try_fold(0u64, |sum, lane| {
+        let multiple = match &lane.source {
+            None => 1,
+            Some(snapback4_core::ir::LaneSource::List { max, .. }) => u64::from(*max),
+            _ => return None,
+        };
+        let index = table.index(&lane.scan.index)?;
+        let pins = index.columns().into_iter().take(lane.scan.prefix.len()).collect::<Vec<_>>();
+        let n = unique_bound::group_bound(schema, &lane.scan.table, &pins)?;
+        Some(sum.saturating_add(u64::from(n).saturating_mul(multiple)))
+    });
+    if finite.is_some_and(|n| n <= merge.take() && n <= snapback4_core::Ceilings::default().examined) { return true; }
+    if !merge.branches() { return false; }
     if participating.iter().any(|lane| lane.source.is_some()) { return false; }
     let scans = participating.len().max(1) as u64;
     table.constraints.iter().any(|constraint| {
@@ -823,7 +841,7 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
         // @ref LLP 3000.036.001#14 — grant, system and witnessed membership lanes carry their own proof.
         let proof_lanes: Vec<*const snapback4_core::ir::Scan> = snapback4_core::ir::body_merges(&bound.program.body).into_iter()
             .filter(|merge| merge.branches()).flat_map(|merge| merge.lanes.iter().filter(|lane|
-                lane.grant() || lane.system() || lane.membership() || lane.guarded() || lane.vacancy())
+                lane.grant() || lane.system() || lane.membership() || lane.guarded() || lane.exhaustive())
                 .map(|lane| &lane.scan as *const _)).collect();
 
         for scan in snapback4_core::ir::scans(&bound.program) {
@@ -937,6 +955,16 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
                     cap_repair.or(held_rewrite).or(search_rewrite.clone()).unwrap_or_else(|| {
                         let base = scope_rewrite.or(equality_index_rewrite).unwrap_or_else(|| format!("pin {} with where equalities as well as the current equality prefix, choosing the intended scope (this narrows the answer); or read the page on the device, where the partition holds exactly what the viewer may read", unpinned.iter().map(|column| format!(".{column}")).collect::<Vec<_>>().join(", ")));
                         let declaration = catalog.source.declarations.get(&bound.site.to_string()).map(String::as_str);
+                        // @ref LLP 3000.036.002#10 — a copied scope is not a
+                        // stored dependency. Keep every caller rather than
+                        // presenting a viewer pin as its replacement.
+                        let copied_scope = index.components.iter().take(scan.prefix.len()).filter_map(|part| part.column())
+                            .any(|reference| table.columns.get(reference).and_then(|kind| match kind.required() {
+                                snapback4_core::schema::ColumnType::Ref { table } => schema.table(&table), _ => None,
+                            }).is_some_and(|parent| unpinned.iter().any(|column| parent.columns.get(column) == table.columns.get(column))));
+                        if copied_scope && let Some(declaration) = declaration {
+                            return format!("nearest supported query, preserving every authorized caller (the copied fields are not an enforced stored dependency):\n{declaration}\nHandle complete: false and continue its cursor. Keep explicit parent/child scope equalities when that narrower scope is what the screen requests; a viewer pin is not an equivalent repair.{parent_advice}");
+                        }
                         match pin_rewrite::pin_rewrite(schema, &bound.program, scan, table, &unpinned, declaration) {
                             Some((Some(code), pin)) => format!("{code}\n\nOtherwise: {base}. As code: {pin}{parent_advice}"),
                             Some((None, pin)) => format!("{base}. As code: {pin}{parent_advice}"),

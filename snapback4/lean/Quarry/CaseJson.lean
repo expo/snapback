@@ -282,7 +282,7 @@ def table (j : Json) : D TableDecl := do
   let expiryOrder ← match optField j "expiryOrder" with
     | none => pure []
     | some order => (← order.getArr?).toList.mapM (·.getStr?)
-  return { name := ← str j "name", cols, uniques, uniqueCodes := codes, caps, notBefore, expire, expiryOrder,
+  return { name := ← str j "name", cols, uniques, uniqueCodes := codes, caps, notBefore, expire, expiryOrder, onlineOnly := ((optField j "onlineOnly").bind (fun x => x.getBool?.toOption)).getD true,
            read := ← rule (← field j "read"), insert := ← rule (← field j "insert"),
            update := ← rule (← field j "update"), delete := ← rule (← field j "delete") }
 

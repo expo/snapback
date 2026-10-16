@@ -3,7 +3,7 @@
 // @ref LLP 3000.036.001#16 — complete compound pages use the same bounded merge and discovery fence.
 use super::{catalog::TableInfo, intent::{self, Requests}, intent_branches as branches};
 use crate::ast::*;
-use snapback4_core::ir::{BRANCH_LANE, GUARDED_LANE, SYSTEM_LANE, VACANCY_LANE};
+use snapback4_core::ir::{BRANCH_LANE, GUARDED_LANE, SYSTEM_LANE, VACANCY_LANE, BOUNDED_LANE};
 use std::collections::{BTreeMap, BTreeSet};
 
 type Tables = BTreeMap<String, TableInfo>;
@@ -194,8 +194,10 @@ pub(super) fn vacancy(tables: &Tables, synthesized: &BTreeSet<(String, String)>,
     let range = read.range.as_ref()?;
     let table = tables.get(&read.table)?;
     let rule = branches::read_rule(table)?;
-    if read.filter.is_some() || read.index.is_some() || !read.keys.is_empty() || read.matching.is_some()
+    if read.filter.as_deref().is_some_and(|filter| !branches::total(filter)) || read.index.is_some() || !read.keys.is_empty() || read.matching.is_some()
         || !read.computed.is_empty() || read.cursor_prefix.is_some()
+        || table.through.is_some() || table.maintained.is_some() || table.decl.ephemeral.is_some()
+        || table.decl.columns.iter().any(|column| column.written_by.is_some())
         || (table.decl.sync.is_some() && !table.decl.online_only) { return None; }
     fn alternatives<'a>(value: &'a Expr, out: &mut Vec<&'a Expr>) {
         match value {
@@ -208,18 +210,22 @@ pub(super) fn vacancy(tables: &Tables, synthesized: &BTreeSet<(String, String)>,
         let Expr::Unary { op, value, .. } = value else { return false };
         let Expr::Exists { read: probe, .. } = value.as_ref() else { return false };
         if op != "not" || probe.range.is_some() || probe.filter.is_some() || probe.matching.is_some()
-            || !probe.seeks.is_empty() || probe.keys.len() != 1 || intent::column(&probe.keys[0].value) != Some("id") { return false; }
+            || !probe.seeks.is_empty() { return false; }
+        let varying = probe.keys.iter().filter(|key| intent::column(&key.value).is_some()).count();
+        if varying != 1 || probe.keys.iter().any(|key| intent::column(&key.value).is_none() && !fixed_key_total(&key.value)) { return false; }
         let Some(target) = tables.get(&probe.table) else { return false };
-        let Some(columns) = super::intent_lanes::probe_columns(tables, synthesized, table, probe) else { return false };
-        target.indexes.iter().any(|index| target.total_unique(index) && index.columns == columns)
+        let Some(columns) = point_columns(tables, synthesized, table, probe) else { return false };
+        target.indexes.iter().any(|index| target.total_unique(index) && index.columns.iter().all(|column| columns.contains(column)))
     });
-    if !admitted { return None; }
     let mut candidate = requests.clone(); let errors = candidate.error_count();
     let mut system = read.clone(); candidate.read(tables, &mut system, false);
     let mut lane = read.clone(); candidate.plan_lane(tables, &mut lane);
+    let pins = lane.keys.iter().filter_map(|key| key.column.as_ref()).collect::<Vec<_>>();
+    let bounded = table.decl.caps.iter().any(|cap| cap.by.iter().all(|column| pins.contains(&column)));
+    if !admitted && !bounded { return None; }
     let mut lanes = Vec::with_capacity(2); let mut order = None;
     branches::push_membership_lane(&candidate, table, &mut lanes, &mut order, system, SYSTEM_LANE, None, None, None)?;
-    branches::push_membership_lane(&candidate, table, &mut lanes, &mut order, lane, VACANCY_LANE, None, None, None)?;
+    branches::push_membership_lane(&candidate, table, &mut lanes, &mut order, lane, if bounded { BOUNDED_LANE } else { VACANCY_LANE }, None, None, None)?;
     if candidate.error_count() != errors { return None; }
     *requests = candidate;
     Some(MergeExpr { view_order: Vec::new(), table: read.table.clone(), matching: None, filter: None,

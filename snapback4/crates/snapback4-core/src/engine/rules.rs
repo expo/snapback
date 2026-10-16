@@ -605,6 +605,7 @@ pub fn branch_merge_lazy(schema: &Schema, merge: &Merge) -> bool {
         };
         let authority = if lane.membership() { membership_branch(schema, lane) }
             else if lane.system() { lane.source.is_none() }
+            else if lane.bounded() { bounded_branch(schema, lane) }
             else if lane.vacancy() { vacancy_branch(schema, lane) }
             else if lane.grant() { lane.source.is_none() && covering_grant(schema, scan).is_some() }
             else if lane.guarded() { lane.source.is_none() && page_guard_decision(schema, scan).is_some() }
@@ -626,19 +627,78 @@ pub fn branch_merge_lazy(schema: &Schema, merge: &Merge) -> bool {
 /// Exhaustion is observable only when the authored read rule itself contains
 /// a top-level absence check on an exact required point keyed by this row's
 /// intrinsic id. The lane stays private and evaluates the complete rule.
-fn vacancy_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
-    if lane.source.is_some() || lane.scan.filter.is_some() || !lane.scan.prefix.is_empty() { return false; }
+// @ref LLP 3000.036.002#10 — only enforced, fully pinned product caps
+// admit a general private exhaustion walk. No field-owner or through bypass.
+pub fn bounded_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
+    let Some(table) = schema.table(&lane.scan.table) else { return false };
+    if lane.source.is_some() || lane.scan.filter.as_deref().is_some_and(|filter| !exhaustion_filter(filter))
+        || table.sync.is_some() || table.through.is_some()
+        || !table.written_by.is_empty() || table.ephemeral.is_some() || table.is_expiring()
+        || schema.maintain_for(&lane.scan.table).is_some() { return false; }
+    if table.rules.read.any_term(&|term| term.references().next().is_some()) { return false; }
+    let mut sites = Vec::new(); probe_sites(&table.rules.read, &mut sites);
+    if sites.iter().any(|(name, _)| schema.table(name).is_none_or(|target|
+        target.through.is_some() || target.read_lifetime_sensitive() || schema.maintain_for(name).is_some())) { return false; }
+    let Some(index) = table.index(&lane.scan.index) else { return false };
+    let pinned = index.columns().into_iter().take(lane.scan.prefix.len()).collect::<Vec<_>>();
+    schema.group_bound(&lane.scan.table, &pinned).is_some()
+}
+
+/// No data-plane reads or fallible numeric work may enter the prepaid
+/// candidate predicate, including through lowered short-circuit blocks.
+fn exhaustion_filter(value: &Expr) -> bool {
+    use crate::ir::{BinaryOp as B, UnaryOp as U, Input as I, Stmt};
+    fn statement(value: &Stmt) -> bool {
+        match value {
+            Stmt::Let { value, .. } | Stmt::Const { value, .. } | Stmt::Assign { value, .. } => exhaustion_filter(value),
+            Stmt::If { condition, then_body, else_body } => exhaustion_filter(condition)
+                && then_body.iter().all(statement) && else_body.iter().all(statement),
+            _ => false,
+        }
+    }
+    match value {
+        Expr::Literal(_) | Expr::Variable(_) | Expr::Input(I::Viewer | I::Now | I::ReadTime) => true,
+        Expr::Field { base, .. } => matches!(base.as_ref(), Expr::Variable(_)),
+        Expr::Array(items) => items.iter().all(exhaustion_filter),
+        Expr::Unary { op: U::Not, value } => exhaustion_filter(value),
+        Expr::Binary { op: B::Eq | B::Ne | B::SameValueZero | B::Lt | B::Lte | B::Gt | B::Gte | B::And | B::Or, left, right } => exhaustion_filter(left) && exhaustion_filter(right),
+        Expr::Block { body, value } => body.iter().all(statement) && exhaustion_filter(value),
+        _ => false,
+    }
+}
+
+pub(super) fn bounded_walk_price(schema: &Schema, lane: &crate::ir::MergeLane) -> Option<u64> {
+    if !bounded_branch(schema, lane) { return None; }
+    let table = schema.table(&lane.scan.table)?;
+    let columns = table.index(&lane.scan.index)?.columns().into_iter().take(lane.scan.prefix.len()).collect::<Vec<_>>();
+    Some(u64::from(schema.group_bound(&lane.scan.table, &columns)?).saturating_add(1)
+        .saturating_mul(1 + rule_probes(&table.rules.read)))
+}
+
+pub fn legacy_vacancy_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
     let Some(outer) = schema.table(&lane.scan.table) else { return false };
-    if outer.sync.is_some() { return false; }
+    lane.scan.filter.is_none() && lane.scan.prefix.is_empty() && outer.rules.read.disjuncts().iter().any(|rule| {
+        let RuleExpr::Not(inner) = rule else { return false };
+        let RuleExpr::Exists { key, equalities, .. } = inner.as_ref() else { return false };
+        key == &[RuleTerm::Field("id".into())] && equalities.is_empty()
+    })
+}
+
+fn vacancy_branch(schema: &Schema, lane: &crate::ir::MergeLane) -> bool {
+    if lane.source.is_some() { return false; }
+    let Some(outer) = schema.table(&lane.scan.table) else { return false };
+    if outer.sync.is_some() || outer.through.is_some() || !outer.written_by.is_empty() { return false; }
     outer.rules.read.disjuncts().iter().any(|rule| {
         let RuleExpr::Not(inner) = rule else { return false };
         let RuleExpr::Exists { table, index, key, equalities, .. } = inner.as_ref() else { return false };
         let Some(target) = schema.table(table) else { return false };
         let Some(point) = target.index(index) else { return false };
-        equalities.is_empty() && key == &[RuleTerm::Field("id".into())]
-            && point.unique && point.is_plain() && point.components.len() == 1
-            && point.components[0].column().is_some_and(|column|
-                target.columns.get(column).is_some_and(|kind| !kind.is_optional()))
+        let terms = key.iter().chain(equalities.iter().map(|(_, value)| value)).collect::<Vec<_>>();
+        terms.iter().filter(|term| matches!(term, RuleTerm::Field(_))).count() == 1
+            && terms.iter().all(|term| matches!(term, RuleTerm::Field(_) | RuleTerm::Viewer | RuleTerm::Literal(_)))
+            && point.unique && point.is_plain() && point.components.len() == key.len()
+            && point.components.iter().all(|component| component.column().is_some_and(|column|
+                target.columns.get(column).is_some_and(|kind| !kind.is_optional())))
     })
 }
 

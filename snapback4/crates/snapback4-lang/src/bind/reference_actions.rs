@@ -119,11 +119,11 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &m
             FunctionBody::Expression(expr)=>walk::expression(&mut expr.clone(),collect),
         }
     }}
+    authored.extend(schema.tables.keys().filter(|name| references::delete_source(schema, name)).cloned());
     let mut roots=BTreeMap::new();
     for (parent,site) in &unbounded {
         let found=authored.iter().filter(|root|super::cascade_repair::reaches(schema,root,parent)).collect::<Vec<_>>();
-        if found.is_empty() {roots.insert(parent.clone(),site.clone());}
-        else {for root in found {roots.entry(root.clone()).or_insert_with(||site.clone());}}
+        for root in found {roots.entry(root.clone()).or_insert_with(||site.clone());}
     }
     let names=roots.keys().cloned().collect::<Vec<_>>();
     roots.retain(|root,_|!names.iter().any(|other|other!=root && super::cascade_repair::reaches(schema,other,root) && !super::cascade_repair::reaches(schema,root,other)));
@@ -177,13 +177,29 @@ pub(super) fn sites(catalog: &Catalog, schema: &core::Schema, diagnostics: &mut 
     // default cannot change that delete.
     let guards = super::delete_guards::Guards::new(catalog);
     let mut notes = Vec::new();
+    let mut authored = BTreeSet::new();
+    for document in &catalog.documents {
+        let mut document = document.clone();
+        walk::document(&mut document, &mut |expr| if let Expr::Write { op: WriteOp::Delete, table, .. } = expr { authored.insert(table.clone()); });
+    }
+    for (name, info) in &catalog.tables {
+        for column in &info.decl.columns {
+            let TypeKind::Ref { table: parent } = &column.type_.kind else { continue };
+            if schema.tables.get(name).and_then(|table| table.on_delete.get(&column.name)).is_none_or(|action| !action.writes())
+                || schema.reference_cap(name, &column.name).is_some() || references::delete_reachable(schema, parent)
+                || authored.iter().any(|root| super::cascade_repair::reaches(schema, root, parent)) { continue; }
+            notes.push(Diagnostic::new(&column.site, "N_CASCADE_DORMANT",
+                format!("{name}.{} has an unbounded delete action, but no declared source can delete {parent}", column.name),
+                format!("no cap is needed yet; when adding a delete rule, delete program or expiry, choose a product limit with `cap N by {}` on {name}; check will revalidate the whole action graph", column.name)).guide("writes"));
+        }
+    }
     for doc in &catalog.documents {
         for program in doc.programs.iter().filter(|p| !matches!(p.kind, ProgramKind::Query) && !p.native) {
             let original = program;
             let program = program.clone();
             // Each delete with the (child, reference) pairs a dominating zero-count
             // guard proves childless, and every sum view the program reads.
-            let (deletes, summed) = guarded_deletes(&program, &guards);
+            let (deletes, summed) = guarded_deletes(&program, &guards, catalog, schema);
             let word = if program.kind == ProgramKind::Job { "job" } else { "mutation" };
             let mut noted: BTreeSet<String> = BTreeSet::new();
             let mut priced: BTreeSet<String> = BTreeSet::new();
@@ -281,7 +297,7 @@ fn deleters_read(schema: &core::Schema, table: &str) -> bool {
 /// zero proves nothing. Also every non-count-like sum view the program reads
 /// (the note explains why it does not count).
 // @ref LLP 3000.039#7 — only a dominating zero requirement on the deleted key proves the restrict cannot refuse.
-fn guarded_deletes(program: &ProgramDecl, guards: &super::delete_guards::Guards) -> (Vec<(String, crate::diag::Site, BTreeSet<(String, String)>)>, Vec<(String, String, String, String)>) {
+fn guarded_deletes(program: &ProgramDecl, guards: &super::delete_guards::Guards, catalog: &Catalog, schema: &core::Schema) -> (Vec<(String, crate::diag::Site, BTreeSet<(String, String)>)>, Vec<(String, String, String, String)>) {
     let statements: Vec<Stmt> = program.prelude.iter().chain(&program.body).cloned().collect();
     let zero = |e: &Expr| matches!(e, Expr::Literal { value: Literal::Number(n), .. } if n.parse::<f64>().is_ok_and(|n| n == 0.0));
     let count_read = |e: &Expr| match e {
@@ -318,6 +334,10 @@ fn guarded_deletes(program: &ProgramDecl, guards: &super::delete_guards::Guards)
             }
             _ => {}
         });
+        if let Some((pair, key)) = ordered_delete(statement, catalog, schema, program.kind == ProgramKind::Job) {
+            requires.push((index, pair, key));
+            opaque = false;
+        }
         writes.push(written);
         uncertain.push(opaque);
         for (table, site, key) in found {
@@ -329,4 +349,21 @@ fn guarded_deletes(program: &ProgramDecl, guards: &super::delete_guards::Guards)
         }
     }
     (deletes, summed)
+}
+
+// @ref LLP 3000.036.002#10 — only an unconditional whole-group deletion
+// through an admitted population proves the later parent has no children.
+fn ordered_delete(statement: &Stmt, catalog: &Catalog, schema: &core::Schema, system: bool) -> Option<((String,String),String)> {
+    let Stmt::For { name, domain: Expr::Read(read), body, .. } = statement else { return None };
+    if read.range.is_some() || read.filter.is_some() || read.matching.is_some() || !read.seeks.is_empty() || read.keys.len() != 1 { return None; }
+    let child = catalog.tables.get(&read.table)?;
+    if !system && child.decl.public.is_none() && !super::intent_branches::source_read_admitted(child, read) { return None; }
+    let key = &read.keys[0];
+    let column = key.column.as_ref()?;
+    if !matches!(schema.table(&read.table)?.columns.get(column), Some(core::ColumnType::Ref { .. })) { return None; }
+    if !matches!(&key.value, Expr::Name { name, .. } if name != "new") && !matches!(&key.value, Expr::Literal { .. }) { return None; }
+    let [Stmt::Expr { value: Expr::Write { op: WriteOp::Delete, table, keys, .. }, .. }] = body.as_slice() else { return None };
+    if table != &read.table || keys.len() != 1 { return None; }
+    if !matches!(&keys[0].value, Expr::Member { base, name: field, .. } if field == "id" && matches!(base.as_ref(), Expr::Name { name: binding, .. } if binding == name)) { return None; }
+    Some(((read.table.clone(), column.clone()),crate::print::expression(&key.value)))
 }

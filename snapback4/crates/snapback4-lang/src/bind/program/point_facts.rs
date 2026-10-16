@@ -86,7 +86,7 @@ impl Binder<'_> {
                 // value. Clear shadowed roots too, and keep assignment revisions
                 // stable so a job sweep does not mistake a guard for an accumulator.
                 binding.fields.retain(|key, _| key.first().is_none_or(|k| {
-                    k != POINT && k != maintain_types::AUTHORIZATION && k != aggregate_facts::NONEMPTY
+                    k != POINT && k != "$sourceSnapshot" && k != maintain_types::AUTHORIZATION && k != aggregate_facts::NONEMPTY
                         && k != aggregate_facts::COUNT_CAPTURE
                 }));
             }
@@ -117,6 +117,7 @@ impl Binder<'_> {
                         .and_then(|index| definition.index(index)).is_some_and(|index|
                             !fields.iter().any(|field| index.columns().contains(&field.name)
                                 || key.iter().skip(3).any(|part| part.starts_with(&format!("Some({:?}):", field.name))))),
+                    Some("$sourceSnapshot") => false,
                     Some(maintain_types::AUTHORIZATION) => false,
                     Some(aggregate_facts::NONEMPTY) => false,
                     Some(aggregate_facts::COUNT_CAPTURE) => false,

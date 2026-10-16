@@ -386,6 +386,7 @@ fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table], selected_expi
         "uniques": shape.uniques,
         "uniqueCodes": shape.codes,
         "caps": shape.caps.iter().map(|(max, by)| json!({"by": by, "max": max})).collect::<Vec<_>>(),
+        "onlineOnly": t.online_only || t.sync.is_none(),
         "notBefore": t.not_before.as_ref().map(|(column, _)| column),
         "expire": t.expire.as_ref().map(|(column, _)| column),
         "expiryOrder": expiry_order,

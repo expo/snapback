@@ -743,6 +743,8 @@ pub fn generate(seed: u64) -> Case {
     boolean_grant_page(&mut case, seed);
     crate::generate::page3(&mut case);
     crate::generate::page4(&mut case);
+    let mut lang2 = crate::generate::Rng::new(seed ^ 0x5731_334c_414e_4732);
+    if lang2.pick(64) == 0 { return crate::generate::lang2(seed, lang2.pick(3)); }
     case
 }
 

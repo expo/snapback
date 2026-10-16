@@ -243,8 +243,8 @@ fn wave10_id_order_and_fanout_point_alternatives_compile_from_emitted_text() {
     let choices: Vec<_> = d.rewrite.split('`').skip(1).step_by(2).collect();
     let repaired = source.replace("for row in tasks by .score:", choices[0]);
     assert!(compile(&[("schema.q".into(), repaired)]).diagnostics.is_empty());
-    let repaired = source.replace("  score: int\n", &format!("  score: int\n  {}\n", choices[1]));
-    assert!(compile(&[("schema.q".into(), repaired)]).diagnostics.is_empty());
+    assert_eq!(choices.len(), 1, "a job that changes score cannot make score immutable");
+    assert!(d.rewrite.contains("guard the mutable predicate inside the loop"));
 
     let source = "table reviews:\n  owner: principal\n  read <- .owner = viewer\n  online only\nmutation inspect(id: reviews):\n  return count(reviews)\n";
     let d = refusal(source, "E_STRUCTURAL_FANOUT");
@@ -264,4 +264,73 @@ fn emitted_roster_recipe_preserves_an_online_rosters_extra_read_predicate() {
     let b = compile(&[("schema.q".into(), format!("use identity password\n{snippet}"))]);
     assert!(b.diagnostics.is_empty() && b.notes.is_empty(), "{:?} {:?}", b.diagnostics, b.notes);
     emitted_source_compiles(source, "insert <- .principal = viewer or exists staff[viewer]", &d);
+}
+
+#[test]
+fn wave13_rewrites_apply_to_the_authors_schema_and_recheck() {
+    let check = |source: &str| {
+        let b = compile(&[("schema.q".into(), source.into())]);
+        assert!(b.diagnostics.is_empty(), "{source}\n{:#?}", b.diagnostics);
+        b
+    };
+    let source = "table entries:\n  at: time\n  public\n  online only\nquery page(c: cursor ?):\n  return entries first 20 by .at desc after c\n";
+    let d = refusal(source, "E_QUARRY_SYNTAX");
+    assert!(d.rewrite.starts_with("entries last 20 by .at") && d.rewrite.ends_with("after c"), "{d}");
+    check(&source.replace("entries first 20 by .at desc after c", &d.rewrite));
+
+    let source = "table entries:\n  owner: principal\n  reporter: principal\n  read <- .owner = viewer or .reporter = viewer\n  sync last 20 by .id\n";
+    let d = refusal(source,"E_SYNC");
+    assert!(d.rewrite.starts_with("sync  --") && !d.rewrite.contains(".principal"), "{d}");
+    check(&source.replace("sync last 20 by .id", &d.rewrite));
+
+    let source = "table entries:\n  public\n  online only\nmutation checkEntry(entry: entries):\n  entries[entry] ! else NOT_FOUND\n  return null\n";
+    let d = refusal(source, "E_QUARRY_STATEMENT");
+    check(&source.replace("entries[entry] ! else NOT_FOUND", &d.rewrite));
+
+    let source = "table parents:\n  public\n  online only\ntable children:\n  parent: parents\n  public\n  insert <- allow\n  online only\nmutation add(parent: parents):\n  return insert children { parent }\n";
+    let b = check(source);
+    let note = b.notes.iter().find(|n|n.code=="N_REFERENCE_UNCHECKED").unwrap();
+    let code = note.rewrite.split('`').nth(1).unwrap();
+    let repaired = source.replace("  return insert", &format!("  {code}\n  return insert"));
+    assert!(!check(&repaired).notes.iter().any(|n|n.code=="N_REFERENCE_UNCHECKED"));
+
+    let source = "table staff:\n  who: principal\n  unique who\n  read <- .who = viewer\n  online only\nmutation needsColleague(colleague: principal):\n  require exists staff[who = colleague] else NOT_STAFF\n  return null\n";
+    let b = check(source);
+    let n = b.notes.iter().find(|n|n.code=="N_REQUIRE_HIDDEN").unwrap();
+    let code = n.rewrite.split('`').nth(1).unwrap();
+    let repaired = source.replace("read <- .who = viewer", code);
+    check(&repaired);
+
+    let source = "table entries:\n  owner: principal\n  at: time\n  mutable: bool\n  public\n  update <- allow\n  online only\njob sweep():\n  for row in entries where .mutable = true:\n    update entries[row.id] { mutable: false }\n";
+    let d = refusal(source,"E_JOB_CURSOR_INDEX");
+    assert!(d.rewrite.contains("guard the mutable predicate inside the loop"), "{d}");
+    let stable = d.rewrite.split('`').nth(1).unwrap();
+    let repaired = source.replace("for row in entries where .mutable = true:", &format!("{stable}\n    if row.mutable = true:")).replace("    update entries", "      update entries");
+    check(&repaired);
+
+    let source = "table entries:\n  at: time\n  public\n  update <- allow\n  immutable at\n  online only\nmutation edit(entry: entries, at: time):\n  update entries[entry] { at }\n  return null\n";
+    let d = refusal(source,"E_QUARRY_IMMUTABLE");
+    assert!(d.rewrite.contains("omit at from the patch"));
+    check(&source.replace("{ at }", "{}"));
+}
+
+#[test]
+fn wave13_boolean_and_joint_cap_guidance_rechecks_after_the_prescribed_edit() {
+    let source = "table flags:\n  active: bool\n  public\n  online only\nquery bad(id: flags):\n  return true or flags[id].active\n";
+    let d = refusal(source,"E_QUARRY_TYPE");
+    assert!(d.rewrite.contains("compare an optional bool with true or false explicitly"));
+    let b = compile(&[("schema.q".into(),source.replace("flags[id].active","(flags[id].active = true)"))]);
+    assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+
+    let source = "table parents:\n  public\n  delete <- allow\n  online only\ntable children:\n  parent: parents on delete cascade\n  public\n  online only\ntable leaves:\n  parent: parents on delete set null\n  public\n  online only\n";
+    let d = refusal(source,"E_CASCADE_BOUND");
+    let mut repaired = source.to_owned();
+    for snippet in d.rewrite.split('`').skip(1).step_by(2).filter(|s|s.starts_with("cap ")) {
+        let table = d.rewrite.split(&format!("`{snippet}` on ")).nth(1).unwrap().split_whitespace().next().unwrap();
+        let heading = format!("table {table}:\n");
+        repaired = repaired.replace(&heading,&format!("{heading}  {snippet}\n"));
+    }
+    let b = compile(&[("schema.q".into(),repaired)]);
+    assert!(b.diagnostics.is_empty(),"{:?}\n{d}",b.diagnostics);
+    assert!(d.rewrite.contains("Heap =") && d.rewrite.contains("product limit"));
 }

@@ -75,7 +75,7 @@ pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
                 }
                 notes.push(Diagnostic::new(&candidate.site, "N_REFERENCE_UNCHECKED",
                     format!("mutation {} stores argument {} directly in {}.{}, but never looks up {}[{}]: a reference accepts any well-formed id even when the row is absent", program.name, candidate.argument, candidate.child, candidate.column, candidate.target, candidate.argument),
-                    format!("bind `parent = {}[{}] ! else NOT_FOUND` before the write, then store `parent.id`; keep the direct id only when dangling references are intentional", candidate.target, candidate.argument)).guide("types"));
+                    format!("add `require exists {}[{}] else NOT_FOUND` before the write; keep the direct id only when dangling references are intentional", candidate.target, candidate.argument)).guide("types"));
             }
         }
     }

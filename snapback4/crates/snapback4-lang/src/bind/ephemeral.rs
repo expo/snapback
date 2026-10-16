@@ -208,6 +208,8 @@ pub fn programs(
         // @ref LLP 3000.036.001#18 — PAGE5's fixed residual point needs the new validator.
         fact.branch_pages_v4 = merges.iter().flat_map(|merge| &merge.lanes).any(|lane|
             lane.vacancy() || lane.membership() && lane.scan.filter.as_deref().is_some_and(predicate_probe));
+        fact.branch_pages_v5 = merges.iter().flat_map(|merge| &merge.lanes).any(|lane|
+            lane.bounded() || lane.vacancy() && !snapback4_core::engine::rules::legacy_vacancy_branch(schema, lane));
         fact.branch_membership = merges.iter().any(|merge| merge.lanes.iter().any(|lane| lane.membership()));
         fact.branch_membership_v2 = merges.iter().flat_map(|merge| &merge.lanes)
             .any(|lane| membership_v2(schema, lane));

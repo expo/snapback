@@ -498,7 +498,7 @@ impl Merge {
     // @ref LLP 3000.036.001#3 — the lane identity marks the plan, so no existing program's IR or digest changes.
     pub fn branches(&self) -> bool {
         self.view.is_none() && !self.lanes.is_empty()
-            && self.lanes.iter().all(|lane| matches!(lane.branch.as_deref(), Some(BRANCH_LANE | GRANT_LANE | MEMBERSHIP_LANE | SYSTEM_LANE | GUARDED_LANE | VACANCY_LANE)))
+            && self.lanes.iter().all(|lane| matches!(lane.branch.as_deref(), Some(BRANCH_LANE | GRANT_LANE | MEMBERSHIP_LANE | SYSTEM_LANE | GUARDED_LANE | VACANCY_LANE | BOUNDED_LANE)))
     }
     /// The cursor descriptor's index field: a bounded digest of the branch
     /// set, in lane order. Legal labels repeated across eight lanes can
@@ -522,6 +522,8 @@ impl Merge {
                 hash.update(SYSTEM_LANE.as_bytes());
             } else if lane.guarded() {
                 hash.update(GUARDED_LANE.as_bytes());
+            } else if lane.bounded() {
+                hash.update(BOUNDED_LANE.as_bytes());
             } else if lane.vacancy() {
                 hash.update(VACANCY_LANE.as_bytes());
             }
@@ -545,6 +547,7 @@ pub const SYSTEM_LANE: &str = "$or:system";
 /// A range admitted by its own positive page guard, without covering other lanes.
 pub const GUARDED_LANE: &str = "$or:guarded";
 /// A server-only private range whose exact vacancy rule makes exhaustion observable.
+pub const BOUNDED_LANE: &str = "$or:bounded";
 pub const VACANCY_LANE: &str = "$or:vacancy";
 /// The prefix of a branch merge's cursor descriptor (cursor version 4).
 pub const BRANCH_DESCRIPTOR: &str = "$or:";
@@ -554,6 +557,8 @@ impl MergeLane {
     pub fn membership(&self) -> bool { self.branch.as_deref() == Some(MEMBERSHIP_LANE) }
     pub fn system(&self) -> bool { self.branch.as_deref() == Some(SYSTEM_LANE) }
     pub fn guarded(&self) -> bool { self.branch.as_deref() == Some(GUARDED_LANE) }
+    pub fn bounded(&self) -> bool { self.branch.as_deref() == Some(BOUNDED_LANE) }
+    pub fn exhaustive(&self) -> bool { self.vacancy() || self.bounded() }
     pub fn vacancy(&self) -> bool { self.branch.as_deref() == Some(VACANCY_LANE) }
 }
 

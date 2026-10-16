@@ -22,6 +22,8 @@ struct Lane<'a> {
     done: bool,
     grant: Option<super::super::expiry::Pending>,
     vacancy: bool,
+    bounded: bool,
+    bounded_budget: std::cell::Cell<usize>,
     metered: bool,
     position_len: usize,
     /// The last position this lane examined (read or rejected by the
@@ -102,8 +104,32 @@ impl Runner<'_> {
         Ok(page)
     }
 
+    // @ref LLP 3000.036.002#10 — reserve all static capped walks at operation
+    // entry, before any private probe can shape the residual physical budget.
+    pub(crate) fn reserve_bounded_plans(&mut self, program: &Program) -> Result<(), RuntimeError> {
+        self.bounded_plans.clear();
+        if self.context.is_system() { return Ok(()); }
+        let plans: Vec<_> = crate::ir::body_merges(&program.body).into_iter()
+            .filter(|merge| merge.lanes.iter().any(MergeLane::bounded)).collect();
+        let draw = plans.iter().try_fold(0u64, |sum, merge| merge.lanes.iter()
+            .filter(|lane| lane.bounded()).try_fold(sum, |sum, lane|
+                super::rules::bounded_walk_price(self.schema, lane).map(|price| sum.saturating_add(price))));
+        if let Some(draw) = draw.filter(|draw| *draw > 0 && *draw < self.tx.remaining() as u64) {
+            self.tx.draw("bounded query plans", draw)?;
+            self.bounded_plans.extend(plans.iter().map(|merge| *merge as *const Merge as usize));
+        }
+        Ok(())
+    }
+
     /// The page and its continuation candidate (`None` when it ends).
     fn merge_branch_lanes(&mut self, merge: &Merge, prefixes: Vec<Vec<Value>>, take: usize, after: Option<(Vec<Value>, bool)>) -> Result<(Vec<Value>, bool, Option<Vec<Value>>), RuntimeError> {
+        // A static occurrence owns one prepaid walk. Repeated execution must
+        // remain incomplete rather than consult hidden-dependent residual work.
+        if !self.context.is_system() && merge.lanes.iter().any(MergeLane::bounded)
+            && !self.bounded_plans.remove(&(merge as *const Merge as usize)) {
+            self.value_source_incomplete = true;
+            return Ok((Vec::new(), false, None));
+        }
         let order = merge.lanes[0].scan.order;
         let site = merge.site.as_str();
         let metered_merge = merge.lanes.iter().any(MergeLane::membership);
@@ -267,7 +293,7 @@ impl Runner<'_> {
         let suffix = index.components.iter().skip(scan.prefix.len()).filter_map(|component| component.key_name());
         let (position_len, ends_in_id) = suffix.fold((0usize, false), |(len, _), name| (len + 1, name == "id"));
         let position_len = position_len + usize::from(!ends_in_id || point_id);
-        Ok(Lane { scan, prefix, bounds, buffer: VecDeque::new(), done, grant, vacancy: lane.vacancy(), metered, position_len, through: None })
+        Ok(Lane { scan, prefix, bounds, buffer: VecDeque::new(), done, grant, vacancy: lane.exhaustive(), bounded: lane.bounded(), bounded_budget: std::cell::Cell::new(super::rules::bounded_walk_price(self.schema, lane).unwrap_or(0).min(usize::MAX as u64) as usize), metered, position_len, through: None })
     }
 
     /// Read a lane's next batch strictly after its position, recording how
@@ -329,10 +355,18 @@ impl Runner<'_> {
     fn read_branch(&mut self, lane: &Lane<'_>, batch: usize) -> Result<Vec<Value>, RuntimeError> {
         self.merge_grant = lane.grant;
         self.merge_vacancy = lane.vacancy;
+        self.merge_bounded = lane.bounded;
         if lane.metered { self.meter.heap(DisclosedKeys(&lane.prefix).heap() + DisclosedBounds(&lane.bounds).heap())?; }
+        let prior_prepaid = lane.bounded.then(|| self.tx.reference_prepaid(true));
+        let prior_budget = lane.bounded.then(|| self.tx.bounded_prepaid(Some(lane.bounded_budget.get())));
         let result = self.scan_consumed(&lane.scan, lane.prefix.clone(), lane.bounds.clone(), batch, None, None, false, lane.metered);
+        if let Some(prior) = prior_budget {
+            lane.bounded_budget.set(self.tx.bounded_prepaid(prior).unwrap_or(0));
+        }
+        if let Some(prior) = prior_prepaid { self.tx.reference_prepaid(prior); }
         self.merge_grant = None;
         self.merge_vacancy = false;
+        self.merge_bounded = false;
         Ok(result?.0)
     }
 

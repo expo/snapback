@@ -84,6 +84,8 @@ pub enum Rule {
     Vacancy,
     /// The same vacancy predicate through the target's implicit unique id.
     VacancyImplicitId,
+    /// LANG2: indexed negative membership with a fixed extra equality.
+    NegativeMembership,
     /// A duplicated party leaf beside membership, for model descriptor accounting.
     RepeatedPartyMembership,
 }
@@ -113,6 +115,7 @@ impl Rule {
             Self::ProductScope => "(.owner = viewer or .helper = viewer) and (.status = 'open' or .status = 'active')",
             Self::FixedPerRow => "((exists roles[.bucket, viewer] and exists seats[.bucket, viewer]) and exists permits[viewer]) and exists access[.id, .bucket, viewer]",
             Self::Vacancy => "not exists access[item = .id] or .owner = viewer",
+            Self::NegativeMembership => "not exists access[item = .id, principal = viewer, bucket = 0] or .owner = viewer",
             Self::VacancyImplicitId => "not exists items[id = .id] or .owner = viewer",
             Self::RepeatedPartyMembership => ".owner = viewer or .owner = viewer or exists access[.bucket, viewer]",
         }
@@ -131,6 +134,7 @@ pub enum Residency {
     Group,
     /// Membership rows delivered to their own principal.
     Member,
+    Inferred,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Table {
@@ -186,6 +190,7 @@ impl Table {
             Residency::Online => "  online only\n",
             Residency::Group => "  sync to access[.bucket]\n",
             Residency::Member => "  sync to .principal\n",
+            Residency::Inferred => "  sync\n",
         };
         out
     }

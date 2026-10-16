@@ -393,7 +393,7 @@ fn bind_union(catalog: &Catalog, info: &TableInfo, sync: &SyncDecl, arms: Vec<Au
     if sync.horizon.is_some() {
         return Err(sync_error(&sync.site,
             "union audiences cannot have `last N by ...`",
-            "online only  -- keep this read rule and queries; or remove the sync window to replicate every readable row when no other excluded expiry/window scope remains").guide("sharing"));
+            "sync  -- bare sync infers this schema's complete union audience; remove last N by. Or use online only and keep this read rule and queries").guide("sharing"));
     }
     let scopes = std::iter::once(info.decl.name.as_str()).chain(arms.iter().filter_map(|arm| match arm {
         Audience::Target { table, .. } => Some(table.as_str()), _ => None,

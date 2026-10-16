@@ -133,6 +133,8 @@ fn binary(op: Bin, a: Expr, b: Expr) -> Expr {
 /// The base case for `seed`, widened (`crate::widen`) from an independent
 /// stream: a seed whose widening draws nothing is the base case unchanged.
 pub fn generate(seed: u64) -> Case {
+    let mut extra = Rng::new(seed ^ 0x5731_334c_414e_4732);
+    if extra.pick(64) == 0 { return lang2(seed, extra.pick(3)); }
     crate::widen::widen(base(seed))
 }
 pub fn base(seed: u64) -> Case {
@@ -685,5 +687,38 @@ pub fn page_membership_repeated_party_product(seed: u64) -> Case {
 pub fn page5_implicit_id_vacancy(seed: u64) -> Case {
     let mut case = page5(seed, 2);
     case.program.tables[0].rule = Rule::VacancyImplicitId;
+    case
+}
+
+/// @ref LLP 3000.036.002#10 — source-generated exact negative, capped and
+/// filtered-id membership families share all native/device/Lean oracles.
+pub fn lang2(seed: u64, shape: u64) -> Case {
+    let mut case = page5(seed, if shape % 3 == 1 { 0 } else { 2 });
+    case.program.domain = None;
+    case.program.tables[0].expire = None;
+    case.program.tables[0].not_before = None;
+    case.program.unfiltered = true;
+    match shape % 3 {
+        0 => {
+            case.program.tables[0].rule = Rule::NegativeMembership;
+            let access = case.program.tables.iter_mut().find(|table| table.name == "access").unwrap();
+            access.keys.retain(|(name, _, _)| name == "byItem");
+            access.keys[0].1 = vec!["item".into(), "principal".into()];
+        }
+        1 => {
+            case.program.tables[0].caps = vec![(100, Vec::new())];
+            case.program.order = Some(vec!["score".into()]);
+        }
+        _ => {
+            case.program.tables[0].rule = Rule::PureIdWitness;
+            case.program.tables[0].residency = Residency::Inferred;
+            case.program.domain = Some(".flag = true".into());
+            case.program.unfiltered = false;
+            let access = case.program.tables.iter_mut().find(|table| table.name == "access").unwrap();
+            access.keys[0].1 = vec!["item".into(), "principal".into()];
+            access.residency = Residency::Member;
+            access.effects = Some(vec![Rule::Member, Rule::Deny, Rule::Deny, Rule::Member]);
+        }
+    }
     case
 }

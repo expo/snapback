@@ -188,6 +188,26 @@ impl Requests {
                 residual.push(predicate);
             }
         }
+        // @ref LLP 3000.036.002#10 — a unique membership target is a point;
+        // other equalities filter that row rather than widening its key.
+        if self.lane && read.matching.is_none() && read.computed.is_empty() {
+            if let Some(index) = table.indexes.iter().filter(|index| table.total_unique(index)
+                && index.columns.iter().all(|column| pins.contains_key(column)))
+                .min_by_key(|index| (index.columns.len(), &index.name)) {
+                let mut point = BTreeMap::new();
+                for column in &index.columns { point.insert(column.clone(), pins.remove(column).unwrap()); }
+                residual.extend(pins.into_iter().map(|(column, key)| Expr::Binary { op: "=".into(),
+                    left: Box::new(Expr::Member { base: Box::new(Expr::Focal { site: key.site.clone() }), name: column, site: key.site.clone() }),
+                    right: Box::new(key.value), site: key.site }));
+                pins = point;
+                if read.order_keys.iter().all(|column| index.columns.contains(column)) {
+                    read.keys = index.columns.iter().map(|column| pins.remove(column).unwrap()).collect();
+                    read.filter = conjunction(residual);
+                    read.index = Some(index.name.clone());
+                    return;
+                }
+            }
+        }
         let mut columns: Vec<_> = pins.keys().filter(|column| !read.computed.contains_key(*column)).cloned().collect();
         columns.extend(pins.keys().filter(|column| read.computed.contains_key(*column)).cloned());
         let mut order = read.order_keys.clone();
@@ -350,6 +370,9 @@ pub(super) fn plan(catalog: &mut Catalog, diagnostics: &mut Vec<Diagnostic>) {
             if cap.by.iter().all(|column| original.columns.contains_key(column)) {
                 requests.index(original, cap.by.clone(), None, &cap.site, false);
             }
+        }
+        if let Some((column, site)) = &table.decl.not_before {
+            requests.index(original, vec![column.clone()], None, site, false);
         }
         if let Some((column, site)) = &table.decl.expire {
             requests.index(original, vec![column.clone()], None, site, false);
