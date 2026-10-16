@@ -12,10 +12,11 @@ export function changelogFlags(changelog) {
     // Exact's rebuild command is an external tool, explicitly outside binary help.
     for (const match of line.matchAll(/\b(?:exact\.mjs|[A-Za-z]+)\b|--[a-z][a-z-]*/g)) {
       const token = match[0];
-      if (token === 'exact.mjs') verb = 'exact';
+      if (['npm', 'bun', 'pnpm'].includes(token)) verb = 'package-manager';
+      else if (token === 'exact.mjs') verb = 'exact';
       else if (verbs.has(token.toLowerCase())) verb = token.toLowerCase();
       else if (token.startsWith('--')) {
-        if (verb === 'exact' && token === '--rebuild') continue;
+        if (verb === 'package-manager' || verb === 'exact' && token === '--rebuild') continue;
         if (!verb || verb === 'exact') throw new Error(`changelog flag ${token} needs an explicit Snapback verb: ${line}`);
         flags.push([verb, token]);
       }

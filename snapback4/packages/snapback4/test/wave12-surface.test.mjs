@@ -17,6 +17,9 @@ test('publication check catches 0.4.28 deploy --schema omission and covers every
   assert.throws(()=>assertChangelogHelp('- deploy --schema selects saved complete source',()=>deploy), /deploy --help omits announced --schema/);
   assert.throws(()=>assertChangelogHelp('- deploy --unknown-new-flag does something',()=>cli('deploy','--help')), /omits announced --unknown-new-flag/);
   assert.throws(()=>changelogFlags('- --unknown lacks a verb'), /needs an explicit/);
+  for (const pm of ['npm','bun','pnpm']) {
+    assert.deepEqual(changelogFlags(`- Run the new helper: ${pm} install --save-exact snapback4@0.4.31; deploy --schema saved.q`), [['deploy','--schema']]);
+  }
   checkVerbHelp(binary,changelog);
   const help=cli('deploy','--help');assert.match(help,/--schema file.q.*saved complete source; keep it outside snapback\//);
 });
