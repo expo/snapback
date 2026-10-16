@@ -224,9 +224,11 @@ pub fn piped(name: &str, card: &str) -> String {
 fn boundary(lines: &[&str], from: usize, to: usize, limit: usize) -> Option<usize> {
     let mut fenced = false;
     let mut best = None;
+    let mut content = false;
     for (i, line) in lines.iter().enumerate().take(to).skip(from) {
         if line.trim_start().starts_with("```") { fenced = !fenced; }
-        else if !fenced && line.trim().is_empty() && i <= limit { best = Some(i); }
+        else if !fenced && content && line.trim().is_empty() && i <= limit { best = Some(i); }
+        if !line.trim().is_empty() { content = true; }
     }
     best
 }
@@ -257,12 +259,13 @@ fn overview_with(name: &str, card: &str, first_section: bool) -> Option<String> 
     }.trim_end().to_owned();
     if first_section {
         if cut < first { out.push_str(&format!("\n\n… the opening continues for {} lines: snapback4 guide {name} --section 0", first - cut)); }
-        let (_, heading, start, end) = &found[0];
+        let (section, (_, heading, start, end)) = found.iter().enumerate().find(|(_, (_, _, start, end))| lines[start + 1..*end].iter().any(|line| !line.trim().is_empty())).unwrap_or((0, &found[0]));
+        let section = section + 1;
         let limit = start + FIRST_SECTION_LINES;
         let stop = if end - start <= FIRST_SECTION_LINES { *end } else { boundary(&lines, start + 1, *end, limit).unwrap_or(limit) };
         out.push_str("\n\n");
         out.push_str(lines[*start..stop].join("\n").trim_end());
-        if stop < *end { out.push_str(&format!("\n\n… section 1 ({heading}) continues for {} lines: snapback4 guide {name} --section 1", end - stop)); }
+        if stop < *end { out.push_str(&format!("\n\n… section {section} ({heading}) continues for {} lines: snapback4 guide {name} --section {section}", end - stop)); }
     }
     out.push_str(&format!("\n\nSections of guide {name}:\n"));
     out.push_str(&index_lines(card, &found));
