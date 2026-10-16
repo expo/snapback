@@ -1307,7 +1307,7 @@ fn direct_and_merged_cursor_generation_contracts_are_distinct() {
         } else {
             let refusal = read.unwrap_err();
             assert_eq!(refusal.code, "E_INPUT");
-            assert_eq!(refusal.message, "E_INPUT: cursor: cursor token describes a different prefix or generation");
+            assert_eq!(refusal.message, "cursor: cursor token describes a different prefix or generation");
         }
     }
     for (name, doc) in [("feeds", card("feeds").unwrap()), ("orientation destination", readme_reference("feeds"))] {

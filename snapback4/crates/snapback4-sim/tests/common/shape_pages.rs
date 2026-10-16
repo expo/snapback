@@ -20,7 +20,7 @@ fn w13j_a_shape_that_cannot_finish_under_a_fresh_meter_refuses_the_follow() {
         println!("W13j device={DEVICE}: first examined={} index_entries={} capped_at={:?}", first.metered.examined, first.metered.index_entries, first.capped_at);
         let refusal = q("feed", Context::new("dev:alice", [("c".into(), Value::String(cursor))].into())).unwrap_err();
         assert_eq!(refusal.code, "E_SHAPE_EXCEEDS_METER");
-        assert_eq!(refusal.message, "E_SHAPE_EXCEEDS_METER: the returned shape at programs.feed.1 examines more than the 8,192-row meter on its own; bound it (`first N`/`last N`) or move it out of the returned shape");
+        assert_eq!(refusal.message, "the returned shape at programs.feed.1 examines more than the 8,192-row meter on its own; bound it (`first N`/`last N`) or move it out of the returned shape");
         assert_eq!(refusal.guide.as_deref(), Some("reads"));
     });
 }
@@ -527,7 +527,7 @@ fn w13j_inherited_exhaustion_names_the_blocked_shape_and_prior_read() {
                 assert_eq!(position.values, [Value::Int(0), Value::Id("a".into())]);
                 let refusal = q("feed", ctx(Some(cursor))).unwrap_err();
                 assert_eq!(refusal.code, "E_SHAPE_EXCEEDS_METER");
-                assert_eq!(refusal.message, "E_SHAPE_EXCEEDS_METER: the returned shape at programs.feed.0 cannot finish: the 8,192-row meter was spent at programs.feed.1 before it ran; bound that read (`first N`/`last N`) or move the shape out of the returned shape");
+                assert_eq!(refusal.message, "the returned shape at programs.feed.0 cannot finish: the 8,192-row meter was spent at programs.feed.1 before it ran; bound that read (`first N`/`last N`) or move the shape out of the returned shape");
                 assert_eq!(refusal.guide.as_deref(), Some("reads"));
             } else {
                 // The bounded prelude counts its declared page and leaves room for both shapes.

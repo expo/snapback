@@ -118,7 +118,7 @@ fn bounded<H: Host>(host: &mut H) {
     assert!(why.message.contains("int 1..5") && why.message.contains('7'), "{}", why.message);
     let stored = server.mutate("computed", None, context("alice", &[("n", Value::Int(9))]).at(NOW).with_ids(["msg2".to_owned()])).unwrap();
     let WriteState::Failed { why, .. } = stored.state else { panic!("stored 10") };
-    assert_eq!(why.message, "E_INPUT: reviews.stars must be int 1..5, not the number 10");
+    assert_eq!(why.message, "reviews.stars must be int 1..5, not the number 10");
     host.close("lang2-bounded", device);
 }
 

@@ -808,11 +808,11 @@ fn killed_supervisors_leave_only_bounded_sessions_and_startup_sweeps_their_child
     assert_eq!(host.signal(libc::SIGKILL).signal(), Some(libc::SIGKILL));
     drop(host);
     drop(orphan);
-    // Cleanup also runs when the next host has no worker configured.
+    // Startup sweeps the old session before automatically starting the captured worker.
     let mut restarted = Host::start(&dir, &["serve", release.to_str().unwrap()]);
     let stale: i64 = store.conn().query_row("SELECT COUNT(*) FROM _sessions WHERE family = ?1", [&family], |row| row.get(0)).unwrap();
     assert_eq!(stale, 0);
-    assert_eq!(store.meta("worker:session-family").unwrap(), None);
+    assert_ne!(store.meta("worker:session-family").unwrap().as_deref(), Some(family.as_str()), "the captured worker gets a fresh supervisor family");
     assert!(snapback4_core::identity::resolve(&store, &manual.token, snapback4_core::now_ms()).unwrap().is_some(), "a manually issued seat is not the old supervisor's credential");
     restarted.signal(libc::SIGTERM);
 }
