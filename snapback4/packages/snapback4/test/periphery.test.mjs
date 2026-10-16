@@ -15,6 +15,11 @@ import vm from "node:vm";
 import ts from "typescript";
 import { processDevice } from "../dist/native.js";
 
+const adapter = ts.transpileModule(readFileSync(new URL("../../snapback4-expo/src/session-store.ts", import.meta.url), "utf8"), {
+  compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ESNext },
+}).outputText;
+const { secureStoreSessionStore } = await import(`data:text/javascript;base64,${Buffer.from(adapter).toString("base64")}`);
+
 const root = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 const binary = process.env.SNAPBACK4_BIN ?? join(root, "target/debug/snapback4");
 const read = (file) => readFileSync(file, "utf8");
@@ -660,12 +665,18 @@ test("processDevice defaults to Node spawn and file writing in a new directory",
 });
 
 
-test("Expo starter selects web, native and online app devices with explicit session stores", (t) => {
+test("Expo starter selects web, native and online app devices with explicit session stores", async (t) => {
   const { dir, run } = fixture(t);
   run("init", "--expo");
   const compiled = ts.transpileModule(read(join(dir, "src/client.ts")), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } }).outputText;
   for (const [platform, native, tier] of [["web", false, "web"], ["ios", true, "native"], ["ios", false, "online"]]) {
     const nativeDevice = {}, webDevice = {}, webStore = {};
+    const sessions = new Map();
+    const secureStore = {
+      getItemAsync: async key => sessions.get(key) ?? null,
+      setItemAsync: async (key, value) => { assert.match(key, /^[\w.-]+$/); sessions.set(key, value); },
+      deleteItemAsync: async key => { sessions.delete(key); },
+    };
     let options;
     const context = { exports: {}, process: { env: {} }, URLSearchParams, window: { location: { search: "" } }, require: name => {
       if (name === "./intents") {
@@ -680,7 +691,8 @@ test("Expo starter selects web, native and online app devices with explicit sess
       if (name === "snapback4/auth") return { localStorageSessionStore: () => webStore };
       if (name === "snapback4/web") return { webDevice: () => webDevice };
       if (name === "snapback4-expo/witness") return { smokeOrigin: fallback => fallback };
-      if (name === "snapback4-expo") return { nativeAvailable: () => native, nativeDevice };
+      if (name === "snapback4-expo") return { nativeAvailable: () => native, nativeDevice, secureStoreSessionStore };
+      if (name === "expo-secure-store") return secureStore;
       return {};
     } };
     vm.runInNewContext(compiled, context);
@@ -688,7 +700,12 @@ test("Expo starter selects web, native and online app devices with explicit sess
     assert.equal(options.device, tier === "web" ? webDevice : native ? nativeDevice : undefined);
     assert.ok(options.sessionStore);
     if (tier === "web") assert.equal(options.sessionStore, webStore);
-    else assert.equal(typeof options.sessionStore.get, "function");
+    else {
+      await options.sessionStore.set("https://backend.test/session", "kept-session");
+      assert.equal(await options.sessionStore.get("https://backend.test/session"), "kept-session");
+      await options.sessionStore.delete("https://backend.test/session");
+      assert.equal(await options.sessionStore.get("https://backend.test/session"), null);
+    }
   }
 });
 
