@@ -402,7 +402,6 @@ The HTTP /seed development door already runs through the host. `check`, `data`,
 
 Expiry makes a row invisible to every reader, including its owner, when its declared deadline passes.
 The server then deletes it and syncs the deletion to devices holding it.
-Keep owner-visible grant history in a separate audit table; see: guide rule-recipes grant-expiry.
 
 ```quarry
 table stories:
@@ -422,6 +421,8 @@ mutation postStory(body: text <=500, ttl: int ?):
 query expiringStories(c: cursor ?):
   return stories where .authorId = viewer after c last 20 by .id { id, body, expiresAt }
 ```
+
+Keep owner-visible grant history in a separate audit table; see: guide rule-recipes grant-expiry.
 
 `not before .opensAt` and `expire at .expiresAt` define `[opensAt, expiresAt)`;
 `guide timed disclosure` has the compiled recipe.

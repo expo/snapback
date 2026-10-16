@@ -136,10 +136,7 @@ query reacted(message: messages, c: cursor ?):
 
 ### Row rules, probes and rule spelling
 
-A view grouped directly by the parent reference is read by key, such as
-`totals[issue]`; scanning its groups is refused. An unknown parent or unknown
-child coverage leaves that device count incomplete, never an invented zero.
-For independent row rules, use the comparisons and keyed probes below.
+A view grouped directly by the parent reference is read by key, such as `totals[issue]`; scanning its groups is refused. An unknown parent or unknown child coverage leaves that device count incomplete, never an invented zero. For independent row rules, use the comparisons and keyed probes below.
 
 ```quarry
 table docs:
@@ -171,32 +168,17 @@ by the key or extra tests must be pinned for one verdict to serve a whole page. 
 with time (use `expire`). A read rule that is exactly
 `exists t[.a, .b, viewer]`, `.col = viewer` or `public` can be synced (guide
 sync). The system principal consults no rules, so `system` is never a rule word.
-An audience read rule may add `or viewer = 'service:pusher'` (or several
-service grants); sync infers its audience without them, and ordinary extra disjuncts still refuse.
+An audience read rule may add `or viewer = 'service:pusher'` (or several service grants); sync infers its audience without them, and ordinary extra disjuncts still refuse.
 
-E_QUARRY_RULE_SPELLING locates a guessed table rule: `select <-` and `view <-`
-become `read <-`, `create <-` becomes `insert <-`, `modify <-` and `edit <-`
-become `update <-`, and `remove <-` becomes `delete <-`. For `write <-`,
-declare separate insert, update and delete rules for the operations intended.
+E_QUARRY_RULE_SPELLING locates a guessed table rule: `select <-` and `view <-` become `read <-`, `create <-` becomes `insert <-`, `modify <-` and `edit <-` become `update <-`, and `remove <-` becomes `delete <-`. For `write <-`, declare separate insert, update and delete rules for the operations intended.
 
 ### What a refused write returns: E_RULE, NOT_FOUND, E_UNIQUE, E_CONSTRAINT
 
-A mutation's `require` decides intent; each write still passes its table's rule.
-An unnamed update rule judges old and next. For a deliberate pre-write gate,
-use `update (old, next) <- old.owner = viewer and old.state = 'pending'`;
-that permits leaving pending, so constrain next too when the policy needs it.
-`N_WRITE_DENIED` identifies the table layer and the contradictory image.
-`E_RULE` identifies table authorization; `why recent` privately names the
-failing old/next image (or the named transition). Hidden targets retain
-`NOT_FOUND`, with no image or clause exposed to the caller.
-See: `guide rule-recipes update-images`.
+A mutation's `require` decides intent; each write still passes its table's rule. An unnamed update rule judges old and next. For a deliberate pre-write gate, use `update (old, next) <- old.owner = viewer and old.state = 'pending'`; that permits leaving pending, so constrain next too when the policy needs it. `E_RULE` identifies table authorization; `why recent` privately names the failing old/next image (or the named transition). Hidden targets retain `NOT_FOUND`, with no image or clause exposed to the caller. See: `guide rule-recipes update-images`.
 
+For update/upsert, "readable" means the read rule admits the old row in the pre-write state, before the patch or any of its effects. The engine resolves id and unique-key targets privately; the update rule judges old and next.
 
-For update/upsert, "readable" means the read rule admits the old row in the
-pre-write state, before the patch or any of its effects. The engine resolves
-id and unique-key targets privately; the update rule judges old and next.
-
-A mutation's writes pass the table's insert, update and delete rules as the caller; only a job runs as the system. `check` also notes N_WRITE_DENIED when preceding caller conditions provably contradict the update rule, including the update arm of an upsert; N_LOOKUP_NEVER_VISIBLE identifies a nullable point lookup whose read rule contradicts those conditions. Unknown role overlap is quiet. `check` notes N_WRITE_DENIED for a mutation's write (or upsert arm) whose rule is `deny` or omitted: write the rule its callers need, or do the write in a job. It notes the same code for a counter (`stock: v.stock - 1`) on a table whose update rule admits only a role, in a mutation that ordinary callers use and that never requires the role: keep the count as a maintained view over the rows they write instead. `check` notes N_READ_DENIED for a query or mutation that looks up an aggregate by key whose read rule is `deny`: every caller reads `null` for both a stored and absent group, so give it the rule its readers need over its group keys. In development, `snapback4 run` prints the clause that refused a write and its line; the refusal a client sees never names it. `insert` and `insert ... if absent` return E_RULE when the insert rule denies
+A mutation's writes pass the table's insert, update and delete rules as the caller; only a job runs as the system. `check` also notes N_WRITE_DENIED (table authorization layer and contradictory old/next image) when preceding caller conditions provably contradict the update rule, including the update arm of an upsert; N_LOOKUP_NEVER_VISIBLE identifies a nullable point lookup whose read rule contradicts those conditions. Unknown role overlap is quiet. `check` notes N_WRITE_DENIED for a mutation's write (or upsert arm) whose rule is `deny` or omitted: write the rule its callers need, or do the write in a job. It notes the same code for a counter (`stock: v.stock - 1`) on a table whose update rule admits only a role, in a mutation that ordinary callers use and that never requires the role: keep the count as a maintained view over the rows they write instead. `check` notes N_READ_DENIED for a query or mutation that looks up an aggregate by key whose read rule is `deny`: every caller reads `null` for both a stored and absent group, so give it the rule its readers need over its group keys. In development, `snapback4 run` prints the clause that refused a write and its line; the refusal a client sees never names it. `insert` and `insert ... if absent` return E_RULE when the insert rule denies
 the viewer. A unique clash with a hidden row returns E_RULE for either insert
 form. For a readable secondary unique clash without a custom refusal, ordinary
 insert returns E_UNIQUE naming the declared key, while `insert ... if absent`
@@ -234,19 +216,9 @@ read audience or source write authority if that delta is private.
 
 ### Refusal ladder
 
-For a body written as asserted lookup → write → require, the ladder is:
-decode (`E_INPUT`) → hidden lookup (`NOT_FOUND`) → table rule (`E_RULE` on a
-readable denied target) → the authored `require` code. After decoding, actual
-statement order decides: a require before a write runs first; a later require
-cannot replace an earlier refusal. A nullable hidden lookup returns null;
-an asserted lookup uses its authored `else` code, conventionally NOT_FOUND.
-Hidden update/delete denial stays NOT_FOUND. Mutations roll back earlier writes.
+For a body written as asserted lookup → write → require, the ladder is: decode (`E_INPUT`) → hidden lookup (`NOT_FOUND`) → table rule (`E_RULE` on a readable denied target) → the authored `require` code. After decoding, actual statement order decides: a require before a write runs first; a later require cannot replace an earlier refusal. A nullable hidden lookup returns null; an asserted lookup uses its authored `else` code, conventionally NOT_FOUND. Hidden update/delete denial stays NOT_FOUND. Mutations roll back earlier writes.
 
-A query over hidden rows is complete and empty when its scope uniformly
-refuses the viewer. A nonuniform scan may be partial even with zero visible
-rows; an empty list alone proves neither access nor physical absence.
-See: `guide rule-recipes role-workflow` for independently enforced table and
-mutation authority, and `guide refusals` for write-internal ordering.
+A query over hidden rows is complete and empty when its scope uniformly refuses the viewer. A nonuniform scan may be partial even with zero visible rows; an empty list alone proves neither access nor physical absence. See: `guide rule-recipes role-workflow` for independently enforced table and mutation authority, and `guide refusals` for write-internal ordering.
 
 ### Disclosure: aggregates, assets and maintained columns
 Omitted asset columns keep their placement. An explicit asset id on a row you
