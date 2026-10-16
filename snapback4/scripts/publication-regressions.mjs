@@ -64,6 +64,8 @@ export async function proveExpoUpgrades(client,platform,expo,directory,modes=['l
       await run(join(cwd,'node_modules/.bin/expo'),['export','-p','web','--max-workers','2'],cwd);
       const installed=JSON.parse(readFileSync(join(cwd,'node_modules/expo/package.json')));
       if(mode!=='adapter-first') assert.equal(installed.version,'57.0.22','the qualified lower peer preserves the old Expo runtime');
+      const core=JSON.parse(readFileSync(join(cwd,'node_modules/expo-modules-core/package.json'))).version;
+      assert.ok(Number(core.split('.')[2])>=23 && core.startsWith('57.0.'), 'adapter core floor wins over older Expo alignment');
       results.push({mode,status:'passed',fromExpo:mode==='adapter-first'?null:'57.0.22',expo:installed.version,version,webExport:'passed'});
     }
     return results;

@@ -64,7 +64,8 @@ try {
       const output = invoke(pm === 'bun' ? ['info', name, field, '--json'] : ['view', name, field, '--json'], true);
       try { return JSON.parse(output); } catch { throw Error(`E_UPGRADE: registry returned invalid ${field} for ${name}`); }
     };
-    const peer = info(`snapback4-expo@${version}`, 'peerDependencies.expo');
+    const peers = info(`snapback4-expo@${version}`, 'peerDependencies');
+    const peer = peers?.expo;
     const floor = typeof peer === 'string' && /^(?:>=|~|\^)?(\d+\.\d+\.\d+)(?: |$)/.exec(peer)?.[1];
     if (!floor) throw Error('E_UPGRADE: adapter Expo peer has no supported exact floor');
     const current = dependencies.map(section => pkg[section]?.expo).find(Boolean);
@@ -84,6 +85,13 @@ try {
       const exact = typeof range === 'string' && /^[~^]?(\d+\.\d+\.\d+)$/.exec(range)?.[1];
       if (!exact) throw Error(`E_UPGRADE: Expo alignment for ${name} has no exact supported pin: ${range}`);
       pins.set(name, exact);
+    }
+    // The old Expo runtime may recommend an older core than the adapter needs.
+    // Pin the adapter's Expo-module floor too, including newly required peers.
+    for (const [name, range] of Object.entries(peers)) if (name.startsWith('expo-')) {
+      const minimum = typeof range === 'string' && /^(?:>=|~|\^)?(\d+\.\d+\.\d+)(?: |$)/.exec(range)?.[1];
+      if (!minimum) throw Error(`E_UPGRADE: adapter peer ${name} has no supported exact floor`);
+      if (!pins.has(name) || compareVersions(pins.get(name), minimum) < 0) pins.set(name, minimum);
     }
     log(`upgrade plan: snapback4/snapback4-expo → ${version}; expo ${current ?? '(absent)'} → ${expo}; align ${[...pins].filter(([name]) => !targets.includes(name)).map(([name, pin]) => `${name}@${pin}`).join(', ')}`);
   }
