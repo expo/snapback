@@ -96138,3 +96138,29 @@ Budget723,660 B is exactly gzip+500 B, whole-artifact +6,446 B gzip over
 0.4.29; strict family/absence audits pass, with no runtime ceiling increase
 or independent feature attribution. This is integration evidence, not a
 publication record; all final checks are recorded in WORKSTREAM-REPORT.md.
+
+## 2026-10-17 — Wave 14 RULES4 authorization
+
+Developer refusal evidence now names an executing mutation/query require or
+table verb rule and retains its authored clause, including forwarded runs.
+Private source evidence stays host-owned; public refusals and receipts keep
+their contracts. Advisory write-rule proofs cover insert/delete and mixed
+caller gates without treating roles as disjoint. LLP 3000.036.002 §12 has
+fresh Muse and Codex READY reviews after conservative-proof corrections.
+
+LLP 3000.014.000 records two independent review rounds for live-parent
+authority. Both remain NOT READY on bounded enumeration, data catch-up,
+staging accounting and restart starvation. Ship the commissioned fallback:
+a maintained parent-department copy with atomic capped child transfer, and
+E_READ_THROUGH navigation to that executable recipe. There is no live syntax
+or planner/protocol/adoption change. General completeness prose stays with
+LANG3; this recipe owns the complete bounded transfer.
+
+Packed client/native consumers run the actual guide blocks for current
+rosters, private waitlist/public occupancy, membership expiry, union
+cold-start cost, separate image placements, own-or-staff and the upsert
+refusal ladder on Linux and Mac. The 100-schema census adds only the
+intended lane-079 note. A 20,000-case differential run has no disagreements;
+the 130 Lean mismatches reproduce with identical counts on base 4ef9f77fb
+(existing C2/W4 model gaps). Qualification details and limits are recorded
+in the workstream report and reports/wave14-rules4/. No version bump or push.

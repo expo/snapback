@@ -54,11 +54,11 @@ query rosterFile(file: rosterFiles):
 The transfer has no asynchronous repair window: either every child is rekeyed
 or the whole transaction rolls back. Existing sync moves each row between its
 old and new audiences. A disconnected device keeps its last applied state;
-after synchronization, the former roster loses the rows. Before a production
-adoption, backfill every existing child's copy and route all future parent
-changes through this mutation. Live-parent language remains under design;
-`read through` still requires immutable captured parent fields. LANG3 owns
-general completeness notes; this recipe uses a capped full transfer group.
+after synchronization, the former roster loses the rows. For existing rows, use a bridge release to add and backfill the copy before
+switching authority (`guide evolution`); route all future parent changes
+through this mutation. Live-parent language remains under design;
+`read through` still requires immutable captured parent fields. The transfer
+walks the entire capped group; see `guide reads` for completeness guidance.
 
 ## Private waitlist with anonymous occupancy
 
@@ -66,7 +66,7 @@ general completeness notes; this recipe uses a capped full transfer group.
 publishing only a count. That count intentionally reveals join/leave activity,
 including a one-person group. It grants no waitlist-row read access. Anonymous
 occupancy means a public query; production guest/session setup is in
-`guide production` (owned by PROD).
+`guide production`.
 
 ```quarry
 use personas alice, bob, carol
@@ -103,7 +103,7 @@ query myWait(slot: waitSlots):
 reading a pinned page. Membership expiry removes access even without a sweep.
 A held membership witness contributes its deadline, so a watch must refresh at
 that boundary. The page carries its own `complete` verdict; never manufacture
-completion from an empty list. LANG3 owns general completeness diagnostics.
+completion from an empty list. See `guide reads` for completeness diagnostics.
 
 ```quarry
 use personas alice, bob, carol

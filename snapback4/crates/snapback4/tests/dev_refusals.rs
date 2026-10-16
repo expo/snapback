@@ -80,7 +80,7 @@ fn dev_reports_source_locally_and_production_keeps_the_same_caller_refusal() {
  #[cfg(unix)] {use std::os::unix::fs::PermissionsExt;assert_eq!(fs::metadata(dev.project.record_path(store)).unwrap().permissions().mode()&0o777,0o600);}
  let why=dev.project.why(&[]);assert!(why.status.success(),"{}",String::from_utf8_lossy(&why.stderr));assert_eq!(serde_json::from_slice::<Value>(&why.stdout).unwrap(),envelope);
  let deadline=Instant::now()+Duration::from_secs(5);
- loop {let stderr=fs::read_to_string(&dev.stderr).unwrap();if stderr.lines().any(|l| l.starts_with("dev refusal: add E_RULE at ") && l.contains("schema.q:5:3 (insert rule on rows)") && l.ends_with(" — snapback4 why recent")) {break;}assert!(Instant::now()<deadline,"{stderr}");std::thread::sleep(Duration::from_millis(10));}
+ loop {let stderr=fs::read_to_string(&dev.stderr).unwrap();if stderr.lines().any(|l| l.starts_with("dev refusal: add E_RULE at ") && l.contains("schema.q:5:3 (table insert rule on rows); clause `insert <- .owner = viewer`") && l.ends_with(" — snapback4 why recent")) {break;}assert!(Instant::now()<deadline,"{stderr}");std::thread::sleep(Duration::from_millis(10));}
  assert!(!reply.to_string().contains("schema.q"));
  let prod=Host::start(Project::new(),false,false);
  let minted=Command::new(BIN).current_dir(&prod.project.0).args(["token","--service","mp-test","--release","release"]).output().unwrap();
@@ -215,7 +215,10 @@ fn uninstrumented_refusals_replays_and_empty_reads_replace_older_causes() {
    let id=record["requestId"].as_u64().unwrap();
    if id>last_id {assert_eq!(record["code"],code);if code=="EMPTY_READ" { assert_eq!(record["cause"],"no-candidate"); assert_eq!(record["clause"],"no-candidate"); assert!(record["site"].as_str().is_some()); } else {
      // A program's own refusal names its `require` line (wave-1 #41), from the response itself.
-     assert_eq!(record["clause"],"program refusal","{record}");assert_eq!(record["siteKind"],"program");
+     let replay = record["generation"].is_null();
+     assert_eq!(record["clause"],if replay { "program refusal" } else if path.starts_with("/m/") { "mutation require" } else { "query require" },"{record}");assert_eq!(record["siteKind"],"program");
+     if replay { assert!(record["ruleText"].is_null(), "never invent current-generation clause text for an uninstrumented receipt: {record}"); }
+     else { assert_eq!(record["ruleText"],"require false else NOT_FOUND"); }
      let line=record["site"].as_str().unwrap().split(':').nth(1).unwrap().parse::<usize>().unwrap();
      assert!(source.lines().nth(line-1).unwrap().contains("require false else NOT_FOUND"),"{record}");
    } last_id=id;break;}
@@ -229,10 +232,10 @@ fn uninstrumented_refusals_replays_and_empty_reads_replace_older_causes() {
  assert_eq!(after.stdout,before.stdout,"visibility filtering is not a refusal");
  let terminal=dev.post("/q/afterRead",json!({}));assert_eq!(terminal["denied"]["code"],"NOT_FOUND");
  let records=dev.project.wait_record(store,"afterRead");let record=records["records"].as_array().unwrap().last().unwrap();
- assert_eq!(record["clause"],"program refusal","an earlier filtered read is not this terminal refusal's cause");
+ assert_eq!(record["clause"],"query require","an earlier filtered read is not this terminal refusal's cause");
  let line=record["site"].as_str().unwrap().split(':').nth(1).unwrap().parse::<usize>().unwrap();
  assert!(source.lines().nth(line-1).unwrap().contains("require false else NOT_FOUND"),"the site is the require, not the filtered read: {record}");
- let expected=format!("dev refusal: afterRead: — program refusal at {};",record["site"].as_str().unwrap());
+ let expected=format!("dev refusal: afterRead: — query require at {};",record["site"].as_str().unwrap());
  let deadline=Instant::now()+Duration::from_secs(10);
  loop {let console=fs::read_to_string(&dev.stderr).unwrap();if console.contains(&expected) {break;}assert!(Instant::now()<deadline,"{console}");std::thread::sleep(Duration::from_millis(20));}
  let refused=dev.post("/m/add",json!({"id":"denied-rule","args":{"owner":"dev:bob"}}));assert_eq!(refused["why"]["code"],"E_RULE");

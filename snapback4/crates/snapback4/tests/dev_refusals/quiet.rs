@@ -82,14 +82,15 @@ fn real_refusals_keep_individual_records_and_print_one_counted_line() {
         assert!(Instant::now() < end);
         std::thread::sleep(Duration::from_millis(10));
     }
-    // The default line is short (wave 6 #19); the store and instance stay in `why recent`.
+    // The default line includes the requested layer and clause; batching/store
+    // details stay in `why recent`. This simple clause still fits one short line.
     let text = wait_console(&dev, "dev refusal: add E_RULE at ");
     let lines: Vec<_> = text.lines().filter(|line| line.starts_with("dev refusal:")).collect();
     assert_eq!(lines.len(), 1, "{text}");
-    assert!(lines[0].ends_with("(insert rule on rows) ×8 — snapback4 why recent") && lines[0].len() < 120, "{text}");
+    assert!(lines[0].ends_with("(table insert rule on rows); clause `insert <- .owner = viewer` ×8 — snapback4 why recent") && lines[0].len() < 180, "{text}");
     assert!(!store.is_empty());
     dev.refuse("add");
-    wait_console(&dev, "(insert rule on rows) — snapback4 why recent");
+    wait_console(&dev, "(table insert rule on rows); clause `insert <- .owner = viewer` — snapback4 why recent");
 }
 #[test]
 fn empty_read_card_is_served_by_both_verbs() {

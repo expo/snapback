@@ -1,0 +1,104 @@
+{
+  "generated": 20000,
+  "compiled": 20000,
+  "binder_refused_expected": 0,
+  "binder_refused_unexpected": 0,
+  "executed": 1220035,
+  "generator_errors": {},
+  "by_oracle": {
+    "meter": {
+      "attempted": 544736,
+      "passed": 67880,
+      "unsupported": {
+        "examined-opening-no-position": 15543,
+        "heap_bytes-unwind-no-continuation": 147343,
+        "mutation-not-a-read": 3663,
+        "output_bytes-refusal-no-continuation": 13966,
+        "return-not-pageable": 43615,
+        "rule_probes-opening-no-position": 1573,
+        "steps-refusal-no-continuation": 217750,
+        "steps-unwind-no-continuation": 31032,
+        "timed-search-no-continuation": 410,
+        "uncut-refusal": 1961
+      },
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    },
+    "repeat": {
+      "attempted": 20000,
+      "passed": 20000,
+      "unsupported": {},
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    },
+    "rewrite-commute": {
+      "attempted": 20000,
+      "passed": 3160,
+      "unsupported": {
+        "rewrite-not-applicable": 16840
+      },
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 1683
+    },
+    "rewrite-declarations": {
+      "attempted": 20000,
+      "passed": 20000,
+      "unsupported": {},
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    },
+    "rewrite-identity": {
+      "attempted": 20000,
+      "passed": 2751,
+      "unsupported": {
+        "rewrite-not-applicable": 17249
+      },
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 2751
+    },
+    "rewrite-lazy-and": {
+      "attempted": 20000,
+      "passed": 1145,
+      "unsupported": {
+        "rewrite-not-applicable": 18855
+      },
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 1145
+    },
+    "rewrite-lazy-or": {
+      "attempted": 20000,
+      "passed": 1250,
+      "unsupported": {
+        "rewrite-not-applicable": 18750
+      },
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 1250
+    },
+    "rewrite-let": {
+      "attempted": 20000,
+      "passed": 20000,
+      "unsupported": {},
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 20000
+    },
+    "timed-search-future-absence": {
+      "attempted": 415,
+      "passed": 415,
+      "unsupported": {},
+      "disagreeing": 0,
+      "signatures": {},
+      "meter_fields_omitted": 0
+    }
+  },
+  "runtime_refused_unexpected": {},
+  "seconds": 278.845724029,
+  "cases": 20000
+}
