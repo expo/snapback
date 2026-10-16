@@ -1198,14 +1198,16 @@ fn surf3_reset_retires_future_time_audience_floor_before_reseed() {
 }
 
 #[test]
-fn surf3_memory_clock_requires_its_printed_port_without_guessing_another_project() {
+fn surf3_memory_clock_discovers_its_listener_and_preserves_explicit_port_control() {
     let project = Project::new("use personas alice\ntable notes:\n  body: text <=40\n  public 'fixture'\n  online only\n");
     let (_dev, url) = project.dev(0);
     let (_, before) = http(&url, "GET", "/dev/status", None, "");
     let output = project.run(&["clock", "advance", "2h"]);
-    assert!(!output.status.success() && text(&output).contains("--port"), "{}", text(&output));
+    assert!(output.status.success(), "{}", text(&output));
+    let discovered: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(discovered["now"].as_i64().unwrap() - before["now"].as_i64().unwrap() >= 7_200_000, "{discovered}");
     let (_, after) = http(&url, "GET", "/dev/status", None, "");
-    assert!((after["now"].as_i64().unwrap() - before["now"].as_i64().unwrap()).abs() < 10_000);
+    assert!(after["now"].as_i64().unwrap() - before["now"].as_i64().unwrap() >= 7_200_000, "{after}");
     let (_, seeded) = http(&url, "POST", "/seed", None, r#"[{"table":"notes","row":{"id":"n","body":"seeded"}}]"#);
     assert_eq!(seeded["seeded"], 1, "{seeded}");
     let port = url.rsplit(':').next().unwrap();
