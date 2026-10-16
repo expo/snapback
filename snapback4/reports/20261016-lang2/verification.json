@@ -71,5 +71,32 @@
     "checkGuide": "19 pass, 0 content failures, 3 preconditions: missing generated Snapback 1 demo artifacts"
   },
   "versionBumped": false,
-  "pushedToOrigin": false
+  "pushedToOrigin": false,
+  "p18CoordinatorRevision": {
+    "sourceCommit": "395c0f40b0",
+    "status": "qualification running; supersedes old P18 census and reviews",
+    "census": {
+      "beforePass": 100,
+      "afterPass": 100,
+      "refusals": {},
+      "immutableNotes": 28,
+      "lanes": 17
+    },
+    "nativeSemanticTests": {
+      "passed": 39,
+      "failed": 0,
+      "log": "/tmp/lang2-wave13/p18-clock-final.log"
+    },
+    "generatedCases": {
+      "p18": 48,
+      "previousLANG2": 36,
+      "nativeDeviceLeanSignatures": 0
+    },
+    "lean": {
+      "auditedTheorems": 75,
+      "examples": 116,
+      "fixtures": 7
+    },
+    "reviews": "fresh Muse and Codex rounds running; prior READY digest applies only before the coordinator ruling"
+  }
 }

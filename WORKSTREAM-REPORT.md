@@ -90,7 +90,7 @@ Clean final source measurement at `b54f51aff2` (`wasm-final-clean.log`): **2,370
 
 Per-lane machine record: `snapback4/reports/20261016-lang2/schema-census.json`.
 
-The before and after census was rerun on all 100 private copies. Baseline 0.4.29: **100/100 pass**. Revised P18: **100/100 pass, zero refusals**. No previously passing schema gains any refusal. The former 23 blanket refusals across 17 lanes are superseded; uncertain patches now produce **30 N_IMMUTABLE_PATCH notes across those same 17 lanes** (some statements contain multiple immutable fields).
+The before and after census was rerun on all 100 private copies. Baseline 0.4.29: **100/100 pass**. Revised P18: **100/100 pass, zero refusals**. No previously passing schema gains any refusal. The former 23 blanket refusals across 17 lanes are superseded; uncertain patches now produce **28 N_IMMUTABLE_PATCH notes across those same 17 lanes** (some statements contain multiple immutable fields).
 
 Remaining refusal lanes: **none**. Lane052's final `reactions` schema declares `immutable link, comment, author`; `at` is mutable. Its former refusal was `reactions.link`, now an uncertainty note. Its `at: now` is valid. A separate declared-immutable timestamp regression refuses the fresh clock pattern; no evidence schema was edited.
 
@@ -101,7 +101,7 @@ Remaining refusal lanes: **none**. Lane052's final `reactions` schema declares `
 | N_DELETE_RESTRICTED | 1 | 1 |
 | N_EPHEMERAL_SERVER | 2 | 2 |
 | N_FIXTURE_ARGUMENT_DRIFT | 21 | 21 |
-| N_IMMUTABLE_PATCH | 0 | 30 |
+| N_IMMUTABLE_PATCH | 0 | 28 |
 | N_LOOKUP_HIDDEN | 5 | 5 |
 | N_MAINTAIN_AUTHORIZATION | 2 | 2 |
 | N_MAINTAIN_DELTA | 7 | 7 |

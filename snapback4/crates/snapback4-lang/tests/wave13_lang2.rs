@@ -404,7 +404,7 @@ fn immutable_changes_against_always_hidden_targets_are_notes_not_false_refusals(
         immutable_note(&format!("{hidden}mutation change(e: entries):\n  update entries[e] {{ {patch} }}\n  return null\n"));
     }
     // Jobs bypass the read rule and still have to preserve immutable values.
-    refusal(&format!("{hidden}job change():\n  for e in entries:\n    update entries[e.id] {{ at: now }}\n"),"E_QUARRY_IMMUTABLE");
+    refusal(&format!("{hidden}job change():\n  for e in entries:\n    update entries[e.id] {{ token: new }}\n"),"E_QUARRY_IMMUTABLE");
 }
 
 #[test]
@@ -437,4 +437,33 @@ fn opaque_compound_key_siblings_do_not_erase_a_pinned_column_proof() {
         let source = format!("{base}mutation change(slot: text <=30):\n  update entries[code = 1, slot = lower(slot)] {{ code: {code} }}\n  return null\n");
         if code == "2" { refusal(&source,"E_QUARRY_IMMUTABLE"); } else { quiet(&source); }
     }
+}
+
+#[test]
+fn loop_carried_clock_reuse_is_uncertain_in_either_branch_order() {
+    let insert = "insert entries { id: key, owner: viewer, frozen: 'first', token: new, at: now, body: 'x' }";
+    for body in [format!("if i = 1:\n      update entries[key] {{ at: now }}\n    else:\n      {insert}"), format!("if i = 0:\n      {insert}\n    else:\n      update entries[key] {{ at: now }}")] {
+        immutable_note(&format!("{IMMUTABLE}mutation local(key: id):\n  for i in range(0, 2):\n    {body}\n  return null\n"));
+    }
+}
+
+#[test]
+fn zero_offsets_preserve_pinned_clock_and_exact_snapshot_equality() {
+    let base = "table entries:\n  at: time\n  unique at\n  immutable at\n  public\n  insert <- allow\n  update <- allow\n  online only\n";
+    for value in ["now", "now + 0s", "now - 0s"] {
+        quiet(&format!("{base}mutation local():\n  upsert entries[at = now] {{ at: {value} }}\n  return null\n"));
+    }
+    quiet(&format!("{base}mutation local(e: entries):\n  row = entries[e] ! else NOT_FOUND\n  update entries[e] {{ at: row.at + 0s }}\n  return null\n"));
+}
+
+#[test]
+fn guards_may_establish_clock_equality_and_must_not_be_refused() {
+    for body in ["require row.at = now else CHANGED\n  update entries[e] { at: now }", "if row.at = now:\n    update entries[e] { at: now }"] {
+        immutable_note(&format!("{IMMUTABLE}mutation guarded(e: entries):\n  row = entries[e] ! else NOT_FOUND\n  {body}\n  return null\n"));
+    }
+}
+
+#[test]
+fn conditional_updates_may_guard_the_supplied_clock_value() {
+    immutable_note(&format!("{IMMUTABLE}mutation guarded(e: entries):\n  update entries[e] {{ at: now }} if .at = now\n  return null\n"));
 }

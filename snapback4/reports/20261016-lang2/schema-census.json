@@ -1,7 +1,7 @@
 {
   "workstream": "LANG2",
   "date": "2026-10-16",
-  "sourceCommit": "b6589becdc",
+  "sourceCommit": "395c0f40b0",
   "beforeCommit": "59fb4ead1b",
   "count": 100,
   "beforePass": 100,
@@ -54,7 +54,7 @@
     "N_DELETE_RESTRICTED": 1,
     "N_EPHEMERAL_SERVER": 2,
     "N_FIXTURE_ARGUMENT_DRIFT": 21,
-    "N_IMMUTABLE_PATCH": 30,
+    "N_IMMUTABLE_PATCH": 28,
     "N_LOOKUP_HIDDEN": 5,
     "N_MAINTAIN_AUTHORIZATION": 2,
     "N_MAINTAIN_DELTA": 7,
@@ -71,7 +71,7 @@
   },
   "rawCensusDigests": {
     "before": "b8032468171d1a6a357b5c6c6cb9926e52e9123772a6eb046d4c0a8e0123985e",
-    "after": "4557de98d819deb29610eb0175ca1a47ccd5635417c45316ff7eeff7434c8bec"
+    "after": "a45a788a171bb3fbb5f5e10c4a79ca23aac8e0fa3ec2b683baee8c08ff5bc353"
   },
   "lanes": [
     {
@@ -852,7 +852,7 @@
         "N_NO_CURSOR": 8
       },
       "afterNotes": {
-        "N_IMMUTABLE_PATCH": 4,
+        "N_IMMUTABLE_PATCH": 3,
         "N_NO_CURSOR": 8
       },
       "refusals": [],
@@ -889,18 +889,6 @@
           "rewrite": "omit sitter from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 94,
-            "file": "schema.q",
-            "line": 135
-          }
-        },
-        {
-          "code": "N_IMMUTABLE_PATCH",
-          "guide": "writes",
-          "mechanical": false,
-          "message": "on conflict, this upsert is refused at runtime on a readable target unless completions.task equals the stored value; omit task from the patch if another value may update this row",
-          "rewrite": "omit task from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
-          "site": {
-            "col": 67,
             "file": "schema.q",
             "line": 135
           }
@@ -1804,7 +1792,7 @@
         "N_NO_CURSOR": 6
       },
       "afterNotes": {
-        "N_IMMUTABLE_PATCH": 4,
+        "N_IMMUTABLE_PATCH": 3,
         "N_NO_CURSOR": 2
       },
       "refusals": [],
@@ -1817,18 +1805,6 @@
           "rewrite": "omit awayCaptain from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 68,
-            "file": "schema.q",
-            "line": 180
-          }
-        },
-        {
-          "code": "N_IMMUTABLE_PATCH",
-          "guide": "writes",
-          "mechanical": false,
-          "message": "on conflict, this upsert is refused at runtime on a readable target unless notes.bout equals the stored value; omit bout from the patch if another value may update this row",
-          "rewrite": "omit bout from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
-          "site": {
-            "col": 34,
             "file": "schema.q",
             "line": 180
           }

@@ -5,7 +5,7 @@ use std::collections::BTreeSet;
 impl Binder<'_> {
     // @ref LLP 3000.036.002#10 — uncertainty is a note, never an upgrade refusal.
     pub(super) fn immutable_patch(&mut self, info: &TableInfo, key: &WriteKey, patch: &Expr,
-        fields: &[ObjectField], site: &Site, prior: &[Stmt], upsert: bool) -> Fallible<()> {
+        fields: &[ObjectField], site: &Site, prior: &[Stmt], upsert: bool, conditional: bool) -> Fallible<()> {
         let Expr::Object(patch) = patch else { return Ok(()) };
         let index = info.indexes.iter().find(|index| index.name == key.index).expect("selected write key");
         let stable = self.scopes.iter().flat_map(|scope|scope.values()).filter(|binding|binding.parameter).map(|binding|binding.runtime.clone()).collect::<BTreeSet<_>>();
@@ -34,6 +34,8 @@ impl Binder<'_> {
             let differing = known.zip(value.as_ref()).is_some_and(|(old, new)| different(old, new));
             let clock = info.columns.get(column).is_some_and(|ty| matches!(ty.kind, ast::TypeKind::Time))
                 && value.as_ref().is_some_and(clock_value) && !self.may_have_written
+                && self.loops + self.caller_loops == 0 && self.depth == 0 && self.scopes.len() == 1 && !conditional
+                && scalar_prefix(prior, &stable)
                 && !prior.iter().any(|statement| ir::effects::Effects::writes_in(std::slice::from_ref(statement)));
             let fresh = matches!(supplied, Expr::Input(Input::NewId)) || value.as_ref().is_some_and(|value| fresh_capture(value, prior));
             if !always_hidden && (differing || clock || fresh) {
@@ -73,10 +75,28 @@ fn inserted_target(info: &TableInfo, index: &ast::IndexDecl, target: Option<&[Ex
     None
 }
 
+/// Adding/subtracting zero cannot turn a proved equal timestamp into a
+/// fresh clock patch, or erase an exact snapshot's value identity.
+fn binary(op: ir::BinaryOp, left: Expr, right: Expr) -> Expr {
+    if matches!(op, ir::BinaryOp::Add | ir::BinaryOp::Sub) && constant(&right) == Some(Value::Int(0)) { return left; }
+    if op == ir::BinaryOp::Add && constant(&left) == Some(Value::Int(0)) { return right; }
+    Expr::Binary { op, left: Box::new(left), right: Box::new(right) }
+}
+
+/// A guard or storage-dependent/opaque setup may already constrain the clock
+/// to the stored timestamp. Only scalar straight-line setup proves freshness.
+fn scalar_prefix(prior: &[Stmt], stable: &BTreeSet<String>) -> bool {
+    prior.iter().enumerate().all(|(at, statement)| match statement {
+        Stmt::Const { value, .. } | Stmt::Let { value, .. } | Stmt::Assign { value, .. } => scalar(value, &prior[..at], 32, stable).is_some(),
+        _ => false,
+    })
+}
+
 fn clock_value(value: &Expr) -> bool {
     match value {
         Expr::Input(Input::Now | Input::ReadTime) => true,
-        Expr::Binary { op: ir::BinaryOp::Add | ir::BinaryOp::Sub, left, right } => clock_value(left) && constant(right).is_some(),
+        Expr::Binary { op: ir::BinaryOp::Add, left, right } => clock_value(left) && constant(right).is_some() || constant(left).is_some() && clock_value(right),
+        Expr::Binary { op: ir::BinaryOp::Sub, left, right } => clock_value(left) && constant(right).is_some(),
         _ => false,
     }
 }
@@ -144,7 +164,7 @@ fn scalar(expr: &Expr, prior: &[Stmt], fuel: usize, stable: &BTreeSet<String>) -
             let (fields, captured) = object(base, prior, fuel-1)?;
             scalar(fields.get(name)?, captured, fuel-1, stable)?
         }
-        Expr::Binary { op, left, right } => Expr::Binary { op: *op, left: Box::new(scalar(left,prior,fuel-1,stable)?), right: Box::new(scalar(right,prior,fuel-1,stable)?) },
+        Expr::Binary { op, left, right } => binary(*op, scalar(left,prior,fuel-1,stable)?, scalar(right,prior,fuel-1,stable)?),
         Expr::Unary { op, value } => Expr::Unary { op: *op, value: Box::new(scalar(value,prior,fuel-1,stable)?) },
         Expr::Array(values) => Expr::Array(values.iter().map(|value|scalar(value,prior,fuel-1,stable)).collect::<Option<_>>()?),
         Expr::Object(fields) => Expr::Object(fields.iter().map(|(name,value)|Some((name.clone(),scalar(value,prior,fuel-1,stable)?))).collect::<Option<_>>()?),
@@ -176,7 +196,7 @@ fn resolve(expr: &Expr, prior: &[Stmt], fuel: usize, stable: &BTreeSet<String>) 
             read.site.clear();
             Expr::Get(read)
         }
-        Expr::Binary { op, left, right } => Expr::Binary { op: *op, left: Box::new(resolve(left, prior, fuel - 1, stable)?), right: Box::new(resolve(right, prior, fuel - 1, stable)?) },
+        Expr::Binary { op, left, right } => binary(*op, resolve(left, prior, fuel - 1, stable)?, resolve(right, prior, fuel - 1, stable)?),
         Expr::Unary { op, value } => Expr::Unary { op: *op, value: Box::new(resolve(value, prior, fuel - 1, stable)?) },
         Expr::Array(values) => Expr::Array(values.iter().map(|value|resolve(value,prior,fuel-1,stable)).collect::<Option<_>>()?),
         Expr::Object(fields) => Expr::Object(fields.iter().map(|(name,value)|Some((name.clone(),resolve(value,prior,fuel-1,stable)?))).collect::<Option<_>>()?),
