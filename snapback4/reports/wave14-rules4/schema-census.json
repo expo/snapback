@@ -1,0 +1,1146 @@
+{
+  "method": "For each read-only wave14/apps/*/snapback/schema.q, copied the file into an isolated temporary project and ran the built CLI check --json. No evidence lane was modified. Baseline: 4ef9f77fb. Final Linux and Mac counts agree.",
+  "before": {
+    "schemas": 100,
+    "ok": 100,
+    "errors": 0,
+    "notes": 373
+  },
+  "after": {
+    "schemas": 100,
+    "ok": 100,
+    "errors": 0,
+    "notes": 374
+  },
+  "after_mac": {
+    "schemas": 100,
+    "ok": 100,
+    "errors": 0,
+    "notes": 374
+  },
+  "changes": [
+    {
+      "lane": "079-stop-headcount-tally",
+      "added_codes": {
+        "N_REQUIRE_REFUSED": 1
+      },
+      "removed_codes": {},
+      "new_notes": [
+        {
+          "code": "N_REQUIRE_REFUSED",
+          "guide": "rule-recipes",
+          "mechanical": false,
+          "message": "flagMissing: mutation require `(s.guide = viewer or (exists staff[viewer, role = 'office']))` has a caller branch that does not establish alerts's table insert rule `exists staff[viewer]` at schema.q:117:3; those callers may pass require and still be refused by table authority. Roles can overlap; this is a missing authority proof, not a claim that the audiences are disjoint",
+          "rewrite": "require the table's role in every admitted branch, or deliberately widen the table write rule; a mutation require never grants table authority. See: guide rule-recipes own-or-staff",
+          "site": {
+            "col": 10,
+            "file": "schema.q",
+            "line": 193
+          }
+        }
+      ]
+    }
+  ],
+  "schemas": [
+    {
+      "lane": "001-scaffold-tag-board",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "002-day2-pawn-ticket-desk",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "003-arc-reviewer-copies",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "004-day2-lease-takeover-board",
+      "before": {
+        "errors": 0,
+        "notes": 7
+      },
+      "after": {
+        "errors": 0,
+        "notes": 7
+      }
+    },
+    {
+      "lane": "005-duplicate-bridge-boards",
+      "before": {
+        "errors": 0,
+        "notes": 4
+      },
+      "after": {
+        "errors": 0,
+        "notes": 4
+      }
+    },
+    {
+      "lane": "006-day2-accountant-access-windows",
+      "before": {
+        "errors": 0,
+        "notes": 3
+      },
+      "after": {
+        "errors": 0,
+        "notes": 3
+      }
+    },
+    {
+      "lane": "007-docket-deadline-calendar",
+      "before": {
+        "errors": 0,
+        "notes": 14
+      },
+      "after": {
+        "errors": 0,
+        "notes": 14
+      }
+    },
+    {
+      "lane": "008-day2-yearbook-photo-consents",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "009-propane-tank-readings",
+      "before": {
+        "errors": 0,
+        "notes": 9
+      },
+      "after": {
+        "errors": 0,
+        "notes": 9
+      }
+    },
+    {
+      "lane": "010-day2-sponsor-read-approvals",
+      "before": {
+        "errors": 0,
+        "notes": 7
+      },
+      "after": {
+        "errors": 0,
+        "notes": 7
+      }
+    },
+    {
+      "lane": "011-pet-addendum-approvals",
+      "before": {
+        "errors": 0,
+        "notes": 11
+      },
+      "after": {
+        "errors": 0,
+        "notes": 11
+      }
+    },
+    {
+      "lane": "012-day2-classroom-observation-notes",
+      "before": {
+        "errors": 0,
+        "notes": 7
+      },
+      "after": {
+        "errors": 0,
+        "notes": 7
+      }
+    },
+    {
+      "lane": "013-venue-date-holds",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "014-day2-guarantor-pledges",
+      "before": {
+        "errors": 0,
+        "notes": 0
+      },
+      "after": {
+        "errors": 0,
+        "notes": 0
+      }
+    },
+    {
+      "lane": "015-waste-accumulation-clock",
+      "before": {
+        "errors": 0,
+        "notes": 2
+      },
+      "after": {
+        "errors": 0,
+        "notes": 2
+      }
+    },
+    {
+      "lane": "016-day2-spoiler-shield-groups",
+      "before": {
+        "errors": 0,
+        "notes": 2
+      },
+      "after": {
+        "errors": 0,
+        "notes": 2
+      }
+    },
+    {
+      "lane": "017-bike-serial-registry",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "018-day2-offer-letter-advisors",
+      "before": {
+        "errors": 0,
+        "notes": 7
+      },
+      "after": {
+        "errors": 0,
+        "notes": 7
+      }
+    },
+    {
+      "lane": "019-four-h-project-records",
+      "before": {
+        "errors": 0,
+        "notes": 8
+      },
+      "after": {
+        "errors": 0,
+        "notes": 8
+      }
+    },
+    {
+      "lane": "020-day2-shared-rolodex-notes",
+      "before": {
+        "errors": 0,
+        "notes": 0
+      },
+      "after": {
+        "errors": 0,
+        "notes": 0
+      }
+    },
+    {
+      "lane": "021-barrel-shipment-consolidation",
+      "before": {
+        "errors": 0,
+        "notes": 4
+      },
+      "after": {
+        "errors": 0,
+        "notes": 4
+      }
+    },
+    {
+      "lane": "022-day2-audit-evidence-requests",
+      "before": {
+        "errors": 0,
+        "notes": 3
+      },
+      "after": {
+        "errors": 0,
+        "notes": 3
+      }
+    },
+    {
+      "lane": "023-reading-room-pulls",
+      "before": {
+        "errors": 0,
+        "notes": 3
+      },
+      "after": {
+        "errors": 0,
+        "notes": 3
+      }
+    },
+    {
+      "lane": "024-day2-guest-curator-takeovers",
+      "before": {
+        "errors": 0,
+        "notes": 0
+      },
+      "after": {
+        "errors": 0,
+        "notes": 0
+      }
+    },
+    {
+      "lane": "025-dropzone-load-manifest",
+      "before": {
+        "errors": 0,
+        "notes": 4
+      },
+      "after": {
+        "errors": 0,
+        "notes": 4
+      }
+    },
+    {
+      "lane": "026-day2-vendor-subdelegation",
+      "before": {
+        "errors": 0,
+        "notes": 2
+      },
+      "after": {
+        "errors": 0,
+        "notes": 2
+      }
+    },
+    {
+      "lane": "027-understudy-readiness",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "028-day2-proxy-assignments",
+      "before": {
+        "errors": 0,
+        "notes": 0
+      },
+      "after": {
+        "errors": 0,
+        "notes": 0
+      }
+    },
+    {
+      "lane": "029-color-formula-cards",
+      "before": {
+        "errors": 0,
+        "notes": 2
+      },
+      "after": {
+        "errors": 0,
+        "notes": 2
+      }
+    },
+    {
+      "lane": "030-day2-contractor-site-windows",
+      "before": {
+        "errors": 0,
+        "notes": 2
+      },
+      "after": {
+        "errors": 0,
+        "notes": 2
+      }
+    },
+    {
+      "lane": "031-dismissal-change-requests",
+      "before": {
+        "errors": 0,
+        "notes": 10
+      },
+      "after": {
+        "errors": 0,
+        "notes": 10
+      }
+    },
+    {
+      "lane": "032-day2-expiring-team-notes",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "033-cla-signature-ledger",
+      "before": {
+        "errors": 0,
+        "notes": 4
+      },
+      "after": {
+        "errors": 0,
+        "notes": 4
+      }
+    },
+    {
+      "lane": "034-day2-access-receipts-log",
+      "before": {
+        "errors": 0,
+        "notes": 0
+      },
+      "after": {
+        "errors": 0,
+        "notes": 0
+      }
+    },
+    {
+      "lane": "035-jersey-number-requests",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "036-day2-performance-report-routing",
+      "before": {
+        "errors": 0,
+        "notes": 7
+      },
+      "after": {
+        "errors": 0,
+        "notes": 7
+      }
+    },
+    {
+      "lane": "037-magic-method-vault",
+      "before": {
+        "errors": 0,
+        "notes": 7
+      },
+      "after": {
+        "errors": 0,
+        "notes": 7
+      }
+    },
+    {
+      "lane": "038-day2-whiteboard-rooms",
+      "before": {
+        "errors": 0,
+        "notes": 2
+      },
+      "after": {
+        "errors": 0,
+        "notes": 2
+      }
+    },
+    {
+      "lane": "039-doula-backup-rotation",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "040-day2-audience-reactions",
+      "before": {
+        "errors": 0,
+        "notes": 8
+      },
+      "after": {
+        "errors": 0,
+        "notes": 8
+      }
+    },
+    {
+      "lane": "041-bite-quarantine-checks",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "042-day2-live-trip-pins",
+      "before": {
+        "errors": 0,
+        "notes": 4
+      },
+      "after": {
+        "errors": 0,
+        "notes": 4
+      }
+    },
+    {
+      "lane": "043-screen-time-tokens",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "044-day2-mind-map-jam",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "045-heritage-plaque-applications",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "046-day2-bughouse-pairs",
+      "before": {
+        "errors": 0,
+        "notes": 0
+      },
+      "after": {
+        "errors": 0,
+        "notes": 0
+      }
+    },
+    {
+      "lane": "047-hot-work-permits",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "048-day2-planning-poker-rooms",
+      "before": {
+        "errors": 0,
+        "notes": 0
+      },
+      "after": {
+        "errors": 0,
+        "notes": 0
+      }
+    },
+    {
+      "lane": "049-impound-release-desk",
+      "before": {
+        "errors": 0,
+        "notes": 14
+      },
+      "after": {
+        "errors": 0,
+        "notes": 14
+      }
+    },
+    {
+      "lane": "050-day2-battle-map-fog",
+      "before": {
+        "errors": 0,
+        "notes": 2
+      },
+      "after": {
+        "errors": 0,
+        "notes": 2
+      }
+    },
+    {
+      "lane": "051-furniture-bank-pickups",
+      "before": {
+        "errors": 0,
+        "notes": 13
+      },
+      "after": {
+        "errors": 0,
+        "notes": 13
+      }
+    },
+    {
+      "lane": "052-day2-live-budget-meeting",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "053-ballot-drop-box-sweeps",
+      "before": {
+        "errors": 0,
+        "notes": 7
+      },
+      "after": {
+        "errors": 0,
+        "notes": 7
+      }
+    },
+    {
+      "lane": "054-day2-write-in-sprints",
+      "before": {
+        "errors": 0,
+        "notes": 5
+      },
+      "after": {
+        "errors": 0,
+        "notes": 5
+      }
+    },
+    {
+      "lane": "055-shellfish-harvest-closures",
+      "before": {
+        "errors": 0,
+        "notes": 4
+      },
+      "after": {
+        "errors": 0,
+        "notes": 4
+      }
+    },
+    {
+      "lane": "056-day2-unconference-grid",
+      "before": {
+        "errors": 0,
+        "notes": 0
+      },
+      "after": {
+        "errors": 0,
+        "notes": 0
+      }
+    },
+    {
+      "lane": "057-guest-stay-limits",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "058-day2-precinct-poll-book",
+      "before": {
+        "errors": 0,
+        "notes": 3
+      },
+      "after": {
+        "errors": 0,
+        "notes": 3
+      }
+    },
+    {
+      "lane": "059-poster-session-gallery",
+      "before": {
+        "errors": 0,
+        "notes": 5
+      },
+      "after": {
+        "errors": 0,
+        "notes": 5
+      }
+    },
+    {
+      "lane": "060-day2-rig-safety-walkdown",
+      "before": {
+        "errors": 0,
+        "notes": 6
+      },
+      "after": {
+        "errors": 0,
+        "notes": 6
+      }
+    },
+    {
+      "lane": "061-burn-permit-days",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "062-day2-auction-lot-walk",
+      "before": {
+        "errors": 0,
+        "notes": 14
+      },
+      "after": {
+        "errors": 0,
+        "notes": 14
+      }
+    },
+    {
+      "lane": "063-exhibit-label-review",
+      "before": {
+        "errors": 0,
+        "notes": 7
+      },
+      "after": {
+        "errors": 0,
+        "notes": 7
+      }
+    },
+    {
+      "lane": "064-day2-field-sales-orders",
+      "before": {
+        "errors": 0,
+        "notes": 8
+      },
+      "after": {
+        "errors": 0,
+        "notes": 8
+      }
+    },
+    {
+      "lane": "065-quiz-pack-exchange",
+      "before": {
+        "errors": 0,
+        "notes": 6
+      },
+      "after": {
+        "errors": 0,
+        "notes": 6
+      }
+    },
+    {
+      "lane": "066-day2-sale-barn-weighins",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "067-two-bin-reorder-cards",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "068-day2-claim-photo-packets",
+      "before": {
+        "errors": 0,
+        "notes": 7
+      },
+      "after": {
+        "errors": 0,
+        "notes": 7
+      }
+    },
+    {
+      "lane": "069-sealed-preregistration",
+      "before": {
+        "errors": 0,
+        "notes": 4
+      },
+      "after": {
+        "errors": 0,
+        "notes": 4
+      }
+    },
+    {
+      "lane": "070-day2-vintage-photo-id",
+      "before": {
+        "errors": 0,
+        "notes": 3
+      },
+      "after": {
+        "errors": 0,
+        "notes": 3
+      }
+    },
+    {
+      "lane": "071-daycare-milk-bottles",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "072-day2-speech-video-feedback",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "073-ditch-rider-water-turns",
+      "before": {
+        "errors": 0,
+        "notes": 2
+      },
+      "after": {
+        "errors": 0,
+        "notes": 2
+      }
+    },
+    {
+      "lane": "074-day2-thrift-resale-listings",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "075-rain-check-desk",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "076-day2-podcast-rough-cuts",
+      "before": {
+        "errors": 0,
+        "notes": 0
+      },
+      "after": {
+        "errors": 0,
+        "notes": 0
+      }
+    },
+    {
+      "lane": "077-practicum-placements",
+      "before": {
+        "errors": 0,
+        "notes": 6
+      },
+      "after": {
+        "errors": 0,
+        "notes": 6
+      }
+    },
+    {
+      "lane": "078-day2-herbarium-scans",
+      "before": {
+        "errors": 0,
+        "notes": 4
+      },
+      "after": {
+        "errors": 0,
+        "notes": 4
+      }
+    },
+    {
+      "lane": "079-stop-headcount-tally",
+      "before": {
+        "errors": 0,
+        "notes": 9
+      },
+      "after": {
+        "errors": 0,
+        "notes": 10
+      }
+    },
+    {
+      "lane": "080-day2-fuel-price-board",
+      "before": {
+        "errors": 0,
+        "notes": 0
+      },
+      "after": {
+        "errors": 0,
+        "notes": 0
+      }
+    },
+    {
+      "lane": "081-roster-lock-window",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "082-day2-public-collections",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "083-cube-comp-scrambles",
+      "before": {
+        "errors": 0,
+        "notes": 11
+      },
+      "after": {
+        "errors": 0,
+        "notes": 11
+      }
+    },
+    {
+      "lane": "084-day2-policy-handbook-acks",
+      "before": {
+        "errors": 0,
+        "notes": 0
+      },
+      "after": {
+        "errors": 0,
+        "notes": 0
+      }
+    },
+    {
+      "lane": "085-patient-grievance-clock",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "086-day2-expiring-album-links",
+      "before": {
+        "errors": 0,
+        "notes": 0
+      },
+      "after": {
+        "errors": 0,
+        "notes": 0
+      }
+    },
+    {
+      "lane": "087-ppe-issue-ledger",
+      "before": {
+        "errors": 0,
+        "notes": 4
+      },
+      "after": {
+        "errors": 0,
+        "notes": 4
+      }
+    },
+    {
+      "lane": "088-day2-heat-complaint-log",
+      "before": {
+        "errors": 0,
+        "notes": 0
+      },
+      "after": {
+        "errors": 0,
+        "notes": 0
+      }
+    },
+    {
+      "lane": "089-custody-handoff-bag",
+      "before": {
+        "errors": 0,
+        "notes": 6
+      },
+      "after": {
+        "errors": 0,
+        "notes": 6
+      }
+    },
+    {
+      "lane": "090-day2-piano-tuning-routes",
+      "before": {
+        "errors": 0,
+        "notes": 8
+      },
+      "after": {
+        "errors": 0,
+        "notes": 8
+      }
+    },
+    {
+      "lane": "091-summit-register-book",
+      "before": {
+        "errors": 0,
+        "notes": 11
+      },
+      "after": {
+        "errors": 0,
+        "notes": 11
+      }
+    },
+    {
+      "lane": "092-day2-shot-list-coordination",
+      "before": {
+        "errors": 0,
+        "notes": 2
+      },
+      "after": {
+        "errors": 0,
+        "notes": 2
+      }
+    },
+    {
+      "lane": "093-backflow-test-reports",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "094-day2-conduct-incident-intake",
+      "before": {
+        "errors": 0,
+        "notes": 1
+      },
+      "after": {
+        "errors": 0,
+        "notes": 1
+      }
+    },
+    {
+      "lane": "095-litter-pick-order",
+      "before": {
+        "errors": 0,
+        "notes": 2
+      },
+      "after": {
+        "errors": 0,
+        "notes": 2
+      }
+    },
+    {
+      "lane": "096-day2-bowling-handicaps",
+      "before": {
+        "errors": 0,
+        "notes": 12
+      },
+      "after": {
+        "errors": 0,
+        "notes": 12
+      }
+    },
+    {
+      "lane": "097-giving-circle-pitches",
+      "before": {
+        "errors": 0,
+        "notes": 9
+      },
+      "after": {
+        "errors": 0,
+        "notes": 9
+      }
+    },
+    {
+      "lane": "098-day2-listener-voicemail",
+      "before": {
+        "errors": 0,
+        "notes": 4
+      },
+      "after": {
+        "errors": 0,
+        "notes": 4
+      }
+    },
+    {
+      "lane": "099-busking-pitch-rota",
+      "before": {
+        "errors": 0,
+        "notes": 3
+      },
+      "after": {
+        "errors": 0,
+        "notes": 3
+      }
+    },
+    {
+      "lane": "100-day2-pen-name-contest",
+      "before": {
+        "errors": 0,
+        "notes": 0
+      },
+      "after": {
+        "errors": 0,
+        "notes": 0
+      }
+    }
+  ]
+}

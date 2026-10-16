@@ -14,13 +14,25 @@ pub(super) fn local(trace: &RefusalTrace, sites: &BTreeMap<(String, String), Str
     trace.take().filter(|cause| cause.terminal).map(|cause| record(&cause, sites))
 }
 
+/// The refusal's own authored site takes precedence over any earlier trace.
+pub(super) fn for_refusal(trace: &RefusalTrace, sites: &BTreeMap<(String, String), String>, why: &snapback4_core::Refusal) -> Option<Json> {
+    if why.rule.is_some() && let Some(site) = &why.site
+        && let Some(kind) = sites.get(&("$program".into(), site.clone())) {
+        trace.take();
+        let kind = if kind == "program require" { "mutation require" } else { kind.as_str() };
+        return Some(json!({"table":"", "clause":kind, "phase":kind, "site":site, "siteKind":"program",
+            "ruleText":sites.get(&("$clause".into(), site.clone()))}));
+    }
+    local(trace, sites)
+}
+
 /// One recorded cause in the shape of a dev refusal record (`test` cases too).
 pub(super) fn record(cause: &RefusingClause, sites: &BTreeMap<(String, String), String>) -> Json {
     let clause = sites.get(&(cause.table.clone(), cause.phase.clone()))
         .or_else(|| sites.get(&(cause.table.clone(), cause.clause.clone())));
     let site = clause.or_else(|| sites.get(&(cause.table.clone(), "table".into())));
     json!({"table": cause.table, "clause": cause.clause, "phase": cause.phase, "viewer": cause.viewer, "terminal": cause.terminal, "site": site,
-        "siteKind": if clause.is_some() { "clause" } else if site.is_some() { "table" } else { "" }, "executionSite": cause.site})
+        "siteKind": if clause.is_some() { "clause" } else if site.is_some() { "table" } else { "" }, "executionSite": cause.site, "ruleText": site.and_then(|site| sites.get(&("$clause".into(), site.clone())))})
 }
 
 /// The live dev's instance and newest response sequence, read before sending,
@@ -114,7 +126,7 @@ fn source_line(site: &str, source: &dyn Fn(&str) -> Option<String>) -> Option<St
 }
 
 pub(super) fn explain(record: &Json, source: &dyn Fn(&str) -> Option<String>) -> Option<String> {
-    let table = record["table"].as_str()?;
+    let table = record["table"].as_str().unwrap_or("");
     let clause = record["clause"].as_str()?;
     if clause == "cause not instrumented" || clause == "no-candidate" { return None; }
     let site = record["site"].as_str();
@@ -135,11 +147,16 @@ pub(super) fn explain(record: &Json, source: &dyn Fn(&str) -> Option<String>) ->
     let text = if let Some(phase) = record["phase"].as_str().filter(|phase| phase.starts_with("table authorization layer:")) {
         format!("{text}; {phase}")
     } else { text };
+    let text = if let Some(clause_text) = record["ruleText"].as_str() { format!("{text}; clause `{clause_text}`") } else { text };
+    if clause.ends_with(" require") {
+        return Some(format!("dev: {clause} refused it: {text} — development evidence only"));
+    }
+    let layer = effect.map(|effect| format!("table {effect} rule; ")).unwrap_or_default();
     let viewer = record["viewer"].as_str().unwrap_or("this viewer");
     let mut out = if effect == Some("read") && record["terminal"] == false {
         format!("dev: hidden from {viewer} by {table}'s read rule: {text}{at} — development evidence only; the refusal a client sees never names the clause")
     } else {
-        format!("dev: {table} refused it: {text}{at} — development evidence only; the refusal a client sees never names the clause")
+        format!("dev: {table} refused it: {layer}{text}{at} — development evidence only; the refusal a client sees never names the clause")
     };
     if matches!(effect, Some("insert" | "update" | "delete")) {
         out.push_str("\n  a mutation's writes pass the table's insert, update and delete rules as the caller; only a job runs as the system (guide rules)");
@@ -151,13 +168,28 @@ pub(super) fn explain(record: &Json, source: &dyn Fn(&str) -> Option<String>) ->
 mod tests {
     use super::*;
 
+    #[test]
+    fn explicit_mutation_require_uses_its_own_generation_clause() {
+        let site = "schema.q:8:3".to_owned();
+        let mut sites = BTreeMap::new();
+        sites.insert(("$program".into(), site.clone()), "mutation require".into());
+        sites.insert(("$clause".into(), site.clone()), "require owner = viewer else E_RULE".into());
+        let why = snapback4_core::RuntimeError::Require { code: "E_RULE".into(), site: Some(site), message: None }.refusal();
+        let record = for_refusal(&Default::default(), &sites, &why).unwrap();
+        let text = explain(&record, &|_| None).unwrap();
+        assert!(text.contains("mutation require refused it"), "{text}");
+        assert!(text.contains("require owner = viewer else E_RULE"), "{text}");
+        assert!(!text.contains("table update rule"), "{text}");
+        assert!(!serde_json::to_string(&why).unwrap().contains("owner = viewer"));
+    }
+
     const SCHEMA: &str = "table orders:\n  author: principal\n  read <- .author = viewer\n  update <- deny   -- frozen\n";
 
     #[test]
     fn names_the_written_clause_and_its_line() {
         let record = json!({"table":"orders","clause":"update rule","phase":"update rule","site":"schema.q:4:3","siteKind":"clause","executionSite":"submit:2"});
         let text = explain(&record, &|file| (file == "schema.q").then(|| SCHEMA.to_owned())).unwrap();
-        assert!(text.starts_with("dev: orders refused it: `update <- deny` (schema.q:4:3), at submit:2 — "), "{text}");
+        assert!(text.starts_with("dev: orders refused it: table update rule; `update <- deny` (schema.q:4:3), at submit:2 — "), "{text}");
         assert!(text.contains("only a job runs as the system"), "{text}");
     }
 
@@ -174,7 +206,7 @@ mod tests {
     fn an_omitted_rule_is_named_as_deny_at_the_table() {
         let record = json!({"table":"orders","clause":"delete rule","phase":"delete rule","site":"schema.q:1:1","siteKind":"table","executionSite":"drop:1","generation":2});
         let text = explain(&record, &|_| Some(SCHEMA.to_owned())).unwrap();
-        assert!(text.starts_with("dev: orders refused it: no `delete` rule, so delete is deny (table at schema.q:1:1, generation 2), at drop:1"), "{text}");
+        assert!(text.starts_with("dev: orders refused it: table delete rule; no `delete` rule, so delete is deny (table at schema.q:1:1, generation 2), at drop:1"), "{text}");
         // Without the source that ran (a forwarded run), the record is still named.
         assert_eq!(explain(&record, &|_| None).unwrap(), text);
     }
@@ -183,7 +215,7 @@ mod tests {
     fn a_forwarded_record_is_named_without_quoting_disk_source() {
         let record = json!({"table":"orders","clause":"update rule","phase":"update rule","site":"schema.q:4:3","siteKind":"clause","executionSite":"submit:2","generation":3});
         let text = explain(&record, &|_| None).unwrap();
-        assert!(text.starts_with("dev: orders refused it: update rule (schema.q:4:3, generation 3), at submit:2"), "{text}");
+        assert!(text.starts_with("dev: orders refused it: table update rule; update rule (schema.q:4:3, generation 3), at submit:2"), "{text}");
     }
 
     #[test]

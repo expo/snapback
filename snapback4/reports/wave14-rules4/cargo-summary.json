@@ -1,0 +1,148 @@
+{
+  "semantic_source_commit": "265b12465b",
+  "strategy": "Complete default five-crate test coverage across bounded invocations. The initial combined command timed out after 1800 seconds; resume includes the interrupted target. Raw obsolete expectations are superseded only by their complete affected target reruns. This is not a claim that the initial combined command exited green.",
+  "coverage_by_crate": {
+    "snapback4": {
+      "expected_integration_targets": 47,
+      "completed_integration_targets": 47,
+      "missing_integration_targets": [],
+      "unexpected_integration_targets": [],
+      "completed_unit_targets": 1,
+      "passed": 1234,
+      "failed": 0,
+      "ignored": 15
+    },
+    "snapback4-core": {
+      "expected_integration_targets": 42,
+      "completed_integration_targets": 42,
+      "missing_integration_targets": [],
+      "unexpected_integration_targets": [],
+      "completed_unit_targets": 1,
+      "passed": 742,
+      "failed": 0,
+      "ignored": 5
+    },
+    "snapback4-device": {
+      "expected_integration_targets": 100,
+      "completed_integration_targets": 100,
+      "missing_integration_targets": [],
+      "unexpected_integration_targets": [],
+      "completed_unit_targets": 1,
+      "passed": 1562,
+      "failed": 0,
+      "ignored": 4
+    },
+    "snapback4-lang": {
+      "expected_integration_targets": 154,
+      "completed_integration_targets": 154,
+      "missing_integration_targets": [],
+      "unexpected_integration_targets": [],
+      "completed_unit_targets": 1,
+      "passed": 2075,
+      "failed": 0,
+      "ignored": 14
+    },
+    "snapback4-sim": {
+      "expected_integration_targets": 43,
+      "completed_integration_targets": 43,
+      "missing_integration_targets": [],
+      "unexpected_integration_targets": [],
+      "completed_unit_targets": 1,
+      "passed": 749,
+      "failed": 0,
+      "ignored": 7
+    }
+  },
+  "segments": [
+    {
+      "log": "/tmp/rules4-full-cargo-all.log",
+      "sha256": "ebbaa970d35699e159e15c21fde7a9b07ef433ca24da9b035843741305600087",
+      "exit_code": 124,
+      "completed_test_targets": 107,
+      "printed_result_lines_including_nested_process_output": 121,
+      "passed": 2610,
+      "failed": 3,
+      "ignored": 21
+    },
+    {
+      "log": "/tmp/rules4-device-resume.log",
+      "sha256": "ff157410451c3a36fe26d4c3ab2a1a88a735a933a2d8ed04f12985bab8deac7a",
+      "exit_code": 101,
+      "completed_test_targets": 85,
+      "printed_result_lines_including_nested_process_output": 85,
+      "passed": 924,
+      "failed": 1,
+      "ignored": 3
+    },
+    {
+      "log": "/tmp/rules4-lang-full.log",
+      "sha256": "f414778b5b27d350ec1562f9df449e978e463bc456de1dea244502efd1415e8a",
+      "exit_code": 101,
+      "completed_test_targets": 155,
+      "printed_result_lines_including_nested_process_output": 156,
+      "passed": 2074,
+      "failed": 1,
+      "ignored": 14
+    },
+    {
+      "log": "/tmp/rules4-sim-full.log",
+      "sha256": "2d71f79653a85eee80cc74a006c16cf4f89a8b39554d2f4c8d03a386032d0a98",
+      "exit_code": 0,
+      "completed_test_targets": 44,
+      "printed_result_lines_including_nested_process_output": 45,
+      "passed": 749,
+      "failed": 0,
+      "ignored": 7
+    },
+    {
+      "log": "/tmp/rules4-dev-refusals-final2.log",
+      "sha256": "829cf3e5caac84be3e9f9fef9e56ab3f0369eb21e02a1fcd627e0aaa7b637067",
+      "exit_code": 0,
+      "completed_test_targets": 1,
+      "printed_result_lines_including_nested_process_output": 1,
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "log": "/tmp/rules4-readauth-final.log",
+      "sha256": "78d232a8a8b1bc8c91cb035c156d736dfde35541072aa4ea98285d34f6335ac8",
+      "exit_code": 0,
+      "completed_test_targets": 1,
+      "printed_result_lines_including_nested_process_output": 1,
+      "passed": 88,
+      "failed": 0,
+      "ignored": 0
+    },
+    {
+      "log": "/tmp/rules4-language-guidance-final.log",
+      "sha256": "bf68f389618c6e61e248a609fba1bb20643585370a6eb3f64973da85545a7ac9",
+      "exit_code": 0,
+      "completed_test_targets": 2,
+      "printed_result_lines_including_nested_process_output": 2,
+      "passed": 134,
+      "failed": 0,
+      "ignored": 0
+    }
+  ],
+  "additional_doctests": [
+    {
+      "log": "/tmp/rules4-core-cli-doc.log",
+      "sha256": "276d1f57de16c956038008b89191a56de10726359724f9037c6a5d245925a38f",
+      "passed": 17,
+      "failed": 0
+    },
+    {
+      "log": "/tmp/rules4-device-doc-final.log",
+      "sha256": "10f7d50b76d360a14e1cea98eaa4a26e7bacab3a3828915bf2e3f2ce1a9cf10a",
+      "passed": 0,
+      "failed": 0
+    }
+  ],
+  "corrections": [
+    "Developer console/layer expectations: 27/27 pass on Linux and Mac.",
+    "Authoring census refresh: 88/88 pass on Linux and Mac; all 12 added mutations server-only, same 94 eligible private-write sites.",
+    "Restored read-mark guidance within the dedicated why page: 125 guide plus 9 field-authority tests pass on Linux and Mac."
+  ],
+  "notes": "The language and simulation full invocations include their doctest result lines. CLI has a binary target and no separate library doctests. All ordinary ignored tests remain explicit in the counts. Logs are local qualification evidence; their hashes pin this summary."
+}

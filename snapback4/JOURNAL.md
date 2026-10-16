@@ -96199,3 +96199,37 @@ binds consumer qualification to 74ee49d4df and records the full bounded Rust run
 green continuations, Linux/Mac affected checks and root generated-artifact
 preconditions. This is consumer evidence, not a publication receipt. No version
 bump or push; REG owns fixture auth/P20 proof-host, DAY4 owns P20 check/adapt.
+
+## 2026-10-17 — Wave 14 RULES4 authorization
+
+Developer refusal evidence now names an executing mutation/query require or
+table verb rule and retains its authored clause, including forwarded runs.
+Private source evidence stays host-owned; public refusals and receipts keep
+their contracts. Advisory write-rule proofs cover insert/delete and mixed
+caller gates without treating roles as disjoint. LLP 3000.036.002 §12 has
+fresh Muse and Codex READY reviews after conservative-proof corrections.
+
+LLP 3000.014.000 records two independent review rounds for live-parent
+authority. Both remain NOT READY on bounded enumeration, data catch-up,
+staging accounting and restart starvation. Ship the commissioned fallback:
+a maintained parent-department copy with atomic capped child transfer, and
+E_READ_THROUGH navigation to that executable recipe. There is no live syntax
+or planner/protocol/adoption change. General completeness prose stays with
+LANG3; this recipe owns the complete bounded transfer.
+
+Packed client/native consumers run the actual guide blocks for current
+rosters, private waitlist/public occupancy, membership expiry, union
+cold-start cost, separate image placements, own-or-staff and the upsert
+refusal ladder on Linux and Mac. The 100-schema census adds only the
+intended lane-079 note. A 20,000-case differential run has no disagreements;
+the 130 Lean mismatches reproduce with identical counts on base 4ef9f77fb
+(existing C2/W4 model gaps). Qualification details and limits are recorded
+in the workstream report and reports/wave14-rules4/. No version bump or push.
+
+Full-suite follow-up refreshes the compiled authoring census from 484 to 496
+mutation occurrences: all twelve additions are server-only, with the same
+94 eligible private write sites and no prior occurrence removed after block
+number normalization. Preserve the contextual member-read-mark guidance in
+the code-owned E_FIELD_AUTHORITY explanation. The 125 guide, nine field
+authority and 88 read-authorization tests pass on Linux and Mac after these
+editorial/snapshot corrections; existing explanation byte ceilings hold.

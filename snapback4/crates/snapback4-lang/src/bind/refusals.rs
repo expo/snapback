@@ -4,6 +4,22 @@ use crate::{Diagnostic, ast};
 use snapback4_core::schema::{Schema, RuleExpr, RuleTerm};
 use std::collections::BTreeMap;
 
+// Use the parser's retained declaration bytes, never a reconstructed IR or
+// normalized AST spelling (notably `$readThrough`). These stay host-only.
+fn authored_clause(catalog: &Catalog, site: &crate::Site, value: &ast::Expr) -> Option<String> {
+    let count = catalog.source.get(value).map(|(text, _)| text.lines().count()).unwrap_or(1).max(1);
+    catalog.source.declarations.iter().find_map(|(key, text)| {
+        let mut parts = key.rsplitn(3, ':');
+        let _column = parts.next()?;
+        let line = parts.next()?.parse::<u32>().ok()?;
+        let file = parts.next()?;
+        if file != site.file || line > site.line { return None; }
+        let lines: Vec<_> = text.lines().collect();
+        let at = (site.line - line) as usize;
+        (at < lines.len()).then(|| lines[at..lines.len().min(at + count)].join("\n").trim().to_owned())
+    })
+}
+
 pub(super) fn sites(catalog: &Catalog) -> BTreeMap<(String, String), String> {
     let mut out = BTreeMap::new();
     for (name, info) in &catalog.tables {
@@ -30,6 +46,32 @@ pub(super) fn sites(catalog: &Catalog) -> BTreeMap<(String, String), String> {
         for col in info.decl.columns.iter().filter(|col| asset(&col.type_.kind)) {
             out.insert((name.clone(), format!("asset {}", col.name)), col.site.to_string());
         }
+    }
+    for rule in catalog.documents.iter().flat_map(|d| &d.tables).flat_map(|t| &t.rules) {
+        if let Some(text) = authored_clause(catalog, &rule.site, &rule.value) { out.insert(("$clause".into(), rule.site.to_string()), text); }
+    }
+    // Source text is developer metadata, never part of a wire Refusal.
+    // @ref LLP 3000.036.002#12 — distinguish authored requires from generated lookup assertions.
+    fn requires(catalog: &Catalog, body: &[ast::Stmt], kind: &str, out: &mut BTreeMap<(String, String), String>) {
+        for statement in body {
+            match statement {
+                ast::Stmt::Require { condition, site, .. } => {
+                    out.insert(("$program".into(), site.to_string()), format!("{kind} require"));
+                    if let Some(text) = authored_clause(catalog, site, condition) { out.insert(("$clause".into(), site.to_string()), text); }
+                }
+                ast::Stmt::If { then_body, else_body, .. } => { requires(catalog, then_body, kind, out); requires(catalog, else_body, kind, out); }
+                ast::Stmt::For { body, .. } | ast::Stmt::As { body, .. } => requires(catalog, body, kind, out),
+                _ => {}
+            }
+        }
+    }
+    for function in catalog.documents.iter().flat_map(|d| &d.functions) {
+        if let ast::FunctionBody::Block(body) = &function.body { requires(catalog, body, "program", &mut out); }
+    }
+    for program in catalog.documents.iter().flat_map(|d| &d.programs) {
+        let kind = match program.kind { ast::ProgramKind::Mutation => "mutation", ast::ProgramKind::Query => "query", ast::ProgramKind::Job => "job" };
+        requires(catalog, &program.prelude, kind, &mut out);
+        requires(catalog, &program.body, kind, &mut out);
     }
     out
 }

@@ -49,16 +49,18 @@ impl Console {
         let table = r["table"].as_str().filter(|t| !t.is_empty()).map(|t| format!(" {t}")).unwrap_or_default();
         // A lookup refusal whose row the read rule hid: name that layer, since the author's later `require` never ran.
         let hidden = r["hiddenBy"]["table"].as_str().map(|t| format!("; the lookup's {t} row is hidden by its read rule at {} (a hidden row reads as absent at a lookup, before any later require)", r["hiddenBy"]["readRuleSite"].as_str().unwrap_or("<generated>"))).unwrap_or_default();
+        let layer = r["clause"].as_str().filter(|clause| ["insert rule", "update rule", "delete rule", "read rule"].contains(clause)).map(|clause| format!("table {clause}")).unwrap_or_else(|| r["clause"].as_str().unwrap_or("").into());
+        let quoted = r["ruleText"].as_str().map(|text| format!("; clause `{}`", text.replace(['\n', '\r'], " "))).unwrap_or_default();
         let seed = r["seedHint"].as_str().map(|hint| format!("; {hint}")).unwrap_or_default();
         let kind = if r["preflight"].as_bool() == Some(true) { "auth preflight probe" } else { "refusal" };
-        let line = if self.detail { format!("dev {kind}: {}:{table} — {} at {}{hidden}{seed}; execution site {}; phase {}; generation {}; store {}; instance {}; code {}; count {}; window 1s; first request {}; first job {}; first time {}; first response {}; `snapback4 why recent --instance {}`\n",
+        let line = if self.detail { format!("dev {kind}: {}:{table} — {} at {}{quoted}{hidden}{seed}; execution site {}; phase {}; generation {}; store {}; instance {}; code {}; count {}; window 1s; first request {}; first job {}; first time {}; first response {}; `snapback4 why recent --instance {}`\n",
             r["operation"].as_str().unwrap_or(""), r["clause"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["executionSite"], r["phase"], r["generation"], identity["storeId"], identity["instance"], r["code"], entry.count, r["requestId"], r["jobId"], r["at"], r["responseSequence"], identity["instance"].as_str().unwrap_or("")) }
         else {
             // @ref LLP 3000.036#16.5 — wave 6 #19: the human signal first, one short line; the record stays in `why recent`.
             let on = r["table"].as_str().filter(|t| !t.is_empty()).map(|t| format!(" on {t}")).unwrap_or_default();
             let hidden = r["hiddenBy"]["table"].as_str().map(|t| format!("; the {t} row is hidden by its read rule at {} (hidden reads as absent)", r["hiddenBy"]["readRuleSite"].as_str().unwrap_or("<generated>"))).unwrap_or_default();
             let times = if entry.count > 1 { format!(" ×{}", entry.count) } else { String::new() };
-            format!("dev {kind}: {} {} at {} ({}{on}){hidden}{seed}{times} — snapback4 why recent\n", r["operation"].as_str().unwrap_or(""), r["code"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), r["clause"].as_str().unwrap_or(""))
+            format!("dev {kind}: {} {} at {} ({}{on}){quoted}{hidden}{seed}{times} — snapback4 why recent\n", r["operation"].as_str().unwrap_or(""), r["code"].as_str().unwrap_or(""), r["site"].as_str().unwrap_or("<generated>"), layer)
         };
         let _ = out.write_all(line.as_bytes());
     }
@@ -68,6 +70,18 @@ impl Console {
 mod tests {
     use super::*;
     use serde_json::json;
+    #[test]
+    fn concise_console_names_the_layer_and_clause_for_require_and_table_denial() {
+        for (clause, rule, layer) in [("mutation require", "require owner = viewer else E_RULE", "mutation require"), ("update rule", "update <- .owner = viewer", "table update rule")] {
+            let mut console = Console::default();
+            let mut bytes = Vec::new();
+            console.push_at(json!({"operation":"change", "code":"E_RULE", "clause":clause, "table":"rows", "ruleText":rule, "site":"schema.q:8:3"}), Instant::now(), &json!({}), &mut bytes);
+            console.flush_all(&json!({}), &mut bytes);
+            let text = String::from_utf8(bytes).unwrap();
+            assert!(text.contains(layer) && text.contains(rule), "{text}");
+        }
+    }
+
     #[test]
     fn shutdown_diagnostic_cannot_split_a_counted_refusal_line() {
         // Lifecycle diagnostics bypass Rust's stderr mutex. Simulate one

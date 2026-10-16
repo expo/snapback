@@ -1,0 +1,66 @@
+{
+  "command": "snapback4-difftest run-lean --seed 0 --cases 20000 --workers 4",
+  "generated": 20000,
+  "compiled": 20000,
+  "executed": 56917,
+  "unexpected_binder_refusals": 0,
+  "oracle": {
+    "attempted": 20000,
+    "passed": 16697,
+    "unsupported": {
+      "call-max": 319,
+      "call-min": 276,
+      "call-sum": 286,
+      "index-computed-or-words": 556,
+      "input-null": 2,
+      "loop": 449,
+      "now": 99,
+      "page-compound-where-branches": 22,
+      "page-static-key-expression": 12,
+      "prelude-now": 151,
+      "shape": 1001
+    },
+    "disagreeing": 130,
+    "signatures": {
+      "lean--code--E_RULE~NOT_FOUND": 3,
+      "lean--continuation-next--next~no-next": 35,
+      "lean--next--next~no-next": 67,
+      "lean--prelude-code--E_RULE~NOT_FOUND": 25
+    },
+    "meter_fields_omitted": 0
+  },
+  "seconds": 155.331866023,
+  "classification": "Existing model gaps C2 (eager next lookahead) and W4 (hidden write-target NOT_FOUND), documented in lean/OPEN.md at the base commit; core, planner, IR, generator and Lean model are unchanged by RULES4. These are known red oracle comparisons, not a green Lean qualification.",
+  "baseline_comparison": {
+    "commit": "4ef9f77fb",
+    "method": "Built the unchanged base commit from git archive inside this worktree target directory, using a separate Cargo target. Ran the identical 20000-case seed-0 four-worker Lean campaign with the same unchanged Lean oracle.",
+    "generated": 20000,
+    "compiled": 20000,
+    "oracle": {
+      "attempted": 20000,
+      "passed": 16697,
+      "unsupported": {
+        "call-max": 319,
+        "call-min": 276,
+        "call-sum": 286,
+        "index-computed-or-words": 556,
+        "input-null": 2,
+        "loop": 449,
+        "now": 99,
+        "page-compound-where-branches": 22,
+        "page-static-key-expression": 12,
+        "prelude-now": 151,
+        "shape": 1001
+      },
+      "disagreeing": 130,
+      "signatures": {
+        "lean--code--E_RULE~NOT_FOUND": 3,
+        "lean--continuation-next--next~no-next": 35,
+        "lean--next--next~no-next": 67,
+        "lean--prelude-code--E_RULE~NOT_FOUND": 25
+      },
+      "meter_fields_omitted": 0
+    },
+    "identical_verdict_counts": true
+  }
+}

@@ -114,7 +114,10 @@ pub(in crate::serve) fn response(bytes: &[u8]) -> Option<Pending> {
         // evidence, not an older trace, so the log can name the line.
         if cause.is_none() && let Some(why) = why
             && why.get("rule").and_then(Value::as_str) == Some(code) && let Some(site) = why.get("site").and_then(Value::as_str) {
-            record["clause"] = json!("program refusal");
+            let kind = evidence.sites.get(&("$program".into(), site.into())).map(String::as_str).unwrap_or("program refusal");
+            let kind = if kind == "program require" { if evidence.query { "query require" } else { "mutation require" } } else { kind };
+            record["clause"] = json!(kind);
+            record["ruleText"] = json!(evidence.sites.get(&("$clause".into(), site.into())));
             record["site"] = json!(site);
             record["siteKind"] = json!("program");
             if let Some((table, rule)) = &hidden {
@@ -135,6 +138,7 @@ pub(in crate::serve) fn response(bytes: &[u8]) -> Option<Pending> {
             record["table"] = json!(cause.table);
             record["clause"] = json!(cause.clause);
             record["phase"] = json!(cause.phase);
+            record["ruleText"] = json!(site.and_then(|site| evidence.sites.get(&("$clause".into(), site.clone()))));
             record["site"] = json!(site);
             record["executionSite"] = json!(cause.site);
             record["generation"] = json!(cause.generation);

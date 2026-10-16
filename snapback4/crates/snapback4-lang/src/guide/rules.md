@@ -136,6 +136,11 @@ query reacted(message: messages, c: cursor ?):
 
 ### Row rules, probes and rule spelling
 
+A bare `exists` probe in a table rule never inherits the target's read rule: it tests the keyed row even when the caller cannot read it.
+Program `exists` is a caller-filtered read. Dotted membership hops in read rules are only `read through` (whole parent rule, immutable captures and inherited lifetime).
+An online-only one-hop equality may instead lower to its explicit keyed probe, as described below; it also inherits no target read rule.
+For the parent's current department roster, use `guide rule-recipes current-roster`.
+
 A view grouped directly by the parent reference is read by key, such as `totals[issue]`; scanning its groups is refused. An unknown parent or unknown child coverage leaves that device count incomplete, never an invented zero. For independent row rules, use the comparisons and keyed probes below.
 
 ```quarry
@@ -218,6 +223,31 @@ read audience or source write authority if that delta is private.
 
 For a body written as asserted lookup → write → require, the ladder is: decode (`E_INPUT`) → hidden lookup (`NOT_FOUND`) → table rule (`E_RULE` on a readable denied target) → the authored `require` code. After decoding, actual statement order decides: a require before a write runs first; a later require cannot replace an earlier refusal. A nullable hidden lookup returns null; an asserted lookup uses its authored `else` code, conventionally NOT_FOUND. Hidden update/delete denial stays NOT_FOUND. Mutations roll back earlier writes.
 
+An upsert follows the same statement-order ladder. On a readable existing
+row whose update rule refuses, ladderPut returns E_RULE; on a hidden denied
+row it returns NOT_FOUND. An absent own row passes insert, then AFTER_WRITE
+refuses and rolls that insert back. The later require cannot rename the
+write's refusal.
+
+```quarry
+use personas alice, bob, carol
+table ladderCounters:
+  owner: principal
+  value: int
+  open: bool default false
+  unique owner
+  immutable owner
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  update <- .owner = viewer and .open = true
+  online only
+mutation ladderPut(owner: principal):
+  upsert ladderCounters[owner = owner] { owner, value: 1 }
+  require false else AFTER_WRITE
+query ladderCounter(owner: principal):
+  return ladderCounters[owner = owner]
+```
+
 A query over hidden rows is complete and empty when its scope uniformly refuses the viewer. A nonuniform scan may be partial even with zero visible rows; an empty list alone proves neither access nor physical absence. See: `guide rule-recipes role-workflow` for independently enforced table and mutation authority, and `guide refusals` for write-internal ordering.
 
 ### Disclosure: aggregates, assets and maintained columns
@@ -290,41 +320,10 @@ held row predicts when its own transition and resource limits permit it.
 Untouched self-equalities do not require the omitted value. Ordinary row grants do not add dependencies to such a patch.
 Unknown owner-delivery witnesses also do not prevent that prediction; the
 server decides which owners may receive the committed image.
-Only a named `update (old, next)` transition may use a private field as a
-rule input; ordinary update rules cannot test guesses against it. A named
-transition also cannot make an ordinary writer's success depend on another
-owner's private value. Such a test requires ownership (or audience visibility).
-Comparing an untouched private field with itself, such as
-`next.readUpTo = old.readUpTo`, remains available without knowing its value.
-Ordered self-comparisons require visibility when the field is nullable: null
-is not ordered, so even `next.secret >= old.secret` can reveal nullness.
-Retained write-target copies are charged at declared column bounds, so hidden
-lengths cannot change the writer's meter or exhaustion boundary.
-Private fields cannot supply indexes/cursors, expiry, recorded attribution,
-other rules' probes, aggregate source inputs, or Following mappings and predicates; make the field readable by audience
-before using it there. A row-keyed count may use a private member predicate
-when the member read rule requires that field's owner; `guide maintains` gives
-the admission rule. This applies to both `view` and `maintain … timeline`.
-Point reads, writes and authorization witnesses charge fixed declared
-reservations and results that pass row-read and field authorization. Range
-and cursor pages retain an examined-count residual: some scan paths charge
-candidates before rejecting unreadable rows (never expired ones), so counts
-and meter cuts can vary within the physical walk bound. A private page that
-exhausts that bound cannot expose a hidden continuation key, including when
-a nested witness consumes the allowance.
-Unreadable, private or expiring candidates reserve declared decoder bounds:
-a large declaration can exhaust the heap even for an empty value. Public,
-non-expiring rows without private fields or recorded captures establish authority before
-storage access and use actual-size decoder accounting. Expired scan candidates
-are discarded inside the internal ledger before any payload is priced.
-Authorization witnesses expose their verdict and the earliest expiry instant
-at which the complete rule's verdict can change. All witnesses expiring at
-that instant disappear together; correlated alternatives share this timeline.
-A stable grant needs no deadline, while necessary expiring authority does.
-The bounded branch walk depends on rule structure and verdicts, never on
-whether a private witness is permanent or expiring. Alternatives needed for
-the complete timeline are visited in both cases.
-Failed predicates and denied rows export no deadline.
+Private-field rule inputs require a named transition and ownership or audience
+visibility; ordinary writers cannot test another owner's private value.
+Accounting, nullable self-comparisons and expiring authority witnesses are
+specified in `snapback4 why E_FIELD_AUTHORITY`.
 
 Clique read marks use this recipe. Add `readable by audience` after
 `written by .principal` when other conversation members should see receipts.
