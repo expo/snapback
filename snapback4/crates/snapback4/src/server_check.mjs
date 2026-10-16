@@ -113,32 +113,34 @@ for (let index = 0; index < sourceQueue.length; index++) {
     const specifier = (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) ? node.moduleSpecifier
       : ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || ts.isIdentifier(node.expression) && node.expression.text === "require") ? node.arguments[0] : undefined;
     const typeOnly = source.isDeclarationFile || node.isTypeOnly || ts.isImportDeclaration(node) && node.importClause?.isTypeOnly;
-    if (specifier && ts.isStringLiteralLike(specifier) && !typeOnly) {
+    if (specifier && ts.isStringLiteralLike(specifier)) {
       const spec = specifier.text;
       let problem;
       if (isAbsolute(spec) || spec.startsWith("file:")) problem = "use a project-relative import instead of an absolute/file URL import; deploy captures project source";
       else if (spec.startsWith(".")) {
         const module = ts.resolveModuleName(spec, source.fileName, compilerOptions, host).resolvedModule;
-        // A .d.ts can satisfy TypeScript without loading the JavaScript that
-        // Node executes. Observe and walk that implementation graph too.
-        let runtime;
-        try { runtime = createRequire(source.fileName).resolve(spec); }
-        catch { problem = "local runtime module is missing; provide the executable file as well as its declarations"; }
-        if (runtime) system.fileExists(runtime); // records the executable, even when types hide it
-        system.fileExists(resolve(dirname(source.fileName), spec, "package.json"));
-        if (runtime && !runtime.split(sep).includes("node_modules")) {
-          const actual = realpathSync(runtime);
-          if (!actual.startsWith(projectRoot + sep)) problem = "local server implementations must remain inside the project; install external code as a package";
-          else {
-            // Runtime-only JS inherits package type from these scopes even
-            // when the TypeScript program never loaded that implementation.
-            for (let scope = dirname(runtime); scope === projectRoot || scope.startsWith(projectRoot + sep); scope = dirname(scope)) {
-              system.fileExists(resolve(scope, "package.json"));
-              if (scope === projectRoot) break;
-            }
-            if (!inspected.has(runtime) && /\.[cm]?[jt]s$/.test(runtime) && !/\.d\.[cm]?ts$/.test(runtime)) {
-              const text = system.readFile(runtime);
-              if (text !== undefined) sourceQueue.push(ts.createSourceFile(runtime, text, ts.ScriptTarget.Latest, true));
+        if (!typeOnly) {
+          // A .d.ts can satisfy TypeScript without loading the JavaScript that
+          // Node executes. Observe and walk that implementation graph too.
+          let runtime;
+          try { runtime = createRequire(source.fileName).resolve(spec); }
+          catch { problem = "local runtime module is missing; provide the executable file as well as its declarations"; }
+          if (runtime) system.fileExists(runtime); // records the executable, even when types hide it
+          system.fileExists(resolve(dirname(source.fileName), spec, "package.json"));
+          if (runtime && !runtime.split(sep).includes("node_modules")) {
+            const actual = realpathSync(runtime);
+            if (!actual.startsWith(projectRoot + sep)) problem = "local server implementations must remain inside the project; install external code as a package";
+            else {
+              // Runtime-only JS inherits package type from these scopes even
+              // when the TypeScript program never loaded that implementation.
+              for (let scope = dirname(runtime); scope === projectRoot || scope.startsWith(projectRoot + sep); scope = dirname(scope)) {
+                system.fileExists(resolve(scope, "package.json"));
+                if (scope === projectRoot) break;
+              }
+              if (!inspected.has(runtime) && /\.[cm]?[jt]s$/.test(runtime) && !/\.d\.[cm]?ts$/.test(runtime)) {
+                const text = system.readFile(runtime);
+                if (text !== undefined) sourceQueue.push(ts.createSourceFile(runtime, text, ts.ScriptTarget.Latest, true));
+              }
             }
           }
         }
