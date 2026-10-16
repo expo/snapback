@@ -105,3 +105,34 @@ fn init_snapshots_modules_with_original_names_and_tests_the_saved_namespace() {
     let output = ok(app.run(&["test", "--source", "versions/v1"]));
     assert!(output.contains("notes.list"), "{output}");
 }
+#[test]
+fn doctor_reports_and_repairs_missing_expiry_parent_using_stored_schema() {
+    use snapback4_core::{Engine, Store, Value, value::object};
+    let app = App::new();
+    let source = "table parents:\n  until: time\n  public 'test'\n  expire at .until\ntable children:\n  parent: parents on delete cascade\n  cap 5 by parent\n  public 'test'\n";
+    app.write("snapback/schema.q", source);
+    fs::create_dir_all(app.0.join(".snapback4")).unwrap();
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(bound.diagnostics.is_empty());
+    let path = app.0.join(".snapback4/store.sqlite");
+    let mut engine = Engine::new_at(Store::open(&path).unwrap(), bound.schema, [], 0).unwrap();
+    engine.seed_at(vec![
+        ("parents".into(), object([("id", Value::Id("p".into())), ("until", Value::Int(10))])),
+        ("children".into(), object([("id", Value::Id("c".into())), ("parent", Value::Id("p".into()))])),
+    ], 0).unwrap();
+    let table = engine.schema().tables["parents"].clone();
+    { let tx = engine.store_mut().transaction().unwrap(); let row = tx.get("parents", "p").unwrap().unwrap(); tx.delete("parents", &table, &row).unwrap(); tx.commit().unwrap(); }
+    drop(engine);
+    // An unrelated broken working edit must not choose or alter the repair policy.
+    app.write("snapback/schema.q", "invalid working source");
+    let finding = app.run(&["doctor"]);
+    assert!(!finding.status.success());
+    let text = String::from_utf8_lossy(&finding.stdout);
+    assert!(text.contains("E_EXPIRY_ORPHAN") && text.contains("--repair-expiry-orphan 'parents:p'"), "{finding:?}");
+    let repaired = ok(app.run(&["doctor", "--repair-expiry-orphan", "parents:p"]));
+    assert!(repaired.contains("1 rows written"), "{repaired}");
+    assert!(ok(app.run(&["doctor", "--repair-expiry-orphan", "parents:p"])).contains("0 rows written"));
+    let engine = Engine::open(Store::open(&path).unwrap()).unwrap();
+    assert!(engine.store().rows("children").unwrap().is_empty());
+    assert_eq!(app.text("snapback/schema.q"), "invalid working source");
+}
