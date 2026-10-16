@@ -451,7 +451,7 @@ fn ephemeral_and_action_http_doors_apply_dev_principal_guards_and_seat_clauses()
 #[test]
 fn an_empty_persona_roster_has_a_dev_only_seed_hint_that_clears_after_seeding() {
  let project = Project::new();
- let source = "use personas alice\ntable admins:\n  principal: principal\n  unique byPrincipal: principal\n  public\n  online only\ntable rows:\n  owner: principal\n  read <- .owner = viewer\n  insert <- exists admins[viewer]\n  online only\nmutation add(owner: principal):\n  return insert rows {owner}\nmutation gate(owner: principal):\n  require exists admins[viewer] else NOT_ADMIN\n  return true\n";
+ let source = "use personas alice\ntable admins:\n  principal: principal\n  unique byPrincipal: principal\n  public\n  online only\ntable rows:\n  owner: principal\n  read <- .owner = viewer\n  insert <- exists admins[viewer]\n  update <- .owner = viewer and exists admins[viewer]\n  online only\nmutation edit(owner: principal):\n  return update rows['r'] {owner}\nmutation add(owner: principal):\n  return insert rows {owner}\nmutation gate(owner: principal):\n  require exists admins[viewer] else NOT_ADMIN\n  return true\n";
  fs::write(project.0.join("snapback/schema.q"), source).unwrap();
  let host=Host::start(project.clone(),true,false);
  let reply=host.refuse("add");
@@ -463,6 +463,16 @@ fn an_empty_persona_roster_has_a_dev_only_seed_hint_that_clears_after_seeding() 
  assert_eq!(gated["why"]["code"], "NOT_ADMIN", "{gated}");
  let evidence=project.wait_record(store,"gate");
  assert_eq!(evidence["records"].as_array().unwrap().last().unwrap()["seedHint"], "no rows in admins: seed it with /dev/reset");
+ // Adding private image attribution must retain the original rule's roster hint.
+ let seeded=host.post_authenticated("/seed",json!([{"table":"rows","row":{"id":"r","owner":"dev:alice"}}]),"x-snapback-persona: alice");
+ assert_eq!(seeded["seeded"],1,"{seeded}");
+ let updated=host.request("edit","dev:alice","x-snapback-persona: alice");
+ assert_eq!(updated["why"]["code"],"E_RULE","{updated}");
+ assert!(!updated.to_string().contains("seedHint"),"{updated}");
+ let update_evidence=project.wait_record(store,"edit");
+ let record=update_evidence["records"].as_array().unwrap().last().unwrap();
+ assert!(record["phase"].as_str().unwrap().contains("old image"),"{record}");
+ assert_eq!(record["seedHint"],"no rows in admins: seed it with /dev/reset","{record}");
  let deadline=Instant::now()+Duration::from_secs(5);
  loop {
   let stderr=fs::read_to_string(&host.stderr).unwrap();

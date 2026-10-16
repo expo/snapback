@@ -84,7 +84,10 @@ pub(in crate::serve) fn response(bytes: &[u8]) -> Option<Pending> {
         let program_hint = why.and_then(|why| Some((why.get("code")?.as_str()?.to_owned(), why.get("site")?.as_str()?.to_owned())))
             .and_then(|key| evidence.program_rosters.get(&key)).filter(|tables| !tables.is_empty());
         let roster_hint = program_hint.map(|tables| tables.iter().map(|table| format!("no rows in {table}: seed it with /dev/reset")).collect::<Vec<_>>().join("; ")).or_else(|| traced.as_ref().filter(|cause| cause.terminal).and_then(|cause| {
-            evidence.empty_rosters.get(&(cause.table.clone(), cause.phase.clone())).filter(|tables| !tables.is_empty())
+            // @ref LLP 3000.036.002#10 — image labels retain the original rule's seed hint.
+            evidence.empty_rosters.get(&(cause.table.clone(), cause.phase.clone()))
+                .or_else(|| evidence.empty_rosters.get(&(cause.table.clone(), cause.clause.clone())))
+                .filter(|tables| !tables.is_empty())
                 .map(|tables| tables.iter().map(|table| format!("no rows in {table}: seed it with /dev/reset")).collect::<Vec<_>>().join("; "))
         }));
         let cause = traced.filter(|cause| {
