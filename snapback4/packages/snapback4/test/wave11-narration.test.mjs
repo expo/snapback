@@ -70,10 +70,10 @@ test('probe and deploy guide agree on exact compatibility, schedule, dormancy an
   for (const body of ['A', 'B', 'C']) { const write = await host.post('/m/add', { body }); assert.equal(write.state, 'sent'); ids.push(write.result.id); }
   writeFileSync(schema, v2);
   const widening = run('deploy', deployment);
-  assert.equal(widening.stderr.trim(), "note: notes.status admits 'archived'; rows that later use those values become dormant on rollback to release 1");
+  assert.equal(widening.stderr.trim(), "note: notes.status admits 'archived'; rows that later use those values become dormant on rollback to release 1; keep this value domain in a bridge if those rows must stay available");
   assert.doesNotMatch(widening.stderr, /WARNING|existing rows/);
   const zero = run('rollback', deployment, '--to', '1', '--check').stdout;
-  assert.ok(zero.split('\n').includes('  note: notes.status: no stored values are incompatible with release 1'), zero);
+  assert.ok(zero.split('\n').includes('  note: notes.status: no stored values are incompatible with release 1; no value repair is needed for this switch'), zero);
   writeFileSync(schema, v3);
   const preview = run('deploy', deployment, '--check');
   assert.ok(preview.stdout.split('\n').includes('  note: job remind compiles differently because notes changed (added color); schedule remindDaily remains'), preview.stdout);

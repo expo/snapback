@@ -198,6 +198,7 @@ fn activate(
         )?;
         if options.json {println!("{}",result);} else {
             println!("release {release} is current as generation {}; {}; running serve adopted the release",result["generation"],result["adoption"].as_str().unwrap_or("adopted"));
+            for fill in result["backfills"].as_array().into_iter().flatten().filter_map(|f|f.as_str()) {println!("  backfill: {fill}");}
             if options.flags.contains_key("verbose") {println!("{}",result["details"].as_str().unwrap_or(""));}
         }
     }
@@ -645,8 +646,8 @@ mod tests {
 }
 
 fn receipt(release:u64,generation:u64,report:&snapback4_core::store::adoption_report::AdoptionReport,options:&Options){
-    if options.json {println!("{}",serde_json::json!({"release":release,"generation":generation,"adoption":report.compact(),"details":report.summary()}));}
-    else {println!("release {release} is current as generation {generation}; {}",report.compact());if options.flags.contains_key("verbose"){println!("{}",report.summary());}}
+    if options.json {println!("{}",serde_json::json!({"release":release,"generation":generation,"adoption":report.compact(),"details":report.summary(),"backfills":report.backfills}));}
+    else {println!("release {release} is current as generation {generation}; {}",report.compact());for fill in &report.backfills {println!("  backfill: {fill}");}if options.flags.contains_key("verbose"){println!("{}",report.summary());}}
 }
 fn latest(dir:&Path)->Result<u64,String>{
     std::fs::read_dir(dir.join("releases")).map_err(|e|e.to_string())?.filter_map(Result::ok)

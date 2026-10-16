@@ -1,5 +1,9 @@
 # Snapback 4 behavior changes
 
+## 0.4.30
+
+- Deploy/rollback previews lead with query/count population changes, linked rows going dormant and grouped safety dependencies. Unchanged probe guards stay silent across unrelated additive changes; changed dependencies are counted across affected guards. Preview and deploy receipts name literal backfills and exact active-row counts. `guide deploy` adds a bridge-release recipe for preserving safety gates and dependent metadata before rollback.
+
 ## 0.4.29
 
 - CLI repairs: web-shell appears in help and accepts both help spellings without files or builds; retired init recipes explain --web/--expo and --template chat. witness web loads the optional playwright-core peer only when running, with an install command if missing. clock advance and reset discover the persisted dev's port, with --port overriding it. Starter frontend proofs refuse a one-port range before launching; day-two/backend-only proofs still accept one port. Implicit downgrade refusal now names the registry's version and installed version clearly.

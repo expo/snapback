@@ -153,7 +153,7 @@ pub(super) fn apply(
                 "snapback4 serve: release {release} activated without restart as generation {generation}"
             );
             Ok(
-                json!({"release":release,"generation":generation,"revision":expected_revision+1,"hot":true,"adoption":engine.store().adoption_report.compact(),"details":engine.store().adoption_report.summary()}),
+                json!({"release":release,"generation":generation,"revision":expected_revision+1,"hot":true,"adoption":engine.store().adoption_report.compact(),"details":engine.store().adoption_report.summary(),"backfills":engine.store().adoption_report.backfills}),
             )
         }
     }

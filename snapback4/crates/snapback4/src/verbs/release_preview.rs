@@ -71,9 +71,10 @@ pub(super) fn preview(
         hazards.extend(behavior_warnings); notes.extend(behavior_notes);
         for name in prior.tables.keys().filter(|name|!candidate_schema.tables.contains_key(*name) && prior.maintain_for(name).is_none() && prior.tables[*name].ephemeral.is_none()) {
             let count:u64=store.conn().query_row("SELECT COUNT(*) FROM r WHERE t=(SELECT num FROM _catalog WHERE name=?1)",[name],|r|r.get::<_,i64>(0).map(|n|n as u64)).map_err(|e|e.to_string())?;
-            if count>0 {hazards.push(format!("table {name}: {count} rows become dormant; {target_label} lacks this table's behavior"));}
+            if count>0 {hazards.push(format!("table {name}: {count} rows become dormant; {target_label} lacks this table's behavior; preserve it in a bridge or accept its absence"));}
         }
     }
+    super::release_safeguards::capture(&store)?;
     let mut engine = snapback4_core::Engine::new_release_prepared(
         store,
         bound.schema,
@@ -94,7 +95,9 @@ pub(super) fn preview(
     )
     .map_err(|e| e.to_string())?;
     let items: Vec<snapback4_core::store::DormantItem> = serde_json::from_value(planned["items"].clone()).map_err(|e| e.to_string())?;
-    hazards.extend(super::release_safeguards::warnings(&candidate_schema, &candidate_programs, &items, release));
+    let mut effects = super::release_safeguards::warnings(engine.store(), &candidate_schema, &candidate_programs, &items, release)?;
+    effects.append(&mut hazards); hazards=effects;
+    for fill in &engine.store().adoption_report.backfills { notes.push(format!("backfill: {fill}; confirm these historical values before selecting release {release}")); }
     steps.retain(|step|!step.message.contains("engine capture"));
     for step in &mut steps {
         if step.change==snapback4_core::successor::Change::Narrowing {
@@ -121,12 +124,12 @@ pub(super) fn preview(
         step.message=step.message.replace("its rows are lost", &retained).replace("its values are lost", &retained);
     }
     if options.json {
-        println!("{}",serde_json::to_string_pretty(&serde_json::json!({"preview":true,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report.summary()})).unwrap());
+        println!("{}",serde_json::to_string_pretty(&serde_json::json!({"preview":true,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report.summary(),"backfills":engine.store().adoption_report.backfills})).unwrap());
     } else {
         println!("preview: release {release} would be current as generation {}; {}; live release unchanged", engine.generation(), snapback4_core::store::adoption_report::AdoptionReport::dormant(&items));
-        for step in steps {println!("  {}: {}",step.path,step.message);}
         for hazard in hazards {println!("  WARNING {hazard}");}
         for note in notes {println!("  note: {note}");}
+        for step in steps {println!("  {}: {}",step.path,step.message);}
         for item in &items {
             println!("  {}: {} {} dormant (restored on compatible forward); sample ids [{}]", item.key, item.rows, item.unit(), item.sample_ids.join(", "));
         }
