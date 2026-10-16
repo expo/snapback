@@ -4,7 +4,7 @@ import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { createApp } from "snapback4/app";
 import { localStorageSessionStore } from "snapback4/auth";
-import { nativeAvailable, nativeDevice } from "snapback4-expo";
+import { nativeAvailable, nativeDevice, secureStoreSessionStore } from "snapback4-expo";
 import { smokeOrigin } from "snapback4-expo/witness";
 import { webDevice } from "snapback4/web";
 
@@ -17,11 +17,7 @@ export const url = smokeOrigin((Platform.OS === "web" ? new URLSearchParams(wind
 // web uses the wasm device.
 export const tier = Platform.OS === "web" ? "web" : nativeAvailable() ? "native" : "online";
 
-const sessionStore = {
-  get: (key: string) => SecureStore.getItemAsync(key),
-  set: (key: string, value: string) => SecureStore.setItemAsync(key, value),
-  delete: (key: string) => SecureStore.deleteItemAsync(key),
-};
+const sessionStore = secureStoreSessionStore(SecureStore);
 // Browser storage is readable by any script on the page; SecureStore is not.
 const witnessPersona = Platform.OS === "web" && new URLSearchParams(window.location.search).get("witness") === "web"
   ? new URLSearchParams(window.location.search).get("as") ?? undefined : undefined;

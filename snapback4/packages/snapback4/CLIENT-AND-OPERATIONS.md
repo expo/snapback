@@ -135,9 +135,10 @@ async function send(conversationId: string) {
 ```
 
 Omit `device` for the online tier; pass `nativeDevice` or `processDevice()` for
-other local hosts. `fetch` injects the transport. Omit `sessionStore` for memory
-only; browsers explain that choice in the console. Web persistence is always
-explicit. `app.client` changes on restore, sign-in, logout and account switch;
+other local hosts. `fetch` injects the transport. Device-less identity apps require
+`sessionStore: localStorageSessionStore()` in browsers; this requirement is also
+checked by TypeScript. A custom store must provide the browser journal authority.
+Device hosts may omit the store for memory-only sessions. Web persistence is explicit. `app.client` changes on restore, sign-in, logout and account switch;
 `AppProvider` supplies that client to all existing hooks and resets account-owned
 component state. `useAuth()` returns the current state, viewer, failure and actions.
 Call `app.close()` to stop a runtime while preserving its session for restart;
@@ -3506,14 +3507,10 @@ import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { createApp } from "snapback4/app";
 import { localStorageSessionStore } from "snapback4/auth";
-import { nativeAvailable, nativeDevice } from "snapback4-expo";
+import { nativeAvailable, nativeDevice, secureStoreSessionStore } from "snapback4-expo";
 import { webDevice } from "snapback4/web";
 
-const sessionStore = {
-  get: (key: string) => SecureStore.getItemAsync(key),
-  set: (key: string, value: string) => SecureStore.setItemAsync(key, value),
-  delete: (key: string) => SecureStore.deleteItemAsync(key),
-};
+const sessionStore = secureStoreSessionStore(SecureStore);
 export const url = process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400";
 export const tier = Platform.OS === "web" ? "web" : nativeAvailable() ? "native" : "online";
 // Browser persistence is explicit: scripts on the page can read the token.

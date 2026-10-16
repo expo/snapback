@@ -7,14 +7,10 @@ import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { createApp } from "snapback4/app";
 import { localStorageSessionStore } from "snapback4/auth";
-import { nativeAvailable, nativeDevice } from "snapback4-expo";
+import { nativeAvailable, nativeDevice, secureStoreSessionStore } from "snapback4-expo";
 import { webDevice } from "snapback4/web";
 
-const sessionStore = withIntentStorage({
-  get: (key: string) => SecureStore.getItemAsync(key),
-  set: async (key: string, value: string) => SecureStore.setItemAsync(key, value),
-  delete: async (key: string) => SecureStore.deleteItemAsync(key),
-}, intentStorage);
+const sessionStore = withIntentStorage(secureStoreSessionStore(SecureStore), intentStorage);
 export const url = smokeOrigin((Platform.OS === "web" ? new URLSearchParams(window.location.search).get("api") : null) ?? process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400");
 export const tier = Platform.OS === "web" ? "web" : nativeAvailable() ? "native" : "online";
 // Browser persistence is explicit: scripts on the page can read the token.
