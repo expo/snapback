@@ -159,7 +159,7 @@ pub(crate) fn link_dependencies(project: &Project, stage: &Path) -> Result<(), S
 }
 
 /// Capture the same checked source closure used by automatic development entries.
-// @ref LLP 3000.000.000.000.000#7-serve-and-surface-completion-surf4-2026-10-16 — release source, including imports, is immutable; installed packages remain host-owned.
+// @ref LLP 3000.000.000.000.000#serve-and-surface-completion-surf4-2026-10-16 — release source, including imports, is immutable; installed packages remain host-owned.
 pub(crate) fn package_entry(project: &Project, stage: &Path) -> Result<(), String> {
     let Some(source) = super::source(project) else { return Ok(()); };
     let snapshot = Snapshot::automatic(project, &source)?;
