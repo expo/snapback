@@ -10,7 +10,7 @@ export function changelogFlags(changelog) {
     let verb;
     // Every flag must follow a named owner; preserve owner through adjacent flags.
     // Exact's rebuild command is an external tool, explicitly outside binary help.
-    for (const match of line.matchAll(/\b(?:exact\.mjs|[A-Za-z]+)\b|--[a-z][a-z-]*/g)) {
+    for (const match of line.matchAll(/\b(?:exact\.mjs|[A-Za-z]+)\b|--[a-z][a-z0-9-]*/g)) {
       const token = match[0];
       if (token === 'exact.mjs') verb = 'exact';
       else if (verbs.has(token.toLowerCase())) verb = token.toLowerCase();
@@ -27,7 +27,7 @@ export function assertChangelogHelp(changelog, help) {
   const failures = [];
   for (const [verb, flag] of changelogFlags(changelog)) {
     const output = help(verb);
-    if (!new RegExp(`${flag}(?![a-z-])`).test(output)) failures.push(`${verb} --help omits announced ${flag}`);
+    if (!new RegExp(`${flag}(?![a-z0-9-])`).test(output)) failures.push(`${verb} --help omits announced ${flag}`);
   }
   if (failures.length) throw new Error(failures.join('\n'));
 }

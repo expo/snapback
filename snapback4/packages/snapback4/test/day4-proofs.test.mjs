@@ -36,3 +36,10 @@ test("testSource preserves synchronous usage validation and includes failed stdo
   await assert.rejects(testSource("failure", { cwd }), /stdout tail: business failure detail from stdout/);
 });
 
+
+test('numeric starter flags are checked as complete flag names', async () => {
+  const { changelogFlags, assertChangelogHelp } = await import('../../../scripts/check-verb-help.mjs');
+  assert.deepEqual(changelogFlags('- init --day2 opts in'), [['init', '--day2']]);
+  assert.doesNotThrow(() => assertChangelogHelp('- init --day2 opts in', () => 'init --day2'));
+  assert.throws(() => assertChangelogHelp('- init --day2 opts in', () => 'init --day20'), /omits announced --day2/);
+});

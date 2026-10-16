@@ -2,7 +2,7 @@
 
 ## 0.4.31
 
-- DAY4: UI starters opt in to saved-release scaffolding with `--day2`. Check/adapt recognize shipped proof bytes, respect custom saved paths and deleted scaffolds, and label frontend build/server advice as heuristic. Adapting old generated proofs captures current sources/fixtures and repairs 0.4.29's npm arguments. Day-two proofs accept a fresh explicit deployment directory. Saved tests report business-case run/skip counts and require explicit fixture-only intent for zero-case validation; failures include stdout. Check inspects saved fixtures against their own schema.
+- DAY4: UI starters opt in to saved-release scaffolding with `init --day2`. Check/adapt recognize shipped proof bytes, respect custom saved paths and deleted scaffolds, and label frontend build/server advice as heuristic. Adapting old generated proofs captures current sources/fixtures and repairs 0.4.29's npm arguments. Day-two proofs accept a fresh explicit deployment directory. Saved tests report business-case run/skip counts and require explicit fixture-only intent for zero-case validation; failures include stdout. Check inspects saved fixtures against their own schema.
 
 - DAY4 previews: guard dependencies track consulted columns and treat forward widening as monotone. Added trailing guards can be proved tightening, displayed clauses retain Boolean grouping, and rollback reports lost safety/confidentiality plus changed populations and quotas with bridge advice. The resolved target prints before preview or activation.
 
