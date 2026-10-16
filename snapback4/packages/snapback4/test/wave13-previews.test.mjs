@@ -777,3 +777,32 @@ test('discarded conditional writes retain old-field default dependencies', {time
   const result=await host.post('/m/conditionalDefault',{});
   assert.equal(result.state,'failed',JSON.stringify(result));assert.equal(result.why.code,'E_CONFLICT');await host.stop();
 });
+
+test('unused null-only optional references are silent in both directions; populated retained references still warn', {timeout:hangBudget(6)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe.replace('  public\n  online only\ntable notes:', '  public\n  insert <- allow\n  update <- allow\n  online only\ntable notes:')+`table teams:
+  name: text <=20
+  public
+  insert <- allow
+  online only
+mutation grant():
+  insert teams {id: 'team', name: 'one'}
+  return insert roles {id: 'role', principal: viewer, role: 'captain'}
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);assert.equal((await host.post('/m/grant',{})).state,'sent');
+  const nullable=source.replace('  immutable principal, role', '  team: teams ?\n  immutable principal, role');
+  writeFileSync(schema,nullable);
+  assert.doesNotMatch(run('deploy',deployment,'--check').stdout,/WARNING|\.require/);
+  run('deploy',deployment);
+  assert.doesNotMatch(run('rollback',deployment,'--to','1','--check').stdout,/WARNING|\.require/);
+  const assigned=nullable+`mutation assignTeam():
+  return update roles['role'] {team: 'team'}
+`;
+  writeFileSync(schema,assigned);run('deploy',deployment);
+  assert.equal((await host.post('/m/assignTeam',{})).state,'sent');
+  assert.match(run('rollback',deployment,'--to','1','--check').stdout,/changed: 3 guards unproved across add, edit, remove/);
+  run('rollback',deployment,'--to','1');
+  assert.match(run('deploy',deployment,'--check','--restore-dormant').stdout,/changed: 3 guards unproved across add, edit, remove/);
+  await host.stop();
+});

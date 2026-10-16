@@ -5,7 +5,8 @@ use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Default)]
-pub(super) struct Dependencies(BTreeMap<String, Value>);
+pub(super) struct Dependencies(BTreeMap<String, Value>, NullReferences);
+type NullReferences = BTreeSet<(String,String)>;
 impl Dependencies {
     pub fn changed(&self, next: &Self) -> BTreeSet<String> {
         self.0.keys().chain(next.0.keys()).filter(|key| {
@@ -47,13 +48,13 @@ impl Dependencies {
         let key = format!("{name}.population");
         if self.0.contains_key(&key) { return; }
         let Some(table) = schema.table(name) else { self.0.insert(key, Value::Null); return; };
-        self.0.insert(key, json!([table.through, table.not_before, table.expire, table.ephemeral, table.on_delete]));
+        self.0.insert(key, json!([table.through, table.not_before, table.expire, table.ephemeral, table.on_delete.iter().filter(|(column,_)|!self.1.contains(&(name.into(),(*column).clone()))).collect::<BTreeMap<_,_>>() ]));
         let timelines:Vec<_>=schema.timelines.iter().filter(|t|t.owned.contains(name)||t.mapped.contains(name)||[&t.authors[0],&t.posts[0],&t.reposts[0],&t.edges[0]].into_iter().any(|table|table.as_str()==name)).collect();
         let families:Vec<_>=schema.receipts.iter().filter(|f|[&f.scope,&f.messages,&f.members,&f.runs].into_iter().any(|table|table.as_str()==name)).collect();
         self.0.insert(format!("{name}.metadata"),json!([timelines,families,schema.delivery.iter().filter(|d|d.table==name).collect::<Vec<_>>(),schema.receipt_dependencies.get(name)]));
         for t in timelines {for source in [&t.authors[0],&t.posts[0],&t.reposts[0],&t.edges[0]] {if schema.table(source).is_some() {self.population(schema,source);}}}
         for f in families {for source in [&f.scope,&f.messages,&f.members,&f.runs] {if schema.table(source).is_some() {self.population(schema,source);}}}
-        self.0.insert(format!("{name}.domains"), json!(table.columns));
+        self.0.insert(format!("{name}.domains"), json!(table.columns.iter().filter(|(column,_)|!self.1.contains(&(name.into(),(*column).clone()))).collect::<BTreeMap<_,_>>()));
         self.0.insert(format!("{name}.textConstraints"), json!(table.constraints.iter().filter(|c|matches!(c,snapback4_core::schema::Constraint::Text {..})).collect::<Vec<_>>()));
         // Any typed reference can join the reference-closed dormant population,
         // even when it is not a read-through authority declaration.
@@ -65,7 +66,7 @@ impl Dependencies {
                 _ => (),
             }
         }
-        let mut parents=BTreeSet::new();for kind in table.columns.values() {referenced(kind,&mut parents);}
+        let mut parents=BTreeSet::new();for (column,kind) in &table.columns {if !self.1.contains(&(name.into(),column.clone())) {referenced(kind,&mut parents);}}
         for parent in parents {self.population(schema,&parent);}
         fn read_semantics(rule: &RuleExpr) -> RuleExpr {
             match rule {
@@ -210,8 +211,48 @@ impl Dependencies {
     }
 }
 
-pub(super) fn rule(schema: &Schema, owner: &str, rule: &RuleExpr, other: &RuleExpr) -> Dependencies {
-    let mut deps = Dependencies::default();
+// Null-only optional references cannot make the retained probe population
+// depend on their parent. Explicit reads/keys still collect the column normally.
+pub(super) fn null_references(store: &snapback4_core::Store,current: &Schema,target: &Schema) -> Result<NullReferences,String> {
+    use snapback4_core::schema::{ColumnType,ColumnDefault};
+    let mut candidates=BTreeSet::new();
+    for (schema,other) in [(current,target),(target,current)] {for (table,definition) in &schema.tables {for (column,kind) in &definition.columns {
+        if matches!(kind,ColumnType::Optional(inner) if matches!(inner.as_ref(),ColumnType::Ref {..}))
+            && !other.table(table).is_some_and(|t|t.columns.contains_key(column))
+            && matches!(definition.defaults.get(column),None|Some(ColumnDefault::Literal(snapback4_core::Value::Null))) {
+            candidates.insert((table.clone(),column.clone()));
+        }
+    }}}
+    let conn=store.conn();let mut nulls=BTreeSet::new();
+    for (table,column) in candidates {
+        let mut populated=false;
+        for storage in ["r","_dormant_rows","_dormant_narrow_rows","_dormant_values","_dormant_refs"] {
+            let exists:bool=conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE type='table' AND name=?1)",[storage],|row|row.get(0)).map_err(|e|e.to_string())?;
+            if !exists {continue;}
+            if storage=="_dormant_refs" {
+                populated=conn.query_row("SELECT EXISTS(SELECT 1 FROM _dormant_refs WHERE t=(SELECT num FROM _catalog WHERE name=?1) AND column_name=?2)",[table.as_str(),column.as_str()],|row|row.get(0)).map_err(|e|e.to_string())?;
+            } else {
+                let sql=format!("SELECT data FROM {storage} WHERE t=(SELECT num FROM _catalog WHERE name=?1){}",if storage=="_dormant_values" {" AND column_name=?2"} else {""});
+                let mut statement=conn.prepare(&sql).map_err(|e|e.to_string())?;
+                let parameters:Vec<&dyn rusqlite::ToSql>=if storage=="_dormant_values" {vec![&table,&column]} else {vec![&table]};
+                let mut rows=statement.query(parameters.as_slice()).map_err(|e|e.to_string())?;
+                while let Some(row)=rows.next().map_err(|e|e.to_string())? {
+                    let data:String=row.get(0).map_err(|e|e.to_string())?;
+                    let value:snapback4_core::Value=serde_json::from_str(&data).map_err(|e|e.to_string())?;
+                    populated=if storage=="_dormant_values" {value!=snapback4_core::Value::Null}
+                        else {value.as_object().map_err(|e|e.to_string())?.get(&column).is_some_and(|value|*value!=snapback4_core::Value::Null)};
+                    if populated {break;}
+                }
+            }
+            if populated {break;}
+        }
+        if !populated {nulls.insert((table,column));}
+    }
+    Ok(nulls)
+}
+
+pub(super) fn rule(schema: &Schema, owner: &str, rule: &RuleExpr, other: &RuleExpr, null_refs: &NullReferences) -> Dependencies {
+    let mut deps = Dependencies(BTreeMap::new(),null_refs.clone());
     deps.0.insert("auth".into(), json!(schema.auth));
     deps.rule(schema, owner, rule); deps.rule(schema, owner, other); deps
 }
@@ -257,71 +298,71 @@ fn result_binding(stmt: &ir::Stmt) -> Option<(String,Value)> {
     }
 }
 
-fn guards(schema: &Schema, program: &ir::Program) -> Vec<Dependencies> {
-    selected_guards(schema,program,&BTreeSet::new())
+fn guards(schema: &Schema, program: &ir::Program, null_refs: &NullReferences) -> Vec<Dependencies> {
+    selected_guards(schema,program,null_refs,&BTreeSet::new())
 }
-fn selected_guards(schema: &Schema, program: &ir::Program, excluded: &BTreeSet<String>) -> Vec<Dependencies> {
-    fn nested(out: &mut Vec<Dependencies>,schema: &Schema,value: &Value,bindings: &BTreeMap<String,Value>,context: &[Value],effects: &[(BTreeSet<String>,Value)],excluded: &BTreeSet<String>) {
+fn selected_guards(schema: &Schema, program: &ir::Program, null_refs: &NullReferences, excluded: &BTreeSet<String>) -> Vec<Dependencies> {
+    fn nested(out: &mut Vec<Dependencies>,schema: &Schema,value: &Value,bindings: &BTreeMap<String,Value>,context: &[Value],effects: &[(BTreeSet<String>,Value)],null_refs: &NullReferences,excluded: &BTreeSet<String>) {
         match value {
             Value::Object(fields)=> {
                 if fields.contains_key("Literal") {return;}
                 if let Some(object)=fields.get("Object").and_then(Value::as_object) {
-                    for value in object.values() {nested(out,schema,value,bindings,context,effects,excluded);}return;
+                    for value in object.values() {nested(out,schema,value,bindings,context,effects,null_refs,excluded);}return;
                 }
                 if let Some(shape)=fields.get("Shape") {
-                    nested(out,schema,&shape["base"],bindings,context,effects,excluded);
-                    if let Some(fields)=shape["fields"].as_object() {for value in fields.values() {nested(out,schema,value,bindings,context,effects,excluded);}}return;
+                    nested(out,schema,&shape["base"],bindings,context,effects,null_refs,excluded);
+                    if let Some(fields)=shape["fields"].as_object() {for value in fields.values() {nested(out,schema,value,bindings,context,effects,null_refs,excluded);}}return;
                 }
                 if let Some(block)=fields.get("Block") {
                     let statements:Vec<ir::Stmt>=serde_json::from_value(block["body"].clone()).expect("serialized IR block");
-                    let (bindings,effects)=body(out,schema,&statements,bindings,context,effects,excluded);
-                    nested(out,schema,&block["value"],&bindings,context,&effects,excluded);return;
+                    let (bindings,effects)=body(out,schema,&statements,bindings,context,effects,null_refs,excluded);
+                    nested(out,schema,&block["value"],&bindings,context,&effects,null_refs,excluded);return;
                 }
                 if let Some(binary)=fields.get("Binary") {
-                    nested(out,schema,&binary["left"],bindings,context,effects,excluded);
+                    nested(out,schema,&binary["left"],bindings,context,effects,null_refs,excluded);
                     let mut branch=context.to_vec();
                     if matches!(binary["op"].as_str(),Some("And"|"Or")) {branch.push(resolved(&json!({"shortCircuit":binary["op"],"left":binary["left"]}),bindings,&mut BTreeSet::new()));}
-                    nested(out,schema,&binary["right"],bindings,&branch,effects,excluded);return;
+                    nested(out,schema,&binary["right"],bindings,&branch,effects,null_refs,excluded);return;
                 }
                 if let Some(builtin)=fields.get("Builtin") {
                     if builtin["builtin"].get("ExtremumOf").is_some() {
-                        nested(out,schema,&builtin["args"][0],bindings,context,effects,excluded);
+                        nested(out,schema,&builtin["args"][0],bindings,context,effects,null_refs,excluded);
                         let source=resolved(&builtin["args"][0],bindings,&mut BTreeSet::new());
                         let mut projected=bindings.clone();projected.insert("$filter".into(),source.clone());
                         let mut context=context.to_vec();context.push(json!({"projectionSource":source}));
-                        nested(out,schema,&builtin["args"][1],&projected,&context,effects,excluded);return;
+                        nested(out,schema,&builtin["args"][1],&projected,&context,effects,null_refs,excluded);return;
                     }
                 }
                 if let Some(write)=fields.get("WriteTarget") {
-                    for field in ["target","patch"] {nested(out,schema,&write[field],bindings,context,effects,excluded);}
+                    for field in ["target","patch"] {nested(out,schema,&write[field],bindings,context,effects,null_refs,excluded);}
                     if let Some(condition)=write.get("condition").filter(|value|!value.is_null()) {
                         let target=resolved(&json!({"Get":write["target"]}),bindings,&mut BTreeSet::new());
                         let mut inner=bindings.clone();inner.insert(condition["old"].as_str().expect("condition old binding").into(),target.clone());
                         let mut context=context.to_vec();context.push(json!({"writeTarget":target}));
                         let setup:Vec<ir::Stmt>=serde_json::from_value(condition["setup"].clone()).expect("serialized write condition");
-                        let (inner,effects)=body(out,schema,&setup,&inner,&context,effects,excluded);
-                        nested(out,schema,&condition["value"],&inner,&context,&effects,excluded);
+                        let (inner,effects)=body(out,schema,&setup,&inner,&context,effects,null_refs,excluded);
+                        nested(out,schema,&condition["value"],&inner,&context,&effects,null_refs,excluded);
                     }
                     return;
                 }
                 if fields.contains_key("scan") && fields.get("binding").is_some_and(Value::is_string) {
                     // Runtime guards precede discovery. Setup sees the discovery
                     // row; projection sees the target scan row after setup.
-                    nested(out,schema,&value["guard"],bindings,context,effects,excluded);
+                    nested(out,schema,&value["guard"],bindings,context,effects,null_refs,excluded);
                     let mut context=context.to_vec();context.push(json!({"laneGuard":resolved(&value["guard"],bindings,&mut BTreeSet::new())}));
                     let mut inner=bindings.clone();
                     if let Some(source)=fields.get("source").filter(|value|!value.is_null()) {
-                        nested(out,schema,source,bindings,&context,effects,excluded);
+                        nested(out,schema,source,bindings,&context,effects,null_refs,excluded);
                         let source=resolved(source,bindings,&mut BTreeSet::new());
                         inner.insert(fields["binding"].as_str().unwrap().into(),source.clone());context.push(json!({"laneSource":source}));
                     }
                     let setup:Vec<ir::Stmt>=fields.get("setup").map(|value|serde_json::from_value(value.clone()).expect("serialized lane setup")).unwrap_or_default();
-                    let (mut inner,effects)=body(out,schema,&setup,&inner,&context,effects,excluded);
+                    let (mut inner,effects)=body(out,schema,&setup,&inner,&context,effects,null_refs,excluded);
                     let scan=resolved(&json!({"Scan":fields["scan"]}),&inner,&mut BTreeSet::new());
-                    nested(out,schema,&scan,&inner,&context,&effects,excluded);
+                    nested(out,schema,&scan,&inner,&context,&effects,null_refs,excluded);
                     for name in ["$project","$filter"] {inner.insert(name.into(),scan.clone());}
                     context.push(json!({"projectionSource":scan}));
-                    for name in ["project","distinct"] {nested(out,schema,&value[name],&inner,&context,&effects,excluded);}return;
+                    for name in ["project","distinct"] {nested(out,schema,&value[name],&inner,&context,&effects,null_refs,excluded);}return;
                 }
                 // Scan filters execute per admitted source row. Keep their
                 // source population/key and avoid making the filter its own input.
@@ -329,15 +370,15 @@ fn selected_guards(schema: &Schema, program: &ir::Program, excluded: &BTreeSet<S
                     let source=Value::Object(scan.iter().filter(|(name,_)|name.as_str()!="filter").map(|(name,value)|(name.clone(),value.clone())).collect());
                     let mut inner=bindings.clone();inner.insert("$filter".into(),source.clone());
                     let mut context=context.to_vec();context.push(resolved(&source,bindings,&mut BTreeSet::new()));
-                    if let Some(filter)=scan.get("filter") {nested(out,schema,filter,&inner,&context,effects,excluded);}
-                    for value in source.as_object().unwrap().values() {nested(out,schema,value,bindings,&context,effects,excluded);}return;
+                    if let Some(filter)=scan.get("filter") {nested(out,schema,filter,&inner,&context,effects,null_refs,excluded);}
+                    for value in source.as_object().unwrap().values() {nested(out,schema,value,bindings,&context,effects,null_refs,excluded);}return;
                 }
-                for value in fields.values() {nested(out,schema,value,bindings,context,effects,excluded);}
+                for value in fields.values() {nested(out,schema,value,bindings,context,effects,null_refs,excluded);}
             },
-            Value::Array(values)=>for value in values {nested(out,schema,value,bindings,context,effects,excluded);},_=>(),
+            Value::Array(values)=>for value in values {nested(out,schema,value,bindings,context,effects,null_refs,excluded);},_=>(),
         }
     }
-    fn body(out: &mut Vec<Dependencies>, schema: &Schema, stmts: &[ir::Stmt], inherited: &BTreeMap<String, Value>, context: &[Value], inherited_effects: &[(BTreeSet<String>,Value)], excluded: &BTreeSet<String>) -> (BTreeMap<String,Value>,Vec<(BTreeSet<String>,Value)>) {
+    fn body(out: &mut Vec<Dependencies>, schema: &Schema, stmts: &[ir::Stmt], inherited: &BTreeMap<String, Value>, context: &[Value], inherited_effects: &[(BTreeSet<String>,Value)], null_refs: &NullReferences, excluded: &BTreeSet<String>) -> (BTreeMap<String,Value>,Vec<(BTreeSet<String>,Value)>) {
         fn stops(stmts: &[ir::Stmt]) -> bool {
             stmts.iter().any(|stmt|match stmt {ir::Stmt::Return(_) | ir::Stmt::Break | ir::Stmt::Continue=>true,ir::Stmt::If {then_body,else_body,..}=>stops(then_body)&&stops(else_body),_=>false})
         }
@@ -348,7 +389,7 @@ fn selected_guards(schema: &Schema, program: &ir::Program, excluded: &BTreeSet<S
             // Expanded helpers can live in projection/filter expression blocks,
             // as well as ordinary statement bodies. Do not revisit branch bodies.
             let inputs=match stmt {ir::Stmt::If {condition,..}=>json!(condition),ir::Stmt::For {domain,..}=>json!(domain),_=>json!(stmt)};
-            nested(out,schema,&inputs,&bindings,&context,&effects,excluded);
+            nested(out,schema,&inputs,&bindings,&context,&effects,null_refs,excluded);
             // Effects execute against the incoming lexical environment; a branch
             // join may overwrite the very condition that controlled its write.
             let wrapper=ir::Program {name:String::new(),kind:ir::ProgramKind::Mutation,args:BTreeMap::new(),read_time_granularity_ms:None,body:vec![stmt.clone()],returned_shapes:BTreeMap::new(),native:false};
@@ -366,7 +407,7 @@ fn selected_guards(schema: &Schema, program: &ir::Program, excluded: &BTreeSet<S
                     bindings.insert(target.clone(),json!({"append":[bindings.get(target),resolved(&json!(value),&bindings,&mut BTreeSet::new())]}));
                 },
                 ir::Stmt::Require {condition,code,message,site} => {
-                    let mut deps=Dependencies::default();
+                    let mut deps=Dependencies(BTreeMap::new(),null_refs.clone());
                     deps.0.insert("auth".into(), json!(schema.auth));
                     let condition=json!(condition);
                     for value in context.iter().chain(std::iter::once(&condition)) { deps.expression(schema, value, &bindings, &mut BTreeSet::new(), None); }
@@ -388,9 +429,9 @@ fn selected_guards(schema: &Schema, program: &ir::Program, excluded: &BTreeSet<S
                 ir::Stmt::If {condition,then_body,else_body} => {
                     let condition=resolved(&json!(condition),&bindings,&mut BTreeSet::new());
                     let mut branch=context.clone(); branch.push(json!({"then":condition}));
-                    let (yes,yes_effects)=body(out,schema,then_body,&bindings,&branch,&effects,excluded);
+                    let (yes,yes_effects)=body(out,schema,then_body,&bindings,&branch,&effects,null_refs,excluded);
                     *branch.last_mut().unwrap()=json!({"else":condition});
-                    let (no,no_effects)=body(out,schema,else_body,&bindings,&branch,&effects,excluded);
+                    let (no,no_effects)=body(out,schema,else_body,&bindings,&branch,&effects,null_refs,excluded);
                     for effect in yes_effects.into_iter().chain(no_effects) {if !effects.contains(&effect) {effects.push(effect);}}
                     let (yes_stops,no_stops)=(stops(then_body),stops(else_body));
                     for name in yes.keys().chain(no.keys()).cloned().collect::<BTreeSet<_>>() {
@@ -433,8 +474,8 @@ fn selected_guards(schema: &Schema, program: &ir::Program, excluded: &BTreeSet<S
                     if exits.as_array().is_some_and(|values|!values.is_empty()) {loop_context.push(exits.clone());context.push(json!({"loopExit":domain,"controls":exits}));}
                     // Collect individual writes with their own incoming bindings and
                     // branch controls, then expose them to later iterations.
-                    let (_,loop_effects)=body(&mut Vec::new(),schema,stmts,&inner,&loop_context,&effects,excluded);
-                    let (after,after_effects)=body(out,schema,stmts,&inner,&loop_context,&loop_effects,excluded);
+                    let (_,loop_effects)=body(&mut Vec::new(),schema,stmts,&inner,&loop_context,&effects,null_refs,excluded);
+                    let (after,after_effects)=body(out,schema,stmts,&inner,&loop_context,&loop_effects,null_refs,excluded);
                     for effect in after_effects {if !effects.contains(&effect) {effects.push(effect);}}
                     for name in bindings.keys().cloned().collect::<Vec<_>>() {
                         if bindings.get(&name)!=after.get(&name) {
@@ -449,7 +490,7 @@ fn selected_guards(schema: &Schema, program: &ir::Program, excluded: &BTreeSet<S
         }
         (bindings,effects)
     }
-    let mut out=Vec::new();body(&mut out,schema,&program.body,&BTreeMap::new(),&[],&[],excluded);out
+    let mut out=Vec::new();body(&mut out,schema,&program.body,&BTreeMap::new(),&[],&[],null_refs,excluded);out
 }
 
 fn arguments_changed(before: &ir::Program, after: &ir::Program, guards: impl Iterator<Item=Value>) -> bool {
@@ -475,23 +516,27 @@ fn arguments_changed(before: &ir::Program, after: &ir::Program, guards: impl Ite
     names.iter().any(|name|before.args.get(name)!=after.args.get(name))
 }
 
+#[cfg(test)]
 pub(super) fn changes(current: &Schema, before: &ir::Program, target: &Schema, after: &ir::Program, compare_implementation: bool) -> Vec<BTreeSet<String>> {
+    changes_scoped(current,before,target,after,compare_implementation,&BTreeSet::new())
+}
+pub(super) fn changes_scoped(current: &Schema,before: &ir::Program,target: &Schema,after: &ir::Program,compare_implementation: bool,null_refs: &NullReferences) -> Vec<BTreeSet<String>> {
     if !compare_implementation {
         let mut old=Dependencies::default();let mut new=Dependencies::default();
         for program in [before,after] {
-            for guard in guards(current,program) {old.0.extend(guard.0);}
-            for guard in guards(target,program) {new.0.extend(guard.0);}
+            for guard in guards(current,program,null_refs) {old.0.extend(guard.0);}
+            for guard in guards(target,program,null_refs) {new.0.extend(guard.0);}
         }
-        let arg_change=arguments_changed(before,after,guards(current,before).into_iter().chain(guards(target,after)).filter_map(|mut g|g.0.remove("compiled guard")));
+        let arg_change=arguments_changed(before,after,guards(current,before,null_refs).into_iter().chain(guards(target,after,null_refs)).filter_map(|mut g|g.0.remove("compiled guard")));
         old.0.remove("compiled guard");new.0.remove("compiled guard");
         let mut changed=old.changed(&new);if arg_change {changed.insert("arguments".into());}
         return vec![changed];
     }
-    compare_guards(before,after,guards(current,before),guards(target,after))
+    compare_guards(before,after,guards(current,before,null_refs),guards(target,after,null_refs))
 }
 
-pub(super) fn independent_changes(current: &Schema,before: &ir::Program,target: &Schema,after: &ir::Program,old_sites: &BTreeSet<String>,new_sites: &BTreeSet<String>) -> Vec<BTreeSet<String>> {
-    compare_guards(before,after,selected_guards(current,before,old_sites),selected_guards(target,after,new_sites))
+pub(super) fn independent_changes(current: &Schema,before: &ir::Program,target: &Schema,after: &ir::Program,old_sites: &BTreeSet<String>,new_sites: &BTreeSet<String>,null_refs: &NullReferences) -> Vec<BTreeSet<String>> {
+    compare_guards(before,after,selected_guards(current,before,null_refs,old_sites),selected_guards(target,after,null_refs,new_sites))
 }
 
 fn compare_guards(before: &ir::Program,after: &ir::Program,old: Vec<Dependencies>,new: Vec<Dependencies>) -> Vec<BTreeSet<String>> {

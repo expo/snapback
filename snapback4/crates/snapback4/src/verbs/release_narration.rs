@@ -95,7 +95,8 @@ fn declarations(project: &Project) -> Result<BTreeMap<String, Vec<(Kind, String)
     Ok(out)
 }
 
-pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, before_programs: &BTreeMap<String, snapback4_core::ir::Program>, after_programs: &BTreeMap<String, snapback4_core::ir::Program>, candidate: &Project, previous_release: Option<u64>, target_label: &str) -> Result<(Vec<String>, Vec<String>), String> {
+pub(super) fn behavior(store_path: &Path, store: &Store, current: &Schema, target: &Schema, before_programs: &BTreeMap<String, snapback4_core::ir::Program>, after_programs: &BTreeMap<String, snapback4_core::ir::Program>, candidate: &Project, previous_release: Option<u64>, target_label: &str) -> Result<(Vec<String>, Vec<String>), String> {
+    let null_refs=super::release_dependencies::null_references(store,current,target)?;
     let old_project = previous_release.and_then(|id| store_path.parent().map(|dir| Project { root: dir.join("releases").join(id.to_string()) }));
     let source_before = old_project.as_ref().and_then(|p| declarations(p).ok());
     let source_after = declarations(candidate)?;
@@ -140,8 +141,8 @@ pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, bef
             let (before, after) = (old.rules.for_effect(effect), next.rules.for_effect(effect));
             let before_judged=if effect==snapback4_core::schema::Effect::Update {old.update_rule_judged()} else {std::borrow::Cow::Borrowed(before)};
             let after_judged=if effect==snapback4_core::schema::Effect::Update {next.update_rule_judged()} else {std::borrow::Cow::Borrowed(after)};
-            let changed_dependencies = super::release_dependencies::rule(current, name, &before_judged, &after_judged)
-                .changed(&super::release_dependencies::rule(target, name, &before_judged, &after_judged));
+            let changed_dependencies = super::release_dependencies::rule(current, name, &before_judged, &after_judged, &null_refs)
+                .changed(&super::release_dependencies::rule(target, name, &before_judged, &after_judged, &null_refs));
             let dependencies_stable = changed_dependencies.is_empty();
             if before_judged == after_judged {
                 if !dependencies_stable {
@@ -163,13 +164,13 @@ pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, bef
             let (old_lines, _) = requirements(&before, false);
             let (new_lines, _) = requirements(after, false);
             let exact_changes = before_programs.get(&name).zip(after_programs.get(&name)).map(|(old,new)|
-                super::release_dependencies::changes(current, old, target, new, true));
+                super::release_dependencies::changes_scoped(current, old, target, new, true, &null_refs));
             // An unused binding or statement position can change the explanatory
             // source context without changing any compiled guard input.
             if before.kind==after.kind && guard_clauses(&before)==guard_clauses(after) && exact_changes.as_ref().is_some_and(|changes|changes.iter().all(BTreeSet::is_empty)) {continue;}
             let changed_dependencies = if old_lines==new_lines {exact_changes} else {
                 before_programs.get(&name).zip(after_programs.get(&name)).map(|(old,new)|
-                    super::release_dependencies::changes(current, old, target, new, false))
+                    super::release_dependencies::changes_scoped(current, old, target, new, false, &null_refs))
             };
             let stable = changed_dependencies.as_ref().is_some_and(|changes|changes.iter().all(BTreeSet::is_empty));
             let (_,old_formula) = requirements(&before, stable);
@@ -223,7 +224,7 @@ pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, bef
                     snapback4_lang::ast::Stmt::Require {site,..}=>Some(site.to_string()),_=>None,
                 }).collect();
                 if let Some((old,new))=before_programs.get(&name).zip(after_programs.get(&name)) {
-                    for changed in super::release_dependencies::independent_changes(current,old,target,new,&sites(&before),&sites(after)).into_iter().filter(|c|!c.is_empty()) {
+                    for changed in super::release_dependencies::independent_changes(current,old,target,new,&sites(&before),&sites(after),&null_refs).into_iter().filter(|c|!c.is_empty()) {
                         let group=dependency_groups.entry(changed).or_default();group.0+=1;group.1.insert(name.clone());
                     }
                 }

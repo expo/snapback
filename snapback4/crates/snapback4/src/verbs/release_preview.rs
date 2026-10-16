@@ -67,7 +67,7 @@ pub(super) fn preview(
             if let Some(warning) = line.strip_prefix("WARNING ") { hazards.push(warning.to_owned()); }
             else { notes.push(line.trim_start_matches("note: ").to_owned()); }
         }
-        let (behavior_warnings, behavior_notes) = super::release_narration::behavior(store_path, &prior, &candidate_schema, &programs, &candidate_programs, &project, held["release"].as_u64(), &target_label)?;
+        let (behavior_warnings, behavior_notes) = super::release_narration::behavior(store_path, &store, &prior, &candidate_schema, &programs, &candidate_programs, &project, held["release"].as_u64(), &target_label)?;
         hazards.extend(behavior_warnings); notes.extend(behavior_notes);
         for name in prior.tables.keys().filter(|name|!candidate_schema.tables.contains_key(*name) && prior.maintain_for(name).is_none() && prior.tables[*name].ephemeral.is_none()) {
             let count:u64=store.conn().query_row("SELECT COUNT(*) FROM r WHERE t=(SELECT num FROM _catalog WHERE name=?1)",[name],|r|r.get::<_,i64>(0).map(|n|n as u64)).map_err(|e|e.to_string())?;
