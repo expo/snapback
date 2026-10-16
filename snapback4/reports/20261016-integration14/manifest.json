@@ -1,0 +1,48 @@
+{
+  "checkpoint": "pre-LANG2; no release qualification claim",
+  "capturedAt": "2026-10-16T15:12:06.295119+00:00",
+  "laneReports": {
+    "day3": {
+      "path": "/home/ccheever/projects/sb4-w13-day3/WORKSTREAM-REPORT.md",
+      "sha256": "cfb153583f6dae358444bcc23b17a88db74fba289b8692812f5aa7e06dee525a",
+      "branchHead": "616dd21cd1d7211d48d9c2b26ca3907a5449b39b"
+    },
+    "prev": {
+      "path": "/home/ccheever/projects/sb4-w13-prev/WORKSTREAM-REPORT.md",
+      "sha256": "24459652ed6a69ee7d726cea687112fb9c1aea5cb458283dab505c82e7675a18",
+      "branchHead": "c411a19dbf79b98a8d0f9ee2735fefe14865fd5c"
+    },
+    "rules3": {
+      "path": "/home/ccheever/projects/sb4-w13-rules3/WORKSTREAM-REPORT.md",
+      "sha256": "ed727824f553f00714b879f6fd650a5686ef479de43d6af99e45e60f74ef8a41",
+      "branchHead": "0947c5e517b3cd51a0d11e9e7876f5d9a68a72b3"
+    },
+    "surf3": {
+      "path": "/home/ccheever/projects/sb4-w13-surf3/WORKSTREAM-REPORT.md",
+      "sha256": "0cff16ced7cff4e0fd3fed7f2810060fc007025b515ff7a9be18b64fe8615735",
+      "branchHead": "898d1214972850800b10c614396514a06e7b6a7a"
+    },
+    "kit2": {
+      "path": "/home/ccheever/projects/sb4-w13-kit2/WORKSTREAM-REPORT.md",
+      "sha256": "d46dfbbd106823bb10c53d128a45784b6ab153e4ade8301da1b5cb7c5d63c03a",
+      "branchHead": "f6c7e6d747aec3663322f66925cadc5210fc91d1"
+    }
+  },
+  "fullRuns": "in progress; final logs will follow",
+  "wasm": {
+    "raw": 2355193,
+    "gzip": 717515,
+    "brotli": 542232,
+    "budget": 718015
+  },
+  "exact": {
+    "status": "passed",
+    "newApp": "~/sb4-loop/prewave14/hello",
+    "source": "private Exact copy with path dependencies pointed to merged tree",
+    "commands": [
+      "bun exact.mjs snapback",
+      "bun exact.mjs test web"
+    ],
+    "testsPassed": 2
+  }
+}

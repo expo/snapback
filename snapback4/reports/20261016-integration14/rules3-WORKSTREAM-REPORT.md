@@ -1,0 +1,174 @@
+# RULES3 — wave 13 authorization
+
+Worktree `/home/ccheever/projects/sb4-w13-rules3`, branch `sb4-w13-rules3`.
+Base `59fb4ead1b` (0.4.29). No version bump, publication, or origin push.
+The only branch transfers were to the explicitly commissioned Mac scratch clone
+`~/projects/snapback-ws-rules3`; no publication checkout was accessed or changed.
+
+## Changes by requested item
+
+| Item | Implementation and evidence | Commits |
+| --- | --- | --- |
+| Seven authorization recipes | `guide rule-recipes` adds offline-roster, quantified-consent, mutable-workflow, source-publication, owner-now, grant-expiry, role-workflow; each has its own fixtures and HTTP suite executing the exact shipped source. An eighth compiled section demonstrates update-images. | `afd096cf7a`, `c929166df8` |
+| Offline roster + supervisor | One synced precinct roster with role and explicit supervisor assignment; supervisor overview needs its online seat and precinct assignment. HTTP snapshot/acquire/revoke is checked on memory and SQLite devices. | `afd096cf7a`, `c929166df8` |
+| Quantified consent | Normalized photo/pupil tags, maintained tagged/consented counts, atomic clearance refresh on tag insert/delete and global pupil-consent fanout. Both partial consent and withdrawal across multiple photos are tested; empty tag sets do not publish. A named transition checks guardian authority on old and current consent consistency on next. | `afd096cf7a`, `c929166df8` |
+| Mutable workflow | Live keyed parent probes replace frozen read-through for the released flag. Existing response visibility closes and reopens with the parent. | `afd096cf7a` |
+| Source publication | One trusted mirror helper is called after approval, rename, reply and takedown. Private source notes remain private; public removal requests look up the publication rather than the hidden source. | `afd096cf7a` |
+| Owner now / peers at deadline | Private current count and timed peer projection update atomically. Deadline is immutable; final total is bounded by the explicit 100-writer product cap and guarded until opening. Owner updates before opening and peer/final reads after the boundary are tested. | `afd096cf7a`, `c929166df8` |
+| Grant expiry / owner visibility | Separate owner-only audit survives grant expiry, while the expired grant disappears for both owner and accountant. Owner retains the ledger; accountant loses access. | `afd096cf7a` |
+| Role workflow | Host drafts and sees rates, manager edits, sponsor approves; the table transition independently locks approved scripts and protects sponsor-only decisions. | `afd096cf7a` |
+| Two rule layers / update images | Rules writes section opens with intent vs table authority. E_RULE names the table authorization layer; N_WRITE_DENIED identifies old, next, combined old/next, or named transition where the bounded proof can distinguish them. Developer E_RULE phase records the failed image without another probe. Hidden client targets remain NOT_FOUND; generic hidden-collision ambiguity is preserved. | `1a6ee44ac4`, `c929166df8`, `ad7d5d45fc`, `68641c2a8a` |
+| Refusal ladder | Rules/testing state decode → asserted hidden lookup → table rule → require, qualified by authored statement order. HTTP tests cover E_INPUT, hidden asserted/nullable lookup, blind hidden update, readable E_RULE, require-first, and rollback on a later require; uniformly hidden pages are complete and empty. | `1a6ee44ac4`, `c929166df8` |
+| Actionable recipe pointers | Refusals/help name the matching recipes. `guide rule-recipes NAME` opens the named tested section, using the existing selector; eight CLI selector tests cover it. | `2c2c21098c` |
+| Open language decisions | LLP 3000.036 §23 records universal relation quantifiers, union-sync horizons, read-through children of unions, and publication as one construct, with exact evidence lanes and current recipes. LLP 3000.036.002 §10 governs diagnostics and evaluation fidelity. | `afd096cf7a`, `1a6ee44ac4`, `2c2c21098c`, `ad7d5d45fc` |
+| 0.4.30 changes entry | Added this lane's user-visible changes to the packaged changelog / guide changes. Version stays 0.4.29 for integration. | `afd096cf7a` |
+
+## Design and review
+
+Used `llp-orient` and read the Snapback 4 fence, governing rule/update-image,
+maintained-column, read-through and union-sync decisions, plus the wave-13
+Publish gate, fix list, verification ledger, H9, NA5/NA6/NA7 and the relevant
+lane schemas/friction. The evidence lanes were read-only.
+
+Fresh mutually blind Muse (`muse-spark-1.3-contributor`, high, through the
+commissioned wrapper) and Codex (`gpt-6.1-sol`, high, new exec sessions) reviewed
+the amendments with the code. Round 1 was NOT READY: consent's unnamed image
+rule, refusal-message attribution and accounting evidence were corrected.
+Both round 2 reviewers returned READY at `d71507f2db`. Both final round 3
+reviewers returned READY for `ad7d5d45fc`, including native-only opt-in image
+attribution, named recipe navigation and the census delta. The subsequent empty-roster hint preservation at `68641c2a8a` received a fourth
+paired READY review and passes all 36 affected tests on Linux and Mac. Its
+extended existing regression fails before the fix and passes afterward.
+The final guide/diagnostic contract revision `d5e5c0f01e` also received paired
+READY reviews (round 5). Muse flagged the adjacent exact-repair snapshot;
+`5bf653ad0f` keeps that source unchanged and moves its pointer into the message,
+with the original regression extended to assert the pointer. All
+verbatim reviews, model/command/snapshot provenance and full Codex transcripts are under
+`llp/reviews/3000.036.002-rules3-r*`.
+
+Supporting qualification commits: `d71507f2db` keeps the original guide budget,
+`a8b4f5efc6` fences SQLite-only test helpers, and `97108e3c09` strengthens
+HTTP assertions to require complete answers. Review/report records are in
+`6573708c0a`, `eec7146151`, and `2cc0658f1a`. Guide placement and final
+contract repairs are in `4de7e80db6`, `d5e5c0f01e`, and `5bf653ad0f`.
+
+The existing authoring census gains 21 mutation occurrences: 20 server-only
+and one eligible roster delete. It removes no previous occurrence or private
+write site and adds no eligible private insert/update site.
+
+## 100-schema before/after census
+
+Copied final `snapback/`, fixtures, versions and package/TS metadata into
+`/tmp/sb4-rules3-census`; dependencies, where present, were linked read-only.
+Ran the base binary and changed binary with `check --json` on all 100 copies.
+99 pass in each run. Lane 087 retains its known E_SERVER_TOOLCHAIN because its
+copied app has no TypeScript installation. No previously clean schema gains a
+refusal. Every code count is identical before and after.
+
+There are 313 ordinary note entries plus four search-diagnostic entries, 317
+note/search occurrences total. (The initial progress update's 416 was a counting
+mistake, corrected during the run.)
+
+| Code | Before | After |
+| --- | ---: | ---: |
+| E_SERVER_TOOLCHAIN | 1 | 1 |
+| N_CONDITIONAL_COMPLETE | 11 | 11 |
+| N_DELETE_NEEDS_READ | 1 | 1 |
+| N_DELETE_RESTRICTED | 1 | 1 |
+| N_EPHEMERAL_SERVER | 2 | 2 |
+| N_FIXTURE_ARGUMENT_DRIFT | 21 | 21 |
+| N_LOOKUP_HIDDEN | 5 | 5 |
+| N_MAINTAIN_AUTHORIZATION | 2 | 2 |
+| N_MAINTAIN_DELTA | 7 | 7 |
+| N_NEVER_COMPLETE | 18 | 18 |
+| N_NO_CURSOR | 144 | 144 |
+| N_NO_HORIZON | 12 | 12 |
+| N_NO_PRODUCTION_WRITER | 49 | 49 |
+| N_PATCH_CLEARS | 2 | 2 |
+| N_SEARCH_SHAPE | 1 | 1 |
+| N_SEARCH_UNSCOPED | 1 | 1 |
+| N_SEARCH_WORDS | 2 | 2 |
+| N_SPARSE_FILTER | 16 | 16 |
+| N_SYNC_ORDER | 5 | 5 |
+| N_UNREADABLE_PROBE | 13 | 13 |
+| N_VACUOUS_RULE | 1 | 1 |
+| N_WIDE_MERGE | 3 | 3 |
+
+The after census was rerun with the final rebuilt CLI including the seed-hint
+correction. Raw results, comparison script, copied-input hashes, binary hashes
+and summary are in `snapback4/reports/wave13-rules3/`.
+
+## Verification
+
+- Setup: Snapback 4 frozen install, CLI build, WASM build, SDK build; root
+  frozen install and ensure-workspace-hoist completed.
+- Recipe fixture + HTTP and refusal ladder: all eight original suites pass;
+  final selector suite adds a ninth. Both device stores exercise offline roster
+  acquisition and revocation.
+- Language: all eight new blocks compile without diagnostics or notes; section
+  selectors and static old/next attribution tests pass. Existing 21 recipes stay
+  in the compilation census (29 blocks total). Full-suite follow-up passes all
+  125 guide, three denied-write, 13 prior-recipe and three RULES3 tests, plus
+  nine membership-path, 18 MP reproduction and five wave-10 expressiveness
+  tests. The simulator forgery regression passes with the layer prefix.
+  Read-through repairs keep their exact executable source; the named recipe
+  pointer lives in the message. Historical public
+  refusal evidence is retained; the current expectation adds only the reviewed
+  generic layer label and static recipe rewrite, and still compares all private
+  cause envelopes byte-for-byte. All original guide size ceilings remain.
+- Final consolidated Linux rerun: all 176 affected language tests in seven
+  files pass together, plus all 36 CLI developer-refusal and RULES3 HTTP tests.
+- Engine: frozen pre-change compound traversal comparison and real Runner
+  traced/untraced × implicit/explicit old+next parity pass, including public
+  probe ceilings, physical allowance exhaustion, finite witness deadlines and
+  non-readable/unknown verdicts.
+- Mac: initial 65 affected tests pass; final rerun passes 27 dev-refusals + nine
+  recipe/ladder/selector tests + three real accounting/traversal tests. Scratch
+  clone only; no publication worktree. Across the language follow-ups, all
+  176 affected cases pass across the seven files after generating SDK distribution
+  files in the scratch clone. The missing-package-file setup failure is
+  retained in the evidence; the final 125 guide tests all pass.
+- Affected clients: 34 tests pass across client-recipes, wire-envelopes and
+  delivery-refusal. Additional write-authority and RX rule-hop suites pass ten
+  tests (both WASM and process clients); four historical 0.4.13 upgrade tests
+  skip because their optional RX_PUBLISHED_ROOT package fixtures are absent.
+  Total: 44 passed, four optional historical tests skipped, zero failures.
+- WASM/SDK final build passes: 2,354,227 raw bytes, 717,006 gzip bytes against
+  717,214; no budget increase. The first experiment exceeded by 674 bytes;
+  moving opt-in developer attribution out of the web artifact fixed it.
+- Docs budget passes: README 320/320 and named self-contained account test.
+- Root `check-guide`: 22 passed, zero failures/skips/preconditions.
+- Root `check-inventories`: PASS (365 package tests, 35 script tests, 31 demos,
+  487 publication leaves, 162 pages / 1,937 snippets). Initial fresh-tree
+  missing demo caches were regenerated using scripts/check-generated-artifacts;
+  that prescribed generator also passes with no tracked root projection drift.
+- `./ref-check`: final closeout passes (548 documents, zero errors/unchecked).
+- Full Rust workspace completed: `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0
+  CARGO_PROFILE_TEST_DEBUG=0 cargo test --workspace --no-fail-fast` ran all five
+  requested crates plus difftest/native, 396 test targets and six doctest crates.
+  That invocation exits 101: ten assertions failed across six targets. Every
+  failure is resolved: denied_writes (3), guide (125), membership_paths (9),
+  mp_reproduction (18), wave10_rules_expressiveness (5) pass on rerun, and the
+  simulator forgery regression passes exactly. All other full-run targets pass;
+  normal opt-in/measurement/child-process ignores remain. Full run and precise
+  follow-up commands/results are preserved in `qualification.json`. The costly
+  unchanged matrices were not repeated after diagnostic/text-contract fixes.
+  There are no unresolved affected failures.
+- Earlier superseded runs caught the guide-byte overflow (fixed within the
+  original ceiling) and one route-saturation 503 under concurrent load. The
+  final full run passes that route test, as do three isolated repetitions.
+- Final source checks rerun after the diagnostic fixes: inventories PASS,
+  guide 22/22 PASS, docs budget PASS, ref-check PASS, and diff whitespace PASS.
+  Linux final CLI rebuild and final 100-schema census also pass with the same
+  single known copied-lane toolchain refusal.
+
+## Scope boundaries / deferrals
+
+LANG2 owns all completeness-planner bullets and notes; KIT2 owns proof helper
+and client recipes; SURF3 owns general guide/help/flags and production bootstrap.
+One-line pointers are in the touched guide/LLP text. The rule-recipes positional
+selector is the narrow addition needed for this lane's diagnostic links.
+
+The four larger language decisions remain explicitly open, as requested; this
+lane adds their current executable recipes, not unreviewed language/protocol
+capabilities. No new irreversible operation or publication was performed.

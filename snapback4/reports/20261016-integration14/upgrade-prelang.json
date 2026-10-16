@@ -1,0 +1,49 @@
+{
+  "version": "pre-LANG2 merged tree, manifests still 0.4.29",
+  "preservedOldIds": {
+    "first": "01M52KB67S75KYKD9ABMZV9Z5R",
+    "second": "01M52KB67SQFVSRTDMMM6J5904"
+  },
+  "backfill": "blue",
+  "repairRows": [
+    2,
+    0
+  ],
+  "newMint": {
+    "first": "01M52KB67S9M80C29Z3B7HRQ70",
+    "second": "01M52KB67S9M80C29Z3B7HRQ71"
+  },
+  "counts": {
+    "notes": 4
+  },
+  "doctorAfter": {
+    "latency": null,
+    "lines": [
+      "project   /tmp/integ14/upgrade-candidate-prelang",
+      "worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>",
+      "schema    ok: 3 tables, 0 synced, 3 operations",
+      "host      uploads=2; file descriptors (inherited by doctor): soft=1048576 hard=1048576; server raises its soft limit at startup when possible (target=1048576)",
+      "clock     offset from wall time: +0ms (no running dev; inspecting against wall time)",
+      "latency   no running dev server for this project; restart dev or pass --url with the address dev printed at startup",
+      "store     /tmp/integ14/upgrade-candidate-prelang/.snapback4/store.sqlite at seq 4, generation 2",
+      "replay    off \u2014 new effects enabled; schedules enabled (persisted dev policy)",
+      "storage   rows 466 B (4 rows, including engine-internal storage) \u00b7 indexes 336 B \u00b7 log 0 B (0 events, 0.0\u00d7 rows) \u00b7 ops 0 B \u00b7 file 212.0 KB",
+      "clock     no commit stamps ahead of the current clock in the latest 64 commits (>5000ms)",
+      "requests  0 queued, 0 running, 0 done, 0 failed",
+      "types     generated",
+      "personas  alice"
+    ],
+    "ms": 3,
+    "ok": true,
+    "storage": {
+      "file": 217088,
+      "indexes": 336,
+      "log": 0,
+      "log_events": 0,
+      "ops": 0,
+      "row_count": 4,
+      "rows": 466
+    }
+  },
+  "oldStoreSha256": "30358121fdd7b7d08c09f961c41842d1df4cf8bb7ba5a9a43383135207d68ff4"
+}
