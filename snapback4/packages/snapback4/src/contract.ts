@@ -381,7 +381,7 @@ export function isReady<R extends Read<unknown>>(read: R): read is Extract<R, { 
 }
 /** Narrow to disclosed non-null data; isReady alone still includes absent/partial null. */
 export function isPresent<R extends Read<unknown>>(read: R): read is Extract<R, { readonly existence: "present" }> {
-  return "data" in read && read.existence === "present";
+  return read != null && "data" in read && read.existence === "present";
 }
 export function isLoading<R extends Read<unknown>>(read: R): read is Extract<R, { readonly loading: true }> {
   return "loading" in read;

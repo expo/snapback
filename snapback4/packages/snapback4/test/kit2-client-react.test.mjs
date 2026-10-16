@@ -35,7 +35,7 @@ const client={release:{getSnapshot:()=>release,subscribe(fn){releaseListeners.ad
 const makeApp=()=>({client,ready,auth:{onChange(fn){authListeners.add(fn);return()=>authListeners.delete(fn)},getSnapshot:()=>auth}});
 let app=makeApp();const root=createRoot(document.querySelector('#root'));
 function Login(){const [email,setEmail]=useState('');return auth.state==='signed-in'?<StaffWorkspace team='t'/>:<label>Email<input value={email} onChange={e=>setEmail(e.target.value)}/></label>}
-const render=()=>root.render(<AppProvider app={app}><Login/></AppProvider>);
+const render=()=>root.render(<React.StrictMode><AppProvider app={app}><Login/></AppProvider></React.StrictMode>);
 window.start=async()=>{await act(async()=>render())};
 window.publish=async patch=>{await act(async()=>{if(patch.role)role=patch.role;if(patch.release)release=patch.release;if(patch.auth)auth=patch.auth;if(patch.ready)openReady({ok:true});if(patch.app)app=makeApp();for(const fn of authListeners)fn();for(const fn of releaseListeners)fn();for(const r of records)for(const fn of r.subs)fn();render();})};
 window.inspect=()=>({writes,notes:[...records].filter(r=>r.name==='staffNotes').length});

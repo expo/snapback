@@ -43,14 +43,15 @@ export type { SeenOptions, SeenSnapshot } from "./seen-progress.ts";
 const ClientContext = createContext<Client | null>(null);
 
 const AppContext = createContext<App | null>(null);
-let appBoundary = 0;
 
 /** Own the app outside render; changing accounts replaces the client context. */
 export function AppProvider({ app, children }: { app: App; children: ReactNode }) {
   const snapshot = useSyncExternalStore(app.auth.onChange, app.auth.getSnapshot, app.auth.getSnapshot);
-  const boundary = useMemo(() => ++appBoundary, [app]);
+  const [boundary, setBoundary] = useState(() => ({ app, generation: 0 }));
+  // Account identity is state, never a memo cache that React may discard.
+  if (boundary.app !== app) setBoundary({ app, generation: boundary.generation + 1 });
   return <AppContext.Provider value={app}><ClientContext.Provider value={app.client}>
-    <AppAccount key={`${boundary}:${snapshot.viewer ?? ""}`}>{children}</AppAccount>
+    <AppAccount key={`${boundary.generation}:${snapshot.viewer ?? ""}`}>{children}</AppAccount>
   </ClientContext.Provider></AppContext.Provider>;
 }
 
