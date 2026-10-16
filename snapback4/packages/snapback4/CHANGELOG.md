@@ -2,6 +2,8 @@
 
 ## 0.4.31
 
+- Expo upgrades align `expo` and installed Expo packages from the adapter's peer floor and Expo's alignment manifest, preserving exact pins and dependency sections. Use `npx snapback4@latest upgrade` to run the new helper even from an older installation. The direct install line is `npm install --save-exact snapback4@0.4.31 snapback4-expo@0.4.31`. Expo >=57.0.22 <58 plus expo-modules-core >=57.0.23 <58 is supported; React 19.2.3 / RN 0.86.3 peers make adapter-first installs resolve the starter set. Regenerate iOS and rebuild after changing native dependencies.
+
 - `startStatic` names a missing export directory and gives the awaited frontend build step before starting a proof host.
 
 - Proof fixture loading works without credentials on persona-only dev apps. `loadFixtures` also accepts `persona` or `headers` on both reads and preserves E_AUTH; `startDev` returns `personas`. The field-type catalog is dev-only; serve refuses it.

@@ -1,5 +1,7 @@
 # snapback4-expo
 
+Start with `npx snapback4 init --expo`, then `npm install` and `npx snapback4 check`. Adapter-first installs resolve React 19.2.3 / React Native 0.86.3; init supplies the app and scripts. Expo >=57.0.22 <58 with expo-modules-core >=57.0.23 <58 is supported. Upgrade with `npx snapback4@latest upgrade`; regenerate iOS and rebuild.
+
 Snapback 4's device in Rust, as an Expo module: the partition in its own
 SQLite, the stream applied, the outbox kept, queries and predictions
 answered — the same interpreter the server runs, and the same module the

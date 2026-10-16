@@ -1,0 +1,188 @@
+{
+  "appBuild": {
+    "CFBundleExecutable": "Snapback4chat",
+    "CFBundleIdentifier": "dev.snapback4.chat",
+    "CFBundleShortVersionString": "0.0.1",
+    "CFBundleVersion": "1",
+    "DTSDKBuild": "24A430",
+    "DTSDKName": "iphonesimulator27.0",
+    "DTXcodeBuild": "27A266a"
+  },
+  "appPath": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/31BA4944-E804-4C3B-8857-434FCE1278DA/data/Containers/Bundle/Application/F9B693CF-8F5D-4C73-9852-CDC2EF199B4B/Snapback4chat.app",
+  "artifacts": {
+    "backend-stdout.log": {
+      "bytes": 46,
+      "path": "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-backend-stdout.log",
+      "sha256": "22d9a089583ba452168b3d10081fbf866cffa73781a8b6bc9a7cf6a46648dc40"
+    },
+    "backend.log": {
+      "bytes": 3604,
+      "path": "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-backend.log",
+      "sha256": "d03595aec6f1e36a5074799d6b3b02e4314db559f4bcc432136f02dd70203c47"
+    },
+    "device.log": {
+      "bytes": 3813183,
+      "path": "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-device.log",
+      "sha256": "14c6462f1a2f7afa0429a38cb63dd987d6dda48b25dda290e044f8e0b6170f9f"
+    },
+    "launch.log": {
+      "bytes": 52,
+      "path": "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-launch.log",
+      "sha256": "1798ea7e84b053cb90df306c03fb6c61817f5f1251b59d2e6e75f4f57f8a520a"
+    },
+    "log-stderr.log": {
+      "bytes": 44,
+      "path": "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-log-stderr.log",
+      "sha256": "8b9e4a529f3e367142876bd0ce03ed7c7f10a50657c9a73fda0d6e30867e7523"
+    },
+    "receipts.jsonl": {
+      "bytes": 2341,
+      "path": "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-receipts.jsonl",
+      "sha256": "a8d0bc06ecde987a08680c61d0ec48ec1f6323f5df6469965ac29cf065ea9607"
+    },
+    "screen.mp4": {
+      "bytes": 1018928,
+      "path": "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-screen.mp4",
+      "sha256": "4e3cf536d5e422677916c79ec6375aaf15a6e0e9033d172db6c3096147c4a690"
+    },
+    "video.log": {
+      "bytes": 131,
+      "path": "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-video.log",
+      "sha256": "31bbe6ac611351ce6af56d9e57a838dab8ec945a4576cc95c38f1424a2192083"
+    }
+  },
+  "backend": {
+    "command": [
+      "/Users/ccheever/sb4-ws-reg/snapback4/target/debug/snapback4",
+      "dev",
+      "--port",
+      "44462",
+      "--no-watch"
+    ],
+    "cwd": "/private/var/folders/r3/p3hzl6ld5d95htjk3sqdnl040000gn/T/sb4-expo-witness-ZClV8w",
+    "origin": "http://127.0.0.1:44462",
+    "port": 44462,
+    "store": "/private/var/folders/r3/p3hzl6ld5d95htjk3sqdnl040000gn/T/sb4-expo-witness-ZClV8w/.snapback4/store.sqlite"
+  },
+  "bundleId": "dev.snapback4.chat",
+  "cliVersion": "0.4.30",
+  "container": "/Users/ccheever/Library/Developer/CoreSimulator/Devices/31BA4944-E804-4C3B-8857-434FCE1278DA/data/Containers/Data/Application/B7B332F1-AB09-4885-AD10-288550563D06",
+  "durationMs": 14966,
+  "endedAt": 1792185241509,
+  "error": null,
+  "events": [
+    {
+      "at": 1792185229747,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1792185230621,
+      "pid": 18956,
+      "step": "prime-launched"
+    },
+    {
+      "at": 1792185230621,
+      "step": "waiting-primed"
+    },
+    {
+      "at": 1792185232558,
+      "step": "primed"
+    },
+    {
+      "at": 1792185233872,
+      "pid": 18956,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1792185233989,
+      "step": "backend-refuses-connections"
+    },
+    {
+      "at": 1792185234423,
+      "step": "recording-started"
+    },
+    {
+      "at": 1792185235277,
+      "pid": 19188,
+      "step": "offline-launched"
+    },
+    {
+      "at": 1792185235277,
+      "step": "waiting-offline-done"
+    },
+    {
+      "at": 1792185238277,
+      "step": "offline-done"
+    },
+    {
+      "at": 1792185238384,
+      "step": "backend-ready"
+    },
+    {
+      "at": 1792185238385,
+      "step": "reconnect-signaled"
+    },
+    {
+      "at": 1792185238385,
+      "step": "waiting-done"
+    },
+    {
+      "at": 1792185239882,
+      "step": "done"
+    },
+    {
+      "at": 1792185240045,
+      "step": "recording-stopped"
+    },
+    {
+      "at": 1792185241009,
+      "pid": 19188,
+      "step": "app-terminated"
+    },
+    {
+      "at": 1792185241174,
+      "step": "backend-refuses-connections"
+    }
+  ],
+  "exitStatus": 0,
+  "exported": null,
+  "installed": null,
+  "invokedAt": 1792185226543,
+  "iosSdkVersion": "27.0",
+  "mode": "application",
+  "nativeCache": null,
+  "outputs": [
+    "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-run.json",
+    "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-screen.mp4",
+    "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-receipts.jsonl",
+    "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-device.log",
+    "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-video.log",
+    "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-launch.log",
+    "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-backend.log",
+    "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-backend-stdout.log",
+    "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-log-stderr.log",
+    "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-prime.png",
+    "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-offline.png",
+    "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-restart.png"
+  ],
+  "prime": true,
+  "proofKind": "installed-application",
+  "queryFacts": null,
+  "queryGeneration": null,
+  "relaunch": false,
+  "reservation": "/Users/ccheever/sb4-ws-reg/snapback4/target/reg-floor-witness/offline-ios-reserved",
+  "run": "1792185229105-18653",
+  "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+  "segment": "offline",
+  "simulator": {
+    "name": "sb4-reg-floor",
+    "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-27-0",
+    "selection": "explicit",
+    "udid": "31BA4944-E804-4C3B-8857-434FCE1278DA"
+  },
+  "startedAt": 1792185229105,
+  "timestampUnit": "unix-ms",
+  "toolchainSource": "installed Info.plist; absent values are unknown",
+  "udid": "31BA4944-E804-4C3B-8857-434FCE1278DA",
+  "xcodeBuild": "27A266a"
+}

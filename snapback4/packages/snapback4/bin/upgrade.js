@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// @ref LLP 3000.011.003.000#8 — resolve once, pin core and adapters to that same release.
+// @ref LLP 3000.011.003.000#14 — resolve once, pin core and adapters to that same release.
 import { synopsis } from './cli-usage.js';
 import { readFileSync, existsSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -7,7 +7,7 @@ import { createRequire } from 'node:module';
 import { spawnSync } from 'node:child_process';
 import { previousVersion, installedVersion, acknowledgeVersion, compareVersions, installedHistory, runtimeChanges } from './release-changes.js';
 
-function run() {
+async function run() {
   const args = process.argv.slice(2).flatMap(arg => arg.startsWith('--to=') ? ['--to', arg.slice(5)] : [arg]);
   if (args.length === 1 && args[0] === '--help') { console.log(`usage: ${synopsis('upgrade')}\nUpgrade snapback4 and every installed snapback4-expo adapter with npm, bun or pnpm; keep exact pins. Default: latest; refuses downgrades unless --to is explicit. Rebuild native apps after changing the adapter.`); return; }
   const json = args.includes('--json');
@@ -44,7 +44,7 @@ try {
   const dependencies = ['dependencies', 'devDependencies', 'optionalDependencies'];
   const targets = ['snapback4', 'snapback4-expo'].filter(name => name === 'snapback4' || dependencies.some(key => pkg[key]?.[name]) || existsSync(join(root, 'node_modules', name, 'package.json')));
   const invoke = (command, capture = false) => {
-    const result = spawnSync(pm, command, { cwd: root, encoding: 'utf8', stdio: capture ? ['ignore', 'pipe', 'pipe'] : json ? ['ignore', 2, 2] : 'inherit' });
+    const result = spawnSync(pm, command, { cwd: root, encoding: 'utf8', timeout: 300_000, stdio: capture ? ['ignore', 'pipe', 'pipe'] : json ? ['ignore', 2, 2] : 'inherit' });
     if (result.error || result.status !== 0) throw Error(`E_UPGRADE: ${pm} ${command[0]} failed; check registry/tool availability`);
     return result.stdout;
   };
@@ -58,6 +58,35 @@ try {
   if (!explicit && installed && compareVersions(version, installed) < 0) throw Error(`E_UPGRADE: the registry’s ${target ?? "latest"} is ${version}, which is older than the installed ${installed}; refusing a downgrade. Use --to ${version} to request it explicitly.`);
   // Check the adapter release before any install changes package.json.
   for (const name of targets) invoke(pm === 'bun' ? ['info', `${name}@${version}`, 'version', '--json'] : ['view', `${name}@${version}`, 'version', '--json'], true);
+  const pins = new Map(targets.map(name => [name, version]));
+  if (targets.includes('snapback4-expo')) {
+    const info = (name, field) => {
+      const output = invoke(pm === 'bun' ? ['info', name, field, '--json'] : ['view', name, field, '--json'], true);
+      try { return JSON.parse(output); } catch { throw Error(`E_UPGRADE: registry returned invalid ${field} for ${name}`); }
+    };
+    const peer = info(`snapback4-expo@${version}`, 'peerDependencies.expo');
+    const floor = typeof peer === 'string' && /^(?:>=|~|\^)?(\d+\.\d+\.\d+)(?: |$)/.exec(peer)?.[1];
+    if (!floor) throw Error('E_UPGRADE: adapter Expo peer has no supported exact floor');
+    const current = dependencies.map(section => pkg[section]?.expo).find(Boolean);
+    const installedExpo = current?.match(/^\d+\.\d+\.\d+$/)?.[0];
+    // Preserve a newer compatible SDK patch; otherwise select the adapter floor.
+    const expo = installedExpo && installedExpo.split('.')[0] === floor.split('.')[0] && compareVersions(installedExpo, floor) >= 0 ? installedExpo : floor;
+    pins.set('expo', expo);
+    const tarball = info(`expo@${expo}`, 'dist.tarball');
+    const response = await fetch(tarball, { signal: AbortSignal.timeout(30_000) });
+    if (!response.ok) throw Error(`E_UPGRADE: could not read Expo ${expo} alignment manifest`);
+    const unpack = spawnSync('tar', ['-xzOf', '-', 'package/bundledNativeModules.json'], { input: Buffer.from(await response.arrayBuffer()), encoding: 'utf8', timeout: 30_000 });
+    let bundled;
+    try { if (unpack.status !== 0) throw Error(); bundled = JSON.parse(unpack.stdout); }
+    catch { throw Error(`E_UPGRADE: Expo ${expo} has no readable alignment manifest`); }
+    for (const name of Object.keys(bundled)) if (dependencies.some(section => pkg[section]?.[name])) {
+      const range = bundled[name];
+      const exact = typeof range === 'string' && /^[~^]?(\d+\.\d+\.\d+)$/.exec(range)?.[1];
+      if (!exact) throw Error(`E_UPGRADE: Expo alignment for ${name} has no exact supported pin: ${range}`);
+      pins.set(name, exact);
+    }
+    log(`upgrade plan: snapback4/snapback4-expo → ${version}; expo ${current ?? '(absent)'} → ${expo}; align ${[...pins].filter(([name]) => !targets.includes(name)).map(([name, pin]) => `${name}@${pin}`).join(', ')}`);
+  }
   if (previous) acknowledgeVersion(root, previous);
   if (schema && installed === previous) {
     // A previous package may predate snapshots. Capture its own compiler output
@@ -81,6 +110,17 @@ try {
       log(`upgrade: old check did not complete; ${previous ? 'runtime history is still available from the previous package version' : 'previous package version is unavailable; see guide changes'}`);
     }
   }
+  if (targets.includes('snapback4-expo')) {
+  // Write the complete plan before resolving: peers may live in different sections.
+  for (const [name, pin] of pins) {
+    const sections = dependencies.filter(key => pkg[key]?.[name]);
+    if (sections.length > 1) throw Error(`E_UPGRADE: ${name} occurs in multiple dependency sections; consolidate it first`);
+    const section = sections[0] ?? 'dependencies';
+    (pkg[section] ??= {})[name] = pin;
+  }
+  writeFileSync(join(root, 'package.json'), JSON.stringify(pkg, null, 2) + '\n');
+  invoke(['install', ...(pm === 'pnpm' ? ['--no-frozen-lockfile'] : [])]);
+  } else {
   // Preserve each dependency section. One resolved version, even across sections.
   const groups = new Map();
   for (const name of targets) {
@@ -94,8 +134,9 @@ try {
     const mode = section === 'devDependencies' ? (pm === 'bun' ? '--dev' : '--save-dev') : section === 'optionalDependencies' ? (pm === 'bun' ? '--optional' : '--save-optional') : null;
     invoke([pm === 'npm' ? 'install' : 'add', pm === 'bun' ? '--exact' : '--save-exact', ...(mode ? [mode] : []), ...packages]);
   }
+  }
   const after = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
-  for (const name of targets) if (!dependencies.some(key => after[key]?.[name] === version)) throw Error(`E_UPGRADE: ${name} was not pinned to ${version}`);
+  for (const [name, pin] of pins) if (!dependencies.some(key => after[key]?.[name] === pin)) throw Error(`E_UPGRADE: ${name} was not pinned to ${pin}`);
   const exact = existsSync(join(root, 'exact.mjs')) || existsSync(join(root, 'exact.json')) || dependencies.some(key => Object.keys(pkg[key] ?? {}).some(name => /^exact2?(?:$|[-/])/.test(name)));
   if (exact) log('Exact device rebuild: bun exact.mjs snapback --rebuild'); // HS owns this command and the pairing gate.
   let history = '', checkedFacts = null;
@@ -116,4 +157,4 @@ try {
   if (json) console.log(JSON.stringify({ ok: true, version, targets, packageManager: pm, check: checkedFacts }));
   log(`upgrade: ${targets.join(', ')} pinned to ${version} with ${pm}; commit the lockfile, run check and acceptance tests${targets.includes('snapback4-expo') ? ', and rebuild the native app' : ''}`);
 }
-try { run(); } catch (error) { if (process.argv.includes('--json')) console.log(JSON.stringify({ ok: false, error: error.message, ...(error.check ? { check: error.check } : {}) })); console.error(error.message); process.exitCode = 1; }
+try { await run(); } catch (error) { if (process.argv.includes('--json')) console.log(JSON.stringify({ ok: false, error: error.message, ...(error.check ? { check: error.check } : {}) })); console.error(error.message); process.exitCode = 1; }
