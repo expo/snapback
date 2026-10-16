@@ -1,0 +1,148 @@
+{
+  "source_semantic_delta": "68641c2a8a",
+  "final_diagnostic_source": "5bf653ad0f",
+  "cargo_environment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "full_workspace": {
+    "command": "cargo test --workspace --no-fail-fast",
+    "cwd": "snapback4",
+    "exit_code": 101,
+    "log": "cargo-workspace-qualified.log",
+    "running_targets": 396,
+    "doc_test_crates": [
+      "snapback4_core",
+      "snapback4_device",
+      "snapback4_difftest",
+      "snapback4_lang",
+      "snapback4_native",
+      "snapback4_sim"
+    ],
+    "initial_failed_tests": [
+      "each_denied_effect_and_upsert_arm_is_noted_with_its_clause",
+      "a_piped_overview_carries_the_first_section_and_the_terminal_one_the_index",
+      "familiar::every_moved_fact_has_its_why_or_details_home",
+      "start::openings_fit_without_growing_the_eight_reference_cards",
+      "start::every_card_introduces_the_feature_before_examples_and_reference_details",
+      "definitions::w11_every_registered_code_quotes_its_definition",
+      "path_refusals_are_targeted_and_repairs_compile",
+      "developer_gets_each_cause_without_changing_one_byte_of_the_refusal",
+      "mutable_read_through_diagnostic_explains_both_audience_histories",
+      "digest::markers_are_private_unsynced_and_cannot_be_forged"
+    ],
+    "disposition": "All ten failures fixed; final consolidated language rerun passes176 across seven affected files, final CLI rerun passes36 across both affected files, simulator forgery failure rerun exactly. No unresolved failure. Expensive unchanged matrices were not repeated."
+  },
+  "passing_followups": [
+    {
+      "log": "language-contracts-qualified.log",
+      "command": "cargo test -p snapback4-lang --test guide --test denied_writes --test wave12_rule_recipes --test wave13_rules --no-fail-fast",
+      "exit_code": 0,
+      "passed": 144
+    },
+    {
+      "log": "membership-repairs-final.log",
+      "command": "cargo test -p snapback4-lang --test wave10_rules_expressiveness --test membership_paths --test mp_reproduction --no-fail-fast",
+      "exit_code": 0,
+      "passed": 32
+    },
+    {
+      "log": "sim-marker-qualified.log",
+      "command": "cargo test -p snapback4-sim --test clique digest::markers_are_private_unsynced_and_cannot_be_forged -- --exact",
+      "exit_code": 0,
+      "passed": 1
+    },
+    {
+      "log": "seed-hint-qualified.log",
+      "command": "cargo test -p snapback4 --test dev_refusals --test wave13_rules",
+      "exit_code": 0,
+      "passed": 36
+    },
+    {
+      "log": "language-final.log",
+      "command": "cargo test -p snapback4-lang --test guide --test denied_writes --test membership_paths --test mp_reproduction --test wave10_rules_expressiveness --test wave12_rule_recipes --test wave13_rules --no-fail-fast",
+      "exit_code": 0,
+      "passed": 176
+    },
+    {
+      "log": "http-closeout.log",
+      "command": "cargo test -p snapback4 --test dev_refusals --test wave13_rules --no-fail-fast",
+      "exit_code": 0,
+      "passed": 36
+    }
+  ],
+  "clients": {
+    "passed": 44,
+    "skipped": 4,
+    "skip_reason": "Optional historical 0.4.13 RX_PUBLISHED_ROOT package fixtures absent"
+  },
+  "mac": {
+    "language_passed": 176,
+    "initial_log": "mac-language-contracts-qualified.log",
+    "final_guide_and_repairs_log": "mac-guide-repairs-final.log",
+    "seed_hint_and_http_passed": 36,
+    "seed_hint_and_http_log": "mac-seed-hint-qualified.log",
+    "notes": "Initial guide setup lacked generated SDK/WASM files; SDK built in scratch and final guide125/membership9/wave10 5 rerun green."
+  },
+  "census": {
+    "lanes": 100,
+    "before_pass": 99,
+    "after_pass": 99,
+    "newly_refused_clean_schemas": [],
+    "before_codes": {
+      "E_SERVER_TOOLCHAIN": 1,
+      "N_CONDITIONAL_COMPLETE": 11,
+      "N_DELETE_NEEDS_READ": 1,
+      "N_DELETE_RESTRICTED": 1,
+      "N_EPHEMERAL_SERVER": 2,
+      "N_FIXTURE_ARGUMENT_DRIFT": 21,
+      "N_LOOKUP_HIDDEN": 5,
+      "N_MAINTAIN_AUTHORIZATION": 2,
+      "N_MAINTAIN_DELTA": 7,
+      "N_NEVER_COMPLETE": 18,
+      "N_NO_CURSOR": 144,
+      "N_NO_HORIZON": 12,
+      "N_NO_PRODUCTION_WRITER": 49,
+      "N_PATCH_CLEARS": 2,
+      "N_SEARCH_SHAPE": 1,
+      "N_SEARCH_UNSCOPED": 1,
+      "N_SEARCH_WORDS": 2,
+      "N_SPARSE_FILTER": 16,
+      "N_SYNC_ORDER": 5,
+      "N_UNREADABLE_PROBE": 13,
+      "N_VACUOUS_RULE": 1,
+      "N_WIDE_MERGE": 3
+    },
+    "after_codes": {
+      "E_SERVER_TOOLCHAIN": 1,
+      "N_CONDITIONAL_COMPLETE": 11,
+      "N_DELETE_NEEDS_READ": 1,
+      "N_DELETE_RESTRICTED": 1,
+      "N_EPHEMERAL_SERVER": 2,
+      "N_FIXTURE_ARGUMENT_DRIFT": 21,
+      "N_LOOKUP_HIDDEN": 5,
+      "N_MAINTAIN_AUTHORIZATION": 2,
+      "N_MAINTAIN_DELTA": 7,
+      "N_NEVER_COMPLETE": 18,
+      "N_NO_CURSOR": 144,
+      "N_NO_HORIZON": 12,
+      "N_NO_PRODUCTION_WRITER": 49,
+      "N_PATCH_CLEARS": 2,
+      "N_SEARCH_SHAPE": 1,
+      "N_SEARCH_UNSCOPED": 1,
+      "N_SEARCH_WORDS": 2,
+      "N_SPARSE_FILTER": 16,
+      "N_SYNC_ORDER": 5,
+      "N_UNREADABLE_PROBE": 13,
+      "N_VACUOUS_RULE": 1,
+      "N_WIDE_MERGE": 3
+    }
+  },
+  "final_source_checks": {
+    "root_guide": "root-guide-closeout.log",
+    "root_inventories": "inventories-closeout.log",
+    "docs_budget": "docs-budget-final.log",
+    "ref_check": "ref-check-final.log"
+  }
+}

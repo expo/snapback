@@ -1,0 +1,22 @@
+    Blocking waiting for file lock on build directory
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling snapback4-core v0.4.29 (/home/ccheever/projects/sb4-w13-rules3/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.29 (/home/ccheever/projects/sb4-w13-rules3/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 2m 59s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-69b7f20320fc92de)
+
+running 3 tests
+test engine::update_image_tests::failed_old_next_and_named_transition_are_distinguished_without_extra_work ... ok
+test engine::update_image_tests::update_attribution_preserves_three_valued_timelines_and_probe_order ... ok
+test engine::update_image_tests::real_runner_matches_explicit_old_next_rules_at_meter_and_physical_boundaries ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 356 filtered out; finished in 0.03s
+

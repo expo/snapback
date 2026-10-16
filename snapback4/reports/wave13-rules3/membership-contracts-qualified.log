@@ -1,0 +1,131 @@
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:292:13
+    |
+292 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+warning: `snapback4-core` (lib) generated 9 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling snapback4-lang v0.4.29 (/home/ccheever/projects/sb4-w13-rules3/snapback4/crates/snapback4-lang)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:463:51
+    |
+463 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+    Finished `test` profile [optimized] target(s) in 16.98s
+     Running tests/membership_paths.rs (target/debug/deps/membership_paths-ba64275c78400eb6)
+
+running 9 tests
+test nullable_unique_membership_source_keeps_the_original_scan ... ok
+test explicit_through_can_name_its_authored_sync_path ... ok
+test mismatched_audiences_keep_sync_code_and_schema_specific_repair ... ok
+test path_refusals_are_targeted_and_repairs_compile ... ok
+test generated_paths_have_identical_schema_programs_and_residency ... ok
+test eight_component_source_unique_omits_its_logical_id_suffix ... ok
+test one_row_source_selects_an_admitted_unique_before_residuals ... ok
+test total_unique_membership_source_uses_its_implicit_row_id ... ok
+test one_row_source_unique_projects_an_ordinary_parent_field ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.24s
+
+     Running tests/mp_reproduction.rs (target/debug/deps/mp_reproduction-78f24a4d230a92e0)
+
+running 18 tests
+test sequence_note_uses_declared_column_and_never_marks_a_different_witness_table ... ok
+test aggregate_deadline_obeys_expiring_authorization_before_source_expiry ... ok
+test cross_group_sequence_witness_does_not_promise_first_insert_refusal ... ok
+test missing_hidden_and_expired_aggregate_parents_have_identical_metadata ... ok
+test created_parent_and_empty_group_do_not_prove_a_fresh_shared_counter ... ok
+test raw_ir_cannot_enumerate_unpinned_parent_groups ... ok
+test sequence_first_membership_reproduces_before_changes ... ok
+test parent_totals_keep_live_counts_and_never_emit_a_partial_count_at_a_meter_cut ... ok
+test first_member_note_is_located_and_the_manual_rewrite_works ... ok
+test rewritten_builder_returns_each_messages_emoji_totals_in_one_page ... ok
+test parent_denials_hide_other_groups_and_unpinned_scan_still_refuses ... ok
+test read_through_hidden_parent_has_cause ... ok
+test read_through_expired_parent_has_cause ... ok
+test read_through_missing_parent_has_cause ... ok
+test residual_sequence_parent_equality_proves_the_group_but_cross_group_does_not ... ok
+test hidden_write_rule_denials_record_causes_without_changing_not_found ... ok
+test developer_gets_each_cause_without_changing_one_byte_of_the_refusal ... ok
+test query_and_capture_evidence_preserves_bytes_meters_and_the_authorizing_phase ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 54.49s
+

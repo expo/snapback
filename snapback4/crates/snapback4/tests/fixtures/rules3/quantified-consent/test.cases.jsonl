@@ -1,0 +1,18 @@
+{"as": "bob", "op": "clearedPhoto", "args": {"photo": "f"}, "data": null}
+{"as": "alice", "op": "tagPhoto", "args": {"photo": "f", "pupil": "a"}}
+{"as": "alice", "op": "tagPhoto", "args": {"photo": "f", "pupil": "b"}}
+{"as": "alice", "op": "tagPhoto", "args": {"photo": "g", "pupil": "a"}}
+{"as": "bob", "op": "pupilConsent", "args": {"pupil": "a", "consented": true}}
+{"as": "bob", "op": "clearedPhoto", "args": {"photo": "f"}, "data": null}
+{"as": "bob", "op": "clearedPhoto", "args": {"photo": "g"}, "match": {"body": "second portrait"}}
+{"as": "carol", "op": "pupilConsent", "args": {"pupil": "b", "consented": true}}
+{"as": "bob", "op": "clearedPhoto", "args": {"photo": "f"}, "match": {"body": "group portrait"}}
+{"as": "carol", "op": "clearedPhoto", "args": {"photo": "f"}, "data": null}
+{"as": "bob", "op": "pupilConsent", "args": {"pupil": "a", "consented": false}}
+{"as": "bob", "op": "clearedPhoto", "args": {"photo": "f"}, "data": null}
+{"as": "bob", "op": "clearedPhoto", "args": {"photo": "g"}, "data": null}
+{"as": "alice", "op": "untagPhoto", "args": {"photo": "f", "pupil": "a"}}
+{"as": "bob", "op": "clearedPhoto", "args": {"photo": "f"}, "match": {"body": "group portrait"}}
+{"as": "alice", "op": "untagPhoto", "args": {"photo": "f", "pupil": "b"}}
+{"as": "bob", "op": "clearedPhoto", "args": {"photo": "f"}, "data": null}
+{"as":"alice","op":"pupilConsent","args":{"pupil":"a","consented":true},"expect":"GUARDIAN_ONLY"}

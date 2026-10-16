@@ -371,7 +371,7 @@ fn visit(
                             .unwrap_or_else(|| format!("next-unknown:{}:{}", site, field.name)),
                     );
                 }
-                let authority = if let [old_alias, next_alias] = rule.bindings.as_slice() {
+                let (authority, failing_image) = if let [old_alias, next_alias] = rule.bindings.as_slice() {
                     let mut images = env.clone();
                     images
                         .rows
@@ -379,13 +379,14 @@ fn visit(
                     images
                         .rows
                         .insert(next_alias.clone(), (table.clone(), next));
-                    predicate(&rule.value, &images, None, true, true)
+                    (predicate(&rule.value, &images, None, true, true), "named transition (old/next)")
                 } else if rule.bindings.is_empty() {
-                    combine(
-                        predicate(&rule.value, &env, Some(&image), true, true),
-                        predicate(&rule.value, &env, Some(&next), true, true),
-                        true,
-                    )
+                    let old = predicate(&rule.value, &env, Some(&image), true, true);
+                    let next = predicate(&rule.value, &env, Some(&next), true, true);
+                    let failing_image = if !possible(&combine(facts.clone(), old.clone(), true)) { "old image" }
+                        else if !possible(&combine(facts.clone(), next.clone(), true)) { "next image" }
+                        else { "combined old/next images" };
+                    (combine(old, next, true), failing_image)
                 } else {
                     continue;
                 };
@@ -411,7 +412,12 @@ fn visit(
                     } else {
                         "update"
                     };
-                    out.push(Diagnostic::new(site, "N_WRITE_DENIED", format!("{}: no caller satisfying the preceding require/branch conditions can pass {table}'s update rule at {}; the {arm} cannot pass that rule", p.name, rule.site), "amend the table update rule or the caller gate; a mutation require does not grant table authority (guide rule-recipes)").guide("rule-recipes"));
+                    let rewrite = if rule.bindings.is_empty() {
+                        format!("amend the table update rule or caller gate; require decides intent, not table authority. If the policy should judge only the pre-write state, choose `{}`; this changes authority, so keep every intended next-image constraint. see: guide rule-recipes update-images", super::rule_operator::old_update_source(&rule.value))
+                    } else {
+                        "amend the named table transition or caller gate; require decides intent, not table authority. see: guide rule-recipes update-images".into()
+                    };
+                    out.push(Diagnostic::new(site, "N_WRITE_DENIED", format!("{}: table authorization layer, {failing_image}: no caller satisfying the preceding require/branch conditions can pass {table}'s update rule at {}; the {arm} cannot pass that rule", p.name, rule.site), rewrite).guide("rule-recipes"));
                 }
             }
         }

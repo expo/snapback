@@ -27,8 +27,8 @@ the viewer may read, such as a conversation lookup readable by its members:
 a member gets the conversation even when its message page is empty.
 An explicit `require … else CODE` still refuses with the program's code.
 
-A mutation's writes pass the table's rules as the caller; only jobs run as the
-system. Under `dev`, `snapback4 why recent` prints each refusal and parked job:
+Require decides intent; writes pass table rules. Jobs run as
+system. See: guide rule-recipes update-images. Under `dev`, `snapback4 why recent` prints each refusal and parked job:
 operation, code, request/job ID, Unix time, and the refusing clause with its
 site. Replays and uninstrumented paths say `cause not instrumented`. Records describe only
 the named request/job.

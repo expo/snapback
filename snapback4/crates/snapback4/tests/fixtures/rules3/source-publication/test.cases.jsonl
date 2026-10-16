@@ -1,0 +1,15 @@
+{"as": "alice", "op": "submitClip", "args": {"alias": "A", "transcript": "recording", "privateNote": "never public"}, "save": "clip"}
+{"as": "bob", "op": "publicClip", "args": {"clip": "$clip"}, "data": null}
+{"as": "bob", "op": "requestClipRemoval", "args": {"clip": "$clip"}, "expect": "NOT_FOUND"}
+{"as": "carol", "op": "approveClip", "args": {"clip": "$clip"}}
+{"as": "bob", "op": "publicClip", "args": {"clip": "$clip"}, "match": {"alias": "A", "transcript": "recording", "response": ""}}
+{"as": "bob", "op": "privateClip", "args": {"clip": "$clip"}, "data": null}
+{"as": "alice", "op": "renameClip", "args": {"clip": "$clip", "alias": "Renamed"}}
+{"as": "carol", "op": "replyClip", "args": {"clip": "$clip", "response": "Thank you"}}
+{"as": "bob", "op": "publicClip", "args": {"clip": "$clip"}, "match": {"alias": "Renamed", "response": "Thank you"}}
+{"as": "bob", "op": "requestClipRemoval", "args": {"clip": "$clip"}}
+{"as": "carol", "op": "takeDownClip", "args": {"clip": "$clip"}}
+{"as": "bob", "op": "publicClip", "args": {"clip": "$clip"}, "data": null}
+{"as": "bob", "op": "requestClipRemoval", "args": {"clip": "$clip"}, "expect": "NOT_FOUND"}
+{"as": "carol", "op": "approveClip", "args": {"clip": "$clip"}}
+{"as": "bob", "op": "publicClip", "args": {"clip": "$clip"}, "match": {"alias": "Renamed", "response": "Thank you"}}

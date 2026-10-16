@@ -101,8 +101,8 @@ fn body(catalog:&Catalog,schema:&Schema,program:&ProgramDecl,statements:&[Stmt],
                     !matches!(value,Expr::Name { ref name,.. } if name=="viewer") && !matches!(value,Expr::Literal { value:Literal::Str(ref s),.. } if s==seat)
                 })).collect::<Vec<_>>();
                 if others.is_empty() { return; }
-                out.push(Diagnostic::new(site,"N_WRITE_DENIED",format!("{} admits only '{seat}', but {table}'s {effect} rule `{}` requires the written {} to be this caller; writing another principal's value refuses E_RULE",program.name,rule.quarry(),others.join(", ")),
-                    format!("if this trusted seat should write other principals' rows, amend `{effect} <- {}` to `{effect} <- ({}) or viewer = '{seat}'`; the mutation require alone grants no table authority (guide deploy, first admin)",rule.quarry(),rule.quarry())).guide("rules"));
+                out.push(Diagnostic::new(site,"N_WRITE_DENIED",format!("table authorization layer: {} admits only '{seat}', but {table}'s {effect} rule `{}` requires the written {} to be this caller; writing another principal's value refuses E_RULE",program.name,rule.quarry(),others.join(", ")),
+                    format!("if this trusted seat should write other principals' rows, amend `{effect} <- {}` to `{effect} <- ({}) or viewer = '{seat}'`; the mutation require alone grants no table authority (guide deploy, first admin); see: guide rule-recipes role-workflow",rule.quarry(),rule.quarry())).guide("rules"));
             });
         }
         match statement {

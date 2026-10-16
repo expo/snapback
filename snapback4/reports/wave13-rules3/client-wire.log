@@ -1,0 +1,73 @@
+✔ why: E_BOUND parks until start and calls onDeliveryRefused exactly once (66.377838ms)
+✔ why: next start sends the refused report with a new id and succeeds (4.552242ms)
+✔ why: no E_BOUND retry during the session on time, reconnect, publication or recollection (8.937944ms)
+✔ why: multi-position refusal survives interval eviction with adjacent clean coverage (743.798458ms)
+✔ why: multi-position refusal survives group eviction with adjacent clean coverage (8.996662ms)
+✔ why: reset(false) preserves refusal suppression until start (2.149095ms)
+✔ why: interval eviction and recollection cannot resend before start (557.081145ms)
+✔ why: group eviction and recollection cannot resend before start (3.799031ms)
+✔ denied: E_BOUND parks until start and calls onDeliveryRefused exactly once (2.583518ms)
+✔ denied: next start sends the refused report with a new id and succeeds (1.4463ms)
+✔ denied: no E_BOUND retry during the session on time, reconnect, publication or recollection (1.779691ms)
+✔ denied: multi-position refusal survives interval eviction with adjacent clean coverage (475.663195ms)
+✔ denied: multi-position refusal survives group eviction with adjacent clean coverage (1.64594ms)
+✔ denied: reset(false) preserves refusal suppression until start (10.453719ms)
+✔ denied: interval eviction and recollection cannot resend before start (362.192199ms)
+✔ denied: group eviction and recollection cannot resend before start (5.992814ms)
+✔ headless: E_BOUND parks until start and calls onDeliveryRefused exactly once (9.03522ms)
+✔ headless: next start sends the refused report with a new id and succeeds (2.007643ms)
+✔ headless: no E_BOUND retry during the session on time, reconnect, publication or recollection (5.513635ms)
+✔ headless: multi-position refusal survives interval eviction with adjacent clean coverage (293.474899ms)
+✔ headless: multi-position refusal survives group eviction with adjacent clean coverage (1.999441ms)
+✔ headless: reset(false) preserves refusal suppression until start (5.385893ms)
+✔ headless: interval eviction and recollection cannot resend before start (434.354789ms)
+✔ headless: group eviction and recollection cannot resend before start (2.243627ms)
+✔ ordinary E_INPUT refusal has the same eviction and next-start behavior (2.62515ms)
+✔ wasm publication eviction and recollection preserve the start-only refusal (1971.233078ms)
+✔ a retried refusal CAS notifies once after commit (2.57929ms)
+✔ start-only suppression is scoped by fingerprint, group and store (1.827763ms)
+✔ E_STORE_RESTORE takes precedence over a report's original refusal (2.956436ms)
+✔ E_STORE_REPLACED takes precedence over a report's original refusal (1.063977ms)
+✖ guide testing full HTTP bodies match real routes, including null returns, refusals and omitted ids (371.8725ms)
+ℹ tests 31
+ℹ suites 0
+ℹ pass 30
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 5521.391798
+
+✖ failing tests:
+
+test at packages/snapback4/test/wire-envelopes.test.mjs:40:1
+✖ guide testing full HTTP bodies match real routes, including null returns, refusals and omitted ids (371.8725ms)
+  AssertionError [ERR_ASSERTION]: /m/refuse
+  + actual - expected
+  ... Skipped lines
+  
+    {
+      generation: 1,
+      head: 2,
+      preserved: [],
+      state: 'failed',
+  ...
+        guide: 'programs',
+  +     message: 'the mutation/query require layer refused with PROOF_REFUSED',
+  -     message: 'the program refused with PROOF_REFUSED',
+        rule: 'PROOF_REFUSED',
+        site: 'schema.q:13:3'
+      }
+    }
+  
+      at TestContext.<anonymous> (file:///home/ccheever/projects/sb4-w13-rules3/snapback4/packages/snapback4/test/wire-envelopes.test.mjs:51:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: { generation: 1, head: 2, preserved: [], state: 'failed', store_id: 'store1', why: { code: 'PROOF_REFUSED', family: 'rule', guide: 'programs', message: 'the mutation/query require layer refused with PROOF_REFUSED', rule: 'PROOF_REFUSED', site: 'schema.q:13:3' } },
+    expected: { state: 'failed', why: { code: 'PROOF_REFUSED', family: 'rule', message: 'the program refused with PROOF_REFUSED', rule: 'PROOF_REFUSED', guide: 'programs', site: 'schema.q:13:3' }, generation: 1, head: 2, store_id: 'store1', preserved: [] },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

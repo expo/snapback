@@ -1380,3 +1380,6 @@ pub fn seat_refusal(schema:&Schema,error:&RuntimeError,viewer:&str)->Refusal {
     }
     why
 }
+
+#[cfg(all(test, feature = "sqlite"))]
+mod update_image_tests;

@@ -1187,6 +1187,38 @@ impl Timeline {
     }
 }
 
+// @ref LLP 3000.036.002#10 — observe the existing evaluation, never re-probe for diagnostics.
+#[cfg(feature = "sqlite")]
+pub(super) fn evaluate_update(rule: &RuleExpr, both: bool, viewer: &str, old: Option<&Value>, next: &Value, probe: &mut dyn Probe) -> Result<(bool, &'static str), crate::error::RuntimeError> {
+    let prior = probe.replace_expiry(None);
+    let result = if both {
+        let RuleExpr::And(terms) = rule else { unreachable!("old_and_next is a conjunction") };
+        compound_timeline(terms, true, viewer, old, next, false, probe)
+            .map(|(answer, failed)| (answer, if failed == Some(0) { "old image" } else { "next image" }))
+    } else {
+        timeline(rule, viewer, old, next, false, probe).map(|answer| (answer, "named transition or identical old/next images"))
+    };
+    probe.replace_expiry(match &result {
+        Ok((answer, _)) if answer.value == Verdict::Readable => earliest(prior, answer.changes.first().map(|(time, _)| *time)),
+        _ => prior,
+    });
+    result.map(|(answer, image)| (answer.value == Verdict::Readable, image))
+}
+
+fn compound_timeline(terms: &[RuleExpr], conjunction: bool, viewer: &str, old: Option<&Value>, next: &Value, created_allowed: bool, probe: &mut dyn Probe) -> Result<(Timeline, Option<usize>), crate::error::RuntimeError> {
+    let decisive = if conjunction { Verdict::Denied } else { Verdict::Readable };
+    let mut answer = Timeline::constant(decisive.not());
+    let mut failed = None;
+    for (index, term) in terms.iter().enumerate() {
+        let part = timeline(term, viewer, old, next, created_allowed, probe)?;
+        if failed.is_none() && part.value != Verdict::Readable { failed = Some(index); }
+        answer = answer.combine(part, conjunction);
+        // Preserve the original timeline traversal and its physical allowance.
+        if answer.value == decisive && answer.invariant { break; }
+    }
+    Ok((answer, failed))
+}
+
 // @ref LLP 3000.015#2 — next_expiry is the first expiry boundary that changes
 // the complete bound rule's verdict, not a branch or first witness lifetime.
 // Leaves prove their timeline within the original shared allowance. Combining
@@ -1195,20 +1227,7 @@ fn timeline(rule: &RuleExpr, viewer: &str, old: Option<&Value>, next: &Value, cr
     match rule {
         RuleExpr::And(terms) | RuleExpr::Or(terms) => {
             let conjunction = matches!(rule, RuleExpr::And(_));
-            let decisive = if conjunction { Verdict::Denied } else { Verdict::Readable };
-            let mut answer = Timeline::constant(decisive.not());
-            for term in terms {
-                answer = answer.combine(timeline(term, viewer, old, next, created_allowed, probe)?, conjunction);
-                // Whole-rule expiry needs the remaining alternatives unless
-                // structure/verdicts alone prove them irrelevant. An exists
-                // with a permanent witness visits exactly the same branches
-                // as one with a finite witness, under the same physical bound.
-                // Logical guard narrowing does not assume this traversal skips
-                // an operand: ordinary unique null points return a known miss
-                // before touching storage (LLP 3000.013 §2.2).
-                if answer.value == decisive && answer.invariant { break; }
-            }
-            Ok(answer)
+            compound_timeline(terms, conjunction, viewer, old, next, created_allowed, probe).map(|(answer, _)| answer)
         }
         RuleExpr::Not(inner) => {
             let mut answer = timeline(inner, viewer, old, next, created_allowed, probe)?;
@@ -1357,3 +1376,10 @@ mod lifetime_tests {
         }
     }
 }
+
+#[cfg(all(test, feature = "sqlite"))]
+#[path = "rules_reference.rs"]
+mod reference;
+
+#[cfg(all(test, feature = "sqlite"))]
+pub(super) use reference::evaluate as evaluate_reference;

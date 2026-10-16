@@ -95819,3 +95819,49 @@ the excerpt-only round 7 requested missing wiring/effect/backfill evidence. The
 explicit null-proof preservation test passes with the three metadata/context
 controls on both Linux and Darwin; production semantics remain those of
 20aee130b3. Verbatim reviews and all briefs remain in the qualification bundle.
+## 2026-10-16 — RULES3: authorization recipes, layers and refusal order
+
+Wave-13 lanes 005/007/009/011/019/053/057/059/063/094/097 now have compiled,
+fixture-tested HTTP recipes for supervisor rosters, all-tagged consent via
+maintained counts, mutable workflow gates, source-maintained publication,
+owner-now/peer-deadline counts, expiring grants with owner audit history, and
+host/manager/sponsor approval. A named update-image recipe demonstrates the
+pending→withdrawn transition. Named `guide rule-recipes NAME` pointers open the
+recipe directly. LANG2 retains the completeness-planner work.
+
+Rules and testing state the two layers and the statement-ordered refusal
+ladder. N_WRITE_DENIED identifies contradictory images; opted-in developer
+E_RULE evidence identifies the failed image without re-probing. Client hidden
+targets stay NOT_FOUND. Untraced and web execution use the ordinary evaluator:
+the first measured diagnostic implementation exceeded the web budget, so the
+image machinery/text was restricted to opted-in SQLite traces. Final gzip is
+717,006 / 717,214 bytes; no ceiling increased. Both independent final reviewers
+returned READY for the LLP amendments and implementation at ad7d5d45fc.
+
+Both-store offline roster acquisition/revocation, global consent withdrawal,
+publication edits/takedown, deadline/expiry boundaries and refusal precedence
+have direct witnesses. All 100 copied final wave-13 schemas were checked before
+and after: identical 317 note/search diagnostic occurrences, 99 passing checks,
+and the same known missing-TypeScript refusal in lane 087; no clean schema
+gained a refusal. The workstream report contains final verification and the
+open language decisions. This lane adds a 0.4.30 changes entry without bumping
+the version or pushing to origin.
+
+RULES3 closeout also preserves existing empty-roster seed hints beside the new
+private image phase. The original clause remains the lookup identity, as it
+already is for source sites. The extended existing HTTP regression fails
+before and passes after; all 36 affected tests pass on Linux and Mac, and the
+focused fourth pair of independent reviews both returns READY at 68641c2a8a.
+
+RULES3 final qualification completed the full Rust workspace, including its
+unchanged generated device, allocation, revocation and union matrices. Ten
+assertions in six targets were corrected and rerun green: diagnostic prefixes,
+guide budgets/definition selection, exact read-through repairs and the frozen
+public envelope's intentional generic help additions. The original full-run
+exit 101 and all passing follow-ups are preserved, rather than claiming that
+single invocation was green. All 176 affected language cases pass on Linux
+and Mac after building SDK artifacts in the Mac scratch clone; 44 affected
+client cases pass, with four optional historical-package cases skipped.
+Guide/inventory/reference/doc-budget checks pass. The final diagnostic-contract
+revision received another paired READY review; its adjacent exact-repair
+observation is fixed by keeping the recipe pointer in the refusal message.

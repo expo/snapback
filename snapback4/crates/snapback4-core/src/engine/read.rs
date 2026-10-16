@@ -502,6 +502,8 @@ impl<'r> Runner<'r> {
         }
         if effect == Effect::Read { self.rule_dependencies(&rule); }
         let bytes = self.rule_scratch(&rule);
+        #[cfg(feature = "sqlite")]
+        let mut refused_image = None;
         let result = self.authorized_scratch(bytes, &[(MeterKind::RuleProbes, rules::rule_probes(&rule))], |runner, allowance| {
             let mut next = next.clone();
             materialize_optional_fields(&mut next, table);
@@ -510,9 +512,19 @@ impl<'r> Runner<'r> {
                 materialize_optional_fields(&mut old, table);
                 old
             });
+            #[cfg(feature = "sqlite")]
+            if effect == Effect::Update && old.is_some() && runner.context.refusal_trace.is_some() {
+                let (allowed, image) = runner.evaluate_update_rule(allowance, table_name, &rule, table.judges_old_image(), old.as_ref(), &next)?;
+                refused_image = (!allowed).then_some(if table.update_transition { "named transition (old/next)" } else if table.judges_old_image() { image } else { "identical old/next images" });
+                return Ok(allowed);
+            }
             runner.evaluate_sequence_rule(allowance, table_name, &rule, effect, old.as_ref(), &next)
         }).map_err(|error| error.authorization_context(table_name, effect));
         self.trace_rule_result(&result, table_name, effect);
+        #[cfg(feature = "sqlite")]
+        if let Some(image) = refused_image {
+            self.refusing_phase(table_name, "update rule", &format!("table authorization layer: update rule, {image}; see: guide rule-recipes update-images"));
+        }
         result
     }
 

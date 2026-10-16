@@ -39,11 +39,11 @@ fn each_denied_effect_and_upsert_arm_is_noted_with_its_clause() {
     let update = notes("mutation submit(o: orders):\n  update orders[o] { submitted: true }\n");
     assert_eq!(update.len(), 1, "{update:?}");
     assert_eq!(update[0].guide, "rules");
-    assert!(update[0].message.starts_with("orders has `update <- deny` (schema.q:8:3); the update at schema.q:"), "{}", update[0]);
+    assert!(update[0].message.starts_with("table authorization layer: orders has `update <- deny` (schema.q:8:3); the update at schema.q:"), "{}", update[0]);
     assert!(update[0].message.contains("in `submit` cannot pass it for any caller but the system"), "{}", update[0]);
 
     let omitted = notes("mutation alert(body: text <=80):\n  insert alerts { body }\n");
-    assert!(omitted.len() == 1 && omitted[0].message.starts_with("alerts has no `insert` rule (schema.q:9:1), so it is deny"), "{omitted:?}");
+    assert!(omitted.len() == 1 && omitted[0].message.starts_with("table authorization layer: alerts has no `insert` rule (schema.q:9:1), so it is deny"), "{omitted:?}");
 
     let delete = notes("mutation drop(o: orders):\n  delete orders[o]\n");
     assert!(delete.len() == 1 && delete[0].message.contains("no `delete` rule"), "{delete:?}");

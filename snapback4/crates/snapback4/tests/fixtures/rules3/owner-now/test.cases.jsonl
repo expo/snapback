@@ -1,0 +1,8 @@
+{"as": "alice", "op": "reportWords", "args": {"sprint": "s", "words": 25}}
+{"as": "alice", "op": "ownWords", "args": {"sprint": "s"}, "match": {"words": 25}}
+{"as": "alice", "op": "peerWords", "args": {"sprint": "s", "writer": "dev:alice"}, "data": null}
+{"as": "bob", "op": "peerWords", "args": {"sprint": "s", "writer": "dev:alice"}, "data": null}
+{"as": "alice", "op": "reportWords", "args": {"sprint": "s", "words": 42}}
+{"as": "alice", "op": "ownWords", "args": {"sprint": "s"}, "match": {"words": 42}}
+{"as": "carol", "op": "reportWords", "args": {"sprint": "s", "words": 1}, "expect": "MEMBER_ONLY"}
+{"as": "bob", "op": "finalWords", "args": {"sprint": "s"}, "expect": "NOT_FINISHED"}

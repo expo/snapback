@@ -1,0 +1,2 @@
+{"id": "s1", "principal": "dev:alice", "role": "advisor"}
+{"id": "s2", "principal": "dev:bob", "role": "editor"}

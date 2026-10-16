@@ -1,0 +1,26 @@
+Attempt 1: exit 0
+
+running 1 test
+test serve::tests::route_tests::saturated_legacy_waits_cannot_starve_route_verification_or_registry_execution ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 443 filtered out; finished in 0.10s
+
+snapback4 host: uploads=2; file descriptors (this process): soft=1048576 hard=1048576; descriptor_exhaustions=0; startup soft=1048576 target=1048576
+
+Attempt 2: exit 0
+
+running 1 test
+test serve::tests::route_tests::saturated_legacy_waits_cannot_starve_route_verification_or_registry_execution ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 443 filtered out; finished in 0.10s
+
+snapback4 host: uploads=2; file descriptors (this process): soft=1048576 hard=1048576; descriptor_exhaustions=0; startup soft=1048576 target=1048576
+
+Attempt 3: exit 0
+
+running 1 test
+test serve::tests::route_tests::saturated_legacy_waits_cannot_starve_route_verification_or_registry_execution ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 443 filtered out; finished in 0.10s
+
+snapback4 host: uploads=2; file descriptors (this process): soft=1048576 hard=1048576; descriptor_exhaustions=0; startup soft=1048576 target=1048576

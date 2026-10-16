@@ -132,6 +132,9 @@ pub(super) fn explain(record: &Json, source: &dyn Fn(&str) -> Option<String>) ->
         (None, Some(site), Some(line)) => format!("{clause}, at `{line}` ({site})"),
         (_, site, _) => format!("{clause} ({}{generation})", site.unwrap_or("<generated>")),
     };
+    let text = if let Some(phase) = record["phase"].as_str().filter(|phase| phase.starts_with("table authorization layer:")) {
+        format!("{text}; {phase}")
+    } else { text };
     let viewer = record["viewer"].as_str().unwrap_or("this viewer");
     let mut out = if effect == Some("read") && record["terminal"] == false {
         format!("dev: hidden from {viewer} by {table}'s read rule: {text}{at} — development evidence only; the refusal a client sees never names the clause")

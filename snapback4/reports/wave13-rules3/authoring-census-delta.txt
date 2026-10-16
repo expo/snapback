@@ -1,0 +1,22 @@
+21 additional mutation occurrences: 20 server-only and one eligible roster delete. No previous occurrence or private write site removed; no new eligible private insert/update site.
+card/rule-recipes/22:assignField | never
+card/rule-recipes/22:unassignField | eligible
+card/rule-recipes/23:pupilConsent | never
+card/rule-recipes/23:tagPhoto | never
+card/rule-recipes/23:untagPhoto | never
+card/rule-recipes/24:releaseConference | never
+card/rule-recipes/24:respondConference | never
+card/rule-recipes/25:approveClip | never
+card/rule-recipes/25:renameClip | never
+card/rule-recipes/25:replyClip | never
+card/rule-recipes/25:requestClipRemoval | never
+card/rule-recipes/25:submitClip | never
+card/rule-recipes/25:takeDownClip | never
+card/rule-recipes/26:reportWords | never
+card/rule-recipes/27:shareLedger | never
+card/rule-recipes/28:approveSponsorRead | never
+card/rule-recipes/28:draftSponsorRead | never
+card/rule-recipes/28:editSponsorRead | never
+card/rule-recipes/28:setSponsorRate | never
+card/rule-recipes/29:claimPending | never
+card/rule-recipes/29:withdrawPending | never

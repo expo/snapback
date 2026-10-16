@@ -1,0 +1,2 @@
+{"id": "a", "precinct": "p", "principal": "dev:alice", "role": "worker"}
+{"id": "b", "precinct": "p", "principal": "dev:bob", "role": "supervisor"}

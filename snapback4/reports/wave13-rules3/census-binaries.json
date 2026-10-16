@@ -1,0 +1,8 @@
+{
+  "before_source": "59fb4ead1b",
+  "before_sha256": "a71d04bf5f08fd8b46131b5b24de1584bcfaa4b997c2f265558cf4d3fd896051",
+  "after_sha256": "6d7bc673d1cd979fa48125da94dbbddba80ebe075183e766ddbc8cd87fe8de7a",
+  "reviewed_semantic_delta": "68641c2a8a",
+  "notes": "After is the final rebuilt CLI, including private empty-roster hint preservation. Source copies match all original wave-13 Quarry files; only copies received generated output.",
+  "after_source": "5bf653ad0f"
+}

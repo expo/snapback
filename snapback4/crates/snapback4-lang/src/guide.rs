@@ -254,7 +254,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
         "from-sql" => include_str!("guide/from_sql.md"),
         "app" => app::CARD,
         "recipes" => include_str!("guide/recipes.md"),
-        "rule-recipes" => include_str!("guide/rule_recipes.md"),
+        "rule-recipes" => concat!(include_str!("guide/rule_recipes.md"), include_str!("guide/rule_recipes_wave13.md")),
         "witness" => include_str!("guide/witness.md"),
         "prediction" => prediction::CARD,
         "evolution" => discovery::EVOLUTION,
@@ -400,7 +400,7 @@ The HTTP /seed development door already runs through the host. `check`, `data`,
 `sql`, `doctor` and fixture tests remain usable beside it."##,
         "expire" => r##"# Expire: a row's life ends at a time
 
-Expiry makes a row invisible when its declared deadline passes.
+Expiry makes a row invisible to every reader, including its owner, when its declared deadline passes.
 The server then deletes it and syncs the deletion to devices holding it.
 
 ```quarry
@@ -432,6 +432,7 @@ After backup/review, stop the host and run
 storage). It applies the current schema's cascade/set-null actions atomically,
 retaining keep references; restrict/read-through blockers refuse.
 It never reconstructs a parent or silently deletes dangling rows at adoption.
+Keep owner-visible grant history in a separate audit table; see: guide rule-recipes grant-expiry.
 
 `not before .opensAt` and `expire at .expiresAt` define `[opensAt, expiresAt)`;
 `guide timed disclosure` has the compiled recipe.

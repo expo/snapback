@@ -1,0 +1,11 @@
+✔ run settlement owns a per-intent observer: sent, early receipt, concurrent calls and no read subscribers (3.743392ms)
+✔ run settlement owns a per-intent observer: failed, early receipt, concurrent calls and no read subscribers (0.381042ms)
+✔ sentResult and compact matchRead preserve null, replay and empty-list meanings (0.34719ms)
+ℹ tests 3
+ℹ suites 0
+ℹ pass 3
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 653.128613

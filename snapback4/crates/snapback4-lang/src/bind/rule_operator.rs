@@ -50,7 +50,7 @@ pub(super) fn diagnostic(site: &Site, table: &str, effect: &str, transition: boo
         "read" => format!("a read rule is an audience, which cannot compare magnitudes: filter the query instead (`{table} where {} …`)", map_fields(&text, &|_, name| format!(".{name}"))),
         _ => format!("check it in the mutation before the write: `row = {table}[id] ! else NOT_FOUND` then `require {} else {code}`", map_fields(&text, &stored)),
     };
-    Diagnostic::new(site, "E_QUARRY_RULE_OPERATOR", message, rewrite).guide("rules")
+    Diagnostic::new(site, "E_QUARRY_RULE_OPERATOR", message, format!("{rewrite}; for counts/consent see: guide rule-recipes quantified-consent; for clock disclosure see: guide rule-recipes owner-now")).guide("rules")
 }
 
 /// An unnamed `update <- R` holds for the row before and after the write, so
@@ -221,4 +221,10 @@ mod tests {
         assert_eq!(strip_parens("(.a >= 1)"), ".a >= 1");
         assert_eq!(strip_parens("(.a) + (.b)"), "(.a) + (.b)");
     }
+}
+
+// @ref LLP 3000.036.002#10 — an explicit policy alternative, never an equivalent rewrite.
+pub(crate) fn old_update_source(rule: &Expr) -> String {
+    let text = crate::print::expression(rule);
+    format!("update (old, next) <- {}", map_fields(&text, &|_, name| format!("old.{name}")))
 }

@@ -34,6 +34,8 @@ mutation grant(who: principal, role: enum('coordinator', 'commander')):
   return insert roles { principal: who, role }
 ```
 
+## Composite role grants
+
 When one principal may hold several independent roles, make the pair unique. Every point probe then supplies both columns. A bare `exists roles[viewer]` is deliberately refused: under `unique principal, role` it names every role row for that principal, not one row. Prefer the named spelling in policy; the full positional spelling, such as `roles[viewer, 'commander']`, has the same meaning. Spell an “any staff role” grant as the `or` of the exact roles that grant it.
 
 Seed the first commander or grant it through `service:ops`. A commander may also have a coordinator row; the pair constraint prevents only a duplicate of the same role. Test both grants separately:
