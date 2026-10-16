@@ -1192,6 +1192,11 @@ pub fn why(options: &Options) -> i32 {
 mod testing;
 pub use testing::test;
 
+/// The most rows of a referenced table the sweep tries for one query and persona.
+const DERIVED_ROWS: usize = 16;
+
+/// No rows to show: null, or an empty list or page.
+
 fn empty_answer(data: &snapback4_core::Value) -> bool {
     use snapback4_core::Value;
     match data {

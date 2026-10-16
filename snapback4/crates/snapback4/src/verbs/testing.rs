@@ -201,8 +201,3 @@ pub fn test(options: &Options) -> i32 {
         skipped.len() + held_not_run, if passed + failed_cases > 0 { format!("; cases: {passed} passed, {failed_cases} failed") } else if options.flags.contains_key("fixture") { format!("; no {} (see snapback4 guide testing)", test_cases::FILE) } else { String::new() });
     if failures > 0 || failed_cases > 0 { 1 } else { 0 }
 }
-
-/// The most rows of a referenced table the sweep tries for one query and persona.
-const DERIVED_ROWS: usize = 16;
-
-/// No rows to show: null, or an empty list or page.
