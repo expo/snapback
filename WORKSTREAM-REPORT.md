@@ -1,182 +1,130 @@
-# PUBFIX29b — 0.4.29 consumer repairs
+# RULES3 — wave 13 authorization
 
-Branch: sb4-w13-pubfix29b. Starting tree clean; `git log sb4-loop..HEAD`
-was empty, base 92878680fc. Version remains 0.4.29. No push or publication.
+Worktree `/home/ccheever/projects/sb4-w13-rules3`, branch `sb4-w13-rules3`.
+Base `59fb4ead1b` (0.4.29). No version bump, publication, or origin push.
+The only branch transfers were to the explicitly commissioned Mac scratch clone
+`~/projects/snapback-ws-rules3`; no publication checkout was accessed or changed.
 
-## Changes
+## Changes by requested item
 
-- E1: api.ts includes one deterministic canonical availability helper, identical
-  to REL3's SDK predicate. All package imports are types. The audit found one
-  additional generated runtime import: server.ts now takes the application's
-  `startServer` as its first argument. Migrated generated-wrapper callers,
-  positive/negative type witnesses, golden outputs, guides and published docs.
-  `generated-modules.test.mjs` recursively compiles 60 fixture schemas, checks
-  every emitted TS/JS module with the TypeScript AST, executes APIs with no
-  node_modules, and compares every operation's availability to the SDK helper.
-  Shapes explicitly required: query, mutation, action, ephemeral, Following,
-  receipts; job-containing fixture schemas also participate. Checked loading,
-  denied, absent/different operation, reordered/nested canonical signatures,
-  wrong kinds, missing arguments and added arguments.
-- D1: the shared generated frontend-proof script rejects a singleton runtime
-  range before starting dev. Tested all six UI starter/template variants and
-  both proof and interactive launcher with a poisoned binary path. Audit:
-  launch.mjs already refuses UI singleton ranges and exempts backend/native
-  smoke; day2-proof has one serve and accepts one port; proof-kit helpers each
-  own one host and keep single-host ranges; witness web already requires A<B.
-- D2: downgrade refusal now clearly relates registry and installed versions;
-  existing fake-registry downgrade/no-write test covers default and requested
-  targets and still allows explicit `--to`.
-- H2: top-level help lists web-shell; the wrapper handles --help/-h with a
-  description before touching files or resolving a native binary. Native help
-  also describes the wrapper verb. Portable regression checks both paths.
-- H3: retired generic recipes now print usage plus E_RECIPE_RETIRED and concrete
-  --web/--expo, --template chat and guide recipes replacements before writes.
-  Existing feed-specific diagnostics remain. Regression includes named output dir.
-- H7: witness web imports the optional Playwright peer only during execution;
-  missing peer yields E_WITNESS_BROWSER and install/browser commands. Help works
-  without the peer. Isolated helper test uses an inert client export, no peer.
-- H8: clock/reset share one dev-address helper using doctor's validated persisted
-  store-owner discovery; explicit --port wins and the prior 4400 fallback stays.
-  Portable test starts persisted dev on an OS-assigned non-default port and
-  checks run, doctor, advance and reset, including clock effects and explicit port.
+| Item | Implementation and evidence | Commits |
+| --- | --- | --- |
+| Seven authorization recipes | `guide rule-recipes` adds offline-roster, quantified-consent, mutable-workflow, source-publication, owner-now, grant-expiry, role-workflow; each has its own fixtures and HTTP suite executing the exact shipped source. An eighth compiled section demonstrates update-images. | `afd096cf7a`, `c929166df8` |
+| Offline roster + supervisor | One synced precinct roster with role and explicit supervisor assignment; supervisor overview needs its online seat and precinct assignment. HTTP snapshot/acquire/revoke is checked on memory and SQLite devices. | `afd096cf7a`, `c929166df8` |
+| Quantified consent | Normalized photo/pupil tags, maintained tagged/consented counts, atomic clearance refresh on tag insert/delete and global pupil-consent fanout. Both partial consent and withdrawal across multiple photos are tested; empty tag sets do not publish. A named transition checks guardian authority on old and current consent consistency on next. | `afd096cf7a`, `c929166df8` |
+| Mutable workflow | Live keyed parent probes replace frozen read-through for the released flag. Existing response visibility closes and reopens with the parent. | `afd096cf7a` |
+| Source publication | One trusted mirror helper is called after approval, rename, reply and takedown. Private source notes remain private; public removal requests look up the publication rather than the hidden source. | `afd096cf7a` |
+| Owner now / peers at deadline | Private current count and timed peer projection update atomically. Deadline is immutable; final total is bounded by the explicit 100-writer product cap and guarded until opening. Owner updates before opening and peer/final reads after the boundary are tested. | `afd096cf7a`, `c929166df8` |
+| Grant expiry / owner visibility | Separate owner-only audit survives grant expiry, while the expired grant disappears for both owner and accountant. Owner retains the ledger; accountant loses access. | `afd096cf7a` |
+| Role workflow | Host drafts and sees rates, manager edits, sponsor approves; the table transition independently locks approved scripts and protects sponsor-only decisions. | `afd096cf7a` |
+| Two rule layers / update images | Rules writes section opens with intent vs table authority. E_RULE names the table authorization layer; N_WRITE_DENIED identifies old, next, combined old/next, or named transition where the bounded proof can distinguish them. Developer E_RULE phase records the failed image without another probe. Hidden client targets remain NOT_FOUND; generic hidden-collision ambiguity is preserved. | `1a6ee44ac4`, `c929166df8`, `ad7d5d45fc` |
+| Refusal ladder | Rules/testing state decode → asserted hidden lookup → table rule → require, qualified by authored statement order. HTTP tests cover E_INPUT, hidden asserted/nullable lookup, blind hidden update, readable E_RULE, require-first, and rollback on a later require; uniformly hidden pages are complete and empty. | `1a6ee44ac4`, `c929166df8` |
+| Actionable recipe pointers | Refusals/help name the matching recipes. `guide rule-recipes NAME` opens the named tested section, using the existing selector; eight CLI selector tests cover it. | `2c2c21098c` |
+| Open language decisions | LLP 3000.036 §23 records universal relation quantifiers, union-sync horizons, read-through children of unions, and publication as one construct, with exact evidence lanes and current recipes. LLP 3000.036.002 §10 governs diagnostics and evaluation fidelity. | `afd096cf7a`, `1a6ee44ac4`, `2c2c21098c`, `ad7d5d45fc` |
+| 0.4.30 changes entry | Added this lane's user-visible changes to the packaged changelog / guide changes. Version stays 0.4.29 for integration. | `afd096cf7a` |
 
-The generated-code audit covers both emitters, receipt bindings, declaration
-outputs and golden fixtures. Starter UI/client files are application source and
-own their explicit SDK runtime imports; generated bindings do not. Historical
-pre-REL3 frozen captures remain historical; their metadata normalization removes
-and validates the new inline form before comparing the original bytes.
+## Design and review
 
-## Governing context / decisions
+Used `llp-orient` and read the Snapback 4 fence, governing rule/update-image,
+maintained-column, read-through and union-sync decisions, plus the wave-13
+Publish gate, fix list, verification ledger, H9, NA5/NA6/NA7 and the relevant
+lane schemas/friction. The evidence lanes were read-only.
 
-Applied llp-orient. Scope: Codegen, CLI, Testing, starters. Governing documents:
-LLP 3000 §§1,4,7 (current/fence, generated artifacts and publication tests),
-LLP 2000.000 §§9,12 (one runtime, bounded process), implemented LLP
-3000.000.000.000 §§2–3 (availability and generated compatibility),
-LLP 3000.011.003.000 §8 (application proofs), LLP 3000.019 §3.7 (validated dev
-owner discovery), and LLP 3000.007.003 §7 (retired feed installer).
-Read current API/actions/routes/testing guides before editing. Amended the
-existing REL3 document, without a new LLP or a contract.ts change. The first-arg
-server runtime injection is the narrow choice needed to satisfy the user's
-all-generated-modules requirement; its user-visible migration is in guide changes.
-Open questions: none blocking. The server wrapper migration is documented and
-all repository consumers are updated. Hand-off: none.
-No device/core code changed; no wasm remeasurement required. Required setup did
-build wasm (716714 B gzip, budget 717214), without changing tracked device assets.
+Fresh mutually blind Muse (`muse-spark-1.3-contributor`, high, through the
+commissioned wrapper) and Codex (`gpt-6.1-sol`, high, new exec sessions) reviewed
+the amendments with the code. Round 1 was NOT READY: consent's unnamed image
+rule, refusal-message attribution and accounting evidence were corrected.
+Both round 2 reviewers returned READY at `d71507f2db`. Both final round 3
+reviewers returned READY for `ad7d5d45fc`, including native-only opt-in image
+attribution, named recipe navigation and the census delta. All verbatim reviews,
+model/command/snapshot provenance and the first Codex full transcript are under
+`llp/reviews/3000.036.002-rules3-r*`.
+
+The existing authoring census gains 21 mutation occurrences: 20 server-only
+and one eligible roster delete. It removes no previous occurrence or private
+write site and adds no eligible private insert/update site.
+
+## 100-schema before/after census
+
+Copied final `snapback/`, fixtures, versions and package/TS metadata into
+`/tmp/sb4-rules3-census`; dependencies, where present, were linked read-only.
+Ran the base binary and changed binary with `check --json` on all 100 copies.
+99 pass in each run. Lane 087 retains its known E_SERVER_TOOLCHAIN because its
+copied app has no TypeScript installation. No previously clean schema gains a
+refusal. Every code count is identical before and after.
+
+There are 313 ordinary note entries plus four search-diagnostic entries, 317
+note/search occurrences total. (The initial progress update's 416 was a counting
+mistake, corrected during the run.)
+
+| Code | Before | After |
+| --- | ---: | ---: |
+| E_SERVER_TOOLCHAIN | 1 | 1 |
+| N_CONDITIONAL_COMPLETE | 11 | 11 |
+| N_DELETE_NEEDS_READ | 1 | 1 |
+| N_DELETE_RESTRICTED | 1 | 1 |
+| N_EPHEMERAL_SERVER | 2 | 2 |
+| N_FIXTURE_ARGUMENT_DRIFT | 21 | 21 |
+| N_LOOKUP_HIDDEN | 5 | 5 |
+| N_MAINTAIN_AUTHORIZATION | 2 | 2 |
+| N_MAINTAIN_DELTA | 7 | 7 |
+| N_NEVER_COMPLETE | 18 | 18 |
+| N_NO_CURSOR | 144 | 144 |
+| N_NO_HORIZON | 12 | 12 |
+| N_NO_PRODUCTION_WRITER | 49 | 49 |
+| N_PATCH_CLEARS | 2 | 2 |
+| N_SEARCH_SHAPE | 1 | 1 |
+| N_SEARCH_UNSCOPED | 1 | 1 |
+| N_SEARCH_WORDS | 2 | 2 |
+| N_SPARSE_FILTER | 16 | 16 |
+| N_SYNC_ORDER | 5 | 5 |
+| N_UNREADABLE_PROBE | 13 | 13 |
+| N_VACUOUS_RULE | 1 | 1 |
+| N_WIDE_MERGE | 3 | 3 |
+
+Raw results, comparison script and summary are in
+`snapback4/reports/wave13-rules3/`.
 
 ## Verification
 
-Qualification Cargo commands ran from snapback4 with CARGO_INCREMENTAL=0,
-CARGO_PROFILE_DEV_DEBUG=0 and CARGO_PROFILE_TEST_DEBUG=0. Pinned Bun 1.4.2
-was used after repeating the initial ambient Bun install with the frozen lock
-unchanged. Never ran full scripts/test.sh. No reduced seeds, sequence counts,
-shard selection or alternate SNAPBACK4_BIN was set for the full client pass.
+- Setup: Snapback 4 frozen install, CLI build, WASM build, SDK build; root
+  frozen install and ensure-workspace-hoist completed.
+- Recipe fixture + HTTP and refusal ladder: all eight original suites pass;
+  final selector suite adds a ninth. Both device stores exercise offline roster
+  acquisition and revocation.
+- Language: all eight new blocks compile without diagnostics or notes; section
+  selectors and static old/next attribution tests pass. Existing 21 recipes stay
+  in the compilation census (29 blocks total).
+- Engine: frozen pre-change compound traversal comparison and real Runner
+  traced/untraced × implicit/explicit old+next parity pass, including public
+  probe ceilings, physical allowance exhaustion, finite witness deadlines and
+  non-readable/unknown verdicts.
+- Mac: initial 65 affected tests pass; final rerun passes 27 dev-refusals + nine
+  recipe/ladder/selector tests + three real accounting/traversal tests. Scratch
+  clone only; no publication worktree.
+- Affected clients: 34 tests pass across client-recipes, wire-envelopes and
+  delivery-refusal.
+- WASM/SDK final build passes: 2,354,227 raw bytes, 717,006 gzip bytes against
+  717,214; no budget increase. The first experiment exceeded by 674 bytes;
+  moving opt-in developer attribution out of the web artifact fixed it.
+- Docs budget passes: README 320/320 and named self-contained account test.
+- Root `check-guide`: 22 passed, zero failures/skips/preconditions.
+- Root `check-inventories`: PASS (365 package tests, 35 script tests, 31 demos,
+  487 publication leaves, 162 pages / 1,937 snippets). Initial fresh-tree
+  missing demo caches were regenerated using scripts/check-generated-artifacts;
+  that prescribed generator also passes with no tracked root projection drift.
+- `./ref-check`: passes; final closeout rerun pending.
+- Full Rust workspace (all requested crates plus difftest/native): final run
+  pending. Earlier qualification caught a guide-byte overflow (fixed without
+  raising the budget) and one route-saturation 503 under concurrent load.
 
-- Setup: pinned `bun install --frozen-lockfile`; `cargo build -p snapback4`;
-  `bash scripts/build-wasm.sh`; `bun run --cwd packages/snapback4 build`: PASS.
-- Affected Rust: actions 11/11, routes 9/9, corrected guide 125/125. Updated
-  list-bound snapshots through the existing explicit snapshot-update test.
-- Completed `cargo test -p snapback4-lang -p snapback4 --no-fail-fast`: 3206
-  passed, 2 failed, 29 ignored across all targets. Every language suite and CLI
-  integration suite passed. The two failures were unchanged CLI unit tests:
-  refusal-writer lock release and resolver-fixture readiness. Both passed in
-  the two earlier broad attempts. A subsequent complete
-  `cargo test -p snapback4 --bin snapback4` passed **439/439**, with the same
-  5 existing ignores, without code changes. The intermittent failures remain
-  tracked in issues/20261016-snapback4-unit-cleanup-and-resolver-readiness-flakes.md;
-  passing repetitions do not close that follow-up.
-- Full client pool in one pass: **398/398 files**, 24 slots, then isolated timer
-  files as the ordinary runner specifies. 7522 assertions: 7451 passed, 15
-  failed, 56 existing skips. Five files failed initially: event-slot-capability
-  and event-slots lacked generated target/event-slots-traces.json; init-recipe
-  expected the old bare usage line; qualify-linux rejected changelog flag-owner
-  wording; wave11-upgrade-history compared live edited changelog text with an
-  older embedded binary. All five were resolved and passed the rebuilt rerun.
-- Existing trace producer: `cargo test -p snapback4-device --test event_slots_trace`:
-  **2/2 PASS**. This generates test data; no device source changed.
-- Both default full-count models: **2/2 files, 81/81 assertions PASS**, no skips;
-  app-session 5000 sequences and online-client 3000 sequences.
-- After fixes/rebuild: one affected pool of **15/15 files, 171/171 assertions
-  PASS, no skips**: both event-slot files, init-recipe, qualify-linux,
-  wave11-upgrade-history, wave10-upgrade, generated-modules, pubfix29b,
-  test-platform-audit, readme-examples, generated-effect-opt-in, server-e2e,
-  wave12-kit, web-shell and proof. This includes all failed full-pool files.
-  Earlier focused failure/precondition reruns also passed 91/91 assertions.
-- `./ref-check`: PASS with all six review artifacts, 0 errors/unchecked refs.
-- `node scripts/docs-budget.mjs` in snapback4: PASS, README 320/320 and the named
-  first-screen test ran once and passed.
-- Root `node scripts/check-inventories.mjs`: FAIL guide-manifest on missing
-  untracked Snapback 1 demo/Exact artifacts (competitive-checkpoint startReply
-  schema; todo-v2 contract outputs). No root publication projections changed.
-- Root `node scripts/check-guide.mjs`: exit 1, 14 passed, 1 failed, 4 skipped,
-  3 preconditions. Root node_modules is absent: the packed-auth check fails
-  ENOENT; dependency checks skip; guide projections require the same absent
-  generated demo artifacts. Snapback4 dependencies are installed separately.
+## Scope boundaries / deferrals
 
-Validation corrections preserved existing guards: restored init's usage line and
-retirement wording, migrated the isolated handler fixture's runtime path mapping,
-kept the exact Chromium defining phrase, and removed literal retired-flag prose
-from the template census. No unrelated unit-test code or deadline was changed.
+LANG2 owns all completeness-planner bullets and notes; KIT2 owns proof helper
+and client recipes; SURF3 owns general guide/help/flags and production bootstrap.
+One-line pointers are in the touched guide/LLP text. The rule-recipes positional
+selector is the narrow addition needed for this lane's diagnostic links.
 
-Verification decision: run the complete client pool once, preserving default
-oracle/model counts, then rerun every failed file and affected product surface
-after rebuilding. Narration/test-precondition corrections do not change the
-other completed model inputs; those full-pool results remain applicable.
-Raw logs, review briefs and local runner scripts are retained under
-snapback4/target/pubfix29b-evidence/ (ignored), including the complete failures
-and subsequent passes. No unqualified publication receipt is claimed.
-
-## Exact repro (actual web tests)
-
-Read the supplied prewave13 repros without modifying them. Copied the device
-hello and online app under snapback4/target/pubfix29b-exact/{device,online};
-excluded target/.exact/node_modules, retained supplied application tests and
-0.4.29 device asset. Ran `EXACT2=$HOME/sb4-loop/exact2 bun exact.mjs update` in
-each copy to repair relocated Cargo patches/paths, and set absolute mount paths
-(device snapback4/ts; online snapback4/online) in each copied app.json. Generated
-backend API with this branch's binary, without stubs or manual import edits.
-
-For each copied backend directory:
-
-```
-BIN=/home/ccheever/projects/sb4-w13-pubfix29b/snapback4/target/debug/snapback4
-$BIN types
-$BIN dev --port 26020 --no-watch --memory   # device; online uses 26021
-```
-
-Then in its hello/app subdirectory:
-
-```
-CHROME=$HOME/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome \
-EXACT2=$HOME/sb4-loop/exact2 EXACT_PORT=26120 \
-CARGO_TARGET_DIR=/home/ccheever/projects/sb4-w13-pubfix29b/snapback4/target/pubfix29b-exact/cargo-target \
-CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 \
-$HOME/.bun-1.4.2/bin/bun exact.mjs test web
-```
-
-Online uses EXACT_PORT=26121 and backend 26021. Device: 2 passed, 0 failed;
-online: 2 passed, 0 failed. Both web builds accepted generated api.ts. Initial
-copy run required relocation update; initial browser run needed CHROME; an
-intermediate online run used the device mount accidentally, corrected to the
-original online driver. All owned devs were terminated/reaped in finally.
-Exact2 source and original repros were unchanged. Logs live under target/
-pubfix29b-exact/{device,online}-testweb.log, local runner /tmp/pubfix29b-exact-repro.py.
-
-## Reviews / commits / deferrals
-
-Blind round 1: Muse READY (minor suggestions); fresh Codex NOT READY for missed
-server-wrapper type fixtures, an assertion and effects-guide prose. All addressed,
-including name/missing-argument oracle controls. Verbatim reviews with provenance
-saved under llp/reviews/3000.000.000.000-pubfix29b-r1.*.md.
-Blind round 2: fresh Codex READY and Muse READY, same requested model roster
-and effort; saved under llp/reviews/3000.000.000.000-pubfix29b-r2.*.md.
-Commit E1: c5692b6b72 — self-contained generated TypeScript modules.
-Round 3: both fresh Codex and Muse READY on the final validation corrections;
-verbatim artifacts under llp/reviews/3000.000.000.000-pubfix29b-r3.*.md.
-Codex notes that the binary still embedded earlier recipe wording during its
-review; final qualification rebuilt it before the affected consumer reruns.
-Commit D1/D2/H2/H3/H7/H8: da2d5e0c98 — proof ports, CLI help and dev discovery.
-Evidence/report commit contains this report, six verbatim reviews, journal/LLP
-records and the unrelated fixture follow-up. No push or publication performed.
-Deferrals: root Snapback 1 dependency/generated-artifact bootstrap and the two
-unchanged intermittent unit fixtures (ticket above). No requested product repair
-is deferred.
+The four larger language decisions remain explicitly open, as requested; this
+lane adds their current executable recipes, not unreviewed language/protocol
+capabilities. No new irreversible operation or publication was performed.
