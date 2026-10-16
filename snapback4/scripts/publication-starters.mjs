@@ -139,39 +139,43 @@ export async function proveStarters(client, platform, expo, directory, browserPr
     writeFileSync(join(cwd, "package.json"), JSON.stringify(pkg, null, 2));
     // Lifecycle scripts are enabled: esbuild and the other real tools need them.
     await run("npm", ["install", "--prefer-offline", "--no-audit", "--no-fund"], cwd);
-    if (!existsSync(join(cwd, "fixtures"))) mkdirSync(join(cwd, "fixtures"));
-    // H9/R1: execute the shipped guide block verbatim, including on persona-only apps.
-    const fixtureProof = join(cwd, "guide-fixtures-proof.mjs");
-    writeFileSync(fixtureProof, `import assert from 'node:assert/strict';
-import {execFileSync} from 'node:child_process';
-import {readFileSync,writeFileSync} from 'node:fs';
-import {startDev,loadFixtures,cleanup} from 'snapback4/proof';
-import {pathToFileURL} from 'node:url';
-const cli=${JSON.stringify(cli)};
-const guide=execFileSync(cli,['guide','testing','--section','Loading fixture rows'],{encoding:'utf8',timeout:10000});
-const fence=String.fromCharCode(96).repeat(3), snippet=guide.split(fence+'js')[1].split(fence)[0].trim();
-writeFileSync('guide-fixtures-snippet.mjs',snippet);
-const schema='snapback/schema.q', original=readFileSync(schema,'utf8');
-try {
-  for(const personasOnly of [false,true]) {
-    writeFileSync(schema,personasOnly?original.replace(/^use identity.*$/m,''):original);
-    const dev=await startDev();
-    try {
-      assert.ok(dev.personas.length);
-      const responses=[];
-      const originalFetch=globalThis.fetch;
-      globalThis.dev=dev;
-      globalThis.fetch=async (...args)=>{const response=await originalFetch(...args);responses.push(await response.clone().json());return response;};
-      try {await import(pathToFileURL(process.cwd()+'/guide-fixtures-snippet.mjs').href+'?only='+personasOnly);}
-      finally {globalThis.fetch=originalFetch;delete globalThis.dev;}
-      assert.equal(responses.at(-1).denied,undefined);
-      assert.equal(responses.at(-1).reset,true);
-      assert.ok(Array.isArray(await loadFixtures('fixtures',{url:dev.url,persona:dev.personas[0]})));
-    } finally {await cleanup(()=>dev.stop());}
-  }
-} finally {writeFileSync(schema,original);}
-`);
-    await run(process.execPath, [fixtureProof], cwd);
+    // Runtime fixture proofs use the pinned Node 24 host. Clean userspaces
+    // are build-only (Ubuntu intentionally carries Node 22, without TS workers).
+    if (browserProofs) {
+      if (!existsSync(join(cwd, "fixtures"))) mkdirSync(join(cwd, "fixtures"));
+      // H9/R1: execute the shipped guide block verbatim, including on persona-only apps.
+      const fixtureProof = join(cwd, "guide-fixtures-proof.mjs");
+      writeFileSync(fixtureProof, `import assert from 'node:assert/strict';
+  import {execFileSync} from 'node:child_process';
+  import {readFileSync,writeFileSync} from 'node:fs';
+  import {startDev,loadFixtures,cleanup} from 'snapback4/proof';
+  import {pathToFileURL} from 'node:url';
+  const cli=${JSON.stringify(cli)};
+  const guide=execFileSync(cli,['guide','testing','--section','Loading fixture rows'],{encoding:'utf8',timeout:10000});
+  const fence=String.fromCharCode(96).repeat(3), snippet=guide.split(fence+'js')[1].split(fence)[0].trim();
+  writeFileSync('guide-fixtures-snippet.mjs',snippet);
+  const schema='snapback/schema.q', original=readFileSync(schema,'utf8');
+  try {
+    for(const personasOnly of [false,true]) {
+      writeFileSync(schema,personasOnly?original.replace(/^use identity.*$/m,''):original);
+      const dev=await startDev();
+      try {
+        assert.ok(dev.personas.length);
+        const responses=[];
+        const originalFetch=globalThis.fetch;
+        globalThis.dev=dev;
+        globalThis.fetch=async (...args)=>{const response=await originalFetch(...args);responses.push(await response.clone().json());return response;};
+        try {await import(pathToFileURL(process.cwd()+'/guide-fixtures-snippet.mjs').href+'?only='+personasOnly);}
+        finally {globalThis.fetch=originalFetch;delete globalThis.dev;}
+        assert.equal(responses.at(-1).denied,undefined);
+        assert.equal(responses.at(-1).reset,true);
+        assert.ok(Array.isArray(await loadFixtures('fixtures',{url:dev.url,persona:dev.personas[0]})));
+      } finally {await cleanup(()=>dev.stop());}
+    }
+  } finally {writeFileSync(schema,original);}
+  `);
+      await run(process.execPath, [fixtureProof], cwd);
+    }
     const build = async () => {
       await run(cli, ["check"], cwd);
       await run("npm", ["run", "typecheck"], cwd);
@@ -182,7 +186,7 @@ try {
     await build();
     const frontendProofs = browserProofs ? await proveFrontendTwice(run, cwd, starter) : [];
     if (template || id === "web-online") {
-      results.push({ starter: id, kind, template, status: "passed", typecheck: "passed", build: "passed", frontendProofs });
+      results.push({ starter: id, kind, template, fixtureGuide: browserProofs ? "passed" : "not-run-build-only", status: "passed", typecheck: "passed", build: "passed", frontendProofs });
       continue;
     }
     // Exercise init-first adaptation with a different online-only schema: Home,
@@ -206,7 +210,7 @@ try {
     installCustomWriteScenario(cwd,kind);
     await build();
     const adaptedProofs = browserProofs ? await proveFrontendTwice(run, cwd, starter) : [];
-    results.push({ starter: id, kind, status: "passed", adapted: "passed", typecheck: "passed", build: "passed", frontendProofs, adaptedProofs, negativeProof, formSubmit: kind === "web" ? "passed" : "not-applicable" });
+    results.push({ starter: id, kind, fixtureGuide: browserProofs ? "passed" : "not-run-build-only", status: "passed", adapted: "passed", typecheck: "passed", build: "passed", frontendProofs, adaptedProofs, negativeProof, formSubmit: kind === "web" ? "passed" : "not-applicable" });
   }
   return results;
 }
