@@ -181,7 +181,7 @@ pub(super) struct FreshDirectory(std::path::PathBuf);
 impl FreshDirectory {
     pub(super) fn new() -> Result<Self, String> {
         let id =
-            snapback4_core::ids::mint(snapback4_core::now_ms(), &mut snapback4_core::ids::seed())
+            snapback4_core::ids::mint(snapback4_core::now_ms(), &mut snapback4_core::ids::Mint::default())
                 .map_err(|e| e.to_string())?;
         let path =
             std::env::temp_dir().join(format!("snapback4-fresh-{}-{id}", std::process::id()));

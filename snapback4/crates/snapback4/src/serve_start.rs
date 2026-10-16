@@ -222,7 +222,7 @@ pub fn serve(
         personas: dev,
         hold_effects,
         hold_schedules,
-        entropy: Mutex::new(snapback4_core::ids::seed()),
+        entropy: Mutex::new(snapback4_core::ids::Mint::default()),
         presence,
         long_waits: long_waits::LongWaits::new(&capacity),
         change_answers: Mutex::default(),

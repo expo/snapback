@@ -156,7 +156,7 @@ impl Host {
             hold_schedules: false,
             time_audience_clock: AtomicI64::new(authoritative_now),
             clock, maintenance: FairMutex::gate(maintenance::State::default()),
-            entropy: Mutex::new(1),
+            entropy: Mutex::new(snapback4_core::ids::Mint::default()),
             presence,
             long_waits: long_waits::LongWaits::new(&capacity), change_answers: Mutex::default(),
             asset_transfers: AssetTransfers::default(),

@@ -167,7 +167,7 @@ mod tests {
     }
     fn seed(engine: &mut Engine, table: &str, commit_at: i64, row_at: i64) {
         engine.seed_at([(table.into(), snapback4_core::value::object([
-            ("id", snapback4_core::Value::Id(snapback4_core::ids::mint(row_at, &mut 0).unwrap())),
+            ("id", snapback4_core::Value::Id(snapback4_core::ids::mint(row_at, &mut snapback4_core::ids::Mint::default()).unwrap())),
             ("at", snapback4_core::Value::Int(row_at)),
         ]))], commit_at).unwrap();
     }

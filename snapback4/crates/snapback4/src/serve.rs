@@ -101,7 +101,7 @@ pub struct Shared {
     pub personas: bool,
     pub hold_effects: bool,
     pub hold_schedules: bool,
-    pub entropy: Mutex<u64>,
+    pub entropy: Mutex<snapback4_core::ids::Mint>,
     /// Who holds a long poll open right now: what `connected[p]` reads.
     pub presence: Arc<Live>,
     /// Held change polls per principal, bounded by `--long-waits-per-principal`.
