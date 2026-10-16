@@ -7,6 +7,17 @@ const MAX_TIME: i64 = snapback4_core::value::I53_MAX;
 pub fn input(message: impl Into<String>) -> Refusal { Refusal::new("E_CLOCK_INPUT", "clock", message).guide("clock") }
 pub fn release() -> Refusal { Refusal::new("E_CLOCK_DEV_ONLY", "clock", "clock controls require dev; serve always uses wall time").guide("clock") }
 
+/// Isolated time tests stay inside an assigned range, or request a free port.
+pub(crate) fn isolated_command() -> String {
+    isolated_range(std::env::var("PORT_LO").ok().as_deref(), std::env::var("PORT_HI").ok().as_deref())
+}
+fn isolated_range(lo: Option<&str>, hi: Option<&str>) -> String {
+    match (lo.and_then(|n| n.parse::<u16>().ok()), hi.and_then(|n| n.parse::<u16>().ok())) {
+        (Some(lo), Some(hi)) if lo > 0 && hi >= lo => format!("dev --memory --port {lo}-{hi} within the current range"),
+        _ => "dev --memory --port 0".into(),
+    }
+}
+
 pub fn duration(text: &str) -> Result<i64, Refusal> {
     if text.starts_with('-') { return Err(input("clock advance cannot move backwards; use a positive duration such as +2m")); }
     let text = text.strip_prefix('+').unwrap_or(text);
@@ -111,4 +122,15 @@ pub fn command(options: &crate::verbs::Options) -> i32 {
         Ok(json.to_string())
     })();
     match result { Ok(body) => { println!("{body}"); 0 }, Err(error) => { eprintln!("{error}"); 1 } }
+}
+
+#[cfg(test)]
+mod isolated_tests {
+    #[test]
+    fn time_test_guidance_uses_only_valid_assigned_ranges_or_a_free_port() {
+        assert_eq!(super::isolated_range(Some("24000"), Some("24009")), "dev --memory --port 24000-24009 within the current range");
+        for (lo,hi) in [(None,None),(Some("0"),Some("3")),(Some("4"),Some("3")),(Some("bad"),Some("3"))] {
+            assert_eq!(super::isolated_range(lo,hi), "dev --memory --port 0");
+        }
+    }
 }

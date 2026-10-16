@@ -1213,5 +1213,5 @@ fn surf3_memory_clock_requires_its_printed_port_without_guessing_another_project
     assert!(output.status.success(), "{}", text(&output));
     let reply: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     assert!(reply["now"].as_i64().unwrap() - after["now"].as_i64().unwrap() >= 7_200_000, "{reply}");
-    assert!(!reply["message"].as_str().unwrap().contains("4401"), "{reply}");
+    assert!(!reply["message"].as_str().unwrap().contains("dev --fresh --port 4401"), "{reply}");
 }

@@ -40,8 +40,8 @@ pub fn ahead(engine: &Engine, now: i64) -> Result<Option<String>, RuntimeError> 
     if omitted { names.push("additional tables omitted".into()); }
     if names.is_empty() { names.push("no table names recorded".into()); }
     Ok(Some(format!(
-        "N_CLOCK_STORE_AHEAD: recent commit stamps lead the current clock by up to {lead}ms (latest {RECENT_COMMITS} commits; tables: {}); use a fresh store per offset test (dev --fresh --port 4401), or restart with the same --clock-offset (or dev --resume-clock) to continue",
-        names.join(", "))))
+        "N_CLOCK_STORE_AHEAD: recent commit stamps lead the current clock by up to {lead}ms (latest {RECENT_COMMITS} commits; tables: {}); use a fresh store per offset test ({}), or restart with the same --clock-offset (or dev --resume-clock) to continue",
+        names.join(", "), crate::dev_clock::isolated_command())))
 }
 
 /// UTC calendar text for Unix milliseconds: schedule boundaries are UTC.
