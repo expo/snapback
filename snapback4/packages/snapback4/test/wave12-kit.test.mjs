@@ -98,7 +98,7 @@ if (!baseline) {
    assert.equal(pkg.name,'my-product');assert.equal(pkg.version,'7.2.1');
    assert.match(result.stdout,/http:\/\/127.0.0.1:29120/);assert.match(result.stdout,/localhost:29121/);
    assert.equal(result.stdout.trim().split('\n').at(-1),'\x1b[1mnpm install\x1b[0m');
-   assert.equal(pkg.scripts['day2:proof'],'node scripts/day2-proof.mjs versions/v1.q versions/v2.q');
+   assert.equal(pkg.scripts['day2:proof'],'node scripts/day2-proof.mjs versions/v1 versions/v2');
    assert.equal(readFileSync(join(cwd,'versions/v1.q'),'utf8'),readFileSync(join(cwd,'snapback/schema.q'),'utf8'));
    writeFileSync(join(cwd,'snapback/schema.q'),source);
    const before=snapshot(cwd),preview=invoke(cwd,['init','--adapt']);okay(preview);

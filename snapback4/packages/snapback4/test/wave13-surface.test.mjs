@@ -67,7 +67,7 @@ test('proof browser prefers caller-installed @playwright/test', async t => {
   const cwd=fixture(t), peer=join(cwd,'node_modules/@playwright/test'); mkdirSync(peer,{recursive:true});
   writeFileSync(join(cwd,'package.json'),'{"type":"module"}');
   writeFileSync(join(peer,'package.json'),'{"name":"@playwright/test","exports":"./index.js"}');
-  writeFileSync(join(peer,'index.js'),`module.exports={chromium:{async launch(){return {async newContext(){return {callerPeer:true,setDefaultTimeout(){},setDefaultNavigationTimeout(){},async close(){}}},async close(){}}}}};`);
+  writeFileSync(join(peer,'index.js'),`module.exports={chromium:{async launch(){return {async newContext(){return {callerPeer:true,async addInitScript(){},setDefaultTimeout(){},setDefaultNavigationTimeout(){},async close(){}}},async close(){}}}}};`);
   const result=await withBrowser({cwd,logsDir:join(cwd,'logs')},async context=>context.callerPeer);
   assert.equal(result,true);
 });

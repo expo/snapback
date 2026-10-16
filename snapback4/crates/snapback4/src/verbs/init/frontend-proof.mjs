@@ -5,10 +5,10 @@ import { randomUUID } from "node:crypto";
 import { command, startDev, startStatic, withBrowser, renderedText, fillRN, statusText, waitForFresh, bounded, cleanup, portRange } from "snapback4/proof";
 
 const options = process.env.SNAPBACK4_PROOF_LOGS ? { logsDir: process.env.SNAPBACK4_PROOF_LOGS } : {};
-const build = await command("npm", ["run", "BUILD_SCRIPT"], { ...options, timeoutMs: 300_000 });
-assert.equal(build.code, 0, `frontend:proof build failed: ${build.stderr}; logs: ${build.logs.stderr}`);
 const range = portRange();
 if (range !== "0" && range.split("-")[0] === range.split("-")[1]) throw Error("the starter needs two runtime ports");
+const build = await command("npm", ["run", "BUILD_SCRIPT"], { ...options, timeoutMs: 300_000 });
+assert.equal(build.code, 0, `frontend:proof build failed: ${build.stderr}; logs: ${build.logs.stderr}`);
 const dev = await startDev(options);
 let web;
 try {
