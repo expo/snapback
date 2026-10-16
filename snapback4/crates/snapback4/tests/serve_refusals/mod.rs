@@ -252,7 +252,9 @@ fn stopping_admission_flushes_console_entries_that_cannot_expire() {
     // joins the final save/console handoff, even if the last save is observed early.
     assert!(lock(&bytes).is_empty(), "fixture must keep console output pending");
     let sender = host.shared.refusals.clone(); // Held polls retain sender clones too.
-    serve_requests(host.server.clone(), host.shared.clone(), crate::dev_worker::Supervisor::idle_for_test(),
+    // This accept loop owns its own listener. The independent request fixture
+    // remains live while its shared refusal sink is flushed.
+    serve_requests(Arc::new(Server::http(("127.0.0.1", 0)).unwrap()), host.shared.clone(), crate::dev_worker::Supervisor::idle_for_test(),
         vec![], || true, crate::host_limits::Capacity::default()).unwrap();
     // The foreground has a bounded shutdown wait. Under CPU contention it can
     // return before the writer releases its lock; sink drop joins actual cleanup.

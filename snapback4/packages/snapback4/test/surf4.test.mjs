@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,symlinkSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {createConnection} from 'node:net';
 import {setTimeout as sleep} from 'node:timers/promises';
@@ -13,7 +13,7 @@ function fixture(t,source='query alive():\n  return true\n') {
  t.after(()=>rmSync(cwd,{recursive:true,force:true}));return cwd;
 }
 async function ok(args,cwd){const r=await cli(args,{cwd});assert.equal(r.code,0,r.stdout+r.stderr);return r;}
-async function until(read,label){const end=performance.now()+15000;while(performance.now()<end){const result=read();if(result)return result;await sleep(30);}assert.fail(label);}
+async function until(read,label,diagnostics=()=>''){const end=performance.now()+15000;while(performance.now()<end){const result=read();if(result)return result;await sleep(30);}assert.fail(label+"\n"+diagnostics());}
 const stopped=host=>new Promise(resolve=>{const socket=createConnection(new URL(host.url).port,'127.0.0.1');socket.once('error',error=>resolve(error.code==='ECONNREFUSED'));socket.once('connect',()=>{socket.destroy();resolve(false)});});
 test('serve canonical ready wait, active/working hashes and confirmed socket closure', {timeout:60000},async t=>{
  const cwd=fixture(t);await ok(['deploy','deployment'],cwd);
@@ -38,10 +38,10 @@ test('captured server and external project import run automatically and follow h
  writeFileSync(join(cwd,'handler.ts'),'export const marker = "SURF4_SECOND";\n');
  const host=await startServe('deployment',{cwd});
  try {
-  await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_FIRST'),'captured server was not started');
+  await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_FIRST'),'captured server was not started',()=>readFileSync(host.logs.stderr,'utf8'));
   assert.doesNotMatch(readFileSync(host.logs.stderr,'utf8'),/SURF4_SECOND|no supervised handler entry/);
   await ok(['deploy','deployment'],cwd);
-  await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_SECOND'),'hot release did not replace conventional entry/import');
+  await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_SECOND'),'hot release did not replace conventional entry/import',()=>readFileSync(host.logs.stderr,'utf8'));
  } finally{await host.stop();}
 });
 test('waitForFresh reports its overall deadline without the final 1 ms observation timeout',async()=>{
@@ -63,4 +63,26 @@ test('conventional worker fallback captures its imports before a first check', {
  writeFileSync(join(cwd,'snapback/worker.mjs'),`import {marker} from '../worker-helper.mjs';console.log(marker);setInterval(()=>{},1000);\n`);
  await ok(['deploy','deployment'],cwd);writeFileSync(join(cwd,'worker-helper.mjs'),'throw Error("mutable working bytes must not run");\n');
  const host=await startServe('deployment',{cwd});try{await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_WORKER_CAPTURED'),'worker fallback/import was not captured')}finally{await host.stop();}
+});
+
+for(const mode of ['absolute','symlink']) test(`deployment refuses ${mode} source escape before activation`, {timeout:60000},async t=>{
+ const cwd=fixture(t),outside=fixture(t);writeFileSync(join(outside,'helper.mjs'),'export const marker="OUTSIDE";\n');
+ let imported;
+ if(mode==='absolute'){writeFileSync(join(cwd,'helper.mjs'),'export const marker="ABSOLUTE";\n');imported=join(cwd,'helper.mjs');}
+ else{symlinkSync(outside,join(cwd,'shared'));imported='../shared/helper.mjs';}
+ writeFileSync(join(cwd,'snapback/server.mjs'),`import {marker} from ${JSON.stringify(imported)};console.log(marker);setInterval(()=>{},1000);\n`);
+ const result=await cli(['deploy','deployment'],{cwd});assert.notEqual(result.code,0);assert.match(result.stderr,/project-relative|inside the project|symlink|No such file|not a directory|Cannot find module/i);
+ const status=await cli(['releases','deployment','--json'],{cwd});if(status.code===0)assert.equal(JSON.parse(status.stdout).release,null);
+});
+test('checked imports under native and target directories stay in release source', {timeout:60000},async t=>{
+ const cwd=fixture(t);for(const dir of ['native','target']){mkdirSync(join(cwd,'src',dir),{recursive:true});writeFileSync(join(cwd,'src',dir,'helper.mjs'),`export const ${dir}="${dir}";\n`);}
+ writeFileSync(join(cwd,'snapback/server.mjs'),`import {native} from '../src/native/helper.mjs';import {target} from '../src/target/helper.mjs';console.log('SURF4_DIRS',native,target);setInterval(()=>{},1000);\n`);
+ await ok(['deploy','deployment'],cwd);const host=await startServe('deployment',{cwd});try{await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_DIRS native target'),'ordinary import directory omitted')}finally{await host.stop();}
+});
+test('schema-local installed dependency keeps its precedence in private checking and serving', {timeout:60000},async t=>{
+ const cwd=fixture(t),pkg=join(cwd,'snapback/node_modules/surface-dependency');mkdirSync(pkg,{recursive:true});
+ writeFileSync(join(pkg,'package.json'),JSON.stringify({name:'surface-dependency',type:'module',exports:'./index.js',types:'./index.d.ts'}));
+ writeFileSync(join(pkg,'index.js'),'export const marker="SURF4_SCHEMA_PACKAGE";\n');writeFileSync(join(pkg,'index.d.ts'),'export declare const marker: string;\n');
+ writeFileSync(join(cwd,'snapback/server.ts'),`import {marker} from 'surface-dependency';console.log(marker);setInterval(()=>{},1000);\n`);
+ await ok(['check'],cwd);await ok(['deploy','deployment'],cwd);const host=await startServe('deployment',{cwd});try{await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_SCHEMA_PACKAGE'),'schema-local dependency lost')}finally{await host.stop();}
 });

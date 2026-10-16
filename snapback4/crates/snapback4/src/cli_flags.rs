@@ -158,7 +158,7 @@ pub(crate) fn help(verb: &str) -> String {
             (_, "expo") => " — generate an Expo starter",
             (_, "skip-existing") => " — keep existing files and generate only missing ones",
             (_, "adapt") => " — preview fitting unmodified starter files to the current schema",
-            (_, "dry-run") => " — preview the starter adaptation without writing files",
+            (_, "dry-run") => " — preview the scaffold or adaptation without writing files",
             (_, "apply") => " — apply the starter adaptation plan",
             (_, "cost") => " — print read/write plans and scale summary",
             (_, "residency") => " — report device-held data, measured with --fixture and --as",

@@ -1,6 +1,6 @@
 # N_LOOKUP_HIDDEN
 
-Read access is required for a program's own lookup before a write, such as
+N_LOOKUP_HIDDEN concerns reads before writes. Read access is required for a program's own lookup before a write, such as
 `let row = tasks[task] ! else NOT_FOUND`. If that row is hidden, this lookup
 refuses before any later write rule runs. A nullable lookup returns null.
 Guard or remove the lookup, or deliberately admit the reader when the operation

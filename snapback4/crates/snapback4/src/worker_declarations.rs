@@ -140,6 +140,10 @@ pub(crate) fn package(project: &Project, stage: &Path) -> Result<(), String> {
 
 }
 
+pub(crate) fn link_dependencies(project: &Project, stage: &Path) -> Result<(), String> {
+    link_package_scopes(&Snapshot::package_root(project).map_err(|e| e.to_string())?, stage).map_err(|e| e.to_string())
+}
+
 /// Capture the same checked source closure used by automatic development entries.
 // @ref LLP 3000.000.000.000.000#7-serve-and-surface-completion-surf4-2026-10-16 — release source, including imports, is immutable; installed packages remain host-owned.
 pub(crate) fn package_entry(project: &Project, stage: &Path) -> Result<(), String> {
@@ -149,7 +153,7 @@ pub(crate) fn package_entry(project: &Project, stage: &Path) -> Result<(), Strin
     fn copy(source: &Path, target: &Path) -> io::Result<()> {
         for entry in std::fs::read_dir(source)? {
             let entry = entry?;
-            if matches!(entry.file_name().to_str(), Some("node_modules" | "native" | "target")) || entry.path().extension().is_some_and(|ext| ext == "q") { continue; }
+            if matches!(entry.file_name().to_str(), Some("node_modules")) || entry.path().extension().is_some_and(|ext| ext == "q") { continue; }
             let kind = entry.file_type()?;
             if kind.is_symlink() { return Err(io::Error::other("worker source must be a regular file or directory")); }
             let target = target.join(entry.file_name());

@@ -408,3 +408,72 @@ pub fn serve(
         capacity,
     )
 }
+
+// The production accept loop is also exercised with a real supervised child
+// and a held SQLite adoption transaction in the server regression.
+pub(super) fn serve_requests(
+    server: Arc<Server>, shared: Arc<Shared>, worker: crate::dev_worker::Supervisor,
+    background: Vec<(&str, std::thread::JoinHandle<()>)>, stopping: impl Fn() -> bool,
+    capacity: crate::host_limits::Capacity,
+) -> Result<(), String> {
+    // @ref LLP 3000#7-decisions-during-execution — bound HTTP admission while reserving short requests
+    crate::thread_priority::dispatcher();
+    let admission = Arc::new(RequestAdmission::new(&capacity));
+    let mut reported = tiny_http::AdmissionRefusals::default();
+    let mut reported_workers = ([0; CLASSES], [0; CLASSES]);
+    let mut report_at = Instant::now();
+    loop {
+        if report_at.elapsed() >= Duration::from_secs(1) {
+            let refusals = server.admission_refusals();
+            if refusals != reported && snapback4_core::diagnostics::emit(format_args!(
+                "E_RATE_LIMIT at http: all {} HTTP connections occupied at admission; cumulative refused={} http_written={} http_failed={} tls_closed={}; since_summary={}; wait for pending writes to settle or reduce concurrent clients; wire delivery is best-effort",
+                capacity.connections(), refusals.total(), refusals.http_written, refusals.http_failed, refusals.tls_closed, refusals.total().saturating_sub(reported.total())), false) {
+                reported = refusals;
+            }
+            let workers = (admission.refused.each_ref().map(|n| n.load(Ordering::Relaxed)), admission.undelivered.each_ref().map(|n| n.load(Ordering::Relaxed)));
+            if workers != reported_workers && snapback4_core::diagnostics::emit(format_args!(
+                "E_RATE_LIMIT at workers: cumulative refused={:?} undelivered={:?}; pools=[short,mutation,sync,wait,route,registry,verifier,claim]; full wait/claim pools answer E_STREAMS; reduce concurrent clients; wire delivery is best-effort", workers.0, workers.1), false) {
+                reported_workers = workers;
+            }
+            report_at = Instant::now();
+        }
+        if stopping() {
+            let address = server.server_addr();
+            drop(server);
+            // tiny_http's accept thread owns the descriptor until it observes
+            // the close trigger. Confirm closure before reporting it.
+            if let Some(mut socket) = address.clone().to_ip() {
+                if socket.ip().is_unspecified() {
+                    socket.set_ip(if socket.is_ipv4() { std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST) } else { std::net::IpAddr::V6(std::net::Ipv6Addr::LOCALHOST) });
+                }
+                let until = Instant::now() + Duration::from_secs(3);
+                loop {
+                    match std::net::TcpStream::connect_timeout(&socket, Duration::from_millis(50)) {
+                        Err(error) if error.kind() == std::io::ErrorKind::ConnectionRefused => break,
+                        _ if Instant::now() >= until => return Err("HTTP socket closure could not be confirmed".into()),
+                        _ => std::thread::sleep(Duration::from_millis(10)),
+                    }
+                }
+            }
+            snapback4_core::diagnostic!("SNAPBACK4_SOCKET_CLOSED verb={} url=http://{address} socket closed", if shared.personas { "dev" } else { "serve" });
+            let _ = snapback4_core::diagnostics::drain(Duration::from_secs(3));
+            shared.refusals.shutdown();
+            // @ref LLP 3000.000.000#51-path-independent-control-address — retain store ownership until control drains admitted work and unlinks its socket.
+            for (name, thread) in background {
+                if name == "release-control" {
+                    thread.join().map_err(|_| "release-control thread panicked during shutdown")?;
+                }
+            }
+            if let Some(owner) = &shared.owner { owner.clear_address(); }
+            return Ok(());
+        }
+        for (name, thread) in &background {
+            if thread.is_finished() { return Err(format!("{name} thread stopped")); }
+        }
+        if worker.is_finished() { return Err("worker thread stopped".into()); }
+        if let Some(request) = server.recv_timeout(Duration::from_millis(100)).map_err(crate::host_limits::listener_error)? {
+            dispatch(request, shared.clone(), admission.clone(), server.server_addr().to_ip().is_some_and(|a| a.ip().is_loopback()));
+        }
+    }
+}
+

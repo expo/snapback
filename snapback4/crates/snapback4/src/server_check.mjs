@@ -1,8 +1,8 @@
 // The CLI embeds this checker. Resolve the application's installed compiler;
 // never download a package or execute the application's TypeScript to check it.
 import { createRequire } from "node:module";
-import { mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
-import { dirname, resolve, sep } from "node:path";
+import { mkdirSync, readFileSync, renameSync, realpathSync, statSync, writeFileSync } from "node:fs";
+import { dirname, resolve, sep, isAbsolute } from "node:path";
 
 const root = resolve(process.argv[1]);
 const entry = resolve(process.argv[2]);
@@ -100,6 +100,32 @@ const host = ts.createCompilerHost(compilerOptions);
 Object.assign(host, observed(host));
 const program = ts.createProgram([entry], compilerOptions, host);
 errors.push(...ts.getPreEmitDiagnostics(program));
+// Source imports must survive private preparation and relocation. Packages and
+// builtins are host dependencies; local modules belong to this project.
+const projectRoot = realpathSync(root);
+for (const source of program.getSourceFiles()) {
+  if (!source.fileName.startsWith(root + sep) || source.fileName.split(sep).includes("node_modules")) continue;
+  function visit(node) {
+    const specifier = (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) ? node.moduleSpecifier
+      : ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || ts.isIdentifier(node.expression) && node.expression.text === "require") ? node.arguments[0] : undefined;
+    if (specifier && ts.isStringLiteralLike(specifier)) {
+      const spec = specifier.text;
+      let problem;
+      if (isAbsolute(spec) || spec.startsWith("file:")) problem = "use a project-relative import instead of an absolute/file URL import; deploy captures project source";
+      else if (spec.startsWith(".")) {
+        const module = ts.resolveModuleName(spec, source.fileName, compilerOptions, host).resolvedModule;
+        if (module && !module.resolvedFileName.split(sep).includes("node_modules")) {
+          const actual = realpathSync(module.resolvedFileName);
+          if (!actual.startsWith(projectRoot + sep)) problem = "local server imports must remain inside the project; move the module into the app or install it as a package";
+        }
+      }
+      if (problem) errors.push({category:ts.DiagnosticCategory.Error,code:0,file:source,start:specifier.getStart(source),length:specifier.getWidth(source),messageText:problem});
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+}
+
 // Publish even on a failed check, atomically, so the watcher can observe a fix
 // without adopting the invalid generation. Ignore metadata's own mtime.
 const watchFile = resolve(generated, "server-watch.json");
