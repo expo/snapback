@@ -133,16 +133,8 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut core::Schema, diagnostics: &m
             .map(|r|format!("{}.{} needs `cap N by {}` or plain single-column `unique {}`",r.child,r.column,r.column,r.column)).collect::<Vec<_>>().join("; ");
         diagnostics.push(Diagnostic::new(&site,"E_CASCADE_BOUND",format!("delete {parent}: {missing}; all children share one reservation"),super::cascade_repair::recipe(schema,&parent,false)).guide("writes"));
     }
-    // A cascade must end: no table reaches itself through cascades.
-    let mut reported = BTreeSet::new();
-    for name in schema.tables.keys().cloned().collect::<Vec<_>>() {
-        if !unbounded.is_empty() || schema.delete_reservation(&name).is_some() || !schema.is_referenced(&name) { continue; }
-        let Some(r) = schema.referencing(&name).into_iter().find(|r| r.action == Action::Cascade) else { continue };
-        if !reported.insert((r.child.to_owned(), r.column.to_owned())) { continue; }
-        let site = catalog.tables.get(r.child).and_then(|info| info.decl.columns.iter().find(|c| c.name == r.column)).map(|c| c.on_delete.as_ref().map_or(&c.site, |(_, s)| s).clone()).unwrap_or_default();
-        diagnostics.push(Diagnostic::new(&site, "E_REFERENCE_ACTION", format!("on delete cascade from {name} reaches {name} again: a cascade must end, so the cascading references cannot form a cycle"),
-            format!("{}: {name} on delete restrict   -- or set null on an optional reference", r.column)).guide("writes"));
-    }
+    // Structural cycles are independent of whether a finite reservation is
+    // available: a dormant descendant may deliberately have no cap yet.
     if let Some(table) = schema.deletion_cycle() && !diagnostics.iter().any(|d| d.code == "E_REFERENCE_ACTION") {
         let site = catalog.tables.get(&table).map(|info| info.decl.site.clone()).unwrap_or_default();
         diagnostics.push(Diagnostic::new(&site, "E_REFERENCE_ACTION", format!("{table} reaches itself through `on delete cascade` and `read through`: a cascade deletes children before parents, and a read-through child must go before its parent, so no order can delete those rows"),

@@ -505,13 +505,8 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     if let Some(table) = schema.deletion_cycle() {
         issues.push(SchemaIssue { path: format!("tables.{table}"), message: format!("{table} reaches itself through on delete cascade and read through: no order can delete those rows") });
     }
-    for name in schema.tables.keys() {
-        if schema.is_referenced(name) && schema.delete_reservation(name).is_none()
-            && schema.action_tables(name).written.iter().all(|t| write_target_refusal(schema, t).is_none())
-            && schema.referencing(name).into_iter().all(|r| !r.action.writes() || schema.reference_cap(r.child, r.column).is_some()) {
-            issues.push(SchemaIssue { path: format!("tables.{name}"), message: format!("on delete cascade from {name} reaches {name} again; a cascade cannot be cyclic") });
-        }
-    }
+    // A missing reservation can mean an uncapped dormant descendant. Only
+    // the structural graph walk above proves a cycle.
     issues
 }
 

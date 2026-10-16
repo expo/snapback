@@ -329,3 +329,23 @@ fn lifetime_free_external_rule_ties_still_fetch_one_raw_witness() {
     let r = query(&mut e,"list","alice", &[("c",Value::Null)]);
     assert!(r.complete && r.data.as_array().unwrap().len() == 1, "{r:?}");
 }
+
+#[test]
+fn dormant_descendants_are_not_misreported_as_cycles_below_capped_edges() {
+    use snapback4_core::ir::*;
+    for edge in ["child: children on delete cascade", "child: children ? on delete set null"] {
+        let source = format!("table parents:\n  public\n  online only\ntable children:\n  parent: parents on delete cascade\n  cap 2 by parent\n  public\n  online only\ntable grandchildren:\n  {edge}\n  public\n  online only\n");
+        let b = checked(&source);
+        assert!(b.notes.iter().any(|n| n.code == "N_CASCADE_DORMANT"));
+        assert!(b.schema.deletion_cycle().is_none());
+        assert!(b.schema.delete_reservation("parents").is_none());
+        assert!(snapback4_core::schema::validate(&b.schema).is_empty());
+        Engine::memory(b.schema.clone(), []).unwrap();
+        refusal(&source.replace("table parents:\n", "table parents:\n  delete <- allow\n"), "E_CASCADE_BOUND");
+        let mut program: Program = serde_json::from_value(serde_json::json!({"name":"external","kind":"job","args":{},"body":[]})).unwrap();
+        program.body.push(Stmt::Delete { table: "parents".into(), key: Expr::Literal(id("p")) });
+        assert!(snapback4_core::engine::admission::check(&b.schema, &program).unwrap_err().to_string().contains("E_CASCADE_BOUND"));
+    }
+    let cycle = "table a:\n  b: b on delete cascade\n  public\n  online only\ntable b:\n  a: a on delete cascade\n  public\n  online only\n";
+    refusal(cycle,"E_REFERENCE_ACTION");
+}

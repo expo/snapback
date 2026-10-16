@@ -574,6 +574,9 @@ pub struct Program {
     /// optionally rows restricting those (`widen.rs`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub kids: Option<Kids>,
+    /// LANG2: a dormant chain with a capped first edge and uncapped descendant.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub dormant_actions: bool,
 }
 
 /// `kids.item: items` with `on delete <action>` (undeclared when `None`),
@@ -645,6 +648,9 @@ impl Program {
         }
         if let Some(kids) = &self.kids {
             declarations.push(kids.source());
+        }
+        if self.dormant_actions {
+            declarations.push("table lang2Parents:\n  public\n  sync public\ntable lang2Children:\n  parent: lang2Parents on delete cascade\n  cap 2 by parent\n  public\n  sync public\ntable lang2Grandchildren:\n  child: lang2Children on delete cascade\n  public\n  sync public\n".into());
         }
         if self.reverse {
             declarations.reverse();

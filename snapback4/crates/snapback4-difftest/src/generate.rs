@@ -305,6 +305,7 @@ pub fn base(seed: u64) -> Case {
             time_arg: false,
             arg_bound: None,
             kids: None,
+            dormant_actions: false,
         },
         rows,
         principal: if rng.pick(2) == 0 { "alice" } else { "bob" }.into(),
@@ -691,12 +692,12 @@ pub fn page5_implicit_id_vacancy(seed: u64) -> Case {
 /// @ref LLP 3000.036.002#10 — source-generated exact negative, capped and
 /// filtered-id membership families share all native/device/Lean oracles.
 pub fn lang2(seed: u64, shape: u64) -> Case {
-    let mut case = page5(seed, if shape % 3 == 1 { 0 } else { 2 });
+    let mut case = page5(seed, if matches!(shape % 4, 1 | 3) { 0 } else { 2 });
     case.program.domain = None;
     case.program.tables[0].expire = None;
     case.program.tables[0].not_before = None;
     case.program.unfiltered = true;
-    match shape % 3 {
+    match shape % 4 {
         0 => {
             case.program.tables[0].rule = Rule::NegativeMembership;
             let access = case.program.tables.iter_mut().find(|table| table.name == "access").unwrap();
@@ -707,7 +708,8 @@ pub fn lang2(seed: u64, shape: u64) -> Case {
                 if table == "access" { row["copied"] = row["item"].clone(); }
             }
         }
-        1 => {
+        1 | 3 => {
+            case.program.dormant_actions = shape % 4 == 3;
             case.program.tables[0].caps = vec![(100, Vec::new())];
             case.program.order = Some(vec!["score".into()]);
         }

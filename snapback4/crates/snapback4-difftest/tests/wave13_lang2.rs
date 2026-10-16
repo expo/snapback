@@ -7,7 +7,7 @@ fn generated_lang2_plans_have_no_new_native_device_or_lean_signatures() {
     assert!(lean::oracle_path().is_file(), "LANG2 qualification requires the Lean oracle");
     let mut files = devices::Files::new().unwrap();
     for seed in (0..8).chain([281]) {
-        for shape in 0..3 {
+        for shape in 0..4 {
             let case = generate::lang2(seed,shape);
             let source = case.program.source();
             execute::compile(&source).unwrap_or_else(|e| panic!("{seed}/{shape}: {e}\n{source}"));

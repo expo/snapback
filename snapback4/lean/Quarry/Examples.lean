@@ -1411,8 +1411,24 @@ def page4FallbackExamples : List Example := [
     expected := r#"{"kind":"answer","data":[],"complete":false,"next":null}"# }
 ]
 
+-- LLP 3000.036.002 §10: unavailable dormant reservations do not change reads.
+def dormantActionSchema : Schema := { tables := [
+  { name := "parents", cols := [], read := .allow },
+  { name := "children", cols := [refCol "parent" "parents" (some .cascade)],
+    caps := [{ columns := ["parent"], max := 2 }], read := .allow },
+  { name := "grandchildren", cols := [refCol "child" "children" (some .cascade)], read := .allow }] }
+
+def dormantActionExamples : List Example := [
+  { name := "lang2-dormant-transitive-action-read"
+    source := "a capped edge above an uncapped dormant descendant is acyclic"
+    case := { schema := dormantActionSchema, store := Store.empty, viewer := alice,
+              program := query [.ret (.page "parents" [] none ["id"] false 2 none)] }
+    tables := []
+    expected := r#"{"kind":"answer","data":[],"complete":true,"next":null}"# }
+]
+
 /-- Every example: the guide cards' and the referential actions'. -/
-def all : List Example := examples ++ merged ++ refExamples ++ page3Examples ++ qdiagExamples ++ page4Examples ++ page5VacancyExamples ++ page4FallbackExamples
+def all : List Example := examples ++ merged ++ refExamples ++ page3Examples ++ qdiagExamples ++ page4Examples ++ page5VacancyExamples ++ page4FallbackExamples ++ dormantActionExamples
 
 /-- Run every example; returns the failures. -/
 def check : List (String × String × String) :=
