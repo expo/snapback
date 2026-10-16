@@ -7,6 +7,7 @@ use crate::project::Project;
 
 // @ref LLP 3000.011.003.000#8 — positive bootstrap dependencies form a least fixed point.
 pub(super) fn notes(project: &Project, bound: &Bound, fixture: Option<&String>) -> Vec<Diagnostic> {
+    if bound.programs.iter().any(|p| p.program.native) { return fixture_notes(project, bound, fixture); }
     let blocked = blocked_tables(bound);
     let writers: BTreeSet<_> = bound.programs.iter().flat_map(|p| ir::write_tables(&p.program)).filter(|(_, effect)| matches!(*effect, "insert" | "upsert")).map(|(name, _)| name).collect();
     let sources = project.sources().unwrap_or_default();
