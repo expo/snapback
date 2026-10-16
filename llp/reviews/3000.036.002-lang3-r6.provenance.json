@@ -1,0 +1,20 @@
+{
+  "at": "2026-10-16T22:17:57.514556+00:00",
+  "brief": "3000.036.002-lang3-r6.brief.md",
+  "families": {
+    "codex": {
+      "review": "3000.036.002-lang3-r6.codex.md",
+      "stdoutSha256": "47d34da5768c7d630b9b50b2bda260a54ff4d724ba05c22934dd745f5a0cf4c2",
+      "verdict": "READY for supplied implementation snapshot",
+      "command": "timeout 1800 codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < brief"
+    },
+    "muse": {
+      "review": "3000.036.002-lang3-r6.muse.md",
+      "stdoutSha256": "8c5a96c6e24825c1867f2642f2680c453f580f87c25857b78cebe27f98f459d0",
+      "verdict": "READY for supplied implementation snapshot",
+      "command": "timeout 1800 ~/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file brief"
+    }
+  },
+  "testDelta": "The actual test correction replaces forbidden argument shadowing with local key rebinding; Muse describes it as whitespace, which is inaccurate. Assertions intent remains; final execution receipts bind the corrected test.",
+  "superseded": "Execution revealed blind mutable writes can succeed on hidden rows; final note design now targets actual required-read gates. Round 7 reviews the correction, not this prior READY snapshot."
+}
