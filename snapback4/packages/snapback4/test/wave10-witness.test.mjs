@@ -150,6 +150,9 @@ test('abandoned arms, rearmed pending writes and settlement deadlines release wi
   const click={isTrusted:true,composedPath:()=>[button]};window.event=click;events.get('click')(click);
   await client.mutate(op,{});const pending=bridge.formResult();assert.equal(listeners.size,1);
   bridge.beginForm('add',{},button);assert.equal((await pending).why.code,'E_WITNESS_UNCLAIMED');assert.equal(listeners.size,0);
-  window.event=click;events.get('click')(click);await client.mutate(op,{});const stalled=bridge.formResult();t.mock.timers.tick(30000);
+  t.mock.timers.tick(29000);
+  window.event=click;events.get('click')(click);await client.mutate(op,{});const stalled=bridge.formResult();
+  let settled=false;stalled.then(()=>settled=true);t.mock.timers.tick(1000);await Promise.resolve();assert.equal(settled,false,'a late claim receives the full settlement allowance');
+  t.mock.timers.tick(29000);
   assert.equal((await stalled).why.code,'E_WITNESS_SENT');assert.equal(listeners.size,0);assert.equal(events.size,0);assert.equal(calls,2,'proof expiry never cancels or resubmits writes');
 });

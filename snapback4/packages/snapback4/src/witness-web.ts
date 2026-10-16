@@ -35,7 +35,8 @@ export function registerWebWitness(app: App, api: Operations): void {
         settled = true; clearTimeout(expiry); clearTimeout(noWriteTimer); restore(); cancelObserver(); resolve(write);
       };
       // Bound even an abandoned arm or a claimed write that never settles.
-      const expiry = setTimeout(() => claimed ? finish({ state: "failed", mutation: name, why: { code: "E_WITNESS_SENT", message: "claimed write did not settle within 30000 ms; inspect its original intent id" } }) : noWrite(), 30_000);
+      const receiptExpired = () => finish({ state: "failed", mutation: name, why: { code: "E_WITNESS_SENT", message: "claimed write did not settle within 30000 ms; inspect its original intent id" } });
+      let expiry = setTimeout(noWrite, 30_000);
       // Chromium's active event ties admission to this actual control's handler.
       // Timers, input autosaves and previously-started writes cannot claim it.
       const capture = (event: Event) => {
@@ -82,7 +83,9 @@ export function registerWebWitness(app: App, api: Operations): void {
           }
           return invoke();
         }
-        claimed = true; restore();
+        claimed = true; restore(); clearTimeout(expiry); clearTimeout(noWriteTimer);
+        // A late click receives its own complete settlement allowance.
+        expiry = setTimeout(receiptExpired, 30_000);
         let id: string | undefined, early: Write[] = [];
         const stop = client.onWrite(write => {
           if (id === undefined) { early.push(write); if (early.length > 256) early.shift(); }

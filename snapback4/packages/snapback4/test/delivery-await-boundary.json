@@ -328,8 +328,8 @@
     "sha256": "5b7cdcfd62f5dcf4a6f41dc9d59fec7e5a7e364582c01189c4723b860518e93f"
   },
   "proof.ts": {
-    "count": 29,
-    "sha256": "47e313c568eadb10f836a37d5eac8489b8771940e06e8063c44474a974fc44cf"
+    "count": 32,
+    "sha256": "f9958fbd7342151d427e9971763233cc47caef9e6f9eac463b9c00eb89e17d25"
   },
   "query-custody.ts": {
     "count": 1,

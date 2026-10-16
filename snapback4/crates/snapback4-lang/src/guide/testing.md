@@ -167,6 +167,8 @@ its deadline reports the last answer. A poll timeout never means the write faile
 
 E_WITNESS_DISABLED means claiming is not armed. Add &witness=web to the proof URL.
 
+E_WITNESS_SENT means the write failed, stayed pending or timed out. Inspect the refusal; pending is not success. A proof timeout never cancels a write.
+
 E_WITNESS_NO_WRITE means the armed click produced no durable mutation. Check the form handler and useAppReady() before clicking; a proof failure never cancels a write.
 
 E_WITNESS_UNCLAIMED means the armed durable write's event, operation or arguments did not match. Inspect the reason in formResult; the application write still runs normally.
