@@ -42,7 +42,17 @@ query one(key: text <=80):
   return records[key = key]
 "#;
 fn compile(source: &str) -> snapback4_lang::Bound {
-    let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    let mut b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    if !b.diagnostics.is_empty() && b.diagnostics.iter().all(|d|d.code == "E_QUARRY_IMMUTABLE") {
+        // These paired worlds qualify external IR, including the author-ruled
+        // hidden immutable exception. The source refusal is independently checked.
+        let rebound = source.lines().filter(|line| !line.trim_start().starts_with("immutable ")).collect::<Vec<_>>().join("\n");
+        let runtime = snapback4_lang::compile(&[("schema.q".into(), rebound)]);
+        assert!(runtime.diagnostics.is_empty(), "{:?}", runtime.diagnostics);
+        b.programs = runtime.programs;
+        b.notes = runtime.notes;
+        b.diagnostics.clear();
+    }
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
     b
 }

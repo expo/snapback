@@ -4,7 +4,7 @@ use super::catalog::{Catalog, TableInfo};
 use super::intent_walk as walk;
 use crate::ast::*;
 use crate::diag::{Diagnostic, Site};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Default)]
 pub(super) struct Requests {
@@ -189,11 +189,26 @@ impl Requests {
             }
         }
         // @ref LLP 3000.036.002#10 — a unique membership target is a point;
-        // other equalities filter that row rather than widening its key.
+        // payload filters may leave its key, but authorization pins stay in
+        // the established covering-index certificate before row decoding.
+        fn rule_fields(value: &Expr, out: &mut BTreeSet<String>) {
+            if let Some(column) = column(value) { out.insert(column.into()); }
+            match value {
+                Expr::Member { base, .. } | Expr::Unary { value: base, .. } => rule_fields(base,out),
+                Expr::Binary { left, right, .. } => { rule_fields(left,out); rule_fields(right,out); }
+                Expr::Exists { read, .. } | Expr::Created { read, .. } => for key in &read.keys { rule_fields(&key.value,out); },
+                Expr::Call { args, .. } => for arg in args { rule_fields(arg,out); },
+                _ => {}
+            }
+        }
+        let mut authority = BTreeSet::new();
+        if let Some(rule) = super::intent_branches::read_rule(table) { rule_fields(rule,&mut authority); }
+        let point = table.indexes.iter().any(|index| table.total_unique(index) && index.columns.iter().all(|column|pins.contains_key(column)));
         if self.lane && read.matching.is_none() && read.computed.is_empty() {
             if let Some(index) = table.indexes.iter().filter(|index| table.total_unique(index)
                 && index.columns.iter().all(|column| pins.contains_key(column))
-                && read.order_keys.iter().all(|column| index.columns.contains(column)))
+                && read.order_keys.iter().all(|column| index.columns.contains(column))
+                && pins.keys().all(|column| index.columns.contains(column) || !authority.contains(column)))
                 .min_by_key(|index| (index.columns.len(), &index.name)) {
                 let mut point = BTreeMap::new();
                 for column in &index.columns { point.insert(column.clone(), pins.remove(column).unwrap()); }
@@ -208,6 +223,11 @@ impl Requests {
                     return;
                 }
             }
+        }
+        if self.lane && point && read.range.is_none() {
+            // A covering point with extra authority pins still has at most
+            // one row. Bind it as a scan, not a wider authored unique key.
+            read.range = Some(RangeSpec { order: Order::Asc, take: 1, cursor: None, site: read.site.clone() });
         }
         let mut columns: Vec<_> = pins.keys().filter(|column| !read.computed.contains_key(*column)).cloned().collect();
         columns.extend(pins.keys().filter(|column| read.computed.contains_key(*column)).cloned());

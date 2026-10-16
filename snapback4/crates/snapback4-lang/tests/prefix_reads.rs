@@ -59,11 +59,11 @@ fn prefix_positions_refuse_with_working_page_rewrites() {
         checked(&format!("{}\n{}", schema(), body.replace("bad()", "bad(c: cursor ?)").replace("members[principal = viewer] by byPrincipalRoom", "members[principal = viewer] after c last 50 by byPrincipalRoom")));
     }
     let helper = "fn total():\n  n = 0\n  for m in members[principal = viewer] by byPrincipalRoom:\n    n = n + m.unread\n  return n\nmutation bad():\n  return total()\n";
-    let error = rejected(schema(), helper, "E_QUARRY_PLACEMENT");
-    assert!(error.message.starts_with("fn total:"), "{error:?}");
-    assert_eq!(error.site.line as usize, schema().lines().count() + 8);
+    let error = rejected(schema(), helper, "E_QUARRY_FANOUT");
+    assert!(error.message.contains("atomic mutation"), "{error:?}");
+    assert_eq!(error.site.line as usize, schema().lines().count() + 4);
     checked(&format!("{}\n{}", schema(), helper.replace("members[principal = viewer] by byPrincipalRoom", "members[principal = viewer] by byPrincipalRoom first 50").replace("mutation bad():", "mutation bad(): server")));
-    rejected(schema(), &helper.replace("return total()", "return members[principal = viewer] by byPrincipalRoom first 50 where total() > 0"), "E_QUARRY_PLACEMENT");
+    rejected(schema(), &helper.replace("return total()", "return members[principal = viewer] by byPrincipalRoom first 50 where total() > 0"), "E_QUARRY_FANOUT");
     let job = "job sweep():\n  chunk r in rooms first 10 by byId:\n    for m in members[principal = viewer] by byPrincipalRoom:\n      continue\n";
     checked(&format!("{}\n{job}", schema())); // Inner job domains use the chunk meter.
     checked(&format!("{}\n{}", schema(), job.replace("members[principal = viewer] by byPrincipalRoom", "members[roomId = r.id]")));

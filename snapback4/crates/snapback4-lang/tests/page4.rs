@@ -210,11 +210,17 @@ fn asserted_maintained_row_keeps_output_type_and_never_becomes_computation() {
 }
 
 #[test]
-fn compound_prefix_conditional_note_names_the_guard_for_its_admitted_callers() {
+fn compound_prefix_and_indexed_vacancy_are_complete_for_all_callers() {
     let source="table members:\n  group: int\n  principal: principal\n  unique group, principal\n  read <- .principal = viewer\n  online only\ntable seals:\n  question: int\n  unique question\n  read <- deny\n  online only\ntable docs:\n  group: int\n  principal: principal\n  question: int\n  read <- (exists members[.group, viewer] and .principal = viewer) or not exists seals[.question]\n  online only\nquery table(g: int):\n  return docs where .group = g and .principal = viewer first 10 by .id\n";
     let b=compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
-    let note=b.notes.iter().find(|n|n.code=="N_CONDITIONAL_COMPLETE").unwrap();
-    assert!(note.message.contains("for callers `exists members[") && note.message.contains("and otherwise remains capped"),"{note:?}");
+    assert!(!b.notes.iter().any(|n|matches!(n.code.as_str(), "N_CONDITIONAL_COMPLETE" | "N_NEVER_COMPLETE")), "{:?}", b.notes);
+    let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    e.seed([("docs".into(),object([("id",id("a")),("group",Value::Int(1)),("principal",id("alice")),("question",Value::Int(2))]))]).unwrap();
+    for viewer in ["alice", "bob"] {
+        let r=e.query("table",Context::new(viewer,BTreeMap::from([("g".into(),Value::Int(1))]))).unwrap();
+        assert!(r.complete, "{viewer}: {r:?}");
+        assert_eq!(r.data.as_array().unwrap().len(), usize::from(viewer == "alice"));
+    }
 }
 
 #[test]

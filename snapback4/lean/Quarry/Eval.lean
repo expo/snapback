@@ -708,9 +708,16 @@ def Rule.exhaustionSafe (sch : Schema) : Rule → Bool
   | .not a => a.exhaustionSafe sch
   | _ => true
 
+def Rule.exhaustionProbes : Rule → Nat
+  | .probe _ _ _ => 1
+  | .and a b | .or a b => a.exhaustionProbes + b.exhaustionProbes
+  | .not a => a.exhaustionProbes
+  | _ => 0
+
 def finiteExhaustion (sch : Schema) (td : TableDecl) (pins : List (String × Expr)) : Bool :=
   td.onlineOnly && td.notBefore.isNone && td.expire.isNone && td.read.exhaustionSafe sch
-    && td.caps.any fun cap => cap.columns.all fun c => pins.any (·.1 == c)
+    && td.caps.any fun cap => (cap.max + 1) * (1 + td.read.exhaustionProbes) < 8192
+      && cap.columns.all fun c => pins.any (·.1 == c)
       && !(td.cols.any fun col => col.name == c && col.onDelete == some .setNull)
 
 /-- The pins the single-index planner keeps: the page's equalities and bare

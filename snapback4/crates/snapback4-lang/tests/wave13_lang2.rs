@@ -277,3 +277,28 @@ fn future_opening_caps_do_not_supply_a_physical_population_bound() {
     assert!(!b.schema.required_capabilities().contains("branch-pages-v5"));
     assert!(b.notes.iter().any(|note|note.code=="N_NEVER_COMPLETE"));
 }
+
+#[test]
+fn oversized_caps_do_not_shadow_existing_uniform_grants() {
+    let source = "table grants:\n  who: principal\n  unique who\n  read <- .who = viewer\n  online only\ntable entries:\n  cap 5000\n  read <- exists grants[viewer]\n  online only\nquery list(c: cursor ?):\n  return entries first 10 by .id after c\n";
+    let b = checked(source);
+    assert!(!b.schema.required_capabilities().contains("branch-pages-v5"));
+    let mut e = engine(source);
+    e.seed([("grants".into(),object([("id",id("g")),("who",id("alice"))]))]).unwrap();
+    assert!(query(&mut e,"list","alice", &[("c",Value::Null)]).complete);
+}
+
+#[test]
+fn lean_keeps_sync_presence_and_names_unmodelled_readthrough() {
+    use snapback4_lang::emit::lean::{lean,LeanError};
+    let source = "table entries:\n  owner: principal\n  cap 2\n  read <- .owner = viewer\n  sync\n  online only\nquery list(c: cursor ?):\n  return entries first 2 by .owner after c\n";
+    assert!(compile(&[("schema.q".into(),source.into())]).diagnostics.iter().any(|why|why.code=="E_SYNC"),"dual residency is already refused");
+    let module = lean(&[("schema.q".into(),source.replace("  online only\n", ""))]).unwrap();
+    assert_eq!(module.schema["tables"][0]["onlineOnly"],false);
+    let source = "table parents:\n  public\n  online only\ntable children:\n  parent: parents\n  immutable parent\n  read through .parent\n  online only\nquery child(id: children):\n  return children[id]\n";
+    match lean(&[("schema.q".into(),source.into())]) {
+        Err(LeanError::Unsupported(why)) => assert_eq!(why.reason,"table-through"),
+        Err(why) => panic!("read-through must be named unsupported: {why:?}"),
+        Ok(module) => panic!("read-through was silently accepted: {}",module.schema),
+    }
+}

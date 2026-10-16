@@ -106,7 +106,8 @@ structure TableDecl where
   expire : Option String := none
   /-- Components of the plain index selected for expiry, before its appended row id. -/
   expiryOrder : List String := []
-  /-- Residency affects private server exhaustion, not row authorization. -/
+  /-- True only without a sync declaration; a simultaneous online-only arm
+  does not establish private server exhaustion. -/
   onlineOnly : Bool := true
   read : Rule := .deny
   insert : Rule := .deny

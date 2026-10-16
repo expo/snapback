@@ -222,7 +222,19 @@ pub(super) fn vacancy(tables: &Tables, synthesized: &BTreeSet<(String, String)>,
     let mut system = read.clone(); candidate.read(tables, &mut system, false);
     let mut lane = read.clone(); candidate.plan_lane(tables, &mut lane);
     let pins = lane.keys.iter().filter_map(|key| key.column.as_ref()).collect::<Vec<_>>();
-    let bounded = table.decl.not_before.is_none() && table.decl.expire.is_none() && table.decl.caps.iter().any(|cap| cap.by.iter().all(|column| pins.contains(&column)
+    fn probes(value: &Expr) -> u64 {
+        match value {
+            Expr::Exists { .. } => 1,
+            Expr::Unary { value, .. } => probes(value),
+            Expr::Binary { left, right, .. } => probes(left).saturating_add(probes(right)),
+            _ => 0,
+        }
+    }
+    // A schema-fixed oversized walk must not shadow an existing indexed or
+    // caller-granted plan. Runtime separately reserves all static occurrences.
+    let bounded = table.decl.not_before.is_none() && table.decl.expire.is_none() && table.decl.caps.iter().any(|cap|
+        u64::from(cap.max).saturating_add(1).saturating_mul(1 + probes(rule)) < snapback4_core::Ceilings::default().examined
+        && cap.by.iter().all(|column| pins.contains(&column)
         && !table.decl.columns.iter().any(|decl| &decl.name == column && decl.on_delete.as_ref().is_some_and(|(action,_)| *action == OnDelete::SetNull))));
     if !admitted && !bounded { return None; }
     let mut lanes = Vec::with_capacity(2); let mut order = None;
