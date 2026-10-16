@@ -31,24 +31,20 @@ export function Composer({conversationId}:{conversationId:string}) {
 ```
 Membership: no horizon, the conversation's own group and messages' audience prove presence/absence unless a pending prediction blocks absence. `loading` means acquisition or later withdrawal. `existence(member) === "absent"` blocks only when fresh and non-revalidating; denied blocks; loading/partial never disable. Never add `with own keys` to admin-written memberships.
 Keep drafts and receipts above rows; [write journal, password form and typed list props](CLIENT-AND-OPERATIONS.md). `waitSeconds:0` returns custody; keep the original id, never auto-resend.
-
 ## An online role form across releases
-Create the app once outside render with createApp({url,writes:"online",sessionStore:localStorageSessionStore()}); mount this signed-in screen under AppProvider. RULES3 owns roster authorization; DAY3 owns compatibility generation.
+Own createApp({url,writes:"online",sessionStore:localStorageSessionStore()}) outside render; mount under AppProvider. Authorization: RULES4; compatibility: DAY4.
 ```tsx
 import { useEffect, useState } from "react";
 import { isPresent, matchReadList, sentResult, useAppReady, useMutation, useQuery, useRelease } from "snapback4/react";
 import { api } from "../snapback/generated/api";
 export function StaffWorkspace({team}: {team: string}) {
   const [draft, setDraft] = useState(""), [selected, setSelected] = useState("");
-  const ready = useAppReady(), release = useRelease();
-  const role = useQuery(api.myRole, {team});
+  const ready = useAppReady(), release = useRelease(), role = useQuery(api.myRole, {team});
   const [lastStaff, setLastStaff] = useState(false);
-  const staff = isPresent(role) && role.data.role === "staff";
-  const uncertain = "loading" in role || ("data" in role && role.existence === "partial");
+  const staff = isPresent(role) && role.data.role === "staff", uncertain = "loading" in role || ("data" in role && role.existence === "partial");
   useEffect(() => { if (!uncertain) setLastStaff(staff); }, [uncertain, staff]);
   const shell = uncertain ? lastStaff : staff;
-  const available = api.addStaffNote.available(release) && api.staffNotes.available(release);
-  const add = useMutation(api.addStaffNote);
+  const available = api.addStaffNote.available(release) && api.staffNotes.available(release), add = useMutation(api.addStaffNote);
   async function submit() {
     const title = draft.trim();
     if (!ready || !staff || !available || !title || !selected) return;
@@ -70,10 +66,9 @@ function StaffRows({team}: {team:string}) {
     otherwise: () => <p>Updating notes…</p>})}</>;
 }
 ```
-Mount `<StaffWorkspace key={team} team={team}/>`: drafts/selections survive loading and generation changes, but resource/account/backend changes reset them. The sticky role labels the shell only; current role and availability gate reads/Save. Server rules still decide permission. A "Since release N" field stays optional: use `row.priority ?? "normal"` at React render and Exact required-property boundaries.
-
+Mount `<StaffWorkspace key={team} team={team}/>`: drafts survive loading/releases; resource/account/backend changes reset them. Sticky role labels only the shell. Current role/availability gate reads/Save; server rules decide permission. "Since release N" fields stay optional: `row.priority ?? "normal"` at React/Exact boundaries.
 ## A public guest page
-The schema admits guests (`use identity`/`use identity guests`) and public reads. No device/password is needed; browser session custody is required.
+Guests (`use identity`/`use identity guests`) access public reads. Browser session custody is required; no device/password.
 ```tsx
 import { createApp } from "snapback4/app";
 import { localStorageSessionStore } from "snapback4/auth";
@@ -93,31 +88,27 @@ function PublicNotes() {
     present: rows => <ul>{rows.map(row => <li key={row.id}>{row.title}</li>)}</ul>, otherwise: () => <p>Loading…</p>})}</>;
 }
 ```
-
 ## React hooks and auth decisions
-Render editable sign-in controls only while signed-out, Restoring… otherwise. AppProvider resets on app/viewer changes; restoring → signed-out preserves the null-viewer form. `useAppReady()` waits for initial app.ready and current signed-in auth without an admission refusal; gate writers/proof input. Successful later sign-in recovers from initial failure. Readiness is neither connectivity nor permission; surface auth.why.
-`createApp` returns a signed-out app with `auth.why` and a failed `ready` result for invalid `writes` options, including `writes:"online"` combined with a device or `readOnly`. Render that refusal through `useAuth().why`; recreate with corrected options. Browser storage prerequisites still refuse construction with `E_ADMISSION`.
+Render sign-in controls while signed-out, Restoring… otherwise. AppProvider resets on app/viewer changes. `useAppReady()` gates writers/proof input after app.ready and signed-in auth without admission refusal; later sign-in recovers. Readiness is not permission/connectivity; surface auth.why.
+`writes:"online"` with device/readOnly yields signed-out `useAuth().why` and failed app.ready. Recreate corrected. Missing browser storage still throws `E_ADMISSION`.
 `useAuth()` members: `state`, `viewer`, `why`, `signup(email, password)`, `login(email, password)`, `guest()`, `logout()`, `logoutEverywhere()`. `signOut()` belongs to the client. Expo session store: secureStoreSessionStore(SecureStore); password form: [reference](CLIENT-AND-OPERATIONS.md#password-react-and-expo).
 
-| Helper | Input and result | Handlers and argument shapes |
+| Helper | Input/result | Handlers/arguments |
 | --- | --- | --- |
-| `matchRead(read, handlers)` | A `Read<T>` or the whole `usePage` result; returns the selected handler's result | `loading(read)`, `denied(why, read)`, `absent(read)`, `partial(data, read)`, `present(data, read)`. `why` is a bare `Refusal`, not `{why}`. Both data handlers take the data first, metadata second. Supply all five, including `partial` for a single-row read, or supply `denied`, `partial`, and `otherwise(read)` for omitted loading/absent/present branches. |
-| `matchReadList(read, handlers)` | A list `Read<T[]>` or whole `usePage` result | Required: `denied(why, read)` and `otherwise(read)`. Optional: loading/absent/partial/present with the same signatures above. Omitted `partial` uses `otherwise`. |
-| `otherwiseAll(fallback, overrides?)` | Spread its returned object into a `matchRead` handler set | `fallback(read)` receives the whole read, including denied/partial. Named handlers override it in any spread order. |
-| `usePage(op, args)` | A query declaring `c: cursor ?`; omit `c` from `args` | Returns `{read, items, hasMore, loadMore}`. Match `page.read` or `page`; render `page.items`, and call `page.loadMore()` for continuation. This hook takes no handler object. |
+| `matchRead(read, handlers)` | Read or whole page; handler result | `loading(read)`, `denied(why,read)`, `absent(read)`, `partial(data,read)`, `present(data,read)`. Bare `why: Refusal`; data first, metadata second. All five required, even partial on single rows; `otherwise(read)` replaces omitted loading/absent/present only. |
+| `matchReadList(read, handlers)` | List read or page | Required `denied(why,read)`, `otherwise(read)`; other handlers above optional. Omitted partial uses otherwise. |
+| `otherwiseAll(fallback, overrides?)` | Spread into matchRead handlers | `fallback(read)` includes denied/partial; named handlers win in any order. |
+| `usePage(op, args)` | Query with `c: cursor ?`; omit c from args | `{read, items, hasMore, loadMore}`; match page.read/page, render items, call loadMore(). No handlers. |
 
-For direct narrowing use `'data' in read`: that branch exposes `read.data`, `read.existence`, and freshness/completeness metadata. Data may still be `null`, an empty list, partial, or stale; it does not grant permission. Check `'denied' in read` separately and render a roster/capability denial as “not available”. The remaining loading branch means acquisition or revalidation. A complete empty list is `absent`: render the empty state. `isPresent(read)` excludes null, while `isReady(read)` still permits null; `existence(read)` and `read.existence` classify.
+`'data' in read` exposes data/existence/metadata; data may be null, partial or stale. Handle denied separately as “not available”. Complete empty lists are absent; `absent` can be an authorised empty list. `isPresent(read)` excludes null; `isReady(read)` permits null; `existence(read)`/`read.existence` classify.
 ```ts
 import type { Read } from "snapback4/contract";
 export function listLabel(read: Read<readonly {id:string}[]>): string {
-  if ('denied' in read) return "not available";
-  if ('data' in read) return read.existence === "absent" ? "No rows" : `${read.data.length} rows`;
-  return "Loading…";
-}
+  if ('denied' in read) return "not available"; if ('data' in read) return read.existence === "absent" ? "No rows" : `${read.data.length} rows`; return "Loading…"; }
 ```
 `loading`: keep shells; `denied`: show refusal; `present`: render; `absent`: proven empty; `partial`: uncertain. Offline absent is absence at the acquired watermark. Hidden/missing rows are indistinguishable. `readPresentation` notices never grant permission. Render page.items, follow hasMore/loadMore. Unknown counts never hide conversations.
-Prediction timing belongs to each mutation, not the app: inspect that operation's generated `predicts` comment. With `predicts:"eligible"`, a device holding the needed facts may publish a row with `pending:true` before `useMutation().run()` settles; lacking those facts, it queues without a row. With `predicts:"never"`, no predicted row appears; query data follows server settlement and delivery. The online tier never predicts. Ordinary `run()` waits for `sent` or `failed`; `{waitSeconds:0}` requests immediate custody and may return `pending`. UI proofs await a fresh `sent` receipt before asserting committed data; a rendered predicted row is not evidence of settlement.
-`query(op,args)` settles ready/denied within 30 seconds. Unavailable offline reads give immediate `E_OFFLINE`. After four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Retention, RowOf/ArgsOf/ResultOf and {skip}: [reference](CLIENT-AND-OPERATIONS.md). Share/paginate: eight active, eight queued observation attempts; direct queries and timed presence refreshes use separate paths.
+Per-operation generated `predicts` controls timing: eligible + device + held facts may render `pending:true` before `useMutation().run()` settles; otherwise queues without a row. Never/online: no prediction; data follows server settlement/delivery. Ordinary run() waits for sent/failed; `{waitSeconds:0}` returns custody, possibly pending. Proofs await fresh sent before asserting committed data; predicted rendering is not settlement.
+`query(op,args)` settles ready/denied within 30 seconds. After four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Retention, RowOf/ArgsOf/ResultOf and {skip}: [reference](CLIENT-AND-OPERATIONS.md). Share/paginate: eight active, eight queued observation attempts; direct queries and timed presence refreshes use separate paths.
 Browser createApp: no sync → journal; sync → webDevice(); online writes: writes:"online". Native: nativeDevice; Expo Go online. Every milestone: npm run export:ios; proof in the background: witness status --wait. Rebuild npm run native:smoke. Acquisition/offline reopen/reconnect/write replay: guide witness.
-useOnline: server reads/ephemeral/actions; durable writes: app.mutate. SDK owns delivery reporting; screen owns visible `seen` reporting. useSeen owns receipt retries (guide receipts). Read-only clients: guide read-only. Media: OFFLINE-UPLOADS.md. Never wait for networkidle; assert fresh sent before rendered output (guide testing).
+useOnline: server reads/ephemeral/actions; durable writes: app.mutate. SDK reports delivery; screens report visible `seen`; useSeen retries (guide receipts). Read-only clients: guide read-only. Media: OFFLINE-UPLOADS.md. Never wait for networkidle; assert fresh sent before rendered output (guide testing).
 Keyed counts: hidden key → null; authorized missing count group → 0; public count → number. Choose count ?? 0 explicitly.
