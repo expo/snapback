@@ -294,7 +294,7 @@ pub fn init(options: &Options) -> i32 {
         let flags = if port.is_some() { "" } else { "; `init --web --port N` sets the backend to N and the page to N+1 together" };
         println!("init: the backend is http://127.0.0.1:{}; `npm run dev` serves the page on http://localhost:{page}{flags}", port.unwrap_or(4400));
     } else if expo {
-        println!("init: the backend is http://127.0.0.1:{}; `npm run web` serves http://localhost:{}; `init --expo --port N` sets the client's URL and the README and launchers together", port.unwrap_or(4400), web_port.unwrap_or(8081));
+        println!("init: the backend is http://127.0.0.1:{}; `npm run web` serves http://localhost:{}; `--port N` sets the client's backend URL and the README and launchers together", port.unwrap_or(4400), web_port.unwrap_or(8081));
     }
     if web || expo { println!("init: PORT_LO/PORT_HI set at init are baked into these defaults; a later runtime pair overrides them through `npm run backend` and the frontend launcher (`npm run dev`/`npm run web`)"); }
     if !pinned.is_empty() {

@@ -186,6 +186,7 @@ pub(super) fn web_client(client: String, offline: &Offline) -> String {
 pub(super) fn expo_client(client: String, offline: &Offline) -> String {
     if matches!(offline, Offline::Tables { synced, .. } if synced.is_empty()) {
         let client = client.replace("import { nativeAvailable, nativeDevice } from \"snapback4-expo\";\n", "")
+            .replace("import { nativeAvailable, nativeDevice, secureStoreSessionStore } from \"snapback4-expo\";", "import { secureStoreSessionStore } from \"snapback4-expo\";")
             .replace("import { webDevice } from \"snapback4/web\";\n", "")
             .replace("export const tier = Platform.OS === \"web\" ? \"web\" : nativeAvailable() ? \"native\" : \"online\";", "export const tier = \"online\";")
             .replace("  device: tier === \"web\" ? webDevice() : tier === \"native\" ? nativeDevice : undefined,\n", "")
