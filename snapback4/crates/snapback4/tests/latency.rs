@@ -248,13 +248,12 @@ fn doctor_checks_the_servers_project_before_read_or_reset_for_both_address_sourc
     assert_eq!(status["project"], json!(b.0.canonicalize().unwrap()));
     fs::write(a.0.join(".snapback4/serve.lock"), format!("{}\n{url}\n", server.address.rsplit(':').next().unwrap())).unwrap();
     let before = server.latency_after("/q/fast", 1);
-    for explicit in [false, true] {
-        for mut args in [vec!["doctor"], vec!["doctor", "--json"], vec!["doctor", "--latency", "--json"], vec!["doctor", "--latency", "--reset", "--json"]] {
-            if explicit { args.extend(["--url", &url]); }
-            let failure = refused(&a, &args);
-            assert!(failure.contains(b.0.to_str().unwrap()) && failure.contains("serves project"), "{failure}");
-        }
+    for args in [vec!["doctor", "--url", &url], vec!["doctor", "--json", "--url", &url], vec!["doctor", "--latency", "--json", "--url", &url], vec!["doctor", "--latency", "--reset", "--json", "--url", &url]] {
+        let failure=refused(&a,&args);
+        assert!(failure.contains(b.0.to_str().unwrap()) && failure.contains("serves project"),"{failure}");
     }
+    let no_host=refused(&a,&["doctor","--latency"]);
+    assert!(no_host.contains("no running dev server"),"{no_host}");
     assert_eq!(server.request("GET", "/dev/latency", Value::Null), before, "neither the counter nor the window may change");
 }
 

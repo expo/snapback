@@ -142,10 +142,19 @@ pub(crate) fn live(root: &Path) -> Result<Vec<Identity>, String> {
 }
 pub(crate) fn register(
     root: &Path,
-    address: SocketAddr,
+    mut address: SocketAddr,
     store_id: String,
     temporary: bool,
 ) -> Result<Registration, String> {
+    // Wildcard bind addresses describe listeners, not safe control targets.
+    // The corresponding loopback reaches this listener without leaving the host.
+    if address.ip().is_unspecified() {
+        address.set_ip(if address.is_ipv4() {
+            std::net::Ipv4Addr::LOCALHOST.into()
+        } else {
+            std::net::Ipv6Addr::LOCALHOST.into()
+        });
+    }
     let root = root.canonicalize().map_err(|e| e.to_string())?;
     let dir = root.join(".snapback4/dev-hosts");
     snapback4_core::private_fs::directory(&dir).map_err(|e| error(&dir, e))?;

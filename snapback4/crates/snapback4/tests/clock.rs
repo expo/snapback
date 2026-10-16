@@ -55,8 +55,9 @@ impl Fixture {
         fs::write(path.join("snapback/schema.q"), SOURCE).unwrap(); Self(path)
     }
     fn command(&self, args: &[&str]) -> Output { Command::new(BIN).current_dir(&self.0).args(args).output().unwrap() }
-    fn start(&self, args: &[&str]) -> Host {
-        let mut child = Command::new(BIN).current_dir(&self.0).args(args).args(["--port", "0"]).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn().unwrap();
+    fn start(&self, args: &[&str]) -> Host { self.start_on_port(args,"0") }
+    fn start_on_port(&self, args: &[&str], port: &str) -> Host {
+        let mut child = Command::new(BIN).current_dir(&self.0).args(args).args(["--port", port]).stdout(Stdio::piped()).stderr(Stdio::inherit()).spawn().unwrap();
         let mut line = String::new(); BufReader::new(child.stdout.take().unwrap()).read_line(&mut line).unwrap();
         let host = Host { child, address: line.trim().trim_start_matches("http://").into() };
         assert!(!host.address.is_empty(), "host did not start"); host
@@ -898,14 +899,14 @@ fn clock_discovers_custom_port_memory_and_survives_reset_identity_rotation() {
     let f=Fixture::new("discover-memory");
     let host=f.start(&["dev","--memory","--no-watch","--hold-schedules"]);
     let before=host.query("time").as_i64().unwrap();
-    let advanced=output_json(f.command(&["clock","advance","+2h","--json"]));
+    let advanced=output_json(f.command(&["clock","advance","+2h"]));
     assert!(advanced["now"].as_i64().unwrap()>=before+7_200_000,"{advanced}");
     let identity=host.request("GET","/dev/status",Value::Null);
     host.post("/dev/reset",json!({}));
     let after=host.request("GET","/dev/status",Value::Null);
     assert_ne!(identity["storeId"],after["storeId"]);
     assert_eq!(identity["initialStoreId"],after["initialStoreId"]);
-    output_json(f.command(&["clock","advance","1s","--json"]));
+    output_json(f.command(&["clock","advance","1s"]));
 }
 
 #[test]
@@ -920,7 +921,7 @@ fn clock_ignores_crashed_records_and_startup_reclaims_them() {
     assert!(!missing.status.success());
     let _live=f.start(&["dev","--memory","--no-watch","--hold-schedules"]);
     assert!(!path.exists());
-    output_json(f.command(&["clock","advance","1s","--json"]));
+    output_json(f.command(&["clock","advance","1s"]));
 }
 
 #[test]
@@ -937,7 +938,7 @@ fn clock_refuses_ambiguous_memory_and_persisted_hosts_without_mutating_either() 
         assert!(error.contains("multiple live dev hosts") && error.contains(&a.address) && error.contains(&b.address),"{error}");
         assert!((a.request("GET","/dev/status",Value::Null)["clockOffsetMs"].as_i64().unwrap()-before_a).abs()<100);
         assert!((b.request("GET","/dev/status",Value::Null)["clockOffsetMs"].as_i64().unwrap()-before_b).abs()<100);
-        output_json(f.command(&["clock","advance","1s","--port",b.address.rsplit(':').next().unwrap(),"--json"]));
+        output_json(f.command(&["clock","advance","1s","--port",b.address.rsplit(':').next().unwrap()]));
     }
 }
 
@@ -977,4 +978,69 @@ fn stale_instance_control_is_refused_before_clock_or_reset_changes() {
         assert_eq!(after["storeId"],before["storeId"]);
         assert!(after["clockOffsetMs"].as_i64().unwrap().abs()<100);
     }
+}
+
+#[test]
+fn wildcard_memory_hosts_are_discovered_and_participate_in_ambiguity_and_cleanup() {
+    for bind in ["0.0.0.0","::"] {
+        let f=Fixture::new(&format!("discover-wildcard-{bind}"));
+        let wildcard=f.start(&["dev","--memory","--bind",bind,"--i-understand-cleartext","--no-watch","--hold-schedules"]);
+        let dir=f.0.join(".snapback4/dev-hosts");
+        let path=fs::read_dir(&dir).unwrap().next().unwrap().unwrap().path();
+        let record:Value=serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        let address:std::net::SocketAddr=record["address"].as_str().unwrap().parse().unwrap();
+        assert!(address.ip().is_loopback());assert_eq!(address.is_ipv4(),bind=="0.0.0.0");
+        output_json(f.command(&["clock","advance","1s"]));
+        let persisted=f.start(&["dev","--no-watch","--hold-schedules"]);
+        let out=f.command(&["reset"]);assert!(!out.status.success());
+        let error=String::from_utf8_lossy(&out.stderr);
+        assert!(error.contains("multiple live dev hosts") && error.contains(&address.to_string()) && error.contains(&persisted.address),"{error}");
+        drop(wildcard);assert!(path.exists());drop(persisted);
+        let _next=f.start(&["dev","--memory","--no-watch","--hold-schedules"]);
+        assert!(!path.exists());
+        output_json(f.command(&["clock","advance","1s"]));
+    }
+}
+
+#[test]
+fn stale_legacy_foreign_port_cannot_veto_a_valid_memory_registration() {
+    let f=Fixture::new("discover-stale-legacy");
+    drop(f.start(&["dev","--no-watch","--hold-schedules"]));
+    let other=Fixture::new("discover-stale-legacy-other");
+    let foreign=other.start(&["dev","--memory","--no-watch","--hold-schedules"]);
+    fs::write(f.0.join(".snapback4/serve.lock"),format!("{}\nhttp://{}\n",foreign.address.rsplit(':').next().unwrap(),foreign.address)).unwrap();
+    let local=f.start(&["dev","--memory","--no-watch","--hold-schedules"]);
+    output_json(f.command(&["clock","advance","2h"]));
+    assert!(f.command(&["doctor","--latency"]).status.success());
+    output_json(f.command(&["reset","--clock","reset"]));
+    assert!(local.request("GET","/dev/status",Value::Null)["clockOffsetMs"].as_i64().unwrap().abs()<100);
+    assert!(foreign.request("GET","/dev/status",Value::Null)["clockOffsetMs"].as_i64().unwrap().abs()<100);
+    let url=format!("http://{}",foreign.address);
+    let explicit=f.command(&["doctor","--url",&url]);assert!(!explicit.status.success());
+    assert!(String::from_utf8_lossy(&explicit.stderr).contains("serves project"));
+}
+
+#[test]
+fn persisted_restart_nonce_refuses_old_latency_reset_even_with_the_same_store_id() {
+    let f=Fixture::new("discover-latency-instance-race");
+    let first=f.start(&["dev","--no-watch","--hold-schedules"]);
+    let old=first.request("GET","/dev/status",Value::Null);
+    let port=first.address.rsplit(':').next().unwrap().to_owned();drop(first);
+    let second=f.start_on_port(&["dev","--no-watch","--hold-schedules"],&port);
+    let current=second.request("GET","/dev/status",Value::Null);
+    assert_eq!(old["storeId"],current["storeId"]);assert_ne!(old["instance"],current["instance"]);
+    second.query("time");
+    let path=format!("/dev/latency/reset?store_id={}",old["storeId"].as_str().unwrap());
+    let deadline=Instant::now()+Duration::from_secs(3);
+    let before=loop {
+        let snapshot=second.request("GET","/dev/latency",Value::Null);
+        if snapshot["operations"]["/q/time"]["n"]==1 {break snapshot;}
+        assert!(Instant::now()<deadline,"query latency did not settle: {snapshot}");
+        std::thread::sleep(Duration::from_millis(1));
+    };
+    let reply=second.auth_request("POST",&path,Value::Null,&format!("x-snapback-dev-instance: {}",old["instance"].as_str().unwrap()));
+    assert_eq!(reply["denied"]["code"],"E_INPUT","{reply}");
+    assert_eq!(second.request("GET","/dev/latency",Value::Null),before);
+    let cleared=output_json(f.command(&["doctor","--latency","--reset","--json"]));
+    assert_eq!(cleared["operations"]["/q/time"]["n"],0);
 }

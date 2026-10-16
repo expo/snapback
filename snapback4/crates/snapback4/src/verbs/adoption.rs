@@ -79,7 +79,7 @@ pub(super) fn host(project: &Project, options: &super::Options) -> Result<Option
         let mut status=request(address,"GET","/dev/status").ok_or_else(||format!("http://{address} did not return dev status; pass --url with the address dev printed at startup"))?;
         if status["project"]!=serde_json::json!(root) {return Err(format!("http://{address} serves project {}, not {}; use this project's dev address", status["project"].as_str().unwrap_or("<unreported>"),root.display()));}
         if status["temporary"].as_bool().is_none() || status["storeId"].as_str().is_none_or(str::is_empty) {return Err(format!("http://{address} did not report its store identity and lifetime; restart dev with this CLI"));}
-        status["address"]=serde_json::json!(address.to_string());return Ok(Some(status));
+        status["address"]=serde_json::json!(address.to_string());status["_explicitSelection"]=serde_json::json!(true);return Ok(Some(status));
     }
     if options.flags.contains_key("release") {return Ok(None);}
     let mut hosts=std::collections::BTreeMap::new();
@@ -92,9 +92,7 @@ pub(super) fn host(project: &Project, options: &super::Options) -> Result<Option
     let path=project.store_path();
     if let Some(address)=crate::store_owner::inspector_address(&path).filter(|a|!hosts.contains_key(a)) {
         if let Some(id)=Store::open_read_only(&path).ok().and_then(|s|s.meta("store_id").ok().flatten()) {
-            if let Some(mut status)=request(address,"GET","/dev/status") {
-                if status["project"]!=serde_json::json!(root) {return Err(format!("http://{address} serves project {}, not {}",status["project"].as_str().unwrap_or("<unreported>"),root.display()));}
-                if status["storeId"]!=id || status["temporary"]!=false {return Err(format!("http://{address} serves a different store; pass --url with the intended dev address"));}
+            if let Some(mut status)=request(address,"GET","/dev/status").filter(|s|s["project"]==serde_json::json!(root) && s["storeId"]==id && s["temporary"]==false) {
                 status["address"]=serde_json::json!(address.to_string());hosts.insert(address,status);
             }
         }
@@ -124,13 +122,17 @@ fn loopback_url(url: &str) -> Result<std::net::SocketAddr, String> {
 }
 
 pub(super) fn request(address: std::net::SocketAddr, method: &str, path: &str) -> Option<serde_json::Value> {
+    request_instance(address,method,path,None)
+}
+pub(super) fn request_instance(address:std::net::SocketAddr,method:&str,path:&str,instance:Option<&str>)->Option<serde_json::Value> {
     use std::{io::{Read, Write}, net::TcpStream, time::Duration};
+    let instance=instance.map(|i|format!("x-snapback-dev-instance: {i}\r\n")).unwrap_or_default();
     let mut stream = TcpStream::connect_timeout(&address, Duration::from_millis(200)).ok()?;
     stream.set_read_timeout(Some(Duration::from_secs(1))).ok()?;
     stream.set_write_timeout(Some(Duration::from_secs(1))).ok()?;
     // The complete latency registry can exceed tiny_http's chunk threshold.
     // HTTP/1.0 requests a length-delimited reply for this close-only reader.
-    write!(stream, "{method} {path} HTTP/1.0\r\nHost: {address}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n").ok()?;
+    write!(stream, "{method} {path} HTTP/1.0\r\nHost: {address}\r\n{instance}Connection: close\r\nContent-Length: 0\r\n\r\n").ok()?;
     let mut reply = String::new(); stream.take((16 << 20) + 4096).read_to_string(&mut reply).ok()?;
     let (head, body) = reply.split_once("\r\n\r\n")?;
     if !head.starts_with("HTTP/1.0 200 ") && !head.starts_with("HTTP/1.1 200 ") { return None; }
