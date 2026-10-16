@@ -95760,3 +95760,26 @@ helpers, defaults, initialization and named callbacks. Its bounds and the rule
 live in AGENTS and LLP 3000.011.003.000.000 §8. Mac repetitions, failed intermediate
 pins, review fixes and final Linux verification are recorded in PUBFIX29's
 workstream report. Version remains 0.4.29; no publication or push in this lane.
+
+## 2026-10-16 — PUBFIX29b: self-contained generated modules and CLI repairs
+
+The 0.4.29 consumer check exposed REL3's runtime contract import in api.ts:
+Exact captures application modules and accepts package types only. Generated
+availability now inlines the same canonical signature check once per module.
+A recursive fixture census executes generated APIs without node_modules,
+compares their checks with the SDK, and checks all emitted modules' imports.
+The audit also found server.ts importing startServer: its typed wrapper now
+accepts the application's startServer as the first argument. Callers, examples,
+negative type witnesses and snapshots move together (LLP 3000.000.000.000 §3).
+Starter application source still owns its explicit SDK runtime imports; generated
+bindings and declaration files do not. Historical frozen pre-REL3 records stay
+historical, with the existing metadata normalization updated for the inline form.
+
+Frontend starter proofs reject a one-port runtime range before launching, as
+their interactive launchers already did. Day-two and backend-only proofs use one
+host. web-shell lists/help, retired recipe guidance, optional Playwright loading,
+downgrade prose and persisted-dev discovery for clock/reset have portable
+regressions. The copied prewave13 Exact device and online apps each passed both
+web tests with types emitted by this branch. Version remains 0.4.29; no device
+code changed. Reviews and final verification are in WORKSTREAM-REPORT.md; no
+push or publication is authorized or performed.

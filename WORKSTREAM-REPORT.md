@@ -1,171 +1,182 @@
-# Integration 13 — wave 12 / Snapback 4 0.4.29
+# PUBFIX29b — 0.4.29 consumer repairs
 
-Worktree `/home/ccheever/projects/snapback-sb4loop`, branch `sb4-loop`.
-Started clean at `daccc512f5`; fetched and fast-forwarded `origin/main` before
-merging. Read each lane's report from its named worktree first. Local commits
-only: no push or npm publication, no edits to other worktrees or their publication
-stages. All commits use Charlie Cheever / ccheever@firewoodagent.com.
+Branch: sb4-w13-pubfix29b. Starting tree clean; `git log sb4-loop..HEAD`
+was empty, base 92878680fc. Version remains 0.4.29. No push or publication.
 
-Applied llp-orient with the Snapback 4 fence, LLP 3000 and 2000.000, NOT-DOING,
-JOURNAL and adopted rules. Governing constraints are the retained-release and
-release-client LLPs, LANG's expiry/aggregate/completeness amendments, the
-rule/diagnostic LLPs and the packaged-proof-kit amendment. Preserve server
-authority, custody and bounded runtime budgets; qualified Linux consumer
-bytes do not imply a Mac/iOS or publication result.
+## Changes
 
-## Integration and commits
+- E1: api.ts includes one deterministic canonical availability helper, identical
+  to REL3's SDK predicate. All package imports are types. The audit found one
+  additional generated runtime import: server.ts now takes the application's
+  `startServer` as its first argument. Migrated generated-wrapper callers,
+  positive/negative type witnesses, golden outputs, guides and published docs.
+  `generated-modules.test.mjs` recursively compiles 60 fixture schemas, checks
+  every emitted TS/JS module with the TypeScript AST, executes APIs with no
+  node_modules, and compares every operation's availability to the SDK helper.
+  Shapes explicitly required: query, mutation, action, ephemeral, Following,
+  receipts; job-containing fixture schemas also participate. Checked loading,
+  denied, absent/different operation, reordered/nested canonical signatures,
+  wrong kinds, missing arguments and added arguments.
+- D1: the shared generated frontend-proof script rejects a singleton runtime
+  range before starting dev. Tested all six UI starter/template variants and
+  both proof and interactive launcher with a poisoned binary path. Audit:
+  launch.mjs already refuses UI singleton ranges and exempts backend/native
+  smoke; day2-proof has one serve and accepts one port; proof-kit helpers each
+  own one host and keep single-host ranges; witness web already requires A<B.
+- D2: downgrade refusal now clearly relates registry and installed versions;
+  existing fake-registry downgrade/no-write test covers default and requested
+  targets and still allows explicit `--to`.
+- H2: top-level help lists web-shell; the wrapper handles --help/-h with a
+  description before touching files or resolving a native binary. Native help
+  also describes the wrapper verb. Portable regression checks both paths.
+- H3: retired generic recipes now print usage plus E_RECIPE_RETIRED and concrete
+  --web/--expo, --template chat and guide recipes replacements before writes.
+  Existing feed-specific diagnostics remain. Regression includes named output dir.
+- H7: witness web imports the optional Playwright peer only during execution;
+  missing peer yields E_WITNESS_BROWSER and install/browser commands. Help works
+  without the peer. Isolated helper test uses an inert client export, no peer.
+- H8: clock/reset share one dev-address helper using doctor's validated persisted
+  store-owner discovery; explicit --port wins and the prior 4400 fallback stays.
+  Portable test starts persisted dev on an OS-assigned non-default port and
+  checks run, doctor, advance and reset, including clock effects and explicit port.
 
-| Order | Lane | `--no-ff` merge | Delivered |
-|---|---|---|---|
-| 1 | LANG | `c2ce6631e9` | P1 expiry reference actions, P2 digest aggregate identities/adoption, builtin/identity refusals, language/diagnostic repairs, PAGE5 completeness |
-| 2 | RULES2 | `3179fc9bd8` | Executable authorization recipes, contradiction notes, hidden-row/refusal guidance, enrolment presence |
-| 3 | REL3 | `62ef409f91` | Reactive release catalog/capability hook, compatibility generation, rollback dependencies, fixtures/test/dev/upgrade doors |
-| 4 | SURF | `524809d34c` | Metadata-derived help, directional clause narration, actual auth/client recipes, list helper, SecureStore export, raw HTTP docs |
-| 5 | KIT | `67cf911161` | Trusted browser witnesses, pipe-based bounded browser helper, honest custom proofs, listener audits, metadata/port-safe starters and adaptation |
+The generated-code audit covers both emitters, receipt bindings, declaration
+outputs and golden fixtures. Starter UI/client files are application source and
+own their explicit SDK runtime imports; generated bindings do not. Historical
+pre-REL3 frozen captures remain historical; their metadata normalization removes
+and validates the new inline form before comparing the original bytes.
 
-`c113020b4a` is the separate `snapback4 0.4.29: expiry safety, digest aggregates,
-release capabilities and honest proofs` bump. Its ten files and 23 additions /
-23 removals match the 0.4.28 bump's scope. `abc71893ff` authored the complete
-changes entry; subsequent corrections keep its upgrade and runtime semantics
-accurate. `57b033bf71` and `327f4df426` add LLP 3000.037 §16 from wave12 patterns
-and the five reports, including the composed surveys.
+## Governing context / decisions
 
-Every root WORKSTREAM-REPORT conflict kept the integration side; this report
-replaces it at closeout. Generated projections were regenerated, not hand-merged.
-PUBFIX28's one dormant row / zero standalone cells and mixed dormant/live cases
-survive alongside REL3's dormant-operation visibility and SURF's directional
-old/new clause warnings. Accepted release-control streams remain blocking.
-LANG/RULES2 notes and refusal pointers, KIT/SURF init/help and KIT/RULES2 testing
-text all retain both lanes' requirements. Overlapping LLP sections were retained
-as distinct sections with repaired references.
-
-## Integration corrections
-
-- Wired REL3's compatibility module into the standalone rewrite test crate.
-  Updated installed-SDK fixtures for the generated runtime import, scoped to
-  the actual oracle hosts; preserved existing CommonJS stubs and data-URL tests.
-- Updated generated help/guide assertions and native witness help. The native
-  binary keeps generated flags and Chromium discovery prose; the installed JS
-  wrapper still owns browser-specific subcommands. Exported API examples and
-  maintained delivery/authoring censuses were regenerated.
-- Reconciled exact emitted operation type assertions with the new available
-  member without weakening nullable-result checks. Historical compatibility
-  captures validate and normalize only the additive release metadata and unwrap
-  hint; list bounds snapshots were regenerated through their supported mode.
-  Expiry Lean emission now expects the selected index's id tie-breaker.
-- Selected the full production recipe explicitly after SURF added a minimal
-  example before it. Added useRelease discovery and the matching runtime SDK
-  dependency requirement, including standalone seed scripts. The client card
-  stays within its existing 1,200-word limit and keeps all diagnostic boundaries.
-- The full concurrent battery exposed a trace flock retained across fork by an
-  unrelated child. Explicit unlock before close now releases it on every locked
-  exit; a real fork regression holds the inherited description open while the
-  parent appends. Nonblocking best-effort diagnostics, permissions/symlink
-  checks, 256 KiB cap and custody separation remain covered. Commit `23f9aa540f`.
-  Linux flock's open-description behavior is documented in [flock(2)](https://man7.org/linux/man-pages/man2/flock.2.html).
-
-The lane semantic review artifacts and provenance remain verbatim under
-llp/reviews (Muse Spark high and fresh Codex high). No new RFC/amendment was
-authored by this integration; the trace fix implements LLP 3000.030 §15.
+Applied llp-orient. Scope: Codegen, CLI, Testing, starters. Governing documents:
+LLP 3000 §§1,4,7 (current/fence, generated artifacts and publication tests),
+LLP 2000.000 §§9,12 (one runtime, bounded process), implemented LLP
+3000.000.000.000 §§2–3 (availability and generated compatibility),
+LLP 3000.011.003.000 §8 (application proofs), LLP 3000.019 §3.7 (validated dev
+owner discovery), and LLP 3000.007.003 §7 (retired feed installer).
+Read current API/actions/routes/testing guides before editing. Amended the
+existing REL3 document, without a new LLP or a contract.ts change. The first-arg
+server runtime injection is the narrow choice needed to satisfy the user's
+all-generated-modules requirement; its user-visible migration is in guide changes.
+Open questions: none blocking. The server wrapper migration is documented and
+all repository consumers are updated. Hand-off: none.
+No device/core code changed; no wasm remeasurement required. Required setup did
+build wasm (716714 B gzip, budget 717214), without changing tracked device assets.
 
 ## Verification
 
-Concurrent main update `af4b256a31` (PUBFIX28b) was merged as `6276acbfcf`
-after the frozen client pass. Its entire delta is two test files: one new
-platform-independent lifecycle case and a Darwin-only legacy-control fence.
-Production source and all 587 frozen candidate inputs are identical. The full
-lifecycle file passes 29 tests; the changed client file passes three Linux cases
-with seven authored platform/legacy skips. ref-check passes with both new refs.
-The full product proofs remain bound to unchanged source; the incoming test-only
-delta is covered by these affected checks, following the repository's optimistic
-integration rule. No product fix followed the complete Rust run.
+Qualification Cargo commands ran from snapback4 with CARGO_INCREMENTAL=0,
+CARGO_PROFILE_DEV_DEBUG=0 and CARGO_PROFILE_TEST_DEBUG=0. Pinned Bun 1.4.2
+was used after repeating the initial ambient Bun install with the frozen lock
+unchanged. Never ran full scripts/test.sh. No reduced seeds, sequence counts,
+shard selection or alternate SNAPBACK4_BIN was set for the full client pass.
 
-The required complete five-package Rust invocation **passes (exit 0)** in
-run 8, after the last source fix. The complete client pass covers **400 pooled
-files plus both serial models (402/402 files), 7,620 passing cases,
-56 authored conditional skips, zero failures**. All 587
-candidate input hashes remain unchanged after the models.
+- Setup: pinned `bun install --frozen-lockfile`; `cargo build -p snapback4`;
+  `bash scripts/build-wasm.sh`; `bun run --cwd packages/snapback4 build`: PASS.
+- Affected Rust: actions 11/11, routes 9/9, corrected guide 125/125. Updated
+  list-bound snapshots through the existing explicit snapshot-update test.
+- Completed `cargo test -p snapback4-lang -p snapback4 --no-fail-fast`: 3206
+  passed, 2 failed, 29 ignored across all targets. Every language suite and CLI
+  integration suite passed. The two failures were unchanged CLI unit tests:
+  refusal-writer lock release and resolver-fixture readiness. Both passed in
+  the two earlier broad attempts. A subsequent complete
+  `cargo test -p snapback4 --bin snapback4` passed **439/439**, with the same
+  5 existing ignores, without code changes. The intermittent failures remain
+  tracked in issues/20261016-snapback4-unit-cleanup-and-resolver-readiness-flakes.md;
+  passing repetitions do not close that follow-up.
+- Full client pool in one pass: **398/398 files**, 24 slots, then isolated timer
+  files as the ordinary runner specifies. 7522 assertions: 7451 passed, 15
+  failed, 56 existing skips. Five files failed initially: event-slot-capability
+  and event-slots lacked generated target/event-slots-traces.json; init-recipe
+  expected the old bare usage line; qualify-linux rejected changelog flag-owner
+  wording; wave11-upgrade-history compared live edited changelog text with an
+  older embedded binary. All five were resolved and passed the rebuilt rerun.
+- Existing trace producer: `cargo test -p snapback4-device --test event_slots_trace`:
+  **2/2 PASS**. This generates test data; no device source changed.
+- Both default full-count models: **2/2 files, 81/81 assertions PASS**, no skips;
+  app-session 5000 sequences and online-client 3000 sequences.
+- After fixes/rebuild: one affected pool of **15/15 files, 171/171 assertions
+  PASS, no skips**: both event-slot files, init-recipe, qualify-linux,
+  wave11-upgrade-history, wave10-upgrade, generated-modules, pubfix29b,
+  test-platform-audit, readme-examples, generated-effect-opt-in, server-e2e,
+  wave12-kit, web-shell and proof. This includes all failed full-pool files.
+  Earlier focused failure/precondition reruns also passed 91/91 assertions.
+- `./ref-check`: PASS with all six review artifacts, 0 errors/unchecked refs.
+- `node scripts/docs-budget.mjs` in snapback4: PASS, README 320/320 and the named
+  first-screen test ran once and passed.
+- Root `node scripts/check-inventories.mjs`: FAIL guide-manifest on missing
+  untracked Snapback 1 demo/Exact artifacts (competitive-checkpoint startReply
+  schema; todo-v2 contract outputs). No root publication projections changed.
+- Root `node scripts/check-guide.mjs`: exit 1, 14 passed, 1 failed, 4 skipped,
+  3 preconditions. Root node_modules is absent: the packed-auth check fails
+  ENOENT; dependency checks skip; guide projections require the same absent
+  generated demo artifacts. Snapback4 dependencies are installed separately.
 
-| Check | Result |
-|---|---|
-| Rust: core, lang, device, sim and CLI; --no-fail-fast | Full post-fix run 8, exit 0; no failed target |
-| Client pool and models | 400/400 pooled files + 2/2 models, zero failures; includes five nested identity-fixture test files |
-| Native difftest run | 20,000 generated/compiled cases; 1,220,035 executions; zero disagreements |
-| Device difftest run-devices | Seeds 0–999, 1,000 cases; 27,922 executions; zero disagreements on memory/SQLite |
-| Lean run-lean | 20,000 cases, 56,917 executions; 16,697 pass, 3,173 unsupported, 130 inherited disagreements; exactly four baseline signatures, none new |
-| Fresh prepare-client pack + Linux consumer qualification | Source `23f9aa540fc81a0255d10730ecd46ca6b722c35f`; 12 frontend attempts, six starter cases, 30/30 listener audits, both no-write controls and form-submit proof pass; help versus changelog passes |
-| Clean installed-consumer toolchains | Ubuntu 24.04 and Alpine: round trips and all six starter builds pass |
-| LANG and RULES2 surveys on final binary | Both 100/100 clean, 318 notes; source hashes match each lane's complete manifest |
-| Actual 0.4.28 → 0.4.29 store | Digest adoption retains count 3; maintenance removes expired parent and both cascading children; four additional ignored legacy migration tests explicitly pass |
-| Docs budget | README 320/320 physical lines; exactly one self-containment test passes |
-| ref-check | 548 LLP docs, 11,917 refs; zero errors or unchecked refs |
-| Root inventories | 365 package tests, 35 script tests, 31 demos, 487 publication leaves, 162 pages / 1,937 snippets; PASS |
-| Root guide | 22 pass, zero failures/skips/preconditions; 121 inherited warnings |
-| Generated projections | Delivery/authoring censuses, diagnostics registry, symbol projections and guide manifest regenerated; no hand-merged projections |
-| Paved changes entry | Final frozen CLI exposes 0.4.29 with useRelease, useAuth, withBrowser, witness, cascade and digest upgrade guidance |
+Validation corrections preserved existing guards: restored init's usage line and
+retirement wording, migrated the isolated handler fixture's runtime path mapping,
+kept the exact Chromium defining phrase, and removed literal retired-flag prose
+from the template census. No unrelated unit-test code or deadline was changed.
 
-RULES2's isolated survey had 324 notes; LANG removes six: conditional-complete
-10→7, never-complete 15→13 and sparse-filter 12→11. The composed 318 exactly
-matches LANG's report; RULES2 introduces no extra firing or refusal. Survey
-results are identical apart from elapsed milliseconds, with all source hashes
-preserved. The final native snapshot SHA-256 is
-`23724468c5444a7afc180aff47fe37797913cbc891808db531bb65780d1c5c00`.
+Verification decision: run the complete client pool once, preserving default
+oracle/model counts, then rerun every failed file and affected product surface
+after rebuilding. Narration/test-precondition corrections do not change the
+other completed model inputs; those full-pool results remain applicable.
+Raw logs, review briefs and local runner scripts are retained under
+snapback4/target/pubfix29b-evidence/ (ignored), including the complete failures
+and subsequent passes. No unqualified publication receipt is claimed.
 
-A repeat root inventory check found missing local dependencies. A frozen Bun
-install and workspace hoist restored them, then diagnostics/symbol/guide
-regeneration, inventories and the complete root guide check passed again. This
-was an environment precondition, with the red attempt retained. The intermediate
-755 pack finished its consumer checks but correctly refused success because
-source changed during qualification; the final fresh source-bound receipt is
-separate. Earlier failed/superseded runs remain distinct from the final proofs.
+## Exact repro (actual web tests)
 
-[Verification manifest](snapback4/reports/integration13/verification.json) binds
-the final commands, source, checksums, counts and limits. Compressed raw logs,
-consumer receipts, listener traces, surveys, the upgrade transcript and exact
-merged-lane report transcripts are under `snapback4/reports/integration13/`.
-The lane transcripts come from each merge's second parent; their links retain
-their original repository-root meaning. The final prepared tarballs remain in
-`snapback4/target/publication/client-0.4.29/`; the retained Linux platform pack
-and readable consumer receipt are in `snapback4/target/integration13/linux-final-source/`.
-No other worktree's publication directory was touched.
+Read the supplied prewave13 repros without modifying them. Copied the device
+hello and online app under snapback4/target/pubfix29b-exact/{device,online};
+excluded target/.exact/node_modules, retained supplied application tests and
+0.4.29 device asset. Ran `EXACT2=$HOME/sb4-loop/exact2 bun exact.mjs update` in
+each copy to repair relocated Cargo patches/paths, and set absolute mount paths
+(device snapback4/ts; online snapback4/online) in each copied app.json. Generated
+backend API with this branch's binary, without stubs or manual import edits.
 
+For each copied backend directory:
 
-## Wasm and upgrade
+```
+BIN=/home/ccheever/projects/sb4-w13-pubfix29b/snapback4/target/debug/snapback4
+$BIN types
+$BIN dev --port 26020 --no-watch --memory   # device; online uses 26021
+```
 
-Clean integrated measurement at `6244ffc7aa` (committed by `5569f806d7`):
-**2,353,736 B raw / 716,714 B gzip / 541,576 B Brotli**. Strict family and
-absence audits pass. Budget **717,214 B = measured gzip + 500 B**, with reason
-in metrics/wasm-budget.json (`79a601f383`). Whole-device growth versus 0.4.28
-is 9,040 B gzip for expiry actions, digest identities, shared language/device
-semantics and capability fences; this is whole-artifact evidence, with no
-independent feature attribution or runtime ceiling change. Later changes are
-host-only trace code, guide prose and tests, outside device wasm inputs.
+Then in its hello/app subdirectory:
 
-The upgrade check uses an actual 0.4.28 executable to write three entries
-keyed by a 135-character user: principal, its count view, an expiring parent
-and two cascading children. 0.4.29 adoption changes the old 146-character
-aggregate id to a 64-character digest, preserves count 3 and both children
-before expiry; an advanced clock physically removes the expired parent and
-both children, retaining the count. Four additional authored legacy migration
-tests were explicitly run with --ignored and pass.
+```
+CHROME=$HOME/.cache/ms-playwright/chromium-1234/chrome-linux64/chrome \
+EXACT2=$HOME/sb4-loop/exact2 EXACT_PORT=26120 \
+CARGO_TARGET_DIR=/home/ccheever/projects/sb4-w13-pubfix29b/snapback4/target/pubfix29b-exact/cargo-target \
+CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 \
+$HOME/.bun-1.4.2/bin/bun exact.mjs test web
+```
 
-Existing stores undergo transactional aggregate adoption and new expiry
-reference actions. Rebuild devices for semantic capability fences. Existing
-apps retain authority/custody/receipt defaults; generated api.ts requires the
-matching SDK runtime. useRelease is availability, never authorization; keep
-drafts outside release gates. Existing witnesses need trusted registered
-visible writes and terminal receipts; withBrowser uses the caller's Playwright.
-useAuth exposes state/viewer/why and auth methods, without a session member.
+Online uses EXACT_PORT=26121 and backend 26021. Device: 2 passed, 0 failed;
+online: 2 passed, 0 failed. Both web builds accepted generated api.ts. Initial
+copy run required relocation update; initial browser run needed CHROME; an
+intermediate online run used the device mount accidentally, corrected to the
+original online driver. All owned devs were terminated/reaped in finally.
+Exact2 source and original repros were unchanged. Logs live under target/
+pubfix29b-exact/{device,online}-testweb.log, local runner /tmp/pubfix29b-exact-repro.py.
 
-## Limits and deferrals
+## Reviews / commits / deferrals
 
-Full scripts/test.sh was deliberately not run, as instructed. Linux packed
-qualification uses --consumer-only and records suite:not-run and
-publicationQualified:false; it is not a publication receipt. The separately
-requested Rust, complete client and repository checks supply their own results.
-No Darwin/iOS, production deployment, publication or optional PostgreSQL/store
-campaign was commissioned or claimed. Authored client skips, Rust ignores and
-Lean unsupported/inherited signatures remain explicit in the raw evidence.
-Earlier failed/superseded attempts are retained as such; no isolated rerun is
-used to relabel a failing full invocation. Final required suites are distinct
-complete runs after the last affected fix. No push.
+Blind round 1: Muse READY (minor suggestions); fresh Codex NOT READY for missed
+server-wrapper type fixtures, an assertion and effects-guide prose. All addressed,
+including name/missing-argument oracle controls. Verbatim reviews with provenance
+saved under llp/reviews/3000.000.000.000-pubfix29b-r1.*.md.
+Blind round 2: fresh Codex READY and Muse READY, same requested model roster
+and effort; saved under llp/reviews/3000.000.000.000-pubfix29b-r2.*.md.
+Commit E1: c5692b6b72 — self-contained generated TypeScript modules.
+Round 3: both fresh Codex and Muse READY on the final validation corrections;
+verbatim artifacts under llp/reviews/3000.000.000.000-pubfix29b-r3.*.md.
+Codex notes that the binary still embedded earlier recipe wording during its
+review; final qualification rebuilt it before the affected consumer reruns.
+Commit D1/D2/H2/H3/H7/H8: da2d5e0c98 — proof ports, CLI help and dev discovery.
+Evidence/report commit contains this report, six verbatim reviews, journal/LLP
+records and the unrelated fixture follow-up. No push or publication performed.
+Deferrals: root Snapback 1 dependency/generated-artifact bootstrap and the two
+unchanged intermittent unit fixtures (ticket above). No requested product repair
+is deferred.
