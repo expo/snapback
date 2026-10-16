@@ -95783,3 +95783,31 @@ regressions. The copied prewave13 Exact device and online apps each passed both
 web tests with types emitted by this branch. Version remains 0.4.29; no device
 code changed. Reviews and final verification are in WORKSTREAM-REPORT.md; no
 push or publication is authorized or performed.
+
+## 2026-10-16 — RULES3: authorization recipes, layers and refusal order
+
+Wave-13 lanes 005/007/009/011/019/053/057/059/063/094/097 now have compiled,
+fixture-tested HTTP recipes for supervisor rosters, all-tagged consent via
+maintained counts, mutable workflow gates, source-maintained publication,
+owner-now/peer-deadline counts, expiring grants with owner audit history, and
+host/manager/sponsor approval. A named update-image recipe demonstrates the
+pending→withdrawn transition. Named `guide rule-recipes NAME` pointers open the
+recipe directly. LANG2 retains the completeness-planner work.
+
+Rules and testing state the two layers and the statement-ordered refusal
+ladder. N_WRITE_DENIED identifies contradictory images; opted-in developer
+E_RULE evidence identifies the failed image without re-probing. Client hidden
+targets stay NOT_FOUND. Untraced and web execution use the ordinary evaluator:
+the first measured diagnostic implementation exceeded the web budget, so the
+image machinery/text was restricted to opted-in SQLite traces. Final gzip is
+717,006 / 717,214 bytes; no ceiling increased. Both independent final reviewers
+returned READY for the LLP amendments and implementation at ad7d5d45fc.
+
+Both-store offline roster acquisition/revocation, global consent withdrawal,
+publication edits/takedown, deadline/expiry boundaries and refusal precedence
+have direct witnesses. All 100 copied final wave-13 schemas were checked before
+and after: identical 317 note/search diagnostic occurrences, 99 passing checks,
+and the same known missing-TypeScript refusal in lane 087; no clean schema
+gained a refusal. The workstream report contains final verification and the
+open language decisions. This lane adds a 0.4.30 changes entry without bumping
+the version or pushing to origin.
