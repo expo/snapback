@@ -1286,7 +1286,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let decoration_paths = reader.program(&op).filter(|_| reader.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
                         let scopes = read_scopes::dependencies(&reader, &op, &context);
                         trace::mark("query_start");
-                        let (outcome, cut, current) = reader.query_search_with_delivery_at(&op, context, retained.as_deref(), manifest);
+                        let (outcome, cut, current) = reader.query_materialized_search_with_delivery_at(&op, context, retained.as_deref(), manifest);
                         trace::mark("query_end");
                         let scopes = read_scopes::complete(scopes, reader.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
                         if outcome.is_ok() { lock(&shared.readers).put(&epoch, reader.into_inner()); }
@@ -1305,7 +1305,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let query_generation = engine.generation();
                         let decoration_paths = engine.program(&op).filter(|_| engine.schema().operations.get(&op).is_some_and(|f| f.search_decoration)).map(snapback4_core::search_decoration::paths);
                         let scopes = read_scopes::dependencies(&engine, &op, &context);
-                        let (outcome, cut, current) = engine.query_search_with_delivery_at(&op, context, retained.as_deref(), manifest);
+                        let (outcome, cut, current) = engine.query_materialized_search_with_delivery_at(&op, context, retained.as_deref(), manifest);
                         let scopes = read_scopes::complete(scopes, engine.schema(), outcome.as_ref().map_or(&[], |o| &o.tables));
                         (outcome, cut, metadata, reads_presence, query_generation, current, scopes, decoration_paths)
                     },

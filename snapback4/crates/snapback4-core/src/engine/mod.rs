@@ -701,7 +701,7 @@ impl Engine {
     /// carries, so a client can order it against answers (LLP 3000.018 §3.2).
     pub fn query_at(&mut self, name: &str, context: Context) -> (Result<QueryOutcome, Refusal>, Option<u64>) {
         let mut cut = None;
-        let result = self.query_reading(name, context, &mut cut, None, &mut None, DeliveryManifest::Build);
+        let result = self.query_reading(name, context, &mut cut, None, &mut None, DeliveryManifest::Build, true);
         (result, cut)
     }
 
@@ -717,14 +717,25 @@ impl Engine {
     pub fn query_search_with_delivery_at(&mut self, name: &str, context: Context, retained: Option<&[String]>, manifest: DeliveryManifest) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>,
     ) {
         let (mut cut, mut current) = (None, None);
-        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest);
+        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, true);
         (result, cut, current)
     }
 
-    fn query_reading(&mut self, name: &str, mut context: Context, cut: &mut Option<u64>, _retained: Option<&[String]>, _current: &mut Option<Vec<String>>, manifest: DeliveryManifest) -> Result<QueryOutcome, Refusal> {
+    /// Host evaluation after its one ordinary opening prelude. Retrying this
+    /// snapshot never advances an unrelated row from the global opening ledger.
+    // @ref LLP 3000.036.003#10 — memory and detached hosts share the same request-local publication scheduling.
+    #[cfg(feature = "server-search")]
+    pub fn query_materialized_search_with_delivery_at(&mut self, name: &str, context: Context, retained: Option<&[String]>, manifest: DeliveryManifest)
+        -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>) {
+        let (mut cut, mut current) = (None, None);
+        let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, false);
+        (result, cut, current)
+    }
+
+    fn query_reading(&mut self, name: &str, mut context: Context, cut: &mut Option<u64>, _retained: Option<&[String]>, _current: &mut Option<Vec<String>>, manifest: DeliveryManifest, advance_opening: bool) -> Result<QueryOutcome, Refusal> {
         context.generation = self.generation;
         let requested = context.now.unwrap_or_else(crate::now_ms);
-        context.now = Some(self.advance_time_audience(requested)?);
+        context.now = Some(if advance_opening { self.advance_time_audience(requested)? } else { requested });
         let program = self.programs.get(name).ok_or_else(|| RuntimeError::UnknownOp(name.to_owned()))?.clone();
         if program.kind != ProgramKind::Query {
             return Err(RuntimeError::UnknownOp(format!("{name} is a {}, not a query", program.kind.word())).into());

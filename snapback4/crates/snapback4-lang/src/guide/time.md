@@ -157,11 +157,14 @@ schedule closer every 1m: closeDeparted
   The advance refuses more than 10000 total crossed windows before changing time.
   If work fails after time advances, inspect now/skewMs; normal maintenance resumes
   queued work. Reset the scenario with reset --clock reset rather than repeating
-  the advance blindly.
+  the advance blindly. E_CLOCK_INTERRUPTED means shutdown stopped the drain:
+  time already moved; inspect queued jobs before restarting the test.
 - Clock and reset discover a unique live dev in the current project, including `dev --memory --port N`. Multiple hosts list their addresses and require `--port N`; no default port is guessed. Registrations live in `.snapback4/dev-hosts`, contain no secrets, and stale hosts are ignored.
 - The offset belongs to the process: restart with `dev --resume-clock` to continue from the store's
   newest stamp. `GET /dev/status` reports `now`, `skewMs` and `clockOffsetMs`. `/dev/clock/status` and reset
   also carry now/skewMs; `await dev.now()` from snapback4/proof reads it afresh.
+  They include a persisted timed-disclosure floor, which may hold served time
+  after restart; --resume-clock continues the store’s advanced clock.
 - `snapback4 run <op> --now +2h` (or milliseconds) pins the clock for one local run.
 - In the client, `client.now()` is the server's time estimate; `useNow(deadline)` from `snapback4/react`
   re-renders at a deadline.

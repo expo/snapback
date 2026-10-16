@@ -55,7 +55,7 @@ pub(super) struct Host {
     pub(super) shared: Arc<Shared>,
     admission: Arc<RequestAdmission>,
     worker: Option<JoinHandle<()>>,
-    address: SocketAddr,
+    pub(super) address: SocketAddr,
 }
 impl Host {
     fn new(dev: bool) -> Self {
@@ -93,7 +93,7 @@ impl Drop for Host {
     }
 }
 
-fn exchange(address: SocketAddr, wire: &str) -> String {
+pub(super) fn exchange(address: SocketAddr, wire: &str) -> String {
     exchange_bytes(address, wire.as_bytes())
 }
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(3);
@@ -147,10 +147,10 @@ fn exchange_bytes(address: SocketAddr, wire: &[u8]) -> String {
     stream.read_to_end(&mut response).unwrap();
     String::from_utf8_lossy(&response).into_owned()
 }
-fn status(response: &str) -> u16 {
+pub(super) fn status(response: &str) -> u16 {
     response.split(' ').nth(1).unwrap().parse().unwrap()
 }
-fn body(response: &str) -> Json {
+pub(super) fn body(response: &str) -> Json {
     serde_json::from_str(response.split_once("\r\n\r\n").unwrap().1).unwrap()
 }
 fn effect_snapshot(host: &Host, id: &str) -> (Vec<rusqlite::types::Value>, i64) {
@@ -1477,3 +1477,21 @@ mod ops_tests;
 
 #[path = "../tests/device_handshake/mod.rs"]
 mod device_handshake_tests;
+
+#[test]
+fn kit3_memory_http_retries_publish_only_the_ordinary_prelude_and_encountered_rows() {
+    use snapback4_core::Value;
+    let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+        "use personas alice\ntable a_unrelated:\n  opens: time\n  by opening: opens\n  not before .opens\n  public 'fixture'\n  online only\ntable needed:\n  opens: time\n  by opening: opens\n  not before .opens\n  public 'fixture'\n  online only\nquery list():\n  return needed first 10 by .id\n");
+    let now = host.shared.now();
+    let rows = [("a_unrelated", 5), ("needed", 3)].into_iter().flat_map(|(table, n)| (0..n).map(move |id| {
+        (table.to_owned(), snapback4_core::value::object([("id", Value::Id(format!("r{id}"))), ("opens", Value::Int(now+1000))]))
+    })).collect::<Vec<_>>();
+    lock(&host.shared.engine).seed_at(rows, now).unwrap();
+    lock(&host.shared.clock).freeze(now + 1000);
+    let reply = body(&host.request("POST", "/q/list", "x-snapback-persona: alice\r\n", r#"{"args":{}}"#));
+    assert_eq!(reply["complete"], true, "{reply}"); assert_eq!(reply["data"].as_array().unwrap().len(), 3);
+    let engine = lock(&host.shared.engine);
+    let pending: i64 = engine.store().conn().query_row("SELECT COUNT(*) FROM _time_openings WHERE t = 'a_unrelated'", [], |row|row.get(0)).unwrap();
+    assert_eq!(pending, 4, "only the one ordinary prelude may publish an unrelated row");
+}

@@ -1188,3 +1188,19 @@ fn kit3_held_schedules_still_preflight_report_size_without_releasing_the_hold() 
     assert!(host.query("time").as_i64().unwrap() < now + 60_000, "failed preflight must not advance time");
     assert_eq!(host.query("counters")[0]["n"], 0, "the hold and queued state stay unchanged");
 }
+
+#[test]
+fn kit3_clock_reply_and_preflight_use_the_persisted_authoritative_floor() {
+    let f = Fixture::new("kit3-reply-floor");
+    fs::write(f.0.join("snapback/schema.q"), "use personas alice\ntable timed:\n  opens: time\n  not before .opens\n  public 'fixture'\n  online only\nquery clock():\n  return now\n").unwrap();
+    let old = f.start(&["dev", "--no-watch", "--clock-offset", "2h"]);
+    let future = old.query("clock").as_i64().unwrap();
+    drop(old);
+    let host = f.start(&["dev", "--no-watch"]);
+    let before = host.query("clock").as_i64().unwrap(); assert!(before >= future);
+    let advanced = host.post("/dev/clock/advance", json!({"duration":"1m"}));
+    assert!(advanced["now"].as_i64().unwrap() >= before, "{advanced}");
+    let actual = host.query("clock").as_i64().unwrap();
+    assert!((actual - advanced["now"].as_i64().unwrap()).abs() < 1000, "{advanced}; actual={actual}");
+    assert!(advanced["skewMs"].as_i64().unwrap() > 7_000_000, "{advanced}");
+}
