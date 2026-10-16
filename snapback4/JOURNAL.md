@@ -96138,3 +96138,28 @@ Budget723,660 B is exactly gzip+500 B, whole-artifact +6,446 B gzip over
 0.4.29; strict family/absence audits pass, with no runtime ceiling increase
 or independent feature attribution. This is integration evidence, not a
 publication record; all final checks are recorded in WORKSTREAM-REPORT.md.
+
+
+## 2026-10-17 — 0.4.30 published (snapback4, both platforms, snapback4-expo)
+
+`snapback4`, `snapback4-darwin-arm64`, `snapback4-linux-x64` and
+`snapback4-expo` 0.4.30 are published from `4ef9f77fb3` (Integration 14 with
+EXPOPIN) after the pre-wave and wave-14 go-aheads; all four `latest` = 0.4.30:
+
+| Package | Registry integrity |
+|---|---|
+| `snapback4` | `sha512-bsbHG4XVDlqaP/PpRBmboCk7ICVkPE8GkFyxTAIlaWx+M9UcES0rKFvCHljOo+2710dU8gFK06adhvTI0ViwPw==` |
+| `snapback4-darwin-arm64` | `sha512-vrf5b0eMdbBsRB9rV92iplz5rlQzdyqFDLJuk79ZIA9YAKka/DETYiEVyYcZcn0ICDiem8QbsJs0U/9qkctGJA==` |
+| `snapback4-linux-x64` | `sha512-QcgY0/C/dwxXRMhSbxELx7XT2/5xrnDMQn4NyjvdabpN/6scJjm03VyeCr2Qy2f5H5WBwFWaam9uQ2jjyE6+0Q==` |
+| `snapback4-expo` | `sha512-P8k4oDxCcg7Y+4go5HLHE24idpuFfBBRehWtuJU0+c45y8X+bBsf7oG8fa/Y13XLAIxXCn4HEmDRhV8Mn6CEUA==` |
+
+Everything native was built and witnessed on Xcode 27.1 (EXPOPIN's refreshed
+Expo 57.0.30 pins build there); the Xcode 27.0 copy stayed unused. Linux's first
+qualification failed only because a stale npm packument lacked `@expo/cli@57.0.31`
+under `--prefer-offline`; after refreshing it, Linux passed `== 0 failure(s) in
+2602 s` with all starter, frontend and day-2 proofs. The Mac dry run passed
+`== 0 failure(s) in 8922 s` including the complete Cargo suite. The client tarball
+404'd on the npm CDN for ~5 minutes after publish, so the registry check and Expo
+steps reran after it appeared. Clean installs on Linux and the Mac print
+`snapback4 0.4.30` and pass `init` + `check`. Details:
+`reports/20261016-publication-0.4.30/REPORT.md`.
