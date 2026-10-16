@@ -6,7 +6,7 @@ Worktree: `sb4-w13-lang2`, based on `59fb4ead1b` (0.4.29). No version bump and n
 
 - P10: total unique membership keys become filtered point lanes; extra equalities remain residual predicates. Generated intent reads report the originating source query.
 - P17: action caps are required only for reachable delete roots (rules, programs/helpers, expiry and cascades). Dormant uncapped actions get `N_CASCADE_DORMANT`. External IR admission independently checks all delete footprints, including nested expression blocks and jobs. Cap guidance says product limit and prints the engine's joint heap formula.
-- P18: `E_QUARRY_IMMUTABLE` refuses unproved immutable patch values in update/upsert. Exact target keys and current exact snapshots are accepted; spreads, writes, control flow and assignment versions are handled conservatively. Existing external-IR hidden-target behavior remains unchanged. Runtime fixtures retain their adversarial assignments as explicit IR.
+- P18 (coordinator revision): `E_QUARRY_IMMUTABLE` refuses proven changes and fresh clock/id patterns; `N_IMMUTABLE_PATCH` explains uncertain supplied values and readable runtime equality. Same-author upserts remain accepted. Proven key/current-snapshot/local-insert equality stays quiet; unrelated opaque fields do not erase facts. Hidden immutable fields retain their established suppression. Source runtime fixtures for uncertain writes are restored. Lean now models immutable equality/hidden stripping; 48 generated cases exercise native/model/both-device outcomes.
 - Diagnostics: schema-shaped sync horizon guidance, source-level structural fanout guidance, nullable Boolean operand locations, distinct statement-position code, stable job cursor guidance preserving mutable predicates, and `desc after` converted to `last … after`.
 - Notes: whole finite caps/finite unique alternatives silence `N_NO_CURSOR`; reference argument guidance checks existence without a fabricated binding; structurally ordered complete child deletions silence restrict notes; hidden roster guidance is applied and checked in the golden; long quoted expansions abbreviate outside verbose output.
 - Language: conjunctive `.x != null` narrows row snapshots in loops and shapes; asserted immutable parent fields plus live require facts prove private count access; writes invalidate those proofs, including parent delete/rebirth. `not before` infers its required boundary index.
@@ -41,7 +41,7 @@ Per-item tests: `wave13_lang2` covers P10/P17/P18, all three language additions,
 |---|---|---|
 | P10 unique membership and source locations | `1dc5d57700`, `3f034013ee`, `62204cc8eb` | Point-lane merge/cursor regression; existing page3/page4 and simulator membership suites; Mac planner/golden run |
 | P17 declared deletion bounds and heap repair | `3f034013ee`, `80b2f846b5` | Dormant/activation/external-IR/cycle regressions; 32 reference-action cases; 36 generated cases across native, Lean and both device stores; Linux/Mac |
-| P18 immutable patch refusal | `3f034013ee`, `d16c025fa5`, `2fa3518d59`, `7b2051eec4` | Captured/compound/branch/spread/snapshot tests; rewrite recheck; 35 preserved runtime write-authority tests on Linux/Mac; final 100-schema census |
+| P18 precise immutable diagnostics | `3f034013ee`, `d16c025fa5`, `2fa3518d59`, `7b2051eec4` | Captured/compound/branch/spread/snapshot tests; rewrite recheck; 35 preserved runtime write-authority tests on Linux/Mac; final 100-schema census |
 | Schema-shaped diagnostic rewrites | `1dc5d57700`, `d16c025fa5`, `7b2051eec4` | All 11 rewrite-golden cases, including sync recipients, Boolean operands, statement position, fanout, cursor jobs and descending pages |
 | Cursor/reference/restrict/hidden notes and long output | `1dc5d57700`, `3f034013ee`, `62204cc8eb` | Whole-cap/finite-alternative and ordered-delete regressions; applied reference/hidden suggestions; CLI compact/verbose checks |
 | Non-null narrowing, private counts, not-before indexes | `3f034013ee`, `2fa3518d59`, `7b2051eec4` | Positive/negative row-snapshot, authority invalidation and inferred-index regressions; simulator and device execution |
@@ -90,61 +90,41 @@ Clean final source measurement at `b54f51aff2` (`wasm-final-clean.log`): **2,370
 
 Per-lane machine record: `snapback4/reports/20261016-lang2/schema-census.json`.
 
-Read-only evidence copied under `/tmp/lang2-wave13/apps`; evidence lanes were not modified. Baseline: **100/100 pass**. After: **83/100 pass**; the 17 changed lanes have only deliberate P18 refusals. No formerly clean schema gains another refusal code.
+The before and after census was rerun on all 100 private copies. Baseline 0.4.29: **100/100 pass**. Revised P18: **100/100 pass, zero refusals**. No previously passing schema gains any refusal. The former 23 blanket refusals across 17 lanes are superseded; uncertain patches now produce **30 N_IMMUTABLE_PATCH notes across those same 17 lanes** (some statements contain multiple immutable fields).
 
-| Refusal code | Before | After |
+Remaining refusal lanes: **none**. Lane052's final `reactions` schema declares `immutable link, comment, author`; `at` is mutable. Its former refusal was `reactions.link`, now an uncertainty note. Its `at: now` is valid. A separate declared-immutable timestamp regression refuses the fresh clock pattern; no evidence schema was edited.
+
+| Note code | Before, all 100 | After, all 100 |
 |---|---:|---:|
-| E_QUARRY_IMMUTABLE | 0 | 23 |
+| N_CONDITIONAL_COMPLETE | 11 | 8 |
+| N_DELETE_NEEDS_READ | 1 | 1 |
+| N_DELETE_RESTRICTED | 1 | 1 |
+| N_EPHEMERAL_SERVER | 2 | 2 |
+| N_FIXTURE_ARGUMENT_DRIFT | 21 | 21 |
+| N_IMMUTABLE_PATCH | 0 | 30 |
+| N_LOOKUP_HIDDEN | 5 | 5 |
+| N_MAINTAIN_AUTHORIZATION | 2 | 2 |
+| N_MAINTAIN_DELTA | 7 | 7 |
+| N_NEVER_COMPLETE | 19 | 15 |
+| N_NO_CURSOR | 144 | 139 |
+| N_NO_HORIZON | 12 | 12 |
+| N_NO_PRODUCTION_WRITER | 50 | 50 |
+| N_PATCH_CLEARS | 2 | 2 |
+| N_SPARSE_FILTER | 16 | 17 |
+| N_SYNC_ORDER | 5 | 5 |
+| N_UNREADABLE_PROBE | 13 | 13 |
+| N_VACUOUS_RULE | 1 | 1 |
+| N_WIDE_MERGE | 3 | 2 |
 
-| Note code | Before, all 100 | Before, same 83 passing lanes | After, passing 83 |
-|---|---:|---:|---:|
-| N_CONDITIONAL_COMPLETE | 11 | 7 | 4 |
-| N_DELETE_NEEDS_READ | 1 | 1 | 1 |
-| N_DELETE_RESTRICTED | 1 | 1 | 1 |
-| N_EPHEMERAL_SERVER | 2 | 1 | 1 |
-| N_FIXTURE_ARGUMENT_DRIFT | 21 | 17 | 17 |
-| N_LOOKUP_HIDDEN | 5 | 0 | 0 |
-| N_MAINTAIN_AUTHORIZATION | 2 | 2 | 2 |
-| N_MAINTAIN_DELTA | 7 | 4 | 4 |
-| N_NEVER_COMPLETE | 19 | 15 | 11 |
-| N_NO_CURSOR | 144 | 97 | 96 |
-| N_NO_HORIZON | 12 | 9 | 9 |
-| N_NO_PRODUCTION_WRITER | 50 | 44 | 44 |
-| N_PATCH_CLEARS | 2 | 2 | 2 |
-| N_SPARSE_FILTER | 16 | 13 | 14 |
-| N_SYNC_ORDER | 5 | 5 | 5 |
-| N_UNREADABLE_PROBE | 13 | 5 | 5 |
-| N_VACUOUS_RULE | 1 | 1 | 1 |
-| N_WIDE_MERGE | 3 | 3 | 2 |
-
-Failing `check --json` returns problems without notes, so the middle column supplies a comparable cohort; the final column does not claim note elimination in refused programs.
-
-Deliberate P18 refusals (lane; table/column; source site):
-
-- `004-day2-lecture-note-relay` — `typing.course`, `schema.q:138:36`.
-- `011-classroom-observation-notes` — `responses.teacher`, `schema.q:114:79`.
-- `015-spoiler-shield-groups` — `reactions.group`, `schema.q:121:36`.
-- `016-day2-paint-by-number-wall` — `photos.mural`, `schema.q:101:38`.
-- `017-offer-letter-advisors` — `grants.owner`, `schema.q:89:42`.
-- `022-day2-wedding-toast-order` — `drafts.slot`, `schema.q:111:27`.
-- `030-day2-worldbuilding-atlas` — `locationSecrets.author`, `schema.q:217:67`.
-- `030-day2-worldbuilding-atlas` — `factionSecrets.author`, `schema.q:246:64`.
-- `030-day2-worldbuilding-atlas` — `eventSecrets.author`, `schema.q:275:58`.
-- `030-day2-worldbuilding-atlas` — `characterSecrets.author`, `schema.q:304:70`.
-- `034-day2-thesis-draft-circle` — `versionAccess.chapter`, `schema.q:140:57`.
-- `034-day2-thesis-draft-circle` — `commentAccess.chapter`, `schema.q:157:57`.
-- `034-day2-thesis-draft-circle` — `versionAccess.chapter`, `schema.q:171:64`.
-- `044-day2-house-sitter-briefing` — `completions.booking`, `schema.q:135:47`.
-- `046-day2-dataset-embargo-ledger` — `requests.owner`, `schema.q:151:92`.
-- `046-day2-dataset-embargo-ledger` — `grants.owner`, `schema.q:169:87`.
-- `051-live-budget-meeting` — `allocations.meeting`, `schema.q:109:42`.
-- `052-day2-portfolio-review-links` — `reactions.link`, `schema.q:178:43`.
-- `061-auction-lot-walk` — `reserves.auction`, `schema.q:147:37`.
-- `068-day2-damage-assessment-walks` — `assessments.block`, `schema.q:124:52`.
-- `070-day2-rural-route-notes` — `gatecodes.route`, `schema.q:142:42`.
-- `089-piano-tuning-routes` — `grants.grantedBy`, `schema.q:195:56`.
-- `100-day2-derby-bout-lineups` — `notes.awayCaptain`, `schema.q:180:68`.
+Every refusal code has count zero before and after. JSON retains per-lane notes, sites, rewrites and raw-census hashes. Evidence copies' schema sources match the read-only originals.
 
 ## Deferrals
 
 Repository-root inventory/guide qualification needs the missing Snapback 1 competitive-checkpoint and todo-v2 generated artifacts. Materializing those inherited prerequisites is outside the Snapback 4 fence and this lane. Copied-scope inference and private median remain the explicit supported-fragment decisions documented above; their nearest supported queries/alternatives are provided. No LANG2 implementation or affected-test failure remains open.
+
+## P18 coordinator revision closeout (2026-10-16)
+
+- `2ceeeb958b`: precise refusal/note/quiet split; per-field exact insert proofs; capture and constant analysis; hidden-target preservation; model, generator, simulator, device and rewrite tests; guide writes/why and 0.4.30 changes.
+- `b6589becdc`: keep the updated guide within its 12,810-word cap.
+- Literal inference is deliberately limited to a pinned key or an exact successful local insert. Other source writers cannot constrain historical/seeded/adopted rows; those cases get the note. Prior writes conservatively make clocks uncertain across nested branches, loops and helper expansion.
+- Fresh reviews and final qualification results are recorded below when complete; the older review digest above qualifies the pre-coordinator revision only.

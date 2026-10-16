@@ -420,3 +420,21 @@ fn opaque_mutable_insert_fields_do_not_erase_immutable_equality() {
         refusal(&source.replace("{ at: now }", "{ frozen: 'second' }"),"E_QUARRY_IMMUTABLE");
     }
 }
+
+#[test]
+fn enclosing_writes_prevent_false_clock_refusals_in_branches_loops_and_helpers() {
+    let insert = "insert entries { id: key, owner: viewer, frozen: 'first', token: new, at: now, body: 'x' }";
+    for nested in ["if flag:\n    update entries[key] { at: now }", "for i in range(0, 2):\n    update entries[key] { at: now }", "resave(key)"] {
+        let source = format!("{IMMUTABLE}fn resave(e: entries):\n  update entries[e] {{ at: now }}\n  return null\nmutation local(key: id, flag: bool):\n  {insert}\n  {nested}\n  return null\n");
+        immutable_note(&source);
+    }
+}
+
+#[test]
+fn opaque_compound_key_siblings_do_not_erase_a_pinned_column_proof() {
+    let base = "table entries:\n  code: int\n  slot: text <=30\n  unique code, slot\n  immutable code\n  public\n  update <- allow\n  online only\n";
+    for code in ["1", "1 + 0", "2"] {
+        let source = format!("{base}mutation change(slot: text <=30):\n  update entries[code = 1, slot = lower(slot)] {{ code: {code} }}\n  return null\n");
+        if code == "2" { refusal(&source,"E_QUARRY_IMMUTABLE"); } else { quiet(&source); }
+    }
+}

@@ -1,15 +1,13 @@
 {
   "workstream": "LANG2",
   "date": "2026-10-16",
-  "sourceCommit": "09325115e5",
+  "sourceCommit": "b6589becdc",
   "beforeCommit": "59fb4ead1b",
   "count": 100,
   "beforePass": 100,
-  "afterPass": 83,
+  "afterPass": 100,
   "beforeRefusals": {},
-  "afterRefusals": {
-    "E_QUARRY_IMMUTABLE": 23
-  },
+  "afterRefusals": {},
   "beforeNotes": {
     "N_CONDITIONAL_COMPLETE": 11,
     "N_DELETE_NEEDS_READ": 1,
@@ -31,46 +29,49 @@
     "N_WIDE_MERGE": 3
   },
   "beforeNotesSamePassingCohort": {
-    "N_CONDITIONAL_COMPLETE": 7,
+    "N_CONDITIONAL_COMPLETE": 11,
     "N_DELETE_NEEDS_READ": 1,
     "N_DELETE_RESTRICTED": 1,
-    "N_EPHEMERAL_SERVER": 1,
-    "N_FIXTURE_ARGUMENT_DRIFT": 17,
+    "N_EPHEMERAL_SERVER": 2,
+    "N_FIXTURE_ARGUMENT_DRIFT": 21,
+    "N_LOOKUP_HIDDEN": 5,
     "N_MAINTAIN_AUTHORIZATION": 2,
-    "N_MAINTAIN_DELTA": 4,
-    "N_NEVER_COMPLETE": 15,
-    "N_NO_CURSOR": 97,
-    "N_NO_HORIZON": 9,
-    "N_NO_PRODUCTION_WRITER": 44,
+    "N_MAINTAIN_DELTA": 7,
+    "N_NEVER_COMPLETE": 19,
+    "N_NO_CURSOR": 144,
+    "N_NO_HORIZON": 12,
+    "N_NO_PRODUCTION_WRITER": 50,
     "N_PATCH_CLEARS": 2,
-    "N_SPARSE_FILTER": 13,
+    "N_SPARSE_FILTER": 16,
     "N_SYNC_ORDER": 5,
-    "N_UNREADABLE_PROBE": 5,
+    "N_UNREADABLE_PROBE": 13,
     "N_VACUOUS_RULE": 1,
     "N_WIDE_MERGE": 3
   },
   "afterNotes": {
-    "N_CONDITIONAL_COMPLETE": 4,
+    "N_CONDITIONAL_COMPLETE": 8,
     "N_DELETE_NEEDS_READ": 1,
     "N_DELETE_RESTRICTED": 1,
-    "N_EPHEMERAL_SERVER": 1,
-    "N_FIXTURE_ARGUMENT_DRIFT": 17,
+    "N_EPHEMERAL_SERVER": 2,
+    "N_FIXTURE_ARGUMENT_DRIFT": 21,
+    "N_IMMUTABLE_PATCH": 30,
+    "N_LOOKUP_HIDDEN": 5,
     "N_MAINTAIN_AUTHORIZATION": 2,
-    "N_MAINTAIN_DELTA": 4,
-    "N_NEVER_COMPLETE": 11,
-    "N_NO_CURSOR": 96,
-    "N_NO_HORIZON": 9,
-    "N_NO_PRODUCTION_WRITER": 44,
+    "N_MAINTAIN_DELTA": 7,
+    "N_NEVER_COMPLETE": 15,
+    "N_NO_CURSOR": 139,
+    "N_NO_HORIZON": 12,
+    "N_NO_PRODUCTION_WRITER": 50,
     "N_PATCH_CLEARS": 2,
-    "N_SPARSE_FILTER": 14,
+    "N_SPARSE_FILTER": 17,
     "N_SYNC_ORDER": 5,
-    "N_UNREADABLE_PROBE": 5,
+    "N_UNREADABLE_PROBE": 13,
     "N_VACUOUS_RULE": 1,
     "N_WIDE_MERGE": 2
   },
   "rawCensusDigests": {
-    "before.json": "ee6a0ee9de4ac9fa7dcef037dbb22059359387d3601007042b7fa1f06163f703",
-    "after-handoff.json": "cb5096b50194de90b1bb56d7024b69724d4d649dd13f68a1cf83a67e55fb8bf9"
+    "before": "b8032468171d1a6a357b5c6c6cb9926e52e9123772a6eb046d4c0a8e0123985e",
+    "after": "4557de98d819deb29610eb0175ca1a47ccd5635417c45316ff7eeff7434c8bec"
   },
   "lanes": [
     {
@@ -85,7 +86,8 @@
         "N_CONDITIONAL_COMPLETE": 1,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "002-day2-kite-flight-lanes",
@@ -93,7 +95,8 @@
       "afterExit": 0,
       "beforeNotes": {},
       "afterNotes": {},
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "003-lease-takeover-board",
@@ -108,24 +111,31 @@
         "N_NO_CURSOR": 5,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "004-day2-lecture-note-relay",
       "beforeExit": 0,
-      "afterExit": 1,
+      "afterExit": 0,
       "beforeNotes": {
         "N_EPHEMERAL_SERVER": 1,
         "N_NO_CURSOR": 4,
         "N_UNREADABLE_PROBE": 2
       },
-      "afterNotes": {},
-      "refusals": [
+      "afterNotes": {
+        "N_EPHEMERAL_SERVER": 1,
+        "N_IMMUTABLE_PATCH": 1,
+        "N_NO_CURSOR": 4,
+        "N_UNREADABLE_PROBE": 2
+      },
+      "refusals": [],
+      "immutableNotes": [
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "typing.course is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless typing.course equals the stored value; omit course from the patch if another value may update this row",
           "rewrite": "omit course from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 36,
@@ -152,7 +162,8 @@
         "N_NO_PRODUCTION_WRITER": 1,
         "N_UNREADABLE_PROBE": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "006-day2-map-veto-rooms",
@@ -160,7 +171,8 @@
       "afterExit": 0,
       "beforeNotes": {},
       "afterNotes": {},
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "007-yearbook-photo-consents",
@@ -174,7 +186,8 @@
         "N_NEVER_COMPLETE": 1,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "008-day2-drawing-telephone",
@@ -186,7 +199,8 @@
       "afterNotes": {
         "N_NO_CURSOR": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "009-sponsor-read-approvals",
@@ -200,7 +214,8 @@
         "N_NO_CURSOR": 6,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "010-day2-courtside-stat-crew",
@@ -208,24 +223,31 @@
       "afterExit": 0,
       "beforeNotes": {},
       "afterNotes": {},
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "011-classroom-observation-notes",
       "beforeExit": 0,
-      "afterExit": 1,
+      "afterExit": 0,
       "beforeNotes": {
         "N_CONDITIONAL_COMPLETE": 1,
         "N_NO_CURSOR": 1,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "afterNotes": {},
-      "refusals": [
+      "afterNotes": {
+        "N_CONDITIONAL_COMPLETE": 1,
+        "N_IMMUTABLE_PATCH": 1,
+        "N_NO_CURSOR": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "refusals": [],
+      "immutableNotes": [
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "responses.teacher is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless responses.teacher equals the stored value (viewer must be the original teacher); omit teacher from the patch if another value may update this row",
           "rewrite": "omit teacher from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 79,
@@ -241,7 +263,8 @@
       "afterExit": 0,
       "beforeNotes": {},
       "afterNotes": {},
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "013-guarantor-pledges",
@@ -255,7 +278,8 @@
         "N_FIXTURE_ARGUMENT_DRIFT": 3,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "014-day2-overnight-relay-vans",
@@ -269,24 +293,31 @@
         "N_NO_CURSOR": 6,
         "N_UNREADABLE_PROBE": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "015-spoiler-shield-groups",
       "beforeExit": 0,
-      "afterExit": 1,
+      "afterExit": 0,
       "beforeNotes": {
         "N_CONDITIONAL_COMPLETE": 1,
         "N_FIXTURE_ARGUMENT_DRIFT": 1,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "afterNotes": {},
-      "refusals": [
+      "afterNotes": {
+        "N_CONDITIONAL_COMPLETE": 1,
+        "N_FIXTURE_ARGUMENT_DRIFT": 1,
+        "N_IMMUTABLE_PATCH": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "refusals": [],
+      "immutableNotes": [
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "reactions.group is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless reactions.group equals the stored value; omit group from the patch if another value may update this row",
           "rewrite": "omit group from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 36,
@@ -299,17 +330,21 @@
     {
       "lane": "016-day2-paint-by-number-wall",
       "beforeExit": 0,
-      "afterExit": 1,
+      "afterExit": 0,
       "beforeNotes": {
         "N_NO_CURSOR": 2
       },
-      "afterNotes": {},
-      "refusals": [
+      "afterNotes": {
+        "N_IMMUTABLE_PATCH": 1,
+        "N_NO_CURSOR": 2
+      },
+      "refusals": [],
+      "immutableNotes": [
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "photos.mural is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless photos.mural equals the stored value; omit mural from the patch if another value may update this row",
           "rewrite": "omit mural from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 38,
@@ -322,20 +357,27 @@
     {
       "lane": "017-offer-letter-advisors",
       "beforeExit": 0,
-      "afterExit": 1,
+      "afterExit": 0,
       "beforeNotes": {
         "N_CONDITIONAL_COMPLETE": 1,
         "N_NO_CURSOR": 3,
         "N_NO_PRODUCTION_WRITER": 1,
         "N_SPARSE_FILTER": 1
       },
-      "afterNotes": {},
-      "refusals": [
+      "afterNotes": {
+        "N_CONDITIONAL_COMPLETE": 1,
+        "N_IMMUTABLE_PATCH": 1,
+        "N_NO_CURSOR": 3,
+        "N_NO_PRODUCTION_WRITER": 1,
+        "N_SPARSE_FILTER": 1
+      },
+      "refusals": [],
+      "immutableNotes": [
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "grants.owner is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless grants.owner equals the stored value (viewer must be the original owner); omit owner from the patch if another value may update this row",
           "rewrite": "omit owner from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 42,
@@ -355,7 +397,8 @@
       "afterNotes": {
         "N_MAINTAIN_DELTA": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "019-shared-rolodex-notes",
@@ -367,7 +410,8 @@
       "afterNotes": {
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "020-day2-cost-estimate-delphi",
@@ -375,7 +419,8 @@
       "afterExit": 0,
       "beforeNotes": {},
       "afterNotes": {},
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "021-audit-evidence-requests",
@@ -389,22 +434,27 @@
         "N_NO_CURSOR": 3,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "022-day2-wedding-toast-order",
       "beforeExit": 0,
-      "afterExit": 1,
+      "afterExit": 0,
       "beforeNotes": {
         "N_MAINTAIN_DELTA": 1
       },
-      "afterNotes": {},
-      "refusals": [
+      "afterNotes": {
+        "N_IMMUTABLE_PATCH": 1,
+        "N_MAINTAIN_DELTA": 1
+      },
+      "refusals": [],
+      "immutableNotes": [
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "drafts.slot is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless drafts.slot equals the stored value; omit slot from the patch if another value may update this row",
           "rewrite": "omit slot from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 27,
@@ -426,7 +476,8 @@
         "N_FIXTURE_ARGUMENT_DRIFT": 2,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "024-day2-anonymous-exit-interviews",
@@ -434,7 +485,8 @@
       "afterExit": 0,
       "beforeNotes": {},
       "afterNotes": {},
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "025-vendor-subdelegation",
@@ -450,7 +502,8 @@
         "N_NO_CURSOR": 1,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "026-day2-benefits-open-enrollment",
@@ -458,7 +511,8 @@
       "afterExit": 0,
       "beforeNotes": {},
       "afterNotes": {},
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "027-proxy-assignments",
@@ -470,7 +524,8 @@
       "afterNotes": {
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "028-day2-reference-check-requests",
@@ -484,7 +539,8 @@
         "N_NEVER_COMPLETE": 1,
         "N_NO_CURSOR": 4
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "029-contractor-site-windows",
@@ -500,20 +556,24 @@
         "N_NO_PRODUCTION_WRITER": 1,
         "N_SPARSE_FILTER": 2
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "030-day2-worldbuilding-atlas",
       "beforeExit": 0,
-      "afterExit": 1,
+      "afterExit": 0,
       "beforeNotes": {},
-      "afterNotes": {},
-      "refusals": [
+      "afterNotes": {
+        "N_IMMUTABLE_PATCH": 4
+      },
+      "refusals": [],
+      "immutableNotes": [
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "locationSecrets.author is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless locationSecrets.author equals the stored value; omit author from the patch if another value may update this row",
           "rewrite": "omit author from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 67,
@@ -522,10 +582,10 @@
           }
         },
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "factionSecrets.author is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless factionSecrets.author equals the stored value; omit author from the patch if another value may update this row",
           "rewrite": "omit author from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 64,
@@ -534,10 +594,10 @@
           }
         },
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "eventSecrets.author is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless eventSecrets.author equals the stored value; omit author from the patch if another value may update this row",
           "rewrite": "omit author from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 58,
@@ -546,10 +606,10 @@
           }
         },
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "characterSecrets.author is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless characterSecrets.author equals the stored value; omit author from the patch if another value may update this row",
           "rewrite": "omit author from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 70,
@@ -569,7 +629,8 @@
       "afterNotes": {
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "032-day2-community-mediation",
@@ -583,7 +644,8 @@
         "N_MAINTAIN_DELTA": 2,
         "N_NO_CURSOR": 4
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "033-access-receipts-log",
@@ -595,25 +657,33 @@
       "afterNotes": {
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "034-day2-thesis-draft-circle",
       "beforeExit": 0,
-      "afterExit": 1,
+      "afterExit": 0,
       "beforeNotes": {
         "N_MAINTAIN_DELTA": 1,
         "N_NEVER_COMPLETE": 2,
         "N_NO_CURSOR": 9,
         "N_UNREADABLE_PROBE": 3
       },
-      "afterNotes": {},
-      "refusals": [
+      "afterNotes": {
+        "N_IMMUTABLE_PATCH": 3,
+        "N_MAINTAIN_DELTA": 1,
+        "N_NEVER_COMPLETE": 2,
+        "N_NO_CURSOR": 9,
+        "N_UNREADABLE_PROBE": 3
+      },
+      "refusals": [],
+      "immutableNotes": [
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "versionAccess.chapter is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless versionAccess.chapter equals the stored value; omit chapter from the patch if another value may update this row",
           "rewrite": "omit chapter from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 57,
@@ -622,10 +692,10 @@
           }
         },
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "commentAccess.chapter is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless commentAccess.chapter equals the stored value; omit chapter from the patch if another value may update this row",
           "rewrite": "omit chapter from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 57,
@@ -634,10 +704,10 @@
           }
         },
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "versionAccess.chapter is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless versionAccess.chapter equals the stored value; omit chapter from the patch if another value may update this row",
           "rewrite": "omit chapter from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 64,
@@ -661,7 +731,8 @@
         "N_NO_CURSOR": 4,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "036-day2-allergy-passport-links",
@@ -669,7 +740,8 @@
       "afterExit": 0,
       "beforeNotes": {},
       "afterNotes": {},
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "037-whiteboard-rooms",
@@ -683,7 +755,8 @@
         "N_EPHEMERAL_SERVER": 1,
         "N_SPARSE_FILTER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "038-day2-home-vitals-circle",
@@ -695,7 +768,8 @@
       "afterNotes": {
         "N_PATCH_CLEARS": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "039-audience-reactions",
@@ -709,7 +783,8 @@
         "N_NO_CURSOR": 8,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "040-day2-murder-mystery-host",
@@ -723,7 +798,8 @@
         "N_CONDITIONAL_COMPLETE": 1,
         "N_NEVER_COMPLETE": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "041-live-trip-pins",
@@ -743,7 +819,8 @@
         "N_SPARSE_FILTER": 1,
         "N_UNREADABLE_PROBE": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "042-day2-heirloom-division-picks",
@@ -751,7 +828,8 @@
       "afterExit": 0,
       "beforeNotes": {},
       "afterNotes": {},
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "043-mind-map-jam",
@@ -763,25 +841,66 @@
       "afterNotes": {
         "N_DELETE_RESTRICTED": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "044-day2-house-sitter-briefing",
       "beforeExit": 0,
-      "afterExit": 1,
+      "afterExit": 0,
       "beforeNotes": {
         "N_NO_CURSOR": 8
       },
-      "afterNotes": {},
-      "refusals": [
+      "afterNotes": {
+        "N_IMMUTABLE_PATCH": 4,
+        "N_NO_CURSOR": 8
+      },
+      "refusals": [],
+      "immutableNotes": [
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "completions.booking is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless completions.booking equals the stored value; omit booking from the patch if another value may update this row",
           "rewrite": "omit booking from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 47,
+            "file": "schema.q",
+            "line": 135
+          }
+        },
+        {
+          "code": "N_IMMUTABLE_PATCH",
+          "guide": "writes",
+          "mechanical": false,
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless completions.dayNumber equals the stored value; omit dayNumber from the patch if another value may update this row",
+          "rewrite": "omit dayNumber from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
+          "site": {
+            "col": 73,
+            "file": "schema.q",
+            "line": 135
+          }
+        },
+        {
+          "code": "N_IMMUTABLE_PATCH",
+          "guide": "writes",
+          "mechanical": false,
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless completions.sitter equals the stored value (viewer must be the original sitter); omit sitter from the patch if another value may update this row",
+          "rewrite": "omit sitter from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
+          "site": {
+            "col": 94,
+            "file": "schema.q",
+            "line": 135
+          }
+        },
+        {
+          "code": "N_IMMUTABLE_PATCH",
+          "guide": "writes",
+          "mechanical": false,
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless completions.task equals the stored value; omit task from the patch if another value may update this row",
+          "rewrite": "omit task from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
+          "site": {
+            "col": 67,
             "file": "schema.q",
             "line": 135
           }
@@ -798,22 +917,27 @@
       "afterNotes": {
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "046-day2-dataset-embargo-ledger",
       "beforeExit": 0,
-      "afterExit": 1,
+      "afterExit": 0,
       "beforeNotes": {
         "N_SPARSE_FILTER": 1
       },
-      "afterNotes": {},
-      "refusals": [
+      "afterNotes": {
+        "N_IMMUTABLE_PATCH": 2,
+        "N_SPARSE_FILTER": 1
+      },
+      "refusals": [],
+      "immutableNotes": [
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "requests.owner is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless requests.owner equals the stored value; omit owner from the patch if another value may update this row",
           "rewrite": "omit owner from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 92,
@@ -822,10 +946,10 @@
           }
         },
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "grants.owner is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless grants.owner equals the stored value (viewer must be the original owner); omit owner from the patch if another value may update this row",
           "rewrite": "omit owner from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 87,
@@ -845,7 +969,8 @@
       "afterNotes": {
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "048-day2-blind-cycle-counts",
@@ -853,7 +978,8 @@
       "afterExit": 0,
       "beforeNotes": {},
       "afterNotes": {},
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "049-battle-map-fog",
@@ -869,7 +995,8 @@
         "N_NO_PRODUCTION_WRITER": 1,
         "N_PATCH_CLEARS": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "050-day2-venue-tech-riders",
@@ -883,22 +1010,27 @@
         "N_UNREADABLE_PROBE": 1,
         "N_VACUOUS_RULE": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "051-live-budget-meeting",
       "beforeExit": 0,
-      "afterExit": 1,
+      "afterExit": 0,
       "beforeNotes": {
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "afterNotes": {},
-      "refusals": [
+      "afterNotes": {
+        "N_IMMUTABLE_PATCH": 1,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "refusals": [],
+      "immutableNotes": [
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "allocations.meeting is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless allocations.meeting equals the stored value; omit meeting from the patch if another value may update this row",
           "rewrite": "omit meeting from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 42,
@@ -911,20 +1043,27 @@
     {
       "lane": "052-day2-portfolio-review-links",
       "beforeExit": 0,
-      "afterExit": 1,
+      "afterExit": 0,
       "beforeNotes": {
         "N_CONDITIONAL_COMPLETE": 1,
         "N_NEVER_COMPLETE": 2,
         "N_NO_CURSOR": 3,
         "N_UNREADABLE_PROBE": 1
       },
-      "afterNotes": {},
-      "refusals": [
+      "afterNotes": {
+        "N_CONDITIONAL_COMPLETE": 1,
+        "N_IMMUTABLE_PATCH": 1,
+        "N_NEVER_COMPLETE": 2,
+        "N_NO_CURSOR": 3,
+        "N_UNREADABLE_PROBE": 1
+      },
+      "refusals": [],
+      "immutableNotes": [
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "reactions.link is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless reactions.link equals the stored value; omit link from the patch if another value may update this row",
           "rewrite": "omit link from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 43,
@@ -946,7 +1085,8 @@
         "N_NO_CURSOR": 4,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "054-day2-street-naming-proposals",
@@ -958,7 +1098,8 @@
       "afterNotes": {
         "N_NO_CURSOR": 8
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "055-unconference-grid",
@@ -970,7 +1111,8 @@
       "afterNotes": {
         "N_NO_PRODUCTION_WRITER": 3
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "056-day2-secret-dice-log",
@@ -978,7 +1120,8 @@
       "afterExit": 0,
       "beforeNotes": {},
       "afterNotes": {},
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "057-precinct-poll-book",
@@ -994,7 +1137,8 @@
         "N_SPARSE_FILTER": 1,
         "N_WIDE_MERGE": 2
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "058-day2-lien-waiver-collection",
@@ -1006,7 +1150,8 @@
       "afterNotes": {
         "N_MAINTAIN_AUTHORIZATION": 2
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "059-rig-safety-walkdown",
@@ -1022,7 +1167,8 @@
         "N_NO_HORIZON": 1,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "060-day2-court-watch-notes",
@@ -1030,24 +1176,31 @@
       "afterExit": 0,
       "beforeNotes": {},
       "afterNotes": {},
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "061-auction-lot-walk",
       "beforeExit": 0,
-      "afterExit": 1,
+      "afterExit": 0,
       "beforeNotes": {
         "N_NO_CURSOR": 8,
         "N_NO_HORIZON": 3,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "afterNotes": {},
-      "refusals": [
+      "afterNotes": {
+        "N_IMMUTABLE_PATCH": 1,
+        "N_NO_CURSOR": 8,
+        "N_NO_HORIZON": 3,
+        "N_NO_PRODUCTION_WRITER": 1
+      },
+      "refusals": [],
+      "immutableNotes": [
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "reserves.auction is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless reserves.auction equals the stored value; omit auction from the patch if another value may update this row",
           "rewrite": "omit auction from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 37,
@@ -1063,7 +1216,8 @@
       "afterExit": 0,
       "beforeNotes": {},
       "afterNotes": {},
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "063-field-sales-orders",
@@ -1081,7 +1235,8 @@
         "N_NO_HORIZON": 3,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "064-day2-passage-watch-bill",
@@ -1097,7 +1252,8 @@
         "N_NO_HORIZON": 1,
         "N_SYNC_ORDER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "065-sale-barn-weighins",
@@ -1111,7 +1267,8 @@
         "N_NO_CURSOR": 1,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "066-day2-fossil-dig-grid",
@@ -1123,7 +1280,8 @@
       "afterNotes": {
         "N_NO_HORIZON": 2
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "067-claim-photo-packets",
@@ -1137,25 +1295,42 @@
         "N_NO_CURSOR": 6,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "068-day2-damage-assessment-walks",
       "beforeExit": 0,
-      "afterExit": 1,
+      "afterExit": 0,
       "beforeNotes": {
         "N_MAINTAIN_DELTA": 1
       },
-      "afterNotes": {},
-      "refusals": [
+      "afterNotes": {
+        "N_IMMUTABLE_PATCH": 2,
+        "N_MAINTAIN_DELTA": 1
+      },
+      "refusals": [],
+      "immutableNotes": [
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "assessments.block is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless assessments.block equals the stored value; omit block from the patch if another value may update this row",
           "rewrite": "omit block from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 52,
+            "file": "schema.q",
+            "line": 124
+          }
+        },
+        {
+          "code": "N_IMMUTABLE_PATCH",
+          "guide": "writes",
+          "mechanical": false,
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless assessments.owner equals the stored value; omit owner from the patch if another value may update this row",
+          "rewrite": "omit owner from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
+          "site": {
+            "col": 68,
             "file": "schema.q",
             "line": 124
           }
@@ -1174,23 +1349,29 @@
         "N_NEVER_COMPLETE": 3,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "070-day2-rural-route-notes",
       "beforeExit": 0,
-      "afterExit": 1,
+      "afterExit": 0,
       "beforeNotes": {
         "N_NO_CURSOR": 3,
         "N_UNREADABLE_PROBE": 2
       },
-      "afterNotes": {},
-      "refusals": [
+      "afterNotes": {
+        "N_IMMUTABLE_PATCH": 1,
+        "N_NO_CURSOR": 3,
+        "N_UNREADABLE_PROBE": 2
+      },
+      "refusals": [],
+      "immutableNotes": [
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "gatecodes.route is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless gatecodes.route equals the stored value; omit route from the patch if another value may update this row",
           "rewrite": "omit route from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 42,
@@ -1213,7 +1394,8 @@
         "N_NO_CURSOR": 1,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "072-day2-bedtime-story-recordings",
@@ -1227,7 +1409,8 @@
         "N_NEVER_COMPLETE": 1,
         "N_SPARSE_FILTER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "073-thrift-resale-listings",
@@ -1241,7 +1424,8 @@
         "N_NO_PRODUCTION_WRITER": 1,
         "N_SPARSE_FILTER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "074-day2-tattoo-flash-claims",
@@ -1249,7 +1433,8 @@
       "afterExit": 0,
       "beforeNotes": {},
       "afterNotes": {},
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "075-podcast-rough-cuts",
@@ -1261,7 +1446,8 @@
       "afterNotes": {
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "076-day2-layaway-ledger",
@@ -1269,7 +1455,8 @@
       "afterExit": 0,
       "beforeNotes": {},
       "afterNotes": {},
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "077-herbarium-scans",
@@ -1287,7 +1474,8 @@
         "N_MAINTAIN_DELTA": 1,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "078-day2-dog-license-renewals",
@@ -1299,7 +1487,8 @@
       "afterNotes": {
         "N_NO_HORIZON": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "079-fuel-price-board",
@@ -1311,7 +1500,8 @@
       "afterNotes": {
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "080-day2-class-pet-weekends",
@@ -1323,7 +1513,8 @@
       "afterNotes": {
         "N_NO_CURSOR": 4
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "081-public-collections",
@@ -1337,7 +1528,8 @@
         "N_NEVER_COMPLETE": 1,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "082-day2-open-water-swim-tags",
@@ -1349,7 +1541,8 @@
       "afterNotes": {
         "N_SPARSE_FILTER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "083-policy-handbook-acks",
@@ -1363,7 +1556,8 @@
         "N_FIXTURE_ARGUMENT_DRIFT": 2,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "084-day2-neighborhood-business-directory",
@@ -1375,7 +1569,8 @@
       "afterNotes": {
         "N_SPARSE_FILTER": 3
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "085-expiring-album-links",
@@ -1389,7 +1584,8 @@
         "N_FIXTURE_ARGUMENT_DRIFT": 1,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "086-day2-bottle-split-shares",
@@ -1397,7 +1593,8 @@
       "afterExit": 0,
       "beforeNotes": {},
       "afterNotes": {},
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "087-heat-complaint-log",
@@ -1410,7 +1607,8 @@
       "afterNotes": {
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "088-day2-hotel-linen-counts",
@@ -1422,25 +1620,33 @@
       "afterNotes": {
         "N_UNREADABLE_PROBE": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "089-piano-tuning-routes",
       "beforeExit": 0,
-      "afterExit": 1,
+      "afterExit": 0,
       "beforeNotes": {
         "N_FIXTURE_ARGUMENT_DRIFT": 3,
         "N_LOOKUP_HIDDEN": 5,
         "N_NO_PRODUCTION_WRITER": 1,
         "N_SPARSE_FILTER": 1
       },
-      "afterNotes": {},
-      "refusals": [
+      "afterNotes": {
+        "N_FIXTURE_ARGUMENT_DRIFT": 3,
+        "N_IMMUTABLE_PATCH": 1,
+        "N_LOOKUP_HIDDEN": 5,
+        "N_NO_PRODUCTION_WRITER": 1,
+        "N_SPARSE_FILTER": 1
+      },
+      "refusals": [],
+      "immutableNotes": [
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "grants.grantedBy is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless grants.grantedBy equals the stored value (viewer must be the original grantedBy); omit grantedBy from the patch if another value may update this row",
           "rewrite": "omit grantedBy from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 56,
@@ -1456,7 +1662,8 @@
       "afterExit": 0,
       "beforeNotes": {},
       "afterNotes": {},
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "091-shot-list-coordination",
@@ -1470,7 +1677,8 @@
         "N_NO_CURSOR": 1,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "092-day2-reef-bleaching-surveys",
@@ -1484,7 +1692,8 @@
         "N_NO_HORIZON": 1,
         "N_SPARSE_FILTER": 2
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "093-conduct-incident-intake",
@@ -1498,7 +1707,8 @@
         "N_NO_CURSOR": 1,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "094-day2-maintainer-funding-splits",
@@ -1510,7 +1720,8 @@
       "afterNotes": {
         "N_NO_CURSOR": 4
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "095-bowling-handicaps",
@@ -1526,7 +1737,8 @@
         "N_NO_PRODUCTION_WRITER": 1,
         "N_SPARSE_FILTER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "096-day2-award-nomination-committee",
@@ -1538,7 +1750,8 @@
       "afterNotes": {
         "N_SYNC_ORDER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "097-listener-voicemail",
@@ -1552,7 +1765,8 @@
         "N_NO_CURSOR": 3,
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "098-day2-stream-overlay-controls",
@@ -1564,7 +1778,8 @@
       "afterNotes": {
         "N_SYNC_ORDER": 3
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "099-pen-name-contest",
@@ -1578,30 +1793,80 @@
       "afterNotes": {
         "N_NO_PRODUCTION_WRITER": 1
       },
-      "refusals": []
+      "refusals": [],
+      "immutableNotes": []
     },
     {
       "lane": "100-day2-derby-bout-lineups",
       "beforeExit": 0,
-      "afterExit": 1,
+      "afterExit": 0,
       "beforeNotes": {
         "N_NO_CURSOR": 6
       },
-      "afterNotes": {},
-      "refusals": [
+      "afterNotes": {
+        "N_IMMUTABLE_PATCH": 4,
+        "N_NO_CURSOR": 2
+      },
+      "refusals": [],
+      "immutableNotes": [
         {
-          "code": "E_QUARRY_IMMUTABLE",
+          "code": "N_IMMUTABLE_PATCH",
           "guide": "writes",
           "mechanical": false,
-          "message": "notes.awayCaptain is immutable; this patch does not prove its value equals the stored row (upsert patches an existing row on conflict)",
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless notes.awayCaptain equals the stored value; omit awayCaptain from the patch if another value may update this row",
           "rewrite": "omit awayCaptain from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
           "site": {
             "col": 68,
             "file": "schema.q",
             "line": 180
           }
+        },
+        {
+          "code": "N_IMMUTABLE_PATCH",
+          "guide": "writes",
+          "mechanical": false,
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless notes.bout equals the stored value; omit bout from the patch if another value may update this row",
+          "rewrite": "omit bout from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
+          "site": {
+            "col": 34,
+            "file": "schema.q",
+            "line": 180
+          }
+        },
+        {
+          "code": "N_IMMUTABLE_PATCH",
+          "guide": "writes",
+          "mechanical": false,
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless notes.homeCaptain equals the stored value; omit homeCaptain from the patch if another value may update this row",
+          "rewrite": "omit homeCaptain from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
+          "site": {
+            "col": 40,
+            "file": "schema.q",
+            "line": 180
+          }
+        },
+        {
+          "code": "N_IMMUTABLE_PATCH",
+          "guide": "writes",
+          "mechanical": false,
+          "message": "on conflict, this upsert is refused at runtime on a readable target unless notes.team equals the stored value; omit team from the patch if another value may update this row",
+          "rewrite": "omit team from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present",
+          "site": {
+            "col": 96,
+            "file": "schema.q",
+            "line": 180
+          }
         }
       ]
     }
-  ]
+  ],
+  "coordinatorRevision": "Uncertain immutable patches are notes; only proven-changing/fresh clock or id patterns refuse.",
+  "supersedes": {
+    "sourceCommit": "09325115e5",
+    "afterPass": 83,
+    "afterRefusals": {
+      "E_QUARRY_IMMUTABLE": 23
+    }
+  },
+  "lane052": "reactions.at is mutable; immutable link, comment, author. The uncertain link patch gets N_IMMUTABLE_PATCH; no clock refusal applies."
 }

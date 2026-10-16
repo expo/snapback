@@ -9,7 +9,8 @@ impl Binder<'_> {
         let Expr::Object(patch) = patch else { return Ok(()) };
         let index = info.indexes.iter().find(|index| index.name == key.index).expect("selected write key");
         let stable = self.scopes.iter().flat_map(|scope|scope.values()).filter(|binding|binding.parameter).map(|binding|binding.runtime.clone()).collect::<BTreeSet<_>>();
-        let target = key.key.iter().map(|value| resolve(value, prior, 32, &stable)).collect::<Option<Vec<_>>>();
+        let components = key.key.iter().map(|value| resolve(value, prior, 32, &stable)).collect::<Vec<_>>();
+        let target = components.iter().cloned().collect::<Option<Vec<_>>>();
         let stored = inserted_target(info, index, target.as_deref(), prior, &stable);
         let always_hidden = self.caller_kind != ProgramKind::Job && self.schema.table(&info.decl.name)
             .is_some_and(|table| matches!(table.rules.read, snapback4_core::schema::RuleExpr::Deny));
@@ -17,7 +18,7 @@ impl Binder<'_> {
             if !info.decl.immutable.iter().any(|(fields, _)| fields.contains(column)) { continue; }
             let value = resolve(supplied, prior, 32, &stable);
             let pinned = index.columns.iter().position(|field| field == column)
-                .and_then(|at| target.as_ref()?.get(at));
+                .and_then(|at| components.get(at)?.as_ref());
             let snapshot = if let (Some(Expr::Field { base, name }), Some(target)) = (&value, &target) {
                 name == column && match base.as_ref() {
                     Expr::Get(read) => read.table == info.decl.name && (
@@ -32,7 +33,7 @@ impl Binder<'_> {
             let rewrite = format!("omit {column} from the patch; set it on insert instead. For create-or-edit, branch on a readable point, insert all initial fields when absent, and update only mutable fields when present");
             let differing = known.zip(value.as_ref()).is_some_and(|(old, new)| different(old, new));
             let clock = info.columns.get(column).is_some_and(|ty| matches!(ty.kind, ast::TypeKind::Time))
-                && value.as_ref().is_some_and(clock_value)
+                && value.as_ref().is_some_and(clock_value) && !self.may_have_written
                 && !prior.iter().any(|statement| ir::effects::Effects::writes_in(std::slice::from_ref(statement)));
             let fresh = matches!(supplied, Expr::Input(Input::NewId)) || value.as_ref().is_some_and(|value| fresh_capture(value, prior));
             if !always_hidden && (differing || clock || fresh) {
