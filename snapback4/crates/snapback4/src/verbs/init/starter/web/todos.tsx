@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { isDenied, isFailed, isLoading } from "snapback4/contract";
+import { isAbsent, isDenied, isFailed, isLoading } from "snapback4/contract";
 import { useAuth, useLink, useMutation, usePage, useSignedInViewer, type UseMutation, type UsePage } from "snapback4/react";
 import { api } from "../snapback/generated/api.ts";
 
@@ -12,9 +12,10 @@ function Todos() {
   // usePage is for a query that takes `c: cursor ?`; any other query reads
   // with useQuery(api.op, args), which returns the Read itself (render it
   // with matchRead from snapback4/contract).
+  // Keep the draft in this screen, above release-sensitive read children.
+  const [title, setTitle] = useState("");
   const todos = usePage(api.list, {});
   const add = useMutation(api.add), toggle = useMutation(api.toggle), remove = useMutation(api.remove);
-  const [title, setTitle] = useState("");
   // The button and Enter share one command. A click admits the intent in
   // that event; preventDefault avoids a second form submission.
   const submit = (event: FormEvent) => {
@@ -45,7 +46,8 @@ function Todos() {
 function TodoList({ todos, toggle, remove }: { todos: UsePage<typeof api.list>; toggle: UseMutation<typeof api.toggle>; remove: UseMutation<typeof api.remove> }) {
   return <>
     {isLoading(todos.read) && <p>Loading…</p>}
-    {isDenied(todos.read) && <p role="alert">{todos.read.denied.message}</p>}
+    {isDenied(todos.read) && <p role="alert">Not available: {todos.read.denied.message}</p>}
+    {isAbsent(todos.read) && <p>No tasks yet.</p>}
     <ul>
       {todos.items.map(todo => <li key={todo.id} className={todo.pending ? "pending" : undefined}>
         <label>

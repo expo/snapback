@@ -54,7 +54,7 @@ fn plan(dir: &Path) -> (Vec<Leftover>, Vec<String>, Vec<String>) {
     }
     if let Some(text) = read(dir, "src/native-smoke.ts") {
         let wanted = starter::native_smoke(own.identity.is_some_and(|(password, guests)| password && !guests));
-        let recognized = [false, true].into_iter().any(|password| text == starter::native_smoke(password) || text == starter::native_smoke(password).lines().filter(|line| !line.starts_with("// smokeSegment()") && !line.starts_with("// native module config")).collect::<Vec<_>>().join("\n") + "\n");
+        let recognized = [false, true].into_iter().any(|password| [starter::native_smoke(password), starter::wave14_native_smoke(password)].iter().any(|reference| text == *reference || text == reference.lines().filter(|line| !line.starts_with("// smokeSegment()") && !line.starts_with("// native module config")).collect::<Vec<_>>().join("\n") + "\n"));
         if !recognized { modified.push("src/native-smoke.ts".to_owned()); }
         if text != wanted && recognized && smoke_referenced(dir) {
             found.push(Leftover { path: "src/native-smoke.ts", why: "the unmodified native smoke helper uses the previous schema's sign-in".into(), rewrite: Some(wanted) });
@@ -210,8 +210,8 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
     let client_shape = normalized(&client);
     let matches_client = |reference: &str, personas: bool| [reference, starter::previous_client(platform, personas)].iter().any(|reference|
         client_shape == normalized(reference) || client_shape == normalized(&starter::web_client((*reference).to_owned(), &journal_shape)) || client_shape == normalized(&starter::online_web_client((*reference).to_owned())) || client_shape == normalized(&starter::expo_client((*reference).to_owned(), &journal_shape)));
-    let current = [Body::Todos, Body::Home(first_read(&app))].into_iter().find_map(|body| [false, true].into_iter().find_map(|previous| {
-        let screens = |personas: Option<&[String]>, password| if previous { starter::previous_screens(platform, personas, &body, password) } else { starter::identity_screens(platform, personas, &body, password) };
+    let current = [Body::Todos, Body::Home(first_read(&app))].into_iter().find_map(|body| [0, 1, 2].into_iter().find_map(|version| {
+        let screens = |personas: Option<&[String]>, password| match version { 1 => starter::previous_screens(platform, personas, &body, password), 2 => starter::wave14_screens(platform, personas, &body, password), _ => starter::identity_screens(platform, personas, &body, password) };
         let (guest_app, guest_client) = screens(None, false);
         let (persona_app, persona_client) = screens(Some(&[]), false);
         let (password_app, password_client) = screens(None, true);
@@ -433,5 +433,30 @@ fn untouched_wave9_screens_still_adapt_and_edited_clients_stay_owned() {
             assert!(!changes.iter().any(|change| change.path == app_path || change.path == client_path), "edited pair stays owned");
             std::fs::remove_dir_all(dir).unwrap();
         }
+    }
+}
+
+
+#[test]
+fn untouched_wave14_screens_and_smoke_still_adapt() {
+    for platform in [Platform::Web, Platform::Expo] {
+        let dir = std::env::temp_dir().join(format!("sb4-w14-adapt-{}-{platform:?}", std::process::id()));
+        std::fs::create_dir_all(dir.join("snapback")).unwrap();
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        let schema = include_str!("starter/schema.q").replace("use identity ", "use identity password ");
+        std::fs::write(dir.join("snapback/schema.q"), schema).unwrap();
+        let (app, client) = starter::wave14_screens(platform, None, &Body::Todos, false);
+        assert!(!app.contains("No tasks yet."));
+        let (app_path, client_path) = platform.paths();
+        std::fs::write(dir.join(app_path), app).unwrap();
+        std::fs::write(dir.join(client_path), &client).unwrap();
+        std::fs::write(dir.join("src/native-smoke.ts"), starter::wave14_native_smoke(false)).unwrap();
+        let (changes, _) = leftovers(&dir);
+        assert!(changes.iter().any(|change| change.path == app_path));
+        if platform == Platform::Expo { assert!(changes.iter().any(|change| change.path == "src/native-smoke.ts")); }
+        std::fs::write(dir.join(client_path), format!("{client}\n// application-owned edit\n")).unwrap();
+        let (changes, _) = leftovers(&dir);
+        assert!(!changes.iter().any(|change| change.path == app_path || change.path == client_path));
+        std::fs::remove_dir_all(dir).unwrap();
     }
 }

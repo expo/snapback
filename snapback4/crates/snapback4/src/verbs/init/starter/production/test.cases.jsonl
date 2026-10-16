@@ -1,0 +1,8 @@
+{"as":"alice","op":"myTeams","args":{},"count":0,"label":"complete empty list"}
+{"as":"alice","op":"createTeam","args":{"title":"Product"},"save":"team"}
+{"as":"alice","op":"myRole","args":{"teamId":"$team"},"match":{"principal":"dev:alice","role":"admin"}}
+{"as":"bob","op":"myRole","args":{"teamId":"$team"},"expect":"NOT_MEMBER","label":"denied membership is unavailable"}
+{"as":"alice","op":"invite","args":{"teamId":"$team","principal":"dev:bob","role":"member"}}
+{"as":"bob","op":"myRole","args":{"teamId":"$team"},"match":{"principal":"dev:bob","role":"member"}}
+{"as":"bob","op":"roster","args":{"teamId":"$team"},"count":2}
+{"as":"bob","op":"invite","args":{"teamId":"$team","principal":"dev:alice","role":"admin"},"expect":"NOT_ADMIN"}

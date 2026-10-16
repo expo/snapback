@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, Pressable, Text, TextInput, View } from "react-native";
-import { isDenied, isFailed, isLoading } from "snapback4/contract";
+import { isAbsent, isDenied, isFailed, isLoading } from "snapback4/contract";
 import { useAuth, useLink, useMutation, usePage, useSignedInViewer, type UseMutation, type UsePage } from "snapback4/react";
 import { api } from "./snapback/generated/api";
 import { tier } from "./src/client";
@@ -14,9 +14,10 @@ function Todos() {
   // usePage is for a query that takes `c: cursor ?`; any other query reads
   // with useQuery(api.op, args), which returns the Read itself (render it
   // with matchRead from snapback4/contract).
+  // Keep the draft in this screen, above release-sensitive read children.
+  const [title, setTitle] = useState("");
   const todos = usePage(api.list, {});
   const add = useMutation(api.add), toggle = useMutation(api.toggle), remove = useMutation(api.remove);
-  const [title, setTitle] = useState("");
   const submit = () => {
     if (!title.trim()) return;
     void add.run({ title: title.trim() });
@@ -43,7 +44,8 @@ function Todos() {
 function TodoList({ todos, toggle, remove }: { todos: UsePage<typeof api.list>; toggle: UseMutation<typeof api.toggle>; remove: UseMutation<typeof api.remove> }) {
   return <>
     {isLoading(todos.read) && <Text>Loading…</Text>}
-    {isDenied(todos.read) && <Text style={{ color: "crimson" }}>{todos.read.denied.message}</Text>}
+    {isDenied(todos.read) && <Text style={{ color: "crimson" }}>Not available: {todos.read.denied.message}</Text>}
+    {isAbsent(todos.read) && <Text>No tasks yet.</Text>}
     {todos.items.map(todo => <View key={todo.id} style={{ flexDirection: "row", alignItems: "center", gap: 8, opacity: todo.pending ? 0.6 : 1 }}>
       <Pressable style={{ flex: 1 }} onPress={() => void toggle.run({ todoId: todo.id })}>
         <Text style={{ textDecorationLine: todo.done ? "line-through" : "none" }}>{todo.done ? "☑" : "☐"} {todo.title}</Text>
