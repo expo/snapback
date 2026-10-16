@@ -96164,3 +96164,11 @@ intended lane-079 note. A 20,000-case differential run has no disagreements;
 the 130 Lean mismatches reproduce with identical counts on base 4ef9f77fb
 (existing C2/W4 model gaps). Qualification details and limits are recorded
 in the workstream report and reports/wave14-rules4/. No version bump or push.
+
+Full-suite follow-up refreshes the compiled authoring census from 484 to 496
+mutation occurrences: all twelve additions are server-only, with the same
+94 eligible private write sites and no prior occurrence removed after block
+number normalization. Preserve the contextual member-read-mark guidance in
+the code-owned E_FIELD_AUTHORITY explanation. The 125 guide, nine field
+authority and 88 read-authorization tests pass on Linux and Mac after these
+editorial/snapshot corrections; existing explanation byte ceilings hold.

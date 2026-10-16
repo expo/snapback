@@ -38,3 +38,9 @@ whether a private witness is permanent or expiring. Alternatives needed for
 the complete timeline are visited in both cases.
 Failed predicates and denied rows export no deadline.
 
+## Writing a member's read mark
+
+A member patches its own `readUpTo` with no row update grant. A named update
+transition still applies; other patched fields need the row's update rule.
+Omit another principal's read mark, including 0. See `guide writes` for the
+read-mark example and `guide rules` for the membership recipe.

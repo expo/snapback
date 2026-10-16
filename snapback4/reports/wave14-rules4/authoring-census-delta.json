@@ -1,0 +1,23 @@
+{
+  "method": "Regenerated from CENSUS_ITEM output of the compiled complete authoring corpus; normalized only numbered card/package block positions when comparing membership.",
+  "before_mutation_occurrences": 484,
+  "after_mutation_occurrences": 496,
+  "distinct_private_write_sites": 94,
+  "new_eligible_private_write_sites": 0,
+  "added_normalized_records": [
+    "card/rule-recipes/:ownRuleRecord | never",
+    "card/rule-recipes/:addRosterFile | never",
+    "card/rule-recipes/:transferRosterFolder | never",
+    "card/rule-recipes/:joinWaitlist | never",
+    "card/rule-recipes/:leaveWaitlist | never",
+    "card/rule-recipes/:memberPage | never",
+    "card/rule-recipes/:unionNote | never",
+    "card/rule-recipes/:publishImage | never",
+    "card/rule-recipes/:savePrivateImage | never",
+    "card/rule-recipes/:unpublishImage | never",
+    "card/rule-recipes/:newStaffCase | never",
+    "card/rules/:ladderPut | never"
+  ],
+  "removed_normalized_records": [],
+  "outcomes_review": "All 12 added mutations are server-only (predicts never); no existing mutation or eligible private write site removed. Existing outcomes.rs prediction witnesses remain applicable; packed recipe/server and current-roster device witnesses cover the new recipes."
+}
