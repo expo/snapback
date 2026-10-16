@@ -1,4 +1,4 @@
-import {recordedCompatibility} from './helpers/schema-capability-fixtures.mjs';
+import {recordedCompatibility,recordedControl} from './helpers/schema-capability-fixtures.mjs';
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState } from './helpers/wait.mjs';
 import { hangBudget } from './helpers/wait.mjs';
@@ -81,10 +81,12 @@ test('published 0.2.33 rejects F2 stores, serving, backend opening and device ad
   // Use source the old compiler understands, so serving must refuse the
   // stored F2 generation rather than merely refusing the new Quarry syntax.
   writeFileSync(join(dir,'release/releases/1/snapback/schema.q'),source.split('maintain totals:')[0]);
-  rejected(run(legacy,['serve',join(dir,'release'),'--port','0']));
+  const refusedRelease=run(legacy,['serve',join(dir,'release'),'--port','0']);
+  assert.notEqual(refusedRelease.status,0);
+  assert.match(refusedRelease.stdout+refusedRelease.stderr,/E_STORE: store version snapback4-release-store-[23] is not snapback4-store-1/);
   const plain = join(dir,'plain');
   mkdirSync(join(plain,'snapback'),{recursive:true});
-  writeFileSync(join(plain,'snapback/schema.q'),source.split('maintain totals:')[0]);
+  writeFileSync(join(plain,'snapback/schema.q'),recordedControl.source);
   const start = async (bin,args,cwd) => {
     const child=spawn(bin,args,{cwd,stdio:['ignore','pipe','pipe']});
     const readStdout = captureStdout(child);
@@ -100,6 +102,8 @@ test('published 0.2.33 rejects F2 stores, serving, backend opening and device ad
   assert.ok(Object.values(plainBackend.schema.tables).every(table=>!Object.keys(table.recorded??{}).length && !table.constraints.some(c => c === 'Recorded' || c === 'Capabilities' || c?.Capabilities)));
   writeFileSync(join(plain,'backend.json'),JSON.stringify(plainBackend));
   plainDev.child.kill();await plainDev.exited;
+  // Keep the old compiler on its own syntax while preserving current stored bytes.
+  writeFileSync(join(plain,'snapback/schema.q'),source.split('maintain totals:')[0]);
   const accepted=run(legacy,['device',join(plain,'device.sqlite'),'backend.json'],JSON.stringify({op:'adopt',backend:plainBackend})+'\n',plain);
   assert.equal(accepted.status,0,accepted.stdout+accepted.stderr);
   const acceptedReplies=accepted.stdout.trim().split('\n').map(line=>JSON.parse(line));
@@ -108,12 +112,19 @@ test('published 0.2.33 rejects F2 stores, serving, backend opening and device ad
   assert.equal(plainDoctor.status,0,plainDoctor.stdout+plainDoctor.stderr);
   const plainDeploy=run(binary,['deploy',join(plain,'release')],'',plain);
   assert.equal(plainDeploy.status,0,plainDeploy.stdout+plainDeploy.stderr);
-  const plainServe=await start(legacy,['serve',join(plain,'release'),'--port','0'],plain);
-  plainServe.child.kill();await plainServe.exited;
+  // Device/schema compatibility does not imply release-store compatibility.
+  // @ref LLP 3000.000.000#2 — old servers refuse retained release stores by version.
+  const plainRelease=join(plain,'release');
+  const beforeRelease=readFileSync(join(plainRelease,'store.sqlite'));
+  writeFileSync(join(plainRelease,'releases/1/snapback/schema.q'),source.split('maintain totals:')[0]);
+  const plainServe=run(legacy,['serve',plainRelease,'--port','0']);
+  assert.notEqual(plainServe.status,0);
+  assert.match(plainServe.stdout+plainServe.stderr,/E_STORE: store version snapback4-release-store-[23] is not snapback4-store-1/);
+  assert.deepEqual(readFileSync(join(plainRelease,'store.sqlite')),beforeRelease);
   const database = new DatabaseSync(join(dir,'.snapback4/store.sqlite'));
   database.exec("UPDATE r SET data = 'not-json' WHERE t = (SELECT num FROM _catalog WHERE name = 'likes')");
   database.close();
-  const doctor = run(binary,['doctor','--store',join(dir,'.snapback4/store.sqlite')]);
+  const doctor = run(binary,['doctor']);
   assert.notEqual(doctor.status,0,doctor.stdout+doctor.stderr);
   assert.match(doctor.stdout+doctor.stderr,/attribution FAIL/);
 });

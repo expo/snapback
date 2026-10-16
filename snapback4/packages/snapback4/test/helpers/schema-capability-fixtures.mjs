@@ -71,4 +71,5 @@ query totals():
   return totals first 10 by byGroup
 `,capabilities:['maintained-id-sha256-v1','recorded-attribution','reference-actions','source-write-reservations-v1','source-write-reservations-v2']};
 export const cliqueCapabilities=['maintained-column','maintained-id-sha256-v1','recorded-attribution','reference-actions','source-write-reservations-v1','source-write-reservations-v2','timeline-event-slots','timeline-v2'];
-export const additionalMarkerFixtures=[recordedCompatibility,{name:'clique-03',source:readFileSync(join(root,'examples/clique-03/snapback/schema.q'),'utf8'),capabilities:cliqueCapabilities}];
+export const recordedControl={name:'recorded-capability-free',source:recordedCompatibility.source.split('maintain totals:')[0].replace('postId: posts\n','postId: posts on delete keep\n'),capabilities:[]};
+export const additionalMarkerFixtures=[recordedCompatibility,recordedControl,{name:'clique-03',source:readFileSync(join(root,'examples/clique-03/snapback/schema.q'),'utf8'),capabilities:cliqueCapabilities}];
