@@ -120,10 +120,10 @@ fn exercise(name: &str, marker: &str) {
     if name == "grant-expiry" {
         host.post("/dev/clock/advance","alice",json!({"duration":"1h"}));
         for who in ["alice","bob"] {
-            let grant=host.post("/q/liveGrant",who,json!({"args":{"ledger":"l","accountant":"dev:bob"}})); assert!(grant["data"].is_null(),"{grant}");
+            let grant=host.post("/q/liveGrant",who,json!({"args":{"ledger":"l","accountant":"dev:bob"}})); assert_eq!(grant["complete"],true,"{grant}"); assert!(grant["data"].is_null(),"{grant}");
         }
         let owner=host.post("/q/ledgerById","alice",json!({"args":{"ledger":"l"}})); assert_eq!(owner["data"]["owner"],"dev:alice","{owner}");
-        let peer=host.post("/q/ledgerById","bob",json!({"args":{"ledger":"l"}})); assert!(peer["data"].is_null(),"{peer}");
+        let peer=host.post("/q/ledgerById","bob",json!({"args":{"ledger":"l"}})); assert_eq!(peer["complete"],true,"{peer}"); assert!(peer["data"].is_null(),"{peer}");
         let audit=host.post("/q/grantHistory","alice",json!({"args":{}})); assert_eq!(audit["data"].as_array().unwrap().len(),1,"{audit}");
     }
 }
@@ -175,6 +175,7 @@ fn refusal_ladder_and_developer_image_evidence_over_http() {
     let r=host.post("/q/ladderRow","alice",json!({"args":{"row":"p"}}));
     assert_eq!(r["data"]["body"],"original","later require must roll back: {r}");
     let hidden=host.post("/q/ladderRow","bob",json!({"args":{"row":"p"}}));
+    assert_eq!(hidden["complete"],true,"nullable hidden lookup: {hidden}");
     assert_eq!(hidden["data"],Value::Null,"nullable hidden lookup: {hidden}");
     let empty=host.post("/q/hiddenRows","carol",json!({"args":{"owner":"dev:alice"}}));
     assert_eq!(empty["data"],json!([])); assert_eq!(empty["complete"],true,"{empty}");
