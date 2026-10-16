@@ -15,9 +15,9 @@ After replacing the starter screen, replace its business assertions too.
 A custom Home has no write scenario: replace the Home assertions; a proof without a write fails.
 `day2:proof` uses versions/v1.q and versions/v2.q (initial copies of your complete schema).
 
-E_FIXTURE_ALIAS means a saved alias/path cannot resolve; see the case substitution rules below.
+E_FIXTURE_ALIAS means a saved alias or path could not resolve. Use an earlier case's `save` name with `$name` or `$name.field`; escape a literal with `$$` or `$literal`. An unresolved assertion fails the case; it never compares the alias as literal data.
 
-E_FIXTURE_TIME means malformed/out-of-range relative time; the typed conversion rules follow.
+E_FIXTURE_TIME means a relative fixture time is malformed or out of range. Use `now` or `now±duration` with positive integral ms/s/m/h/d/w. Relative conversion applies only to typed time leaves; text/JSON strings stay literal.
 
 ## Fixtures and cases
 

@@ -59,12 +59,18 @@ pub(crate) fn dev_address(options: &Options) -> Result<std::net::SocketAddr, Str
         return Ok(SocketAddr::from((Ipv4Addr::LOCALHOST, port)));
     }
     let cwd = std::env::current_dir().map_err(|error| error.to_string())?;
-    if let Some(project) = Project::locate(&cwd)
-        && let Some(host) = adoption::host(&project, options)? {
-        return host["address"].as_str().ok_or("dev did not report an address")?
-            .parse().map_err(|error| format!("invalid dev address: {error}"));
-    }
-    Ok(SocketAddr::from((Ipv4Addr::LOCALHOST, 4400)))
+    let project = Project::locate(&cwd).ok_or("E_INPUT: cannot discover dev outside a project; pass --port N using the port dev printed")?;
+    let host = if let Some(host) = adoption::host(&project, options)? { host }
+    else {
+        // A temporary host has no store owner record. The ordinary default is
+        // usable only after the same project/identity validation as doctor.
+        let mut probe = options.clone();
+        probe.flags.insert("url".into(), "http://127.0.0.1:4400".into());
+        adoption::host(&project, &probe).map_err(|error| format!("{error}; for dev --memory or a custom port, pass --port N using the port dev printed"))?
+            .ok_or("E_INPUT: no running dev discovered; pass --port N using the port dev printed")?
+    };
+    host["address"].as_str().ok_or("dev did not report an address")?
+        .parse().map_err(|error| format!("invalid dev address: {error}"))
 }
 
 pub fn parse(args: &[String]) -> Options {
@@ -645,6 +651,10 @@ pub fn run(options: &Options) -> i32 {
         eprintln!("unknown operation {op}; operations: {}", names.join(", "));
         return 1;
     };
+    if program.kind == ProgramKind::Job && options.flags.contains_key("as") {
+        eprintln!("E_INPUT: run <job> takes no --as; jobs run as the system");
+        return 2;
+    }
     let args_json: Json = match options.positionals.get(1) {
         Some(text) => match serde_json::from_str(text) {
             Ok(json) => json,
@@ -723,9 +733,6 @@ pub fn run(options: &Options) -> i32 {
     }
     if program.kind == ProgramKind::Job {
         // A job runs as the system principal, every chunk in turn, here.
-        if options.flags.contains_key("as") {
-            eprintln!("run: --as is ignored for a job; jobs run as the system");
-        }
         return match engine.run_job(op, args, now) {
             Ok(run) => {
                 for line in engine.take_native_logs() {

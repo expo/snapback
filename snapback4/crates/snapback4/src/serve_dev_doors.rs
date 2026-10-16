@@ -44,12 +44,14 @@ pub(super) fn seed(request: Request, shared: &Shared, body: &str) {
         Ok(Json::Array(rows)) => rows,
         _ => return refuse(request, Refusal::new("E_INPUT", "input", "seed takes a JSON array of {table, row}")),
     };
+    let mut engine = lock(&shared.engine);
     let now = shared.now();
-    let typed = match typed_rows(shared, &rows, now) {
+    let typed = match typed_rows(engine.schema(), &rows, now) {
         Ok(typed) => typed,
-        Err(refusal) => return refuse(request, refusal),
+        Err(refusal) => { drop(engine); return refuse(request, refusal); }
     };
-    let outcome = lock(&shared.engine).seed_at(typed, now);
+    let outcome = engine.seed_at(typed, now);
+    drop(engine);
     match outcome {
         Ok(count) => {
             shared.durable_committed(&lock(&shared.engine));
@@ -60,8 +62,7 @@ pub(super) fn seed(request: Request, shared: &Shared, body: &str) {
 }
 
 /// `/seed` rows checked against the served schema and typed, or the first problem.
-fn typed_rows(shared: &Shared, rows: &[Json], now: i64) -> Result<Vec<(String, snapback4_core::Value)>, Refusal> {
-    let schema = lock(&shared.bound).schema.clone();
+fn typed_rows(schema: &snapback4_core::Schema, rows: &[Json], now: i64) -> Result<Vec<(String, snapback4_core::Value)>, Refusal> {
     let mut typed = Vec::new();
     for (index, entry) in rows.iter().enumerate() {
         let (Some(table), Some(row)) = (entry.get("table").and_then(Json::as_str), entry.get("row")) else {
@@ -144,7 +145,7 @@ pub(super) fn reset(request: Request, shared: &Shared, body: &str) {
     if asked.clock && let Err(refusal) = clock.reset() { drop(engine); return refuse(request, refusal); }
     let now = clock.now();
     // Resolve against the prospective reset clock before changing any durable state.
-    let typed = match typed_rows(shared, &asked.seed, now) {
+    let typed = match typed_rows(engine.schema(), &asked.seed, now) {
         Ok(typed) => typed,
         Err(refusal) => { drop(engine); return refuse(request, refusal); }
     };

@@ -18,7 +18,7 @@ mutation provisionLabel(slug: text 1..40):
   require viewer = 'service:ops' else NOT_OPERATOR
   return insert labels {slug}
 ```
-Profiles and teams below are optional application policy. Prove writes, outsiders and durable restart. Mint `token --service ops --release ./deployment` while serve runs, then call `/m/provisionLabel` with its bearer. No production seed door is needed. Add a root's service read branch when its writer probes existing rows. Every mutation still passes table rules (`guide deploy`).
+This is the minimal production bar. Profiles and teams below are optional application policy. Prove writes, outsiders and durable restart. Mint `token --service ops --release ./deployment` while serve runs, then call `/m/provisionLabel` with its bearer. No production seed door is needed. Add a root's service read branch when its writer probes existing rows. Every mutation still passes table rules (`guide deploy`).
 
 A persona demo becomes a password-account app with self-written profiles,
 a private staff directory and trusted membership enrollment. This policy is

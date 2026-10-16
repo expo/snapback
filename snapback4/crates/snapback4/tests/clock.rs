@@ -729,7 +729,11 @@ fn future_store_explains_itself_at_restart_and_doctor_but_not_under_the_same_off
     let jump = host.post("/dev/clock/advance", json!({"duration":"25h"}));
     assert!((jump["offsetMs"].as_i64().unwrap() - 90_000_000).abs() < 100, "{jump}");
     assert!(jump["message"].as_str().unwrap().contains("lasts until restart"));
-    assert!(jump["message"].as_str().unwrap().contains("dev --fresh --port 4401"));
+    let guidance = jump["message"].as_str().unwrap();
+    assert!(guidance.contains("dev --memory --port") && !guidance.contains("4401"), "{guidance}");
+    if let (Ok(lo), Ok(hi)) = (std::env::var("PORT_LO"), std::env::var("PORT_HI")) {
+        assert!(guidance.contains(&format!("--port {lo}-{hi}")), "{guidance}");
+    } else { assert!(guidance.contains("--port 0"), "{guidance}"); }
     host.post("/m/post", json!({"id":"future","args":{}}));
     host.post("/m/fixed", json!({"id":"fixed","args":{}}));
     drop(host);

@@ -562,7 +562,7 @@ query reportPage(c: cursor ?):\n  require exists staff[viewer] else NOT_STAFF\n 
     let output = project.run(&["test", "--fixture", "fx", "--as", "alice"]);
     let out = text(&output);
     assert_eq!(output.status.code(), Some(1), "{out}");
-    assert!(out.contains("test.cases.jsonl:2: unknown key `rows` (did you mean `count`?); a case takes only `as`, `op`, `args`, `expect`, `data`, `match`, `count`, `save`, `label`"), "{out}");
+    assert!(out.contains("test.cases.jsonl:2: unknown key `rows` (did you mean `count`?); a case takes only `as`, `op`, `args`, `expect`, `data`, `match`, `matchSet`, `count`, `save`, `label`"), "{out}");
     assert!(!out.contains("ok   test.cases.jsonl:1"), "no line runs before every line is valid:\n{out}");
     project.write("fx/test.cases.jsonl", "{\"as\":\"alice\",\"op\":\"reportPage\",\"expect\":{\"data\":[]}}\n");
     let out = text(&project.run(&["test", "--fixture", "fx", "--as", "alice"]));
@@ -1195,4 +1195,23 @@ fn surf3_reset_retires_future_time_audience_floor_before_reseed() {
     assert!(got["data"].is_null(), "future row published early: {got}");
     let (_, got) = http(&url, "POST", "/q/one", Some("alice"), r#"{"args":{"id":"default"}}"#);
     assert!((got["data"]["opens"].as_i64().unwrap() - reset["now"].as_i64().unwrap()).abs() < 1000, "defaults use reset clock: {got} {reset}");
+}
+
+#[test]
+fn surf3_memory_clock_requires_its_printed_port_without_guessing_another_project() {
+    let project = Project::new("use personas alice\ntable notes:\n  body: text <=40\n  public 'fixture'\n  online only\n");
+    let (_dev, url) = project.dev(0);
+    let (_, before) = http(&url, "GET", "/dev/status", None, "");
+    let output = project.run(&["clock", "advance", "2h"]);
+    assert!(!output.status.success() && text(&output).contains("--port"), "{}", text(&output));
+    let (_, after) = http(&url, "GET", "/dev/status", None, "");
+    assert!((after["now"].as_i64().unwrap() - before["now"].as_i64().unwrap()).abs() < 10_000);
+    let (_, seeded) = http(&url, "POST", "/seed", None, r#"[{"table":"notes","row":{"id":"n","body":"seeded"}}]"#);
+    assert_eq!(seeded["seeded"], 1, "{seeded}");
+    let port = url.rsplit(':').next().unwrap();
+    let output = project.run(&["clock", "advance", "2h", "--port", port]);
+    assert!(output.status.success(), "{}", text(&output));
+    let reply: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert!(reply["now"].as_i64().unwrap() - after["now"].as_i64().unwrap() >= 7_200_000, "{reply}");
+    assert!(!reply["message"].as_str().unwrap().contains("4401"), "{reply}");
 }
