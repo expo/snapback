@@ -95783,3 +95783,32 @@ regressions. The copied prewave13 Exact device and online apps each passed both
 web tests with types emitted by this branch. Version remains 0.4.29; no device
 code changed. Reviews and final verification are in WORKSTREAM-REPORT.md; no
 push or publication is authorized or performed.
+
+## 2026-10-16 — LANG2: bounded private walks and source-shaped repairs
+
+Wave 13's unique membership targets now use filtered point lanes while keeping
+covering authorization pins intact. Indexed negative membership supports a
+compound unique identity with one varying component and residual equalities.
+Finite ordinary online-only parent/child groups can exhaust under an upfront,
+fixed physical allowance; nested rule probes cannot reveal hidden occupancy in
+logical meters. New interpretations require branch-pages-v5. Opening/expiry,
+read-through, maintained and nullable set-null populations remain outside that
+admission, and oversized caps preserve existing indexed/caller-granted plans.
+
+Quarry refuses unproved immutable update/upsert payloads, narrows conjunctive
+non-null snapshots and authorized private counts, infers not-before indexes,
+and requires action caps only when deletion can reach the action. Dormant
+uncapped actions are noted. Diagnostic and note repairs name the author's
+schema, explain product caps and the joint heap formula, preserve job guards,
+and abbreviate long expansions in ordinary output. Copied scopes establish no
+storage invariant; their notes preserve the exact caller query. Private median
+needs an explicit disclosure/window contract; authorized latest-row reads stay
+available. LLP 3000.036.002 §10 records the decisions and independent reviews.
+
+Runtime hidden-write fixtures now explicitly submit adversarial IR after
+checking the new source refusal, retaining the existing hidden immutable
+exception's paired-world coverage. Lean, generated differential cases, both
+device stores, simulator, Linux/Mac and the copied 100-schema census are
+recorded in LANG2's WORKSTREAM-REPORT.md. The 0.4.30 guide changes entry belongs
+to this lane; RULES3 owns broader authorization recipes. No version bump or
+publication is part of this workstream.
