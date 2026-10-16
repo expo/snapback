@@ -117,3 +117,18 @@ fn default_roles_and_conditional_seat_rules_bootstrap_an_empty_store() {
         assert!(format!("{result:?}").contains("Sent"), "{result:?}");
     }
 }
+
+#[test]
+fn typed_roster_references_do_not_add_unrelated_parent_read_grants() {
+    let app = App::new("use personas alice\ntable teams:\n  owner: principal\n  read <- .owner = viewer\n  online only\ntable members:\n  team: teams\n  principal: principal\n  unique team, principal\n  read <- .principal = viewer\n  online only\n");
+    let output = app.run(true); assert!(output.status.success(), "{output:?}");
+    let text = app.source();
+    assert_eq!(text.matches("viewer = 'service:ops'").count(), 3, "only member read/insert and mutation guard: {text}");
+    let bound = snapback4_lang::compile(&[("schema.q".into(), text)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
+    engine.seed([("teams".into(), snapback4_core::value::object([("id", Value::Id("private-team".into())), ("owner", Value::Id("user:owner".into()))]))]).unwrap();
+    let args = std::collections::BTreeMap::from([("seat_principal".into(), Value::Id("user:member".into())), ("seat_team".into(), Value::Id("private-team".into()))]);
+    let result = engine.mutate("bootstrapmembers", None, Context::new("service:ops", args)).unwrap();
+    assert!(format!("{result:?}").contains("Sent"), "{result:?}");
+}
