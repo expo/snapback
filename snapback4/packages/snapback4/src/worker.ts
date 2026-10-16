@@ -97,7 +97,7 @@ export interface WorkerOptions {
   readonly fetch?: typeof fetch;
   /** Stops the loop when aborted. */
   readonly signal?: AbortSignal;
-  /** Every failed handler attempt (including successfully recorded retries),
+  /** Every failed effect attempt (including successfully recorded retries),
    * settlement and polling failures. Error text is redacted before delivery. */
   readonly onError?: (error: unknown) => void;
   /** Lifecycle hook for a supervisor sharing authentication with other loops. */
@@ -187,7 +187,9 @@ export function runWorker(options: WorkerOptions): Worker {
     const handler = Object.hasOwn(effects, effect.effect) ? effects[effect.effect] as EffectHandler | undefined : undefined;
     const meta: EffectMeta = { id: effect.id, idempotencyKey: effect.id, effect: effect.effect, attempt: effect.attempt, seq: effect.seq, at: effect.at, worker: principal ?? "" };
     if (!handler) {
-      await settle(effect, { error: `this worker has no handler for ${effect.effect}`, retry: false });
+      const error = new GiveUp(`this worker has no handler for ${effect.effect}`);
+      try { await settle(effect, { error: message(error), retry: false }); }
+      finally { report(error); }
       return;
     }
     try {
@@ -363,7 +365,7 @@ export function runGeneratedEffects(options: WorkerOptions, registry: Readonly<R
       return;
     }
     if (outcome.kind === "active-error") {
-      try { await settle(effect, { error: outcome.error, retry: outcome.retry }); }
+      try { await settle(effect, { error: effectMessage(effect, outcome.error), retry: outcome.retry }); }
       finally { report(new Error(effectMessage(effect, outcome.error))); }
       return;
     }

@@ -882,3 +882,16 @@ test('dev and doctor expose successfully settled effect and action handler failu
   const lines=JSON.parse(doctor.stdout).lines.join('\n');
   assert.match(lines,/effect.*scanner unavailable/);assert.match(lines,/action.*provider failed/);
 });
+
+
+test('a claimed effect with no local handler reports its accepted terminal failure', async () => {
+  const stop = new AbortController(), errors = [];
+  const worker = runWorker({url:'http://worker.test',token:'seat-secret',signal:stop.signal,effects:{notify:()=>null},onError:error=>errors.push(error),
+    fetch:async (url,init)=>{
+      if(url.endsWith('/claim'))return Response.json({worker:'service:worker',effects:[{id:'unknown',effect:'unregistered',payload:{},attempt:1,seq:1,at:0}]});
+      assert.deepEqual(JSON.parse(init.body),{error:'this worker has no handler for unregistered',retry:false});
+      stop.abort();return Response.json({ok:true});
+    }});
+  await worker.done;
+  assert.deepEqual(errors.map(error=>error.message),['this worker has no handler for unregistered']);
+});
