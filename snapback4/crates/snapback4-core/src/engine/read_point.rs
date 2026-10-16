@@ -57,6 +57,7 @@ impl Runner<'_> {
         self.observe_sequence_selection(&read.table, &read.index, &key)?;
         let table = self.schema.table(&read.table).ok_or_else(|| RuntimeError::Schema(format!("missing table {}", read.table)))?;
         self.read_tables.insert(read.table.clone());
+        self.live_read_dependency(&read.table);
         self.rule_dependencies(&table.rules.read);
         self.meter.at(&read.site);
         self.aggregate_read_coverage(&read.table, &read.index, &key, &read.site)?;

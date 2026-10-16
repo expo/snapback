@@ -204,7 +204,14 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     }
     actions::bind(&catalog, &mut schema, &mut programs, &mut diagnostics);
     routes::bind(&catalog, &mut schema, &mut diagnostics);
-    if diagnostics.is_empty() { intent_search::provision(&mut catalog, &mut schema, &programs); }
+    if diagnostics.is_empty() {
+        intent_search::provision(&mut catalog, &mut schema, &programs);
+        // @ref LLP 3000.014.000#2-surface-and-admission — generated indexes must satisfy the same live key proof.
+        for issue in snapback4_core::schema::live::validate(&schema) {
+            diagnostics.push(Diagnostic::new(&catalog.site_for(&issue.path), "E_READ_THROUGH", issue.message,
+                "narrow indexed scalar bounds or use manual current-roster maintenance").guide("rules"));
+        }
+    }
     // Planner-added indexes participate in the same final source prices.
     schema.export_write_reservations();
     // The residency facts come before admission: a never-predicting mutation may pass over a uniformly authorized page (LLP 3000.007 §5.9), and admission reads that class here.
@@ -340,6 +347,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     notes.extend(optional_patches::notes(&catalog));
     notes.extend(residency::maintain_notes(&catalog, &schema));
     notes.extend(columns::notes(&catalog, &schema));
+    notes.extend(through::notes(&catalog,&schema));
     notes.extend(residency::guard_notes(&schema, &programs));
     notes.extend(residency::sync_order_notes(&schema, &programs));
     notes.extend(residency::empty_partition_notes(&schema, &programs));
@@ -468,9 +476,10 @@ fn spell_internals_except(text: &str, authored: &std::collections::BTreeSet<Stri
     let mut from = 0;
     while let Some((start, end)) = internal_word_from(&text, from, authored) {
         let call = &text[end..];
-        if &text[start..end] == "$readThrough" && call.starts_with('(') && let Some(close) = call.find(')') {
+        if matches!(&text[start..end], "$readThrough" | "$readThroughLive") && call.starts_with('(') && let Some(close) = call.find(')') {
             let reference = call[1..close].trim().trim_start_matches('.').to_owned();
-            let spelled = format!("read through .{reference}");
+            let live=if &text[start..end]=="$readThroughLive" {" live"}else{""};
+            let spelled = format!("read through{live} .{reference}");
             text.replace_range(start..end + close + 1, &spelled);
             from = start + spelled.len();
         } else {
@@ -746,6 +755,9 @@ fn completeness_notes(catalog: &Catalog, schema: &Schema, programs: &[BoundProgr
             message.push_str(&format!("; `cap {max} by {by}` bounds the rows per {by}, not what a device acquires — `{}` delivers every {by}'s rows to every device", sync.line()));
         }
         message.push_str("; measure what it costs with `check --residency`");
+        let rewrite=if table.through.as_ref().is_some_and(|t|t.live.is_some()) {
+            "keep all-current `sync` and measure the department/account with check --residency; or use online only. Live parent authority does not admit a sync horizon".to_owned()
+        } else {rewrite};
         notes.push(Diagnostic::new(&site, "N_NO_HORIZON", message, rewrite).guide("sync"));
     }
     for bound in programs {

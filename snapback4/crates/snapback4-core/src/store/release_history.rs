@@ -195,6 +195,7 @@ fn index_entries(conn: &Connection, t: i64, table: &str, index: &str) -> Result<
 
 // @ref LLP 3000.000.000#91-per-row-narrowed-value-dormancy — only rows surviving every activation phase count as restored.
 pub(crate) fn finalize_restorations(tx:&Tx<'_>) -> Result<(),RuntimeError> {
+    if super::live_activation::active(tx)? { return super::live_activation::finalize(tx); }
     let entries=tx.conn().prepare("SELECT key,value FROM _meta WHERE key LIKE 'activation_narrowed_restored_ids:%' OR key LIKE 'activation_column_restored_ids:%' OR key LIKE 'activation_table_restored_ids:%'")?.query_map([],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?)))?.collect::<Result<Vec<_>,_>>()?;
     let mut narrowed=0u64;
     for (key,ids) in entries {

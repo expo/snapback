@@ -30,7 +30,7 @@ pub(super) fn declares_membership(info: &TableInfo, reference: &str, tables: &BT
     if let Some(rule) = read {
         let mut value = rule.value.clone();
         super::super::intent_walk::expression(&mut value, &mut |expr| {
-            if matches!(expr, Expr::Call { name, .. } if name == "$readThrough") { through = true; }
+            if matches!(expr, Expr::Call { name, .. } if matches!(name.as_str(), "$readThrough" | "$readThroughLive")) { through = true; }
         });
     }
     let dotted = info.decl.sync.as_ref().is_some_and(|sync| matches!(&sync.audience, SyncAudience::Target { prefix, .. } if prefix.iter().any(|p| p.contains('.'))));
@@ -48,7 +48,7 @@ pub(super) fn declares_membership(info: &TableInfo, reference: &str, tables: &BT
     let mut nested = false;
     let mut expanded = parent_rule;
     super::super::intent_walk::expression(&mut expanded, &mut |expr| {
-        if matches!(expr, Expr::Call { name, .. } if name == "$readThrough") { nested = true; }
+        if matches!(expr, Expr::Call { name, .. } if matches!(name.as_str(), "$readThrough" | "$readThroughLive")) { nested = true; }
         if let Expr::Member { base, .. } = expr && matches!(base.as_ref(), Expr::Focal { .. }) {
             let site = match base.as_ref() { Expr::Focal { site } => site.clone(), _ => unreachable!() };
             **base = Expr::Member { base: Box::new(Expr::Focal { site: site.clone() }), name: reference.into(), site };
@@ -69,7 +69,7 @@ pub(super) fn repair(decl: &TableDecl, reference: &str) -> String {
 
 pub(super) fn check_rule(info: &TableInfo, reference: &str, inherited: &Expr) -> Result<(), Diagnostic> {
     let rule = info.decl.rules.iter().find(|r| r.effect == Effect::Read);
-    if rule.is_some_and(|r| matches!(&r.value, Expr::Call { name, .. } if name == "$readThrough")) { return Ok(()); }
+    if rule.is_some_and(|r| matches!(&r.value, Expr::Call { name, .. } if matches!(name.as_str(), "$readThrough" | "$readThroughLive"))) { return Ok(()); }
     let mut expanded = inherited.clone();
     super::super::intent_walk::expression(&mut expanded, &mut |expr| {
         if let Expr::Member { base, name, .. } = expr && matches!(base.as_ref(), Expr::Focal { .. }) {

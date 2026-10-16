@@ -15,16 +15,21 @@ impl Runner<'_> {
     pub(in crate::engine) fn target_attempt<T>(&mut self, table: &str, attempt: impl FnOnce(&mut Self) -> Result<T, RuntimeError>) -> Result<T, RuntimeError> {
         let mark = self.meter.mark();
         let capture_prepaid = std::mem::replace(&mut self.capture_prepaid, false);
+        let live_prepaid=std::mem::replace(&mut self.live_prepaid,false);
+        let live_heap=std::mem::take(&mut self.live_heap);
         let prepaid = std::mem::replace(&mut self.maintain_prepaid, false);
         let previous_heap = std::mem::take(&mut self.maintain_heap);
         let column_prepaid = std::mem::replace(&mut self.column_prepaid, false);
         let column_heap = std::mem::take(&mut self.column_heap);
         #[cfg(feature = "sqlite")]
         let assets_prepaid = std::mem::replace(&mut self.assets_prepaid, false);
-        let result = self.reserve_columns(table).and_then(|_|attempt(self));
+        let result = self.reserve_live(table).and_then(|_| self.reserve_columns(table)).and_then(|_|attempt(self));
         #[cfg(feature = "sqlite")]
         { self.assets_prepaid = assets_prepaid; }
         self.capture_prepaid = capture_prepaid;
+        self.meter.used.heap_bytes=self.meter.used.heap_bytes.saturating_sub(self.live_heap);
+        self.live_heap=live_heap;
+        self.live_prepaid=live_prepaid;
         self.meter.used.heap_bytes = self.meter.used.heap_bytes.saturating_sub(self.column_heap);
         self.column_prepaid = column_prepaid;
         self.column_heap = column_heap;

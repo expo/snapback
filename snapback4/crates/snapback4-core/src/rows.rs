@@ -275,6 +275,22 @@ pub trait Rows {
     /// Avoid planning and constructing speculative keys on hosts with no fill.
     fn prefetch_enabled(&self) -> bool { false }
 
+    /// Operator-only adoption traversal. SQLite preflights serialized pages;
+    /// other adapters admit a declared singleton before owning its image.
+    #[cfg(feature="sqlite")]
+    fn walk_adoption(&self, table: &str, decode: u64, scratch: u64, work: [u64;3], visit: &mut dyn FnMut(Value) -> Result<(),RuntimeError>) -> Result<(),RuntimeError> {
+        let mut bounds=Bounds::default();
+        loop {
+            if self.index_head(table,"byId",&[],&bounds,Dir::Asc)?.is_none() { return Ok(()); }
+            let mut meter=crate::meter::Meter::new(crate::Ceilings::job(),crate::meter::Cut::Abort);
+            meter.heap(decode.saturating_add(scratch))?;
+            for (kind,n) in [crate::error::MeterKind::Examined,crate::error::MeterKind::Steps,crate::error::MeterKind::IndexEntries].into_iter().zip(work) { meter.charge(kind,n)?; }
+            let page=self.scan(table,"byId",&[],&bounds,Dir::Asc,1)?;
+            let Some((row,key))=page.into_iter().next() else { return Ok(()) };
+            bounds.after=crate::key::decode(&key);
+            visit(row)?;
+        }
+    }
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError>;
     /// The first row whose index components equal `key` exactly.
     fn lookup(&self, table: &str, index_name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError>;

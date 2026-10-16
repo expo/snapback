@@ -89,24 +89,17 @@ fn sample(samples: &mut Vec<String>, row: &Value, reference: &str, parent: &str)
 }
 
 fn rows(
-    tx: &dyn Rows,
-    name: &str,
+    tx: &dyn Rows, name: &str, table: &Table, parent: Option<&Table>,
     mut visit: impl FnMut(Value) -> Result<(), RuntimeError>,
 ) -> Result<(), RuntimeError> {
-    let mut bounds = Bounds::default();
-    loop {
-        let page = tx.scan(name, "byId", &[], &bounds, Dir::Asc, 256)?;
-        if page.is_empty() {
-            return Ok(());
-        }
-        for (row, key) in page {
-            bounds.after = crate::key::decode(&key);
-            visit(row)?;
-        }
-    }
+    let decode=crate::rows::disclosed::decode_reservation(table);
+    let keys=table.indexes.values().map(|i|4*crate::rows::MAX_INDEX_KEY_BYTES as u64+128*(i.columns().len() as u64+1)+512).sum::<u64>();
+    let scratch=decode.saturating_mul(4).saturating_add(keys.saturating_mul(2))
+        .saturating_add(parent.map_or(0,crate::rows::disclosed::decode_reservation)).saturating_add(8192);
+    tx.walk_adoption(name,decode,scratch,[2,table.columns.len() as u64+16,2*table.indexes.len() as u64],&mut visit)
 }
 
-fn correspondence(
+pub(crate) fn correspondence(
     child: &RuleExpr,
     parent: &RuleExpr,
 ) -> Option<std::collections::BTreeMap<String, String>> {
@@ -216,12 +209,39 @@ pub(crate) fn activate_retained(
     // retires under its old deadline, before a new default or capture can revive it.
     let retirement = Retirement::new(next, previous, now);
     for (name, old) in retirement.affected.iter().rev() {
-        rows(tx, name, |row| {
+        rows(tx, name, old, None, |row| {
             if retirement.retires(name, &row) {
                 tx.delete(name, old, &row)?;
             }
             Ok(())
         })?;
+    }
+    // @ref LLP 3000.014.000#7-adoption-and-rollback — dormant manual cells are never authority after a live transfer.
+    for (name,old) in &previous.tables {
+        let Some(edge)=old.through.as_ref().filter(|t|t.live.is_some()) else {continue};
+        let Some(destination)=next.table(name).filter(|t|t.through.is_none()) else {continue};
+        let parent=next.table(&edge.parent).ok_or_else(||refusal(name,0,"reverse adoption needs its current parent",&[]))?;
+        let map=correspondence(&destination.rules.read,&parent.rules.read)
+            .ok_or_else(||refusal(name,0,"manual destination needs full current-parent audience correspondence; use a bridge release",&[]))?;
+        if destination.columns.get(&edge.reference)!=old.columns.get(&edge.reference) || !destination.immutable_fields().any(|f|f==edge.reference) {
+            return Err(refusal(name,0,"manual destination must preserve the immutable parent binding; use a bridge release",&[]));
+        }
+        let mut invalid=0;let mut samples=Vec::new();
+        rows(tx,name,old,Some(parent),|stored| {
+            let p=stored.field(&edge.reference).ok().and_then(|v|v.as_str().ok()).map(|id|tx.get(&edge.parent,id)).transpose()?.flatten();
+            let Some(p)=p.filter(|p|parent.live(p,now)) else {invalid+=1;sample(&mut samples,&stored,&edge.reference,&edge.parent);return Ok(())};
+            let p=crate::schema::row_image(&p,parent);
+            let mut row=stored.clone();
+            for (field,source) in &map {
+                if destination.engine_field(field) || !destination.columns.contains_key(field) {return Err(refusal(name,0,"manual authority must use writable ordinary destination cells",&[]));}
+                let value=p.field(source)?.clone();
+                if field=="id" {
+                    if row.field("id")? != &value {return Err(refusal(name,0,"manual audience correspondence cannot change row identity",&[]));}
+                } else if let Value::Row(fields)|Value::Map(fields)=&mut row {fields.insert(field.clone(),value);}
+            }
+            tx.put(name,old,&row,Some(&stored))?;Ok(())
+        })?;
+        if invalid>0 {return Err(refusal(name,invalid,"manual destination needs live current parents",&samples));}
     }
     // Compare all predecessor images before any ancestor is recaptured.
     for (name, _) in &retirement.affected {
@@ -237,9 +257,9 @@ pub(crate) fn activate_retained(
         let map = correspondence(&old.rules.read, &parent.rules.read);
         let mut invalid = 0;
         let mut samples = Vec::new();
-        rows(tx, name, |row| {
+        rows(tx, name, old, Some(parent), |row| {
             // @ref LLP 3000.000.000#10-wave-10-release-lifecycle-amendment — historical capture restoration needs no audience recapture.
-            if retained.contains(name) && row.field(PARENT_DEADLINE).is_ok() && t.fields.keys().all(|f|row.field(f).is_ok()) {return Ok(());}
+            if t.live.is_none() && retained.contains(name) && row.field(PARENT_DEADLINE).is_ok() && t.fields.keys().all(|f|row.field(f).is_ok()) {return Ok(());}
             let Some(map) = &map else {
                 invalid += 1;
                 sample(&mut samples, &row, &t.reference, &t.parent);
@@ -284,11 +304,11 @@ pub(crate) fn activate_retained(
         let recapture = previous.table(&name).and_then(|t| t.through.as_ref()) != Some(t);
         let mut invalid = 0;
         let mut samples = Vec::new();
-        rows(tx, &name, |old| {
+        rows(tx, &name, previous.table(&name).unwrap_or(table), Some(parent), |old| {
             let mut row = old.clone();
             // @ref LLP 3000.000.000#2-retain-by-default — restored audience/deadline captures retain their original lifetime.
-            let historical = retained.contains(&name) && old.field(PARENT_DEADLINE).is_ok();
-            if recapture && (!historical || t.fields.keys().any(|field| old.field(field).is_err()))
+            let historical = t.live.is_none() && retained.contains(&name) && old.field(PARENT_DEADLINE).is_ok();
+            if (recapture || t.live.is_some()) && (!historical || t.fields.keys().any(|field| old.field(field).is_err()))
             {
                 let parent_row = old
                     .field(&t.reference)
@@ -343,7 +363,7 @@ pub fn validate_restore(tx: &dyn Rows, schema: &Schema, now: i64) -> Result<(), 
         let parent = &schema.tables[&t.parent];
         let mut invalid = 0;
         let mut samples = Vec::new();
-        rows(tx, &name, |row| {
+        rows(tx, &name, table, Some(parent), |row| {
             let found = row
                 .field(&t.reference)
                 .ok()
@@ -401,31 +421,12 @@ pub fn validate_indexes(tx: &dyn Rows, schema: &Schema) -> Result<(), RuntimeErr
             let mut bounds = Bounds::default();
             let mut previous = None;
             let mut count = 0;
-            loop {
-                let page = tx.scan(name, index, &[], &bounds, Dir::Asc, 256)?;
-                if page.is_empty() {
-                    break;
-                }
-                for (_, key) in page {
-                    let full = crate::key::decode(&key)
-                        .ok_or_else(|| RuntimeError::Store("invalid activation index".into()))?;
-                    let group = full[..width].to_vec();
-                    bounds.after = Some(full);
-                    if nulls_distinct && group.contains(&Value::Null) {
-                        continue;
-                    }
-                    if previous.as_ref() == Some(&group) {
-                        count += 1;
-                    } else {
-                        previous = Some(group);
-                        count = 1;
-                    }
-                    if count > max {
-                        return Err(RuntimeError::Constraint(format!(
-                            "cannot activate {name}.{index}: existing group exceeds {max}"
-                        )));
-                    }
-                }
+            while let Some(full)=tx.index_head(name,index,&[],&bounds,Dir::Asc)? {
+                let group=full[..width].to_vec();
+                bounds.after=Some(full);
+                if nulls_distinct && group.contains(&Value::Null) {continue;}
+                if previous.as_ref()==Some(&group) {count+=1;}else{previous=Some(group);count=1;}
+                if count>max {return Err(RuntimeError::Constraint(format!("cannot activate {name}.{index}: existing group exceeds {max}")));}
             }
         }
     }

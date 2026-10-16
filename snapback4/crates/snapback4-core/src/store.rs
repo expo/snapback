@@ -25,6 +25,7 @@ mod activation_index;
 mod activation_plan;
 mod activation_scan;
 mod activation_walk;
+mod live_activation;
 mod adopt_refusals;
 pub mod adoption_estimate;
 pub mod adoption_report;
@@ -1072,6 +1073,11 @@ mod tests {
 pub const SCAN_MEMORY_GUARD: u64 = 256 << 20;
 
 impl crate::rows::Rows for Tx<'_> {
+    fn walk_adoption(&self, table:&str, _decode:u64, scratch:u64, work:[u64;3], visit:&mut dyn FnMut(Value)->Result<(),RuntimeError>) -> Result<(),RuntimeError> {
+        let extra=|_:&Value| crate::value::InternalPrice::zero().fixed(scratch);
+        activation_walk::walk_metered(self,self.num(table)?,crate::rows::adoption::Work {examined:work[0],steps:work[1],index_entries:work[2]},Some(&extra),|_,row,_| visit(row))
+    }
+
     fn change_footprint(&self) -> crate::revocation::Footprint { self.changes.borrow().footprint() }
     fn widen_change_evidence(&self) { self.changes.borrow_mut().widen(); }
     fn sequence_value(&self, parent: &str, id: &str) -> Result<i64, RuntimeError> {

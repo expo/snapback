@@ -478,8 +478,12 @@ pub(super) fn transition(
             // Full source image/deadlines stay intact until lifetime retirement and narrowed classification.
             Ok(())
         })?;
-        let ids=tx.conn().prepare("SELECT id FROM _dormant_rows WHERE t=?1")?.query_map([t],|r|r.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
-        tx.set_meta(&format!("activation_table_restored_ids:{name}"),&serde_json::to_string(&ids).map_err(|e|RuntimeError::Store(e.to_string()))?)?;
+        if super::live_activation::active(tx)? {
+            tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored SELECT 'table',t,'',id FROM _dormant_rows WHERE t=?1",[t])?;
+        } else {
+            let ids=tx.conn().prepare("SELECT id FROM _dormant_rows WHERE t=?1")?.query_map([t],|r|r.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
+            tx.set_meta(&format!("activation_table_restored_ids:{name}"),&serde_json::to_string(&ids).map_err(|e|RuntimeError::Store(e.to_string()))?)?;
+        }
         tx.conn()
             .execute("DELETE FROM _dormant_rows WHERE t=?1", [t])?;
         tx.conn()
@@ -566,8 +570,12 @@ pub(super) fn transition(
     for (name, table) in next.tables.iter().filter(|(_, t)| t.ephemeral.is_none()) {
         let t = tx.num(name)?;
         for column in table.columns.keys() {
-            let ids=tx.conn().prepare("SELECT v.id FROM _dormant_values v WHERE v.t=?1 AND v.column_name=?2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)")?.query_map(params![t,column],|r|r.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
-            if !ids.is_empty() {tx.set_meta(&format!("activation_column_restored_ids:{name}.{column}"),&serde_json::to_string(&ids).map_err(|e|RuntimeError::Store(e.to_string()))?)?;}
+            if super::live_activation::active(tx)? {
+                tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored SELECT 'column',v.t,v.column_name,v.id FROM _dormant_values v WHERE v.t=?1 AND v.column_name=?2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)",params![t,column])?;
+            } else {
+                let ids=tx.conn().prepare("SELECT v.id FROM _dormant_values v WHERE v.t=?1 AND v.column_name=?2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)")?.query_map(params![t,column],|r|r.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
+                if !ids.is_empty() {tx.set_meta(&format!("activation_column_restored_ids:{name}.{column}"),&serde_json::to_string(&ids).map_err(|e|RuntimeError::Store(e.to_string()))?)?;}
+            }
             tx.conn().execute(
                 "DELETE FROM _dormant_values WHERE t=?1 AND column_name=?2 AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=_dormant_values.t AND n.id=_dormant_values.id)",
                 params![t, column],

@@ -60,7 +60,7 @@ pub fn declarations(documents: &[Document], diagnostics: &mut Vec<Diagnostic>) {
                 if table
                     .rules
                     .iter()
-                    .any(|r| matches!(&r.value, Expr::Call { name, .. } if name == "$readThrough"))
+                    .any(|r| matches!(&r.value, Expr::Call { name, .. } if matches!(name.as_str(), "$readThrough" | "$readThroughLive")))
                 {
                     refuse(
                         "through cannot appear on an ephemeral table",

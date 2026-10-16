@@ -5,9 +5,13 @@ use super::*;
 pub const PARENT_DEADLINE: &str = "$parentDeadline";
 pub const DEADLINE: &str = "$deadline";
 pub const CHILDREN: &str = "$children";
+pub const LIVE_CHILDREN: &str = "$liveChildren";
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Through {
+    /// Bounded live maintenance; absence preserves captured wire bytes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub live: Option<u32>,
     pub reference: String,
     pub parent: String,
     /// Child engine field -> immediate parent field (including its captures).
@@ -203,7 +207,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                 || table.defaults.contains_key(capture)
                 || !(field == "id"
                     || parent.engine_field(field)
-                    || parent.immutable_fields().any(|f| f == field))
+                    || t.live.is_some() || parent.immutable_fields().any(|f| f == field))
             {
                 refuse(format!(
                     "captured {0}.{field} must be immutable and keep its stored type; add `immutable {field}` on {0}",
@@ -211,7 +215,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                 ));
             }
         }
-        if parent
+        if t.live.is_none() && parent
             .expire
             .as_ref()
             .is_some_and(|field| !parent.immutable_fields().any(|f| f == field))

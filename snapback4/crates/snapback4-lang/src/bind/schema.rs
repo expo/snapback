@@ -37,7 +37,7 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
         // @ref LLP 3000.014#4-the-capture — expiry interpretation changes recapture every descendant, even when the rule never reads the deadline.
         let expiry = parent.expire.as_ref().map(|field| (field, parent.columns.get(field), parent.defaults.get(field)));
         let identity=snapback4_core::value::digest(&(&parent.rules.read,fields,expiry,&parent.through,&schema.tables[&name].columns[&t.reference],schema.tables[&name].defaults.get(&t.reference)));
-        schema.tables.get_mut(&name).unwrap().through.as_mut().unwrap().identity=identity;
+        schema.tables.get_mut(&name).unwrap().through.as_mut().unwrap().identity=if t.live.is_some() { snapback4_core::value::digest(&(identity,t.live)) } else { identity };
     }
     // @ref LLP 3000.007#6.7 — inherit the resolved audience, unless explicitly online only.
     for maintain in catalog.maintains.values() {
@@ -117,6 +117,8 @@ pub fn bind_schema(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> core
                 let (message, fix) = issue.message.split_once("; ").unwrap_or((&issue.message, "keep that data in a durable table"));
                 let fix = if message.contains("through cannot appear") { "copy the durable enrolment scope onto the ephemeral row and validate it in insert/update rules; guide rule-recipes, Ephemeral presence under an enrolment parent" } else { fix };
                 diagnostics.push(Diagnostic::new(&site, "E_QUARRY_EPHEMERAL", message, fix).guide("ephemeral"));
+            } else if issue.message.starts_with("live parent:") {
+                diagnostics.push(Diagnostic::new(&site, "E_READ_THROUGH", issue.message, "use a capped ordinary nonexpiring parent/child pair; guide rule-recipes current-roster has the manual alternative").guide("rules"));
             } else if issue.message.starts_with("written by:") {
                 diagnostics.push(Diagnostic::new(&site, "E_FIELD_AUTHORITY", issue.message, "name a required principal column of this table; declare a default; use readable by audience before indexing or deriving from the field").guide("rules"));
             } else if issue.message.contains("E_VIEW_KEY") {
@@ -623,7 +625,7 @@ pub fn bind_rule(catalog: &Catalog, info: &TableInfo, rule: &RuleDecl) -> Fallib
         // captures (`.$enrollment.dancer`): its refusal is the parent's (`internal_names` drops the copy).
         // @ref LLP 3000.036#15.6 — a `read through` that did not expand (E_READ_THROUGH says why)
         // leaves its internal call; its refusal is that problem's cascade, spelled as written.
-        if let Expr::Call { name, args, .. } = &rule.value && name == "$readThrough" {
+        if let Expr::Call { name, args, .. } = &rule.value && matches!(name.as_str(), "$readThrough" | "$readThroughLive") {
             let reference = match args.as_slice() { [Expr::Name { name, .. }] => name.clone(), _ => "parent".into() };
             error.message = format!("`read through .{reference}` did not expand, so {} has no read rule yet", info.decl.name);
             // The cascade convention: `check` hides it beside its cause unless --verbose.

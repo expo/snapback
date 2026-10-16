@@ -41,6 +41,9 @@ pub(crate) mod steps;
 #[cfg(feature = "sqlite")]
 mod time_audience;
 mod write_reservations;
+mod live;
+#[cfg(feature="sqlite")]
+mod live_bulk;
 pub use pages::drain_cursor;
 pub use pages::expression_page_site;
 mod shaping;
@@ -1162,6 +1165,14 @@ impl Engine {
     // Persistence restoration and schemas without captures retain the streaming
     // import path; attribution imports alone need staged target resolution.
     fn load_stored_rows(&mut self, rows: impl IntoIterator<Item = (String, Value)>, mode: LoadMode) -> Result<u64, RuntimeError> {
+        if crate::schema::live::has_live(&self.schema) {
+            let now=self.advance_time_audience(crate::now_ms())?;
+            let tx=self.store.transaction()?;
+            let seq=tx.next_seq()?;
+            let (count,events,tables)=live_bulk::restore(&tx,&self.schema,rows,seq,now)?;
+            if count>0 {tx.record_commit(seq,now,"restore",crate::SYSTEM_PRINCIPAL,"restore",&tables,count)?;partition::append(&tx,seq,&events)?;}
+            tx.commit()?;return Ok(count);
+        }
         let now = self.advance_time_audience(crate::now_ms())?;
         let tx = self.store.transaction()?;
         let now = time_audience::pin_writer_time(&self.schema, &tx, now)?;
@@ -1313,6 +1324,9 @@ pub enum DeliveryManifest { Build, Skip }
 /// `/seed`'s write inside the caller's transaction: one commit when any row is written.
 #[cfg(feature = "sqlite")]
 pub(crate) fn seed_rows(schema: &Schema, tx: &crate::store::Tx<'_>, rows: impl IntoIterator<Item = (String, Value)>, now: i64) -> Result<u64, RuntimeError> {
+    let bounded=crate::schema::live::has_live(schema);
+    let mut bulk_meter=Meter::new(if bounded {Ceilings::job()}else{Ceilings::unbounded()},Cut::Abort);
+    let rows:Box<dyn Iterator<Item=(String,Value)> + '_>=if bounded {Box::new(live_bulk::collect(rows,&mut bulk_meter)?.into_iter())}else{Box::new(rows.into_iter())};
     let rows = through_activation::ancestor_order(schema, rows);
     let targets: std::collections::BTreeSet<_> = schema.tables.values().flat_map(|table| table.recorded.values().map(|field| field.table.as_str())).collect();
     let mut imports = BTreeMap::<(String, String), Value>::new();
@@ -1324,8 +1338,9 @@ pub(crate) fn seed_rows(schema: &Schema, tx: &crate::store::Tx<'_>, rows: impl I
         // then undo the preview; ordinary writes allocate in that same
         // transaction and still own all validation, events and rollback.
         tx.savepoint("seed_sequences")?;
-        let mut staging = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), 0);
+        let mut staging = Runner::new(tx, schema, Context::system().at(now), bulk_meter, 0);
         for (name, row) in &rows {
+            if bounded {staging.reserve_bulk_source(name)?;staging.meter.heap(crate::rows::disclosed::decode_reservation(&schema.tables[name]).saturating_mul(4))?;}
             schema.refuse_ephemeral_import(name)?;
             let table = schema.table(name).ok_or_else(|| RuntimeError::Schema(format!("missing table {name}")))?;
             sequences::refuse_fields(table, name, row)?;
@@ -1343,15 +1358,17 @@ pub(crate) fn seed_rows(schema: &Schema, tx: &crate::store::Tx<'_>, rows: impl I
             }
             imports.insert((name.clone(), id), image);
         }
+        bulk_meter=staging.meter.clone();
         drop(staging);
         tx.rollback_to("seed_sequences")?;
         Box::new(rows.into_iter())
     };
     let seq = tx.next_seq()?;
-    let mut runner = Runner::new(tx, schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+    let mut runner = Runner::new(tx, schema, Context::system().at(now), bulk_meter, seq);
     runner.import_targets = Some(&imports);
     let mut count = 0;
     for (table, row) in rows {
+        if bounded {runner.reserve_bulk_source(&table)?;}
         schema.refuse_ephemeral_import(&table)?;
         timeline::check_import(schema, &table)?;
         runner.upsert(&table, &row.field("id")?.clone(), row.import_input(&ImportInput(())))?;

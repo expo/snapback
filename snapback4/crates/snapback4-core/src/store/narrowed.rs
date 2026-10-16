@@ -262,12 +262,16 @@ pub(super) fn transition(
     }
     // Consume only rows that survived the closed population, not hidden dependents.
     let restored:u64=tx.conn().query_row("SELECT COUNT(*) FROM _dormant_narrow_rows n WHERE EXISTS(SELECT 1 FROM r WHERE r.t=n.t AND r.id=n.id)",[],|r|r.get::<_,i64>(0).map(|n|n as u64))?;
+    if super::live_activation::active(tx)? {
+        tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored SELECT 'narrowed',n.t,'',n.id FROM _dormant_narrow_rows n WHERE EXISTS(SELECT 1 FROM r WHERE r.t=n.t AND r.id=n.id)",[])?;
+    } else {
     let restored_rows=tx.conn().prepare("SELECT c.name,n.id FROM _dormant_narrow_rows n JOIN _catalog c ON c.num=n.t WHERE EXISTS(SELECT 1 FROM r WHERE r.t=n.t AND r.id=n.id)")?.query_map([],|r|Ok((r.get::<_,String>(0)?,r.get::<_,String>(1)?)))?.collect::<Result<Vec<_>,_>>()?;
     let mut restored_tables:std::collections::BTreeMap<String,Vec<String>>=std::collections::BTreeMap::new();
     for (name,id) in restored_rows {restored_tables.entry(name).or_default().push(id);}
     for (name, ids) in restored_tables {
         tx.set_meta(&format!("activation_narrowed_restored:{name}"),&ids.len().to_string())?;
         tx.set_meta(&format!("activation_narrowed_restored_ids:{name}"),&serde_json::to_string(&ids).map_err(|e|RuntimeError::Store(e.to_string()))?)?;
+    }
     }
     tx.set_meta("activation_narrowed_retained", &newly_retained.to_string())?;
     tx.set_meta("activation_narrowed_restored", &restored.to_string())?;

@@ -15,6 +15,7 @@ use crate::value::{Supplied, Value, canonical_json};
 pub(crate) enum Origin {
     Source,
     Maintained,
+    LiveAuthority,
 }
 
 #[derive(Clone)]
@@ -1029,6 +1030,9 @@ impl Runner<'_> {
                 self.maintain(table_name, old, new)?;
                 if self.schema.timelines.iter().any(|t| t.maps(table_name)) { self.timeline_transition(table_name, old, new)?; }
             }
+        }
+        if origin != Origin::LiveAuthority {
+            if let Some(image)=new { self.maintain_live(table_name,image)?; }
         }
         self.tx.track_time_audience(
             table_name,

@@ -385,12 +385,16 @@ impl PostgresEngine {
 
     /// Fixture loading still uses the real validation, maintains and sync paths.
     pub fn seed_at(&mut self, rows: impl IntoIterator<Item = (String, Value)>, now: i64) -> Result<u64, RuntimeError> {
+        let bounded=crate::schema::live::has_live(&self.schema);
+        let mut meter=Meter::new(if bounded {Ceilings::job()}else{Ceilings::unbounded()},Cut::Abort);
+        let rows:Box<dyn Iterator<Item=(String,Value)> + '_>=if bounded {Box::new(super::live_bulk::collect(rows,&mut meter)?.into_iter())}else{Box::new(rows.into_iter())};
         let rows = super::through_activation::ancestor_order(&self.schema,rows);
         let tx = self.store.transaction(Some(WriteMode::Serialized))?;
         let seq = tx.next_seq()?;
-        let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), Meter::new(Ceilings::unbounded(), Cut::Abort), seq);
+        let mut runner = Runner::new(&tx, &self.schema, Context::system().at(now), meter, seq);
         let mut count = 0;
         for (table, row) in rows {
+            if bounded {runner.reserve_bulk_source(&table)?;}
             runner.upsert(&table, &row.field("id")?.clone(), row.import_input(&crate::engine::ImportInput(())))?;
             count += 1;
         }

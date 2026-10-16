@@ -1191,6 +1191,7 @@ impl<'r> Runner<'r> {
                 self.aggregate_read_coverage_inner(&scan.table, &scan.index, &prefix, &scan.site, true)?;
             } else {
                 self.read_tables.insert(scan.table.clone());
+                self.live_read_dependency(&scan.table);
                 self.rule_dependencies(&table.rules.read);
                 self.aggregate_read_coverage(&scan.table, &scan.index, &prefix, &scan.site)?;
             }

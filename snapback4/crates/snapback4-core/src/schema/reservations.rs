@@ -23,6 +23,8 @@ pub struct ActionEvents {
 }
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct WriteReservation {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub live: Option<super::live::LiveReservation>,
     pub prices: [Price; 8],
     /// v2 adds owner initialization; absence identifies a legacy v1 plan.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -42,11 +44,15 @@ impl WriteReservation {
     #[cfg(feature = "sqlite")]
     fn is_zero(&self) -> bool {
         self.prices == [[0; 7]; 8] && self.birth.unwrap_or_default() == [0; 7]
-            && self.view_read.unwrap_or_default() == [0; 7] && self.action_events.is_none() && !self.server_only
+            && self.view_read.unwrap_or_default() == [0; 7] && self.action_events.is_none() && self.live.is_none() && !self.server_only
     }
 }
 fn add(to: &mut Price, price: Price) {
     for (to, price) in to.iter_mut().zip(price) { *to = to.saturating_add(price); }
+}
+/// Common partition image/metadata envelope; callers add their bookkeeping.
+pub fn event_envelope(image: u64, arms: u64, metadata: u64, dependents: u64) -> (u64,u64) {
+    (dependents, image.saturating_mul(2*arms).saturating_add(metadata.saturating_mul(2*arms+2*dependents)))
 }
 pub fn slots(kind: &ColumnType, in_list: bool) -> u64 {
     match kind {
@@ -105,6 +111,7 @@ pub fn reservation(schema: &Schema, source: &str) -> Option<WriteReservation> {
         plan.view_read = Some([u64::from(live),0,1,0,bytes,0,0]);
     }
 
+    if super::live::parent(schema,source) { plan.live=Some(super::live::write_price(schema,source)?); }
     plan.prices[ASSETS] = asset_price(table);
     let mut public = 0;
     for m in &schema.maintains {
@@ -172,7 +179,7 @@ pub fn reservation(schema: &Schema, source: &str) -> Option<WriteReservation> {
         }
         let metadata = tables.iter().map(|name| 1024 + 4 * crate::rows::MAX_INDEX_KEY_BYTES as u64 + 4 * name.len() as u64).max().unwrap_or(0);
         // @ref LLP 3000.039#5.1 — each union arm can retain its own row event; price schema width rather than live recipients.
-        plan.action_events = Some(ActionEvents { steps_per_write: dependents, heap_per_write: image.saturating_mul(2 * arms).saturating_add(metadata.saturating_mul(2 * arms + 2 * dependents)), tables: tables.into_iter().collect() });
+        plan.action_events = Some(ActionEvents { steps_per_write: dependents, heap_per_write: event_envelope(image,arms,metadata,dependents).1, tables: tables.into_iter().collect() });
     }
 
     Some(plan)
@@ -258,6 +265,7 @@ impl Schema {
     pub fn write_prediction_refusal(&self, source: &str) -> Option<&'static str> {
         match self.write_reservation(source) {
             None => Some("source write has no complete reservation price; adopt the current backend"),
+            Some(plan) if plan.live.is_some() => Some("live parent authority changes run atomically on the server; queued without predictions"),
             Some(plan) if plan.server_only => Some("receipt counter has additional data-dependent work; queue until settlement"),
             _ => None,
         }
