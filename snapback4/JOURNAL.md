@@ -96138,3 +96138,33 @@ Budget723,660 B is exactly gzip+500 B, whole-artifact +6,446 B gzip over
 0.4.29; strict family/absence audits pass, with no runtime ceiling increase
 or independent feature attribution. This is integration evidence, not a
 publication record; all final checks are recorded in WORKSTREAM-REPORT.md.
+
+
+## 2026-10-17 — Wave 14 KIT3: explicit proof claims and bounded clock/read evidence
+
+`witnessForm` gives a trusted handler its own per-arm token across awaited
+uploads; unrelated or stale calls cannot borrow it. Witness refusals expose the
+stable reason enum, mismatch messages omit argument values, and helper docs
+cover fresh-string returns, substring diagnostics, RN web, wrapped selects and
+SVG clicks. Generated proofs assert within the actual results container. Packed
+qualification caught the Expo thread scope and the old custom-Home harness
+matcher; both were corrected and the generated recipes ran as written.
+
+The development clock keeps latest-window coalescing by default, reports fired
+and skipped windows with job replay commands, and offers `--each-boundary`.
+Reports preflight window count and escaped bytes before moving time, cap job
+error previews and respect the host encoder limit. Clock/reset replies and
+`dev.now()` report authoritative now/skew; interrupted drains retain clock
+evidence. HTTP queries settle only the overdue live publications they actually
+encounter, with one ordinary prelude, bounded targeted retries and credential
+revalidation. Fixture aliases use argument types and name null roots; sweep
+narration preserves existing verdicts. Literal wire envelopes come from real
+packed HTTP calls.
+
+The amendments are LLP 3000.011.003.000.000 §11, LLP 3000.000.000.000.000 §7,
+LLP 3000.007 §20.12.1 and LLP 3000.036.003 §10. Independent Muse and fresh Codex
+round 8 both returned READY. [The verification record](./reports/20261017-wave14-kit3/README.md)
+binds consumer qualification to 74ee49d4df and records the full bounded Rust run,
+green continuations, Linux/Mac affected checks and root generated-artifact
+preconditions. This is consumer evidence, not a publication receipt. No version
+bump or push; REG owns fixture auth/P20 proof-host, DAY4 owns P20 check/adapt.
