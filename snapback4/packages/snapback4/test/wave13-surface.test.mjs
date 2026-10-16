@@ -34,10 +34,10 @@ test('H1/H4/H5 help agrees and ignored flags refuse before filesystem work', t =
 });
 test('token quiet/JSON and empty/nonempty data JSON have machine-readable output; releases preserve provenance', t => {
   const cwd = fixture(t); mkdirSync(join(cwd,'snapback')); writeFileSync(join(cwd,'snapback/schema.q'),schema);
-  okay(invoke(cwd,['deploy','deploy','--json']));
+  const began = Date.now(); okay(invoke(cwd,['deploy','deploy','--json']));
   const provenance = JSON.parse(readFileSync(join(cwd,'deploy/releases/1/provenance.json'),'utf8'));
   assert.match(provenance.sourceHash,/^[0-9a-f]{64}$/); assert.match(provenance.cliVersion,/^0\.4\./);
-  assert.equal(provenance.release,1); assert.ok(provenance.createdAt > Date.now()-60_000);
+  assert.equal(provenance.release,1); assert.ok(provenance.createdAt >= began);
   const unchanged = invoke(cwd,['deploy','deploy','--json']); okay(unchanged); assert.equal(JSON.parse(unchanged.stdout).unchanged,true);
   let data = invoke(cwd,['data','notes','--release','deploy','--json']); okay(data); assert.deepEqual(JSON.parse(data.stdout),[]);
   const quiet = invoke(cwd,['token','--service','worker','--release','deploy','--quiet']); okay(quiet);
@@ -64,8 +64,8 @@ test('startServe names its directory argument and witness disabled errors expose
 test('proof browser prefers caller-installed @playwright/test', async t => {
   const cwd=fixture(t), peer=join(cwd,'node_modules/@playwright/test'); mkdirSync(peer,{recursive:true});
   writeFileSync(join(cwd,'package.json'),'{"type":"module"}');
-  writeFileSync(join(peer,'package.json'),'{"name":"@playwright/test","type":"module","exports":"./index.js"}');
-  writeFileSync(join(peer,'index.js'),`export const chromium={async launch(){return {async newContext(){return {callerPeer:true,setDefaultTimeout(){},setDefaultNavigationTimeout(){},async close(){}}},async close(){}}}};`);
+  writeFileSync(join(peer,'package.json'),'{"name":"@playwright/test","exports":"./index.js"}');
+  writeFileSync(join(peer,'index.js'),`module.exports={chromium:{async launch(){return {async newContext(){return {callerPeer:true,setDefaultTimeout(){},setDefaultNavigationTimeout(){},async close(){}}},async close(){}}}}};`);
   const result=await withBrowser({cwd,logsDir:join(cwd,'logs')},async context=>context.callerPeer);
   assert.equal(result,true);
 });

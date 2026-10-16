@@ -1,4 +1,5 @@
 //! Validate the complete command before any project, store or host work.
+// @ref LLP 3000.000.000.000.000#4-cli-surface-contracts — admission, every synopsis and flag help share this command table.
 const SWITCHES: &[&str] = &["quiet", "list", "help", "initialize", "environment-skip", "background", "if-present", "check", "engine-info", "json", "json-objects", "trace-empty", "latency", "reset", "values", "no-watch", "fresh", "memory", "replay", "hold-effects", "hold-schedules", "resume-clock", "cost", "residency", "fix", "verbose", "online", "expo", "web", "allow-destructive", "restore-dormant", "allow-feed-adoption", "i-understand-cleartext", "skip-existing", "sections", "adapt", "dry-run", "apply", "full", "smoke", "prime", "relaunch", "restart", "wait"];
 
 pub(crate) fn allowed(verb: &str) -> &'static str {
@@ -98,14 +99,24 @@ mod integration_tests {
     }
 }
 
+fn value(verb: &str, name: &str) -> &'static str {
+    match (verb,name) {
+        (_,name) if switch(name)=>"", (_,"schema"|"source"|"emit-lean")=>" file.q",
+        (_,"find"|"section")=>" words", (_,"port-range")=>" A-B",
+        ("dev"|"serve","port")=>" N|A-B", (_,"port"|"web-port"|"days"|"limit"|"long-waits"|"long-waits-per-principal"|"claim-waits"|"runs"|"timeout")=>" N",
+        ("upgrade","to")=>" version", (_,"to")=>" N|latest", ("check","release")=>" N|latest",
+        (_,"release"|"fixture"|"artifacts")=>" dir", (_,"as")=>" persona|principal",
+        (_,"store"|"worker"|"build"|"export")=>" path", (_,"url")=>" URL",
+        (_,"service")=>" name", (_,"token-env"|"password-env")=>" NAME",
+        _=>" VALUE",
+    }
+}
+
 /// Generated from the same flag table used before dispatch and side effects.
 pub(crate) fn help(verb: &str) -> String {
     let mut out = String::from("Flags (validated before any project or store work):\n");
     for name in allowed(verb).split_whitespace().chain(["help"]) {
-        let value = match name {
-            "schema" | "source" => " file.q", "find" | "section" => " words",
-            _ if switch(name) => "", _ => " VALUE",
-        };
+        let value = value(verb, name);
         let description = match (verb, name) {
             ("deploy", "schema") => " — deploy a saved complete source; keep it outside snapback/",
             ("test", "source") => " — test a saved complete source; keep it outside snapback/",
@@ -147,7 +158,7 @@ pub(crate) fn help(verb: &str) -> String {
             (_, "store") => " — select the store path for inspection or adoption checking",
             (_, "fixture") => " — fixture directory containing table.jsonl rows and test.cases.jsonl",
             (_, "source") => " — saved complete Quarry source outside snapback/",
-            (_, "service") => " — declared service whose bearer session to mint",
+            (_, "service") => " — service seat name whose bearer session to mint",
             (_, "days") => " — service bearer lifetime in days (default 365)",
             (_, "token-env") => " — environment variable containing the service bearer",
             (_, "verbose") => " — include complete diagnostic and execution details",
@@ -243,7 +254,7 @@ pub(crate) fn synopsis(verb: &str) -> String {
     };
     let mut out = format!("snapback4 {verb}{positional}");
     for name in allowed(verb).split_whitespace().filter(|name| !retired(verb,name)) {
-        let value = match name { "schema"|"source"=>" file.q", "port-range"=>" A-B", "port"=>" N|A-B", "to" if verb=="upgrade"=>" version", _ if switch(name)=>"", _=>" VALUE" };
+        let value = value(verb, name);
         out.push_str(&format!(" [--{name}{value}]"));
     }
     out
