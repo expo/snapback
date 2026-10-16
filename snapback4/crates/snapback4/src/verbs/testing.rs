@@ -2,6 +2,16 @@
 // @ref LLP 3000.011.003.000.000#9-wave-13-saved-version-proofs-day3-2026-10-16 — contemporary fixtures belong to the selected saved source.
 use super::*;
 
+const CASE_SUMMARY: &str = "SNAPBACK4_TEST_CASES";
+
+fn case_count(path: &std::path::Path) -> Result<usize, String> {
+    let text = std::fs::read_to_string(path).map_err(|error| format!("cannot read {}: {error}", path.display()))?;
+    Ok(text.lines().filter(|line| {
+        let line = line.trim();
+        !line.is_empty() && !line.starts_with("//")
+    }).count())
+}
+
 /// `test`: run every argument-free query as each persona against the store
 /// (optionally loaded from a fixture) and print the meters beside the
 /// ceilings, so a builder reads numbers instead of being refused on a bound.
@@ -10,6 +20,7 @@ pub fn test(options: &Options) -> i32 {
     let sources = match proof_source::sources(&project, options, "source") { Ok(sources) => sources, Err(e) => { eprintln!("test: {e}"); return 2; } };
     let bound = compiled_or_exit(proof_source::compile(&sources, options, "source"), options.json);
     let mut defaults = options.clone();
+    let mut skipped_business_cases = 0;
     if !defaults.flags.contains_key("fixture") {
         let saved = options.flags.get("source").map(std::path::Path::new).map(|path| {
             if path.is_dir() { path.join("fixtures") }
@@ -24,7 +35,11 @@ pub fn test(options: &Options) -> i32 {
             if options.flags.contains_key("source") {
                 defaults.flags.insert("saved-fixture-fallback".into(), String::new());
                 eprintln!("test: no contemporary fixtures for saved source; validating only declared-table files in {}; pass --fixture <dir> for a complete contemporary case suite", fixture.display());
-                if fixture.join(test_cases::FILE).is_file() { eprintln!("test: skipped {} — working cases may target another release; pass --fixture <dir> to run explicitly", fixture.join(test_cases::FILE).display()); }
+                let cases = fixture.join(test_cases::FILE);
+                if cases.is_file() {
+                    skipped_business_cases = match case_count(&cases) { Ok(count) => count, Err(error) => { eprintln!("test: {error}"); return 1; } };
+                    eprintln!("test: skipped {} — working cases may target another release; pass --fixture <dir> to run explicitly", cases.display());
+                }
             } else { eprintln!("test: using {} (default fixture directory; override with --fixture <dir>)", fixture.display()); }
             defaults.flags.insert("fixture".into(), fixture.to_string_lossy().into_owned());
         } else if options.flags.contains_key("source") {
@@ -66,7 +81,10 @@ pub fn test(options: &Options) -> i32 {
     if options.flags.contains_key("residency") {
         let verbose = options.flags.contains_key("verbose");
         if let Err(error) = residency::measure(&mut engine, &bound, &personas, verbose) { eprintln!("residency measurement failed: {error}"); return 1; }
-        if !verbose { return 0; }
+        if !verbose {
+            println!("{CASE_SUMMARY} {{\"run\":0,\"skipped\":{skipped_business_cases}}}");
+            return 0;
+        }
     }
     let (mut passed, mut failed_cases) = (0, 0);
     if let Some(fixture) = options.flags.get("fixture").filter(|_| !options.flags.contains_key("saved-fixture-fallback")) {
@@ -207,5 +225,7 @@ pub fn test(options: &Options) -> i32 {
     // @ref LLP 3000.036.002#9 — derived probe refusals are expected exploration, not failed cases.
     println!("test: {complete} complete, {capped} capped, {expected} refused as your cases expect, {refused_derived} probe refusals on derived arguments (expected), {} not run, {failures} denied{} — {verdict}",
         skipped.len() + held_not_run, if passed + failed_cases > 0 { format!("; cases: {passed} passed, {failed_cases} failed") } else if options.flags.contains_key("fixture") { format!("; no {} (see snapback4 guide testing)", test_cases::FILE) } else { String::new() });
+    // @ref LLP 3000.011.003.000.000#11-wave-14-truthful-starter-custody-day4 — query-sweep reads are not application business cases.
+    println!("{CASE_SUMMARY} {{\"run\":{},\"skipped\":{skipped_business_cases}}}", passed + failed_cases);
     if failures > 0 || failed_cases > 0 { 1 } else { 0 }
 }

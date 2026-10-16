@@ -75,7 +75,7 @@ test("saved-source deploy, preview, hot forward, rollback and fixture test never
   } finally { await serve.stop(); }
   assert.equal(readFileSync(join(cwd, "snapback/schema.q"), "utf8"), "invalid current working source");
   assert.equal(readFileSync(join(cwd, "deploy/releases/1/snapback/schema.q"), "utf8"), schema);
-  assert.equal((await testSource(v1, { cwd, args: ["--fixture", "fixtures"] })).code, 0);
+  assert.equal((await testSource(v1, { cwd, args: ["--fixture", "fixtures"], fixtureOnly: true })).code, 0);
   assert.equal(readFileSync(join(cwd, "snapback/schema.q"), "utf8"), "invalid current working source");
 });
 test("cli awaits close, separates output and returns refusal status", async t => {

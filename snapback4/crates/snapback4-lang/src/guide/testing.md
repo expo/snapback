@@ -287,7 +287,8 @@ Clock controls are dev-only; `guide clock` covers status, reset and restart.
 Keep one directory per release outside snapback/: versions/v1/schema.q,
 any other .q modules with their original names, and versions/v1/fixtures/.
 Use the same versions/v1 directory for --schema, testSource and the compatibility
-baseline (guide deploy). The starter creates versions/v1 and versions/v2 with
+baseline (guide deploy). Opt in with `init --web --day2` or `init --expo --day2` (existing apps:
+`init --adapt --day2 --apply`). This creates versions/v1 and versions/v2 with
 fixtures/; update the saved source and fixtures together as the product evolves.
 `npm run day2:proof` already passes those directories. Its marked
 BUSINESS_ASSERTION_BEGIN block fails until you replace it with authenticated
@@ -304,8 +305,19 @@ fixture files whose tables the saved source declares; it names skipped table
 files and skips working test.cases.jsonl, which may call later operations.
 Use `--fixture <contemporary-dir>` for a complete business suite. With no fixtures
 at all it announces a query sweep only. Shared-table rows remain strictly checked;
-unknown fields do not disappear. check reports inherited day2:proof scripts with
-no saved arguments: preview `init --adapt`, then run `init --adapt --apply`.
+unknown fields do not disappear. `testSource` returns `casesRun` and
+`casesSkipped` and refuses zero executed business cases unless
+`{ fixtureOnly: true }` explicitly requests fixture/sweep validation. Failures
+include stdout evidence. Check warns when a saved version's fixtures/case
+signatures no longer fit its own schema. This is structural validation, not a
+proof that expected business values are correct. The generated day-two proof
+also accepts a fresh explicit deployment, for example
+`npm run day2:proof -- versions/v1 versions/v2 ./deploy`; it preserves that
+deployment for inspection and refuses an existing destination. check reports inherited day2:proof scripts with
+no business assertions only when their bytes match a shipped template: preview
+`init --adapt`, then run `init --adapt --apply`. Custom proofs own their saved
+paths; deleted unreferenced day-two scaffolding stays deleted. Frontend advice
+about missing build steps or npx servers is explicitly heuristic.
 SURF3 owns the deploy help synopsis; source layout is documented here and in guide deploy.
 Selected-source companions build/check their generated signatures privately;
 native dependency paths are rebased into that private build while its own

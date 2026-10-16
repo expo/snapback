@@ -93,7 +93,11 @@ export async function command(binary: string, args: readonly string[], options: 
 }
 async function successful(args: string[], options: ProofOptions) {
   const result = await cli(args, options);
-  if (result.code !== 0) throw Error(`proof CLI failed (${result.code}): ${result.stderr}; logs: ${result.logs.stderr}`);
+  if (result.code !== 0) {
+    const stdout = result.stdout.trimEnd();
+    const tail = stdout.length > 4000 ? `…${stdout.slice(-4000)}` : stdout;
+    throw Error(`proof CLI failed (${result.code}): ${result.stderr}; stdout tail: ${tail || "(empty)"}; logs: ${result.logs.stderr}`);
+  }
   return result;
 }
 export function deploy(dir: string, schema: string, options: ProofOptions = {}) {
@@ -104,9 +108,26 @@ export function rollback(dir: string, to: number | "latest", options: ProofOptio
   if (to !== "latest" && (!Number.isSafeInteger(to) || to < 1)) throw Error(`proof rollback requires an explicit immutable release target; got ${JSON.stringify(to) ?? String(to)}`);
   return successful(["rollback", dir, "--to", String(to), ...(options.args ?? [])], options);
 }
-export function testSource(source: string, options: ProofOptions = {}) {
+// @ref LLP 3000.011.003.000.000#11-wave-14-truthful-starter-custody-day4 — saved-source proof results expose authored cases separately from query sweeps.
+export interface TestSourceOptions extends ProofOptions { fixtureOnly?: boolean }
+export interface TestSourceResult extends CliResult { casesRun: number; casesSkipped: number }
+export function testSource(source: string, options: TestSourceOptions = {}): Promise<TestSourceResult> {
   if (typeof source !== "string" || !source) throw Error(`proof testSource requires an explicit saved source file or directory; got ${JSON.stringify(source) ?? String(source)}: pass versions/v1`);
-  return successful(["test", "--source", source, ...(options.args ?? [])], options);
+  const { fixtureOnly = false, ...proofOptions } = options;
+  return successful(["test", "--source", source, ...(proofOptions.args ?? [])], proofOptions).then(result => {
+    const summaries = [...result.stdout.matchAll(/^SNAPBACK4_TEST_CASES (\{.*\})$/gm)];
+    if (summaries.length !== 1) throw Error(`proof testSource received no unique business-case summary; stdout tail: ${result.stdout.trimEnd().slice(-4000) || "(empty)"}; logs: ${result.logs.stdout}`);
+    let cases: { run: number; skipped: number };
+    try { cases = JSON.parse(summaries[0]![1]!) as { run: number; skipped: number }; }
+    catch { throw Error(`proof testSource received a malformed business-case summary: ${summaries[0]![0]}; logs: ${result.logs.stdout}`); }
+    if (!Number.isSafeInteger(cases.run) || cases.run < 0 || !Number.isSafeInteger(cases.skipped) || cases.skipped < 0) {
+      throw Error(`proof testSource received invalid business-case counts: ${summaries[0]![0]}; logs: ${result.logs.stdout}`);
+    }
+    if (cases.run === 0 && !fixtureOnly) {
+      throw Error(`proof testSource ran no business cases (${cases.skipped} skipped); add test.cases.jsonl for this saved version, or pass { fixtureOnly: true } when fixture loading alone is the intended proof; stdout tail: ${result.stdout.trimEnd().slice(-4000) || "(empty)"}`);
+    }
+    return { ...result, casesRun: cases.run, casesSkipped: cases.skipped };
+  });
 }
 
 export function sandboxUnavailable(error: unknown): boolean {

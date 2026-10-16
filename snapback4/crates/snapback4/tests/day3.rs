@@ -51,12 +51,12 @@ fn fallback_names_unknown_files_and_cases_but_never_drops_unknown_fields() {
 }
 #[test]
 fn check_detects_inherited_day2_script_and_preview_shows_its_replacement() {
-    let app = App::new(); ok(app.run(&["init", "--web"]));
+    let app = App::new(); ok(app.run(&["init", "--web", "--day2"]));
     let mut package: serde_json::Value = serde_json::from_str(&app.text("package.json")).unwrap();
     package["scripts"]["day2:proof"] = "node scripts/day2-proof.mjs".into();
     app.write("package.json", &serde_json::to_string_pretty(&package).unwrap());
     let check = ok(app.run(&["check"]));
-    assert!(check.contains("info:") && check.contains("day2:proof passes no saved versions") && check.contains("init --adapt"), "{check}");
+    assert!(check.contains("info:") && check.contains("unmodified day-two starter needs") && check.contains("init --adapt"), "{check}");
     let preview = ok(app.run(&["init", "--adapt"]));
     assert!(preview.contains("scripts.day2:proof:") && preview.contains("versions/v1 versions/v2") && preview.contains("preview only"), "{preview}");
     ok(app.run(&["init", "--adapt", "--apply"]));
@@ -99,7 +99,7 @@ fn init_snapshots_modules_with_original_names_and_tests_the_saved_namespace() {
     let app = App::new(); app.write("snapback/schema.q", "use personas alice\n");
     app.write("snapback/notes.q", "table notes:\n  title: text <=80\n  public 'test'\nquery list():\n  return notes first 20 by .id\n");
     app.write("fixtures/test.cases.jsonl", "{\"as\":\"alice\",\"op\":\"notes.list\",\"count\":0}\n");
-    ok(app.run(&["init", "--web"]));
+    ok(app.run(&["init", "--web", "--day2"]));
     assert_eq!(app.text("versions/v1/notes.q"), app.text("snapback/notes.q"));
     assert_eq!(app.text("versions/v1/schema.q"), "use personas alice\n");
     let output = ok(app.run(&["test", "--source", "versions/v1"]));
@@ -138,7 +138,7 @@ fn doctor_reports_and_repairs_missing_expiry_parent_using_stored_schema() {
 }
 #[test]
 fn adapting_never_extends_historical_versions_with_current_modules_or_fixtures() {
-    let app = App::new(); ok(app.run(&["init", "--web"]));
+    let app = App::new(); ok(app.run(&["init", "--web", "--day2"]));
     fn tree(path: &std::path::Path) -> Vec<(PathBuf, Vec<u8>)> {
         let mut found = Vec::new();
         for entry in fs::read_dir(path).unwrap() {
@@ -180,7 +180,7 @@ fn explicit_saved_source_fixtures_never_skip_even_exact_starter_sample_rows() {
 }
 #[test]
 fn actual_router_social_starter_repairs_inherited_proofs_without_touching_routes() {
-    let app = App::new(); ok(app.run(&["init", "--template", "social"]));
+    let app = App::new(); ok(app.run(&["init", "--template", "social", "--day2"]));
     assert!(app.0.join("app/_layout.tsx").exists() && !app.0.join("App.tsx").exists());
     let route = app.text("app/_layout.tsx"); let profile = app.text("src/Profile.tsx");
     let previous = include_str!("../src/verbs/init/previous/frontend-proof-0.4.29.mjs")
@@ -192,7 +192,7 @@ fn actual_router_social_starter_repairs_inherited_proofs_without_touching_routes
     let mut package: serde_json::Value = serde_json::from_str(&app.text("package.json")).unwrap();
     package["scripts"]["day2:proof"] = "node scripts/day2-proof.mjs".into();
     app.write("package.json", &serde_json::to_string_pretty(&package).unwrap());
-    assert!(ok(app.run(&["check"])).contains("day2:proof passes no saved versions"));
+    assert!(ok(app.run(&["check"])).contains("unmodified day-two starter needs"));
     let preview = ok(app.run(&["init", "--adapt"]));
     assert!(preview.contains("replace scripts/frontend-proof.mjs"), "{preview}");
     assert_eq!(app.text("scripts/frontend-proof.mjs"), previous, "preview writes nothing");
@@ -217,4 +217,87 @@ fn every_ui_template_uses_its_written_backend_and_launcher_in_the_quick_start() 
         assert!(!readme.lines().any(|line| line.trim().starts_with("npx snapback4 dev")), "{flags:?}: {readme}");
         assert!(!readme.contains("`npx snapback4 dev`"), "{flags:?}: {readme}");
     }
+}
+
+#[test]
+fn day4_new_apps_opt_in_and_deleted_day2_stays_deleted() {
+    for mode in ["--web", "--expo"] {
+        let app=App::new(); ok(app.run(&["init",mode]));
+        assert!(!app.0.join("versions").exists());
+        assert!(!app.0.join("scripts/day2-proof.mjs").exists());
+        assert!(serde_json::from_str::<serde_json::Value>(&app.text("package.json")).unwrap()["scripts"].get("day2:proof").is_none());
+        ok(app.run(&["init","--adapt","--day2","--apply"]));
+        assert_eq!(app.text("versions/v1/schema.q"),app.text("snapback/schema.q"));
+        fs::remove_file(app.0.join("scripts/day2-proof.mjs")).unwrap();
+        fs::remove_dir_all(app.0.join("versions")).unwrap();
+        let mut pkg:serde_json::Value=serde_json::from_str(&app.text("package.json")).unwrap();
+        pkg["scripts"].as_object_mut().unwrap().remove("day2:proof");
+        app.write("package.json",&pkg.to_string());
+        assert!(!ok(app.run(&["check"])).contains("proof infrastructure"));
+        let preview=ok(app.run(&["init","--adapt"]));
+        assert!(!preview.contains("add scripts/day2-proof") && !preview.contains("add versions/"),"{preview}");
+        ok(app.run(&["init","--adapt","--apply"]));
+        assert_eq!(serde_json::from_str::<serde_json::Value>(&app.text("package.json")).unwrap()["snapback4"]["starter"]["day2"],false);
+        assert!(!app.0.join("versions").exists());
+    }
+    let app=App::new(); let result=app.run(&["init","--expo","--online"]);
+    assert!(!result.status.success());
+    assert!(String::from_utf8_lossy(&result.stderr).contains("Expo Go"));
+}
+
+#[test]
+fn day4_custom_saved_arguments_and_business_proofs_are_owned() {
+    let app=App::new(); app.write("snapback/schema.q",V1); ok(app.run(&["init","--web"]));
+    app.write("scripts/day2-proof.mjs","const versions = ['versions/v1', 'versions/v2']; // custom proof\n");
+    app.write("scripts/frontend-proof.mjs","// application-owned business assertions\n");
+    let mut pkg:serde_json::Value=serde_json::from_str(&app.text("package.json")).unwrap();
+    pkg["scripts"]["day2:proof"]="node scripts/day2-proof.mjs".into(); app.write("package.json",&pkg.to_string());
+    for args in [&["check"][..],&["init","--adapt"][..]] {
+        let output=ok(app.run(args));
+        for misleading in ["passes no saved versions","proof infrastructure needs updating","no write scenario","add versions/"] {
+            assert!(!output.contains(misleading),"{output}");
+        }
+    }
+    let proof=app.text("scripts/day2-proof.mjs"); ok(app.run(&["init","--adapt","--apply"]));
+    assert_eq!(app.text("scripts/day2-proof.mjs"),proof);
+    assert!(!app.0.join("versions").exists());
+}
+
+#[test]
+fn day4_old_templates_capture_current_sources_without_copying_stale_evidence() {
+    for source in [include_str!("../src/verbs/init/previous/day2-proof-0.4.28.mjs"),include_str!("../src/verbs/init/previous/day2-proof-0.4.29.mjs")] {
+        let app=App::new(); app.write("snapback/schema.q",V1); ok(app.run(&["init","--web"]));
+        let stale=include_str!("../src/verbs/init/starter/schema.q");
+        app.write("versions/v1.q",stale); app.write("versions/v2.q",stale);
+        app.write("scripts/day2-proof.mjs",source);
+        let mut pkg:serde_json::Value=serde_json::from_str(&app.text("package.json")).unwrap();
+        pkg["snapback4"].as_object_mut().unwrap().remove("starter");
+        pkg["scripts"]["day2:proof"]="node scripts/day2-proof.mjs versions/v1.q versions/v2.q".into(); app.write("package.json",&pkg.to_string());
+        let check=ok(app.run(&["check"])); assert!(check.contains("asserts no business rows"),"{check}");
+        let preview=ok(app.run(&["init","--adapt"]));
+        assert!(preview.contains("versions/v1 versions/v2"),"{preview}");
+        assert!(!app.0.join("versions/v1").exists());
+        ok(app.run(&["init","--adapt","--apply"]));
+        assert_eq!(app.text("versions/v1/schema.q"),V1);
+        assert_eq!(app.text("versions/v1.q"),stale);
+        assert!(app.text("package.json").contains("day2-proof.mjs versions/v1 versions/v2"));
+    }
+}
+
+#[test]
+fn day4_frontend_proof_heuristics_are_explicit_and_shared_by_check_and_adapt() {
+    let app=App::new(); ok(app.run(&["init","--web"]));
+    app.write("scripts/frontend-proof.mjs", "import {startStatic} from 'snapback4/proof';\nawait startStatic(\"dist\");\nspawn('npx', ['snapback4', 'dev']);\n");
+    for args in [&["check"][..],&["init","--adapt"][..]] {
+        let text=ok(app.run(args));
+        assert!(text.contains("no visible build step (heuristic") && text.contains("launches npx snapback4 dev (heuristic"),"{text}");
+        assert!(!text.contains("no write scenario"),"custom proof owns its assertions");
+    }
+    let mut pkg:serde_json::Value=serde_json::from_str(&app.text("package.json")).unwrap();
+    pkg["scripts"]["prefrontend:proof"]="npm run build".into();app.write("package.json",&pkg.to_string());
+    assert!(!ok(app.run(&["check"])).contains("no visible build step"));
+    fs::remove_file(app.0.join("scripts/frontend-proof.mjs")).unwrap();
+    assert!(ok(app.run(&["check"])).contains("missing but package.json still references"));
+    ok(app.run(&["init","--adapt","--apply"]));
+    assert!(app.0.join("scripts/frontend-proof.mjs").is_file());
 }

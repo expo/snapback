@@ -1,5 +1,9 @@
 # Snapback 4 behavior changes
 
+## 0.4.31
+
+- DAY4: UI starters opt in to saved-release scaffolding with `--day2`. Check/adapt recognize shipped proof bytes, respect custom saved paths and deleted scaffolds, and label frontend build/server advice as heuristic. Adapting old generated proofs captures current sources/fixtures and repairs 0.4.29's npm arguments. Day-two proofs accept a fresh explicit deployment directory. Saved tests report business-case run/skip counts and require explicit fixture-only intent for zero-case validation; failures include stdout. Check inspects saved fixtures against their own schema.
+
 ## 0.4.30
 
 - Saved releases: `deploy --schema` resolves compatibility baselines from the original project, preserves module names and deduplicates enum/value unions. Prefer `versions/v1/schema.q`, original-name modules and `versions/v1/fixtures/`; directory and complete-file inputs remain supported. Saved tests prefer contemporary fixtures, name fallback skips and keep explicit fixture selection strict. Deploy/rollback previews group actual guard dependencies and lead with query/count population losses, dependent dormancy and safety effects; literal backfills include exact active-row counts. A bridge-release recipe preserves safety logic as well as data.

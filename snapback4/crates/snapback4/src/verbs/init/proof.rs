@@ -2,10 +2,11 @@
 use serde_json::{Value, json};
 use super::{Options, pretty};
 
-const README_PROOFS: &str = "\n## Frontend and day-two proofs\n\nRun\n`npm run frontend:proof` (it builds its own dist) to prove sign-in and the starter form in Chromium.\nAfter replacing the screen, add your business assertions to scripts/frontend-proof.mjs.\n`npm run day2:proof` proves saved-source deploy,\nrollback and compatible forward using versions/v1 and versions/v2. Replace the marked business assertion before it can pass.\nSet `PORT_LO` and `PORT_HI` at run time to confine proof servers and launchers;\nunset means allocated proof ports and the interactive starter defaults.\nSet `CHROME=/path/to/chromium` or install Playwright's Chromium (`npx playwright-core install chromium`).\n";
+const README_PROOFS: &str = "\n## Frontend proofs\n\n`npm run frontend:proof` builds its own dist, then proves the starter in Chromium.\nAfter replacing the screen, add your business assertions to scripts/frontend-proof.mjs.\nDay-two scaffolding is opt-in: `snapback4 init --adapt --day2 --apply` captures\ncurrent sources and fixtures in versions/v1 and versions/v2 and adds day2:proof.\nReplace its BUSINESS_ASSERTION_BEGIN block before running `npm run day2:proof`.\nSet PORT_LO and PORT_HI at run time to confine proof servers and launchers.\nSet CHROME=/path/to/chromium or install Playwright's Chromium.\n";
+const PREVIOUS_30_README_PROOFS: &str = "\n## Frontend and day-two proofs\n\nRun\n`npm run frontend:proof` (it builds its own dist) to prove sign-in and the starter form in Chromium.\nAfter replacing the screen, add your business assertions to scripts/frontend-proof.mjs.\n`npm run day2:proof` proves saved-source deploy,\nrollback and compatible forward using versions/v1 and versions/v2. Replace the marked business assertion before it can pass.\nSet `PORT_LO` and `PORT_HI` at run time to confine proof servers and launchers;\nunset means allocated proof ports and the interactive starter defaults.\nSet `CHROME=/path/to/chromium` or install Playwright's Chromium (`npx playwright-core install chromium`).\n";
 const PREVIOUS_README_PROOFS: &str = "\n## Frontend and day-two proofs\n\nAfter `npm run build` (web) or `npm run build:web` (Expo), run\n`npm run frontend:proof` to prove sign-in and the starter form in Chromium.\nAfter replacing the screen, add your business assertions to scripts/frontend-proof.mjs.\n`npm run day2:proof -- versions/v1.q versions/v2.q` proves saved-source deploy,\nrollback and compatible forward without replacing your working schema.\nSet `PORT_LO` and `PORT_HI` at run time to confine proof servers and launchers;\nunset means allocated proof ports and the interactive starter defaults.\nSet `CHROME=/path/to/chromium` or install Playwright's Chromium (`npx playwright-core install chromium`).\n";
 /// Only the exact generated appendix is ignored for historical byte recognition.
-pub(super) fn without_readme(text: &str) -> &str { text.strip_suffix(README_PROOFS).or_else(|| text.strip_suffix(PREVIOUS_README_PROOFS)).unwrap_or(text) }
+pub(super) fn without_readme(text: &str) -> &str { text.strip_suffix(README_PROOFS).or_else(|| text.strip_suffix(PREVIOUS_30_README_PROOFS)).or_else(|| text.strip_suffix(PREVIOUS_README_PROOFS)).unwrap_or(text) }
 pub(super) fn readme(mut text: String) -> String {
     if !text.contains("`npm run frontend:proof`") { text.push_str(README_PROOFS); }
     text
@@ -23,7 +24,8 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, 
     let sources = if let Ok(Some(own)) = super::own_schema(dir) {
         own.files.iter().filter_map(|name| std::fs::read_to_string(dir.join("snapback").join(name)).ok().map(|text| (name.clone(), text))).collect::<Vec<_>>()
     } else { files.iter().find(|(name, _)| *name == "snapback/schema.q").map(|(_, text)| vec![("schema.q".to_owned(), text.clone())]).unwrap_or_default() };
-    for version in ["v1", "v2"] {
+    let day2 = options.flags.contains_key("day2");
+    for version in ["v1", "v2"].into_iter().filter(|_| day2) {
         if dir.join("versions").join(version).exists() { continue; }
         // Init is a one-shot CLI operation. Destinations live for this invocation's
         // plan, whose existing interface uses static generated names.
@@ -47,12 +49,15 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, 
         }
     }
     files.push(("scripts/frontend-proof.mjs", proof));
-    files.push(("scripts/day2-proof.mjs", include_str!("day2-proof.mjs").to_owned()));
+    if day2 { files.push(("scripts/day2-proof.mjs", include_str!("day2-proof.mjs").to_owned())); }
     files.push(("scripts/launch.mjs", include_str!("launch.mjs").replace("BACKEND", &backend.to_string()).replace("FRONTEND", &frontend.to_string())));
     for (name, text) in files.iter_mut().filter(|(name, _)| *name == "package.json") {
         let mut package: Value = serde_json::from_str(text).unwrap();
         package["scripts"]["frontend:proof"] = json!("node scripts/frontend-proof.mjs");
-        package["scripts"]["day2:proof"] = json!("node scripts/day2-proof.mjs versions/v1 versions/v2");
+        if day2 { package["scripts"]["day2:proof"] = json!("node scripts/day2-proof.mjs versions/v1 versions/v2"); }
+        if (package["snapback4"].is_null() || package["snapback4"].is_object()) && (package["snapback4"]["starter"].is_null() || package["snapback4"]["starter"].is_object()) {
+            package["snapback4"]["starter"]["day2"] = json!(day2);
+        }
         package["scripts"]["proof:web"] = json!("node scripts/frontend-proof.mjs");
         package["devDependencies"]["playwright-core"] = json!("1.55.1");
         package["scripts"]["backend"] = json!("node scripts/launch.mjs backend");
@@ -69,7 +74,7 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, 
     }
 }
 
-fn frontend_proof(source: &str, template: Option<&str>, web: bool) -> String {
+pub(super) fn frontend_proof(source: &str, template: Option<&str>, web: bool) -> String {
     // Social keeps account controls on its Profile tab; prove the actual route.
     let mut proof = source.replace("// TEMPLATE_READY", if template == Some("social") {
         "await page.getByText(\"Profile\", { exact: true }).click();"
@@ -98,16 +103,12 @@ fn frontend_proof(source: &str, template: Option<&str>, web: bool) -> String {
 }
 
 fn previous_frontend(dir: &std::path::Path, web: bool) -> Option<Option<&'static str>> {
-    let text = std::fs::read_to_string(dir.join("scripts/frontend-proof.mjs")).ok()?;
-    [None, Some("chat"), Some("social")].into_iter().find(|template| {
-        [include_str!("previous/frontend-proof-0.4.28.mjs"), include_str!("previous/frontend-proof-0.4.29.mjs")]
-            .iter().any(|source| text == frontend_proof(source, *template, web))
-    })
+    super::proof_advice::frontend_template(dir, web).filter(|(version,_)| matches!(*version,"0.4.28"|"0.4.29")).map(|(_,template)|template)
 }
 
 /// Adapt adds missing proof infrastructure, preserving files and script names
 /// already owned by the application. It never runs a package manager.
-pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema) -> std::io::Result<Vec<(&'static str, String)>> {
+pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema, enable_day2: bool) -> std::io::Result<Vec<(&'static str, String)>> {
     let web = dir.join("src/App.tsx").is_file();
     let router = dir.join("app/_layout.tsx").is_file();
     if !web && !dir.join("App.tsx").is_file() && !router { return Ok(Vec::new()); }
@@ -120,6 +121,17 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema) -> std::io::Re
     let router = router && !web && package["main"] == "expo-router/entry";
     if !web && !dir.join("App.tsx").is_file() && !router { return Ok(Vec::new()); }
     let original = package.clone();
+    let day2_text = std::fs::read_to_string(dir.join("scripts/day2-proof.mjs")).ok();
+    let referenced_day2 = package["scripts"].as_object().is_some_and(|scripts| scripts.values().any(|v| v.as_str().is_some_and(|s| s.contains("scripts/day2-proof.mjs"))));
+    let missing_managed_day2 = day2_text.is_none() && matches!(package["scripts"]["day2:proof"].as_str(),
+        Some("node scripts/day2-proof.mjs" | "node scripts/day2-proof.mjs versions/v1.q versions/v2.q" | "node scripts/day2-proof.mjs versions/v1 versions/v2"));
+    let managed_day2 = day2_text.as_deref().is_some_and(super::proof_advice::known_day2) || missing_managed_day2;
+    let day2 = enable_day2 || referenced_day2 || package.pointer("/snapback4/starter/day2") != Some(&json!(false)) && managed_day2;
+    // Deleting both the command and file records a durable opt-out on apply.
+    // Preview/check never write the inferred choice. Explicit --day2 opts in again.
+    if (package["snapback4"].is_null() || package["snapback4"].is_object()) && (package["snapback4"]["starter"].is_null() || package["snapback4"]["starter"].is_object()) {
+        package["snapback4"]["starter"]["day2"] = json!(day2);
+    }
     let backend = package["scripts"]["backend"].as_str().and_then(|s| s.strip_prefix("snapback4 dev --port ")).and_then(|s| s.parse::<u16>().ok())
 .or_else(|| launcher_port(dir, "backend")).unwrap_or(4400);
     let frontend = launcher_port(dir, "frontend").or_else(|| package["scripts"][if web { "dev" } else { "start" }].as_str()
@@ -127,34 +139,33 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema) -> std::io::Re
         .or_else(|| std::fs::read_to_string(dir.join("vite.config.mts")).ok().and_then(|s| s.split_once("server: { port: ").and_then(|(_, rest)| rest.split(|c: char| !c.is_ascii_digit()).next()).and_then(|n| n.parse::<u16>().ok())))
         ).unwrap_or(if backend != 4400 { backend.saturating_add(1) } else if web { 5173 } else { 8081 });
     let mut generated = vec![("package.json", pretty(&package))];
-    files(&mut generated, &Options { positionals: vec![dir.to_string_lossy().into_owned()], flags: if router { [("template".into(), "social".into())].into() } else { Default::default() }, json: false }, backend, frontend, web, &shape);
+    let mut flags = std::collections::BTreeMap::new();
+    if router { flags.insert("template".into(), "social".into()); }
+    if day2 { flags.insert("day2".into(), String::new()); }
+    files(&mut generated, &Options { positionals: vec![dir.to_string_lossy().into_owned()], flags, json: false }, backend, frontend, web, &shape);
     // A saved version is immutable application evidence. Never fill its missing
     // fixture files from today's working release during an adaptation.
     generated.retain(|(name, _)| !name.starts_with("versions/") || {
         let version = name.split('/').nth(1).unwrap();
         !dir.join("versions").join(version).exists()
     });
-    generated.retain_mut(|(name, text)| {
-        let Some(rest) = name.strip_prefix("versions/") else { return true; };
-        let (version, leaf) = rest.split_once('/').unwrap();
-        let legacy = dir.join("versions").join(format!("{version}.q"));
-        if !legacy.is_file() { return true; }
-        if leaf == "schema.q" { *text = std::fs::read_to_string(legacy).unwrap_or_else(|_| text.clone()); true }
-        else { leaf == "fixtures/.gitkeep" }
-    });
+    // New directories capture the current source and contemporary fixtures. Flat
+    // legacy snapshots remain untouched evidence; they are never propagated.
+    // Custom proofs own their saved source layout; do not manufacture snapshots.
+    if !managed_day2 && !enable_day2 { generated.retain(|(name,_)| !name.starts_with("versions/")); }
     let wanted: Value = serde_json::from_str(&generated[0].1).unwrap();
     for group in ["scripts", "devDependencies"] {
         if !package[group].is_object() { package[group] = json!({}); }
         for (key, value) in wanted[group].as_object().unwrap() {
             let old = package[group].get(key).and_then(Value::as_str);
             let managed = group == "scripts" && old.is_some_and(|old| match key.as_str() {
-                "day2:proof" => old == "node scripts/day2-proof.mjs",
+                "day2:proof" => managed_day2 && matches!(old, "node scripts/day2-proof.mjs" | "node scripts/day2-proof.mjs versions/v1.q versions/v2.q"),
                 "backend" => old.strip_prefix("snapback4 dev --port ").is_some_and(|n| n.parse::<u16>().is_ok()),
                 "dev" | "preview" => old.strip_prefix(if key == "dev" { "vite --port " } else { "vite preview --port " }).and_then(|s| s.strip_suffix(" --strictPort")).is_some_and(|n| n.parse::<u16>().is_ok()),
                 "start" | "web" => old.strip_prefix(if key == "start" { "expo start --port " } else { "expo start --web --port " }).is_some_and(|n| n.parse::<u16>().is_ok()),
                 _ => false,
             });
-            if managed || ((key == "frontend:proof" || key == "day2:proof" || key == "playwright-core") && old.is_none()) { package[group][key] = value.clone(); }
+            if managed || ((key == "day2:proof" && enable_day2 || key == "frontend:proof" && super::proof_advice::known_frontend(dir) || key == "playwright-core" && (super::proof_advice::known_frontend(dir) || super::proof_advice::referenced(dir, "scripts/frontend-proof.mjs"))) && old.is_none()) { package[group][key] = value.clone(); }
         }
     }
     let mut config_changes = Vec::new();
@@ -175,7 +186,14 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema) -> std::io::Re
         }
     }
     let mut additions: Vec<_> = generated.into_iter().skip(1)
-        .filter(|(name, _)| !dir.join(name).exists() || (*name == "scripts/frontend-proof.mjs" && inherited_frontend.is_some()) || (*name == "scripts/day2-proof.mjs" && std::fs::read_to_string(dir.join(name)).ok().is_some_and(|text| text == include_str!("previous/day2-proof-0.4.28.mjs") || text == include_str!("previous/day2-proof-0.4.29.mjs")))) .collect();
+        .filter(|(name, _)| {
+            if *name == "scripts/frontend-proof.mjs" { return inherited_frontend.is_some() || !dir.join(name).exists() && super::proof_advice::referenced(dir, name); }
+            if *name == "scripts/day2-proof.mjs" { return day2 && (managed_day2 || !dir.join(name).exists() && (enable_day2 || referenced_day2)); }
+            if !dir.join(name).exists() {
+                return name.starts_with("versions/") || super::proof_advice::referenced(dir, name);
+            }
+            false
+        }).collect();
     additions.extend(config_changes);
     if package != original { additions.push(("package.json", pretty(&package))); }
     Ok(additions)
@@ -240,14 +258,14 @@ mod tests {
                     let path = dir.join("scripts/frontend-proof.mjs");
                     std::fs::write(&path, frontend_proof(source, template, web)).unwrap();
                     let own = super::super::own_schema(&dir).unwrap().unwrap();
-                    let changes = plan(&dir, &own).unwrap();
+                    let changes = plan(&dir, &own, false).unwrap();
                     let updated = &changes.iter().find(|(name, _)| *name == "scripts/frontend-proof.mjs").unwrap().1;
                     assert_eq!(updated, &frontend_proof(include_str!("frontend-proof.mjs"), template, web));
                     assert!(updated.contains(if web { "[\"run\", \"build\"]" } else { "[\"run\", \"build:web\"]" }));
                     if template == Some("social") { assert!(updated.contains("Save profile") && updated.contains("getByText(\"Profile\"")); }
                     if template == Some("chat") { assert!(updated.contains("Proof room") && updated.contains("name: \"Send\"")); }
                     std::fs::write(path, format!("{}\n// app-owned assertion\n", frontend_proof(source, template, web))).unwrap();
-                    assert!(!plan(&dir, &own).unwrap().iter().any(|(name, _)| *name == "scripts/frontend-proof.mjs"));
+                    assert!(!plan(&dir, &own, false).unwrap().iter().any(|(name, _)| *name == "scripts/frontend-proof.mjs"));
                     std::fs::remove_dir_all(dir).unwrap();
                 }
             }

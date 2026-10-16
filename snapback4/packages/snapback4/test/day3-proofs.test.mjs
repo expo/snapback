@@ -22,7 +22,7 @@ test("proof usage guards report actual received values", () => {
 });
 test("generated day-two proof fails at business placeholder and releases its hosts", async t => {
   const cwd = fixture(t);
-  assert.equal((await cli(["init", "--web"], { cwd })).code, 0);
+  assert.equal((await cli(["init", "--web", "--day2"], { cwd })).code, 0);
   const pkg = JSON.parse(readFileSync(join(cwd, "package.json")));
   assert.match(pkg.scripts["day2:proof"], /versions\/v1 versions\/v2$/);
   const result = await command(process.execPath, ["scripts/day2-proof.mjs", "versions/v1", "versions/v2"], { cwd, timeoutMs: 60_000 });
@@ -32,7 +32,7 @@ test("generated day-two proof fails at business placeholder and releases its hos
 });
 test("frontend proof invokes its own build before starting any host", async t => {
   const cwd = fixture(t);
-  assert.equal((await cli(["init", "--web"], { cwd })).code, 0);
+  assert.equal((await cli(["init", "--web", "--day2"], { cwd })).code, 0);
   const pkg = JSON.parse(readFileSync(join(cwd, "package.json")));
   pkg.scripts.build = "node build.mjs";
   writeFileSync(join(cwd, "package.json"), JSON.stringify(pkg));
@@ -46,7 +46,7 @@ test("frontend proof invokes its own build before starting any host", async t =>
 
 test("expiry recovery refuses while the deployment owner is serving", async t => {
   const cwd = fixture(t);
-  assert.equal((await cli(["init", "--web"], { cwd })).code, 0);
+  assert.equal((await cli(["init", "--web", "--day2"], { cwd })).code, 0);
   await deploy("deployment", "versions/v1/schema.q", { cwd });
   const serve = await startServe("deployment", { cwd });
   try {

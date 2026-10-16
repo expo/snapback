@@ -1431,7 +1431,8 @@ fn adapt_adds_missing_proof_files_and_preserves_application_proofs() {
     fs::remove_dir_all(dir.0.join("scripts")).unwrap();
     let path = dir.0.join("package.json");
     let mut package: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
-    package["scripts"].as_object_mut().unwrap().remove("frontend:proof");
+    // The missing proof is still referenced by frontend:proof.
+
     package["devDependencies"].as_object_mut().unwrap().remove("playwright-core");
     fs::write(&path, package.to_string()).unwrap();
     assert!(dir.init(&["--adapt", "--apply"]).status.success());
