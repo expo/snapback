@@ -236,7 +236,7 @@ pub(super) fn behavior(store_path: &Path, current: &Schema, target: &Schema, bef
         warnings.push(format!("{} changed: {count} {} unproved across {}; verify their refusal cases before selecting {target_label}", dependencies.into_iter().collect::<Vec<_>>().join(", "), if count==1 {"guard"} else {"guards"}, operations.into_iter().collect::<Vec<_>>().join(", ")));
     }
     for warning in &mut warnings {
-        if warning.contains("guards unproved") {continue;}
+        if warning.contains("guards unproved") || warning.contains("guard unproved") {continue;}
         warning.push_str(if warning.contains("lacks operation") { "; preserve callers in a bridge or accept this operation being unavailable" }
             else if warning.contains("schedule") || warning.contains("job ") { "; verify scheduled work before selecting this release" }
             else { "; verify allowed and refused cases before selecting this release" });

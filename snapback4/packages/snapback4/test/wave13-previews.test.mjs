@@ -697,3 +697,41 @@ mutation resultGuard():
   assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*changes \(implication unproved\) resultGuard.require/);
   run('deploy',deployment);assert.equal((await host.post('/m/resultGuard',{})).why.code,'BLOCKED');await host.stop();
 });
+
+test('loop-carried write results retain their patch inputs on later iterations', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe.replace('  insert <- allow\n  online only\nmutation add', '  insert <- allow\n  update <- allow\n  online only\nmutation add')+`mutation seedNote():
+  return insert notes {id: 'n', body: 'before'}
+mutation loopResult(values: [int] <=2):
+  ok = true
+  for value in values:
+    require ok else BLOCKED
+    r = update notes['n'] {body: 'safe'}
+    ok = r.body != 'blocked'
+  return true
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);assert.equal((await host.post('/m/seedNote',{})).state,'sent');
+  assert.equal((await host.post('/m/loopResult',{values:[1,2]})).state,'sent');
+  writeFileSync(schema,source.replace("{body: 'safe'}","{body: 'blocked'}"));
+  assert.match(run('deploy',deployment,'--check').stdout,/compiled guard changed: 1 guard unproved across loopResult/);
+  run('deploy',deployment);assert.equal((await host.post('/m/loopResult',{values:[1,2]})).why.code,'BLOCKED');await host.stop();
+});
+
+test('insert-if-absent result guards depend on every consulted unique index', {timeout:hangBudget(4)}, async t => {
+  const {schema,deployment,run}=fixture(t);
+  const source=probe+`mutation seedNote():
+  return insert notes {id: 'n', body: 'same'}
+mutation uniqueResult():
+  r = insert notes {body: 'same'} if absent
+  require r != null else DUP
+  require false else PROBED
+  return true
+`;
+  writeFileSync(schema,source);run('deploy',deployment);
+  const host=await serve(t,deployment);assert.equal((await host.post('/m/seedNote',{})).state,'sent');
+  assert.equal((await host.post('/m/uniqueResult',{})).why.code,'PROBED');
+  writeFileSync(schema,source.replace('  body: text <=80','  body: text <=80\n  unique body'));
+  assert.match(run('deploy',deployment,'--check').stdout,/notes changed: 1 guard unproved across uniqueResult/);
+  run('deploy',deployment);assert.equal((await host.post('/m/uniqueResult',{})).why.code,'DUP');await host.stop();
+});

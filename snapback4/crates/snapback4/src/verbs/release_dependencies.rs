@@ -120,6 +120,13 @@ impl Dependencies {
         match value {
             Value::Object(fields) => {
                 if fields.contains_key("Literal") { return; }
+                if let Some(table)=fields.get("insertTarget").and_then(Value::as_str) {
+                    self.population(schema,table);
+                    if let Some(definition)=schema.table(table) {
+                        self.0.insert(format!("{table}.unique"),json!(definition.indexes.iter().filter(|(_,index)|index.unique).collect::<BTreeMap<_,_>>()));
+                        for (name,index) in &definition.indexes {if index.unique {self.index(schema,table,name);}}
+                    }
+                }
                 if let Some(table)=fields.get("ReceiptSettled").and_then(|r|r["table"].as_str()) {self.population(schema,table);}
                 if let Some(object) = fields.get("Object").and_then(Value::as_object) {
                     for value in object.values() {self.expression(schema,value,bindings,visited,None);}
@@ -226,6 +233,15 @@ fn resolved(value: &Value, bindings: &BTreeMap<String,Value>, visiting: &mut BTr
     }
 }
 
+// Result definitions are shared by sequential and loop-carried data flow.
+fn result_binding(stmt: &ir::Stmt) -> Option<(String,Value)> {
+    match stmt {
+        ir::Stmt::WriteTarget {target,patch,upsert,condition,result:Some(name)}=>Some((name.clone(),json!({"writeResult":[{"Get":target},patch,upsert,condition]}))),
+        ir::Stmt::InsertIfAbsent {table,row,result}=>Some((result.clone(),json!({"insertResult":[{"insertTarget":table},{"Get":{"table":table,"index":"byId","key":[]}},row]}))),
+        _=>None,
+    }
+}
+
 fn guards(schema: &Schema, program: &ir::Program) -> Vec<Dependencies> {
     selected_guards(schema,program,&BTreeSet::new())
 }
@@ -327,13 +343,9 @@ fn selected_guards(schema: &Schema, program: &ir::Program, excluded: &BTreeSet<S
                 ir::Stmt::Const {name,value} | ir::Stmt::Let {name,value} | ir::Stmt::Assign {name,value} => {
                     bindings.insert(name.clone(), resolved(&json!(value),&bindings,&mut BTreeSet::new()));
                 },
-                ir::Stmt::WriteTarget {target,patch,upsert,condition,result:Some(name)} => {
-                    let value=resolved(&json!({"writeResult":[{"Get":target},patch,upsert,condition]}),&bindings,&mut BTreeSet::new());
-                    bindings.insert(name.clone(),value);
-                },
-                ir::Stmt::InsertIfAbsent {table,row,result} => {
-                    let value=resolved(&json!({"insertResult":[{"Get":{"table":table,"index":"byId","key":[]}},row]}),&bindings,&mut BTreeSet::new());
-                    bindings.insert(result.clone(),value);
+                ir::Stmt::WriteTarget {result:Some(_),..} | ir::Stmt::InsertIfAbsent {..} => {
+                    let (name,value)=result_binding(stmt).unwrap();
+                    bindings.insert(name,resolved(&value,&bindings,&mut BTreeSet::new()));
                 },
                 ir::Stmt::Push {target,value} => {
                     bindings.insert(target.clone(),json!({"append":[bindings.get(target),resolved(&json!(value),&bindings,&mut BTreeSet::new())]}));
@@ -381,6 +393,9 @@ fn selected_guards(schema: &Schema, program: &ir::Program, excluded: &BTreeSet<S
                         for stmt in stmts {match stmt {
                             ir::Stmt::Const {name,value} | ir::Stmt::Let {name,value} | ir::Stmt::Assign {name,value}=>out.entry(name.clone()).or_default().push(json!([context,value])),
                             ir::Stmt::Push {target,value}=>out.entry(target.clone()).or_default().push(json!([context,value])),
+                            ir::Stmt::WriteTarget {result:Some(_),..} | ir::Stmt::InsertIfAbsent {..}=>{
+                                let (name,value)=result_binding(stmt).unwrap();out.entry(name).or_default().push(json!([context,value]));
+                            },
                             ir::Stmt::If {condition,then_body,else_body}=>{
                                 let mut branch=context.to_vec();branch.push(json!({"then":condition}));carried(then_body,&branch,out,exits);
                                 let mut branch=context.to_vec();branch.push(json!({"else":condition}));carried(else_body,&branch,out,exits);
