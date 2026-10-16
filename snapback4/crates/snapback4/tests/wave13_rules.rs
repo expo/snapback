@@ -192,3 +192,23 @@ fn offline_read<S: snapback4_device::store::DeviceStore>(device: &mut snapback4_
         assert!(read["ok"]["data"].as_array().is_none_or(|rows|rows.is_empty()),"revoked offline audience: {read}");
     }
 }
+
+#[test]
+fn diagnostic_recipe_selectors_open_the_named_recipe() {
+    for (name,heading) in [
+        ("offline-roster","## Offline roster with a supervisor"),
+        ("quantified-consent","## Quantified consent via maintained counts"),
+        ("mutable-workflow","## Mutable workflow gate as an explicit probe"),
+        ("source-publication","## Publication maintained from its source"),
+        ("owner-now","## Owner now, peers at deadline"),
+        ("grant-expiry","## Grant expiry versus owner visibility"),
+        ("role-workflow","## End-to-end role workflow"),
+        ("update-images","## Update images and the two authorization layers"),
+    ] {
+        let out=Command::new(BIN).args(["guide","rule-recipes",name]).output().unwrap();
+        assert!(out.status.success(),"{name}: {out:?}");
+        let text=String::from_utf8(out.stdout).unwrap();
+        assert!(text.contains(heading),"{name}: {text}");
+        assert!(text.lines().count()<=125 && !text.contains("table roles:"),"{name} must open just its recipe");
+    }
+}
