@@ -152,6 +152,7 @@ export function registerWebWitness(app: App, api: Operations): void {
 }
 
 /** Run an event handler with an explicit write claim that survives awaited uploads.
+ * @ref LLP 3000.011.003.000.000#11 — only explicit per-arm custody survives an async handler.
  * Call synchronously from the clicked control. Use the supplied mutate inside
  * the callback; it carries only that arm's token, never another handler's writes.
  */
