@@ -150,6 +150,7 @@ if (!baseline) test('unclaimable events, operations and arguments settle with re
  window.__snapback4Witness.beginForm('save',null,button);
  const click={isTrusted:true,composedPath:()=>[button]};window.event=click;events.get('click')(click);
  await app.mutate(op,{});let settled=false;window.__snapback4Witness.formResult().then(()=>settled=true);await Promise.resolve();assert.equal(settled,false);
+ for(const fn of listeners)fn({state:'pending',id:'later'});await Promise.resolve();assert.equal(settled,false,'late custody notification is not terminal');
  for(const fn of listeners)fn({state:'sent',id:'later',seq:2});assert.equal((await window.__snapback4Witness.formResult()).state,'sent');assert.equal(listeners.size,0);
 });
 

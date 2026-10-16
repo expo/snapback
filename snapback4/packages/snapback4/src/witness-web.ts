@@ -88,6 +88,9 @@ export function registerWebWitness(app: App, api: Operations): void {
         expiry = setTimeout(receiptExpired, 30_000);
         let id: string | undefined, early: Write[] = [];
         const stop = client.onWrite(write => {
+          // Native clients publish terminal receipts; foreign adapters must not
+          // turn a pending notification into terminal proof evidence either.
+          if ((write as Write).state === "pending") return;
           if (id === undefined) { early.push(write); if (early.length > 256) early.shift(); }
           else if (write.id === id) { stop(); finish({ ...write, mutation: op.name }); }
         });
