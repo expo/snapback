@@ -22,8 +22,8 @@ test('H9 renderedText opts into substring matching for a row with more than the 
   assert.equal(await row.count(), 1, 'explicit substring matches the whole rendered row');
   assert.equal(await kit.waitForFresh(row, null, {timeoutMs:500}), 'Proof needle — more row text');
   assert.equal(await kit.waitForFresh(kit.renderedText(page, /Proof needle/, {within}), null, 500), 'Proof needle — more row text');
-  await assert.rejects(kit.waitForFresh(row, 'Proof needle — more row text', {timeoutMs:50}), /getByText.*last count=1.*Proof needle.*present but unchanged/);
-  await assert.rejects(kit.waitForFresh(kit.renderedText(page,'missing'), null, {timeoutMs:50}), /last count=0.*text=null.*absent/);
+  await assert.rejects(kit.waitForFresh(row, 'Proof needle — more row text', {timeoutMs:1000}), /getByText.*last count=1.*Proof needle.*present but unchanged/);
+  await assert.rejects(kit.waitForFresh(kit.renderedText(page,'missing'), null, {timeoutMs:1000}), /last count=0.*text=null.*absent/);
 }));
 test('H9 P12 a trusted click that writes nothing settles E_WITNESS_NO_WRITE and rearming settles the old promise', {timeout:30000}, async t => browser(t, async page => {
   const cwd=mkdtempSync(join(tmpdir(),'kit2-no-write-'));

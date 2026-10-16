@@ -1,11 +1,6 @@
 # Testing: fixtures and the packaged proof kit
 
 Prove backend behavior with fixtures and the rendered UI with the packaged proof kit.
-Raw HTTP starts with JSON envelopes: POST /q/name `{args:{...}}`, POST /m/name
-`{id:"stable-intent-id",args:{...}}`, POST /a/name `{id:"stable-action-id",args:{...}}`.
-Keep the same id on an ambiguous retry. A mutation/action id identifies the attempt;
-`result.id` identifies a returned row. Query data is under `data`, writes under `result`;
-actions have their own lifecycle (`guide actions`), not a mutation receipt.
 Starters generate frontend:proof and day2:proof, and the kit owns server and browser lifecycles.
 
 ```js
@@ -13,6 +8,12 @@ import { startDev, cleanup } from "snapback4/proof";
 const dev = await startDev();
 try { console.log(dev.url); } finally { await cleanup(() => dev.stop()); }
 ```
+
+Raw HTTP starts with JSON envelopes: POST /q/name `{args:{...}}`, POST /m/name
+`{id:"stable-intent-id",args:{...}}`, POST /a/name `{id:"stable-action-id",args:{...}}`.
+Keep the same id on an ambiguous retry. A mutation/action id identifies the attempt;
+`result.id` identifies a returned row. Query data is under `data`, writes under `result`;
+actions have their own lifecycle (`guide actions`), not a mutation receipt.
 
 Build with `npm run build` (web) or `npm run build:web` (Expo web) first.
 After replacing the starter screen, replace its business assertions too.
@@ -165,6 +166,8 @@ its deadline reports the last answer. A poll timeout never means the write faile
 `await frontPage(page)` brings the page forward before `await page.screenshot(...)`.
 
 E_WITNESS_DISABLED means claiming is not armed. Add &witness=web to the proof URL.
+
+E_WITNESS_NO_WRITE means the armed click produced no durable mutation. Check the form handler and useAppReady() before clicking; a proof failure never cancels a write.
 
 E_WITNESS_UNCLAIMED means the armed durable write's event, operation or arguments did not match. Inspect the reason in formResult; the application write still runs normally.
 

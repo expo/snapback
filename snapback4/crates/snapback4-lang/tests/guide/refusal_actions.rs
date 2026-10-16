@@ -32,6 +32,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_WITNESS_READY", &["Repair the reported schema or storage refusal"]),
     ("E_WITNESS_SENT", &["Inspect the refusal; pending is not success"]),
     ("E_WITNESS_DISABLED", &["Add &witness=web to the proof URL"]),
+    ("E_WITNESS_NO_WRITE", &["Check the form handler and useAppReady()", "a proof failure never cancels a write"]),
     ("E_WITNESS_UNCLAIMED", &["Inspect the reason in formResult", "the application write still runs normally"]),
     ("E_WITNESS_WEB", &["Check the export, browser and application"]),
     ("E_REDUNDANT_RULE", &["Omit the entire read line", "making the total public would widen it"]),

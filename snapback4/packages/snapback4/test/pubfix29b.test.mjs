@@ -66,7 +66,7 @@ test('H7 missing optional Playwright gives a coded install command; help needs n
 test('H8 run, doctor, clock advance and reset discover a persisted dev on a non-default port', { timeout: 30_000 }, async t => {
   const cwd=fixture(t);mkdirSync(join(cwd,'snapback'));
   writeFileSync(join(cwd,'snapback/schema.q'),"use personas alice\nquery hello():\n  return 'hello'\n");
-  const dev=await startDev({cwd,args:['--no-watch'],env:{SNAPBACK4_BIN:binary,PORT_LO:undefined,PORT_HI:undefined}});
+  const dev=await startDev({cwd,args:['--no-watch','--no-memory'],env:{SNAPBACK4_BIN:binary,PORT_LO:undefined,PORT_HI:undefined}});
   t.after(()=>dev.stop());
   assert.notEqual(new URL(dev.url).port,'4400');
   okay(invoke(cwd,['run','hello','--as','alice']));

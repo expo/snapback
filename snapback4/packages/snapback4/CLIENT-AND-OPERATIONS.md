@@ -1577,6 +1577,7 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | --- | --- |
 | `AppProvider({ app })`, `SnapbackProvider({ client })` | the provider; `AppProvider` remounts its children when the account changes |
 | `useRelease()` | authenticated served capabilities; generation changes refresh metadata, never authority |
+| `useAppReady()` | initial app.ready resolved ok and auth is signed-in; gate initial write forms, not connectivity or permission |
 | `useAuth()` | `AuthSnapshot` plus `signup`, `login`, `guest`, `logout`, `logoutEverywhere`; `state === "signed-in"` narrows `viewer` |
 | `useClient()`, `useOnline()` | the `Client`; the app's server arm `Online` (under `AppProvider`) |
 | `useQuery(op, args, { keep, skip }?)` | `Read<R>` (`UseQuery<typeof op>`): narrow with `matchRead` or the guards; `skip: true` reads nothing (`loading`) |
@@ -1598,7 +1599,7 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | `matchReadList(read, handlers)` | list shorthand: partial may fall back, denial remains explicit |
 | `matchRead(read, handlers)` | the handlers' result for the read's state: `loading`, `denied`, `absent`, `partial`, `present`, or `otherwise`; `read` may be a `usePage` result |
 | `otherwiseAll(fallback, overrides?)` | spread anywhere into `matchRead`'s handlers: `fallback(read)` for every state the call does not name, `denied` and `partial` included; named handlers win in any order |
-| `isReady`, `isLoading`, `isDenied`, `isFailed`, `existence`, `readPresentation` | guards over any read (and `isFailed` over any `Outcome`, a hook, or `unknown`); the state name; notice flags |
+| `isReady`, `isPresent`, `isLoading`, `isDenied`, `isFailed`, `existence`, `readPresentation` | guards over any read (and `isFailed` over any `Outcome`, a hook, or `unknown`); the state name; notice flags |
 | `sentResult(write)` | a write's fresh server result, or `undefined` while pending, after a failure, before the first run, or for a replayed receipt |
 
 #### Narrowing reads and writes in TypeScript
@@ -4052,3 +4053,63 @@ export async function developmentHosts(cwd: string) {
   } finally { await cleanup(() => backend.stop()); }
 }
 ```
+
+
+### Poll authoritative projection after settlement
+
+After asserting a write's sent receipt, a proof can wait for its server-backed
+projection. A deadline reports the last answer and never declares a write failed.
+
+```ts
+import type { Client } from "snapback4/contract";
+import { waitForServer } from "snapback4/proof";
+import { api } from "../snapback/generated/api";
+export async function committedNote(client: Client, id: string) {
+  return waitForServer(() => client.query(api.staffNotes, {team:"proof"}),
+    read => "data" in read && read.fresh && read.data.some(row => row.id === id),
+    {label:"committed note"});
+}
+```
+
+
+## Password React and Expo
+
+Beside the persona form (`guide personas`), use this for `use identity password`:
+```tsx
+import { useState } from "react";
+import { createApp } from "snapback4/app";
+import { localStorageSessionStore } from "snapback4/auth";
+import { AppProvider, useAuth } from "snapback4/react";
+const app = createApp({ url: "http://127.0.0.1:4400", sessionStore: localStorageSessionStore() });
+export function PasswordApp() { return <AppProvider app={app}><Password /></AppProvider>; }
+function Password() {
+  const auth = useAuth(), [email, setEmail] = useState(""), [password, setPassword] = useState(""), [why, setWhy] = useState("");
+  if (auth.state === "restoring") return <>Restoring…</>;
+  if (auth.state === "signed-in") return <>Signed in as {auth.viewer}</>;
+  const submit = async (signup: boolean) => { const r = await (signup ? auth.signup(email, password) : auth.login(email, password)); if (!r.ok) setWhy(r.why.message); };
+  return <><input aria-label="Email" value={email} onChange={e => setEmail(e.target.value)} /><input aria-label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} />
+    <button onClick={() => void submit(false)}>Sign in</button><button onClick={() => void submit(true)}>Sign up</button>{why}</>;
+}
+```
+Sign-in: {ok:true, session} or {ok:false, why}. useAuth exposes no session. Expo: secureStoreSessionStore(SecureStore); web: localStorageSessionStore. guide production.
+
+`useAuth()` members: `state`, `viewer`, `why`, `signup(email, password)`, `login(email, password)`, `guest()`, `logout()`, `logoutEverywhere()`.
+`signOut()` belongs to the client, not useAuth. Install `expo-secure-store` with `npx expo install expo-secure-store`, then:
+```ts
+import * as SecureStore from "expo-secure-store"; import { nativeDevice, secureStoreSessionStore } from "snapback4-expo"; import { createApp } from "snapback4/app";
+const app = createApp({url: "http://127.0.0.1:4400", device: nativeDevice, sessionStore: secureStoreSessionStore(SecureStore)});
+```
+Storage failures propagate. Rebuild.
+
+
+## Shared list and write props
+```tsx
+import { matchReadList, readPresentation, type PageHook, type WriteHook } from "snapback4/react";
+export function SharedList<T extends {id: string}>({page, remove, label}: {page: PageHook<T[]>; remove: WriteHook<{id: string}, unknown>; label: (row: T) => string}) { const status = readPresentation(page.read); return <>{matchReadList(page.read, {denied: why => <p role="alert">{why.message}</p>,
+    otherwise: () => <p>{status.incomplete ? "Incomplete results" : "Waiting or empty"}</p>,
+    present: () => <ul>{page.items.map(row => <li key={row.id}>{label(row)}<button disabled={remove.inFlight} onClick={() => void remove.run({id: row.id})}>Remove</button></li>)}</ul>})}
+    {status.incomplete && <p>More rows may exist</p>}{remove.last?.state === "failed" && <p role="alert">{remove.last.why.message}</p>}
+    <button disabled={!page.hasMore} onClick={page.loadMore}>More</button></>; }
+```
+Pass usePage(api.list) and useMutation(api.remove). Match page.read, render page.items. `absent` can be an authorised empty list; query myMembership for roles. createClient takes generated handles (api.op), never names.
+

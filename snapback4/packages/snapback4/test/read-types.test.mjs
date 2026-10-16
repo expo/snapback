@@ -703,7 +703,7 @@ test('matchReadList infers typed list data and mixed returns, while denial remai
 
 test('guide shared list recipe typechecks against PageHook and WriteHook', async () => {
   const {readFileSync}=await import('node:fs');
-  const card=readFileSync(new URL('../../../crates/snapback4-lang/src/guide/client.md',import.meta.url),'utf8');
+  const card=readFileSync(new URL('../CLIENT-AND-OPERATIONS.md',import.meta.url),'utf8');
   const code=card.split('## Shared list and write props')[1].split('```tsx\n')[1].split('```')[0].replace('"snapback4/react"','"./dist/react.js"');
   const result=check(code,undefined,'tsx');assert.deepEqual(result.codes,[],result.text);
   assert.doesNotMatch(card,/members:.*`session`/);

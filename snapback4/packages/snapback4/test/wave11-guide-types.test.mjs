@@ -43,7 +43,7 @@ test('client and production published TSX uses the typed Write union, state gate
       check(source, count++);
     }
   }
-  assert.equal(count, 9, 'Every published TSX block is typechecked');
+  assert.equal(count, 7, 'Every published TSX block is typechecked');
 });
 
 // A form owns its client, save hook and upload error outside this input.
