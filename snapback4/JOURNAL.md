@@ -95831,3 +95831,21 @@ all 100 original schemas with zero added refusals and 28 immutable notes across
 17 lanes. Lane052's final reactions.at is mutable; its former refusal concerned
 link. No evidence schema was edited. Fresh amendment reviews are recorded under
 llp/reviews/3000.036.002-p18-*, independently of the earlier LANG2 reviews.
+
+## 2026-10-16 — LANG2 P18: readability is part of a refusal proof
+
+A private read rule can hide a target while its update rule admits the mutable
+remainder; even a known immutable key mismatch is then ignored at runtime.
+The hard-refusal fragment now requires unconditional public/allow readability
+or a system job. Private policies get N_IMMUTABLE_PATCH unless an equal value
+already makes the patch quiet. The source/native/simulator regression proves
+that a hidden caller succeeds while the readable caller's mismatch refuses.
+This source-diagnostic refinement preserves the existing runtime exception;
+LLP 3000.036.002 §10 and its fresh reviews record the final boundary.
+
+The readability proof also excludes opening/expiry, inherited read-through and
+ephemeral lifetimes, including system jobs. A public rule alone does not make
+an inactive target readable. The new pinned-clock regression covers an
+unopened success and an opened immutable refusal; generated P18 coverage now
+has 64 cases, including private-owner and unopened-public queues with explicit
+post-settlement comparison classes.

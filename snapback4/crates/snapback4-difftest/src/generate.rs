@@ -731,20 +731,27 @@ pub fn lang2(seed: u64, shape: u64) -> Case {
 /// immutable suppression. All cases remain ordinary generated source.
 pub fn immutable_patch(seed: u64, shape: u64) -> Case {
     let mut case = base(seed);
-    let shape = shape % 6;
+    let shape = shape % 8;
+    let update = matches!(shape,4|5);
     let table = &mut case.program.tables[0];
     table.rule = Rule::Allow;
-    table.residency = if shape == 2 { Residency::Online } else { Residency::Public };
-    table.effects = Some(vec![if shape == 2 { Rule::Deny } else { Rule::Allow }, Rule::Allow, Rule::Allow, Rule::Allow]);
-    table.immutable = vec![if shape >= 4 { "score" } else { "owner" }.into()];
-    case.program.body = Body::Write(if shape >= 4 { Write::Update } else { Write::Upsert }, Expr::Arg("a".into(),Type::Int));
+    table.residency = match shape { 2 => Residency::Online, 6 => Residency::Owner, _ => Residency::Public };
+    table.effects = Some(vec![match shape { 2 => Rule::Deny, 6 => Rule::Owner, _ => Rule::Allow }, Rule::Allow, Rule::Allow, Rule::Allow]);
+    table.immutable = vec![if update { "score" } else { "owner" }.into()];
+    if shape == 7 {
+        table.columns.push(column("opens",Type::Time));
+        table.not_before = Some("opens".into());
+    }
+    case.program.body = Body::Write(if update { Write::Update } else { Write::Upsert }, Expr::Arg("a".into(),Type::Int));
     case.program.helper = false;
     case.program.lets.clear();
     case.rows.clear();
     case.principal = "alice".into();
     let score = (seed % 100) as i64;
     if shape != 3 {
-        case.rows.push(("items".into(),json!({"id":"r0","owner":if matches!(shape,1|2) {"bob"} else {"alice"},"bucket":0,"score":score,"label":"old","flag":true,"maybe":null,"tag":"tag"})));
+        let mut row = json!({"id":"r0","owner":if matches!(shape,1|2|6|7) {"bob"} else {"alice"},"bucket":0,"score":score,"label":"old","flag":true,"maybe":null,"tag":"tag"});
+        if shape == 7 { row["opens"] = json!(case.clock + 1000); }
+        case.rows.push(("items".into(),row));
     }
     case.args = json!({"key":"r0","bucket":0,"c":null,"n":null,"a":score + if shape == 5 {1} else {0},"b":0});
     case

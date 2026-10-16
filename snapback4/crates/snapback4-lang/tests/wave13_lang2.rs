@@ -467,3 +467,31 @@ fn guards_may_establish_clock_equality_and_must_not_be_refused() {
 fn conditional_updates_may_guard_the_supplied_clock_value() {
     immutable_note(&format!("{IMMUTABLE}mutation guarded(e: entries):\n  update entries[e] {{ at: now }} if .at = now\n  return null\n"));
 }
+
+#[test]
+fn private_conflicts_cannot_be_statically_refused_when_hidden_fields_are_ignored() {
+    let source = "table entries:\n  owner: principal\n  at: time\n  token: id\n  body: text\n  unique owner\n  immutable owner, at, token\n  read <- .owner = viewer\n  update <- allow\n  online only\nmutation change():\n  update entries[owner = 'bob'] { owner: 'alice', body: 'saved' }\n  return null\nmutation clock(e: entries):\n  update entries[e] { at: now }\n  return null\nmutation mint(e: entries):\n  update entries[e] { token: new }\n  return null\n";
+    let b = checked(source);
+    assert_eq!(b.notes.iter().filter(|n|n.code=="N_IMMUTABLE_PATCH").count(),3);
+    let mut e = engine(source);
+    e.seed([("entries".into(),object([("id",id("e")),("owner",id("bob")),("at",Value::Int(1)),("token",id("old")),("body",Value::String("old".into()))]))]).unwrap();
+    let hidden = e.mutate("change",Some("hidden"),Context::new("alice",Default::default())).unwrap();
+    assert!(matches!(hidden.state,snapback4_core::WriteState::Sent { .. }),"{hidden:?}");
+    let visible = e.mutate("change",Some("visible"),Context::new("bob",Default::default())).unwrap();
+    let snapback4_core::WriteState::Failed { why, .. } = visible.state else { panic!("{visible:?}") };
+    assert_eq!(why.code,"E_CONSTRAINT");
+}
+
+#[test]
+fn public_but_unopened_targets_may_ignore_the_immutable_clock() {
+    let source = "table entries:\n  at: time\n  opens: time\n  body: text\n  not before .opens\n  immutable at\n  public\n  update <- allow\n  online only\nmutation change(e: entries):\n  update entries[e] { at: now, body: 'saved' }\n  return null\n";
+    immutable_note(source);
+    let b = checked(source);
+    let mut e = Engine::new_at(snapback4_core::store::Store::memory().unwrap(), b.schema, b.programs.into_iter().map(|p|p.program),0).unwrap();
+    e.seed_at([("entries".into(),object([("id",id("e")),("at",Value::Int(1)),("opens",Value::Int(1000)),("body",Value::String("old".into()))]))],0).unwrap();
+    let out = e.mutate("change",Some("unopened"),Context::new("alice",[("e".into(),id("e"))].into()).at(100)).unwrap();
+    assert!(matches!(out.state,snapback4_core::WriteState::Sent { .. }),"{out:?}");
+    let visible = e.mutate("change",Some("opened"),Context::new("alice",[("e".into(),id("e"))].into()).at(1100)).unwrap();
+    let snapback4_core::WriteState::Failed { why, .. } = visible.state else { panic!("{visible:?}") };
+    assert_eq!(why.code,"E_CONSTRAINT");
+}

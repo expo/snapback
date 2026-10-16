@@ -388,11 +388,10 @@ mutation expireRecreateRevoke(person: principal):
 
 fn expiring() -> Engine {
     let bound = snapback4_lang::compile(&[("schema.q".to_owned(), EXPIRING.to_owned())]);
-    assert!(!bound.diagnostics.is_empty() && bound.diagnostics.iter().all(|d| d.code == "E_QUARRY_IMMUTABLE"), "{:?}", bound.diagnostics);
-    // Preserve the adversarial external IR against the original immutable schema.
-    let runtime = snapback4_lang::compile(&[("schema.q".into(), EXPIRING.replace("  immutable group, person\n", "").replace("update <- .person = viewer", "update <- .person = viewer and exists members[.group, viewer]"))]);
-    assert!(runtime.diagnostics.is_empty(), "{:?}", runtime.diagnostics);
-    Engine::memory(bound.schema, runtime.programs.into_iter().map(|p| p.program)).unwrap()
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    assert!(bound.notes.iter().any(|note|note.code == "N_IMMUTABLE_PATCH"));
+    // Uncertain patches keep their original source and runtime equality law.
+    Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap()
 }
 
 fn at(engine: &mut Engine, op: &str, name: &str, a: &[(&str, Value)], ids: &[&str], now: i64) -> u64 {

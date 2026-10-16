@@ -12,8 +12,11 @@ impl Binder<'_> {
         let components = key.key.iter().map(|value| resolve(value, prior, 32, &stable)).collect::<Vec<_>>();
         let target = components.iter().cloned().collect::<Option<Vec<_>>>();
         let stored = inserted_target(info, index, target.as_deref(), prior, &stable);
-        let always_hidden = self.caller_kind != ProgramKind::Job && self.schema.table(&info.decl.name)
-            .is_some_and(|table| matches!(table.rules.read, snapback4_core::schema::RuleExpr::Deny));
+        // A hidden target ignores immutable fields. A value mismatch alone
+        // cannot prove refusal when some callers may not read the target.
+        let comparable = self.schema.table(&info.decl.name).is_some_and(|table|
+            table.through.is_none() && table.ephemeral.is_none() && !table.read_lifetime_sensitive()
+            && (self.caller_kind == ProgramKind::Job || table.rules.read.is_uniformly_readable()));
         for (column, supplied) in patch {
             if !info.decl.immutable.iter().any(|(fields, _)| fields.contains(column)) { continue; }
             let value = resolve(supplied, prior, 32, &stable);
@@ -39,7 +42,7 @@ impl Binder<'_> {
                 && !prior.iter().any(|statement| ir::effects::Effects::writes_in(std::slice::from_ref(statement)));
             // Each mint is unique per execution, even in loops; clocks can repeat.
             let fresh = matches!(supplied, Expr::Input(Input::NewId)) || value.as_ref().is_some_and(|value| fresh_capture(value, prior));
-            if !always_hidden && (differing || clock || fresh) {
+            if comparable && (differing || clock || fresh) {
                 let reason = if differing { "the supplied value provably differs from the target key or the row inserted earlier in this transaction" }
                     else if fresh { "a freshly minted id cannot equal an existing stored value" }
                     else { "a fresh clock value changes the original timestamp on a later conflict" };

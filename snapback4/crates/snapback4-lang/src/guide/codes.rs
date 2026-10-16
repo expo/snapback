@@ -309,7 +309,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_QUARRY_STATEMENT", "a non-final expression must be a write; bind a read or assertion to a local. guide programs."),
     ("E_QUARRY_FANOUT", "an atomic mutation needs a product cap on its whole population; page only for previews, or use a chunked job. guide bounds."),
     ("E_QUARRY_IMMUTABLE", "an immutable patch provably changes a stored value or supplies a fresh clock/id; omit it from the patch and set it on insert. guide writes."),
-    ("N_IMMUTABLE_PATCH", "an immutable patch may succeed only when its value equals the stored value; omit it if another value may update this row. guide writes."),
+    ("N_IMMUTABLE_PATCH", "on readable targets, an immutable patch succeeds only when its value equals the stored value; omit it if another value may update this row. guide writes."),
     ("N_CASCADE_DORMANT", "a cascade has no delete source and needs no cap yet; adding a delete rule, delete program or expiry rechecks its product bound. guide writes."),
     ("E_QUARRY_PLACEMENT", "a statement stands where it cannot: a write or `new` in a query, `break` outside a loop. The rewrite says where it belongs."),
     ("E_QUARRY_RETAIN", "a table has more than one `retain` line, or its policy word is not `until-revoked` or `delivered-history`."),
