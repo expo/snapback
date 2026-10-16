@@ -90,15 +90,15 @@ async function successful(args: string[], options: ProofOptions) {
   return result;
 }
 export function deploy(dir: string, schema: string, options: ProofOptions = {}) {
-  if (!schema) throw Error("proof deploy requires an explicit saved schema file");
+  if (typeof schema !== "string" || !schema) throw Error(`proof deploy requires an explicit saved schema file or directory; got ${JSON.stringify(schema) ?? String(schema)}: did npm run day2:proof pass versions/v1?`);
   return successful(["deploy", dir, "--schema", schema, ...(options.args ?? [])], options);
 }
 export function rollback(dir: string, to: number | "latest", options: ProofOptions = {}) {
-  if (to !== "latest" && (!Number.isSafeInteger(to) || to < 1)) throw Error("proof rollback requires an explicit immutable release target");
+  if (to !== "latest" && (!Number.isSafeInteger(to) || to < 1)) throw Error(`proof rollback requires an explicit immutable release target; got ${JSON.stringify(to) ?? String(to)}`);
   return successful(["rollback", dir, "--to", String(to), ...(options.args ?? [])], options);
 }
 export function testSource(source: string, options: ProofOptions = {}) {
-  if (!source) throw Error("proof testSource requires an explicit saved source file");
+  if (typeof source !== "string" || !source) throw Error(`proof testSource requires an explicit saved source file or directory; got ${JSON.stringify(source) ?? String(source)}: pass versions/v1`);
   return successful(["test", "--source", source, ...(options.args ?? [])], options);
 }
 

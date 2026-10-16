@@ -40,6 +40,10 @@ pub(super) fn engine_at(project: &Project, bound: &Bound, options: &Options, now
         if name == super::test_cases::FILE { continue; }
         let path = std::path::Path::new(fixture).join(&name);
         let Some(definition) = bound.schema.tables.get(table) else {
+            if options.flags.contains_key("saved-fixture-fallback") {
+                eprintln!("test: skipped {} — saved source declares no table {table}; pass --fixture <dir> to select contemporary fixtures explicitly", path.display());
+                continue;
+            }
             // @ref LLP 3000.011.003.000#7.4 — the starter's own unmodified sample is skipped loudly; a project's file for a missing table still refuses.
             if super::init::starter_fixture(&name).is_some_and(|starter| std::fs::read_to_string(&path).is_ok_and(|text| text == starter)) {
                 eprintln!("test: WARNING: skipped {} — the todo starter's unmodified sample rows for a `{table}` table your snapback/*.q does not declare; `snapback4 init --adapt` removes it and the starter's other leftovers", path.display());

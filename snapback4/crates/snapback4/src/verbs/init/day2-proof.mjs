@@ -1,17 +1,28 @@
-// npm run day2:proof -- versions/v1.q versions/v2.q
+// npm run day2:proof
 // Saved sources belong outside snapback/, where every .q file compiles together.
 // Add your business assertions at each release transition.
 import assert from "node:assert/strict";
-import { mkdtemp, rm, readFile } from "node:fs/promises";
+import { mkdtemp, rm, readFile, readdir, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { deploy, rollback, startServe, testSource, cli, cleanup } from "snapback4/proof";
 const args = process.argv.slice(2);
 // npm appends caller arguments after the script's default pair.
-const supplied = args.length > 2 && args[0] === "versions/v1.q" && args[1] === "versions/v2.q" ? args.slice(2) : args;
+const supplied = args.length > 2 && args[0] === "versions/v1" && args[1] === "versions/v2" ? args.slice(2) : args;
 const [v1, v2] = supplied;
-if (supplied.length !== 2 || !v1 || !v2) throw Error("usage: npm run day2:proof -- versions/v1.q versions/v2.q");
-const before = await Promise.all([readFile(v1), readFile(v2)]);
+if (supplied.length !== 2 || !v1 || !v2) throw Error("usage: npm run day2:proof");
+async function snapshot(path) {
+  if (!(await stat(path)).isDirectory()) return [[path, await readFile(path, "utf8")]];
+  const files = await readdir(path);
+  return (await Promise.all(files.sort().map(name => snapshot(join(path, name))))).flat();
+}
+const before = await Promise.all([snapshot(v1), snapshot(v2)]);
+async function assertBusiness({ url, release }) {
+  // BUSINESS_ASSERTION_BEGIN: replace this block with authenticated persisted-row,
+  // backfill and refusal assertions against url for each release transition.
+  assert.fail(`day2:proof needs a business assertion for ${release} at ${url}; replace BUSINESS_ASSERTION_BEGIN in scripts/day2-proof.mjs`);
+  // BUSINESS_ASSERTION_END
+}
 const directory = await mkdtemp(join(tmpdir(), "snapback4-day2-"));
 let serve;
 try {
@@ -19,11 +30,15 @@ try {
   await testSource(v2);
   await deploy(directory, v1);
   serve = await startServe(directory);
+  await assertBusiness({ url: serve.url, release: "v1" });
   await deploy(directory, v2);
+  await assertBusiness({ url: serve.url, release: "v2" });
   await rollback(directory, 1);
+  await assertBusiness({ url: serve.url, release: "rollback-v1" });
   await rollback(directory, "latest");
+  await assertBusiness({ url: serve.url, release: "forward-v2" });
   const history = await cli(["releases", directory, "--json"]);
   assert.equal(history.code, 0, history.stderr);
-  assert.deepEqual(await Promise.all([readFile(v1), readFile(v2)]), before);
+  assert.deepEqual(await Promise.all([snapshot(v1), snapshot(v2)]), before);
   console.log("day2:proof passed: deploy, hot upgrade, rollback and forward; sources unchanged");
 } finally { await cleanup(() => serve?.stop(), () => rm(directory, { recursive: true, force: true })); }

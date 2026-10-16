@@ -171,6 +171,18 @@ pub(super) fn web_client(client: String, offline: &Offline) -> String {
     } else { client }
 }
 
+/// With no synced tables, native and web both use the online client.
+pub(super) fn expo_client(client: String, offline: &Offline) -> String {
+    if matches!(offline, Offline::Tables { synced, .. } if synced.is_empty()) {
+        let client = client.replace("import { nativeAvailable, nativeDevice } from \"snapback4-expo\";\n", "")
+            .replace("import { webDevice } from \"snapback4/web\";\n", "")
+            .replace("export const tier = Platform.OS === \"web\" ? \"web\" : nativeAvailable() ? \"native\" : \"online\";", "export const tier = \"online\";")
+            .replace("  device: tier === \"web\" ? webDevice() : tier === \"native\" ? nativeDevice : undefined,\n", "")
+            .replace("// Development and production builds carry the native device (offline data and\n// a durable outbox); Expo Go has no native module and uses the online client;\n// web uses the wasm device.", "// No table syncs: every platform reads online; browser writes use its journal.");
+        client.replace("createApp({", "createApp({ writes: \"online\",")
+    } else { client }
+}
+
 /// Explicit server execution still uses the browser journal for writes.
 // @ref LLP 3000.013.000#3 — explicit online writes choose the journal even if the retained schema syncs.
 pub(super) fn online_web_client(client: String) -> String {
@@ -330,7 +342,7 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
     config["expo"]["ios"]["bundleIdentifier"] = json!(bundle);
     config["expo"]["android"]["package"] = json!(bundle);
     let (app, client) = identity_screens(Platform::Expo, shape.personas.as_deref(), &shape.body, shape.password);
-    let client = web_client(client, &shape.offline);
+    let client = expo_client(client, &shape.offline);
     vec![
         ("package.json", super::pretty(&package)),
         ("app.json", super::pretty(&config)),

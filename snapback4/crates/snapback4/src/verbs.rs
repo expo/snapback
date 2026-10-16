@@ -1195,14 +1195,30 @@ pub fn why(options: &Options) -> i32 {
 pub fn test(options: &Options) -> i32 {
     let project = match proof_source::project(options, "source") { Ok(project) => project, Err(e) => { eprintln!("test: {e}"); return 2; } };
     let sources = match proof_source::sources(&project, options, "source") { Ok(sources) => sources, Err(e) => { eprintln!("test: {e}"); return 2; } };
+    let bound = compiled_or_exit(proof_source::compile(&sources, options, "source"), options.json);
     let mut defaults = options.clone();
-    if !defaults.flags.contains_key("fixture") && project.root.join("fixtures").is_dir() {
-        let fixture = project.root.join("fixtures");
-        eprintln!("test: using {} (default fixture directory; override with --fixture <dir>)", fixture.display());
-        defaults.flags.insert("fixture".into(), fixture.to_string_lossy().into_owned());
+    if !defaults.flags.contains_key("fixture") {
+        let saved = options.flags.get("source").map(std::path::Path::new).map(|path| {
+            if path.is_dir() { path.join("fixtures") }
+            else if path.file_name().is_some_and(|name| name == "schema.q") { path.parent().unwrap().join("fixtures") }
+            else { path.with_file_name(format!("{}-fixtures", path.file_stem().unwrap_or_default().to_string_lossy())) }
+        });
+        if let Some(fixture) = saved.filter(|path| path.is_dir()) {
+            eprintln!("test: using {} (saved version's contemporary fixtures; override with --fixture <dir>)", fixture.display());
+            defaults.flags.insert("fixture".into(), fixture.to_string_lossy().into_owned());
+        } else if project.root.join("fixtures").is_dir() {
+            let fixture = project.root.join("fixtures");
+            if options.flags.contains_key("source") {
+                defaults.flags.insert("saved-fixture-fallback".into(), String::new());
+                eprintln!("test: no contemporary fixtures for saved source; validating only declared-table files in {}; pass --fixture <dir> for a complete contemporary case suite", fixture.display());
+                if fixture.join(test_cases::FILE).is_file() { eprintln!("test: skipped {} — working cases may target another release; pass --fixture <dir> to run explicitly", fixture.join(test_cases::FILE).display()); }
+            } else { eprintln!("test: using {} (default fixture directory; override with --fixture <dir>)", fixture.display()); }
+            defaults.flags.insert("fixture".into(), fixture.to_string_lossy().into_owned());
+        } else if options.flags.contains_key("source") {
+            eprintln!("test: no saved or working fixtures; query sweep only; pass --fixture <dir> for business cases");
+        }
     }
     let options = &defaults;
-    let bound = compiled_or_exit(proof_source::compile(&sources, options, "source"), options.json);
     // test applies dev's cast: a persona dev would refuse is not run as an ordinary viewer.
     // Residency measures any principal in the data (scale fixtures name thousands), so it notes instead.
     if let Some(why) = options.flags.get("as").and_then(|names| names.split(',').find_map(|name| test_cases::undeclared_persona(name, &bound.personas))) {
@@ -1234,8 +1250,7 @@ pub fn test(options: &Options) -> i32 {
         if !verbose { return 0; }
     }
     let (mut passed, mut failed_cases) = (0, 0);
-    if let Some(fixture) = options.flags.get("fixture") {
-
+    if let Some(fixture) = options.flags.get("fixture").filter(|_| !options.flags.contains_key("saved-fixture-fallback")) {
         match test_cases::run(&mut engine, &bound, fixture, &sources, fixture_now) {
             Ok((p, f)) => { passed = p; failed_cases = f; }
             Err(error) => { eprintln!("{error}"); return 1; }
@@ -1249,7 +1264,7 @@ pub fn test(options: &Options) -> i32 {
     let mut held_not_run = 0;
     let mut near = Vec::new();
     let (mut complete, mut capped, mut refused_derived, mut expected) = (0usize, 0usize, 0usize, 0usize);
-    let explicit = options.flags.get("fixture").map(|fixture| test_cases::explicit(fixture, &bound, fixture_now)).unwrap_or_default();
+    let explicit = options.flags.get("fixture").filter(|_| !options.flags.contains_key("saved-fixture-fallback")).map(|fixture| test_cases::explicit(fixture, &bound, fixture_now)).unwrap_or_default();
     for program in &bound.programs {
         if program.program.kind != ProgramKind::Query {
             continue;

@@ -9,11 +9,11 @@ const dev = await startDev();
 try { console.log(dev.url); } finally { await cleanup(() => dev.stop()); }
 ```
 
-Build with `npm run build` (web) or `npm run build:web` (Expo web) first.
+The generated frontend:proof builds its own dist with build (web) or build:web (Expo web).
 After replacing the starter screen, replace its business assertions too.
 `init --adapt` previews only and writes nothing; use the printed `--apply` command.
 A custom Home has no write scenario: replace the Home assertions; a proof without a write fails.
-`day2:proof` uses versions/v1.q and versions/v2.q (initial copies of your complete schema).
+`day2:proof` uses versions/v1 and versions/v2 (initial source snapshots and contemporary fixtures).
 
 E_FIXTURE_ALIAS means a saved alias or path could not resolve. Use an earlier case's `save` name with `$name` or `$name.field`; escape a literal with `$$` or `$literal`. An unresolved assertion fails the case; it never compares the alias as literal data.
 
@@ -195,13 +195,29 @@ Clock controls are dev-only; `guide clock` covers status, reset and restart.
 
 ## Day-two proofs with immutable sources
 
-Keep saved variants outside snapback/, where every .q file compiles together.
-`npm run day2:proof -- versions/v1.q versions/v2.q` runs the generated release
-proof; add your business assertions at each transition.
-`deploy(dir, savedSchema)` requires an explicit source; `rollback(dir, target)`
-requires an immutable release number or `latest`. Neither swaps working files.
-`testSource(file, {args:['--fixture','fixtures']})` runs the saved source in memory.
-The CLI equivalents are `deploy dir --schema file.q` and `test --source file.q`.
+Keep one directory per release outside snapback/: versions/v1/schema.q,
+any other .q modules with their original names, and versions/v1/fixtures/.
+Use the same versions/v1 directory for --schema, testSource and the compatibility
+baseline (guide deploy). The starter creates versions/v1 and versions/v2 with
+fixtures/; update the saved source and fixtures together as the product evolves.
+`npm run day2:proof` already passes those directories. Its marked
+BUSINESS_ASSERTION_BEGIN block fails until you replace it with authenticated
+persisted-row/backfill/refusal assertions for all four transitions. A successful
+release switch alone proves no business invariant.
+`deploy(dir, savedSchema)` requires an explicit source file or directory;
+`rollback(dir, target)` requires an immutable release number or `latest`.
+Neither swaps working files. `testSource("versions/v1")` and
+`test --source versions/v1` default to versions/v1/fixtures/. For a standalone
+versions/v1.q, the contemporary directory is versions/v1-fixtures/. An explicit
+`--fixture dir` always wins and validates every row and case strictly.
+Without contemporary fixtures, saved-source testing validates only working
+fixture files whose tables the saved source declares; it names skipped table
+files and skips working test.cases.jsonl, which may call later operations.
+Use `--fixture <contemporary-dir>` for a complete business suite. With no fixtures
+at all it announces a query sweep only. Shared-table rows remain strictly checked;
+unknown fields do not disappear. check reports inherited day2:proof scripts with
+no saved arguments: preview `init --adapt`, then run `init --adapt --apply`.
+SURF3 owns the deploy help synopsis; source layout is documented here and in guide deploy.
 Selected-source companions build/check their generated signatures privately;
 native dependency paths are rebased into that private build while its own
 source and generated types stay isolated. `guide deploy` covers deploy/rollback narration and business compatibility.

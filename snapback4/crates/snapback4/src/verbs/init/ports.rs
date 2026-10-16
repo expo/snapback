@@ -3,10 +3,10 @@ use super::super::Options;
 use serde_json::{Value, json};
 
 pub(super) fn range(options: &Options) -> Result<Option<(u16, u16)>, String> {
-    // Environment belongs to the process launch, never to generated files.
-    // Validate malformed assigned ranges at run time through snapback4/proof.
+    // Init bakes an assigned range just like --port-range. Launchers also
+    // accept a later runtime range when the project is copied to another lane.
     let text = options.flags.get("port-range").cloned();
-    let Some(text) = text else { return Ok(None) };
+    let Some(text) = text else { return environment() };
     let (low, high) = text.split_once('-').ok_or("--port-range must be A-B (1 <= A <= B <= 65535)")?;
     let (low, high) = (low.parse::<u16>(), high.parse::<u16>());
     match (low, high) {
@@ -33,7 +33,7 @@ pub(super) fn scripts(files: &mut Vec<(&'static str, String)>, backend: u16, fro
     }
 }
 
-/// The initializer only reports this range; generated files read it again at launch.
+/// Shared validation for the range baked at init and overridden at launch.
 pub(super) fn environment() -> Result<Option<(u16, u16)>, String> {
     match (std::env::var("PORT_LO").ok(), std::env::var("PORT_HI").ok()) {
         (None, None) => Ok(None),

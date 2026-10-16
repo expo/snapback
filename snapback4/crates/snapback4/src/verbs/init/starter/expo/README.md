@@ -14,7 +14,7 @@ wasm device.
 ```sh
 npm install
 npx snapback4 check      # compiles snapback/schema.q, writes snapback/generated/api.ts
-npx snapback4 dev        # serves http://127.0.0.1:4400 and reloads on save
+npm run backend         # serves http://127.0.0.1:4400 and reloads on save
 npm start                # in a second terminal: Expo Go, or press w for web
 npm run typecheck
 ```
@@ -38,7 +38,7 @@ guest", then add a few todos.
   with `useQuery`. Props name hook results by operation (`UsePage<typeof
   api.list>`, `UseQuery<…>`, `UseMutation<…>`), and `useSignedInViewer()` is
   the viewer below the sign-in. After you replace the schema,
-  `npx snapback4 init --adapt` swaps this screen for a `Home` that compiles
+  `npx snapback4 init --adapt` previews; `npx snapback4 init --adapt --apply` swaps this screen for a `Home` that compiles
   against any schema, while it is unmodified.
 - `expo-env.d.ts`: Expo's types, including `process.env.EXPO_PUBLIC_*`.
 - `metro.config.js` and `metro-wasm-transformer.cjs`: keep both; Metro then

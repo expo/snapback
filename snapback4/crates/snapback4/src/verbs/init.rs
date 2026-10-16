@@ -287,15 +287,15 @@ pub fn init(options: &Options) -> i32 {
     if expo && files.iter().any(|(name, _)| *name == "package.json") {
         println!("init: `npm install` takes a few minutes and reports about 15 high advisories from Expo's development toolchain (braces, node-forge: no patched release, not in the app bundle); expected — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)");
     }
-    let runtime = match ports::environment() { Ok(range) => range, Err(_) => None };
     if web {
-        let page = runtime.map(|(lo, _)| lo + 1).unwrap_or(web_port.unwrap_or(5173));
+        let page = web_port.unwrap_or(5173);
         // @ref LLP 3000.011.003.000#7.6 — wave 7 (11 lanes): `--port N` already moved both; the line named only --web-port.
         let flags = if port.is_some() { "" } else { "; `init --web --port N` sets the backend to N and the page to N+1 together" };
-        println!("init: the backend is http://127.0.0.1:{}; `npm run dev` serves the page on http://localhost:{page}{flags}", runtime.map(|(lo, _)| lo).unwrap_or(port.unwrap_or(4400)));
+        println!("init: the backend is http://127.0.0.1:{}; `npm run dev` serves the page on http://localhost:{page}{flags}", port.unwrap_or(4400));
     } else if expo {
-        println!("init: the backend is http://127.0.0.1:{}; `npm run web` serves http://localhost:{}; `init --expo --port N` sets the client's URL and the README's `snapback4 dev --port N` together", runtime.map(|(lo, _)| lo).unwrap_or(port.unwrap_or(4400)), runtime.map(|(lo, _)| lo + 1).unwrap_or(web_port.unwrap_or(8081)));
+        println!("init: the backend is http://127.0.0.1:{}; `npm run web` serves http://localhost:{}; `init --expo --port N` sets the client's URL and the README and launchers together", port.unwrap_or(4400), web_port.unwrap_or(8081));
     }
+    if web || expo { println!("init: PORT_LO/PORT_HI set at init are baked into these defaults; a later runtime pair overrides them through `npm run backend` and the frontend launcher (`npm run dev`/`npm run web`)"); }
     if !pinned.is_empty() {
         println!("init: pinned package.json {} (the starter's exact versions)", pinned.join(", "));
     }

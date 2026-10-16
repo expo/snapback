@@ -24,7 +24,7 @@ pub(super) fn sources(project: &Project, options: &Options, flag: &str) -> Resul
 pub(super) fn compile(sources: &[(String, String)], options: &Options, flag: &str) -> snapback4_lang::Bound {
     let mut bound = snapback4_lang::compile(sources);
     if let Some(file) = options.flags.get(flag) {
-        for diagnostic in &mut bound.diagnostics { diagnostic.site.file = file.clone(); }
+        for diagnostic in &mut bound.diagnostics { diagnostic.site.file = if Path::new(file).is_dir() { Path::new(file).join(&diagnostic.site.file).to_string_lossy().into_owned() } else { file.clone() }; }
     }
     bound
 }

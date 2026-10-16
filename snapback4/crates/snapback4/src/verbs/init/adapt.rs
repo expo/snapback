@@ -306,9 +306,27 @@ fn port_of(client: &str) -> Option<&str> {
     (digits > 0).then(|| &client[at..at + digits])
 }
 
+fn proof_advice(dir: &Path) -> Vec<String> {
+    let mut advice = Vec::new();
+    if let Ok(Some(own)) = super::own_schema(dir) {
+        match super::proof::plan(dir, &own) {
+            Ok(changes) if !changes.is_empty() => {
+                let package: serde_json::Value = std::fs::read_to_string(dir.join("package.json")).ok().and_then(|text| serde_json::from_str(&text).ok()).unwrap_or_default();
+                if package["scripts"]["day2:proof"] == "node scripts/day2-proof.mjs" {
+                    advice.push("info: day2:proof passes no saved versions; run `snapback4 init --adapt`, then `snapback4 init --adapt --apply`".into());
+                } else { advice.push("info: starter proof infrastructure needs updating; run `snapback4 init --adapt` to preview, then `snapback4 init --adapt --apply`".into()); }
+            }
+            Err(error) => advice.push(format!("info: cannot inspect starter proof infrastructure: {error}")),
+            _ => {}
+        }
+    }
+    advice
+}
+
 /// One `check` line, or none: the leftovers and the command that fixes them.
 pub(crate) fn report(dir: &Path) -> Option<String> {
-    let (found, advice) = leftovers(dir);
+    let (found, mut advice) = leftovers(dir);
+    advice.extend(proof_advice(dir));
     if found.is_empty() && advice.is_empty() { return None; }
     if found.is_empty() && advice.iter().all(|line| line.starts_with("info:")) { return Some(advice.join("\n")); }
     let mut lines = Vec::new();
@@ -317,14 +335,15 @@ pub(crate) fn report(dir: &Path) -> Option<String> {
     if !found.is_empty() {
         lines.push("  fix: snapback4 init --adapt (removes or rewrites only these files, which still match the starter; your own files are never touched)".into());
     }
-    Some(format!("starter: {} left from `snapback4 init` that {} not fit your schema\n{}",
+    Some(format!("info: starter: {} left from `snapback4 init` that {} not fit your schema\n{}",
         if found.is_empty() { "a screen".to_owned() } else { format!("{} file{}", found.len(), if found.len() == 1 { "" } else { "s" }) },
         if found.len() == 1 || found.is_empty() { "does" } else { "do" }, lines.join("\n")))
 }
 
 /// The same, for `check --json`: `null` when nothing is left over.
 pub(crate) fn report_json(dir: &Path) -> serde_json::Value {
-    let (found, advice) = leftovers(dir);
+    let (found, mut advice) = leftovers(dir);
+    advice.extend(proof_advice(dir));
     if found.is_empty() && advice.is_empty() { return serde_json::Value::Null; }
     serde_json::json!({
         "files": found.iter().map(|leftover| serde_json::json!({ "path": leftover.path, "why": leftover.why, "adapt": if leftover.rewrite.is_some() { "rewrite" } else { "remove" } })).collect::<Vec<_>>(),
@@ -349,8 +368,16 @@ pub(super) fn adapt(dir: &Path, dry_run: bool, apply: bool) -> i32 {
         println!("init --adapt: planned changes (only unmodified starter files):");
         for change in &found { println!("  {} {} — {}", if change.rewrite.is_some() { "rewrite" } else { "remove" }, change.path, change.why); }
     }
-    for (path, _) in &proof {
-        println!("  {} {} — missing proof infrastructure", if *path == "package.json" { "extend" } else { "add" }, path);
+    for (path, body) in &proof {
+        let exists = dir.join(path).exists();
+        println!("  {} {} — {} proof infrastructure", if *path == "package.json" { "extend" } else if exists { "replace" } else { "add" }, path, if exists { "inherited" } else { "missing" });
+        if *path == "package.json" {
+            let old: serde_json::Value = std::fs::read_to_string(dir.join(path)).ok().and_then(|text| serde_json::from_str(&text).ok()).unwrap_or_default();
+            let new: serde_json::Value = serde_json::from_str(body).unwrap();
+            for (key, value) in new["scripts"].as_object().unwrap() {
+                if old["scripts"][key] != *value { println!("    scripts.{key}: {} → {value}", old["scripts"][key]); }
+            }
+        }
     }
     if !modified.is_empty() { println!("init --adapt: application-owned or modified files stay unchanged: {}", modified.join(", ")); }
     if dry_run || !apply {
