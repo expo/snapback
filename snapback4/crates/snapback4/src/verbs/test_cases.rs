@@ -110,10 +110,11 @@ pub(super) fn run_observed(engine: &mut Engine, bound: &Bound, fixture: &str, so
         let explicit = case.get("expect").and_then(Json::as_str);
         let expect = explicit.unwrap_or(match program.kind { ProgramKind::Query if never_complete.is_some() => "ok", ProgramKind::Query => "complete", _ => "sent" });
         let label = case.get("label").and_then(Json::as_str).map(|l| format!(" — {l}")).unwrap_or_default();
-        let mut raw_args = substitute(case.get("args").cloned().unwrap_or_else(|| json!({})), &saved).map_err(|why| format!("{at}: {why}"))?;
+        let mut raw_args = substitute_arguments(case.get("args").cloned().unwrap_or_else(|| json!({})), &saved).map_err(|why| format!("{at}: {why}"))?;
         super::test_fixture::argument_times(&program.args, &mut raw_args, now).map_err(|why| format!("{at}: {why}"))?;
         let expected_data = case.get("data").cloned().map(|data| substitute(data, &saved)).transpose().map_err(|why| format!("{at}: {why}"))?;
         let expected_match = case.get("match").cloned().map(|data| substitute(data, &saved)).transpose().map_err(|why| format!("{at}: {why}"))?;
+        let expected_set = case.get("matchSet").cloned().map(|data| substitute(data, &saved)).transpose().map_err(|why| format!("{at}: {why}"))?;
         let input = (|| -> Result<_, Refusal> {
             if let Some(why)=crate::persona_principals::arguments(&bound.personas,&program.args,&raw_args) { return Err(why); }
             let mut args = BTreeMap::new();
@@ -168,6 +169,9 @@ pub(super) fn run_observed(engine: &mut Engine, bound: &Bound, fixture: &str, so
                 if let Some(expected) = &expected_match && !subset(expected, answer) {
                     problems.push(format!("match differs: expected subset {expected}, got {answer}"));
                 }
+                if let Some(expected) = &expected_set && !match_set(expected, answer) {
+                    problems.push(format!("matchSet differs: expected unordered subsets {expected}, got {answer}"));
+                }
                 if let Some(count) = case.get("count").and_then(Json::as_u64) {
                     let length = answer.as_array().map(|a| a.len()).or_else(|| answer.get("items").and_then(Json::as_array).map(|a| a.len()));
                     if length != Some(count as usize) { problems.push(format!("expected {count} rows, got {}", length.map(|n| n.to_string()).unwrap_or_else(|| "a non-list".into()))); }
@@ -200,7 +204,7 @@ pub(super) fn run_observed(engine: &mut Engine, bound: &Bound, fixture: &str, so
 }
 
 /// The keys a case line may carry.
-pub const KEYS: [&str; 9] = ["as", "op", "args", "expect", "data", "match", "count", "save", "label"];
+pub const KEYS: [&str; 10] = ["as", "op", "args", "expect", "data", "match", "matchSet", "count", "save", "label"];
 
 // @ref LLP 3000.036#15.3 — an unknown key is refused, never ignored: ignoring it was a false green.
 pub(super) fn validate(case: &Json) -> Result<(), String> {
@@ -230,6 +234,7 @@ pub(super) fn validate(case: &Json) -> Result<(), String> {
     if let Some(name) = fields.get("save").and_then(Json::as_str) && (name.is_empty() || name.contains('.') || name.starts_with('$')) {
         return Err(format!("save alias {name:?} must be nonempty with no dot or leading dollar; use a name such as r1, then reference $r1 or $r1.field"));
     }
+    if let Some(value) = fields.get("matchSet") && !value.is_array() { return Err("`matchSet` is an array of row subsets".into()); }
     if let Some(value) = fields.get("count") && value.as_u64().is_none() { return Err(format!("`count` is a non-negative integer, got {value}")); }
     if let Some(value) = fields.get("args") && !value.is_object() && fields.get("expect").and_then(Json::as_str) != Some("E_INPUT") { return Err("\"args\" is an object".into()); }
     Ok(())
@@ -323,9 +328,31 @@ fn subset(expected: &Json, answer: &Json) -> bool {
     }
 }
 
+// @ref LLP 3000.000.000.000.000#2-fixture-semantics — a bijection preserves duplicate multiplicity with overlapping subsets.
+fn match_set(expected: &Json, answer: &Json) -> bool {
+    let (Some(wanted), Some(got)) = (expected.as_array(), answer.as_array()) else { return false; };
+    if wanted.len() != got.len() { return false; }
+    fn assign(w: usize, wanted: &[Json], got: &[Json], owners: &mut [Option<usize>], seen: &mut [bool]) -> bool {
+        for (g, row) in got.iter().enumerate() {
+            if seen[g] || !subset(&wanted[w], row) { continue; }
+            seen[g] = true;
+            if owners[g].is_none_or(|other| assign(other, wanted, got, owners, seen)) { owners[g] = Some(w); return true; }
+        }
+        false
+    }
+    let mut owners = vec![None; got.len()];
+    (0..wanted.len()).all(|w| assign(w, wanted, got, &mut owners, &mut vec![false; got.len()]))
+}
+
 // @ref LLP 3000.000.000.000#5-fixtures-and-dev-evidence — args and both assertion forms resolve the same named aliases.
 /// `"$name"` is a saved answer (a saved row's id); `"$name.field"` (any depth) one of its fields.
 fn substitute(value: Json, saved: &BTreeMap<String, Json>) -> Result<Json, String> {
+    substitution(value, saved, false)
+}
+fn substitute_arguments(value: Json, saved: &BTreeMap<String, Json>) -> Result<Json, String> {
+    substitution(value, saved, true)
+}
+fn substitution(value: Json, saved: &BTreeMap<String, Json>, arguments: bool) -> Result<Json, String> {
     Ok(match value {
         Json::Object(mut fields) if fields.len() == 1 && fields.contains_key("$literal") => fields.remove("$literal").unwrap(),
         Json::String(text) if text.starts_with("$$") => Json::String(text[1..].to_owned()),
@@ -343,9 +370,9 @@ fn substitute(value: Json, saved: &BTreeMap<String, Json>) -> Result<Json, Strin
             match current.get("id").and_then(Json::as_str) { Some(id) if fields == 0 => Json::String(id.to_owned()), _ => current.clone() }
         }
         // @ref LLP 3000.011.003.000.000#2 — a bare save alias refuses by name instead of becoming a silent literal id.
-        Json::String(text) if saved.contains_key(&text) => return Err(format!("E_FIXTURE_ALIAS: {text:?} names a saved answer; write \"${text}\" for its id (or \"${text}.field\" for a field)")),
-        Json::Array(items) => Json::Array(items.into_iter().map(|item| substitute(item, saved)).collect::<Result<_, _>>()?),
-        Json::Object(fields) => Json::Object(fields.into_iter().map(|(k, v)| Ok((k, substitute(v, saved)?))).collect::<Result<_, String>>()?),
+        Json::String(text) if arguments && saved.contains_key(&text) => return Err(format!("E_FIXTURE_ALIAS: {text:?} names a saved answer; write \"${text}\" for its id (or \"${text}.field\" for a field)")),
+        Json::Array(items) => Json::Array(items.into_iter().map(|item| substitution(item, saved, arguments)).collect::<Result<_, _>>()?),
+        Json::Object(fields) => Json::Object(fields.into_iter().map(|(k, v)| Ok((k, substitution(v, saved, arguments)?))).collect::<Result<_, String>>()?),
         other => other,
     })
 }
@@ -358,7 +385,8 @@ mod saved_alias_tests {
         for name in ["", "r.1", "$r1"] { assert!(validate(&json!({"op":"add", "save":name})).unwrap_err().contains("save alias")); }
         let saved = [("r1".into(), json!({"id":"real-row-id", "text":"hello", "nested":{"n":2}}))].into();
         assert_eq!(substitute(json!({"row":"$r1", "text":"$r1.text", "nested":["$r1.nested.n"]}), &saved).unwrap(), json!({"row":"real-row-id", "text":"hello", "nested":[2]}));
-        let refused = substitute(json!({"row":"r1"}), &saved).unwrap_err();
+        let refused = substitute_arguments(json!({"row":"r1"}), &saved).unwrap_err();
+        assert_eq!(substitute(json!({"status":"r1"}), &saved).unwrap(), json!({"status":"r1"}));
         assert!(refused.contains("r1") && refused.contains("$r1"), "{refused}");
         assert!(substitute(json!("$missing"), &saved).unwrap_err().contains("nothing was saved as missing"));
         assert!(substitute(json!("$r1.absent"), &saved).unwrap_err().contains("no field absent"));
@@ -369,6 +397,15 @@ mod saved_alias_tests {
 #[cfg(test)]
 mod rel3_tests {
     use super::*;
+    #[test]
+    fn match_set_is_a_bijection_including_duplicates_and_overlapping_subsets() {
+        assert!(match_set(&json!([{}, {"n":1}]), &json!([{"n":1}, {"n":2}])));
+        assert!(match_set(&json!([{"n":2}, {"n":1}]), &json!([{"n":1,"id":"a"}, {"n":2,"id":"b"}])));
+        assert!(!match_set(&json!([{"n":1}, {"n":1}]), &json!([{"n":1}, {"n":2}])));
+        assert!(!match_set(&json!([{}]), &json!([{},{}])));
+        assert!(!match_set(&json!([]), &json!(null)));
+        assert!(validate(&json!({"op":"read","matchSet":{}})).is_err());
+    }
     #[test]
     fn match_is_recursive_and_arrays_preserve_length_and_order() {
         assert!(validate(&json!({"op":"read", "match":{"name":"Ash"}})).is_ok());

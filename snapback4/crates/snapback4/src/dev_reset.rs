@@ -4,7 +4,7 @@ use serde_json::{Value as Json, json};
 use std::path::Path;
 use std::time::Duration;
 
-const USAGE: &str = "usage: snapback4 reset [--port N] [--seed <fixture dir | rows.json>] [--clock reset]";
+fn usage() -> String { format!("usage: {}", crate::cli_flags::synopsis("reset")) }
 
 pub fn command(options: &crate::verbs::Options) -> i32 {
     match run(options) {
@@ -15,14 +15,14 @@ pub fn command(options: &crate::verbs::Options) -> i32 {
 
 fn run(options: &crate::verbs::Options) -> Result<Json, String> {
     if options.flags.contains_key("release") { return Err("E_AUTH: reset empties a running dev's store; snapback4 serve never resets a release\n  guide: testing".into()); }
-    if !options.positionals.is_empty() { return Err(USAGE.into()); }
+    if !options.positionals.is_empty() { return Err(usage()); }
     let address = crate::verbs::dev_address(options)?;
     let mut body = serde_json::Map::new();
     if let Some(seed) = options.flags.get("seed") { body.insert("seed".into(), Json::Array(rows(Path::new(seed))?)); }
     match options.flags.get("clock").map(String::as_str) {
         None => {}
         Some("reset") => { body.insert("clock".into(), json!("reset")); }
-        Some(other) => return Err(format!("E_CLOCK_INPUT: --clock takes `reset` (back to wall time), not {other:?}\n{USAGE}")),
+        Some(other) => return Err(format!("E_CLOCK_INPUT: --clock takes `reset` (back to wall time), not {other:?}\n{}", usage())),
     }
     let (status, reply) = crate::verbs::run_forward::exchange(address, "POST", "/dev/reset", None, &Json::Object(body).to_string(), Duration::from_secs(60))
         .map_err(|error| format!("cannot reach a dev at {address}: {error}; start `snapback4 dev` (or pass the --port it printed)"))?;

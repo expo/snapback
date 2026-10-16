@@ -87,7 +87,7 @@ pub(super) fn engine_at(project: &Project, bound: &Bound, options: &Options, now
 
 // @ref LLP 3000.000.000.000#5-fixtures-and-dev-evidence — relative time leaves, seeds and operations share one captured clock.
 /// Only typed time leaves interpret `now`: text and JSON retain their literals.
-fn relative_times(table: &snapback4_core::schema::Table, row: &mut serde_json::Value, now: i64) -> Result<(), String> {
+pub(crate) fn relative_times(table: &snapback4_core::schema::Table, row: &mut serde_json::Value, now: i64) -> Result<(), String> {
     if let Some(fields) = row.as_object_mut() {
         for (name, value) in fields {
             if let Some(kind) = table.columns.get(name) { time_value(kind, value, now).map_err(|why| format!("{name}: {why}"))?; }

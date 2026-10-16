@@ -49,7 +49,7 @@ impl Clock {
     pub fn new(dev: bool, offset: i64) -> Result<Self, Refusal> {
         if !dev && offset != 0 { return Err(release()); }
         Ok(Self { dev, base: time(snapback4_core::now_ms().checked_add(offset))?, started: Instant::now(),
-            epoch: snapback4_core::ids::mint(snapback4_core::now_ms(), &mut 0).map_err(|e| e.refusal())?, revision: 0, #[cfg(test)] frozen: false })
+            epoch: snapback4_core::ids::mint(snapback4_core::now_ms(), &mut snapback4_core::ids::Mint::default()).map_err(|e| e.refusal())?, revision: 0, #[cfg(test)] frozen: false })
     }
     #[cfg(test)]
     pub(crate) fn freeze(&mut self, now: i64) { self.base = now; self.frozen = true; }
@@ -90,11 +90,11 @@ pub fn command(options: &crate::verbs::Options) -> i32 {
     let result = (|| -> Result<String, String> {
         if options.flags.contains_key("release") { return Err(release().to_string()); }
         if options.positionals.len() != 2 || options.positionals[0] != "advance" {
-            return Err(input("usage: snapback4 clock advance <duration> [--port N]").to_string());
+            return Err(input(format!("usage: {}", crate::cli_flags::synopsis("clock"))).to_string());
         }
         duration(&options.positionals[1]).map_err(|e| e.to_string())?;
         let address = crate::verbs::dev_address(options)?;
-        let mut stream = TcpStream::connect_timeout(&address, Duration::from_secs(5)).map_err(|e| format!("cannot reach dev at {address}: {e}"))?;
+        let mut stream = TcpStream::connect_timeout(&address, Duration::from_secs(5)).map_err(|e| format!("cannot reach dev at {address}: {e}; for dev --memory or a custom port, pass `snapback4 clock advance {} --port N` using the port dev printed", options.positionals[1]))?;
         stream.set_read_timeout(Some(Duration::from_secs(60))).map_err(|e| e.to_string())?;
         stream.set_write_timeout(Some(Duration::from_secs(5))).map_err(|e| e.to_string())?;
         let body = serde_json::json!({"duration":options.positionals[1]}).to_string();

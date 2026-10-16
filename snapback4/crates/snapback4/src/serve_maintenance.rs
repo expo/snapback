@@ -369,7 +369,14 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         engine.advance_worker_leases_at(milliseconds, clock.now()).map_err(|e| e.refusal())?;
         *clock = next;
         let offset = now - snapback4_core::now_ms();
-        let message = format!("cumulative offset {offset:+}ms; lasts until restart{}", if crate::dev_clock_store::has_data(&engine) { "; use dev --fresh --port 4401 for isolated time tests (guide jobs)" } else { "" });
+        let isolated = if crate::dev_clock_store::has_data(&engine) {
+            match (std::env::var("PORT_LO").ok(), std::env::var("PORT_HI").ok()) {
+                (Some(lo), Some(hi)) if lo.parse::<u16>().is_ok_and(|n| n > 0) && hi.parse::<u16>().is_ok_and(|n| n >= lo.parse::<u16>().unwrap()) =>
+                    format!("; use dev --memory --port {lo}-{hi} within the current range for isolated time tests; clock advance --port N targets its printed port (guide jobs)"),
+                _ => "; use dev --memory --port 0 for isolated time tests; clock advance --port N targets its printed port (guide jobs)".to_owned(),
+            }
+        } else { String::new() };
+        let message = format!("cumulative offset {offset:+}ms; lasts until restart{isolated}");
         Ok((now, offset, message, before))
     })();
     let (now, offset, message, before) = match advanced {

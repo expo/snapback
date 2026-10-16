@@ -44,11 +44,12 @@ pub(super) fn seed(request: Request, shared: &Shared, body: &str) {
         Ok(Json::Array(rows)) => rows,
         _ => return refuse(request, Refusal::new("E_INPUT", "input", "seed takes a JSON array of {table, row}")),
     };
-    let typed = match typed_rows(shared, &rows) {
+    let now = shared.now();
+    let typed = match typed_rows(shared, &rows, now) {
         Ok(typed) => typed,
         Err(refusal) => return refuse(request, refusal),
     };
-    let outcome = lock(&shared.engine).seed_at(typed, shared.now());
+    let outcome = lock(&shared.engine).seed_at(typed, now);
     match outcome {
         Ok(count) => {
             shared.durable_committed(&lock(&shared.engine));
@@ -59,7 +60,7 @@ pub(super) fn seed(request: Request, shared: &Shared, body: &str) {
 }
 
 /// `/seed` rows checked against the served schema and typed, or the first problem.
-fn typed_rows(shared: &Shared, rows: &[Json]) -> Result<Vec<(String, snapback4_core::Value)>, Refusal> {
+fn typed_rows(shared: &Shared, rows: &[Json], now: i64) -> Result<Vec<(String, snapback4_core::Value)>, Refusal> {
     let schema = lock(&shared.bound).schema.clone();
     let mut typed = Vec::new();
     for (index, entry) in rows.iter().enumerate() {
@@ -72,10 +73,13 @@ fn typed_rows(shared: &Shared, rows: &[Json]) -> Result<Vec<(String, snapback4_c
         if row.is_object() && row.get("id").is_none_or(|id| !id.is_string()) {
             return Err(missing_id(index, table));
         }
-        if let Some(why) = wire::bare_principal(definition, row) {
+        let mut row = row.clone();
+        crate::verbs::test_fixture::relative_times(definition, &mut row, now)
+            .map_err(|why| Refusal::new("E_FIXTURE_TIME", "input", format!("seed row {index} ({table}): {why}")))?;
+        if let Some(why) = wire::bare_principal(definition, &row) {
             return Err(Refusal::new("E_INPUT", "input", format!("seed row {index} ({table}): {why}")));
         }
-        match wire::row_from_json(definition, row) {
+        match wire::row_from_json(definition, &row) {
             Ok(value) => typed.push((table.to_owned(), value)),
             Err(why) => return Err(Refusal::new("E_INPUT", "input", format!("{table}: {why}"))),
         }
@@ -131,10 +135,6 @@ pub(super) fn reset(request: Request, shared: &Shared, body: &str) {
         Ok(asked) => asked,
         Err(refusal) => return refuse(request, refusal),
     };
-    let typed = match typed_rows(shared, &asked.seed) {
-        Ok(typed) => typed,
-        Err(refusal) => return refuse(request, refusal),
-    };
     // Serialize with clock advances, then take the engine before the clock:
     // the order clock advance and worker claims use.
     let advance = lock(&shared.maintenance).advance.clone();
@@ -143,6 +143,11 @@ pub(super) fn reset(request: Request, shared: &Shared, body: &str) {
     let mut clock = lock(&shared.clock).clone();
     if asked.clock && let Err(refusal) = clock.reset() { drop(engine); return refuse(request, refusal); }
     let now = clock.now();
+    // Resolve against the prospective reset clock before changing any durable state.
+    let typed = match typed_rows(shared, &asked.seed, now) {
+        Ok(typed) => typed,
+        Err(refusal) => { drop(engine); return refuse(request, refusal); }
+    };
     let reset = match engine.dev_reset_at(typed, now) {
         Ok(reset) => reset,
         Err(error) => {

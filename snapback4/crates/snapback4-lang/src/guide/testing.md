@@ -43,7 +43,7 @@ NOT_FOUND; a bad row or unknown table fails the run before any case executes.
 
 Add `test.cases.jsonl` to that directory. Cases execute in order; writes change
 what later cases see. The complete vocabulary is `as`, `op`, `args`, `expect`,
-`data`, `match`, `count`, `save`, `label`; unknown keys fail before any case runs.
+`data`, `match`, `matchSet`, `count`, `save`, `label`; unknown keys fail before any case runs.
 
 ```jsonl
 {"as":"alice","op":"addCard","args":{"board":"board-alice","text":"eggs"},"save":"eggs"}
@@ -53,13 +53,16 @@ what later cases see. The complete vocabulary is `as`, `op`, `args`, `expect`,
 
 `save` names an answer: `$eggs` means its row id, `$eggs.text` its field.
 A bare argument equal to a saved alias refuses with the `$name` rewrite.
+Bare assertion strings (including enum literals) remain literals even if an alias has that name.
 Aliases resolve recursively inside args, data and match. Unknown aliases and
 missing fields refuse E_FIXTURE_ALIAS by name. `$$text` means literal
 `$text`; `{"$literal":"eggs"}` means literal `eggs`, even if saved as an alias.
 `data` asserts the exact result; `match` asserts a recursive object subset
 (`"match":{"name":"Ash"}` permits an extra id). Arrays retain their exact
 length/order, with each element matched recursively; scalars compare exactly.
-Both assertions may appear together. `count` asserts length. A mutation defaults to
+`matchSet` compares a list without order: `"matchSet":[{"name":"Ash"},{"name":"Oak"}]`
+requires exactly those two recursive subsets, each matched to a different row.
+Duplicate counts matter. Nested arrays retain their order. All assertion forms may appear together. `count` asserts length. A mutation defaults to
 `sent`; a query to its check verdict (`complete`, or complete/capped when
 N_NEVER_COMPLETE). Set `expect` to `complete`, `capped`, `ok`, `denied`, or a
 refusal code. `as` must be a declared persona; outsiders need their own persona.
@@ -68,6 +71,10 @@ After the cases, the sweep runs every query with that persona's case arguments w
 otherwise derives arguments from the store after the cases' writes (text uses
 the shortest valid value). Saved-alias arguments belong to the case run; the
 sweep uses another literal-argument case or derives arguments for that query.
+For different authorization lanes, add `fixtures/test.sweep.json`:
+`{"hrStatus":["carol"],"policiesList":["alice","bob"]}`. Each named query uses
+its listed personas; other queries use the whole cast. `--as` explicitly overrides
+that matrix. Empty/unknown entries and undeclared personas fail before cases run.
 It prints examined rows, entries, probes, steps, heap/output bytes and ceilings.
 `complete` is the whole answer; `capped` is a partial answer, not a refusal.
 Expected refusals pass; denied queries, failed cases and invalid fixtures exit 1.
@@ -77,6 +84,25 @@ A lookup reads through the caller's rule: hidden rows give NOT_FOUND before
 later `require` guards; hidden unique conflicts give E_RULE instead of the
 custom code. `test` and dev refusal logs explain the hidden lookup or rule.
 `guide refusals` explains refusal ordering and hidden rows.
+
+## Loading fixture rows for a proof
+
+```js
+import { loadFixtures } from "snapback4/proof";
+const rows = await loadFixtures("fixtures", { url: dev.url });
+await fetch(`${dev.url}/dev/reset`, {
+  method: "POST", headers: { "content-type": "application/json" },
+  body: JSON.stringify({ seed: rows }),
+});
+```
+
+The helper reads table JSONL files (excluding cases), captures the dev clock once,
+and resolves only typed time leaves using the host's public field types. Pass
+`now` for a fixed proof clock, `cwd` for another project, or `timeoutMs` to bound
+the catalog/status requests (10 seconds by default). Reload after schema edits.
+The server validates rows and authorizes the dev door; inspect reset's reply for
+`denied`. `/seed` and `/dev/reset` also accept relative times directly. A reset
+with `"clock":"reset"` resolves them against its new wall clock atomically.
 
 ## An acceptance script over HTTP
 
