@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AppProvider, useAuth } from "snapback4/react";
+import { AppProvider, useAuth, useAppReady } from "snapback4/react";
 import { app } from "./client.ts";
 
 export function App() {
@@ -9,8 +9,10 @@ export function App() {
 // Every read and write runs as the signed-in viewer, so sign in first.
 function Account() {
   const auth = useAuth();
+  const ready = useAppReady();
   const [problem, setProblem] = useState("");
   if (auth.state === "restoring") return <p>Restoring your session…</p>;
+  if (auth.state === "signed-in" && !ready) return <p>Opening…</p>;
   if (auth.state === "signed-in") return <Todos />;
   const signIn = async () => {
     const result = await auth.guest();

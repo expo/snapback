@@ -26,7 +26,7 @@ import { acquisition, type Acquisition } from "./acquisition.ts";
 export type { Acquisition } from "./acquisition.ts";
 import { clockDelay, onClock } from "./clock.ts";
 import { isReady } from "./contract.ts";
-export { matchRead, matchReadList, type ReadMatchListHandlers, otherwiseAll, isReady, isLoading, isDenied, isFailed, sentResult, existence, readPresentation, type ReadMatchHandlers, type ReadMatchFallbackHandlers, type ReadMatchOtherwiseAll, type ReadMatchOverrides, type OtherwiseAll, type ReadPresentation } from "./contract.ts";
+export { matchRead, matchReadList, type ReadMatchListHandlers, otherwiseAll, isReady, isPresent, isLoading, isDenied, isFailed, sentResult, existence, readPresentation, type ReadMatchHandlers, type ReadMatchFallbackHandlers, type ReadMatchOtherwiseAll, type ReadMatchOverrides, type OtherwiseAll, type ReadPresentation } from "./contract.ts";
 export type { Client, Principal, Read, Ready, SettledRead, Write, Signal, Act, Outcome, Refusal, Query, Mutation, Ephemeral, Action, MutateOptions, PendingWrite, Link, Cursor, ArgsOf, ResultOf, RowOf } from "./contract.ts";
 // React apps name the app they hand to <AppProvider> here; `createApp` itself
 // stays in snapback4/app so this entry never imports the session runtime.
@@ -43,12 +43,14 @@ export type { SeenOptions, SeenSnapshot } from "./seen-progress.ts";
 const ClientContext = createContext<Client | null>(null);
 
 const AppContext = createContext<App | null>(null);
+let appBoundary = 0;
 
 /** Own the app outside render; changing accounts replaces the client context. */
 export function AppProvider({ app, children }: { app: App; children: ReactNode }) {
   const snapshot = useSyncExternalStore(app.auth.onChange, app.auth.getSnapshot, app.auth.getSnapshot);
+  const boundary = useMemo(() => ++appBoundary, [app]);
   return <AppContext.Provider value={app}><ClientContext.Provider value={app.client}>
-    <AppAccount key={`${snapshot.state}:${snapshot.viewer ?? ""}`}>{children}</AppAccount>
+    <AppAccount key={`${boundary}:${snapshot.viewer ?? ""}`}>{children}</AppAccount>
   </ClientContext.Provider></AppContext.Provider>;
 }
 
@@ -61,6 +63,21 @@ export function useAuth(): AuthSnapshot & Pick<AppAuth, "signup" | "login" | "gu
   const snapshot = useSyncExternalStore(app.auth.onChange, app.auth.getSnapshot, app.auth.getSnapshot);
   return { ...snapshot, signup: app.auth.signup, login: app.auth.login, guest: app.auth.guest,
     logout: app.auth.logout, logoutEverywhere: app.auth.logoutEverywhere };
+}
+
+/** Initial app custody has opened successfully and an account is signed in.
+ * This is admission readiness, not network availability or permission. */
+export function useAppReady(): boolean {
+  const app = useContext(AppContext);
+  if (!app) throw new Error("useAppReady: no <AppProvider> above this component");
+  const auth = useSyncExternalStore(app.auth.onChange, app.auth.getSnapshot, app.auth.getSnapshot);
+  const [opened, setOpened] = useState<App | null>(null);
+  useEffect(() => {
+    let active = true;
+    void app.ready.then(result => { if (active && result.ok) setOpened(app); }, () => {});
+    return () => { active = false; };
+  }, [app]);
+  return opened === app && auth.state === "signed-in";
 }
 
 export function SnapbackProvider({ client, children }: { client: Client; children: ReactNode }) {

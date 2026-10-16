@@ -9,11 +9,14 @@ import { sentResult } from '../dist/contract.js';
 import { spawnSync } from 'node:child_process';
 const root = resolve(import.meta.dirname, '..');
 const guide = resolve(root, '../../crates/snapback4-lang/src/guide');
-const api = `import type { Query, Mutation, Cursor } from './src/contract.ts';
+const api = `import type { Query, Mutation, Cursor, ReleaseSnapshot } from './src/contract.ts';
 declare const api: {
   inboxCards: Query<{c?:Cursor|null}, {id:string;title:string;memberCount:number}[]>;
   directory: Query<{c?:Cursor|null}, {principal:string;displayName:string}[]>;
-  staffNotes: Query<{}, {id:string;title:string}[]>;
+  staffNotes: Query<{team:string}, {id:string;title:string;priority?:string}[]> & {available(release:ReleaseSnapshot):boolean};
+  myRole: Query<{team:string}, {role:'staff'|'member'}|null>;
+  addStaffNote: Mutation<{team:string;title:string;category:string}, {id:string}> & {available(release:ReleaseSnapshot):boolean};
+  publicNotes: Query<{}, {id:string;title:string}[]>;
   myMembership: Query<{conversationId:string}, {id:string}|null>;
   enroll: Mutation<{team:string;principal:string}, unknown>;
   register: Mutation<{displayName:string}, {principal:string;displayName:string}>;
@@ -40,7 +43,7 @@ test('client and production published TSX uses the typed Write union, state gate
       check(source, count++);
     }
   }
-  assert.equal(count, 7, 'Every published TSX block is typechecked');
+  assert.equal(count, 9, 'Every published TSX block is typechecked');
 });
 
 // A form owns its client, save hook and upload error outside this input.

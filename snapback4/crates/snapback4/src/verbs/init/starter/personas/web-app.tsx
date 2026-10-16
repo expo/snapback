@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { AppProvider, useAuth, usePersonaApp } from "snapback4/react";
+import { AppProvider, useAuth, useAppReady, usePersonaApp } from "snapback4/react";
 import { openApp, personas } from "./client.ts";
 
 // `?as=bob` acts as the declared persona dev:bob; the picker switches it.
@@ -24,6 +24,8 @@ export function App() {
 // Every read and write runs as the persona; there is no session to restore.
 function Account({ leave, children }: { leave: () => void; children: ReactNode }) {
   const auth = useAuth();
+  const ready = useAppReady();
+  if (auth.state === "signed-in" && !ready) return <p>Opening…</p>;
   if (auth.state === "signed-in") return children;
   return <main>
     <p>{auth.state === "restoring" ? "Opening…" : auth.why?.message ?? "Signed out"}</p>

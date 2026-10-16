@@ -743,3 +743,24 @@ test('principal-sharing invitation UI compiles against its actual generated prod
     assert.deepEqual(result.codes,[],result.text);
   } finally {rmSync(dir,{recursive:true,force:true});}
 });
+
+
+test('isPresent narrows nullable points and mixed read unions from contract and React', () => {
+  const result=check(`import {isPresent, type Read} from './dist/contract.js';
+import {isPresent as reactPresent} from './dist/react.js';
+declare const row: Read<{id:string}|null>;
+if(isPresent(row)){ const id:string=row.data.id; }
+if(reactPresent(row)){ const id:string=row.data.id; }
+declare const mixed: Read<{id:string}|null>|Read<{name:string}|null>;
+if(isPresent(mixed)){ const value: {id:string}|{name:string}=mixed.data; }
+function generic<T>(read:Read<T|null>){if(isPresent(read)){const value:T=read.data;return value;}}
+`);
+  assert.deepEqual(result.codes,[],result.text);
+});
+test('missing denied without otherwise reports its explicit repair', () => {
+  const result=check(`import {matchRead,type Read} from './dist/contract.js';
+declare const read:Read<{id:string}|null>;
+matchRead(read,{loading:()=>0,absent:()=>0,partial:()=>0,present:row=>row.id});`);
+  assert.deepEqual(result.codes,[2345],result.text);
+  assert.match(result.text,/matchRead requires denied/);
+});

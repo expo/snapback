@@ -1,5 +1,10 @@
 # Snapback 4 behavior changes
 
+## 0.4.30
+
+- KIT2: proof logs default to `<cwd>/logs` so failures survive harness temp cleanup. Token CLI stdout stays in memory; `secret:true` extends that capture to other commands. startDev keeps memory isolation with custom args. renderedText adds exact:false; waitForFresh accepts optional scope and diagnoses absent/unchanged evidence. waitForServer polls authoritative projections. Proof browser pages automatically arm witness=web; no-write clicks settle E_WITNESS_NO_WRITE.
+- KIT2: useAppReady gates initial write custody; AppProvider preserves signed-out form state through restoration and resets on app/viewer changes. Client recipes include a tested role/release screen, guest page, matchReadList, isPresent and since-release fallbacks; missing-denied diagnostics name the repair. Testing documents raw request envelopes, RN-web text and bounded witness outcomes.
+
 ## 0.4.29
 
 - CLI repairs: web-shell appears in help and accepts both help spellings without files or builds; retired init recipes explain --web/--expo and --template chat. witness web loads the optional playwright-core peer only when running, with an install command if missing. clock advance and reset discover the persisted dev's port, with --port overriding it. Starter frontend proofs refuse a one-port range before launching; day-two/backend-only proofs still accept one port. Implicit downgrade refusal now names the registry's version and installed version clearly.

@@ -59,6 +59,13 @@ function Password() {
     <button onClick={() => void submit(false)}>Sign in</button><button onClick={() => void submit(true)}>Sign up</button>{why}</>;
 }
 ```
+Render editable sign-in controls only while `auth.state === "signed-out"`;
+show Restoring… otherwise. AppProvider resets account-owned state when the app
+or viewer changes. Restoring → signed-out has the same null viewer and preserves
+state; entering/leaving an account resets drafts. `useAppReady()` becomes true
+after this app's initial `app.ready` resolves ok and auth is signed-in. Gate
+writers and proof input on it; readiness is neither connectivity nor permission.
+
 Sign-in: {ok:true, session} or {ok:false, why}. useAuth exposes no session. Expo: secureStoreSessionStore(SecureStore); web: localStorageSessionStore. guide production.
 
 `useAuth()` members: `state`, `viewer`, `why`, `signup(email, password)`, `login(email, password)`, `guest()`, `logout()`, `logoutEverywhere()`.
@@ -70,7 +77,9 @@ const app = createApp({url: "http://127.0.0.1:4400", device: nativeDevice, sessi
 Storage failures propagate. Rebuild.
 
 ## React hooks
-`matchRead(read, …)` (no type arguments; or a page) requires five states: `present(data, read)` excludes null; `partial(data, read)` keeps T; `denied(why, read)`; `absent(read)`/`loading(read)`. `otherwise(read)` covers omitted loading/absent/present; denied/partial stay explicit, or `...otherwiseAll(read => …)` anywhere takes all unnamed (named handlers win). `existence(read)` classifies; `isReady(read)` enables `read.existence`; `void client.close()` in cleanup. Types/hooks: `RowOf`/`ResultOf`/`ArgsOf`/`UseQuery`/`UsePage`/`useSignedInViewer()`/`usePersonaApp`; `{ skip: !id }` waits for arguments; `[add, remove].find(isFailed)?.last.why`; helpers take `Outcome | undefined` or `Read<unknown>` ([form](CLIENT-AND-OPERATIONS.md#status-components-and-a-form)).
+`matchRead(read, …)` (no type arguments; or a page) requires five states: `present(data, read)` excludes null; `partial(data, read)` keeps T; `denied(why, read)`; `absent(read)`/`loading(read)`. `otherwise(read)` covers omitted loading/absent/present; denied/partial stay explicit, or `...otherwiseAll(read => …)` anywhere takes all unnamed (named handlers win). A complete empty list is `absent`; `otherwiseAll` also takes `denied`.
+`isPresent(read)` narrows to disclosed non-null data. `isReady(read)` includes
+absent and partial, so its data can still be null. `existence(read)` classifies; `isReady(read)` enables `read.existence`; `void client.close()` in cleanup. Types/hooks: `RowOf`/`ResultOf`/`ArgsOf`/`UseQuery`/`UsePage`/`useSignedInViewer()`/`usePersonaApp`; `{ skip: !id }` waits for arguments; `[add, remove].find(isFailed)?.last.why`; helpers take `Outcome | undefined` or `Read<unknown>` ([form](CLIENT-AND-OPERATIONS.md#status-components-and-a-form)).
 
 `loading`: keep shells mounted; `denied`: show refusal; `present`: render; `absent`: proven empty; `partial`: uncertain, never absence.
 
@@ -112,3 +121,88 @@ Once-media handles revoke on unmount ([recipe](CLIENT-AND-OPERATIONS.md)); offli
 
 ## Browser proof
 Never wait for `networkidle`: live queries hold a long poll. Use `domcontentloaded`, labelled controls, and this write's fresh `sent` receipt before rows; existing text proves nothing. Visible-form witness and RN-web notes: `guide testing`.
+
+
+## An online role form across releases
+
+Use `createApp({url, writes:"online", sessionStore:localStorageSessionStore()})`
+for this online browser screen, inside AppProvider after sign-in. Query roles
+from a readable roster, never infer them from an empty protected list. RULES3
+owns roster authorization; DAY3 owns compatibility generation.
+
+```tsx
+import { useEffect, useState } from "react";
+import { isPresent, matchReadList, sentResult, useAppReady, useMutation, useQuery, useRelease } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+export function StaffWorkspace({team}: {team: string}) {
+  const ready = useAppReady(), release = useRelease();
+  const role = useQuery(api.myRole, {team});
+  // Own drafts and selection above every read, role and release gate.
+  const [draft, setDraft] = useState(""), [selected, setSelected] = useState("");
+  const [lastStaff, setLastStaff] = useState(false);
+  const staff = isPresent(role) && role.data.role === "staff";
+  const uncertain = "loading" in role || ("data" in role && role.existence === "partial");
+  useEffect(() => { if (!uncertain) setLastStaff(staff); }, [uncertain, staff]);
+  // Sticky shell only: held role never authorizes reads or writes.
+  const shell = uncertain ? lastStaff : staff;
+  const available = api.addStaffNote.available(release) && api.staffNotes.available(release);
+  const add = useMutation(api.addStaffNote);
+  async function submit() {
+    const title = draft.trim();
+    if (!ready || !staff || !available || !title || !selected) return;
+    const write = await add.run({team, title, category:selected});
+    if (sentResult(write) !== undefined) setDraft(current => current === draft ? "" : current);
+  }
+  return <section aria-label="Staff workspace"><p>{shell ? "Staff workspace" : "Staff access required"}</p>
+    <label>Note<input value={draft} onChange={e => setDraft(e.target.value)} /></label>
+    <label htmlFor="category">Category</label><select id="category" value={selected} onChange={e => setSelected(e.target.value)}><option value="">Choose</option><option value="general">General</option></select>
+    <button disabled={!ready || !staff || !available || add.inFlight} onClick={() => void submit()}>Save note</button>
+    {staff && available ? <StaffRows team={team} /> : <p>Waiting for staff capabilities</p>}
+    {add.last?.state === "failed" && <p role="alert">{add.last.why.message}</p>}
+  </section>;
+}
+function StaffRows({team}: {team:string}) {
+  const rows = useQuery(api.staffNotes, {team});
+  return <>{matchReadList(rows, {denied: why => <p role="alert">{why.message}</p>, absent: () => <p>No notes</p>,
+    present: notes => <ul>{notes.map(row => <li key={row.id}>{row.title} — {row.priority ?? "normal"}</li>)}</ul>,
+    otherwise: () => <p>Updating notes…</p>})}</>;
+}
+```
+Mount `<StaffWorkspace key={team} team={team}/>` so resource changes reset its
+state too. Loading/generation changes retain input ownership and selections;
+denied/absent roles close the gate, and unavailable operations never open.
+Inputs stay mounted but Save is disabled without current role and capabilities.
+The sticky role labels the shell only; protected rows withdraw during loading.
+Server rules and mutation requires always decide permission.
+
+A compatibility field marked "Since release N" can be undefined with an older
+server, even after narrowing to present. At React's render boundary use
+`row.priority ?? "normal"`; at an Exact property boundary pass the same normalized
+value to a required text prop. Keep the optional generated type honest. Feature
+gates use `operation.available(release)`, never field presence as permission.
+
+## A public guest page
+
+For a read-only visitor, the schema admits guests (`use identity` or
+`use identity guests`) and its public query has a public read rule. No password
+or device is needed; the browser still needs session custody.
+
+```tsx
+import { createApp } from "snapback4/app";
+import { localStorageSessionStore } from "snapback4/auth";
+import { AppProvider, matchReadList, useAuth, useQuery } from "snapback4/react";
+import { api } from "../snapback/generated/api";
+const guestApp = createApp({url:"http://127.0.0.1:4400", readOnly:true, sessionStore:localStorageSessionStore()});
+export function GuestPage() { return <AppProvider app={guestApp}><GuestGate /></AppProvider>; }
+function GuestGate() {
+  const auth = useAuth();
+  if (auth.state === "restoring") return <p>Restoring…</p>;
+  if (auth.state === "signed-out") return <><button onClick={() => void auth.guest()}>Continue as a guest</button><p role="alert">{auth.why?.message}</p></>;
+  return <PublicNotes />;
+}
+function PublicNotes() {
+  const notes = useQuery(api.publicNotes, {});
+  return <>{matchReadList(notes, {denied: why => <p role="alert">{why.message}</p>, absent: () => <p>No public notes</p>,
+    present: rows => <ul>{rows.map(row => <li key={row.id}>{row.title}</li>)}</ul>, otherwise: () => <p>Loading…</p>})}</>;
+}
+```

@@ -379,6 +379,10 @@ export interface Client extends UploadCapabilities {
 export function isReady<R extends Read<unknown>>(read: R): read is Extract<R, { readonly data: unknown }> {
   return "data" in read;
 }
+/** Narrow to disclosed non-null data; isReady alone still includes absent/partial null. */
+export function isPresent<R extends Read<unknown>>(read: R): read is Extract<R, { readonly existence: "present" }> {
+  return "data" in read && read.existence === "present";
+}
 export function isLoading<R extends Read<unknown>>(read: R): read is Extract<R, { readonly loading: true }> {
   return "loading" in read;
 }
@@ -455,6 +459,7 @@ export type ReadMatchFallbackHandlers<T, R = unknown> =
 /** A handler set with `otherwise` while it still lacks `denied` or `partial`:
  * accepted for inference only, so the missing decision is named below. */
 type ReadMatchIncomplete<T> = { [K in keyof ReadMatchHandlers<T>]?: ReadMatchHandlers<T>[K] } & Pick<ReadMatchFallbackHandlers<T>, "otherwise">;
+type MissingDenied<T> = Omit<ReadMatchHandlers<T>, "denied"> & { denied?: never };
 /** The error a fallback without `denied`/`partial` reports: the property's
  * type is the fix. LLP 3000.031 §8 keeps both decisions explicit; an
  * `otherwise` built by `otherwiseAll` is that decision, so it needs neither. */
@@ -462,7 +467,7 @@ type FallbackDecisions<H> = H extends { otherwise: OtherwiseAll<unknown> } ? unk
   : H extends { otherwise: unknown }
   ? ("denied" extends keyof H ? unknown : { denied: "otherwise skips denied: add denied: why => …, or replace otherwise with ...otherwiseAll(fallback) to send denied and partial there too" })
     & ("partial" extends keyof H ? unknown : { partial: "otherwise skips partial: add partial: data => …, or replace otherwise with ...otherwiseAll(fallback) to send denied and partial there too" })
-  : unknown;
+  : "denied" extends keyof H ? unknown : { denied: "matchRead requires denied: why => … (or ...otherwiseAll(fallback))" };
 
 /** What `matchRead` accepts: a read, or a `usePage` result (it reads `page.read`). */
 type Matchable<T> = Read<T> | { readonly read: Read<T>; readonly loadMore: () => void };
@@ -482,7 +487,7 @@ type Matchable<T> = Read<T> | { readonly read: Read<T>; readonly loadMore: () =>
 // @ref LLP 3000.013#6.6 — an omitted denied/partial with `otherwise` fails naming the fix, not a Pick<> dump.
 // @ref LLP 3000.013#6.7 — NoInfer wraps the whole handler set, never T inside it: `NoInfer<T> & ({} | undefined)` never simplified, so present rows refused `rows[0]` and `for…of`.
 // @ref LLP 3000.013#6.8 — a page hook is matched by its read: `matchRead(page, …)` was the most common miss.
-export function matchRead<T, H extends NoInfer<ReadMatchHandlers<T> | ReadMatchFallbackHandlers<T> | ReadMatchIncomplete<T>>>(
+export function matchRead<T, H extends NoInfer<ReadMatchHandlers<T> | ReadMatchFallbackHandlers<T> | ReadMatchIncomplete<T> | MissingDenied<T>>>(
   read: Matchable<T>, handlers: H & FallbackDecisions<H>,
 ): ReturnType<Extract<H[keyof H], (...args: never[]) => unknown>>;
 export function matchRead<T, R>(input: Matchable<T>, handlers: { [K in keyof ReadMatchHandlers<T, R>]?: ReadMatchHandlers<T, R>[K] } & { otherwise?: (read: Read<T>) => R }): R {
