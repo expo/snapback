@@ -8,7 +8,7 @@ function Account() {
   const ready = useAppReady();
   const [email, setEmail] = useState(""), [password, setPassword] = useState(""), [problem, setProblem] = useState(""), [busy, setBusy] = useState(false);
   if (auth.state === "restoring") return <p>Restoring your session…</p>;
-  if (auth.state === "signed-in" && !ready) return <p>Opening…</p>;
+  if (auth.state === "signed-in" && !ready) return <p>{auth.why?.message ?? "Opening…"}</p>;
   if (auth.state === "signed-in") return <Todos />;
   async function submit(signup: boolean) {
     setBusy(true); setProblem("");

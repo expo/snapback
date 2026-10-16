@@ -1577,7 +1577,7 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | --- | --- |
 | `AppProvider({ app })`, `SnapbackProvider({ client })` | the provider; `AppProvider` remounts its children when the account changes |
 | `useRelease()` | authenticated served capabilities; generation changes refresh metadata, never authority |
-| `useAppReady()` | initial app.ready resolved ok and auth is signed-in; gate initial write forms, not connectivity or permission |
+| `useAppReady()` | initial app.ready settled, current auth is signed-in without an admission refusal; later sign-in recovers failed restoration; gate initial write forms, not connectivity or permission |
 | `useAuth()` | `AuthSnapshot` plus `signup`, `login`, `guest`, `logout`, `logoutEverywhere`; `state === "signed-in"` narrows `viewer` |
 | `useClient()`, `useOnline()` | the `Client`; the app's server arm `Online` (under `AppProvider`) |
 | `useQuery(op, args, { keep, skip }?)` | `Read<R>` (`UseQuery<typeof op>`): narrow with `matchRead` or the guards; `skip: true` reads nothing (`loading`) |
@@ -4061,11 +4061,11 @@ After asserting a write's sent receipt, a proof can wait for its server-backed
 projection. A deadline reports the last answer and never declares a write failed.
 
 ```ts
-import type { Client } from "snapback4/contract";
+import type { Online } from "snapback4/app";
 import { waitForServer } from "snapback4/proof";
 import { api } from "../snapback/generated/api";
-export async function committedNote(client: Client, id: string) {
-  return waitForServer(() => client.query(api.staffNotes, {team:"proof"}),
+export async function committedNote(online: Online, id: string) {
+  return waitForServer(() => online.query(api.staffNotes, {team:"proof"}),
     read => "data" in read && read.fresh && read.data.some(row => row.id === id),
     {label:"committed note"});
 }

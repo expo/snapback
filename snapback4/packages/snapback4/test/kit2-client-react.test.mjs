@@ -21,7 +21,7 @@ const op=(kind,name)=>({kind,name,available:release=>operationAvailable(release,
 export const api={myRole:op('query','myRole'),staffNotes:op('query','staffNotes'),addStaffNote:op('mutation','addStaffNote')};`);
  writeFileSync(join(dir,'harness.tsx'),`
 import React,{act,useState} from 'react';import {createRoot} from 'react-dom/client';
-import {AppProvider} from 'snapback4/react';import {StaffWorkspace} from './workspace';
+import {AppProvider,useAppReady} from 'snapback4/react';import {StaffWorkspace} from './workspace';
 window.IS_REACT_ACT_ENVIRONMENT=true;
 let auth={state:'signed-in',viewer:'dev:alice'},role={data:{role:'staff'},existence:'present',fresh:true,complete:true,cut:null};
 let release={loading:true},openReady;const ready=new Promise(r=>openReady=r),authListeners=new Set(),releaseListeners=new Set(),records=new Set();
@@ -34,10 +34,10 @@ const client={release:{getSnapshot:()=>release,subscribe(fn){releaseListeners.ad
  const record={name:op.name,getSnapshot:()=>op.name==='myRole'?role:notes,subs:new Set(),subscribe(fn){record.subs.add(fn);return()=>record.subs.delete(fn)},close(){records.delete(record)}};records.add(record);return record;}}
 const makeApp=()=>({client,ready,auth:{onChange(fn){authListeners.add(fn);return()=>authListeners.delete(fn)},getSnapshot:()=>auth}});
 let app=makeApp();const root=createRoot(document.querySelector('#root'));
-function Login(){const [email,setEmail]=useState('');return auth.state==='signed-in'?<StaffWorkspace team='t'/>:<label>Email<input value={email} onChange={e=>setEmail(e.target.value)}/></label>}
+function Login(){const ready=useAppReady(),[email,setEmail]=useState('');return <><output aria-label='Admission'>{ready?'ready':'opening'}</output>{auth.state==='signed-in'?<StaffWorkspace team='t'/>:<label>Email<input value={email} onChange={e=>setEmail(e.target.value)}/></label>}</>}
 const render=()=>root.render(<React.StrictMode><AppProvider app={app}><Login/></AppProvider></React.StrictMode>);
 window.start=async()=>{await act(async()=>render())};
-window.publish=async patch=>{await act(async()=>{if(patch.role)role=patch.role;if(patch.release)release=patch.release;if(patch.auth)auth=patch.auth;if(patch.ready)openReady({ok:true});if(patch.app)app=makeApp();for(const fn of authListeners)fn();for(const fn of releaseListeners)fn();for(const r of records)for(const fn of r.subs)fn();render();})};
+window.publish=async patch=>{await act(async()=>{if(patch.role)role=patch.role;if(patch.release)release=patch.release;if(patch.auth)auth=patch.auth;if(patch.ready)openReady({ok:true});if(patch.app)app=makeApp();if(patch.failedApp)app={...makeApp(),ready:Promise.resolve({ok:false})};if(patch.newClient)app.client={...client};for(const fn of authListeners)fn();for(const fn of releaseListeners)fn();for(const r of records)for(const fn of r.subs)fn();render();})};
 window.inspect=()=>({writes,notes:[...records].filter(r=>r.name==='staffNotes').length});
 window.finish=()=>act(async()=>root.unmount());
 `);
@@ -68,5 +68,9 @@ window.finish=()=>act(async()=>root.unmount());
  assert.equal(await email.inputValue(),'kept@example.com');assert.equal(await page.evaluate(()=>window.originalEmail===document.querySelector('input')),true,'null-viewer restoration does not remount');
  await publish({app:true});assert.equal(await email.inputValue(),'','new app/backend resets same-viewer state');
  await publish({auth:{state:'signed-in',viewer:'dev:bob'}});assert.equal(await input.inputValue(),'','different account resets drafts');
+ await publish({failedApp:true,auth:{state:'signed-in',viewer:'dev:bob',why:{code:'E_ADMISSION',family:'client',message:'opening refused'}}});
+ assert.equal(await page.getByLabel('Admission').textContent(),'opening','failed opener does not admit its own client');
+ await publish({newClient:true,auth:{state:'signed-in',viewer:'dev:bob'}});
+ assert.equal(await page.getByLabel('Admission').textContent(),'ready','successful replacement client recovers after failed initial restoration');
  await page.evaluate(()=>window.finish());assert.deepEqual(errors,[]);
 });

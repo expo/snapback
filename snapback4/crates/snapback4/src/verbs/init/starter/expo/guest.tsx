@@ -18,7 +18,7 @@ function Account() {
   const ready = useAppReady();
   const [problem, setProblem] = useState("");
   if (auth.state === "restoring") return <Text style={{ padding: 24 }}>Restoring your session…</Text>;
-  if (auth.state === "signed-in" && !ready) return <Text>Opening…</Text>;
+  if (auth.state === "signed-in" && !ready) return <Text>{auth.why?.message ?? "Opening…"}</Text>;
   if (auth.state === "signed-in") return <Todos />;
   const signIn = async () => {
     const result = await auth.guest();

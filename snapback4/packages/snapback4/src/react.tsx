@@ -66,7 +66,7 @@ export function useAuth(): AuthSnapshot & Pick<AppAuth, "signup" | "login" | "gu
     logout: app.auth.logout, logoutEverywhere: app.auth.logoutEverywhere };
 }
 
-/** Initial app custody has opened successfully and an account is signed in.
+/** Initial opening has finished and the current signed-in account admits writes.
  * This is admission readiness, not network availability or permission. */
 export function useAppReady(): boolean {
   const app = useContext(AppContext);
@@ -75,10 +75,10 @@ export function useAppReady(): boolean {
   const [opened, setOpened] = useState<App | null>(null);
   useEffect(() => {
     let active = true;
-    void app.ready.then(result => { if (active && result.ok) setOpened(app); }, () => {});
+    void app.ready.then(() => { if (active) setOpened(app); }, () => {});
     return () => { active = false; };
   }, [app]);
-  return opened === app && auth.state === "signed-in";
+  return opened === app && auth.state === "signed-in" && !auth.why?.code.startsWith("E_ADMISSION");
 }
 
 export function SnapbackProvider({ client, children }: { client: Client; children: ReactNode }) {

@@ -160,8 +160,9 @@ an explicit label/for pair and selectByValue. Run frontPage before screenshots.
 a fresh signal; both options are optional. Timeout names the locator, last count
 and text, and absent versus present-but-unchanged. Old text and editable values
 prove nothing. After a terminal receipt, poll the authoritative projection:
-`await waitForServer(() => client.query(api.list, {}), read => "data" in read && read.fresh && read.data.some(row => row.id === createdId), {label:"committed row"})`.
-Import waitForServer from snapback4/proof. Each poll and the whole wait are bounded;
+`await waitForServer(() => app.online.query(api.list, {}), read => "data" in read && read.fresh && read.data.some(row => row.id === createdId), {label:"committed row"})`.
+Import waitForServer from snapback4/proof. Supply app.online or raw HTTP server
+reads; a local device query can contain predictions and is not server truth. Each poll and the whole wait are bounded;
 its deadline reports the last answer. A poll timeout never means the write failed.
 `await frontPage(page)` brings the page forward before `await page.screenshot(...)`.
 
