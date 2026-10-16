@@ -487,7 +487,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                 fail(format!("{name}.{column} needs its reference index (leading with {column})"));
             }
             if action.writes() {
-                if schema.reference_cap(name, column).is_none() {
+                if delete_reachable(schema, parent) && schema.reference_cap(name, column).is_none() {
                     fail(format!("E_CASCADE_BOUND: {} on {name}.{column} needs `cap N by {column}`", action.words()));
                 }
                 if let Some(reason) = write_target_refusal(schema, name) {
@@ -505,12 +505,26 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
     if let Some(table) = schema.deletion_cycle() {
         issues.push(SchemaIssue { path: format!("tables.{table}"), message: format!("{table} reaches itself through on delete cascade and read through: no order can delete those rows") });
     }
-    for name in schema.tables.keys() {
-        if schema.is_referenced(name) && schema.delete_reservation(name).is_none()
-            && schema.action_tables(name).written.iter().all(|t| write_target_refusal(schema, t).is_none())
-            && schema.referencing(name).into_iter().all(|r| !r.action.writes() || schema.reference_cap(r.child, r.column).is_some()) {
-            issues.push(SchemaIssue { path: format!("tables.{name}"), message: format!("on delete cascade from {name} reaches {name} again; a cascade cannot be cyclic") });
+    // A missing reservation can mean an uncapped dormant descendant. Only
+    // the structural graph walk above proves a cycle.
+    issues
+}
+
+/// @ref LLP 3000.036.002#10 — only a live delete source requires action bounds.
+/// Authored/system program deletes are checked separately by IR admission.
+pub fn delete_source(schema: &Schema, name: &str) -> bool {
+    schema.table(name).is_some_and(|table| table.is_expiring() || table.rules.delete != crate::schema::RuleExpr::Deny)
+}
+
+pub fn delete_reachable(schema: &Schema, name: &str) -> bool {
+    let mut reached = schema.tables.keys().filter(|name| delete_source(schema, name)).cloned().collect::<BTreeSet<_>>();
+    let mut pending = reached.iter().cloned().collect::<Vec<_>>();
+    while let Some(parent) = pending.pop() {
+        for reference in schema.referencing(&parent) {
+            if reference.action == OnDelete::Cascade && reached.insert(reference.child.to_owned()) {
+                pending.push(reference.child.to_owned());
+            }
         }
     }
-    issues
+    reached.contains(name)
 }

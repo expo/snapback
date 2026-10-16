@@ -19,8 +19,16 @@ impl BoundProgram {
             | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(column)) => Some(column.as_str()),
             _ => None,
         })?;
+        let mut probes = Vec::new(); rules::probe_sites(&table.rules.read, &mut probes);
+        let roster = probes.iter().find_map(|(name, _)| {
+            let target = schema.table(name)?;
+            target.indexes.values().any(|index| index.unique && index.components.len() > 1
+                && index.columns().iter().any(|column| target.columns.get(column) == Some(&snapback4_core::schema::ColumnType::Principal)))
+                .then_some(name)
+        });
+        let roster = roster.map_or(String::new(), |roster| format!("For whole-group intent, {roster} can drive point writes only if the caller can read its complete group and each row supplies the full unique key of {}; requiring the caller's own membership does not establish that roster coverage. See `snapback4 guide rule-recipes`. ", scan.table));
         Some(format!(
-            "First add `.{column} = viewer` to this read's `where` predicate; that directly selects the read-rule audience and is the smallest qualifying repair. "
+            "First add `.{column} = viewer` to this read's `where` predicate only when changing this caller's rows is intended; it narrows the operation's population. {roster}"
         ))
     }
 

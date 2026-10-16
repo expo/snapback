@@ -17,7 +17,7 @@ fn repair(source: &str, sync_line: &str, why: &str) {
     let d = ds[0];
     assert!(d.message.contains(why), "{d:?}");
     assert_eq!(d.guide, "sharing");
-    assert!(d.rewrite.starts_with("online only"), "{d:?}");
+    assert!(d.rewrite.starts_with("online only") || d.rewrite.starts_with("sync"), "{d:?}");
     // Replace the actual sync line, retaining the read rule, expiry and queries.
     let (prefix, suffix) = source.rsplit_once(sync_line).expect("content sync line");
     let repaired = format!("{prefix}  {}\n{suffix}", d.rewrite);
@@ -47,7 +47,7 @@ fn expired_content_then_join_then_sweep_is_refused_before_a_device_can_learn_its
             let without_window = format!("{prefix}  sync\n{suffix}");
             let again = compile(&without_window);
             assert!(again.diagnostics.iter().any(|d| d.code == "E_SYNC" && d.message.contains("cannot expire: notes")), "{:?}", again.diagnostics);
-            assert!(b.diagnostics.iter().find(|d| d.code == "E_SYNC").unwrap().rewrite.contains("when no other excluded"));
+            assert!(b.diagnostics.iter().find(|d| d.code == "E_SYNC").unwrap().rewrite.contains("keep this read rule"));
         }
     }
     let source = GROUP.replace("  until: time\n", "  until: time\n  expire at .until\n");

@@ -118,7 +118,23 @@ mutation changeTime(postId: posts):
 mutation deletePost(postId: posts):
   delete posts[id = postId]
 "#);
-    let b=compile(&source);let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let rejected = snapback4_lang::compile(&[("schema.q".into(), source.clone())]);
+    assert!(rejected.diagnostics.iter().any(|d| d.code == "E_QUARRY_IMMUTABLE"));
+    // Source patches are now refused statically. Retain the independent
+    // runtime constraint regression for externally supplied IR.
+    let b=compile(&source.replace("{ at: now }", "{}"));
+    let programs = b.programs.into_iter().map(|p| {
+        let mut program = p.program;
+        if program.name == "changeTime" {
+            for statement in &mut program.body {
+                if let snapback4_core::ir::Stmt::WriteTarget { patch, .. } = statement {
+                    *patch = snapback4_core::ir::Expr::Object([("at".into(), snapback4_core::ir::Expr::Input(snapback4_core::ir::Input::Now))].into());
+                }
+            }
+        }
+        program
+    });
+    let mut e=Engine::memory(b.schema,programs).unwrap();
     e.mutate("register",None,context("a",&[],0)).unwrap();
     let before = snapshot(&e);
     let out=e.mutate("publish",None,context("a",&[("postId",id("initial")),("removed",Value::Bool(true))],1)).unwrap();

@@ -500,11 +500,13 @@ impl Binder<'_> {
             let mut branch = setup::Body::default();
             self.push_scope();
             self.narrow(left, op == "and");
-            let right = self.expr(right, &mut branch);
+            let right_bound = self.expr(right, &mut branch);
             self.pop_scope();
-            let (r, rt) = right?;
+            let (r, rt) = right_bound?;
             if !lt.is_bool() || !rt.is_bool() {
-                return Err(type_error(site, format!("{op} needs bool operands; got {} and {}", lt.name(), rt.name()), "compare each side first"));
+                let nullable = [(left, &lt), (right, &rt)].into_iter().filter(|(_, ty)| ty.is_optional())
+                    .map(|(value, ty)| format!("`{}` at {} is {}", self.catalog.source.expression(value), value.site(), ty.name())).collect::<Vec<_>>().join("; ");
+                return Err(type_error(site, format!("{op} needs bool operands; got {} and {}{}", lt.name(), rt.name(), if nullable.is_empty() { String::new() } else { format!("; nullable operand: {nullable}") }), "compare an optional bool with true or false explicitly; a missing/hidden value is not a Boolean"));
             }
             branch.push(Stmt::Assign { name: result.clone(), value: r });
             let (then_body, else_body) = if op == "and" { (branch, setup::Body::default()) } else { (setup::Body::default(), branch) };

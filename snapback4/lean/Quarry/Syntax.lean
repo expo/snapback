@@ -100,12 +100,17 @@ structure TableDecl where
   uniqueCodes : List (Option String) := []
   /-- Declared finite group bounds (`cap N by ...`). -/
   caps : List CapDecl := []
+  /-- Immutable columns: readable patches preserve their stored values. -/
+  immutable : List String := []
   /-- A lower read lifetime: null or values at most the request clock are open. -/
   notBefore : Option String := none
   /-- An upper read lifetime: non-null values at most the request clock are expired. -/
   expire : Option String := none
   /-- Components of the plain index selected for expiry, before its appended row id. -/
   expiryOrder : List String := []
+  /-- True only without a sync declaration; a simultaneous online-only arm
+  does not establish private server exhaustion. -/
+  onlineOnly : Bool := true
   read : Rule := .deny
   insert : Rule := .deny
   update : Rule := .deny

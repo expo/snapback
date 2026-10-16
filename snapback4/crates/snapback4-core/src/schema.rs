@@ -149,6 +149,9 @@ pub struct Execution {
     /// membership lane. Older validators must refuse the plan.
     #[serde(default, rename = "branchPagesV4", skip_serializing_if = "std::ops::Not::not")]
     pub branch_pages_v4: bool,
+    /// LANG2 bounded exhaustion and compound negative points.
+    #[serde(default, rename = "branchPagesV5", skip_serializing_if = "std::ops::Not::not")]
+    pub branch_pages_v5: bool,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub renews: bool,
     #[serde(default, rename = "renewMs", skip_serializing_if = "Option::is_none")]

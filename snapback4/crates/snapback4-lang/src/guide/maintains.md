@@ -586,7 +586,7 @@ table ranked:
   update (old, next) <- exists likeCounts[postId = next.postId, value = next.score] or (next.score = 0 and not exists likeCounts[postId = next.postId])
 mutation refresh(postId: posts):
   post = posts[postId] ! else NOT_FOUND
-  upsert ranked[postId = post.id] { postId: post.id, score: likeCounts[post.id] }
+  upsert ranked[postId = postId] { postId, score: likeCounts[postId] }
 ```
 
 The zero case matters: a count group has no row without contributions. These

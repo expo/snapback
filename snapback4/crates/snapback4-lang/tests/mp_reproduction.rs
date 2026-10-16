@@ -139,7 +139,7 @@ fn developer_gets_each_cause_without_changing_one_byte_of_the_refusal() {
         assert_eq!(pair[0],pair[1],"collector cannot alter wire bytes or meters");
         envelopes.push(pair[0].0.clone());
     }
-    // @ref LLP 3000.036.002#10 — generic layer/recipe help changes; private causes must remain indistinguishable.
+    // @ref LLP 3000.036.002#11 — generic layer/recipe help changes; private causes must remain indistinguishable.
     let mut expected: snapback4_core::Refusal = serde_json::from_str(include_str!("../../../reports/wave11-qdiag/public-rule.json")).unwrap();
     expected.message.insert_str(0, "table authorization layer: ");
     expected.rewrite = Some("a mutation require decides intent; each write still passes its table rule; see: guide rule-recipes role-workflow".into());

@@ -95991,3 +95991,80 @@ test-binary spawn; Mac dry run 6 passed `== 0 failure(s) in 9145 s` after dry
 run 5's known `run_admission` log race. One `--resume` published the platforms
 and client, then Expo. Clean installs on Linux and the Mac print `snapback4 0.4.29`
 and pass `init` + `check`. Details: `reports/20261015-publication-0.4.29/REPORT.md`.
+
+## 2026-10-16 — LANG2: bounded private walks and source-shaped repairs
+
+Wave 13's unique membership targets now use filtered point lanes while keeping
+covering authorization pins intact. Indexed negative membership supports a
+compound unique identity with one varying component and residual equalities.
+Finite ordinary online-only parent/child groups can exhaust under an upfront,
+fixed physical allowance; nested rule probes cannot reveal hidden occupancy in
+logical meters. New interpretations require branch-pages-v5. Opening/expiry,
+read-through, maintained and nullable set-null populations remain outside that
+admission, and oversized caps preserve existing indexed/caller-granted plans.
+
+Quarry refuses unproved immutable update/upsert payloads, narrows conjunctive
+non-null snapshots and authorized private counts, infers not-before indexes,
+and requires action caps only when deletion can reach the action. Dormant
+uncapped actions are noted. Diagnostic and note repairs name the author's
+schema, explain product caps and the joint heap formula, preserve job guards,
+and abbreviate long expansions in ordinary output. Copied scopes establish no
+storage invariant; their notes preserve the exact caller query. Private median
+needs an explicit disclosure/window contract; authorized latest-row reads stay
+available. LLP 3000.036.002 §10 records the decisions and independent reviews.
+
+Runtime hidden-write fixtures now explicitly submit adversarial IR after
+checking the new source refusal, retaining the existing hidden immutable
+exception's paired-world coverage. Lean, generated differential cases, both
+device stores, simulator, Linux/Mac and the copied 100-schema census are
+recorded in LANG2's WORKSTREAM-REPORT.md. The 0.4.30 guide changes entry belongs
+to this lane; RULES3 owns broader authorization recipes. No version bump or
+publication is part of this workstream.
+
+## 2026-10-16 — LANG2 P18 coordinator correction: uncertain patches retain runtime equality
+
+This supersedes the preceding LANG2 entry's blanket refusal of unproved
+immutable payloads. Same-author upserts are valid existing applications:
+`N_IMMUTABLE_PATCH` now names the column and readable runtime equality guard.
+`E_QUARRY_IMMUTABLE` is limited to proved changes or fresh clock/id patterns;
+exact key, current snapshot and local successful-insert equality stay quiet.
+Guarded, reused and loop-carried clocks remain uncertain; zero offsets preserve
+identity. Historical/seeded/adopted values are not inferred from other source
+writers. The native runtime and its hidden immutable suppression are unchanged.
+
+Lean now models readable immutable equality and hidden-field stripping.
+Source/simulator regressions, generated native/model/device cases and the
+Linux/Mac tests are recorded in WORKSTREAM-REPORT.md. The revised census passes
+all 100 original schemas with zero added refusals and 28 immutable notes across
+17 lanes. Lane052's final reactions.at is mutable; its former refusal concerned
+link. No evidence schema was edited. Fresh amendment reviews are recorded under
+llp/reviews/3000.036.002-p18-*, independently of the earlier LANG2 reviews.
+
+## 2026-10-16 — LANG2 P18: readability is part of a refusal proof
+
+A private read rule can hide a target while its update rule admits the mutable
+remainder; even a known immutable key mismatch is then ignored at runtime.
+The hard-refusal fragment now requires unconditional public/allow readability
+or a system job. Private policies get N_IMMUTABLE_PATCH unless an equal value
+already makes the patch quiet. The source/native/simulator regression proves
+that a hidden caller succeeds while the readable caller's mismatch refuses.
+This source-diagnostic refinement preserves the existing runtime exception;
+LLP 3000.036.002 §10 and its fresh reviews record the final boundary.
+
+The readability proof also excludes opening/expiry, inherited read-through and
+ephemeral lifetimes, including system jobs. A public rule alone does not make
+an inactive target readable. The new pinned-clock regression covers an
+unopened success and an opened immutable refusal; generated P18 coverage now
+has 64 cases, including private-owner and unopened-public queues with explicit
+post-settlement comparison classes.
+
+Opaque expression blocks can assign caller locals even without table writes
+(job `as` is one example). Immutable key/value, object, snapshot and minted-id
+proofs now stop at those barriers. Native/simulator regressions execute both
+the equal and differing literal cases and check that a stored id read inside
+`as` never inherits the freshness of an overwritten local.
+
+A proven fresh unused component of an upsert's unique identity establishes an
+insert-only operation. Its initial immutable values stay quiet, including a
+second minted id and creation clock. Ordinary insert constraints still apply;
+a write or opaque effect after the capture prevents claiming this absence.

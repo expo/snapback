@@ -214,7 +214,7 @@ fn admission_matrix_and_live_cap() {
             ] {
                 let source=format!("{model}\nmutation subject(){}\n{body}\n",if server {": server"} else {":"});
                 let b=snapback4_lang::compile(&[("schema.q".into(),source)]);
-                let expected = if shape == "whole" && !cap { Some("E_QUARRY_PLACEMENT") }
+                let expected = if shape == "whole" && !cap { Some("E_QUARRY_FANOUT") }
                     else if !server && shape != "point" { Some("E_STRUCTURAL_FANOUT") } else { None };
                 match expected {
                     Some(code) => assert!(b.diagnostics.iter().any(|d| d.code == code), "cap={cap} server={server} shape={shape}: {:?}", b.diagnostics),

@@ -5,8 +5,25 @@ use snapback4_core::{Context, Engine};
 use snapback4_device::{device::{Backend, Device, StreamPage}, store::DeviceStore};
 use serde_json::{Value as Json, json};
 const SOURCE: &str = include_str!("../../snapback4-lang/tests/fixtures/read-through-device.q");
+// These runtime scenarios retain the old externally supplied upsert arm;
+// Quarry source now refuses an unproved write to its immutable task column.
+fn compile_external_fixture(source: &str) -> (Engine, Backend) {
+    use snapback4_core::ir::{Expr, Stmt};
+    let (_, mut backend) = compile(source);
+    for program in &mut backend.programs {
+        if program.name != "put" { continue; }
+        for statement in &mut program.body {
+            if let Stmt::WriteTarget { patch: Expr::Object(fields), .. } = statement {
+                fields.insert("task".into(), Expr::Variable("task".into()));
+            }
+        }
+    }
+    let engine = Engine::memory(backend.schema.clone(),backend.programs.clone()).unwrap();
+    backend.generation = engine.generation();
+    (engine,backend)
+}
 fn setup(source: &str) -> (Engine, Backend) {
-    let (mut engine, backend) = compile(source);
+    let (mut engine, backend) = compile_external_fixture(source);
     let sent = engine.mutate("setup", None, Context::new("alice", args(&[("org",id("o")),("project",id("p")),("task",id("t")),("until",snapback4_core::value::Value::Null)])).at(100));
     assert!(sent.is_ok(), "{sent:?}");
     (engine,backend)
@@ -97,7 +114,7 @@ fn deletes<H:Host>(host:&mut H) {
     assert_eq!(d.predict("dropTask","alice",&json!({"id":"t"}),100,vec![],1).unwrap_err().code(),"E_PARENT_HAS_CHILDREN");
 }
 fn expiry<H:Host>(host:&mut H) {
-    let (mut e,b)=compile(SOURCE);
+    let (mut e,b)=compile_external_fixture(SOURCE);
     write(&mut e,"setup",&[("org",id("o")),("project",id("p")),("task",id("t")),("until",snapback4_core::Value::Int(300))]);
     write(&mut e,"post",&[("id",id("c")),("task",id("t")),("body",snapback4_core::Value::String("expires".into()))]);
     assert!(b.schema.tables["projects"].expire.is_none() && b.schema.tables["projects"].is_expiring());
@@ -145,7 +162,7 @@ both!(inherited_expiry_and_monotone_clock,expiry);
 both!(reused_parent_capture_and_retained_history,reused);
 
 fn staged_clock<H:Host>(host:&mut H) {
-    let (mut e,b)=compile(SOURCE);
+    let (mut e,b)=compile_external_fixture(SOURCE);
     write(&mut e,"setup",&[("org",id("o")),("project",id("p")),("task",id("t")),("until",snapback4_core::Value::Int(300))]);
     let mut d=host.open("staged-clock",Some(b)).unwrap();acquire(&mut e,&mut d,100);
     assert!(queued(&mut d,"post",json!({"id":"pending","task":"t","body":"pending"}),"queued").predictable);

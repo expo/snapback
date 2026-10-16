@@ -564,6 +564,17 @@ fn populations(send: &mut impl FnMut(String, Pair, bool)) {
 /// suites ran before; every other problem still fails the compile.
 pub fn runtime_compile(sources: &[(String, String)]) -> snapback4_lang::Bound {
     let mut b = snapback4_lang::compile(sources);
+    // This matrix deliberately exercises external IR's retained hidden-target
+    // immutable discard contract. Rebind its IR without the source-only static
+    // refusal, then run it against the original immutable schema.
+    if b.diagnostics.iter().any(|d| d.code == "E_QUARRY_IMMUTABLE") {
+        let runtime_sources: Vec<_> = sources.iter().map(|(name,source)| (name.clone(), source.lines()
+            .map(|line| if line.trim_start().starts_with("immutable ") { "" } else { line }).collect::<Vec<_>>().join("\n"))).collect();
+        let runtime = snapback4_lang::compile(&runtime_sources);
+        assert!(!runtime.diagnostics.iter().any(|d| d.code == "E_QUARRY_IMMUTABLE"));
+        b.programs = runtime.programs;
+        b.diagnostics.retain(|d| d.code != "E_QUARRY_IMMUTABLE");
+    }
     b.diagnostics.retain(|d| !(d.code == "E_FIELD_AUTHORITY" && d.message.contains("scope this read to a uniformly readable audience")));
     b
 }

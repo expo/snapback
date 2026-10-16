@@ -148,14 +148,30 @@ def clashCheck (sch : Schema) (s : Store) (v : List Nat) (now : Int) (t : String
     throw (if !rd then notFound else if !(readableAt sch s v now t r) then eRule else clashCode td false i)
   | none => pure ()
 
+-- @ref LLP 3000.036.002#10 — runtime equality is unchanged by source notes.
+/-- Hidden immutable fields are ignored without comparing their values. -/
+def immutablePatch (td : TableDecl) (readable : Bool) (patch : List (String × Scalar)) :=
+  if readable then patch else patch.filter (fun p => !td.immutable.contains p.1)
+
+def immutablePreserved (td : TableDecl) (old nw : Row) : Bool :=
+  td.immutable.all (fun col => old.get col == nw.get col)
+
+theorem immutablePreserved_self (td : TableDecl) (old : Row) :
+    immutablePreserved td old old = true := by
+  simp [immutablePreserved]
+
+theorem immutablePatch_hidden (td : TableDecl) (patch : List (String × Scalar)) :
+    immutablePatch td false patch = patch.filter (fun p => !td.immutable.contains p.1) := rfl
+
 def doUpdateRow (sch : Schema) (s : Store) (v : List Nat) (now : Int) (t : String) (td : TableDecl)
     (old : Row) (patch : List (String × Scalar)) (cond : Option (Row → Except Stop Bool)) :
     Except Stop (Value × Store) := do
-  let nw ← patchImage td old patch
+  let nw ← patchImage td old (immutablePatch td (readableAt sch s v now t old) patch)
   guardE (td.update.eval (openedStore sch s now) v { old := some old, next := some nw })
     (if readableAt sch s v now t old then eRule else notFound)
   condCheck (readableAt sch s v now t old) cond old
   clashCheck sch s v now t td (readableAt sch s v now t old) old nw
+  guardE (!(readableAt sch s v now t old) || immutablePreserved td old nw) (.refuse "E_CONSTRAINT")
   pure (resultOfAt sch (s.replaceRow t old nw) v now t nw, s.replaceRow t old nw)
 
 /-- The id of an absent upsert's new row: from the key, else the patch. -/

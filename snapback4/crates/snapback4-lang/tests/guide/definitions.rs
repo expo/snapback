@@ -138,6 +138,13 @@ fn w11_every_registered_code_quotes_its_definition() {
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
     ("E_EXPIRY_ORPHAN", "a stored reference points to a physically missing expiring parent"),
+
+    ("E_QUARRY_STATEMENT", "A non-final expression must perform a write."),
+    ("E_QUARRY_FANOUT", "An atomic mutation must bound the whole population it changes."),
+    ("E_QUARRY_IMMUTABLE", "An immutable patch provably changes a stored value or supplies a fresh clock/id."),
+    ("N_IMMUTABLE_PATCH", "On readable targets, an immutable patch succeeds only when its value equals the stored value."),
+    ("N_CASCADE_DORMANT", "This unbounded cascade or set-null edge has no declared source that can delete its parent."),
+
     ("N_LOOKUP_NEVER_VISIBLE", "nullable point lookup is always null"),
     ("N_SYNC_EMPTY", "a cursorless device page filters a public, unbounded synced table by a reference"),
 

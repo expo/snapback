@@ -65,3 +65,32 @@ pub(crate) fn indexes(schema: &Schema, text: &str, canonical: bool) -> String {
     }
     out
 }
+
+/// Keep generated rule expansions readable in ordinary terminal reports.
+/// Structured diagnostics and --verbose retain the entire original text.
+pub(crate) fn abbreviate_quoted(text: &str) -> String {
+    let mut out = String::new();
+    let mut abbreviated = false;
+    for (at, piece) in text.split('`').enumerate() {
+        if at > 0 { out.push('`'); }
+        if at % 2 == 1 && piece.chars().count() > 200 {
+            out.extend(piece.chars().take(160));
+            out.push('…');
+            abbreviated = true;
+        } else { out.push_str(piece); }
+    }
+    if abbreviated { out.push_str(" [expansion abbreviated; --verbose shows it in full]"); }
+    out
+}
+
+#[cfg(test)]
+mod compact_tests {
+    #[test]
+    fn long_rule_text_is_abbreviated_at_character_boundaries() {
+        let text = format!("rule `{}` then `require role`", "λ or ".repeat(100));
+        let compact = super::abbreviate_quoted(&text);
+        assert!(compact.contains("λ") && compact.contains("--verbose") && compact.contains("`require role`"));
+        assert!(compact.len() < text.len());
+        assert_eq!(super::abbreviate_quoted("read <- .owner = viewer"), "read <- .owner = viewer");
+    }
+}

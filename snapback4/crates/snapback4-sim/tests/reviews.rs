@@ -389,7 +389,9 @@ mutation expireRecreateRevoke(person: principal):
 fn expiring() -> Engine {
     let bound = snapback4_lang::compile(&[("schema.q".to_owned(), EXPIRING.to_owned())]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
-    Engine::memory(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap()
+    assert!(bound.notes.iter().any(|note|note.code == "N_IMMUTABLE_PATCH"));
+    // Uncertain patches keep their original source and runtime equality law.
+    Engine::memory(bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap()
 }
 
 fn at(engine: &mut Engine, op: &str, name: &str, a: &[(&str, Value)], ids: &[&str], now: i64) -> u64 {

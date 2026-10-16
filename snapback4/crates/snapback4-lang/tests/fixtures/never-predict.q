@@ -56,7 +56,10 @@ table rankedPosts:
   online only
 fn rankPost(p: posts):
   if p.parentId = null and p.at > now - 86400000:
-    upsert rankedPosts[postId = p.id] { authorId: p.authorId, score: likeCounts[p.id], at: p.at, expiresAt: p.at + 86400000 }
+    if exists rankedPosts[postId = p.id]:
+      update rankedPosts[postId = p.id] { score: likeCounts[p.id] }
+    else:
+      insert rankedPosts { postId: p.id, authorId: p.authorId, score: likeCounts[p.id], at: p.at, expiresAt: p.at + 86400000 }
   return null
 mutation createPost(postId: id):
   p = insert posts { id: postId, authorId: viewer, at: now }

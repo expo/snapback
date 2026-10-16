@@ -1,7 +1,7 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub(super) const CARD: &str = r##"# Writes
 
-Mutations change rows atomically.
+Mutations atomically enforce rules and constraints.
 
 ```quarry
 mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: text <=4000):
@@ -14,16 +14,21 @@ mutation writeForms(roomId: rooms, messageId: messages, postId: posts, body: tex
   return { a: a.id, b }
 ```
 
-`insert` creates rows; `if absent` returns null on readable collisions.
-`update` patches; `if` tests the old row; `upsert` inserts/patches.
-`delete` refuses NOT_FOUND when absent (guard `if exists t[id]:`); references obey `on delete`.
-Omitted optionals are null: `{ c: x }` clears `c` for omitted `x`; `x ?? row.c` preserves it.
-Results materialize nulls/defaults; updates retain unchanged fields, without prediction dependencies.
-Owned/sequence/receipt fields retain projection/settlement rules.
-E_MAINTAINED_COLUMN_RESULT requires an authorized maintained-column reread.
-Refusals roll back mutations. Caller rules govern writes/helpers; only jobs run as the system.
-Insert variables retain insert images; reread final images (null if hidden).
-Retry with the intent's minted write id.
+`insert` creates a row; `if absent` returns null on a readable key collision.
+`update` patches; `if` tests the old row.
+`upsert` inserts/patches. N_IMMUTABLE_PATCH: runtime equality;
+E_QUARRY_IMMUTABLE refuses proven changes and fresh clocks/ids.
+`delete` removes the row: NOT_FOUND when absent
+(guard with `if exists t[id]:`); references obey `on delete` (recipes).
+Omitted optional arguments are null. `{ c: x }` clears `c` when `x` is omitted; `x ?? row.c` keeps it (Details).
+Write results contain omitted optional columns as null and defaults as values;
+updates retain unchanged fields. These fields add no prediction dependency.
+Owned/sequence/receipt fields keep their projection and settlement rules.
+E_MAINTAINED_COLUMN_RESULT requires an authorized reread for maintained columns.
+Refusals roll back the mutation. Mutation writes pass table rules as the caller;
+helpers obey them too. Only jobs run as the system.
+Insert variables keep insert images after updates; reread for final images (null if hidden).
+Retry an intent with its minted write id.
 
 Receipt gaps: `guide sequences`.
 
@@ -52,7 +57,7 @@ mutation confirm(d: doses, dose: int ?, clear: bool ?):
   update doses[d] { confirmed: null if clear = true else dose ?? row.confirmed }
 ```
 
-Bound results charge heap, steps, output and rule probes.
+Results charge heap, steps, output and probes.
 Defaults use actual sizes; discarded inserts skip completion.
 
 If `messageId` in `writeForms` addresses retained history from a room the
@@ -247,6 +252,7 @@ a constraint across all guests.
 References default to `restrict`; a live child causes E_REFERENCED. Alternatives:
 bounded `cascade`, optional `set null`, or `keep`. Cascades recurse under a
 cap/unique key per parent; keep/restrict history and audit rows.
+Delete sources require caps; complete child deletion silences N_DELETE_RESTRICTED.
 
 ## Server-arrival order within a conversation
 

@@ -72,6 +72,12 @@ impl Binder<'_> {
     }
 
     pub(super) fn index_mismatch(&self, info: &TableInfo, read: &ReadExpr, mode: ReadMode, keys: &[(Option<String>, Expr, Ty)], index: &ast::IndexDecl) -> Diagnostic {
+        let generated = read.keys.iter().any(|key| print::expression(&key.value).contains("$intent"));
+        if generated {
+            let authored = self.catalog.read_origins.get(&read.site.to_string()).cloned().unwrap_or_else(|| read.table.clone());
+            return type_error(&read.site, format!("cannot plan the membership lookup for authored query `{authored}`"),
+                "keep the query predicate and order; use a total unique key for the membership witness, or a capped source population").guide("reads");
+        }
         let expected = index.columns.iter().map(|col| format!("{col}: {}", self.key_ty(info, index, col).name())).collect::<Vec<_>>().join(", ");
         let supplied = read.keys.iter().zip(keys).map(|(part, (_, _, ty))| {
             let value = print::expression(&part.value);

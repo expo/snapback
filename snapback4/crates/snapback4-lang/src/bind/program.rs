@@ -29,6 +29,9 @@ mod expr;
 mod extrema;
 mod objects;
 mod write_keys;
+mod immutable;
+mod filtered_rows;
+mod snapshot_authority;
 mod system_principal;
 mod denied_writes;
 mod keys;
@@ -135,6 +138,8 @@ pub struct Binder<'a> {
     expanding_feed: Option<(String, Site)>,
     timeline_scans: std::collections::BTreeSet<String>,
     notes: Vec<Diagnostic>,
+    /// Conservative write history across lexical blocks and helper expansion.
+    may_have_written: bool,
     errors: Vec<Diagnostic>,
     /// Totals over partly readable rows that a readable grant may decide:
     /// refused only if the finished program does not guard the scan with it.
@@ -176,7 +181,7 @@ impl<'a> Binder<'a> {
     /// Differential-test control: lowering is identical with the side map disabled.
     #[doc(hidden)]
     pub fn bind_with_ownership(catalog: &'a Catalog, schema: &'a snapback4_core::schema::Schema, module: &str, decl: &ast::ProgramDecl, diagnostics: &mut Vec<Diagnostic>, record_ownership: bool) -> Option<BoundProgram> {
-        let mut binder = Binder { viewer_depth: None, maintenance_scopes: BTreeMap::new(), pure_functions: BTreeMap::new(), call_types: BTreeMap::new(), page_sources: BTreeMap::new(), canonical_sources: BTreeMap::new(), constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), receipt_sources: Vec::new(), receipt_returns: Vec::new(), implicit_write_results: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, call_chain: Vec::new(), job_bound_helpers: Default::default(), scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, returned_data: false, shape_field: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, loop_transfers: Vec::new(), caller_loops: 0, in_prelude: false, total: None, record_ownership, expanding_feed: None, timeline_scans: Default::default(), notes: Vec::new(), errors: Vec::new(), pending_totals: Vec::new() };
+        let mut binder = Binder { viewer_depth: None, maintenance_scopes: BTreeMap::new(), pure_functions: BTreeMap::new(), call_types: BTreeMap::new(), page_sources: BTreeMap::new(), canonical_sources: BTreeMap::new(), constraint_domains: Default::default(), filters: BTreeMap::new(), variants: Vec::new(), view_types: BTreeMap::new(), sources: BTreeMap::new(), selections: BTreeMap::new(), presence_sources: Vec::new(), receipt_sources: Vec::new(), receipt_returns: Vec::new(), implicit_write_results: Vec::new(), catalog, schema, name: decl.name.clone(), kind: decl.kind, caller_kind: decl.kind, call_chain: Vec::new(), job_bound_helpers: Default::default(), scopes: vec![BTreeMap::new()], focal: None, in_predicate: false, returned_data: false, shape_field: None, temps: 0, sites: 0, returns: Vec::new(), depth: 0, loops: 0, loop_transfers: Vec::new(), caller_loops: 0, in_prelude: false, total: None, record_ownership, expanding_feed: None, timeline_scans: Default::default(), notes: Vec::new(), may_have_written: false, errors: Vec::new(), pending_totals: Vec::new() };
         binder.call_chain.push((super::operation_name(module, &decl.name), decl.site.clone()));
         binder.declare(pure_calls::CONSTANTS, Ty::Null);
         let mut args = BTreeMap::new();
@@ -908,10 +913,10 @@ impl<'a> Binder<'a> {
 
     fn shape(&mut self, base: &A, fields: &[ShapeField], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
         let (base_expr, base_ty) = self.computation(base, out)?;
-        self.shape_bound(base_expr, base_ty, fields, site, out)
+        self.shape_bound_filtered(base_expr, base_ty, fields, site, out, Some(base))
     }
 
-    fn shape_bound(&mut self, base_expr: Expr, base_ty: Ty, fields: &[ShapeField], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+    fn shape_bound_filtered(&mut self, base_expr: Expr, base_ty: Ty, fields: &[ShapeField], site: &Site, out: &mut setup::Body, domain_source: Option<&A>) -> Fallible<(Expr, Ty)> {
         match base_ty.clone() {
             Ty::Page(table, max) => {
                 let list = self.temp("rows");
@@ -922,7 +927,7 @@ impl<'a> Binder<'a> {
                     other => LoopDomain::DerivedArray { value: other, max, bound_source: "page".into() },
                 };
                 let mut body = setup::Body::default();
-                let (object, object_ty) = self.shape_object(&item, Ty::Row(table.clone()), fields, site, &mut body)?;
+                let (object, object_ty) = self.shape_object_filtered(&item, Ty::Row(table.clone()), fields, site, &mut body, domain_source)?;
                 body.push(Stmt::Push { target: list.clone(), value: object });
                 out.push_for(item, domain, body);
                 Ok((ir::var(&list), Ty::Collection(Box::new(object_ty), max)))
@@ -959,6 +964,10 @@ impl<'a> Binder<'a> {
 
     /// Build the object of a shape over a focal row variable.
     fn shape_object(&mut self, row_var: &str, row_ty: Ty, fields: &[ShapeField], site: &Site, out: &mut setup::Body) -> Fallible<(Expr, Ty)> {
+        self.shape_object_filtered(row_var, row_ty, fields, site, out, None)
+    }
+
+    fn shape_object_filtered(&mut self, row_var: &str, row_ty: Ty, fields: &[ShapeField], site: &Site, out: &mut setup::Body, domain: Option<&A>) -> Fallible<(Expr, Ty)> {
         objects::explicit_fields(fields.iter().filter_map(|f| match f {
             ShapeField::Bare { name, site } | ShapeField::Field { name, site, .. } => Some((name.as_str(), site)),
             _ => None,
@@ -968,6 +977,7 @@ impl<'a> Binder<'a> {
         // @ref LLP 3000.007#10 — the focal row is a lexical snapshot too;
         // let its field guards carry presence facts into point-key arguments.
         self.scopes.last_mut().unwrap().insert(row_var.into(), Binding { runtime: row_var.into(), declared: row_ty.clone(), ty: row_ty.clone(), parameter: false, revision: 0, fields: BTreeMap::new(), error: None, origins: Vec::new() });
+        if let Some(domain) = domain { self.refine_filtered_row(row_var, &row_ty, domain); }
         let result = (|| {
             let mut exprs = Vec::<(String, Expr)>::new();
             let mut types = BTreeMap::new();
@@ -1062,6 +1072,7 @@ impl<'a> Binder<'a> {
     /// image, an update's or upsert's re-read row, null for a delete).
     fn write(&mut self, expr: &A, out: &mut setup::Body, valued: bool) -> Fallible<Option<(Expr, Ty)>> {
         let result = self.write_inner(expr, out, valued);
+        self.may_have_written = true;
         self.invalidate_after_write(expr);
         result
     }
@@ -1142,6 +1153,7 @@ impl<'a> Binder<'a> {
                     return Err(unknown(site, "upsert cannot spell id; the key names the row", "remove id from the patch; the key names the row"));
                 }
                 let (patch, _) = self.write_row(info, fields, Some("patch"), site, out)?;
+                self.immutable_patch(info, &key, &patch, fields, site, out, upsert, condition.is_some())?;
                 let condition = if let Some(condition) = condition {
                     let old = self.temp("condition");
                     let prior = self.focal.replace((old.clone(), Ty::Row(table.clone())));
@@ -1441,7 +1453,15 @@ fn stable_chunk(catalog: &Catalog, site: &Site, scan: &Scan) -> Fallible<()> {
         columns
     });
     if !moving.is_empty() {
-        return Err(Diagnostic::new(site, "E_JOB_CURSOR_INDEX", format!("sweep over {}.{} sweeps by {}, which a write could change under the cursor; a sweep's index columns are id or immutable", scan.table, scan.index, moving.join(", ")), format!("use `for row in {}:` for stable id order; if this order is required, declare `immutable {}` on table {}", scan.table, moving.join(", "), scan.table)).guide("jobs"));
+        let mut changes_order = false;
+        for document in &catalog.documents {
+            let mut document = document.clone();
+            super::intent_walk::document(&mut document, &mut |expr| {
+                if let A::Write { fields, .. } = expr && fields.iter().any(|field| moving.contains(&field.name.as_str())) { changes_order = true; }
+            });
+        }
+        let immutable = if changes_order { String::new() } else { format!("; if this order is required and no writer changes it, declare `immutable {}` on table {}", moving.join(", "), scan.table) };
+        return Err(Diagnostic::new(site, "E_JOB_CURSOR_INDEX", format!("sweep over {}.{} sweeps by {}, which a write could change under the cursor; a sweep's index columns are id or immutable", scan.table, scan.index, moving.join(", ")), format!("use `for row in {}:` for stable id order; seek by an immutable column and guard the mutable predicate inside the loop{immutable}", scan.table)).guide("jobs"));
     }
     Ok(())
 }

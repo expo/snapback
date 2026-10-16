@@ -70,7 +70,7 @@ pub fn test(options: &Options) -> i32 {
     }
     let (mut passed, mut failed_cases) = (0, 0);
     if let Some(fixture) = options.flags.get("fixture").filter(|_| !options.flags.contains_key("saved-fixture-fallback")) {
-        match test_cases::run(&mut engine, &bound, fixture, &sources, fixture_now) {
+        match test_cases::run_verbose(&mut engine, &bound, fixture, &sources, fixture_now, options.flags.contains_key("verbose")) {
             Ok((p, f)) => { passed = p; failed_cases = f; }
             Err(error) => { eprintln!("{error}"); return 1; }
         }

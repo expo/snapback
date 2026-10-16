@@ -361,6 +361,8 @@ fn parent_missing_hidden_and_upsert_target_refusals_have_equal_meters() {
         "{MODEL}\nmutation put(id: id, parent: parents):\n  upsert children[id] {{ parent, body: 'hello', until: null }}\n"
     );
     let b = bound(&source);
+    assert!(b.notes.iter().any(|d|d.code=="N_IMMUTABLE_PATCH"));
+
     let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     sent(
         &mut e,

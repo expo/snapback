@@ -151,7 +151,9 @@ pub(crate) fn problem_reports(bound: &Bound, explain_repeats: bool, verbose: boo
         }
         shown_diagnostics.push(diagnostic.clone());
     }
-    (diagnostic_reports(&shown_diagnostics, "", explain_repeats), hidden)
+    let reports = diagnostic_reports(&shown_diagnostics, "", explain_repeats).into_iter()
+        .map(|report| if verbose { report } else { crate::presentation::abbreviate_quoted(&report) }).collect();
+    (reports, hidden)
 }
 
 // @ref LLP 3000.007#20.1 — bring the diagnostic's own card to the builder at the repeated problem.
@@ -183,7 +185,8 @@ fn note_reports(notes: &[snapback4_lang::Diagnostic], verbose: bool) -> Vec<Stri
         if !verbose && let Some((summary, _)) = compact.message.split_once('\n') {
             compact.message = format!("{}.", summary.trim_end_matches(':'));
         }
-        let mut report = format!("note: {compact}\n  why: snapback4 why {}\n", note.code);
+        let text = format!("note: {compact}\n  why: snapback4 why {}\n", note.code);
+        let mut report = if verbose { text } else { crate::presentation::abbreviate_quoted(&text) };
         if verbose && explained.insert((&note.code, &note.guide))
             && let Some(explanation) = note.explanation() {
             report.push_str(&format!("\n{explanation}\n"));
@@ -388,7 +391,7 @@ pub fn check(options: &Options) -> i32 {
             })
                 .chain(certificates.iter().flat_map(|certificate| &certificate.search).map(|search| crate::note_rank::Note { site: search.site.to_string(), code: search.code.to_string(), summary: present(search.summary), form: None, compact: None }))
                 .collect();
-            for line in crate::note_rank::render(notes) { println!("{line}"); }
+            for line in crate::note_rank::render(notes) { println!("{}", crate::presentation::abbreviate_quoted(&line)); }
         }
     }
     if !options.json && (options.flags.contains_key("verbose") || options.flags.contains_key("cost")) {

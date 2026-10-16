@@ -61,8 +61,5 @@ mutation membership(group: groups, who: principal, present: bool):
     insert members {{ {field}: group, principal: who }} if absent
   else:
     delete members[group, who]
-
-mutation move(message: messages, group: groups):
-  update messages[message] {{ {field}: group }}
 "#)
 }

@@ -562,7 +562,7 @@ fn roster_and_team_scopes_interleave_with_both_tables_owner_changes() {
 
 #[test]
 fn renewal_epoch_and_sweep_between_pages_name_only_previously_readable_ids() {
-    let old = "table members:\n  principal: principal\n  until: time ?\n  unique principal\n  immutable principal\n  expire at .until\n  read <- .principal = viewer\n  insert <- exists members[viewer]\n  update <- .principal = viewer\n  delete <- .principal = viewer\n  sync\ntable notes:\n  at: time\n  read <- exists members[viewer]\n  insert <- exists members[viewer]\n  delete <- exists members[viewer]\n  online only\nquery notes():\n  return notes last 2 by .at\nmutation renew(until: time ?):\n  upsert members[id = 'ma'] { principal: viewer, until }\n  return null\nmutation remove(n: notes):\n  delete notes[n]\n  return null\n";
+    let old = "table members:\n  principal: principal\n  until: time ?\n  unique principal\n  immutable principal\n  expire at .until\n  read <- .principal = viewer\n  insert <- exists members[viewer]\n  update <- .principal = viewer\n  delete <- .principal = viewer\n  sync\ntable notes:\n  at: time\n  read <- exists members[viewer]\n  insert <- exists members[viewer]\n  delete <- exists members[viewer]\n  online only\nquery notes():\n  return notes last 2 by .at\nmutation renew(until: time ?):\n  update members[id = 'ma'] { until }\n  return null\nmutation remove(n: notes):\n  delete notes[n]\n  return null\n";
     let synced = old.replace("  online only", "  sync last 2 by .at");
     let (old_schema, old_programs) = compiled(old);
     let (schema, programs) = compiled(&synced);

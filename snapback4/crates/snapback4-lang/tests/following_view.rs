@@ -17,7 +17,17 @@ fn post(e: &mut Engine, name: &str, at: i64) { write(e, "post", "alice", &[("pos
 #[test]
 fn upsert_insert_stamps_following_event_slot() {
     let source = format!("{SOURCE}\nmutation put(postId: posts):\n  upsert posts[postId] {{ authorId: viewer, parentId: null, at: now }}\n");
-    let mut e = engine(&source);
+    let rejected = snapback4_lang::compile(&[("schema.q".into(),source.clone())]);
+    assert!(rejected.diagnostics.iter().any(|d|d.code=="E_QUARRY_IMMUTABLE"));
+    let mut b = bound(&source.replace("upsert posts[postId] { authorId: viewer, parentId: null, at: now }", "upsert posts[postId] {}"));
+    for program in &mut b.programs {
+        if program.program.name == "put" {
+            for statement in &mut program.program.body {
+                if let snapback4_core::ir::Stmt::WriteTarget { patch: snapback4_core::ir::Expr::Object(fields), .. } = statement { fields.insert("at".into(),snapback4_core::ir::Expr::Input(snapback4_core::ir::Input::Now)); fields.insert("authorId".into(),snapback4_core::ir::Expr::Input(snapback4_core::ir::Input::Viewer)); fields.insert("parentId".into(),snapback4_core::ir::Expr::Literal(Value::Null)); }
+            }
+        }
+    }
+    let mut e = Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
     write(&mut e, "put", "alice", &[("postId", id("p"))], 1000);
     let slot = e.schema().timelines[0].slot(false);
     let rows = e.store().rows("posts").unwrap();

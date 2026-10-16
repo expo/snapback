@@ -43,7 +43,8 @@ impl Binder<'_> {
         for scope in &mut self.scopes {
             for binding in scope.values_mut() {
                 binding.fields.retain(|path, _| path.first().is_none_or(|part| {
-                    part != "$pureCall"
+                    part != "$sourceSnapshot"
+                        && part != "$pureCall"
                         && part != "$point"
                         && part != maintain_types::AUTHORIZATION
                         && part != aggregate_facts::NONEMPTY

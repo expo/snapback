@@ -84,6 +84,8 @@ pub enum Rule {
     Vacancy,
     /// The same vacancy predicate through the target's implicit unique id.
     VacancyImplicitId,
+    /// LANG2: indexed negative membership with a fixed extra equality.
+    NegativeMembership,
     /// A duplicated party leaf beside membership, for model descriptor accounting.
     RepeatedPartyMembership,
 }
@@ -113,6 +115,7 @@ impl Rule {
             Self::ProductScope => "(.owner = viewer or .helper = viewer) and (.status = 'open' or .status = 'active')",
             Self::FixedPerRow => "((exists roles[.bucket, viewer] and exists seats[.bucket, viewer]) and exists permits[viewer]) and exists access[.id, .bucket, viewer]",
             Self::Vacancy => "not exists access[item = .id] or .owner = viewer",
+            Self::NegativeMembership => "not exists access[item = .id, principal = viewer, copied = .id, bucket = 0] or .owner = viewer",
             Self::VacancyImplicitId => "not exists items[id = .id] or .owner = viewer",
             Self::RepeatedPartyMembership => ".owner = viewer or .owner = viewer or exists access[.bucket, viewer]",
         }
@@ -131,6 +134,7 @@ pub enum Residency {
     Group,
     /// Membership rows delivered to their own principal.
     Member,
+    Inferred,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Table {
@@ -140,6 +144,8 @@ pub struct Table {
     /// Bounded cardinality declarations `(maximum, group columns)`.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub caps: Vec<(u32, Vec<String>)>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub immutable: Vec<String>,
     pub rule: Rule,
     pub residency: Residency,
     /// Per-effect rules (read, insert, update, delete) replacing `rule`;
@@ -166,6 +172,7 @@ impl Table {
                 cols.join(", ")
             );
         }
+        if !self.immutable.is_empty() { out += &format!("  immutable {}\n", self.immutable.join(", ")); }
         for (max, by) in &self.caps {
             out += &format!("  cap {max}{}\n", if by.is_empty() { String::new() } else { format!(" by {}", by.join(", ")) });
         }
@@ -186,6 +193,7 @@ impl Table {
             Residency::Online => "  online only\n",
             Residency::Group => "  sync to access[.bucket]\n",
             Residency::Member => "  sync to .principal\n",
+            Residency::Inferred => "  sync\n",
         };
         out
     }
@@ -569,6 +577,9 @@ pub struct Program {
     /// optionally rows restricting those (`widen.rs`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub kids: Option<Kids>,
+    /// LANG2: a dormant chain with a capped first edge and uncapped descendant.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub dormant_actions: bool,
 }
 
 /// `kids.item: items` with `on delete <action>` (undeclared when `None`),
@@ -640,6 +651,9 @@ impl Program {
         }
         if let Some(kids) = &self.kids {
             declarations.push(kids.source());
+        }
+        if self.dormant_actions {
+            declarations.push("table lang2Parents:\n  public\n  sync public\ntable lang2Children:\n  parent: lang2Parents on delete cascade\n  cap 2 by parent\n  public\n  sync public\ntable lang2Grandchildren:\n  child: lang2Children on delete cascade\n  public\n  sync public\n".into());
         }
         if self.reverse {
             declarations.reverse();

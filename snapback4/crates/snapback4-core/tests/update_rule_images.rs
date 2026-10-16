@@ -46,7 +46,16 @@ query peek(key: id):
 }
 
 fn seeded(source: &str) -> Engine {
-    let bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    let mut bound = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    if bound.diagnostics.iter().any(|d| d.code == "E_QUARRY_IMMUTABLE") {
+        // Keep the adversarial external-IR runtime contract after asserting
+        // that source programs are now refused before they can execute.
+        assert!(bound.diagnostics.iter().all(|d| d.code == "E_QUARRY_IMMUTABLE"));
+        let runtime = snapback4_lang::compile(&[("schema.q".into(), source.replace("  immutable owner\n", ""))]);
+        assert!(runtime.diagnostics.is_empty(),"{:?}",runtime.diagnostics);
+        bound.programs = runtime.programs;
+        bound.diagnostics.clear();
+    }
     assert!(bound.diagnostics.iter().all(|d| d.code.starts_with("N_")), "{:?}", bound.diagnostics);
     let mut engine = Engine::new(Store::memory().unwrap(), bound.schema, bound.programs.into_iter().map(|p| p.program)).unwrap();
     let seeded = engine.mutate("seed", None, Context::system().with_args([("key", id("n1")), ("owner", id("bob"))]).at(NOW)).unwrap();

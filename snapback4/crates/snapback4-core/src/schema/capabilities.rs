@@ -99,6 +99,7 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     // @ref LLP 3000.036.001#15 — v2 fences metered uncapped discovery and row-id point lanes from v1 devices.
     ("branch-pages-v2", |s| s.operations.values().any(|o| o.branch_pages_v2)),
     ("branch-pages-v3", |s| s.operations.values().any(|o| o.branch_pages_v3)),
+    ("branch-pages-v5", |s| s.operations.values().any(|o| o.branch_pages_v5)),
     ("branch-pages-v4", |s| s.operations.values().any(|o| o.branch_pages_v4)),
     ("branch-membership-v2", |s| s.operations.values().any(|o| o.branch_membership_v2)),
     // Source slots alter negative coverage, prediction and application row projection.

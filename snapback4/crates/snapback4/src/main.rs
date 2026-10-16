@@ -131,7 +131,7 @@ fn main() -> ExitCode {
                             else if options.flags.contains_key("sections") { Ok(guide::section_index(name, &card)) }
                             else if let Some(words) = words_of("section") { guide::section(name, &card, &words) }
                             else if let Some(words) = words_of("find") { guide::find(name, &card, &words) }
-                            // @ref LLP 3000.036.002#10 — diagnostic recipe names open their tested section directly.
+                            // @ref LLP 3000.036.002#11 — diagnostic recipe names open their tested section directly.
                             else if name == "rule-recipes" && !rest.is_empty() { guide::section(name, &card, &rest) }
                             // An alias that names a section prints it; piped (an agent's tool), a
                             // card prints whole; use --section to narrow it.

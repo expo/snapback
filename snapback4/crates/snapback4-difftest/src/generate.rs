@@ -167,7 +167,7 @@ pub fn base(seed: u64) -> Case {
             ),
             ("byTag".into(), vec!["tag".into()], true),
         ],
-        caps: vec![],
+        immutable: vec![], caps: vec![],
         rule,
         residency,
         effects: None,
@@ -184,7 +184,7 @@ pub fn base(seed: u64) -> Case {
             ("byMember".into(), vec!["bucket".into(), "principal".into()], true),
             ("byPrincipal".into(), vec!["principal".into(), "bucket".into()], false),
         ],
-        caps: vec![(16, vec!["principal".into()])],
+        immutable: vec![], caps: vec![(16, vec!["principal".into()])],
         rule: Rule::Allow,
         residency: Residency::Public,
         effects: None,
@@ -305,6 +305,7 @@ pub fn base(seed: u64) -> Case {
             time_arg: false,
             arg_bound: None,
             kids: None,
+            dormant_actions: false,
         },
         rows,
         principal: if rng.pick(2) == 0 { "alice" } else { "bob" }.into(),
@@ -417,7 +418,7 @@ pub(crate) fn page4(case: &mut Case) {
     }
     if shape==4 {
         if !case.program.tables.iter().any(|t|t.name=="parents") {
-            case.program.tables.push(Table {name:"parents".into(),columns:vec![],keys:vec![],caps:vec![],rule:Rule::Allow,residency:Residency::Public,effects:None,expire:None,not_before:None});
+            case.program.tables.push(Table {name:"parents".into(),columns:vec![],keys:vec![],immutable: vec![], caps:vec![],rule:Rule::Allow,residency:Residency::Public,effects:None,expire:None,not_before:None});
         }
         case.rows.retain(|(table,row)|table!="parents" || row["id"]!="parent");
         case.program.lets.retain(|(name,_)|name!="parent");
@@ -493,15 +494,15 @@ pub fn page5(seed: u64, shape: u64) -> Case {
                 if table == "access" { row["bucket"] = json!(bucket); }
             }
             let roles = Table { name: "roles".into(), columns: vec![column("bucket", Type::Int), column("principal", Type::Principal)],
-                keys: vec![("byBucketPrincipal".into(), vec!["bucket".into(), "principal".into()], true)], caps: vec![],
+                keys: vec![("byBucketPrincipal".into(), vec!["bucket".into(), "principal".into()], true)], immutable: vec![], caps: vec![],
                 rule: Rule::Member, residency: Residency::Online, effects: None, expire: None, not_before: None };
             case.program.tables.push(roles);
             let seats = Table { name: "seats".into(), columns: vec![column("bucket", Type::Int), column("principal", Type::Principal)],
-                keys: vec![("byBucketPrincipal".into(), vec!["bucket".into(), "principal".into()], true)], caps: vec![],
+                keys: vec![("byBucketPrincipal".into(), vec!["bucket".into(), "principal".into()], true)], immutable: vec![], caps: vec![],
                 rule: Rule::Member, residency: Residency::Online, effects: None, expire: None, not_before: None };
             case.program.tables.push(seats);
             let permits = Table { name: "permits".into(), columns: vec![column("principal", Type::Principal)],
-                keys: vec![("byPrincipal".into(), vec!["principal".into()], true)], caps: vec![],
+                keys: vec![("byPrincipal".into(), vec!["principal".into()], true)], immutable: vec![], caps: vec![],
                 rule: Rule::Member, residency: Residency::Online, effects: None, expire: None, not_before: None };
             case.program.tables.push(permits);
             if rng.pick(4) != 0 { case.rows.push(("roles".into(), json!({"id":format!("role-{seed}"), "bucket":bucket, "principal":case.principal}))); }
@@ -685,5 +686,73 @@ pub fn page_membership_repeated_party_product(seed: u64) -> Case {
 pub fn page5_implicit_id_vacancy(seed: u64) -> Case {
     let mut case = page5(seed, 2);
     case.program.tables[0].rule = Rule::VacancyImplicitId;
+    case
+}
+
+/// @ref LLP 3000.036.002#10 — source-generated exact negative, capped and
+/// filtered-id membership families share all native/device/Lean oracles.
+pub fn lang2(seed: u64, shape: u64) -> Case {
+    let mut case = page5(seed, if matches!(shape % 4, 1 | 3) { 0 } else { 2 });
+    case.program.domain = None;
+    case.program.tables[0].expire = None;
+    case.program.tables[0].not_before = None;
+    case.program.unfiltered = true;
+    match shape % 4 {
+        0 => {
+            case.program.tables[0].rule = Rule::NegativeMembership;
+            let access = case.program.tables.iter_mut().find(|table| table.name == "access").unwrap();
+            access.keys.retain(|(name, _, _)| name == "byItem");
+            access.keys[0].1 = vec!["item".into(), "principal".into()];
+            access.columns.push(Column { name: "copied".into(), ty: Type::Reference("items".into()) });
+            for (table,row) in &mut case.rows {
+                if table == "access" { row["copied"] = row["item"].clone(); }
+            }
+        }
+        1 | 3 => {
+            case.program.dormant_actions = shape % 4 == 3;
+            case.program.tables[0].caps = vec![(100, Vec::new())];
+            case.program.order = Some(vec!["score".into()]);
+        }
+        _ => {
+            case.program.tables[0].rule = Rule::PureIdWitness;
+            case.program.tables[0].residency = Residency::Inferred;
+            case.program.domain = Some(".flag = true".into());
+            case.program.unfiltered = false;
+            let access = case.program.tables.iter_mut().find(|table| table.name == "access").unwrap();
+            access.keys[0].1 = vec!["item".into(), "principal".into()];
+            access.residency = Residency::Member;
+            access.effects = Some(vec![Rule::Member, Rule::Deny, Rule::Deny, Rule::Member]);
+        }
+    }
+    case
+}
+
+/// P18's accepted equality guards, including readable mismatch and hidden
+/// immutable suppression. All cases remain ordinary generated source.
+pub fn immutable_patch(seed: u64, shape: u64) -> Case {
+    let mut case = base(seed);
+    let shape = shape % 8;
+    let update = matches!(shape,4|5);
+    let table = &mut case.program.tables[0];
+    table.rule = Rule::Allow;
+    table.residency = match shape { 2 => Residency::Online, 6 => Residency::Owner, _ => Residency::Public };
+    table.effects = Some(vec![match shape { 2 => Rule::Deny, 6 => Rule::Owner, _ => Rule::Allow }, Rule::Allow, Rule::Allow, Rule::Allow]);
+    table.immutable = vec![if update { "score" } else { "owner" }.into()];
+    if shape == 7 {
+        table.columns.push(column("opens",Type::Time));
+        table.not_before = Some("opens".into());
+    }
+    case.program.body = Body::Write(if update { Write::Update } else { Write::Upsert }, Expr::Arg("a".into(),Type::Int));
+    case.program.helper = false;
+    case.program.lets.clear();
+    case.rows.clear();
+    case.principal = "alice".into();
+    let score = (seed % 100) as i64;
+    if shape != 3 {
+        let mut row = json!({"id":"r0","owner":if matches!(shape,1|2|6|7) {"bob"} else {"alice"},"bucket":0,"score":score,"label":"old","flag":true,"maybe":null,"tag":"tag"});
+        if shape == 7 { row["opens"] = json!(case.clock + 1000); }
+        case.rows.push(("items".into(),row));
+    }
+    case.args = json!({"key":"r0","bucket":0,"c":null,"n":null,"a":score + if shape == 5 {1} else {0},"b":0});
     case
 }

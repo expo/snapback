@@ -94,7 +94,7 @@ fn aggregate_only_restricted_private_immutable_and_ambient_writes_stay_silent() 
         SOURCE.replace("insert <- allow", "insert <- viewer = 'service:ranker'").replace("update <- allow", "update <- viewer = 'service:ranker'"),
         SOURCE.replace("insert <- allow", "insert <- exists posts[id = .postId, author = viewer]").replace("update <- allow", "update <- exists posts[id = .postId, author = viewer]"),
         SOURCE.replace("  public 'ranking'", "  read <- exists posts[id = .postId, author = viewer]").replace("  sync public last 100 by byScore\n", ""),
-        SOURCE.replace("  score: int", "  score: int\n  immutable score"),
+        SOURCE.replace("  score: int", "  score: int\n  immutable score").replace("upsert ranked[postId = postId]", "insert ranked"),
         SOURCE.replace("score: likeCounts[postId]", "score: 1"),
         SOURCE.replace("maintain likeCounts: count likes by postId\n  read <- allow\n", "").replace("score: likeCounts[postId]", "score: 1"),
         increment.replace("insert <- allow", "insert <- deny").replace("update <- allow", "update <- deny"),

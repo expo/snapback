@@ -32,9 +32,10 @@
 //! remaining conjuncts are the filter; `return insert …` is a bound write
 //! followed by `return`.
 //!
-//! **Erased, with the reason.** `sync …` and `online only` (residency
-//! decides what a device holds, never a server outcome) and non-unique
-//! `by` indexes (tuning; reads choose indexes themselves). A `text <= N`
+//! **Residency.** Sync presence is retained for private exhaustion admission;
+//! device holding details are omitted. Read-through tables are explicitly
+//! unsupported. Non-unique `by` indexes are erased (tuning; reads choose
+//! indexes themselves). A `text <= N`
 //! bound is not modelled as a value restriction (OPEN W6):
 //! [`LeanModule::store`] and [`LeanModule::tag_args`] refuse inputs that exceed
 //! it, and a literal written past it is unsupported. The surface emitter does
@@ -295,7 +296,7 @@ fn table_shape(t: &ast::TableDecl) -> R<Table> {
         (t.receipts.is_some(), "receipts"),
         (t.ephemeral.is_some(), "ephemeral"),
         (!t.search.is_empty(), "search"),
-        (!t.immutable.is_empty(), "immutable"),
+        (t.rules.iter().any(|rule| matches!(&rule.value, Expr::Call { name, .. } if name == "$readThrough")), "through"),
         (!t.final_exists.is_empty(), "after-insert"),
         (t.retain.is_some(), "retain"),
     ] {
@@ -385,7 +386,9 @@ fn table_json(t: &ast::TableDecl, shape: &Table, tables: &[Table], selected_expi
         }).collect::<Vec<_>>(),
         "uniques": shape.uniques,
         "uniqueCodes": shape.codes,
+        "immutable": t.immutable.iter().flat_map(|(fields,_)| fields).collect::<Vec<_>>(),
         "caps": shape.caps.iter().map(|(max, by)| json!({"by": by, "max": max})).collect::<Vec<_>>(),
+        "onlineOnly": t.sync.is_none(),
         "notBefore": t.not_before.as_ref().map(|(column, _)| column),
         "expire": t.expire.as_ref().map(|(column, _)| column),
         "expiryOrder": expiry_order,

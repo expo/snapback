@@ -453,7 +453,10 @@ rule hides?**
   it does not simulate host randomness or promise order across mint contexts.
 
 **W6. Which write constraints are not modelled?**
-- Immutable columns, caps, `after insert`, field authority, sequences,
+- Immutable columns are modelled: readable updates preserve stored equality,
+  and hidden immutable fields are stripped before patching (including the
+  upsert conflict arm; LLP 3000.036.002 §10).
+- Caps, `after insert`, field authority, sequences,
   defaults other than null for an omitted nullable column, text bounds and
   formats, and assets.
 - A missing required column on insert refuses `E_INPUT`. The binder

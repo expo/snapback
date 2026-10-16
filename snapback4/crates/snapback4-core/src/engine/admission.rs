@@ -93,6 +93,15 @@ pub fn check_detail(schema: &Schema, program: &Program) -> Result<(), Problem> {
 /// can only shorten eligibility: every statement in each group is still checked.
 // @ref LLP 3000.025#3-proposed-rule — hoisted setup belongs to its entire source statement.
 pub fn check_detail_with_statements(schema: &Schema, program: &Program, statement_ends: &[usize]) -> Result<(), Problem> {
+    // @ref LLP 3000.036.002#10 — external IR and jobs cannot activate an
+    // otherwise dormant, unbounded reference action graph.
+    for (table, effect) in crate::ir::write_tables(program) {
+        if effect == "delete" && schema.is_referenced(&table) && schema.delete_reservation(&table).is_none() {
+            return Err(Problem { code: "E_CASCADE_BOUND", site: program.name.clone(), page_site: None,
+                message: format!("deleting {table} reaches reference actions without finite reservations"),
+                rewrite: "declare product caps on every reachable cascade or set-null child reference".into() });
+        }
+    }
     maintenance_types::check(schema, program).map_err(|message| Problem {
         code: "E_VIEW_KEY", site: program.name.clone(), page_site: None, message,
         rewrite: "project the field you need first: value or member fields; project recountPending as data and check complete; use a separate variable for the row".into(),

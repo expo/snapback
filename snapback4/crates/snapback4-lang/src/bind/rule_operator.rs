@@ -223,7 +223,7 @@ mod tests {
     }
 }
 
-// @ref LLP 3000.036.002#10 — an explicit policy alternative, never an equivalent rewrite.
+// @ref LLP 3000.036.002#11 — an explicit policy alternative, never an equivalent rewrite.
 pub(crate) fn old_update_source(rule: &Expr) -> String {
     let text = crate::print::expression(rule);
     format!("update (old, next) <- {}", map_fields(&text, &|_, name| format!("old.{name}")))

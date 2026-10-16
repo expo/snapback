@@ -510,7 +510,7 @@ fn hidden_total_transitions_and_noop_reservation_lifetime_are_constant() {
 fn column_predicates_reuse_engine_recorded_attribution() {
     let source=MODEL.replacen("  at: time","  parentId: posts ?\n  immutable parentId\n  at: time",1)
         .replace("selected: count likes where .active by postId","selected: count likes where postId.parentId = null by postId")
-        .replace("  active: bool","  immutable postId\n  active: bool");
+        .replace("  active: bool","  immutable postId\n  active: bool").replace("{ postId, active, amount }", "{ active, amount }");
     let b=compile(&source);
     assert!(b.schema.tables["likes"].recorded.contains_key("postId.parentId"));
     let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();

@@ -357,6 +357,11 @@ impl Parser {
                 value = Expr::Shape { base: Box::new(value), fields, site };
             } else if self.at_kind(Kind::Word) && !stops.contains(&"<probe-shape>") && precedence(&self.peek().value).is_none() && !stops.contains(&self.peek().value.as_str()) && !matches!(self.peek().value.as_str(), "else" | "for" | "in" | "if" | "absent") {
                 let named = self.word()?;
+                if named.value == "desc" && self.at("after") && let Expr::Read(read) = &mut value {
+                    self.take("after")?;
+                    let cursor = self.expression(0, stops)?;
+                    if let Some(range) = &mut read.range { range.cursor = Some(Box::new(cursor)); }
+                }
                 value = Expr::ShapeUse { base: Box::new(value), name: named.value, site: named.site };
             } else {
                 break;

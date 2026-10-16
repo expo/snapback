@@ -486,6 +486,7 @@ fn constraint_refusals_record_their_clause_for_the_dev_log() {
     use snapback4_core::{WriteState, value::object};
     let source = "use server\ntable items:\n  owner: principal\n  name: text <= 40\n  kind: text <= 10\n  photo: image <=1000 ?\n  unique owner, name else ALREADY_HAVE\n  immutable kind\n  cap 3 by owner\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  update <- .owner = viewer\nmutation add(name: text <= 40, photo: image <=1000 ?):\n  return insert items { owner: viewer, name, kind: 'a', photo }\nmutation rekind(item: items):\n  update items[item] { kind: 'b' }\n";
     let b = clean(source);
+    assert!(b.notes.iter().any(|d|d.code=="N_IMMUTABLE_PATCH"));
     let sites = b.refusal_sites.clone();
     let mut engine = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
     engine.store().record_asset(&Asset { id: "pic".into(), owner: "ann".into(), kind: AssetKind::Image, content_type: "image/png".into(), bytes: 24, width: Some(1), height: Some(1), duration: None, created_at: 0, home: None, released_at: None, name: None }).unwrap();

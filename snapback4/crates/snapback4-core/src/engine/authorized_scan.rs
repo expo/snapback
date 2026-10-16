@@ -28,23 +28,31 @@ impl Authorization {
 
 // No Rows implementation, Deref or raw accessor: row reads require the
 // unforgeable token even when a caller has access to Runner's store facade.
-pub(crate) struct GuardedRows<'a> { raw: &'a dyn Rows, remaining: Cell<usize>, authorizing: Cell<bool>, reference_prepaid: Cell<bool>, revision: Cell<u64>, lookup_cache: RefCell<Option<(String, String, Vec<Value>, Option<Value>)>> }
+pub(crate) struct GuardedRows<'a> { raw: &'a dyn Rows, remaining: Cell<usize>, authorizing: Cell<bool>, reference_prepaid: Cell<bool>, bounded_remaining: Cell<Option<usize>>, revision: Cell<u64>, lookup_cache: RefCell<Option<(String, String, Vec<Value>, Option<Value>)>> }
 impl<'a> GuardedRows<'a> {
-    pub(crate) fn new(raw: &'a dyn Rows) -> Self { Self { raw, remaining: Cell::new(AUTHORIZATION_WALK_LIMIT), authorizing: Cell::new(false), reference_prepaid: Cell::new(false), revision: Cell::new(0), lookup_cache: RefCell::new(None) } }
+    pub(crate) fn new(raw: &'a dyn Rows) -> Self { Self { raw, remaining: Cell::new(AUTHORIZATION_WALK_LIMIT), authorizing: Cell::new(false), reference_prepaid: Cell::new(false), bounded_remaining: Cell::new(None), revision: Cell::new(0), lookup_cache: RefCell::new(None) } }
     pub(super) fn revision(&self) -> u64 { self.revision.get() }
-    pub(super) fn remaining(&self) -> usize { self.remaining.get() }
+    pub(super) fn remaining(&self) -> usize { self.bounded_remaining.get().unwrap_or_else(|| self.remaining.get()) }
     fn limit(&self, table: &str, requested: usize) -> Result<usize, RuntimeError> {
+        if self.authorizing.get() && let Some(remaining) = self.bounded_remaining.get() {
+            if remaining == 0 { return Err(RuntimeError::AuthorizationBudget { table: table.into(), effect: crate::schema::Effect::Read }); }
+            return Ok(requested.min(remaining));
+        }
         if !self.authorizing.get() || self.reference_prepaid.get() { return Ok(requested); }
         if self.remaining.get() == 0 { return Err(RuntimeError::AuthorizationBudget { table: table.into(), effect: crate::schema::Effect::Read }); }
         Ok(requested.min(self.remaining.get()))
     }
     fn charge(&self, fetched: usize) {
-        if self.authorizing.get() && !self.reference_prepaid.get() { self.remaining.set(self.remaining.get().saturating_sub(fetched)); }
+        if self.authorizing.get() && let Some(remaining) = self.bounded_remaining.get() {
+            self.bounded_remaining.set(Some(remaining.saturating_sub(fetched)));
+        } else if self.authorizing.get() && !self.reference_prepaid.get() { self.remaining.set(self.remaining.get().saturating_sub(fetched)); }
     }
     /// Return the walk allowance of a fetched row the store stepped over as
     /// expired: such rows are absent, so they cannot exhaust a read's walk.
     pub(super) fn refund(&self, fetched: usize) {
-        if self.authorizing.get() { self.remaining.set(self.remaining.get() + fetched); }
+        if self.authorizing.get() && let Some(remaining) = self.bounded_remaining.get() {
+            self.bounded_remaining.set(Some(remaining.saturating_add(fetched)));
+        } else if self.authorizing.get() { self.remaining.set(self.remaining.get() + fetched); }
     }
     pub(crate) fn get(&self, _authorization: &Authorization, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         self.limit(table, 1)?;
@@ -136,6 +144,7 @@ impl<'a> GuardedRows<'a> {
         Ok(())
     }
     // @ref LLP 3000.039#5.1 — reserved action hooks spend the physical draw once; ordinary root probes remain outside this scope.
+    pub(super) fn bounded_prepaid(&self, remaining: Option<usize>) -> Option<usize> { self.bounded_remaining.replace(remaining) }
     pub(super) fn reference_prepaid(&self, prepaid: bool) -> bool { self.reference_prepaid.replace(prepaid) }
     pub(crate) fn asset(&self, id: &str) -> Result<Option<Asset>, RuntimeError> { self.raw.asset(id) }
     pub(crate) fn claim_asset(&self, id: &str, by: &str, table: &str, row: &str, column: &str) -> Result<Asset, RuntimeError> { self.raw.claim_asset(id, by, table, row, column) }
@@ -239,6 +248,12 @@ impl Runner<'_> {
     /// out of its enclosing authorization's physical allowance.
     pub(super) fn prepaid_scan<T: Default>(&mut self, allowance: &[(MeterKind, u64)], physical: bool, scan: impl FnOnce(&mut Self, &Authorization) -> Result<T, RuntimeError>,
     ) -> Result<T, RuntimeError> {
+        // The enclosing bounded candidate has prepaid logical page work and
+        // owns a fixed physical sub-allowance. Nested witness scopes must not
+        // publish an actual-occupancy-dependent probe count on their return.
+        if self.merge_bounded && self.tx.authorizing.get() {
+            return scan(self, &Authorization::internal());
+        }
         // This meter is the device's separate physical-work budget. Its
         // caller maps exhaustion to uncertainty, never a logical E_BOUND.
         if self.device_work_active {

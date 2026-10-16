@@ -62,7 +62,7 @@ mutation dropTask(id: tasks):
   delete tasks[id]
 
 mutation put(id: comments, task: tasks):
-  upsert comments[id] {task, body: 'upsert', at: 1}
+  upsert comments[id] {body: 'upsert', at: 1}
 
 mutation maybe(id: comments, task: tasks):
   insert comments {id, task, body: 'maybe', at: 1} if absent

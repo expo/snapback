@@ -2,8 +2,22 @@ use snapback4_core::{Context, Engine, MutationOutcome, Value, WriteState, rows::
 use std::collections::BTreeMap;
 const SOURCE: &str = include_str!("../../snapback4-lang/tests/fixtures/sequence-by.q");
 fn bound(source: &str) -> snapback4_lang::Bound {
-    let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    let mut b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    // External IR still exercises the sequence-parent runtime refusal; the
+    // source language now rejects this unproved immutable assignment earlier.
+    for program in &mut b.programs {
+        if program.program.name == "move" {
+            let mut injected = false;
+            for statement in &mut program.program.body {
+                if let snapback4_core::ir::Stmt::WriteTarget { patch, .. } | snapback4_core::ir::Stmt::Update { patch, .. } = statement {
+                    *patch = snapback4_core::ir::Expr::Object([("conversationId".into(),snapback4_core::ir::Expr::Variable("conversationId".into()))].into());
+                    injected = true;
+                }
+            }
+            assert!(injected,"{:?}",program.program.body);
+        }
+    }
     b
 }
 fn ctx(fields: &[(&str, Value)]) -> Context {

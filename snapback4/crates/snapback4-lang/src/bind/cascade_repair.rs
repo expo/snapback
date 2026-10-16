@@ -43,7 +43,8 @@ pub(super) fn recipe(schema: &Schema, parent: &str, job: bool) -> String {
     let fits = |price: &Price| super::reference_actions::over_ceiling(price, job).is_none();
     let fallback = format!("keep `on delete restrict` and delete the child rows first in a job (`for row in <child>:`), then delete the {parent} row; choose caps only if they are product limits (guide writes)");
     if !candidate(1).is_some_and(|(_, price)| fits(&price)) { return format!("even cap 1 cannot fit this delete's fixed heap/row reservation; {fallback}"); }
-    let (mut low, mut high) = (1, 500);
+    let limits = if job { snapback4_core::Ceilings::job() } else { snapback4_core::Ceilings::default() };
+    let (mut low, mut high) = (1, limits.rows_written.min(limits.examined).min(u64::from(u32::MAX)) as u32);
     while low < high {
         let mid = low + (high - low + 1) / 2;
         if candidate(mid).is_some_and(|(_, price)| fits(&price)) { low = mid; } else { high = mid - 1; }
@@ -51,6 +52,5 @@ pub(super) fn recipe(schema: &Schema, parent: &str, job: bool) -> String {
     let (trial, price) = candidate(low).unwrap();
     let unique=targets.iter().map(|(child,column)|format!("`unique {column}` on {child}")).collect::<Vec<_>>().join(" or ");
     let caps = targets.iter().map(|(child, column)| format!("`cap {} by {column}` on {child}", trial.reference_cap(child, column).unwrap())).collect::<Vec<_>>().join(" and ");
-    let limits = if job { snapback4_core::Ceilings::job() } else { snapback4_core::Ceilings::default() };
-    format!("apply {caps} together: the whole delete (including the root) reserves {} / {} rows written and {} / {} heap bytes, with all indexes, derived writes and event images priced together. A count-maintained source commonly reserves 3 × its rows (the row plus its old and new aggregate groups), not one row per child; for a one-to-one relation use {unique} instead; {fallback}", price[3], limits.rows_written, price[4], limits.heap_bytes)
+    format!("choose a product limit, not an engine tuning number; the engine allows up to {low} per unbounded edge in this joint recipe. For that limit apply {caps} together: the whole delete (including the root) reserves {} / {} rows written and {} / {} heap bytes, with all indexes, derived writes and event images priced together. Heap = root write heap + retained event images + 384 × (cascade identities + 1 root + 4 child-id slots + largest set-null group) + max(child write heap, four-row child page, read-through probe scratch). A count-maintained source commonly reserves 3 × its rows (the row plus its old and new aggregate groups), not one row per child; for a one-to-one relation use {unique} instead; {fallback}", price[3], limits.rows_written, price[4], limits.heap_bytes)
 }

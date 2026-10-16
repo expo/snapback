@@ -688,12 +688,37 @@ def scopedWitnessDecided (sch : Schema) (td : TableDecl)
 exact point by the focal row's intrinsic id. The native lane still checks the
 whole read rule per row; this predicate governs only its exhaustion verdict. -/
 def vacancyDecided (sch : Schema) (td : TableDecl) : Bool :=
-  td.read.disjuncts.any fun r => match r with
-    | .not (.probe t [point] [(key, .col .self "id")]) =>
-        point == key && (sch.table? t).any fun source =>
-          (point == "id" || source.uniques.contains [point])
-            && (point == "id" || source.cols.any (fun col => col.name == point && !col.nullable))
+  td.onlineOnly && td.read.disjuncts.any fun r => match r with
+    | .not (.probe t point key) =>
+        (sch.table? t).any fun source =>
+          let varying := key.filter fun p => match p.2 with | .col .self _ => true | _ => false
+          (varying.map (·.2)).eraseDups.length == 1
+            && (varying.filter fun p => point.contains p.1).length == 1
+            && key.all (fun p => p.2.fixedExpr.isSome || varying.contains p)
+            && point.all (fun c => key.any (·.1 == c))
+            && (point == ["id"] || source.uniques.contains point)
+            && point.all (fun c => c == "id" || source.cols.any (fun col => col.name == c && !col.nullable))
     | _ => false
+
+/-- LANG2's prepaid finite-group walk keeps every row rule and filter. The
+model classifies exactness; native tests cover the separate physical allowance. -/
+def Rule.exhaustionSafe (sch : Schema) : Rule → Bool
+  | .probe t _ _ => (sch.table? t).any fun target => target.notBefore.isNone && target.expire.isNone
+  | .and a b | .or a b => a.exhaustionSafe sch && b.exhaustionSafe sch
+  | .not a => a.exhaustionSafe sch
+  | _ => true
+
+def Rule.exhaustionProbes : Rule → Nat
+  | .probe _ _ _ => 1
+  | .and a b | .or a b => a.exhaustionProbes + b.exhaustionProbes
+  | .not a => a.exhaustionProbes
+  | _ => 0
+
+def finiteExhaustion (sch : Schema) (td : TableDecl) (pins : List (String × Expr)) : Bool :=
+  td.onlineOnly && td.notBefore.isNone && td.expire.isNone && td.read.exhaustionSafe sch
+    && td.caps.any fun cap => (cap.max + 1) * (1 + td.read.exhaustionProbes) < 8192
+      && cap.columns.all fun c => pins.any (·.1 == c)
+      && !(td.cols.any fun col => col.name == c && col.onDelete == some .setNull)
 
 /-- The pins the single-index planner keeps: the page's equalities and bare
 boolean conjuncts, except `id` and an order column other than the first,
@@ -791,8 +816,11 @@ def branchDecided (sch : Schema) (t : String) (pins : List (String × Expr))
       | none => false
     let case4 := guards && !reservedMembership && !pinnedMembership && alts.isNone && compoundDecided sch td pins order
     let witnessScope := guards && pins.all (fun p => p.2.total) && scopedWitnessDecided sch td pins fs order
-    let vacancy := guards && pins.isEmpty && fs.isEmpty && vacancyDecided sch td
-    (total && (case1 || case2)) || (readFree && (case3 || case4)) || witnessScope || vacancy
+    let vacancy := guards && readFree && (pins.all (fun p => p.1 != "id" && !order.contains p.1))
+      && vacancyDecided sch td
+    let finite := guards && readFree && (pins.all (fun p => !order.contains p.1))
+      && finiteExhaustion sch td guardPins
+    (total && (case1 || case2)) || (readFree && (case3 || case4)) || witnessScope || vacancy || finite
 
 def keyValue (k : Key) : Value := .arr (k.map .s)
 

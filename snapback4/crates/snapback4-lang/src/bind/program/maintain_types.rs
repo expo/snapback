@@ -102,6 +102,7 @@ impl Binder<'_> {
             return true;
         }
         match condition {
+            A::Exists { read, .. } if truth => self.snapshot_authorizes(read),
             A::Unary { op, value, .. } if op == "not" => self.authorization_proved(value, !truth),
             A::Binary {
                 op, left, right, ..

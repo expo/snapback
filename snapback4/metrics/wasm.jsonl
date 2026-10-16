@@ -85,3 +85,10 @@
 {"at":"2026-10-16T11:39:56Z","sha":"2d24038c35","dirty":true,"wasm":{"raw":2354746,"gzip":717156,"brotli":541686},"glue":{"raw":16053,"gzip":3695,"brotli":3259},"wasmOpt":true,"budget":717214,"over":0}
 {"at":"2026-10-16T12:52:28Z","sha":"09a1d55d8a","dirty":true,"wasm":{"raw":2354702,"gzip":717039,"brotli":541719},"glue":{"raw":16053,"gzip":3695,"brotli":3259},"wasmOpt":true,"budget":717214,"over":0}
 {"at":"2026-10-16T14:47:04Z","sha":"6393a786b8","dirty":false,"wasm":{"raw":2355193,"gzip":717515,"brotli":542232},"glue":{"raw":16053,"gzip":3695,"brotli":3259},"wasmOpt":true,"budget":718015,"over":0}
+{"at":"2026-10-16T12:05:52Z","sha":"d16c025fa5","dirty":true,"wasm":{"raw":2368483,"gzip":722051,"brotli":544448},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":722551,"over":0}
+{"at":"2026-10-16T12:14:36Z","sha":"2fa3518d59","dirty":true,"wasm":{"raw":2368631,"gzip":722020,"brotli":544148},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":722520,"over":0}
+{"at":"2026-10-16T12:58:05Z","sha":"c35938ad1b","dirty":true,"wasm":{"raw":2370874,"gzip":722779,"brotli":544477},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":723279,"over":0}
+{"at":"2026-10-16T13:23:22Z","sha":"62204cc8eb","dirty":true,"wasm":{"raw":2370874,"gzip":722779,"brotli":544477},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":723279,"over":0}
+{"at":"2026-10-16T13:32:19Z","sha":"e7d112950e","dirty":false,"wasm":{"raw":2370874,"gzip":722779,"brotli":544477},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":723279,"over":0}
+{"at":"2026-10-16T13:37:24Z","sha":"e7d112950e","dirty":true,"wasm":{"raw":2370874,"gzip":722776,"brotli":545033},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":723279,"over":0}
+{"at":"2026-10-16T13:42:46Z","sha":"b54f51aff2","dirty":false,"wasm":{"raw":2370874,"gzip":722776,"brotli":545033},"glue":{"raw":16053,"gzip":3695,"brotli":3260},"wasmOpt":true,"budget":723276,"over":0}

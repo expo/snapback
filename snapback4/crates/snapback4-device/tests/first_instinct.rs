@@ -35,12 +35,31 @@ fn write(e:&mut Engine,name:&str,viewer:&str,input:Json,nonce:u64)->snapback4_co
     result
 }
 
+// The source language refuses the unproved immutable move. Retain this
+// adversarial external-IR operation in the historical schedule differential.
+fn compile_with_move(source: &str, reference_column: &str) -> (Engine, snapback4_device::device::Backend) {
+    use snapback4_core::ir::*;
+    let (_, mut backend) = compile(source);
+    let mut program = backend.programs[0].clone();
+    program.name = "move".into(); program.kind = ProgramKind::Mutation;
+    program.args = [("message".into(),ArgType::Ref { table:"messages".into() }), ("group".into(),ArgType::Ref { table:"groups".into() })].into();
+    program.body = vec![Stmt::WriteTarget {
+        target: Read { site:"fixture-move".into(),table:"messages".into(),index:"byId".into(),key:vec![Expr::Variable("message".into())],provenance:KeyProvenance::Shape },
+        patch:Expr::Object([(reference_column.into(),Expr::Variable("group".into()))].into()), upsert:false, condition:None, result:None }];
+    program.returned_shapes.clear(); program.native = false;
+    let fact = snapback4_lang::bind::residency::execution(&backend.schema,&program);
+    backend.schema.operations.insert(program.name.clone(),fact);
+    backend.programs.push(program);
+    let engine = Engine::memory(backend.schema.clone(),backend.programs.clone()).unwrap();
+    backend.generation = engine.generation();
+    (engine,backend)
+}
 fn differential<H:Host>(host:&mut H) {
     // Every schema gets its own generated 32-step membership schedule. Snapshot
     // pages, sync bytes, held sets, queries and withdrawal/retention all compare.
     for depth in [2,3] {for keep in [false,true] {for horizon in [false,true] {for field in ["group","conversation"] {
-        let (mut a,ba)=compile(&fixture::source(depth,false,keep,horizon,field));
-        let (mut b,bb)=compile(&fixture::source(depth,true,keep,horizon,field));
+        let (mut a,ba)=compile_with_move(&fixture::source(depth,false,keep,horizon,field),field);
+        let (mut b,bb)=compile_with_move(&fixture::source(depth,true,keep,horizon,field),field);
         seed(&mut a,depth,field);seed(&mut b,depth,field);
         let mut da=host.open(&format!("a-{depth}-{keep}-{horizon}-{field}"),Some(ba)).unwrap();
         let mut db=host.open(&format!("b-{depth}-{keep}-{horizon}-{field}"),Some(bb)).unwrap();
