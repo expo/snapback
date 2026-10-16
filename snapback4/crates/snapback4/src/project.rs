@@ -215,6 +215,7 @@ impl Project {
     }
 
     pub(crate) fn check_entry(&self, entry: &Path) -> Result<(), String> {
+        if entry.file_name().is_some_and(|name| name.to_string_lossy().starts_with("worker.")) { return crate::worker_graph::check(self, entry); }
         let mut child = std::process::Command::new(node())
             .arg("--max-old-space-size=256").arg("--input-type=module").arg("-e")
             .arg(include_str!("server_check.mjs")).arg(&self.root).arg(entry)

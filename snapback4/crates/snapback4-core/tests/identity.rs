@@ -9,7 +9,7 @@ fn signup_minimum_counts_unicode_scalars() {
         let short = letter.repeat(7);
         let error = identity::signup(&store, &email, &short, 1_000, &mut entropy).unwrap_err().refusal();
         assert_eq!(error.code, "E_AUTH");
-        assert_eq!(error.message, "E_AUTH: a password needs at least 8 characters");
+        assert_eq!(error.message, "a password needs at least 8 characters");
         assert!(identity::credential(&store, &email).unwrap().is_none());
         let password = letter.repeat(8);
         let signed_up = identity::signup(&store, &email, &password, 1_000, &mut entropy).unwrap();
@@ -41,7 +41,7 @@ fn password_maximum_still_counts_utf8_bytes() {
             identity::login(&store, &email, &oversized, 2_000).unwrap_err(),
         ] {
             assert_eq!(error.refusal().code, "E_AUTH");
-            assert_eq!(error.refusal().message, "E_AUTH: a password is at most 1024 UTF-8 bytes");
+            assert_eq!(error.refusal().message, "a password is at most 1024 UTF-8 bytes");
         }
         println!("maximum: {} characters / 1024 bytes accepted; 1025 bytes refused", password.chars().count());
     }

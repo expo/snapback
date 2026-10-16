@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,symlinkSync} from 'node:fs';
 import {join,resolve} from 'node:path';
+import {tmpdir} from 'node:os';
 import {createConnection} from 'node:net';
 import {setTimeout as sleep} from 'node:timers/promises';
 import {cli,startServe,startDev,waitForFresh} from '../dist/proof.js';
@@ -161,4 +162,13 @@ test('inline type specifiers retain Node 24 runtime imports, unlike import type 
  assert.match(stripTypeScriptTypes(`import { type Marker } from './types.js';`),/import/);
  assert.match(stripTypeScriptTypes(`export { type Marker } from './types.js';`),/export/);
  assert.equal(stripTypeScriptTypes(`import type { Marker } from './types.js';`).trim(),'');
+});
+
+test('a Node-only low-level worker captures outside imports without requiring TypeScript', {timeout:60000},async t=>{
+ const cwd=mkdtempSync(join(tmpdir(),'surf4-node-worker-'));t.after(()=>rmSync(cwd,{recursive:true,force:true}));mkdirSync(join(cwd,'snapback'));mkdirSync(join(cwd,'src'));
+ writeFileSync(join(cwd,'package.json'),'{"type":"module"}');writeFileSync(join(cwd,'snapback/schema.q'),'query alive():\n  return true\n');
+ writeFileSync(join(cwd,'src/helper.mjs'),'export const marker="SURF4_NODE_ONLY";\n');
+ writeFileSync(join(cwd,'snapback/worker.mjs'),`import {marker} from '../src/helper.mjs';console.log(marker);setInterval(()=>{},1000);\n`);
+ await ok(['deploy','deployment'],cwd);writeFileSync(join(cwd,'src/helper.mjs'),'throw Error("mutable source");\n');
+ const host=await startServe('deployment',{cwd});try{await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_NODE_ONLY'),'Node-only worker gained a compiler dependency',()=>readFileSync(host.logs.stderr,'utf8'))}finally{await host.stop();}
 });
