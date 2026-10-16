@@ -116,3 +116,14 @@ test('temporary-root aliases preserve captured outside imports after relocation'
  writeFileSync(join(cwd,'helper.mjs'),'throw Error("working source");\n');
  const host=await startServe('deployment',{cwd});try{await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_TEMP_ALIAS'),'temporary alias dropped imports',()=>readFileSync(host.logs.stderr,'utf8'))}finally{await host.stop();}
 });
+
+test('relative CommonJS directory imports capture package main behind a separate types entry', {timeout:60000},async t=>{
+ const cwd=fixture(t);mkdirSync(join(cwd,'src'));writeFileSync(join(cwd,'src/package.json'),JSON.stringify({type:'commonjs',types:'index.d.ts',main:'lib.js'}));
+ writeFileSync(join(cwd,'src/index.d.ts'),'export declare const marker: string;\n');
+ writeFileSync(join(cwd,'src/lib.js'),'module.exports={marker:"SURF4_CJS_MAIN"};\n');
+ writeFileSync(join(cwd,'snapback/server.cjs'),'const {marker}=require("../src");console.log(marker);setInterval(()=>{},1000);\n');
+ // The conventional entry supports .mjs; its module-scoped require uses Node resolution.
+ writeFileSync(join(cwd,'snapback/server.mjs'),'import {createRequire} from "node:module";const require=createRequire(import.meta.url);const {marker}=require("../src");console.log(marker);setInterval(()=>{},1000);\n');
+ await ok(['deploy','deployment'],cwd);writeFileSync(join(cwd,'src/lib.js'),'throw Error("mutable package main");\n');
+ const host=await startServe('deployment',{cwd});try{await until(()=>readFileSync(host.logs.stderr,'utf8').includes('SURF4_CJS_MAIN'),'package main omitted',()=>readFileSync(host.logs.stderr,'utf8'))}finally{await host.stop();}
+});

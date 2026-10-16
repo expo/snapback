@@ -120,13 +120,14 @@ for (let index = 0; index < sourceQueue.length; index++) {
         const module = ts.resolveModuleName(spec, source.fileName, compilerOptions, host).resolvedModule;
         // A .d.ts can satisfy TypeScript without loading the JavaScript that
         // Node executes. Observe and walk that implementation graph too.
-        const declarationRuntime = module?.resolvedFileName.replace(/\.d\.(ts|mts|cts)$/, (_, kind) => kind === "mts" ? ".mjs" : kind === "cts" ? ".cjs" : ".js");
-        const literal = resolve(dirname(source.fileName), spec);
-        const runtime = [literal, declarationRuntime].find(path => path && /\.(?:[cm]?[jt]s|json)$/.test(path) && !/\.d\.[cm]?ts$/.test(path) && system.fileExists(path));
+        let runtime;
+        try { runtime = createRequire(source.fileName).resolve(spec); }
+        catch { /* TypeScript below still reports unresolved source imports. */ }
+        if (runtime) system.fileExists(runtime); // records the executable, even when types hide it
         if (runtime && !runtime.split(sep).includes("node_modules")) {
           const actual = realpathSync(runtime);
           if (!actual.startsWith(projectRoot + sep)) problem = "local server implementations must remain inside the project; install external code as a package";
-          else if (!inspected.has(runtime) && !runtime.endsWith(".json")) {
+          else if (!inspected.has(runtime) && /\.[cm]?[jt]s$/.test(runtime) && !/\.d\.[cm]?ts$/.test(runtime)) {
             const text = system.readFile(runtime);
             if (text !== undefined) sourceQueue.push(ts.createSourceFile(runtime, text, ts.ScriptTarget.Latest, true));
           }
