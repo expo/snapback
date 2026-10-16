@@ -209,7 +209,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("N_WRITE_DENIED", "A mutation's writes pass the table's insert, update and delete rules as the caller; only a job runs as the system."),
     ("N_PROBE_ONLY_READ", "A rule probe sees every row"),
     ("N_VACUOUS_RULE", "An insert rule a mutation always satisfies guards nothing"),
-    ("N_LOOKUP_HIDDEN", "A mutation finds a row under its read rule before the write rule runs."),
+    ("N_LOOKUP_HIDDEN", "Read access is required for a program's own lookup before a write"),
     ("N_UNREADABLE_PROBE", "A program guard sees only caller-readable rows"),
     ("N_REQUIRE_HIDDEN", "A program `exists` sees only the rows its caller may read"),
     ("N_REQUIRE_REFUSED", "A mutation's `require` does not admit a write the table's rule refuses"),

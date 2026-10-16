@@ -315,7 +315,7 @@
     "id": "writes-15",
     "card": "writes",
     "home": "NOT_FOUND",
-    "text": "| Target before the write | Refusal details |\n| --- | --- |\n| Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_CONSTRAINT`; `E_INPUT` |\n| Unreadable or absent | `NOT_FOUND` for rule denial, an `update` condition, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |"
+    "text": "| Target before the write | Refusal details |\n| --- | --- |\n| Readable | `E_RULE`; `E_CONFLICT` with a read-rule `current`; named `E_UNIQUE` for declared keys; `E_CONSTRAINT` for other constraints; `E_INPUT` |\n| Unreadable or absent | `NOT_FOUND` for rule denial, an `update` condition, secondary unique clash, or an incomplete insert patch; no row, index, column or branch detail |"
   },
   {
     "id": "writes-16",

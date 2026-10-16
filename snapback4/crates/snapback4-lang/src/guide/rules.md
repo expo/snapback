@@ -204,9 +204,7 @@ Use `upsert counters[recipient] { count: 1 }` under an `update` rule to
 write another principal's row. Success discloses the admitted row's existence
 and the update rule predicates. It grants no extra stream or snapshot row.
 A condition belongs on `update`; an upsert inserts or patches. A condition
-needs a row you can read; a blind patch needs none.
-A blind update or upsert-patch needs no read rule: the update rule judges the
-old and next images; a preceding program lookup still needs read access. On a row you cannot read,
+needs a row you can read; a blind patch needs none. A blind update or upsert-patch needs no read rule: the update rule judges the old and next images; a preceding program lookup still needs read access. On a row you cannot read,
 immutable columns in a patch are ignored. A readable immutable mismatch still
 names the column. Before target lookup, the engine reserves room for the rule
 probes and the largest merged image allowed by the schema and supplied patch;
