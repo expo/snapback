@@ -11,9 +11,12 @@ export function Inbox() { const page = usePage(api.inboxCards, {}), status = rea
 }
 ```
 
+- `E_OFFLINE`: unavailable; reconnect.
+- `E_QUERY_RETRY`: exhausted; retry.
+
 ## Reference
 
-`Write`: pending custody, sent fresh result, sent replay without result, or failed with why. Clear only on sentResult; undefined is not success.
+`Write`: pending custody, fresh sent result, replay without result, or failed. Clear on sentResult; undefined is not success.
 ```tsx
 import { useState } from "react"; import { matchRead, sentResult, useAppReady, useMutation, useQuery } from "snapback4/react";
 import { api } from "../snapback/generated/api";
@@ -58,7 +61,7 @@ function StaffRows({team}: {team:string}) {
     otherwise: () => <p>Updating notes…</p>})}</>;
 }
 ```
-Mount `<StaffWorkspace key={team} team={team}/>`: drafts survive loading/releases; resource/account/backend changes reset them. Sticky role labels only the shell. Current role/availability gate reads/Save; server rules decide permission. "Since release N" fields stay optional: `row.priority ?? "normal"` at React/Exact boundaries.
+Mount `<StaffWorkspace key={team} team={team}/>`: drafts survive loading/releases; resource/account/backend changes reset them. Sticky role labels only the shell. Current role/availability gate reads/Save; rules decide permission. "Since release N" fields stay optional: `row.priority ?? "normal"` at React/Exact boundaries.
 
 ## A public guest page
 
@@ -103,8 +106,8 @@ export function listLabel(read: Read<readonly {id:string}[]>): string {
   if ('denied' in read) return "not available"; if ('data' in read) return read.existence === "absent" ? "No rows" : `${read.data.length} rows`; return "Loading…"; }
 ```
 `loading`: keep shells; `denied`: show refusal; `present`: render; `absent`: proven empty; `partial`: uncertain. Offline absent is absence at the acquired watermark. Hidden/missing rows are indistinguishable. `readPresentation` notices never grant permission. Render page.items, follow hasMore/loadMore. Unknown counts never hide conversations.
-Per-operation generated `predicts` controls timing: eligible/device/held facts may render `pending:true` before `useMutation().run()` settles; otherwise queues without a row. Never/online: no prediction; data follows server settlement/delivery. Ordinary run() waits for sent/failed; `{waitSeconds:0}` returns custody, possibly pending. Proofs await fresh sent; predicted rows aren't settlement.
+Generated `predicts` controls timing: eligible/device/held facts may render `pending:true` before `useMutation().run()` settles; otherwise queues without a row. Never/online: no prediction; data follows server settlement/delivery. run() waits for sent/failed; `{waitSeconds:0}` returns custody, possibly pending. Proofs await fresh sent; predictions aren't settlement.
 `query(op,args)` settles ready/denied within 30 seconds. Unavailable offline reads give immediate `E_OFFLINE`. After four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Retention, RowOf/ArgsOf/ResultOf and {skip}: [reference](CLIENT-AND-OPERATIONS.md). Share/paginate: eight active, eight queued observation attempts; direct queries and timed presence refreshes use separate paths.
-Browser createApp: no sync → journal; sync → webDevice(); online writes: writes:"online". Native: nativeDevice; Expo Go online. Expo: `npx snapback4 init --expo`, `npm install`, `npx snapback4 check`. Peers: Expo >=57.0.22 <58, core >=57.0.23 <58; RN 0.86.3, React/React DOM 19.2.3. `npx snapback4@latest upgrade` aligns SDK packages. Regenerate iOS/rebuild after native changes; milestones: npm run export:ios, witness status --wait, npm run native:smoke. Acquisition/offline reopen/reconnect/write replay: guide witness.
-useOnline: server reads/ephemeral/actions; durable writes: app.mutate. SDK owns delivery reporting; screen owns visible `seen` reporting. useSeen owns receipt retries (guide receipts). Read-only clients: guide read-only. Media: OFFLINE-UPLOADS.md. Never wait for networkidle; assert fresh sent before rendered output (guide testing).
+Browser createApp: no sync → journal; sync → webDevice(); online writes: writes:"online". Native: nativeDevice; Expo Go online. Expo: `npx snapback4 init --expo`, `npm install`, `npx snapback4 check`. Peers: Expo >=57.0.22 <58, core >=57.0.23 <58; RN 0.86.3, React/React DOM 19.2.3. `npx snapback4@latest upgrade` aligns SDK packages. Regenerate iOS/rebuild after native changes; every milestone: npm run export:ios; proof in the background: witness status --wait. Rebuild: npm run native:smoke. Acquisition/offline reopen/reconnect/write replay: guide witness.
+useOnline: server reads/ephemeral/actions; durable writes: app.mutate. SDK owns delivery reporting; screen owns visible `seen` reporting; useSeen retries receipts (guide receipts). Read-only: guide read-only. Media: OFFLINE-UPLOADS.md. Proofs: await fresh sent, then rendering; avoid networkidle (guide testing).
 Keyed counts: hidden key → null; authorized missing count group → 0; public count → number. Choose count ?? 0 explicitly.
