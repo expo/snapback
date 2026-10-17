@@ -128,3 +128,24 @@ fn interrupted_acquisition_memory() {
 fn interrupted_acquisition_sqlite() {
     interrupted(&mut Sqlite::new("live-stage"));
 }
+
+#[test]
+fn authoritative_memory_seed_admits_before_collecting_and_rolls_back() {
+    use snapback4_core::rows::Rows;
+    let (_, backend) = compile(SOURCE);
+    let mut store = snapback4_device::memory::MemoryStore::new();
+    store.activate_server_at(backend.schema, 0).unwrap();
+    let consumed = std::cell::Cell::new(0);
+    let rows = (0..100_000).map(|n| {
+        consumed.set(n + 1);
+        (
+            "projects".into(),
+            snapback4_core::value::object([("id", id(&format!("p{n}"))), ("owner", id("alice"))]),
+        )
+    });
+    let error = store.seed_server_at(rows, 1).unwrap_err();
+    assert_eq!(error.code(), "E_BOUND");
+    assert!(consumed.get() < 100_000);
+    let tx = store.transaction().unwrap();
+    assert!(Rows::get(&tx, "projects", "p0").unwrap().is_none());
+}

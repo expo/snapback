@@ -19,7 +19,22 @@ pub(super) fn configure(conn: &Connection, next: &Schema) -> Result<(), RuntimeE
     } else {
         None
     };
-    if crate::schema::live::has_live(next)
+    let mut dormant_live = false;
+    for (table, path) in [
+        ("_dormant_tables", "$.through.live"),
+        ("_dormant_columns", "$.capture_source.through.live"),
+    ] {
+        let exists: bool = conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name=?1)",
+            [table],
+            |r| r.get(0),
+        )?;
+        if exists {
+            dormant_live |= conn.query_row(&format!("SELECT EXISTS(SELECT 1 FROM {table} WHERE json_extract(definition,?1) IS NOT NULL)"),[path],|r|r.get::<_,bool>(0))?;
+        }
+    }
+    if dormant_live
+        || crate::schema::live::has_live(next)
         || previous.as_ref().is_some_and(crate::schema::live::has_live)
     {
         conn.execute_batch("DROP TABLE IF EXISTS temp._live_restored;")?;

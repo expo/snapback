@@ -56,7 +56,7 @@ impl PostgresEngine {
         if crate::schema::live::has_live(&self.schema) {
             let tx=self.store.transaction(Some(WriteMode::Serialized))?;
             let seq=tx.next_seq()?;
-            let (count,events,tables)=super::super::live_bulk::restore(&tx,&self.schema,rows,seq,now)?;
+            let (count,events,tables,seq)=super::super::live_bulk::restore(&tx,&self.schema,rows,seq,now)?;
             if count>0 {tx.record_commit(seq,now,"restore",crate::SYSTEM_PRINCIPAL,"restore",&tables,count)?;partition::append(&tx,seq,&events)?;}
             tx.commit()?;return Ok(count);
         }

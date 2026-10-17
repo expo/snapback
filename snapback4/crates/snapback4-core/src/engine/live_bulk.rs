@@ -62,7 +62,8 @@ pub(super) fn restore(
     rows: impl IntoIterator<Item = (String, Value)>,
     seq: u64,
     now: i64,
-) -> Result<(u64, Vec<partition::Event>, Vec<String>), RuntimeError> {
+) -> Result<(u64, Vec<partition::Event>, Vec<String>, u64), RuntimeError> {
+    let mut commit_seq = seq;
     let mut meter = Meter::new(Ceilings::job(), Cut::Abort);
     let mut input = collect(rows, &mut meter)?;
     let count = input.len() as u64;
@@ -134,13 +135,15 @@ pub(super) fn restore(
                 .ok_or_else(|| RuntimeError::Store("live restore needs every parent".into()))?;
             super::through::stamp(&schema.tables[&edge.parent], edge, &p, &mut row)?;
         }
-        table.recompute_deadline(&mut row)?;
-        validate::validate_row(schema, &name, &row)?;
-        let id = row.field("id")?.as_str()?;
         runner
             .meter
-            .heap(crate::rows::disclosed::decode_reservation(table))?;
-        let old = tx.get(&name, id)?;
+            .heap(crate::rows::disclosed::decode_reservation(table).saturating_mul(4))?;
+        let id = row.field("id")?.as_str()?.to_owned();
+        let old = tx.get(&name, &id)?;
+        let mut row = runner.import_sequences(&name, row, old.as_ref(), true)?;
+        commit_seq = commit_seq.max(super::timeline::restored_sequence(schema, &name, &row)?);
+        table.recompute_deadline(&mut row)?;
+        validate::validate_row(schema, &name, &row)?;
         runner.meter.charge(MeterKind::RowsWritten, 1)?;
         runner.meter.charge(
             MeterKind::IndexEntries,
@@ -179,7 +182,7 @@ pub(super) fn restore(
         )?;
         runner.meter.release_heap(mark);
     }
-    validate_final(&mut runner, now)?;
+    validate_final(&mut runner, &before, now)?;
     for ((name, id), old) in before {
         runner.reserve_bulk_source(&name)?;
         let table = &schema.tables[&name];
@@ -204,7 +207,7 @@ pub(super) fn restore(
     let tables = runner.written_tables.iter().cloned().collect();
     // reserve_bulk_source has held the dense Vec/coalescer peak all along.
     let events = runner.events.take();
-    Ok((count, events, tables))
+    Ok((count, events, tables, commit_seq))
 }
 fn remember(
     runner: &mut Runner<'_>,
@@ -229,58 +232,95 @@ fn remember(
     Ok(())
 }
 
-// The operator account also owns final validation. Adoption's independently
-// bounded page accounts must not reset this bulk call's cumulative counters.
-fn validate_final(r: &mut Runner<'_>, now: i64) -> Result<(), RuntimeError> {
-    for name in r.schema.through_order() {
-        let table = &r.schema.tables[&name];
-        let Some(edge) = &table.through else { continue };
-        let parent = &r.schema.tables[&edge.parent];
-        let mut bounds = Bounds::default();
-        loop {
-            let mark = r.meter.mark();
-            r.meter.charge(MeterKind::Examined, 1)?;
-            r.meter.heap(4 * crate::rows::MAX_INDEX_KEY_BYTES as u64)?;
-            let Some(key) = r.metered_scan(|r, scope| r.tx.index_head(scope, &name, "byId", &[], &bounds, Dir::Asc))? else {
+// Validate changed groups and captured children of changed parents. Population
+// outside these identities cannot affect a coherent bounded restore batch.
+fn validate_final(
+    r: &mut Runner<'_>,
+    before: &BTreeMap<(String, String), Option<Value>>,
+    now: i64,
+) -> Result<(), RuntimeError> {
+    for ((name, id), _) in before {
+        validate_one(r, name, id, now, true)?;
+        for (child, _, edge) in r
+            .schema
+            .children(name)
+            .filter(|(_, _, edge)| edge.live.is_none())
+        {
+            let mut bounds = Bounds::default();
+            loop {
+                let mark = r.meter.mark();
+                r.meter.charge(MeterKind::Examined, 1)?;
+                r.meter.heap(8 * crate::rows::MAX_INDEX_KEY_BYTES as u64)?;
+                let key = r.metered_scan(|r, scope| {
+                    r.tx.index_head(
+                        scope,
+                        child,
+                        crate::schema::through::CHILDREN,
+                        &[Value::Id(id.clone())],
+                        &bounds,
+                        Dir::Asc,
+                    )
+                })?;
+                let Some(key) = key else {
+                    r.meter.release_heap(mark);
+                    break;
+                };
+                bounds.after = Some(key.iter().skip(1).cloned().collect());
+                let child_id = key
+                    .last()
+                    .ok_or_else(|| RuntimeError::Store("restored child key is empty".into()))?
+                    .as_str()?;
+                validate_one(r, child, child_id, now, false)?;
                 r.meter.release_heap(mark);
-                break;
-            };
-            bounds.after = Some(key.clone());
-            r.meter.heap(
-                crate::rows::disclosed::decode_reservation(table)
-                    .saturating_mul(2)
-                    .saturating_add(
-                        crate::rows::disclosed::decode_reservation(parent).saturating_mul(2),
-                    ),
-            )?;
-            r.meter.charge(MeterKind::Examined, 2)?;
-            let row =
-                r.metered_scan(|r, scope| r.tx.get(scope, &name, key[0].as_str()?))?
-                    .ok_or_else(|| RuntimeError::Store("bulk validation row disappeared".into()))?;
-            let p =
-                r.metered_scan(|r, scope| r.tx.get(scope, &edge.parent, row.field(&edge.reference)?.as_str()?))?
-                    .ok_or_else(|| {
-                        RuntimeError::Store("bulk restoration needs a live parent".into())
-                    })?;
-            let p = crate::schema::row_image(&p, parent);
-            if (parent.expired(&p, now) && !table.expired(&row, now))
-                || edge
-                    .fields
-                    .iter()
-                    .any(|(f, source)| row.field(f).ok() != p.field(source).ok())
-                || row.field(crate::schema::through::PARENT_DEADLINE).ok()
-                    != Some(&parent.deadline(&p).map(Value::Int).unwrap_or(Value::Null))
-            {
-                return Err(RuntimeError::Store(
-                    "bulk restored authority differs from its current parent".into(),
-                ));
             }
-            r.meter
-                .step(edge.fields.len() as u64 + table.columns.len() as u64 + 8)?;
-            r.meter.release_heap(mark);
+            let _ = edge;
         }
     }
-    for (name, table) in &r.schema.tables {
+    Ok(())
+}
+fn validate_one(
+    r: &mut Runner<'_>,
+    name: &str,
+    id: &str,
+    now: i64,
+    groups: bool,
+) -> Result<(), RuntimeError> {
+    let mark = r.meter.mark();
+    let table = &r.schema.tables[name];
+    r.meter.charge(MeterKind::Examined, 1)?;
+    r.meter
+        .heap(crate::rows::disclosed::decode_reservation(table).saturating_mul(2))?;
+    let row = r
+        .metered_scan(|r, scope| r.tx.get(scope, name, id))?
+        .ok_or_else(|| RuntimeError::Store("restored row disappeared".into()))?;
+    let row = crate::schema::row_image(&row, table);
+    if let Some(edge) = &table.through {
+        let parent = &r.schema.tables[&edge.parent];
+        r.meter.charge(MeterKind::Examined, 1)?;
+        r.meter
+            .heap(crate::rows::disclosed::decode_reservation(parent).saturating_mul(2))?;
+        let p = r
+            .metered_scan(|r, scope| {
+                r.tx.get(scope, &edge.parent, row.field(&edge.reference)?.as_str()?)
+            })?
+            .ok_or_else(|| RuntimeError::Store("bulk restoration needs a live parent".into()))?;
+        let p = crate::schema::row_image(&p, parent);
+        if (parent.expired(&p, now) && !table.expired(&row, now))
+            || edge
+                .fields
+                .iter()
+                .any(|(f, source)| row.field(f).ok() != p.field(source).ok())
+            || row.field(crate::schema::through::PARENT_DEADLINE).ok()
+                != Some(&parent.deadline(&p).map(Value::Int).unwrap_or(Value::Null))
+        {
+            return Err(RuntimeError::Store(
+                "bulk restored authority differs from its current parent".into(),
+            ));
+        }
+        r.meter
+            .step(edge.fields.len() as u64 + table.columns.len() as u64 + 8)?;
+    }
+    if groups {
         let mut checks: Vec<_> = table
             .indexes
             .iter()
@@ -298,36 +338,32 @@ fn validate_final(r: &mut Runner<'_>, now: i64) -> Result<(), RuntimeError> {
             }
         }
         for (index, width, max, nulls_distinct) in checks {
-            let mut bounds = Bounds::default();
-            let mut previous = None;
-            let mut count = 0;
-            loop {
-                let mark = r.meter.mark();
-                r.meter.charge(MeterKind::Examined, 1)?;
-                r.meter.step(width as u64 + 1)?;
-                r.meter.heap(8 * crate::rows::MAX_INDEX_KEY_BYTES as u64)?;
-                let Some(key) = r.metered_scan(|r, scope| r.tx.index_head(scope, name, index, &[], &bounds, Dir::Asc))? else {
-                    r.meter.release_heap(mark);
-                    break;
-                };
-                let group = key[..width].to_vec();
-                bounds.after = Some(key);
-                if !(nulls_distinct && group.contains(&Value::Null)) {
-                    if previous.as_ref() == Some(&group) {
-                        count += 1;
-                    } else {
-                        previous = Some(group);
-                        count = 1;
-                    }
+            let scratch = r.meter.mark();
+            r.meter.heap(12 * crate::rows::MAX_INDEX_KEY_BYTES as u64)?;
+            let key = crate::rows::index_values(&table.indexes[index], &row);
+            let group = key[..width].to_vec();
+            if !(nulls_distinct && group.contains(&Value::Null)) {
+                let mut bounds = Bounds::default();
+                let mut count = 0;
+                loop {
+                    r.meter.charge(MeterKind::Examined, 1)?;
+                    r.meter.step(width as u64 + 1)?;
+                    let key = r.metered_scan(|r, scope| {
+                        r.tx.index_head(scope, name, index, &group, &bounds, Dir::Asc)
+                    })?;
+                    let Some(key) = key else { break };
+                    bounds.after = Some(key.into_iter().skip(width).collect());
+                    count += 1;
                     if count > max {
                         return Err(RuntimeError::Constraint(format!(
                             "bulk restoration exceeds {name}.{index} bound {max}"
                         )));
                     }
                 }
-                r.meter.release_heap(mark);
             }
+            r.meter.release_heap(scratch);
         }
     }
+    r.meter.release_heap(mark);
     Ok(())
 }

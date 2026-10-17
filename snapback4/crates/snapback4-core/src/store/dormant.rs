@@ -546,6 +546,7 @@ pub(super) fn transition(
     }
     let restored_images=!restoring.is_empty() || cells.iter().any(|(n,c,_)|next.table(n).is_some_and(|t|t.columns.contains_key(c)));
     super::narrowed::transition(tx,next,previous,now,restored_images,&source_definitions)?;
+    crate::engine::through_activation::reconcile_manual(tx,next,&source_definitions,now)?;
     check_references(tx, next)?;
     // Restored rows have no predecessor indexes. Install the identity scan
     // before the ordinary read-through barrier; preserve historical captures.

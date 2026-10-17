@@ -402,8 +402,9 @@ fn complete_or_parent_rule_and_extra_probe_equalities_stay_live_online() {
     for who in ["bob", "carol", "dave"] {
         assert!(visible(&mut e, who));
     }
-    e.seed_delete("staff","s").unwrap();
-    assert!(!visible(&mut e,"carol"));assert!(visible(&mut e,"bob"));
+    e.seed_delete("staff", "s").unwrap();
+    assert!(!visible(&mut e, "carol"));
+    assert!(visible(&mut e, "bob"));
     let bad = source.replace(
         "  role: enum('head', 'other')",
         "  role: enum('head', 'other')\n  until: time ?\n  expire at .until",
@@ -512,13 +513,156 @@ fn bulk_duplicate_images_replace_indexes_and_cap_failures_roll_back() {
 
 #[test]
 fn live_parent_deletion_cannot_cross_a_physical_child_lifetime() {
-    let source=SOURCE.replace("  update <- allow\n  sync", "  update <- allow\n  delete <- allow\n  sync");
-    let mut e=seeded(&source,"alice",false);
-    let out=e.mutate("removeProject",None,Context::new("alice",[("project".into(),Value::Id("p".into()))].into())).unwrap();
-    assert!(matches!(out.state,WriteState::Failed{ref why,..} if why.code=="E_PARENT_HAS_CHILDREN"),"{out:?}");
-    assert!(visible(&mut e,"alice"));
-    e.seed_delete("tasks","c").unwrap();e.seed_delete("projects","p").unwrap();
-    let rows=[("projects",json!({"id":"p","owner":"mallory"})),("tasks",json!({"id":"c","project":"p","body":"private"}))].into_iter()
-        .map(|(n,row)|(n.into(),wire::row_from_json(&e.schema().tables[n],&row).unwrap())).collect::<Vec<_>>();
-    e.seed(rows).unwrap();assert!(visible(&mut e,"mallory"));assert!(!visible(&mut e,"alice"));
+    let source = SOURCE.replace(
+        "  update <- allow\n  sync",
+        "  update <- allow\n  delete <- allow\n  sync",
+    );
+    let mut e = seeded(&source, "alice", false);
+    let out = e
+        .mutate(
+            "removeProject",
+            None,
+            Context::new("alice", [("project".into(), Value::Id("p".into()))].into()),
+        )
+        .unwrap();
+    assert!(
+        matches!(out.state,WriteState::Failed{ref why,..} if why.code=="E_PARENT_HAS_CHILDREN"),
+        "{out:?}"
+    );
+    assert!(visible(&mut e, "alice"));
+    e.seed_delete("tasks", "c").unwrap();
+    e.seed_delete("projects", "p").unwrap();
+    let rows = [
+        ("projects", json!({"id":"p","owner":"mallory"})),
+        ("tasks", json!({"id":"c","project":"p","body":"private"})),
+    ]
+    .into_iter()
+    .map(|(n, row)| {
+        (
+            n.into(),
+            wire::row_from_json(&e.schema().tables[n], &row).unwrap(),
+        )
+    })
+    .collect::<Vec<_>>();
+    e.seed(rows).unwrap();
+    assert!(visible(&mut e, "mallory"));
+    assert!(!visible(&mut e, "alice"));
+}
+
+#[test]
+fn whole_dormant_live_table_restores_manual_authority_from_current_parent() {
+    use snapback4_core::engine::release::ReleaseActivation;
+    let mut e = seeded(&manual(), "alice", true);
+    let b = build(SOURCE);
+    e.adopt_release(
+        b.schema,
+        b.programs.into_iter().map(|p| p.program),
+        &ReleaseActivation::new(2, Some(1)),
+        false,
+    )
+    .unwrap();
+    let removed = format!(
+        "{}mutation transfer(project: projects, owner: principal):\n  update projects[project] {{ owner }}\n",
+        SOURCE.split("table tasks:").next().unwrap()
+    );
+    let b = build(&removed);
+    e.adopt_release(
+        b.schema,
+        b.programs.into_iter().map(|p| p.program),
+        &ReleaseActivation::new(3, Some(2)),
+        false,
+    )
+    .unwrap();
+    transfer(&mut e, "bob");
+    let b = build(&manual());
+    e.adopt_release(
+        b.schema,
+        b.programs.into_iter().map(|p| p.program),
+        &ReleaseActivation::new(4, Some(3)),
+        false,
+    )
+    .unwrap();
+    assert!(!visible(&mut e, "alice"));
+    assert!(visible(&mut e, "bob"));
+    let arrays: i64 = e
+        .store()
+        .conn()
+        .query_row(
+            "SELECT COUNT(*) FROM _meta WHERE key LIKE 'activation_%_restored_ids:%'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(arrays, 0);
+}
+#[test]
+fn unrelated_sequence_restoration_advances_its_counter_in_a_live_schema() {
+    let source = format!(
+        "{SOURCE}\ntable serialScopes:\n  public 'scopes'\n  online only\ntable serialRows:\n  scope: serialScopes\n  ordinal: sequence by scope\n  public 'serials'\n  insert <- allow\n  online only\nmutation nextSerial(scope: serialScopes):\n  return insert serialRows {{ scope }}\n"
+    );
+    let b = build(&source);
+    let mut e = Engine::memory(b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
+    let rows = [
+        ("serialScopes", json!({"id":"s"})),
+        ("serialRows", json!({"id":"r","scope":"s","ordinal":100})),
+    ]
+    .into_iter()
+    .map(|(n, row)| {
+        (
+            n.into(),
+            wire::row_from_json(&e.schema().tables[n], &row).unwrap(),
+        )
+    })
+    .collect::<Vec<_>>();
+    e.load_trusted(rows).unwrap();
+    let out = e
+        .mutate(
+            "nextSerial",
+            None,
+            Context::new("alice", [("scope".into(), Value::Id("s".into()))].into()),
+        )
+        .unwrap();
+    assert!(
+        matches!(out.state,WriteState::Sent{ref result,..} if result.field("ordinal").unwrap()==&Value::Int(101)),
+        "{out:?}"
+    );
+}
+#[test]
+fn a_small_restore_ignores_large_unrelated_populations() {
+    let source = format!("{SOURCE}\ntable unrelated:\n  public 'unrelated'\n  online only\n");
+    let mut e = seeded(&source, "alice", false);
+    let table = e.schema().tables["unrelated"].clone();
+    {
+        let tx = e.store_mut().transaction().unwrap();
+        for n in 0..20_000 {
+            let row = snapback4_core::value::object([("id", Value::Id(format!("u{n}")))]);
+            tx.put("unrelated", &table, &row, None).unwrap();
+        }
+        tx.commit().unwrap();
+    }
+    let row = wire::row_from_json(
+        &e.schema().tables["projects"],
+        &json!({"id":"p","owner":"bob"}),
+    )
+    .unwrap();
+    e.load_trusted([("projects".into(), row)]).unwrap();
+    assert!(visible(&mut e, "bob"));
+    assert!(!visible(&mut e, "alice"));
+}
+#[test]
+fn captured_only_adoption_preserves_actual_small_row_compatibility() {
+    let source = SOURCE
+        .replace("read through live .project", "read through .project")
+        .replace(
+            "  owner: principal",
+            "  owner: principal\n  immutable owner",
+        )
+        .replace("  body: text <=80", "  body: text <=300000");
+    let mut e = seeded(&source, "alice", false);
+    let b = build(&format!(
+        "{source}\ntable unrelated:\n  public 'new'\n  online only\n"
+    ));
+    e.adopt(b.schema, b.programs.into_iter().map(|p| p.program))
+        .unwrap();
+    assert!(visible(&mut e, "alice"));
 }

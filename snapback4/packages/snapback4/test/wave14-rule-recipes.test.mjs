@@ -53,7 +53,7 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
     const checked = JSON.parse(invoke(process.execPath,[cliPath,'check','--json'],cwd,env));
     assert.equal(checked.ok,true);
     const notes=checked.notes.filter(n=>n.code!=='N_NO_PRODUCTION_WRITER');
-    if(marker==='table liveRosterFolders:') {
+    if(source.includes('read through live .folder')) {
       assert.equal(notes.length,1); assert.equal(notes[0].code,'N_NO_HORIZON');
       assert.doesNotMatch(JSON.stringify(notes),/last 500/);
     } else assert.deepEqual(notes,[]);
@@ -63,7 +63,7 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
       const response = await fetch(host.url+path,{method:'POST',headers:{'content-type':'application/json','x-snapback-persona':who},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)});
       return response.json();
     };
-    const seed = async rows => assert.equal((await post('/seed','alice',rows)).seeded,rows.length);
+    const seed = async rows => {const reply=await post('/seed','alice',rows);assert.equal(reply.seeded,rows.length,JSON.stringify(reply));};
     const mutate = (op,who,args={})=>post('/m/'+op,who,{args});
     const sent = async (op,who,args={})=>{const reply=await mutate(op,who,args);assert.equal(reply.state,'sent',JSON.stringify(reply));return reply.result;};
     const failed = async (op,who,args,code)=>{const reply=await mutate(op,who,args);assert.equal(reply.why?.code,code,JSON.stringify(reply));return reply;};
@@ -158,6 +158,32 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
     assert.equal(fresh.data.body,'private',JSON.stringify(fresh));
     await p.failed('addLiveRosterFile','alice',{folder:'folder',body:'old roster'},'NOT_FOUND');
     await p.failed('addLiveRosterFile','bob',{folder:'folder',body:'new roster at cap'},'E_CONSTRAINT');
+  });
+  await t.test('live asset placement follows the current parent without moving its home',async t=>{
+    const source=recipes.find(s=>s.includes('table liveRosterFolders:'))
+      .replace('  body: text 1..200','  image: image <=5000000\n  body: text 1..200')
+      .replace('cap 20 by folder','cap 1 by folder')
+      .replace('body: text 1..200):','body: text 1..200, image: image <=5000000):')
+      .replace('{ folder: f.id, body }','{ folder: f.id, body, image }');
+    const p=await project(t,'image: image <=5000000',[source]);
+    await p.seed([
+      {table:'liveDepartments',row:{id:'old',title:'Old'}},{table:'liveDepartments',row:{id:'new',title:'New'}},
+      {table:'liveDepartmentRoster',row:{id:'a',department:'old',principal:'dev:alice'}},
+      {table:'liveDepartmentRoster',row:{id:'b',department:'new',principal:'dev:bob'}},
+      {table:'liveDepartmentRoster',row:{id:'c',department:'old',principal:'dev:carol'}},
+      {table:'liveDepartmentRoster',row:{id:'d',department:'new',principal:'dev:carol'}},
+      {table:'liveRosterFolders',row:{id:'folder',department:'old'}},
+    ]);
+    const upload=await fetch(p.host.url+'/assets',{method:'POST',headers:{'x-snapback-persona':'alice','content-type':'image/png'},body:png,signal:AbortSignal.timeout(15000)}).then(r=>r.json());
+    assert.ok(upload.asset,JSON.stringify(upload));
+    const row=await p.sent('addLiveRosterFile','alice',{folder:'folder',body:'placed',image:upload.asset});
+    const get=who=>fetch(p.host.url+'/assets/'+upload.asset.id,{headers:{'x-snapback-persona':who},signal:AbortSignal.timeout(15000)});
+    assert.equal((await get('alice')).status,200);assert.equal((await get('bob')).status,404);assert.equal((await get('carol')).status,200);
+    const token=invoke(process.execPath,[cliPath,'token','--service','ops','--quiet'],p.cwd,env).trim();
+    const moved=await fetch(p.host.url+'/m/transferLiveRosterFolder',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${token}`},body:JSON.stringify({args:{folder:'folder',department:'new'}}),signal:AbortSignal.timeout(15000)}).then(r=>r.json());
+    assert.equal(moved.state,'sent',JSON.stringify(moved));
+    assert.equal((await get('alice')).status,404);assert.equal((await get('bob')).status,200);assert.equal((await get('carol')).status,200);
+    assert.equal((await p.read('liveRosterFile','bob',{file:row.id})).image.id,upload.asset.id);
   });
   await t.test('private waitlist publishes occupancy without exposing membership', async t=>{
     const p = await project(t,'table privateWaitlist:');

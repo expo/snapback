@@ -89,9 +89,17 @@ fn sample(samples: &mut Vec<String>, row: &Value, reference: &str, parent: &str)
 }
 
 fn rows(
-    tx: &dyn Rows, name: &str, table: &Table, parent: Option<&Table>,
+    tx: &dyn Rows, name: &str, table: &Table, parent: Option<&Table>, bounded: bool,
     mut visit: impl FnMut(Value) -> Result<(), RuntimeError>,
 ) -> Result<(), RuntimeError> {
+    if !bounded {
+        let mut bounds=Bounds::default();
+        loop {
+            let page=tx.scan(name,"byId",&[],&bounds,Dir::Asc,256)?;
+            if page.is_empty() {return Ok(());}
+            for (row,key) in page {bounds.after=crate::key::decode(&key);visit(row)?;}
+        }
+    }
     let decode=crate::rows::disclosed::decode_reservation(table);
     let keys=table.indexes.values().map(|i|4*crate::rows::MAX_INDEX_KEY_BYTES as u64+128*(i.columns().len() as u64+1)+512).sum::<u64>();
     let scratch=decode.saturating_mul(4).saturating_add(keys.saturating_mul(2))
@@ -207,42 +215,17 @@ pub(crate) fn activate_retained(
     };
     // Previous indexes and row images still exist. Every affected expired row
     // retires under its old deadline, before a new default or capture can revive it.
+    let bounded=crate::schema::live::has_live(next) || crate::schema::live::has_live(previous);
     let retirement = Retirement::new(next, previous, now);
     for (name, old) in retirement.affected.iter().rev() {
-        rows(tx, name, old, None, |row| {
+        rows(tx, name, old, None, bounded, |row| {
             if retirement.retires(name, &row) {
                 tx.delete(name, old, &row)?;
             }
             Ok(())
         })?;
     }
-    // @ref LLP 3000.014.000#7-adoption-and-rollback — dormant manual cells are never authority after a live transfer.
-    for (name,old) in &previous.tables {
-        let Some(edge)=old.through.as_ref().filter(|t|t.live.is_some()) else {continue};
-        let Some(destination)=next.table(name).filter(|t|t.through.is_none()) else {continue};
-        let parent=next.table(&edge.parent).ok_or_else(||refusal(name,0,"reverse adoption needs its current parent",&[]))?;
-        let map=correspondence(&destination.rules.read,&parent.rules.read)
-            .ok_or_else(||refusal(name,0,"manual destination needs full current-parent audience correspondence; use a bridge release",&[]))?;
-        if destination.columns.get(&edge.reference)!=old.columns.get(&edge.reference) || !destination.immutable_fields().any(|f|f==edge.reference) {
-            return Err(refusal(name,0,"manual destination must preserve the immutable parent binding; use a bridge release",&[]));
-        }
-        let mut invalid=0;let mut samples=Vec::new();
-        rows(tx,name,old,Some(parent),|stored| {
-            let p=stored.field(&edge.reference).ok().and_then(|v|v.as_str().ok()).map(|id|tx.get(&edge.parent,id)).transpose()?.flatten();
-            let Some(p)=p.filter(|p|parent.live(p,now)) else {invalid+=1;sample(&mut samples,&stored,&edge.reference,&edge.parent);return Ok(())};
-            let p=crate::schema::row_image(&p,parent);
-            let mut row=stored.clone();
-            for (field,source) in &map {
-                if destination.engine_field(field) || !destination.columns.contains_key(field) {return Err(refusal(name,0,"manual authority must use writable ordinary destination cells",&[]));}
-                let value=p.field(source)?.clone();
-                if field=="id" {
-                    if row.field("id")? != &value {return Err(refusal(name,0,"manual audience correspondence cannot change row identity",&[]));}
-                } else if let Value::Row(fields)|Value::Map(fields)=&mut row {fields.insert(field.clone(),value);}
-            }
-            tx.put(name,old,&row,Some(&stored))?;Ok(())
-        })?;
-        if invalid>0 {return Err(refusal(name,invalid,"manual destination needs live current parents",&samples));}
-    }
+    reconcile_manual(tx,next,&previous.tables,now)?;
     // Compare all predecessor images before any ancestor is recaptured.
     for (name, _) in &retirement.affected {
         let Some(t) = &next.tables[name].through else {
@@ -257,7 +240,7 @@ pub(crate) fn activate_retained(
         let map = correspondence(&old.rules.read, &parent.rules.read);
         let mut invalid = 0;
         let mut samples = Vec::new();
-        rows(tx, name, old, Some(parent), |row| {
+        rows(tx, name, old, Some(parent), bounded, |row| {
             // @ref LLP 3000.000.000#10-wave-10-release-lifecycle-amendment — historical capture restoration needs no audience recapture.
             if t.live.is_none() && retained.contains(name) && row.field(PARENT_DEADLINE).is_ok() && t.fields.keys().all(|f|row.field(f).is_ok()) {return Ok(());}
             let Some(map) = &map else {
@@ -304,7 +287,7 @@ pub(crate) fn activate_retained(
         let recapture = previous.table(&name).and_then(|t| t.through.as_ref()) != Some(t);
         let mut invalid = 0;
         let mut samples = Vec::new();
-        rows(tx, &name, previous.table(&name).unwrap_or(table), Some(parent), |old| {
+        rows(tx, &name, previous.table(&name).unwrap_or(table), Some(parent), bounded, |old| {
             let mut row = old.clone();
             // @ref LLP 3000.000.000#2-retain-by-default — restored audience/deadline captures retain their original lifetime.
             let historical = t.live.is_none() && retained.contains(&name) && old.field(PARENT_DEADLINE).is_ok();
@@ -353,6 +336,38 @@ pub(crate) fn activate_retained(
     Ok(shortened)
 }
 
+/// Include recovered dormant source definitions, not just the immediate predecessor.
+pub(crate) fn reconcile_manual(tx:&dyn Rows,next:&Schema,sources:&BTreeMap<String,Table>,now:i64)->Result<(),RuntimeError> {
+    // @ref LLP 3000.014.000#7-adoption-and-rollback — dormant manual cells are never authority after a live transfer.
+    for (name,old) in sources {
+        let Some(edge)=old.through.as_ref().filter(|t|t.live.is_some()) else {continue};
+        let Some(destination)=next.table(name).filter(|t|t.through.is_none()) else {continue};
+        let parent=next.table(&edge.parent).ok_or_else(||refusal(name,0,"reverse adoption needs its current parent",&[]))?;
+        let map=correspondence(&destination.rules.read,&parent.rules.read)
+            .ok_or_else(||refusal(name,0,"manual destination needs full current-parent audience correspondence; use a bridge release",&[]))?;
+        if destination.columns.get(&edge.reference)!=old.columns.get(&edge.reference) || !destination.immutable_fields().any(|f|f==edge.reference) {
+            return Err(refusal(name,0,"manual destination must preserve the immutable parent binding; use a bridge release",&[]));
+        }
+        let mut invalid=0;let mut samples=Vec::new();
+        rows(tx,name,old,Some(parent),true,|stored| {
+            let p=stored.field(&edge.reference).ok().and_then(|v|v.as_str().ok()).map(|id|tx.get(&edge.parent,id)).transpose()?.flatten();
+            let Some(p)=p.filter(|p|parent.live(p,now)) else {invalid+=1;sample(&mut samples,&stored,&edge.reference,&edge.parent);return Ok(())};
+            let p=crate::schema::row_image(&p,parent);
+            let mut row=stored.clone();
+            for (field,source) in &map {
+                if destination.engine_field(field) || !destination.columns.contains_key(field) {return Err(refusal(name,0,"manual authority must use writable ordinary destination cells",&[]));}
+                let value=p.field(source)?.clone();
+                if field=="id" {
+                    if row.field("id")? != &value {return Err(refusal(name,0,"manual audience correspondence cannot change row identity",&[]));}
+                } else if let Value::Row(fields)|Value::Map(fields)=&mut row {fields.insert(field.clone(),value);}
+            }
+            tx.put(name,old,&row,Some(&stored))?;Ok(())
+        })?;
+        if invalid>0 {return Err(refusal(name,invalid,"manual destination needs live current parents",&samples));}
+    }
+    Ok(())
+}
+
 /// Trusted restoration validates the existing immutable captures; it never stamps them.
 pub fn validate_restore(tx: &dyn Rows, schema: &Schema, now: i64) -> Result<(), RuntimeError> {
     for name in schema.through_order() {
@@ -363,7 +378,7 @@ pub fn validate_restore(tx: &dyn Rows, schema: &Schema, now: i64) -> Result<(), 
         let parent = &schema.tables[&t.parent];
         let mut invalid = 0;
         let mut samples = Vec::new();
-        rows(tx, &name, table, Some(parent), |row| {
+        rows(tx, &name, table, Some(parent), crate::schema::live::has_live(schema), |row| {
             let found = row
                 .field(&t.reference)
                 .ok()
@@ -445,11 +460,23 @@ impl super::runner::Runner<'_> {
                 "server seed requires system authority".into(),
             ));
         }
+        let bounded=crate::schema::live::has_live(self.schema);
+        if bounded {self.meter=crate::meter::Meter::new(crate::meter::Ceilings::job(),crate::meter::Cut::Abort);}
         let order = self.schema.through_order();
-        let mut rows: Vec<_> = rows.into_iter().collect();
+        let mut held=Vec::new();
+        for (name,row) in rows {
+            if bounded {
+                self.meter.heap(row.retained_heap_bytes().saturating_mul(8).saturating_add(1024+name.len() as u64*4))?;
+                self.meter.charge(crate::error::MeterKind::Examined,1)?;
+            }
+            held.push((name,row));
+        }
+        let mut rows=held;
         rows.sort_by_key(|(n, _)| order.iter().position(|x| x == n));
         let count = rows.len() as u64;
         for (name, row) in rows {
+            #[cfg(feature="sqlite")]
+            if bounded {self.reserve_bulk_source(&name)?;}
             super::timeline::check_import(self.schema, &name)?;
             // Adoption rewrites are system imports of stored images (LLP 3000.015 §1).
             self.upsert(
