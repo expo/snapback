@@ -855,3 +855,21 @@ fn narrowed_live_reverse_restoration_admits_current_parent_before_fetch() {
     let row=snapback4_core::value::object([("id",Value::Id("p".into())),("payload",Value::String("x".repeat(20*1024*1024)))]);e.seed([("projects".into(),row)]).unwrap();
     let b=build(&manual.replace("enum('active') default 'active'","enum('active', 'draft') default 'draft'"));assert_eq!(e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(4,Some(3)),false).unwrap_err().code(),"E_BOUND");assert_eq!(e.generation(),3);
 }
+
+#[test]
+fn reverse_live_authority_reconciles_before_destination_narrowing() {
+    use snapback4_core::engine::release::ReleaseActivation;
+    let parent="table parents:\n  category: enum('red', 'blue')\n  read <- .category = 'blue'\n  update <- allow\n  online only\n";
+    let tail="mutation change(parent: parents):\n  update parents[parent] { category: 'blue' }\nquery one(child: children):\n  return children[child]\n";
+    let child="table children:\n  parent: parents\n  category: enum('red', 'blue')\n  status: enum('active', 'draft') default 'draft'\n  immutable parent\n  cap 1 by parent\n  read <- .category = 'blue'\n  online only\n";
+    let manual=format!("{parent}{child}{tail}");let live=format!("{parent}{}{tail}",child.replace("  category: enum('red', 'blue')\n","").replace("read <- .category = 'blue'","read through live .parent"));
+    for already_narrowed in [false,true] {
+        let b=build(&manual);let mut e=Engine::new_release(snapback4_core::Store::memory().unwrap(),b.schema,b.programs.into_iter().map(|p|p.program),1,None).unwrap();
+        let rows=[("parents",json!({"id":"p","category":"red"})),("children",json!({"id":"c","parent":"p","category":"red"}))].into_iter().map(|(n,row)|(n.into(),wire::row_from_json(&e.schema().tables[n],&row).unwrap())).collect::<Vec<_>>();e.seed(rows).unwrap();
+        let b=build(&live);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();let mut current_generation=2;
+        if already_narrowed {let b=build(&live.replace("enum('active', 'draft') default 'draft'","enum('active') default 'active'"));e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap();current_generation=3;}
+        let out=e.mutate("change",None,Context::new("operator",[("parent".into(),Value::Id("p".into()))].into())).unwrap();assert!(matches!(out.state,WriteState::Sent{..}));
+        let target=format!("{parent}{}{tail}",child.replace("category: enum('red', 'blue')","category: enum('blue')"));let b=build(&target);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(current_generation+1,Some(current_generation)),false).unwrap();
+        let out=e.query("one",Context::new("operator",[("child".into(),Value::Id("c".into()))].into())).unwrap();assert_ne!(out.data,Value::Null,"already_narrowed={already_narrowed}");assert_eq!(out.data.field("category").unwrap(),&Value::String("blue".into()));
+    }
+}

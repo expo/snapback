@@ -126,7 +126,8 @@ pub(super) fn transition(
         super::dormant::check_owner(tx, &name, &old, next)?;
         let mut row: Value =
             serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?;
-        if incompatible(tx,next, &name, &row)? {
+        let reverse_live=old.through.as_ref().is_some_and(|e|e.live.is_some()) && table.through.is_none();
+        if !reverse_live && incompatible(tx,next, &name, &row)? {
             continue;
         }
         // Retained source deadlines precede projection, including removal of read-through itself.
@@ -176,6 +177,7 @@ pub(super) fn transition(
             }
         }
         crate::engine::through_activation::manual_image(tx,next,&name,&old,&mut row,now)?;
+        if incompatible(tx,next,&name,&row)? {continue;}
         crate::schema::materialize_optional_fields(&mut row, table);
         // Missing required new fields are a genuine backfill refusal, not dormancy.
         tx.conn().execute(

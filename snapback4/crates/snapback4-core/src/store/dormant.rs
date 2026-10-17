@@ -550,6 +550,11 @@ pub(super) fn transition(
         }
     }
     let restored_images=!restoring.is_empty() || cells.iter().any(|(n,c,_)|next.table(n).is_some_and(|t|t.columns.contains_key(c)));
+    // Current authority cells precede destination narrowing: historical
+    // authored copies may be outside a newly narrowed type even though the
+    // current parent value fits it. Newly restored narrowed rows reconcile
+    // individually inside transition as well.
+    crate::engine::through_activation::reconcile_manual(tx,next,&source_definitions,now)?;
     super::narrowed::transition(tx,next,previous,now,restored_images,&source_definitions)?;
     crate::engine::through_activation::reconcile_manual(tx,next,&source_definitions,now)?;
     check_references(tx, next)?;
