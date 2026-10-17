@@ -414,7 +414,7 @@ pub(crate) fn manual_image(tx:&dyn Rows,next:&Schema,name:&str,old:&Table,row:&m
     for (field,source) in map {
         if destination.engine_field(&field) || !destination.columns.contains_key(&field) {return Err(refusal(name,1,"manual authority needs ordinary destination cells",&[]));}
         let value=p.field(&source)?.clone();
-        if field=="id" {if row.field("id")?!=&value {return Err(refusal(name,1,"manual restoration cannot change identity",&[]));}}
+        if field=="id" || field==edge.reference {if row.field(&field)?!=&value {return Err(refusal(name,1,"manual restoration cannot change identity or immutable parent binding; keep the reference and use a separate audience copy column",&[]));}}
         else if let Value::Row(fields)|Value::Map(fields)=row {fields.insert(field,value);}
     }Ok(())
 }
@@ -438,7 +438,7 @@ pub(crate) fn reconcile_manual(tx:&dyn Rows,next:&Schema,sources:&BTreeMap<Strin
             return Err(refusal(name,0,"manual destination must preserve the immutable parent binding; use a bridge release",&[]));
         }
         let mut invalid=0;let mut samples=Vec::new();
-        rows(tx,name,old,parent_bytes(Some(parent),sources.get(&edge.parent)),true,None,|stored| {
+        rows(tx,name,old,parent_bytes(Some(parent),sources.get(&edge.parent)),true,Some(destination),|stored| {
             let p=stored.field(&edge.reference).ok().and_then(|v|v.as_str().ok()).map(|id|tx.get(&edge.parent,id)).transpose()?.flatten();
             let Some(p)=p.filter(|p|parent.live(p,now)) else {invalid+=1;sample(&mut samples,&stored,&edge.reference,&edge.parent);return Ok(())};
             let p=crate::schema::row_image(&p,parent);
@@ -446,8 +446,8 @@ pub(crate) fn reconcile_manual(tx:&dyn Rows,next:&Schema,sources:&BTreeMap<Strin
             for (field,source) in &map {
                 if destination.engine_field(field) || !destination.columns.contains_key(field) {return Err(refusal(name,0,"manual authority must use writable ordinary destination cells",&[]));}
                 let value=p.field(source)?.clone();
-                if field=="id" {
-                    if row.field("id")? != &value {return Err(refusal(name,0,"manual audience correspondence cannot change row identity",&[]));}
+                if field=="id" || field==&edge.reference {
+                    if row.field(field)? != &value {return Err(refusal(name,0,"manual audience correspondence cannot change identity or immutable parent binding; keep the reference and use a separate audience copy column",&[]));}
                 } else if let Value::Row(fields)|Value::Map(fields)=&mut row {fields.insert(field.clone(),value);}
             }
             tx.put(name,old,&row,Some(&stored))?;Ok(())

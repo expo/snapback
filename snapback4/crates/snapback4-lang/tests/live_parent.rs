@@ -898,3 +898,25 @@ fn captured_only_store_adopts_live_after_dormant_cell_format_upgrade() {
     let b=build(SOURCE);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();transfer(&mut e,"bob");
     let b=build(&manual());e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap();assert!(!visible(&mut e,"alice"));assert!(visible(&mut e,"bob"));
 }
+
+#[test]
+fn reverse_manual_correspondence_cannot_rewrite_immutable_parent_binding() {
+    use snapback4_core::engine::release::ReleaseActivation;
+    let source="table projects:\n  owner: projects\n  read <- exists access[.owner, viewer]\n  online only\ntable access:\n  project: projects\n  principal: principal\n  unique project, principal\n  read <- .principal = viewer\n  online only\ntable tasks:\n  project: projects\n  status: enum('active', 'draft') default 'draft'\n  immutable project\n  cap 2 by project\n  read through live .project\n  online only\nquery one(task: tasks):\n  return tasks[task]\n";
+    for dormant in [false,true] {
+        let b=build(source);let mut e=Engine::new_release(snapback4_core::Store::memory().unwrap(),b.schema,b.programs.into_iter().map(|p|p.program),1,None).unwrap();
+        let rows=[("projects",json!({"id":"q","owner":"q"})),("projects",json!({"id":"p","owner":"q"})),("access",json!({"id":"a","project":"q","principal":"alice"})),("tasks",json!({"id":"c","project":"p"}))].into_iter().map(|(n,row)|(n.into(),wire::row_from_json(&e.schema().tables[n],&row).unwrap())).collect::<Vec<_>>();e.seed(rows).unwrap();let mut generation=1;
+        if dormant {let b=build(&source.replace("enum('active', 'draft') default 'draft'","enum('active') default 'active'"));e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();generation=2;}
+        let b=build(&source.replace("read through live .project","read <- exists access[.project, viewer]"));let error=e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(generation+1,Some(generation)),false).unwrap_err();assert_eq!(error.code(),"E_READ_THROUGH_ADOPT");assert!(error.to_string().contains("immutable parent binding"));assert_eq!(e.generation(),generation);
+        let out=e.query("one",Context::new("alice",[("task".into(),Value::Id("c".into()))].into())).unwrap();if dormant {assert_eq!(out.data,Value::Null);}else{assert_eq!(out.data.field("project").unwrap(),&Value::Id("p".into()));}
+    }
+}
+
+#[test]
+fn reverse_manual_adoption_reserves_destination_index_sets() {
+    use snapback4_core::schema::{Index,ColumnType};
+    let b=build(SOURCE);let mut schema=b.schema;schema.tables.get_mut("tasks").unwrap().columns.insert("blob".into(),ColumnType::Bytes{max:800});let mut e=Engine::memory(schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let rows=[("projects".into(),snapback4_core::value::object([("id",Value::Id("p".into())),("owner",Value::Id("alice".into()))])),("tasks".into(),snapback4_core::value::object([("id",Value::Id("c".into())),("project",Value::Id("p".into())),("body",Value::String("private".into())),("blob",Value::Bytes(vec![0;800]))]))];e.seed(rows).unwrap();let generation=e.generation();
+    let b=build(&manual());let mut next=b.schema;let t=next.tables.get_mut("tasks").unwrap();t.columns.insert("blob".into(),ColumnType::Bytes{max:800});for n in 0..6000 {t.indexes.insert(format!("byBlob{n}"),Index::of(&["blob"],false));}
+    assert_eq!(e.adopt(next,b.programs.into_iter().map(|p|p.program)).unwrap_err().code(),"E_BOUND");assert_eq!(e.generation(),generation);assert!(visible(&mut e,"alice"));transfer(&mut e,"bob");assert!(visible(&mut e,"bob"));
+}

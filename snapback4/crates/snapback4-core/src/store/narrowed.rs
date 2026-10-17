@@ -152,7 +152,7 @@ pub(super) fn transition(
         if invalid {
             continue;
         }
-        admission.heap(crate::engine::through_activation::restored_parent_scratch(next,source_definitions,&name,&old))?;
+        admission.heap(crate::engine::through_activation::restored_parent_scratch(next,source_definitions,&name,&old).saturating_add(crate::rows::disclosed::decode_reservation(table).saturating_mul(4)))?;
         crate::engine::through_activation::forward_image(tx,next,source_definitions,&name,&old,&row,now)?;
         if old.through.as_ref().is_some_and(|e|e.live.is_some()) {tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored(kind,t,col,id) VALUES('live-authority',?1,'',?2)",params![t,id])?;}
         for column in old.columns.keys() {
