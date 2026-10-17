@@ -96206,3 +96206,15 @@ population walk. Authoritative memory restoration now uses the shared bounded
 final-image contract; source imports needing derivations use seed. Dormant
 images/provenance and destination-cell overlays are byte-admitted before
 ownership. New regressions cover all seven round-2 witnesses.
+
+LIVE final device artifact (91e06dc961): 2,379,928 B raw / 725,948 B gzip /
+547,539 B Brotli. Set budget 726,448 B: exactly measured gzip + 500 B, a
+10-byte ratchet from the first LIVE budget. Whole-artifact +2,788 B gzip from
+RULES4; no runtime ceiling increase or independent feature attribution.
+
+LIVE final adoption qualification (041313aafb): 2,379,908 B raw / 726,039 B gzip /
+547,306 B Brotli; budget 726,539 B is measured gzip plus exactly 500 B.
+Whole-artifact +2,879 B gzip versus RULES4 includes the scoped restoration
+provenance interface; native PG keyset rebuilding and word-index admission do
+not ship as web writer paths. Strict family/absence audits pass; no runtime
+ceiling increase or independent feature attribution.
