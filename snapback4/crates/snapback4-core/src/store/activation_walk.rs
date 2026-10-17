@@ -8,6 +8,14 @@ pub(super) fn walk(tx: &Tx<'_>, table: i64, mut visit: impl FnMut(&str, Value) -
 
 // @ref LLP 3000.007#20.24.1 — reserve stored bytes before fetching or decoding; page scratch stays live until consumed.
 pub(super) fn walk_metered(tx: &Tx<'_>, table: i64, work: adoption::Work, scratch: Option<&dyn Fn(&Value) -> crate::value::InternalPrice>,
+    visit: impl FnMut(&str, Value, &mut Meter) -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
+    let checked=|row:&Value|Ok(scratch.map_or_else(crate::value::InternalPrice::zero,|f|f(row)));
+    walk_metered_checked(tx,table,work,scratch.map(|_|&checked as &dyn Fn(&Value)->Result<crate::value::InternalPrice,RuntimeError>),visit)
+}
+
+/// Row-specific provenance can fail closed before any page callback runs.
+pub(super) fn walk_metered_checked(tx: &Tx<'_>, table: i64, work: adoption::Work,
+    scratch: Option<&dyn Fn(&Value)->Result<crate::value::InternalPrice,RuntimeError>>,
     mut visit: impl FnMut(&str, Value, &mut Meter) -> Result<(), RuntimeError>) -> Result<(), RuntimeError> {
     const PAGE: usize = 256;
     let mut after: Option<String> = None;
@@ -59,7 +67,7 @@ pub(super) fn walk_metered(tx: &Tx<'_>, table: i64, work: adoption::Work, scratc
                 let mut rows = statement.query(params![table, after, count as i64])?;
                 while let Some(row) = rows.next()? { page.push((row.get(0)?, row.get(1)?)); }
             }
-            if adoption::page_fits(page.iter().map(|(_, data)| data.as_str()), &mut meter, work, scratch)? { break page; }
+            if adoption::page_fits_checked(page.iter().map(|(_, data)| data.as_str()), &mut meter, work, scratch)? { break page; }
             limit = (page.len() / 2).max(1);
             drop(page);
             meter.release_heap(page_mark.clone());

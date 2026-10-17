@@ -516,11 +516,14 @@ pub(super) fn transition(
             continue;
         }
         let old=authority_sources.get(name);
-        let parent_scratch=if super::authority_origin::forward_fetch(tx,t,old,table)? {
+        let parent_scratch=if super::live_activation::active(tx)? {
             old.map_or(0,|old|crate::engine::through_activation::restored_parent_scratch(next,&authority_sources,name,old))
         } else {0};
-        let scratch=|_:&Value|crate::value::InternalPrice::zero().fixed(parent_scratch);
-        super::activation_walk::walk_metered(tx,t,crate::rows::adoption::Work::DECODE,if parent_scratch>0 {Some(&scratch)} else {None},|id,mut row,meter| {
+        let scratch=|row:&Value|->Result<crate::value::InternalPrice,RuntimeError> {
+            let fetch=super::authority_origin::forward_fetch(tx,t,row.field("id")?.as_str()?,old,table)?;
+            Ok(crate::value::InternalPrice::zero().fixed(if fetch {parent_scratch} else {0}))
+        };
+        super::activation_walk::walk_metered_checked(tx,t,crate::rows::adoption::Work::DECODE,if parent_scratch>0 {Some(&scratch)} else {None},|id,mut row,meter| {
             let old=authority_sources.get(name);
             if let Some(old)=old {
                 materialize_optional_fields(&mut row,old);

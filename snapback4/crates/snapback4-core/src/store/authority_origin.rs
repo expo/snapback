@@ -24,13 +24,9 @@ fn live_cell(tx:&Tx<'_>,t:i64,id:&str,col:&str)->Result<bool,RuntimeError> {
 /// Captured-only restoration preserves its old audience. A manual row with
 /// live-origin inputs must prove its *current* audience before recapture.
 pub(super) fn validate(tx:&Tx<'_>,next:&Schema,sources:&BTreeMap<String,Table>,name:&str,old:&Table,row:&Value,now:i64,narrowed:bool)->Result<(),RuntimeError> {
-    if !live_activation::active(tx)? || old.through.is_some() {return Ok(());}
-    let Some(edge)=next.table(name).and_then(|t|t.through.as_ref()) else {return Ok(())};
+    let Some(table)=next.table(name) else {return Ok(())};
     let t=tx.num(name)?;let id=row.field("id")?.as_str()?;
-    let mut live=false;
-    for col in edge.fields.keys().map(String::as_str).chain([PARENT_DEADLINE,DEADLINE]) {live |= live_cell(tx,t,id,col)?;}
-    let history:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3 AND live_source=0)",params![t,id,PARENT_DEADLINE],|r|r.get(0))?;
-    if live || edge.live.is_some() || narrowed && !history {
+    if needs_proof(tx,t,id,old,table,narrowed)? {
         crate::engine::through_activation::forward_authority(tx,next,sources,name,old,row,now,true)?;
         tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored VALUES('live-authority',?1,'',?2)",params![t,id])?;
     }
@@ -69,17 +65,24 @@ pub(super) fn obsolete_ref(tx:&Tx<'_>,t:i64,id:&str,column:&str,table:&Table,old
 
 /// Reserve declared parent scratch only for callbacks that can fetch it.
 /// Captured-only restoration keeps its existing actual-image admission.
-pub(super) fn forward_fetch(tx:&Tx<'_>,t:i64,old:Option<&Table>,table:&Table)->Result<bool,RuntimeError> {
-    if !live_activation::active(tx)? || old.is_none_or(|t|t.through.is_some()) {return Ok(false);}
+pub(super) fn forward_fetch(tx:&Tx<'_>,t:i64,id:&str,old:Option<&Table>,table:&Table)->Result<bool,RuntimeError> {
+    match old {Some(old)=>needs_proof(tx,t,id,old,table,false),None=>Ok(false)}
+}
+/// One predicate for actual parent fetches and their preflight reservation.
+fn needs_proof(tx:&Tx<'_>,t:i64,id:&str,old:&Table,table:&Table,narrowed:bool)->Result<bool,RuntimeError> {
+    if !live_activation::active(tx)? || old.through.is_some() {return Ok(false);}
     let Some(edge)=&table.through else {return Ok(false)};
     if edge.live.is_some() {return Ok(true);}
     for col in edge.fields.keys().map(String::as_str).chain([PARENT_DEADLINE,DEADLINE]) {
-        if tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_values WHERE t=?1 AND column_name=?2 AND live_source=1)",params![t,col],|r|r.get::<_,bool>(0))? {return Ok(true);}
-    }Ok(false)
+        if live_cell(tx,t,id,col)? {return Ok(true);}
+    }
+    if !narrowed {return Ok(false);}
+    let history:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3 AND live_source=0)",params![t,id,PARENT_DEADLINE],|r|r.get(0))?;
+    Ok(!history)
 }
 pub(super) fn live_row(tx:&Tx<'_>,t:i64,id:&str,old:&Table,table:&Table)->Result<bool,RuntimeError> {
     if !live_activation::active(tx)? {return Ok(false);}
     if old.through.as_ref().is_some_and(|e|e.live.is_some()) || table.through.as_ref().is_some_and(|e|e.live.is_some()) {return Ok(true);}
     for col in table.columns.keys() {if live_cell(tx,t,id,col)? {return Ok(true);}}
-    Ok(false)
+    needs_proof(tx,t,id,old,table,true)
 }

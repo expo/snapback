@@ -986,3 +986,15 @@ fn captured_only_narrowed_rollback_keeps_actual_image_admission() {
         let b=build(&format!("{captured}{extra}"));e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap();assert!(visible(&mut e,"alice"));
     }
 }
+
+#[test]
+fn incompatible_dormant_live_child_does_not_reprice_an_active_manual_child() {
+    use snapback4_core::engine::release::ReleaseActivation;
+    let wide=SOURCE.replace("  body: text <=80","  owner: principal default 'alice'\n  status: enum('active', 'draft') default 'draft'\n  body: text <=80");let mut e=seeded(&wide,"alice",true);
+    let manual=wide.replace("read through live .project","read <- .owner = viewer");let b=build(&manual);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();
+    let row=wire::row_from_json(&e.schema().tables["tasks"],&json!({"id":"c1","project":"p","owner":"alice","status":"active","body":"manual"})).unwrap();e.seed([("tasks".into(),row)]).unwrap();
+    let narrow=manual.replace("enum('active', 'draft') default 'draft'","enum('active') default 'active'");let b=build(&narrow);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap();
+    let wide_parent=narrow.replace("table projects:\n","table projects:\n  payload: text <=300000 default ''\n");let b=build(&wide_parent);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(4,Some(3)),false).unwrap();
+    let (parent,child)=wide_parent.split_once("table tasks:").unwrap();let captured=format!("{}table tasks:{}",parent.replace("  owner: principal\n  read","  owner: principal\n  immutable owner\n  read"),child.replace("read <- .owner = viewer","read through .project"));let b=build(&captured);assert!(b.schema.tables["tasks"].through.is_some());e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(5,Some(4)),false).unwrap();
+    let out=e.query("one",Context::new("alice",[("task".into(),Value::Id("c1".into()))].into())).unwrap();assert_ne!(out.data,Value::Null);assert!(!visible(&mut e,"alice"));
+}

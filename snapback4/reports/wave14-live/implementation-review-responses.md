@@ -86,3 +86,11 @@ Muse READY on frozen c2f5f6595c. Codex found two admission defects. Dormant-colu
 Narrowed restoration applies declared destination/parent scratch only to a row that actually involves live authority or requested live-origin cells. Captured-only rollback of a tiny row under a <=300000 body declaration retains its pre-existing actual-image admission and succeeds. Neither correction changes any live language shape or ceiling.
 
 Clean c2f5f6595c web measurement: 2,379,943 B raw / 725,864 B gzip / 547,431 B Brotli, strict family/absence audits PASS. The budget is exactly 726,364 B (measurement + 500 B), +2,704 B gzip versus RULES4. These two subsequent fixes are SQLite-only and do not change that artifact.
+
+## Round 13 response
+
+Codex found table-wide provenance repricing an unrelated active manual row because another incompatible row retained live cells. Page admission now evaluates the exact row's possible forward check, through a fallible read-only price callback before any write callback. The native page helper preserves page shrinking and propagates price errors. The mixed-population regression keeps the formerly-live draft dormant while adopting the active manual child under a <=300000 parent declaration.
+
+Muse found the narrowed admission gate omitted manual → captured restoration with no captured history while a live relation was active. Validation and admission now share needs_proof, including that history condition. The narrowed allocation probe restores a 200 KB manual row under an independent live edge with a 4 MiB parent: E_BOUND must precede fetching that parent (maximum single allocation stays below 1 MiB). Both allocator tests serialize their process-wide watch. These tests prove refusal before the named payload ownership, not a complete measurement of retained or SQLite-native peak memory. Captured-only legacy routes outside LIVE's changed paths retain their existing contract.
+
+The two changes remain native-only. The final wasm measurement/budget and completed 94b32b3714 differential campaigns retain their scoped meaning; their generated cases do not exercise dormant release adoption.
