@@ -1,0 +1,6 @@
+{
+  "status": "passed",
+  "log": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-qualification2/rule-recipes.log",
+  "client": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-pack3/snapback4-0.4.31.tgz",
+  "platform": "/tmp/snapback4-linux-wtK8VB/snapback4-linux-x64-0.4.31.tgz"
+}

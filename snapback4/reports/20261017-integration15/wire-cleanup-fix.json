@@ -1,0 +1,9 @@
+{
+  "commit": "19fbc756c0",
+  "cause": "project removal after-hook ran before server stop; ENOTEMPTY skipped the stop hook and left a live server/pipe.",
+  "fix": "One cleanup hook stops the owned host before removing its files, including asynchronous refusal-writer output.",
+  "linux": "two cases pass",
+  "mac": "two cases pass; complete 96-file scope restarted",
+  "limits": "No workload, timeout or assertion relaxed.",
+  "native": "Rust inputs unchanged; complete Linux command restarted after this final test cleanup fix."
+}

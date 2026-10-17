@@ -1,0 +1,571 @@
+[
+  {
+    "starter": "web",
+    "kind": "web",
+    "attempt": 1,
+    "status": "passed",
+    "elapsedMs": 7092,
+    "range": [
+      46013,
+      46033
+    ],
+    "occupied": 46013,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      17.82,
+      20.89,
+      23.15
+    ],
+    "listenerAudit": {
+      "status": "passed",
+      "method": "strace-listen",
+      "samples": 4,
+      "listeners": [
+        {
+          "pid": 1511890,
+          "port": 46014
+        },
+        {
+          "pid": 1511890,
+          "port": 46014
+        },
+        {
+          "pid": 1511926,
+          "port": 46015
+        }
+      ],
+      "nonReturned": [],
+      "range": [
+        46013,
+        46033
+      ],
+      "tracerVersion": "strace -- version 6.8"
+    },
+    "logs": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-qualification2/frontend-web/proof-logs-1"
+  },
+  {
+    "starter": "web",
+    "kind": "web",
+    "attempt": 2,
+    "status": "passed",
+    "elapsedMs": 6999,
+    "range": [
+      39643,
+      39663
+    ],
+    "occupied": 39643,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      17.03,
+      20.67,
+      23.06
+    ],
+    "listenerAudit": {
+      "status": "passed",
+      "method": "strace-listen",
+      "samples": 4,
+      "listeners": [
+        {
+          "pid": 1512656,
+          "port": 39644
+        },
+        {
+          "pid": 1512656,
+          "port": 39644
+        },
+        {
+          "pid": 1512670,
+          "port": 39645
+        }
+      ],
+      "nonReturned": [
+        {
+          "pid": 1512828,
+          "state": "absent",
+          "record": "???(1512782 +++ exited with 0 +++"
+        }
+      ],
+      "range": [
+        39643,
+        39663
+      ],
+      "tracerVersion": "strace -- version 6.8"
+    },
+    "logs": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-qualification2/frontend-web/proof-logs-2"
+  },
+  {
+    "starter": "web-online",
+    "kind": "web",
+    "attempt": 1,
+    "status": "passed",
+    "elapsedMs": 5630,
+    "range": [
+      42443,
+      42463
+    ],
+    "occupied": 42443,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      14.74,
+      20,
+      22.81
+    ],
+    "listenerAudit": {
+      "status": "passed",
+      "method": "strace-listen",
+      "samples": 4,
+      "listeners": [
+        {
+          "pid": 1514214,
+          "port": 42444
+        },
+        {
+          "pid": 1514214,
+          "port": 42444
+        },
+        {
+          "pid": 1514242,
+          "port": 42445
+        }
+      ],
+      "nonReturned": [
+        {
+          "pid": 1514443,
+          "state": "absent",
+          "record": "???( <unfinished ...>"
+        }
+      ],
+      "range": [
+        42443,
+        42463
+      ],
+      "tracerVersion": "strace -- version 6.8"
+    },
+    "logs": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-qualification2/frontend-web-online/proof-logs-1"
+  },
+  {
+    "starter": "web-online",
+    "kind": "web",
+    "attempt": 2,
+    "status": "passed",
+    "elapsedMs": 5314,
+    "range": [
+      38013,
+      38033
+    ],
+    "occupied": 38013,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      13.8,
+      19.72,
+      22.7
+    ],
+    "listenerAudit": {
+      "status": "passed",
+      "method": "strace-listen",
+      "samples": 4,
+      "listeners": [
+        {
+          "pid": 1514927,
+          "port": 38014
+        },
+        {
+          "pid": 1514927,
+          "port": 38014
+        },
+        {
+          "pid": 1514947,
+          "port": 38015
+        }
+      ],
+      "nonReturned": [],
+      "range": [
+        38013,
+        38033
+      ],
+      "tracerVersion": "strace -- version 6.8"
+    },
+    "logs": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-qualification2/frontend-web-online/proof-logs-2"
+  },
+  {
+    "starter": "expo",
+    "kind": "expo",
+    "attempt": 1,
+    "status": "passed",
+    "elapsedMs": 12040,
+    "range": [
+      33585,
+      33605
+    ],
+    "occupied": 33585,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      11.7,
+      18.86,
+      22.35
+    ],
+    "listenerAudit": {
+      "status": "passed",
+      "method": "strace-listen",
+      "samples": 4,
+      "listeners": [
+        {
+          "pid": 1519136,
+          "port": 33586
+        },
+        {
+          "pid": 1519136,
+          "port": 33586
+        },
+        {
+          "pid": 1519176,
+          "port": 33587
+        }
+      ],
+      "nonReturned": [
+        {
+          "pid": 1519344,
+          "state": "absent",
+          "record": "???(1519314 +++ exited with 0 +++"
+        }
+      ],
+      "range": [
+        33585,
+        33605
+      ],
+      "tracerVersion": "strace -- version 6.8"
+    },
+    "logs": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-qualification2/frontend-expo/proof-logs-1"
+  },
+  {
+    "starter": "expo",
+    "kind": "expo",
+    "attempt": 2,
+    "status": "passed",
+    "elapsedMs": 13070,
+    "range": [
+      36527,
+      36547
+    ],
+    "occupied": 36527,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      10.73,
+      18.29,
+      22.11
+    ],
+    "listenerAudit": {
+      "status": "passed",
+      "method": "strace-listen",
+      "samples": 4,
+      "listeners": [
+        {
+          "pid": 1520158,
+          "port": 36528
+        },
+        {
+          "pid": 1520158,
+          "port": 36528
+        },
+        {
+          "pid": 1520188,
+          "port": 36529
+        }
+      ],
+      "nonReturned": [],
+      "range": [
+        36527,
+        36547
+      ],
+      "tracerVersion": "strace -- version 6.8"
+    },
+    "logs": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-qualification2/frontend-expo/proof-logs-2"
+  },
+  {
+    "starter": "web-chat",
+    "kind": "web",
+    "attempt": 1,
+    "status": "passed",
+    "elapsedMs": 7120,
+    "range": [
+      34917,
+      34937
+    ],
+    "occupied": 34917,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      9.52,
+      17.66,
+      21.84
+    ],
+    "listenerAudit": {
+      "status": "passed",
+      "method": "strace-listen",
+      "samples": 4,
+      "listeners": [
+        {
+          "pid": 1521713,
+          "port": 34918
+        },
+        {
+          "pid": 1521713,
+          "port": 34918
+        },
+        {
+          "pid": 1521758,
+          "port": 34919
+        }
+      ],
+      "nonReturned": [],
+      "range": [
+        34917,
+        34937
+      ],
+      "tracerVersion": "strace -- version 6.8"
+    },
+    "logs": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-qualification2/frontend-web-chat/proof-logs-1"
+  },
+  {
+    "starter": "web-chat",
+    "kind": "web",
+    "attempt": 2,
+    "status": "passed",
+    "elapsedMs": 7960,
+    "range": [
+      37407,
+      37427
+    ],
+    "occupied": 37407,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      8.91,
+      17.26,
+      21.67
+    ],
+    "listenerAudit": {
+      "status": "passed",
+      "method": "strace-listen",
+      "samples": 4,
+      "listeners": [
+        {
+          "pid": 1522522,
+          "port": 37408
+        },
+        {
+          "pid": 1522522,
+          "port": 37408
+        },
+        {
+          "pid": 1522558,
+          "port": 37409
+        }
+      ],
+      "nonReturned": [],
+      "range": [
+        37407,
+        37427
+      ],
+      "tracerVersion": "strace -- version 6.8"
+    },
+    "logs": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-qualification2/frontend-web-chat/proof-logs-2"
+  },
+  {
+    "starter": "expo-chat",
+    "kind": "expo",
+    "attempt": 1,
+    "status": "passed",
+    "elapsedMs": 6481,
+    "range": [
+      37967,
+      37987
+    ],
+    "occupied": 37967,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      7.88,
+      16.48,
+      21.31
+    ],
+    "listenerAudit": {
+      "status": "passed",
+      "method": "strace-listen",
+      "samples": 4,
+      "listeners": [
+        {
+          "pid": 1524046,
+          "port": 37968
+        },
+        {
+          "pid": 1524046,
+          "port": 37968
+        },
+        {
+          "pid": 1524065,
+          "port": 37969
+        }
+      ],
+      "nonReturned": [
+        {
+          "pid": 1524069,
+          "state": "absent",
+          "record": "???(1524048 +++ exited with 0 +++"
+        }
+      ],
+      "range": [
+        37967,
+        37987
+      ],
+      "tracerVersion": "strace -- version 6.8"
+    },
+    "logs": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-qualification2/frontend-expo-chat/proof-logs-1"
+  },
+  {
+    "starter": "expo-chat",
+    "kind": "expo",
+    "attempt": 2,
+    "status": "passed",
+    "elapsedMs": 7167,
+    "range": [
+      41463,
+      41483
+    ],
+    "occupied": 41463,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      7.97,
+      16.35,
+      21.25
+    ],
+    "listenerAudit": {
+      "status": "passed",
+      "method": "strace-listen",
+      "samples": 4,
+      "listeners": [
+        {
+          "pid": 1524593,
+          "port": 41464
+        },
+        {
+          "pid": 1524593,
+          "port": 41464
+        },
+        {
+          "pid": 1524617,
+          "port": 41465
+        }
+      ],
+      "nonReturned": [
+        {
+          "pid": 1524811,
+          "state": "absent",
+          "record": "???( <unfinished ...>"
+        }
+      ],
+      "range": [
+        41463,
+        41483
+      ],
+      "tracerVersion": "strace -- version 6.8"
+    },
+    "logs": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-qualification2/frontend-expo-chat/proof-logs-2"
+  },
+  {
+    "starter": "expo-social",
+    "kind": "expo",
+    "attempt": 1,
+    "status": "passed",
+    "elapsedMs": 8189,
+    "range": [
+      46569,
+      46589
+    ],
+    "occupied": 46569,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      10.99,
+      16.27,
+      21.06
+    ],
+    "listenerAudit": {
+      "status": "passed",
+      "method": "strace-listen",
+      "samples": 4,
+      "listeners": [
+        {
+          "pid": 1529191,
+          "port": 46570
+        },
+        {
+          "pid": 1529191,
+          "port": 46570
+        },
+        {
+          "pid": 1529231,
+          "port": 46571
+        }
+      ],
+      "nonReturned": [],
+      "range": [
+        46569,
+        46589
+      ],
+      "tracerVersion": "strace -- version 6.8"
+    },
+    "logs": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-qualification2/frontend-expo-social/proof-logs-1"
+  },
+  {
+    "starter": "expo-social",
+    "kind": "expo",
+    "attempt": 2,
+    "status": "passed",
+    "elapsedMs": 8365,
+    "range": [
+      35999,
+      36019
+    ],
+    "occupied": 35999,
+    "cpuLoadWorkers": 2,
+    "loadavg": [
+      10.46,
+      15.98,
+      20.92
+    ],
+    "listenerAudit": {
+      "status": "passed",
+      "method": "strace-listen",
+      "samples": 4,
+      "listeners": [
+        {
+          "pid": 1529917,
+          "port": 36000
+        },
+        {
+          "pid": 1529917,
+          "port": 36000
+        },
+        {
+          "pid": 1529976,
+          "port": 36001
+        }
+      ],
+      "nonReturned": [
+        {
+          "pid": 1530167,
+          "state": "absent",
+          "record": "???( <unfinished ...>"
+        },
+        {
+          "pid": 1530164,
+          "state": "absent",
+          "record": "???(1530128 +++ exited with 0 +++"
+        }
+      ],
+      "range": [
+        35999,
+        36019
+      ],
+      "tracerVersion": "strace -- version 6.8"
+    },
+    "logs": "/home/ccheever/projects/snapback-sb4loop/snapback4/target/integ15-qualification2/frontend-expo-social/proof-logs-2"
+  }
+]

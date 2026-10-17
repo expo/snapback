@@ -1,0 +1,120 @@
+[
+  {
+    "name": "node-download",
+    "command": [
+      "curl",
+      "-fsSL",
+      "--max-time",
+      "180",
+      "https://nodejs.org/dist/v24.13.1/node-v24.13.1-darwin-arm64.tar.gz",
+      "-o",
+      "/Users/ccheever/sb4-ws-integ15/tools/node.tgz"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15",
+    "exit": 0,
+    "seconds": 2.1042208671569824
+  },
+  {
+    "name": "node-extract",
+    "command": [
+      "tar",
+      "-xzf",
+      "/Users/ccheever/sb4-ws-integ15/tools/node.tgz",
+      "-C",
+      "/Users/ccheever/sb4-ws-integ15/tools"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15",
+    "exit": 0,
+    "seconds": 1.5188102722167969
+  },
+  {
+    "name": "versions",
+    "command": [
+      "node",
+      "--version"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15",
+    "exit": 0,
+    "seconds": 0.828434944152832
+  },
+  {
+    "name": "install",
+    "command": [
+      "bun",
+      "install",
+      "--frozen-lockfile"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 1.961958885192871
+  },
+  {
+    "name": "binary",
+    "command": [
+      "cargo",
+      "build",
+      "-p",
+      "snapback4"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 33.12458801269531
+  },
+  {
+    "name": "wasm",
+    "command": [
+      "bash",
+      "scripts/build-wasm.sh"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 64.1790599822998
+  },
+  {
+    "name": "client-build",
+    "command": [
+      "bun",
+      "run",
+      "--cwd",
+      "packages/snapback4",
+      "build"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 3.0897979736328125
+  },
+  {
+    "name": "browser",
+    "command": [
+      "bun",
+      "x",
+      "playwright",
+      "install",
+      "chromium"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 0,
+    "seconds": 11.48256802558899
+  },
+  {
+    "name": "rust-full",
+    "command": [
+      "cargo",
+      "test",
+      "-p",
+      "snapback4-core",
+      "-p",
+      "snapback4-lang",
+      "-p",
+      "snapback4-device",
+      "-p",
+      "snapback4-sim",
+      "-p",
+      "snapback4",
+      "--no-fail-fast"
+    ],
+    "cwd": "/Users/ccheever/sb4-ws-integ15/snapback4",
+    "exit": 101,
+    "seconds": 4295.666295051575
+  }
+]
