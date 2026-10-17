@@ -141,11 +141,11 @@ impl PostgresEngine {
             tx.execute("DELETE FROM r WHERE t=$1", &[name])?;
         }
         for (name, table) in &schema.tables {
-            if crate::schema::live::has_live(&schema) || crate::schema::live::has_live(&self.schema) {
+            if table.through.as_ref().is_some_and(|e|e.live.is_some()) || self.schema.table(name).and_then(|t|t.through.as_ref()).is_some_and(|e|e.live.is_some()) {
                 let d=crate::rows::disclosed::decode_reservation(table);
                 let source=self.schema.table(name).unwrap_or(table);
-                let key_heap=table.indexes.values().map(|i|4*crate::rows::MAX_INDEX_KEY_BYTES as u64+128*(i.columns().len() as u64+1)+512).sum::<u64>();
-                tx.walk_adoption(name,crate::rows::disclosed::decode_reservation(source),4*d+2*key_heap,[1,table.columns.len() as u64+8,2*table.indexes.len() as u64],&mut |mut row| {
+                let key_heap=crate::rows::adoption::index_scratch(name,table);
+                tx.walk_adoption(name,crate::rows::disclosed::decode_reservation(source),4*d+2*key_heap,[1,table.columns.len() as u64+8,crate::rows::adoption::index_capacity(table).saturating_mul(2)],&mut |mut row| {
                     let id=row.field("id")?.as_str()?.to_owned();
                     if let Value::Row(fields)|Value::Map(fields)=&mut row {fields.retain(|f,_|table.columns.contains_key(f));}
                     table.recompute_deadline(&mut row)?;

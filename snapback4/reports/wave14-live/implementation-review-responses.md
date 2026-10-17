@@ -32,3 +32,11 @@ The restoration relation also preserves each restored row's live source provenan
 Two defensive checks complete the proof: raw live constraints/unique keys may not depend on mutable engine inputs, and live manual-handoff inference must map every focal input. The latter keeps the handoff proof self-contained; core read-rule admission already refuses reference hops. A focused core unit test demonstrates why identical unmapped hop syntax cannot stand for an empty copy map if that surface expands. Ordinary captured-only correspondence remains unchanged.
 
 Muse's non-blocking scalar-literal note was addressed in 1a9b79d95d; complex raw literals refuse live admission.
+
+## Round 4 response
+
+Postgres overrides walk_adoption with a byte-admitted direct traversal of r, independent of indexes deliberately cleared for rebuilding. Each singleton prepays driver/raw payload, exact decoder and destination callback scratch before decode/write. A real private PostgreSQL 16 cluster exercises adoption, live index rebuilding, transfer rollback, transfer, and parent-only trusted restore.
+
+Through adoption now selects the bounded reservation per affected table: previous/destination live or restored-live provenance. Unrelated captured tables retain their prior actual-image traversal even when an independent live edge exists. Postgres projection uses the same per-table scope. A <=300000 captured declaration with tiny stored data adopts an independent empty live edge successfully.
+
+The before-allocation index reservation also includes the bounded token cardinality of word indexes in captured/manual successors. A live-to-captured adoption adding four word indexes refuses E_BOUND before callbacks and preserves the old generation, rows and ability to transfer. Native bulk put shares this cardinality helper.

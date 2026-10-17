@@ -38,6 +38,7 @@ fn whole_rule_moves_existing_rows_and_failure_rolls_everything_back() {
         .mutate("transferAndFail", None, Context::new("alice", args))
         .unwrap();
     assert!(matches!(fail.state, WriteState::Failed { .. }), "{fail:?}");
+    assert!(visible(&mut e,"alice"));assert!(!visible(&mut e,"bob"));
     let args = [
         ("project".into(), Value::Id("p".into())),
         ("owner".into(), Value::Id("bob".into())),
@@ -803,4 +804,23 @@ fn dormant_captured_to_live_requires_current_copy_agreement() {
         let generation=e.generation();let b=build(SOURCE);let out=e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false);
         if changed {assert_eq!(out.unwrap_err().code(),"E_READ_THROUGH_ADOPT");assert_eq!(e.generation(),generation);}else{out.unwrap();transfer(&mut e,"bob");assert!(!visible(&mut e,"alice"));assert!(visible(&mut e,"bob"));}
     }
+}
+
+#[test]
+fn empty_live_edge_does_not_reprice_an_unrelated_captured_population() {
+    let captured=SOURCE.replace("read through live .project","read through .project").replace("  owner: principal\n  read","  owner: principal\n  immutable owner\n  read").replace("  body: text <=80","  body: text <=300000");let mut e=seeded(&captured,"alice",false);
+    let independent="\ntable independentParents:\n  owner: principal\n  read <- .owner = viewer\n  online only\ntable independentChildren:\n  parent: independentParents\n  immutable parent\n  cap 1 by parent\n  read through live .parent\n  online only\n";
+    let b=build(&format!("{captured}{independent}"));e.adopt(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();assert!(visible(&mut e,"alice"));
+}
+
+#[test]
+fn live_to_captured_adoption_prepays_word_index_fanout() {
+    use snapback4_core::schema::{Index,IndexComponent,Constraint};
+    let mut e=seeded(&SOURCE.replace("text <=80","text <=8000"),"alice",false);
+    let generation=e.generation();let mut next=e.schema().clone();
+    next.tables.get_mut("projects").unwrap().constraints.push(Constraint::Immutable{fields:vec!["owner".into()]});
+    let t=next.tables.get_mut("tasks").unwrap();t.through.as_mut().unwrap().live=None;
+    for n in 0..4 {t.indexes.insert(format!("words{n}"),Index{components:vec![IndexComponent::WordPrefixes{fields:vec!["body".into()],contract:serde_json::Value::String(snapback4_core::words::CONTRACT.into())},IndexComponent::Column("id".into())],unique:false});}
+    let programs=e.programs().cloned().collect::<Vec<_>>();assert_eq!(e.adopt(next,programs).unwrap_err().code(),"E_BOUND");
+    assert_eq!(e.generation(),generation);assert!(visible(&mut e,"alice"));transfer(&mut e,"bob");assert!(visible(&mut e,"bob"));
 }

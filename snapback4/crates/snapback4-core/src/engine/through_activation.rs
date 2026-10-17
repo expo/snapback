@@ -88,6 +88,12 @@ fn sample(samples: &mut Vec<String>, row: &Value, reference: &str, parent: &str)
     }
 }
 
+fn live_work(tx:&dyn Rows,name:&str,old:Option<&Table>,next:&Schema)->Result<bool,RuntimeError> {
+    Ok(old.and_then(|t|t.through.as_ref()).is_some_and(|t|t.live.is_some())
+        || next.table(name).and_then(|t|t.through.as_ref()).is_some_and(|t|t.live.is_some())
+        || tx.has_restored_live_authority(name)?)
+}
+
 fn rows(
     tx: &dyn Rows, name: &str, table: &Table, parent: Option<&Table>, bounded: bool, destination: Option<&Table>,
     mut visit: impl FnMut(Value) -> Result<(), RuntimeError>,
@@ -101,10 +107,11 @@ fn rows(
         }
     }
     let decode=crate::rows::disclosed::decode_reservation(table);
-    let keys=table.indexes.values().chain(destination.into_iter().flat_map(|t|t.indexes.values())).map(|i|4*crate::rows::MAX_INDEX_KEY_BYTES as u64+128*(i.columns().len() as u64+1)+512).sum::<u64>();
+    let keys=crate::rows::adoption::index_scratch(name,table).saturating_add(destination.map_or(0,|t|crate::rows::adoption::index_scratch(name,t)));
+    let entries=crate::rows::adoption::index_capacity(table).saturating_add(destination.map_or(0,crate::rows::adoption::index_capacity)).saturating_mul(2);
     let scratch=decode.saturating_mul(4).saturating_add(destination.map_or(0,crate::rows::disclosed::decode_reservation).saturating_mul(4)).saturating_add(keys.saturating_mul(2))
         .saturating_add(parent.map_or(0,crate::rows::disclosed::decode_reservation)).saturating_add(8192);
-    tx.walk_adoption(name,decode,scratch,[2,table.columns.len() as u64+16,2*(table.indexes.len()+destination.map_or(0,|t|t.indexes.len())) as u64],&mut visit)
+    tx.walk_adoption(name,decode,scratch,[2,table.columns.len() as u64+16,entries],&mut visit)
 }
 
 pub(crate) fn correspondence(
@@ -215,9 +222,9 @@ pub(crate) fn activate_retained(
     };
     // Previous indexes and row images still exist. Every affected expired row
     // retires under its old deadline, before a new default or capture can revive it.
-    let bounded=crate::schema::live::has_live(next) || crate::schema::live::has_live(previous) || tx.has_restored_live_authority()?;
     let retirement = Retirement::new(next, previous, now);
     for (name, old) in retirement.affected.iter().rev() {
+        let bounded=live_work(tx,name,Some(old),next)?;
         rows(tx, name, old, None, bounded, None, |row| {
             if retirement.retires(name, &row) {
                 tx.delete(name, old, &row)?;
@@ -238,6 +245,7 @@ pub(crate) fn activate_retained(
         let parent = previous
             .table(&t.parent)
             .ok_or_else(|| refusal(name, 0, "the previous parent schema is absent", &[]))?;
+        let bounded=live_work(tx,name,Some(old),next)?;
         let map = correspondence(&old.rules.read, &parent.rules.read);
         let mut invalid = 0;
         let mut samples = Vec::new();
@@ -286,6 +294,7 @@ pub(crate) fn activate_retained(
             continue;
         };
         let parent = &next.tables[&t.parent];
+        let bounded=live_work(tx,&name,previous.table(&name),next)?;
         let recapture = previous.table(&name).and_then(|t| t.through.as_ref()) != Some(t);
         let mut invalid = 0;
         let mut samples = Vec::new();
@@ -436,7 +445,7 @@ pub fn validate_restore(tx: &dyn Rows, schema: &Schema, now: i64) -> Result<(), 
         let parent = &schema.tables[&t.parent];
         let mut invalid = 0;
         let mut samples = Vec::new();
-        rows(tx, &name, table, Some(parent), crate::schema::live::has_live(schema), None, |row| {
+        rows(tx, &name, table, Some(parent), table.through.as_ref().is_some_and(|t|t.live.is_some()), None, |row| {
             let found = row
                 .field(&t.reference)
                 .ok()

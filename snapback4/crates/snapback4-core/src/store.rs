@@ -1125,9 +1125,9 @@ impl crate::rows::Rows for Tx<'_> {
         Ok(self.conn().execute("INSERT OR IGNORE INTO _effect_keys(effect, key) VALUES (?1, ?2)", params![effect, key])? != 0)
     }
 
-    fn has_restored_live_authority(&self)->Result<bool,RuntimeError> {
+    fn has_restored_live_authority(&self,table:&str)->Result<bool,RuntimeError> {
         if !live_activation::active(self)? {return Ok(false);}
-        Ok(self.conn().query_row("SELECT EXISTS(SELECT 1 FROM temp._live_restored x JOIN r ON r.t=x.t AND r.id=x.id WHERE x.kind='live-authority')",[],|r|r.get(0))?)
+        Ok(self.conn().query_row("SELECT EXISTS(SELECT 1 FROM temp._live_restored x JOIN r ON r.t=x.t AND r.id=x.id WHERE x.kind='live-authority' AND x.t=?1 AND x.col='')",[self.num(table)?],|r|r.get(0))?)
     }
     fn restored_live_authority(&self,table:&str,id:&str)->Result<bool,RuntimeError> {
         if !live_activation::active(self)? {return Ok(false);}

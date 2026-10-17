@@ -415,29 +415,7 @@ fn bulk_put(
     old: Option<&Value>,
 ) -> Result<(), RuntimeError> {
     let mark = r.meter.mark();
-    let k = crate::rows::MAX_INDEX_KEY_BYTES as u64;
-    let mut keys = 0_u64;
-    for (index_name, index) in &table.indexes {
-        let copies = if let Some((_, fields)) = index.word_component() {
-            fields
-                .iter()
-                .filter_map(|f| table.columns.get(f))
-                .map(|kind| match kind.required() {
-                    crate::schema::ColumnType::Text { max } => u64::from(*max),
-                    _ => 0,
-                })
-                .fold(0_u64, u64::saturating_add)
-                .min(crate::words::MAX_TOKENS_PER_ROW as u64)
-        } else {
-            1
-        };
-        keys = keys.saturating_add(copies.saturating_mul(
-            4 * k
-                + 128 * (index.components.len() as u64 + 1)
-                + 512
-                + 4 * (name.len() + index_name.len()) as u64,
-        ));
-    }
+    let keys=crate::rows::adoption::index_scratch(name,table);
     r.meter.heap(
         keys.saturating_mul(2)
             .saturating_add(crate::rows::disclosed::decode_reservation(table).saturating_mul(4)),
