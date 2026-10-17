@@ -9,7 +9,7 @@ import { chromium } from 'playwright-core';
 import { listenerSnapshot } from '../../../scripts/proof-listener-audit.mjs';
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const baseline = process.env.KIT_BASELINE;
-const bin = baseline ? '/tmp/kit-baseline/snapback4' : join(root, 'target/debug/snapback4');
+const bin = baseline ? '/tmp/kit-baseline/snapback4' : process.env.SNAPBACK4_BIN ?? join(root, 'target/debug/snapback4');
 const kit = await import(baseline ? '/tmp/kit-baseline/proof.mjs' : '../dist/proof.js');
 const source = `use identity guests\ntable notes:\n  title: text <=80\n  public 'proof notes'\n  insert <- allow\n  online only\nquery mine():\n  return notes first 20 by .id\nmutation add(title: text <=80):\n  return insert notes { title }\n`;
 const fixture = t => { const dir = mkdtempSync(join(root, 'target/kit12-')); t.after(()=>rmSync(dir,{recursive:true,force:true})); return dir; };
@@ -156,7 +156,7 @@ if (!baseline) test('unclaimable events, operations and arguments settle with re
 
 if (!baseline) test('day2 caller source arguments override npm defaults and malformed argument lists refuse', t=>{
  const cwd=fixture(t);okay(invoke(cwd,['init','--web','--day2']));symlinkSync(join(root,'node_modules'),join(cwd,'node_modules'));
- for(const args of [['versions/v1.q','versions/v2.q','versions/v1.q','missing.q'],['versions/v1.q','versions/v2.q','extra.q']]){
+ for(const args of [['versions/v1','versions/v2','versions/v1','missing.q'],['versions/v1','versions/v2','one','two','three','four']]){
   const result=spawnSync(process.execPath,['scripts/day2-proof.mjs',...args],{cwd,encoding:'utf8',timeout:5000});
   assert.notEqual(result.status,0);assert.match(result.stderr,/missing.q|usage: npm run day2:proof/);
  }
