@@ -96190,3 +96190,9 @@ and reverse adoption fills manual cells from current parent values. Live
 bulk calls use one job account and restoration identities use a file-backed
 transaction-local relation. Qualification and remaining implementation checks
 are in WORKSTREAM-REPORT.md; no publication or 0.4.32 version bump is claimed.
+
+LIVE wasm measurement: 2,379,857 B raw / 725,958 B gzip, +2,798 B gzip
+against RULES4. Budget 726,458 B is measurement plus exactly 500 B. The
+additional bytes carry live-parent-copy-v1 metadata, admission and exported
+prices/device queuing; native fanout/bulk/adoption stays off the web path. No
+runtime ceiling is raised. Final qualification lives in reports/wave14-live.

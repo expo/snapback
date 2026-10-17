@@ -666,3 +666,20 @@ fn captured_only_adoption_preserves_actual_small_row_compatibility() {
         .unwrap();
     assert!(visible(&mut e, "alice"));
 }
+
+#[test]
+fn published_manual_copy_recipe_adopts_live_and_back_without_changing_row_ids() {
+    use snapback4_core::engine::release::ReleaseActivation;
+    let blocks=snapback4_lang::guide::quarry(snapback4_lang::guide::card("rule-recipes").unwrap());
+    let manual=blocks.iter().find(|s|s.contains("table rosterFolders:")).unwrap();
+    let mut live=blocks.iter().find(|s|s.contains("table liveRosterFolders:")).unwrap().to_string();
+    for (from,to) in [("liveDepartments","departments"),("liveDepartmentRoster","departmentRoster"),("liveRosterFolders","rosterFolders"),("liveRosterFiles","rosterFiles"),("addLiveRosterFile","addRosterFile"),("transferLiveRosterFolder","transferRosterFolder"),("liveRosterFile","rosterFile")] {live=live.replace(from,to);}
+    let b=build(manual);let mut e=Engine::new_release(snapback4_core::Store::memory().unwrap(),b.schema,b.programs.into_iter().map(|p|p.program),1,None).unwrap();
+    let rows=[("departments",json!({"id":"old","title":"Old"})),("departments",json!({"id":"new","title":"New"})),("departmentRoster",json!({"id":"a","department":"old","principal":"dev:alice"})),("departmentRoster",json!({"id":"b","department":"new","principal":"dev:bob"})),("rosterFolders",json!({"id":"p","department":"old"})),("rosterFiles",json!({"id":"c","folder":"p","department":"old","body":"private"}))].into_iter().map(|(n,row)|(n.into(),wire::row_from_json(&e.schema().tables[n],&row).unwrap())).collect::<Vec<_>>();e.seed(rows).unwrap();
+    let b=build(&live);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();
+    let out=e.mutate("transferRosterFolder",None,Context::new("service:ops",[("folder".into(),Value::Id("p".into())),("department".into(),Value::Id("new".into()))].into())).unwrap();assert!(matches!(out.state,WriteState::Sent{..}),"{out:?}");
+    for (who,yes) in [("dev:alice",false),("dev:bob",true)] {let out=e.query("rosterFile",Context::new(who,[("file".into(),Value::Id("c".into()))].into())).unwrap();assert_eq!(out.data!=Value::Null,yes);if yes {assert!(out.data.field("department").is_err());}}
+    let b=build(manual);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap();
+    let out=e.query("rosterFile",Context::new("dev:bob",[("file".into(),Value::Id("c".into()))].into())).unwrap();assert_eq!(out.data.field("department").unwrap(),&Value::Id("new".into()));
+    let out=e.query("rosterFile",Context::new("dev:alice",[("file".into(),Value::Id("c".into()))].into())).unwrap();assert_eq!(out.data,Value::Null);
+}
