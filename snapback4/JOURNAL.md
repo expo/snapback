@@ -96218,3 +96218,9 @@ Whole-artifact +2,879 B gzip versus RULES4 includes the scoped restoration
 provenance interface; native PG keyset rebuilding and word-index admission do
 not ship as web writer paths. Strict family/absence audits pass; no runtime
 ceiling increase or independent feature attribution.
+
+### LIVE final row-source and restoration admission
+
+Live-parent implementation now distinguishes each restored row's actual authority mode from dormant column shape and cell provenance. Immediate manual agreement precedes captured/live recapture; original captured history and immutable parent lifetime remain bound. Column restoration reserves possible current-parent scratch before callbacks. Captured-only narrowed rollback retains actual-image admission. Paired implementation review records and each finding's response are under LLP 3000.014.000 and reports/wave14-live.
+
+Clean Linux web measurement at c2f5f6595c: 2,379,943 B raw / 725,864 B gzip / 547,431 B Brotli; strict family/absence audits pass. Ratchet 726,364 B is exactly measured gzip + 500 B, +2,704 B gzip versus RULES4. Whole-artifact growth includes live metadata/admission/queuing and the shared source-mode interface; subsequent restoration admission corrections are SQLite-only. No independent feature attribution or runtime ceiling increase. Mac Studio affected checks at this candidate: 485 passed.

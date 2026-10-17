@@ -66,3 +66,20 @@ pub(super) fn obsolete_ref(tx:&Tx<'_>,t:i64,id:&str,column:&str,table:&Table,old
     if protected {return Ok(false);}
     Ok(edge.live.is_some() || live_activation::active(tx)? && live_cell(tx,t,id,column)?)
 }
+
+/// Reserve declared parent scratch only for callbacks that can fetch it.
+/// Captured-only restoration keeps its existing actual-image admission.
+pub(super) fn forward_fetch(tx:&Tx<'_>,t:i64,old:Option<&Table>,table:&Table)->Result<bool,RuntimeError> {
+    if !live_activation::active(tx)? || old.is_none_or(|t|t.through.is_some()) {return Ok(false);}
+    let Some(edge)=&table.through else {return Ok(false)};
+    if edge.live.is_some() {return Ok(true);}
+    for col in edge.fields.keys().map(String::as_str).chain([PARENT_DEADLINE,DEADLINE]) {
+        if tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_values WHERE t=?1 AND column_name=?2 AND live_source=1)",params![t,col],|r|r.get::<_,bool>(0))? {return Ok(true);}
+    }Ok(false)
+}
+pub(super) fn live_row(tx:&Tx<'_>,t:i64,id:&str,old:&Table,table:&Table)->Result<bool,RuntimeError> {
+    if !live_activation::active(tx)? {return Ok(false);}
+    if old.through.as_ref().is_some_and(|e|e.live.is_some()) || table.through.as_ref().is_some_and(|e|e.live.is_some()) {return Ok(true);}
+    for col in table.columns.keys() {if live_cell(tx,t,id,col)? {return Ok(true);}}
+    Ok(false)
+}

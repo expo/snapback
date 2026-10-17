@@ -78,3 +78,11 @@ Authority mode and cell origin are separate. Newly narrowed rows retain their ac
 Live policy-input references do not bind the lifetime of a former audience target. Immutable parent binding/deletion evidence remains mandatory. Authored references and original captured inputs keep their historical lifetime checks. A department-valued policy witness narrows its live child, moves the parent from department A to B, deletes A, and restores the child readable only by B's member. This complements the existing parent deletion/reuse refusals.
 
 Reverse-live parent reconciliation precedes forward-child correspondence, and that check uses the ordinary destination parent policy when the parent itself exits inherited mode. Source/destination parent scratch remains admitted by the same bounded walker; no ceiling or supported live shape changes.
+
+## Round 12 response
+
+Muse READY on frozen c2f5f6595c. Codex found two admission defects. Dormant-column overlays now include the possible forward-check parent's source/destination scratch in page admission before callbacks. This is selected only when the actual manual source can require a live-provenance check; unrelated captured-only tables keep their actual-image path. A separate allocation-instrumented integration binary restores a small dormant memo while adopting live over a permitted 20 MiB parent: E_BOUND must occur without any Rust allocation exceeding the 16 MiB job envelope, and the generation must remain unchanged.
+
+Narrowed restoration applies declared destination/parent scratch only to a row that actually involves live authority or requested live-origin cells. Captured-only rollback of a tiny row under a <=300000 body declaration retains its pre-existing actual-image admission and succeeds. Neither correction changes any live language shape or ceiling.
+
+Clean c2f5f6595c web measurement: 2,379,943 B raw / 725,864 B gzip / 547,431 B Brotli, strict family/absence audits PASS. The budget is exactly 726,364 B (measurement + 500 B), +2,704 B gzip versus RULES4. These two subsequent fixes are SQLite-only and do not change that artifact.

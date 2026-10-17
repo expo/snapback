@@ -515,7 +515,12 @@ pub(super) fn transition(
         {
             continue;
         }
-        super::activation_walk::walk_metered(tx,t,crate::rows::adoption::Work::DECODE,None,|id,mut row,meter| {
+        let old=authority_sources.get(name);
+        let parent_scratch=if super::authority_origin::forward_fetch(tx,t,old,table)? {
+            old.map_or(0,|old|crate::engine::through_activation::restored_parent_scratch(next,&authority_sources,name,old))
+        } else {0};
+        let scratch=|_:&Value|crate::value::InternalPrice::zero().fixed(parent_scratch);
+        super::activation_walk::walk_metered(tx,t,crate::rows::adoption::Work::DECODE,if parent_scratch>0 {Some(&scratch)} else {None},|id,mut row,meter| {
             let old=authority_sources.get(name);
             if let Some(old)=old {
                 materialize_optional_fields(&mut row,old);

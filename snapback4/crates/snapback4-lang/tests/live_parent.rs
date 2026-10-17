@@ -975,3 +975,14 @@ fn unused_live_cell_does_not_replace_a_captured_rows_own_audience() {
         assert_eq!(out.unwrap_err().code(),"E_ADOPT");assert_eq!(e.generation(),4);
     }
 }
+
+#[test]
+fn captured_only_narrowed_rollback_keeps_actual_image_admission() {
+    use snapback4_core::engine::release::ReleaseActivation;
+    let captured=SOURCE.replace("read through live .project","read through .project").replace("  owner: principal\n  read","  owner: principal\n  immutable owner\n  read").replace("  body: text <=80","  status: enum('active', 'draft') default 'draft'\n  body: text <=300000");
+    let independent="\ntable independentParents:\n  owner: principal\n  read <- .owner = viewer\n  online only\ntable independentChildren:\n  parent: independentParents\n  immutable parent\n  cap 1 by parent\n  read through live .parent\n  online only\n";
+    for extra in ["",independent] {
+        let mut e=seeded(&captured,"alice",true);let narrow=format!("{}{extra}",captured.replace("enum('active', 'draft') default 'draft'","enum('active') default 'active'"));let b=build(&narrow);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();assert!(!visible(&mut e,"alice"));
+        let b=build(&format!("{captured}{extra}"));e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap();assert!(visible(&mut e,"alice"));
+    }
+}

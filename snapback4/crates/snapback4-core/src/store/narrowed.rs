@@ -155,7 +155,9 @@ pub(super) fn transition(
         if invalid {
             continue;
         }
-        admission.heap(crate::engine::through_activation::restored_parent_scratch(next,source_definitions,&name,&old).saturating_add(crate::rows::disclosed::decode_reservation(table).saturating_mul(4)))?;
+        if super::authority_origin::live_row(tx,t,&id,&old,table)? {
+            admission.heap(crate::engine::through_activation::restored_parent_scratch(next,source_definitions,&name,&old).saturating_add(crate::rows::disclosed::decode_reservation(table).saturating_mul(4)))?;
+        }
         super::authority_origin::record(tx,t,&id,&old)?;
         super::authority_origin::validate(tx,next,authority_sources,&name,&old,&row,now,true)?;
         crate::engine::through_activation::forward_image(tx,next,authority_sources,&name,&old,&row,now)?;
