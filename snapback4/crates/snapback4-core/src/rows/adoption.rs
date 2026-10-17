@@ -118,7 +118,7 @@ pub(crate) fn index_capacity(table:&Table)->u64 {
 }
 fn index_copies(table:&Table,index:&crate::schema::Index)->u64 {
     if let Some((_,fields))=index.word_component() {
-        fields.iter().filter_map(|f|table.columns.get(f)).map(|k|match k.required(){crate::schema::ColumnType::Text{max}=>u64::from(*max),_=>0}).fold(0_u64,u64::saturating_add).min(crate::words::MAX_TOKENS_PER_ROW as u64)
+        fields.iter().filter_map(|f|table.columns.get(f)).map(|k|match k.required(){crate::schema::ColumnType::Text{max}=>u64::from(*max),crate::schema::ColumnType::Enum{variants}=>variants.iter().map(|s|s.len() as u64).max().unwrap_or(0),_=>0}).fold(0_u64,u64::saturating_add).min(crate::words::MAX_TOKENS_PER_ROW as u64)
     }else{1}
 }
 pub(crate) fn index_scratch(name:&str,table:&Table)->u64 {
@@ -131,6 +131,32 @@ pub(crate) fn index_scratch(name:&str,table:&Table)->u64 {
             IndexComponent::WordPrefixes{..}=>2*crate::words::MAX_TOKEN_BYTES as u64+3,
             _=>super::disclosed::decode_reservation(table),
         })).max(super::MAX_INDEX_KEY_BYTES as u64);
-        index_copies(table,index).saturating_mul(key.saturating_mul(4).saturating_add(128*(index.components.len() as u64+1)+512+4*(name.len()+label.len()) as u64))
+        // Empty token sets still allocate an IndexWrite slot and the word
+        // field-reference vector. These are independent of emitted key count.
+        let fixed=512_u64.saturating_add(4*(name.len()+label.len()) as u64)
+            .saturating_add(index.word_component().map_or(0,|(_,fields)|(fields.len() as u64).saturating_mul(32)));
+        fixed.saturating_add(index_copies(table,index).saturating_mul(key.saturating_mul(4).saturating_add(128*(index.components.len() as u64+1)+512+4*(name.len()+label.len()) as u64)))
     }).fold(0_u64,u64::saturating_add)
+}
+
+#[cfg(test)]
+mod live_index_scratch_tests {
+    use super::*;
+    #[test]
+    fn empty_word_sets_still_reserve_native_index_slots() {
+        use crate::schema::{ColumnType,Index,IndexComponent,public_table};
+        let table=public_table([("id".into(),ColumnType::Id),("body".into(),ColumnType::Text{max:0})].into(),[("words".into(),Index{components:vec![IndexComponent::WordPrefixes{fields:vec!["body".into()],contract:serde_json::Value::String(crate::words::CONTRACT.into())},IndexComponent::Column("id".into())],unique:false})].into());
+        assert_eq!(index_capacity(&table),0);
+        // A nonempty vector of zero-key IndexWrite records remains retained.
+        assert!(index_scratch("t",&table)>=512);
+    }
+    #[test]
+    fn enum_words_reserve_the_tokens_the_native_index_will_emit() {
+        use crate::schema::{ColumnType,Index,IndexComponent,public_table};
+        let table=public_table([("id".into(),ColumnType::Id),("body".into(),ColumnType::Enum{variants:vec!["one two".into()]})].into(),[("words".into(),Index{components:vec![IndexComponent::WordPrefixes{fields:vec!["body".into()],contract:serde_json::Value::String(crate::words::CONTRACT.into())},IndexComponent::Column("id".into())],unique:false})].into());
+        let row=crate::value::object([("id",Value::Id("r".into())),("body",Value::String("one two".into()))]);
+        let keys=super::super::index_keys(&table.indexes["words"],&row,"r");assert_eq!(keys.len(),2);
+        assert!(index_capacity(&table)>=keys.len() as u64);
+        assert!(index_scratch("t",&table)>=keys.iter().map(|k|k.len() as u64*4).sum());
+    }
 }

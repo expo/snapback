@@ -44,7 +44,8 @@ impl Runner<'_> {
             .fold(0_u64, u64::saturating_add)
             .saturating_add(plan.live.as_ref().map_or(0, |p| p.retained_heap));
         // Retain collector slots, earliest boundary maps, dense take() and
-        // append's coalescer concurrently. Source scratch has its own payment.
+        // append's coalescer concurrently. Source decode and simultaneous old/new
+        // index buffers are admitted here before ordinary seed writers allocate.
         self.meter.heap(
             events
                 .saturating_add(derived)
