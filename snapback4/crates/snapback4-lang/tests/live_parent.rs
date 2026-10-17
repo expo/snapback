@@ -873,3 +873,28 @@ fn reverse_live_authority_reconciles_before_destination_narrowing() {
         let out=e.query("one",Context::new("operator",[("child".into(),Value::Id("c".into()))].into())).unwrap();assert_ne!(out.data,Value::Null,"already_narrowed={already_narrowed}");assert_eq!(out.data.field("category").unwrap(),&Value::String("blue".into()));
     }
 }
+
+#[test]
+fn mixed_captured_and_live_cells_keep_independent_origin_after_narrowed_restore() {
+    use snapback4_core::engine::release::ReleaseActivation;
+    let wide=SOURCE.replace("  body: text <=80","  owner: principal default 'alice'\n  status: enum('active', 'draft') default 'draft'\n  body: text <=80");
+    let captured=wide.replace("read through live .project","read through .project").replace("  owner: principal\n  read","  owner: principal\n  immutable owner\n  read");
+    for changed_captured_parent in [false,true] {
+        let mut e=seeded(&captured,"alice",true);
+        let narrow=wide.replace("enum('active', 'draft') default 'draft'","enum('active') default 'active'");let b=build(&narrow);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();
+        let rows=[("projects",json!({"id":"p2","owner":"bob"})),("tasks",json!({"id":"c2","project":"p2","owner":"bob","status":"active","body":"private"}))].into_iter().map(|(n,row)|(n.into(),wire::row_from_json(&e.schema().tables[n],&row).unwrap())).collect::<Vec<_>>();e.seed(rows).unwrap();
+        let manual=wide.replace("read through live .project","read <- .owner = viewer");let b=build(&manual);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap();
+        {let tx=e.store_mut().transaction().unwrap();let flags:Vec<(String,i64)>=tx.conn().prepare("SELECT id,live_source FROM _dormant_values WHERE column_name='$project.owner' ORDER BY id").unwrap().query_map([],|r|Ok((r.get(0)?,r.get(1)?))).unwrap().collect::<Result<_,_>>().unwrap();assert_eq!(flags,vec![("c".into(),0),("c2".into(),1)]);tx.rollback().unwrap();}
+        let mut rows=vec![("projects".into(),snapback4_core::value::object([("id",Value::Id("p2".into())),("owner",Value::Id("carol".into()))])),("tasks".into(),snapback4_core::value::object([("id",Value::Id("c2".into())),("owner",Value::Id("carol".into()))]))];if changed_captured_parent {rows.push(("projects".into(),snapback4_core::value::object([("id",Value::Id("p".into())),("owner",Value::Id("dave".into()))])));}e.seed(rows).unwrap();
+        let b=build(&captured);let out=e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(4,Some(3)),false);
+        if changed_captured_parent {assert_eq!(out.unwrap_err().code(),"E_ADOPT");assert_eq!(e.generation(),3);}else{out.unwrap();for (who,yes) in [("alice",false),("bob",false),("carol",true)] {let out=e.query("one",Context::new(who,[("task".into(),Value::Id("c2".into()))].into())).unwrap();assert_eq!(out.data!=Value::Null,yes);}assert!(visible(&mut e,"alice"));}
+    }
+}
+#[test]
+fn captured_only_store_adopts_live_after_dormant_cell_format_upgrade() {
+    use snapback4_core::engine::release::ReleaseActivation;
+    let mut e=seeded(&manual(),"alice",true);
+    {let tx=e.store_mut().transaction().unwrap();tx.conn().execute_batch("ALTER TABLE _dormant_values DROP COLUMN live_source").unwrap();tx.commit().unwrap();}
+    let b=build(SOURCE);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();transfer(&mut e,"bob");
+    let b=build(&manual());e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap();assert!(!visible(&mut e,"alice"));assert!(visible(&mut e,"bob"));
+}

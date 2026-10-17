@@ -21,14 +21,24 @@ pub(crate) fn enable(conn: &Connection) -> Result<(), RuntimeError> {
         CREATE TABLE IF NOT EXISTS _dormant_tables(table_name TEXT PRIMARY KEY, definition TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS _dormant_rows(t INTEGER NOT NULL,id TEXT NOT NULL,data TEXT NOT NULL,PRIMARY KEY(t,id)) WITHOUT ROWID;
         CREATE TABLE IF NOT EXISTS _dormant_columns(table_name TEXT NOT NULL,column_name TEXT NOT NULL,definition TEXT NOT NULL,PRIMARY KEY(table_name,column_name)) WITHOUT ROWID;
-        CREATE TABLE IF NOT EXISTS _dormant_values(t INTEGER NOT NULL,id TEXT NOT NULL,column_name TEXT NOT NULL,data TEXT NOT NULL,PRIMARY KEY(t,id,column_name)) WITHOUT ROWID;
+        CREATE TABLE IF NOT EXISTS _dormant_values(t INTEGER NOT NULL,id TEXT NOT NULL,column_name TEXT NOT NULL,data TEXT NOT NULL,live_source INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(t,id,column_name)) WITHOUT ROWID;
         CREATE TABLE IF NOT EXISTS _dormant_indexes(table_name TEXT NOT NULL,index_name TEXT NOT NULL,definition TEXT NOT NULL,PRIMARY KEY(table_name,index_name)) WITHOUT ROWID;
         CREATE TABLE IF NOT EXISTS _dormant_refs(t INTEGER NOT NULL,id TEXT NOT NULL,column_name TEXT NOT NULL,parent_t INTEGER NOT NULL,parent_id TEXT NOT NULL,invalid INTEGER NOT NULL DEFAULT 0,PRIMARY KEY(t,id,column_name,parent_t,parent_id)) WITHOUT ROWID;
         CREATE INDEX IF NOT EXISTS _dormant_parent ON _dormant_refs(parent_t,parent_id);
         CREATE TABLE IF NOT EXISTS _release_events(id INTEGER PRIMARY KEY,at INTEGER NOT NULL,operation TEXT NOT NULL,release INTEGER,previous INTEGER,generation INTEGER NOT NULL,revision INTEGER NOT NULL,summary TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS _release_event_items(event INTEGER NOT NULL,path TEXT NOT NULL,detail TEXT NOT NULL,PRIMARY KEY(event,path)) WITHOUT ROWID;")?;
+    if !live_cells_column(conn)? {
+        // Published predecessors have captured-only cells. Defaulting them
+        // to captured is conservative; shared definitions cannot prove a
+        // particular retained cell ever had live authority.
+        conn.execute_batch("ALTER TABLE _dormant_values ADD COLUMN live_source INTEGER NOT NULL DEFAULT 0;")?;
+    }
     conn.execute("UPDATE _meta SET value=?1 WHERE key='version'", [VERSION])?;
     Ok(())
+}
+
+pub(super) fn live_cells_column(conn:&Connection)->Result<bool,RuntimeError> {
+    Ok(conn.query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('_dormant_values') WHERE name='live_source')",[],|r|r.get(0))?)
 }
 
 pub(super) fn enabled(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
@@ -228,7 +238,9 @@ pub(super) fn save_cell(
     capture: bool,
 ) -> Result<(), RuntimeError> {
     let t = tx.num(name)?;
-    tx.conn().execute("INSERT INTO _dormant_values VALUES(?1,?2,?3,?4) ON CONFLICT(t,id,column_name) DO UPDATE SET data=excluded.data",params![t,id,column,canonical_json(value)])?;
+    // @ref LLP 3000.014.000#implementation-proof-clarifications — another row cannot overwrite a cell's live origin.
+    let live=table.engine_field(column) && table.through.as_ref().is_some_and(|e|e.live.is_some());
+    tx.conn().execute("INSERT INTO _dormant_values(t,id,column_name,data,live_source) VALUES(?1,?2,?3,?4,?5) ON CONFLICT(t,id,column_name) DO UPDATE SET data=excluded.data,live_source=excluded.live_source",params![t,id,column,canonical_json(value),i64::from(live)])?;
     if capture {
         capture_refs(tx, t, id, column, &table.columns[column], value)
     } else {
@@ -314,7 +326,7 @@ pub(super) fn transition(
     if !enabled(tx)? {
         return Ok(BTreeSet::new());
     }
-    if !super::narrowed::present(tx.conn())? {enable(tx.conn())?;}
+    if !super::narrowed::present(tx.conn())? || !live_cells_column(tx.conn())? {enable(tx.conn())?;}
     let whole: Vec<(String, String)> = tx
         .conn()
         .prepare("SELECT table_name,definition FROM _dormant_tables ORDER BY table_name")?
@@ -535,11 +547,12 @@ pub(super) fn transition(
             let source=source_definitions.entry(name.clone()).or_insert_with(||candidate.clone());
             if let Some(capture)=&old.capture_source {
                 source.through=capture.through.clone();source.expire=capture.expire.clone();
-                if capture.through.as_ref().is_some_and(|e|e.live.is_some()) && super::live_activation::active(tx)? {
-                    // Forward manual correspondence above must run first.
-                    // Mark only recovered cells of active, non-narrowed rows.
-                    tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored SELECT 'live-authority',v.t,'',v.id FROM _dormant_values v WHERE v.t=?1 AND v.column_name=?2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)",params![tx.num(name)?,column])?;
-                }
+
+            }
+            if super::live_activation::active(tx)? {
+                // Cell provenance survives shared definition changes. Immediate
+                // manual correspondence above still precedes this marker.
+                tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored SELECT 'live-authority',v.t,'',v.id FROM _dormant_values v WHERE v.t=?1 AND v.column_name=?2 AND v.live_source=1 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)",params![tx.num(name)?,column])?;
             }
             source.columns.insert(column.clone(),old.kind);
             if let Some(default)=old.default {source.defaults.insert(column.clone(),default);}
@@ -770,6 +783,6 @@ pub(super) fn restored_values(tx:&Tx<'_>,t:i64,id:&str,table:&Table,meter:&mut c
 /// Record cell-derived live provenance before consuming any source evidence.
 pub(super) fn mark_live_column(tx:&Tx<'_>,t:i64,id:&str,column:&str)->Result<(),RuntimeError> {
     if super::live_activation::active(tx)? {
-        tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored SELECT 'live-authority',?1,'',?2 WHERE EXISTS(SELECT 1 FROM _dormant_columns d JOIN _catalog c ON c.name=d.table_name WHERE c.num=?1 AND d.column_name=?3 AND json_extract(d.definition,'$.capture_source.through.live') IS NOT NULL)",params![t,id,column])?;
+        tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored SELECT 'live-authority',?1,'',?2 WHERE EXISTS(SELECT 1 FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3 AND live_source=1)",params![t,id,column])?;
     }Ok(())
 }

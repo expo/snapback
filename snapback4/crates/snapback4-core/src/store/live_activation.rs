@@ -34,6 +34,9 @@ pub(super) fn configure(conn: &Connection, next: &Schema) -> Result<(), RuntimeE
             dormant_live |= conn.query_row(&format!("SELECT EXISTS(SELECT 1 FROM {table} WHERE json_extract(definition,?1) IS NOT NULL)"),[path],|r|r.get::<_,bool>(0))?;
         }
     }
+    if super::dormant::live_cells_column(conn)? {
+        dormant_live |= conn.query_row("SELECT EXISTS(SELECT 1 FROM _dormant_values WHERE live_source=1)",[],|r|r.get::<_,bool>(0))?;
+    }
     if dormant_live
         || crate::schema::live::has_live(next)
         || previous.as_ref().is_some_and(crate::schema::live::has_live)
