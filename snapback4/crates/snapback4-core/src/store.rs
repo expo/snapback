@@ -26,6 +26,7 @@ mod activation_plan;
 mod activation_scan;
 mod activation_walk;
 mod live_activation;
+mod authority_origin;
 mod adopt_refusals;
 pub mod adoption_estimate;
 pub mod adoption_report;
@@ -1132,6 +1133,13 @@ impl crate::rows::Rows for Tx<'_> {
     fn restored_live_authority(&self,table:&str,id:&str)->Result<bool,RuntimeError> {
         if !live_activation::active(self)? {return Ok(false);}
         Ok(self.conn().query_row("SELECT EXISTS(SELECT 1 FROM temp._live_restored WHERE kind='live-authority' AND t=?1 AND col='' AND id=?2)",params![self.num(table)?,id],|r|r.get(0))?)
+    }
+    fn restored_authority_mode(&self,table:&str,id:&str)->Result<Option<u8>,RuntimeError> {
+        authority_origin::mode(self,self.num(table)?,id)
+    }
+    fn restored_narrowed(&self,table:&str,id:&str)->Result<bool,RuntimeError> {
+        if !live_activation::active(self)? {return Ok(false);}
+        Ok(self.conn().query_row("SELECT EXISTS(SELECT 1 FROM temp._live_restored WHERE kind='narrowed' AND t=?1 AND col='' AND id=?2)",params![self.num(table)?,id],|r|r.get(0))?)
     }
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError> {
         Tx::get(self, table, id)

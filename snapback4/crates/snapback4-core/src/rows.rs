@@ -294,6 +294,9 @@ pub trait Rows {
     /// Transaction-local provenance, never device data or durable audience authority.
     fn has_restored_live_authority(&self,_table:&str)->Result<bool,RuntimeError>{Ok(false)}
     fn restored_live_authority(&self,_table:&str,_id:&str)->Result<bool,RuntimeError>{Ok(false)}
+    /// Row-local authority before restoration: manual=0, captured=1, live=2.
+    fn restored_authority_mode(&self,_table:&str,_id:&str)->Result<Option<u8>,RuntimeError>{Ok(None)}
+    fn restored_narrowed(&self,_table:&str,_id:&str)->Result<bool,RuntimeError>{Ok(false)}
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError>;
     /// The first row whose index components equal `key` exactly.
     fn lookup(&self, table: &str, index_name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError>;

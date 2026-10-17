@@ -69,7 +69,7 @@ pub(super) fn finalize(tx: &Tx<'_>) -> Result<(), RuntimeError> {
     // Declaration-sized iteration, never restored-row identities.
     let declarations: Vec<(String, i64, String)> = tx
         .conn()
-        .prepare("SELECT DISTINCT kind,t,col FROM temp._live_restored WHERE kind!='live-authority' ORDER BY kind,t,col")?
+        .prepare("SELECT DISTINCT kind,t,col FROM temp._live_restored WHERE kind IN ('table','column','narrowed') ORDER BY kind,t,col")?
         .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
         .collect::<Result<_, _>>()?;
     let mut narrowed = 0_u64;

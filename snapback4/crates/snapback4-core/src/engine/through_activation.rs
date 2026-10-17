@@ -256,7 +256,7 @@ pub(crate) fn activate_retained(
         let mut samples = Vec::new();
         rows(tx, name, old, parent_bytes(Some(parent),next.table(&t.parent)), bounded, None, |row| {
             // @ref LLP 3000.000.000#10-wave-10-release-lifecycle-amendment — historical capture restoration needs no audience recapture.
-            if tx.restored_live_authority(name,row.field("id")?.as_str()?)? {return Ok(());}
+            if tx.restored_live_authority(name,row.field("id")?.as_str()?)? || tx.restored_narrowed(name,row.field("id")?.as_str()?)? {return Ok(());}
             if t.live.is_none() && retained.contains(name) && row.field(PARENT_DEADLINE).is_ok() && t.fields.keys().all(|f|row.field(f).is_ok()) {return Ok(());}
             let Some(map) = &map else {
                 invalid += 1;
@@ -306,7 +306,8 @@ pub(crate) fn activate_retained(
         rows(tx, &name, previous.table(&name).unwrap_or(table), parent_bytes(Some(parent),previous.table(&t.parent)), bounded, Some(table), |old| {
             let mut row = old.clone();
             // @ref LLP 3000.000.000#2-retain-by-default — restored audience/deadline captures retain their original lifetime.
-            let live_source=previous.table(&name).and_then(|t|t.through.as_ref()).is_some_and(|t|t.live.is_some()) || tx.restored_live_authority(&name,old.field("id")?.as_str()?)?;
+            let id=old.field("id")?.as_str()?;
+            let live_source=tx.restored_authority_mode(&name,id)?.map_or_else(||previous.table(&name).and_then(|t|t.through.as_ref()).is_some_and(|t|t.live.is_some()),|mode|mode==2) || tx.restored_live_authority(&name,id)?;
             let historical = !live_source && t.live.is_none() && retained.contains(&name) && old.field(PARENT_DEADLINE).is_ok();
             if (recapture || t.live.is_some() || live_source) && (!historical || t.fields.keys().any(|field| old.field(field).is_err()))
             {
@@ -365,10 +366,13 @@ fn live_correspondence(child:&RuleExpr,parent:&RuleExpr)->Option<BTreeMap<String
 
 /// Validate a recovered manual image before any authority cells are projected away.
 pub(crate) fn forward_image(tx:&dyn Rows,next:&Schema,sources:&BTreeMap<String,Table>,name:&str,old:&Table,row:&Value,now:i64)->Result<(),RuntimeError> {
+    forward_authority(tx,next,sources,name,old,row,now,false)
+}
+pub(crate) fn forward_authority(tx:&dyn Rows,next:&Schema,sources:&BTreeMap<String,Table>,name:&str,old:&Table,row:&Value,now:i64,captured:bool)->Result<(),RuntimeError> {
     let Some(destination)=next.table(name) else {return Ok(())};
-    let Some(edge)=destination.through.as_ref().filter(|e|e.live.is_some()) else {return Ok(())};
+    let Some(edge)=destination.through.as_ref().filter(|e|captured || e.live.is_some()) else {return Ok(())};
     if old.through.as_ref().is_some_and(|t|t.live.is_some()) || tx.restored_live_authority(name,row.field("id")?.as_str()?)? || Retirement::retires_image(destination,old,row,now) {return Ok(());}
-    let parent=sources.get(&edge.parent).or_else(||next.table(&edge.parent)).ok_or_else(||refusal(name,1,"restored manual source needs its parent definition",&[]))?;
+    let parent=sources.get(&edge.parent).filter(|old|old.through.is_none() || next.table(&edge.parent).is_none_or(|t|t.through.is_some())).or_else(||next.table(&edge.parent)).ok_or_else(||refusal(name,1,"restored manual source needs its parent definition",&[]))?;
     let map=live_correspondence(&old.rules.read,&parent.rules.read).ok_or_else(||refusal(name,1,"restored manual source lacks full audience correspondence",&[]))?;
     let p=row.field(&edge.reference).ok().and_then(|v|v.as_str().ok()).map(|id|tx.get(&edge.parent,id)).transpose()?.flatten();
     let matches=p.as_ref().is_some_and(|p|parent.live(p,now) && {
@@ -381,14 +385,14 @@ pub(crate) fn forward_sources(tx:&dyn Rows,next:&Schema,sources:&BTreeMap<String
     for (name,old) in sources {
         if old.through.as_ref().is_none_or(|t|t.live.is_none()) && next.table(name).and_then(|t|t.through.as_ref()).is_some_and(|t|t.live.is_some()) {
             let parent=next.table(&next.tables[name].through.as_ref().unwrap().parent);
-            rows(tx,name,old,parent_bytes(parent,next.tables[name].through.as_ref().and_then(|e|sources.get(&e.parent))),true,None,|row|forward_image(tx,next,sources,name,old,&row,now))?;
+            rows(tx,name,old,parent_bytes(parent,next.tables[name].through.as_ref().and_then(|e|sources.get(&e.parent))),true,None,|row| {if tx.restored_narrowed(name,row.field("id")?.as_str()?)? {return Ok(());} forward_image(tx,next,sources,name,old,&row,now)})?;
         }
     }Ok(())
 }
 /// Narrowed images retain their own source definition. Admit every current
 /// parent image before either forward correspondence or reverse recapture.
 pub(crate) fn restored_parent_scratch(next:&Schema,sources:&BTreeMap<String,Table>,name:&str,old:&Table)->u64 {
-    let destination=next.table(name).and_then(|t|t.through.as_ref()).filter(|e|e.live.is_some());
+    let destination=next.table(name).and_then(|t|t.through.as_ref());
     let source=old.through.as_ref().filter(|e|e.live.is_some());
     [destination,source].into_iter().flatten().map(|edge| {
         parent_bytes(sources.get(&edge.parent),next.table(&edge.parent))
@@ -439,6 +443,7 @@ pub(crate) fn reconcile_manual(tx:&dyn Rows,next:&Schema,sources:&BTreeMap<Strin
         }
         let mut invalid=0;let mut samples=Vec::new();
         rows(tx,name,old,parent_bytes(Some(parent),sources.get(&edge.parent)),true,Some(destination),|stored| {
+            if tx.restored_narrowed(name,stored.field("id")?.as_str()?)? {return Ok(());}
             let p=stored.field(&edge.reference).ok().and_then(|v|v.as_str().ok()).map(|id|tx.get(&edge.parent,id)).transpose()?.flatten();
             let Some(p)=p.filter(|p|parent.live(p,now)) else {invalid+=1;sample(&mut samples,&stored,&edge.reference,&edge.parent);return Ok(())};
             let p=crate::schema::row_image(&p,parent);

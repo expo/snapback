@@ -59,6 +59,7 @@ pub(super) fn transition(
     now: i64,
     restored_images: bool,
     source_definitions: &BTreeMap<String, Table>,
+    authority_sources: &BTreeMap<String, Table>,
 ) -> Result<(), RuntimeError> {
     // An expired predecessor must not be archived and later revived without its lifetime.
     if let Some(previous) = previous {
@@ -129,6 +130,7 @@ pub(super) fn transition(
         super::dormant::check_owner(tx, &name, &old, next)?;
         let mut row: Value =
             serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?;
+        crate::schema::materialize_optional_fields(&mut row,&old);
         let authority=crate::engine::through_activation::manual_authority_fields(next,&name,&old);
         if incompatible_except(tx,next,&name,&row,&authority)? {
             continue;
@@ -146,14 +148,17 @@ pub(super) fn transition(
             )?
             .query_map(params![t, id], |r| r.get::<_, String>(0))?
             .collect::<Result<Vec<_>, _>>()?;
-        let invalid = invalid_columns
-            .iter()
-            .any(|c| table.columns.contains_key(c));
+        let mut invalid=false;
+        for c in &invalid_columns {
+            if table.columns.contains_key(c) && !super::authority_origin::obsolete_ref(tx,t,&id,c,table,Some(&old))? {invalid=true;}
+        }
         if invalid {
             continue;
         }
         admission.heap(crate::engine::through_activation::restored_parent_scratch(next,source_definitions,&name,&old).saturating_add(crate::rows::disclosed::decode_reservation(table).saturating_mul(4)))?;
-        crate::engine::through_activation::forward_image(tx,next,source_definitions,&name,&old,&row,now)?;
+        super::authority_origin::record(tx,t,&id,&old)?;
+        super::authority_origin::validate(tx,next,authority_sources,&name,&old,&row,now,true)?;
+        crate::engine::through_activation::forward_image(tx,next,authority_sources,&name,&old,&row,now)?;
         if old.through.as_ref().is_some_and(|e|e.live.is_some()) {tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored(kind,t,col,id) VALUES('live-authority',?1,'',?2)",params![t,id])?;}
         for column in old.columns.keys() {
             if !table.columns.contains_key(column) {
@@ -167,17 +172,9 @@ pub(super) fn transition(
             fields.retain(|c, _| table.columns.contains_key(c));
         }
         let values=super::dormant::restored_values(tx,t,&id,table,&mut admission)?;
-        if let Value::Row(fields) | Value::Map(fields) = &mut row {
-            for (column, data) in values {
-                if table.columns.contains_key(&column) {
-                    super::dormant::mark_live_column(tx,t,&id,&column)?;
-                    fields.insert(
-                        column,
-                        serde_json::from_str(&data)
-                            .map_err(|e| RuntimeError::Store(e.to_string()))?,
-                    );
-                }
-            }
+        super::authority_origin::overlay(tx,t,&id,Some(&old),table,&mut row,values)?;
+        if old.through.as_ref().is_none_or(|e|e.live.is_some()) {
+            for column in table.columns.keys() {super::dormant::mark_live_column(tx,t,&id,column)?;}
         }
         crate::engine::through_activation::manual_image(tx,next,&name,&old,&mut row,now)?;
         if incompatible(tx,next,&name,&row)? {continue;}
@@ -199,7 +196,7 @@ pub(super) fn transition(
         {
             let t = tx.num(name)?;
             super::activation::walk(tx, t, |id, mut row| {
-                if let Some(source)=source_definitions.get(name) {
+                if let Some(source)=authority_sources.get(name) {
                     if crate::engine::through_activation::Retirement::retires_image(table,source,&row,now) {
                         tx.delete(name,source,&row)?;
                         return Ok(());
@@ -234,7 +231,7 @@ pub(super) fn transition(
                 )?;
                 if !retained {
                     newly_retained += 1;
-                    let old = source_definitions.get(name).unwrap_or(table);
+                    let old = authority_sources.get(name).unwrap_or(table);
                     tx.conn().execute(
                         "INSERT INTO _dormant_narrow_rows VALUES(?1,?2,?3,?4,?5)",
                         params![
@@ -252,7 +249,7 @@ pub(super) fn transition(
                             continue;
                         }
                         if let Ok(value) = row.field(column) {
-                            super::dormant::capture_refs(tx, t, id, column, kind, value)?;
+                            if !super::authority_origin::live_input(old,column) {super::dormant::capture_refs(tx, t, id, column, kind, value)?;}
                         }
                         super::dormant::capture_through_parent(tx, name, old, id, column, &row)?;
                         // Nominal keep references may already be dangling. They have no bound lifetime.

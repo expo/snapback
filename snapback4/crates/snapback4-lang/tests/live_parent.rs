@@ -920,3 +920,58 @@ fn reverse_manual_adoption_reserves_destination_index_sets() {
     let b=build(&manual());let mut next=b.schema;let t=next.tables.get_mut("tasks").unwrap();t.columns.insert("blob".into(),ColumnType::Bytes{max:800});for n in 0..6000 {t.indexes.insert(format!("byBlob{n}"),Index::of(&["blob"],false));}
     assert_eq!(e.adopt(next,b.programs.into_iter().map(|p|p.program)).unwrap_err().code(),"E_BOUND");assert_eq!(e.generation(),generation);assert!(visible(&mut e,"alice"));transfer(&mut e,"bob");assert!(visible(&mut e,"bob"));
 }
+
+#[test]
+fn dormant_live_cells_require_immediate_manual_agreement_for_captured_adoption() {
+    use snapback4_core::engine::release::ReleaseActivation;
+    let captured=SOURCE.replace("read through live .project","read through .project").replace("  owner: principal\n  read","  owner: principal\n  immutable owner\n  read");
+    for narrowed in [false,true] {
+        let live=SOURCE.replace("  body: text <=80","  status: enum('active', 'draft') default 'draft'\n  body: text <=80");let mut e=seeded(&live,"alice",true);
+        let manual=manual().replace("  body: text <=80","  status: enum('active', 'draft') default 'draft'\n  body: text <=80");let b=build(&manual);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();
+        let mut generation=2;
+        if narrowed {let b=build(&manual.replace("enum('active', 'draft') default 'draft'","enum('active') default 'active'"));e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap();generation=3;}
+        transfer(&mut e,"bob");let b=build(&captured);let err=e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(generation+1,Some(generation)),false).unwrap_err();assert_eq!(err.code(),"E_READ_THROUGH_ADOPT","narrowed={narrowed}: {err}");assert_eq!(e.generation(),generation);
+    }
+}
+
+#[test]
+fn narrowed_manual_source_does_not_become_live_from_column_shape() {
+    use snapback4_core::engine::release::ReleaseActivation;
+    let wide=SOURCE.replace("  body: text <=80","  status: enum('active', 'draft') default 'draft'\n  body: text <=80");let mut e=seeded(&wide,"alice",true);
+    let manual=manual().replace("  body: text <=80","  status: enum('active', 'draft') default 'draft'\n  body: text <=80");let b=build(&manual);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();
+    let captured=wide.replace("read through live .project","read through .project").replace("  owner: principal\n  read","  owner: principal\n  immutable owner\n  read");let b=build(&captured.replace("enum('active', 'draft') default 'draft'","enum('active') default 'active'"));e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap();
+    {let tx=e.store_mut().transaction().unwrap();let source:String=tx.conn().query_row("SELECT definition FROM _dormant_narrow_rows WHERE id='c'",[],|r|r.get(0)).unwrap();let old:snapback4_core::schema::Table=serde_json::from_str(&source).unwrap();assert!(old.through.is_none());tx.rollback().unwrap();}
+    // Reintroduce mutable parent writes while the row remains dormant.
+    let b=build(&manual.replace("enum('active', 'draft') default 'draft'","enum('active') default 'active'"));e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(4,Some(3)),false).unwrap();transfer(&mut e,"bob");
+    let b=build(&captured);assert_eq!(e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(5,Some(4)),false).unwrap_err().code(),"E_READ_THROUGH_ADOPT");assert_eq!(e.generation(),4);
+}
+
+#[test]
+fn live_policy_reference_does_not_bind_a_retired_audience_lifetime() {
+    use snapback4_core::engine::release::ReleaseActivation;
+    let source="table departments:\n  owner: principal\n  read <- .owner = viewer\n  online only\ntable projects:\n  department: departments\n  read <- exists members[.department, viewer]\n  online only\ntable members:\n  department: departments\n  principal: principal\n  unique department, principal\n  read <- .principal = viewer\n  online only\ntable tasks:\n  project: projects\n  status: enum('active', 'draft') default 'draft'\n  immutable project\n  cap 2 by project\n  read through live .project\n  online only\nquery one(task: tasks):\n  return tasks[task]\n";
+    let b=build(source);let mut e=Engine::new_release(snapback4_core::Store::memory().unwrap(),b.schema,b.programs.into_iter().map(|p|p.program),1,None).unwrap();
+    let rows=[("departments",json!({"id":"a","owner":"alice"})),("departments",json!({"id":"b","owner":"bob"})),("projects",json!({"id":"p","department":"a"})),("members",json!({"id":"ma","department":"a","principal":"alice"})),("members",json!({"id":"mb","department":"b","principal":"bob"})),("tasks",json!({"id":"c","project":"p"}))].into_iter().map(|(n,row)|(n.into(),wire::row_from_json(&e.schema().tables[n],&row).unwrap())).collect::<Vec<_>>();e.seed(rows).unwrap();
+    let b=build(&source.replace("enum('active', 'draft') default 'draft'","enum('active') default 'active'"));e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();
+    e.seed([("projects".into(),snapback4_core::value::object([("id",Value::Id("p".into())),("department",Value::Id("b".into()))]))]).unwrap();
+    {let table=e.schema().tables["departments"].clone();let tx=e.store_mut().transaction().unwrap();let row=tx.get("departments","a").unwrap().unwrap();tx.delete("departments",&table,&row).unwrap();tx.commit().unwrap();}
+    let b=build(source);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap();for (who,yes) in [("alice",false),("bob",true)] {let out=e.query("one",Context::new(who,[("task".into(),Value::Id("c".into()))].into())).unwrap();assert_eq!(out.data!=Value::Null,yes);}
+}
+
+#[test]
+fn unused_live_cell_does_not_replace_a_captured_rows_own_audience() {
+    use snapback4_core::engine::release::ReleaseActivation;
+    let wide=SOURCE.replace("  sync\n","  online only\n").replace("  body: text <=80","  status: enum('active', 'draft') default 'draft'\n  body: text <=80").replace("  owner: principal\n  read","  owner: principal\n  label: enum('visible', 'hidden') default 'visible'\n  read");
+    let both=wide.replace("read <- .owner = viewer","read <- .owner = viewer and .label = 'visible'");
+    let captured=wide.replace("read through live .project","read through .project").replace("  owner: principal\n","  owner: principal\n  immutable owner\n");
+    let narrow=captured.replace("enum('active', 'draft') default 'draft'","enum('active') default 'active'");
+    for changed_owner in [false,true] {
+        let mut e=seeded(&both,"alice",true);let b=build(&captured);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();
+        let b=build(&narrow);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap();
+        let manual=manual().replace("  sync\n","  online only\n").replace("  body: text <=80","  status: enum('active') default 'active'\n  body: text <=80").replace("  owner: principal\n  read","  owner: principal\n  label: enum('visible', 'hidden') default 'visible'\n  read");let b=build(&manual);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(4,Some(3)),false).unwrap();
+        let owner=if changed_owner {"bob"} else {"alice"};e.seed([("projects".into(),snapback4_core::value::object([("id",Value::Id("p".into())),("owner",Value::Id(owner.into())),("label",Value::String("hidden".into()))]))]).unwrap();
+        let target=captured.replace("read <- .owner = viewer","read <- .owner = viewer and .label = 'hidden'").replace("  label: enum('visible', 'hidden') default 'visible'","  label: enum('visible', 'hidden') default 'visible'\n  immutable label");let b=build(&target);let out=e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(5,Some(4)),false);
+        // Captured-definition changes retain their existing explicit bridge refusal.
+        assert_eq!(out.unwrap_err().code(),"E_ADOPT");assert_eq!(e.generation(),4);
+    }
+}

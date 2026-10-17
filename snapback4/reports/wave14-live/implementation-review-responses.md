@@ -68,3 +68,13 @@ The two-parent regression mixes a dormant captured child and a later live child,
 Muse READY on frozen 0702c95c58. Codex found one P1: inferred manual correspondence could target the immutable parent reference. Both whole-population reconciliation and per-row restoration now treat that binding like row identity: a mapped value must already equal it, otherwise adoption refuses with a separate-copy-column rewrite. Active and dormant variants of the reference-valued policy-input witness refuse atomically and retain the original binding/generation.
 
 The reverse-manual route now also includes destination scratch in its admitted walk, and narrowed restoration prepays the destination image before recapture. The manual successor with 6,000 indexes refuses before allocating its old/new key sets, preserving the live generation and subsequent transfer behavior. Final changed-scope checks: 42 language-live tests and 100 store tests pass. These are corrections to the accepted identity/binding and before-allocation contracts; no new language shape or runtime ceiling.
+
+## Round 11 response
+
+Muse READY on frozen 65564eb9f5; Codex found the immediate-manual check was limited to live destinations. Manual → captured restoration now checks the actual manual predicate and current parent before live-origin dormant cells can authorize recapture. The active and narrowed Alice-copy/Bob-parent witnesses refuse atomically with E_READ_THROUGH_ADOPT.
+
+Authority mode and cell origin are separate. Newly narrowed rows retain their actual source table definition, independently of recovered column shape metadata. Whole/narrowed restoration carries manual/captured/live source mode in the FILE-backed relation through the final barrier. Per-row reconciliation has priority over a different global predecessor mode; captured rows preserve their own inputs/deadlines rather than acquiring whole-row live provenance from an unused older cell. Existing captured-definition bridge refusals remain intact.
+
+Live policy-input references do not bind the lifetime of a former audience target. Immutable parent binding/deletion evidence remains mandatory. Authored references and original captured inputs keep their historical lifetime checks. A department-valued policy witness narrows its live child, moves the parent from department A to B, deletes A, and restores the child readable only by B's member. This complements the existing parent deletion/reuse refusals.
+
+Reverse-live parent reconciliation precedes forward-child correspondence, and that check uses the ordinary destination parent policy when the parent itself exits inherited mode. Source/destination parent scratch remains admitted by the same bounded walker; no ceiling or supported live shape changes.
