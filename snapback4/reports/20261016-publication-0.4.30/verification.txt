@@ -1,0 +1,11 @@
+Clean-directory verification after publication (2026-10-16/17). SNAPBACK4_BIN unset; --registry https://registry.npmjs.org/.
+
+npm view (Linux):
+snapback4@0.4.30               sha512-bsbHG4XVDlqaP/PpRBmboCk7ICVkPE8GkFyxTAIlaWx+M9UcES0rKFvCHljOo+2710dU8gFK06adhvTI0ViwPw==  latest=0.4.30
+snapback4-darwin-arm64@0.4.30  sha512-vrf5b0eMdbBsRB9rV92iplz5rlQzdyqFDLJuk79ZIA9YAKka/DETYiEVyYcZcn0ICDiem8QbsJs0U/9qkctGJA==  latest=0.4.30
+snapback4-linux-x64@0.4.30     sha512-QcgY0/C/dwxXRMhSbxELx7XT2/5xrnDMQn4NyjvdabpN/6scJjm03VyeCr2Qy2f5H5WBwFWaam9uQ2jjyE6+0Q==  latest=0.4.30
+snapback4-expo@0.4.30          sha512-P8k4oDxCcg7Y+4go5HLHE24idpuFfBBRehWtuJU0+c45y8X+bBsf7oG8fa/Y13XLAIxXCn4HEmDRhV8Mn6CEUA==  latest=0.4.30
+
+Linux (expo-build-1000, node 24.13.1): npm i snapback4@0.4.30 -> snapback4, snapback4-linux-x64; --version 0.4.30; init + check ok (exit 0).
+Mac (M5 black, node 24.18.0): npm i snapback4@0.4.30 snapback4-expo@0.4.30 -> snapback4, snapback4-darwin-arm64, snapback4-expo 0.4.30;
+  --version 0.4.30; binary Authority=Developer ID Application: Charles Cheever (UD2ZVW5WU5); init + check ok (exit 0).

@@ -1,0 +1,4 @@
+bun-install exit=0 seconds=0.1
+xcframework-build exit=0 seconds=69.4
+native-prepare exit=1 seconds=0.4
+STOPPED at native-prepare
