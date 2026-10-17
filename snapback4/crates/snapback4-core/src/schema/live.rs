@@ -98,12 +98,12 @@ fn endpoint(schema: &Schema, name: &str, allow_child: bool, probe: bool) -> bool
 fn key_column(kind: &ColumnType) -> Option<u64> {
     use ColumnType::*;
     Some(match kind.required() {
-        Id | Principal | Ref { .. } => 2 * 144 + 2,
-        Text { max } => u64::from(*max).checked_mul(8)?.checked_add(2)?,
-        Bytes { max } => u64::from(*max).checked_mul(2)?.checked_add(2)?,
+        Id | Principal | Ref { .. } => 2 * 144 + 3,
+        Text { max } => u64::from(*max).checked_mul(8)?.checked_add(3)?,
+        Bytes { max } => u64::from(*max).checked_mul(2)?.checked_add(3)?,
         Enum { variants } => (variants.iter().map(|s| s.len()).max().unwrap_or(0) as u64)
             .checked_mul(2)?
-            .checked_add(2)?,
+            .checked_add(3)?,
         Bool => 2,
         Int | IntRange { .. } | Time | Decimal { .. } | Money { .. } => 16,
         _ => return None,
@@ -116,7 +116,7 @@ pub fn key_shapes(table_name: &str, table: &Table) -> bool {
             && index
                 .columns()
                 .iter()
-                .try_fold(0_u64, |n, f| {
+                .try_fold(key_column(&ColumnType::Id).unwrap(), |n, f| {
                     n.checked_add(key_column(table.columns.get(f)?)?)
                 })
                 .is_some_and(|n| n <= crate::rows::MAX_INDEX_KEY_BYTES as u64)
@@ -286,4 +286,17 @@ pub fn write_price(schema: &Schema, source: &str) -> Option<LiveReservation> {
         result.children.push(name.clone());
     }
     Some(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn key_bound_includes_tag_escaped_bytes_and_appended_id() {
+        let mut table=public_table([("id".into(),ColumnType::Id),("blob".into(),ColumnType::Bytes{max:877})].into(),[("byId".into(),Index::of(&["id"],true))].into());table.indexes.insert("byBlob".into(),Index::of(&["blob"],false));
+        assert!(key_shapes("rows",&table));
+        let row=crate::value::object([("blob",Value::Bytes(vec![0;877]))]);let id="\0".repeat(144);
+        assert_eq!(crate::rows::index_key(&table.indexes["byBlob"],&row,&id).len(),crate::rows::MAX_INDEX_KEY_BYTES);
+        table.columns.insert("blob".into(),ColumnType::Bytes{max:878});assert!(!key_shapes("rows",&table));
+    }
 }

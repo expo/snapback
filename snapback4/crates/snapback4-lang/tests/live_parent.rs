@@ -683,3 +683,62 @@ fn published_manual_copy_recipe_adopts_live_and_back_without_changing_row_ids() 
     let out=e.query("rosterFile",Context::new("dev:bob",[("file".into(),Value::Id("c".into()))].into())).unwrap();assert_eq!(out.data.field("department").unwrap(),&Value::Id("new".into()));
     let out=e.query("rosterFile",Context::new("dev:alice",[("file".into(),Value::Id("c".into()))].into())).unwrap();assert_eq!(out.data,Value::Null);
 }
+
+#[test]
+fn dormant_bad_manual_copy_cannot_silently_adopt_live() {
+    use snapback4_core::engine::release::ReleaseActivation;
+    let mut e=seeded(&manual(),"bob",true);
+    let removed=format!("{}mutation transfer(project: projects, owner: principal):\n  update projects[project] {{ owner }}\n",SOURCE.split("table tasks:").next().unwrap());
+    let b=build(&removed);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();
+    let generation=e.generation();let b=build(SOURCE);let error=e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap_err();
+    assert_eq!(error.code(),"E_READ_THROUGH_ADOPT");assert_eq!(e.generation(),generation);
+}
+#[test]
+fn narrowed_live_provenance_survives_an_intermediate_manual_release() {
+    use snapback4_core::engine::release::ReleaseActivation;
+    let wide=SOURCE.replace("  body: text <=80","  owner: principal default 'alice'\n  status: enum('active', 'draft') default 'draft'\n  body: text <=80");
+    let mut e=seeded(&wide,"alice",true);
+    let narrow=wide.replace("enum('active', 'draft') default 'draft'","enum('active') default 'active'");
+    let b=build(&narrow);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();transfer(&mut e,"bob");
+    let manual_narrow=narrow.replace("read through live .project","read <- .owner = viewer");
+    let b=build(&manual_narrow);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap();
+    let manual_wide=wide.replace("read through live .project","read <- .owner = viewer");
+    let b=build(&manual_wide);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(4,Some(3)),false).unwrap();assert!(!visible(&mut e,"alice"));assert!(visible(&mut e,"bob"));
+}
+#[test]
+fn null_reference_cap_exemptions_survive_mixed_schema_restore() {
+    let source=format!("{SOURCE}\ntable looseParents:\n  public 'parents'\n  online only\ntable looseRows:\n  parent: looseParents ? on delete set null\n  cap 1 by parent\n  public 'rows'\n  online only\n");
+    let mut e=seeded(&source,"alice",false);
+    let rows=[("looseParents",json!({"id":"a"})),("looseParents",json!({"id":"b"})),("looseRows",json!({"id":"a","parent":"a"})),("looseRows",json!({"id":"b","parent":"b"}))].into_iter().map(|(n,row)|(n.into(),wire::row_from_json(&e.schema().tables[n],&row).unwrap())).collect::<Vec<_>>();e.seed(rows).unwrap();e.seed_delete("looseParents","a").unwrap();e.seed_delete("looseParents","b").unwrap();
+    let row=wire::row_from_json(&e.schema().tables["looseRows"],&json!({"id":"a","parent":null})).unwrap();e.load_trusted([("looseRows".into(),row)]).unwrap();
+}
+#[test]
+fn bulk_restore_reserves_all_index_vectors_before_put() {
+    use snapback4_core::schema::{Index,ColumnType,public_table};
+    let b=build(SOURCE);let mut schema=b.schema;
+    let mut table=public_table([("id".into(),ColumnType::Id),("body".into(),ColumnType::Bytes{max:900})].into(),[("byId".into(),Index::of(&["id"],true))].into());
+    for n in 0..6000 {table.indexes.insert(format!("byBody{n}"),Index::of(&["body"],false));}
+    schema.tables.insert("wideIndexes".into(),table.clone());let mut e=Engine::memory(schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let old=snapback4_core::value::object([("id",Value::Id("r".into())),("body",Value::Bytes(vec![0;900]))]);
+    {let tx=e.store_mut().transaction().unwrap();tx.put("wideIndexes",&table,&old,None).unwrap();tx.commit().unwrap();}
+    let mut bytes=vec![0;900];bytes[899]=1;let row=snapback4_core::value::object([("id",Value::Id("r".into())),("body",Value::Bytes(bytes))]);
+    let error=e.load_trusted([("wideIndexes".into(),row)]).unwrap_err();assert_eq!(error.code(),"E_BOUND");
+    let tx=e.store_mut().transaction().unwrap();assert_eq!(tx.get("wideIndexes","r").unwrap(),Some(old));tx.rollback().unwrap();
+}
+#[test]
+fn unchanged_captured_policy_does_not_enumerate_its_population_on_restore() {
+    let source=format!("{SOURCE}\ntable capturedParents:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  online only\ntable capturedRows:\n  parent: capturedParents\n  immutable parent\n  read through .parent\n  online only\n");
+    let mut e=seeded(&source,"alice",false);let p=wire::row_from_json(&e.schema().tables["capturedParents"],&json!({"id":"r","owner":"alice"})).unwrap();e.seed([("capturedParents".into(),p.clone())]).unwrap();
+    let table=e.schema().tables["capturedRows"].clone();
+    {let tx=e.store_mut().transaction().unwrap();for n in 0..20_000 {let mut fields=std::collections::BTreeMap::from([("id".into(),Value::Id(format!("c{n}"))),("parent".into(),Value::Id("r".into())),("$parentDeadline".into(),Value::Null)]);for field in table.through.as_ref().unwrap().fields.keys() {fields.insert(field.clone(),Value::Id("alice".into()));}let mut row=Value::Row(fields.into());table.recompute_deadline(&mut row).unwrap();tx.put("capturedRows",&table,&row,None).unwrap();}tx.commit().unwrap();}
+    e.load_trusted([("capturedParents".into(),p)]).unwrap();
+    let changed=wire::row_from_json(&e.schema().tables["capturedParents"],&json!({"id":"r","owner":"bob"})).unwrap();assert!(e.load_trusted([("capturedParents".into(),changed)]).is_err());
+}
+
+#[test]
+fn expiring_cap_uses_live_occupancy_during_mixed_schema_restore() {
+    let source=format!("{SOURCE}\ntable expiringCapRows:\n  owner: principal\n  until: time\n  expire at .until\n  cap 1 by owner\n  public 'cap rows'\n  online only\n");let mut e=seeded(&source,"alice",false);let future=snapback4_core::now_ms()+60000;
+    let rows=[json!({"id":"old","owner":"alice","until":0}),json!({"id":"current","owner":"alice","until":future})].into_iter().map(|row|("expiringCapRows".into(),wire::row_from_json(&e.schema().tables["expiringCapRows"],&row).unwrap())).collect::<Vec<_>>();e.seed(rows).unwrap();
+    let row=wire::row_from_json(&e.schema().tables["expiringCapRows"],&json!({"id":"current","owner":"alice","until":future})).unwrap();e.load_trusted([("expiringCapRows".into(),row)]).unwrap();
+    let row=wire::row_from_json(&e.schema().tables["expiringCapRows"],&json!({"id":"extra","owner":"alice","until":future})).unwrap();assert!(e.load_trusted([("expiringCapRows".into(),row)]).is_err());
+}

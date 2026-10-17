@@ -100,12 +100,17 @@ pub(super) fn transition(
     // Stream on the primary key. Do not retain a store-sized list of images.
     let mut cursor = (0i64, String::new());
     loop {
-        let item: Option<(i64,String,String,String)> = tx.conn().query_row(
-            "SELECT t,id,data,definition FROM _dormant_narrow_rows WHERE (t,id)>(?1,?2) ORDER BY t,id LIMIT 1",
+        let item: Option<(i64,String,i64,i64)> = tx.conn().query_row(
+            "SELECT t,id,octet_length(data),octet_length(definition) FROM _dormant_narrow_rows WHERE (t,id)>(?1,?2) ORDER BY t,id LIMIT 1",
             params![cursor.0,cursor.1],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?))).optional()?;
-        let Some((t, id, data, definition)) = item else {
-            break;
-        };
+        let Some((t,id,data_bytes,definition_bytes))=item else {break};
+        // Retain one admitted provenance/image unit through decode, overlays,
+        // reconciliation and encoding. Never own its blobs before this bound.
+        let mut admission=crate::meter::Meter::new(crate::meter::Ceilings::job(),crate::meter::Cut::Abort);
+        if super::live_activation::active(tx)? {
+            admission.heap((data_bytes as u64).saturating_add(definition_bytes as u64).saturating_mul(64).saturating_add(8192))?;
+        }
+        let (data,definition):(String,String)=tx.conn().query_row("SELECT data,definition FROM _dormant_narrow_rows WHERE t=?1 AND id=?2",params![t,id],|r|Ok((r.get(0)?,r.get(1)?)))?;
         cursor = (t, id.clone());
         let name: String =
             tx.conn()
@@ -143,6 +148,7 @@ pub(super) fn transition(
         if invalid {
             continue;
         }
+        crate::engine::through_activation::forward_image(tx,next,source_definitions,&name,&old,&row,now)?;
         for column in old.columns.keys() {
             if !table.columns.contains_key(column) {
                 super::dormant::definition(tx, &name, &old, column)?;
@@ -154,13 +160,7 @@ pub(super) fn transition(
         if let Value::Row(fields) | Value::Map(fields) = &mut row {
             fields.retain(|c, _| table.columns.contains_key(c));
         }
-        let values = tx
-            .conn()
-            .prepare_cached("SELECT column_name,data FROM _dormant_values WHERE t=?1 AND id=?2")?
-            .query_map(params![t, id], |r| {
-                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
-            })?
-            .collect::<Result<Vec<_>, _>>()?;
+        let values=super::dormant::restored_values(tx,t,&id,table,&mut admission)?;
         if let Value::Row(fields) | Value::Map(fields) = &mut row {
             for (column, data) in values {
                 if table.columns.contains_key(&column) {
@@ -172,6 +172,7 @@ pub(super) fn transition(
                 }
             }
         }
+        crate::engine::through_activation::manual_image(tx,next,&name,&old,&mut row,now)?;
         crate::schema::materialize_optional_fields(&mut row, table);
         // Missing required new fields are a genuine backfill refusal, not dormancy.
         tx.conn().execute(

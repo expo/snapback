@@ -145,10 +145,7 @@ pub(super) fn restore(
         table.recompute_deadline(&mut row)?;
         validate::validate_row(schema, &name, &row)?;
         runner.meter.charge(MeterKind::RowsWritten, 1)?;
-        runner.meter.charge(
-            MeterKind::IndexEntries,
-            tx.put(&name, table, &row, old.as_ref())?,
-        )?;
+        bulk_put(&mut runner, &name, table, &row, old.as_ref())?;
     }
     // Every existing off-input child of a replaced parent is in before.
     for ((name, id), _) in &before {
@@ -176,10 +173,7 @@ pub(super) fn restore(
         let old = row.clone();
         super::through::stamp(&schema.tables[&edge.parent], edge, &p, &mut row)?;
         table.recompute_deadline(&mut row)?;
-        runner.meter.charge(
-            MeterKind::IndexEntries,
-            tx.put(name, table, &row, Some(&old))?,
-        )?;
+        bulk_put(&mut runner, name, table, &row, Some(&old))?;
         runner.meter.release_heap(mark);
     }
     validate_final(&mut runner, &before, now)?;
@@ -239,13 +233,29 @@ fn validate_final(
     before: &BTreeMap<(String, String), Option<Value>>,
     now: i64,
 ) -> Result<(), RuntimeError> {
-    for ((name, id), _) in before {
+    for ((name, id), previous) in before {
         validate_one(r, name, id, now, true)?;
         for (child, _, edge) in r
             .schema
             .children(name)
             .filter(|(_, _, edge)| edge.live.is_none())
         {
+            let parent = &r.schema.tables[name];
+            r.meter
+                .heap(crate::rows::disclosed::decode_reservation(parent).saturating_mul(2))?;
+            let current = r
+                .metered_scan(|r, scope| r.tx.get(scope, name, id))?
+                .ok_or_else(|| RuntimeError::Store("restored parent disappeared".into()))?;
+            let current = crate::schema::row_image(&current, parent);
+            if previous.as_ref().is_some_and(|old| {
+                let old = crate::schema::row_image(old, parent);
+                edge.fields
+                    .values()
+                    .all(|f| old.field(f).ok() == current.field(f).ok())
+                    && parent.deadline(&old) == parent.deadline(&current)
+            }) {
+                continue;
+            }
             let mut bounds = Bounds::default();
             loop {
                 let mark = r.meter.mark();
@@ -342,7 +352,14 @@ fn validate_one(
             r.meter.heap(12 * crate::rows::MAX_INDEX_KEY_BYTES as u64)?;
             let key = crate::rows::index_values(&table.indexes[index], &row);
             let group = key[..width].to_vec();
-            if !(nulls_distinct && group.contains(&Value::Null)) {
+            if !(nulls_distinct && group.contains(&Value::Null))
+                && (nulls_distinct
+                    || !r.schema.cap_skips_null(
+                        table,
+                        &table.indexes[index].columns()[..width],
+                        &group,
+                    ))
+            {
                 let mut bounds = Bounds::default();
                 let mut count = 0;
                 loop {
@@ -353,7 +370,27 @@ fn validate_one(
                     })?;
                     let Some(key) = key else { break };
                     bounds.after = Some(key.into_iter().skip(width).collect());
-                    count += 1;
+                    let occupies = if !nulls_distinct && table.is_expiring() {
+                        let mark = r.meter.mark();
+                        r.meter.charge(MeterKind::Examined,1)?;
+                        r.meter
+                            .heap(crate::rows::disclosed::decode_reservation(table))?;
+                        let row_id = bounds
+                            .after
+                            .as_ref()
+                            .and_then(|k| k.last())
+                            .ok_or_else(|| RuntimeError::Store("cap key misses identity".into()))?
+                            .as_str()?;
+                        let row = r
+                            .metered_scan(|r, scope| r.tx.get(scope, name, row_id))?
+                            .ok_or_else(|| RuntimeError::Store("cap row disappeared".into()))?;
+                        let live = !table.expired(&row, now);
+                        r.meter.release_heap(mark);
+                        live
+                    } else {
+                        true
+                    };
+                    count += u64::from(occupies);
                     if count > max {
                         return Err(RuntimeError::Constraint(format!(
                             "bulk restoration exceeds {name}.{index} bound {max}"
@@ -364,6 +401,49 @@ fn validate_one(
             r.meter.release_heap(scratch);
         }
     }
+    r.meter.release_heap(mark);
+    Ok(())
+}
+
+// Native index_write retains every old/new key vector concurrently. Reserve
+// complete cardinality/width buffers before it owns any key, not after put.
+fn bulk_put(
+    r: &mut Runner<'_>,
+    name: &str,
+    table: &crate::schema::Table,
+    row: &Value,
+    old: Option<&Value>,
+) -> Result<(), RuntimeError> {
+    let mark = r.meter.mark();
+    let k = crate::rows::MAX_INDEX_KEY_BYTES as u64;
+    let mut keys = 0_u64;
+    for (index_name, index) in &table.indexes {
+        let copies = if let Some((_, fields)) = index.word_component() {
+            fields
+                .iter()
+                .filter_map(|f| table.columns.get(f))
+                .map(|kind| match kind.required() {
+                    crate::schema::ColumnType::Text { max } => u64::from(*max),
+                    _ => 0,
+                })
+                .fold(0_u64, u64::saturating_add)
+                .min(crate::words::MAX_TOKENS_PER_ROW as u64)
+        } else {
+            1
+        };
+        keys = keys.saturating_add(copies.saturating_mul(
+            4 * k
+                + 128 * (index.components.len() as u64 + 1)
+                + 512
+                + 4 * (name.len() + index_name.len()) as u64,
+        ));
+    }
+    r.meter.heap(
+        keys.saturating_mul(2)
+            .saturating_add(crate::rows::disclosed::decode_reservation(table).saturating_mul(4)),
+    )?;
+    let entries = r.tx.put(name, table, row, old)?;
+    r.meter.charge(MeterKind::IndexEntries, entries)?;
     r.meter.release_heap(mark);
     Ok(())
 }

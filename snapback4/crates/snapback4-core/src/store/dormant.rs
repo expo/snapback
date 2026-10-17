@@ -498,14 +498,8 @@ pub(super) fn transition(
         {
             continue;
         }
-        super::activation::walk(tx, t, |id, mut row| {
-            let values: Vec<(String, String)> = tx
-                .conn()
-                .prepare_cached(
-                    "SELECT column_name,data FROM _dormant_values WHERE t=?1 AND id=?2",
-                )?
-                .query_map(params![t, id], |r| Ok((r.get(0)?, r.get(1)?)))?
-                .collect::<Result<_, _>>()?;
+        super::activation_walk::walk_metered(tx,t,crate::rows::adoption::Work::DECODE,None,|id,mut row,meter| {
+            let values=restored_values(tx,t,id,table,meter)?;
             for (column, data) in values
                 .into_iter()
                 .filter(|(c, _)| table.columns.contains_key(c))
@@ -531,6 +525,8 @@ pub(super) fn transition(
     }
     let mut source_definitions=previous.map(|s|s.tables.clone()).unwrap_or_default();
     for (name,table) in &restoring {source_definitions.insert(name.clone(),table.clone());}
+    let authority_sources=source_definitions.clone();
+    crate::engine::through_activation::forward_sources(tx,next,&authority_sources,now)?;
     for (name,column,text) in &cells {
         if let Some(candidate)=next.table(name).filter(|t|t.columns.contains_key(column)) {
             let old:Column=serde_json::from_str(text).map_err(|e|RuntimeError::Store(e.to_string()))?;
@@ -732,4 +728,22 @@ pub(super) fn holds_home(tx: &Tx<'_>, table: &str, column: &str) -> Result<bool,
     }
     let narrowed=if super::narrowed::present(tx.conn())? {" OR EXISTS(SELECT 1 FROM _dormant_narrow_rows n JOIN _catalog c ON n.t=c.num WHERE c.name=?1)"}else{""};
     Ok(tx.conn().query_row(&format!("SELECT EXISTS(SELECT 1 FROM _dormant_tables WHERE table_name=?1) OR EXISTS(SELECT 1 FROM _dormant_columns WHERE table_name=?1 AND column_name=?2){narrowed}"),params![table,column],|r|r.get(0))?)
+}
+
+/// Fetch only destination cells on live transitions, after paying their full
+/// serialized/decoded coexistence in the owning activation page/row account.
+pub(super) fn restored_values(tx:&Tx<'_>,t:i64,id:&str,table:&Table,meter:&mut crate::meter::Meter)->Result<Vec<(String,String)>,RuntimeError> {
+    if !super::live_activation::active(tx)? {
+        return Ok(tx.conn().prepare_cached("SELECT column_name,data FROM _dormant_values WHERE t=?1 AND id=?2")?.query_map(params![t,id],|r|Ok((r.get(0)?,r.get(1)?)))?.collect::<Result<_,_>>()?);
+    }
+    let mut values=Vec::new();
+    for column in table.columns.keys() {
+        let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(data) FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,column],|r|r.get(0)).optional()?;
+        if let Some(bytes)=bytes {
+            meter.heap((bytes as u64).saturating_mul(64).saturating_add(1024+column.len() as u64*8))?;
+            let data:String=tx.conn().query_row("SELECT data FROM _dormant_values WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,column],|r|r.get(0))?;
+            values.push((column.clone(),data));
+        }
+    }
+    Ok(values)
 }

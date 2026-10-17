@@ -96196,3 +96196,13 @@ against RULES4. Budget 726,458 B is measurement plus exactly 500 B. The
 additional bytes carry live-parent-copy-v1 metadata, admission and exported
 prices/device queuing; native fanout/bulk/adoption stays off the web path. No
 runtime ceiling is raised. Final qualification lives in reports/wave14-live.
+
+LIVE implementation review closure: recovered manual table rules are validated
+before live adoption, and narrowed rows retain their individual historical live
+provenance across intermediate manual generations. Key admission includes row
+id/tag/terminator bytes. Bulk puts prepay all simultaneous index vectors and
+reuse ordinary null/expiry cap semantics; unchanged capture inputs avoid a
+population walk. Authoritative memory restoration now uses the shared bounded
+final-image contract; source imports needing derivations use seed. Dormant
+images/provenance and destination-cell overlays are byte-admitted before
+ownership. New regressions cover all seven round-2 witnesses.

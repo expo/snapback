@@ -336,6 +336,51 @@ pub(crate) fn activate_retained(
     Ok(shortened)
 }
 
+/// Validate a recovered manual image before any authority cells are projected away.
+pub(crate) fn forward_image(tx:&dyn Rows,next:&Schema,sources:&BTreeMap<String,Table>,name:&str,old:&Table,row:&Value,now:i64)->Result<(),RuntimeError> {
+    let Some(destination)=next.table(name) else {return Ok(())};
+    let Some(edge)=destination.through.as_ref().filter(|e|e.live.is_some()) else {return Ok(())};
+    if old.through.is_some() || Retirement::retires_image(destination,old,row,now) {return Ok(());}
+    let parent=sources.get(&edge.parent).or_else(||next.table(&edge.parent)).ok_or_else(||refusal(name,1,"restored manual source needs its parent definition",&[]))?;
+    let map=correspondence(&old.rules.read,&parent.rules.read).ok_or_else(||refusal(name,1,"restored manual source lacks full audience correspondence",&[]))?;
+    let p=row.field(&edge.reference).ok().and_then(|v|v.as_str().ok()).map(|id|tx.get(&edge.parent,id)).transpose()?.flatten();
+    let matches=p.as_ref().is_some_and(|p|parent.live(p,now) && {
+        let p=crate::schema::row_image(p,parent);let old=crate::schema::row_image(row,old);
+        map.iter().all(|(f,source)|old.field(f).ok()==p.field(source).ok())
+    });
+    if !matches {return Err(refusal(name,1,"restored manual source has disagreeing audience correspondence",&[]));}Ok(())
+}
+pub(crate) fn forward_sources(tx:&dyn Rows,next:&Schema,sources:&BTreeMap<String,Table>,now:i64)->Result<(),RuntimeError> {
+    for (name,old) in sources {
+        if old.through.is_none() && next.table(name).and_then(|t|t.through.as_ref()).is_some_and(|t|t.live.is_some()) {
+            let parent=next.table(&next.tables[name].through.as_ref().unwrap().parent);
+            rows(tx,name,old,parent,true,|row|forward_image(tx,next,sources,name,old,&row,now))?;
+        }
+    }Ok(())
+}
+/// Reconcile per-row provenance as well as complete-table source definitions.
+pub(crate) fn manual_image(tx:&dyn Rows,next:&Schema,name:&str,old:&Table,row:&mut Value,now:i64)->Result<(),RuntimeError> {
+    let Some(edge)=old.through.as_ref().filter(|e|e.live.is_some()) else {return Ok(())};
+    let Some(destination)=next.table(name).filter(|t|t.through.is_none()) else {return Ok(())};
+    let parent=next.table(&edge.parent).ok_or_else(||refusal(name,1,"manual restoration needs current parent",&[]))?;
+    let map=correspondence(&destination.rules.read,&parent.rules.read).ok_or_else(||refusal(name,1,"manual restoration needs whole current parent correspondence",&[]))?;
+    if destination.columns.get(&edge.reference)!=old.columns.get(&edge.reference) || !destination.immutable_fields().any(|f|f==edge.reference) {return Err(refusal(name,1,"manual restoration must preserve immutable parent binding",&[]));}
+    let p=tx.get(&edge.parent,row.field(&edge.reference)?.as_str()?)?.filter(|p|parent.live(p,now)).ok_or_else(||refusal(name,1,"manual restoration needs live current parent",&[]))?;
+    let p=crate::schema::row_image(&p,parent);
+    for (field,source) in map {
+        if destination.engine_field(&field) || !destination.columns.contains_key(&field) {return Err(refusal(name,1,"manual authority needs ordinary destination cells",&[]));}
+        let value=p.field(&source)?.clone();
+        if field=="id" {if row.field("id")?!=&value {return Err(refusal(name,1,"manual restoration cannot change identity",&[]));}}
+        else if let Value::Row(fields)|Value::Map(fields)=row {fields.insert(field,value);}
+    }Ok(())
+}
+#[cfg(feature="sqlite")]
+pub fn restore_server_images(tx:&dyn Rows,schema:&Schema,rows:impl IntoIterator<Item=(String,Value)>,now:i64)->Result<u64,RuntimeError> {
+    // Same trusted final-image contract as native SQLite/Postgres. Derived
+    // images are durable import input, rather than an unbounded global rebuild.
+    super::live_bulk::restore(tx,schema,rows,0,now).map(|r|r.0)
+}
+
 /// Include recovered dormant source definitions, not just the immediate predecessor.
 pub(crate) fn reconcile_manual(tx:&dyn Rows,next:&Schema,sources:&BTreeMap<String,Table>,now:i64)->Result<(),RuntimeError> {
     // @ref LLP 3000.014.000#7-adoption-and-rollback — dormant manual cells are never authority after a live transfer.

@@ -149,3 +149,13 @@ fn authoritative_memory_seed_admits_before_collecting_and_rolls_back() {
     let tx = store.transaction().unwrap();
     assert!(Rows::get(&tx, "projects", "p0").unwrap().is_none());
 }
+
+#[test]
+fn authoritative_memory_restore_recaptures_and_admits_the_whole_call() {
+    use snapback4_core::rows::Rows;
+    let (_,backend)=compile(SOURCE);let schema=backend.schema.clone();let mut store=snapback4_device::memory::MemoryStore::new();store.activate_server_at(backend.schema,0).unwrap();
+    let rows=[("projects",json!({"id":"p","owner":"alice"})),("tasks",json!({"id":"c","project":"p","body":"private"}))].into_iter().map(|(n,row)|(n.into(),wire::row_from_json(&schema.tables[n],&row).unwrap())).collect::<Vec<_>>();store.seed_server_at(rows,1).unwrap();
+    let parent=wire::row_from_json(&schema.tables["projects"],&json!({"id":"p","owner":"bob"})).unwrap();store.restore_server_at([("projects".into(),parent)],2).unwrap();
+    {let tx=store.transaction().unwrap();let row=Rows::get(&tx,"tasks","c").unwrap().unwrap();assert_eq!(row.field("$project.owner").unwrap(),&id("bob"));}
+    let consumed=std::cell::Cell::new(0);let rows=(0..100_000).map(|n|{consumed.set(n+1);("projects".into(),snapback4_core::value::object([("id",id(&format!("x{n}"))),("owner",id("mallory"))]))});let error=store.restore_server_at(rows,3).unwrap_err();assert_eq!(error.code(),"E_BOUND");assert!(consumed.get()<100_000);let tx=store.transaction().unwrap();assert!(Rows::get(&tx,"projects","x0").unwrap().is_none());
+}
