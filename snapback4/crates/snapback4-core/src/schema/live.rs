@@ -96,7 +96,7 @@ fn endpoint(schema: &Schema, name: &str, allow_child: bool, probe: bool) -> bool
         && (probe || !schema.synced().any(|(_,_,sync)| matches!(&sync.audience, Audience::Target { table, .. } if table == name)))
 }
 /// Maximum owned encoded key, including tags/terminators and escaped payload.
-fn key_column(kind: &ColumnType) -> Option<u64> {
+pub(crate) fn key_column(kind: &ColumnType) -> Option<u64> {
     use ColumnType::*;
     Some(match kind.required() {
         Id | Principal | Ref { .. } => 2 * 144 + 3,

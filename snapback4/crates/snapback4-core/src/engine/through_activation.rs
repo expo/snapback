@@ -94,8 +94,13 @@ fn live_work(tx:&dyn Rows,name:&str,old:Option<&Table>,next:&Schema)->Result<boo
         || tx.has_restored_live_authority(name)?)
 }
 
+// Both definitions may coexist in a raw source image until projection.
+fn parent_bytes(a:Option<&Table>,b:Option<&Table>)->u64 {
+    a.into_iter().chain(b).map(crate::rows::disclosed::decode_reservation).fold(0_u64,u64::saturating_add).saturating_mul(4)
+}
+
 fn rows(
-    tx: &dyn Rows, name: &str, table: &Table, parent: Option<&Table>, bounded: bool, destination: Option<&Table>,
+    tx: &dyn Rows, name: &str, table: &Table, parent_scratch: u64, bounded: bool, destination: Option<&Table>,
     mut visit: impl FnMut(Value) -> Result<(), RuntimeError>,
 ) -> Result<(), RuntimeError> {
     if !bounded {
@@ -110,7 +115,7 @@ fn rows(
     let keys=crate::rows::adoption::index_scratch(name,table).saturating_add(destination.map_or(0,|t|crate::rows::adoption::index_scratch(name,t)));
     let entries=crate::rows::adoption::index_capacity(table).saturating_add(destination.map_or(0,crate::rows::adoption::index_capacity)).saturating_mul(2);
     let scratch=decode.saturating_mul(4).saturating_add(destination.map_or(0,crate::rows::disclosed::decode_reservation).saturating_mul(4)).saturating_add(keys.saturating_mul(2))
-        .saturating_add(parent.map_or(0,crate::rows::disclosed::decode_reservation)).saturating_add(8192);
+        .saturating_add(parent_scratch).saturating_add(8192);
     tx.walk_adoption(name,decode,scratch,[2,table.columns.len() as u64+16,entries],&mut visit)
 }
 
@@ -225,7 +230,7 @@ pub(crate) fn activate_retained(
     let retirement = Retirement::new(next, previous, now);
     for (name, old) in retirement.affected.iter().rev() {
         let bounded=live_work(tx,name,Some(old),next)?;
-        rows(tx, name, old, None, bounded, None, |row| {
+        rows(tx, name, old, 0, bounded, None, |row| {
             if retirement.retires(name, &row) {
                 tx.delete(name, old, &row)?;
             }
@@ -249,7 +254,7 @@ pub(crate) fn activate_retained(
         let map = correspondence(&old.rules.read, &parent.rules.read);
         let mut invalid = 0;
         let mut samples = Vec::new();
-        rows(tx, name, old, Some(parent), bounded, None, |row| {
+        rows(tx, name, old, parent_bytes(Some(parent),next.table(&t.parent)), bounded, None, |row| {
             // @ref LLP 3000.000.000#10-wave-10-release-lifecycle-amendment — historical capture restoration needs no audience recapture.
             if tx.restored_live_authority(name,row.field("id")?.as_str()?)? {return Ok(());}
             if t.live.is_none() && retained.contains(name) && row.field(PARENT_DEADLINE).is_ok() && t.fields.keys().all(|f|row.field(f).is_ok()) {return Ok(());}
@@ -298,7 +303,7 @@ pub(crate) fn activate_retained(
         let recapture = previous.table(&name).and_then(|t| t.through.as_ref()) != Some(t);
         let mut invalid = 0;
         let mut samples = Vec::new();
-        rows(tx, &name, previous.table(&name).unwrap_or(table), Some(parent), bounded, Some(table), |old| {
+        rows(tx, &name, previous.table(&name).unwrap_or(table), parent_bytes(Some(parent),previous.table(&t.parent)), bounded, Some(table), |old| {
             let mut row = old.clone();
             // @ref LLP 3000.000.000#2-retain-by-default — restored audience/deadline captures retain their original lifetime.
             let live_source=previous.table(&name).and_then(|t|t.through.as_ref()).is_some_and(|t|t.live.is_some()) || tx.restored_live_authority(&name,old.field("id")?.as_str()?)?;
@@ -376,9 +381,18 @@ pub(crate) fn forward_sources(tx:&dyn Rows,next:&Schema,sources:&BTreeMap<String
     for (name,old) in sources {
         if old.through.as_ref().is_none_or(|t|t.live.is_none()) && next.table(name).and_then(|t|t.through.as_ref()).is_some_and(|t|t.live.is_some()) {
             let parent=next.table(&next.tables[name].through.as_ref().unwrap().parent);
-            rows(tx,name,old,parent,true,None,|row|forward_image(tx,next,sources,name,old,&row,now))?;
+            rows(tx,name,old,parent_bytes(parent,next.tables[name].through.as_ref().and_then(|e|sources.get(&e.parent))),true,None,|row|forward_image(tx,next,sources,name,old,&row,now))?;
         }
     }Ok(())
+}
+/// Narrowed images retain their own source definition. Admit every current
+/// parent image before either forward correspondence or reverse recapture.
+pub(crate) fn restored_parent_scratch(next:&Schema,sources:&BTreeMap<String,Table>,name:&str,old:&Table)->u64 {
+    let destination=next.table(name).and_then(|t|t.through.as_ref()).filter(|e|e.live.is_some());
+    let source=old.through.as_ref().filter(|e|e.live.is_some());
+    [destination,source].into_iter().flatten().map(|edge| {
+        parent_bytes(sources.get(&edge.parent),next.table(&edge.parent))
+    }).fold(0_u64,u64::saturating_add)
 }
 /// Reconcile per-row provenance as well as complete-table source definitions.
 pub(crate) fn manual_image(tx:&dyn Rows,next:&Schema,name:&str,old:&Table,row:&mut Value,now:i64)->Result<(),RuntimeError> {
@@ -416,7 +430,7 @@ pub(crate) fn reconcile_manual(tx:&dyn Rows,next:&Schema,sources:&BTreeMap<Strin
             return Err(refusal(name,0,"manual destination must preserve the immutable parent binding; use a bridge release",&[]));
         }
         let mut invalid=0;let mut samples=Vec::new();
-        rows(tx,name,old,Some(parent),true,None,|stored| {
+        rows(tx,name,old,parent_bytes(Some(parent),sources.get(&edge.parent)),true,None,|stored| {
             let p=stored.field(&edge.reference).ok().and_then(|v|v.as_str().ok()).map(|id|tx.get(&edge.parent,id)).transpose()?.flatten();
             let Some(p)=p.filter(|p|parent.live(p,now)) else {invalid+=1;sample(&mut samples,&stored,&edge.reference,&edge.parent);return Ok(())};
             let p=crate::schema::row_image(&p,parent);
@@ -445,7 +459,7 @@ pub fn validate_restore(tx: &dyn Rows, schema: &Schema, now: i64) -> Result<(), 
         let parent = &schema.tables[&t.parent];
         let mut invalid = 0;
         let mut samples = Vec::new();
-        rows(tx, &name, table, Some(parent), table.through.as_ref().is_some_and(|t|t.live.is_some()), None, |row| {
+        rows(tx, &name, table, parent_bytes(Some(parent),None), table.through.as_ref().is_some_and(|t|t.live.is_some()), None, |row| {
             let found = row
                 .field(&t.reference)
                 .ok()

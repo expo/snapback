@@ -123,6 +123,14 @@ fn index_copies(table:&Table,index:&crate::schema::Index)->u64 {
 }
 pub(crate) fn index_scratch(name:&str,table:&Table)->u64 {
     table.indexes.iter().map(|(label,index)| {
-        index_copies(table,index).saturating_mul(4*super::MAX_INDEX_KEY_BYTES as u64+128*(index.components.len() as u64+1)+512+4*(name.len()+label.len()) as u64)
+        // Legacy oversized keys may legally remain equal or shrink. Their
+        // buffers still coexist; the ordinary 2048-byte gate is not a bound
+        // on allocation before that gate runs.
+        let key=index.components.iter().fold(291_u64,|n,c|n.saturating_add(match c {
+            IndexComponent::Column(field)=>table.columns.get(field).and_then(crate::schema::live::key_column).unwrap_or_else(||super::disclosed::decode_reservation(table)),
+            IndexComponent::WordPrefixes{..}=>2*crate::words::MAX_TOKEN_BYTES as u64+3,
+            _=>super::disclosed::decode_reservation(table),
+        })).max(super::MAX_INDEX_KEY_BYTES as u64);
+        index_copies(table,index).saturating_mul(key.saturating_mul(4).saturating_add(128*(index.components.len() as u64+1)+512+4*(name.len()+label.len()) as u64))
     }).fold(0_u64,u64::saturating_add)
 }

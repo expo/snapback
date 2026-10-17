@@ -184,7 +184,7 @@ fn add_reference(
     parent_id: &str,
 ) -> Result<(), RuntimeError> {
     let parent_t = tx.num(parent)?;
-    let invalid = tx.get(parent, parent_id)?.is_none()
+    let invalid = !tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM r WHERE t=?1 AND id=?2)",params![parent_t,parent_id],|r|r.get::<_,bool>(0))?
         && !tx.conn().query_row(
             "SELECT EXISTS(SELECT 1 FROM _dormant_rows WHERE t=?1 AND id=?2) OR EXISTS(SELECT 1 FROM _dormant_narrow_rows WHERE t=?1 AND id=?2)",
             params![parent_t, parent_id],
@@ -533,7 +533,14 @@ pub(super) fn transition(
         if let Some(candidate)=next.table(name).filter(|t|t.columns.contains_key(column)) {
             let old:Column=serde_json::from_str(text).map_err(|e|RuntimeError::Store(e.to_string()))?;
             let source=source_definitions.entry(name.clone()).or_insert_with(||candidate.clone());
-            if let Some(capture)=&old.capture_source {source.through=capture.through.clone();source.expire=capture.expire.clone();}
+            if let Some(capture)=&old.capture_source {
+                source.through=capture.through.clone();source.expire=capture.expire.clone();
+                if capture.through.as_ref().is_some_and(|e|e.live.is_some()) && super::live_activation::active(tx)? {
+                    // Forward manual correspondence above must run first.
+                    // Mark only recovered cells of active, non-narrowed rows.
+                    tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored SELECT 'live-authority',v.t,'',v.id FROM _dormant_values v WHERE v.t=?1 AND v.column_name=?2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)",params![tx.num(name)?,column])?;
+                }
+            }
             source.columns.insert(column.clone(),old.kind);
             if let Some(default)=old.default {source.defaults.insert(column.clone(),default);}
             if !old.authoritative {
@@ -625,7 +632,7 @@ fn check_references(tx: &Tx<'_>, next: &Schema) -> Result<(), RuntimeError> {
         if let Some(through) = &table.through {
             {
                 let mut bad = super::adopt_refusals::Samples::default();
-                super::activation::walk(tx, t, |id, row| {
+                super::activation_walk::walk_metered(tx,t,crate::rows::adoption::Work::DECODE,None,|id,row,meter| {
                     let restored: bool = tx.conn().query_row(
                         "SELECT EXISTS(SELECT 1 FROM _dormant_refs WHERE t=?1 AND id=?2)",
                         params![t, id],
@@ -670,6 +677,10 @@ fn check_references(tx: &Tx<'_>, next: &Schema) -> Result<(), RuntimeError> {
                         }
                     }
                     if let Ok(Value::Id(parent_id)) = row.field(&through.reference) {
+                        if through.live.is_some() || crate::rows::Rows::restored_live_authority(tx,name,id)? {
+                            let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(data) FROM r WHERE t=?1 AND id=?2",params![parent_t,parent_id],|r|r.get(0)).optional()?;
+                            meter.heap((bytes.unwrap_or(0) as u64).saturating_mul(64).saturating_add(4096))?;
+                        }
                         if let Some(parent) = tx.get(&through.parent, parent_id)? {
                             let parent =
                                 crate::schema::row_image(&parent, &next.tables[&through.parent]);
@@ -748,4 +759,12 @@ pub(super) fn restored_values(tx:&Tx<'_>,t:i64,id:&str,table:&Table,meter:&mut c
         }
     }
     Ok(values)
+}
+
+/// Narrowed forward correspondence has already run when this is called.
+/// Record cell-derived live provenance before consuming any source evidence.
+pub(super) fn mark_live_column(tx:&Tx<'_>,t:i64,id:&str,column:&str)->Result<(),RuntimeError> {
+    if super::live_activation::active(tx)? {
+        tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored SELECT 'live-authority',?1,'',?2 WHERE EXISTS(SELECT 1 FROM _dormant_columns d JOIN _catalog c ON c.name=d.table_name WHERE c.num=?1 AND d.column_name=?3 AND json_extract(d.definition,'$.capture_source.through.live') IS NOT NULL)",params![t,id,column])?;
+    }Ok(())
 }

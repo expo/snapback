@@ -148,6 +148,7 @@ pub(super) fn transition(
         if invalid {
             continue;
         }
+        admission.heap(crate::engine::through_activation::restored_parent_scratch(next,source_definitions,&name,&old))?;
         crate::engine::through_activation::forward_image(tx,next,source_definitions,&name,&old,&row,now)?;
         if old.through.as_ref().is_some_and(|e|e.live.is_some()) {tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored(kind,t,col,id) VALUES('live-authority',?1,'',?2)",params![t,id])?;}
         for column in old.columns.keys() {
@@ -165,6 +166,7 @@ pub(super) fn transition(
         if let Value::Row(fields) | Value::Map(fields) = &mut row {
             for (column, data) in values {
                 if table.columns.contains_key(&column) {
+                    super::dormant::mark_live_column(tx,t,&id,&column)?;
                     fields.insert(
                         column,
                         serde_json::from_str(&data)
@@ -210,7 +212,7 @@ pub(super) fn transition(
                     }
                     for (parent, parent_id) in edges {
                         let missing = next.table(&parent).is_none()
-                            || (tx.get(&parent, &parent_id)?.is_none()
+                            || (!tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM r WHERE t=?1 AND id=?2)",params![tx.num(&parent)?,parent_id],|r|r.get::<_,bool>(0))?
                                 && reserved(tx, tx.num(&parent)?, &parent_id)?);
                         if missing {
                             hidden = true;

@@ -49,7 +49,9 @@ impl Runner<'_> {
             events
                 .saturating_add(derived)
                 .saturating_mul(4)
-                .saturating_add(metadata * 8),
+                .saturating_add(metadata * 8)
+                .saturating_add(crate::rows::adoption::index_scratch(name,table).saturating_mul(2))
+                .saturating_add(d.saturating_mul(4)),
         )
     }
 }

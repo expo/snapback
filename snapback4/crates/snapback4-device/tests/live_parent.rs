@@ -159,3 +159,12 @@ fn authoritative_memory_restore_recaptures_and_admits_the_whole_call() {
     {let tx=store.transaction().unwrap();let row=Rows::get(&tx,"tasks","c").unwrap().unwrap();assert_eq!(row.field("$project.owner").unwrap(),&id("bob"));}
     let consumed=std::cell::Cell::new(0);let rows=(0..100_000).map(|n|{consumed.set(n+1);("projects".into(),snapback4_core::value::object([("id",id(&format!("x{n}"))),("owner",id("mallory"))]))});let error=store.restore_server_at(rows,3).unwrap_err();assert_eq!(error.code(),"E_BOUND");assert!(consumed.get()<100_000);let tx=store.transaction().unwrap();assert!(Rows::get(&tx,"projects","x0").unwrap().is_none());
 }
+
+#[test]
+fn authoritative_memory_seed_prepays_all_source_index_vectors() {
+    use snapback4_core::{Value,rows::Rows,schema::{Index,ColumnType,public_table}};
+    let (_,backend)=compile(SOURCE);let mut schema=backend.schema;
+    let mut t=public_table([("id".into(),ColumnType::Id),("body".into(),ColumnType::Bytes{max:900})].into(),[("byId".into(),Index::of(&["id"],true))].into());for n in 0..10_000 {t.indexes.insert(format!("byBody{n}"),Index::of(&["body"],false));}schema.tables.insert("wideIndexes".into(),t);
+    let mut store=snapback4_device::memory::MemoryStore::new();store.activate_server_at(schema,0).unwrap();
+    let row=snapback4_core::value::object([("id",id("r")),("body",Value::Bytes(vec![0;900]))]);assert_eq!(store.seed_server_at([("wideIndexes".into(),row)],1).unwrap_err().code(),"E_BOUND");let tx=store.transaction().unwrap();assert!(Rows::get(&tx,"wideIndexes","r").unwrap().is_none());
+}

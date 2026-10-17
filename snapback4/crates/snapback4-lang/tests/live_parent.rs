@@ -824,3 +824,34 @@ fn live_to_captured_adoption_prepays_word_index_fanout() {
     let programs=e.programs().cloned().collect::<Vec<_>>();assert_eq!(e.adopt(next,programs).unwrap_err().code(),"E_BOUND");
     assert_eq!(e.generation(),generation);assert!(visible(&mut e,"alice"));transfer(&mut e,"bob");assert!(visible(&mut e,"bob"));
 }
+
+#[test]
+fn seed_prepays_source_index_vectors_before_ordinary_upsert() {
+    use snapback4_core::schema::{Index,ColumnType,public_table};
+    let b=build(SOURCE);let mut schema=b.schema;let mut t=public_table([("id".into(),ColumnType::Id),("body".into(),ColumnType::Bytes{max:900})].into(),[("byId".into(),Index::of(&["id"],true))].into());
+    for n in 0..10_000 {t.indexes.insert(format!("byBody{n}"),Index::of(&["body"],false));}
+    schema.tables.insert("wideIndexes".into(),t);let mut e=Engine::memory(schema,b.programs.into_iter().map(|p|p.program)).unwrap();let seq=e.seq().unwrap();
+    let row=snapback4_core::value::object([("id",Value::Id("r".into())),("body",Value::Bytes(vec![0;900]))]);assert_eq!(e.seed([("wideIndexes".into(),row)]).unwrap_err().code(),"E_BOUND");assert_eq!(e.seq().unwrap(),seq);
+    let tx=e.store_mut().transaction().unwrap();assert!(tx.get("wideIndexes","r").unwrap().is_none());tx.rollback().unwrap();
+}
+#[test]
+fn column_only_live_provenance_survives_manual_transfer() {
+    use snapback4_core::engine::release::ReleaseActivation;
+    let mut e=seeded(SOURCE,"alice",true);let b=build(&manual());e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();
+    let rows=[("projects".into(),snapback4_core::value::object([("id",Value::Id("p".into())),("owner",Value::Id("bob".into()))])),("tasks".into(),snapback4_core::value::object([("id",Value::Id("c".into())),("owner",Value::Id("bob".into()))]))];e.seed(rows).unwrap();
+    let captured=SOURCE.replace("read through live .project","read through .project").replace("  owner: principal\n  read","  owner: principal\n  immutable owner\n  read");let b=build(&captured);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap();assert!(!visible(&mut e,"alice"));assert!(visible(&mut e,"bob"));
+}
+#[test]
+fn dormant_live_columns_do_not_exempt_a_manual_copy_from_forward_agreement() {
+    use snapback4_core::engine::release::ReleaseActivation;
+    let mut e=seeded(SOURCE,"alice",true);let b=build(&manual());e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();transfer(&mut e,"bob");
+    let b=build(SOURCE);assert_eq!(e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap_err().code(),"E_READ_THROUGH_ADOPT");assert_eq!(e.generation(),2);assert!(visible(&mut e,"alice"));
+}
+#[test]
+fn narrowed_live_reverse_restoration_admits_current_parent_before_fetch() {
+    use snapback4_core::engine::release::ReleaseActivation;
+    let wide=SOURCE.replace("  body: text <=80","  owner: principal default 'alice'\n  status: enum('active', 'draft') default 'draft'\n  body: text <=80");let mut e=seeded(&wide,"alice",true);let narrow=wide.replace("enum('active', 'draft') default 'draft'","enum('active') default 'active'");let b=build(&narrow);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();
+    let manual=narrow.replace("read through live .project","read <- .owner = viewer").replace("table projects:\n","table projects:\n  payload: text <=21000000 default ''\n");let b=build(&manual);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap();
+    let row=snapback4_core::value::object([("id",Value::Id("p".into())),("payload",Value::String("x".repeat(20*1024*1024)))]);e.seed([("projects".into(),row)]).unwrap();
+    let b=build(&manual.replace("enum('active') default 'active'","enum('active', 'draft') default 'draft'"));assert_eq!(e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(4,Some(3)),false).unwrap_err().code(),"E_BOUND");assert_eq!(e.generation(),3);
+}
