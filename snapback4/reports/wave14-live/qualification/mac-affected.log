@@ -1,0 +1,822 @@
+['test', '-p', 'snapback4-core', '--lib', 'store']
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling snapback4-core v0.4.30 (/Users/ccheever/sb4-ws-live/snapback4/crates/snapback4-core)
+   Compiling snapback4-lang v0.4.30 (/Users/ccheever/sb4-ws-live/snapback4/crates/snapback4-lang)
+    Finished `test` profile [optimized] target(s) in 36.29s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-c301d3c41eceb06c)
+
+running 116 tests
+test store::activation_cache::tests::address_space_headroom_limits_both_caches_together ... ok
+test store::activation_cache::tests::activation_cache_configuration_has_an_explicit_opt_out_and_range ... ok
+test meter::tests::once_per_read_scratch_is_prepaid_and_restores_with_its_charge ... ok
+test rows::word_heap::tests::stored_row_bound_covers_decoder_growth_and_btree_splits ... ok
+test engine::row_views::batch::tests::mixed_parents_and_expiry_recertify_without_using_stored_pending_or_counts ... ok
+test engine::aggregate_metadata_tests::memory_denied_aggregate_restores_probe_expiry ... ok
+test store::adoption_tests::retirement::asset_home_retirement_warns_even_without_application_rows ... ok
+test engine::recorded::tests::hidden_replacement_does_not_disclose_a_stored_capture ... ok
+test store::activation_index::tests::duplicate_key_precedes_later_validation_with_identical_refusal_and_charges ... ok
+test store::adoption_tests::retirement::cap_occupancy_reset_is_visible_even_when_table_definition_is_unchanged ... ok
+test store::adoption_tests::retirement::counter_only_aggregate_reference_chains_rekey_to_the_final_digest ... ok
+test engine::row_views::certification_tests::sweeping_the_minimum_deadline_restores_incremental_delivery ... ok
+snapback4: activation ran out of SQLite memory; rolled back and retrying once with caller main/temp cache_size=[7, 9] (SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps these settings)
+test store::adoption_tests::retirement::changed_key_counts_cleared_retained_view_rows ... ok
+test engine::read::read_verdict_tests::merge_continuation::a_predicate_error_restores_both_depths_and_binding ... ok
+test engine::recorded::tests::event_free_scope_restores_after_success_and_failure ... ok
+snapback4: atomic feed adoption: view feed: 12 source rows, 12 events, 0 follows; 12 rows to copy; estimated writer lock 0.01 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+test store::activation_scan::tests::raw_projection_and_savepoint_rollback_discard_buffered_images ... ok
+test identity::diagnostics::tests::explanations_never_change_store_schema_or_data_and_absent_records_are_ambiguous ... ok
+test store::activation_walk::tests::callback_keeps_the_whole_fetched_page_reserved ... ok
+test store::activation_scan::tests::activation_read_ahead_preserves_rows_cursors_and_every_logical_charge ... ok
+test rows::word_heap::tests::ordinary_ceilings_never_reach_the_store_guards ... ok
+test rows::word_heap::tests::store_guard_refuses_a_pathological_scan_with_its_own_code ... ok
+test store::adoption_tests::retirement::empty_source_does_not_hide_retained_target_cleanup ... ok
+test store::adoption_tests::retirement::changed_filter_counts_cleared_retained_view_rows ... ok
+test store::activation_scan::tests::activation_read_ahead_is_invalidated_by_writes_and_raw_access ... ok
+test engine::timeline_authority::tests::guard_restores_previous_authority_after_success_and_error ... ok
+test store::adoption_tests::an_added_view_does_not_touch_an_unrelated_index ... ok
+test store::activation_walk::tests::heap_retries_keep_admission_examinations_at_the_callback_boundary ... ok
+test store::adoption_tests::retirement::identity_adoption_rekeys_sequence_history_without_reusing_deleted_ordinals ... ok
+test store::adoption_tests::activation_workspace_rolls_back_and_restores_the_callers_cache ... ok
+test store::adoption_tests::retirement::parent_lifetime_change_warns_about_mirror_without_private_rebuild ... ok
+test engine::row_views::certification_tests::lifetimes::fields::computed_fields_cannot_select_a_stored_index ... ok
+test store::adoption_tests::retirement::identity_redeployment_rebuilds_the_ungrouped_empty_tuple ... ok
+test store::adoption_tests::retirement::row_keyed_replacement_does_not_suppress_removed_aggregate_counter_migration ... ok
+test store::adoption_tests::retirement::sequence_identity_rekey_rolls_back_with_the_adoption_writer ... ok
+test store::adoption_tests::retirement::legacy_live_sum_repair_is_visible_even_without_schema_change ... ok
+test store::adoption_tests::retirement::surviving_aggregate_identity_wins_over_a_counter_only_dependency ... ok
+test store::adoption_tests::retirement::removing_an_aggregate_normalizes_retained_sequence_custody_before_marking_the_store ... ok
+test store::adoption_tests::retirement::sequence_identity_adoption_keeps_invalid_canonical_groups_opaque ... ok
+test store::adoption_tests::retirement::missing_identity_marker_rebuilds_a_principal_reference_and_max_text_group ... ok
+test store::adoption_tests::changed_defaults_rebuild_unique_and_word_keys_from_legacy_absent_fields ... ok
+test engine::row_views::tests::numeric_view_witness_certifies_before_comparing_a_stored_value ... ok
+test store::authority::tests::shared_authority_invalidations_run_on_sqlite ... ok
+test store::adoption_tests::retirement::newly_maintained_ordinary_target_does_not_reinterpret_predecessor_custody ... ok
+test store::adoption_tests::retirement::legacy_identity_adoption_can_change_the_grouping_key ... ok
+test store::authority::tests::shared_authority_facts_map_on_sqlite ... ok
+snapback4: atomic feed adoption: view feed: 1 source rows, 1 events, 0 follows; 1 rows to copy; estimated writer lock 0.00 s at 7000 row writes/s (hardware-dependent); ceiling 5000000 copies
+test store::adoption_tests::validated_keys_skip_rescanning_but_legacy_or_changed_proofs_do_not ... ok
+test store::authority::tests::shared_authority_policy_cases_run_on_sqlite ... ok
+test store::adoption_tests::retirement::adding_and_removing_read_through_warn_about_predecessor_retirement ... ok
+test store::activation_walk::tests::every_cumulative_budget_fixes_the_page_before_any_callback ... ok
+test engine::following_history::tests::matrix::changed_declaration_store_generation_and_old_unit_restart_without_eviction ... ok
+test store::adoption_tests::retirement::unchanged_and_empty_stores_remain_quiet ... ok
+test store::adoption_tests::retirement::projection_index_replacement_and_capture_fills_keep_their_population_advice ... ok
+test store::dormant_tests::direct_expiry_removal_cannot_revive_a_narrowed_source_lifetime ... ok
+test store::dormant_tests::additive_rollback_keeps_cells_tables_and_older_writes_without_disclosure ... ok
+snapback4: activation ran out of SQLite memory; rolled back and retrying once with caller main/temp cache_size=[7, 9] (SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps these settings)
+test store::adoption_tests::retirement::unchanged_read_through_tables_warn_about_deadline_rewrites_without_retirement ... ok
+test store::dormant_tests::dormant_reference_cannot_attach_to_identical_reused_parent ... ok
+test store::adoption_tests::activation_nomem_rolls_back_every_write_then_retries_at_the_original_cache ... ok
+test store::dormant_tests::dormant_unique_index_revalidates_older_writes_with_exact_population ... ok
+test store::dormant_tests::audit_keeps_before_after_and_partial_restoration_counts ... ok
+test store::dormant_tests::dormant_row_reference_never_recaptures_a_deleted_parent_lifetime ... ok
+test store::dormant_tests::dormant_through_deadline_refuses_retargeted_parent_reference ... ok
+test store::dormant_tests::dormant_through_captures_keep_parent_lifetime_when_reference_stays_active ... ok
+test store::dormant_tests::dormant_assets_cannot_be_fetched_or_collected_until_explicit_prune ... ok
+test store::dormant_tests::combined_narrowing_and_lifetime_removal_never_resurrects_expired_children ... ok
+test store::adoption_tests::optimized_activation_equals_full_rows_indexes_log_images_and_sequence ... ok
+test store::dormant_tests::equal_schema_activation_closes_new_nominal_references_and_replaces_generation ... ok
+test store::dormant_tests::audit_pages_distinguish_same_named_column_and_index ... ok
+test store::dormant_tests::enum_in_use_is_hidden_on_rollback_and_restored_verbatim ... ok
+test store::dormant_tests::activation_expiry_invalidates_parent_lifetime_and_failed_commit_undoes_it ... ok
+test store::dormant_tests::initially_dangling_keep_reference_restores_after_table_then_type_dormancy ... ok
+test store::dormant_tests::narr_counts_column_values_not_population_and_word_entries_not_rows ... ok
+test store::dormant_tests::legacy_aggregate_identity_migrates_dormant_references_before_restore ... ok
+test store::dormant_tests::maintain_refusal_names_its_selected_source_population_and_values ... ok
+test store::dormant_tests::late_readthrough_retirement_is_not_a_narrowed_restoration_in_audit ... ok
+test store::dormant_tests::file_allowlist_and_kind_narrowing_preserve_retained_asset_facts ... ok
+test store::dormant_tests::narr_text_constraints_and_literal_default_counts_share_activation_predicate ... ok
+test store::dormant_tests::historical_through_captures_restore_after_public_rule_widening ... ok
+test store::dormant_tests::release_refuses_durable_to_ephemeral_or_derived_ownership_with_population ... ok
+test store::adoption_tests::retirement_only_and_mixed_adoptions_always_warn_about_their_write_work ... ok
+snapback4: activation ran out of SQLite memory; rolled back and retrying once with caller main/temp cache_size=[7, 9] (SNAPBACK4_ADOPTION_CACHE_MIB=0 keeps these settings)
+test store::activation_cache::tests::activation_cache_retries_only_nomem_once_and_respects_caller_settings ... ok
+test value::disclosed::tests::uniquely_owned_materialization_moves_stored_payload ... ok
+test store::dormant_tests::joint_parent_child_retirement_preserves_lifetimes_in_both_name_orders ... ok
+test store::dormant_tests::partial_restoration_prunes_only_dormant_asset_homes ... ok
+test store::dormant_tests::refusal_for_a_new_through_capture_names_missing_parent_and_child ... ok
+test store::dormant_tests::narrowing_hides_reference_closure_and_rebuilds_unchanged_counts_and_indexes ... ok
+test store::dormant_tests::narrowing_preserves_legally_dangling_keep_references_and_omitted_invalid_cells ... ok
+test store::dormant_tests::release_store_2_keeps_deletion_evidence_before_its_next_upgrade ... ok
+test store::dormant_tests::narr_dormant_rows_cover_their_separately_retained_cells ... ok
+test store::adoption_tests::rebuilt_maintains_reject_unchanged_unique_and_cap_violations_atomically ... ok
+test store::dormant_tests::restored_recorded_attribution_preserves_values_and_nulls_before_aggregate_rebuild ... ok
+test store::dormant_tests::revision_fences_aba_equal_content_and_native_only_generations ... ok
+test store::adoption_tests::retirement::inherited_expiry_default_warns_before_retiring_one_thousand_children ... ok
+test store::dormant_tests::partial_table_restoration_latest_cell_wins_and_prune_is_explicit ... ok
+test store::dormant_tests::expiry_of_an_active_row_does_not_audit_its_dormant_cells_as_restored ... ok
+test store::activation_walk::tests::only_non_fitting_singletons_refuse_before_callbacks ... ok
+test store::dormant_tests::restored_through_deadline_recomputes_before_queries_sync_and_asset_reads ... ok
+test store::tests::independent_readers_reuse_plans_and_refresh_snapshots ... ok
+test store::dormant_tests::removing_readthrough_cannot_revive_an_expired_narrowed_source_lifetime ... ok
+test store::dormant_tests::release_internal_names_refuse_and_development_keeps_legacy_format ... ok
+test store::adoption_tests::physical_key_edits_invalidate_a_matching_proof ... ok
+test store::dormant_tests::true_format_two_store_allows_deletion_before_its_first_upgrade ... ok
+test store::tests::sqlite_openers_keep_the_measured_cache_mmap_and_durability_policy ... ok
+test store::dormant_tests::tentative_restoration_with_no_visibility_delta_keeps_generation_and_cursors ... ok
+test store::tests::scans_pages_and_cursors ... ok
+test store::dormant_tests::sparse_defaults_are_captured_and_defaultless_forward_refuses_new_rows ... ok
+test store::dormant_tests::too_short_old_writes_are_dormant_on_forward_and_restored_on_rollback ... ok
+test store::dormant_tests::narrowing_restored_storage_keeps_deleted_parent_evidence_even_after_id_reuse ... ok
+test store::adoption_tests::retirement::row_view_rebuild_counts_retained_recount_and_basis_rows ... ok
+test store::tests::cached_scan_plans_rebind_and_still_refresh_after_schema_changes ... ok
+test store::dormant_tests::restoring_null_exempt_caps_matches_runtime_and_successor_assessment ... ok
+test store::dormant_tests::rollback_runs_only_active_actions_and_deleted_parents_block_dormant_restoration ... ok
+test store::dormant_tests::restoration_into_a_narrower_table_or_column_retains_source_values_and_definition ... ok
+test store::dormant_tests::whole_table_transfer_preserves_full_source_lifetime_until_classification ... ok
+test store::dormant_tests::rollback_replaces_newer_actions_on_a_reference_that_stays_active ... ok
+test store::dormant_tests::asset_byte_narrowing_hides_and_restores_scalar_optional_and_list_rows ... ok
+test store::adoption_tests::generated_rebuilds_keep_sparse_rows_captures_indexes_and_wide_sum_cancellation ... ok
+
+test result: ok. 116 passed; 0 failed; 0 ignored; 0 measured; 254 filtered out; finished in 2.73s
+
+['test', '-p', 'snapback4-core', '--lib', 'live_index_scratch']
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+    Finished `test` profile [optimized] target(s) in 0.04s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-c301d3c41eceb06c)
+
+running 2 tests
+test rows::adoption::live_index_scratch_tests::empty_word_sets_still_reserve_native_index_slots ... ok
+test rows::adoption::live_index_scratch_tests::enum_words_reserve_the_tokens_the_native_index_will_emit ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 368 filtered out; finished in 0.00s
+
+['test', '-p', 'snapback4-device', '--test', 'live_parent', '--test', 'read_through', '--test', 'read_through_review', '--test', 'readauth', '--test', 'sequence_by', '--test', 'time_audiences']
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+   Compiling snapback4-core v0.4.30 (/Users/ccheever/sb4-ws-live/snapback4/crates/snapback4-core)
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:292:13
+    |
+292 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+   Compiling snapback4-lang v0.4.30 (/Users/ccheever/sb4-ws-live/snapback4/crates/snapback4-lang)
+warning: `snapback4-core` (lib) generated 9 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling snapback4-device v0.4.30 (/Users/ccheever/sb4-ws-live/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:464:51
+    |
+464 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+warning: function `without_grouped_shape_note` is never used
+ --> crates/snapback4-device/tests/readauth/../../../snapback4-lang/tests/guide/context.rs:6:8
+  |
+6 | pub fn without_grouped_shape_note<'a>(bound: &'a snapback4_lang::Bound, query: &str) -> Vec<&'a snapback4_lang::Diagnostic> {
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (test "readauth") generated 1 warning
+    Finished `test` profile [optimized] target(s) in 41.84s
+     Running tests/live_parent.rs (target/debug/deps/live_parent-40ca298e31331d74)
+
+running 7 tests
+test interrupted_acquisition_memory ... ok
+test authoritative_memory_seed_admits_before_collecting_and_rolls_back ... ok
+test authoritative_memory_restore_recaptures_and_admits_the_whole_call ... ok
+test transfer_memory ... ok
+test authoritative_memory_seed_prepays_all_source_index_vectors ... ok
+test interrupted_acquisition_sqlite ... ok
+test transfer_sqlite ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/read_through.rs (target/debug/deps/read_through-2de52b150ae6551a)
+
+running 9 tests
+test chain_memory ... ok
+test chain_sqlite ... ok
+test inherited_expiry_and_monotone_clock ... ok
+test retained_parent_queues_without_a_row ... ok
+test pending_chain_and_queue ... ok
+test clock_publication_and_replay_are_atomic ... ok
+test reused_parent_capture_and_retained_history ... ok
+test nonexpiring_parent_counts_reserve_source_scratch ... ok
+test parent_delete_coverage ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.93s
+
+     Running tests/read_through_review.rs (target/debug/deps/read_through_review-35c3cbd253697790)
+
+running 3 tests
+test authoritative_replay_invalidates_written_and_withdrawn_tables ... ok
+test reused_deadline_is_part_of_current_capture_identity ... ok
+test expired_unswept_matching_child_queues_parent_delete ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/readauth.rs (target/debug/deps/readauth-e8c8a273677f0cbc)
+
+running 88 tests
+test outcomes::chat_edit_memory ... ok
+test mixed_memory ... ok
+test outcomes::standalone_repost_memory ... ok
+test outcomes::language_edit_memory ... ok
+test readable_insert_memory ... ok
+test readable_update_memory ... ok
+test outcomes::create_room_memory ... ok
+test outcomes::bridge_repost_memory ... ok
+test outcomes::app_edit_memory ... ok
+test outcomes::recipe_repost_memory ... ok
+test regressions::hidden_inside_prediction_memory ... ok
+test outcomes::bridge_publish_memory ... ok
+test readable_upsert_memory ... ok
+test outcomes::write_forms_memory ... ok
+test parent_guards::the_parent_owner_reads_a_decided_page_and_everyone_else_is_unchanged ... ok
+test outcomes::app_edit_sqlite ... ok
+test outcomes::recipe_post_memory ... ok
+test census::authoring_census ... ok
+test outcomes::standalone_post_memory ... ok
+test outcomes::bridge_repost_sqlite ... ok
+test readable_insert_sqlite ... ok
+test outcomes::recipe_post_sqlite ... ok
+test regressions::hidden_inside_prediction_sqlite ... ok
+test regressions::two_mutation_revocation_memory ... ok
+test regressions::later_grant_memory ... ok
+test regressions::offline_moderation_upgrade_memory ... ok
+test outcomes::language_edit_sqlite ... ok
+test mixed_sqlite ... ok
+test outcomes::standalone_post_sqlite ... ok
+test readable_update_sqlite ... ok
+test readable_upsert_sqlite ... ok
+test parent_guards::rows_a_caller_cannot_read_never_change_their_answer ... ok
+test outcomes::standalone_repost_sqlite ... ok
+test regressions::offline_upgrade_memory ... ok
+test outcomes::recipe_repost_sqlite ... ok
+test outcomes::chat_edit_sqlite ... ok
+test regressions::retained_grant_memory ... ok
+test outcomes::bridge_publish_sqlite ... ok
+test outcomes::create_room_sqlite ... ok
+test round2::live_maintain_memory ... ok
+test round2::hidden_before_visible_memory ... ok
+test round2::aggregate_authority_witnesses_memory ... ok
+test round2::service_disjunct_memory ... ok
+test round2::nested_read_ladder_memory ... ok
+test outcomes::write_forms_sqlite ... ok
+test regressions::offline_moderation_upgrade_sqlite ... ok
+test timing::revoke_later_memory ... ok
+test regressions::offline_upgrade_sqlite ... ok
+test regressions::two_mutation_revocation_sqlite ... ok
+test regressions::later_grant_sqlite ... ok
+test timing::grant_later_memory ... ok
+test timing::grant_once_memory ... ok
+test regressions::retained_grant_sqlite ... ok
+test round2::expired_authority_witnesses_memory ... ok
+test timing::write_then_delete_memory ... ok
+test round2::hidden_before_visible_sqlite ... ok
+test round2::existential_aggregate_memory ... ok
+test round2::witness_fetch_budget_memory ... ok
+test unevaluable_rule_memory ... ok
+test unreadable_insert_memory ... ok
+test round2::live_maintain_sqlite ... ok
+test unreadable_update_memory ... ok
+test timing::grant_once_sqlite ... ok
+test timing::grant_later_sqlite ... ok
+test where_guards::undecided_where_guards_memory ... ok
+test timing::reading_probe_meter_memory ... ok
+test unreadable_upsert_memory ... ok
+test timing::revoke_later_sqlite ... ok
+test round2::service_disjunct_sqlite ... ok
+test where_guards::where_guards_memory ... ok
+test round2::existential_aggregate_sqlite ... ok
+test unevaluable_rule_sqlite ... ok
+test timing::write_then_delete_sqlite ... ok
+test unreadable_update_sqlite ... ok
+test unreadable_insert_sqlite ... ok
+test timing::reading_probe_meter_sqlite ... ok
+test unreadable_upsert_sqlite ... ok
+test parent_guards::both_device_stores_leave_the_decided_page_to_the_server ... ok
+test where_guards::undecided_where_guards_sqlite ... ok
+test round2::nested_read_ladder_sqlite ... ok
+test round2::counterfactual_branch_memory ... ok
+test where_guards::where_guards_sqlite ... ok
+test round2::mixed_probe_boundary_memory ... ok
+test round2::counterfactual_branch_sqlite ... ok
+test round2::mixed_probe_boundary_sqlite ... ok
+test round2::aggregate_authority_witnesses_sqlite ... ok
+test round2::expired_authority_witnesses_sqlite ... ok
+test round2::witness_fetch_budget_sqlite ... ok
+
+test result: ok. 88 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.38s
+
+     Running tests/sequence_by.rs (target/debug/deps/sequence_by-c1a225ba13af454a)
+
+running 12 tests
+test reversed_cross_table_floor_memory ... ok
+test memory_online_and_two_offline_inserts ... ok
+test reversed_cross_table_floor_sqlite ... ok
+test upsert_and_update_results_mark_provisional_ordinals_pending ... ok
+test an_unrepresentable_provisional_queues_without_publishing_a_clamped_row ... ok
+test short_circuit_before_ordinal_is_a_terminal_refusal ... ok
+test a_pending_delete_cannot_lower_the_settled_parent_floor ... ok
+test two_sequence_columns_each_raise_the_held_parent_floor ... ok
+test sqlite_online_and_two_offline_inserts ... ok
+test reread_and_page_results_mark_provisional_ordinals_pending ... ok
+test unrelated_denials_still_refuse_without_queuing ... ok
+test provisional_rule_and_require_refusals_queue_on_both_stores ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.83s
+
+     Running tests/time_audiences.rs (target/debug/deps/time_audiences-121f1f03fecd5fad)
+
+running 6 tests
+test pending_write_retries_from_memory_device_outbox ... ok
+test time_audience_lifecycle_memory_device ... ok
+test time_audience_adoption_memory_device ... ok
+test time_audience_adoption_sqlite_device ... ok
+test time_audience_lifecycle_sqlite_device ... ok
+test pending_write_retries_from_sqlite_device_outbox ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.19s
+
+['test', '-p', 'snapback4-lang', '--test', 'guide', '--test', 'live_parent', '--test', 'live_parent_admission', '--test', 'read_through', '--test', 'read_through_review', '--test', 'read_through_transactions', '--test', 'sequence_by', '--test', 'time_audiences']
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+warning: unused variable: `fields`
+   --> crates/snapback4-core/src/engine/following_history/projection.rs:292:13
+    |
+292 |         let fields: Vec<String> = fields.into_iter().collect();
+    |             ^^^^^^ help: if this is intentional, prefix it with an underscore: `_fields`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: field `digest` is never read
+  --> crates/snapback4-core/src/engine/native.rs:45:5
+   |
+42 | pub struct Module {
+   |            ------ field in this struct
+...
+45 |     digest: String,
+   |     ^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: struct `Logs` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:54:19
+   |
+54 | pub(crate) struct Logs {
+   |                   ^^^^
+
+warning: methods `extend` and `take` are never used
+  --> crates/snapback4-core/src/engine/native.rs:60:19
+   |
+59 | impl Logs {
+   | --------- methods in this implementation
+60 |     pub(crate) fn extend(&mut self, job: &str, lines: Vec<String>) {
+   |                   ^^^^^^
+...
+76 |     pub(crate) fn take(&mut self) -> Vec<String> {
+   |                   ^^^^
+
+warning: struct `ChunkOutcome` is never constructed
+  --> crates/snapback4-core/src/engine/native.rs:94:19
+   |
+94 | pub(crate) struct ChunkOutcome {
+   |                   ^^^^^^^^^^^^
+
+warning: function `native_output_ceiling` is never used
+   --> crates/snapback4-core/src/engine/native.rs:168:4
+    |
+168 | fn native_output_ceiling() -> usize {
+    |    ^^^^^^^^^^^^^^^^^^^^^
+
+warning: method `digest` is never used
+   --> crates/snapback4-core/src/engine/native.rs:272:19
+    |
+242 | impl Module {
+    | ----------- method in this implementation
+...
+272 |     pub(crate) fn digest(&self) -> &str {
+    |                   ^^^^^^
+
+warning: function `run_chunk` is never used
+   --> crates/snapback4-core/src/engine/native.rs:390:15
+    |
+390 | pub(crate) fn run_chunk(module: &Module, runner: Runner<'_>, job: &str, args: &BTreeMap<String, Value>, state: Option<Json>, now: i...
+    |               ^^^^^^^^^
+
+warning: function `missing` is never used
+   --> crates/snapback4-core/src/engine/native.rs:504:15
+    |
+504 | pub(crate) fn missing(runner: Runner<'_>, job: &str) -> ChunkOutcome {
+    |               ^^^^^^^
+
+   Compiling snapback4-core v0.4.30 (/Users/ccheever/sb4-ws-live/snapback4/crates/snapback4-core)
+warning: `snapback4-core` (lib) generated 9 warnings (run `cargo fix --lib -p snapback4-core` to apply 1 suggestion)
+   Compiling snapback4-lang v0.4.30 (/Users/ccheever/sb4-ws-live/snapback4/crates/snapback4-lang)
+   Compiling snapback4-device v0.4.30 (/Users/ccheever/sb4-ws-live/snapback4/crates/snapback4-device)
+warning: variable does not need to be mutable
+   --> crates/snapback4-device/src/device.rs:464:51
+    |
+464 |     #[allow(unreachable_code)] fn open_store_mode(mut store: S, backend: Option<Backend>, initial: bool) -> Result<Self, RuntimeErr...
+    |                                                   ----^^^^^
+    |                                                   |
+    |                                                   help: remove this `mut`
+    |
+    = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-device` (lib) generated 1 warning (run `cargo fix --lib -p snapback4-device` to apply 1 suggestion)
+warning: unused variable: `handle_index`
+   --> crates/snapback4-lang/tests/guide.rs:619:9
+    |
+619 |     let handle_index = bound.schema.tables["profiles"].indexes.iter().find(|(_, index)| index.unique && index.columns() == ["handle...
+    |         ^^^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_handle_index`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (test "guide") generated 1 warning (run `cargo fix --test "guide" -p snapback4-lang` to apply 1 suggestion)
+    Finished `test` profile [optimized] target(s) in 31.25s
+     Running tests/guide.rs (target/debug/deps/guide-f103b62f799ec811)
+
+running 125 tests
+test client::unknown_membership_offline_opens_interactions ... ok
+test client::missing_row_question_opens_client ... ok
+test client::loading_or_absent_opens_client ... ok
+test client::witness_card_explains_scene_adoption_and_product_toolchain ... ok
+test client::membership_wording_covers_pending_predictions_and_withdrawals ... ok
+test definitions::search_membership_heading_is_a_separate_output_line ... ok
+test definitions::expiring_mutation_programs_card_states_prediction_class ... ok
+test definitions::receipts_migrates_the_history_walking_hook_that_does_not_scale ... ok
+test definitions::receipts_teaches_sdk_delivery_and_keeps_only_the_seen_hook ... ok
+test client::connection_presence_keeps_its_card ... ok
+test definitions::assets_once_contract_retains_metadata_and_renders_opened ... ok
+test client::native_smoke_is_the_milestone_path_with_honest_limits ... ok
+test definitions::expiring_scalar_why_states_null_query_cut_and_atomic_mutation_refusal ... ok
+test client::published::client_teaches_sdk_delivery_and_screen_seen ... ok
+test definitions::why_bound_defines_the_ceiling_and_withheld_count ... ok
+test definitions::heaviest_account_aliases_reach_the_executable_acquisition_recipe ... ok
+test definitions::delivery_bound_rfc_acceptance_requires_start_only_recovery ... ok
+test definitions::expiring_cap_why_states_live_occupancy_and_bounded_recount ... ok
+test definitions::every_card_separates_headings_from_prose ... ok
+test a_piped_card_prints_whole ... ok
+test definitions::why_rule_carries_the_target_visibility_contract ... ok
+test composition_card_is_reachable_and_keeps_the_routing_boundary ... ok
+test calibration_effects_jobs_and_seed_cards_explain_replay_flags ... ok
+test definitions::delivery_bound_guidance_requires_start_only_recovery ... ok
+test expire_card_explains_maintained_value_order_refusal_and_rewrites ... ok
+test feeds::owner_key_sign_out_preserves_the_replica_without_lending_its_proof ... ok
+test feeds::builder_path_precedes_internals_and_older_spellings ... ok
+test familiar::the_rosetta_card_is_reachable_and_covers_the_requested_idioms ... ok
+test feeds::older_spelling_exemption_respects_headings_and_fenced_samples ... ok
+test familiar::check_output_guidance_distinguishes_summaries_from_verbose_details ... ok
+test client::existence_card_and_starters_teach_the_sdk_words ... ok
+test client::client_aliases_keep_typing_on_ephemeral ... ok
+test client::headless_password_recipe_stays_on_auth_and_seed_without_growing_the_card ... ok
+test following_cards_scope_older_recipe_measurements ... ok
+test following_cards_pin_examinations ... ok
+test familiar::cards_meet_word_targets_and_preserve_every_original_compiled_block ... ok
+test feeds_card_states_background_contract_and_keeps_recipe_refusals ... ok
+test host_unicode_refusal_explains_the_repair_and_search_contract ... ok
+test client::published_text_needs_no_checkout_or_lane_reports ... ok
+test client::w13e_every_chat_search_has_ordinary_and_explicit_narrower_scopes ... ok
+test natural_words_find_their_cards ... ok
+test digest_recipe_is_atomic_bounded_and_reachable_from_the_orientation ... ok
+test client::published::published_path_guard_rejects_astras_counterexample_and_unlisted_files ... ok
+test a_piped_overview_carries_the_first_section_and_the_terminal_one_the_index ... ok
+test guessed_section_words_land_on_one_section_even_in_another_card ... ok
+test recovery::cancellation_definition_reconciles_recorded_step_keys ... ok
+test calibration_guide_words_and_replay_holds_are_discoverable ... ok
+test language_following_uses_the_declaration ... ok
+test rollback::every_packaged_card_has_consistent_release_rollback_claims ... ok
+test feeds::retirement_census_rejects_installers_helpers_and_projection_examples ... ok
+test password_policy_and_guest_choice_are_on_the_card ... ok
+test prediction_card_compiles_clean ... ok
+test client::published::published_file_references_resolve_against_package_contents ... ok
+test every_alias_targets_a_keyword_and_nearest_uses_aliases ... ok
+test definitions::w11_every_registered_code_quotes_its_definition ... ok
+test start::every_card_introduces_the_feature_before_examples_and_reference_details ... ok
+test start::openings_fit_without_growing_the_eight_reference_cards ... ok
+test start::start_is_the_same_eight_openings_in_order_with_registered_mistakes ... ok
+test structural_admission_cards_name_every_host_and_the_web_trust_boundary ... ok
+test surf::farm_conceptual_section_words_land_without_a_miss ... ok
+test surf::surf_cards_match_current_auth_rules_assets_and_protocol ... ok
+test the_cards_state_the_engines_numbers_and_families ... ok
+test the_keywords_are_one_list ... ok
+test feeds::refusal_and_usage_sources_do_not_recommend_the_retired_installer ... ok
+test the_language_card_also_compiles_as_a_module_with_qualified_schedules ... ok
+test the_listing_fits_a_screen_and_aliases_have_their_own_command ... ok
+test every_guide_keyword_a_diagnostic_names_is_a_card ... ok
+test the_template_compiles_clean ... ok
+test time_waiting_cards_point_to_cli_and_http_clock_controls ... ok
+test every_alias_is_a_section_or_find_word_inside_its_card ... ok
+test w10a_readme_opening_is_one_way_into_the_published_surface ... ok
+test the_readme_quarry_compiles_clean ... ok
+test familiar::every_moved_fact_has_its_why_or_details_home ... ok
+test w10r2_common_refusal_examples_have_clean_repairs ... ok
+test every_emitted_code_is_explained ... ok
+test w11r1c_first_screen_generates_types_and_starts_the_backend ... ok
+test w11r1c_residency_fact_cards_require_verbose ... ok
+test w11r2_native_boundary_sentence_matches_both_published_copies ... ok
+test w14a_compact_reads_and_wide_note_qualify_word_expansion_and_continuation ... ok
+test w14b_first_account_screen_is_self_contained ... ok
+test w11r2_recipe_refusals_have_reserved_names_and_dedicated_sections ... ok
+test w7c_meter_store_readiness_and_aggregate_discovery_are_on_the_cards ... ok
+test w9a_held_search_leads_with_coverage_then_cost_then_refusal ... ok
+test w9a_reads_and_refusals_explain_hidden_pages_and_readable_membership ... ok
+test w9a_expiry_cards_explain_and_select_the_readers_deadline ... ok
+test w9r1b_diagnostic_card_overrides_the_code_default ... ok
+test wave10_dx::docs_use_engine_file_types_period_boundaries_and_projection_identity ... ok
+test w9b_every_code_has_bounded_card_context_and_a_full_card_command ... ok
+test w11_every_registered_code_has_a_dedicated_section ... ok
+test writes_card_explains_the_whole_upsert_insert_proof ... ok
+test recovery::asset_placement_requires_upload_ownership ... ok
+test feeds::cards_readmes_and_templates_do_not_teach_the_retired_recipe ... ok
+test intent::rules_opening_inherits_message_authority_lifetime_and_sync ... ok
+test direct_and_merged_cursor_generation_contracts_are_distinct ... ok
+test feeds::published_following_unrepost_uses_the_reposting_viewer ... ok
+test recovery::cancelled_effect_keeps_distinct_stored_step_keys ... ok
+test onboarding_recipe_recovers_a_taken_handle_for_the_same_principal ... ok
+test deploy::deploy_recipe_bootstraps_an_admin_without_a_public_privilege_race ... ok
+test set_state_recipe_predicts_first_like_and_repeated_set_and_clear ... ok
+test feeds::followups::published_global_filters_originals_and_preserves_independent_reposts ... ok
+test feeds::published_following_unrepost_hides_the_delivered_event ... ok
+test w10b_typing_card_compiles_and_expires_at_the_deadline ... ok
+test intent::language_intent_views_predicates_search_and_durations_run ... ok
+test arrival_recipe_orders_ties_and_retries_then_pages ... ok
+test wave10_dx::upgrade_card_version_and_nullable_count_are_bound_to_the_emitted_surface ... ok
+test wave9_dx::jobs_catch_up_sweep_includes_rows_before_the_latest_period_and_repeats ... ok
+test w10a_effect_and_job_names_are_explained_where_a_module_declares_both ... ok
+test the_language_card_compiles_and_runs ... ok
+test intent::published_digest_streams_past_the_old_limit_and_once_survives_reopen ... ok
+test every_card_compiles_clean ... ok
+test rules::missing_update_and_incomplete_upsert ... ok
+test feeds::followups::every_rolling_rank_page_matches_sort_filter_oracle ... ok
+test rules::insert_rule_refusals ... ok
+test feeds::followups::legacy_global_projection_retries_removal_and_rollback_are_atomic ... ok
+test rules::admitted_hidden_updates ... ok
+test maintained_column_notes_do_not_spread_to_existing_cards_recipes_or_templates ... ok
+test rules::insert_collision_visibility ... ok
+test rules::update_rule_refusals ... ok
+test rules::update_conditions ... ok
+test rules::delete_rule_refusals ... ok
+test rules::declared_unique_refusal_does_not_disclose_hidden_collision ... ok
+test rules::update_collision_visibility ... ok
+test feeds::legacy_complete_feeds_program_runs_at_clique_size ... ok
+test feeds::published_following_matches_the_builder_contract ... ok
+test receipts_card_ticks_follow_the_recipient_set ... ok
+
+test result: ok. 125 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.10s
+
+     Running tests/live_parent.rs (target/debug/deps/live_parent-af23212fb049652b)
+
+running 48 tests
+test raw_live_rule_literals_obey_scalar_admission ... ok
+test raw_live_constraints_cannot_depend_on_mutable_engine_inputs ... ok
+test raw_schema_cannot_forge_live_caps_indexes_or_whole_rules_and_old_engines_refuse ... ok
+test complete_or_parent_rule_and_extra_probe_equalities_stay_live_online ... ok
+test own_write_reads_and_parent_pinned_denials_use_current_authority ... ok
+test cap_restore_selects_a_plain_index_instead_of_word_entries ... ok
+test expiring_cap_uses_live_occupancy_during_mixed_schema_restore ... ok
+test bulk_duplicate_images_replace_indexes_and_cap_failures_roll_back ... ok
+test live_to_captured_adoption_prepays_word_index_fanout ... ok
+test unsupported_shapes_refuse_with_live_diagnostic ... ok
+test null_reference_cap_exemptions_survive_mixed_schema_restore ... ok
+test disagreeing_copy_adoption_is_atomic ... ok
+test dormant_narrowed_live_rows_restamp_after_a_parent_move ... ok
+test fixed_budget_cut_rolls_back_the_parent_and_all_copies ... ok
+test captured_only_adoption_preserves_actual_small_row_compatibility ... ok
+test empty_live_edge_does_not_reprice_an_unrelated_captured_population ... ok
+test dormant_live_columns_do_not_exempt_a_manual_copy_from_forward_agreement ... ok
+test captured_only_store_adopts_live_after_dormant_cell_format_upgrade ... ok
+test live_policy_reference_does_not_bind_a_retired_audience_lifetime ... ok
+test dormant_bad_manual_copy_cannot_silently_adopt_live ... ok
+test manual_adoption_and_reverse_release_reconcile_dormant_cells ... ok
+test live_parent_deletion_cannot_cross_a_physical_child_lifetime ... ok
+test adoption_reserves_destination_index_sets_before_live_callback ... ok
+test column_only_live_provenance_survives_manual_transfer ... ok
+test trusted_parent_restore_updates_off_input_children_and_bulk_input_is_bounded ... ok
+test dormant_live_cap_changes_restamp_current_authority_and_validate_occupancy ... ok
+test published_manual_copy_recipe_adopts_live_and_back_without_changing_row_ids ... ok
+test reverse_manual_adoption_reserves_destination_index_sets ... ok
+test narrowed_live_provenance_survives_an_intermediate_manual_release ... ok
+test whole_rule_moves_existing_rows_and_failure_rolls_everything_back ... ok
+test hidden_child_population_cannot_change_parent_write_meter_or_event_count ... ok
+test restored_live_provenance_cannot_become_historical_captured_authority ... ok
+test unrelated_sequence_restoration_advances_its_counter_in_a_live_schema ... ok
+test incompatible_dormant_live_child_does_not_reprice_an_active_manual_child ... ok
+test narrowed_manual_source_does_not_become_live_from_column_shape ... ok
+test seed_prepays_source_index_vectors_before_ordinary_upsert ... ok
+test whole_dormant_live_table_restores_manual_authority_from_current_parent ... ok
+test narrowed_live_reverse_restoration_admits_current_parent_before_fetch ... ok
+test dormant_live_cells_require_immediate_manual_agreement_for_captured_adoption ... ok
+test dormant_captured_to_live_requires_current_copy_agreement ... ok
+test reverse_manual_correspondence_cannot_rewrite_immutable_parent_binding ... ok
+test captured_only_narrowed_rollback_keeps_actual_image_admission ... ok
+test mixed_captured_and_live_cells_keep_independent_origin_after_narrowed_restore ... ok
+test reverse_live_authority_reconciles_before_destination_narrowing ... ok
+test unused_live_cell_does_not_replace_a_captured_rows_own_audience ... ok
+test bulk_restore_reserves_all_index_vectors_before_put ... ok
+test a_small_restore_ignores_large_unrelated_populations ... ok
+test unchanged_captured_policy_does_not_enumerate_its_population_on_restore ... ok
+
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.54s
+
+     Running tests/live_parent_admission.rs (target/debug/deps/live_parent_admission-84eb55631a6d94aa)
+
+running 2 tests
+test narrowed_manual_forward_check_admits_parent_before_fetch ... ok
+test dormant_column_forward_check_admits_parent_before_fetch ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/read_through.rs (target/debug/deps/read_through-15a583cc6aaff540)
+
+running 10 tests
+test form_refusals ... ok
+test capture_authority_expiry_and_delete ... ok
+test clique_sqlite_and_memory ... ok
+test keyed_counts_and_private_inherited_path ... ok
+test parent_missing_hidden_and_upsert_target_refusals_have_equal_meters ... ok
+test issue_tracker_sqlite_and_memory ... ok
+test recursive_expiry_sqlite_and_memory ... ok
+test adoption_checks_old_correspondence_before_projection ... ok
+test four_level_chains_sqlite_and_memory ... ok
+test inherited_aggregate_cost_depends_on_backlog_not_live_population ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.88s
+
+     Running tests/read_through_review.rs (target/debug/deps/read_through_review-b7fd236c5eb49d67)
+
+running 35 tests
+test stored_total_page_authorization_is_refused ... ok
+test signed_sum_overflow_before_authorization_is_refused ... ok
+test a_non_expiring_aggregate_needs_no_recount_cap ... ok
+test explicit_parent_key_aggregate_scans_are_refused ... ok
+test expiring_aggregate_authorization_is_key_determined ... ok
+test predicate_kept_row_expiry ... ok
+test unreturned_candidates_discard_expiry ... ok
+test ordinary_expiring_page_recounts ... ok
+test aggregate_multi_batch ... ok
+test predicate_id_expiry ... ok
+test authorized_expiring_sum_overflow ... ok
+test partial_page_keeps_emitted_expiry ... ok
+test predicate_private_authorization_expiry ... ok
+test streaming_count_expiry ... ok
+test predicate_index_expiry ... ok
+test expiry_default ... ok
+test aggregate_live_recount_cut_expiry ... ok
+test aggregate_actual_row ... ok
+test aggregate_page_cut_expiry ... ok
+test delete_refusal ... ok
+test predicate_cut_discards_expiry ... ok
+test aggregate_authorized_shortcut_cut ... ok
+test authorized_expired_backlog_stays_metered ... ok
+test aggregate_existence ... ok
+test aggregate_inherited_only_dependencies ... ok
+test admitted_aggregate_emission_expiry ... ok
+test reuse_refusal ... ok
+test predicate_point_expiry ... ok
+test probe_meter_equivalence ... ok
+test aggregate_denial_dependencies ... ok
+test aggregate_sequential_reads ... ok
+test aggregate_tables_constant ... ok
+test uniform_prefix_emission_expiry ... ok
+test aggregate_denied_gate_expiry ... ok
+test aggregate_denial_work ... ok
+
+test result: ok. 35 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.32s
+
+     Running tests/read_through_transactions.rs (target/debug/deps/read_through_transactions-3502090e928c6971)
+
+running 14 tests
+test extra_rule_default_cycle_and_uncovered_aggregate_refusals ... ok
+test memory_activation_and_restore_share_the_capture_barrier ... ok
+test memory_seed_sweep_and_reuse_use_the_same_lifetime_rules ... ok
+test immutable_capture_payloads_and_import_parent_replacement_are_atomic ... ok
+test physical_children_block_reuse_until_child_first_sweep ... ok
+test three_level_deadline_crosses_middle_without_authored_expiry ... ok
+test expired_unswept_child_delete_conflict_is_fail_closed ... ok
+test restore_recomputes_stale_instant_and_refuses_different_captures ... ok
+test activation_retires_under_old_schema_and_reports_shortening ... ok
+test adoption_disagreement_and_missing_parent_publish_nothing ... ok
+test activation_recomputes_a_changed_leaf_expiry_without_recapturing ... ok
+test cursors_and_dependencies_contain_no_captured_audience ... ok
+test memory_refusal_meters_match_hidden_and_absent_worlds ... ok
+test refusal_worlds_and_reservation_ceilings_match_for_every_insert_arm ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.46s
+
+     Running tests/sequence_by.rs (target/debug/deps/sequence_by-74fd35ae8967b1f5)
+
+running 6 tests
+test sequence_read_prerequisite_is_in_the_generic_rule_explanation ... ok
+test sequence_remains_an_ordinary_table_reference_without_by ... ok
+test maintained_target_ordinal_needs_no_explicit_immutable ... ok
+test maintained_paths_see_implicit_sequence_and_parent_immutability ... ok
+test parses_binds_and_round_trips_int_sequences ... ok
+test parent_and_supplied_refusals_have_rewrites_and_explanations ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/time_audiences.rs (target/debug/deps/time_audiences-def666aa176413f9)
+
+running 6 tests
+test union_audience_with_future_membership_is_refused_without_early_lanes ... ok
+test admitted_group_audience_may_itself_open_later ... ok
+test not_before_binds_separately_from_expiry_and_requires_a_capability ... ok
+test not_before_has_located_type_index_shape_and_duplicate_diagnostics ... ok
+test unsupported_derived_and_lifetime_compositions_are_refused ... ok
+test row_keyed_maintain_rejects_a_timed_member_table_only ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+

@@ -1,0 +1,60 @@
+    Blocking waiting for file lock on build directory
+warning: function `interval` is never used
+  --> crates/snapback4-lang/src/release_changes.rs:57:8
+   |
+57 | pub fn interval(previous: &str, installed: &str) -> String {
+   |        ^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `snapback4-lang` (build script) generated 1 warning
+    Finished `test` profile [optimized] target(s) in 22.77s
+     Running unittests src/lib.rs (target/debug/deps/snapback4_core-310d720530e812d3)
+
+running 30 tests
+test engine::postgres::tests::failed_fill_preserves_earlier_cache_and_transaction_usability ... ok
+test engine::postgres::tests::authority_invalidations_require_and_use_the_serialized_head_fence ... ok
+test engine::postgres::tests::legacy_keys_can_shrink_and_open_reports_the_index_and_count ... ok
+test engine::postgres::tests::read_authority_preserves_scope_cap_and_generation ... ok
+test engine::postgres::tests::exact_batches_misses_order_nulls_writes_and_savepoint_rollback ... ok
+test engine::postgres::tests::caps::unswept_expired_rows_do_not_occupy_live_group_or_table_caps_on_postgres ... ok
+test engine::postgres::tests::authority_rollback_reopen_and_repeatable_read_snapshot_are_real ... ok
+test engine::postgres::tests::query_availability_propagates_heap_abort_without_confusing_null_or_lists ... ok
+test engine::postgres::tests::key_only_endpoints_seek_both_directions_without_payload_decode ... ok
+test engine::postgres::tests::expiring_counts::contribution_pages_admit_all_cumulative_budgets_before_callbacks ... ok
+test engine::postgres::tests::shared_authority_policy_cases_run_on_postgres ... ok
+test engine::postgres::tests::oversized_get_and_lookup_fills_transfer_no_payloads ... ok
+test engine::postgres::tests::shared_authority_facts_map_on_postgres ... ok
+test engine::postgres::tests::reopening_legacy_maintained_ids_rebuilds_before_publishing_the_generation ... FAILED
+test engine::postgres::tests::small_pages_only_fill_when_distinct_uncached_requests_pay_control_calls ... ok
+test engine::postgres::tests::caps::physical_cap_sql_preserves_counts_across_moves_rollback_reopen_and_upgrade ... ok
+test engine::postgres::tests::caps::retired_birth_releases_caps_after_postgres_commit_and_reopen ... ok
+test engine::postgres::tests::live_adoption_rebuilds_indexes_from_rows_and_keeps_transfer_and_restore_atomic ... ok
+test engine::postgres::tests::delivery::read_queries_skip_manifest_construction_on_postgres ... ok
+test engine::postgres::tests::expiring_counts::expiry_counts_and_041_upgrade_match_sqlite ... ok
+test engine::postgres::tests::refusals::eight_concurrent_legacy_attachers_succeed ... ok
+test engine::postgres::tests::refusals::refused_cap_rebuild_rolls_back_every_open_upgrade ... ok
+test engine::postgres::tests::refusals::eight_waiting_attachers_recheck_version_before_any_upgrade ... ok
+test engine::postgres::tests::update_images::another_principal_cannot_take_over_a_row_on_postgres ... ok
+test engine::postgres::tests::delivery::delivery_noop_records_only_receipt_and_replay_does_not_lookup_program ... ok
+test engine::postgres::tests::delivery::removed_reporter_pays_nothing_after_adopting_a_warmed_clone ... ok
+test engine::postgres::tests::delivery::delivery_manifest_survives_round_tripped_adoption ... ok
+test engine::postgres::tests::sequence_by_is_transactional_shared_and_durable ... ok
+test engine::postgres::tests::refusals::refused_opens_preserve_all_postgres_schema_and_rows ... ok
+test engine::postgres::tests::expiring_counts::ordinary_payloads_adopt_across_multiple_pages ... ok
+
+failures:
+
+---- engine::postgres::tests::reopening_legacy_maintained_ids_rebuilds_before_publishing_the_generation stdout ----
+
+thread 'engine::postgres::tests::reopening_legacy_maintained_ids_rebuilds_before_publishing_the_generation' (1947949) panicked at crates/snapback4-core/src/engine/postgres/tests.rs:122:50:
+called `Result::unwrap()` on an `Err` value: Postgres(Error { kind: Db, cause: Some(DbError { severity: "ERROR", parsed_severity: Some(Error), code: SqlState(E23505), message: "duplicate key value violates unique constraint \"r_pkey\"", detail: Some("Key (t, id)=(groups, group) already exists."), hint: None, position: None, where_: None, schema: Some("sb4_eval_maintained_id_18c2eb9462ff8aae"), table: Some("r"), column: None, datatype: None, constraint: Some("r_pkey"), file: Some("nbtinsert.c"), line: Some(666), routine: Some("_bt_check_unique") }) })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    engine::postgres::tests::reopening_legacy_maintained_ids_rebuilds_before_publishing_the_generation
+
+test result: FAILED. 29 passed; 1 failed; 0 ignored; 0 measured; 377 filtered out; finished in 2.26s
+
+error: test failed, to rerun pass `-p snapback4-core --lib`
