@@ -394,6 +394,14 @@ pub(crate) fn restored_parent_scratch(next:&Schema,sources:&BTreeMap<String,Tabl
         parent_bytes(sources.get(&edge.parent),next.table(&edge.parent))
     }).fold(0_u64,u64::saturating_add)
 }
+/// Only authority cells are replaceable before narrowed restoration. Other
+/// incompatible data must keep its dormant lifetime without fetching a parent.
+pub(crate) fn manual_authority_fields(next:&Schema,name:&str,old:&Table)->Vec<String> {
+    let Some(edge)=old.through.as_ref().filter(|e|e.live.is_some()) else {return Vec::new()};
+    let Some(table)=next.table(name).filter(|t|t.through.is_none()) else {return Vec::new()};
+    let Some(parent)=next.table(&edge.parent) else {return Vec::new()};
+    live_correspondence(&table.rules.read,&parent.rules.read).map(|map|map.into_keys().collect()).unwrap_or_default()
+}
 /// Reconcile per-row provenance as well as complete-table source definitions.
 pub(crate) fn manual_image(tx:&dyn Rows,next:&Schema,name:&str,old:&Table,row:&mut Value,now:i64)->Result<(),RuntimeError> {
     let Some(edge)=old.through.as_ref().filter(|e|e.live.is_some()) else {return Ok(())};

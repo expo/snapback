@@ -12,9 +12,12 @@ pub(super) fn present(conn: &Connection) -> Result<bool, RuntimeError> {
 }
 
 fn incompatible(tx:&Tx<'_>,schema: &Schema, name: &str, row: &Value) -> Result<bool,RuntimeError> {
+    incompatible_except(tx,schema,name,row,&[])
+}
+fn incompatible_except(tx:&Tx<'_>,schema: &Schema,name:&str,row:&Value,authority:&[String])->Result<bool,RuntimeError> {
     let table = &schema.tables[name];
     for (column,kind) in &table.columns {
-        if table.engine_field(column) || table.maintained.contains_key(column) {continue;}
+        if table.engine_field(column) || table.maintained.contains_key(column) || authority.contains(column) {continue;}
         if let Ok(value)=row.field(column) {
             if incompatible_column(tx, table, name, column, kind, value)? { return Ok(true); }
         }
@@ -126,8 +129,8 @@ pub(super) fn transition(
         super::dormant::check_owner(tx, &name, &old, next)?;
         let mut row: Value =
             serde_json::from_str(&data).map_err(|e| RuntimeError::Store(e.to_string()))?;
-        let reverse_live=old.through.as_ref().is_some_and(|e|e.live.is_some()) && table.through.is_none();
-        if !reverse_live && incompatible(tx,next, &name, &row)? {
+        let authority=crate::engine::through_activation::manual_authority_fields(next,&name,&old);
+        if incompatible_except(tx,next,&name,&row,&authority)? {
             continue;
         }
         // Retained source deadlines precede projection, including removal of read-through itself.
