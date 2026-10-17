@@ -1169,6 +1169,7 @@ impl Engine {
         if crate::schema::live::has_live(&self.schema) {
             let now=self.advance_time_audience(crate::now_ms())?;
             let tx=self.store.transaction()?;
+            let now=time_audience::pin_writer_time(&self.schema,&tx,now)?;
             let seq=tx.next_seq()?;
             let (count,events,tables,seq)=live_bulk::restore(&tx,&self.schema,rows,seq,now)?;
             if count>0 {tx.record_commit(seq,now,"restore",crate::SYSTEM_PRINCIPAL,"restore",&tables,count)?;partition::append(&tx,seq,&events)?;}
