@@ -14,7 +14,17 @@ const root = fileURLToPath(new URL('../../../', import.meta.url));
 const bin = process.env.SNAPBACK4_BIN ?? join(root, 'target/debug/snapback4');
 const invoke = (args, cwd, env = {}) => spawnSync(bin, args, { cwd, encoding: 'utf8', env: { ...process.env, SNAPBACK4_BIN: bin, PORT_LO: undefined, PORT_HI: undefined, ...env }, timeout: 120000 });
 const success = result => assert.equal(result.status, 0, result.stdout + result.stderr);
-const project = (t, name = 'dx10-') => { const dir = mkdtempSync(join(root, 'target', name)); t.after(() => rmSync(dir, { recursive: true, force: true })); return dir; };
+const projectStops = new Map();
+const project = (t, name = 'dx10-') => {
+  const dir = mkdtempSync(join(root, 'target', name));
+  // Stop background writers before removing their files. A failed earlier
+  // after-hook would otherwise skip the host stop and leave the file alive.
+  t.after(async () => {
+    try { await projectStops.get(dir)?.(); }
+    finally { projectStops.delete(dir); rmSync(dir, { recursive: true, force: true }); }
+  });
+  return dir;
+};
 
 const envelopeSchema = `use personas alice
 table notes:
@@ -34,12 +44,14 @@ mutation refuse():
 async function dev(dir) {
   const child = spawn(bin, ['dev', '--memory', '--port', '0', '--no-watch'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
   child.stderr.resume();
+  const stop = async () => { if (child.exitCode !== null || child.signalCode !== null) return; const done = once(child, 'close'); child.kill('SIGTERM'); await done; };
+  projectStops.set(dir, stop);
   const [url] = await once(createInterface({ input: child.stdout }), 'line');
-  return { url, stop: async () => { if (child.exitCode !== null || child.signalCode !== null) return; const done = once(child, 'close'); child.kill('SIGTERM'); await done; } };
+  return { url, stop };
 }
 test('guide testing full HTTP bodies match real routes, including null returns, refusals and omitted ids', async t => {
   const dir = project(t); mkdirSync(join(dir, 'snapback')); writeFileSync(join(dir, 'snapback/schema.q'), envelopeSchema);
-  const server = await dev(dir); t.after(server.stop);
+  const server = await dev(dir);
   const guide = readFileSync(join(root, 'crates/snapback4-lang/src/guide/testing.md'), 'utf8');
   const examples = JSON.parse(guide.match(/```json\n(\{\n  "\/m\/add"[\s\S]*?)\n```/)[1]);
   let rowId, store;
@@ -77,7 +89,7 @@ mutation add(title: text <=80):
 `;
 test('KIT3 guide wire literal query/mutation success/refusal, point objects and view values', {timeout:30000}, async t => {
   const dir=project(t,'kit3-wire-');mkdirSync(join(dir,'snapback'));writeFileSync(join(dir,'snapback/schema.q'),wireRecipe);
-  const server=await dev(dir);t.after(server.stop);
+  const server=await dev(dir);
   const requests=[
     ['/m/add','alice',{title:'Proof'}],
     ['/m/add','alice',{title:'refuse'}],
