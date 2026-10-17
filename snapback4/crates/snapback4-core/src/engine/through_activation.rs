@@ -89,7 +89,7 @@ fn sample(samples: &mut Vec<String>, row: &Value, reference: &str, parent: &str)
 }
 
 fn rows(
-    tx: &dyn Rows, name: &str, table: &Table, parent: Option<&Table>, bounded: bool,
+    tx: &dyn Rows, name: &str, table: &Table, parent: Option<&Table>, bounded: bool, destination: Option<&Table>,
     mut visit: impl FnMut(Value) -> Result<(), RuntimeError>,
 ) -> Result<(), RuntimeError> {
     if !bounded {
@@ -101,10 +101,10 @@ fn rows(
         }
     }
     let decode=crate::rows::disclosed::decode_reservation(table);
-    let keys=table.indexes.values().map(|i|4*crate::rows::MAX_INDEX_KEY_BYTES as u64+128*(i.columns().len() as u64+1)+512).sum::<u64>();
-    let scratch=decode.saturating_mul(4).saturating_add(keys.saturating_mul(2))
+    let keys=table.indexes.values().chain(destination.into_iter().flat_map(|t|t.indexes.values())).map(|i|4*crate::rows::MAX_INDEX_KEY_BYTES as u64+128*(i.columns().len() as u64+1)+512).sum::<u64>();
+    let scratch=decode.saturating_mul(4).saturating_add(destination.map_or(0,crate::rows::disclosed::decode_reservation).saturating_mul(4)).saturating_add(keys.saturating_mul(2))
         .saturating_add(parent.map_or(0,crate::rows::disclosed::decode_reservation)).saturating_add(8192);
-    tx.walk_adoption(name,decode,scratch,[2,table.columns.len() as u64+16,2*table.indexes.len() as u64],&mut visit)
+    tx.walk_adoption(name,decode,scratch,[2,table.columns.len() as u64+16,2*(table.indexes.len()+destination.map_or(0,|t|t.indexes.len())) as u64],&mut visit)
 }
 
 pub(crate) fn correspondence(
@@ -215,16 +215,17 @@ pub(crate) fn activate_retained(
     };
     // Previous indexes and row images still exist. Every affected expired row
     // retires under its old deadline, before a new default or capture can revive it.
-    let bounded=crate::schema::live::has_live(next) || crate::schema::live::has_live(previous);
+    let bounded=crate::schema::live::has_live(next) || crate::schema::live::has_live(previous) || tx.has_restored_live_authority()?;
     let retirement = Retirement::new(next, previous, now);
     for (name, old) in retirement.affected.iter().rev() {
-        rows(tx, name, old, None, bounded, |row| {
+        rows(tx, name, old, None, bounded, None, |row| {
             if retirement.retires(name, &row) {
                 tx.delete(name, old, &row)?;
             }
             Ok(())
         })?;
     }
+    forward_sources(tx,next,&previous.tables,now)?;
     reconcile_manual(tx,next,&previous.tables,now)?;
     // Compare all predecessor images before any ancestor is recaptured.
     for (name, _) in &retirement.affected {
@@ -240,8 +241,9 @@ pub(crate) fn activate_retained(
         let map = correspondence(&old.rules.read, &parent.rules.read);
         let mut invalid = 0;
         let mut samples = Vec::new();
-        rows(tx, name, old, Some(parent), bounded, |row| {
+        rows(tx, name, old, Some(parent), bounded, None, |row| {
             // @ref LLP 3000.000.000#10-wave-10-release-lifecycle-amendment — historical capture restoration needs no audience recapture.
+            if tx.restored_live_authority(name,row.field("id")?.as_str()?)? {return Ok(());}
             if t.live.is_none() && retained.contains(name) && row.field(PARENT_DEADLINE).is_ok() && t.fields.keys().all(|f|row.field(f).is_ok()) {return Ok(());}
             let Some(map) = &map else {
                 invalid += 1;
@@ -287,11 +289,12 @@ pub(crate) fn activate_retained(
         let recapture = previous.table(&name).and_then(|t| t.through.as_ref()) != Some(t);
         let mut invalid = 0;
         let mut samples = Vec::new();
-        rows(tx, &name, previous.table(&name).unwrap_or(table), Some(parent), bounded, |old| {
+        rows(tx, &name, previous.table(&name).unwrap_or(table), Some(parent), bounded, Some(table), |old| {
             let mut row = old.clone();
             // @ref LLP 3000.000.000#2-retain-by-default — restored audience/deadline captures retain their original lifetime.
-            let historical = t.live.is_none() && retained.contains(&name) && old.field(PARENT_DEADLINE).is_ok();
-            if (recapture || t.live.is_some()) && (!historical || t.fields.keys().any(|field| old.field(field).is_err()))
+            let live_source=previous.table(&name).and_then(|t|t.through.as_ref()).is_some_and(|t|t.live.is_some()) || tx.restored_live_authority(&name,old.field("id")?.as_str()?)?;
+            let historical = !live_source && t.live.is_none() && retained.contains(&name) && old.field(PARENT_DEADLINE).is_ok();
+            if (recapture || t.live.is_some() || live_source) && (!historical || t.fields.keys().any(|field| old.field(field).is_err()))
             {
                 let parent_row = old
                     .field(&t.reference)
@@ -336,13 +339,23 @@ pub(crate) fn activate_retained(
     Ok(shortened)
 }
 
+// The legacy structural matcher maps direct Field terms. A live handoff
+// requires every focal input to be covered; identical unmapped hop roots are
+// not a proof that a dormant authored copy follows the current parent.
+fn live_correspondence(child:&RuleExpr,parent:&RuleExpr)->Option<BTreeMap<String,String>> {
+    let map=correspondence(child,parent)?;
+    let mut child_fields=std::collections::BTreeSet::new();let mut parent_fields=std::collections::BTreeSet::new();
+    child.fields(&mut child_fields);parent.fields(&mut parent_fields);
+    (child_fields==map.keys().cloned().collect() && parent_fields==map.values().cloned().collect()).then_some(map)
+}
+
 /// Validate a recovered manual image before any authority cells are projected away.
 pub(crate) fn forward_image(tx:&dyn Rows,next:&Schema,sources:&BTreeMap<String,Table>,name:&str,old:&Table,row:&Value,now:i64)->Result<(),RuntimeError> {
     let Some(destination)=next.table(name) else {return Ok(())};
     let Some(edge)=destination.through.as_ref().filter(|e|e.live.is_some()) else {return Ok(())};
-    if old.through.is_some() || Retirement::retires_image(destination,old,row,now) {return Ok(());}
+    if old.through.as_ref().is_some_and(|t|t.live.is_some()) || tx.restored_live_authority(name,row.field("id")?.as_str()?)? || Retirement::retires_image(destination,old,row,now) {return Ok(());}
     let parent=sources.get(&edge.parent).or_else(||next.table(&edge.parent)).ok_or_else(||refusal(name,1,"restored manual source needs its parent definition",&[]))?;
-    let map=correspondence(&old.rules.read,&parent.rules.read).ok_or_else(||refusal(name,1,"restored manual source lacks full audience correspondence",&[]))?;
+    let map=live_correspondence(&old.rules.read,&parent.rules.read).ok_or_else(||refusal(name,1,"restored manual source lacks full audience correspondence",&[]))?;
     let p=row.field(&edge.reference).ok().and_then(|v|v.as_str().ok()).map(|id|tx.get(&edge.parent,id)).transpose()?.flatten();
     let matches=p.as_ref().is_some_and(|p|parent.live(p,now) && {
         let p=crate::schema::row_image(p,parent);let old=crate::schema::row_image(row,old);
@@ -352,9 +365,9 @@ pub(crate) fn forward_image(tx:&dyn Rows,next:&Schema,sources:&BTreeMap<String,T
 }
 pub(crate) fn forward_sources(tx:&dyn Rows,next:&Schema,sources:&BTreeMap<String,Table>,now:i64)->Result<(),RuntimeError> {
     for (name,old) in sources {
-        if old.through.is_none() && next.table(name).and_then(|t|t.through.as_ref()).is_some_and(|t|t.live.is_some()) {
+        if old.through.as_ref().is_none_or(|t|t.live.is_none()) && next.table(name).and_then(|t|t.through.as_ref()).is_some_and(|t|t.live.is_some()) {
             let parent=next.table(&next.tables[name].through.as_ref().unwrap().parent);
-            rows(tx,name,old,parent,true,|row|forward_image(tx,next,sources,name,old,&row,now))?;
+            rows(tx,name,old,parent,true,None,|row|forward_image(tx,next,sources,name,old,&row,now))?;
         }
     }Ok(())
 }
@@ -363,7 +376,7 @@ pub(crate) fn manual_image(tx:&dyn Rows,next:&Schema,name:&str,old:&Table,row:&m
     let Some(edge)=old.through.as_ref().filter(|e|e.live.is_some()) else {return Ok(())};
     let Some(destination)=next.table(name).filter(|t|t.through.is_none()) else {return Ok(())};
     let parent=next.table(&edge.parent).ok_or_else(||refusal(name,1,"manual restoration needs current parent",&[]))?;
-    let map=correspondence(&destination.rules.read,&parent.rules.read).ok_or_else(||refusal(name,1,"manual restoration needs whole current parent correspondence",&[]))?;
+    let map=live_correspondence(&destination.rules.read,&parent.rules.read).ok_or_else(||refusal(name,1,"manual restoration needs whole current parent correspondence",&[]))?;
     if destination.columns.get(&edge.reference)!=old.columns.get(&edge.reference) || !destination.immutable_fields().any(|f|f==edge.reference) {return Err(refusal(name,1,"manual restoration must preserve immutable parent binding",&[]));}
     let p=tx.get(&edge.parent,row.field(&edge.reference)?.as_str()?)?.filter(|p|parent.live(p,now)).ok_or_else(||refusal(name,1,"manual restoration needs live current parent",&[]))?;
     let p=crate::schema::row_image(&p,parent);
@@ -388,13 +401,13 @@ pub(crate) fn reconcile_manual(tx:&dyn Rows,next:&Schema,sources:&BTreeMap<Strin
         let Some(edge)=old.through.as_ref().filter(|t|t.live.is_some()) else {continue};
         let Some(destination)=next.table(name).filter(|t|t.through.is_none()) else {continue};
         let parent=next.table(&edge.parent).ok_or_else(||refusal(name,0,"reverse adoption needs its current parent",&[]))?;
-        let map=correspondence(&destination.rules.read,&parent.rules.read)
+        let map=live_correspondence(&destination.rules.read,&parent.rules.read)
             .ok_or_else(||refusal(name,0,"manual destination needs full current-parent audience correspondence; use a bridge release",&[]))?;
         if destination.columns.get(&edge.reference)!=old.columns.get(&edge.reference) || !destination.immutable_fields().any(|f|f==edge.reference) {
             return Err(refusal(name,0,"manual destination must preserve the immutable parent binding; use a bridge release",&[]));
         }
         let mut invalid=0;let mut samples=Vec::new();
-        rows(tx,name,old,Some(parent),true,|stored| {
+        rows(tx,name,old,Some(parent),true,None,|stored| {
             let p=stored.field(&edge.reference).ok().and_then(|v|v.as_str().ok()).map(|id|tx.get(&edge.parent,id)).transpose()?.flatten();
             let Some(p)=p.filter(|p|parent.live(p,now)) else {invalid+=1;sample(&mut samples,&stored,&edge.reference,&edge.parent);return Ok(())};
             let p=crate::schema::row_image(&p,parent);
@@ -423,7 +436,7 @@ pub fn validate_restore(tx: &dyn Rows, schema: &Schema, now: i64) -> Result<(), 
         let parent = &schema.tables[&t.parent];
         let mut invalid = 0;
         let mut samples = Vec::new();
-        rows(tx, &name, table, Some(parent), crate::schema::live::has_live(schema), |row| {
+        rows(tx, &name, table, Some(parent), crate::schema::live::has_live(schema), None, |row| {
             let found = row
                 .field(&t.reference)
                 .ok()
@@ -472,7 +485,7 @@ pub fn validate_indexes(tx: &dyn Rows, schema: &Schema) -> Result<(), RuntimeErr
                 let (index, _) = table
                     .indexes
                     .iter()
-                    .find(|(_, i)| i.columns().starts_with(by))
+                    .find(|(_, i)| i.is_plain() && i.columns().starts_with(by))
                     .ok_or_else(|| RuntimeError::Schema(format!("{name} cap has no index")))?;
                 checks.push((index, by.len(), u64::from(*max), false));
             }
@@ -597,5 +610,18 @@ impl super::runner::Runner<'_> {
             }
         }
         Ok(count)
+    }
+}
+
+#[cfg(test)]
+mod live_handoff_tests {
+    use super::*;
+    #[test]
+    fn complete_copy_inference_never_treats_an_unmapped_hop_as_empty() {
+        let rule=RuleExpr::Eq(crate::schema::RuleTerm::Reference{table:"departments".into(),column:"department".into(),field:"owner".into(),old:false},crate::schema::RuleTerm::Viewer);
+        // Core read-rule admission currently refuses hops. Keep the live
+        // handoff's own proof complete if that surface ever expands.
+        assert!(correspondence(&rule,&rule).unwrap().is_empty());
+        assert!(live_correspondence(&rule,&rule).is_none());
     }
 }

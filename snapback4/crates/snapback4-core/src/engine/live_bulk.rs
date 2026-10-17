@@ -342,7 +342,7 @@ fn validate_one(
                 let (index, _) = table
                     .indexes
                     .iter()
-                    .find(|(_, i)| i.columns().starts_with(by))
+                    .find(|(_, i)| i.is_plain() && i.columns().starts_with(by))
                     .ok_or_else(|| RuntimeError::Schema("bulk cap has no index".into()))?;
                 checks.push((index, by.len(), u64::from(*max), false));
             }

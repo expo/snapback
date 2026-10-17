@@ -22,3 +22,13 @@ Muse round 1 returned transport retries, no verdict; stopped and retried on the 
 7. Authoritative memory restore delegates to the same bounded final-image barrier as SQLite/Postgres: recapture current live authority, retain one job account and roll back oversize input. Trusted durable derivation images are preserved under the native restore contract, rather than triggering a separate unbounded global rebuild. Legacy captured-only memory restoration is unchanged.
 
 The per-row provenance path also now preflights stored image/definition bytes before ownership and fetches only destination dormant cells against the owning page/row account. The RFC's closed admission and fixed-price design remain unchanged; these implement its complete-source and retained-state requirements.
+
+## Round 3 response
+
+Muse READY; fresh Codex found three points. Destination decode/index scratch now participates in the byte-admitted callback reservation, and a 6000-destination-index adoption cuts before allocating. Every cap validator selects a plain index; a two-token word index beside a plain owner index cannot inflate occupancy. Dormant live cap changes bypass historical Through equality and restamp current inputs, then validate destination occupancy.
+
+The restoration relation also preserves each restored row's live source provenance until the entire barrier finishes. That prevents formerly-live rows from accidentally taking captured-history or immediate-manual correspondence shortcuts after intermediate generations. Source captured-to-live still requires current input agreement. Regression witnesses cover dormant cap increases/decreases, live → narrowed → manual → captured, and captured → dormant → live with consistent/inconsistent current parents.
+
+Two defensive checks complete the proof: raw live constraints/unique keys may not depend on mutable engine inputs, and live manual-handoff inference must map every focal input. The latter keeps the handoff proof self-contained; core read-rule admission already refuses reference hops. A focused core unit test demonstrates why identical unmapped hop syntax cannot stand for an empty copy map if that surface expands. Ordinary captured-only correspondence remains unchanged.
+
+Muse's non-blocking scalar-literal note was addressed in 1a9b79d95d; complex raw literals refuse live admission.

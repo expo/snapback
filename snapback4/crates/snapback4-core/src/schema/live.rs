@@ -173,6 +173,11 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
         }) {
             fail("missing plain nonunique $liveChildren [reference,id] index");
         }
+        let private_key=|fields:&[String]|fields.iter().any(|f|child.engine_field(f));
+        if child.indexes.values().any(|i|i.unique && private_key(&i.columns())) || child.constraints.iter().any(|c|match c {
+            Constraint::Immutable{fields}=>private_key(fields),
+            Constraint::Cap{by,..}=>private_key(by),Constraint::Text{field,..}=>child.engine_field(field),_=>false,
+        }) {fail("ordinary constraints and unique keys must use authored cells, not mutable live inputs");}
         if !key_shapes(name, child) {
             fail(
                 "live children need plain indexes whose declared maximum keys fit; narrow indexed scalar bounds or use the manual form",

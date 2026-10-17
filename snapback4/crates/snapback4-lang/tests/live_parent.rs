@@ -749,3 +749,58 @@ fn raw_live_rule_literals_obey_scalar_admission() {
     let mut schema=build(SOURCE).schema;let term=RuleTerm::Literal(Value::Array(vec![Value::Int(1)].into()));schema.tables.get_mut("projects").unwrap().rules.read=RuleExpr::Eq(term.clone(),term);
     assert!(snapback4_core::schema::live::validate(&schema).iter().any(|e|e.message.contains("direct scalar")));
 }
+
+#[test]
+fn adoption_reserves_destination_index_sets_before_live_callback() {
+    use snapback4_core::schema::{Index,ColumnType};
+    let b=build(SOURCE);let mut schema=b.schema;schema.tables.get_mut("tasks").unwrap().columns.insert("blob".into(),ColumnType::Bytes{max:800});
+    let mut e=Engine::memory(schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let rows=[("projects".into(),snapback4_core::value::object([("id",Value::Id("p".into())),("owner",Value::Id("alice".into()))])),("tasks".into(),snapback4_core::value::object([("id",Value::Id("c".into())),("project",Value::Id("p".into())),("body",Value::String("private".into())),("blob",Value::Bytes(vec![0;800]))]))];e.seed(rows).unwrap();let generation=e.generation();
+    let mut next=e.schema().clone();for n in 0..6000 {next.tables.get_mut("tasks").unwrap().indexes.insert(format!("byBlob{n}"),Index::of(&["blob"],false));}
+    let programs=e.programs().cloned().collect::<Vec<_>>();let error=e.adopt(next,programs).unwrap_err();assert_eq!(error.code(),"E_BOUND");assert_eq!(e.generation(),generation);assert!(visible(&mut e,"alice"));
+}
+#[test]
+fn cap_restore_selects_a_plain_index_instead_of_word_entries() {
+    use snapback4_core::schema::{Index,IndexComponent,ColumnType,Constraint,public_table};
+    let b=build(SOURCE);let mut schema=b.schema;
+    let mut table=public_table([("id".into(),ColumnType::Id),("owner".into(),ColumnType::Principal),("body".into(),ColumnType::Text{max:40})].into(),[("byId".into(),Index::of(&["id"],true)),("zOwner".into(),Index::of(&["owner","id"],false))].into());
+    table.indexes.insert("aWords".into(),Index{components:vec![IndexComponent::Column("owner".into()),IndexComponent::WordPrefixes{fields:vec!["body".into()],contract:serde_json::Value::String(snapback4_core::words::CONTRACT.into())},IndexComponent::Column("id".into())],unique:false});table.constraints.push(Constraint::Cap{by:vec!["owner".into()],max:1});schema.tables.insert("wordCaps".into(),table);
+    let mut e=Engine::memory(schema,b.programs.into_iter().map(|p|p.program)).unwrap();let row=snapback4_core::value::object([("id",Value::Id("r".into())),("owner",Value::Id("alice".into())),("body",Value::String("one two".into()))]);e.load_trusted([("wordCaps".into(),row)]).unwrap();
+}
+#[test]
+fn dormant_live_cap_changes_restamp_current_authority_and_validate_occupancy() {
+    use snapback4_core::engine::release::ReleaseActivation;
+    let mut e=seeded(SOURCE,"alice",true);
+    let removed=format!("{}mutation transfer(project: projects, owner: principal):\n  update projects[project] {{ owner }}\n",SOURCE.split("table tasks:").next().unwrap());
+    let b=build(&removed);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();transfer(&mut e,"bob");
+    let b=build(&SOURCE.replace("cap 2 by project","cap 3 by project"));e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap();assert!(!visible(&mut e,"alice"));assert!(visible(&mut e,"bob"));
+    let row=wire::row_from_json(&e.schema().tables["tasks"],&json!({"id":"d","project":"p","body":"second"})).unwrap();e.seed([("tasks".into(),row)]).unwrap();let generation=e.generation();let b=build(&SOURCE.replace("cap 2 by project","cap 1 by project"));assert!(e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(4,Some(3)),false).is_err());assert_eq!(e.generation(),generation);assert!(visible(&mut e,"bob"));
+}
+#[test]
+fn restored_live_provenance_cannot_become_historical_captured_authority() {
+    use snapback4_core::engine::release::ReleaseActivation;
+    let wide=SOURCE.replace("  body: text <=80","  owner: principal default 'alice'\n  status: enum('active', 'draft') default 'draft'\n  body: text <=80");let mut e=seeded(&wide,"alice",true);
+    let narrow=wide.replace("enum('active', 'draft') default 'draft'","enum('active') default 'active'");let b=build(&narrow);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();transfer(&mut e,"bob");
+    let b=build(&narrow.replace("read through live .project","read <- .owner = viewer"));e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false).unwrap();
+    let captured=wide.replace("read through live .project","read through .project").replace("  owner: principal\n  read", "  owner: principal\n  immutable owner\n  read");let b=build(&captured);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(4,Some(3)),false).unwrap();assert!(!visible(&mut e,"alice"));assert!(visible(&mut e,"bob"));
+}
+#[test]
+fn raw_live_constraints_cannot_depend_on_mutable_engine_inputs() {
+    use snapback4_core::schema::{Index,Constraint};
+    for which in 0..3 {let mut schema=build(SOURCE).schema;let t=schema.tables.get_mut("tasks").unwrap();match which {
+        0=>{t.indexes.insert("uniquePolicy".into(),Index::of(&["$project.owner"],true));},
+        1=>{t.indexes.insert("capPolicy".into(),Index::of(&["$project.owner","id"],false));t.constraints.push(Constraint::Cap{by:vec!["$project.owner".into()],max:1});},
+        _=>t.constraints.push(Constraint::Immutable{fields:vec!["$project.owner".into()]}),
+    }assert!(snapback4_core::schema::validate(&schema).iter().any(|e|e.message.contains("authored cells")));}
+}
+
+#[test]
+fn dormant_captured_to_live_requires_current_copy_agreement() {
+    use snapback4_core::engine::release::ReleaseActivation;
+    let captured=SOURCE.replace("read through live .project","read through .project").replace("  owner: principal\n  read","  owner: principal\n  immutable owner\n  read");
+    for changed in [false,true] {let mut e=seeded(&captured,"alice",true);
+        let removed=format!("{}mutation transfer(project: projects, owner: principal):\n  update projects[project] {{ owner }}\n",SOURCE.split("table tasks:").next().unwrap());let b=build(&removed);e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(2,Some(1)),false).unwrap();if changed {transfer(&mut e,"bob");}
+        let generation=e.generation();let b=build(SOURCE);let out=e.adopt_release(b.schema,b.programs.into_iter().map(|p|p.program),&ReleaseActivation::new(3,Some(2)),false);
+        if changed {assert_eq!(out.unwrap_err().code(),"E_READ_THROUGH_ADOPT");assert_eq!(e.generation(),generation);}else{out.unwrap();transfer(&mut e,"bob");assert!(!visible(&mut e,"alice"));assert!(visible(&mut e,"bob"));}
+    }
+}

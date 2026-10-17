@@ -23,6 +23,7 @@ pub(super) fn configure(conn: &Connection, next: &Schema) -> Result<(), RuntimeE
     for (table, path) in [
         ("_dormant_tables", "$.through.live"),
         ("_dormant_columns", "$.capture_source.through.live"),
+        ("_dormant_narrow_rows", "$.through.live"),
     ] {
         let exists: bool = conn.query_row(
             "SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name=?1)",
@@ -65,7 +66,7 @@ pub(super) fn finalize(tx: &Tx<'_>) -> Result<(), RuntimeError> {
     // Declaration-sized iteration, never restored-row identities.
     let declarations: Vec<(String, i64, String)> = tx
         .conn()
-        .prepare("SELECT DISTINCT kind,t,col FROM temp._live_restored ORDER BY kind,t,col")?
+        .prepare("SELECT DISTINCT kind,t,col FROM temp._live_restored WHERE kind!='live-authority' ORDER BY kind,t,col")?
         .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
         .collect::<Result<_, _>>()?;
     let mut narrowed = 0_u64;

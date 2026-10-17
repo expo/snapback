@@ -149,6 +149,7 @@ pub(super) fn transition(
             continue;
         }
         crate::engine::through_activation::forward_image(tx,next,source_definitions,&name,&old,&row,now)?;
+        if old.through.as_ref().is_some_and(|e|e.live.is_some()) {tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored(kind,t,col,id) VALUES('live-authority',?1,'',?2)",params![t,id])?;}
         for column in old.columns.keys() {
             if !table.columns.contains_key(column) {
                 super::dormant::definition(tx, &name, &old, column)?;

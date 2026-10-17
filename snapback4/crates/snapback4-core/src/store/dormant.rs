@@ -344,6 +344,7 @@ pub(super) fn transition(
                 serde_json::from_str(text).map_err(|e| RuntimeError::Store(e.to_string()))?;
             if let Some(source)=&old.capture_source {
                 if source.through.is_some() && source.through == table.through {retained_through.insert(name.clone());}
+                else if source.through.as_ref().zip(table.through.as_ref()).is_some_and(|(a,b)| (a.live.is_some() || b.live.is_some()) && a.reference==b.reference && a.parent==b.parent) { /* Restamp destination; live provenance never retains historical authority. */ }
                 else if source.through.is_some() && table.through.is_some() {return Err(refuse(format!("{name}: retained engine captures belong to another read-through definition; restore the original definition before changing the audience")));}
             }
             if old.authoritative && !authoritative(table, column) {
@@ -480,6 +481,7 @@ pub(super) fn transition(
         })?;
         if super::live_activation::active(tx)? {
             tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored SELECT 'table',t,'',id FROM _dormant_rows WHERE t=?1",[t])?;
+            if old.through.as_ref().is_some_and(|e|e.live.is_some()) {tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored SELECT 'live-authority',t,'',id FROM _dormant_rows WHERE t=?1",[t])?;}
         } else {
             let ids=tx.conn().prepare("SELECT id FROM _dormant_rows WHERE t=?1")?.query_map([t],|r|r.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
             tx.set_meta(&format!("activation_table_restored_ids:{name}"),&serde_json::to_string(&ids).map_err(|e|RuntimeError::Store(e.to_string()))?)?;
@@ -672,7 +674,7 @@ fn check_references(tx: &Tx<'_>, next: &Schema) -> Result<(), RuntimeError> {
                             let parent =
                                 crate::schema::row_image(&parent, &next.tables[&through.parent]);
                             // @ref LLP 3000.014.000#71-dormant-restoration-identities-are-a-relation — live policy restamps current inputs after preserving parent lifetime.
-                            if through.live.is_none() && through.fields.iter().any(|(capture, field)| {
+                            if through.live.is_none() && !crate::rows::Rows::restored_live_authority(tx,name,id)? && through.fields.iter().any(|(capture, field)| {
                                 row.field(capture)
                                     .ok()
                                     .is_some_and(|value| Some(value) != parent.field(field).ok())

@@ -291,6 +291,9 @@ pub trait Rows {
             visit(row)?;
         }
     }
+    /// Transaction-local provenance, never device data or durable audience authority.
+    fn has_restored_live_authority(&self)->Result<bool,RuntimeError>{Ok(false)}
+    fn restored_live_authority(&self,_table:&str,_id:&str)->Result<bool,RuntimeError>{Ok(false)}
     fn get(&self, table: &str, id: &str) -> Result<Option<Value>, RuntimeError>;
     /// The first row whose index components equal `key` exactly.
     fn lookup(&self, table: &str, index_name: &str, index: &Index, key: &[Value]) -> Result<Option<Value>, RuntimeError>;
