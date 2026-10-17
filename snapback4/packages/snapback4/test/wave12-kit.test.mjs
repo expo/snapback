@@ -93,11 +93,11 @@ if (!baseline) {
  test('init preserves package identity, reports current range, and adapt is read-only by default', t=>{
   for(const platform of ['--web','--expo']){
    const cwd=fixture(t);writeFileSync(join(cwd,'package.json'),'{"name":"my-product","version":"7.2.1"}');
-   const result=invoke(cwd,['init',platform],{PORT_LO:'29120',PORT_HI:'29129'});okay(result);
+   const result=invoke(cwd,['init',platform,'--day2'],{PORT_LO:'29120',PORT_HI:'29129'});okay(result);
    const pkg=JSON.parse(readFileSync(join(cwd,'package.json')));
    assert.equal(pkg.name,'my-product');assert.equal(pkg.version,'7.2.1');
    assert.match(result.stdout,/http:\/\/127.0.0.1:29120/);assert.match(result.stdout,/localhost:29121/);
-   assert.equal(result.stdout.trim().split('\n').at(-1),'\x1b[1mnpm install\x1b[0m');
+   assert.equal(result.stdout.trim().split('\n').at(-1),'npm install');
    assert.equal(pkg.scripts['day2:proof'],'node scripts/day2-proof.mjs versions/v1 versions/v2');
    assert.equal(readFileSync(join(cwd,'versions/v1/schema.q'),'utf8'),readFileSync(join(cwd,'snapback/schema.q'),'utf8'));
    writeFileSync(join(cwd,'snapback/schema.q'),source);
@@ -155,7 +155,7 @@ if (!baseline) test('unclaimable events, operations and arguments settle with re
 });
 
 if (!baseline) test('day2 caller source arguments override npm defaults and malformed argument lists refuse', t=>{
- const cwd=fixture(t);okay(invoke(cwd,['init','--web']));symlinkSync(join(root,'node_modules'),join(cwd,'node_modules'));
+ const cwd=fixture(t);okay(invoke(cwd,['init','--web','--day2']));symlinkSync(join(root,'node_modules'),join(cwd,'node_modules'));
  for(const args of [['versions/v1.q','versions/v2.q','versions/v1.q','missing.q'],['versions/v1.q','versions/v2.q','extra.q']]){
   const result=spawnSync(process.execPath,['scripts/day2-proof.mjs',...args],{cwd,encoding:'utf8',timeout:5000});
   assert.notEqual(result.status,0);assert.match(result.stderr,/missing.q|usage: npm run day2:proof/);

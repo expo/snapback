@@ -131,10 +131,10 @@ test("wasm rejects a skipped snapshot page before accepting its completion", asy
   ok(await core.call({ op: "apply", first: true, page: pages[0] }));
   const before = await persist.load("skip");
   const skipped = await core.call({ op: "apply", page: pages[2] });
-  assert.equal(skipped.denied?.message, "E_GENERATION: snapshot continuation does not match the expected page; restart at its first page");
+  assert.equal(skipped.denied?.message, "snapshot continuation does not match the expected page; restart at its first page");
   assert.deepEqual(await persist.load("skip"), before, "refusal writes no rows or completions");
   const catchup = { snapshot: false, snapshot_catchup: true, events: [], watermark: 1, more: false };
-  assert.equal((await core.call({ op: "apply", page: catchup })).denied?.message, "E_GENERATION: snapshot catch-up requires the terminal snapshot page");
+  assert.equal((await core.call({ op: "apply", page: catchup })).denied?.message, "snapshot catch-up requires the terminal snapshot page");
   for (const page of pages.slice(1)) ok(await core.call({ op: "apply", page }));
   ok(await core.call({ op: "apply", page: catchup }));
   const read = ok(await rawQuery(core));

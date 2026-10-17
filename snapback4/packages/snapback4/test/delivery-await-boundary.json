@@ -317,7 +317,7 @@
   },
   "proof-fixtures.ts": {
     "count": 5,
-    "sha256": "979ce1e4100e2b17d4521a65469122065fe8ab909e6f38cbd116f5c7eb7a6afa"
+    "sha256": "0e6d41806735c7e3b4ec98e2fe8c29d18c41d19a3b48d7caec59c428f8ebeaea"
   },
   "proof-guard.ts": {
     "count": 0,
@@ -332,8 +332,8 @@
     "sha256": "5b7cdcfd62f5dcf4a6f41dc9d59fec7e5a7e364582c01189c4723b860518e93f"
   },
   "proof.ts": {
-    "count": 33,
-    "sha256": "c5b79feb164e0b9d7b5f0055e1e2bb266572b01edb711196034fc5ab9a8b8c75"
+    "count": 35,
+    "sha256": "7074e3938b04cf68b4f3768bbdbdc6aa245172ebf5e1c8141a919b92fd04f74f"
   },
   "query-custody.ts": {
     "count": 1,
@@ -560,8 +560,8 @@
     "sha256": "9bb04329d983701a1907eeb3c0d2852716cfe7f5cdca39bfc347e63776b16af0"
   },
   "witness-web.ts": {
-    "count": 3,
-    "sha256": "b50ed1c62dc12414b8ddffbc3abfcddaa21212f951c56d62abfe4f878b8f8be6"
+    "count": 4,
+    "sha256": "9fadd0d2593458e816bec7ee5f73bbc837adef63ff0046e96bffd10ce51b0897"
   },
   "worker-ledger.ts": {
     "count": 6,

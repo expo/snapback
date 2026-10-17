@@ -576,7 +576,7 @@ for (const state of ["queued", "failed", "sent", "running"]) test(`lost effect l
   } });
   await worker.done;
   assert.equal(refused?.code, "E_EFFECT_LEASE");
-  const message = `E_EFFECT_LEASE: effect ${claim.id} is not held by this live claim; claim it first and use its current token`;
+  const message = `effect ${claim.id} is not held by this live claim; claim it first and use its current token`;
   const refusal = `effect ${claim.id} settlement lost authority: ${message}`;
   assert.equal(refused.message, message);
   const recorded = (await listEffects(f.url, f.token))[0];

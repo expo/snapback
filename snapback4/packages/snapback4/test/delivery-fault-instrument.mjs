@@ -426,3 +426,8 @@ export function awaitBoundary() {
 // redacted before the existing request; authority-loss callbacks are synchronous.
 // These external-effect worker attempts do not enter device mutation delivery.
 // Generated-effect-context/opt-in and worker tests cover retry and lease loss.
+
+// Integration 15: fixture catalog credentials change five proof-only awaits;
+// startDev adds persona discovery and current-clock sampling, and witnessForm
+// awaits the explicit handler. These orchestration waits do not enter SDK
+// delivery/recovery; the 213 delivery sites and their fault recipes are unchanged.
