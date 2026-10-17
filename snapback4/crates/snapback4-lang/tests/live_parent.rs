@@ -742,3 +742,10 @@ fn expiring_cap_uses_live_occupancy_during_mixed_schema_restore() {
     let row=wire::row_from_json(&e.schema().tables["expiringCapRows"],&json!({"id":"current","owner":"alice","until":future})).unwrap();e.load_trusted([("expiringCapRows".into(),row)]).unwrap();
     let row=wire::row_from_json(&e.schema().tables["expiringCapRows"],&json!({"id":"extra","owner":"alice","until":future})).unwrap();assert!(e.load_trusted([("expiringCapRows".into(),row)]).is_err());
 }
+
+#[test]
+fn raw_live_rule_literals_obey_scalar_admission() {
+    use snapback4_core::schema::{RuleExpr,RuleTerm};
+    let mut schema=build(SOURCE).schema;let term=RuleTerm::Literal(Value::Array(vec![Value::Int(1)].into()));schema.tables.get_mut("projects").unwrap().rules.read=RuleExpr::Eq(term.clone(),term);
+    assert!(snapback4_core::schema::live::validate(&schema).iter().any(|e|e.message.contains("direct scalar")));
+}

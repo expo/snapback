@@ -35,7 +35,8 @@ fn scalar(kind: &ColumnType) -> bool {
 }
 fn term(source: &Table, term: &RuleTerm) -> bool {
     match term {
-        RuleTerm::Viewer | RuleTerm::Literal(_) => true,
+        RuleTerm::Viewer => true,
+        RuleTerm::Literal(value) => matches!(value,Value::Null|Value::Bool(_)|Value::Int(_)|Value::String(_)|Value::Id(_)|Value::Bytes(_)),
         RuleTerm::Field(field) => {
             source.columns.get(field).is_some_and(scalar) && !source.engine_field(field)
         }
