@@ -353,7 +353,7 @@ horizon; `online only` also loses offline aggregate/absence coverage. See
 `guide maintains` and `guide offline-interactions` for the replica census. Repeats share one
 note with a line and source location for every view. Check prints these
 facts without pre-adoption counts: a new view has no stored rows yet. Run
-`test --residency --fixture dir --as alice` to measure cold rows and compact
+`test --residency --fixture-only --fixture dir --as alice` to measure cold rows and compact
 JSON row bytes. The default report shows the eight costliest table/persona
 pairs by bytes (then rows), one summed remainder and reconciled totals.
 `check --residency --fixture dir --as alice` prints the same bounded report.

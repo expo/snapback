@@ -47,6 +47,7 @@ try {
   const invoke = (command, capture = false) => {
     const result = spawnSync(pm, command, { cwd: root, encoding: 'utf8', timeout: 300_000, stdio: capture || quiet ? ['ignore', 'pipe', 'pipe'] : json ? ['ignore', 2, 2] : 'inherit' });
     if (result.error || result.status !== 0) {
+      if (quiet && result.stdout) process.stdout.write(result.stdout);
       if (quiet && result.stderr) process.stderr.write(result.stderr);
       throw Error(`E_UPGRADE: ${pm} ${command[0]} failed; check registry/tool availability`);
     }

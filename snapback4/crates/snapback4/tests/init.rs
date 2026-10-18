@@ -304,7 +304,7 @@ fn w7a_residency_measures_the_wired_500_follow_reader() {
             writeln!(file, "{}", snapback4_core::wire::to_json(&row)).unwrap();
         }
     }
-    let measured = Command::new(BIN).args(["test", "--residency", "--verbose", "--fixture", "fixture", "--as", "dev:reader500"]).current_dir(&dir.0).output().unwrap();
+    let measured = Command::new(BIN).args(["test", "--residency", "--fixture-only", "--verbose", "--fixture", "fixture", "--as", "dev:reader500"]).current_dir(&dir.0).output().unwrap();
     let output = String::from_utf8_lossy(&measured.stdout);
     println!("{output}");
     assert!(measured.status.success(), "{measured:?}");
@@ -328,7 +328,7 @@ fn w8b_residency_measures_the_wired_calibration_shape() {
         writeln!(file, "{}", snapback4_core::wire::to_json(&row)).unwrap();
     }
     for file in files.values_mut() { file.flush().unwrap(); }
-    let measured = Command::new(BIN).args(["test", "--residency", "--verbose", "--fixture", "fixture", "--as", calibration::VIEWER]).current_dir(&dir.0).output().unwrap();
+    let measured = Command::new(BIN).args(["test", "--residency", "--fixture-only", "--verbose", "--fixture", "fixture", "--as", calibration::VIEWER]).current_dir(&dir.0).output().unwrap();
     let output = String::from_utf8_lossy(&measured.stdout);
     println!("{output}");
     assert!(measured.status.success(), "{}\n{output}", String::from_utf8_lossy(&measured.stderr));
@@ -890,12 +890,12 @@ fn init_first_then_schema_leftovers_are_named_and_adapted() {
     let named = check(&dir);
     assert!(named.status.success(), "{named:?}");
     let stdout = String::from_utf8_lossy(&named.stdout);
-    for text in ["starter: 5 files left", "fixtures/todos.jsonl", "fixtures/test.cases.jsonl", "src/App.tsx: the unmodified starter screen shows the guest sign-in", "src/client.ts", "README.md: the unmodified starter README describes the todo starter", "fix: snapback4 init --adapt"] {
+    for text in ["starter: 6 files from", "fixtures/todos.jsonl", "fixtures/test.cases.jsonl", "src/App.tsx: the unmodified starter screen shows the guest sign-in", "src/client.ts", "README.md: the unmodified starter README describes the todo starter", "fix: snapback4 init --adapt"] {
         assert!(stdout.contains(text), "{text}: {stdout}");
     }
     let json = check_json(&dir);
     assert_eq!(json["starterLeftovers"]["fix"], "snapback4 init --adapt");
-    assert_eq!(json["starterLeftovers"]["files"].as_array().unwrap().iter().map(|file| file["path"].as_str().unwrap()).collect::<Vec<_>>(), ["fixtures/todos.jsonl", "fixtures/test.cases.jsonl", "src/App.tsx", "src/client.ts", "README.md"]);
+    assert_eq!(json["starterLeftovers"]["files"].as_array().unwrap().iter().map(|file| file["path"].as_str().unwrap()).collect::<Vec<_>>(), ["fixtures/todos.jsonl", "fixtures/test.cases.jsonl", "src/App.tsx", "src/client.ts", "scripts/frontend-proof.mjs", "README.md"]);
     // `test` points at the same command.
     let tested = Command::new(BIN).args(["test", "--fixture", "fixtures", "--as", "carol"]).current_dir(&dir.0).output().unwrap();
     assert!(!tested.status.success() && String::from_utf8_lossy(&tested.stderr).contains("snapback4 init --adapt"), "{tested:?}");
@@ -994,7 +994,7 @@ fn adapt_never_touches_a_file_the_project_changed() {
     let checked = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
     let stdout = String::from_utf8_lossy(&checked.stdout);
     // Wave 6: the README is the starter's own, unmodified, so it follows the schema even beside a changed screen.
-    assert!(stdout.contains("starter: 2 files left") && stdout.contains("fixtures/todos.jsonl") && stdout.contains("README.md") && !stdout.contains("App.tsx"), "{stdout}");
+    assert!(stdout.contains("starter: 3 files from") && stdout.contains("fixtures/todos.jsonl") && stdout.contains("README.md") && !stdout.contains("App.tsx"), "{stdout}");
     let before = snapshot(&dir.0);
     let preview = dir.init(&["--adapt"]);
     assert!(preview.status.success() && String::from_utf8_lossy(&preview.stdout).contains("preview only"), "{preview:?}");

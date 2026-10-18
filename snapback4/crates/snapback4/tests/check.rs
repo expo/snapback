@@ -1301,7 +1301,7 @@ fn w13b_starter_has_no_near_ceiling_summary() {
     let p = Project::new();
     let init = p.run(&["init", "starter"]);
     assert!(init.status.success(), "{init:?}");
-    let output = Command::new(BIN).current_dir(p.0.join("starter")).arg("test").output().unwrap();
+    let output = Command::new(BIN).current_dir(p.0.join("starter")).args(["test","--fixture-only"]).output().unwrap();
     assert!(output.status.success(), "{output:?}");
     assert!(!String::from_utf8(output.stdout).unwrap().contains("near ceiling:"));
 }

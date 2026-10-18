@@ -8,9 +8,12 @@ impl Drop for SavedVersion {
     fn drop(&mut self) { if !self.complete { let _ = std::fs::remove_dir_all(&self.path); } }
 }
 impl SavedVersion {
-    pub(super) fn prepare(project: &Project, sources: &[(String,String)], options: &Options) -> Result<Option<Self>,String> {
+    pub(super) fn prepare(project: &Project, sources: &[(String,String)], options: &Options, deployment: &std::path::Path) -> Result<Option<Self>,String> {
         let Some(name) = options.flags.get("save-version") else {return Ok(None);};
         if options.flags.contains_key("check") {return Err("--save-version captures a successful deployment; omit --check to save, or omit --save-version for a read-only preview".into());}
+        if project.root.canonicalize().map_err(|e|e.to_string())?.starts_with(deployment.canonicalize().map_err(|e|e.to_string())?) {
+            return Err("cannot save a version inside deployment custody; run deploy from the application's source directory".into());
+        }
         let suffix = name.strip_prefix("versions/v").ok_or("--save-version needs a new project-relative versions/vN directory")?;
         if suffix.is_empty() || suffix.starts_with('0') || !suffix.bytes().all(|b|b.is_ascii_digit()) {return Err("--save-version needs versions/vN with a positive numeric N".into());}
         let parent=project.root.join("versions");

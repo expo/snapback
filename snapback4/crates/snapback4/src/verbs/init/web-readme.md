@@ -55,7 +55,7 @@ Replace the guest entry with your product's existing sign-in flow.
 Residency: conversations and memberships supply routing; messages supply the
 thread with a 500-row horizon per conversation; messageCounts supplies inbox
 counts. Profiles have a 2,000-row public horizon; readMarkers is server-only.
-Use `snapback4 test --residency --fixture <directory> --as <principal>` on your
+Use `snapback4 test --residency --fixture-only --fixture <directory> --as <principal>` on your
 fixture before changing those horizons. Row counts do not measure client memory.
 Verify your production build on a real device: acquire a room, close the page,
 reopen offline, send twice, reopen again, and reconnect without duplicate rows.

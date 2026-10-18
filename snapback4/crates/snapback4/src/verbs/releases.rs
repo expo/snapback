@@ -230,7 +230,7 @@ pub fn deploy(options: &Options) -> i32 {
             let project = super::proof_source::project(options, "schema")?;
             let sources = super::proof_source::sources(&project, options, "schema")?;
             let bound = compiled_or_exit(super::proof_source::compile(&sources, options, "schema"), options.json);
-            let mut saved_version = super::saved_version::SavedVersion::prepare(&project,&sources,options)?;
+            let mut saved_version = super::saved_version::SavedVersion::prepare(&project,&sources,options,&dir)?;
             std::fs::create_dir_all(dir.join("releases")).map_err(|e| e.to_string())?;
             let held = if checking {
                 if dir.join("store.sqlite").exists() {snapback4_core::Store::open_read_only(&dir.join("store.sqlite")).and_then(|mut s|s.release_status(0,None,None)).map_err(|e|e.to_string())?}

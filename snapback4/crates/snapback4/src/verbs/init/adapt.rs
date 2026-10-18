@@ -475,11 +475,13 @@ fn old_native_smoke_distinguishes_starter_age_from_sign_in_changes() {
         std::fs::write(dir.join("snapback/schema.q"), schema).unwrap();
         std::fs::write(dir.join("src/custom.ts"), "import './native-smoke';").unwrap();
         for source in [include_str!("starter/previous/native-smoke-0.4.9.ts"), include_str!("starter/previous/native-smoke-0.4.16.ts"), include_str!("starter/previous/wave14/native-smoke.ts")] {
+            if password && source == include_str!("starter/previous/native-smoke-0.4.9.ts") { continue; }
             std::fs::write(dir.join("src/native-smoke.ts"), starter::native_smoke_version(password, source)).unwrap();
             let text = report(&dir).unwrap();
             assert!(text.contains("an older starter version") && !text.contains("previous schema") && !text.contains("not fit your schema"), "{text}");
             std::fs::write(dir.join("src/native-smoke.ts"), starter::native_smoke_version(!password, source)).unwrap();
-            assert!(report(&dir).unwrap().contains("previous schema's sign-in"));
+            if source != include_str!("starter/previous/native-smoke-0.4.9.ts") { assert!(report(&dir).unwrap().contains("previous schema's sign-in")); }
+            else { assert!(!leftovers(&dir).0.iter().any(|f|f.path=="src/native-smoke.ts"),"unshipped identity variants are not starter-owned"); }
         }
         std::fs::write(dir.join("src/native-smoke.ts"), format!("{}\n// mine", starter::wave14_native_smoke(password))).unwrap();
         assert!(!leftovers(&dir).0.iter().any(|f| f.path == "src/native-smoke.ts"));

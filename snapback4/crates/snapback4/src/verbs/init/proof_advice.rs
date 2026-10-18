@@ -139,8 +139,9 @@ mod tests {
             ("0.4.28", include_str!("starter/previous/wave14/native-smoke.ts")),
             ("0.4.31", include_str!("native-smoke.ts")),
         ] {
-            for password in [false, true] {
+            for password in [false, true].into_iter().filter(|password| !*password || version != "0.4.9") {
                 let text = super::super::starter::native_smoke_version(password, source);
+                let version = if version == "0.4.16" && password { "0.4.25" } else { version };
                 expected.push(serde_json::json!({"file":"native","version":version,"web":false,"template":if password { Some("password") } else { None },"sha256":digest(&text)}));
             }
         }

@@ -204,13 +204,6 @@
   },
   {
     "file": "native",
-    "version": "0.4.9",
-    "web": false,
-    "template": "password",
-    "sha256": "9601f61a2ed2336fc926553ba568682061647dbe8a1bb813107ecdad1383fed9"
-  },
-  {
-    "file": "native",
     "version": "0.4.16",
     "web": false,
     "template": null,
@@ -218,7 +211,7 @@
   },
   {
     "file": "native",
-    "version": "0.4.16",
+    "version": "0.4.25",
     "web": false,
     "template": "password",
     "sha256": "bb6d341b60d87896b619ef50920a6f3b32d6708eee05387c3cea54a320462a6b"

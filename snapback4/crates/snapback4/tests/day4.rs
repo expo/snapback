@@ -50,7 +50,9 @@ fn machine_summary_counts_only_business_cases_and_names_skipped_fallback_cases()
         "{\"id\":\"one\",\"title\":\"hello\"}\n",
     );
 
-    let sweep_only = app.run(&["test", "--source", "versions/v1"]);
+    let empty = app.run(&["test", "--source", "versions/v1"]);
+    assert!(!empty.status.success(), "zero business cases require explicit fixture-only intent");
+    let sweep_only = app.run(&["test", "--source", "versions/v1", "--fixture-only"]);
     assert!(sweep_only.status.success(), "{sweep_only:?}");
     let stdout = String::from_utf8_lossy(&sweep_only.stdout);
     assert!(
@@ -76,7 +78,7 @@ fn machine_summary_counts_only_business_cases_and_names_skipped_fallback_cases()
         "{\"id\":\"one\",\"title\":\"hello\"}\n",
     );
     app.write("fixtures/test.cases.jsonl", "// application cases\n{\"op\":\"list\",\"count\":1}\n\n{\"op\":\"echo\",\"args\":{\"n\":1}}\n");
-    let fallback = app.run(&["test", "--source", "versions/v1"]);
+    let fallback = app.run(&["test", "--source", "versions/v1", "--fixture-only"]);
     assert!(fallback.status.success(), "{fallback:?}");
     assert!(
         String::from_utf8_lossy(&fallback.stdout)

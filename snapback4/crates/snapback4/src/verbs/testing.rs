@@ -88,6 +88,10 @@ pub fn test(options: &Options) -> i32 {
             if options.flags.contains_key("source") {
                 println!("{CASE_SUMMARY} {{\"run\":0,\"skipped\":{skipped_business_cases}}}");
             }
+            if !options.flags.contains_key("fixture-only") {
+                eprintln!("test --residency executed no business cases; use --fixture-only for acquisition measurement, or omit --residency to run the cases");
+                return 1;
+            }
             return 0;
         }
     }

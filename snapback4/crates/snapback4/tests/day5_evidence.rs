@@ -58,3 +58,23 @@ fn an_empty_saved_flat_source_is_unsaved_and_cannot_be_deployed_or_tested() {
         assert!(!app.0.join("versions/v2").exists());
     }
 }
+
+#[test]
+fn residency_without_executing_cases_requires_fixture_only_too() {
+    let app=App::new();app.write("snapback/schema.q","use personas alice\nquery alive():\n  return true\n");
+    let refused=app.run(&["test","--residency"]);
+    assert!(!refused.status.success());assert!(String::from_utf8_lossy(&refused.stderr).contains("--fixture-only"));
+    app.ok(&["test","--residency","--fixture-only"]);
+}
+
+#[test]
+fn failed_deploy_discards_only_its_new_snapshot_and_deployed_source_cannot_save_into_itself() {
+    let app=App::new();app.write("snapback/schema.q","query alive():\n  return true\n");app.ok(&["deploy","deployment"]);
+    app.write("snapback/schema.q","query alive():\n  return true\njob missing(): native\n");
+    let failed=app.run(&["deploy","deployment","--save-version","versions/v2"]);
+    assert!(!failed.status.success());assert!(!app.0.join("versions/v2").exists());
+    let immutable=app.0.join("deployment/releases/1");
+    let out=Command::new(BIN).current_dir(&immutable).args(["deploy",app.0.join("deployment").to_str().unwrap(),"--save-version","versions/v3"]).output().unwrap();
+    assert!(!out.status.success());assert!(String::from_utf8_lossy(&out.stderr).contains("deployment custody"),"{out:?}");
+    assert!(!immutable.join("versions").exists());
+}
