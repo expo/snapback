@@ -64,6 +64,13 @@ card/cheatsheet/1:removeItem | openItems/maintain | {"Eq":[{"Field":"owner"},"Vi
 card/cheatsheet/1:toggle | eligible
 card/cheatsheet/1:toggle | items/update | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/cheatsheet/1:toggle | openItems/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
+card/cleanup/1:addEntry | never
+card/cleanup/1:archiveFolder | never
+card/cleanup/1:newFolder | never
+card/cleanup/2:newAsset | never
+card/cleanup/2:recordAsset | never
+card/cleanup/2:removeAsset | never
+card/cleanup/2:retireAsset | never
 card/deploy/1:grantAdmin | admins/insert | {"Or":[{"Eq":[{"Field":"principal"},"Viewer"]},{"Eq":["Viewer",{"Literal":{"Id":"service:ops"}}]}]} | read rule
 card/deploy/1:grantAdmin | eligible
 card/effects/1:send | eligible

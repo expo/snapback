@@ -1,0 +1,128 @@
+{
+  "base": "ccb9f752d1",
+  "implementation": "c6631432f5",
+  "reviewVerdicts": {
+    "Muse": "R5 READY",
+    "Codex": "R7 READY"
+  },
+  "wasm": {
+    "raw": 2372829,
+    "gzip": 723275,
+    "brotli": 545364,
+    "budget": 723775,
+    "headroom": 500
+  },
+  "survey": {
+    "schemas": 100,
+    "greenBefore": 100,
+    "greenAfter": 100,
+    "notesBefore": 452,
+    "notesAfter": 458,
+    "removed": 9,
+    "added": 15,
+    "wording": 28,
+    "sourceHashesUnchanged": true
+  },
+  "mac": {
+    "host": "macstudio-charlie-apt101-a",
+    "scratch": "~/sb4-ws-lang4",
+    "language": 15,
+    "checkNotes": 12,
+    "sourceRace": 1,
+    "guideBlocks": 2,
+    "passed": true,
+    "generalCheck": 105,
+    "formatRepair": "c3e06e1f48",
+    "readauthPassed": 88
+  },
+  "difftest": {
+    "runCases": 20000,
+    "deviceSeeds": "0\u2013999",
+    "leanCases": 20000,
+    "newSignatures": 0
+  },
+  "packedQualification": "Installed local 0.4.31 client and debug Linux platform tarballs; no publication claim",
+  "rootChecks": {
+    "installHoist": "passed",
+    "inventories": "exit 1: missing Snapback1 generated transclusions",
+    "guide": {
+      "exit": 1,
+      "passed": 19,
+      "failed": 0,
+      "skipped": 0,
+      "preconditions": 3
+    }
+  },
+  "census": {
+    "mutationOccurrences": 504,
+    "privateWriteSites": 94,
+    "readauthPassed": 88,
+    "macPassed": 88
+  },
+  "packedTarballs": [
+    {
+      "name": "snapback4-0.4.31.tgz",
+      "bytes": 1281912,
+      "sha256": "e3826d9a657bafdfd9f3c7ef996e6233ca0fc23b6ebf286b7e9f208b3cbc746d"
+    },
+    {
+      "name": "snapback4-linux-x64-0.4.31.tgz",
+      "bytes": 24918314,
+      "sha256": "df45682a24cd369881432cc5131161deccd4380e0e1d93f5ce5f67500f042f19"
+    }
+  ],
+  "packedCodeScope": "Latest note dataflow and acknowledgement source; later commits repair empty-context whitespace, snapshots and census only.",
+  "recordedRound1": {
+    "linuxPassed": 5,
+    "macPassed": 5,
+    "repair": "c6631432f5"
+  },
+  "cargo": {
+    "initial": {
+      "exit": 124,
+      "deadlineSeconds": 3600,
+      "completedTargets": 295,
+      "passed": 5078,
+      "failed": 4,
+      "ignored": 37
+    },
+    "languageRemainder": {
+      "exit": 0,
+      "completedTargets": 60,
+      "passed": 637,
+      "failed": 0,
+      "ignored": 1
+    },
+    "repairedFiles": {
+      "check": 105,
+      "check_notes": 12,
+      "readauth": 88,
+      "recorded_round1": 5
+    },
+    "doctests": {
+      "exit": 0,
+      "packages": [
+        "snapback4-core",
+        "snapback4-lang",
+        "snapback4",
+        "snapback4-device"
+      ]
+    },
+    "simulation": {
+      "exit": 0,
+      "completedTargets": 45,
+      "passed": 749,
+      "failed": 0,
+      "ignored": 7
+    },
+    "coverage": "All five crates covered; initial deadline recovered by running only unfinished language targets, full simulation and remaining doctests. Four initial failures repaired and complete affected files pass on Linux and Mac.",
+    "counts": "Outer Cargo target footers only; exclude 14 embedded fixture summaries in failed-test stdout.",
+    "integrationTargetCoverage": {
+      "snapback4": 50,
+      "snapback4-core": 42,
+      "snapback4-device": 100,
+      "snapback4-lang": 159,
+      "snapback4-sim": 43
+    }
+  }
+}

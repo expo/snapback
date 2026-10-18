@@ -354,6 +354,8 @@ impl Ty {
     }
 
     pub(crate) fn kind_name(&self) -> String {
+        if let Ty::Row(table) = self { return format!("Row<{table}>"); }
+        if let Ty::WriteRow(table) = self { return format!("WriteRow<{table}>"); }
         if let Some(kind) = self.row_kind() { return kind.into(); }
         match self {
             Ty::Object(_) => "Object".into(),

@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-18",
+  "model": "gpt-6.1-sol",
+  "effort": "high",
+  "fresh": true,
+  "verdict": "NOT READY",
+  "disposition": [
+    "loop returns require same-iteration proof",
+    "join returned page origins after branches",
+    "preserve notes on every post-compile JSON failure"
+  ]
+}

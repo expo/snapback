@@ -56,8 +56,8 @@ pub fn validate(args: &[String]) -> Result<(), String> {
     if verb == "check" {
         if has("release") && !has("store") { return Err("E_INPUT: check --release requires --store <path>".into()); }
         if has("as") && !has("residency") { return Err("E_INPUT: check --as requires --residency".into()); }
-        let incompatible = if has("emit-lean") { Some(("--emit-lean", &["cost","residency","fix","verbose","store","fixture","as","release"][..])) }
-            else if has("release") { Some(("--store --release", &["cost","residency","fix","fixture","as"][..])) } else { None };
+        let incompatible = if has("emit-lean") { Some(("--emit-lean", &["cost","residency","fix","verbose","store","fixture","as","release","ack-notes"][..])) }
+            else if has("release") { Some(("--store --release", &["cost","residency","fix","fixture","as","ack-notes"][..])) } else { None };
         if let Some((mode,flags)) = incompatible {
             if let Some(flag) = flags.iter().find(|flag|has(flag)) { return Err(format!("E_INPUT: check {mode} does not accept --{flag}")); }
         }
@@ -168,6 +168,7 @@ pub(crate) fn help(verb: &str) -> String {
             (_, "adapt") => " — preview fitting unmodified starter files to the current schema",
             (_, "dry-run") => " — preview the scaffold or adaptation without writing files",
             (_, "apply") => " — apply the starter adaptation plan",
+            (_, "ack-notes") => " — explicitly record reviewed compiler notes in snapback/check-notes.json",
             (_, "cost") => " — print read/write plans and scale summary",
             (_, "residency") => " — report device-held data, measured with --fixture and --as",
             (_, "fix") => " — apply safe mechanical source repairs",

@@ -66,7 +66,7 @@ mod indexes;
 mod types;
 pub use discovery::{FULL_LINES, piped, alias_landing, aliases, find, listing, nearest, overview, overview_and_first_section, section, section_index, sections};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
-pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "rule-recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "deploy", "release-json", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet", "changes", "production"];
+pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "rule-recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "deploy", "release-json", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "cleanup", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet", "changes", "production"];
 
 // @ref LLP 3000.007#20.1 — a builder's word resolves through one table to a compiled card.
 pub const ALIASES: &[(&str, &str)] = &[
@@ -267,6 +267,7 @@ pub fn card(keyword: &str) -> Option<&'static str> {
         "witness" => include_str!("guide/witness.md"),
         "prediction" => prediction::CARD,
         "evolution" => discovery::EVOLUTION,
+        "cleanup" => include_str!("guide/cleanup.md"),
         "changes" => include_str!(concat!(env!("OUT_DIR"), "/changes.md")),
         "production" => include_str!("guide/production.md"),
         "types" => types::CARD,

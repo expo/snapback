@@ -39,8 +39,8 @@ pub(in crate::bind) fn sync_order_notes(schema: &Schema, programs: &[crate::bind
             let direction = if scan.order == ir::Order::Desc { "newest first" } else { "oldest first" };
             let location = bound.sources.get(&scan.site).map_or(&bound.site, |(location, _)| location);
             let spelling = bound.sources.get(&scan.site).filter(|(_, spelling)| !spelling.contains('$')).map(|(_, spelling)| format!(" `{spelling}`")).unwrap_or_default();
-            let outcome = if fact.held { "this held query stays on the device with unknown coverage" }
-                else { "the client needs the server for this read; offline coverage is unknown" };
+            let outcome = if fact.held { "this held query stays on the device; offline it returns held rows with complete: false and unknown coverage" }
+                else { "the client needs the server for this read; offline the ordinary query cannot deliver a complete answer in this order (coverage remains unknown)" };
             let describe = |name: &str, index: &snapback4_core::schema::Index| {
                 let name = if name.starts_with("$intent:") { String::new() } else { format!("{name} ") };
                 format!(" (index {name}[{}])", index.components.iter().filter_map(order_component).collect::<Vec<_>>().join(", ").replace('.', ""))

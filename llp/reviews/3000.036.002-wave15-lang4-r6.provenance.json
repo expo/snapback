@@ -1,0 +1,9 @@
+{
+  "date": "2026-10-18",
+  "model": "gpt-6.1-sol",
+  "effort": "high",
+  "fresh": true,
+  "verdict": "NOT READY",
+  "finding": "filter-only positive probes were added after the early bailout",
+  "disposition": "include filter caller facts before testing positive probes; local/container and implicit-return controls added"
+}

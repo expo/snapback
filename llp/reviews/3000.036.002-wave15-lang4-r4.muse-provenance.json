@@ -1,0 +1,10 @@
+{
+  "date": "2026-10-18",
+  "model": "muse-spark-1.3-contributor",
+  "effort": "high",
+  "wrapper": "~/sb4-loop/muse-exec.sh --yolo",
+  "fallback": "plan quota -> Meta key; no key read or printed",
+  "scope": "complete \u00a713 amendment design, self-contained brief; implementation/qualification separately audited",
+  "verdict": "READY",
+  "briefSha256": "0a368cd15ee33f270e9ba28d3ac90d0ced0f50e6fc8d0f6e1fe4c503961800bb"
+}

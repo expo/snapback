@@ -48,7 +48,7 @@ fn requirement_proves_raw_rule(schema: &Schema, condition: &Expr, expected: &Exp
     canonical(condition.clone()) == canonical(expected.clone()) && raw_witness_monotone(schema, expected, true)
 }
 
-fn raw_witness_monotone(schema: &Schema, expression: &Expr, positive: bool) -> bool {
+pub(super) fn raw_witness_monotone(schema: &Schema, expression: &Expr, positive: bool) -> bool {
     match expression {
         Expr::Exists { read, .. } => positive
             || super::program::maintain_types::program_absence_is_raw(schema, read),

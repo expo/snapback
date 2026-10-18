@@ -16,7 +16,7 @@ pub(crate) enum Tier {
 
 pub(crate) fn tier(code: &str) -> Tier {
     match code {
-        "N_IMMUTABLE_PATCH" | "N_PERSONA_PRINCIPAL" | "N_UNREADABLE_PROBE" | "N_NO_PRODUCTION_WRITER" | "N_FIXTURE_ARGUMENT_DRIFT" | "N_REFERENCE_UNCHECKED" | "N_MAINTAIN_AUTHORIZATION" | "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_LOOKUP_NEVER_VISIBLE" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
+        "N_IMMUTABLE_PATCH" | "N_PERSONA_PRINCIPAL" | "N_UNREADABLE_PROBE" | "N_NO_PRODUCTION_WRITER" | "N_FIXTURE_ARGUMENT_DRIFT" | "N_REFERENCE_UNCHECKED" | "N_MAINTAIN_AUTHORIZATION" | "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_LOOKUP_NEVER_VISIBLE" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_QUERY_FILTERED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
         | "N_CLOCK_STORE_AHEAD" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" | "N_MAINTAIN_DELTA"
         | "N_SEARCH_UNSCOPED" | "N_SEARCH_OPEN" | "N_TIMELINE_PROFILE_CAP" => Tier::Review,
         // @ref LLP 3000.036#13.4 — a cursorless `first N` is what the declaration says: the first N rows (wave 3 #7).
@@ -41,11 +41,13 @@ pub(crate) fn verdict(code: &str, summary: &str, form: bool) -> &'static str {
         "N_NEVER_COMPLETE" => "fix: pin the scope, or accept `complete: false`",
         "N_DELETE_RESTRICTED" => "fix: declare the reference's `on delete`, or guard the delete",
         "N_DELETE_NEEDS_READ" => "review: some deleters get NOT_FOUND",
-        "N_REFERENCE_UNCHECKED" => "review: this reference argument is never looked up",
+        "N_REFERENCE_UNCHECKED" => "review: this reference argument has no mandatory target lookup",
         "N_MAINTAIN_AUTHORIZATION" => "review: hidden and absent are different caller outcomes",
         "N_PATCH_CLEARS" => "review: an omitted argument clears this column",
         "N_WRITE_DENIED" if summary.contains("admits only 'service:") => "review: a seat require grants no table authority",
-        "N_WRITE_DENIED" | "N_REQUIRE_REFUSED" => "fix: this write refuses E_RULE for callers you admit",
+        "N_WRITE_DENIED" => "fix: this write refuses E_RULE for callers you admit",
+        "N_REQUIRE_REFUSED" => "review: callers you admit may still get E_RULE",
+        "N_QUERY_FILTERED" => "review: this query branch may filter rows under table authority",
         "N_READ_DENIED" => "fix: this read always returns null",
         "N_REQUIRE_HIDDEN" if summary.contains("get NOT_FOUND") => "review: the hidden lookup runs before this require",
         "N_REQUIRE_HIDDEN" => "fix: this require cannot see the rows it tests",

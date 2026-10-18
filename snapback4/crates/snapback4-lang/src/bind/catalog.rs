@@ -123,12 +123,18 @@ impl Catalog {
                     if !seen_effects.insert(rule.effect) {
                         if rule.effect == Effect::Read && table.rules.iter().any(|r| matches!(&r.value,Expr::Call{name,..} if name=="$readThrough")) {
                             diagnostics.push(Diagnostic::new(&rule.site,"E_READ_THROUGH",format!("{} declares another read rule beside read through",table.name),"keep read through as the whole read rule; put service grants on the parent").guide("rules"));
-                        } else { diagnostics.push(unknown(&rule.site, format!("duplicate {} rule on {}", rule.effect.word(), table.name), "keep one rule per effect")); }
-                        ok = false;
+                        } else {
+                            let first = table.rules.iter().find(|first| first.effect == rule.effect).unwrap();
+                            diagnostics.push(Diagnostic::new(&rule.site, "E_QUARRY_DUPLICATE_RULE", format!("duplicate {} rule on {}; first declared at {}", rule.effect.word(), table.name, first.site), "keep one rule per effect; combine intended alternatives with or in that one rule").guide("rules"));
+                        }
+                        // Keep the usable declaration to avoid cascading unknown-table errors.
+
                     }
                 }
                 if ok {
                     let mut decl = table.clone();
+                    let mut effects = std::collections::BTreeSet::new();
+                    decl.rules.retain(|rule| effects.insert(rule.effect));
                     // @ref LLP 3000.036.002#9 — rejected search metadata must not erase the usable table symbol.
                     // An invalid search field is a fault of that search line,
                     // not evidence that every later reference names an

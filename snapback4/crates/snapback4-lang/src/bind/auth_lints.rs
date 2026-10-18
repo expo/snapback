@@ -770,8 +770,24 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
             } else {
                 format!(" This require/read path already established a readable {} row; the note remains because the compiler cannot prove that fact admits every {} row this negative probe must observe.", established.join(" or "), read.table)
             };
+            let probe_pins = pins(catalog, &read).or_else(|| {
+                let [key] = read.keys.as_slice() else { return None };
+                let Expr::Name { name, .. } = &key.value else { return None };
+                let arg = catalog.documents.iter().flat_map(|d| &d.programs)
+                    .find(|p| p.name == program && p.site.file == read.site.file)?.args.iter().find(|a| a.name == *name)?;
+                (key.column.is_none() && read.index.is_none() && (matches!(&arg.type_.kind, TypeKind::Id)
+                    || matches!(&arg.type_.kind, TypeKind::Ref { table } if table == &read.table)))
+                    .then(|| BTreeMap::from([("id".into(), key.value.clone())]))
+            });
+            let unique = probe_pins.and_then(|pins| {
+                let info = catalog.tables.get(&read.table)?;
+                let key = info.indexes.iter().filter(|index| index.unique && index.is_plain()
+                    && index.columns.iter().all(|column| pins.contains_key(column) && (column == "id" || info.columns.get(column).is_some_and(|ty| !ty.optional))))
+                    .min_by_key(|index| index.columns.len())?;
+                Some(format!(" Backing unique index: {}({}); it enforces uniqueness across hidden rows too, but does not make this probe see them.", read.table, key.columns.join(", ")))
+            }).unwrap_or_default();
             notes.push(Diagnostic::new(&read.site, "N_UNREADABLE_PROBE",
-                format!("{program}: this probe reads {} under its read rule `{}`{rule_site}; rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows).{path}", read.table, table.rules.read.quarry()),
+                format!("{program}: this probe reads {} under its read rule `{}`{rule_site}; rows hidden from the caller do not satisfy a program exists, so using this value as a negative guard cannot enforce absence across those rows (table-rule probes see all rows).{path}{unique}", read.table, table.rules.read.quarry()),
                 "use a unique/cap/after insert constraint for an invariant across hidden rows, or authorize this caller to read the rows the guard must observe; keep this probe only when caller-visible existence is intended").guide("rules"));
         }
     }

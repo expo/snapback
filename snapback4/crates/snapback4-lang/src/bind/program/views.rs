@@ -55,7 +55,9 @@ impl Binder<'_> {
                     // The schema's null-exempt caps or lifetime dependencies
                     // could not certify this speculative source-level plan.
                     self.pop_scope();
-                    return self.read(&read, out);
+                    let mut original = read.clone();
+                    if let Some(range) = &mut original.range { range.cursor = merge.cursor.clone(); }
+                    return self.read(&original, out);
                 }
             }
             if lane.project.is_none() {
@@ -117,7 +119,10 @@ impl Binder<'_> {
             // position. Otherwise a page with a grant branch reads as written, the grant branch alone.
             if planned.branches() && !snapback4_core::engine::rules::branch_merge_lazy(self.schema, &planned)
                 && let Some(read) = merge.lanes.iter().find(|lane| matches!(lane.branch.as_deref(), Some(ir::GRANT_LANE | ir::SYSTEM_LANE))).and_then(|lane| lane.planned.as_deref()) {
-                return self.read(read, out);
+                // @ref LLP 3000.036.002#131-notes-and-declarations — declining a branch merge must preserve the caller's continuation.
+                let mut original = read.clone();
+                if let Some(range) = &mut original.range { range.cursor = merge.cursor.clone(); }
+                return self.read(&original, out);
             }
             return Ok((Expr::Merge(planned), Ty::Page(merge.table.clone(), merge.take)));
         }

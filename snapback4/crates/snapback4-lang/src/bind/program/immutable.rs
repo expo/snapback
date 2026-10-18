@@ -192,6 +192,29 @@ fn object<'a>(expr: &'a Expr, prior: &'a [Stmt], fuel: usize) -> Option<(&'a BTr
     }
 }
 
+// Pure scalar computations can be opaque to constant evaluation, while a
+// capture of their result is still stable. Storage reads retain snapshot rules.
+fn has_builtin(expr: &Expr) -> bool {
+    match expr {
+        Expr::Builtin { .. } => true,
+        Expr::Binary { left, right, .. } => has_builtin(left) || has_builtin(right),
+        Expr::Unary { value, .. } | Expr::Field { base: value, .. } => has_builtin(value),
+        _ => false,
+    }
+}
+fn computed_scalar(expr: &Expr, fuel: usize) -> bool {
+    if fuel == 0 { return false; }
+    let child = |value: &Expr| computed_scalar(value, fuel - 1);
+    match expr {
+        Expr::Literal(_) | Expr::Input(_) | Expr::Variable(_) => true,
+        Expr::Builtin { builtin: Builtin::JobAs, .. } => false,
+        Expr::Builtin { args, .. } => args.iter().all(child),
+        Expr::Binary { left, right, .. } => child(left) && child(right),
+        Expr::Unary { value, .. } | Expr::Field { base: value, .. } => child(value),
+        _ => false,
+    }
+}
+
 /// Scalar lexical captures survive writes; stored-row snapshots do not.
 /// This resolver cannot read storage or execute arbitrary expressions.
 fn scalar(expr: &Expr, prior: &[Stmt], fuel: usize, stable: &BTreeSet<String>) -> Option<Expr> {
@@ -204,7 +227,11 @@ fn scalar(expr: &Expr, prior: &[Stmt], fuel: usize, stable: &BTreeSet<String>) -
                 if let Stmt::Let { name: slot, value } | Stmt::Const { name: slot, value } | Stmt::Assign { name: slot, value } = statement
                     && slot == name {
                     if matches!(value, Expr::Input(Input::NewId)) { return Some(Expr::Variable(format!("$immutableCapture:{name}:{at}"))); }
-                    return scalar(value, &prior[..at], fuel - 1, stable);
+                    return scalar(value, &prior[..at], fuel - 1, stable).or_else(|| {
+                        // A computed scalar bound once has one lexical identity even
+                        // when this proof cannot evaluate its builtin (e.g. day(now)).
+                        (computed_scalar(value, 32) && has_builtin(value)).then(|| Expr::Variable(format!("$immutableValue:{name}:{at}")))
+                    });
                 }
             }
             expr.clone()

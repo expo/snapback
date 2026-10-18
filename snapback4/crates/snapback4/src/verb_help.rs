@@ -64,6 +64,7 @@ Output:
                          Repeats of one code are shortened; one site's repeats
                          are counted (×N).
 
+  --ack-notes  record reviewed compiler notes in snapback/check-notes.json; any Quarry edit invalidates them
   --verbose    every note in full, with its card excerpt, rewrites and execution facts
   --json       one JSON object (ok, notes, problems, plans) on stdout
   --cost       each operation's read and write plan and the scale summary
