@@ -204,3 +204,93 @@ No requested check is deferred. Full scripts/test.sh, push/publication and the
 live workstream are intentionally excluded as instructed. Ordinary test ignores
 and platform skips retain their reasons. No credentials were copied; no other
 worktree was modified; target/publication and publication worktrees were not touched.
+
+
+---
+
+# SEC workstream — conservative implementation committed and qualified
+
+Branch `sb4-b16-sec`, base `ccb9f752d1`. No push, publication or version bump.
+The inherited integration report above is not this lane's qualification claim.
+**The requested zero-security-holes end-game is not established.** Unsupported
+proof/exposure boundaries remain explicit; the delivered verifier never calls
+those paths proved. Open scope is recorded in
+`issues/20261018-sb4-security-proof-and-adversarial-qualification-gaps.md`.
+
+## Changes and commits
+
+| Item | Change | Commits | Evidence / remaining scope |
+| --- | --- | --- | --- |
+| Design | LLP 3000.036.004; fresh Muse + Codex review rounds, both READY for design revisions 3/5 and implementation round 5 | f538708bd9, 1b33562487, 6cdeef3c1a | Verbatim reviews/provenance under llp/reviews; reviewed verifier hashes still match. |
+| Invariants | Independent schema declarations; bounded exhaustive ternary implication; separate Lean soundness/completeness lemmas; proved/refuted/unproved results; replayed counterexamples | f1bdc51e2d, 685364545e | 16 security + 2 bakeoff regressions pass; complex path reductions remain unproved. |
+| Exposure | audit/check --audit text + JSON; conditional role/row/column access, operations, inherited grants and writers; broad signed-in-read and missing-intent advice | f1bdc51e2d, 2ba00705fc | CLI/check and packed tests pass; conditional roster labels do not claim universal grants. |
+| Generated tests | Default test explores isolated schema/fixture principals, role snapshots and authored operations; replayed declared-policy violations fail acceptance | f1bdc51e2d, 685364545e | 150 schemas/2,024 operations/32,384 actual attempts; HTTP/device/sequence and asset-ledger gaps are named, not certified. |
+| Bakeoff fixes | Role/grant lifetime, argument grant, global created self-promotion, optional/empty/omitted evidence, sweep deadline and existence-oracle advice; non-whitespace text minima shared by row/argument/device validation | 6c81b07d78, f1bdc51e2d | Regression coverage and Mac checks pass. Existence handling follows bakeoff S8's warning/uniform-code recipe, with no runtime rewriting of authored codes. |
+| Guide/starters | Security card, README/start discovery, 0.4.32 guide changes without a version bump; todo/social/production/chat privacy declarations; authoring census +1 never mutation, same 94 private eligible sites | f1bdc51e2d, 2ba00705fc | All changed forms run through actual installed tarballs on Linux and Mac; guide 125/125, census 88/88. |
+
+## Qualification
+
+- Design and implementation: both fresh reviewer families READY. No fabricated
+  review; Muse's prescribed wrapper used its quota fallback without exposing keys.
+- Six original high-finding schemas produce actual engine counterexamples;
+  five repaired authority rule sets pass the same generated challenges.
+  The 015 witness is typed trusted seed ingress, not a repaired ordinary custody
+  workflow. The strict 045 interpretation remains explicit.
+- All 50 wave-16 and 100 wave-15 original schemas compile with zero diagnostics.
+  They declare zero invariants, so this is compatibility/exploration, not spec
+  certification. All original/copy hashes and per-schema results are retained.
+- Main difftest: 20,000 seeds / 1,220,035 executions, zero disagreement signatures.
+  Device seeds 0–999: 27,922 executions, zero signatures. Lean: 20,000 cases,
+  16,697 agreements, 3,173 unsupported, 130 disagreements in exactly the four
+  retained integration15 classes/counts; no new signatures or full-equivalence claim.
+- Lean check passes: 80 theorem audits, 116 examples, seven oracle fixtures;
+  no sorry or added nonstandard axioms. The Rust translation/whole exposure
+  reductions are not claimed formally proved by those independent lemmas.
+- Full Rust workspace scope ran. The original command hit its 60-minute guard
+  in clique; its three unfinished active tests, all 41 remaining simulation
+  targets and all workspace doc tests passed on bounded continuation. Initial
+  help/output/census/guide failures were corrected and affected targets rerun.
+  Latest guide 125/125, readauth 88/88, check 105/105; security 16+2 pass.
+  CLI had an earlier complete 471-test pass; the last run passed 470 and hit an
+  unmodified shutdown assertion, which passed in isolation. Its raw failure and
+  ticket `issues/20261018-sb4-refusal-shutdown-test-flake.md` remain visible.
+- Full client pool: 412/412 files, 7 initially failed files, 7,671 tests and
+  56 normal skips. Producer/setup and all eight affected rerun files pass
+  168/168 tests. The two full-count models separately pass 81/81 tests.
+- Fresh-pack qualify-linux --consumer-only passed Ubuntu and Alpine, all host
+  frontend/starter/production/rule/client proofs, at 6cdeef3c1a. No forbidden
+  test.sh invocation or publication receipt. Later chat/prose/census changes
+  passed their affected installed-pack checks at 2ba00705fc. Exact tested bytes
+  are retained; no exact-final-HEAD publication claim is made.
+- Mac Studio only, own ~/sb4-ws-sec: verifier 16+2, text minima, CLI build,
+  installed guide and every changed starter including both chat variants pass.
+- Clean wasm measurement at 685364545e: 2,372,893 B raw / 723,411 B gzip /
+  545,200 B Brotli. Budget 723,911 = measurement + exactly 500 B; +136 B gzip
+  versus base, with rationale. Families/absence audits pass, dirty=false, over=0.
+- Root frozen Bun install, workspace hoist and generated-artifact setup passed.
+  Root inventories pass (365 package tests/35 scripts/31 demos/487 publication
+  leaves); root guide 22/22 with 121 inherited warnings; ref-check 552 LLPs /
+  12,011 refs, zero errors/unchecked. Docs budget 319/320 physical lines.
+
+## Deferrals and claim limits
+
+Whole restrictive read proofs still name unmodeled wire activity, refusal/
+collision outcomes, derived aggregates/maintenance, raw probes, owner-field/
+referential paths, temporal behavior, opaque jobs/native workers and device
+freshness. A disconnected device cannot know a later server revocation.
+Generated engine tests do not qualify unauthenticated HTTP, genuine revoked-device
+histories, arbitrary operation sequences, all named-seat/enum combinations or
+complete file/video/fixture ledgers. General aggregate/time proofs and a repaired
+015 custody workflow remain open. Explicit unproved output is the conservative
+boundary, not a claim that all commissioned end-game paths are implemented.
+
+## Evidence and cleanup
+
+`snapback4/reports/20261018-sec/README.md` and `qualification.json` index raw
+compressed logs, all corpus/differential JSON, six witnesses, exact tested packs,
+Linux consumer evidence and Mac records. Source snapshots and later deltas are
+identified explicitly. No source outside this worktree or designated Mac scratch
+was modified. Original wave directories stayed read-only. Removed 1,636 dead-run
+SQLite sidecars and the dead generation lock; target now has zero SQLite scratch
+files. Removed 28 rebuildable qualification node_modules directories for shared
+disk space. Preserved source/proof metadata and package bytes; no keys copied.

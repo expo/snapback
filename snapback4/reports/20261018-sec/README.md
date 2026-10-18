@@ -59,3 +59,36 @@ Implementation reviews: round 5 Codex and Muse both READY at 685364545e.
 Clean wasm: 2,372,893 B raw / 723,411 B gzip / 545,200 B Brotli;
 budget 723,911 B = measured gzip +500 B, over=0.
 Qualification logs and final command results are indexed after completion.
+
+
+## Final qualification
+
+See `qualification.json` for results, snapshots and the Cargo environment;
+`logs/` holds compressed raw output, including failures and reruns. The original
+workspace invocation reached its 3,600-second guard during clique. Its three
+unfinished active cases all passed individually; all 41 unstarted simulation
+targets and workspace documentation tests passed. CLI/check/census/guide
+integration corrections have passing affected runs. One unmodified shutdown
+unit test failed intermittently in the last full CLI target and passed in
+isolation; its ticket preserves the observation rather than hiding it.
+
+The full client pool completed 412 files, with seven initially failed files;
+all eight affected rerun files passed 168 tests. Both full-count model files
+passed 81 tests. The latest installed security card and all todo/web/social/
+production/chat-web/chat-Expo starters pass, including broadened-rule failures.
+`current-packs/` retains the exact client/platform bytes and SHA-256 manifest
+for that run at 2ba00705fc. Its platform is a freshly built debug CLI test
+fixture; the production musl artifact belongs to the separate Linux consumer
+snapshot below. Neither is a publication receipt. `mac/` retains Mac Studio evidence for the verifier,
+text minima and all changed starter variants in the designated scratch tree.
+
+`linux/consumer.json` is the successful fresh-pack Linux consumer qualification
+at 6cdeef3c1a, including Ubuntu and Alpine. It explicitly says suite not-run and
+publicationQualified=false: full test.sh was forbidden, and the Rust/client
+battery ran separately. Later changes are the chat declarations, prose and test
+records, qualified through the latest installed starter packs; this is not an
+exact-final-HEAD publication receipt. Qualified tarballs and all proof JSON are
+retained. Consumer source/build outputs remain under the dedicated /tmp output;
+28 rebuildable node_modules directories were removed afterward for shared disk
+space. No credentials were copied. The known 1,636 dead-run SQLite sidecars were
+removed; target has zero SQLite scratch files after completion.
