@@ -292,7 +292,8 @@ pub fn check(options: &Options) -> i32 {
         Err(code) => return code,
     };
     for warning in saved_fixture_drift::warnings(&project) {
-        eprintln!("check: WARNING: saved fixture drift: {warning}");
+        if warning.drift { eprintln!("check: WARNING: saved fixture drift: {}", warning.message); }
+        else { eprintln!("check: info: {}", warning.message); }
     }
     if options.flags.contains_key("fix") && bound.diagnostics.is_empty() {
         if let Err(error) = fix_fixtures::run(&project, &bound, options) { eprintln!("check --fix: {error}"); return 2; }

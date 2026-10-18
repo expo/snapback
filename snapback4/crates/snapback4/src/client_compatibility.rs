@@ -23,7 +23,7 @@ pub(crate) fn typescript(project: &Project, bound: &Bound) -> io::Result<String>
     let origin = format!("resolved from {} at project root {}", project.root.join("snapback/client-compatibility.json").display(), project.root.display());
     let baseline_error = |message| bad(format!("baseline {}: {message} ({origin})", absolute.display()));
     if !path.exists() {
-        return Err(bad(format!("baseline {} does not exist ({origin})", absolute.display())));
+        return Err(bad(format!("baseline {} not saved yet: does not exist ({origin})", absolute.display())));
     }
     let sources = sources(&path).map_err(|e| baseline_error(e.to_string()))?;
     let baseline = snapback4_lang::compile(&sources);
@@ -39,11 +39,15 @@ pub(crate) fn sources(path: &std::path::Path) -> io::Result<Vec<(String, String)
             .into_iter().filter(|path| path.is_file() && path.extension().is_some_and(|extension| extension == "q")).collect::<Vec<_>>()
     } else { vec![path.to_owned()] };
     paths.sort_by_key(|path| (path.file_name().is_none_or(|name| name != "schema.q"), path.clone()));
-    if paths.is_empty() { return Err(bad("saved source directory has no Quarry .q sources")); }
-    paths.into_iter().map(|path| {
+    if paths.is_empty() { return Err(io::Error::new(io::ErrorKind::NotFound, "not saved yet: saved source directory has no Quarry .q sources")); }
+    let sources: Vec<(String, String)> = paths.into_iter().map(|path| {
         let name = path.file_name().and_then(|name| name.to_str()).filter(|name| name.ends_with(".q"))
             .ok_or_else(|| bad("saved sources need their original UTF-8 .q file names"))?;
         let text = std::fs::read_to_string(&path).map_err(|e| io::Error::new(e.kind(), format!("saved source {}: {e}", path.display())))?;
         Ok((name.to_owned(), text))
-    }).collect()
+    }).collect::<io::Result<_>>()?;
+    if sources.iter().all(|(_, text)| text.trim().is_empty()) {
+        return Err(io::Error::new(io::ErrorKind::NotFound, "not saved yet: saved Quarry sources are empty"));
+    }
+    Ok(sources)
 }
