@@ -1,5 +1,5 @@
 //! Real upload ledgers for foreign-id and non-image placement challenges.
-// @ref LLP 3000.038#2-contract — assets retain upload ownership and verified media type.
+// @ref LLP 3000.038#3-upload — assets retain upload ownership and verified media type.
 use super::*;
 const PDF:&[u8]=b"%PDF-1.4\n%%EOF\n";
 pub(super) fn file(e:&mut Engine,owner:&str,types:&[String])->Result<Value,String>{

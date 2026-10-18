@@ -27,6 +27,7 @@ fn observe(engine:&mut Engine,p:&Program,viewer:&str,args:BTreeMap<String,Value>
 
 pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>){
     for inv in bound.invariants.iter().filter(|i|i.target=="read"&&sites.is_none_or(|s|s.contains(&i.site.to_string()))) {
+        if inv.policy.is_none(){out.unsupported.insert(format!("{}: paired observation needs complete bound policy dependencies; unsupported policy AST is not dependency-free",inv.table));continue;}
         if out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()){continue;}
         // Removing an ordinary row must not manufacture an invalid reference
         // graph. More general paired deletions need a checked closure.

@@ -60,3 +60,11 @@ fn aggregate_integrity_refutation_uses_committed_validated_rows(){
  assert!(!c.violations.is_empty(),"{c:?}");
  assert!(c.violations.iter().all(|v|v.scope.contains("seed_at commit/read-back")));
 }
+
+#[test]
+fn aggregate_policy_dependency_cannot_be_changed_before_paired_disclosure(){
+ let b=bound("table roles:\n  principal: principal\n  enabled: bool\n  unique principal\n  read <- allow\n  update <- allow\n  online only\ntable secrets:\n  body: text <=20\n  read <- exists roles[viewer, enabled = true]\n  online only\nmutation enableAndRead():\n  update roles[viewer] { enabled: true }\n  return secrets['security-secrets']\ninvariant secrets.read only count(roles[principal = viewer, enabled = true]) = 1\n");
+ let c=security::challenges::run(&b);
+ assert!(c.violations.is_empty(),"{c:?}");
+ assert!(c.unsupported.iter().any(|s|s.contains("complete bound policy dependencies")));
+}
