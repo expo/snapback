@@ -87,7 +87,7 @@ for (const mode of ["dev", "serve"]) test(`${mode}: offline and live piped token
     };
     tokens.push(...mint("live"));
     for (const { phase, flags, minted } of tokens) {
-      const store = mode === "serve" ? join(release, "store.sqlite") : realpathSync(join(dir, ".snapback4/store.sqlite"));
+      const store = realpathSync(mode === "serve" ? join(release, "store.sqlite") : join(dir, ".snapback4/store.sqlite"));
       let token;
       if (flags.includes("--json")) {
         const record=JSON.parse(minted.stdout);token=record.token;
