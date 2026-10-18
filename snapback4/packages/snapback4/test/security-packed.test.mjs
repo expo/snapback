@@ -28,7 +28,7 @@ test('packed security card and starter run as written; broad reads refute', {tim
  for(const method of ['guests','password']){
   const app=join(dir,`revocation-${method}`);mkdirSync(join(app,'snapback'),{recursive:true});
   writeFileSync(join(app,'snapback/schema.q'),`use identity ${method}\ntable notes:\n  owner: principal\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\ninvariant notes.read only .owner = viewer\nquery notes():\n  return notes first 10 by .id\nmutation add():\n  return insert notes { owner: viewer }\n`);
-  const output=command(['test'],app);
+  const output=command(['test','--fixture-only'],app);
   assert.match(output,/security live-session revocation HTTP: 14 attempts refused/);
  }
  const guide=command(['guide','security','--full']);const blocks=[...guide.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m=>m[1]);assert.ok(blocks.length);
@@ -38,23 +38,23 @@ test('packed security card and starter run as written; broad reads refute', {tim
   assert.match(readFileSync(join(app,"snapback/generated/security-invariants.q.draft"),"utf8"),/DRAFT: NOT ACCEPTED/);
   assert.ok(checked.security.invariants.every(v=>['proved','unproved'].includes(v.status)),JSON.stringify(checked.security));assert.ok(checked.security.invariants.every(v=>v.direct_rule==='proved'));
   const audited=JSON.parse(command(['audit','--json'],app));assert.equal(audited.format,1);assert.ok(audited.exposures.some(x=>x.table==='privateNotes'));
-  assert.ok(command(['test'],app).includes('security tests:'));
+  assert.ok(command(['test','--fixture-only'],app).includes('security tests:'));
   writeFileSync(join(app,'snapback/schema.q'),blocks[i].replace('read <- .patient = viewer','read <- allow'));
   checked=JSON.parse(command(['check','--json'],app,1));assert.equal(checked.ok,false);assert.ok(checked.security.invariants.some(v=>v.status==='refuted'));
-  command(['test'],app,1);
+  command(['test','--fixture-only'],app,1);
  }
  const starter=join(dir,'starter');command(['init',starter,'--online']);const source=readFileSync(join(starter,'snapback/schema.q'),'utf8');assert.ok(source.includes('invariant todos.read only .ownerId = viewer'));
- command(['check'],starter);assert.ok(command(['test'],starter).includes('security tests:'));
+ command(['check'],starter);assert.ok(command(['test','--fixture-only'],starter).includes('security tests:'));
  const social=join(dir,'social');command(['init',social,'--template','social']);
- command(['check'],social);assert.ok(command(['test'],social).includes('security tests:'));
+ command(['check'],social);assert.ok(command(['test','--fixture-only'],social).includes('security tests:'));
  const web=join(dir,'web');command(['init',web,'--web']);
- command(['check'],web);assert.ok(command(['test'],web).includes('security tests:'));
+ command(['check'],web);assert.ok(command(['test','--fixture-only'],web).includes('security tests:'));
  for(const mode of ['web','expo']){
   const chat=join(dir,`chat-${mode}`);command(['init',chat,'--template','chat',`--${mode}`]);
   assert.ok(readFileSync(join(chat,'snapback/schema.q'),'utf8').includes('invariant messages.read only exists memberships[.conversationId, viewer]'));
-  command(['check'],chat);assert.ok(command(['test'],chat).includes('security tests:'));
+  command(['check'],chat);assert.ok(command(['test','--fixture-only'],chat).includes('security tests:'));
  }
  const production=join(dir,'production');mkdirSync(join(production,'snapback'),{recursive:true});
- copyFileSync(join(web,'recipes/production/schema.q'),join(production,'snapback/schema.q'));
- command(['check'],production);assert.ok(command(['test'],production).includes('security tests:'));
+ copyFileSync(join(dir,'node_modules/snapback4/dist/recipes/production/web/schema.q'),join(production,'snapback/schema.q'));
+ command(['check'],production);assert.ok(command(['test','--fixture-only'],production).includes('security tests:'));
 });

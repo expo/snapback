@@ -599,6 +599,7 @@ card/rules/5:closeLadderTicket | never
 card/rules/6:claimLadderKey | never
 card/rules/7:writeLadderNote | never
 card/rules/8:ladderPut | never
+card/security/1:writePrivateNote | never
 card/sequences/1:createConversation | never
 card/sequences/1:delivered | never
 card/sequences/1:send | never
@@ -708,7 +709,29 @@ card/time/1:addShift | shifts/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | rea
 card/time/1:addShift | shiftsByDay/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/time/1:checkIn | checkins/insert | {"Eq":[{"Field":"person"},"Viewer"]} | read rule
 card/time/1:checkIn | eligible
-card/time/3:subscribe | never
+card/time/2:checkin | never
+card/time/2:createRoom | eligible
+card/time/2:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/time/2:createRoom | rooms/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/time/2:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/time/2:edit | eligible
+card/time/2:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/time/2:edit | messages/update | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/time/2:join | eligible
+card/time/2:join | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/time/2:leave | eligible
+card/time/2:pagePass | never
+card/time/2:post | eligible
+card/time/2:react | eligible
+card/time/2:react | postLikes/maintain | "Deny" | read rule
+card/time/2:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/time/2:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/time/2:registerProfile | never
+card/time/2:sendBrief | eligible
+card/time/2:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/time/2:sendBrief | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/time/2:split | never
+card/time/4:subscribe | never
 card/types/1:createProfile | never
 card/wire/1:add | never
 card/wire/2:add | never
@@ -753,6 +776,7 @@ card/writes/5:createConversation | never
 card/writes/5:send | never
 card/writes/6:createNote | never
 package/CLIENT-AND-OPERATIONS/1:createProfile | never
+package/CLIENT-AND-OPERATIONS/2:recordPrice | never
 package/README/1:placeAvatar | eligible
 package/README/1:placeAvatar | profiles/update | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
 package/README/1:saveProfile | never

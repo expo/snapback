@@ -63,7 +63,7 @@ pub fn validate(args: &[String]) -> Result<(), String> {
         }
     }
     if verb == "rollback" && has("bridge") && !has("check") { return Err("E_INPUT: rollback --bridge requires --check; it writes a bridge starter without activating it".into()); }
-    if verb == "check" && has("audit") && ["cost","residency","fix","store","fixture","as","release","emit-lean"].iter().any(|f|has(f)) { return Err("E_INPUT: check --audit takes only --json or --verbose".into()); }
+    if verb == "check" && has("audit") && ["cost","residency","fix","store","fixture","as","release","emit-lean","ack-notes"].iter().any(|f|has(f)) { return Err("E_INPUT: check --audit takes only --json or --verbose".into()); }
     if verb == "test" && has("verbose") && !has("residency") { return Err("E_INPUT: test --verbose requires --residency".into()); }
     if verb == "run" && has("token-env") && !has("release") { return Err("E_INPUT: run --token-env requires --release".into()); }
     if verb == "why" && has("instance") && crate::verbs::parse(args).positionals.first().map(String::as_str) != Some("recent") { return Err("E_INPUT: why --instance requires why recent".into()); }

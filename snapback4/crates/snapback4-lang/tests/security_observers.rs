@@ -4,6 +4,20 @@ fn bound(source:&str)->snapback4_lang::Bound {
     let b=compile(&[("policy.q".into(),source.into())]);
     assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);b
 }
+#[test]
+fn live_parent_reads_do_not_discharge_the_whole_invariant() {
+    for policy in ["allow", ".project.owner = viewer"] {
+        let b = bound(&format!("{}\ninvariant tasks.read only {policy}\n", include_str!("fixtures/live-parent.q")));
+        let report = security::analyze(&b);
+        let verdict = &report.invariants[0];
+        assert_eq!(verdict.status, Status::Unproved, "{report:?}");
+        assert!(verdict.reasons.iter().any(|r| r.contains("live-parent")), "{report:?}");
+        if policy != "allow" {
+            assert_eq!(verdict.direct_rule, Status::Unproved);
+            assert!(verdict.counterexample.is_none());
+        }
+    }
+}
 fn aggregate(rule:&str,kind:&str)->String {let kind=if kind=="sum"{"sum notes of .amount"}else{"count notes"};format!("table notes:\n  owner: principal\n  amount: int\n  read <- .owner = viewer\n  online only\nview totals: {kind} by .owner\n  read <- {rule}\n  online only\nquery total(owner: principal):\n  return totals[owner]\ninvariant notes.read only .owner = viewer\n")}
 #[test]
 fn maintained_count_and_sum_preserve_or_expose_source_privacy(){

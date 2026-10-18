@@ -25,6 +25,17 @@ fn notes(source: &str) -> Vec<snapback4_lang::Diagnostic> {
     b.notes.into_iter().filter(|n| n.code == "N_SWEEP_DEADLINE").collect()
 }
 #[test]
+fn security_and_completeness_advice_share_the_same_sweep_finding() {
+    let source = SWEEP.replace("closed", "status");
+    let sources = vec![("schema.q".into(), source)];
+    let b = compile(&sources);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let mut report = snapback4_lang::security::analyze(&b);
+    snapback4_lang::security::add_source_notes(&mut report, &sources, &b);
+    assert_eq!(b.notes.iter().chain(&report.notes).filter(|n|
+        matches!(n.code.as_str(), "N_SWEEP_DEADLINE" | "N_SWEEP_ONLY_DEADLINE")).count(), 1);
+}
+#[test]
 fn sweep_deadline_names_the_exact_row_and_does_not_invent_guard_direction() {
     let n = notes(SWEEP); assert_eq!(n.len(), 1, "{n:?}");
     for text in ["mutation act", "job closeDue", "row.deadline", "row.closed", "not a proof"] { assert!(n[0].message.contains(text), "{n:?}"); }

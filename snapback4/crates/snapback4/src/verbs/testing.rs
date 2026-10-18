@@ -243,7 +243,8 @@ pub fn test(options: &Options) -> i32 {
     // One line a script or an agent can read: derived refusals and unrun
     // queries are not failures, but they are not coverage either.
     let no_cases = passed + failed_cases == 0 && !options.flags.contains_key("fixture-only");
-    let verdict = if failures > 0 || failed_cases > 0 || no_cases { "FAIL" } else if !skipped.is_empty() || held_not_run > 0 { "incomplete" } else { "pass" };
+    let security_failed = !security_campaign.violations.is_empty() || !security_campaign.boundary_failures.is_empty() || !security_http_ok;
+    let verdict = if failures > 0 || failed_cases > 0 || no_cases || security_failed { "FAIL" } else if !skipped.is_empty() || held_not_run > 0 { "incomplete" } else { "pass" };
     // @ref LLP 3000.036.002#9 — derived probe refusals are expected exploration, not failed cases.
     println!("test: {complete} complete, {capped} capped, {expected} refused as your cases expect, {refused_derived} probe refusals on derived arguments (expected), {} not run, {failures} denied{} — {verdict}",
         skipped.len() + held_not_run, if passed + failed_cases > 0 { format!("; cases: {passed} passed, {failed_cases} failed") } else if options.flags.contains_key("fixture") { format!("; no {} (see snapback4 guide testing)", test_cases::FILE) } else { String::new() });
@@ -254,5 +255,5 @@ pub fn test(options: &Options) -> i32 {
     if no_cases {
         eprintln!("test: no business cases executed ({skipped_business_cases} skipped); add test.cases.jsonl, or use --fixture-only when fixture loading/query probes are the intended check");
     }
-    if failures > 0 || failed_cases > 0 || no_cases || !security_campaign.violations.is_empty() || !security_campaign.boundary_failures.is_empty() || !security_http_ok { 1 } else { 0 }
+    if failures > 0 || failed_cases > 0 || no_cases || security_failed { 1 } else { 0 }
 }
