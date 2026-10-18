@@ -69,6 +69,10 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
             }
             let Some(row)=present.get(&inv.table).and_then(|rs|rs.first()).cloned()else{continue;};
             let mut absent=present.clone();absent.remove(&inv.table);
+            // Final-exists validation is a pure judgment of this fixed seeded
+            // world, before operation/viewer admission. Retain its rejection
+            // across observers, never cache execution/resource/policy results.
+            let invalid=std::cell::RefCell::new([None::<String>,None]);
             for viewer in [VIEWER,OTHER,"account:security-no-role","service:security"] {
                 for bp in &bound.programs {
                     let p=&bp.program;
@@ -91,7 +95,14 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                     if opaque(&json){out.unsupported.insert(format!("{}: generated-id/opaque effects excluded from paired determinism",p.name));continue;}
                     let Some(args)=arguments(&p.args,variant)else{continue;};
                     let execute=|seeds:&BTreeMap<String,Vec<Value>>|->Result<(serde_json::Value,BTreeMap<String,Vec<Value>>),String>{
-                        let mut e=engine(bound,seeds,program("$security.pair",ProgramKind::Query,vec![Stmt::Return(Expr::Literal(Value::Null))]))?;
+                        let slot=usize::from(std::ptr::eq(seeds,&absent));
+                        if let Some(why)=&invalid.borrow()[slot]{return Err(why.clone());}
+                        let mut e=match engine(bound,seeds,program("$security.pair",ProgramKind::Query,vec![Stmt::Return(Expr::Literal(Value::Null))])){
+                            Ok(e)=>e,Err(why)=>{
+                                if why.ends_with(": trusted seed did not establish final-exists constraint"){invalid.borrow_mut()[slot]=Some(why.clone());}
+                                return Err(why);
+                            },
+                        };
                         let actual=readback(&e)?;
                         // Judge the hypothetical protected row in each complete
                         // committed world, before any operation can change roles.
