@@ -78,7 +78,13 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                         if policy(bound,inv,&actual,viewer,None,&row)!=Ok(false){return Err("paired policy is not definitely false in both worlds".into());}
                         observe(&mut e,p,viewer,args.clone()).map(|value|(value,actual))
                     };
-                    let (Ok((a,rows)),Ok((b,absent_rows)))=(execute(&present),execute(&absent))else{continue;};
+                    let ((a,rows),(b,absent_rows))=match (execute(&present),execute(&absent)) {
+                        (Ok(a),Ok(b))=>(a,b),
+                        (Err(e),_)|(_,Err(e))=>{
+                            if !e.starts_with("paired policy is not definitely false") {out.unsupported.insert(format!("{}: {e}",p.name));}
+                            continue;
+                        },
+                    };
                     out.attempted+=2;*out.operations.entry(p.name.clone()).or_default()+=2;
                     if a==b {continue;}
                     // The query order is engine-defined. Recreate both worlds
