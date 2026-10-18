@@ -12,7 +12,7 @@ export function proofApi() {
   const module=checker.getSymbolAtLocation(source);
   const fmt=ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseAliasDefinedOutsideCurrentScope;
   const show=type=>checker.typeToString(type,source,fmt).replace(/import\("[^"]+"\)\./g,'');
-  const cell=text=>text.replace(/\|/g,'&#124;').replace(/\s+/g,' ').trim();
+  const cell=text=>text.replace(/\|/g,'\\|').replace(/\s+/g,' ').trim();
   const fields=type=>{
     type=checker.getAwaitedType(type)??type;
     if(checker.isArrayType(type)) return `Array of ${fields(checker.getTypeArguments(type)[0])}`;

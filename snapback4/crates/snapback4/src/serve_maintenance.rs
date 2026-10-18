@@ -385,13 +385,14 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         engine.advance_worker_leases_at(milliseconds, clock.now()).map_err(|e| e.refusal())?;
         *clock = next;
         let offset = clock.offset();
+        let skew = now - snapback4_core::now_ms();
         let isolated = if crate::dev_clock_store::has_data(&engine) {
             format!("; use {} for isolated time tests; clock advance --port N targets its printed port (guide jobs)", crate::dev_clock::isolated_command())
         } else { String::new() };
         let message = format!("cumulative offset {offset:+}ms (requested process offset; now includes the authoritative floor); process offset lasts until restart{isolated}");
-        Ok((now, offset, message, before, boundaries))
+        Ok((now, offset, skew, message, before, boundaries))
     })();
-    let (now, offset, message, before, boundaries) = match advanced {
+    let (now, offset, skew, message, before, boundaries) = match advanced {
         Ok(result) => result,
         Err(error) => return respond(request, 400, json!({"denied":refusal_json(&error)})),
     };
@@ -412,11 +413,11 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
     match drained.map_err(|error| error.refusal()).and_then(|work| completed_drain(work, crate::lifecycle::stopping())) {
         Ok(work) => {
             let schedules = crate::dev_clock_store::schedule_report(&lock(&shared.engine), &before, &work.fired, now, shared.hold_schedules, each_boundary, shared.dev_identity.as_ref().map(|i| i.address.port()));
-            respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "skewMs":now - snapback4_core::now_ms(), "eachBoundary":each_boundary, "message":message, "work":work, "schedules":schedules}))
+            respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "work":work, "schedules":schedules}))
         }
         // Time remains advanced if maintenance fails; callers must not
         // retry the advance blindly. The normal tick retries pending work.
-        Err(error) => respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "skewMs":now - snapback4_core::now_ms(), "eachBoundary":each_boundary, "message":message, "denied":refusal_json(&error)})),
+        Err(error) => respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "skewMs":skew, "eachBoundary":each_boundary, "message":message, "denied":refusal_json(&error)})),
     }
 }
 
@@ -511,6 +512,28 @@ pub(super) fn clock_status(request: Request, shared: &Shared) {
 mod tests {
     use super::*;
     use super::super::tests::Host;
+
+    #[test]
+    fn kit4_clock_reply_samples_skew_before_a_delayed_drain() {
+        let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(),
+            "use personas alice\nquery time():\n  return now\n");
+        let shared = host.shared.clone();
+        let (entered, resume) = shared.engine.pause_next_background(false);
+        let address = host.address;
+        let client = std::thread::spawn(move || {
+            let payload = r#"{"duration":"1m"}"#;
+            super::super::tests::exchange(address, &format!("POST /dev/clock/advance HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{payload}", payload.len()))
+        });
+        entered.recv_timeout(Duration::from_secs(5)).unwrap();
+        assert_eq!(lock(&shared.clock).offset(), 60_000);
+        std::thread::sleep(Duration::from_millis(500));
+        resume.send(()).unwrap();
+        let response = client.join().unwrap();
+        assert_eq!(super::super::tests::status(&response), 200, "{response}");
+        let reply = super::super::tests::body(&response);
+        assert_eq!(reply["offsetMs"], 60_000);
+        assert!((reply["skewMs"].as_i64().unwrap() - 60_000).abs() < 200, "{reply}");
+    }
 
     #[test]
     fn kit3_interrupted_clock_drain_refuses_with_clock_evidence_and_queued_work() {
