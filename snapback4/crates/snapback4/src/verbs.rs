@@ -1165,7 +1165,7 @@ pub fn why(options: &Options) -> i32 {
             } else if subject == "E_CASCADE_BOUND" {
                 let entries: Vec<_> = bound.diagnostics.iter().filter(|d| d.code == *subject)
                     .map(|d| format!("{}\n{}", d.message, d.details.as_deref().unwrap_or(""))).collect();
-                Some(format!("{explanation}\n\n{}", entries.join("\n\n")))
+                (!entries.is_empty()).then(|| format!("{explanation}\n\n{}", entries.join("\n\n")))
             } else { bound.diagnostics.iter().chain(&bound.notes).find(|diagnostic| diagnostic.code == *subject).and_then(|diagnostic| diagnostic.explanation()) }
         });
         let explanation = contextual.unwrap_or(explanation);
