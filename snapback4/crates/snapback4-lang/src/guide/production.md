@@ -398,4 +398,3 @@ release gates and rollback preserve them. Account changes intentionally cross
 the AppProvider principal boundary. Exact's corresponding recipe is maintained
 in Exact2 (EX9); these source files target React and Expo.
 
-Wave-15 ownership: KIT4 owns day-two proof/API text; DAY5 owns general starter advice; RULES5 owns rule recipes; EX10 owns Exact2 guest/account integration.

@@ -96351,3 +96351,5 @@ production recipes withdraw protected children/actions for stale/revalidating/
 incomplete role evidence while their draft owner persists. Production flags no
 longer silently ignore web/expo/day2. Packed and Mac qualification follow the
 final source; the workstream report retains failed attempts and reruns.
+
+PROD2 coordination: KIT4 owns day-two proof/API text; DAY5 owns general starter/Expo advice; RULES5 owns rule recipes; EX10 owns Exact2 guest/account integration. These lane pointers stay outside packaged discovery text.
