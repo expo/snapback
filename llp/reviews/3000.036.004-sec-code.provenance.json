@@ -1,0 +1,100 @@
+{
+  "date": "2026-10-18T20:16:31.650087+00:00",
+  "source_commit": "685364545e",
+  "codex": "fresh codex exec -m gpt-6.1-sol; high; no parent reasoning",
+  "muse": "muse-exec.sh --model muse-spark-1.3-contributor --reasoning-effort high; plan fallback wrapper",
+  "rounds": [
+    {
+      "round": 1,
+      "reviews": {
+        "codex": {
+          "artifact": "3000.036.004-sec-code-r1.codex.md",
+          "sha256": "a8bb15cf7acb3c3ba794c04937f891dae5c90e4fc7d68e3d4fc03791c2c6ca89",
+          "verdict": "NOT READY."
+        },
+        "muse": {
+          "artifact": "3000.036.004-sec-code-r1.muse.md",
+          "sha256": "1a085907901e22d00e5572fa86aba4706a6240250a6d62d13102421764873aeb",
+          "verdict": "NOT READY \u2014 F1 lets a read declaration be marked proved over an RFC-in-scope oracle channel; F2 can manufacture a refutation. Both are small, localized fixes; everything else I probed is sound and conservative in the right direction."
+        }
+      }
+    },
+    {
+      "round": 2,
+      "reviews": {
+        "codex": {
+          "artifact": "3000.036.004-sec-code-r2.codex.md",
+          "sha256": "ee4062b3c99f188c3375926da8f19287be2f5c57868b58fa5e7e595465e15a8b",
+          "verdict": "NOT READY"
+        },
+        "muse": {
+          "artifact": "3000.036.004-sec-code-r2.muse.md",
+          "sha256": "d21daacf1549d1b3f46ba41fd41ae8d04f091c335a906b407a789df28d74b2d9",
+          "verdict": "READY"
+        }
+      }
+    },
+    {
+      "round": 3,
+      "reviews": {
+        "codex": {
+          "artifact": "3000.036.004-sec-code-r3.codex.md",
+          "sha256": "bd4aa30d081b35375e85ff7c0fdd3a75dbbc901f1fdd315dc5fe1880b1649f05",
+          "verdict": "NOT READY"
+        },
+        "muse": {
+          "artifact": "3000.036.004-sec-code-r3.muse.md",
+          "sha256": "c8de6c40eb69844e3d9c7fb8f0f5f99b5d101c40568c75f410af34c7c24c92c3",
+          "verdict": "READY"
+        }
+      }
+    },
+    {
+      "round": 4,
+      "reviews": {
+        "codex": {
+          "artifact": "3000.036.004-sec-code-r4.codex.md",
+          "sha256": "ff678f8f5f489bf75bce3a5f59e774bf2569f70986326d747cd360eaeab1f5f4",
+          "verdict": "NOT READY"
+        },
+        "muse": {
+          "artifact": "3000.036.004-sec-code-r4.muse.md",
+          "sha256": "f55232b0fad373cef5486e4eaa38e847e5e253661740ca6b113e162e3a3b1509",
+          "verdict": "READY"
+        }
+      }
+    },
+    {
+      "round": 5,
+      "reviews": {
+        "codex": {
+          "artifact": "3000.036.004-sec-code-r5.codex.md",
+          "sha256": "b55e5506f8d229a7fe6dcfe4508559c95a399516a2c22e9f0a13fde2e4e40f54",
+          "verdict": "READY"
+        },
+        "muse": {
+          "artifact": "3000.036.004-sec-code-r5.muse.md",
+          "sha256": "41f46aae54b55fa2cfdbb7597ff8fb8c5263fd66093bd783b061da85ba30862e",
+          "verdict": "READY"
+        }
+      }
+    }
+  ],
+  "reviewed_sources": {
+    "snapback4/crates/snapback4-lang/src/bind/security.rs": "6c34e8ac262c240021cf7674f75620429d2797c1273d7eebe1d644438ce21092",
+    "snapback4/crates/snapback4-lang/src/bind/security/audit.rs": "0e3ab6636e20e3992b703830dbe13518d82c92406ac99dffb5c8f98f72b0a669",
+    "snapback4/crates/snapback4-lang/src/bind/security/census.rs": "3b23a87020920537dc8e9e44d83ff3204202aab2f0ccf2cf3e52b79913461916",
+    "snapback4/crates/snapback4-lang/src/bind/security/lints.rs": "14e3f26f2bce7628f4515a8c57c2d0d2a9d2938221950b8992f33923e00f8189",
+    "snapback4/crates/snapback4-lang/src/bind/security/challenges.rs": "7b726419e61066152a13886ecbd480d6a0220e969ee5639024da3cf191933591",
+    "snapback4/crates/snapback4-lang/src/bind/security/operation.rs": "b8d135d9aaea6374428b854a03eded8c9fd2fc68c38bbeb3813a330517021f2b",
+    "snapback4/crates/snapback4-lang/src/bind/security/concrete.rs": "757e4eac5c39c004d42a68964ef4fdc7b4d27431acd8e5514c7afa25597bad4c",
+    "snapback4/crates/snapback4-lang/src/bind/security/kernel.rs": "bf30f61d7129921837645ab74e3dbd72f8d9fedfb57bd1135b998cede83ec6c0"
+  },
+  "corrections": [
+    "default restrict, required JSON, role-demotion boundary, collision outcomes",
+    "synthetic insert snapshot and maintenance target writers",
+    "column/effect attribution",
+    "ambiguous delete/reinsert declined, typed fallback probes declined"
+  ],
+  "final": "both READY in round 5; explicit unproved scope retained"
+}
