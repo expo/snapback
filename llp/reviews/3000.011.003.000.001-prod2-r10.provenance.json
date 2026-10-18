@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-18",
+  "proposalRevision": 9,
+  "proposalSha256": "c6e5576f018dac5cd9c75fd31d23daeab03629ed7e7a787b17210f67792bb829",
+  "proposalSnapshot": "3000.011.003.000.001-prod2-r9.proposal.md",
+  "museCommand": "muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file /tmp/prod2-review-r10.txt",
+  "museReview": "3000.011.003.000.001-prod2-r10.muse.md",
+  "freshCodexReview": "3000.011.003.000.001-prod2-r9.codex.md",
+  "freshCodexProvenance": "3000.011.003.000.001-prod2-r9.provenance.json",
+  "verdicts": {
+    "muse": "READY",
+    "codex": "READY"
+  },
+  "note": "Muse round 10 re-reviewed unchanged revision 9 against source-backed dispositions; fresh Codex round 9 READY applies to the exact same proposal digest. No new Codex review is claimed for round 10."
+}

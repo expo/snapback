@@ -96358,3 +96358,75 @@ opening assertion; Markdown separators do not count as CLI flags. All 125 guide
 tests passed after repair. Full consumer qualification at 54ca21331c passed;
 the final guide-only follow-up uses a fresh pack and scoped KIT4 proof rather
 than repeating unchanged starter toolchains (LLP 0189 / 0232 content binding).
+
+### 2026-10-18 — PROD2: offline entry, production plans and release-stable drafts
+
+Wave-15 R3 and R6 landed separately first: AccountEntry opens the device before
+background auth-config discovery; the production scan excludes hidden/test
+sources while retaining runtime scripts. The reviewed LLP 3000.011.003.000.001
+amends readiness to initial successful account restoration, preserving the
+current account's shell through release changes and later admission warnings.
+Current fresh/complete/non-revalidating role evidence and generated operation
+availability still gate protected work; SDK/server admission is unchanged.
+Guest intents remain under the guest principal when signup replaces it.
+Fixture-only enum roles get one literal service-seat operation per role, custom
+persona entries discover the account recipe, and persona-only upgrade actions
+name production adaptation. Codegen explains post-evolution optionality and
+keeps conditional enum domains. The missing-store type diagnostic names
+sessionStore; packed client recipes execute explicit PDF file uploads.
+Same-revision Muse and fresh Codex semantic reviews are READY (round 2).
+Focused Linux tests and the Mac Studio principal-scan suite passed; full client
+and packed consumer qualification results are recorded in WORKSTREAM-REPORT.md.
+No version bump, push or publication is part of this workstream.
+
+
+### 2026-10-18 — PROD2 review closure and compatibility controls
+
+Both independent families are READY on the SAME consolidated revision-9
+semantic amendment: fresh Codex round 9 and Muse round 10, whose provenance
+records the unchanged proposal digest. All earlier NOT READY reviews and their
+proposal snapshots remain; full Codex command transcripts are compressed beside
+verbatim final messages. Source-backed dispositions resolved the final text-only
+review's interpretation questions without changing the reviewed proposal.
+Implementation controls additionally preserve plain text concatenation, enum text
+operations, corresponding-leaf comparisons and inferred-local rebinding, and
+refuse control-character laundering/unrepresentable value joins. The React/Expo
+production recipes withdraw protected children/actions for stale/revalidating/
+incomplete role evidence while their draft owner persists. Production flags no
+longer silently ignore web/expo/day2. Packed and Mac qualification follow the
+final source; the workstream report retains failed attempts and reruns.
+
+PROD2 coordination: KIT4 owns day-two proof/API text; DAY5 owns general starter/Expo advice; RULES5 owns rule recipes; EX10 owns Exact2 guest/account integration. These lane pointers stay outside packaged discovery text.
+
+The full language suite also caught an existing diagnostic contract: unsafe enum/
+text list items must keep E_QUARRY_TYPE and its value-preserving typed-helper
+repair. Strict item joins now retain their incompatible-item marker when the
+reviewed general join refusal fires; general flow/min/max refusal remains intact.
+This restores the existing list diagnostic without changing the reviewed norm.
+
+Packed H9 offline entry, scoped principal scanning, real release adoption and all
+three original-preserving custom-app adaptations passed. The new PDF execution
+then exposed a proof-fixture omission: its backend had no file column. The guide
+now states the exact optional file declaration, extracted into the qualification
+schema before executing the unchanged literal upload helper. Asset admission
+and schema ownership remain unchanged.
+
+### 2026-10-18 — PROD2 qualification and corpus closeout
+
+Fresh code0fea2ddb16 client/platform consumer qualification passed H9, all three
+original-preserving evidence copies, real PDF upload, current-authority role
+shell, six frontend cases, six starters and Ubuntu/Alpine userspaces. This is
+consumer-only evidence, not publication qualification. Both full Rust crates
+passed (language2116, CLI1297); all client files and both full model suites were
+verified, with failed attempts/reruns retained in the workstream report. Final
+Mac affected checks passed. Root inventories/guide, ref-check and docs budget
+were checked; closing results are in WORKSTREAM-REPORT.md.
+
+The scoped corpus audit aligned client §6.11 and release §3 with the unchanged
+reviewed revision-9 norms, marked implementation and archived its current link.
+No review snapshot or verbatim review was edited. An inherited qualification
+registry-proxy header retry crash was cleared by an unchanged-source retry and
+filed as issues/20261018-snapback4-qualification-registry-proxy-headers.md for the
+publication harness owners; PROD2 leaves that socket code alone. No version
+bump, push or publication. Completed build/test caches were discarded only
+inside this worktree to keep the shared disk usable.

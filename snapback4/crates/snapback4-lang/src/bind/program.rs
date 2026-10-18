@@ -500,8 +500,8 @@ impl<'a> Binder<'a> {
             // The search text follows the keys as the word term; the index
             // was chosen for its words component in exactly that position.
             let (e, t) = self.expr(matching, out)?;
-            if !matches!(t, Ty::Text(_)) {
-                let rewrite = if matches!(t, Ty::Optional(ref inner) if matches!(**inner, Ty::Text(_))) { format!("{} ?? ''", print::expression(matching)) } else { "matching q  -- with q: text <=100".to_owned() };
+            if t.text_max().is_none() {
+                let rewrite = if t.is_optional() && t.required().text_max().is_some() { format!("{} ?? ''", print::expression(matching)) } else { "matching q  -- with q: text <=100".to_owned() };
                 return Err(type_error(matching.site(), format!("matching takes present text, got {}", t.name()), rewrite));
             }
             prefix.push(IndexKeyExpr::WordPrefix(e));

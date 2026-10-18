@@ -66,8 +66,11 @@ export function useAuth(): AuthSnapshot & Pick<AppAuth, "signup" | "login" | "gu
     logout: app.auth.logout, logoutEverywhere: app.auth.logoutEverywhere };
 }
 
-/** Initial opening has finished and the current signed-in account admits writes.
- * This is admission readiness, not network availability or permission. */
+/** The current account has opened successfully. Once ready, release switches
+ * and later admission warnings do not unmount its shell. This is restoration
+ * readiness, not continuing write admission, network availability or permission.
+ * @ref LLP 3000.011.003.000.001#2-readiness-and-current-authority — drafts have an account lifetime.
+ */
 export function useAppReady(): boolean {
   const app = useContext(AppContext);
   if (!app) throw new Error("useAppReady: no <AppProvider> above this component");
@@ -79,7 +82,15 @@ export function useAppReady(): boolean {
     void app.ready.then(finished, finished);
     return () => { active = false; };
   }, [app]);
-  return opened === app && auth.state === "signed-in" && !auth.why?.code.startsWith("E_ADMISSION");
+  const [admitted, setAdmitted] = useState<{app: App; viewer: string} | null>(null);
+  const signedIn = opened === app && auth.state === "signed-in" && auth.viewer !== null;
+  const initial = signedIn && !auth.why?.code.startsWith("E_ADMISSION");
+  const sameAccount = signedIn && admitted?.app === app && admitted.viewer === auth.viewer;
+  // Render-time state adjustment retains the first successful opening even if
+  // React batches the next release notification before an effect could run.
+  if (initial && !sameAccount) setAdmitted({app, viewer: auth.viewer!});
+  else if (!signedIn && admitted !== null) setAdmitted(null);
+  return initial || sameAccount;
 }
 
 export function SnapbackProvider({ client, children }: { client: Client; children: ReactNode }) {

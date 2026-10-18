@@ -31,7 +31,7 @@ export declare const api: {
   receiptFamilies: { chat: ReceiptFamily<{ id: string; joinedOrdinal: number; deliveredOrdinal: number; seenOrdinal: number }, "conversation", "through"> };
   myMembership: Query<{ conversationId: string }, { id: string } | null>;
   staffNotes: Query<{team?:string}, { id: string; title: string; priority?:string }[]> & {available(release:ReleaseSnapshot):boolean};
-  myRole: Query<{team:string}, {role:'staff'|'member'}|null>;
+  myRole: Query<{team:string}, {role:'staff'|'member'}|null> & {available(release:ReleaseSnapshot):boolean};
   addStaffNote: Mutation<{team:string;title:string;category:string}, {id:string}> & {available(release:ReleaseSnapshot):boolean};
   publicNotes: Query<{}, {id:string;title:string}[]>;
   add: Mutation<{ title: string }, null>;

@@ -5,7 +5,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
-import { createBrowserServer, loadBrowserPage } from './helpers/browser-server.mjs';
+import { server as backendServer } from './helpers/app-server.mjs';
+import { createBrowserServer, loadBrowserPage, reloadBrowserPage } from './helpers/browser-server.mjs';
 import { chromiumExecutable } from '../../../witness/lib.mjs';
 const root = resolve(import.meta.dirname, '../../..');
 const require = createRequire(join(root, 'package.json'));
@@ -74,6 +75,13 @@ window.inspect=()=>({writes,records:[...records].map(r=>r.op.name)});window.fini
   assert.equal(await principal.inputValue(), 'acct:new-member');
   if (platform === 'web') { assert.equal(await page.getByLabel('Role', { exact: true }).inputValue(), 'admin'); assert.equal(await page.getByLabel('Member principal', { exact: true }).inputValue(), 'dev:bob'); }
   else { assert.equal(await page.getByText('Invitation role: admin', { exact: true }).count(), 1); assert.equal(await page.getByRole('button', { name: 'Selected: dev:bob · member', exact: true }).count(), 1); }
+  for (const flags of [{fresh:false},{revalidating:true},{complete:false}]) {
+    await publish({role:{data:{role:'admin',principal:'dev:alice'},existence:'present',fresh:true,complete:true,cut:null,...flags}});
+    assert.equal(await page.getByRole('button',{name:'Invite',exact:true}).count(),0,'uncertain role never mounts protected actions');
+    assert.ok(!(await page.evaluate(()=>window.inspect())).records.includes('roster'),'uncertain role withdraws protected reads');
+    await publish({role:{data:{role:'admin',principal:'dev:alice'},existence:'present',fresh:true,complete:true,cut:null}});
+    assert.equal(await principal.inputValue(),'acct:new-member','draft survives authority withdrawal');
+  }
   await page.getByRole('button', { name: 'Invite', exact: true }).click();
   assert.deepEqual((await page.evaluate(() => window.inspect())).writes, [{ op: 'invite', args: { teamId: 'team', principal: 'acct:new-member', role: 'admin' } }]);
   await publish({ role: { denied: { code: 'NOT_MEMBER', family: 'rule', message: 'Revoked' } } });
@@ -102,4 +110,90 @@ window.inspect=()=>({writes,records:[...records].map(r=>r.op.name)});window.fini
   assert.ok(lifecycle.some(r => r.name === 'alice') && lifecycle.some(r => r.name === 'bob'));
   assert.equal(lifecycle.find(r => r.name === 'session').closes, 0, 'session client remains available after switching back');
   await page.evaluate(() => window.finish()); assert.deepEqual(errors, []);
+});
+
+// H9: execute the packed guide's literal AccountEntry with the real device,
+// persisted password session and a new page realm whose backend is unreachable.
+test('production AccountEntry restores held account data offline without an auth-config cache', {timeout: 120000}, async t => {
+  const backend = await backendServer(t);
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-entry-offline-')); let server, browser;
+  t.after(async () => { try { await browser?.close(); } finally { try { await server?.close(); } finally { rmSync(dir, {recursive:true, force:true}); } } });
+  const guide = readFileSync(process.env.SNAPBACK4_PRODUCTION_GUIDE ?? join(root, 'crates/snapback4-lang/src/guide/production.md'), 'utf8');
+  const entry = [...guide.matchAll(/```tsx\n([\s\S]*?)\n```/g)].map(m=>m[1]).find(s=>s.includes('export function AccountEntry'));
+  assert.ok(entry);
+  writeFileSync(join(dir, 'entry.tsx'), entry);
+  writeFileSync(join(dir, 'index.html'), '<div id="root"></div><script type="module" src="/harness.tsx"></script>');
+  writeFileSync(join(dir, 'harness.tsx'), `
+import React from 'react';import {createRoot} from 'react-dom/client';import {AccountEntry} from './entry';
+import {useAuth,useAppReady,useClient,useQuery} from 'snapback4/react';
+const list={kind:'query',name:'list'},add={kind:'mutation',name:'add'};
+function Ledger(){const auth=useAuth(),ready=useAppReady(),client=useClient(),read=useQuery(list,{});
+window.signup=()=>auth.signup('offline@example.com','password-offline');window.add=()=>client.mutate(add,{body:'Held ledger'});window.client=client;
+return <><output aria-label='Account'>{auth.state}</output><output aria-label='Ready'>{String(ready)}</output><p>{'data' in read?read.data.map(r=>r.body).join(','):'Waiting'}</p></>;}
+createRoot(document.querySelector('#root')).render(<AccountEntry url={${JSON.stringify(backend.url)}}><Ledger/></AccountEntry>);
+`);
+  server = await createBrowserServer({root:dir,configFile:false,logLevel:'error',server:{host:'127.0.0.1',port:0,fs:{allow:[root,dir,clientDist]}},resolve:{alias:[
+    ...['react','app','auth','web'].map(name=>({find:'snapback4/'+name,replacement:join(clientDist,name+'.js')})),
+  ]}});
+  await server.listen();const {chromium}=require('playwright-core');
+  browser=await chromium.launch({executablePath:chromiumExecutable(),headless:true,args:['--no-sandbox']});
+  const page=await browser.newPage(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await loadBrowserPage(t,page,server.resolvedUrls.local[0]);
+  await page.waitForFunction(()=>window.signup&&document.querySelector('[aria-label=Account]').textContent==='signed-out');
+  assert.equal((await page.evaluate(()=>window.signup())).ok,true);
+  assert.equal((await page.evaluate(()=>window.add())).state,'sent');
+  await page.getByText('Held ledger',{exact:true}).waitFor();
+  await page.evaluate(async()=>{await window.client.close();for(const key of Object.keys(localStorage))if(key.startsWith('snapback4:auth-config:'))localStorage.removeItem(key);});
+  let attempts=0;
+  await page.route(backend.url+'/**',route=>{attempts++;return route.abort('internetdisconnected');});
+  await reloadBrowserPage(page);
+  await page.getByText('Held ledger',{exact:true}).waitFor();
+  assert.equal(await page.getByLabel('Account').textContent(),'signed-in');
+  assert.equal(await page.getByLabel('Ready').textContent(),'true');
+  assert.equal(await page.getByRole('alert').count(),0);
+  assert.ok(attempts>0,'background refresh actually attempted the offline network');
+  assert.deepEqual(errors,[]);
+});
+
+
+test('useAppReady gate retains a draft through real hot adoption', {timeout:120000}, async t => {
+  const source = `use identity password
+table drafts:
+  owner: principal
+  body: text <=100
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  sync to .owner
+query list():
+  return drafts[owner = viewer] first 20 by .id
+`;
+  const backend = await backendServer(t, undefined, source, {watch:true});
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-live-ready-'));let server,browser;
+  t.after(async()=>{try{await browser?.close();}finally{try{await server?.close();}finally{rmSync(dir,{recursive:true,force:true});}}});
+  writeFileSync(join(dir,'index.html'),'<div id="root"></div><script type="module" src="/harness.tsx"></script>');
+  writeFileSync(join(dir,'harness.tsx'),`
+import React,{useState} from 'react';import{createRoot}from'react-dom/client';
+import{createApp}from'snapback4/app';import{webDevice}from'snapback4/web';import{localStorageSessionStore}from'snapback4/auth';
+import{AppProvider,useAuth,useAppReady,useRelease}from'snapback4/react';
+const app=createApp({url:${JSON.stringify(backend.url)},device:webDevice(),sessionStore:localStorageSessionStore()});window.app=app;window.readiness=[];
+function Draft(){const[text,setText]=useState('');return <label>Draft<input value={text} onChange={e=>setText(e.target.value)}/></label>;}
+function Gate(){const auth=useAuth(),ready=useAppReady(),release=useRelease();window.readiness.push(ready);
+return <><output aria-label='Account'>{auth.state}</output><output aria-label='Generation'>{'generation'in release?release.generation:'loading'}</output>{ready?<Draft/>:<p>Opening</p>}</>;}
+createRoot(document.querySelector('#root')).render(<AppProvider app={app}><Gate/></AppProvider>);
+`);
+  server=await createBrowserServer({root:dir,configFile:false,logLevel:'error',server:{host:'127.0.0.1',port:0,fs:{allow:[root,dir,clientDist]}},resolve:{alias:['app','web','auth','react'].map(name=>({find:'snapback4/'+name,replacement:join(clientDist,name+'.js')}))}});
+  await server.listen();const{chromium}=require('playwright-core');browser=await chromium.launch({executablePath:chromiumExecutable(),headless:true,args:['--no-sandbox']});
+  const page=await browser.newPage();await loadBrowserPage(t,page,server.resolvedUrls.local[0]);
+  await page.waitForFunction(()=>window.app?.auth.state==='signed-out');
+  assert.equal((await page.evaluate(()=>window.app.auth.signup('release@example.com','password-release'))).ok,true);
+  const input=page.getByLabel('Draft');await input.fill('Unsent across release');
+  await page.waitForFunction(()=>/^\d+$/.test(document.querySelector('[aria-label=Generation]').textContent));
+  const before=await page.getByLabel('Generation').textContent();
+  await page.evaluate(()=>{window.originalInput=document.querySelector('input');window.readiness=[];});
+  writeFileSync(join(backend.dir,'snapback/schema.q'),source.replace('  body: text <=100','  body: text <=100\n  priority: int default 0')+'query v2():\n  return 2\n');
+  await page.waitForFunction(old=>{const value=document.querySelector('[aria-label=Generation]').textContent;return /^\d+$/.test(value)&&value!==old;},before);
+  assert.equal(await input.inputValue(),'Unsent across release');
+  assert.equal(await page.evaluate(()=>document.querySelector('input')===window.originalInput),true);
+  assert.ok((await page.evaluate(()=>window.readiness)).every(Boolean),'readiness never regresses during actual adoption');
+  await page.evaluate(()=>window.app.close());
 });

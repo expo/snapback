@@ -131,7 +131,7 @@ impl Binder<'_> {
                     let mut origins = binding.origins.clone();
                     origins.push((ty.clone(), value.clone()));
                     let joined = binding.declared.join(&ty).map_err(|error| self.assignment_type_error(self.assignment_join_error(error, name, &origins), name, value, site))?;
-                    if ty != Ty::Null && binding.declared != Ty::Null && !ty.assignable_to(&binding.declared) && !binding.declared.assignable_to(&ty) {
+                    if ty != Ty::Null && binding.declared != Ty::Null && !ty.value_compatible(&binding.declared) {
                         return Err(self.assignment_type_error(type_error(site, format!("{name} is {}; cannot rebind it to {}", binding.declared.name(), ty.name()), "use a different local for a different type"), name, value, site));
                     }
                     binding.declared = if self.loops > 0 { joined.rebound() } else { joined };

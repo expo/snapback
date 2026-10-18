@@ -1417,3 +1417,24 @@ test("a session comparison read failure returns client refusals without losing i
   broken = false;
   assert.deepEqual((await client.query(list, {})).data, []);
 });
+
+
+for (const tier of ["online", "local"]) test(`guest session replacement isolates pending writes: ${tier}`, {timeout:hangBudget(8)}, async t => {
+  const {url,dir}=await server(t);
+  const posts=[];
+  const app=createApp({url,sessionStore:memorySessionStore(),...(tier==="local"?{device:processDevice({dir:join(dir,"guest-device"),binary})}:{}),fetch:async(input,init)=>{
+    if(new URL(input).pathname==="/m/add"){posts.push(new Headers(init.headers).get('authorization'));throw Error('guest write held offline');}
+    return fetch(input,init);
+  }});t.after(()=>app.close());
+  await app.ready;assert.equal((await app.auth.guest()).ok,true);
+  const guestViewer=app.auth.viewer,old=app.client;
+  const pending=await app.mutate(add,{body:'Guest only'},{waitSeconds:0});
+  assert.equal(pending.state,'pending');
+  assert.equal((await app.auth.signup('replacement@example.com','password-replacement')).ok,true);
+  assert.notEqual(app.auth.viewer,guestViewer);
+  assert.equal(await app.client.write(pending.id),undefined,'new account cannot observe the guest receipt');
+  assert.deepEqual((await app.client.query(list,{})).data,[],'new account cannot see the guest data');
+  const signed=app.client.session();
+  assert.ok(!posts.includes('Bearer '+signed.token),'no guest intent dispatch uses the new account token');
+  assert.equal((await old.mutate(add,{body:'Delayed guest callback'})).state,'failed','retired guest facade cannot admit work');
+});

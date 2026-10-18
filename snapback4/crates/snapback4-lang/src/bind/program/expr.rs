@@ -193,7 +193,7 @@ impl Binder<'_> {
                     }
                 }
                 let (e, t) = self.computation(base, out)?;
-                if name == "length" && matches!(t.required(), Ty::Text(_) | Ty::List(..) | Ty::Page(..) | Ty::Collection(..)) {
+                if name == "length" && matches!(t.required(), Ty::Text(_) | Ty::Enum(_) | Ty::List(..) | Ty::Page(..) | Ty::Collection(..)) {
                     return Err(unsupported(site, ".length", format!("count({})", print::expression(base))));
                 }
                 // @ref LLP 3000.036#12 — a required reference's field reads its row:
@@ -547,8 +547,8 @@ impl Binder<'_> {
                 let divided = Expr::Builtin { builtin: Builtin::Divmod { remainder_sink: "operator".into() }, args: vec![l, r] };
                 return Ok((ir::field(divided, if op == "/" { "quotient" } else { "remainder" }), Ty::Int));
             }
-            "+" if matches!((&lt, &rt), (Ty::Text(_), Ty::Text(_))) => {
-                let (Ty::Text(a), Ty::Text(b)) = (lt, rt) else { unreachable!() };
+            "+" if lt.text_max().is_some() && rt.text_max().is_some() => {
+                let (a, b) = (lt.text_max().unwrap(), rt.text_max().unwrap());
                 // @ref LLP 3000.007#5.1 — text addition uses the shared, heap-metered concatenation builtin.
                 return Ok((Expr::Builtin { builtin: Builtin::Concat, args: vec![l, r] }, Ty::Text(a.saturating_add(b))));
             }
@@ -705,7 +705,7 @@ impl Binder<'_> {
             }
             super::super::intent_variants::SEARCH => {
                 let (value, ty) = self.expr(&args[0], out)?;
-                if !matches!(ty, Ty::Text(_)) { return Err(type_error(site, "matching needs present text", "matching (q ?? '')")); }
+                if ty.text_max().is_none() { return Err(type_error(site, "matching needs present text", "matching (q ?? '')")); }
                 let A::Name { name, .. } = &args[1] else { unreachable!("planned needle binding") };
                 let runtime = self.temp("intentNeedle");
                 self.declare(name, ty);
@@ -748,7 +748,7 @@ impl Binder<'_> {
                     return Ok((Expr::Builtin { builtin: Builtin::Count, args: vec![Expr::Scan(scan)] }, Ty::Int));
                 }
                 let (e, t) = self.expr(&args[0], out)?;
-                if matches!(t, Ty::Text(_)) {
+                if t.text_max().is_some() {
                     return Ok((Expr::Builtin { builtin: Builtin::Len, args: vec![e] }, Ty::Int));
                 }
                 if t.loop_max().is_none() {
@@ -763,7 +763,7 @@ impl Binder<'_> {
             "lower" | "trim" => {
                 arity(1, &format!("{name}(text)"))?;
                 let (value, ty) = self.expr(&args[0], out)?;
-                let Ty::Text(max) = ty else {
+                let Some(max) = ty.text_max() else {
                     return Err(type_error(site, format!("{name} takes present text, got {}", ty.name()), &format!("{name}(text ?? '')")));
                 };
                 let (builtin, max) = if name == "lower" { (Builtin::Lower, max.saturating_mul(3)) } else { (Builtin::Trim, max) };
@@ -772,7 +772,7 @@ impl Binder<'_> {
             "sha256" => {
                 arity(1, "sha256(text)")?;
                 let (value, ty) = self.expr(&args[0], out)?;
-                if !matches!(ty, Ty::Text(_)) {
+                if ty.text_max().is_none() {
                     return Err(type_error(site, format!("sha256 takes present text, got {}", ty.name()), "sha256(text ?? '')"));
                 }
                 Ok((Expr::Builtin { builtin: Builtin::Sha256, args: vec![value] }, Ty::Text(64)))
@@ -797,10 +797,10 @@ impl Binder<'_> {
             "join" => {
                 arity(2, "join(list, separator)")?;
                 let [(list, lt), (sep, st)]: [(Expr, Ty); 2] = self.strict_args(args, out)?.try_into().expect("checked arity");
-                let max = match (lt.sequence(), &st) {
-                    (Some((item, count)), Ty::Text(sep)) => match item {
-                        Ty::Text(max) => max.saturating_mul(count).saturating_add(sep.saturating_mul(count.saturating_sub(1))),
-                        Ty::Unknown if count == 0 => 0,
+                let max = match (lt.sequence(), st.text_max()) {
+                    (Some((item, count)), Some(sep)) => match item.text_max() {
+                        Some(max) => max.saturating_mul(count).saturating_add(sep.saturating_mul(count.saturating_sub(1))),
+                        None if item == Ty::Unknown && count == 0 => 0,
                         _ => return Err(type_error(site, "join takes a list of present text values", "join(['a', 'b'], ', ')")),
                     },
                     _ => return Err(type_error(site, "join takes a list of present text values and a text separator", "join(['a', 'b'], ', ')")),
@@ -912,9 +912,12 @@ impl Binder<'_> {
                     return Err(type_error(site, "slice positions are ints", "slice(text, 0, 80)"));
                 }
                 let ty = match t.required() {
-                    Ty::Text(max) => match (literal_int(&args[1]), literal_int(&args[2])) {
-                        (Some(a), Some(b)) if b >= a => Ty::Text(((b - a) as u32).min(max)),
-                        _ => Ty::Text(max),
+                    text if text.text_max().is_some() => {
+                        let max = text.text_max().unwrap();
+                        match (literal_int(&args[1]), literal_int(&args[2])) {
+                            (Some(a), Some(b)) if b >= a => Ty::Text(((b - a) as u32).min(max)),
+                            _ => Ty::Text(max),
+                        }
                     },
                     Ty::List(item, max) => Ty::List(item, max),
                     Ty::Page(table, max) => Ty::List(Box::new(Ty::Row(table)), max),
@@ -946,7 +949,7 @@ impl Binder<'_> {
             "tokens" => {
                 arity(1, "tokens(text)")?;
                 let (e, t) = self.expr(&args[0], out)?;
-                if !matches!(t, Ty::Text(_)) {
+                if t.text_max().is_none() {
                     return Err(type_error(args[0].site(), format!("tokens takes present text, got {}", t.name()), "tokens(body ?? '')"));
                 }
                 Ok((Expr::Builtin { builtin: Builtin::MentionTokens, args: vec![e] }, Ty::List(Box::new(Ty::Text(64)), MENTION_MAX)))

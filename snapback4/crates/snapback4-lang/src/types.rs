@@ -212,10 +212,39 @@ impl Ty {
     }
 
     /// Whether two values may meet in `=`, `!=` or a key position.
-    pub fn comparable(&self, other: &Ty) -> bool {
+    pub fn comparable(&self, other: &Ty) -> bool { self.value_compatible(other) }
+
+    /// Compatibility is per corresponding value leaf. Bounds can point in
+    /// opposite directions in separate fields; neither whole shape needs to
+    /// be assignable to the other. This never supplies an assignment proof.
+    // @ref LLP 3000.011.003.000.001#4-declaration-and-recipe-corrections — preserve value compatibility without erasing precise assignment domains.
+    pub(crate) fn value_compatible(&self, other: &Ty) -> bool {
         let a = self.required();
         let b = other.required();
-        a == b || a.assignable_to(&b) || b.assignable_to(&a) || a == Ty::Null || b == Ty::Null
+        match (&a, &b) {
+            (Ty::Text(_) | Ty::Enum(_), Ty::Text(_) | Ty::Enum(_)) => true,
+            (a, b) if a.sequence().is_some() && b.sequence().is_some() => {
+                let (a, _) = a.sequence().unwrap();
+                let (b, _) = b.sequence().unwrap();
+                a.value_compatible(&b)
+            }
+            (Ty::Object(a) | Ty::RowShape(a) | Ty::RowObject(a), Ty::Object(b) | Ty::RowShape(b) | Ty::RowObject(b)) => {
+                a.len() == b.len() && a.iter().all(|(name, ty)| b.get(name).is_some_and(|other| ty.value_compatible(other)))
+            }
+            _ => a == b || a.assignable_to(&b) || b.assignable_to(&a) || a == Ty::Null || b == Ty::Null,
+        }
+    }
+
+    /// Present string domains share existing text builtins only if every
+    /// variant fits text's character domain as well as its scalar-count bound.
+    // @ref LLP 3000.011.003.000.001#4-declaration-and-recipe-corrections — precision must preserve sound text operations.
+    pub(crate) fn text_max(&self) -> Option<u32> {
+        match self {
+            Ty::Text(max) => Some(*max),
+            Ty::Enum(variants) if variants.iter().all(|value| snapback4_core::engine::validate::disallowed_text_control(value).is_none()) =>
+                Some(variants.iter().map(|value| u32::try_from(value.chars().count()).unwrap_or(u32::MAX)).max().unwrap_or(0)),
+            _ => None,
+        }
     }
 
     /// The type both branches can share. Row-kind conflicts are errors at
@@ -260,8 +289,10 @@ impl Ty {
                     Ty::Enum(variants)
                 }
             }
-            (Ty::Enum(variants), Ty::Text(max)) | (Ty::Text(max), Ty::Enum(variants))
-                if Ty::Enum(variants.clone()).assignable_to(&Ty::Text(u32::MAX)) => {
+            (Ty::Enum(variants), Ty::Text(max)) | (Ty::Text(max), Ty::Enum(variants)) => {
+                // A non-text enum cannot disappear into Unknown and later
+                // establish an argument or column assignment proof.
+                if !Ty::Enum(variants.clone()).assignable_to(&Ty::Text(u32::MAX)) { return Err(JoinError { incompatible_items: strict, ..conflict() }); }
                 let longest = variants.iter().map(|v| u32::try_from(v.chars().count()).unwrap_or(u32::MAX)).max().unwrap_or(0);
                 Ty::Text((*max).max(longest))
             }

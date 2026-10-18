@@ -62,9 +62,11 @@ function AccountScreen(){
 
 1. Preview `init --adapt --production`, then review and use `--apply`. It adds
    bare `use identity` only when no identity is declared, lists blocked tables,
-   emits one typed service-seat provisioning mutation per roster and shows its
+   emits one service-seat provisioning mutation per fixture-only enum role (or
+   one typed mutation for other blocked rosters) and shows its
    explicit read/insert seat grants. It names frontend `dev:` references without
-   editing screens. Non-roster roots still need application policy.
+   editing screens. Custom persona entries also point here, even without literal
+   dev principals. Non-roster roots still need application policy.
    Run `check`, then `why N_NO_PRODUCTION_WRITER` in the project. It lists
    **all** fixture-only first writers and their blocked dependents. Its rewrite
    proposes a seat mutation for each root, and one per declared `role` enum
@@ -88,6 +90,14 @@ function AccountScreen(){
 
 ## Password UI and auth transitions
 
+`use identity guests` is guests-only,
+while bare `use identity` allows both password accounts and guests. A guest
+session is a session: when password accounts are enabled, app.auth.signup/login
+can replace it with an account;
+the SDK keeps pending writes and receipts under the guest principal, never
+transfers them to the new account. AppProvider resets the guest screen's drafts
+on that viewer change.
+
 Replace `?as=alice`, `usePersonaApp` and fixed `dev:` owners with `createApp`
 using a persisted session store (`guide client`, password React/Expo). Choose
 `use identity password` when guests must be removed, and retain `use personas` only for
@@ -97,8 +107,9 @@ development tests. Production principals come from signup/login, not names.
 `dev:` location to the authenticated viewer or an authorized picker. Directory
 privacy and who may invite remain explicit application policy.
 
-`AppProvider` remounts children on every auth-state transition. A draft inside
-PasswordForm is intentionally reset by signup/login/logout; store a mode choice
+`AppProvider` remounts children when the app or viewer changes. Restoring to
+signed-out with the same null viewer preserves the sign-in inputs. A draft inside
+PasswordForm resets when entering or leaving an account; store a mode choice
 or unsent work above the provider if it must survive. `useSignedInViewer()` is
 for a signed-in AccountScreen; `restoring` is not a signed-in viewer. The browser setup above persists sessions; on Expo replace webDevice with
 nativeDevice and use SecureStore (`guide client`). Never keep credentials in an account directory.
@@ -106,7 +117,12 @@ nativeDevice and use SecureStore (`guide client`). Never keep credentials in an 
 ## Password plus development personas
 
 Keep the account form as the default. This outer selector reads the server's
-configuration before interpreting `?as=`. Its persona list is the application's
+cached development configuration when interpreting `?as=` and refreshes it in the
+background. A missing cache defaults to account sign-in. The SDK restores its
+last session and held data without waiting for the server. Cache failure or a
+failed refresh never replaces the account screen. The cache is discovery UI,
+not authority: serve still refuses every persona. On a first visit, wait for
+the development links before choosing a persona. Its persona list is the application's
 declared development list; it grants no production role. Mount `AccountEntry`
 above `AppProvider`; the `children` contain Gate/PasswordForm/AccountScreen from
 above. An account screen reads `myStaff` below to show roster roles and mounts
@@ -120,25 +136,26 @@ import {localStorageSessionStore} from "snapback4/auth";
 import {AppProvider} from "snapback4/react";
 export function AccountEntry({url, children}: {url: string; children: ReactNode}) {
   const [ready, setReady] = useState<{app: App; development: boolean} | null>(null);
-  const [error, setError] = useState("");
   useEffect(() => {
-    let closed = false, owned: App | undefined;
-    void (async () => {
-      try {
-        const response = await fetch(`${url}/auth/config`);
-        if (!response.ok) throw new Error("Authentication configuration unavailable");
+    const key = `snapback4:auth-config:${url}`;
+    let development = false;
+    try { development = JSON.parse(localStorage.getItem(key) ?? "null")?.development === true; } catch {}
+    const requested = new URLSearchParams(location.search).get("as");
+    const persona = development && ["alice", "bob"].includes(requested ?? "") ? requested! : undefined;
+    const owned = createApp({url, device: webDevice(), sessionStore: localStorageSessionStore(), ...(persona ? {persona} : {})});
+    setReady({app: owned, development});
+    const controller = new AbortController();
+    void fetch(`${url}/auth/config`, {method: "GET", signal: controller.signal})
+      .then(async response => {
+        if (!response.ok) return;
         const config = await response.json();
+        if (controller.signal.aborted) return;
         const development = config.development === true;
-        const requested = new URLSearchParams(location.search).get("as");
-        const persona = development && ["alice", "bob"].includes(requested ?? "") ? requested! : undefined;
-        if (closed) return;
-        owned = createApp({url, device: webDevice(), sessionStore: localStorageSessionStore(), ...(persona ? {persona} : {})});
+        try { localStorage.setItem(key, JSON.stringify({development})); } catch {}
         setReady({app: owned, development});
-      } catch (failure) { if (!closed) setError(String(failure)); }
-    })();
-    return () => { closed = true; void owned?.close(); };
+      }).catch(() => {});
+    return () => { controller.abort(); void owned.close(); };
   }, [url]);
-  if (error) return <p role="alert">{error}</p>;
   if (!ready) return <p>Loading sign-in…</p>;
   return <>{ready.development && <nav aria-label="Development identity">
     <a href="?">Password account</a> <a href="?as=alice">Alice</a> <a href="?as=bob">Bob</a>

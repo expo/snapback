@@ -10,6 +10,14 @@
 - Fixture aliases support zero-based array paths such as $plans.0.id. Test output explains its columns and explicit --as sweep precedence.
 - The testing guide includes a complete production-account day-two proof and a source-generated proof API table. The wire guide opens with runnable literal envelopes, seed/reset forms and credential headers. Packed qualification runs the examples unchanged.
 
+- Custom production adaptation proposes a literal service-seat mutation for every fixture-only enum role, requires explicit target principals, and points custom persona entries to the account/persona recipe. Existing application writers remain owned by the app. Persona-only upgrade actions name `init --adapt --production`; guests-only identity and guest-to-account replacement are explicit.
+- `useAppReady()` marks successful initial account restoration and stays true across release switches and later admission warnings. It still resets on account/app replacement or restoration/sign-out. Keep drafts above role/release branches; current complete, fresh role evidence and operation availability gate protected actions. SDK/server admission remains authoritative.
+- Generated post-evolution optional fields explain which releases lack the column. Conditional enum projections retain literal and nullable unions; dynamic text still widens to string. Missing device-less identity persistence produces a type error naming `sessionStore`. Complete empty lists remain `absent`; document uploads use `{file:{…}}`.
+
+- Production principal migration scans skip hidden directories and test, acceptance, fixture and proof sources; runtime scripts remain visible.
+
+- Production entry opens the device and restores persisted sessions before refreshing `/auth/config`; an unreachable backend no longer replaces an offline account screen with an alert.
+
 ## 0.4.31
 
 - Existing stores keep their rows, ids, schema and captured `read through` authority. No automatic data repair or audience expansion occurs. Regenerate declarations and rebuild web, native and Exact clients to pick up the runtime and client changes below; review new correctness notes before deploying edited schemas.

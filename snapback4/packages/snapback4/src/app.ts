@@ -87,10 +87,10 @@ interface AppConfiguration extends Omit<LocalOptions, "device" | "persona" | "se
  * Browsers require localStorageSessionStore() for their durable write journal. */
 // @ref LLP 3000.013#6.10 — explicit persistence is part of device-less identity construction.
 export type AppOptions = AppConfiguration & (
-  | { readonly sessionStore: SessionStore }
   | { readonly device: DeviceOpener }
   | { readonly persona: string }
   | { readonly readOnly: true }
+  | { readonly sessionStore: SessionStore }
 );
 
 function problem(error: unknown): Refusal {

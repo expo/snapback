@@ -48,7 +48,7 @@ fn typescript_inner(bound: &Bound, compatibility: Option<(&Bound, u64)>) -> Stri
             if !scales.is_empty() { out.push_str(&format!("    /** {} */\n", scales.join("; "))); }
             let before = baseline.and_then(|b| b.schema.table(name)).and_then(|t| t.columns.get(column));
             let added = baseline.and_then(|b| b.schema.table(name)).is_some() && before.is_none();
-            if added { out.push_str(&format!("    /** Since release {}. */\n", since.unwrap())); }
+            if added { out.push_str(&format!("    /** Since release {}; optional: releases before {} lack this column. */\n", since.unwrap(), since.unwrap())); }
             let ty = before.map(|old| compat::result(&Ty::from_column(kind), Some(&Ty::from_column(old)), since)).unwrap_or_else(|| column_ts(kind, &bound.schema));
             out.push_str(&format!("    {}{}: {};\n", property(column), if table.private_field(column) || baseline.and_then(|b| b.schema.table(name)).is_some_and(|t| t.private_field(column)) || added { "?" } else { "" }, ty));
         }
