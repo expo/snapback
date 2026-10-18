@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,copyFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {fileURLToPath} from 'node:url';
+import {fileURLToPath,pathToFileURL} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {testSource} from '../dist/proof.js';
 const root=fileURLToPath(new URL('../../../',import.meta.url));
@@ -47,4 +47,19 @@ test('quiet JSON upgrade retains stdout-only post-check refusals on stderr',t=>{
   assert.notEqual(result.status,0);assert.equal(JSON.parse(result.stdout).ok,false);
   assert.match(result.stderr,/E_DEVICE_BROKEN: stdout-only diagnostic/);
   assert.match(result.stderr,/post-upgrade check refused/);
+});
+
+test('relocated starter qualifier uses an explicitly transported generated proof',async t=>{
+  const cwd=mkdtempSync(join(tmpdir(),'sb4-day5-relocated-'));t.after(()=>rmSync(cwd,{recursive:true,force:true}));
+  const app=join(cwd,'app');mkdirSync(app);
+  const initialized=spawnSync(binary,['init','--web'],{cwd:app,encoding:'utf8',timeout:60000});
+  assert.equal(initialized.status,0,initialized.stdout+initialized.stderr);
+  const proofPath=join(app,'scripts/frontend-proof.mjs'),template=readFileSync(proofPath,'utf8');
+  rmSync(proofPath);writeFileSync(join(app,'src/App.tsx'),'function Home(){return <FirstRead />;}\n');
+  const isolated=join(cwd,'proof','starters.mjs');mkdirSync(join(cwd,'proof'));
+  copyFileSync(join(root,'scripts/publication-starters.mjs'),isolated);
+  const {installCustomWriteScenario}=await import(pathToFileURL(isolated));
+  assert.throws(()=>installCustomWriteScenario(app,'web'),/ENOENT/);
+  installCustomWriteScenario(app,'web',template);
+  assert.match(readFileSync(proofPath,'utf8'),/const within = page.locator\("#proof-rows"\);/);
 });

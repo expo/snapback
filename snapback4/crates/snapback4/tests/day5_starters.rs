@@ -75,3 +75,23 @@ fn custom_schema_starters_have_no_todo_proof_or_leftovers_after_adaptation() {
         app.ok(&["check"]);
     }}
 }
+
+#[test]
+fn legacy_comparison_covers_non_schema_and_multi_module_snapshots() {
+    let app=App::new();app.ok(&["init","--web"]);
+    fs::remove_file(app.0.join("snapback/schema.q")).unwrap();
+    let current="query alive():\n  return true\n";
+    app.write("snapback/main.q",current);
+    app.write("versions/v1.q","query alive():\n  return false\n");
+    let preview=app.ok(&["init","--adapt","--day2"]);
+    assert!(preview.contains("versions/v1.q differs from versions/v1/main.q"),"{preview}");
+    app.ok(&["init","--adapt","--day2","--apply"]);
+    let checked=app.ok(&["check"]);
+    assert!(checked.contains("versions/v1.q differs from versions/v1/main.q"),"{checked}");
+    assert_eq!(app.read("versions/v1/main.q"),current);
+    app.write("versions/v1.q",current);
+    assert!(!app.ok(&["check"]).contains("versions/v1.q differs"));
+    app.write("versions/v1/extra.q","query other():\n  return true\n");
+    let multiple=app.ok(&["check"]);
+    assert!(multiple.contains("versions/v1.q differs") && multiple.contains("versions/v1/extra.q") && multiple.contains("versions/v1/main.q"),"{multiple}");
+}

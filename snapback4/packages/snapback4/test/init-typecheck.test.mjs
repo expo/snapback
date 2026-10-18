@@ -40,7 +40,9 @@ for (const kind of ['web', 'expo']) {
   test(`custom ${kind} qualification component typechecks and refuses reapplication`, t => {
     const dir = mkdtempSync(join(root, '.init-types-custom-'));
     t.after(() => rmSync(dir, { recursive: true, force: true }));
-    mkdirSync(join(dir, 'snapback'));
+    const initial=spawnSync(binary,['init',`--${kind}`],{cwd:dir,encoding:'utf8',timeout:60000});
+    assert.equal(initial.status,0,initial.stdout+initial.stderr);
+    const inheritedTodoProof=readFileSync(join(dir,'scripts/frontend-proof.mjs'),'utf8');
     writeFileSync(join(dir, 'snapback/schema.q'), `use identity guests
 table notes:
   owner: principal
@@ -53,11 +55,11 @@ query mine():
 mutation add(title: text <=80):
   return insert notes { owner: viewer, title }
 `);
-    for (const args of [['init', `--${kind}`], ['check']]) {
+    for (const args of [['init','--adapt','--apply'], ['check']]) {
       const r = spawnSync(binary, args, { cwd: dir, encoding: 'utf8' });
       assert.equal(r.status, 0, r.stdout + r.stderr);
     }
-    installCustomWriteScenario(dir, kind);
+    installCustomWriteScenario(dir, kind, inheritedTodoProof);
     const file = join(dir, kind === 'web' ? 'src/App.tsx' : 'App.tsx');
     const source = readFileSync(file, 'utf8');
     assert.match(source, /<FirstRead \/><ProofWrite \/>/);

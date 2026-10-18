@@ -34,14 +34,27 @@ fn package(dir: &Path) -> serde_json::Value {
 pub(super) fn referenced(dir: &Path, path: &str) -> bool {
     package(dir)["scripts"].as_object().is_some_and(|scripts| scripts.values().any(|v|v.as_str().is_some_and(|s|s.contains(path))))
 }
+// @ref LLP 3000.011.003.000#15-wave-15-starter-advice-day5-2026-10-18 — compare the complete directory capture; no distinguished schema.q is required.
 pub(super) fn legacy_differences(dir: &Path, plan: &[(&str, String)]) -> Vec<String> {
     ["v1", "v2"].into_iter().filter_map(|version| {
         let flat = format!("versions/{version}.q");
-        let saved = format!("versions/{version}/schema.q");
+        let prefix = format!("versions/{version}/");
         let legacy = std::fs::read_to_string(dir.join(&flat)).ok()?;
-        let current = plan.iter().find(|(name,_)| *name == saved).map(|(_, text)|text.clone())
-            .or_else(||std::fs::read_to_string(dir.join(&saved)).ok())?;
-        (legacy != current).then(||format!("info: {flat} differs from {saved}; saved {version} captures snapback/*.q, not the legacy flat source; both remain unchanged evidence. Review the pair before day2:proof"))
+        let mut saved = std::collections::BTreeMap::new();
+        if let Ok(entries) = std::fs::read_dir(dir.join(&prefix)) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if path.extension().is_some_and(|ext|ext=="q") && let Ok(text)=std::fs::read_to_string(&path) {
+                    saved.insert(format!("{prefix}{}",entry.file_name().to_string_lossy()),text);
+                }
+            }
+        }
+        for (name,text) in plan.iter().filter(|(name,_)|name.starts_with(&prefix) && name.ends_with(".q")) {
+            saved.insert((*name).to_owned(),text.clone());
+        }
+        if saved.is_empty() || saved.len()==1 && saved.values().next()==Some(&legacy) {return None;}
+        let paths=saved.keys().cloned().collect::<Vec<_>>().join(", ");
+        Some(format!("info: {flat} differs from {paths}; saved {version} captures snapback/*.q, not the legacy flat source; both remain unchanged evidence. Review the pair before day2:proof"))
     }).collect()
 }
 pub(super) fn report(dir: &Path) -> Vec<String> {

@@ -90,14 +90,11 @@ export async function proveFrontendTwice(run, cwd, starter) {
 }
 
 // A fixture-owned component makes the custom Home prove an actual rendered write.
-export function installCustomWriteScenario(cwd,kind) {
+export function installCustomWriteScenario(cwd,kind,template) {
   assert.ok(["web","expo"].includes(kind));
   const screen=join(cwd,kind === "web" ? "src/App.tsx" : "App.tsx");
   const proofPath=join(cwd,"scripts/frontend-proof.mjs");
-  const original=readFileSync(screen,"utf8"), proof=existsSync(proofPath) ? readFileSync(proofPath,"utf8") : readFileSync(new URL("../crates/snapback4/src/verbs/init/frontend-proof.mjs",import.meta.url),"utf8")
-    .replace("BUILD_SCRIPT",kind === "web" ? "build" : "build:web")
-    .replace("RESULTS_SCOPE",kind === "web" ? 'page.getByRole("list")' : 'page.getByTestId("todo-results")')
-    .replace("// TEMPLATE_READY","");
+  const original=readFileSync(screen,"utf8"), proof=template ?? readFileSync(proofPath,"utf8");
   assert.equal(original.split("<FirstRead />").length-1,1,"custom qualification needs one generated Home read slot");
   assert.ok(original.includes("function Home()") && !original.includes("function ProofWrite()"),"custom qualification needs a fresh Home");
   const needle=/const within = [^\n;]+;/g;
@@ -233,7 +230,7 @@ assert.ok(host.url);const inspected=JSON.parse((await cli(['releases','deploymen
       negativeProof = {status:"passed", expected:"no write scenario: replace the Home assertions", listenerAudit};
     }
     rmSync(join(cwd,"scripts/frontend-proof.mjs"),{force:true});
-    installCustomWriteScenario(cwd,kind);
+    installCustomWriteScenario(cwd,kind,inheritedTodoProof);
     const customPackage=JSON.parse(readFileSync(join(cwd,"package.json"),"utf8"));
     customPackage.scripts["frontend:proof"]="node scripts/frontend-proof.mjs";
     writeFileSync(join(cwd,"package.json"),JSON.stringify(customPackage,null,2)+"\n");

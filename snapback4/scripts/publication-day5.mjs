@@ -34,6 +34,25 @@ for(const kind of ['web','expo']){
  assert.doesNotMatch(readFileSync(join(dir,'README.md'),'utf8'),/npm run frontend:proof|# Todos/);
  const checked=await cli(['check'],{cwd:dir});assert.equal(checked.code,0,checked.stdout+checked.stderr);
 }
+// Execute the changed measurement recipes from the installed cards themselves.
+const measurementEnv={PATH:join(process.cwd(),'node_modules/.bin')+':'+process.env.PATH};
+const measurements=[];
+async function measure(recipe,where=cwd){
+ const shell=recipe.replaceAll('<principal>','alice').replaceAll('<directory>','fixtures').replaceAll('DIR','fixtures').replace(/\bdir\b/g,'fixtures').replace('[--as persona]','--as alice');
+ const line=shell.startsWith('snapback4 ')?shell:'snapback4 '+shell;
+ const r=await command('sh',['-eu','-c',line],{cwd:where,env:measurementEnv});assert.equal(r.code,0,line+'\n'+r.stdout+r.stderr);measurements.push(line);
+}
+for(const page of ['feeds','maintains','offline-interactions','testing','sync','EMPTY_READ']){
+ const text=await run(page==='EMPTY_READ'?['why',page]:['guide',page]);
+ const snippets=[...text.matchAll(/\x60((?:snapback4 )?test [^\x60\n]*--fixture-only[^\x60\n]*)\x60/g)].map(m=>m[1]);
+ assert.ok(snippets.length,page+' missing measurement recipe');
+ for(const recipe of snippets)await measure(recipe);
+}
+const chat=join(cwd,'chat-readme');mkdirSync(chat);
+const chatInit=await cli(['init','--web','--template','chat'],{cwd:chat});assert.equal(chatInit.code,0,chatInit.stdout+chatInit.stderr);
+mkdirSync(join(chat,'fixtures'),{recursive:true});
+await measure(readFileSync(join(chat,'README.md'),'utf8').match(/\x60(snapback4 test --residency --fixture-only[^\x60]+)\x60/)[1],chat);
+assert.ok(measurements.length>=8);
 console.log('DAY5 installed guide recipe, immutable snapshot, bridge and schema-first starter custody passed');
 `;
 export async function proveDay5(cwd){
