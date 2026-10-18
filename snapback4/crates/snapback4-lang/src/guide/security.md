@@ -109,7 +109,7 @@ rule does not repair privacy.
 - Cascade/set-null: automatic child changes bypass child write rules. An
   explicit authorized child mutation with `restrict` removes that automatic
   writer, but parent refusal/existence and transitive references remain
-  separate observations. Read-through/live-parent reductions belong to RULES5.
+  separate observations. Read-through/live-parent authority requires a separate reduction.
 - Jobs/native workers/actions: the audit names the trusted or opaque writer.
   An ordinary mutation with stable role requirements can prove that mutation's
   authority; arbitrary native/worker output cannot acquire a proof from a
