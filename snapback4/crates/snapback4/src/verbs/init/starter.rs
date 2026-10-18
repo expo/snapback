@@ -406,7 +406,7 @@ pub(super) fn identity_readme(platform: Platform, title: &str, body: &Body, pers
     let text = if password { text.replace(GUEST_SIGN_IN, "Sign up or sign in with email and password (`use identity password`); the SDK\nkeeps your session across restarts. See `snapback4 guide client --section password`.")
         .replace("Choose \"Continue as a guest\", then add", "Sign up or sign in with email and password, then add")
         .replace("Choose \"Continue as a\nguest\", then add", "Sign up or sign in with email and password, then add") } else { text };
-    super::proof::readme(text)
+    if *body == Body::Todos { super::proof::readme(text) } else { text }
 }
 
 /// Exact client templates emitted by 0.4.24, before runtime URL/witness additions.

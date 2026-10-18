@@ -68,6 +68,9 @@ fn plan(dir: &Path) -> (Vec<Leftover>, Vec<String>, Vec<String>) {
     if read(dir, "src/native-smoke.ts").is_some() && !smoke_referenced(dir) {
         advice.push("info: src/native-smoke.ts has no source reference; review it before a native smoke proof".into());
     }
+    if !todos && [false, true].into_iter().any(|web| super::proof_advice::frontend_template(dir, web).is_some_and(|(_, template)| template.is_none())) {
+        found.push(Leftover { path: "scripts/frontend-proof.mjs", why: "the unmodified todo frontend proof exercises Task/Add; replace it with your own screen's write assertions".into(), rewrite: None });
+    }
     readme(dir, &own, todos, &mut found, &mut modified);
     app_json(dir, &mut found);
     expo_favicon(dir, &mut found);
@@ -125,6 +128,7 @@ fn readme(dir: &Path, own: &OwnSchema, todos: bool, found: &mut Vec<Leftover>, m
         let Some((port, web_port)) = matched else { modified.push(path.to_owned()); continue };
         let wanted = super::localize(path, &super::without_design_references(&starter::identity_readme(platform, &title, &wanted_body, personas, &own.offline, own.identity.is_some_and(|(password, guests)| password && !guests))), port, web_port);
         let wanted = if explicit_online { starter::online_readme(&wanted) } else { wanted };
+        let wanted = if todos { super::proof::readme(wanted) } else { wanted };
         if wanted == text { continue; }
         let about = if todos { "the todo starter's operations, which your snapback/*.q declares again" } else { "your snapback/*.q and the Home screen, named after this directory" };
         let only_proof = super::proof::without_readme(&wanted) == text;
@@ -316,7 +320,7 @@ pub(crate) fn report(dir: &Path) -> Option<String> {
     let (found, mut advice) = leftovers(dir);
     advice.extend(super::proof_advice::report(dir));
     if found.is_empty() && advice.is_empty() { return None; }
-    if found.is_empty() && advice.iter().all(|line| line.starts_with("info:")) { return Some(advice.join("\n")); }
+    if found.is_empty() { return Some(advice.join("\n")); }
     let mut lines = Vec::new();
     for leftover in &found { lines.push(format!("  {}: {}", leftover.path, leftover.why)); }
     for line in &advice { lines.push(format!("  {line}")); }
@@ -357,11 +361,8 @@ pub(super) fn adapt(dir: &Path, dry_run: bool, apply: bool, day2: bool) -> i32 {
         println!("init --adapt: planned changes (only unmodified starter files):");
         for change in &found { println!("  {} {} — {}", if change.rewrite.is_some() { "rewrite" } else { "remove" }, change.path, change.why); }
     }
+    for line in super::proof_advice::legacy_differences(dir, &proof) { println!("init --adapt: {line}"); }
     for (path, body) in &proof {
-        if *path == "package.json" && serde_json::from_str::<serde_json::Value>(body).ok().is_some_and(|new| {
-            let mut old: serde_json::Value = std::fs::read_to_string(dir.join(path)).ok().and_then(|s|serde_json::from_str(&s).ok()).unwrap_or_default();
-            old["snapback4"] = new["snapback4"].clone(); old == new
-        }) { continue; }
         if path.starts_with("versions/") {
             println!("  add {path} — capture current snapback/*.q and contemporary fixtures; legacy flat sources stay unchanged");
             continue;
@@ -371,15 +372,20 @@ pub(super) fn adapt(dir: &Path, dry_run: bool, apply: bool, day2: bool) -> i32 {
         if *path == "package.json" {
             let old: serde_json::Value = std::fs::read_to_string(dir.join(path)).ok().and_then(|text| serde_json::from_str(&text).ok()).unwrap_or_default();
             let new: serde_json::Value = serde_json::from_str(body).unwrap();
-            for (key, value) in new["scripts"].as_object().unwrap() {
-                if old["scripts"][key] != *value { println!("    scripts.{key}: {} → {value}", old["scripts"][key]); }
+            for group in ["scripts", "devDependencies"] {
+                let keys = old[group].as_object().into_iter().flat_map(|o|o.keys()).chain(new[group].as_object().into_iter().flat_map(|o|o.keys())).collect::<std::collections::BTreeSet<_>>();
+                for key in keys { if old[group][key] != new[group][key] { println!("    {group}.{key}: {} → {}", old[group][key], new[group][key]); } }
             }
+            if old.pointer("/snapback4/starter/day2") != new.pointer("/snapback4/starter/day2") {
+                println!("    snapback4.starter.day2: {} → {}", old["snapback4"]["starter"]["day2"], new["snapback4"]["starter"]["day2"]);
+            }
+            println!("    serialize package.json (including script key ordering)");
         }
     }
     if !modified.is_empty() { println!("init --adapt: application-owned or modified files stay unchanged: {}", modified.join(", ")); }
     if dry_run || !apply {
         for line in advice { println!("init --adapt: {line}"); }
-        if !fits_todos(&own) && [false,true].into_iter().any(|web| super::proof_advice::frontend_template(dir, web).is_some_and(|(_,template)|template.is_none())) { println!("init --adapt: no write scenario: replace the Home assertions"); }
+        if !fits_todos(&own) && [false,true].into_iter().any(|web| super::proof_advice::frontend_template(dir, web).is_some_and(|(_,template)|template.is_none())) { println!("init --adapt: no write scenario: add an app-specific frontend proof with snapback4/proof after replacing Home"); }
         println!("init --adapt: preview only; no files changed. Apply with:");
         println!("snapback4 init{} --adapt{} --apply", if dir == Path::new(".") { String::new() } else { format!(" '{}'", dir.to_string_lossy().replace('\'', "'\"'\"'")) }, if day2 { " --day2" } else { "" });
         return 0;

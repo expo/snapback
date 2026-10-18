@@ -250,5 +250,12 @@
     "web": false,
     "template": "password",
     "sha256": "f51620ef1b765738623f121cb458db0fd907aec9236183d1296fdf51addf243c"
+  },
+  {
+    "file": "todo-schema",
+    "version": "0.4.30",
+    "web": false,
+    "template": null,
+    "sha256": "75eae1b8a13b20ef6d9c3e919dbf49d2250cb7d04f52fb1e2077a7d941768de0"
   }
 ]

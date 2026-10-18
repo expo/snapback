@@ -94,7 +94,10 @@ export function installCustomWriteScenario(cwd,kind) {
   assert.ok(["web","expo"].includes(kind));
   const screen=join(cwd,kind === "web" ? "src/App.tsx" : "App.tsx");
   const proofPath=join(cwd,"scripts/frontend-proof.mjs");
-  const original=readFileSync(screen,"utf8"), proof=readFileSync(proofPath,"utf8");
+  const original=readFileSync(screen,"utf8"), proof=existsSync(proofPath) ? readFileSync(proofPath,"utf8") : readFileSync(new URL("../crates/snapback4/src/verbs/init/frontend-proof.mjs",import.meta.url),"utf8")
+    .replace("BUILD_SCRIPT",kind === "web" ? "build" : "build:web")
+    .replace("RESULTS_SCOPE",kind === "web" ? 'page.getByRole("list")' : 'page.getByTestId("todo-results")')
+    .replace("// TEMPLATE_READY","");
   assert.equal(original.split("<FirstRead />").length-1,1,"custom qualification needs one generated Home read slot");
   assert.ok(original.includes("function Home()") && !original.includes("function ProofWrite()"),"custom qualification needs a fresh Home");
   const needle=/const within = [^\n;]+;/g;
@@ -207,10 +210,17 @@ assert.ok(host.url);const inspected=JSON.parse((await cli(['releases','deploymen
     // Exercise init-first adaptation with a different online-only schema: Home,
     // generated API, identity, README and the no-wasm journal must build together.
     writeFileSync(join(cwd, "snapback/schema.q"), `use identity guests\ntable notes:\n  owner: principal\n  title: text <=80\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nquery mine():\n  return notes where .owner = viewer first 20 by .id\nmutation add(title: text <=80):\n  return insert notes { owner: viewer, title }\n`);
+    const inheritedTodoProof=readFileSync(join(cwd,"scripts/frontend-proof.mjs"),"utf8");
     await run(cli, ["init", "--adapt", "--apply"], cwd);
+    assert.equal(existsSync(join(cwd,"scripts/frontend-proof.mjs")),false,"adapted Home has no todo proof");
+    const adaptedPackage=JSON.parse(readFileSync(join(cwd,"package.json"),"utf8"));
+    assert.ok(Object.values(adaptedPackage.scripts).every(value=>value!=="node scripts/frontend-proof.mjs"));
     await build();
     let negativeProof;
     if (browserProofs) {
+      // Deliberately reintroduce the original todo proof as a negative control;
+      // it is not part of the adapted starter.
+      writeFileSync(join(cwd,"scripts/frontend-proof.mjs"),inheritedTodoProof);
       const guard = join(cwd, "negative-proof.mjs");
       const tracerVersion = process.platform === "linux" ? (await import("./proof-listener-audit.mjs")).requireListenerTracer() : undefined;
       const negativeTrace = join(cwd, "negative-listener-audit.trace");
@@ -222,7 +232,11 @@ assert.ok(host.url);const inspected=JSON.parse((await cli(['releases','deploymen
       writeFileSync(negativeAudit, JSON.stringify(listenerAudit));
       negativeProof = {status:"passed", expected:"no write scenario: replace the Home assertions", listenerAudit};
     }
+    rmSync(join(cwd,"scripts/frontend-proof.mjs"),{force:true});
     installCustomWriteScenario(cwd,kind);
+    const customPackage=JSON.parse(readFileSync(join(cwd,"package.json"),"utf8"));
+    customPackage.scripts["frontend:proof"]="node scripts/frontend-proof.mjs";
+    writeFileSync(join(cwd,"package.json"),JSON.stringify(customPackage,null,2)+"\n");
     await build();
     const adaptedProofs = browserProofs ? await proveFrontendTwice(run, cwd, starter) : [];
     results.push({ starter: id, kind, fixtureGuide: browserProofs ? "passed" : "not-run-build-only", status: "passed", adapted: "passed", typecheck: "passed", build: "passed", frontendProofs, adaptedProofs, negativeProof, formSubmit: kind === "web" ? "passed" : "not-applicable" });

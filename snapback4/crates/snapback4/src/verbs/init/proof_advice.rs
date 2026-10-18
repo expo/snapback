@@ -34,8 +34,36 @@ fn package(dir: &Path) -> serde_json::Value {
 pub(super) fn referenced(dir: &Path, path: &str) -> bool {
     package(dir)["scripts"].as_object().is_some_and(|scripts| scripts.values().any(|v|v.as_str().is_some_and(|s|s.contains(path))))
 }
+pub(super) fn legacy_differences(dir: &Path, plan: &[(&str, String)]) -> Vec<String> {
+    ["v1", "v2"].into_iter().filter_map(|version| {
+        let flat = format!("versions/{version}.q");
+        let saved = format!("versions/{version}/schema.q");
+        let legacy = std::fs::read_to_string(dir.join(&flat)).ok()?;
+        let current = plan.iter().find(|(name,_)| *name == saved).map(|(_, text)|text.clone())
+            .or_else(||std::fs::read_to_string(dir.join(&saved)).ok())?;
+        (legacy != current).then(||format!("info: {flat} differs from {saved}; saved {version} captures snapback/*.q, not the legacy flat source; both remain unchanged evidence. Review the pair before day2:proof"))
+    }).collect()
+}
 pub(super) fn report(dir: &Path) -> Vec<String> {
-    let mut advice = Vec::new();
+    let mut advice = legacy_differences(dir, &[]);
+    if let Ok(entries) = std::fs::read_dir(dir.join("versions")) {
+        let mut paths = Vec::new();
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                if let Ok(files) = std::fs::read_dir(&path) { paths.extend(files.flatten().map(|entry|entry.path()).filter(|path|path.extension().is_some_and(|e|e=="q"))); }
+            } else if path.extension().is_some_and(|e|e=="q") { paths.push(path); }
+        }
+        paths.sort();
+        for path in paths {
+            if let Ok(text) = std::fs::read_to_string(&path) {
+                let hash = digest(&text);
+                if let Some(t) = templates().iter().find(|t| t.file == "todo-schema" && t.sha256 == hash) {
+                    advice.push(format!("info: {} is the unmodified {} todo snapshot (sha256 {hash}); replace it with this app's saved schema and contemporary fixtures before day2:proof", path.strip_prefix(dir).unwrap_or(&path).display(), t.version));
+                }
+            }
+        }
+    }
     for path in ["scripts/frontend-proof.mjs", "scripts/day2-proof.mjs", "scripts/launch.mjs"] {
         if !dir.join(path).exists() && referenced(dir, path) {
             advice.push(format!("info: {path} is missing but package.json still references it; preview `snapback4 init --adapt`, then `snapback4 init --adapt --apply`"));
@@ -46,6 +74,9 @@ pub(super) fn report(dir: &Path) -> Vec<String> {
         if let Some(t)=templates().iter().find(|t| t.file=="day2" && t.sha256==hash) {
             if matches!(t.version.as_str(),"0.4.28"|"0.4.29") {
                 advice.push(format!("info: scripts/day2-proof.mjs is the unmodified {} starter: it asserts no business rows; preview `snapback4 init --adapt` to replace it and capture current sources/fixtures",t.version));
+            }
+            if text.contains("assert.fail(") {
+                advice.push(format!("info: scripts/day2-proof.mjs is the unmodified {} assert.fail business-assertion placeholder (sha256 {hash}); replace BUSINESS_ASSERTION_BEGIN with this app's persisted-row and refusal assertions", t.version));
             }
             if t.version=="0.4.30" || t.version=="0.4.31" {
                 let script=package(dir)["scripts"]["day2:proof"].as_str().unwrap_or("").to_owned();
@@ -71,6 +102,15 @@ pub(super) fn report(dir: &Path) -> Vec<String> {
         }
         if words.windows(3).any(|w|w==["npx","snapback4","dev"]) {
             advice.push("info: scripts/frontend-proof.mjs launches npx snapback4 dev (heuristic); use startDev from snapback4/proof for an owned server and bounded cleanup".into());
+        }
+    }
+    for path in ["scripts/frontend-proof.mjs", "scripts/day2-proof.mjs", "scripts/proof.mjs", "scripts/acceptance.mjs"] {
+        let Ok(text) = std::fs::read_to_string(dir.join(path)) else { continue; };
+        let active = text.lines().filter(|line| !line.trim_start().starts_with("//")).collect::<Vec<_>>().join("\n");
+        let npx = active.contains("\"npx\"") || active.contains("'npx'");
+        let status_only = active.contains("/auth/config") && (active.contains("status === 200") || active.contains("status == 200") || active.contains("[200, 404]") || active.contains("status === 404"));
+        if npx && status_only {
+            advice.push(format!("info: {path} spawns npx and accepts readiness HTTP status (heuristic; sha256 {}); readiness is not business evidence. Use snapback4/proof hosts and assert persisted rows plus refusals at each release", digest(&text)));
         }
     }
     advice
@@ -104,10 +144,22 @@ mod tests {
                 expected.push(serde_json::json!({"file":"native","version":version,"web":false,"template":if password { Some("password") } else { None },"sha256":digest(&text)}));
             }
         }
+        expected.push(serde_json::json!({"file":"todo-schema","version":"0.4.30","web":false,"template":null,"sha256":digest(&super::super::without_design_references(include_str!("starter/previous/schema-0.4.30.q")))}));
         if std::env::var_os("SNAPBACK4_UPDATE_PROOF_DIGESTS").is_some() {
             std::fs::write(concat!(env!("CARGO_MANIFEST_DIR"),"/src/verbs/init/proof-digests.json"),serde_json::to_string_pretty(&expected).unwrap()+"\n").unwrap();
         } else {
             assert_eq!(serde_json::from_str::<serde_json::Value>(include_str!("proof-digests.json")).unwrap(),serde_json::json!(expected),"retain historical digests and register each new shipped template");
         }
     }
+}
+
+#[test]
+fn readiness_npx_advice_is_heuristic_and_does_not_claim_template_ownership() {
+    let root=std::env::temp_dir().join(format!("sb4-day5-proof-advice-{}",std::process::id()));
+    std::fs::create_dir_all(root.join("scripts")).unwrap();
+    std::fs::write(root.join("scripts/frontend-proof.mjs"), "spawn('npx', ['snapback4','dev']); fetch('/auth/config'); if (res.ok || res.status === 404) return;").unwrap();
+    let advice=report(&root).join("\n");
+    assert!(advice.contains("spawns npx and accepts readiness HTTP status (heuristic; sha256"),"{advice}");
+    assert!(!known_frontend(&root));
+    std::fs::remove_dir_all(root).unwrap();
 }
