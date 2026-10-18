@@ -270,7 +270,7 @@ Dev only, same machine; `serve` refuses each one.
   (signed-up users, guests). The adopted schema, personas and service seats
   (`snapback4 token`, the dev worker's) stay. The store takes a new identity:
   a local client re-acquires the new store by itself, an online client halts
-  with `E_STORE_REPLACED` (`createApp` reopens it). The head keeps counting.
+  with `E_DEV_RESET: reopen the client` (`createApp` reopens it). The head keeps counting.
   The body is empty, a `/seed` array, or `{"seed": [..], "clock": "reset"}`
   (either key optional): seed rows are written as `/seed` writes them, in the
   same transaction (a refused row resets nothing), and `"clock": "reset"`

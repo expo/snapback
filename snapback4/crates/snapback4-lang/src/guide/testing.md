@@ -430,7 +430,7 @@ A full `cap` counts every row, readable or not, and refuses `E_CONSTRAINT`.
 A uniformly denied page over only hidden rows is `complete` and empty, never `denied`; nonuniform scans can remain partial (`guide indexes`). Assert empty data and completeness for that denied scope, and use a readable role query for access UI (`guide refusals`, `guide rule-recipes`). KIT owns the rest of this page.
 
 ## Raw HTTP proof across releases
-Every call carries `Authorization: Bearer TOKEN` on serve (a declared persona on dev). Send `Content-Type: application/json` and `{args: {...}}`; query data and mutation results use different envelopes. Reuse a stable mutation id for a retry, never a new id after an ambiguous reply.
+Every call carries `Authorization: Bearer TOKEN` on serve or `x-snapback-persona: alice` on dev. Send `Content-Type: application/json` and `{args: {...}}`; query data and mutation results use different envelopes. Reuse a stable mutation id for a retry, never a new id after an ambiguous reply.
 
 | Door | HTTP status | Body to assert |
 |---|---|---|

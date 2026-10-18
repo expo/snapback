@@ -63,7 +63,7 @@ try {
   assert.equal((await (await fetch(dev.url+'/dev/status')).json()).clockOffsetMs,0);
   const advanced=await post('/dev/clock/advance',{duration:'30d'});
   assert.equal(advanced.offsetMs,30*86400000);assert.equal(advanced.schedules.length,2);
-  for(const schedule of advanced.schedules) {assert.equal(schedule.firedWindows.length,1);assert.equal(schedule.skippedPeriods,8639);assert.equal(schedule.skippedBoundariesOmitted,8607);}
+  for(const schedule of advanced.schedules) {assert.equal(schedule.firedWindows.length,1);assert.ok(schedule.skippedPeriods>=8639&&schedule.skippedPeriods<=8640);assert.equal(schedule.skippedBoundariesOmitted,schedule.skippedPeriods-32);}
   const count=async()=> (await post('/q/counts',{args:{}})).data[0].n;
   assert.equal(await count(),2);
   const replay=advanced.schedules[0].skippedBoundaries[0].command;

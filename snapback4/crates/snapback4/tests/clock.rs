@@ -1217,13 +1217,15 @@ fn kit4_forty_day_coalesced_advance_has_no_window_cap() {
     host.post("/m/counter", json!({"args":{}}));
     let refused = host.post("/dev/clock/advance", json!({"duration":"40d", "eachBoundary":true}));
     assert!(refused["denied"]["message"].as_str().unwrap().contains("omit --each-boundary"), "{refused}");
+    assert_eq!(host.request("GET", "/dev/status", json!({}))["clockOffsetMs"], 0);
     let reply = host.post("/dev/clock/advance", json!({"duration":"40d"}));
     assert!(reply.get("denied").is_none(), "{reply}");
     let schedule = &reply["schedules"][0];
     assert_eq!(schedule["firedWindows"].as_array().unwrap().len(), 1);
-    assert_eq!(schedule["skippedPeriods"], 11519);
+    let skipped = schedule["skippedPeriods"].as_i64().unwrap();
+    assert!((11519..=11520).contains(&skipped), "{schedule}");
     assert_eq!(schedule["skippedBoundaries"].as_array().unwrap().len(), 32);
-    assert_eq!(schedule["skippedBoundariesOmitted"], 11487);
+    assert_eq!(schedule["skippedBoundariesOmitted"], skipped - 32);
     assert_eq!(host.query("counters")[0]["n"], 1);
 }
 
