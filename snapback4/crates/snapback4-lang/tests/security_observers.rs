@@ -75,3 +75,10 @@ fn recorded_reference_group_keys_do_not_alias_source_fields_in_a_proof(){
  let r=security::analyze(&b);
  assert!(r.invariants[0].obligations.iter().any(|o|o.status==Status::Unproved&&o.reason.contains("bare identically typed")),"{r:?}");
 }
+
+#[test]
+fn excluded_resource_refusals_never_become_logical_privacy_counterexamples(){
+ let b=bound("table secrets:\n  owner: principal\n  read <- .owner = viewer\n  online only\nmutation examine():\n  for n in range(0, 9000):\n    hidden = secrets['security-secrets']\n  return null\ninvariant secrets.read only .owner = viewer\n");
+ let c=security::challenges::run(&b);
+ assert!(c.violations.is_empty(),"{c:?}");
+}

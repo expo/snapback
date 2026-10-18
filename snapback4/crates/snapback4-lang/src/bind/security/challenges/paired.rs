@@ -20,7 +20,16 @@ fn observe(engine:&mut Engine,p:&Program,viewer:&str,args:BTreeMap<String,Value>
     }else{
         match engine.mutate(&p.name,None,context).map_err(|e|e.to_string())?.state {
             snapback4_core::WriteState::Sent{result,..}=>Ok(serde_json::json!({"sent":result})),
-            snapback4_core::WriteState::Failed{why,current}=>Ok(serde_json::json!({"refusal":{"code":why.code,"message":why.message},"current":current})),
+            snapback4_core::WriteState::Failed{why,current}=>{
+                // E_RULE can also mask authorization-budget exhaustion. Only
+                // an authored require/constraint carries this rule marker;
+                // bound/storage/schema/ambiguous engine refusals cannot be a
+                // logical counterexample in our resource-excluding contract.
+                if why.rule.is_none()||!matches!(why.family.as_str(),"rule"|"constraint") {
+                    return Err(format!("resource/engine or ambiguous mutation refusal {} is outside paired logical comparison",why.code));
+                }
+                Ok(serde_json::json!({"refusal":{"code":why.code,"message":why.message},"current":current}))
+            },
         }
     }
 }
