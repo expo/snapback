@@ -12,9 +12,10 @@ pub(super) fn readme(mut text: String) -> String {
     text
 }
 
-pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, backend: u16, frontend: u16, web: bool, _shape: &super::starter::Shape) {
-    for (name, text) in files.iter_mut().filter(|(name, _)| *name == "README.md") {
-        *text = readme(std::mem::take(text)); let _ = name;
+pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, backend: u16, frontend: u16, web: bool, shape: &super::starter::Shape) {
+    let has_frontend = shape.body == super::starter::Body::Todos || options.flags.contains_key("template");
+    for (_, text) in files.iter_mut().filter(|(name, _)| *name == "README.md") {
+        if has_frontend { *text = readme(std::mem::take(text)); }
     }
     for (name, text) in files.iter_mut() {
         if *name == "vite.config.mts" { *text = runtime_vite(text, backend, frontend); }
@@ -48,18 +49,20 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, 
             files.push((path, text));
         }
     }
-    files.push(("scripts/frontend-proof.mjs", proof));
+    if has_frontend { files.push(("scripts/frontend-proof.mjs", proof)); }
     if day2 { files.push(("scripts/day2-proof.mjs", include_str!("day2-proof.mjs").to_owned())); }
     files.push(("scripts/launch.mjs", include_str!("launch.mjs").replace("BACKEND", &backend.to_string()).replace("FRONTEND", &frontend.to_string())));
     for (name, text) in files.iter_mut().filter(|(name, _)| *name == "package.json") {
         let mut package: Value = serde_json::from_str(text).unwrap();
-        package["scripts"]["frontend:proof"] = json!("node scripts/frontend-proof.mjs");
+        if has_frontend { package["scripts"]["frontend:proof"] = json!("node scripts/frontend-proof.mjs"); }
         if day2 { package["scripts"]["day2:proof"] = json!("node scripts/day2-proof.mjs versions/v1 versions/v2"); }
         if (package["snapback4"].is_null() || package["snapback4"].is_object()) && (package["snapback4"]["starter"].is_null() || package["snapback4"]["starter"].is_object()) {
             package["snapback4"]["starter"]["day2"] = json!(day2);
         }
-        package["scripts"]["proof:web"] = json!("node scripts/frontend-proof.mjs");
-        package["devDependencies"]["playwright-core"] = json!("1.55.1");
+        if has_frontend {
+            package["scripts"]["proof:web"] = json!("node scripts/frontend-proof.mjs");
+            package["devDependencies"]["playwright-core"] = json!("1.55.1");
+        }
         package["scripts"]["backend"] = json!("node scripts/launch.mjs backend");
         if web {
             package["scripts"]["dev"] = json!("node scripts/launch.mjs vite");
@@ -122,7 +125,7 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema, enable_day2: b
     if !web && !dir.join("App.tsx").is_file() && !router { return Ok(Vec::new()); }
     let shape = super::starter::Shape { title: super::title(dir), password: own.identity.is_some_and(|(p, g)| p && !g),
         personas: own.identity.is_none().then(|| own.personas.clone()).filter(|p| !p.is_empty()),
-        body: super::starter::Body::Home(None), offline: own.offline.clone() };
+        body: if super::adapt::fits_todos(own) { super::starter::Body::Todos } else { super::starter::Body::Home(None) }, offline: own.offline.clone() };
     let path = dir.join("package.json");
     let text = std::fs::read_to_string(&path)?;
     let mut package: Value = serde_json::from_str(&text).map_err(std::io::Error::other)?;
@@ -149,6 +152,7 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema, enable_day2: b
     let mut generated = vec![("package.json", pretty(&package))];
     let mut flags = std::collections::BTreeMap::new();
     if router { flags.insert("template".into(), "social".into()); }
+    else if let Some(Some(template)) = previous_frontend(dir, web) { flags.insert("template".into(), template.into()); }
     if day2 { flags.insert("day2".into(), String::new()); }
     files(&mut generated, &Options { positionals: vec![dir.to_string_lossy().into_owned()], flags, json: false }, backend, frontend, web, &shape);
     // A saved version is immutable application evidence. Never fill its missing
@@ -187,7 +191,12 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema, enable_day2: b
             if normalized == reference { config_changes.push(("vite.config.mts", runtime_vite(&current, backend, numbers.first().copied().unwrap_or(5173)))); }
         }
     }
-    let inherited_frontend = previous_frontend(dir, web);
+    let inherited_frontend = previous_frontend(dir, web).filter(|template| super::adapt::fits_todos(own) || template.is_some());
+    if !super::adapt::fits_todos(own) && super::proof_advice::frontend_template(dir, web).is_some_and(|(_, template)| template.is_none()) {
+        if let Some(scripts) = package["scripts"].as_object_mut() {
+            scripts.retain(|_, value| value.as_str() != Some("node scripts/frontend-proof.mjs"));
+        }
+    }
     if let Some(template) = inherited_frontend {
         if let Some((_, text)) = generated.iter_mut().find(|(name, _)| *name == "scripts/frontend-proof.mjs") {
             *text = frontend_proof(include_str!("frontend-proof.mjs"), template, web);
@@ -263,7 +272,7 @@ mod tests {
                     std::fs::create_dir_all(dir.join(screen).parent().unwrap()).unwrap();
                     std::fs::write(dir.join(screen), "// screen").unwrap();
                     std::fs::write(dir.join("package.json"), r#"{"scripts":{}}"#).unwrap();
-                    std::fs::write(dir.join("snapback/schema.q"), "query alive():\n  return true\n").unwrap();
+                    std::fs::write(dir.join("snapback/schema.q"), include_str!("starter/schema.q")).unwrap();
                     let path = dir.join("scripts/frontend-proof.mjs");
                     std::fs::write(&path, frontend_proof(source, template, web)).unwrap();
                     let own = super::super::own_schema(&dir).unwrap().unwrap();

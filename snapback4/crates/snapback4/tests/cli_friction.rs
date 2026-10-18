@@ -21,7 +21,13 @@ impl Project {
         fs::write(dir.join("snapback/schema.q"), schema).unwrap();
         Project(dir)
     }
-    fn run(&self, args: &[&str]) -> Output { Command::new(BIN).current_dir(&self.0).args(args).output().unwrap() }
+    fn run(&self, args: &[&str]) -> Output {
+        let mut command=Command::new(BIN);command.current_dir(&self.0).args(args);
+        // This file probes query/refusal diagnostics; DAY5 checks the default
+        // zero-case refusal independently.
+        if args.first()==Some(&"test") {command.arg("--fixture-only");}
+        command.output().unwrap()
+    }
     fn write(&self, path: &str, text: &str) {
         let path = self.0.join(path);
         fs::create_dir_all(path.parent().unwrap()).unwrap();

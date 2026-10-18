@@ -57,7 +57,7 @@ const APP_FILES: &[&str] = &[
     "<dir>/store.sqlite", "deployment/store.sqlite", "<segment>-ios-run.json", "<segment>-ios-screen.mp4",
     "<segment>-ios-receipts.jsonl", "/api.ts", "/native.wasm",
     "index.html", "<table>.jsonl", "releases.jsonl", "backend.json",
-    "provenance.json", "fixtures/test.sweep.json", "fixtures/<table>.jsonl", "fixtures/test.cases.jsonl", "expo-env.d.ts",
+    "provenance.json", "versions/v1/release.json", "bridge/ROLLBACK-CHECKLIST.md", "fixtures/test.sweep.json", "fixtures/<table>.jsonl", "fixtures/test.cases.jsonl", "expo-env.d.ts",
 ];
 
 fn accessible(target: &str, shipped: &BTreeSet<String>, application_path: bool) -> bool {

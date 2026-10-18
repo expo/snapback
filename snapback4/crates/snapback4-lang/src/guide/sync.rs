@@ -283,7 +283,7 @@ it opts out of inherited sync. `N_MAINTAIN_SYNCED` calls out public inherited
 aggregates and group audiences with unbounded recipients or multiple values per group,
 grouped into one note retaining each view's source location.
 The note names mutations that would stop predicting if the view goes
-`online only`; `snapback4 test --residency` measures its cold rows. `check --residency`
+`online only`; `snapback4 test --residency --fixture-only` measures its cold rows. `check --residency`
 prints the facts without pre-adoption counts: a new aggregate view has no stored rows yet.
 Inherited aggregate sync has no horizon. Opting out loses offline aggregate/absence
 coverage; see `guide maintains` and the replica census in `guide offline-interactions`.
@@ -326,7 +326,7 @@ eligibility: `check` refuses `E_NOT_PREDICTABLE` at that header if any site
 makes it `never`. This asserts eligibility, not that every call will predict;
 a horizon miss can still queue without a row. See `guide prediction`.
 
-`test --residency --fixture dir [--as persona]` reports the eight costliest
+`test --residency --fixture-only --fixture dir [--as persona]` reports the eight costliest
 acquired table/persona pairs, ordered by compact JSON row bytes, then rows,
 with all omitted pairs summed into one line and totals that include them.
 It measures the real cold partition snapshot, respecting authorization and

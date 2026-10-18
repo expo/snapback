@@ -212,7 +212,12 @@ fn groups(
         |r| r.get(0),
     )?;
     let mut bad = Samples::default();
+    let mut origin=String::new();
     if count != 0 {
+        tx.conn().execute_batch("DROP TABLE IF EXISTS temp._adopt_restored; CREATE TEMP TABLE _adopt_restored(id TEXT PRIMARY KEY) WITHOUT ROWID; DROP TABLE IF EXISTS temp._adopt_conflicts; CREATE TEMP TABLE _adopt_conflicts(k BLOB NOT NULL,id TEXT NOT NULL,restored INTEGER NOT NULL,sample TEXT NOT NULL,PRIMARY KEY(k,id)) WITHOUT ROWID;")?;
+        for prefix in ["activation_table_restored_ids", "activation_narrowed_restored_ids"] {
+            tx.conn().execute("INSERT OR IGNORE INTO temp._adopt_restored SELECT value FROM json_each((SELECT value FROM _meta WHERE key=?1))", [format!("{prefix}:{name}")])?;
+        }
         super::activation::walk(tx, tx.num(name)?, |id, row| {
             let row = crate::schema::row_image(&row, table);
             let values = key(&row);
@@ -223,18 +228,31 @@ fn groups(
                     |r| r.get(0),
                 )?;
                 if n > max as i64 {
-                    bad.add(id, &value_sample(&Value::Array(values)));
+                    let encoded_key = crate::key::encode(&values);
+                    let sample = value_sample(&Value::Array(values));
+                    bad.add(id, &sample);
+                    let restored: bool = tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM temp._adopt_restored WHERE id=?1)",[id],|r|r.get(0))?;
+                    tx.conn().execute("INSERT INTO temp._adopt_conflicts VALUES(?1,?2,?3,?4)",params![encoded_key,id,restored,sample])?;
                 }
             }
             Ok(())
         })?;
+        let groups: Vec<(Vec<u8>,String,i64,i64)> = tx.conn().prepare("SELECT k,max(sample),sum(restored),sum(1-restored) FROM temp._adopt_conflicts GROUP BY k HAVING max(restored)>0 ORDER BY k LIMIT 5")?.query_map([],|r|Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?)))?.collect::<Result<_,_>>()?;
+        for (key,sample,restored,active) in groups {
+            let ids=|which:bool| -> Result<Vec<String>,RuntimeError> {
+                Ok(tx.conn().prepare("SELECT id FROM temp._adopt_conflicts WHERE k=?1 AND restored=?2 ORDER BY id LIMIT 5")?.query_map(params![key,which],|r|r.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?.into_iter().map(|id|bounded(&id)).collect())
+            };
+            origin.push_str(&format!("; restoration group key {sample}: restoring dormant rows [{}] ({restored} rows); {active} active rows [{}]",ids(true)?.join(", "),ids(false)?.join(", ")));
+        }
+        let groups:i64=tx.conn().query_row("SELECT count(*) FROM (SELECT k FROM temp._adopt_conflicts GROUP BY k HAVING max(restored)>0)",[],|r|r.get(0))?;
+        if groups>5 {origin.push_str(&format!("; {} more restoration groups (samples bounded to five groups and five ids per category)",groups-5));}
     }
-    tx.conn().execute_batch("DROP TABLE temp._adopt_groups;")?;
+    tx.conn().execute_batch("DROP TABLE temp._adopt_groups; DROP TABLE IF EXISTS temp._adopt_restored; DROP TABLE IF EXISTS temp._adopt_conflicts;")?;
     if count != 0 {
         return Err(RuntimeError::Structural {
             code: "E_ADOPT",
             message: format!(
-                "{label}: {}; limit {max}; rewrite: repair duplicate/overfull groups through the current release; if those rows are dormant, deploy a bridge with widened types and this index non-unique / increased cap using --restore-dormant, repair through a bridge mutation, then reinstate the constraint; inspect: snapback4 sql \"SELECT * FROM [{name}]\" --release <dir>",
+                "{label}: {}; limit {max}{origin}; rewrite: repair duplicate/overfull groups through the current release; if those rows are dormant, deploy a bridge with widened types and this index non-unique / increased cap using --restore-dormant, repair through a bridge mutation, then reinstate the constraint; inspect: snapback4 sql \"SELECT * FROM [{name}]\" --release <dir>",
                 bad.describe()
             ),
         });

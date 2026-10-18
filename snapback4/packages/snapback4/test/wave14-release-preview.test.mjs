@@ -63,7 +63,7 @@ mutation grouped(a: bool, b: bool, c: bool):
   writeFileSync(schema, v2);
   const preview = run('deploy', deployment, '--check').stdout;
   assert.doesNotMatch(preview, /roles changed: .*guards? unproved/);
-  assert.match(preview, /note: release 2 tightens grouped\.require/);
+  assert.match(preview, /note: .*release 2 tightens grouped\.require/);
   assert.match(preview, /require \(a and \(b or c\)\) else BASE 'base refusal'/);
   run('deploy', deployment);
   const rollback = JSON.parse(run('rollback', deployment, '--to', '1', '--check', '--json').stdout);

@@ -99,7 +99,7 @@ fn empty_read_card_is_served_by_both_verbs() {
     assert!(why.status.success()); assert!(guide.status.success());
     assert_eq!(why.stdout, guide.stdout);
     let text = String::from_utf8(why.stdout).unwrap();
-    for command in ["snapback4 dev --trace-empty", "snapback4 why recent", "snapback4 why OPERATION", "snapback4 why TABLE", "snapback4 check --residency", "snapback4 test --fixture DIR --as alice --residency --verbose", "snapback4 guide sync"] {
+    for command in ["snapback4 dev --trace-empty", "snapback4 why recent", "snapback4 why OPERATION", "snapback4 why TABLE", "snapback4 check --residency", "snapback4 test --fixture DIR --as alice --residency --fixture-only --verbose", "snapback4 guide sync"] {
         assert!(text.contains(command), "missing {command}: {text}");
     }
     assert!(text.contains("does not prove denial"));

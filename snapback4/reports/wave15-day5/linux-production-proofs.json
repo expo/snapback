@@ -1,0 +1,59 @@
+{
+  "status": "passed",
+  "starters": [
+    {
+      "kind": "web",
+      "cwd": "/home/ccheever/projects/sb4-w15-day5/snapback4/target/day5-linux-qualification-r5/production-web",
+      "status": "passed",
+      "commands": [
+        "cp recipes/production/schema.q snapback/schema.q",
+        "cp recipes/production/App.tsx src/App.tsx",
+        "cp recipes/production/client.ts src/client.ts",
+        "npx snapback4 check",
+        "npx snapback4 test --fixture recipes/production/fixtures",
+        "npm run typecheck",
+        "npm run build"
+      ],
+      "schema": "compiled",
+      "savedTests": "passed",
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "kind": "expo",
+      "cwd": "/home/ccheever/projects/sb4-w15-day5/snapback4/target/day5-linux-qualification-r5/production-expo",
+      "status": "passed",
+      "commands": [
+        "cp recipes/production/schema.q snapback/schema.q",
+        "cp recipes/production/App.tsx App.tsx",
+        "cp recipes/production/client.ts src/client.ts",
+        "npx snapback4 check",
+        "npx snapback4 test --fixture recipes/production/fixtures",
+        "npm run typecheck",
+        "npm run build:web"
+      ],
+      "schema": "compiled",
+      "savedTests": "passed",
+      "typecheck": "passed",
+      "build": "passed"
+    }
+  ],
+  "realAccounts": "passed",
+  "browserRecipes": "passed",
+  "adaptation": [
+    {
+      "kind": "persona-only starter",
+      "status": "passed",
+      "preview": "unchanged",
+      "apply": "compiled",
+      "frontend": "unchanged",
+      "identity": [
+        "use identity"
+      ],
+      "writers": [
+        "bootstrapstaff"
+      ],
+      "idempotent": true
+    }
+  ]
+}

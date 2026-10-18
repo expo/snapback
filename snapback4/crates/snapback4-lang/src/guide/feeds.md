@@ -297,7 +297,7 @@ for another copied value, pin its source in both write rules (`guide maintains`)
 
 `check --cost` reports source and owned-table acquisition floors, full-synced
 dependencies, the unchanged history window and card fallback. Measure the partition with
-`snapback4 test --residency --as <principal>`; inspect dependencies with
+`snapback4 test --residency --fixture-only --as <principal>`; inspect dependencies with
 `snapback4 check --residency --verbose`. If a maintained count is synced,
 N_MAINTAINED_COLUMN_STREAM warns that each contributing commit streams the
 whole parent image to each holder (`guide maintains`).

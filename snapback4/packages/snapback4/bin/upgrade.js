@@ -11,11 +11,12 @@ async function run() {
   const args = process.argv.slice(2).flatMap(arg => arg.startsWith('--to=') ? ['--to', arg.slice(5)] : [arg]);
   if (args.length === 1 && args[0] === '--help') { console.log(`usage: ${synopsis('upgrade')}\nUpgrade snapback4 and every installed snapback4-expo adapter with npm, bun or pnpm; keep exact pins. Default: latest; refuses downgrades unless --to is explicit. Rebuild native apps after changing the adapter.`); return; }
   const json = args.includes('--json');
-  const input = args.filter(arg => arg !== '--json');
+  const quiet = args.includes('--quiet');
+  const input = args.filter(arg => arg !== '--json' && arg !== '--quiet');
   const explicit = input[0] === '--to';
   const target = explicit ? input[1] : input[0];
-  if (input.length !== (explicit ? 2 : target ? 1 : 0) || (explicit && target === 'latest') || (target && !/^(latest|\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/.test(target))) throw Error('E_INPUT: upgrade takes [--to <exact version>] [--json]');
-  const log = text => (json ? process.stderr : process.stdout).write(text + '\n');
+  if (input.length !== (explicit ? 2 : target ? 1 : 0) || (explicit && target === 'latest') || (target && !/^(latest|\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/.test(target))) throw Error('E_INPUT: upgrade takes [--to <exact version>] [--json] [--quiet]');
+  const log = text => { if (!quiet || text.startsWith('project ') || text.startsWith('Exact device')) (json ? process.stderr : process.stdout).write(text + '\n'); };
   let root = process.cwd();
   while (!existsSync(join(root, 'package.json'))) { const parent = dirname(root); if (parent === root) throw Error('E_UPGRADE: no project package.json'); root = parent; }
   const pkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
@@ -49,8 +50,12 @@ try {
   const dependencies = ['dependencies', 'devDependencies', 'optionalDependencies'];
   const targets = ['snapback4', 'snapback4-expo'].filter(name => name === 'snapback4' || dependencies.some(key => pkg[key]?.[name]) || existsSync(join(root, 'node_modules', name, 'package.json')));
   const invoke = (command, capture = false) => {
-    const result = spawnSync(pm, command, { cwd: root, encoding: 'utf8', timeout: 300_000, stdio: capture ? ['ignore', 'pipe', 'pipe'] : json ? ['ignore', 2, 2] : 'inherit' });
-    if (result.error || result.status !== 0) throw Error(`E_UPGRADE: ${pm} ${command[0]} failed; check registry/tool availability`);
+    const result = spawnSync(pm, command, { cwd: root, encoding: 'utf8', timeout: 300_000, stdio: capture || quiet ? ['ignore', 'pipe', 'pipe'] : json ? ['ignore', 2, 2] : 'inherit' });
+    if (result.error || result.status !== 0) {
+      if (quiet && result.stdout) (json ? process.stderr : process.stdout).write(result.stdout);
+      if (quiet && result.stderr) process.stderr.write(result.stderr);
+      throw Error(`E_UPGRADE: ${pm} ${command[0]} failed; check registry/tool availability`);
+    }
     return result.stdout;
   };
   let version = target ?? 'latest';
@@ -104,7 +109,7 @@ try {
       if (!minimum) throw Error(`E_UPGRADE: adapter peer ${name} has no supported exact floor`);
       if (!pins.has(name) || compareVersions(pins.get(name), minimum) < 0) pins.set(name, minimum);
     }
-    log(`upgrade plan: snapback4/snapback4-expo → ${version}; expo ${current ?? '(absent)'} → ${expo}; align ${[...pins].filter(([name]) => !targets.includes(name)).map(([name, pin]) => `${name}@${pin}`).join(', ')}`);
+    if (!quiet) log(`upgrade plan: snapback4/snapback4-expo → ${version}; expo ${current ?? '(absent)'} → ${expo}; align ${[...pins].filter(([name]) => !targets.includes(name)).map(([name, pin]) => `${name}@${pin}`).join(', ')}`);
   }
   if (previous) acknowledgeVersion(root, previous);
   if (schema && installed === previous) {
@@ -163,18 +168,21 @@ try {
   if (!schema) {
     try {
       history = previous ? runtimeChanges(installedHistory(root), previous, version) : '';
-      if (history) (json ? process.stderr : process.stdout).write(history);
+      if (history && !quiet) (json ? process.stderr : process.stdout).write(history);
       acknowledgeVersion(root, version);
     } catch { log('runtime history unavailable in installed package; run snapback4 guide changes'); }
   }
   if (schema) {
     const checked = check();
-    if (checked.stderr) process.stderr.write(checked.stderr);
-    if (json) { try { checkedFacts = JSON.parse(checked.stdout); } catch { /* Refused subprocess remains an error below. */ } }
-    else if (checked.stdout) process.stdout.write(checked.stdout);
+    if (checked.stderr && (!quiet || checked.status !== 0)) process.stderr.write(checked.stderr);
+    if (json) {
+      try { checkedFacts = JSON.parse(checked.stdout); }
+      catch { if (checked.stdout && (checked.error || checked.status !== 0)) process.stderr.write(checked.stdout); }
+    }
+    else if (checked.stdout && (!quiet || checked.status !== 0)) process.stdout.write(checked.stdout);
     if (checked.error || checked.status !== 0) { const error = Error(`E_UPGRADE: packages pinned to ${version}; post-upgrade check refused. Repair the reported schema/device issues and run check again.`); error.check = checkedFacts; throw error; }
   }
   if (json) console.log(JSON.stringify({ ok: true, version, targets, packageManager: pm, check: checkedFacts }));
-  log(`upgrade: ${targets.join(', ')} pinned to ${version} with ${pm}; commit the lockfile, run check and acceptance tests${targets.includes('snapback4-expo') ? ', and rebuild the native app' : ''}`);
+  if (!quiet) log(`upgrade: ${targets.join(', ')} pinned to ${version} with ${pm}; commit the lockfile, run check and acceptance tests${targets.includes('snapback4-expo') ? ', and rebuild the native app' : ''}`);
 }
 try { await run(); } catch (error) { if (process.argv.includes('--json')) console.log(JSON.stringify({ ok: false, error: error.message, ...(error.check ? { check: error.check } : {}) })); console.error(error.message); process.exitCode = 1; }

@@ -136,7 +136,7 @@ export interface TestSourceResult extends CliResult { casesRun: number; casesSki
 export function testSource(source: string, options: TestSourceOptions = {}): Promise<TestSourceResult> {
   if (typeof source !== "string" || !source) throw Error(`proof testSource requires an explicit saved source file or directory; got ${JSON.stringify(source) ?? String(source)}: pass versions/v1`);
   const { fixtureOnly = false, ...proofOptions } = options;
-  return successful(["test", "--source", source, ...(proofOptions.args ?? [])], proofOptions).then(result => {
+  return successful(["test", "--source", source, ...(fixtureOnly ? ["--fixture-only"] : []), ...(proofOptions.args ?? [])], proofOptions).then(result => {
     const summaries = [...result.stdout.matchAll(/^SNAPBACK4_TEST_CASES (\{.*\})$/gm)];
     if (summaries.length !== 1) throw Error(`proof testSource received no unique business-case summary; stdout tail: ${result.stdout.trimEnd().slice(-4000) || "(empty)"}; logs: ${result.logs.stdout}`);
     let cases: { run: number; skipped: number };

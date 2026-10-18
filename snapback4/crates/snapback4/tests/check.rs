@@ -189,7 +189,13 @@ impl Project {
     }
     fn source(&self, source: &str) { fs::write(self.0.join("snapback/schema.q"), source).unwrap(); }
     fn store(&self) -> PathBuf { self.0.join(".snapback4/store.sqlite") }
-    fn run(&self, args: &[&str]) -> Output { Command::new(BIN).current_dir(&self.0).args(args).output().unwrap() }
+    fn run(&self, args: &[&str]) -> Output {
+        let mut command=Command::new(BIN);command.current_dir(&self.0).args(args);
+        // These tests measure query/acquisition diagnostics; business-case
+        // coverage is tested independently by day5_evidence.
+        if args.first()==Some(&"test") {command.arg("--fixture-only");}
+        command.output().unwrap()
+    }
     fn seed(&self, path: &Path, count: usize) -> Engine {
         let b = snapback4_lang::compile(&[("schema.q".into(), SOURCE.into())]);
         let mut engine = Engine::new(Store::open(path).unwrap(), b.schema, b.programs.into_iter().map(|p| p.program)).unwrap();
@@ -1295,7 +1301,7 @@ fn w13b_starter_has_no_near_ceiling_summary() {
     let p = Project::new();
     let init = p.run(&["init", "starter"]);
     assert!(init.status.success(), "{init:?}");
-    let output = Command::new(BIN).current_dir(p.0.join("starter")).arg("test").output().unwrap();
+    let output = Command::new(BIN).current_dir(p.0.join("starter")).args(["test","--fixture-only"]).output().unwrap();
     assert!(output.status.success(), "{output:?}");
     assert!(!String::from_utf8(output.stdout).unwrap().contains("near ceiling:"));
 }

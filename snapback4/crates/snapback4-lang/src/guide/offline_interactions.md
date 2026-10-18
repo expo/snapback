@@ -96,7 +96,7 @@ summary. Its initial replica census was 5,008 like groups / 1,121,792 logical
 row bytes plus 1,004 repost groups / 220,880 bytes: 6,012 rows / 1,342,672
 bytes per device, including other viewers' keys. These are stored row bytes,
 excluding indexes, transfer framing and database allocation. Measure your own
-program with `snapback4 test --residency --fixture dir --as alice`, or inspect
+program with `snapback4 test --residency --fixture-only --fixture dir --as alice`, or inspect
 an already adopted store with `check --residency`; `client.residency()` measures
 the actual replica. No pre-adoption row count is a compiler estimate.
 

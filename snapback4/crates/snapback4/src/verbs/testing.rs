@@ -88,6 +88,10 @@ pub fn test(options: &Options) -> i32 {
             if options.flags.contains_key("source") {
                 println!("{CASE_SUMMARY} {{\"run\":0,\"skipped\":{skipped_business_cases}}}");
             }
+            if !options.flags.contains_key("fixture-only") {
+                eprintln!("test --residency executed no business cases; use --fixture-only for acquisition measurement, or omit --residency to run the cases");
+                return 1;
+            }
             return 0;
         }
     }
@@ -228,7 +232,8 @@ pub fn test(options: &Options) -> i32 {
     }
     // One line a script or an agent can read: derived refusals and unrun
     // queries are not failures, but they are not coverage either.
-    let verdict = if failures > 0 || failed_cases > 0 { "FAIL" } else if !skipped.is_empty() || held_not_run > 0 { "incomplete" } else { "pass" };
+    let no_cases = passed + failed_cases == 0 && !options.flags.contains_key("fixture-only");
+    let verdict = if failures > 0 || failed_cases > 0 || no_cases { "FAIL" } else if !skipped.is_empty() || held_not_run > 0 { "incomplete" } else { "pass" };
     // @ref LLP 3000.036.002#9 — derived probe refusals are expected exploration, not failed cases.
     println!("test: {complete} complete, {capped} capped, {expected} refused as your cases expect, {refused_derived} probe refusals on derived arguments (expected), {} not run, {failures} denied{} — {verdict}",
         skipped.len() + held_not_run, if passed + failed_cases > 0 { format!("; cases: {passed} passed, {failed_cases} failed") } else if options.flags.contains_key("fixture") { format!("; no {} (see snapback4 guide testing)", test_cases::FILE) } else { String::new() });
@@ -236,5 +241,8 @@ pub fn test(options: &Options) -> i32 {
     if options.flags.contains_key("source") {
         println!("{CASE_SUMMARY} {{\"run\":{},\"skipped\":{skipped_business_cases}}}", passed + failed_cases);
     }
-    if failures > 0 || failed_cases > 0 { 1 } else { 0 }
+    if no_cases {
+        eprintln!("test: no business cases executed ({skipped_business_cases} skipped); add test.cases.jsonl, or use --fixture-only when fixture loading/query probes are the intended check");
+    }
+    if failures > 0 || failed_cases > 0 || no_cases { 1 } else { 0 }
 }

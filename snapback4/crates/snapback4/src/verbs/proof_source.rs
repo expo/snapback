@@ -9,12 +9,14 @@ pub(super) fn sources(project: &Project, options: &Options, flag: &str) -> Resul
         None => project.sources().map_err(|e| e.to_string()),
         Some(file) => {
             let path = Path::new(file);
+            if !path.try_exists().map_err(|e|format!("cannot inspect saved source {file}: {e}"))? {return Err(format!("{file}: not saved yet: saved source does not exist"));}
             if path.is_dir() {
                 return crate::client_compatibility::sources(path).map_err(|e| e.to_string());
             }
             let name = path.file_name().and_then(|s| s.to_str()).ok_or("saved source needs a UTF-8 file name")?;
             if !name.ends_with(".q") { return Err("saved source must be a complete Quarry .q file".into()); }
-            let text = std::fs::read_to_string(path).map_err(|e| format!("cannot read saved source {file}: {e}"))?;
+            let text = std::fs::read_to_string(path).map_err(|e| if e.kind()==std::io::ErrorKind::NotFound {format!("{file}: not saved yet: saved source does not exist")} else {format!("cannot read saved source {file}: {e}")})?;
+            if text.trim().is_empty() { return Err(format!("{file}: not saved yet: saved Quarry source is empty")); }
             // A saved complete backend retains the schema namespace regardless of its archive file name.
             Ok(vec![("schema.q".into(), text)])
         }

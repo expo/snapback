@@ -96430,3 +96430,26 @@ filed as issues/20261018-snapback4-qualification-registry-proxy-headers.md for t
 publication harness owners; PROD2 leaves that socket code alone. No version
 bump, push or publication. Completed build/test caches were discarded only
 inside this worktree to keep the shared disk usable.
+
+## 2026-10-18 — DAY5 wave 15: starter evidence and release previews
+
+Recognized native helper age is distinct from identity drift, and missing/empty
+saved sources are unsaved evidence. Adapt previews all managed metadata and file
+changes, names legacy flat/directory differences across every captured module,
+and retires only recognized todo proof/fixture/README leftovers from custom Home.
+Inherited placeholders and todo snapshots are identified by digest. Zero business
+cases require explicit fixture-only measurement. Deployment can capture selected
+source, contemporary fixtures and its actual immutable release label; quiet
+upgrade retains project actions and failure diagnostics.
+
+Release narration proves conservative trailing new-column guards as tightening,
+leads rollback with lost guards/refusal codes, groups full safety/quota facts and
+keeps index plumbing verbose. Restoration conflicts name actual dormant/active
+rows per unique key. A non-activating bridge copies current complete source and
+an application-specific checklist; deployment custody and existing files remain
+protected. The governing amendments are LLP 3000.000.000 §15,
+3000.011.003.000 §15 and 3000.011.003.000.000 §§13–14. Installed guide fences and
+measurement commands execute in qualification; isolated starter qualifiers carry
+their generated proof explicitly. Review artifacts and final evidence/limits are
+in llp/reviews/3000.000.000-day5-* and WORKSTREAM-REPORT.md. No version bump,
+push, publication, admission change or automatic business migration is included.

@@ -1,0 +1,2847 @@
+{
+  "CLI_full_with_corrected_targets": {
+    "unittests src/main.rs": {
+      "result": "ok",
+      "passed": 475,
+      "failed": 0,
+      "ignored": 5,
+      "filtered": 0
+    },
+    "tests/aggregate_identity_upgrade.rs": {
+      "result": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 4,
+      "filtered": 0
+    },
+    "tests/check.rs": {
+      "result": "ok",
+      "passed": 105,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/check_cost_source.rs": {
+      "result": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/check_notes.rs": {
+      "result": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/cli_friction.rs": {
+      "result": "ok",
+      "passed": 40,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/clock.rs": {
+      "result": "ok",
+      "passed": 43,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/column_commit.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/day3.rs": {
+      "result": "ok",
+      "passed": 20,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/day4.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/day5_evidence.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/day5_previews.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/day5_starters.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/delivery_page.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/dev_refusals.rs": {
+      "result": "ok",
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/dev_reset.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/expiry_writes.rs": {
+      "result": "ok",
+      "passed": 41,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/familiar.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/feed_bridge.rs": {
+      "result": "ok",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/fix.rs": {
+      "result": "ok",
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/following_view.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/http.rs": {
+      "result": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/http_emfile.rs": {
+      "result": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/init.rs": {
+      "result": "ok",
+      "passed": 51,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/init_dx3.rs": {
+      "result": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/init_production.rs": {
+      "result": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/intent_issue_tracker.rs": {
+      "result": "ok",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/latency.rs": {
+      "result": "ok",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/lifecycle.rs": {
+      "result": "ok",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/maintenance_chunks.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/maintenance_latency.rs": {
+      "result": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 4,
+      "filtered": 0
+    },
+    "tests/overload.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/read_latency.rs": {
+      "result": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 2,
+      "filtered": 0
+    },
+    "tests/replay.rs": {
+      "result": "ok",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/run_admission.rs": {
+      "result": "ok",
+      "passed": 28,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/scale.rs": {
+      "result": "ok",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/scale_curves.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/scale_extremum_expressions.rs": {
+      "result": "ok",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/scale_intent.rs": {
+      "result": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/scale_row_ranges.rs": {
+      "result": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/scale_variants.rs": {
+      "result": "ok",
+      "passed": 36,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/scale_windows_expiry.rs": {
+      "result": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/surf4.rs": {
+      "result": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/timeline.rs": {
+      "result": "ok",
+      "passed": 23,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/timeline_adoption.rs": {
+      "result": "ok",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/timeline_delivery.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/timeline_delivery_counterexample.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/timeline_design.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/token_live.rs": {
+      "result": "ok",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave13_rules.rs": {
+      "result": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/witness.rs": {
+      "result": "ok",
+      "passed": 34,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/witness_web.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/work_records.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/written_by.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  "core": {
+    "unittests src/lib.rs": {
+      "result": "ok",
+      "passed": 364,
+      "failed": 0,
+      "ignored": 3,
+      "filtered": 0
+    },
+    "tests/action_context.rs": {
+      "result": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/adoption_scale.rs": {
+      "result": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    },
+    "tests/asset_lists.rs": {
+      "result": "ok",
+      "passed": 28,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/born_perf.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/bound_session.rs": {
+      "result": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/corpus.rs": {
+      "result": "ok",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/delivery_bounds.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/dev_reset.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/disclosure.rs": {
+      "result": "ok",
+      "passed": 32,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/effect_policy.rs": {
+      "result": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/ephemeral.rs": {
+      "result": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/event_slot_snapshot.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/expiring_adoption.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/file_assets.rs": {
+      "result": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/identity.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/job_time_audiences.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/lane_source.rs": {
+      "result": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/maintained_columns_review.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/membership_discovery_steps.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/meter.rs": {
+      "result": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/pending_metadata_heap.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/read_sessions.rs": {
+      "result": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/refused_open.rs": {
+      "result": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/review_walk.rs": {
+      "result": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/revocation_history.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    },
+    "tests/routes.rs": {
+      "result": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/row_view_accounting.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/row_view_disclosure.rs": {
+      "result": "ok",
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/row_view_legacy.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/row_view_witness.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/rows.rs": {
+      "result": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/schema_capabilities.rs": {
+      "result": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/schema_capabilities_legacy.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/sequence_by.rs": {
+      "result": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/sequence_disclosure.rs": {
+      "result": "ok",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/stream_receipts.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/sync_count_batch.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/time_audiences.rs": {
+      "result": "ok",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/unicode_fold.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/update_rule_images.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/upload_intents.rs": {
+      "result": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/work_records.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "Doc-tests snapback4_core": {
+      "result": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  "lang": {
+    "unittests src/lib.rs": {
+      "result": "ok",
+      "passed": 33,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/actions.rs": {
+      "result": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/aggregate_copies.rs": {
+      "result": "ok",
+      "passed": 64,
+      "failed": 0,
+      "ignored": 4,
+      "filtered": 0
+    },
+    "tests/attribution_guide.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/audience_bounds.rs": {
+      "result": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/audience_bounds_runtime.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    },
+    "tests/bounded_calendar_caps.rs": {
+      "result": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/bounded_following.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/branch_merge.rs": {
+      "result": "ok",
+      "passed": 57,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/builder_guidance.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/chat.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/clique_03.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/components.rs": {
+      "result": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/constraint_diagnostics.rs": {
+      "result": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/control_flow.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/cursor_advice.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/declarative_receipts.rs": {
+      "result": "ok",
+      "passed": 211,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/delivery.rs": {
+      "result": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/delivery_clause.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/delivery_integration.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/delivery_replay_conversion.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    },
+    "tests/denied_writes.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/derived_maintains.rs": {
+      "result": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/effect_reads.rs": {
+      "result": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/emit_compatibility.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/ephemeral.rs": {
+      "result": "ok",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/ephemeral_compat.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/ergonomics.rs": {
+      "result": "ok",
+      "passed": 25,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/expiring_mutations.rs": {
+      "result": "ok",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    },
+    "tests/extrema.rs": {
+      "result": "ok",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/extremum_expressions.rs": {
+      "result": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/familiar_guesses.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/familiar_predicates.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/familiar_repairs.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/familiar_source_repairs.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/familiar_verified_repairs.rs": {
+      "result": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/feed_forms.rs": {
+      "result": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/file_assets.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/first_paste.rs": {
+      "result": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/following_adoption_research.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 2,
+      "filtered": 0
+    },
+    "tests/following_atomic_launch.rs": {
+      "result": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 2,
+      "filtered": 0
+    },
+    "tests/following_history.rs": {
+      "result": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/following_history_research.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 2,
+      "filtered": 0
+    },
+    "tests/following_view.rs": {
+      "result": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/frontend_regressions.rs": {
+      "result": "ok",
+      "passed": 40,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/guide.rs": {
+      "result": "ok",
+      "passed": 125,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/held_unknown.rs": {
+      "result": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/helper_placement.rs": {
+      "result": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/intent_aggregate_safety.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/intent_delta10.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/intent_followup.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/intent_nulls.rs": {
+      "result": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/intent_order.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/intent_predicates.rs": {
+      "result": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/intent_review.rs": {
+      "result": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/intent_target.rs": {
+      "result": "ok",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/intent_variants.rs": {
+      "result": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/intent_variants_review.rs": {
+      "result": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/job_viewer.rs": {
+      "result": "ok",
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/joined_shapes.rs": {
+      "result": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/lane_domains.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/lean_emit.rs": {
+      "result": "ok",
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/list_expressions.rs": {
+      "result": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/list_lower_bounds.rs": {
+      "result": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/list_reference_repair.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/list_widening.rs": {
+      "result": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/lookup_selection.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/lowering.rs": {
+      "result": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/maintained_columns.rs": {
+      "result": "ok",
+      "passed": 42,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/maintained_result_types.rs": {
+      "result": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/maintains.rs": {
+      "result": "ok",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/matching_order.rs": {
+      "result": "ok",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/membership_nullable_authorization.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/membership_paths.rs": {
+      "result": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/mixed_keys.rs": {
+      "result": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/mp_reproduction.rs": {
+      "result": "ok",
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/mutation_result_types.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/natural_forms.rs": {
+      "result": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/own_keys.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/page2_membership.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/page3.rs": {
+      "result": "ok",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/page4.rs": {
+      "result": "ok",
+      "passed": 18,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/papercuts.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/prefix_reads.rs": {
+      "result": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/presence.rs": {
+      "result": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/printed_rewrites.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/pure_call_narrowing.rs": {
+      "result": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/qe2_ergonomics.rs": {
+      "result": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/query_settlement.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/read_through.rs": {
+      "result": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/read_through_provenance.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/read_through_review.rs": {
+      "result": "ok",
+      "passed": 35,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/read_through_sync.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/read_through_transactions.rs": {
+      "result": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/receipt_gaps.rs": {
+      "result": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/recorded_round1.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/reference_actions.rs": {
+      "result": "ok",
+      "passed": 32,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/repairs.rs": {
+      "result": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/reservation_app_headroom.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/residency_notes.rs": {
+      "result": "ok",
+      "passed": 44,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/revocation_soundness.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/routes.rs": {
+      "result": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/row_keyed_views.rs": {
+      "result": "ok",
+      "passed": 46,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/rx_legacy_identity.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/rx_rule_enforcement.rs": {
+      "result": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/rx_rule_hops.rs": {
+      "result": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/schedule_durations.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/search_guidance.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/selected_prefix.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/selected_prefix_cursors.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/selected_prefix_regressions.rs": {
+      "result": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/sequence_by.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/server_opt_in.rs": {
+      "result": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/shape_meter.rs": {
+      "result": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/shape_overrides.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/sparse_filter.rs": {
+      "result": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/spelling.rs": {
+      "result": "ok",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/surf4_guide.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/sync_audiences.rs": {
+      "result": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/sync_windows.rs": {
+      "result": "ok",
+      "passed": 40,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/system_principal.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/time_audiences.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/time_indexes.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/timeline_background.rs": {
+      "result": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/timeline_epoch_counterexample.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/timeline_fairness.rs": {
+      "result": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/timeline_guide.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/timeline_live_latency.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/typed_positional_keys.rs": {
+      "result": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/typed_positional_sync.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/union_limits.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/verified_index_repairs.rs": {
+      "result": "ok",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave10_guard_notes.rs": {
+      "result": "ok",
+      "passed": 23,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave10_rules_expressiveness.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave10_runtime_diagnostics.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave11_docs.rs": {
+      "result": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave11_qdiag.rs": {
+      "result": "ok",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave11_runtime.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave12_diagnostics.rs": {
+      "result": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave12_rule_composition.rs": {
+      "result": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave12_rule_recipes.rs": {
+      "result": "ok",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave12_semantics.rs": {
+      "result": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave13_lang2.rs": {
+      "result": "ok",
+      "passed": 43,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave13_rules.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave14_authorization.rs": {
+      "result": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave14_client_docs.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave14_lang3.rs": {
+      "result": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave14_snapshot_ir.rs": {
+      "result": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave1_rule_language.rs": {
+      "result": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave2_rule_language.rs": {
+      "result": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave3_rule_language.rs": {
+      "result": "ok",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave4_rule_language.rs": {
+      "result": "ok",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave5_rule_language.rs": {
+      "result": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave6_rule_language.rs": {
+      "result": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    },
+    "tests/wave7_rule_language.rs": {
+      "result": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave8_rule_language.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave9_completeness_notes.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave9_rule_diagnostic_rewrites.rs": {
+      "result": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/written_by.rs": {
+      "result": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "Doc-tests snapback4_lang": {
+      "result": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  "device": {
+    "unittests src/lib.rs": {
+      "result": "ok",
+      "passed": 64,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/acquisition_crash.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/adoption.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/asset_lists.rs": {
+      "result": "ok",
+      "passed": 22,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/background_durability.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/bounded_calendar_caps.rs": {
+      "result": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/bounded_following.rs": {
+      "result": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/branch_merge.rs": {
+      "result": "ok",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/codec.rs": {
+      "result": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/column_activation.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/components.rs": {
+      "result": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/cut.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/delivery.rs": {
+      "result": "ok",
+      "passed": 30,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/device.rs": {
+      "result": "ok",
+      "passed": 440,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/device_diet.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/diet_timing.rs": {
+      "result": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    },
+    "tests/disclosure.rs": {
+      "result": "ok",
+      "passed": 21,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/ephemeral.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/event_slots.rs": {
+      "result": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/event_slots_trace.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/expiring_counts.rs": {
+      "result": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    },
+    "tests/expiring_counts_probe.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/expiring_counts_upgrade.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/expiring_mutations.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/expiry_maintained_columns.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/extrema.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/extremum_expressions.rs": {
+      "result": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/file_assets.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/first_instinct.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/first_paste.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/following_meters.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/following_model.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/following_view.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/heavy_acquisition.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/helper_pages.rs": {
+      "result": "ok",
+      "passed": 90,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/index_key_bound.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/intent_variants.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/intent_views.rs": {
+      "result": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/list_lower_bounds.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/matching_order.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/mixed_keys.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/monotonic_ids.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/mp_builder.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/named_key_lookup.rs": {
+      "result": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/native.rs": {
+      "result": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/native_following.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/native_reads.rs": {
+      "result": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/natural_forms.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/nl_qe2_integration.rs": {
+      "result": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/own_keys.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/own_keys_cost.rs": {
+      "result": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 2,
+      "filtered": 0
+    },
+    "tests/point_probe_admission.rs": {
+      "result": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/prediction_write_set.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/qe2_allocations.rs": {
+      "result": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/qe2_ergonomics.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/query_unavailable.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/read_through.rs": {
+      "result": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/read_through_review.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/readauth.rs": {
+      "result": "ok",
+      "passed": 88,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/recorded_coverage.rs": {
+      "result": "ok",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/reference_actions.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/repair_b.rs": {
+      "result": "ok",
+      "passed": 110,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/repair_b_boundaries.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/repair_b_counterexample.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/repair_b_legacy_r6.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/repair_b_round2_counterexample.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/repair_b_round3_counterexample.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/residency.rs": {
+      "result": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/retained_history.rs": {
+      "result": "ok",
+      "passed": 20,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/retained_release.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/review_parent_floor.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/row_keyed_views.rs": {
+      "result": "ok",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/row_view_disclosure.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/row_view_expiry.rs": {
+      "result": "ok",
+      "passed": 14,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/rx_rule_hops.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/schema_capabilities.rs": {
+      "result": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/schema_capabilities_legacy.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/search_exists.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/sequence_by.rs": {
+      "result": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/sequence_disclosure.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/server_clock.rs": {
+      "result": "ok",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/shape_overrides.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/spread_metadata.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/spread_pending_union.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/sqlite_bulk.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/sync_windows.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/time_audiences.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/timed_search.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/timeline.rs": {
+      "result": "ok",
+      "passed": 26,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/topn_complete.rs": {
+      "result": "ok",
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/unicode.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/unread_range.rs": {
+      "result": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/upload_intents.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/upload_receipts.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/upsert_constraints.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/w13g_probe.rs": {
+      "result": "ok",
+      "passed": 142,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave11_qdiag.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave12_language.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave13_lang2.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/write_authority.rs": {
+      "result": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/written_by.rs": {
+      "result": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "Doc-tests snapback4_device": {
+      "result": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  },
+  "sim": {
+    "unittests src/lib.rs": {
+      "result": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/adoption.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/clique.rs": {
+      "result": "ok",
+      "passed": 254,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    },
+    "tests/condition_authority.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/decorated_search.rs": {
+      "result": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/device.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/digest_count.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/exhaustive.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    },
+    "tests/expiry_reference_actions.rs": {
+      "result": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/filters.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/helper_pages.rs": {
+      "result": "ok",
+      "passed": 43,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/helper_sweep.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/intent_integration.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/loopbar.rs": {
+      "result": "ok",
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/maintain_measurement.rs": {
+      "result": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 2,
+      "filtered": 0
+    },
+    "tests/maintains.rs": {
+      "result": "ok",
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/maintains_recorded.rs": {
+      "result": "ok",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/maintains_review.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/membership.rs": {
+      "result": "ok",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/membership_search.rs": {
+      "result": "ok",
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/native.rs": {
+      "result": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 1,
+      "filtered": 0
+    },
+    "tests/ordinary_search.rs": {
+      "result": "ok",
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/page_admission.rs": {
+      "result": "ok",
+      "passed": 15,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/reference_exhaustive.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/residency.rs": {
+      "result": "ok",
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/retained_release.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/review_corrections.rs": {
+      "result": "ok",
+      "passed": 32,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/reviews.rs": {
+      "result": "ok",
+      "passed": 30,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/roster.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/search_merge.rs": {
+      "result": "ok",
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/security.rs": {
+      "result": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/time_audiences.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/timed_search.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/topn_complete.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/union.rs": {
+      "result": "ok",
+      "passed": 29,
+      "failed": 0,
+      "ignored": 2,
+      "filtered": 0
+    },
+    "tests/wave11_qdiag.rs": {
+      "result": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave12_language.rs": {
+      "result": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/wave13_lang2.rs": {
+      "result": "ok",
+      "passed": 43,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/work_intent.rs": {
+      "result": "ok",
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/work_intent_review.rs": {
+      "result": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/work_intent_review2.rs": {
+      "result": "ok",
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/work_intent_review3.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/work_intent_review4.rs": {
+      "result": "ok",
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "tests/write_authority.rs": {
+      "result": "ok",
+      "passed": 35,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    },
+    "Doc-tests snapback4_sim": {
+      "result": "ok",
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "filtered": 0
+    }
+  }
+}

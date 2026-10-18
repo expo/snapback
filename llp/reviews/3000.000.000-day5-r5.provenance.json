@@ -1,0 +1,21 @@
+{
+  "base": "b4c5d78c06f95dd41fefbaa2906f7e9e85ddb85a",
+  "head": "0a07ef3e2e0f90053f52c15e2eb0d15599a879f0",
+  "promptSha256": "4c835f7d998ad251be4c015d6af9c52de2a34f24d8654ba2b6c42685083ad93f",
+  "scope": "Bounded R2 advice amendment; unchanged semantic documents and implementation retain their round4 matching-content READY reviews.",
+  "files": {
+    "llp/3000.011.003.000-offline-ready-application-starters.rfc.md": "32bf1d624828fb50655c89514083d13b3ecb89f011f73ecf9107abe150f65ace",
+    "snapback4/crates/snapback4/src/verbs/init/adapt.rs": "462c1eea1551a7bd88b43a0f68b19027cb926d8b9ec6d4538a9fff7dbbe8f38c",
+    "snapback4/crates/snapback4/tests/day5_starters.rs": "f988bd1113ecfa94a3a19f6a8f66f41125b960e5037e9972788fead255c3cae1"
+  },
+  "reviewers": {
+    "muse": "muse-spark-1.3-contributor high",
+    "codex": "gpt-6.1-sol high fresh codex exec"
+  },
+  "isolation": "Fresh mutually blind sessions, no reviewer outputs or workstream report; source/amendment frozen throughout.",
+  "verdicts": {
+    "muse": "READY",
+    "codex": "READY"
+  },
+  "disposition": "Both fresh reviews READY on frozen0a07ef3e2e; old helper age takes precedence across every identity mode. The remaining two semantic amendments and unchanged product retain round4 matching-content READY reviews."
+}

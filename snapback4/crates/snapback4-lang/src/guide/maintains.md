@@ -543,7 +543,7 @@ Activation emits no row events and always commits a parent-table invalidation,
 even for all-zero totals. Devices discard old images and reacquire snapshots;
 server-run watches re-run. Unchanged declarations preserve totals.
 `check --cost` reports composed source/mirror work and derived byte bounds;
-`why` and `test --residency` attribute values and acquisition to the parent.
+`why` and `test --residency --fixture-only` attribute values and acquisition to the parent.
 
 The Postgres evaluation backend refuses maintained columns and their private
 maintains with E_POSTGRES_MAINTAINED_COLUMN. Use the SQLite engine for this form.

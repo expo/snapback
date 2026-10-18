@@ -377,7 +377,7 @@ fn effect_fixture(label: &str) -> Fixture {
 }
 
 fn effect_token(f: &Fixture, release: bool) -> String {
-    if !release { assert!(f.command(&["test", "--residency"]).status.success()); }
+    if !release { assert!(f.command(&["test", "--residency", "--fixture-only"]).status.success()); }
     let args = if release { vec!["token", "--service", "worker", "--release", "deployment"] } else { vec!["token", "--service", "worker"] };
     let out = f.command(&args);
     assert!(out.status.success(), "{}", String::from_utf8_lossy(&out.stderr));

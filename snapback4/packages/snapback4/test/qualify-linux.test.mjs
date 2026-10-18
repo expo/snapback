@@ -22,6 +22,7 @@ function qualify(t, scenario = {}) {
     return { status: "passed", savedSourceCompatibility: "passed", expoPrintedWrittenPorts: "passed", previewNoise: "passed", helperContracts: "passed", fixtureAgreement: "passed" };
   }`);
   writeFileSync(join(root, "scripts/publication-day4.mjs"), `export async function proveDay4() { return { status: "passed" }; }`);
+  writeFileSync(join(root, "scripts/publication-day5.mjs"), `export async function proveDay5() {if (${JSON.stringify(scenario.day5Fail ?? false)}) throw Error('deliberately failing packed DAY5 guide'); return { status: "passed" }; }`);
   writeFileSync(join(root, "scripts/publication-rules.mjs"), `export function proveRules() {
     if (${JSON.stringify(scenario.rulesFail ?? false)}) throw Error('deliberately failing packed rule recipes');
     return { status: "passed" };
@@ -232,6 +233,7 @@ function assertAdditionalProofReports(r) {
   assert.deepEqual(json(join(r.root, "out/client-recipes.json")), { status: "passed", fixture: "packed-client-recipes" });
   assert.deepEqual(json(join(r.root, "out/rule-recipes.json")), { status: "passed" });
   assert.deepEqual(json(join(r.root, "out/day4-proof.json")), { status: "passed" });
+  assert.deepEqual(json(join(r.root, "out/day5-proof.json")), { status: "passed" });
 }
 
 for (const consumerOnly of [false, true]) for (const [refusal, message] of [
@@ -459,4 +461,10 @@ for (const consumerOnly of [false, true]) test(`packed rules refusal prevents ${
   assert.match(r.stderr, /deliberately failing packed rule recipes/);
   assert.equal(r.receipt, null);
   assert.equal(existsSync(join(r.root, "out/consumer.json")), false);
+});
+
+for (const consumerOnly of [false,true]) test(`DAY5 packed guide failure blocks ${consumerOnly ? 'consumer' : 'full'} qualification`, t=>{
+  const r=qualify(t,{consumerOnly,day5Fail:true});
+  assert.notEqual(r.status,0);assert.match(r.stderr,/deliberately failing packed DAY5 guide/);
+  assert.equal(r.receipt,null);assert.equal(existsSync(join(r.root,'out/consumer.json')),false);
 });

@@ -1,0 +1,88 @@
+{
+  "source": "0a07ef3e2e0f90053f52c15e2eb0d15599a879f0",
+  "RustCoverage": "Complete default-feature commands plus semantically affected corrective reruns; raw failures retained, not an exact-HEAD complete publication battery",
+  "rust": {
+    "CLI_full_with_corrected_targets": {
+      "targets": 54,
+      "passed": 1311,
+      "failed": 0,
+      "ignored": 15
+    },
+    "core": {
+      "targets": 44,
+      "passed": 761,
+      "failed": 0,
+      "ignored": 5
+    },
+    "lang": {
+      "targets": 160,
+      "passed": 2106,
+      "failed": 0,
+      "ignored": 14
+    },
+    "device": {
+      "targets": 102,
+      "passed": 1562,
+      "failed": 0,
+      "ignored": 4
+    },
+    "sim": {
+      "targets": 45,
+      "passed": 749,
+      "failed": 0,
+      "ignored": 7
+    }
+  },
+  "clients": {
+    "broadAffectedPassed": 162,
+    "revisedProofAndTypecheckPassed": 81,
+    "finalNativeInitUnitPassed": 8,
+    "finalNativeCliPassed": 6
+  },
+  "reviews": {
+    "unchangedAmendments": "round4 both READY on matching final content",
+    "starterAmendment": "round5 both READY",
+    "changedFilesSinceRound4": [
+      "llp/3000.011.003.000-offline-ready-application-starters.rfc.md",
+      "snapback4/crates/snapback4/src/verbs/init/adapt.rs",
+      "snapback4/crates/snapback4/tests/day5_starters.rs"
+    ]
+  },
+  "survey": {
+    "lanes": 50,
+    "commandsEachPhase": 150,
+    "beforeAllPassed": true,
+    "afterAllPassed": true,
+    "forbiddenNativeWordingRemaining": 0,
+    "changedCommands": {
+      "adapt": 31,
+      "check": 10,
+      "upgrade": 10
+    },
+    "appearedLines": 143,
+    "disappearedLines": 50
+  },
+  "linux": {
+    "status": "passed",
+    "mode": "consumer-only",
+    "route": "proot",
+    "frontendAttempts": 12,
+    "starterCases": 6,
+    "userspaces": 2,
+    "clientIntegrity": "sha512-8MlhxjouBsTBF4YgDCvuCHFuT08CmdfGvKeaPPqE6PMRTOshllDIMvGOVzMZ2BkUoKQZ2+KR+AYwtCJf8Fln6Q==",
+    "platformIntegrity": "sha512-jxFbF5HL1J5TjE2KAc0AItsHymkujp6/j/lFxcLT0qXX1F+ENpOymretBxMcMxpAxvV1YT/O4v4TeXG/3dWMwQ==",
+    "binarySha256": "911f12aa533811758b963cc818e8035a128e23933cd31693bc0b0d4f01b6cc75",
+    "publicationQualified": false
+  },
+  "rootChecks": {
+    "refCheck": "passed: 551 docs / 11393 refs / zero errors",
+    "docsBudget": "passed: 317/320 plus named self-containment case",
+    "inventories": "inherited missing Snapback1 generated artifacts",
+    "guide": {
+      "passed": 19,
+      "contentFailures": 0,
+      "preconditions": 3
+    }
+  },
+  "publicationQualified": false
+}

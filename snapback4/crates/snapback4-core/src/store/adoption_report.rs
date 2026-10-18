@@ -27,7 +27,7 @@ impl AdoptionReport {
         for item in items {
             let (slot, label) = match item.kind.as_str() {
                 "column" => (1, format!("cells {}", item.path)),
-                "index" => (2, format!("entries {}", item.path)),
+                "index" => (2, format!("entries {}", item.path.split('.').next().unwrap_or(&item.path))),
                 _ => (0, format!("rows {}", item.path)),
             };
             counts[slot] += item.rows;

@@ -15,7 +15,8 @@ use snapback4_core::{
 };
 use std::path::{Path, PathBuf};
 
-pub(super) fn warnings(project: &Project) -> Vec<String> {
+pub(super) struct Advice { pub drift: bool, pub message: String }
+pub(super) fn warnings(project: &Project) -> Vec<Advice> {
     let versions = project.root.join("versions");
     let Ok(entries) = std::fs::read_dir(&versions) else {
         return Vec::new();
@@ -33,30 +34,26 @@ pub(super) fn warnings(project: &Project) -> Vec<String> {
         .collect::<Vec<_>>();
     saved.sort();
 
-    let mut warnings = Vec::new();
+    let mut advice = Vec::new();
     for source in saved {
+        let mut warnings = Vec::new();
         let fixture = source.join("fixtures");
-        if !fixture.is_dir() {
-            continue;
-        }
         let options = Options {
             positionals: Vec::new(),
             flags: [("source".into(), source.to_string_lossy().into_owned())].into(),
             json: false,
         };
-        let sources = match proof_source::sources(project, &options, "source") {
+        let sources = match crate::client_compatibility::sources(&source) {
             Ok(sources) => sources,
             Err(error) => {
-                warnings.push(format!(
-                    "{}: cannot read saved schema: {error}",
-                    shown(project, &source)
-                ));
+                let not_saved = error.kind() == std::io::ErrorKind::NotFound;
+                advice.push(Advice { drift: !not_saved, message: format!("{}: {}", shown(project, &source), if not_saved { error.to_string() } else { format!("cannot read saved schema: {error}") }) });
                 continue;
             }
         };
         let bound = proof_source::compile(&sources, &options, "source");
         if !bound.diagnostics.is_empty() {
-            warnings.push(format!(
+            advice.push(Advice { drift: true, message: format!(
                 "{}: saved schema has {} compile problem{}; fixtures were not inspected",
                 shown(project, &source),
                 bound.diagnostics.len(),
@@ -65,14 +62,16 @@ pub(super) fn warnings(project: &Project) -> Vec<String> {
                 } else {
                     "s"
                 }
-            ));
+            ) });
             continue;
         }
+        if !fixture.is_dir() { continue; }
         inspect_rows(project, &fixture, &bound, &mut warnings);
         inspect_cases(project, &fixture, &bound, &mut warnings);
         inspect_sweep(project, &fixture, &bound, &mut warnings);
+        advice.extend(warnings.into_iter().map(|message| Advice { drift: true, message }));
     }
-    warnings
+    advice
 }
 
 fn shown(project: &Project, path: &Path) -> String {
@@ -379,4 +378,23 @@ fn dynamic_alias(value: &Json) -> bool {
         Json::Object(fields) => fields.values().any(dynamic_alias),
         _ => false,
     }
+}
+
+#[test]
+fn unsaved_directories_are_information_and_invalid_saved_source_is_drift() {
+    let root = std::env::temp_dir().join(format!("sb4-r7-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&root);
+    let source = root.join("versions/v2");
+    std::fs::create_dir_all(source.join("fixtures")).unwrap();
+    let project = Project { root: root.clone() };
+    for text in [None, Some(" \n")] {
+        if let Some(text) = text { std::fs::write(source.join("schema.q"), text).unwrap(); }
+        let advice = warnings(&project);
+        assert_eq!(advice.len(), 1);
+        assert!(!advice[0].drift && advice[0].message.contains("not saved yet"));
+    }
+    std::fs::write(source.join("schema.q"), "not Quarry").unwrap();
+    let advice = warnings(&project);
+    assert!(advice[0].drift && advice[0].message.contains("compile problem"));
+    std::fs::remove_dir_all(root).unwrap();
 }

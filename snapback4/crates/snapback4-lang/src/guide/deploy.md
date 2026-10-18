@@ -8,7 +8,6 @@ bunx snapback4 test
 bunx snapback4 deploy ./deployment
 bunx snapback4 serve ./deployment --port 4400
 ```
-
 Generations climb on every actual switch, including rollback and forward; selecting identical execution content is a no-op. `token --service ops --release ./deployment` works while serve runs. Signups are rate-limited: create proof accounts sequentially and respect a returned retry delay. Time-gated mutations on the real clock need a bounded retry of the authored refusal (for example `NOT_OPEN`), with a deadline and short delay; never retry unrelated refusals. Development proofs can advance the clock (`guide time`).
 
 ## Upgrade
@@ -16,9 +15,7 @@ Generations climb on every actual switch, including rollback and forward; select
 
 ## Deploy and password identity
 Add `use identity password` (included below). Deploy from the app directory onto durable storage:
-
 Serve admits bearer sessions; personas are 401 and /seed/dev doors 403, even through proxies. Signup creates an account, not a privileged role. See guide client for SDK session stores; auth/headless for account setup. HTTP auth returns session/denied; SDK signup/login from `snapback4/auth` returns ok/why. Check warns on installed version skew.
-
 ```sh
 U=http://127.0.0.1:4400
 curl -s "$U/auth/signup" -H 'Content-Type: application/json' \
@@ -27,7 +24,6 @@ curl -s "$U/auth/signup" -H 'Content-Type: application/json' \
 curl -s "$U/auth/login" -H 'Content-Type: application/json' \
   -d '{"email":"admin@example.test","password":"replace-with-a-private-password"}'
 ```
-
 Keep the session and send `Authorization: Bearer <token>`. Wrong credentials or a disabled identity method are 401 E_AUTH. Sessions survive ordinary deployments and restarts until expiry/revocation; a replaced/reset store requires sign-in again. Never delete a store to make adoption pass. `serve --port N` accepts 0 or A-B; stdout's first line is its URL, stderr includes SNAPBACK4_READY. Wait for readiness.
 
 Layout: releases/N/ holds source; store.sqlite data/sessions/queues; assets/ uploads. The database owns current release/history; current is a text convenience copy, releases.jsonl a convenience ledger. Back up the whole directory, including sidecars/assets/releases, with serve and external workers stopped (CLIENT-AND-OPERATIONS.md §6). A restore does not rewind external effects.
@@ -53,14 +49,12 @@ table notes:
   read <- .owner = viewer
   insert <- .owner = viewer
 ```
-
 ```sh
 TOKEN=$(bunx snapback4 token --service ops --release ./deployment)
 curl -s "$U/m/grantAdmin" -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' -d '{"args":{"principal":"user:SIGNED_UP_ID"}}'
 unset TOKEN
 ```
-
 This roster is synced. A whole service-seat branch may add the first member; ordinary callers must already hold the roster. Service grants add no device audience. The seat's own program lookups and `exists` obey read rules too: to inspect a roster, add `or viewer = 'service:ops'` to its read rule, as above. A rule probe has authorization visibility; a program probe does not. The mutation completes before the grant syncs; wait for the enrolled account's client to receive its scope before using offline staff reads.
 
 A synced row has at most one group-roster audience: cross-table crew grants are not a second group. Enroll those readers in the same roster or keep the table `online only` (`guide rule-recipes`). Mint locally against the same store. Token stdout is only the credential; prose is stderr. Protect it; it expires under the seat-session policy. Rotate the credential by revoking its session (guide services) and minting a replacement. Expired or revoked bearer sessions cannot invoke the mutation. A repeat grant hits uniqueness; add membership revocation deliberately. Programmatic account sessions use `mintSession(url, serviceToken, principal)` from `snapback4/worker` (guide services); service seats themselves are minted locally by `token`.
@@ -73,7 +67,6 @@ Optional/defaulted columns, new tables/ops, non-unique indexes and wider types a
 bunx snapback4 rollback ./deployment --to 1 --check
 bunx snapback4 rollback ./deployment --to 1
 ```
-
 `deploy ./deployment --check` previews deploy direction and restoration intent. `bunx snapback4 check --store ./deployment/store.sqlite --release 1` also previews a selection; `bunx snapback4 releases ./deployment latest` inspects it. Forward with `bunx snapback4 rollback ./deployment --to latest`. Preview runs exact adoption on a private disk snapshot and removes it, without activating; disk/time scales with the store, and later writes can change the plan. Release is immutable source; latest is the highest successfully adopted source even after rollback. A refused candidate is never selectable. Bare rollback selects the previously active release; rollback prints the resolved target before preview or activation. Generation is a monotone identity; releases N/latest inspects source. Identical source is a no-op. Deploy/rollback return after serve switches: `release N is current as generation G`. In-flight one-shot operations finish in their generation; no settle sleep is needed. Default adoption is one measured receipt; --verbose/--json includes phases/cache advice. N_ADOPTION_PAUSE appears above one second. A dev/older unreachable owner requires stopping that owned process before retrying; failed adoption keeps current.
 
 Widened enum values, or short codes a loose release wrote, become dormant rows when selected types cannot hold them; compatible forward restores exact values. Reference dependents also leave the active population. Rules, counts, maintained views and reacquired sync partitions see only active rows. Point reads/updates/ deletes see absent rows; dormant ids stay reserved. Nominal reference values stay legal, as for other missing ids; require/read-through decides live-target admission. Dormant rows occupy no cap/unique slots, so older writes can require a bridge repair. Removed tables/columns/indexes also stay dormant. Fresh-source name reuse needs --restore-dormant; rollback selects restoration explicitly. Old active updates keep dormant cells; active deletion removes them. Only active referential actions run: parent deletion invalidates dormant lifetimes. Narrowed rows with invalid visible references stay dormant; whole-table/column restoration retains its E_ADOPT barrier. Prune previews counts/bytes/sample ids; `prune ./deployment --allow-destructive` permanently drops all dormant storage. No age collector or implicit pruning exists. Deploy/rollback --allow-destructive bypasses neither validation nor retention. --allow-feed-adoption permits the explicit feed launch. Inspect releases after an ambiguous reply. Details: [SERVER.md — Release lifecycle](SERVER.md#release-lifecycle).
@@ -106,10 +99,7 @@ assert.equal((await post('/m/editItem', {item})).why.code, 'NOT_FOUND');
 assert.equal((await post('/q/readItem', {item})).data, null);
 await cli('rollback', deployment, '--to', 'latest'); assert.equal((await post('/q/readItem', {item})).data.status, 'new');
 ```
-
-Previews lead with query/count active-table losses, linked dormant rows, then grouped safety dependencies. Verify filtered/paged/per-viewer results and denominators. Literal-default backfills print `table.column ← value on N rows` in previews and cold/hot deploy receipts: interpreted historical fields, not physical writes. Preview shows old and new rule clauses and mutation `require`s side by side, preserving Boolean parentheses. A proved tightening is a note, including `require A else X` becoming `require A else X; require B else Y` when A's refusal contract is unchanged; changed codes/messages still warn. A loosening or unproved implication is a WARNING, including rollback that removes a new guard. Unchanged clauses and consulted keys, fields, rules, auth and visibility are silent. Unread column domains and forward domain widening do not unprove a probe; narrowing still gets exact dormant-value/population warnings. Changed dependencies group once: verify refusal cases. Comparison never changes admission. Missing operations/schedules, populated removed tables, changed clauses and job bodies are named separately. An unchanged job compiling differently after a dependency change gets a note. Original read-through captures restore only with the same capture definition; new uncaptured rows still need safe audience correspondence.
-
-Receipts and previews count storage by kind: `1 row, 2 cells, 0 index entries dormant`. Dormant rows cover their retained cells; standalone cell counts/samples belong only to active rows. Bytes/assets follow the same disjoint ownership. Samples are labelled and unique within each kind/path, for example `rows notes [A]; cells notes.color [B, C]`. A retained index definition represents logical entries to rebuild, not a dormant physical index. A widening note describes values later writes could use; a compatibility WARNING counts only current values the selected release cannot hold. Compatible forward has no such warning.
+Previews lead with removed guards and their refusal codes, then group query/count active-table losses, linked dormant rows and safety dependencies per change. Verify filtered/paged/per-viewer results and denominators. Literal-default backfills print `table.column ← value on N rows` in previews and cold/hot deploy receipts: interpreted historical fields, not physical writes. Preview shows old and new rule clauses and mutation `require`s side by side, preserving Boolean parentheses. A proved tightening is a note, including `require A else X` becoming `require A else X; require B else Y` when A's refusal contract is unchanged; changed codes/messages still warn. A loosening or unproved implication is a WARNING, including rollback that removes a new guard. Unchanged clauses and consulted keys, fields, rules, auth and visibility are silent. Unread column domains and forward domain widening do not unprove a probe; narrowing still gets exact dormant-value/population warnings. Changed dependencies group once: verify refusal cases. Comparison never changes admission. Missing operations/schedules, populated removed tables, changed clauses and job bodies are named separately. An unchanged job compiling differently after a dependency change gets a note. Original read-through captures restore only with the same capture definition; new uncaptured rows still need safe audience correspondence. Receipts and previews count storage by kind: `1 row, 2 cells, 0 index entries dormant`. Dormant rows cover their retained cells; standalone cell counts/samples belong only to active rows. Bytes/assets follow the same disjoint ownership. Samples are labelled and unique within each kind/path, for example `rows notes [A]; cells notes.color [B, C]`. A retained index definition represents logical entries to rebuild, not a dormant physical index. A widening note describes values later writes could use; a compatibility WARNING counts only current values the selected release cannot hold. Compatible forward has no such warning.
 
 ## Clients across rollback
 Save versions/v1/schema.q (and any other .q modules with their original names) outside snapback/ and create `snapback/client-compatibility.json` containing `{"baseline":"versions/v1","since_release":2}`. `check`/`dev` emit added row/result fields and existing-operation parameters as optional, labelled "Since release 2", retaining older result value domains. This is your release label, not server generation; ordinary types stay required without opt-in. Use `row.color ?? "none"` for the baseline fallback. Keep contemporary fixtures in versions/v1/fixtures/; deploy with `--schema versions/v1` and test with `--source versions/v1` (guide testing). Baselines resolve from the original project root, including saved-source deploys.
@@ -148,3 +138,13 @@ Public visitors obtain guest sessions with `use identity`; `use identity passwor
 
 ## Authoring and proof refusals
 N_NO_PRODUCTION_WRITER means no production insert path can bootstrap this table. It groups root blockers with their dependents; persona-only schemas get one identity note. Add a service-seat insert mutation and provision real account relationships. E_UPGRADE means installation or post-upgrade check failed. Repair the package-manager or registry error and rerun upgrade. Packages may already be pinned: if check failed, repair the reported schema/device refusal and rerun check.
+
+## Capture a saved version
+After check and business cases pass, from the app root:
+```sh
+snapback4 deploy ./deployment --save-version versions/v1
+snapback4 rollback ./deployment --to 1 --check --bridge ./bridge
+snapback4 deploy ./deployment --schema ./bridge --check
+```
+
+The new versions/v1 captures selected modules, their contemporary fixtures and `versions/v1/release.json` with the actual immutable release id, source hash and CLI version. Unchanged deploy keeps its id; existing snapshots never change. Choose a new positive-numbered versions/vN; saving cannot combine with --check. Saved-source deploy uses its own fixtures. Use the recorded id when choosing a baseline; since_release remains the author-supplied newer-schema label. The bridge starts from complete current Quarry source and this app's `bridge/ROLLBACK-CHECKLIST.md`. Retain current domains, audiences, guards and quotas; repair records through authorized mutations; prove blocked cases refuse and affected lists/counts remain correct; repeat the old-source preview. No bridge is activated or business migration synthesized. JSON includes checklist; --verbose retains full evidence/index paths. Dormant rows reserve ids but no unique slots: new active rows may block restoration. A widened non-unique bridge permits repair before reinstating uniqueness; retained storage cannot supply absent safety logic.

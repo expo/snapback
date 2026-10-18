@@ -103,7 +103,7 @@ test('stable exists probes participate in leading Boolean implication', t => {
   const source=probe.replace('mutation edit():','mutation edit(ok: bool):');
   writeFileSync(schema,source);run('deploy',deployment);
   writeFileSync(schema,source.replace("mutation edit(ok: bool):\n  require exists roles[principal = viewer, role = 'captain']", "mutation edit(ok: bool):\n  require exists roles[principal = viewer, role = 'captain'] and ok"));
-  assert.match(run('deploy',deployment,'--check').stdout,/note: release 2 tightens edit.require/);
+  assert.match(run('deploy',deployment,'--check').stdout,/note: .*release 2 tightens edit.require/);
 });
 
 const safety = `use identity guests
@@ -151,7 +151,13 @@ test('DT7 golden preview: query/count populations, dormant dependents, then grou
     "release 1's safety dependencies on parents: `book`, `pay` cannot see 1 dormant parents row (sample ids [p]); verify refusal cases and preserve this gate in a bridge release or pause the workflow (guide deploy; dependency, not a predicate match)",
   ]);
   const text=run('rollback',deployment,'--to','1','--check').stdout;
-  assert.ok(text.indexOf('WARNING queries/counts') < text.indexOf('tables.parents.columns.state'));
+  const parentLine=text.split('\n').filter(line=>line.startsWith('  WARNING parents:'));
+  assert.equal(parentLine.length,1,text);
+  assert.match(parentLine[0],/queries\/counts/);
+  assert.match(parentLine[0],/safety dependencies/);
+  assert.doesNotMatch(text,/tables\.parents\.columns\.state/);
+  const verbose=run('rollback',deployment,'--to','1','--check','--verbose').stdout;
+  assert.match(verbose,/tables\.parents\.columns\.state/);
   assert.equal(plan.plan.items.filter(i=>i.kind==='rows').reduce((n,i)=>n+i.rows,0),2);
   run('rollback',deployment,'--to','1');
   const again=JSON.parse(run('rollback',deployment,'--to','1','--check','--json').stdout);

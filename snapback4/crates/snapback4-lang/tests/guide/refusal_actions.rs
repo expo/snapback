@@ -335,7 +335,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_MAINTAINED_COLUMN_DISCLOSURE", &["Restrict the parent audience or use a separate aggregate view when that disclosure is unwanted", "a predicate discloses selection and an index discloses relative order"]),
     ("N_MAINTAINED_COLUMN_STREAM", &["use `view …` with `online only` when the counter changes far more often than the row is read", "Include the parent's size in that choice"]),
     ("N_MAINTAIN_DELTA", &["Restrict its read audience or source write authority if that delta is private"]),
-    ("N_MAINTAIN_SYNCED", &["Run `test --residency --fixture dir --as alice`", "It names mutations that would stop predicting if the view goes online only"]),
+    ("N_MAINTAIN_SYNCED", &["Run `test --residency --fixture-only --fixture dir --as alice`", "It names mutations that would stop predicting if the view goes online only"]),
     ("N_NEVER_COMPLETE", &["Keep the current equality prefix when adding those pins", "choosing a conversation narrows the answer to that scope"]),
     ("N_NOT_PREDICTABLE", &["Inspect `snapback4 why <op>`", "follow the named site rewrite to restore local execution, or keep the server dependency and handle queued writes and unavailable offline reads"]),
     ("N_NOW_SERVER", &["Inspect `snapback4 why <op>`", "follow the named site rewrite to restore local execution, or keep the server dependency and handle queued writes and unavailable offline reads"]),

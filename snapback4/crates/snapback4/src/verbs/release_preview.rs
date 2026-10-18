@@ -125,18 +125,24 @@ pub(super) fn preview(
         };
         step.message=step.message.replace("its rows are lost", &retained).replace("its values are lost", &retained);
     }
+    let checklist = super::release_bridge::checklist(held["release"].as_u64().unwrap_or(0),release,&hazards);
+    if let Some(path) = options.flags.get("bridge") {
+        let current = held["release"].as_u64().ok_or("a bridge needs a current deployed release")?;
+        super::release_bridge::write(Path::new(path),store_path.parent().ok_or("no deployment directory")?,current,release,&checklist)?;
+        eprintln!("bridge starter written to {path}; edit its current source and follow ROLLBACK-CHECKLIST.md before activation");
+    }
     if options.json {
-        println!("{}",serde_json::to_string_pretty(&serde_json::json!({"preview":true,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report.summary(),"backfills":engine.store().adoption_report.backfills})).unwrap());
+        println!("{}",serde_json::to_string_pretty(&serde_json::json!({"preview":true,"checklist":checklist,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report.summary(),"backfills":engine.store().adoption_report.backfills})).unwrap());
     } else {
         println!("preview: release {release} would be current as generation {}; live release unchanged", engine.generation());
-        for hazard in hazards {println!("  WARNING {hazard}");}
-        for note in notes {println!("  note: {note}");}
+        super::release_summary::print(prior_schema.as_ref(), &candidate_schema, &candidate_programs, &hazards, &notes, &steps, &items);
+        if !options.flags.contains_key("deploy-direction") { println!("  checklist: prove the named refusal cases and affected lists/counts as real accounts before release {release}; `--bridge <new-dir>` saves current source plus this app's ROLLBACK-CHECKLIST.md"); }
         println!("  storage: {}",snapback4_core::store::adoption_report::AdoptionReport::dormant(&items));
-        for step in steps {println!("  {}: {}",step.path,step.message);}
-        for item in &items {
-            println!("  {}: {} {} dormant (restored on compatible forward); sample ids [{}]", item.key, item.rows, item.unit(), item.sample_ids.join(", "));
-        }
         if options.flags.contains_key("verbose") {
+            for hazard in hazards { println!("  detail: WARNING {hazard}"); }
+            for note in notes { println!("  detail: note: {note}"); }
+            for step in steps {println!("  {}: {}",step.path,step.message);}
+            for item in &items { println!("  {}: {} {} dormant (restored on compatible forward); sample ids [{}]", item.key, item.rows, item.unit(), item.sample_ids.join(", ")); }
             println!("{}", engine.store().adoption_report.summary());
             if let Some(estimate) = estimate {
                 println!("{estimate}");
