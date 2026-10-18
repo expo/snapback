@@ -149,6 +149,7 @@ export function sandboxUnavailable(error: unknown): boolean {
 export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions, "cwd" | "logsDir"> & { chromium?: BrowserType }, proof: (context: BrowserContext) => Promise<T>): Promise<T> {
   const directory = logsDir(options); mkdirSync(directory, { recursive: true, mode: 0o700 });
   const err = openSync(join(directory, `${randomUUID()}.browser.stderr.log`), "wx", 0o600);
+  const diagnostic = openSync(join(directory, `${randomUUID()}.witness.private.jsonl`), "wx", 0o600);
   const { chromium: suppliedChromium, executablePath, cwd: _cwd, logsDir: _logs, ...other } = options;
   const requireCaller = createRequire(resolve(options.cwd ?? process.cwd(), "package.json"));
   let caller = suppliedChromium;
@@ -181,6 +182,9 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
     let context: BrowserContext | undefined;
     try {
       context = await browser.newContext();
+      await context.exposeBinding("__snapback4ProofDiagnostic", (_source, value: unknown) => {
+        writeSync(diagnostic, `${JSON.stringify(value)}\n`);
+      });
       // Init scripts run on each document, including HTTP redirect destinations,
       // before any application script samples its URL.
       await context.addInitScript(() => {
@@ -195,7 +199,7 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
       try { if (context) await bounded(context.close(), 5000, "browser context close"); }
       finally { await bounded(browser.close(), 5000, "browser close"); }
     }
-  } finally { closeSync(err); }
+  } finally { closeSync(err); closeSync(diagnostic); }
 }
 const substringLocators = new WeakMap<Locator, Locator>();
 /** Strings match exactly by default; use exact:false or a RegExp for a row with more text. Excludes editable values. */

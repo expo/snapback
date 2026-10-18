@@ -89,7 +89,13 @@ export function registerWebWitness(app: App, api: Operations): void {
             claimed = true; restore();
             const reason = !eventMatches || options?.[outsideClick] ? "event: expected the armed click or its synchronous submit"
               : name && name !== op.name ? `operation: expected ${name}, got ${op.name}`
-              : "arguments: durable mutation arguments did not match the armed form";
+              : `arguments: mismatched keys: ${[...new Set([...Object.keys(expected ?? {}), ...Object.keys(args)])].sort().filter(key => JSON.stringify(canonical(expected?.[key])) !== JSON.stringify(canonical(args[key]))).join(", ")}`;
+            if (eventMatches && !options?.[outsideClick] && (!name || name === op.name) && !argsMatch) {
+              const diagnostic = (window as unknown as { __snapback4ProofDiagnostic?: (value: unknown) => Promise<void> }).__snapback4ProofDiagnostic;
+              // The proof driver writes values only to its mode-0600 private log.
+              // A failed diagnostic must never prevent the application's write.
+              if (diagnostic) await diagnostic({ code: "E_WITNESS_UNCLAIMED", mutation: op.name, armed: expected, actual: args }).catch(() => {});
+            }
             finish({ state: "failed", mutation: op.name, why: { code: "E_WITNESS_UNCLAIMED", reason: !eventMatches || options?.[outsideClick] ? "event" : "arguments", message: reason } });
           }
           return invoke();

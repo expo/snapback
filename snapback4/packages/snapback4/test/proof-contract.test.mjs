@@ -1,7 +1,7 @@
 // H9 controls can load the unchanged 0.4.29 proof/witness modules via KIT2_BASELINE_DIST.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -12,7 +12,7 @@ const witnessSource = readFileSync(join(dist, 'witness-web.js'), 'utf8');
 async function browser(t, run) {
   const cwd = mkdtempSync(join(tmpdir(), 'kit2-contract-'));
   t.after(() => rmSync(cwd, {recursive:true,force:true}));
-  await kit.withBrowser({cwd, executablePath:process.env.CHROME ?? chromiumExecutable()}, async context => run(await context.newPage()));
+  await kit.withBrowser({cwd, executablePath:process.env.CHROME ?? chromiumExecutable()}, async context => run(await context.newPage(), cwd));
 }
 test('H9 renderedText opts into substring matching for a row with more than the needle', {timeout:30000}, async t => browser(t, async page => {
   await page.setContent('<section aria-label="Rows"><p>Proof needle — more row text</p><input value="Proof needle"></section>');
@@ -61,7 +61,7 @@ window.testApp=app;registerWebWitness(app,{add:{kind:'mutation',name:'add'}});
   assert.equal(old.why.code,'E_WITNESS_NO_WRITE');
 }));
 
-test('KIT3 explicit form claim survives slow uploads and never grants an unrelated callback', {timeout:30000}, async t => browser(t, async page => {
+test('KIT3 explicit form claim survives slow uploads and never grants an unrelated callback', {timeout:30000}, async t => browser(t, async (page, browserCwd) => {
   const cwd=mkdtempSync(join(tmpdir(),'kit3-upload-'));
   t.after(()=>rmSync(cwd,{recursive:true,force:true})); mkdirSync(join(cwd,'dist'));
   writeFileSync(join(cwd,'dist/bridge.js'),witnessSource);
@@ -98,7 +98,12 @@ document.querySelector('button').onclick=event=>{
   assert.equal(competing.why.code,'E_WITNESS_UNCLAIMED'); assert.equal(competing.why.reason,'event');
   await page.evaluate(()=>window.mode='wrong'); await arm(); await page.getByRole('button').click();
   const wrong=await page.evaluate(()=>window.__snapback4Witness.formResult());
-  assert.equal(wrong.why.reason,'arguments'); assert.ok(!JSON.stringify(wrong).includes('must not enter proof logs'));
+  assert.equal(wrong.why.reason,'arguments'); assert.match(wrong.why.message,/mismatched keys: secret/); assert.ok(!JSON.stringify(wrong).includes('must not enter proof logs'));
+  const privateFile = readdirSync(join(browserCwd, 'logs')).find(name => name.endsWith('.witness.private.jsonl'));
+  const privatePath = join(browserCwd, 'logs', privateFile);
+  assert.equal(statSync(privatePath).mode & 0o777, 0o600);
+  const diff = readFileSync(privatePath, 'utf8').trim().split('\n').map(JSON.parse).find(row => row.code === 'E_WITNESS_UNCLAIMED');
+  assert.deepEqual(diff.armed, {}); assert.deepEqual(diff.actual, {secret:'must not enter proof logs'});
   await page.evaluate(()=>window.mode='rearm'); await arm(); await page.getByRole('button').click();
   await page.evaluate(()=>{window.old=window.__snapback4Witness.formResult();window.__snapback4Witness.beginForm('add',{},document.querySelector('button'));});
   assert.equal((await page.evaluate(()=>window.old)).why.code,'E_WITNESS_NO_WRITE');
