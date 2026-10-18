@@ -121,7 +121,7 @@ fn period(schedule: &snapback4_core::schema::Schedule) -> String {
 /// The core fires each schedule at most once per advance, for the latest
 /// boundary, and holds it while its saved boundary is ahead of the clock.
 // @ref LLP 3000#7-decisions-during-execution — missed boundaries fire once; this only explains them.
-pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String], now: i64, held: bool, each_boundary: bool) -> Vec<serde_json::Value> {
+pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String], now: i64, held: bool, each_boundary: bool, port: Option<u16>) -> Vec<serde_json::Value> {
     let after = saved_boundaries(engine);
     // Read only bounded summaries: job args/cursors and full error payloads
     // are irrelevant to this report and must not be loaded then replicated.
@@ -143,10 +143,13 @@ pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String]
                     while at <= end { windows.push(window(at)); at = schedule.next(at); }
                 }
             } else { windows.push(window(end)); }
+            if each_boundary {
+                entry["reason"] = format!("fired {} windows: {}", windows.len(), windows.iter().map(|window| format!("{} to {}", utc(window["periodStart"].as_i64().unwrap()), utc(window["periodEnd"].as_i64().unwrap()))).collect::<Vec<_>>().join("; ")).into();
+            }
             entry["firedWindows"] = windows.into();
             entry["periodStart"] = start.into();
             entry["periodEnd"] = end.into();
-            entry["reason"] = format!("fired for the period {} to {}", utc(start), utc(end)).into();
+            if !each_boundary { entry["reason"] = format!("fired for the period {} to {}", utc(start), utc(end)).into(); }
             if let Some(run) = runs.get(&schedule.target) { entry["run"] = run.clone(); }
             // @ref LLP 3000.040#24-monthly-and-yearly-schedules — calendar periods count boundaries, not milliseconds.
             let skipped = if each_boundary { 0 } else { old.map(|old| schedule.periods_between(old, end) - 1).unwrap_or(0) };
@@ -161,7 +164,7 @@ pub fn schedule_report(engine: &Engine, before: &[Option<i64>], fired: &[String]
                         if program.args.contains_key("periodStart") { args.insert("periodStart".into(), schedule.previous(at).into()); }
                         if program.args.contains_key("periodEnd") { args.insert("periodEnd".into(), at.into()); }
                     }
-                    item["command"] = format!("snapback4 run {} '{}'", schedule.target, serde_json::Value::Object(args)).into();
+                    item["command"] = format!("snapback4 run {} '{}'{}", schedule.target, serde_json::Value::Object(args), port.map(|port| format!(" --port {port}")).unwrap_or_default()).into();
                     windows.push(item); at = schedule.next(at);
                 }
                 entry["skippedBoundariesOmitted"] = (skipped - windows.len() as i64).into();
@@ -267,7 +270,7 @@ mod tests {
         let fired = engine.fire_schedules(60_000).unwrap();
         let message = "🧪\n\\".repeat(30_000);
         engine.store().conn().execute("UPDATE _jobs SET error = ?1 WHERE id = (SELECT id FROM _jobs ORDER BY created_at DESC, id DESC LIMIT 1)", [&message]).unwrap();
-        let report = schedule_report(&engine, &before, &fired, 60_000, false, false);
+        let report = schedule_report(&engine, &before, &fired, 60_000, false, false, None);
         assert_eq!(report.len(), 500);
         assert!(report.iter().all(|s| s["run"]["errorTruncated"] == true));
         assert!(report.iter().all(|s| s["run"]["error"].as_str().unwrap().len() <= REPORT_ERROR_BYTES + 3));

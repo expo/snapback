@@ -49,6 +49,7 @@ pub fn run_now(text: Option<&String>) -> Result<i64, Refusal> {
 pub struct Clock {
     dev: bool,
     base: i64,
+    offset: i64,
     started: Instant,
     epoch: String,
     revision: u64,
@@ -59,7 +60,7 @@ pub struct Clock {
 impl Clock {
     pub fn new(dev: bool, offset: i64) -> Result<Self, Refusal> {
         if !dev && offset != 0 { return Err(release()); }
-        Ok(Self { dev, base: time(snapback4_core::now_ms().checked_add(offset))?, started: Instant::now(),
+        Ok(Self { dev, offset, base: time(snapback4_core::now_ms().checked_add(offset))?, started: Instant::now(),
             epoch: snapback4_core::ids::mint(snapback4_core::now_ms(), &mut snapback4_core::ids::Mint::default()).map_err(|e| e.refusal())?, revision: 0, #[cfg(test)] frozen: false })
     }
     #[cfg(test)]
@@ -70,6 +71,7 @@ impl Clock {
         self.base.saturating_add(self.started.elapsed().as_millis().min(MAX_TIME as u128) as i64).min(MAX_TIME)
     }
     /// Identifies samples taken before/after a restart or deliberate clock jump.
+    pub fn offset(&self) -> i64 { self.offset }
     pub fn revision(&self) -> String { format!("{}:{}", self.epoch, self.revision) }
     pub fn presence_now(&self) -> i64 {
         // Production grace is elapsed real time, unaffected by wall-clock corrections.
@@ -80,6 +82,7 @@ impl Clock {
     pub fn reset(&mut self) -> Result<i64, Refusal> {
         if !self.dev { return Err(release()); }
         self.revision += 1;
+        self.offset = 0;
         self.base = snapback4_core::now_ms();
         self.started = Instant::now();
         #[cfg(test)] { self.frozen = false; }
@@ -89,7 +92,9 @@ impl Clock {
         if !self.dev { return Err(release()); }
         if milliseconds <= 0 { return Err(input("clock advance cannot move backwards; use a positive duration such as +2m")); }
         let next = time(self.now().checked_add(milliseconds))?;
+        let offset = self.offset.checked_add(milliseconds).ok_or_else(|| input("cumulative clock offset overflow"))?;
         self.revision += 1;
+        self.offset = offset;
         self.base = next;
         self.started = Instant::now();
         Ok(next)

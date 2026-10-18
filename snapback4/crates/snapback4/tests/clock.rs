@@ -1132,7 +1132,7 @@ fn kit3_large_clock_report_uses_complete_http_and_runnable_no_argument_commands(
     let large = f.command(&["clock", "advance", "4000m", "--each-boundary", "--port", port]);
     assert!(large.stdout.len() > 65_536, "explicit windows exercise the former transport ceiling");
     assert_eq!(output_json(large)["schedules"][0]["firedWindows"].as_array().unwrap().len(), 2000);
-    assert_eq!(skipped[0]["command"], "snapback4 run tick '{}'");
+    assert_eq!(skipped[0]["command"], format!("snapback4 run tick '{{}}' --port {port}"));
     let replay = f.command(&["run", "tick", "{}"]);
     assert!(replay.status.success(), "{}", String::from_utf8_lossy(&replay.stderr));
 }
@@ -1225,4 +1225,29 @@ fn kit4_forty_day_coalesced_advance_has_no_window_cap() {
     assert_eq!(schedule["skippedBoundaries"].as_array().unwrap().len(), 32);
     assert_eq!(schedule["skippedBoundariesOmitted"], 11487);
     assert_eq!(host.query("counters")[0]["n"], 1);
+}
+
+#[test]
+fn kit4_clock_offsets_are_exact_and_refusals_leave_them_unchanged() {
+    let f=Fixture::new("kit4-offset");
+    let host=f.start(&["dev","--memory","--no-watch"]);
+    let status=||host.request("GET","/dev/status",json!({}));
+    assert_eq!(status()["clockOffsetMs"],0);
+    host.post("/dev/clock/advance",json!({"duration":"-1ms"}));
+    assert_eq!(status()["clockOffsetMs"],0);
+    for n in 1..=2 {
+        let reply=host.post("/dev/clock/advance",json!({"duration":"3h","eachBoundary":true}));
+        assert_eq!(reply["offsetMs"],n*10_800_000);
+        let schedule=&reply["schedules"][0];
+        for window in schedule["firedWindows"].as_array().unwrap() {
+            assert!(schedule["reason"].as_str().unwrap().contains(&utc_test(window["periodEnd"].as_i64().unwrap())),"{schedule}");
+        }
+        assert_eq!(status()["clockOffsetMs"],n*10_800_000);
+    }
+    assert_eq!(host.post("/dev/reset",json!({"clock":"reset"}))["clockOffsetMs"],0);
+}
+fn utc_test(ms:i64)->String {
+    // The report's UTC minute is enough to distinguish each fired window.
+    let minute=(ms/60_000)%60; let hour=(ms/3_600_000)%24;
+    format!("{hour:02}:{minute:02}:00Z")
 }

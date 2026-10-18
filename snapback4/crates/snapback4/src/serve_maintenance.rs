@@ -384,11 +384,11 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         lock(&shared.maintenance).advancing = true;
         engine.advance_worker_leases_at(milliseconds, clock.now()).map_err(|e| e.refusal())?;
         *clock = next;
-        let offset = now - snapback4_core::now_ms();
+        let offset = clock.offset();
         let isolated = if crate::dev_clock_store::has_data(&engine) {
             format!("; use {} for isolated time tests; clock advance --port N targets its printed port (guide jobs)", crate::dev_clock::isolated_command())
         } else { String::new() };
-        let message = format!("cumulative offset {offset:+}ms (authoritative floor included); process offset lasts until restart{isolated}");
+        let message = format!("cumulative offset {offset:+}ms (requested process offset; now includes the authoritative floor); process offset lasts until restart{isolated}");
         Ok((now, offset, message, before, boundaries))
     })();
     let (now, offset, message, before, boundaries) = match advanced {
@@ -411,12 +411,12 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
     })();
     match drained.map_err(|error| error.refusal()).and_then(|work| completed_drain(work, crate::lifecycle::stopping())) {
         Ok(work) => {
-            let schedules = crate::dev_clock_store::schedule_report(&lock(&shared.engine), &before, &work.fired, now, shared.hold_schedules, each_boundary);
-            respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "skewMs":offset, "eachBoundary":each_boundary, "message":message, "work":work, "schedules":schedules}))
+            let schedules = crate::dev_clock_store::schedule_report(&lock(&shared.engine), &before, &work.fired, now, shared.hold_schedules, each_boundary, shared.dev_identity.as_ref().map(|i| i.address.port()));
+            respond(request, 200, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "skewMs":now - snapback4_core::now_ms(), "eachBoundary":each_boundary, "message":message, "work":work, "schedules":schedules}))
         }
         // Time remains advanced if maintenance fails; callers must not
         // retry the advance blindly. The normal tick retries pending work.
-        Err(error) => respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "skewMs":offset, "eachBoundary":each_boundary, "message":message, "denied":refusal_json(&error)})),
+        Err(error) => respond(request, 500, json!({"now":now, "advancedMs":milliseconds, "offsetMs":offset, "skewMs":now - snapback4_core::now_ms(), "eachBoundary":each_boundary, "message":message, "denied":refusal_json(&error)})),
     }
 }
 
