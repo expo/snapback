@@ -77,7 +77,7 @@ refuse atomically; ids do not change. Rebuild devices for `live-parent-copy-v1`.
 Bulk seed/import/restore uses one bounded job account; split large input into
 coherent parent-plus-children batches, never a partial parent transfer.
 
-### Manual copy alternative
+## Manual copy alternative
 
 The child copy is mutable and maintained by the application's only transfer
 mutation, in the same transaction as the parent. Every child insert/update

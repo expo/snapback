@@ -67,11 +67,12 @@ fn every_recipe_compiles_in_its_own_snippet_class() {
     let blocks = guide::quarry(guide::card("rule-recipes").unwrap());
     assert_eq!(
         blocks.len(),
-        36,
+        45, // 36 existing + one LIVE roster + eight wave-15 programs.
         "each standalone recipe has its own compilation class"
     );
     for s in blocks {
         let timed_peer = s.contains("mutation reportWords(") && s.contains("table peerCounts:");
+        let live_roster = s.contains("table liveRosterFiles:");
         let b = snapback4_lang::compile(&[("schema.q".into(), s)]);
         assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
         if timed_peer {
@@ -80,6 +81,13 @@ fn every_recipe_compiles_in_its_own_snippet_class() {
             assert_eq!(b.notes[0].code, "N_IMMUTABLE_PATCH");
             assert!(b.notes[0].message.contains("peerCounts.opensAt"));
             assert!(b.notes[0].message.contains("equals the stored value"));
+        } else if live_roster {
+            // Full-current live sync deliberately has no horizon. Pin this
+            // recipe's documented note rather than exempting all LIVE code.
+            assert_eq!(b.notes.len(), 1, "{:?}", b.notes);
+            assert_eq!(b.notes[0].code, "N_NO_HORIZON");
+            assert!(b.notes[0].rewrite.contains("online only"));
+            assert!(!b.notes[0].rewrite.contains("last 500"));
         } else {
             assert!(b.notes.iter().all(|n| n.code == "N_EPHEMERAL_SERVER"), "{:?}", b.notes);
         }

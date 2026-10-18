@@ -96399,3 +96399,9 @@ merge: the pre-ephemeral durable byte test automatically collected LIVE's new
 fixture without a historical capture. Exclude that later fixture alongside the
 existing PAGE4 exclusion; its dedicated LIVE compiler/execution tests remain.
 No frozen schema/type expectation or runtime behavior changes.
+
+The complete language scope also caught two guide inventory assumptions:
+separate the manual roster alternative into its own level-two section, keeping
+the existing 120-line section ceiling, and pin all 45 recipe blocks (36 existing,
+one LIVE roster, eight wave-15 programs). The roster's one documented
+N_NO_HORIZON is checked exactly. Every Quarry block remains byte-identical.
