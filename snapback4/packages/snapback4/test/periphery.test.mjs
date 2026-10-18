@@ -218,9 +218,10 @@ for (const template of [[], ["--template", "chat"]]) test(`Expo ${template.lengt
   }
   assertCoreTree(dir);
   if (!chat) {
-    const production = join(dir, "recipes/production");
-    for (const file of ["schema.q", "fixtures/test.cases.jsonl", "App.tsx", "client.ts"])
-      assert.ok(existsSync(join(production, file)), `missing separate production recipe ${file}`);
+    assert.ok(!existsSync(join(dir, "recipes")), "ordinary init emits no unused guide recipes");
+    const production = join(root, "packages/snapback4/dist/recipes/production/expo");
+    for (const file of ["schema.q", "test.cases.jsonl", "App.tsx", "client.ts"])
+      assert.ok(existsSync(join(production, file)), `missing installed guide recipe ${file}`);
     assert.match(read(join(production, "schema.q")), /mutation invite\(/);
     assert.match(read(join(production, "App.tsx")), /api\.invite/);
   }

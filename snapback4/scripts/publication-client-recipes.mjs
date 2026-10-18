@@ -28,7 +28,8 @@ export async function proveClientRecipes(client, platform, directory) {
   mkdirSync(join(cwd, "src"), { recursive: true });
   mkdirSync(join(cwd, "snapback"), { recursive: true });
   writeFileSync(join(cwd, "src/workspace.tsx"), workspace);
-  const short = [...readFileSync(join(cwd, "node_modules/snapback4/CLIENT-AND-OPERATIONS.md"), "utf8").matchAll(/```tsx\n([\s\S]*?)\n```/g)].map(match => match[1]).find(text => text.includes("function ShortScreen"));
+  const reference = readFileSync(join(cwd, "node_modules/snapback4/CLIENT-AND-OPERATIONS.md"), "utf8");
+  const short = [...reference.matchAll(/```tsx\n([\s\S]*?)\n```/g)].map(match => match[1]).find(text => text.includes("function ShortScreen"));
   assert.ok(short, "packed guide has the short-screen recipe");
   writeFileSync(join(cwd, "src/short-screen.tsx"), short);
   writeFileSync(join(cwd, "snapback/schema.q"), schema);
@@ -37,6 +38,11 @@ export async function proveClientRecipes(client, platform, directory) {
   const clock = [...time.stdout.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(match => match[1]).find(source => source.includes("query clock(t:"));
   assert.ok(clock, "packed time guide carries the UTC-hour recipe");
   writeFileSync(join(cwd, "snapback/clock.q"), clock);
+  const moneySchema = [...reference.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(match => match[1]).find(text => text.includes("table prices:"));
+  const money = [...reference.matchAll(/```js\n([\s\S]*?)\n```/g)].map(match => match[1]).find(text => text.includes("export function recordPrice"));
+  assert.ok(moneySchema && money, "packed reference carries the money argument recipe");
+  writeFileSync(join(cwd, "snapback/money.q"), moneySchema);
+  writeFileSync(join(cwd, "money.mjs"), money);
   await run(process.execPath, [cli, "check"]);
   await run(process.execPath, [join(cwd, "node_modules/typescript/bin/tsc"), "--strict", "--skipLibCheck", "--target", "ES2022",
     "--module", "NodeNext", "--moduleResolution", "NodeNext", "--outDir", "compiled", "recipe.ts", "handlers.ts"]);
@@ -86,6 +92,7 @@ import {startDev,cleanup,bounded} from "snapback4/proof";
 import {signup} from "snapback4/auth";
 import {createClient} from "snapback4/client";
 import {api} from "./snapback/generated/api.ts";
+import {recordPrice} from "./money.mjs";
 const dev=await startDev({args:["--no-watch"],timeoutMs:30000});let client;
 try {
  const signed=await bounded(signup(dev.url,"clock@example.test","clock-proof-password"),15000,"signup");assert.ok(signed.ok);
@@ -94,6 +101,8 @@ try {
   const read=await bounded(client.query(api.clock.clock,{t}),30000,"clock");assert.ok("data" in read);
   assert.equal(read.data.ordinal,Math.floor(t/3600000));assert.equal(read.data.clock,((Math.floor(t/3600000)%24)+24)%24);
  }
+ const write=await bounded(recordPrice(client),30000,"money recipe");assert.equal(write.state,"sent");assert.equal(write.result.amount,1234);
+ const refused=await bounded(client.mutate(api.money.recordPrice,{amount:12.34}),30000,"fractional money refusal");assert.equal(refused.state,"failed");assert.equal(refused.why.code,"E_INPUT");
 } finally {await cleanup(()=>client?.close(),()=>dev.stop());}
 `;
 

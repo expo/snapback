@@ -147,11 +147,13 @@ job closeDeparted(periodStart: time, periodEnd: time):
 schedule closer every 1m: closeDeparted
 ```
 
-- `N_SWEEP_DEADLINE` names a scheduled status transition and a mutation that
-  tests its status without a direct time comparison on that row deadline.
-  Enforce the intended time boundary in the mutation; choose the opening or
+- `N_SWEEP_DEADLINE` names a timed scheduled status update and a mutation
+  testing that status, or testing/writing a flag also tested by the job, without
+  a direct comparison on that row deadline. If this is an operation deadline,
+  enforce its boundary in the mutation; choose the opening or
   closing direction and equality explicitly. The syntactic note can miss helper
-  paths and can warn when a helper already guards time; it proves no safety.
+  paths, correlate unrelated rows/branches or warn when a helper guards time;
+  it proves no safety. Notification-only sweeps need no extra deadline guard.
 - Where the decision is made by a caller, compare with `now` instead and need no job:
   `require t.departsAt > now else DEPARTED`. `guide recipes --section schedules` has both together.
 - A period you still need runs by hand: `snapback4 run closeDeparted '{"periodStart":…,"periodEnd":…}'`.

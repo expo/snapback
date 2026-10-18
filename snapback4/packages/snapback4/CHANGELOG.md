@@ -5,6 +5,7 @@
 - React/Expo `useQueryData` returns data or undefined and throws a typed `QueryRefusal`; `useQueryResult` offers an inline refusal and the precise read. Partial/stale data remains displayable; use `useQuery`/`usePage` for completeness, freshness and pagination. `SignedIn` gates components on the app's auth snapshot.
 - ordinary starters omit the unused production recipe; `guide production` copies the runnable slice from the installed package's guide assets.
 - completeness notes lead with the query's checked rewrite and explain when completeness matters; distinct findings at the same query site remain visible.
+- Money/decimal client arguments now have an executable example: pass integer minor units (`1234` cents for $12.34), with no implicit floating-point rounding.
 - `hourOfDay(t)` gives UTC hours 0..23; `hour(t)` remains continuous epoch hours. `N_SWEEP_DEADLINE` warns about direct scheduled status gates without a matching row-time comparison; it is advisory, not a safety proof.
 
 ## 0.4.31

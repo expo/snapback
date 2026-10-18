@@ -55,3 +55,24 @@ fn sweep_notes_follow_qualified_job_targets_in_modules() {
     assert_eq!(notes.len(), 1, "{:?}", b.notes);
     assert!(notes[0].message.contains("job workflow.closeDue") && notes[0].message.contains("mutation workflow.act"), "{:?}", notes);
 }
+
+#[test]
+fn a_confirmation_guard_cannot_replace_the_deadline_used_by_its_overdue_sweep() {
+    let source = SWEEP.replace("  closed: bool", "  closed: bool\n  confirmed: bool\n  unrelated: bool")
+        .replace("if t.deadline <= now:", "if not t.confirmed and t.deadline <= now:")
+        .replace("require not row.closed", "require not row.confirmed")
+        .replace("{ closed: false }", "{ confirmed: true }");
+    let found = notes(&source); assert_eq!(found.len(), 1, "{found:?}");
+    assert!(found[0].message.contains("tests row.confirmed") && found[0].message.contains("writes column tickets.confirmed") && found[0].message.contains("also tests that column"), "{found:?}");
+    let guarded = source.replace("  require not row.confirmed", "  require row.deadline > now else EXPIRED\n  require not row.confirmed");
+    assert!(notes(&guarded).is_empty());
+    assert!(notes(&source.replace("require not row.confirmed", "require not row.unrelated").replace("{ confirmed: true }", "{ unrelated: true }")).is_empty());
+    let separate = source.replace("if not t.confirmed and t.deadline <= now:
+      update tickets[t.id] { closed: true }", "if t.deadline <= now:
+      update tickets[t.id] { closed: true }
+    if not t.confirmed:
+      continue");
+    let correlation = notes(&separate); assert_eq!(correlation.len(), 1, "{correlation:?}");
+    assert!(correlation[0].message.contains("not a proof of control flow, row identity or safety"), "{correlation:?}");
+    assert!(!correlation[0].message.contains("before its timed status update"));
+}

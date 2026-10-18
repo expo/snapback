@@ -1585,6 +1585,9 @@ the `Use*` types name a hook's result for a prop. Hover any name for its full co
 | `useAppReady()` | initial app.ready settled, current auth is signed-in without an admission refusal; later sign-in recovers failed restoration; gate initial write forms, not connectivity or permission |
 | `useAuth()` | `AuthSnapshot` plus `signup`, `login`, `guest`, `logout`, `logoutEverywhere`; `state === "signed-in"` narrows `viewer` |
 | `useClient()`, `useOnline()` | the `Client`; the app's server arm `Online` (under `AppProvider`) |
+| `SignedIn` | auth gate under AppProvider; signed-out fallback, restoring placeholder, signed-in children |
+| `useQueryData(op, args, options?)` | data or undefined; throws `QueryRefusal` carrying the original typed `why`; partial/stale data stays displayable |
+| `useQueryResult(op, args, options?)` | `{ data, why, read }`; inline refusal and the precise snapshot |
 | `useQuery(op, args, { keep, skip }?)` | `Read<R>` (`UseQuery<typeof op>`): narrow with `matchRead` or the guards; `skip: true` reads nothing (`loading`) |
 | `usePage(op, args, { keep, skip }?)` | `{ items, hasMore, read, loadMore }` (`UsePage<typeof op>`, a `PageHook<R>`); `op` declares `c: cursor ?` |
 | `useFollowing(op, args)` | Following history: the snapshot plus `loadMore`, `retry`, `refresh` (`guide feeds`) |
@@ -4143,5 +4146,34 @@ export function InlineNotes({team}:{team:string}) {
 }
 export function ShortScreen() {
   return <SignedIn fallback={<p>Sign in</p>} restoring={<p>Restoring…</p>}><InlineNotes team="t" /></SignedIn>;
+}
+```
+
+## Money arguments from JavaScript
+
+`money USD` defaults to scale 2: pass integer cents, so 1234 is $12.34.
+`decimal 4` likewise uses integers scaled by 10,000. Fractions such as 12.34
+refuse E_INPUT; the SDK does not silently round. Declare this as
+`snapback/money.q`, then run check to generate its module handle:
+
+```quarry
+table prices:
+  owner: principal
+  amount: money USD
+  immutable owner
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  online only
+mutation recordPrice(amount: money USD):
+  return insert prices { owner: viewer, amount }
+```
+
+In a Node 24 module at the project root, use the generated operation exactly
+as in a React handler. Pass your authenticated client to this helper:
+
+```js
+import { api } from "./snapback/generated/api.ts";
+export function recordPrice(client) {
+  return client.mutate(api.money.recordPrice, { amount: 1234 });
 }
 ```
