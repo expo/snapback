@@ -96343,7 +96343,8 @@ language and authorization recipes, and SURF5 broader discovery/help work.
 
 Governing amendments are LLP 3000.007 §20.12.1–2, LLP 3000.000.000.000 §10,
 LLP 3000.000.000.000.000 §8 and LLP 3000.011.003.000.000 §12. Both fresh families
-returned READY on the main semantic delta and on the paired-time follow-up;
+returned READY on the main semantic delta, paired-time follow-up and final
+captured-window admission correction;
 verbatim records are under llp/reviews. WORKSTREAM-REPORT.md distinguishes
 executed verification, final qualification and inherited root preconditions.
 The 0.4.32 guide-changes entry is added; no version bump, push or publish occurred.
