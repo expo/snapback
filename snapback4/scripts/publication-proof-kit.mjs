@@ -47,7 +47,7 @@ const cwd=await mkdtemp(join(tmpdir(),'kit4-packed-clock-'));
 let dev,web,uiDev;
 try {
   await mkdir(join(cwd,'snapback'));await mkdir(join(cwd,'fixtures'));
-  const source="use personas alice\ntable counters:\n  n: int\n  cap 1\n  public 'proof'\n  update <- allow\n  online only\nquery counts():\n  return counters first 1 by .id\nmutation bump(counterId: counters):\n  row = counters[counterId] ! else NOT_FOUND\n  update counters[row] {n:row.n+1}\n  return null\njob tick():\n  chunk row in counters first 1 by .id:\n    update counters[row.id] {n:row.n+1}\njob secondTick():\n  chunk row in counters first 1 by .id:\n    update counters[row.id] {n:row.n+1}\nschedule first every 5m: tick\nschedule second every 5m: secondTick\n";
+  const source="use personas alice\ntable counters:\n  n: int\n  cap 1\n  public 'proof'\n  update <- allow\n  online only\nquery counts():\n  return counters first 1 by .id\nmutation bump(counterId: counters):\n  row = counters[counterId] ! else NOT_FOUND\n  update counters[row] {n:row.n+1}\n  return null\njob tick():\n  chunk row in counters first 1 by byId:\n    update counters[row.id] {n:row.n+1}\njob secondTick():\n  chunk row in counters first 1 by byId:\n    update counters[row.id] {n:row.n+1}\nschedule first every 5m: tick\nschedule second every 5m: secondTick\n";
   await writeFile(join(cwd,'snapback/schema.q'),source);
   await writeFile(join(cwd,'fixtures/counters.jsonl'),'{"id":"counter","n":0}\n');
   await writeFile(join(cwd,'fixtures/test.cases.jsonl'),[
