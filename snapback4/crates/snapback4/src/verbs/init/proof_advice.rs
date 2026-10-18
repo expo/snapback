@@ -80,7 +80,8 @@ mod tests {
             ("0.4.28",include_str!("previous/frontend-proof-0.4.28.mjs"),include_str!("previous/day2-proof-0.4.28.mjs")),
             ("0.4.29",include_str!("previous/frontend-proof-0.4.29.mjs"),include_str!("previous/day2-proof-0.4.29.mjs")),
             ("0.4.30",include_str!("previous/frontend-proof-0.4.30.mjs"),include_str!("previous/day2-proof-0.4.30.mjs")),
-            ("0.4.31",include_str!("frontend-proof.mjs"),include_str!("day2-proof.mjs")),
+            ("0.4.31",include_str!("previous/frontend-proof-0.4.31.mjs"),include_str!("day2-proof.mjs")),
+            ("0.4.32",include_str!("frontend-proof.mjs"),include_str!("day2-proof.mjs")),
         ] {
             for web in [false,true] { for template in [None,Some("chat"),Some("social")] {
                 expected.push(serde_json::json!({"file":"frontend","version":version,"web":web,"template":template,"sha256":digest(&super::super::proof::frontend_proof(frontend,template,web))}));

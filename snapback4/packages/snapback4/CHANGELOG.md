@@ -3,7 +3,7 @@
 ## 0.4.32
 
 - Staging: `deploy --staging` marks only a fresh store; existing production/legacy stores refuse relabelling. `guide staging` runs real password signup and operator-only role provisioning under serve, including first-admin setup. `startServe` adds `operatorToken()`, `seedAccounts()` and `seedUsers`/`sessions`; bulk setup refuses production before creating accounts.
-- Password-only dev closes `/seed`, `/dev/*` and persona headers by default. Local fixture tools require explicit `--unsafe-dev-doors`; persona names always require a declaration. `/auth/config` reports development, environment and devDoors separately. `startDev()` now persists by default; request `args:["--memory"]` for a disposable store.
+- Password-only dev closes `/seed`, `/dev/*` and persona headers by default. Local fixture tools require explicit `--unsafe-dev-doors`; persona names always require a declaration. `/auth/config` reports development, environment and devDoors separately. `startDev()` now persists by default; request `args:["--memory"]` for a disposable store. Generated frontend proofs select disposable fixture tools explicitly; `init --adapt --apply` updates unmodified older proofs by digest.
 
 ## 0.4.31
 

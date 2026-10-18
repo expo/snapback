@@ -1,14 +1,17 @@
 // Installed only into private copies of the three wave-16 evidence lanes.
-import { readFileSync } from "node:fs";
+import { readFileSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { deploy, startServe, startStatic, command, cleanup } from "snapback4/proof";
 const roles = JSON.parse(readFileSync("stage-roles.json", "utf8"));
 let host, web;
-const stop = () => cleanup(() => web?.stop(), () => host?.stop());
+const directory = mkdtempSync(join(tmpdir(), "sb4-stage-probe-"));
+const stop = () => cleanup(() => web?.stop(), () => host?.stop(), () => rmSync(directory, { recursive: true, force: true }));
 process.once("SIGTERM", () => void stop().then(() => process.exit(0)));
 process.once("SIGINT", () => void stop().then(() => process.exit(0)));
 try {
-  await deploy("stage-deployment", "snapback", { args: ["--staging"] });
-  host = await startServe("stage-deployment", { seedUsers: { roles, provision: { name: "stagingProvision" } } });
+  await deploy(directory, "snapback", { args: ["--staging"] });
+  host = await startServe(directory, { seedUsers: { roles, provision: { name: "stagingProvision" } } });
   const config = await fetch(host.url + "/auth/config").then(r => r.json());
   if (config.development || config.environment !== "staging") throw Error("serve staging required");
   const post = async (name, account, args) => {

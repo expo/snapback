@@ -60,6 +60,10 @@ pub(super) fn call(request: Request, shared: &Shared, name: &str, body: &str) {
     let Some(id) = payload.get("id").and_then(Json::as_str) else { return respond(request, 400, json!({ "denied": Refusal::new("E_INPUT", "input", "mint an id on the client and reuse it when retrying this action") })); };
     let admitted = {
         let mut engine = producing_engine(shared);
+        // @ref LLP 3000.000.000.001#4-development-doors — queued actions cannot inherit a retired persona's authority.
+        if let Err(why) = mutation_authority(&request, shared, &engine, &principal) {
+            drop(engine); return respond(request, 401, json!({"denied":why}));
+        }
         if let Err(why) = intent_store(&engine, &payload) {
             let metadata = response_head(&mut engine);
             drop(engine);
@@ -152,7 +156,13 @@ fn claim_selected(request: Request, shared: &Shared, body: &str, registry: bool)
 pub(super) fn settle(request: Request, shared: &Shared, path: &str, body: &str) {
     if let Some(id) = path.strip_prefix("/actions/").and_then(|path| path.strip_suffix("/cancel")).and_then(decode_id) {
         let principal = match principal_of(&request, shared) { Ok(p) => p.0, Err(why) => return respond(request, 401, json!({ "denied": why })) };
-        let answer = producing_engine(shared).cancel_action(&id, &principal, shared.now());
+        let answer = {
+            let mut engine = producing_engine(shared);
+            if let Err(why) = mutation_authority(&request, shared, &engine, &principal) {
+                drop(engine); return respond(request, 401, json!({"denied":why}));
+            }
+            engine.cancel_action(&id, &principal, shared.now())
+        };
         return match answer {
             Ok(run) => { shared.durable_committed(&lock(&shared.engine)); respond(request, 200, json!({ "ok": true, "request": outcome(&run, false) })); }
             Err(error) => respond(request, if error.refusal().retryable { 503 } else { 200 }, json!({ "denied": failure(&error) })),

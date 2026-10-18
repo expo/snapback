@@ -1,0 +1,21 @@
+{
+  "lane": "002-snapback-orchard-spray-reentry",
+  "status": "passed",
+  "backend": "serve",
+  "development": false,
+  "environment": "staging",
+  "devDoors": false,
+  "passwordLogins": {
+    "applicator": 2,
+    "picker": 2,
+    "manager": 2,
+    "crew_lead": 2,
+    "inspector": 2
+  },
+  "unauthenticatedSeed": 403,
+  "unauthenticatedStatus": 403,
+  "persona": 401,
+  "frontend": 200,
+  "aliveAtEnd": true,
+  "credentials": "kept in memory; omitted from evidence"
+}

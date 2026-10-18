@@ -104,7 +104,7 @@ pub(crate) fn persona_read_authority(request: &Request, shared: &Shared, engine:
 }
 
 // @ref LLP 3000.019#3.6 — adoption's writer queue cannot retain expired bearer authority.
-pub(super) fn mutation_authority(request: &Request, shared: &Shared, engine: &Engine, principal: &str) -> Result<(), Refusal> {
+pub(crate) fn mutation_authority(request: &Request, shared: &Shared, engine: &Engine, principal: &str) -> Result<(), Refusal> {
     if principal_with_owner(request, shared, Some(engine))?.0 == principal { Ok(()) }
     else { Err(Refusal::new("E_AUTH", "auth", "the request's session changed; sign in again").guide("personas")) }
 }

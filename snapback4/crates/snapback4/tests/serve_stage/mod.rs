@@ -83,3 +83,73 @@ fn stage_persona_cannot_acquire_a_replacement_password_only_reader() {
         assert!(body(&response).get("data").is_none(), "new result never crosses the closed persona door");
     }
 }
+
+#[test]
+fn stage_actions_and_session_routes_revalidate_before_durable_admission() {
+    let source = "use server\nuse identity\nuse personas alice\naction work()\nroute report: post \"/report\" wait 1s\n";
+    for password in [false, true] {
+        for path in ["/a/work?wait=0", "/report", "/actions/keep/cancel"] {
+            let host = Host::with_default_doors(source);
+            // Existing work must remain uncancelled when cancellation loses
+            // its persona authority while queued behind the writer.
+            {
+                let mut engine = lock(&host.shared.engine);
+                engine.request_action("work", "keep", Context::new("dev:alice", BTreeMap::new()).at(host.shared.now())).unwrap();
+            }
+            let mut engine = lock(&host.shared.engine);
+            let before: i64 = engine.store().conn().query_row("SELECT COUNT(*) FROM _requests", [], |row|row.get(0)).unwrap();
+            let address = host.address;
+            let task = thread::spawn(move || {
+                let payload = r#"{"id":"new","args":{}}"#;
+                exchange_held(address, Duration::from_secs(10), &format!("POST {path} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: {}\r\n\r\n{payload}",payload.len()))
+            });
+            wait_until(|| host.shared.engine.waiting() > 0);
+            let next = if password { source.replace("use identity", "use identity password") }
+                else { source.replace("use personas alice\n", "") };
+            let bound = snapback4_lang::compile(&[("schema.q".into(), next)]);
+            let generation = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p|p.program.clone())).unwrap();
+            lock(&host.shared.readers).replace(&engine, &bound.refusal_sites);
+            *lock(&host.shared.bound) = bound; *lock(&host.shared.generation) = generation;
+            drop(engine);
+            let response = task.join().unwrap();
+            assert_eq!(status(&response), 401, "password={password}, {path}: {response}");
+            assert_eq!(body(&response)["denied"]["code"], "E_AUTH");
+            let mut engine = lock(&host.shared.engine);
+            let after: i64 = engine.store().conn().query_row("SELECT COUNT(*) FROM _requests", [], |row|row.get(0)).unwrap();
+            assert_eq!(after, before, "refused admission creates no durable work");
+            assert!(!engine.action_request_at("keep", "dev:alice", host.shared.now()).unwrap().cancelled);
+            let claims = engine.claim_actions("service:worker", None, 10, 1000, 60, host.shared.now()).unwrap();
+            assert_eq!(claims.len(), 1, "only previously admitted work is claimable");
+            assert_eq!(claims[0].request.id, "keep");
+        }
+    }
+}
+
+#[test]
+fn stage_asset_owner_transitions_recheck_at_the_writer() {
+    let source = "use identity\nuse personas alice\n";
+    for path in ["/assets/intent/abc/cancel", "/assets/intent/abc/declare", "/assets/intent/abc/finish", "/assets/intents"] {
+        let host = Host::with_default_doors(source);
+        let mut engine = lock(&host.shared.engine);
+        let store = engine.store().meta("store_id").unwrap().unwrap();
+        let address = host.address;
+        let task = thread::spawn(move || {
+            let payload = if path.ends_with("declare") { json!({"digest":"a".repeat(64),"placement":{"op":"place","args":{},"argument":"photo"}}) }
+                else if path.ends_with("finish") { json!({"op":"place","args":{},"why":{"code":"REFUSED","family":"rule","message":"fixture"}}) }
+                else { json!({}) }.to_string();
+            let method = if path == "/assets/intents" { "GET" } else { "POST" };
+            exchange_held(address, Duration::from_secs(10), &format!("{method} {path}?store_id={store} HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nx-snapback-persona: alice\r\nContent-Length: {}\r\n\r\n{payload}",payload.len()))
+        });
+        wait_until(|| host.shared.engine.waiting() > 0);
+        let bound = snapback4_lang::compile(&[("schema.q".into(),source.replace("use identity", "use identity password"))]);
+        let generation = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p|p.program.clone())).unwrap();
+        lock(&host.shared.readers).replace(&engine,&bound.refusal_sites);
+        *lock(&host.shared.bound)=bound;*lock(&host.shared.generation)=generation;
+        drop(engine);
+        let response=task.join().unwrap();
+        assert_eq!(body(&response)["denied"]["code"],"E_AUTH","{path}: {response}");
+        let engine=lock(&host.shared.engine);
+        let intents:i64=engine.store().conn().query_row("SELECT COUNT(*) FROM _asset_intents",[],|row|row.get(0)).unwrap();
+        assert_eq!(intents,0,"refused owner request cannot leave an intent or cancellation tombstone");
+    }
+}

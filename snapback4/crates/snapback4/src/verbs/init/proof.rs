@@ -111,7 +111,7 @@ pub(super) fn frontend_proof(source: &str, template: Option<&str>, web: bool) ->
 }
 
 fn previous_frontend(dir: &std::path::Path, web: bool) -> Option<Option<&'static str>> {
-    super::proof_advice::frontend_template(dir, web).filter(|(version,_)| matches!(*version,"0.4.28"|"0.4.29")).map(|(_,template)|template)
+    super::proof_advice::frontend_template(dir, web).filter(|(version,_)| matches!(*version,"0.4.28"|"0.4.29"|"0.4.30"|"0.4.31")).map(|(_,template)|template)
 }
 
 /// Adapt adds missing proof infrastructure, preserving files and script names
@@ -253,6 +253,8 @@ mod tests {
         for (version, source) in [
             (28, include_str!("previous/frontend-proof-0.4.28.mjs")),
             (29, include_str!("previous/frontend-proof-0.4.29.mjs")),
+            (30, include_str!("previous/frontend-proof-0.4.30.mjs")),
+            (31, include_str!("previous/frontend-proof-0.4.31.mjs")),
         ] {
             for web in [false, true] {
                 for template in [None, Some("chat"), Some("social")] {

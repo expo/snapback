@@ -96331,3 +96331,23 @@ production refusal, hot/cold classification, explicit tools, persistence and
 schema-adoption closure. Further packed/platform/full-suite results and blind
 reviews are recorded in the workstream report; no publication claim.
 SEC owns self-promotion lint, KIT4 the unrelated helper work, PROD2 starter adaptation.
+
+
+### STAGE review and consumer follow-through — 2026-10-18
+
+Blind reviews found and drove deterministic barriers for slow bodies, queued
+fixture/clock/job writes, replacement persona readers, and action/session-route
+admission/cancellation. Upload-owner transitions now share writer revalidation.
+Read admission never holds the cast-publication mutex through I/O: concurrent
+ordinary writes retain their snapshot contract. The latest native CLI unit run
+passed 476 tests with 5 existing ignores. Mac passed the preceding candidate
+(465 + 5 ignores) and affected client files; final changed-scope rerun follows.
+
+Packed qualification exposed a generated chat proof depending on the kit
+adding --memory. The kit persists by default; generated local fixture proofs
+now explicitly request --memory and --unsafe-dev-doors. Exact old 0.4.31 proof
+bytes/digests are retained and unmodified 0.4.30/0.4.31 scripts can be adapted;
+custom scripts remain owned by their author. DAY5 owns other starter custody.
+All three copied wave-16 probes (002, 011, 045) ran serve with real users and
+closed unauthenticated doors; sanitized evidence lives in reports/20261018-stage.
+No original lane or other worktree was modified, and nothing was pushed.
