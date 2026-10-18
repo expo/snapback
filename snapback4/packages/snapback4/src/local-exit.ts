@@ -39,7 +39,7 @@ export function exitTransport(doFetch: typeof fetch, base: string, closed?: Abor
           // @ref LLP 3000.019#3.3 — a live page can show the exit send's hold,
           // without changing keepalive's existing receipt/settlement policy.
           if (why?.retryable) await held?.(entry, why);
-          if (why?.code === "E_STORE_REPLACED" && !why.retryable) await refused?.(entry, why);
+          if ((why?.code === "E_STORE_REPLACED" || why?.code === "E_DEV_RESET") && !why.retryable) await refused?.(entry, why);
         })
         .catch(() => {})
         .finally(() => { inflightBytes -= bytes; active = undefined; });

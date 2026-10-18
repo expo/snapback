@@ -10,28 +10,29 @@ const head = (store_id, seq) => ({ store_id, seq, generation: 1, tables: ['secre
 const until = async check => { return awaitState(check); };
 const blocked = signal => new Promise((_, reject) => { if (signal?.aborted) reject(Error('closed')); else signal?.addEventListener('abort', () => reject(Error('closed')), { once: true }); });
 
-for (const source of ['query', 'mutation', 'changes', 'probe']) for (const replacement of [true, false]) {
-  test(`${source}: ${replacement ? 'replacement' : 'regression'} is terminal for all reads and writes`, async t => {
+for (const source of ['query', 'mutation', 'changes', 'probe']) for (const replacement of [true, false, 'reset']) {
+  test(`${source}: ${replacement === 'reset' ? 'dev reset' : replacement ? 'replacement' : 'regression'} is terminal for all reads and writes`, async t => {
     const change = gate(), receipt = gate(); let polls = 0, probes = 0, queryCount = 0, writes = 0, total = 0, changed = false;
-    const id = replacement ? 'B' : 'A', code = replacement ? 'E_STORE_REPLACED' : 'E_STORE_RESTORE';
+    const id = replacement ? 'B' : 'A', code = replacement === 'reset' ? 'E_DEV_RESET' : replacement ? 'E_STORE_REPLACED' : 'E_STORE_RESTORE';
+    const reply = body => Response.json(body, {headers: replacement === 'reset' && body.store_id === 'B' ? {'x-snapback-dev-reset':'B'} : {}});
     const client = createClient({ url: 'http://store.test', persona: 'alice', fetch: async (url, init) => {
       total++;
       if (url.includes('/changes')) {
         if (!['changes', 'probe'].includes(source)) return blocked(init.signal);
-        if (++polls === 1) return Response.json(head('A', 100));
-        if (polls === 2) { await change.promise; if (source === 'probe') throw Error('disconnected'); return Response.json(head(id, 1)); }
+        if (++polls === 1) return reply(head('A', 100));
+        if (polls === 2) { await change.promise; if (source === 'probe') throw Error('disconnected'); return reply(head(id, 1)); }
         return blocked(init.signal);
       }
-      if (url.includes('/probe')) { probes++; return Response.json({ ok: true, ...head(id, 1) }); }
+      if (url.includes('/probe')) { probes++; return reply({ ok: true, ...head(id, 1) }); }
       if (url.includes('/m/')) {
         writes++; await receipt.promise;
         // A late retryable failure used to reschedule this request even after
         // a head check had reported E_STORE_RESTORE.
         if (source !== 'mutation') return Response.json({ why: { code: 'E_BUSY', retryable: true } }, { status: 503 });
-        return Response.json({ state: 'sent', id: JSON.parse(init.body).id, store_id: id, seq: 1, head: 1 });
+        return reply({ state: 'sent', id: JSON.parse(init.body).id, store_id: id, seq: 1, head: 1 });
       }
       queryCount++;
-      return Response.json(ready(changed && source === 'query' ? id : 'A', changed && source === 'query' ? 1 : 100));
+      return reply(ready(changed && source === 'query' ? id : 'A', changed && source === 'query' ? 1 : 100));
     } });
     t.after(async () => { change.resolve(); receipt.resolve(); await client.close(); });
     const watch = client.observe(q, {}), seen = [], settled = [];

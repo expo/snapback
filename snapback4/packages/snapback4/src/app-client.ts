@@ -262,7 +262,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
       if (denied) {
         // A repeated ID can already have durable custody behind this facade.
         // Store retirement must commit before a terminal refusal can escape.
-        if (["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(denied.code)) {
+        if (["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(denied.code)) {
           try { await retireStore?.(); }
           catch { return { state: "pending", id, reason: "waiting to persist the terminal receipt" }; }
         }

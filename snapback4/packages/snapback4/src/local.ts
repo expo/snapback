@@ -1251,7 +1251,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           release();
           if (admitted.denied) {
             settled.delete(id);
-            const why = waiting && ["E_GENERATION", "E_PREDICT", "E_STORE_REPLACED", "E_STORE_RESTORE", "E_ADMISSION_STORE"].includes(admitted.denied.code) ? identityRefusal(false) : admitted.denied;
+            const why = waiting && ["E_GENERATION", "E_PREDICT", "E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE", "E_ADMISSION_STORE"].includes(admitted.denied.code) ? identityRefusal(false) : admitted.denied;
             const failed = { state: "failed" as const, id, why };
             return admitted.denied.code === "E_WRITE_ID_REUSE" ? failed : emitLocalFailure(failed);
           }

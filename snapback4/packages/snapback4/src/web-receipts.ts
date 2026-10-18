@@ -24,7 +24,7 @@ export async function receiptHistory(persist: Persistence, name: string): Promis
   return terminalReceipts(text);
 }
 
-const unknownOutcome = (write: TerminalReceipt) => write.state === "failed" && write.why.code === "E_STORE_REPLACED";
+const unknownOutcome = (write: TerminalReceipt) => write.state === "failed" && ["E_STORE_REPLACED", "E_DEV_RESET"].includes(write.why.code);
 
 // @ref LLP 3000.013#6 — a caller's lookup applies adoption's correction rule.
 // A shared, verified outcome resolves this client's own unknown replacement

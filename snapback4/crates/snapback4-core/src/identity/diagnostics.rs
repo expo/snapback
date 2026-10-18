@@ -11,7 +11,7 @@ fn present(conn: &Connection, table: &str) -> Result<bool, RuntimeError> {
 pub fn refused(store: &Store, token: &str, now: i64, trusted_dev: bool) -> crate::error::Refusal {
     let generic = "this session is not live; sign in again";
     let message = if trusted_dev { explanation(store, token, now).unwrap_or(generic) } else { generic };
-    crate::error::Refusal::new("E_AUTH", "auth", message).guide("personas")
+    crate::error::Refusal::new("E_AUTH", "auth", message).guide(if trusted_dev { "wire" } else { "personas" })
 }
 
 fn explanation(store: &Store, token: &str, now: i64) -> Result<&'static str, RuntimeError> {
@@ -24,7 +24,7 @@ fn explanation(store: &Store, token: &str, now: i64) -> Result<&'static str, Run
     Ok(match expiry {
         Some(at) if at <= now => "this session expired on the server clock (a dev clock advance can expire sessions); sign in again",
         Some(_) => "this session was signed out, revoked, or replaced by refresh; sign in again and discard the saved token",
-        None => "this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store",
+        None => "this session is unknown to this store: it may come from an earlier or replaced store or another instance, or have expired or been signed out (including before this server started); sign in again and discard saved tokens from an earlier store. Raw HTTP on dev uses x-snapback-persona: alice; serve uses Authorization: Bearer <token>; snapback4 guide wire shows the literal envelopes",
     })
 }
 

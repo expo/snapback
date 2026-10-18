@@ -208,7 +208,7 @@ export class DeliveryQueue {
       const json = reply?.json;
       const why = (json?.why ?? json?.denied) as Refusal | undefined;
       const denied = json?.denied as Refusal | undefined;
-      if ([why?.code, denied?.code].some(code => code === "E_STORE_REPLACED" || code === "E_STORE_RESTORE")) { await this.reset(true); return; }
+      if ([why?.code, denied?.code].some(code => code === "E_STORE_REPLACED" || code === "E_DEV_RESET" || code === "E_STORE_RESTORE")) { await this.reset(true); return; }
       const outcome = await this.track(this.options.storage.update(state => {
         if (!this.current(f)) return;
         const group = state.groups[f.key];

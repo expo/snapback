@@ -116,7 +116,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
   // @ref LLP 3000.007#17 — recovery confirms execution, never historical result values or details.
   const receiptOf = (write: Terminal): Terminal => write.state === "sent"
     ? { state: "sent", id: write.id, seq: write.seq, replayed: true }
-    : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
+    : { state: "failed", id: write.id, why: { code: write.why.code, family: write.why.family, message: ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(write.why.code) ? `write refused: ${write.why.code}; whether it executed is unknown; do not retry automatically` : `write refused: ${write.why.code}` } };
   const retain = (write: Terminal, error: unknown) => {
     const first = !unpersisted.has(write.id);
     if (active) unpersisted.set(write.id, receiptOf(write));
@@ -138,7 +138,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       journal.pending = journal.pending.filter(intent => intent.id !== write.id);
       // Never persist historical read results or refusal details for disclosure on reopen.
       journal.receipts.push(receiptOf(write));
-      keepReceipts(journal, new Set([write.id]), write.state === "failed" && ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code));
+      keepReceipts(journal, new Set([write.id]), write.state === "failed" && ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(write.why.code));
       return true;
     });
     presentation.release(write.id);
@@ -154,7 +154,7 @@ export async function onlineCustody(raw: Client, url: string, store: SessionStor
       if (recoveredIntents.delete(write.id)) { notify(write); return; }
       // The raw client emits one refusal per queued write. Retire that store's
       // queue once, so all newly failed receipts share the same pinned save.
-      const retiring = write.state === "failed" && ["E_STORE_REPLACED", "E_STORE_RESTORE"].includes(write.why.code);
+      const retiring = write.state === "failed" && ["E_STORE_REPLACED", "E_DEV_RESET", "E_STORE_RESTORE"].includes(write.why.code);
       if (retiring) void refuseStore(write.why).catch(report);
       else void settle(write).catch(error => retain(write, error));
     }
