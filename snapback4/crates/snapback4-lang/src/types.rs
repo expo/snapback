@@ -292,7 +292,7 @@ impl Ty {
             (Ty::Enum(variants), Ty::Text(max)) | (Ty::Text(max), Ty::Enum(variants)) => {
                 // A non-text enum cannot disappear into Unknown and later
                 // establish an argument or column assignment proof.
-                if !Ty::Enum(variants.clone()).assignable_to(&Ty::Text(u32::MAX)) { return Err(conflict()); }
+                if !Ty::Enum(variants.clone()).assignable_to(&Ty::Text(u32::MAX)) { return Err(JoinError { incompatible_items: strict, ..conflict() }); }
                 let longest = variants.iter().map(|v| u32::try_from(v.chars().count()).unwrap_or(u32::MAX)).max().unwrap_or(0);
                 Ty::Text((*max).max(longest))
             }

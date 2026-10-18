@@ -96353,3 +96353,9 @@ longer silently ignore web/expo/day2. Packed and Mac qualification follow the
 final source; the workstream report retains failed attempts and reruns.
 
 PROD2 coordination: KIT4 owns day-two proof/API text; DAY5 owns general starter/Expo advice; RULES5 owns rule recipes; EX10 owns Exact2 guest/account integration. These lane pointers stay outside packaged discovery text.
+
+The full language suite also caught an existing diagnostic contract: unsafe enum/
+text list items must keep E_QUARRY_TYPE and its value-preserving typed-helper
+repair. Strict item joins now retain their incompatible-item marker when the
+reviewed general join refusal fires; general flow/min/max refusal remains intact.
+This restores the existing list diagnostic without changing the reviewed norm.
