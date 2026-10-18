@@ -2,6 +2,10 @@
 
 ## 0.4.32
 
+- Custom production adaptation proposes a literal service-seat mutation for every fixture-only enum role, requires explicit target principals, and points custom persona entries to the account/persona recipe. Existing application writers remain owned by the app. Persona-only upgrade actions name `init --adapt --production`; guests-only identity and guest-to-account replacement are explicit.
+- `useAppReady()` marks successful initial account restoration and stays true across release switches and later admission warnings. It still resets on account/app replacement or restoration/sign-out. Keep drafts above role/release branches; current complete, fresh role evidence and operation availability gate protected actions. SDK/server admission remains authoritative.
+- Generated post-evolution optional fields explain which releases lack the column. Conditional enum projections retain literal and nullable unions; dynamic text still widens to string. Missing device-less identity persistence produces a type error naming `sessionStore`. Complete empty lists remain `absent`; document uploads use `{file:{…}}`.
+
 - Production principal migration scans skip hidden directories and test, acceptance, fixture and proof sources; runtime scripts remain visible.
 
 - Production entry opens the device and restores persisted sessions before refreshing `/auth/config`; an unreachable backend no longer replaces an offline account screen with an alert.

@@ -96313,3 +96313,24 @@ under `--prefer-offline`; after refreshing it, Linux passed `== 0 failure(s) in
 steps reran after it appeared. Clean installs on Linux and the Mac print
 `snapback4 0.4.30` and pass `init` + `check`. Details:
 `reports/20261016-publication-0.4.30/REPORT.md`.
+
+
+### 2026-10-18 — PROD2: offline entry, production plans and release-stable drafts
+
+Wave-15 R3 and R6 landed separately first: AccountEntry opens the device before
+background auth-config discovery; the production scan excludes hidden/test
+sources while retaining runtime scripts. The reviewed LLP 3000.011.003.000.001
+amends readiness to initial successful account restoration, preserving the
+current account's shell through release changes and later admission warnings.
+Current fresh/complete/non-revalidating role evidence and generated operation
+availability still gate protected work; SDK/server admission is unchanged.
+Guest intents remain under the guest principal when signup replaces it.
+Fixture-only enum roles get one literal service-seat operation per role, custom
+persona entries discover the account recipe, and persona-only upgrade actions
+name production adaptation. Codegen explains post-evolution optionality and
+keeps conditional enum domains. The missing-store type diagnostic names
+sessionStore; packed client recipes execute explicit PDF file uploads.
+Same-revision Muse and fresh Codex semantic reviews are READY (round 2).
+Focused Linux tests and the Mac Studio principal-scan suite passed; full client
+and packed consumer qualification results are recorded in WORKSTREAM-REPORT.md.
+No version bump, push or publication is part of this workstream.

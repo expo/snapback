@@ -746,6 +746,7 @@ test('principal-sharing invitation UI compiles against its actual generated prod
 
 test('device-less identity options require a store while persona and device forms remain explicit', () => {
   const missing = check(`import { createApp } from './src/app.ts'; createApp({url:'http://localhost:4400'});`);
+  assert.match(missing.text.replace(/\x1b\[[0-9;]*m/g, ''), /Property 'sessionStore' is missing/, missing.text);
   assert.deepEqual(missing.codes, [2345], missing.text);
   const valid = check(`import { createApp } from './src/app.ts'; import { localStorageSessionStore, memorySessionStore } from './src/auth.ts';
     createApp({url:'http://localhost:4400', sessionStore: localStorageSessionStore()});

@@ -20,7 +20,7 @@ export function productionSources(root) {
     for (const entry of readdirSync(join(root, relative), { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
       if (entry.isSymbolicLink()) continue;
       const path = join(relative, entry.name);
-      if (entry.isDirectory()) { if (!ignored.has(entry.name) && entry.name !== "generated") walk(path, depth - 1); }
+      if (entry.isDirectory()) { if (!entry.name.startsWith(".") && !ignored.has(entry.name) && entry.name !== "generated") walk(path, depth - 1); }
       else if (entry.isFile() && (frontend.has(extname(path)) || (path.startsWith(`snapback${sep}`) && extname(path) === ".q")))
         files.set(path, readFileSync(join(root, path)));
     }
@@ -28,6 +28,12 @@ export function productionSources(root) {
   walk();
   assert.ok(files.has(join("snapback", "schema.q")), `${root} has snapback/schema.q`);
   return files;
+}
+
+function runtimeSource(path) {
+  const parts = path.split(sep), stem = basename(path, extname(path));
+  return !parts.slice(0,-1).some(part=>part.startsWith(".") || ["test","tests","__tests__","acceptance"].includes(part))
+    && !stem.toLowerCase().split(/[._-]/).some(part=>["test","tests","spec","acceptance","fixture","fixtures","proof","smoke"].includes(part));
 }
 
 function snapshot(root) {
@@ -63,11 +69,13 @@ export function proveProductionAdaptation(cli, cwd, env, { original } = {}) {
   const preview = capture(cli, ["init", "--adapt", "--production"], cwd, env, join(cwd, "production-preview.log"));
   assert.match(preview, /preview; no files written/);
   assert.match(preview, /N_NO_PRODUCTION_WRITER tables/);
-  if ([...sourcesBefore].some(([path, bytes]) => !path.startsWith(`snapback${sep}`) && bytes.includes("dev:")))
+  if ([...sourcesBefore].some(([path, bytes]) => !path.startsWith(`snapback${sep}`) && runtimeSource(path) && bytes.includes("dev:")))
     assert.match(preview, /hard-coded dev: principal/, "authored development principals are listed for review");
+  if ([...sourcesBefore].some(([path, bytes])=>runtimeSource(path) && bytes.includes("usePersonaApp")))
+    assert.match(preview, /custom persona entry hint.*account\/persona recipe/, "custom picker discovers the account entry recipe");
   assert.deepEqual(privateSnapshot(cwd), before, "preview leaves every private application byte untouched");
   const writers = [...preview.matchAll(/: add (\w+); allow service:ops/g)].map(match => match[1]);
-  assert.ok(writers.length > 0, "fixture-only rosters receive provisioning mutations");
+  if (!original) assert.ok(writers.length > 0, "fixture-only rosters receive provisioning mutations");
   const applied = capture(cli, ["init", "--adapt", "--production", "--apply"], cwd, env, join(cwd, "production-apply.log"));
   assert.match(applied, /Signup grants no role/);
   const after = privateSnapshot(cwd);
@@ -78,13 +86,13 @@ export function proveProductionAdaptation(cli, cwd, env, { original } = {}) {
   for (const name of writers) {
     assert.equal([...schema.matchAll(new RegExp(`^mutation ${name}\\(`, "gm"))].length, 1, `one ${name} provisioning mutation`);
   }
-  assert.match(schema, /require viewer = 'service:ops' else NOT_OPERATOR/);
+  if (writers.length) assert.match(schema, /require viewer = 'service:ops' else NOT_OPERATOR/);
   capture(cli, ["check"], cwd, env, join(cwd, "production-check.log"));
   capture(cli, ["init", "--adapt", "--production", "--apply"], cwd, env, join(cwd, "production-second-apply.log"));
   assert.deepEqual(privateSnapshot(cwd), after, "a repeated apply is idempotent");
   if (original) assert.deepEqual(snapshot(original), originalBefore, "original evidence lane remains byte-identical");
   return { status: "passed", preview: "unchanged", apply: "compiled", frontend: "unchanged", identity: identityAfter, writers,
-    idempotent: true, ...(original ? { original, originalSources: originalBefore, originalUnchanged: true } : {}) };
+    idempotent: true, alreadyProvisioned: writers.length === 0, ...(original ? { original, originalSources: originalBefore, originalUnchanged: true } : {}) };
 }
 
 export async function proveProduction(client, platform, expo, directory) {
@@ -110,6 +118,11 @@ export async function proveProduction(client, platform, expo, directory) {
     const guide = capture(cli, ["guide", "production", "--full"], cwd, env, join(cwd, "production-guide.log"));
     const blocks = [...guide.matchAll(/```sh\n([\s\S]*?)\n```/g)].map(match => match[1]).filter(text => text.startsWith("cp recipes/production/schema.q"));
     assert.equal(blocks.length, 2, "packed guide carries React and Expo command recipes");
+    if (kind === "web") {
+      const entry=[...guide.matchAll(/```tsx\n([\s\S]*?)\n```/g)].map(match=>match[1]).find(text=>text.includes("export function AccountEntry"));
+      assert.ok(entry);writeFileSync(join(cwd,"src/AccountEntry.tsx"),entry);
+    }
+
     const commands = blocks[kind === "web" ? 0 : 1].trim().split("\n");
     assert.equal(commands.length, 7, "complete schema/screen/client/check/test/typecheck/build recipe");
     // Execute the actual packed guide lines without changing their arguments.

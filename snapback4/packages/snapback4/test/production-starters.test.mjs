@@ -147,3 +147,46 @@ createRoot(document.querySelector('#root')).render(<AccountEntry url={${JSON.str
   assert.ok(attempts>0,'background refresh actually attempted the offline network');
   assert.deepEqual(errors,[]);
 });
+
+
+test('useAppReady gate retains a draft through real hot adoption', {timeout:120000}, async t => {
+  const source = `use identity password
+table drafts:
+  owner: principal
+  body: text <=100
+  read <- .owner = viewer
+  insert <- .owner = viewer
+  sync to .owner
+query list():
+  return drafts[owner = viewer] first 20 by .id
+`;
+  const backend = await backendServer(t, undefined, source, {watch:true});
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-live-ready-'));let server,browser;
+  t.after(async()=>{try{await browser?.close();}finally{try{await server?.close();}finally{rmSync(dir,{recursive:true,force:true});}}});
+  writeFileSync(join(dir,'index.html'),'<div id="root"></div><script type="module" src="/harness.tsx"></script>');
+  writeFileSync(join(dir,'harness.tsx'),`
+import React,{useState} from 'react';import{createRoot}from'react-dom/client';
+import{createApp}from'snapback4/app';import{webDevice}from'snapback4/web';import{localStorageSessionStore}from'snapback4/auth';
+import{AppProvider,useAuth,useAppReady,useRelease}from'snapback4/react';
+const app=createApp({url:${JSON.stringify(backend.url)},device:webDevice(),sessionStore:localStorageSessionStore()});window.app=app;window.readiness=[];
+function Draft(){const[text,setText]=useState('');return <label>Draft<input value={text} onChange={e=>setText(e.target.value)}/></label>;}
+function Gate(){const auth=useAuth(),ready=useAppReady(),release=useRelease();window.readiness.push(ready);
+return <><output aria-label='Account'>{auth.state}</output><output aria-label='Generation'>{'generation'in release?release.generation:'loading'}</output>{ready?<Draft/>:<p>Opening</p>}</>;}
+createRoot(document.querySelector('#root')).render(<AppProvider app={app}><Gate/></AppProvider>);
+`);
+  server=await createBrowserServer({root:dir,configFile:false,logLevel:'error',server:{host:'127.0.0.1',port:0,fs:{allow:[root,dir,clientDist]}},resolve:{alias:['app','web','auth','react'].map(name=>({find:'snapback4/'+name,replacement:join(clientDist,name+'.js')}))}});
+  await server.listen();const{chromium}=require('playwright-core');browser=await chromium.launch({executablePath:chromiumExecutable(),headless:true,args:['--no-sandbox']});
+  const page=await browser.newPage();await loadBrowserPage(t,page,server.resolvedUrls.local[0]);
+  await page.waitForFunction(()=>window.app?.auth.state==='signed-out');
+  assert.equal((await page.evaluate(()=>window.app.auth.signup('release@example.com','password-release'))).ok,true);
+  const input=page.getByLabel('Draft');await input.fill('Unsent across release');
+  await page.waitForFunction(()=>/^\d+$/.test(document.querySelector('[aria-label=Generation]').textContent));
+  const before=await page.getByLabel('Generation').textContent();
+  await page.evaluate(()=>{window.originalInput=document.querySelector('input');window.readiness=[];});
+  writeFileSync(join(backend.dir,'snapback/schema.q'),source.replace('  body: text <=100','  body: text <=100\n  priority: int default 0')+'query v2():\n  return 2\n');
+  await page.waitForFunction(old=>{const value=document.querySelector('[aria-label=Generation]').textContent;return /^\d+$/.test(value)&&value!==old;},before);
+  assert.equal(await input.inputValue(),'Unsent across release');
+  assert.equal(await page.evaluate(()=>document.querySelector('input')===window.originalInput),true);
+  assert.ok((await page.evaluate(()=>window.readiness)).every(Boolean),'readiness never regresses during actual adoption');
+  await page.evaluate(()=>window.app.close());
+});

@@ -56,6 +56,14 @@ window.finish=()=>act(async()=>root.unmount());
  await publish({ready:true});assert.equal(await save.isDisabled(),false);
  assert.equal(await page.getByText('Protected note — normal',{exact:true}).count(),1,'since-release fallback');
  const kept=async()=>{assert.equal(await input.inputValue(),'Unsent draft');assert.equal(await select.inputValue(),'general');assert.equal(await page.evaluate(()=>window.originalInput===document.querySelector('input')),true)};
+ await publish({auth:{state:'signed-in',viewer:'dev:alice',why:{code:'E_ADMISSION',family:'client',message:'release work in progress'}}});
+ await kept();assert.equal(await page.getByLabel('Admission').textContent(),'ready','later warning does not unmount a successfully opened account');
+ for(const flags of [{fresh:false},{revalidating:true},{complete:false}]) {
+   await publish({role:{data:{role:'staff'},existence:'present',fresh:true,complete:true,cut:null,...flags}});
+   await kept();assert.equal(await save.isDisabled(),true,'stale, revalidating or incomplete role never grants authority');
+   assert.equal((await page.evaluate(()=>window.inspect())).notes,0);
+ }
+ await publish({auth:{state:'signed-in',viewer:'dev:alice'}});
  await publish({role:{loading:true},release:{loading:true}});await kept();assert.equal(await save.isDisabled(),true);
  assert.equal((await page.evaluate(()=>window.inspect())).notes,0,'protected reads withdraw');
  assert.equal(await page.getByText('Staff workspace',{exact:true}).count(),1,'sticky shell survives loading');

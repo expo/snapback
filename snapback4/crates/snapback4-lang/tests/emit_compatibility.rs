@@ -16,8 +16,8 @@ fn opt_in_optional_fields_and_arguments_without_changing_default_requiredness() 
     let ordinary = emit::typescript(&next);
     assert!(ordinary.contains("    color: string;"), "{ordinary}");
     let compatible = emit::typescript_spanning(&next, &old, 2);
-    assert!(compatible.contains("/** Since release 2. */\n    color?: string;"), "{compatible}");
-    assert!(compatible.contains("/** Since release 2. */ color?: string"), "{compatible}");
+    assert!(compatible.contains("/** Since release 2; optional: releases before 2 lack this column. */\n    color?: string;"), "{compatible}");
+    assert!(compatible.contains("/** Since release 2; optional: releases before 2 lack this column. */ color?: string"), "{compatible}");
     assert!(compatible.contains("/** Since release 2. */ flag?: boolean | null"), "{compatible}");
     assert!(compatible.contains("available(release: ReleaseSnapshot): boolean"));
     assert!(compatible.contains("operationAvailable(release, \"edit\", \"mutation\""));
@@ -69,4 +69,19 @@ fn spanning_domains_deduplicate_enum_variants_and_equal_ts_values() {
     let api = snapback4_lang::emit::typescript_spanning(&new, &old, 2);
     assert!(api.contains("status: \"open\" | \"closed\" | \"held\";"), "{api}");
     assert!(!api.contains("number | number"), "{api}");
+}
+
+
+#[test]
+fn conditional_enum_projections_keep_literal_and_nullable_domains() {
+    let source = "table instruments:\n  mode: enum('standby', 'measure')\n  optionalMode: enum('standby', 'measure') ?\n  dynamic: text <=20\n  active: bool\n  public 'instrument modes'\n  online only\nquery modes():\n  return instruments first 50 by .id { mode: .mode if .active else 'standby', mixed: 'other' if .active else .mode, nullable: .optionalMode if .active else 'standby', dynamic: .mode if .active else .dynamic }\n";
+    let bound = checked(source);
+    let api = emit::typescript(&bound);
+    assert!(api.contains("mode: \"standby\" | \"measure\""), "{api}");
+    assert!(api.contains("mixed: \"other\" | \"standby\" | \"measure\""), "{api}");
+    assert!(api.contains("nullable: \"standby\" | \"measure\" | null"), "{api}");
+    assert!(api.contains("dynamic: string"), "{api}");
+    let baseline = checked(&source.replace("'standby', 'measure'", "'standby', 'old'"));
+    let spanning = emit::typescript_spanning(&bound, &baseline, 2);
+    assert!(spanning.contains("mode: \"standby\" | \"measure\" | \"old\""), "{spanning}");
 }

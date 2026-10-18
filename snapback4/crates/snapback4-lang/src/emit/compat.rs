@@ -17,7 +17,7 @@ pub(super) fn result(current: &Ty, old: Option<&Ty>, since: Option<u64>) -> Stri
         (Ty::Object(fields) | Ty::RowShape(fields) | Ty::RowObject(fields), Ty::Object(before) | Ty::RowShape(before) | Ty::RowObject(before)) => {
             let mut fields = fields.iter().map(|(name, ty)| {
                 let optional = !before.contains_key(name);
-                format!("{}{}{}: {}", if optional { format!("/** Since release {}. */ ", since.unwrap()) } else { String::new() }, property(name), if optional { "?" } else { "" }, result(ty, before.get(name), since))
+                format!("{}{}{}: {}", if optional { format!("/** Since release {}; optional: releases before {} lack this column. */ ", since.unwrap(), since.unwrap()) } else { String::new() }, property(name), if optional { "?" } else { "" }, result(ty, before.get(name), since))
             }).collect::<Vec<_>>();
             if matches!(current, Ty::RowShape(_) | Ty::RowObject(_)) { fields.push("pending?: boolean".into()); fields.push("retained?: boolean".into()); }
             format!("{{ {} }}", fields.join("; "))

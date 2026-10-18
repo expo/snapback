@@ -22,6 +22,10 @@ export async function proveClientRecipes(client, platform, directory) {
   const recipe = [...guide.stdout.matchAll(/```ts\n([\s\S]*?)\n```/g)].map(match => match[1]).find(text => text.includes("function listLabel"));
   assert.ok(recipe, "packed guide has the data-narrowing recipe");
   writeFileSync(join(cwd, "recipe.ts"), recipe);
+  const pdf = [...guide.stdout.matchAll(/```ts\n([\s\S]*?)\n```/g)].map(match=>match[1]).find(text=>text.includes("function uploadPdf"));
+  assert.ok(pdf, "packed guide has the explicit PDF document recipe");
+  writeFileSync(join(cwd, "pdf.ts"), pdf);
+
   writeFileSync(join(cwd, "handlers.ts"), handlers);
   const workspace = [...guide.stdout.matchAll(/```tsx\n([\s\S]*?)\n```/g)].map(match => match[1]).find(text => text.includes("function StaffWorkspace"));
   assert.ok(workspace, "packed guide has the role/release screen");
@@ -31,11 +35,16 @@ export async function proveClientRecipes(client, platform, directory) {
   writeFileSync(join(cwd, "snapback/schema.q"), schema);
   await run(process.execPath, [cli, "check"]);
   await run(process.execPath, [join(cwd, "node_modules/typescript/bin/tsc"), "--strict", "--skipLibCheck", "--target", "ES2022",
-    "--module", "NodeNext", "--moduleResolution", "NodeNext", "--outDir", "compiled", "recipe.ts", "handlers.ts"]);
+    "--module", "NodeNext", "--moduleResolution", "NodeNext", "--outDir", "compiled", "recipe.ts", "handlers.ts", "pdf.ts"]);
   // Bundler resolution preserves the extensionless generated-api import exactly
   // as the guide writes it; this same form is used by both starter toolchains.
   await run(process.execPath, [join(cwd, "node_modules/typescript/bin/tsc"), "--strict", "--skipLibCheck", "--target", "ES2022",
     "--module", "ESNext", "--moduleResolution", "Bundler", "--jsx", "react-jsx", "--noEmit", "src/workspace.tsx"]);
+
+  writeFileSync(join(cwd,"missing-store.ts"), 'import {createApp} from "snapback4/app"; createApp({url:"http://localhost:4400"});');
+  const missing=spawnSync(process.execPath,[join(cwd,"node_modules/typescript/bin/tsc"),"--strict","--skipLibCheck","--target","ES2022","--module","NodeNext","--moduleResolution","NodeNext","--noEmit","missing-store.ts"],{cwd,env,encoding:"utf8",timeout:60000});
+  assert.equal(missing.status,2,missing.stdout+missing.stderr);
+  assert.match(missing.stdout+missing.stderr,/Property 'sessionStore' is missing/);
   writeFileSync(join(cwd, "verify.mjs"), verify);
   await run(process.execPath, ["verify.mjs"]);
   writeFileSync(join(cwd, "guide-client.md"), guide.stdout);
@@ -43,7 +52,7 @@ export async function proveClientRecipes(client, platform, directory) {
   await run(process.execPath, ["--test", join(root, "packages/snapback4/test/kit2-client-react.test.mjs")], {
     SNAPBACK4_CLIENT_GUIDE: join(cwd, "guide-client.md"), SNAPBACK4_CLIENT_DIST: join(cwd, "node_modules/snapback4/dist"),
   });
-  return { status: "passed", recipes: ["guide client listLabel", "guide client StaffWorkspace"], contracts: ["matchRead", "matchReadList", "otherwiseAll", "usePage", "useAuth configuration refusal"] };
+  return { status: "passed", recipes: ["guide client listLabel", "guide client StaffWorkspace", "guide client uploadPdf"], contracts: ["matchRead", "matchReadList", "otherwiseAll", "usePage", "useAuth configuration refusal"] };
 }
 
 const schema = `use identity
@@ -109,6 +118,9 @@ import {renderToString} from "react-dom/server";
 import {AppProvider,SnapbackProvider,useAuth} from "snapback4/react";
 import {createApp} from "snapback4/app";
 import {listLabel} from "./compiled/recipe.js";
+import {uploadPdf} from "./compiled/pdf.js";
+import {startDev,cleanup} from "snapback4/proof";
+import {memorySessionStore} from "snapback4/auth";
 import {point,list,all,Page} from "./compiled/handlers.js";
 const why={code:"NO",family:"rule",message:"not available"};
 const ready=(data,existence="present",complete=true)=>({data,existence,complete,fresh:true,cut:complete?null:"meter"});
@@ -134,6 +146,16 @@ assert.equal(result.ok,false);assert.equal(result.why.code,"E_CLIENT");
 function Refusal(){const auth=useAuth();return createElement("p",null,auth.why?.site);}
 assert.equal(renderToString(createElement(AppProvider,{app},createElement(Refusal))),"<p>createApp.writes</p>");
 assert.equal((await app.auth.guest()).ok,false);assert.equal(calls,0);await app.close();
+let dev,documents;
+try {
+  dev=await startDev({args:["--no-watch"],timeoutMs:30000});
+  documents=createApp({url:dev.url,sessionStore:memorySessionStore()});
+  await documents.ready;assert.equal((await documents.auth.guest()).ok,true);
+  const pdf=new File(["%PDF-1.4\n1 0 obj <</Type /Catalog>> endobj\n%%EOF\n"],"receipt.pdf",{type:"application/pdf"});
+  const uploaded=await uploadPdf(documents.client,pdf);
+  assert.equal(uploaded.ok,true,JSON.stringify(uploaded));
+  assert.equal(uploaded.asset.type,"application/pdf");assert.equal(uploaded.asset.name,"receipt.pdf");
+} finally {await cleanup(()=>documents?.close(),()=>dev?.stop());}
 console.log("packed client recipes passed: data narrowing, handler signatures/states, page envelope, useAuth configuration refusal");
 `;
 

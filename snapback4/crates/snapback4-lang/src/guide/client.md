@@ -41,7 +41,7 @@ export function StaffWorkspace({team}: {team: string}) {
   const [draft, setDraft] = useState(""), [selected, setSelected] = useState("");
   const ready = useAppReady(), release = useRelease(), role = useQuery(api.myRole, {team});
   const [lastStaff, setLastStaff] = useState(false);
-  const staff = isPresent(role) && role.data.role === "staff", uncertain = "loading" in role || ("data" in role && role.existence === "partial");
+  const staff = api.myRole.available(release) && isPresent(role) && role.complete && role.fresh && !role.revalidating && role.data.role === "staff", uncertain = "loading" in role || ("data" in role && (role.existence === "partial" || !role.complete || !role.fresh || role.revalidating === true));
   useEffect(() => { if (!uncertain) setLastStaff(staff); }, [uncertain, staff]);
   const shell = uncertain ? lastStaff : staff;
   const available = api.addStaffNote.available(release) && api.staffNotes.available(release), add = useMutation(api.addStaffNote);
@@ -61,7 +61,7 @@ function StaffRows({team}: {team:string}) {
     otherwise: () => <p>Updating notes…</p>})}</>;
 }
 ```
-Mount `<StaffWorkspace key={team} team={team}/>`: drafts survive loading/releases; resource/account/backend changes reset them. Sticky role labels only the shell. Current role/availability gate reads/Save; rules decide permission. "Since release N" fields stay optional: `row.priority ?? "normal"` at React/Exact boundaries.
+Mount `<StaffWorkspace key={team} team={team}/>`: drafts survive loading/releases; resource/account/backend changes reset them. Sticky role labels only the shell. Current complete, fresh, non-revalidating role evidence and availability gate reads/Save; rules decide permission. "Since release N" fields stay optional: `row.priority ?? "normal"` at React/Exact boundaries.
 
 ## A public guest page
 
@@ -88,7 +88,7 @@ function PublicNotes() {
 
 ## React hooks and auth decisions
 
-Render sign-in controls while signed-out, Restoring… otherwise. AppProvider resets on app/viewer changes. `useAppReady()` gates writers/proof input after app.ready and signed-in auth without admission refusal; later sign-in recovers. Readiness is not permission/connectivity; surface auth.why.
+Render sign-in controls while signed-out, Restoring… otherwise. AppProvider resets on app/viewer changes. `useAppReady()` marks successful initial account opening after app.ready. It stays true across live release switches and later admission warnings; signed-out/restoring or app/account replacement resets it. Initial admission failure stays false until recovery. Keep drafts above role/release gates; current authority still gates actions. Readiness is not permission, connectivity or continuing write admission; surface auth.why.
 `writes:"online"` with device/readOnly yields signed-out `useAuth().why` and failed app.ready. Recreate corrected. Missing browser storage still throws `E_ADMISSION`.
 `useAuth()` members: `state`, `viewer`, `why`, `signup(email, password)`, `login(email, password)`, `guest()`, `logout()`, `logoutEverywhere()`. `signOut()` belongs to the client. Expo session store: secureStoreSessionStore(SecureStore); password form: [reference](CLIENT-AND-OPERATIONS.md#password-react-and-expo).
 
@@ -111,3 +111,17 @@ Generated `predicts` controls timing: eligible/device/held facts may render `pen
 Browser createApp: no sync → journal; sync → webDevice(); online writes: writes:"online". Native: nativeDevice; Expo Go online. Expo: `npx snapback4 init --expo`, `npm install`, `npx snapback4 check`. Peers: Expo >=57.0.22 <58, core >=57.0.23 <58; RN 0.86.3, React/React DOM 19.2.3. `npx snapback4@latest upgrade` aligns SDK packages. Regenerate iOS/rebuild after native changes; every milestone: npm run export:ios; proof in the background: witness status --wait. Rebuild: npm run native:smoke. Acquisition/offline reopen/reconnect/write replay: guide witness.
 useOnline: server reads/ephemeral/actions; durable writes: app.mutate. SDK owns delivery reporting; screen owns visible `seen` reporting; useSeen retries receipts (guide receipts). Read-only: guide read-only. Media: OFFLINE-UPLOADS.md. Proofs: await fresh sent, then rendering; avoid networkidle (guide testing).
 Keyed counts: hidden key → null; authorized missing count group → 0; public count → number. Choose count ?? 0 explicitly.
+
+
+## Upload a PDF document
+
+A PDF is a `file` asset. Pass the file options explicitly; omitting them selects
+image/video validation. After upload, place its asset id through your application's
+file-column mutation (`guide assets`).
+
+```ts
+import type { Client } from "snapback4/contract";
+export async function uploadPdf(client: Client, picked: File) {
+  return client.upload(picked, {file: {type: "application/pdf", name: picked.name}});
+}
+```
