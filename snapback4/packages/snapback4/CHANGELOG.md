@@ -2,6 +2,14 @@
 
 ## 0.4.32
 
+- Authorization: `guide rules` executes the hidden-read-before-require ladder,
+  hidden unique conflicts and rule/program `exists`. `guide rule-recipes` adds
+  readable totals, presence-gated durable handoffs with disconnect grace,
+  scheduled withdrawal/reapproval, private booking counts, opted-in leaderboards,
+  three-level live authority and versioned transitions with private history.
+  Each recipe is compiled and executed through packed packages. Query-audience
+  and `N_REQUIRE_REFUSED` notes are covered by LANG4.
+
 - `read through live .parent` follows the complete current parent audience.
   Declare an immutable required reference and a per-parent product cap; the
   engine atomically maintains private copies, invalidates reads and syncs row

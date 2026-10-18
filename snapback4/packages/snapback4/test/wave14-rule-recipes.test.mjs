@@ -55,7 +55,7 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
     const end=performance.now()+15000;
     while(!predicate()) { assert.ok(performance.now()<end,label);await new Promise(r=>setTimeout(r,25)); }
   }
-  async function project(t, marker, sourceBlocks = recipes) {
+  async function project(t, marker, sourceBlocks = recipes, {schedules = false} = {}) {
     const source = sourceBlocks.find(s=>s.includes(marker)); assert.ok(source, marker);
     const cwd = join(dir, marker.replace(/\W/g,'_')); mkdirSync(join(cwd,'snapback'),{recursive:true});
     writeFileSync(join(cwd,'snapback/schema.q'), source);
@@ -65,8 +65,10 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
     if(source.includes('read through live .folder')) {
       assert.equal(notes.length,1); assert.equal(notes[0].code,'N_NO_HORIZON');
       assert.doesNotMatch(JSON.stringify(notes),/last 500/);
+    } else if(source.includes('query canReadLadderGrant(')) {
+      assert.equal(notes.length,1);assert.equal(notes[0].code,'N_UNREADABLE_PROBE');
     } else assert.deepEqual(notes,[]);
-    const host = await startDev({cwd,env:{SNAPBACK4_BIN:'',PORT_LO:'47000',PORT_HI:'47999'},args:['--no-memory','--port','0','--no-watch','--hold-schedules'],timeoutMs:30000});
+    const host = await startDev({cwd,env:{SNAPBACK4_BIN:'',PORT_LO:'47000',PORT_HI:'47999'},args:['--no-memory','--port','0','--no-watch',...(schedules ? [] : ['--hold-schedules'])],timeoutMs:30000});
     t.after(()=>host.stop());
     const post = async (path, who, body) => {
       const response = await fetch(host.url+path,{method:'POST',headers:{'content-type':'application/json','x-snapback-persona':who},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)});
@@ -275,5 +277,154 @@ test('packed rule recipes run as written and preserve authority at boundaries', 
     writeFileSync(path,readFileSync(path,'utf8').replace('require false else AFTER_WRITE','require false else DISK_NEW'));
     const run=spawnSync(process.execPath,[cliPath,'run','ladderPut','{"owner":"dev:bob"}','--as','bob','--port',new URL(p.host.url).port],{cwd:p.cwd,env,encoding:'utf8',timeout:15000});
     assert.equal(run.status,1,run.stdout+run.stderr);assert.match(run.stderr,/mutation require/);assert.match(run.stderr,/require false else AFTER_WRITE/);assert.doesNotMatch(run.stderr,/DISK_NEW/);
+  });
+  await t.test('asserted hidden read precedes the business refusal', async t=>{
+    const p=await project(t,'table ladderTickets:',rules);
+    await p.seed([{table:'ladderTickets',row:{id:'closed',owner:'dev:alice',state:'closed'}}]);
+    await p.failed('closeLadderTicket','bob',{ticket:'closed'},'NOT_FOUND');
+    await p.failed('closeLadderTicket','alice',{ticket:'closed'},'CLOSED');
+    await p.failed('closeLadderTicket','alice',{ticket:'absent'},'NOT_FOUND');
+  });
+  await t.test('hidden unique conflicts redact even the authored code', async t=>{
+    const p=await project(t,'table ladderKeys:',rules);
+    await p.sent('claimLadderKey','bob',{key:'private'});
+    const hidden=await p.failed('claimLadderKey','alice',{key:'private'},'E_RULE');
+    assert.doesNotMatch(JSON.stringify(hidden.why),/KEY_TAKEN|private/);
+    await p.failed('claimLadderKey','bob',{key:'private'},'KEY_TAKEN');
+    await p.sent('claimLadderKey','alice',{key:'free'});
+  });
+  await t.test('rule and program exists deliberately see different populations', async t=>{
+    const p=await project(t,'table ladderGrants:',rules);
+    await p.seed([{table:'ladderGrants',row:{id:'grant',principal:'dev:bob'}}]);
+    assert.equal(await p.read('canReadLadderGrant','alice',{grant:'dev:bob'}),false);
+    assert.equal(await p.read('canReadLadderGrant','bob',{grant:'dev:bob'}),true);
+    await p.sent('writeLadderNote','alice',{grant:'dev:bob'});
+    await p.failed('writeLadderNote','alice',{grant:'dev:carol'},'E_RULE');
+  });
+  await t.test('caller totals include every own row and exclude every hidden row', async t=>{
+    const p=await project(t,'table personalCosts:');
+    assert.deepEqual(await p.read('readableTotals','alice'),{n:0,cents:0});
+    await p.sent('addPersonalCost','alice',{cents:7});await p.sent('addPersonalCost','alice',{cents:11});
+    await p.sent('addPersonalCost','bob',{cents:999});
+    assert.deepEqual(await p.read('readableTotals','alice'),{n:2,cents:18});
+    assert.deepEqual(await p.read('readableTotals','bob'),{n:1,cents:999});
+    assert.deepEqual(await p.read('readableTotals','carol'),{n:0,cents:0});
+  });
+  await t.test('presence gates durable writes across poll grace and reconnect', async t=>{
+    const p=await project(t,'table durableHandoffs:');
+    await p.failed('enrollHandoffPeer','alice',{principal:'dev:bob'},'OPERATOR_ONLY');
+    const token=invoke(process.execPath,[cliPath,'token','--service','ops','--quiet'],p.cwd,env).trim();
+    const enrolled=await fetch(p.host.url+'/m/enrollHandoffPeer',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${token}`},body:JSON.stringify({args:{principal:'dev:bob'}}),signal:AbortSignal.timeout(15000)}).then(r=>r.json());
+    assert.equal(enrolled.state,'sent',JSON.stringify(enrolled));
+    await p.failed('handoff','alice',{recipient:'dev:bob',body:'away'},'PEER_AWAY');
+    // Complete a real authenticated poll. Its normal completion starts grace;
+    // no process signals or platform-specific listener inspection is needed.
+    const poll=(who='bob')=>fetch(p.host.url+'/changes?since=0&wait=1&heartbeat=1',{headers:{'x-snapback-persona':who},signal:AbortSignal.timeout(10000)}).then(r=>r.text());
+    await poll();
+    assert.equal(await p.read('handoffPresence','alice',{recipient:'dev:bob'}),true);
+    await p.sent('handoff','alice',{recipient:'dev:bob',body:'inside grace'});
+    assert.deepEqual((await p.read('handoffInbox','bob',{c:null})).map(r=>r.body),['inside grace']);
+    assert.deepEqual(await p.read('handoffInbox','carol',{c:null}),[]);
+    assert.deepEqual(await p.read('handoffs','bob',{c:null}),[]);
+    await poll('carol');
+    await p.failed('handoff','alice',{recipient:'dev:carol',body:'unenrolled'},'E_RULE');
+    await p.post('/dev/clock/advance','alice',{duration:'36s'});
+    assert.equal(await p.read('handoffPresence','alice',{recipient:'dev:bob'}),false);
+    await p.failed('handoff','alice',{recipient:'dev:bob',body:'after grace'},'PEER_AWAY');
+    assert.equal((await p.read('handoffs','alice',{c:null})).length,1);
+    await poll();
+    await p.sent('handoff','alice',{recipient:'dev:bob',body:'reconnected'});
+    assert.equal((await p.read('handoffs','alice',{c:null})).length,2);
+    assert.equal((await p.read('handoffInbox','bob',{c:null})).length,2);
+  });
+  await t.test('scheduled publication withdraws, invalidates approval on edit and reapproves', async t=>{
+    const p=await project(t,'table scheduledDrafts:',recipes,{schedules:true});
+    const d=await p.sent('newScheduledDraft','alice',{body:'v1',publishAt:Date.now()+60000});
+    const tick=async()=>{const reply=await p.post('/dev/clock/advance','alice',{duration:'2m'});assert.ok(!reply.why,JSON.stringify(reply));};
+    await p.sent('approveScheduledDraft','alice',{draft:d.id,publishAt:Date.now()+60000});
+    assert.equal(await p.read('scheduledPublication','bob',{draft:d.id}),null);
+    await tick();assert.equal((await p.read('scheduledPublication','bob',{draft:d.id})).body,'v1');
+    await p.failed('withdrawScheduledDraft','bob',{draft:d.id},'NOT_FOUND');
+    await p.sent('withdrawScheduledDraft','alice',{draft:d.id});await tick();
+    assert.equal(await p.read('scheduledPublication','bob',{draft:d.id}),null);
+    await p.sent('approveScheduledDraft','alice',{draft:d.id,publishAt:Date.now()});await tick();
+    assert.equal((await p.read('scheduledPublication','bob',{draft:d.id})).revision,1);
+    await p.sent('editScheduledDraft','alice',{draft:d.id,body:'v2'});await tick();
+    assert.equal(await p.read('scheduledPublication','bob',{draft:d.id}),null);
+    await p.sent('approveScheduledDraft','alice',{draft:d.id,publishAt:Date.now()});await tick();
+    const published=await p.read('scheduledPublication','bob',{draft:d.id});
+    assert.equal(published.body,'v2');assert.equal(published.revision,2);
+    assert.equal(await p.read('scheduledDraft','bob',{draft:d.id}),null);
+  });
+  await t.test('availability is public without granting booking identities or overselling', async t=>{
+    const p=await project(t,'table availabilitySlots:');
+    await p.seed([{table:'availabilitySlots',row:{id:'slot',capacity:1}}]);
+    assert.deepEqual(await p.read('availability','carol',{slot:'slot'}),{capacity:1,booked:0,free:1});
+    await p.sent('reserveAvailable','alice',{slot:'slot'});
+    await p.failed('reserveAvailable','bob',{slot:'slot'},'SLOT_FULL');
+    assert.equal(await p.read('myBooking','bob',{slot:'slot'}),null);
+    assert.deepEqual(await p.read('availability','carol',{slot:'slot'}),{capacity:1,booked:1,free:0});
+    await p.sent('cancelAvailable','alice',{slot:'slot'});await p.sent('reserveAvailable','bob',{slot:'slot'});
+    assert.equal((await p.read('myBooking','bob',{slot:'slot'})).principal,'dev:bob');
+  });
+  await t.test('leaderboard consent publishes only opted-in totals and withdrawal removes them', async t=>{
+    const p=await project(t,'table privateAttempts:');
+    await p.sent('recordAttempt','alice',{points:7});await p.sent('recordAttempt','bob',{points:99});
+    assert.deepEqual(await p.read('leaderboard','carol',{c:null}),[]);
+    await p.sent('joinLeaderboard','alice',{name:'A'});await p.sent('recordAttempt','alice',{points:3});
+    assert.deepEqual(await p.read('leaderboard','carol',{c:null}),[{name:'A',points:10}]);
+    await p.sent('joinLeaderboard','bob',{name:'B'});
+    assert.deepEqual(await p.read('leaderboard','carol',{c:null}),[{name:'B',points:99},{name:'A',points:10}]);
+    await p.sent('leaveLeaderboard','bob');await p.sent('recordAttempt','bob',{points:1});
+    assert.deepEqual(await p.read('leaderboard','carol',{c:null}),[{name:'A',points:10}]);
+    assert.equal(await p.read('myAttemptTotal','bob'),100);assert.equal(await p.read('myAttemptTotal','carol'),0);
+  });
+  await t.test('three levels share live root authority without chained captures', async t=>{
+    const p=await project(t,'table ancestorProjects:');
+    await p.seed([{table:'ancestorProjects',row:{id:'root',owner:'dev:alice'}}]);
+    const f=await p.sent('addAncestorFolder','alice',{project:'root'});
+    const row=await p.sent('addAncestorFile','alice',{folder:f.id,body:'private'});
+    assert.equal(await p.read('ancestorFile','bob',{file:row.id}),null);
+    await p.failed('transferAncestor','alice',{project:'root',owner:'dev:bob'},'OPERATOR_ONLY');
+    const token=invoke(process.execPath,[cliPath,'token','--service','ops','--quiet'],p.cwd,env).trim();
+    const moved=await fetch(p.host.url+'/m/transferAncestor',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${token}`},body:JSON.stringify({args:{project:'root',owner:'dev:bob'}}),signal:AbortSignal.timeout(15000)}).then(r=>r.json());
+    assert.equal(moved.state,'sent',JSON.stringify(moved));
+    assert.equal(await p.read('ancestorFolder','alice',{folder:f.id}),null);
+    assert.equal(await p.read('ancestorFile','alice',{file:row.id}),null);
+    assert.equal((await p.read('ancestorFolder','bob',{folder:f.id})).project,'root');
+    assert.equal((await p.read('ancestorFile','bob',{file:row.id})).body,'private');
+    await p.failed('addAncestorFile','alice',{folder:f.id,body:'revoked'},'NOT_FOUND');
+  });
+  await t.test('077 distinct middle policy follows mutable root probes without widening owners', async t=>{
+    const p=await project(t,'table policyStaff:');
+    await p.seed([
+      {table:'policyStaff',row:{id:'a',principal:'dev:alice',role:'owner'}},
+      {table:'policyStaff',row:{id:'b',principal:'dev:bob',role:'partner'}},
+      {table:'policyProposals',row:{id:'proposal',state:'active'}},
+      {table:'policySections',row:{id:'section',proposal:'proposal',owner:'dev:alice'}},
+    ]);
+    const row=await p.sent('addPolicyCheck','bob',{section:'section',body:'compliance'});
+    assert.equal((await p.read('policyCheck','alice',{check:row.id})).body,'compliance');
+    assert.equal(await p.read('policyCheck','carol',{check:row.id}),null);
+    await p.sent('signPolicyProposal','bob',{proposal:'proposal'});
+    assert.equal(await p.read('policyCheck','alice',{check:row.id}),null);
+    assert.equal((await p.read('policyCheck','bob',{check:row.id})).body,'compliance');
+  });
+  await t.test('versioned transitions reject stale and hidden targets and retain private atomic history', async t=>{
+    const p=await project(t,'table versionedTasks:');
+    const row=await p.sent('newVersionedTask','alice');
+    await p.failed('transitionTask','bob',{task:row.id,expected:1,status:'submitted'},'NOT_FOUND');
+    await p.failed('transitionTask','alice',{task:row.id,expected:1,status:'approved'},'BAD_TRANSITION');
+    await p.sent('transitionTask','alice',{task:row.id,expected:1,status:'submitted'});
+    await p.failed('transitionTask','alice',{task:row.id,expected:1,status:'approved'},'STALE_VERSION');
+    await p.sent('transitionTask','alice',{task:row.id,expected:2,status:'approved'});
+    const history=await p.read('statusHistory','alice',{task:row.id,c:null});
+    assert.deepEqual(history.map(r=>[r.version,r.status]),[[2,'submitted'],[3,'approved']]);
+    assert.deepEqual(await p.read('statusHistory','bob',{task:row.id,c:null}),[]);
+    assert.equal((await p.read('versionedTask','alice',{task:row.id})).version,3);
+    const collision=await p.sent('newVersionedTask','alice');
+    await p.seed([{table:'privateStatusHistory',row:{id:'future',task:collision.id,owner:'dev:alice',version:2,status:'submitted',at:Date.now()}}]);
+    await p.failed('transitionTask','alice',{task:collision.id,expected:1,status:'submitted'},'E_UNIQUE');
+    assert.equal((await p.read('versionedTask','alice',{task:collision.id})).version,1,'history collision rolls the preceding update back');
   });
 });
